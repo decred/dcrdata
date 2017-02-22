@@ -1,0 +1,8 @@
+.vscode/
+*.exe
+*.log
+*.bak
+debug
+*.cert
+*.key
+dcrdata.conf
