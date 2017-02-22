@@ -22,6 +22,7 @@ var (
 	daemonLog  = btclog.Disabled
 	clientLog  = btclog.Disabled
 	mempoolLog = btclog.Disabled
+	apiLog     = btclog.Disabled
 )
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
@@ -30,6 +31,7 @@ var subsystemLoggers = map[string]btclog.Logger{
 	"DCRD": daemonLog,
 	"RPCC": clientLog,
 	"MEMP": mempoolLog,
+	"JAPI": apiLog,
 }
 
 // logClosure is used to provide a closure over expensive logging operations
@@ -65,6 +67,8 @@ func useLogger(subsystemID string, logger btclog.Logger) {
 		clientLog = logger
 	case "MEMP":
 		mempoolLog = logger
+	case "JAPI":
+		apiLog = logger
 	}
 }
 

@@ -6,3 +6,4 @@ debug
 *.cert
 *.key
 dcrdata.conf
+vendor/

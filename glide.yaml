@@ -1,0 +1,24 @@
+package: github.com/chappjc/dcrdata
+import:
+- package: github.com/btcsuite/btclog
+- package: github.com/btcsuite/go-flags
+- package: github.com/btcsuite/seelog
+  version: ^2.1.0
+- package: github.com/decred/dcrd
+  subpackages:
+  - blockchain/stake
+  - chaincfg
+  - chaincfg/chainhash
+  - dcrjson
+  - txscript
+  - wire
+- package: github.com/decred/dcrrpcclient
+- package: github.com/decred/dcrutil
+- package: github.com/decred/dcrwallet
+  subpackages:
+  - netparams
+  - wtxmgr
+- package: github.com/pressly/chi
+  subpackages:
+  - docgen
+  - middleware

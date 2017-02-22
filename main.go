@@ -11,19 +11,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrrpcclient"
-
-	// "goji.io"
-	// "goji.io/pat"
-
-	// Some possible URL routers
-	// "github.com/julienschmidt/httprouter"
-	// "github.com/labstack/echo"
-	// "github.com/husobee/vestigo"
-	// "github.com/go-zoo/bone"
-	// "github.com/dimfeld/httptreemux"
-	//"github.com/pressly/chi"
-	//"github.com/pressly/chi/docgen"
-	//"github.com/pressly/chi/middleware"
+	"sync"
 )
 
 // mainCore does all the work. Deferred functions do not run after os.Exit(),
@@ -89,6 +77,44 @@ func mainCore() int {
 		return 6
 	}
 
+	// Block data collector
+	collector := newBlockDataCollector(dcrdClient)
+	if collector == nil {
+		log.Errorf("Failed to create block data collector")
+		return 9
+	}
+
+	backendLog.Flush()
+
+	// Build a slice of each required saver type for each data source
+	var blockDataSavers []BlockDataSaver
+	var mempoolSavers []MempoolDataSaver
+
+	// For example, dumping all mempool fees with a custom saver
+	if cfg.DumpAllMPTix {
+		log.Debugf("Dumping all mempool tickets to file in %s.\n", cfg.OutFolder)
+		mempoolFeeDumper := NewMempoolFeeDumper(cfg.OutFolder, "mempool-fees")
+		mempoolSavers = append(mempoolSavers, mempoolFeeDumper)
+	}
+
+	// Another (horrible) example of saving to a map in memory
+	blockDataMapSaver := NewBlockDataToMemdb()
+	blockDataSavers = append(blockDataSavers, blockDataMapSaver)
+
+	// Initial data summary prior to start of regular collection
+	blockData, err := collector.collect(!cfg.PoolValue)
+	if err != nil {
+		fmt.Printf("Block data collection for initial summary failed: %v",
+			err.Error())
+		return 10
+	}
+
+	if err = blockDataMapSaver.Store(blockData); err != nil {
+		fmt.Printf("Failed to store initial block data: %v",
+			err.Error())
+		return 11
+	}
+
 	// Ctrl-C to shut down.
 	// Nothing should be sent the quit channel.  It should only be closed.
 	quit := make(chan struct{})
@@ -106,13 +132,57 @@ func mainCore() int {
 		return
 	}()
 
-	// STUFF HERE
+	// WaitGroup for the monitor goroutines
+	var wg sync.WaitGroup
 
-	// But if monitoring is disabled, simulate an OS interrupt.
-	if cfg.NoMonitor {
-		c <- os.Interrupt
-		time.Sleep(200)
+	// TODO: setup DB output, share mutex between consumers
+
+	// Blockchain monitor for the collector
+	wg.Add(1)
+	// If collector is nil, so is connectChan
+	addrMap := make(map[string]TxAction) // for support of watched addresses
+	wsChainMonitor := newChainMonitor(collector, blockDataSavers,
+		quit, &wg, !cfg.PoolValue, addrMap)
+	go wsChainMonitor.blockConnectedHandler()
+
+	if cfg.MonitorMempool {
+		mpoolCollector := newMempoolDataCollector(dcrdClient)
+		if mpoolCollector == nil {
+			log.Error("Failed to create mempool data collector")
+			return 13
+		}
+
+		mpData, err := mpoolCollector.collect()
+		if err != nil {
+			log.Error("Mempool info collection failed while gathering initial"+
+				"data: %v", err.Error())
+			return 14
+		}
+
+		mpi := &mempoolInfo{
+			currentHeight:               mpData.height,
+			numTicketPurchasesInMempool: mpData.numTickets,
+			numTicketsSinceStatsReport:  0,
+			lastCollectTime:             time.Now(),
+		}
+
+		newTicketLimit := int32(cfg.MPTriggerTickets)
+		mini := time.Duration(cfg.MempoolMinInterval) * time.Second
+		maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
+
+		mpm := newMempoolMonitor(mpoolCollector, mempoolSavers,
+			quit, &wg, newTicketLimit, mini, maxi, mpi)
+		wg.Add(1)
+		go mpm.txHandler(dcrdClient)
 	}
+
+	// Start web API
+	app := newContext(dcrdClient, blockDataMapSaver)
+	mux := newAPIRouter(app)
+	mux.ListenAndServeProto(cfg.APIListen, cfg.APIProto)
+
+	// Wait for handlers to quitos.Interrupt
+	wg.Wait()
 
 	// Closing these channels should be unnecessary if quit was handled right
 	closeNtfnChans()

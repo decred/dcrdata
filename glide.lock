@@ -1,0 +1,63 @@
+hash: 955c043a932d2cb755da87d740ea75904ce417fee6053f8952e05e936ea975b5
+updated: 2017-02-22T12:29:55.839397029-08:00
+imports:
+- name: github.com/btcsuite/btclog
+  version: 73889fb79bd687870312b6e40effcecffbd57d30
+- name: github.com/btcsuite/go-flags
+  version: 6c288d648c1cc1befcb90cb5511dcacf64ae8e61
+- name: github.com/btcsuite/go-socks
+  version: 4720035b7bfd2a9bb130b1c184f8bbe41b6f0d0f
+  subpackages:
+  - socks
+- name: github.com/btcsuite/golangcrypto
+  version: 53f62d9b43e87a6c56975cf862af7edf33a8d0df
+  subpackages:
+  - ripemd160
+- name: github.com/btcsuite/seelog
+  version: ae8891d029dd3c269dcfd6f261ad23e761acd99f
+- name: github.com/btcsuite/websocket
+  version: 31079b6807923eb23992c421b114992b95131b55
+- name: github.com/decred/blake256
+  version: a840e32d7c31fe2e0218607334cb120a683951a4
+- name: github.com/decred/dcrd
+  version: 54d1da3151ee8883399ffdf114d2a49196423e42
+  subpackages:
+  - blockchain
+  - blockchain/internal/dbnamespace
+  - blockchain/internal/progresslog
+  - blockchain/stake
+  - blockchain/stake/internal/dbnamespace
+  - blockchain/stake/internal/ticketdb
+  - blockchain/stake/internal/tickettreap
+  - chaincfg
+  - chaincfg/chainec
+  - chaincfg/chainhash
+  - database
+  - dcrec/edwards
+  - dcrec/secp256k1
+  - dcrec/secp256k1/schnorr
+  - dcrjson
+  - txscript
+  - wire
+- name: github.com/decred/dcrrpcclient
+  version: 85287b52629eac30af788b2a03a985590fac1fe8
+- name: github.com/decred/dcrutil
+  version: ba0a5f399a43abc0e1a0a0442509c36f35321bce
+  subpackages:
+  - base58
+- name: github.com/decred/dcrwallet
+  version: 43620621173cdfb7997ccb10fe29321d412aa8e6
+  subpackages:
+  - netparams
+  - walletdb
+  - wtxmgr
+- name: github.com/decred/ed25519
+  version: b0909d3f798b97a03c9e77023f97a5301a2a7900
+  subpackages:
+  - edwards25519
+- name: github.com/pressly/chi
+  version: 57ee7612d4405274628c71d1dc9455a12646f056
+  subpackages:
+  - docgen
+  - middleware
+testImports: []

@@ -42,6 +42,9 @@ var (
 	defaultHost              = "localhost"
 	defaultEmailSubject      = "dcrdataapi transaction notification"
 
+	defaultAPIProto  = "http"
+	defaultAPIListen = "127.0.0.1:6000"
+
 	defaultMonitorMempool     = false
 	defaultMempoolMinInterval = 4
 	defaultMempoolMaxInterval = 120
@@ -63,6 +66,10 @@ type config struct {
 	Quiet       bool   `short:"q" long:"quiet" description:"Easy way to set debuglevel to error"`
 	LogDir      string `long:"logdir" description:"Directory to log output"`
 	CPUProfile  string `long:"cpuprofile" description:"File for CPU profiling."`
+
+	// API
+	APIProto  string `long:"apiproto" description:"Protocol for API (http or https)"`
+	APIListen string `long:"apilisten" description:"Listen address for API"`
 
 	// Comamnd execution
 	CmdName string `short:"c" long:"cmdname" description:"Command name to run. Must be on %PATH%."`
@@ -114,6 +121,8 @@ var (
 		DebugLevel:         defaultLogLevel,
 		ConfigFile:         defaultConfigFile,
 		LogDir:             defaultLogDir,
+		APIProto:           defaultAPIProto,
+		APIListen:          defaultAPIListen,
 		OutFolder:          defaultOutputDir,
 		DcrdCert:           defaultDaemonRPCCertFile,
 		MonitorMempool:     defaultMonitorMempool,
