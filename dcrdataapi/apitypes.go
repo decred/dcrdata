@@ -26,6 +26,7 @@ type TicketPoolInfo struct {
 type BlockDataBasic struct {
 	Height     uint32  `json:"height"`
 	Size       uint32  `json:"size"`
+	Hash       string  `json:"hash"`
 	Difficulty float64 `json:"diff"`
 	StakeDiff  float64 `json:"sdiff"`
 	Time       int64   `json:"time"`

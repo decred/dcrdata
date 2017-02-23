@@ -6,6 +6,7 @@ import (
 	"runtime/pprof"
 
 	"github.com/btcsuite/btclog"
+	"github.com/dcrdata/dcrdata/dcrsqlite"
 	"github.com/decred/dcrrpcclient"
 	//"github.com/btcsuite/seelog"
 )
@@ -47,6 +48,15 @@ func mainCore() int {
 		log.Error("Unable to create logger for dcrrpcclient: ", err)
 	}
 	dcrrpcclient.UseLogger(btclogger)
+
+	db, err := dcrsqlite.InitDB(&dcrsqlite.DBInfo{cfg.DBFileName})
+	if err != nil {
+		log.Fatalf("InitDB failed: %v", err)
+		return 1
+	}
+	
+	log.Infof("sqlite db successfully opened: %s", cfg.DBFileName)
+	defer db.Close()
 
 	return 0
 }
