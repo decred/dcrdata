@@ -44,7 +44,7 @@ func mainCore() int {
 	log.Debugf("Log folder: %v", cfg.LogDir)
 
 	// Create data output folder if it does not already exist
-	if os.MkdirAll(cfg.OutFolder, 0750) != nil {
+	if err = os.MkdirAll(cfg.OutFolder, 0750); err != nil {
 		fmt.Printf("Failed to create data output folder %s. Error: %s\n",
 			cfg.OutFolder, err.Error())
 		return 2
