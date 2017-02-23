@@ -24,25 +24,34 @@ func newAPIRouter(app *appContext) apiMux {
 
 	mux.With(app.StatusCtx).HandleFunc("/status", app.status)
 
-	mux.Route("/block/latest", func(r chi.Router) {
+	mux.Route("/block", func(r chi.Router) {
 		r.Use(app.StatusCtx)
-		r.Get("/", app.getLatestBlock)
-		r.Get("/height", app.currentHeight)
+
+		r.Route("/best", func(rd chi.Router) {
+			rd.Use(app.BlockIndexLatestCtx)
+			rd.Get("/", app.getBlockSummary) // app.getLatestBlock
+			rd.Get("/height", app.currentHeight)
+			rd.Get("/header", app.getBlockHeader)
+			rd.Get("/pos", app.getBlockStakeInfoExtended)
+		})
+
+		r.Route("/:idx", func(rd chi.Router) {
+			rd.Use(BlockIndexPathCtx)
+			rd.Get("/", app.getBlockSummary)
+			rd.Get("/header", app.getBlockHeader)
+			rd.Get("/pos", app.getBlockStakeInfoExtended)
+		})
+
+		r.Route("/range/:idx0/:idx", func(rd chi.Router) {
+			rd.Use(BlockIndexPathCtx)
+			rd.Use(BlockIndex0PathCtx)
+			rd.Get("/", app.getBlockRangeSummary)
+			// rd.Get("/header", app.getBlockHeader)
+			// rd.Get("/pos", app.getBlockStakeInfoExtended)
+		})
+
 		//r.With(middleware.DefaultCompress).Get("/raw", app.someLargeResponse)
 	})
-
-	// mux.Route("/block/idx", func(r chi.Router) {
-	// 	r.Get("/", app.currentHeight)
-
-	// 	r.Route("/latest", func(rd chi.Router) {
-	// 		rd.Use(app.StatusCtx)
-	// 		rd.Get("/", app.currentHeight)
-	// 	})
-
-	// 	r.Route("/:idx", func(rd chi.Router) {
-	// 		rd.Get("/", app.getIdx)
-	// 	})
-	// })
 
 	mux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./favicon.ico")

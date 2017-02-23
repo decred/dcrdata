@@ -1,19 +1,13 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 
-	// "goji.io"
-	// "goji.io/pat"
-	// "golang.org/x/net/context"
-	// "github.com/julienschmidt/httprouter"
-
-	apitypes "github.com/chappjc/dcrdata/dcrdataapi"
+	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrrpcclient"
 )
 
@@ -42,23 +36,22 @@ func (c *appContext) root(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "dcrdata api running")
 }
 
-func (c *appContext) StatusCtx(next http.Handler) http.Handler {
-	status := &apitypes.Status{}
-	// When no data yet, BlockData.Height = -1
-	if c.BlockData != nil && c.BlockData.Height >= 0 {
-		if summary := c.BlockData.GetBestBlockSummary(); summary != nil {
-			if summary.Height == uint32(c.BlockData.Height) &&
-				c.BlockData.GetBestBlock() != nil {
-				status.Ready = true
-				status.Height = summary.Height
-			}
-		}
+func getBlockIndexCtx(r *http.Request) int {
+	idx, ok := r.Context().Value(ctxBlockIndex).(int)
+	if !ok {
+		apiLog.Error("block index not set")
+		return -1
 	}
+	return idx
+}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), ctxAPIStatus, status)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+func getBlockIndex0Ctx(r *http.Request) int {
+	idx, ok := r.Context().Value(ctxBlockIndex0).(int)
+	if !ok {
+		apiLog.Error("block index0 not set")
+		return -1
+	}
+	return idx
 }
 
 func getStatusCtx(r *http.Request) *apitypes.Status {
@@ -106,4 +99,111 @@ func (c *appContext) getLatestBlock(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(latestBlockSummary); err != nil {
 		apiLog.Infof("JSON encode error: %v", err)
 	}
+}
+
+func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockSummary := c.BlockData.GetSummary(idx)
+	if blockSummary == nil {
+		apiLog.Errorf("Unable to get block %d summary", idx)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(blockSummary); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockHeader := c.BlockData.GetHeader(idx)
+	if blockHeader == nil {
+		apiLog.Errorf("Unable to get block %d header", idx)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(blockHeader); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockFeeInfo := c.BlockData.GetFeeInfo(idx)
+	if blockFeeInfo == nil {
+		apiLog.Errorf("Unable to get block %d fee info", idx)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(blockFeeInfo); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getBlockStakeInfoExtended(w http.ResponseWriter, r *http.Request) {
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	stakeinfo := c.BlockData.GetStakeInfoExtended(idx)
+	if stakeinfo == nil {
+		apiLog.Errorf("Unable to get block %d fee info", idx)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(stakeinfo); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request) {
+	idx0 := getBlockIndex0Ctx(r)
+	if idx0 < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	// TODO: check that we have all in range
+
+	N := idx - idx0 + 1
+	summaries := make([]*apitypes.BlockDataBasic, 0, N)
+	for i := idx0; i <= idx; i++ {
+		summaries = append(summaries, c.BlockData.GetSummary(i))
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(summaries); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+
+	// DEBUGGING
+	// msg := fmt.Sprintf("block range: %d to %d", idx0, idx)
+
+	// w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	// if _, err := io.WriteString(w, msg); err != nil {
+	// 	apiLog.Infof("failed to write response: %v", err)
+	// }
 }

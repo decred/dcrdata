@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	apitypes "github.com/chappjc/dcrdata/dcrdataapi"
+	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
@@ -87,10 +87,9 @@ func (t *blockDataCollector) collect(noTicketPool bool) (*blockData, error) {
 	height := blockHeader.Height
 
 	// In datasaver.go check TicketPoolInfo.PoolValue >= 0
-	ticketPoolInfo := apitypes.TicketPoolInfo{0, -1, -1}
+	poolSize := blockHeader.PoolSize
+	ticketPoolInfo := apitypes.TicketPoolInfo{poolSize, -1, -1}
 	if !noTicketPool {
-		poolSize := blockHeader.PoolSize
-
 		poolValue, err := t.dcrdChainSvr.GetTicketPoolValue()
 		if err != nil {
 			return nil, err

@@ -8,10 +8,10 @@ import (
 	"os"
 	"os/signal"
 	"runtime/pprof"
+	"sync"
 	"time"
 
 	"github.com/decred/dcrrpcclient"
-	"sync"
 )
 
 // mainCore does all the work. Deferred functions do not run after os.Exit(),

@@ -1,5 +1,5 @@
 // Interface for saving/storing blockData.
-// Create a BlockDataSaverby implementing Store(*blockData).
+// Create a BlockDataSaver by implementing Store(*blockData).
 
 package main
 
@@ -11,28 +11,17 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-
-	apitypes "github.com/chappjc/dcrdata/dcrdataapi"
 )
-
-type fileSaver struct {
-	folder   string
-	nameBase string
-	file     os.File
-	mtx      *sync.Mutex
-}
 
 // BlockDataSaver is an interface for saving/storing blockData
 type BlockDataSaver interface {
 	Store(data *blockData) error
 }
 
-type BlockDataToMemdb struct {
-	mtx             *sync.Mutex
-	Height          int
-	blockDataMap    map[int]*blockData
-	blockSummaryMap map[int]*apitypes.BlockDataBasic
-}
+////////////////////////////////////////////////////////////////////////////////
+// The rest of the file contains some simple savers.  MAKE YOUR OWN to satisfy
+// BlockDataSaver.
+// /////////////////////////////////////////////////////////////////////////////
 
 // BlockDataToJSONStdOut implements BlockDataSaver interface for JSON output to
 // stdout
@@ -46,6 +35,13 @@ type BlockDataToSummaryStdOut struct {
 	mtx *sync.Mutex
 }
 
+type fileSaver struct {
+	folder   string
+	nameBase string
+	file     os.File
+	mtx      *sync.Mutex
+}
+
 // BlockDataToJSONFiles implements BlockDataSaver interface for JSON output to
 // the file system
 type BlockDataToJSONFiles struct {
@@ -57,21 +53,6 @@ type BlockDataToJSONFiles struct {
 // type BlockDataToMySQL struct {
 // 	mtx *sync.Mutex
 // }
-
-func NewBlockDataToMemdb(m ...*sync.Mutex) *BlockDataToMemdb {
-	if len(m) > 1 {
-		panic("Too many inputs.")
-	}
-	saver := &BlockDataToMemdb{
-		Height:          -1,
-		blockDataMap:    make(map[int]*blockData),
-		blockSummaryMap: make(map[int]*apitypes.BlockDataBasic),
-	}
-	if len(m) > 0 {
-		saver.mtx = m[0]
-	}
-	return saver
-}
 
 // NewBlockDataToJSONStdOut creates a new BlockDataToJSONStdOut with optional
 // existing mutex
@@ -120,61 +101,6 @@ func NewBlockDataToJSONFiles(folder string, fileBase string,
 			mtx:      mtx,
 		},
 	}
-}
-
-// Store writes blockData to memdb
-func (s *BlockDataToMemdb) Store(data *blockData) error {
-	if s.mtx != nil {
-		s.mtx.Lock()
-		defer s.mtx.Unlock()
-	}
-
-	s.Height = int(data.header.Height)
-
-	// save data to slice in memory
-	s.blockDataMap[s.Height] = data
-
-	blockSummary := apitypes.BlockDataBasic{
-		Height:         uint32(s.Height),
-		Size:           data.header.Size,
-		Difficulty:     data.header.Difficulty,
-		StakeDiff:      data.header.SBits,
-		Time:           data.header.Time,
-		TicketPoolInfo: data.poolinfo,
-	}
-	s.blockSummaryMap[s.Height] = &blockSummary
-
-	return nil
-}
-
-func (s *BlockDataToMemdb) Get(idx int) *blockData {
-	if idx < 0 {
-		return nil
-	}
-	if s.mtx != nil {
-		s.mtx.Lock()
-		defer s.mtx.Unlock()
-	}
-	return s.blockDataMap[idx]
-}
-
-func (s *BlockDataToMemdb) GetBestBlock() *blockData {
-	return s.Get(s.Height)
-}
-
-func (s *BlockDataToMemdb) GetSummary(idx int) *apitypes.BlockDataBasic {
-	if idx < 0 {
-		return nil
-	}
-	if s.mtx != nil {
-		s.mtx.Lock()
-		defer s.mtx.Unlock()
-	}
-	return s.blockSummaryMap[idx]
-}
-
-func (s *BlockDataToMemdb) GetBestBlockSummary() *apitypes.BlockDataBasic {
-	return s.GetSummary(s.Height)
 }
 
 // Store writes blockData to stdout in JSON format

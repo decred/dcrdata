@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/pressly/chi"
 	"github.com/pressly/chi/docgen"
 	//"github.com/decred/dcrrpcclient"
@@ -22,7 +23,31 @@ const (
 	ctxPathX
 	ctxAPIDocs
 	ctxAPIStatus
+	ctxBlockIndex0
+	ctxBlockIndex
 )
+
+func (c *appContext) StatusCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		status := &apitypes.Status{}
+		// When no data yet, BlockData.Height = -1
+		if c.BlockData != nil && c.BlockData.Height >= 0 {
+			if summary := c.BlockData.GetBestBlockSummary(); summary != nil {
+				apiLog.Trace("have block summary")
+				if summary.Height == uint32(c.BlockData.Height) &&
+					c.BlockData.GetBestBlock() != nil {
+					apiLog.Trace("full block data agrees with summary data")
+					status.Ready = true
+					status.Height = summary.Height
+				}
+			}
+		}
+
+		// Set API status context
+		ctx := context.WithValue(r.Context(), ctxAPIStatus, status)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 // SomeCtx sets X in the http.Request context used by all handlers with certain
 // endpoints
@@ -33,17 +58,43 @@ func SomeCtx(next http.Handler) http.Handler {
 	})
 }
 
-func PathCtx(next http.Handler) http.Handler {
+func BlockIndexPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		pathXStr := chi.URLParam(r, "pathX")
-		pathXval, err := strconv.Atoi(pathXStr)
+		pathIdxStr := chi.URLParam(r, "idx")
+		idx, err := strconv.Atoi(pathIdxStr)
 		if err != nil {
-			apiLog.Infof("No/invalid pathX value (int64): %v", err)
+			apiLog.Infof("No/invalid idx value (int64): %v", err)
 			http.NotFound(w, r)
 			//http.Error(w, http.StatusText(404), 404)
 			return
 		}
-		ctx := context.WithValue(r.Context(), ctxPathX, int(pathXval))
+		ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func BlockIndex0PathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pathIdxStr := chi.URLParam(r, "idx0")
+		idx, err := strconv.Atoi(pathIdxStr)
+		if err != nil {
+			apiLog.Infof("No/invalid idx value (int64): %v", err)
+			http.NotFound(w, r)
+			//http.Error(w, http.StatusText(404), 404)
+			return
+		}
+		ctx := context.WithValue(r.Context(), ctxBlockIndex0, idx)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (c *appContext) BlockIndexLatestCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		idx := -1
+		if c.BlockData != nil && c.BlockData.Height >= 0 {
+			idx = c.BlockData.Height
+		}
+		ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

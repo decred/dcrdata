@@ -1,4 +1,4 @@
-package: github.com/chappjc/dcrdata
+package: github.com/dcrdata/dcrdata
 import:
 - package: github.com/btcsuite/btclog
 - package: github.com/btcsuite/go-flags
