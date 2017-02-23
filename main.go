@@ -181,7 +181,7 @@ func mainCore() int {
 	mux := newAPIRouter(app)
 	mux.ListenAndServeProto(cfg.APIListen, cfg.APIProto)
 
-	// Wait for handlers to quitos.Interrupt
+	// Wait for handlers to quit
 	wg.Wait()
 
 	// Closing these channels should be unnecessary if quit was handled right

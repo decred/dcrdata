@@ -19,9 +19,7 @@ import (
 type contextKey int
 
 const (
-	ctxX contextKey = iota
-	ctxPathX
-	ctxAPIDocs
+	ctxAPIDocs contextKey = iota
 	ctxAPIStatus
 	ctxBlockIndex0
 	ctxBlockIndex
@@ -51,12 +49,12 @@ func (c *appContext) StatusCtx(next http.Handler) http.Handler {
 
 // SomeCtx sets X in the http.Request context used by all handlers with certain
 // endpoints
-func SomeCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), ctxX, "A")
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
+// func SomeCtx(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		ctx := context.WithValue(r.Context(), ctxX, "A")
+// 		next.ServeHTTP(w, r.WithContext(ctx))
+// 	})
+// }
 
 func BlockIndexPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

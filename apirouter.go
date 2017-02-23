@@ -17,6 +17,8 @@ func newAPIRouter(app *appContext) apiMux {
 	mux := chi.NewRouter()
 
 	mux.Use(middleware.Logger)
+	mux.Use(middleware.RealIP)
+	mux.Use(middleware.Recoverer)
 	//mux.Use(middleware.DefaultCompress)
 	//mux.Use(middleware.Compress(2))
 
@@ -43,8 +45,7 @@ func newAPIRouter(app *appContext) apiMux {
 		})
 
 		r.Route("/range/:idx0/:idx", func(rd chi.Router) {
-			rd.Use(BlockIndexPathCtx)
-			rd.Use(BlockIndex0PathCtx)
+			rd.Use(BlockIndex0PathCtx, BlockIndexPathCtx)
 			rd.Get("/", app.getBlockRangeSummary)
 			// rd.Get("/header", app.getBlockHeader)
 			// rd.Get("/pos", app.getBlockStakeInfoExtended)
