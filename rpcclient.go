@@ -12,6 +12,17 @@ import (
 
 var requiredChainServerAPI = semver{major: 2, minor: 0, patch: 0}
 
+func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclient.Client, semver, error) {
+	cfg := &config{
+		DisableDaemonTLS: disableTLS,
+		DcrdCert:         cert,
+		DcrdUser:         user,
+		DcrdPass:         pass,
+		DcrdServ:         host,
+	}
+	return connectNodeRPC(cfg)
+}
+
 func connectNodeRPC(cfg *config) (*dcrrpcclient.Client, semver, error) {
 	var dcrdCerts []byte
 	var err error
