@@ -1,15 +1,17 @@
 // txhelpers.go contains helper functions for working with transactions and
 // blocks (e.g. checking for a transaction in a block).
 
-package main
+package txhelpers
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/chaincfg"
 )
 
 // TxAction is what is happening to the transaction (mined or inserted into
@@ -57,8 +59,8 @@ func IncludesTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 	return -1, -1
 }
 
-func blockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]TxAction,
-	c *dcrrpcclient.Client) map[string][]*dcrutil.Tx {
+func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]TxAction,
+	c *dcrrpcclient.Client, params *chaincfg.Params) map[string][]*dcrutil.Tx {
 	addrMap := make(map[string][]*dcrutil.Tx)
 
 	checkForOutpointAddr := func(blockTxs []*dcrutil.Tx) {
@@ -70,16 +72,16 @@ func blockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 				// txrr, err := c.GetRawTransactionVerbose(&prevOut.Hash)
 				prevTx, err := c.GetRawTransaction(&prevOut.Hash)
 				if err != nil {
-					log.Debug("Unable to get raw transaction for ", prevOut.Hash.String())
+					fmt.Printf("Unable to get raw transaction for %s", prevOut.Hash.String())
 					continue
 				}
 
 				// prevOut.Index should tell us which one, but check all anyway
 				for _, txOut := range prevTx.MsgTx().TxOut {
 					_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
-						txOut.Version, txOut.PkScript, activeChain)
+						txOut.Version, txOut.PkScript, params)
 					if err != nil {
-						log.Infof("ExtractPkScriptAddrs: %v", err.Error())
+						fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
 						continue
 					}
 
@@ -106,7 +108,7 @@ func blockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 // BlockReceivesToAddresses checks a block for transactions paying to the
 // specified addresses, and creates a map of addresses to a slice of dcrutil.Tx
 // involving the address.
-func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction) map[string][]*dcrutil.Tx {
+func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction, params *chaincfg.Params) map[string][]*dcrutil.Tx {
 	addrMap := make(map[string][]*dcrutil.Tx)
 
 	checkForAddrOut := func(blockTxs []*dcrutil.Tx) {
@@ -114,9 +116,9 @@ func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction) m
 			// Check the addresses associated with the PkScript of each TxOut
 			for _, txOut := range tx.MsgTx().TxOut {
 				_, txOutAddrs, _, err := txscript.ExtractPkScriptAddrs(txOut.Version,
-					txOut.PkScript, activeChain)
+					txOut.PkScript, params)
 				if err != nil {
-					log.Infof("ExtractPkScriptAddrs: %v", err.Error())
+					fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
 					continue
 				}
 

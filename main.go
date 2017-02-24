@@ -11,8 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrrpcclient"
 	"github.com/dcrdata/dcrdata/rpcutils"
+	"github.com/dcrdata/dcrdata/semver"
+	"github.com/decred/dcrrpcclient"
 )
 
 // mainCore does all the work. Deferred functions do not run after os.Exit(),
@@ -57,6 +58,7 @@ func mainCore() int {
 	makeNtfnChans(cfg)
 
 	// Daemon client connection
+	rpcutils.UseLogger(daemonLog)
 	dcrdClient, nodeVer, err := connectNodeRPC(cfg)
 	if err != nil || dcrdClient == nil {
 		log.Infof("Connection to dcrd failed: %v", err)
@@ -203,6 +205,8 @@ func main() {
 	os.Exit(mainCore())
 }
 
-func connectNodeRPC(cfg *config) (*dcrrpcclient.Client, semver, error) {
-	return rpcutils.ConnectNodeRPC(cfg.DisableDaemonTLS )
+func connectNodeRPC(cfg *config) (*dcrrpcclient.Client, semver.Semver, error) {
+	notificationHandlers := getNodeNtfnHandlers(cfg)
+	return rpcutils.ConnectNodeRPC(cfg.DcrdServ, cfg.DcrdUser, cfg.DcrdPass,
+		cfg.DcrdCert, cfg.DisableDaemonTLS, notificationHandlers)
 }

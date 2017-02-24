@@ -1,8 +1,10 @@
-package main
+package blockdata
 
 import (
 	"sync"
 	"time"
+
+	"github.com/dcrdata/dcrdata/txhelpers"
 )
 
 // for getblock, ticketfeeinfo, estimatestakediff, etc.
@@ -12,14 +14,14 @@ type chainMonitor struct {
 	quit         chan struct{}
 	wg           *sync.WaitGroup
 	noTicketPool bool
-	watchaddrs   map[string]TxAction
+	watchaddrs   map[string]txhelpers.TxAction
 }
 
 // newChainMonitor creates a new chainMonitor
 func newChainMonitor(collector *blockDataCollector,
 	savers []BlockDataSaver,
 	quit chan struct{}, wg *sync.WaitGroup, noPoolValue bool,
-	addrs map[string]TxAction) *chainMonitor {
+	addrs map[string]txhelpers.TxAction) *chainMonitor {
 	return &chainMonitor{
 		collector:    collector,
 		dataSavers:   savers,
@@ -54,7 +56,7 @@ out:
 				// 	p.spendTxBlockChan <- &BlockWatchedTx{height, txsForOutpoints}
 				// }
 
-				txsForAddrs := BlockReceivesToAddresses(block, p.watchaddrs)
+				txsForAddrs := txhelpers.BlockReceivesToAddresses(block, p.watchaddrs)
 				if len(txsForAddrs) > 0 {
 					ntfnChans.recvTxBlockChan <- &BlockWatchedTx{height,
 						txsForAddrs}
@@ -62,8 +64,8 @@ out:
 			}
 
 			// data collection with timeout
-			bdataChan := make(chan *blockData)
-			// fire it off and get the blockData pointer back through the channel
+			bdataChan := make(chan *BlockData)
+			// fire it off and get the BlockData pointer back through the channel
 			go func() {
 				BlockData, err := p.collector.collect(p.noTicketPool)
 				if err != nil {
@@ -74,7 +76,7 @@ out:
 			}()
 
 			// Wait for X seconds before giving up on collect()
-			var BlockData *blockData
+			var BlockData *BlockData
 			select {
 			case BlockData = <-bdataChan:
 				if BlockData == nil {

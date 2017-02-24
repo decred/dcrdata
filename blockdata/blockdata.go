@@ -1,4 +1,4 @@
-package main
+package blockdata
 
 import (
 	"sync"
@@ -15,9 +15,9 @@ import (
 	"strconv"
 )
 
-// blockData
+// BlockData
 // consider if pointers are desirable here
-type blockData struct {
+type BlockData struct {
 	header           dcrjson.GetBlockHeaderVerboseResult
 	connections      int32
 	feeinfo          dcrjson.FeeInfoBlock
@@ -34,7 +34,7 @@ type blockDataCollector struct {
 }
 
 // newBlockDataCollector creates a new blockDataCollector.
-func newBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client) *blockDataCollector {
+func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client) *blockDataCollector {
 	return &blockDataCollector{
 		mtx:          sync.Mutex{},
 		dcrdChainSvr: dcrdChainSvr,
@@ -42,7 +42,7 @@ func newBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client) *blockDataCollecto
 }
 
 // collect is the main handler for collecting chain data
-func (t *blockDataCollector) collect(noTicketPool bool) (*blockData, error) {
+func (t *blockDataCollector) collect(noTicketPool bool) (*BlockData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -166,7 +166,7 @@ func (t *blockDataCollector) collect(noTicketPool bool) (*blockData, error) {
 
 	// Output
 	winSize := uint32(activeNet.StakeDiffWindowSize)
-	blockdata := &blockData{
+	blockdata := &BlockData{
 		header:           blockHeaderResults,
 		connections:      info.Connections,
 		feeinfo:          feeInfoBlock,
