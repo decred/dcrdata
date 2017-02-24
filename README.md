@@ -21,3 +21,14 @@ distribution in mempool, stake submissions included as they come in.
 process or a plain old php+js page from a web server could consume and present
 the data. Maybe there's no need for php here, given golang templates.
 * Refactored into reusable golang packages.  Secondary apps in a cmd directory.
+
+## Getting Started ##
+
+```
+git clone https://github.com/dcrdata/dcrdata $GOPATH/src/github.com/dcrdata/dcrdata
+glide install
+go build
+cp ./sample-dcrdata.conf ./dcrdata.conf
+vim dcrdata.conf
+./dcrdata
+```
