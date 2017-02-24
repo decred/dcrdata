@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrrpcclient"
+	"github.com/dcrdata/dcrdata/rpcutils"
 )
 
 // mainCore does all the work. Deferred functions do not run after os.Exit(),
@@ -200,4 +201,8 @@ func mainCore() int {
 
 func main() {
 	os.Exit(mainCore())
+}
+
+func connectNodeRPC(cfg *config) (*dcrrpcclient.Client, semver, error) {
+	return rpcutils.ConnectNodeRPC(cfg.DisableDaemonTLS )
 }

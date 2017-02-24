@@ -7,26 +7,16 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/dcrdata/dcrdata/semver"
 	"github.com/decred/dcrrpcclient"
 )
 
-var requiredChainServerAPI = semver{major: 2, minor: 0, patch: 0}
+var requiredChainServerAPI = semver.Semver{major: 2, minor: 0, patch: 0}
 
 func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclient.Client, semver, error) {
-	cfg := &config{
-		DisableDaemonTLS: disableTLS,
-		DcrdCert:         cert,
-		DcrdUser:         user,
-		DcrdPass:         pass,
-		DcrdServ:         host,
-	}
-	return connectNodeRPC(cfg)
-}
-
-func connectNodeRPC(cfg *config) (*dcrrpcclient.Client, semver, error) {
 	var dcrdCerts []byte
 	var err error
-	var nodeVer semver
+	var nodeVer semver.Semver
 	if !cfg.DisableDaemonTLS {
 		dcrdCerts, err = ioutil.ReadFile(cfg.DcrdCert)
 		if err != nil {
@@ -64,9 +54,9 @@ func connectNodeRPC(cfg *config) (*dcrrpcclient.Client, semver, error) {
 	}
 
 	dcrdVer := ver["dcrdjsonrpcapi"]
-	nodeVer = semver{dcrdVer.Major, dcrdVer.Minor, dcrdVer.Patch}
+	nodeVer = semver.Semver{dcrdVer.Major, dcrdVer.Minor, dcrdVer.Patch}
 
-	if !semverCompatible(requiredChainServerAPI, nodeVer) {
+	if !semver.SemverCompatible(requiredChainServerAPI, nodeVer) {
 		return nil, nodeVer, fmt.Errorf("Node JSON-RPC server does not have "+
 			"a compatible API version. Advertises %v but require %v",
 			nodeVer, requiredChainServerAPI)
