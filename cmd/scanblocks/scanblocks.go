@@ -77,6 +77,7 @@ func mainCore() int {
 		blockSummaries[i] = apitypes.BlockDataBasic{
 			Height:     header.Height,
 			Size:       header.Size,
+			Hash:       blockhash.String(),
 			Difficulty: info.Difficulty,
 			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
 			Time:       header.Timestamp.Unix(),
