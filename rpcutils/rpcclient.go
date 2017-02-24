@@ -1,7 +1,7 @@
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
-package main
+package rpcutils
 
 import (
 	"fmt"
@@ -11,39 +11,45 @@ import (
 	"github.com/decred/dcrrpcclient"
 )
 
-var requiredChainServerAPI = semver.Semver{major: 2, minor: 0, patch: 0}
+var requiredChainServerAPI = semver.NewSemver(2, 0, 0)
 
-func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclient.Client, semver, error) {
+func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
+	ntfnHandlers ...*dcrrpcclient.NotificationHandlers) (*dcrrpcclient.Client, semver.Semver, error) {
 	var dcrdCerts []byte
 	var err error
 	var nodeVer semver.Semver
-	if !cfg.DisableDaemonTLS {
-		dcrdCerts, err = ioutil.ReadFile(cfg.DcrdCert)
+	if !disableTLS {
+		dcrdCerts, err = ioutil.ReadFile(cert)
 		if err != nil {
 			log.Errorf("Failed to read dcrd cert file at %s: %s\n",
-				cfg.DcrdCert, err.Error())
+				cert, err.Error())
 			return nil, nodeVer, err
 		}
 	}
 
 	log.Debugf("Attempting to connect to dcrd RPC %s as user %s "+
 		"using certificate located in %s",
-		cfg.DcrdServ, cfg.DcrdUser, cfg.DcrdCert)
+		host, user, cert)
 
 	connCfgDaemon := &dcrrpcclient.ConnConfig{
-		Host:         cfg.DcrdServ,
+		Host:         host,
 		Endpoint:     "ws", // websocket
-		User:         cfg.DcrdUser,
-		Pass:         cfg.DcrdPass,
+		User:         user,
+		Pass:         pass,
 		Certificates: dcrdCerts,
-		DisableTLS:   cfg.DisableDaemonTLS,
+		DisableTLS:   disableTLS,
 	}
 
-	ntfnHandlers := getNodeNtfnHandlers(cfg)
-	dcrdClient, err := dcrrpcclient.New(connCfgDaemon, ntfnHandlers)
+	var ntfnHdlrs *dcrrpcclient.NotificationHandlers
+	if len(ntfnHandlers) > 0 {
+		if len(ntfnHandlers) > 1 {
+			return nil, nodeVer, fmt.Errorf("Invalid notification handler argument.")
+		}
+		ntfnHdlrs = ntfnHandlers[0]
+	}
+	dcrdClient, err := dcrrpcclient.New(connCfgDaemon, ntfnHdlrs)
 	if err != nil {
-		log.Errorf("Failed to start dcrd RPC client: %s\n", err.Error())
-		return nil, nodeVer, err
+		return nil, nodeVer, fmt.Errorf("Failed to start dcrd RPC client: %s\n", err.Error())
 	}
 
 	// Ensure the RPC server has a compatible API version.
@@ -54,7 +60,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclie
 	}
 
 	dcrdVer := ver["dcrdjsonrpcapi"]
-	nodeVer = semver.Semver{dcrdVer.Major, dcrdVer.Minor, dcrdVer.Patch}
+	nodeVer = semver.NewSemver(dcrdVer.Major, dcrdVer.Minor, dcrdVer.Patch)
 
 	if !semver.SemverCompatible(requiredChainServerAPI, nodeVer) {
 		return nil, nodeVer, fmt.Errorf("Node JSON-RPC server does not have "+

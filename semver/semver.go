@@ -2,15 +2,19 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package semver
 
 import "fmt"
 
-type semver struct {
+func NewSemver(major, minor, patch uint32) Semver {
+	return Semver{major, minor, patch}
+}
+
+type Semver struct {
 	major, minor, patch uint32
 }
 
-func semverCompatible(required, actual semver) bool {
+func SemverCompatible(required, actual Semver) bool {
 	switch {
 	case required.major != actual.major:
 		return false
@@ -23,6 +27,6 @@ func semverCompatible(required, actual semver) bool {
 	}
 }
 
-func (s semver) String() string {
+func (s Semver) String() string {
 	return fmt.Sprintf("%d.%d.%d", s.major, s.minor, s.patch)
 }
