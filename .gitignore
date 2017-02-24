@@ -7,3 +7,4 @@ debug
 *.key
 dcrdata.conf
 vendor/
+*.orig

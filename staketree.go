@@ -10,8 +10,8 @@ import (
 	"github.com/decred/dcrd/database"
 	_ "github.com/decred/dcrd/database/ffldb"
 	//"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrutil"
 	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrutil"
 )
 
 const (
@@ -21,25 +21,25 @@ const (
 	// dbRoot is the root directory used to create all test databases.
 	dbRoot = "dbs"
 
-    // dbName is the database name.
-    dbName = "ffldb_stake"
+	// dbName is the database name.
+	dbName = "ffldb_stake"
 )
 
 //var netParams = &chaincfg.MainNetParams
 
 func buildStakeTree(blocks map[int64]*dcrutil.Block,
-    netParams *chaincfg.Params, nodeClient *dcrrpcclient.Client) (database.DB, error) {
+	netParams *chaincfg.Params, nodeClient *dcrrpcclient.Client) (database.DB, error) {
 
-    height := int64(1) // get from chain
+	height := int64(1) // get from chain
 
-    // Create a new database to store the accepted stake node data into.
+	// Create a new database to store the accepted stake node data into.
 	dbName := "ffldb_staketest"
 	dbPath := filepath.Join(dbRoot, dbName)
 	_ = os.RemoveAll(dbPath)
 	db, err := database.Create(dbType, dbPath, netParams.Net)
 	if err != nil {
 		log.Criticalf("error creating db: %v", err)
-        return db, err
+		return db, err
 	}
 
 	// Setup a teardown.
@@ -60,12 +60,12 @@ func buildStakeTree(blocks map[int64]*dcrutil.Block,
 	})
 	if err != nil {
 		log.Critical(err.Error())
-        return db, err
+		return db, err
 	}
 
 	// Cache all of our nodes so that we can check them when we start
 	// disconnecting and going backwards through the blocks.
-    poolValues := make([]int64, height+1)
+	poolValues := make([]int64, height+1)
 	nodes := make([]*stake.Node, height+1)
 	nodes[0] = bestNode
 	err = db.Update(func(dbTx database.Tx) error {
@@ -103,23 +103,23 @@ func buildStakeTree(blocks map[int64]*dcrutil.Block,
 					err.Error())
 			}
 
-            var amt int64
-            for _, hash := range bestNode.LiveTickets() {
-                txid, err := nodeClient.GetRawTransactionVerbose(&hash)
-                if err != nil {
-                    log.Errorf("Unable to get transaction %v: %v", hash, err)
-                }
+			var amt int64
+			for _, hash := range bestNode.LiveTickets() {
+				txid, err := nodeClient.GetRawTransactionVerbose(&hash)
+				if err != nil {
+					log.Errorf("Unable to get transaction %v: %v", hash, err)
+				}
 
-                // This isn't right for pool tickets because the pennies
-                // included for pool fees are in vout[0]
-                coins := txid.Vout[0].Value
-                atoms, err := dcrutil.NewAmount(coins)
-                if err != nil {
-                    log.Errorf("Invalid Vout amount %v: %v", coins, err)
-                }
-                amt += int64(atoms) // utxo.sparseOutputs[0].amount
-            }
-            poolValues[i] = amt
+				// This isn't right for pool tickets because the pennies
+				// included for pool fees are in vout[0]
+				coins := txid.Vout[0].Value
+				atoms, err := dcrutil.NewAmount(coins)
+				if err != nil {
+					log.Errorf("Invalid Vout amount %v: %v", coins, err)
+				}
+				amt += int64(atoms) // utxo.sparseOutputs[0].amount
+			}
+			poolValues[i] = amt
 
 			// Reload the node from DB and make sure it's the same.
 			// blockHash = block.Hash()
@@ -143,13 +143,11 @@ func buildStakeTree(blocks map[int64]*dcrutil.Block,
 		log.Critical(err.Error())
 	}
 
-    return db, err
+	return db, err
 
 }
 
-
 /// kang
-
 
 // ticketsInBlock finds all the new tickets in the block.
 func ticketsInBlock(bl *dcrutil.Block) []chainhash.Hash {

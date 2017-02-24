@@ -46,6 +46,7 @@ func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 	return apitypes.BlockDataBasic{
 		Height:     b.Header.Height,
 		Size:       b.Header.Size,
+		Hash:       b.Header.Hash,
 		Difficulty: b.Header.Difficulty,
 		StakeDiff:  b.Header.SBits,
 		Time:       b.Header.Time,
