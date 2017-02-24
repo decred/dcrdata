@@ -4,6 +4,7 @@
 package main
 
 import (
+	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrutil"
 )
@@ -21,18 +22,11 @@ const (
 	relevantMempoolTxChanBuffer = 512
 )
 
-// BlockWatchedTx contains, for a certain block, the transactions for certain
-// watched addresses
-type BlockWatchedTx struct {
-	BlockHeight   int64
-	TxsForAddress map[string][]*dcrutil.Tx
-}
-
 // Channels are package-level variables for simplicity
 var ntfnChans struct {
 	connectChan                       chan *chainhash.Hash
 	connectChanStkInf                 chan int32
-	spendTxBlockChan, recvTxBlockChan chan *BlockWatchedTx
+	spendTxBlockChan, recvTxBlockChan chan *txhelpers.BlockWatchedTx
 	relevantTxMempoolChan             chan *dcrutil.Tx
 	newTxChan                         chan *chainhash.Hash
 }
@@ -57,8 +51,8 @@ func makeNtfnChans(cfg *config) {
 	// watchaddress
 	if len(cfg.WatchAddresses) > 0 && !cfg.NoMonitor {
 		// recv/spendTxBlockChan come with connected blocks
-		ntfnChans.recvTxBlockChan = make(chan *BlockWatchedTx, blockConnChanBuffer)
-		ntfnChans.spendTxBlockChan = make(chan *BlockWatchedTx, blockConnChanBuffer)
+		ntfnChans.recvTxBlockChan = make(chan *txhelpers.BlockWatchedTx, blockConnChanBuffer)
+		ntfnChans.spendTxBlockChan = make(chan *txhelpers.BlockWatchedTx, blockConnChanBuffer)
 		ntfnChans.relevantTxMempoolChan = make(chan *dcrutil.Tx, relevantMempoolTxChanBuffer)
 	}
 

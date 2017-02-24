@@ -1,7 +1,7 @@
-// Interface for saving/storing blockData.
-// Create a BlockDataSaver by implementing Store(*blockData).
+// Interface for saving/storing BlockData.
+// Create a BlockDataSaver by implementing Store(*BlockData).
 
-package main
+package blockdata
 
 import (
 	"bytes"
@@ -13,9 +13,9 @@ import (
 	"sync"
 )
 
-// BlockDataSaver is an interface for saving/storing blockData
+// BlockDataSaver is an interface for saving/storing BlockData
 type BlockDataSaver interface {
-	Store(data *blockData) error
+	Store(data *BlockData) error
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,7 +32,8 @@ type BlockDataToJSONStdOut struct {
 // BlockDataToSummaryStdOut implements BlockDataSaver interface for plain text
 // summary to stdout
 type BlockDataToSummaryStdOut struct {
-	mtx *sync.Mutex
+	mtx          *sync.Mutex
+	sdiffWinSize int64
 }
 
 type fileSaver struct {
@@ -68,14 +69,14 @@ func NewBlockDataToJSONStdOut(m ...*sync.Mutex) *BlockDataToJSONStdOut {
 
 // NewBlockDataToSummaryStdOut creates a new BlockDataToSummaryStdOut with
 // optional existing mutex
-func NewBlockDataToSummaryStdOut(m ...*sync.Mutex) *BlockDataToSummaryStdOut {
+func NewBlockDataToSummaryStdOut(sdiffWinSize int64, m ...*sync.Mutex) *BlockDataToSummaryStdOut {
 	if len(m) > 1 {
 		panic("Too many inputs.")
 	}
 	if len(m) > 0 {
-		return &BlockDataToSummaryStdOut{m[0]}
+		return &BlockDataToSummaryStdOut{m[0], sdiffWinSize}
 	}
-	return &BlockDataToSummaryStdOut{}
+	return &BlockDataToSummaryStdOut{sdiffWinSize: sdiffWinSize}
 }
 
 // NewBlockDataToJSONFiles creates a new BlockDataToJSONFiles with optional
@@ -103,8 +104,8 @@ func NewBlockDataToJSONFiles(folder string, fileBase string,
 	}
 }
 
-// Store writes blockData to stdout in JSON format
-func (s *BlockDataToJSONStdOut) Store(data *blockData) error {
+// Store writes BlockData to stdout in JSON format
+func (s *BlockDataToJSONStdOut) Store(data *BlockData) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
@@ -117,50 +118,48 @@ func (s *BlockDataToJSONStdOut) Store(data *blockData) error {
 	}
 
 	// Write JSON to stdout with guards to delimit the object from other text
-	fmt.Printf("\n--- BEGIN blockData JSON ---\n")
+	fmt.Printf("\n--- BEGIN BlockData JSON ---\n")
 	_, err = writeFormattedJSONBlockData(jsonConcat, os.Stdout)
-	fmt.Printf("--- END blockData JSON ---\n\n")
+	fmt.Printf("--- END BlockData JSON ---\n\n")
 
 	return err
 }
 
-// Store writes blockData to stdout as plain text summary
-func (s *BlockDataToSummaryStdOut) Store(data *blockData) error {
+// Store writes BlockData to stdout as plain text summary
+func (s *BlockDataToSummaryStdOut) Store(data *BlockData) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 	}
 
-	winSize := activeNet.StakeDiffWindowSize
-
-	fmt.Printf("\nBlock %v:\n", data.header.Height)
+	fmt.Printf("\nBlock %v:\n", data.Header.Height)
 
 	fmt.Printf("  Stake difficulty:                 %9.3f -> %.3f (current -> next block)\n",
-		data.currentstakediff.CurrentStakeDifficulty,
-		data.currentstakediff.NextStakeDifficulty)
+		data.CurrentStakeDiff.CurrentStakeDifficulty,
+		data.CurrentStakeDiff.NextStakeDifficulty)
 
 	fmt.Printf("  Estimated price in next window:   %9.3f / [%.2f, %.2f] ([min, max])\n",
-		data.eststakediff.Expected, data.eststakediff.Min, data.eststakediff.Max)
+		data.EstStakeDiff.Expected, data.EstStakeDiff.Min, data.EstStakeDiff.Max)
 	fmt.Printf("  Window progress:   %3d / %3d in price window number %v\n",
-		data.idxBlockInWindow, winSize, data.priceWindowNum)
+		data.IdxBlockInWindow, s.sdiffWinSize, data.PriceWindowNum)
 
 	fmt.Printf("  Ticket fees:  %.4f, %.4f, %.4f (mean, median, std), n=%d\n",
-		data.feeinfo.Mean, data.feeinfo.Median, data.feeinfo.StdDev,
-		data.feeinfo.Number)
+		data.FeeInfo.Mean, data.FeeInfo.Median, data.FeeInfo.StdDev,
+		data.FeeInfo.Number)
 
-	if data.poolinfo.PoolValue >= 0 {
+	if data.PoolInfo.Value >= 0 {
 		fmt.Printf("  Ticket pool:  %v (size), %.3f (avg. price), %.2f (total DCR locked)\n",
-			data.poolinfo.PoolSize, data.poolinfo.PoolValAvg, data.poolinfo.PoolValue)
+			data.PoolInfo.Size, data.PoolInfo.ValAvg, data.PoolInfo.Value)
 	}
 
-	fmt.Printf("  Node connections:  %d\n", data.connections)
+	fmt.Printf("  Node connections:  %d\n", data.Connections)
 
 	return nil
 }
 
-// Store writes blockData to a file in JSON format
+// Store writes BlockData to a file in JSON format
 // The file name is nameBase+height+".json".
-func (s *BlockDataToJSONFiles) Store(data *blockData) error {
+func (s *BlockDataToJSONFiles) Store(data *BlockData) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
@@ -173,7 +172,7 @@ func (s *BlockDataToJSONFiles) Store(data *blockData) error {
 	}
 
 	// Write JSON to a file with block height in the name
-	height := data.header.Height
+	height := data.Header.Height
 	fname := fmt.Sprintf("%s%d.json", s.nameBase, height)
 	fullfile := filepath.Join(s.folder, fname)
 	fp, err := os.Create(fullfile)
@@ -197,11 +196,11 @@ func writeFormattedJSONBlockData(jsonConcat *bytes.Buffer, w io.Writer) (int, er
 
 // JSONFormatBlockData concatenates block data results into a single JSON
 // object with primary keys for the result type
-func JSONFormatBlockData(data *blockData) (*bytes.Buffer, error) {
+func JSONFormatBlockData(data *BlockData) (*bytes.Buffer, error) {
 	var jsonAll bytes.Buffer
 
 	jsonAll.WriteString("{\"estimatestakediff\": ")
-	stakeDiffEstJSON, err := json.Marshal(data.eststakediff)
+	stakeDiffEstJSON, err := json.Marshal(data.EstStakeDiff)
 	if err != nil {
 		return nil, err
 	}
@@ -210,28 +209,28 @@ func JSONFormatBlockData(data *blockData) (*bytes.Buffer, error) {
 	//fmt.Println(string(stakeDiffEstJSON))
 
 	jsonAll.WriteString(",\"currentstakediff\": ")
-	stakeDiffJSON, err := json.Marshal(data.currentstakediff)
+	stakeDiffJSON, err := json.Marshal(data.CurrentStakeDiff)
 	if err != nil {
 		return nil, err
 	}
 	jsonAll.Write(stakeDiffJSON)
 
 	jsonAll.WriteString(",\"ticketfeeinfo_block\": ")
-	feeInfoJSON, err := json.Marshal(data.feeinfo)
+	feeInfoJSON, err := json.Marshal(data.FeeInfo)
 	if err != nil {
 		return nil, err
 	}
 	jsonAll.Write(feeInfoJSON)
 
 	jsonAll.WriteString(",\"block_header\": ")
-	blockHeaderJSON, err := json.Marshal(data.header)
+	blockHeaderJSON, err := json.Marshal(data.Header)
 	if err != nil {
 		return nil, err
 	}
 	jsonAll.Write(blockHeaderJSON)
 
 	jsonAll.WriteString(",\"ticket_pool_info\": ")
-	poolInfoJSON, err := json.Marshal(data.poolinfo)
+	poolInfoJSON, err := json.Marshal(data.PoolInfo)
 	if err != nil {
 		return nil, err
 	}

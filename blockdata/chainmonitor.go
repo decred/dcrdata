@@ -5,49 +5,55 @@ import (
 	"time"
 
 	"github.com/dcrdata/dcrdata/txhelpers"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 )
 
 // for getblock, ticketfeeinfo, estimatestakediff, etc.
 type chainMonitor struct {
-	collector    *blockDataCollector
-	dataSavers   []BlockDataSaver
-	quit         chan struct{}
-	wg           *sync.WaitGroup
-	noTicketPool bool
-	watchaddrs   map[string]txhelpers.TxAction
+	collector       *blockDataCollector
+	dataSavers      []BlockDataSaver
+	quit            chan struct{}
+	wg              *sync.WaitGroup
+	noTicketPool    bool
+	watchaddrs      map[string]txhelpers.TxAction
+	blockChan       chan *chainhash.Hash
+	recvTxBlockChan chan *txhelpers.BlockWatchedTx
 }
 
-// newChainMonitor creates a new chainMonitor
-func newChainMonitor(collector *blockDataCollector,
+// NewChainMonitor creates a new chainMonitor
+func NewChainMonitor(collector *blockDataCollector,
 	savers []BlockDataSaver,
 	quit chan struct{}, wg *sync.WaitGroup, noPoolValue bool,
-	addrs map[string]txhelpers.TxAction) *chainMonitor {
+	addrs map[string]txhelpers.TxAction, blockChan chan *chainhash.Hash,
+	recvTxBlockChan chan *txhelpers.BlockWatchedTx) *chainMonitor {
 	return &chainMonitor{
-		collector:    collector,
-		dataSavers:   savers,
-		quit:         quit,
-		wg:           wg,
-		noTicketPool: noPoolValue,
-		watchaddrs:   addrs,
+		collector:       collector,
+		dataSavers:      savers,
+		quit:            quit,
+		wg:              wg,
+		noTicketPool:    noPoolValue,
+		watchaddrs:      addrs,
+		blockChan:       blockChan,
+		recvTxBlockChan: recvTxBlockChan,
 	}
 }
 
 // blockConnectedHandler handles block connected notifications, which trigger
 // data collection and storage.
-func (p *chainMonitor) blockConnectedHandler() {
+func (p *chainMonitor) BlockConnectedHandler() {
 	defer p.wg.Done()
 out:
 	for {
 	keepon:
 		select {
-		case hash, ok := <-ntfnChans.connectChan:
+		case hash, ok := <-p.blockChan:
 			if !ok {
 				log.Warnf("Block connected channel closed.")
 				break out
 			}
 			block, _ := p.collector.dcrdChainSvr.GetBlock(hash)
 			height := block.Height()
-			daemonLog.Infof("Block height %v connected", height)
+			log.Infof("Block height %v connected", height)
 
 			if len(p.watchaddrs) > 0 {
 				// txsForOutpoints := blockConsumesOutpointWithAddresses(block, p.watchaddrs,
@@ -56,10 +62,12 @@ out:
 				// 	p.spendTxBlockChan <- &BlockWatchedTx{height, txsForOutpoints}
 				// }
 
-				txsForAddrs := txhelpers.BlockReceivesToAddresses(block, p.watchaddrs)
+				txsForAddrs := txhelpers.BlockReceivesToAddresses(block,
+					p.watchaddrs, p.collector.netParams)
 				if len(txsForAddrs) > 0 {
-					ntfnChans.recvTxBlockChan <- &BlockWatchedTx{height,
-						txsForAddrs}
+					p.recvTxBlockChan <- &txhelpers.BlockWatchedTx{
+						BlockHeight:   height,
+						TxsForAddress: txsForAddrs}
 				}
 			}
 
@@ -67,7 +75,7 @@ out:
 			bdataChan := make(chan *BlockData)
 			// fire it off and get the BlockData pointer back through the channel
 			go func() {
-				BlockData, err := p.collector.collect(p.noTicketPool)
+				BlockData, err := p.collector.Collect(p.noTicketPool)
 				if err != nil {
 					log.Errorf("Block data collection failed: %v", err.Error())
 					// BlockData is nil when err != nil
@@ -75,7 +83,7 @@ out:
 				bdataChan <- BlockData
 			}()
 
-			// Wait for X seconds before giving up on collect()
+			// Wait for X seconds before giving up on Collect()
 			var BlockData *BlockData
 			select {
 			case BlockData = <-bdataChan:
