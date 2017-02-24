@@ -1,48 +1,75 @@
 package blockdata
 
 import (
-	"sync"
-	"time"
-
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
+	"sync"
+	"time"
+
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
-	"strconv"
 )
 
 // BlockData
 // consider if pointers are desirable here
 type BlockData struct {
-	header           dcrjson.GetBlockHeaderVerboseResult
-	connections      int32
-	feeinfo          dcrjson.FeeInfoBlock
-	currentstakediff dcrjson.GetStakeDifficultyResult
-	eststakediff     dcrjson.EstimateStakeDiffResult
-	poolinfo         apitypes.TicketPoolInfo
-	priceWindowNum   int
-	idxBlockInWindow int
+	Header           dcrjson.GetBlockHeaderVerboseResult
+	Connections      int32
+	FeeInfo          dcrjson.FeeInfoBlock
+	CurrentStakeDiff dcrjson.GetStakeDifficultyResult
+	EstStakeDiff     dcrjson.EstimateStakeDiffResult
+	PoolInfo         apitypes.TicketPoolInfo
+	PriceWindowNum   int
+	IdxBlockInWindow int
+}
+
+func (b *BlockData) ToStakeInfoExtended() apitypes.StakeInfoExtended {
+	return apitypes.StakeInfoExtended{
+		Feeinfo: b.FeeInfo,
+		StakeDiff: apitypes.StakeDiff{dcrjson.GetStakeDifficultyResult{
+			b.CurrentStakeDiff.CurrentStakeDifficulty,
+			b.CurrentStakeDiff.NextStakeDifficulty},
+			b.EstStakeDiff},
+		PriceWindowNum:   b.PriceWindowNum,
+		IdxBlockInWindow: b.IdxBlockInWindow,
+		PoolInfo:         b.PoolInfo,
+	}
+}
+
+func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
+	return apitypes.BlockDataBasic{
+		Height:     b.Header.Height,
+		Size:       b.Header.Size,
+		Difficulty: b.Header.Difficulty,
+		StakeDiff:  b.Header.SBits,
+		Time:       b.Header.Time,
+		PoolInfo:   b.PoolInfo,
+	}
 }
 
 type blockDataCollector struct {
 	mtx          sync.Mutex
 	dcrdChainSvr *dcrrpcclient.Client
+	netParams    *chaincfg.Params
 }
 
 // newBlockDataCollector creates a new blockDataCollector.
-func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client) *blockDataCollector {
+func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params) *blockDataCollector {
 	return &blockDataCollector{
 		mtx:          sync.Mutex{},
 		dcrdChainSvr: dcrdChainSvr,
+		netParams:    params,
 	}
 }
 
 // collect is the main handler for collecting chain data
-func (t *blockDataCollector) collect(noTicketPool bool) (*BlockData, error) {
+func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -50,7 +77,7 @@ func (t *blockDataCollector) collect(noTicketPool bool) (*BlockData, error) {
 
 	// Time this function
 	defer func(start time.Time) {
-		log.Debugf("blockDataCollector.collect() completed in %v", time.Since(start))
+		log.Debugf("blockDataCollector.Collect() completed in %v", time.Since(start))
 	}(time.Now())
 
 	// Run first client call with a timeout
@@ -165,16 +192,16 @@ func (t *blockDataCollector) collect(noTicketPool bool) (*BlockData, error) {
 	}
 
 	// Output
-	winSize := uint32(activeNet.StakeDiffWindowSize)
+	winSize := uint32(t.netParams.StakeDiffWindowSize)
 	blockdata := &BlockData{
-		header:           blockHeaderResults,
-		connections:      info.Connections,
-		feeinfo:          feeInfoBlock,
-		currentstakediff: *stakeDiff,
-		eststakediff:     *estStakeDiff,
-		poolinfo:         ticketPoolInfo,
-		priceWindowNum:   int(height / winSize),
-		idxBlockInWindow: int(height%winSize) + 1,
+		Header:           blockHeaderResults,
+		Connections:      info.Connections,
+		FeeInfo:          feeInfoBlock,
+		CurrentStakeDiff: *stakeDiff,
+		EstStakeDiff:     *estStakeDiff,
+		PoolInfo:         ticketPoolInfo,
+		PriceWindowNum:   int(height / winSize),
+		IdxBlockInWindow: int(height%winSize) + 1,
 	}
 
 	return blockdata, err

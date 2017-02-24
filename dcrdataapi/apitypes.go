@@ -18,9 +18,9 @@ type Status struct {
 
 // TicketPoolInfo models data about ticket pool
 type TicketPoolInfo struct {
-	PoolSize   uint32  `json:"poolsize"`
-	PoolValue  float64 `json:"poolvalue,omitempty"`
-	PoolValAvg float64 `json:"poolvalavg,omitempty"`
+	Size   uint32  `json:"size"`
+	Value  float64 `json:"value,omitempty"`
+	ValAvg float64 `json:"valavg,omitempty"`
 }
 
 type BlockDataBasic struct {
@@ -29,12 +29,13 @@ type BlockDataBasic struct {
 	Difficulty float64 `json:"diff"`
 	StakeDiff  float64 `json:"sdiff"`
 	Time       int64   `json:"time"`
-	TicketPoolInfo
+	//TicketPoolInfo
+	PoolInfo TicketPoolInfo `json:"ticket_pool"`
 }
 
 type StakeDiff struct {
 	dcrjson.GetStakeDifficultyResult
-	Estimates   dcrjson.EstimateStakeDiffResult  `json:"estimates"`
+	Estimates dcrjson.EstimateStakeDiffResult `json:"estimates"`
 }
 
 type StakeInfoExtended struct {
@@ -42,5 +43,5 @@ type StakeInfoExtended struct {
 	StakeDiff        StakeDiff            `json:"stakediff"`
 	PriceWindowNum   int                  `json:"window_number"`
 	IdxBlockInWindow int                  `json:"window_block_index"`
-	Poolinfo         TicketPoolInfo       `json:"ticket_pool"`
+	PoolInfo         TicketPoolInfo       `json:"ticket_pool"`
 }

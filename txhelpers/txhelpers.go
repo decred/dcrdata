@@ -7,12 +7,19 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
-	"github.com/decred/dcrd/chaincfg"
 )
+
+// BlockWatchedTx contains, for a certain block, the transactions for certain
+// watched addresses
+type BlockWatchedTx struct {
+	BlockHeight   int64
+	TxsForAddress map[string][]*dcrutil.Tx
+}
 
 // TxAction is what is happening to the transaction (mined or inserted into
 // mempool).
@@ -108,7 +115,8 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 // BlockReceivesToAddresses checks a block for transactions paying to the
 // specified addresses, and creates a map of addresses to a slice of dcrutil.Tx
 // involving the address.
-func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction, params *chaincfg.Params) map[string][]*dcrutil.Tx {
+func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
+	params *chaincfg.Params) map[string][]*dcrutil.Tx {
 	addrMap := make(map[string][]*dcrutil.Tx)
 
 	checkForAddrOut := func(blockTxs []*dcrutil.Tx) {

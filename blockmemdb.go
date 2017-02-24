@@ -1,13 +1,14 @@
 package main
 
 // BlockDataToMemdb satisfies BlockDataSaver interface by implementing the
-// Store(data *blockData) method.  It saves the data in memory with a map. All
+// Store(data *blockdata.BlockData) method.  It saves the data in memory with a map. All
 // the data is destroyed on exit.  Something like this is needed that uses a
 // durable database (e.g. MySQL).
 
 import (
 	"sync"
 
+	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
 )
@@ -15,7 +16,7 @@ import (
 type BlockDataToMemdb struct {
 	mtx             *sync.Mutex
 	Height          int
-	blockDataMap    map[int]*blockData
+	blockDataMap    map[int]*blockdata.BlockData
 	blockSummaryMap map[int]*apitypes.BlockDataBasic
 }
 
@@ -25,7 +26,7 @@ func NewBlockDataToMemdb(m ...*sync.Mutex) *BlockDataToMemdb {
 	}
 	saver := &BlockDataToMemdb{
 		Height:          -1,
-		blockDataMap:    make(map[int]*blockData),
+		blockDataMap:    make(map[int]*blockdata.BlockData),
 		blockSummaryMap: make(map[int]*apitypes.BlockDataBasic),
 	}
 	if len(m) > 0 {
@@ -34,32 +35,25 @@ func NewBlockDataToMemdb(m ...*sync.Mutex) *BlockDataToMemdb {
 	return saver
 }
 
-// Store writes blockData to memdb
-func (s *BlockDataToMemdb) Store(data *blockData) error {
+// Store writes blockdata.BlockData to memdb
+func (s *BlockDataToMemdb) Store(data *blockdata.BlockData) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 	}
 
-	s.Height = int(data.header.Height)
+	s.Height = int(data.Header.Height)
 
 	// save data to slice in memory
 	s.blockDataMap[s.Height] = data
 
-	blockSummary := apitypes.BlockDataBasic{
-		Height:         uint32(s.Height),
-		Size:           data.header.Size,
-		Difficulty:     data.header.Difficulty,
-		StakeDiff:      data.header.SBits,
-		Time:           data.header.Time,
-		TicketPoolInfo: data.poolinfo,
-	}
+	blockSummary := data.ToBlockSummary()
 	s.blockSummaryMap[s.Height] = &blockSummary
 
 	return nil
 }
 
-func (s *BlockDataToMemdb) Get(idx int) *blockData {
+func (s *BlockDataToMemdb) Get(idx int) *blockdata.BlockData {
 	if idx < 0 {
 		return nil
 	}
@@ -78,11 +72,11 @@ func (s *BlockDataToMemdb) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResu
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 	}
-	blockData, ok := s.blockDataMap[idx]
+	blockdata, ok := s.blockDataMap[idx]
 	if !ok {
 		return nil
 	}
-	return &blockData.header
+	return &blockdata.Header
 }
 
 func (s *BlockDataToMemdb) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
@@ -93,11 +87,11 @@ func (s *BlockDataToMemdb) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 	}
-	blockData, ok := s.blockDataMap[idx]
+	blockdata, ok := s.blockDataMap[idx]
 	if !ok {
 		return nil
 	}
-	return &blockData.feeinfo
+	return &blockdata.FeeInfo
 }
 
 func (s *BlockDataToMemdb) GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult {
@@ -108,11 +102,11 @@ func (s *BlockDataToMemdb) GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeD
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 	}
-	blockData, ok := s.blockDataMap[idx]
+	blockdata, ok := s.blockDataMap[idx]
 	if !ok {
 		return nil
 	}
-	return &blockData.eststakediff
+	return &blockdata.EstStakeDiff
 }
 
 func (s *BlockDataToMemdb) GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended {
@@ -123,26 +117,16 @@ func (s *BlockDataToMemdb) GetStakeInfoExtended(idx int) *apitypes.StakeInfoExte
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 	}
-	blockData, ok := s.blockDataMap[idx]
+	blockdata, ok := s.blockDataMap[idx]
 	if !ok {
 		return nil
 	}
 
-	stakeinfo := &apitypes.StakeInfoExtended{
-		Feeinfo: blockData.feeinfo,
-		StakeDiff: apitypes.StakeDiff{dcrjson.GetStakeDifficultyResult{
-			blockData.currentstakediff.CurrentStakeDifficulty,
-			blockData.currentstakediff.NextStakeDifficulty},
-			blockData.eststakediff},
-		PriceWindowNum:   blockData.priceWindowNum,
-		IdxBlockInWindow: blockData.idxBlockInWindow,
-		Poolinfo:         blockData.poolinfo,
-	}
-
-	return stakeinfo
+	stakeinfo := blockdata.ToStakeInfoExtended()
+	return &stakeinfo
 }
 
-func (s *BlockDataToMemdb) GetBestBlock() *blockData {
+func (s *BlockDataToMemdb) GetBestBlock() *blockdata.BlockData {
 	return s.Get(s.Height)
 }
 

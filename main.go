@@ -11,8 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/semver"
+	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrrpcclient"
 )
 
@@ -81,7 +83,7 @@ func mainCore() int {
 	}
 
 	// Block data collector
-	collector := newBlockDataCollector(dcrdClient)
+	collector := blockdata.NewBlockDataCollector(dcrdClient, activeChain)
 	if collector == nil {
 		log.Errorf("Failed to create block data collector")
 		return 9
@@ -90,7 +92,7 @@ func mainCore() int {
 	backendLog.Flush()
 
 	// Build a slice of each required saver type for each data source
-	var blockDataSavers []BlockDataSaver
+	var blockDataSavers []blockdata.BlockDataSaver
 	var mempoolSavers []MempoolDataSaver
 
 	// For example, dumping all mempool fees with a custom saver
@@ -105,7 +107,7 @@ func mainCore() int {
 	blockDataSavers = append(blockDataSavers, blockDataMapSaver)
 
 	// Initial data summary prior to start of regular collection
-	blockData, err := collector.collect(!cfg.PoolValue)
+	blockData, err := collector.Collect(!cfg.PoolValue)
 	if err != nil {
 		fmt.Printf("Block data collection for initial summary failed: %v",
 			err.Error())
@@ -143,10 +145,11 @@ func mainCore() int {
 	// Blockchain monitor for the collector
 	wg.Add(1)
 	// If collector is nil, so is connectChan
-	addrMap := make(map[string]TxAction) // for support of watched addresses
-	wsChainMonitor := newChainMonitor(collector, blockDataSavers,
-		quit, &wg, !cfg.PoolValue, addrMap)
-	go wsChainMonitor.blockConnectedHandler()
+	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
+	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
+		quit, &wg, !cfg.PoolValue, addrMap,
+		ntfnChans.connectChan, ntfnChans.recvTxBlockChan)
+	go wsChainMonitor.BlockConnectedHandler()
 
 	if cfg.MonitorMempool {
 		mpoolCollector := newMempoolDataCollector(dcrdClient)
@@ -155,7 +158,7 @@ func mainCore() int {
 			return 13
 		}
 
-		mpData, err := mpoolCollector.collect()
+		mpData, err := mpoolCollector.Collect()
 		if err != nil {
 			log.Error("Mempool info collection failed while gathering initial"+
 				"data: %v", err.Error())

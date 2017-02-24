@@ -180,7 +180,7 @@ func (p *mempoolMonitor) txHandler(client *dcrrpcclient.Client) {
 				p.mtx.Unlock()
 				// Collect mempool data (currently ticket fees)
 				mempoolLog.Trace("Gathering new mempool data.")
-				data, err = p.collector.collect()
+				data, err = p.collector.Collect()
 				if err != nil {
 					mempoolLog.Errorf("mempool data collection failed: %v", err.Error())
 					// data is nil when err != nil
@@ -253,7 +253,7 @@ func newMempoolDataCollector(dcrdChainSvr *dcrrpcclient.Client) *mempoolDataColl
 }
 
 // collect is the main handler for collecting chain data
-func (t *mempoolDataCollector) collect() (*mempoolData, error) {
+func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -261,7 +261,7 @@ func (t *mempoolDataCollector) collect() (*mempoolData, error) {
 
 	// Time this function
 	defer func(start time.Time) {
-		mempoolLog.Debugf("mempoolDataCollector.collect() completed in %v",
+		mempoolLog.Debugf("mempoolDataCollector.Collect() completed in %v",
 			time.Since(start))
 	}(time.Now())
 
@@ -364,6 +364,13 @@ type MempoolDataToJSONStdOut struct {
 type MempoolDataToSummaryStdOut struct {
 	mtx             *sync.Mutex
 	feeWindowRadius int
+}
+
+type fileSaver struct {
+	folder   string
+	nameBase string
+	file     os.File
+	mtx      *sync.Mutex
 }
 
 // MempoolDataToJSONFiles implements MempoolDataSaver interface for JSON output to
