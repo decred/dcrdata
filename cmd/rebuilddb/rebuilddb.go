@@ -108,7 +108,6 @@ func mainCore() int {
 
 		if i%500 == 0 {
 			log.Infof("%d", block.Height())
-			continue
 		}
 
 		header := block.MsgBlock().Header
