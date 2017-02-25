@@ -24,6 +24,11 @@ func NewDB(db *sql.DB) *DB {
 	return &DB{db}
 }
 
+type BlockSummaryDBer interface {
+	StoreBlockSummary(bd *apitypes.BlockDataBasic) error
+	GetBlockSummary(ind int64) (*apitypes.BlockDataBasic, error)
+}
+
 func InitDB(dbInfo *DBInfo) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbInfo.FileName)
 	if err != nil || db == nil {
