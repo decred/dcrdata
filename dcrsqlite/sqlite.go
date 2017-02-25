@@ -4,7 +4,7 @@ import (
 	"database/sql"
 
 	"fmt"
-	//apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -13,10 +13,18 @@ type DBInfo struct {
 }
 
 const (
-    TableNameSummaries = "dcrdata_block_summary"
+	TableNameSummaries = "dcrdata_block_summary"
 )
 
-func InitDB(dbInfo *DBInfo) (*sql.DB, error) {
+type DB struct {
+	*sql.DB
+}
+
+func NewDB(db *sql.DB) *DB {
+	return &DB{db}
+}
+
+func InitDB(dbInfo *DBInfo) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbInfo.FileName)
 	if err != nil || db == nil {
 		return nil, err
@@ -24,8 +32,7 @@ func InitDB(dbInfo *DBInfo) (*sql.DB, error) {
 
 	createStmt := fmt.Sprintf(`
         create table if not exists %s(
-            id INTEGER NOT NULL PRIMARY KEY,
-            height INTEGER,
+            height INTEGER PRIMARY KEY,
             size INTEGER,
             hash TEXT,
             diff FLOAT,
@@ -37,12 +44,98 @@ func InitDB(dbInfo *DBInfo) (*sql.DB, error) {
         );
         delete from %s;
         `, TableNameSummaries, TableNameSummaries)
-    
-    _, err = db.Exec(createStmt)
+
+	_, err = db.Exec(createStmt)
 	if err != nil {
 		log.Errorf("%q: %s\n", err, createStmt)
 		return nil, err
 	}
 
-	return db, nil
+	err = db.Ping()
+	return NewDB(db), err
+}
+
+func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
+	insertBlockSQL := fmt.Sprintf(`
+        INSERT OR REPLACE INTO %s(
+            height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, TableNameSummaries)
+
+	stmt, err := db.Prepare(insertBlockSQL)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	res, err := stmt.Exec(&bd.Height, &bd.Size, &bd.Hash,
+		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
+	if err != nil {
+		return err
+	}
+
+	lastId, err := res.LastInsertId()
+	if err != nil {
+		return err
+	}
+	rowCnt, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	log.Infof("ID = %d, affected = %d\n", lastId, rowCnt)
+
+	return nil
+}
+
+func (db *DB) GetBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
+	var bd *apitypes.BlockDataBasic
+
+	getBlockSQL := fmt.Sprintf(`select * from %s where height = ?`,
+		TableNameSummaries)
+
+	// Three different ways
+
+	// 1. chained QueryRow/Scan only
+	err := db.QueryRow(getBlockSQL, ind).Scan(&bd.Height, &bd.Size, &bd.Hash,
+		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Prepare + chained QueryRow/Scan
+	// stmt, err := db.Prepare(getBlockSQL)
+	// if err != nil {
+	//     return nil, err
+	// }
+	// defer stmt.Close()
+
+	// err = stmt.QueryRow(ind).Scan(&bd.Height, &bd.Size, &bd.Hash, &bd.Difficulty,
+	//     &bd.StakeDiff, &bd.Time, &bd.PoolInfo.Size, &bd.PoolInfo.Value,
+	//     &bd.PoolInfo.ValAvg)
+	// if err != nil {
+	//     return nil, err
+	// }
+
+	// 3. Prepare + Query + Scan
+	// rows, err := stmt.Query(ind)
+	// if err != nil {
+	//     log.Errorf("Query failed: %v", err)
+	//     return nil, err
+	// }
+	// defer rows.Close()
+
+	// if rows.Next() {
+	//     err = rows.Scan(&bd.Height, &bd.Size, &bd.Hash, &bd.Difficulty, &bd.StakeDiff,
+	//         &bd.Time, &bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
+	//     if err != nil {
+	//         log.Errorf("Unable to scan for BlockDataBasic fields: %v", err)
+	//     }
+	// }
+	// if err = rows.Err(); err != nil {
+	//     log.Error(err)
+	// }
+
+	return nil, nil
 }
