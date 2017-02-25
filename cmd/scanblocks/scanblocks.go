@@ -12,6 +12,7 @@ import (
 	//"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/rpcutils"
+	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrrpcclient"
@@ -50,6 +51,7 @@ func mainCore() int {
 	}
 
 	blockSummaries := make([]apitypes.BlockDataBasic, height+1)
+	blocks := make(map[int64]*dcrutil.Block)
 
 	for i := int64(0); i < height+1; i++ {
 		blockhash, err := client.GetBlockHash(i)
@@ -64,6 +66,8 @@ func mainCore() int {
 			return 4
 		}
 
+		blocks[i] = block
+
 		// info, err := client.GetInfo()
 		// if err != nil {
 		// 	log.Errorf("GetInfo failed: %v", err)
@@ -72,7 +76,6 @@ func mainCore() int {
 
 		if i%500 == 0 {
 			log.Infof("%d", block.Height())
-			continue
 		}
 
 		header := block.MsgBlock().Header
@@ -89,6 +92,18 @@ func mainCore() int {
 				Size: header.PoolSize,
 			},
 		}
+	}
+
+	log.Info("Building stake tree to compute pool values...")
+	_, poolValues, err := txhelpers.BuildStakeTree(blocks, activeNetParams, client)
+	if err != nil {
+		log.Errorf("Failed to create stake db: %v", err)
+		return 8
+	}
+
+	log.Info("Extracting pool values...")
+	for i := range blockSummaries {
+		blockSummaries[i].PoolInfo.Value = dcrutil.Amount(poolValues[i]).ToCoin()
 	}
 
 	// write
