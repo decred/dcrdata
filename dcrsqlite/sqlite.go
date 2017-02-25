@@ -18,13 +18,22 @@ const (
 
 type DB struct {
 	*sql.DB
+	getBlockSQL string
+	insertBlockSQL string
 }
 
 func NewDB(db *sql.DB) *DB {
-	return &DB{db}
+	getBlockSQL := fmt.Sprintf(`select * from %s where height = ?`,
+		TableNameSummaries)
+	insertBlockSQL := fmt.Sprintf(`
+        INSERT OR REPLACE INTO %s(
+            height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, TableNameSummaries)
+	return &DB{db, getBlockSQL, insertBlockSQL}
 }
 
-type BlockSummaryDBer interface {
+type BlockSummaryDatabaser interface {
 	StoreBlockSummary(bd *apitypes.BlockDataBasic) error
 	GetBlockSummary(ind int64) (*apitypes.BlockDataBasic, error)
 }
@@ -61,13 +70,7 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 }
 
 func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
-	insertBlockSQL := fmt.Sprintf(`
-        INSERT OR REPLACE INTO %s(
-            height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
-        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, TableNameSummaries)
-
-	stmt, err := db.Prepare(insertBlockSQL)
+	stmt, err := db.Prepare(db.insertBlockSQL)
 	if err != nil {
 		return err
 	}
@@ -96,13 +99,10 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 func (db *DB) GetBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
 	var bd *apitypes.BlockDataBasic
 
-	getBlockSQL := fmt.Sprintf(`select * from %s where height = ?`,
-		TableNameSummaries)
-
 	// Three different ways
 
 	// 1. chained QueryRow/Scan only
-	err := db.QueryRow(getBlockSQL, ind).Scan(&bd.Height, &bd.Size, &bd.Hash,
+	err := db.QueryRow(db.getBlockSQL, ind).Scan(&bd.Height, &bd.Size, &bd.Hash,
 		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
 	if err != nil {

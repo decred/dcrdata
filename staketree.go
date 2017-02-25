@@ -28,7 +28,7 @@ const (
 //var netParams = &chaincfg.MainNetParams
 
 func buildStakeTree(blocks map[int64]*dcrutil.Block,
-	netParams *chaincfg.Params, nodeClient *dcrrpcclient.Client) (database.DB, error) {
+	netParams *chaincfg.Params, nodeClient *dcrrpcclient.Client) (database.DB, []int64, error) {
 
 	height := int64(1) // get from chain
 
@@ -39,7 +39,7 @@ func buildStakeTree(blocks map[int64]*dcrutil.Block,
 	db, err := database.Create(dbType, dbPath, netParams.Net)
 	if err != nil {
 		log.Criticalf("error creating db: %v", err)
-		return db, err
+		return db, nil, err
 	}
 
 	// Setup a teardown.
@@ -52,15 +52,11 @@ func buildStakeTree(blocks map[int64]*dcrutil.Block,
 	err = db.Update(func(dbTx database.Tx) error {
 		var errLocal error
 		bestNode, errLocal = stake.InitDatabaseState(dbTx, netParams)
-		if errLocal != nil {
-			return errLocal
-		}
-
-		return nil
+		return errLocal
 	})
 	if err != nil {
 		log.Critical(err.Error())
-		return db, err
+		return db, nil, err
 	}
 
 	// Cache all of our nodes so that we can check them when we start
@@ -143,7 +139,7 @@ func buildStakeTree(blocks map[int64]*dcrutil.Block,
 		log.Critical(err.Error())
 	}
 
-	return db, err
+	return db, poolValues, err
 
 }
 
