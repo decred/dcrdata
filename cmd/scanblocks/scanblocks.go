@@ -95,11 +95,12 @@ func mainCore() int {
 	}
 
 	log.Info("Building stake tree to compute pool values...")
-	_, poolValues, err := txhelpers.BuildStakeTree(blocks, activeNetParams, client)
+	stakeDB, poolValues, err := txhelpers.BuildStakeTree(blocks, activeNetParams, client)
 	if err != nil {
 		log.Errorf("Failed to create stake db: %v", err)
 		return 8
 	}
+	defer stakeDB.Close()
 
 	log.Info("Extracting pool values...")
 	for i := range blockSummaries {
