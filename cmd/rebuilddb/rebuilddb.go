@@ -83,6 +83,8 @@ func mainCore() int {
 		return 2
 	}
 
+	log.Info("Current block:")
+
 	blockSummaries := make([]apitypes.BlockDataBasic, height+1)
 
 	for i := int64(0); i < height+1; i++ {
