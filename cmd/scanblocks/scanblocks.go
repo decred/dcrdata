@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math/big"
 	"os"
+	"strconv"
 
 	"github.com/btcsuite/btclog"
 	//"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/rpcutils"
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
@@ -61,11 +64,11 @@ func mainCore() int {
 			return 4
 		}
 
-		info, err := client.GetInfo()
-		if err != nil {
-			log.Errorf("GetInfo failed: %v", err)
-			return 5
-		}
+		// info, err := client.GetInfo()
+		// if err != nil {
+		// 	log.Errorf("GetInfo failed: %v", err)
+		// 	return 5
+		// }
 
 		if i%500 == 0 {
 			log.Infof("%d", block.Height())
@@ -73,12 +76,13 @@ func mainCore() int {
 		}
 
 		header := block.MsgBlock().Header
+		diffRatio := getDifficultyRatio(header.Bits)
 
 		blockSummaries[i] = apitypes.BlockDataBasic{
 			Height:     header.Height,
 			Size:       header.Size,
 			Hash:       blockhash.String(),
-			Difficulty: info.Difficulty,
+			Difficulty: diffRatio,
 			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
 			Time:       header.Timestamp.Unix(),
 			PoolInfo: apitypes.TicketPoolInfo{
@@ -122,4 +126,24 @@ func init() {
 	dcrrpcclient.UseLogger(btclogger)
 
 	rpcutils.UseLogger(btclogger)
+}
+
+// getDifficultyRatio returns the proof-of-work difficulty as a multiple of the
+// minimum difficulty using the passed bits field from the header of a block.
+func getDifficultyRatio(bits uint32) float64 {
+	// The minimum difficulty is the max possible proof-of-work limit bits
+	// converted back to a number.  Note this is not the same as the proof of
+	// work limit directly because the block difficulty is encoded in a block
+	// with the compact form which loses precision.
+	max := blockchain.CompactToBig(activeNetParams.PowLimitBits)
+	target := blockchain.CompactToBig(bits)
+
+	difficulty := new(big.Rat).SetFrac(max, target)
+	outString := difficulty.FloatString(8)
+	diff, err := strconv.ParseFloat(outString, 64)
+	if err != nil {
+		log.Errorf("Cannot get difficulty: %v", err)
+		return 0
+	}
+	return diff
 }
