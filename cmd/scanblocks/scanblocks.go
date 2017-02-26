@@ -96,11 +96,14 @@ func mainCore() int {
 	}
 
 	log.Info("Building stake tree to compute pool values...")
-	stakeDB, poolValues, err := txhelpers.BuildStakeTree(blocks, activeNetParams, client)
+	dbName := "ffldb_stake"
+	stakeDB, poolValues, err := txhelpers.BuildStakeTree(blocks,
+		activeNetParams, client, dbName)
 	if err != nil {
 		log.Errorf("Failed to create stake db: %v", err)
 		return 8
 	}
+	defer os.RemoveAll(dbName)
 	defer stakeDB.Close()
 
 	log.Info("Extracting pool values...")
