@@ -32,6 +32,16 @@ const (
 	// removed? invalidated?
 )
 
+// HashInSlice determines if a hash exists in a slice of hashes.
+func HashInSlice(h chainhash.Hash, list []chainhash.Hash) bool {
+	for _, hash := range list {
+		if h == hash {
+			return true
+		}
+	}
+	return false
+}
+
 func TxhashInSlice(txs []*dcrutil.Tx, txHash *chainhash.Hash) *dcrutil.Tx {
 	if len(txs) < 1 {
 		return nil

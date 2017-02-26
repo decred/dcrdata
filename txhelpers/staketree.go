@@ -17,18 +17,16 @@ import (
 const (
 	// dbType is the database backend type to use for the tests.
 	dbType = "ffldb"
-
 	// dbRoot is the root directory used to create all test databases.
 	dbRoot = "dbs"
-
 	// dbName is the database name.
 	dbName = "ffldb_stake"
 )
 
 //var netParams = &chaincfg.MainNetParams
 
-func BuildStakeTree(blocks map[int64]*dcrutil.Block,
-	netParams *chaincfg.Params, nodeClient *dcrrpcclient.Client) (database.DB, []int64, error) {
+func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
+	nodeClient *dcrrpcclient.Client) (database.DB, []int64, error) {
 
 	height := int64(len(blocks) - 1)
 
@@ -40,10 +38,6 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block,
 	if err != nil {
 		return db, nil, fmt.Errorf("error creating db: %v\n", err)
 	}
-
-	// Setup a teardown.
-	//defer os.RemoveAll(dbPath)
-	//defer os.RemoveAll(dbRoot)
 	//defer db.Close()
 
 	// Load the genesis block and begin testing exported functions.
@@ -63,17 +57,11 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block,
 	poolValues := make([]int64, height+1)
 	nodes := make([]*stake.Node, height+1)
 	nodes[0] = bestNode
+	// a ticket treap would be nice, but a map will do for a cache
+	liveTicketMap := make(map[chainhash.Hash]int64)
 	err = db.Update(func(dbTx database.Tx) error {
 		for i := int64(1); i <= height; i++ {
-			if i%100 == 0 {
-				fmt.Printf("%d\n", i)
-			}
 			block := blocks[i]
-			var ticketsToAdd []chainhash.Hash
-			if i >= netParams.StakeEnabledHeight {
-				matureHeight := (i - int64(netParams.TicketMaturity))
-				ticketsToAdd = ticketsInBlock(blocks[matureHeight])
-			}
 			header := block.MsgBlock().Header
 			liveTickets := bestNode.LiveTickets()
 			numLive := len(liveTickets)
@@ -86,10 +74,44 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block,
 					header.FinalState, bestNode.FinalState())
 			}
 
-			// In memory addition teslog.
+			var amt int64
+			for _, hash := range liveTickets {
+				val, ok := liveTicketMap[hash]
+				if !ok {
+					txid, err := nodeClient.GetRawTransaction(&hash)
+					if err != nil {
+						fmt.Printf("Unable to get transaction %v: %v\n", hash, err)
+						continue
+					}
+					// This isn't quite right for pool tickets where the small
+					// pool fees are included in vout[0], but it's close.
+					liveTicketMap[hash] = txid.MsgTx().TxOut[0].Value
+				}
+				amt += val
+			}
+			poolValues[i] = amt
+
+			if i%100 == 0 {
+				fmt.Printf("%d (%d, %d)\n", i, len(liveTicketMap), numLive)
+			}
+
+			var ticketsToAdd []chainhash.Hash
+			if i >= netParams.StakeEnabledHeight {
+				matureHeight := (i - int64(netParams.TicketMaturity))
+				ticketsToAdd = ticketsInBlock(blocks[matureHeight])
+			}
+
+			spentTickets := ticketsSpentInBlock(block)
+			for i := range spentTickets {
+				delete(liveTicketMap, spentTickets[i])
+			}
+			revokedTickets := revokedTicketsInBlock(block)
+			for i := range revokedTickets {
+				delete(liveTicketMap, revokedTickets[i])
+			}
+
 			bestNode, err = bestNode.ConnectNode(header,
-				ticketsSpentInBlock(block), revokedTicketsInBlock(block),
-				ticketsToAdd)
+				spentTickets, revokedTickets, ticketsToAdd)
 			if err != nil {
 				return fmt.Errorf("couldn't connect node: %v\n", err.Error())
 			}
@@ -97,49 +119,11 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block,
 			nodes[i] = bestNode
 
 			// Write the new node to db.
-			// blockHash := block.Hash()
 			err = stake.WriteConnectedBestNode(dbTx, bestNode, *block.Hash())
 			if err != nil {
 				return fmt.Errorf("failure writing the best node: %v\n",
 					err.Error())
 			}
-
-			var amt int64
-			for _, hash := range liveTickets {
-				//txid, err := nodeClient.GetRawTransactionVerbose(&hash)
-				txid, err := nodeClient.GetRawTransaction(&hash)
-				if err != nil {
-					fmt.Printf("Unable to get transaction %v: %v\n", hash, err)
-					continue
-				}
-
-				// This isn't right for pool tickets because the pennies
-				// included for pool fees are in vout[0]
-				//coins := txid.Vout[0].Value
-				// atoms, err := dcrutil.NewAmount(coins)
-				// if err != nil {
-				// 	fmt.Printf("Invalid Vout amount %v: %v\n", coins, err)
-				// 	continue
-				// }
-				//amt += int64(atoms) // utxo.sparseOutputs[0].amount
-				amt += txid.MsgTx().TxOut[0].Value
-			}
-			poolValues[i] = amt
-
-			// Reload the node from DB and make sure it's the same.
-			// blockHash = block.Hash()
-			// loadedNode, err := stake.LoadBestNode(dbTx, bestNode.Height(),
-			// 	*blockHash, header, netParams)
-			// if err != nil {
-			// 	return log.Errorf("failed to load the best node: %v",
-			// 		err.Error())
-			// }
-			// err = nodesEqual(loadedNode, bestNode)
-			// if err != nil {
-			// 	return log.Errorf("loaded best node was not same as "+
-			// 		"in memory best node: %v", err.Error())
-			// }
-			// loadedNodesForward[i] = loadedNode
 		}
 
 		return nil
