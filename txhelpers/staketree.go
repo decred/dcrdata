@@ -3,7 +3,6 @@ package txhelpers
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -15,26 +14,26 @@ import (
 )
 
 const (
-	// dbType is the database backend type to use for the tests.
+	// dbType is the database backend type to use
 	dbType = "ffldb"
-	// dbRoot is the root directory used to create all test databases.
-	dbRoot = "dbs"
-	// dbName is the database name.
-	dbName = "ffldb_stake"
+	// DefaultStakeDbName is the default database name
+	DefaultStakeDbName = "ffldb_stake"
 )
 
 //var netParams = &chaincfg.MainNetParams
 
 func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
-	nodeClient *dcrrpcclient.Client) (database.DB, []int64, error) {
+	nodeClient *dcrrpcclient.Client, DBName ...string) (database.DB, []int64, error) {
 
 	height := int64(len(blocks) - 1)
 
 	// Create a new database to store the accepted stake node data into.
-	dbName := "ffldb_staketest"
-	dbPath := filepath.Join(dbRoot, dbName)
-	_ = os.RemoveAll(dbPath)
-	db, err := database.Create(dbType, dbPath, netParams.Net)
+	dbName := DefaultStakeDbName
+	if len(DBName) > 0 {
+		dbName = DBName[0]
+	}
+	_ = os.RemoveAll(dbName)
+	db, err := database.Create(dbType, dbName, netParams.Net)
 	if err != nil {
 		return db, nil, fmt.Errorf("error creating db: %v\n", err)
 	}
