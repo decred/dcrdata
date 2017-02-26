@@ -24,7 +24,6 @@ var host = flag.String("host", "127.0.0.1:9109", "node RPC host:port")
 var user = flag.String("user", "dcrd", "node RPC username")
 var pass = flag.String("pass", "bananas", "node RPC password")
 var notls = flag.Bool("notls", true, "Disable use of TLS for node connection")
-var nopoolval = flag.Bool("nopoolval", true, "Do not compute pool value (a slow operation)")
 
 var activeNetParams = &chaincfg.MainNetParams
 
@@ -107,7 +106,11 @@ func mainCore() int {
 	log.Info("Extracting pool values...")
 	for i := range blockSummaries {
 		blockSummaries[i].PoolInfo.Value = dcrutil.Amount(poolValues[i]).ToCoin()
-		blockSummaries[i].PoolInfo.ValAvg = blockSummaries[i].PoolInfo.Value / float64(blockSummaries[i].PoolInfo.Size)
+		if blockSummaries[i].PoolInfo.Size > 0 {
+			blockSummaries[i].PoolInfo.ValAvg = blockSummaries[i].PoolInfo.Value / float64(blockSummaries[i].PoolInfo.Size)
+		} else {
+			blockSummaries[i].PoolInfo.ValAvg = 0
+		}
 	}
 
 	// write

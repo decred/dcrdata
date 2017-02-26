@@ -18,7 +18,7 @@ const (
 
 type DB struct {
 	*sql.DB
-	getBlockSQL string
+	getBlockSQL    string
 	insertBlockSQL string
 }
 

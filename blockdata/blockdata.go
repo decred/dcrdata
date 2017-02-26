@@ -10,12 +10,12 @@ import (
 	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
-	"github.com/decred/dcrd/blockchain"
 )
 
 // BlockData
@@ -209,7 +209,6 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 
 	return blockdata, err
 }
-
 
 // GetDifficultyRatio returns the proof-of-work difficulty as a multiple of the
 // minimum difficulty using the passed bits field from the header of a block.

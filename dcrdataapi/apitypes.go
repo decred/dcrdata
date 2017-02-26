@@ -19,8 +19,8 @@ type Status struct {
 // TicketPoolInfo models data about ticket pool
 type TicketPoolInfo struct {
 	Size   uint32  `json:"size"`
-	Value  float64 `json:"value,omitempty"`
-	ValAvg float64 `json:"valavg,omitempty"`
+	Value  float64 `json:"value"`
+	ValAvg float64 `json:"valavg"`
 }
 
 type BlockDataBasic struct {
