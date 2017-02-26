@@ -1,6 +1,7 @@
 package txhelpers
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -9,8 +10,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/database"
 	_ "github.com/decred/dcrd/database/ffldb"
-	//"github.com/decred/dcrd/wire"
-	"fmt"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
@@ -66,17 +65,18 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block,
 	nodes[0] = bestNode
 	err = db.Update(func(dbTx database.Tx) error {
 		for i := int64(1); i <= height; i++ {
-			if i%200 == 0 {
+			if i%100 == 0 {
 				fmt.Printf("%d\n", i)
 			}
 			block := blocks[i]
-			ticketsToAdd := make([]chainhash.Hash, 0)
+			var ticketsToAdd []chainhash.Hash
 			if i >= netParams.StakeEnabledHeight {
 				matureHeight := (i - int64(netParams.TicketMaturity))
 				ticketsToAdd = ticketsInBlock(blocks[matureHeight])
 			}
 			header := block.MsgBlock().Header
-			numLive := len(bestNode.LiveTickets())
+			liveTickets := bestNode.LiveTickets()
+			numLive := len(liveTickets)
 			if int(header.PoolSize) != numLive {
 				fmt.Printf("bad number of live tickets: want %v, got %v (%v)\n",
 					header.PoolSize, numLive, numLive-int(header.PoolSize))
@@ -94,34 +94,37 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block,
 				return fmt.Errorf("couldn't connect node: %v\n", err.Error())
 			}
 
-			// Write the new node to db.
 			nodes[i] = bestNode
-			blockHash := block.Hash()
-			err = stake.WriteConnectedBestNode(dbTx, bestNode, *blockHash)
+
+			// Write the new node to db.
+			// blockHash := block.Hash()
+			err = stake.WriteConnectedBestNode(dbTx, bestNode, *block.Hash())
 			if err != nil {
 				return fmt.Errorf("failure writing the best node: %v\n",
 					err.Error())
 			}
 
-			// var amt int64
-			// for _, hash := range bestNode.LiveTickets() {
-			// 	txid, err := nodeClient.GetRawTransactionVerbose(&hash)
-			// 	if err != nil {
-			// 		fmt.Printf("Unable to get transaction %v: %v\n", hash, err)
-			// 		continue
-			// 	}
+			var amt int64
+			for _, hash := range liveTickets {
+				//txid, err := nodeClient.GetRawTransactionVerbose(&hash)
+				txid, err := nodeClient.GetRawTransaction(&hash)
+				if err != nil {
+					fmt.Printf("Unable to get transaction %v: %v\n", hash, err)
+					continue
+				}
 
-			// 	// This isn't right for pool tickets because the pennies
-			// 	// included for pool fees are in vout[0]
-			// 	coins := txid.Vout[0].Value
-			// 	atoms, err := dcrutil.NewAmount(coins)
-			// 	if err != nil {
-			// 		fmt.Printf("Invalid Vout amount %v: %v\n", coins, err)
-			// 		continue
-			// 	}
-			// 	amt += int64(atoms) // utxo.sparseOutputs[0].amount
-			// }
-			// poolValues[i] = amt
+				// This isn't right for pool tickets because the pennies
+				// included for pool fees are in vout[0]
+				//coins := txid.Vout[0].Value
+				// atoms, err := dcrutil.NewAmount(coins)
+				// if err != nil {
+				// 	fmt.Printf("Invalid Vout amount %v: %v\n", coins, err)
+				// 	continue
+				// }
+				//amt += int64(atoms) // utxo.sparseOutputs[0].amount
+				amt += txid.MsgTx().TxOut[0].Value
+			}
+			poolValues[i] = amt
 
 			// Reload the node from DB and make sure it's the same.
 			// blockHash = block.Hash()

@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
+	//"github.com/pkg/profile"
 )
 
 var host = flag.String("host", "127.0.0.1:9109", "node RPC host:port")
@@ -28,6 +29,7 @@ var nopoolval = flag.Bool("nopoolval", true, "Do not compute pool value (a slow 
 var activeNetParams = &chaincfg.MainNetParams
 
 func mainCore() int {
+	//defer profile.Start(profile.CPUProfile).Stop()
 	defer logFILE.Close()
 	flag.Parse()
 
@@ -105,6 +107,7 @@ func mainCore() int {
 	log.Info("Extracting pool values...")
 	for i := range blockSummaries {
 		blockSummaries[i].PoolInfo.Value = dcrutil.Amount(poolValues[i]).ToCoin()
+		blockSummaries[i].PoolInfo.ValAvg = blockSummaries[i].PoolInfo.Value / float64(blockSummaries[i].PoolInfo.Size)
 	}
 
 	// write
