@@ -5,6 +5,17 @@
 debug
 *.cert
 *.key
+dcrdata
 dcrdata.conf
 vendor/
 *.orig
+*.db
+*.db-journal
+rebuilddb.conf
+cmd/rebuilddb/rebuilddb
+cmd/scanblocks/scanblocks
+fullscan.json
+CURRENT
+LOCK
+LOG
+MANIFEST-*
