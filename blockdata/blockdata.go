@@ -62,7 +62,7 @@ type blockDataCollector struct {
 	netParams    *chaincfg.Params
 }
 
-// newBlockDataCollector creates a new blockDataCollector.
+// NewBlockDataCollector creates a new blockDataCollector.
 func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params) *blockDataCollector {
 	return &blockDataCollector{
 		mtx:          sync.Mutex{},
@@ -71,7 +71,8 @@ func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.P
 	}
 }
 
-// collect is the main handler for collecting chain data
+// Collect is the main handler for collecting chain data at the current best
+// block. The input argument specifies if ticket pool value should be omitted.
 func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.

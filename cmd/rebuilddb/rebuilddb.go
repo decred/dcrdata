@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"runtime/pprof"
 
@@ -10,6 +11,7 @@ import (
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
 	"github.com/dcrdata/dcrdata/rpcutils"
+	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
@@ -22,13 +24,7 @@ func init() {
 	}
 }
 
-// var routes = flag.Bool("dbuser", "dcrdata", "DB user")
-// var proto = flag.String("dbpass", "bananas", "DB pass")
-
 func mainCore() int {
-	// defer logFile.Close()
-	// flag.Parse()
-
 	// Parse the configuration file, and setup logger.
 	cfg, err := loadConfig()
 	if err != nil {
@@ -85,9 +81,11 @@ func mainCore() int {
 
 	log.Info("Current block:")
 
-	blockSummaries := make([]apitypes.BlockDataBasic, height+1)
+	blockSummaries := make([]apitypes.BlockDataBasic, 0, height+1)
+	blocks := make(map[int64]*dcrutil.Block)
 
-	for i := int64(0); i < height+1; i++ {
+	i := int64(0)
+	for i <= height {
 		blockhash, err := client.GetBlockHash(i)
 		if err != nil {
 			log.Errorf("GetBlockHash(%d) failed: %v", i, err)
@@ -99,21 +97,16 @@ func mainCore() int {
 			log.Errorf("GetBlock failed (%s): %v", blockhash, err)
 			return 4
 		}
-
-		// info, err := client.GetInfo()
-		// if err != nil {
-		// 	log.Errorf("GetInfo failed: %v", err)
-		// 	return 5
-		// }
+		blocks[i] = block
 
 		if i%500 == 0 {
-			log.Infof("%d", block.Height())
+			log.Infof("%d", i)
 		}
 
 		header := block.MsgBlock().Header
 		diffRatio := blockdata.GetDifficultyRatio(header.Bits, activeChain)
 
-		blockSummaries[i] = apitypes.BlockDataBasic{
+		blockSummaries = append(blockSummaries, apitypes.BlockDataBasic{
 			Height:     header.Height,
 			Size:       header.Size,
 			Hash:       blockhash.String(),
@@ -123,13 +116,120 @@ func mainCore() int {
 			PoolInfo: apitypes.TicketPoolInfo{
 				Size: header.PoolSize,
 			},
+		})
+
+		// update height
+		_, height, err = client.GetBestBlock()
+		if err != nil {
+			log.Error("GetBestBlock failed: ", err)
+			return 2
+		}
+		i++
+	}
+
+	log.Info("Building stake tree to compute pool values...")
+	dbName := "ffldb_stake"
+	stakeDB, poolValues, err := txhelpers.BuildStakeTree(blocks,
+		activeChain, client, dbName)
+	if err != nil {
+		log.Errorf("Failed to create stake db: %v", err)
+		return 8
+	}
+	defer os.RemoveAll(dbName)
+	defer stakeDB.Close()
+
+	log.Info("Saving block summaries to database...")
+	for i := range blockSummaries {
+		blockSummaries[i].PoolInfo.Value = dcrutil.Amount(poolValues[i]).ToCoin()
+		if blockSummaries[i].PoolInfo.Size > 0 {
+			blockSummaries[i].PoolInfo.ValAvg = blockSummaries[i].PoolInfo.Value / float64(blockSummaries[i].PoolInfo.Size)
+		} else {
+			blockSummaries[i].PoolInfo.ValAvg = 0
 		}
 
 		if err = db.StoreBlockSummary(&blockSummaries[i]); err != nil {
 			log.Fatalf("Unable to store block summary in database: %v", err)
 			return 5
 		}
+
+		if i%1000 == 0 {
+			log.Infof("%d", i)
+		}
 	}
+
+	// Stake info
+	log.Info("Collecting and storing stake info to datbase...")
+	stakeInfos := make([]apitypes.StakeInfoExtended, height+1)
+	winSize := uint32(activeChain.StakeDiffWindowSize)
+
+	for i := range blockSummaries {
+		if i%1000 == 0 {
+			log.Infof("%d", i)
+		}
+
+		si := apitypes.StakeInfoExtended{}
+
+		// Ticket fee info
+		block := blocks[int64(i)]
+		newSStx := txhelpers.TicketsInBlock(block)
+		si.Feeinfo.Height = uint32(i)
+		si.Feeinfo.Number = uint32(len(newSStx))
+
+		var minFee, maxFee, meanFee float64
+		maxFee = math.MaxFloat64
+		fees := make([]float64, si.Feeinfo.Number)
+		for it := range newSStx {
+			// rawTx, err := client.GetRawTransactionVerbose(&newSStx[it])
+			// if err != nil {
+			// 	log.Errorf("Unable to get sstx details: %v", err)
+			// }
+			// rawTx.Vin[iv].AmountIn
+			rawTx, err := client.GetRawTransaction(&newSStx[it])
+			if err != nil {
+				log.Errorf("Unable to get sstx details: %v", err)
+			}
+			msgTx := rawTx.MsgTx()
+			var amtIn int64
+			for iv := range msgTx.TxIn {
+				amtIn += msgTx.TxIn[iv].ValueIn
+			}
+			var amtOut int64
+			for iv := range msgTx.TxOut {
+				amtOut += msgTx.TxOut[iv].Value
+			}
+			fee := dcrutil.Amount(amtIn - amtOut).ToCoin()
+			if fee < minFee {
+				minFee = fee
+			}
+			if fee > maxFee {
+				maxFee = fee
+			}
+			meanFee += fee
+			fees[it] = fee
+		}
+
+		meanFee /= float64(si.Feeinfo.Number)
+		si.Feeinfo.Mean = meanFee
+		si.Feeinfo.Median = txhelpers.MedianCoin(fees)
+		si.Feeinfo.Min = minFee
+		si.Feeinfo.Max = maxFee
+
+		// Price window number and block index
+		si.PriceWindowNum = i / int(winSize)
+		si.IdxBlockInWindow = i%int(winSize) + 1
+
+		// Ticket pool info
+		si.PoolInfo = blockSummaries[i].PoolInfo
+
+		stakeInfos[i] = si
+
+		if err = db.StoreStakeInfoExtended(&stakeInfos[i]); err != nil {
+			log.Fatalf("Unable to store stake info in database: %v", err)
+			return 5
+		}
+	}
+
+	log.Print("Done!")
 
 	return 0
 }
