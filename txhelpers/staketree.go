@@ -39,7 +39,7 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 	}
 	//defer db.Close()
 
-	// Load the genesis block and begin testing exported functions.
+	// Load the genesis block
 	var bestNode *stake.Node
 	err = db.Update(func(dbTx database.Tx) error {
 		var errLocal error
@@ -54,8 +54,6 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 	// Cache all of our nodes so that we can check them when we start
 	// disconnecting and going backwards through the blocks.
 	poolValues := make([]int64, height+1)
-	nodes := make([]*stake.Node, height+1)
-	nodes[0] = bestNode
 	// a ticket treap would be nice, but a map will do for a cache
 	liveTicketMap := make(map[chainhash.Hash]int64)
 	err = db.Update(func(dbTx database.Tx) error {
@@ -97,14 +95,14 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 			var ticketsToAdd []chainhash.Hash
 			if i >= netParams.StakeEnabledHeight {
 				matureHeight := (i - int64(netParams.TicketMaturity))
-				ticketsToAdd = ticketsInBlock(blocks[matureHeight])
+				ticketsToAdd = TicketsInBlock(blocks[matureHeight])
 			}
 
-			spentTickets := ticketsSpentInBlock(block)
+			spentTickets := TicketsSpentInBlock(block)
 			for i := range spentTickets {
 				delete(liveTicketMap, spentTickets[i])
 			}
-			revokedTickets := revokedTicketsInBlock(block)
+			revokedTickets := RevokedTicketsInBlock(block)
 			for i := range revokedTickets {
 				delete(liveTicketMap, revokedTickets[i])
 			}
@@ -114,8 +112,6 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 			if err != nil {
 				return fmt.Errorf("couldn't connect node: %v\n", err.Error())
 			}
-
-			nodes[i] = bestNode
 
 			// Write the new node to db.
 			err = stake.WriteConnectedBestNode(dbTx, bestNode, *block.Hash())
@@ -133,8 +129,8 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 
 /// kang
 
-// ticketsInBlock finds all the new tickets in the block.
-func ticketsInBlock(bl *dcrutil.Block) []chainhash.Hash {
+// TicketsInBlock finds all the new tickets in the block.
+func TicketsInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	tickets := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
 		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSStx {
@@ -146,11 +142,12 @@ func ticketsInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	return tickets
 }
 
-// ticketsSpentInBlock finds all the tickets spent in the block.
-func ticketsSpentInBlock(bl *dcrutil.Block) []chainhash.Hash {
+// TicketsSpentInBlock finds all the tickets spent in the block.
+func TicketsSpentInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	tickets := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
 		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSSGen {
+			// Hash of the original STtx
 			tickets = append(tickets, stx.MsgTx().TxIn[1].PreviousOutPoint.Hash)
 		}
 	}
@@ -158,8 +155,8 @@ func ticketsSpentInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	return tickets
 }
 
-// votesInBlock finds all the votes in the block.
-func votesInBlock(bl *dcrutil.Block) []chainhash.Hash {
+// VotesInBlock finds all the votes in the block.
+func VotesInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	votes := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
 		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSSGen {
@@ -171,8 +168,8 @@ func votesInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	return votes
 }
 
-// revokedTicketsInBlock finds all the revoked tickets in the block.
-func revokedTicketsInBlock(bl *dcrutil.Block) []chainhash.Hash {
+// RevokedTicketsInBlock finds all the revoked tickets in the block.
+func RevokedTicketsInBlock(bl *dcrutil.Block) []chainhash.Hash {
 	tickets := make([]chainhash.Hash, 0)
 	for _, stx := range bl.STransactions() {
 		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSSRtx {
