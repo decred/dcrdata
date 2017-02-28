@@ -54,6 +54,12 @@ func newAPIRouter(app *appContext) apiMux {
 		//r.With(middleware.DefaultCompress).Get("/raw", app.someLargeResponse)
 	})
 
+	mux.Route("/stake", func(r chi.Router) {
+		r.Get("/", app.getStakeDiff)
+		r.Get("/current", app.getStakeDiffCurrent)
+		r.Get("/estimates", app.getStakeDiffEstimates)
+	})
+
 	mux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./favicon.ico")
 	})

@@ -53,6 +53,10 @@ func (s *BlockDataToMemdb) Store(data *blockdata.BlockData) error {
 	return nil
 }
 
+func (s *BlockDataToMemdb) GetHeight() int {
+	return s.Height
+}
+
 func (s *BlockDataToMemdb) Get(idx int) *blockdata.BlockData {
 	if idx < 0 {
 		return nil

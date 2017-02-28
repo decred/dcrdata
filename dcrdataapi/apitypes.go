@@ -41,6 +41,14 @@ type StakeDiff struct {
 
 type StakeInfoExtended struct {
 	Feeinfo          dcrjson.FeeInfoBlock `json:"feeinfo"`
+	StakeDiff        float64              `json:"stakediff"`
+	PriceWindowNum   int                  `json:"window_number"`
+	IdxBlockInWindow int                  `json:"window_block_index"`
+	PoolInfo         TicketPoolInfo       `json:"ticket_pool"`
+}
+
+type StakeInfoExtendedEstimates struct {
+	Feeinfo          dcrjson.FeeInfoBlock `json:"feeinfo"`
 	StakeDiff        StakeDiff            `json:"stakediff"`
 	PriceWindowNum   int                  `json:"window_number"`
 	IdxBlockInWindow int                  `json:"window_block_index"`

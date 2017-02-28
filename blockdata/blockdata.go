@@ -33,11 +33,8 @@ type BlockData struct {
 
 func (b *BlockData) ToStakeInfoExtended() apitypes.StakeInfoExtended {
 	return apitypes.StakeInfoExtended{
-		Feeinfo: b.FeeInfo,
-		StakeDiff: apitypes.StakeDiff{dcrjson.GetStakeDifficultyResult{
-			b.CurrentStakeDiff.CurrentStakeDifficulty,
-			b.CurrentStakeDiff.NextStakeDifficulty},
-			b.EstStakeDiff},
+		Feeinfo:          b.FeeInfo,
+		StakeDiff:        b.CurrentStakeDiff.CurrentStakeDifficulty,
 		PriceWindowNum:   b.PriceWindowNum,
 		IdxBlockInWindow: b.IdxBlockInWindow,
 		PoolInfo:         b.PoolInfo,

@@ -8,24 +8,36 @@ import (
 	"strconv"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
 )
+
+type APIDataSource interface {
+	GetHeight() int
+	//Get(idx int) *blockdata.BlockData
+	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
+	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
+	//GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult
+	GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended
+	GetStakeDiffEstimates() *apitypes.StakeDiff
+	//GetBestBlock() *blockdata.BlockData
+	GetSummary(idx int) *apitypes.BlockDataBasic
+	GetBestBlockSummary() *apitypes.BlockDataBasic
+}
 
 // dcrdata application context used by all route handlers
 type appContext struct {
 	nodeClient *dcrrpcclient.Client
-	BlockData  *BlockDataToMemdb
+	BlockData  APIDataSource
 }
 
 // Constructor for appContext
-func newContext(client *dcrrpcclient.Client, blockData *BlockDataToMemdb) *appContext {
+func newContext(client *dcrrpcclient.Client, blockData APIDataSource) *appContext {
 	return &appContext{
 		nodeClient: client,
 		BlockData:  blockData,
 	}
 }
-
-// Hanlders
 
 // root is a http.Handler for the "/" path
 func (c *appContext) root(w http.ResponseWriter, r *http.Request) {
@@ -169,6 +181,47 @@ func (c *appContext) getBlockStakeInfoExtended(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if err := json.NewEncoder(w).Encode(stakeinfo); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
+	stakeDiff := c.BlockData.GetStakeDiffEstimates()
+	if stakeDiff == nil {
+		apiLog.Errorf("Unable to get stake diff info")
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(stakeDiff); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request) {
+	stakeDiff := c.BlockData.GetStakeDiffEstimates()
+	if stakeDiff == nil {
+		apiLog.Errorf("Unable to get stake diff info")
+	}
+
+	stakeDiffCurrent := dcrjson.GetStakeDifficultyResult{
+		CurrentStakeDifficulty: stakeDiff.CurrentStakeDifficulty,
+		NextStakeDifficulty:    stakeDiff.NextStakeDifficulty,
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(stakeDiffCurrent); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Request) {
+	stakeDiff := c.BlockData.GetStakeDiffEstimates()
+	if stakeDiff == nil {
+		apiLog.Errorf("Unable to get stake diff info")
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(stakeDiff.Estimates); err != nil {
 		apiLog.Infof("JSON encode error: %v", err)
 	}
 }
