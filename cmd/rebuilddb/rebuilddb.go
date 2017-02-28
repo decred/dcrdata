@@ -49,6 +49,7 @@ func mainCore() int {
 	dcrrpcclient.UseLogger(btclogger)
 
 	// Setup Sqlite db
+	dcrsqlite.UseLogger(btclogger)
 	db, err := dcrsqlite.InitDB(&dcrsqlite.DBInfo{cfg.DBFileName})
 	if err != nil {
 		log.Fatalf("InitDB failed: %v", err)

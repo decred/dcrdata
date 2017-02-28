@@ -29,11 +29,11 @@ func (c *appContext) StatusCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := &apitypes.Status{}
 		// When no data yet, BlockData.Height = -1
-		if c.BlockData != nil && c.BlockData.Height >= 0 {
+		apiLog.Trace(c.BlockData.GetHeight(), c.BlockData != nil)
+		if c.BlockData != nil && c.BlockData.GetHeight() >= 0 {
 			if summary := c.BlockData.GetBestBlockSummary(); summary != nil {
 				apiLog.Trace("have block summary")
-				if summary.Height == uint32(c.BlockData.Height) &&
-					c.BlockData.GetBestBlock() != nil {
+				if summary.Height == uint32(c.BlockData.GetHeight()) {
 					apiLog.Trace("full block data agrees with summary data")
 					status.Ready = true
 					status.Height = summary.Height
@@ -89,8 +89,8 @@ func BlockIndex0PathCtx(next http.Handler) http.Handler {
 func (c *appContext) BlockIndexLatestCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idx := -1
-		if c.BlockData != nil && c.BlockData.Height >= 0 {
-			idx = c.BlockData.Height
+		if c.BlockData != nil && c.BlockData.GetHeight() >= 0 {
+			idx = c.BlockData.GetHeight()
 		}
 		ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
 		next.ServeHTTP(w, r.WithContext(ctx))

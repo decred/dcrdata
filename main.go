@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dcrdata/dcrdata/blockdata"
+	"github.com/dcrdata/dcrdata/dcrsqlite"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/semver"
 	"github.com/dcrdata/dcrdata/txhelpers"
@@ -106,6 +107,19 @@ func mainCore() int {
 	blockDataMapSaver := NewBlockDataToMemdb()
 	blockDataSavers = append(blockDataSavers, blockDataMapSaver)
 
+	// Sqlite output
+	dcrsqlite.UseLogger(log)
+	dbInfo := dcrsqlite.DBInfo{cfg.DBFileName}
+	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
+	sqliteDB, err := dcrsqlite.InitWiredDB(&dbInfo, dcrdClient, activeChain)
+	if err != nil {
+		log.Errorf("Unable to initialize SQLite datbase: %v", err)
+	}
+	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
+	defer sqliteDB.Close()
+
+	blockDataSavers = append(blockDataSavers, &sqliteDB)
+
 	// Initial data summary prior to start of regular collection
 	blockData, err := collector.Collect(!cfg.PoolValue)
 	if err != nil {
@@ -114,10 +128,12 @@ func mainCore() int {
 		return 10
 	}
 
-	if err = blockDataMapSaver.Store(blockData); err != nil {
-		fmt.Printf("Failed to store initial block data: %v",
-			err.Error())
-		return 11
+	for is := range blockDataSavers {
+		if err = blockDataSavers[is].Store(blockData); err != nil {
+			fmt.Printf("Failed to store initial block data: %v",
+				err.Error())
+			return 11
+		}
 	}
 
 	// Ctrl-C to shut down.
@@ -139,8 +155,6 @@ func mainCore() int {
 
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
-
-	// TODO: setup DB output, share mutex between consumers
 
 	// Blockchain monitor for the collector
 	wg.Add(1)
@@ -183,7 +197,7 @@ func mainCore() int {
 	}
 
 	// Start web API
-	app := newContext(dcrdClient, blockDataMapSaver)
+	app := newContext(dcrdClient, &sqliteDB)
 	mux := newAPIRouter(app)
 	mux.ListenAndServeProto(cfg.APIListen, cfg.APIProto)
 

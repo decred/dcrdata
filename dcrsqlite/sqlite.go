@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -11,14 +12,14 @@ import (
 // BlockSummaryDatabaser is the interface for a block data saving database
 type BlockSummaryDatabaser interface {
 	StoreStakeInfoExtended(bd *apitypes.StakeInfoExtended) error
-	GetStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error)
+	RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error)
 }
 
 // StakeInfoDatabaser is the interface for an extended stake info saving
 // database
 type StakeInfoDatabaser interface {
 	StoreBlockSummary(bd *apitypes.BlockDataBasic) error
-	GetBlockSummary(ind int64) (*apitypes.BlockDataBasic, error)
+	RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error)
 }
 
 // DBInfo contains db configuration
@@ -38,6 +39,8 @@ const (
 // future.
 type DB struct {
 	*sql.DB
+	dbSummaryHeight                                     int64
+	dbStakeInfoHeight                                   int64
 	getBlockSQL, insertBlockSQL                         string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
 }
@@ -60,7 +63,8 @@ func NewDB(db *sql.DB) *DB {
 			sdiff, window_num, window_ind, pool_size, pool_val, pool_valavg
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, TableNameStakeInfo)
-	return &DB{db, getBlockSQL, insertBlockSQL,
+	// TODO: if this db exists, figure out best heights
+	return &DB{db, -1, -1, getBlockSQL, insertBlockSQL,
 		getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL}
 }
 
@@ -86,8 +90,7 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
             poolval FLOAT,
             poolavg FLOAT
         );
-        delete from %s;
-        `, TableNameSummaries, TableNameSummaries)
+        `, TableNameSummaries)
 
 	_, err = db.Exec(createBlockSummaryStmt)
 	if err != nil {
@@ -106,8 +109,7 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 			sdiff FLOAT, window_num INTEGER, window_ind INTEGER,
             pool_size INTEGER, pool_val FLOAT, pool_valavg FLOAT
         );
-        delete from %s;
-        `, TableNameStakeInfo, TableNameStakeInfo)
+        `, TableNameStakeInfo)
 
 	_, err = db.Exec(createStakeInfoExtendedStmt)
 	if err != nil {
@@ -117,6 +119,18 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 
 	err = db.Ping()
 	return NewDB(db), err
+}
+
+// Store satisfies the blockdata.BlockDataSaver interface
+func (db *DB) Store(data *blockdata.BlockData) error {
+	summary := data.ToBlockSummary()
+	err := db.StoreBlockSummary(&summary)
+	if err != nil {
+		return err
+	}
+
+	stakeInfoExtended := data.ToStakeInfoExtended()
+	return db.StoreStakeInfoExtended(&stakeInfoExtended)
 }
 
 func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
@@ -133,11 +147,20 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 		return err
 	}
 
-	return logDBResult(res)
+	if err = logDBResult(res); err == nil {
+		// TODO: atomic with CAS
+		log.Infof("Store height: %v", bd.Height)
+		height := int64(bd.Height)
+		if height > db.dbSummaryHeight {
+			db.dbSummaryHeight = height
+		}
+	}
+
+	return err
 }
 
-func (db *DB) GetBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
-	var bd *apitypes.BlockDataBasic
+func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
+	bd := new(apitypes.BlockDataBasic)
 
 	// Three different ways
 
@@ -182,7 +205,7 @@ func (db *DB) GetBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
 	//     log.Error(err)
 	// }
 
-	return nil, nil
+	return bd, nil
 }
 
 func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
@@ -195,30 +218,36 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 	res, err := stmt.Exec(&si.Feeinfo.Height,
 		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
 		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
-		&si.StakeDiff.CurrentStakeDifficulty, // no next or estimates
+		&si.StakeDiff, // no next or estimates
 		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
 		&si.PoolInfo.Value, &si.PoolInfo.ValAvg)
 	if err != nil {
 		return err
 	}
 
-	return logDBResult(res)
+	if err = logDBResult(res); err == nil {
+		height := int64(si.Feeinfo.Height)
+		if height > db.dbStakeInfoHeight {
+			db.dbStakeInfoHeight = height
+		}
+	}
+	return err
 }
 
-func (db *DB) GetStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error) {
-	var si *apitypes.StakeInfoExtended
+func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error) {
+	si := new(apitypes.StakeInfoExtended)
 
 	err := db.QueryRow(db.getStakeInfoExtendedSQL, ind).Scan(&si.Feeinfo.Height,
 		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
 		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
-		&si.StakeDiff.CurrentStakeDifficulty, // no next or estimates
+		&si.StakeDiff, // no next or estimates
 		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
 		&si.PoolInfo.Value, &si.PoolInfo.ValAvg)
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	return si, nil
 }
 
 func logDBResult(res sql.Result) error {
@@ -230,6 +259,6 @@ func logDBResult(res sql.Result) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("ID = %d, affected = %d\n", lastID, rowCnt)
+	log.Infof("ID = %d, affected = %d", lastID, rowCnt)
 	return nil
 }

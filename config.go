@@ -51,6 +51,8 @@ var (
 	defaultMPTriggerTickets   = 4
 	defaultFeeWinRadius       = 0
 
+	defaultDBFileName = "dcrdata.sqlt.db"
+
 	// defaultAccountName    = "default"
 	// defaultTicketAddress  = ""
 	// defaultPoolAddress    = ""
@@ -76,16 +78,17 @@ type config struct {
 	CmdArgs string `short:"a" long:"cmdargs" description:"Comma-separated list of arguments for command to run. The specifier %n is substituted for block height at execution, and %h is substituted for block hash."`
 
 	// Data I/O
-	NoMonitor          bool `short:"e" long:"nomonitor" description:"Do not launch monitors. Display current data and (e)xit."`
-	MonitorMempool     bool `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added."`
-	MempoolMinInterval int  `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen."`
-	MempoolMaxInterval int  `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen."`
-	MPTriggerTickets   int  `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report."`
-	FeeWinRadius       int  `short:"r" long:"feewinradius" description:"Half-width of a window around the ticket with the lowest mineable fee."`
-	DumpAllMPTix       bool `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
-	NoCollectBlockData bool `long:"noblockdata" description:"Do not collect block data (default false)"`
-	NoCollectStakeInfo bool `long:"nostakeinfo" description:"Do not collect stake info data (default false)"`
-	PoolValue          bool `short:"p" long:"poolvalue" description:"Collect ticket pool value information (8-9 sec)."`
+	NoMonitor          bool   `short:"e" long:"nomonitor" description:"Do not launch monitors. Display current data and (e)xit."`
+	MonitorMempool     bool   `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added."`
+	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen."`
+	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen."`
+	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report."`
+	FeeWinRadius       int    `short:"r" long:"feewinradius" description:"Half-width of a window around the ticket with the lowest mineable fee."`
+	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
+	NoCollectBlockData bool   `long:"noblockdata" description:"Do not collect block data (default false)"`
+	NoCollectStakeInfo bool   `long:"nostakeinfo" description:"Do not collect stake info data (default false)"`
+	PoolValue          bool   `short:"p" long:"poolvalue" description:"Collect ticket pool value information (8-9 sec)."`
+	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
 
 	WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
 	//WatchOutpoints []string `short:"o" long:"watchout" description:"Watched outpoint (sending). One per line."`
@@ -129,6 +132,7 @@ var (
 		MempoolMinInterval: defaultMempoolMinInterval,
 		MempoolMaxInterval: defaultMempoolMaxInterval,
 		MPTriggerTickets:   defaultMPTriggerTickets,
+		DBFileName:         defaultDBFileName,
 		FeeWinRadius:       defaultFeeWinRadius,
 		EmailSubject:       defaultEmailSubject,
 		// AccountName:        defaultAccountName,
