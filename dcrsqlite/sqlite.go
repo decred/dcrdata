@@ -41,7 +41,9 @@ type DB struct {
 	*sql.DB
 	dbSummaryHeight                                     int64
 	dbStakeInfoHeight                                   int64
+	getLatestBlockSQL                                   string
 	getBlockSQL, insertBlockSQL                         string
+	getLatestStakeInfoExtendedSQL                       string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
 }
 
@@ -50,6 +52,8 @@ type DB struct {
 func NewDB(db *sql.DB) *DB {
 	getBlockSQL := fmt.Sprintf(`select * from %s where height = ?`,
 		TableNameSummaries)
+	getLatestBlockSQL := fmt.Sprintf(`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`,
+		TableNameSummaries)
 	insertBlockSQL := fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
             height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
@@ -57,6 +61,8 @@ func NewDB(db *sql.DB) *DB {
         `, TableNameSummaries)
 	getStakeInfoExtendedSQL := fmt.Sprintf(`select * from %s where height = ?`,
 		TableNameStakeInfo)
+	getLatestStakeInfoExtendedSQL := fmt.Sprintf(
+		`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 	insertStakeInfoExtendedSQL := fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
             height, num_tickets, fee_min, fee_max, fee_mean, fee_med, fee_std,
@@ -64,7 +70,10 @@ func NewDB(db *sql.DB) *DB {
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, TableNameStakeInfo)
 	// TODO: if this db exists, figure out best heights
-	return &DB{db, -1, -1, getBlockSQL, insertBlockSQL,
+	return &DB{db, -1, -1,
+		getLatestBlockSQL,
+		getBlockSQL, insertBlockSQL,
+		getLatestStakeInfoExtendedSQL,
 		getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL}
 }
 
@@ -159,6 +168,19 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	return err
 }
 
+func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
+	bd := new(apitypes.BlockDataBasic)
+
+	err := db.QueryRow(db.getLatestBlockSQL).Scan(&bd.Height, &bd.Size,
+		&bd.Hash, &bd.Difficulty, &bd.StakeDiff, &bd.Time,
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
+	if err != nil {
+		return nil, err
+	}
+
+	return bd, nil
+}
+
 func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
 	bd := new(apitypes.BlockDataBasic)
 
@@ -232,6 +254,23 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 		}
 	}
 	return err
+}
+
+func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, error) {
+	si := new(apitypes.StakeInfoExtended)
+
+	err := db.QueryRow(db.getLatestStakeInfoExtendedSQL).Scan(
+		&si.Feeinfo.Height, &si.Feeinfo.Number, &si.Feeinfo.Min,
+		&si.Feeinfo.Max, &si.Feeinfo.Mean,
+		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
+		&si.StakeDiff, // no next or estimates
+		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
+		&si.PoolInfo.Value, &si.PoolInfo.ValAvg)
+	if err != nil {
+		return nil, err
+	}
+
+	return si, nil
 }
 
 func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error) {

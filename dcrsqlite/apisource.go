@@ -39,7 +39,31 @@ func InitWiredDB(dbInfo *DBInfo, cl *dcrrpcclient.Client, p *chaincfg.Params) (w
 }
 
 func (db *wiredDB) GetHeight() int {
+	return db.GetBlockSummaryHeight()
+}
+
+func (db *wiredDB) GetBlockSummaryHeight() int {
+	if db.dbSummaryHeight < 0 {
+		sum, err := db.RetrieveLatestBlockSummary()
+		if err != nil || sum == nil {
+			log.Errorf("RetrieveLatestBlockSummary failed: %v", err)
+			return -1
+		}
+		db.dbSummaryHeight = int64(sum.Height)
+	}
 	return int(db.dbSummaryHeight)
+}
+
+func (db *wiredDB) GetStakeInfoHeight() int {
+	if db.dbStakeInfoHeight < 0 {
+		sum, err := db.RetrieveLatestBlockSummary()
+		if err != nil || sum == nil {
+			log.Errorf("RetrieveLatestBlockSummary failed: %v", err)
+			return -1
+		}
+		db.dbStakeInfoHeight = int64(sum.Height)
+	}
+	return int(db.dbStakeInfoHeight)
 }
 
 func (db *wiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
