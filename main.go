@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -17,6 +18,7 @@ import (
 	"github.com/dcrdata/dcrdata/semver"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrrpcclient"
+	"github.com/pressly/chi"
 )
 
 // mainCore does all the work. Deferred functions do not run after os.Exit(),
@@ -120,6 +122,10 @@ func mainCore() int {
 
 	blockDataSavers = append(blockDataSavers, &sqliteDB)
 
+	// Web template data
+	webUI := NewWebUI()
+	blockDataSavers = append(blockDataSavers, webUI)
+
 	// Ctrl-C to shut down.
 	// Nothing should be sent the quit channel.  It should only be closed.
 	quit := make(chan struct{})
@@ -193,8 +199,23 @@ func mainCore() int {
 	case <-quit:
 	default:
 		app := newContext(dcrdClient, &sqliteDB)
-		mux := newAPIRouter(app)
-		mux.ListenAndServeProto(cfg.APIListen, cfg.APIProto)
+		apiMux := newAPIRouter(app)
+
+		webMux := chi.NewRouter()
+		webMux.Get("/", webUI.RootPage)
+		webMux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "./public/images/favicon.ico")
+		})
+		webMux.FileServer("/js", http.Dir("./public/js"))
+		webMux.FileServer("/css", http.Dir("./public/css"))
+		webMux.FileServer("/fonts", http.Dir("./public/fonts"))
+		webMux.FileServer("/images", http.Dir("./public/images"))
+		webMux.NotFound(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, r.URL.RequestURI()+" ain't no country I've ever heard of! (404)", http.StatusNotFound)
+		})
+		webMux.Mount("/api", apiMux.Mux)
+
+		listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux)
 	}
 
 	// Wait for handlers to quit
@@ -222,4 +243,12 @@ func connectNodeRPC(cfg *config) (*dcrrpcclient.Client, semver.Semver, error) {
 	notificationHandlers := getNodeNtfnHandlers(cfg)
 	return rpcutils.ConnectNodeRPC(cfg.DcrdServ, cfg.DcrdUser, cfg.DcrdPass,
 		cfg.DcrdCert, cfg.DisableDaemonTLS, notificationHandlers)
+}
+
+func listenAndServeProto(listen, proto string, mux http.Handler) {
+	apiLog.Infof("Now serving on %s://%v/", proto, listen)
+	if proto == "https" {
+		go http.ListenAndServeTLS(listen, "dcrdata.cert", "dcrdata.key", mux)
+	}
+	go http.ListenAndServe(listen, mux)
 }
