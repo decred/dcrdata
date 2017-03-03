@@ -3,6 +3,7 @@ package dcrsqlite
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
@@ -39,6 +40,7 @@ const (
 // future.
 type DB struct {
 	*sql.DB
+	mtx                                                 sync.Mutex
 	dbSummaryHeight                                     int64
 	dbStakeInfoHeight                                   int64
 	getLatestBlockSQL                                   string
@@ -70,7 +72,7 @@ func NewDB(db *sql.DB) *DB {
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, TableNameStakeInfo)
 	// TODO: if this db exists, figure out best heights
-	return &DB{db, -1, -1,
+	return &DB{db, sync.Mutex{}, -1, -1,
 		getLatestBlockSQL,
 		getBlockSQL, insertBlockSQL,
 		getLatestStakeInfoExtendedSQL,
@@ -132,6 +134,10 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 
 // Store satisfies the blockdata.BlockDataSaver interface
 func (db *DB) Store(data *blockdata.BlockData) error {
+	// TODO: make a queue instead of blocking
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	summary := data.ToBlockSummary()
 	err := db.StoreBlockSummary(&summary)
 	if err != nil {
@@ -158,7 +164,7 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 
 	if err = logDBResult(res); err == nil {
 		// TODO: atomic with CAS
-		log.Infof("Store height: %v", bd.Height)
+		log.Debugf("Store height: %v", bd.Height)
 		height := int64(bd.Height)
 		if height > db.dbSummaryHeight {
 			db.dbSummaryHeight = height
@@ -298,6 +304,6 @@ func logDBResult(res sql.Result) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("ID = %d, affected = %d", lastID, rowCnt)
+	log.Tracef("ID = %d, affected = %d", lastID, rowCnt)
 	return nil
 }

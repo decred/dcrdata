@@ -2,6 +2,7 @@ package dcrsqlite
 
 import (
 	"database/sql"
+	"sync"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/rpcutils"
@@ -36,6 +37,21 @@ func InitWiredDB(dbInfo *DBInfo, cl *dcrrpcclient.Client, p *chaincfg.Params) (w
 		client: cl,
 		params: p,
 	}, nil
+}
+
+func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
+	defer wg.Done()
+	var err error
+	if err = db.Ping(); err != nil {
+		return err
+	}
+	if err = db.client.Ping(); err != nil {
+		return err
+	}
+	// Do not allow Store() while doing sync
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+	return db.resyncDB(quit)
 }
 
 func (db *wiredDB) GetHeight() int {

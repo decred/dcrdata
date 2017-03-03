@@ -104,37 +104,21 @@ func mainCore() int {
 	}
 
 	// Another (horrible) example of saving to a map in memory
-	blockDataMapSaver := NewBlockDataToMemdb()
-	blockDataSavers = append(blockDataSavers, blockDataMapSaver)
+	// blockDataMapSaver := NewBlockDataToMemdb()
+	// blockDataSavers = append(blockDataSavers, blockDataMapSaver)
 
 	// Sqlite output
 	dcrsqlite.UseLogger(log)
-	dbInfo := dcrsqlite.DBInfo{cfg.DBFileName}
+	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
 	sqliteDB, err := dcrsqlite.InitWiredDB(&dbInfo, dcrdClient, activeChain)
 	if err != nil {
-		log.Errorf("Unable to initialize SQLite datbase: %v", err)
+		log.Errorf("Unable to initialize SQLite database: %v", err)
 	}
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer sqliteDB.Close()
 
 	blockDataSavers = append(blockDataSavers, &sqliteDB)
-
-	// Initial data summary prior to start of regular collection
-	blockData, err := collector.Collect(!cfg.PoolValue)
-	if err != nil {
-		fmt.Printf("Block data collection for initial summary failed: %v",
-			err.Error())
-		return 10
-	}
-
-	for is := range blockDataSavers {
-		if err = blockDataSavers[is].Store(blockData); err != nil {
-			fmt.Printf("Failed to store initial block data: %v",
-				err.Error())
-			return 11
-		}
-	}
 
 	// Ctrl-C to shut down.
 	// Nothing should be sent the quit channel.  It should only be closed.
@@ -152,6 +136,11 @@ func mainCore() int {
 		close(quit)
 		return
 	}()
+
+	// Resync db
+	var waitSync sync.WaitGroup
+	waitSync.Add(1)
+	go sqliteDB.SyncDB(&waitSync, quit)
 
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
@@ -196,10 +185,17 @@ func mainCore() int {
 		go mpm.txHandler(dcrdClient)
 	}
 
-	// Start web API
-	app := newContext(dcrdClient, &sqliteDB)
-	mux := newAPIRouter(app)
-	mux.ListenAndServeProto(cfg.APIListen, cfg.APIProto)
+	// wait for resync before serving
+	waitSync.Wait()
+
+	// Start web API, unless resync was canceled
+	select {
+	case <-quit:
+	default:
+		app := newContext(dcrdClient, &sqliteDB)
+		mux := newAPIRouter(app)
+		mux.ListenAndServeProto(cfg.APIListen, cfg.APIProto)
+	}
 
 	// Wait for handlers to quit
 	wg.Wait()

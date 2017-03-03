@@ -131,7 +131,7 @@ func mainCore() int {
 	log.Info("Building stake tree to compute pool values...")
 	dbName := "ffldb_stake"
 	stakeDB, poolValues, err := txhelpers.BuildStakeTree(blocks,
-		activeChain, client, dbName)
+		activeChain, client, 0, dbName)
 	if err != nil {
 		log.Errorf("Failed to create stake db: %v", err)
 		return 8
@@ -159,7 +159,7 @@ func mainCore() int {
 	}
 
 	// Stake info
-	log.Info("Collecting and storing stake info to datbase...")
+	log.Info("Collecting and storing stake info to database...")
 	stakeInfos := make([]apitypes.StakeInfoExtended, height+1)
 	winSize := uint32(activeChain.StakeDiffWindowSize)
 
