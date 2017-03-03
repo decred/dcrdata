@@ -19,6 +19,7 @@ import (
 var (
 	backendLog = seelog.Disabled
 	log        = btclog.Disabled
+	sqliteLog  = btclog.Disabled
 	daemonLog  = btclog.Disabled
 	clientLog  = btclog.Disabled
 	mempoolLog = btclog.Disabled
@@ -27,7 +28,7 @@ var (
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]btclog.Logger{
-	"DDAT": log,
+	"DSQL": sqliteLog,
 	"DCRD": daemonLog,
 	"RPCC": clientLog,
 	"MEMP": mempoolLog,
@@ -59,7 +60,7 @@ func useLogger(subsystemID string, logger btclog.Logger) {
 	subsystemLoggers[subsystemID] = logger
 
 	switch subsystemID {
-	case "DDAT":
+	case "DSQL":
 		log = logger
 	case "DCRD":
 		daemonLog = logger

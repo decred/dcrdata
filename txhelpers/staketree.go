@@ -20,10 +20,15 @@ const (
 	DefaultStakeDbName = "ffldb_stake"
 )
 
-//var netParams = &chaincfg.MainNetParams
+// TODO: maybe kill this function, but definitely make a new one that is a stake
+// tree update with a single block or chunk of blocks.  This does NOT SCALE!
 
 func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
-	nodeClient *dcrrpcclient.Client, DBName ...string) (database.DB, []int64, error) {
+	nodeClient *dcrrpcclient.Client, poolRequiredHeight int64, DBName ...string) (database.DB, []int64, error) {
+
+	if blocks[0] == nil || blocks[0].Height() != 0 {
+		return nil, nil, fmt.Errorf("Must start at height 0")
+	}
 
 	height := int64(len(blocks) - 1)
 
@@ -51,42 +56,42 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 		return nil, nil, err
 	}
 
-	// Cache all of our nodes so that we can check them when we start
-	// disconnecting and going backwards through the blocks.
 	poolValues := make([]int64, height+1)
 	// a ticket treap would be nice, but a map will do for a cache
 	liveTicketMap := make(map[chainhash.Hash]int64)
 	err = db.Update(func(dbTx database.Tx) error {
 		for i := int64(1); i <= height; i++ {
 			block := blocks[i]
-			header := block.MsgBlock().Header
-			liveTickets := bestNode.LiveTickets()
-			numLive := len(liveTickets)
-			if int(header.PoolSize) != numLive {
-				fmt.Printf("bad number of live tickets: want %v, got %v (%v)\n",
-					header.PoolSize, numLive, numLive-int(header.PoolSize))
-			}
-			if header.FinalState != bestNode.FinalState() {
-				fmt.Printf("bad final state: want %x, got %x\n",
-					header.FinalState, bestNode.FinalState())
-			}
+			//header := &block.MsgBlock().Header
+			numLive := bestNode.PoolSize()
+			// if int(header.PoolSize) != numLive {
+			// 	fmt.Printf("bad number of live tickets: want %v, got %v (%v)\n",
+			// 		header.PoolSize, numLive, numLive-int(header.PoolSize))
+			// }
+			// if header.FinalState != bestNode.FinalState() {
+			// 	fmt.Printf("bad final state: want %x, got %x\n",
+			// 		header.FinalState, bestNode.FinalState())
+			// }
 
-			var amt int64
-			for _, hash := range liveTickets {
-				val, ok := liveTicketMap[hash]
-				if !ok {
-					txid, err := nodeClient.GetRawTransaction(&hash)
-					if err != nil {
-						fmt.Printf("Unable to get transaction %v: %v\n", hash, err)
-						continue
+			if i >= poolRequiredHeight {
+				liveTickets := bestNode.LiveTickets()
+				var amt int64
+				for _, hash := range liveTickets {
+					val, ok := liveTicketMap[hash]
+					if !ok {
+						txid, err := nodeClient.GetRawTransaction(&hash)
+						if err != nil {
+							fmt.Printf("Unable to get transaction %v: %v\n", hash, err)
+							continue
+						}
+						// This isn't quite right for pool tickets where the small
+						// pool fees are included in vout[0], but it's close.
+						liveTicketMap[hash] = txid.MsgTx().TxOut[0].Value
 					}
-					// This isn't quite right for pool tickets where the small
-					// pool fees are included in vout[0], but it's close.
-					liveTicketMap[hash] = txid.MsgTx().TxOut[0].Value
+					amt += val
 				}
-				amt += val
+				poolValues[i] = amt
 			}
-			poolValues[i] = amt
 
 			if i%100 == 0 {
 				fmt.Printf("%d (%d, %d)\n", i, len(liveTicketMap), numLive)
@@ -107,7 +112,7 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 				delete(liveTicketMap, revokedTickets[i])
 			}
 
-			bestNode, err = bestNode.ConnectNode(header,
+			bestNode, err = bestNode.ConnectNode(block.MsgBlock().Header,
 				spentTickets, revokedTickets, ticketsToAdd)
 			if err != nil {
 				return fmt.Errorf("couldn't connect node: %v\n", err.Error())

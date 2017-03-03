@@ -99,7 +99,7 @@ func mainCore() int {
 	log.Info("Building stake tree to compute pool values...")
 	dbName := "ffldb_stake"
 	stakeDB, poolValues, err := txhelpers.BuildStakeTree(blocks,
-		activeNetParams, client, dbName)
+		activeNetParams, client, 0, dbName)
 	if err != nil {
 		log.Errorf("Failed to create stake db: %v", err)
 		return 8
