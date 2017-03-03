@@ -41,6 +41,19 @@ func (b *BlockData) ToStakeInfoExtended() apitypes.StakeInfoExtended {
 	}
 }
 
+func (b *BlockData) ToStakeInfoExtendedEstimates() apitypes.StakeInfoExtendedEstimates {
+	return apitypes.StakeInfoExtendedEstimates{
+		Feeinfo: b.FeeInfo,
+		StakeDiff: apitypes.StakeDiff{
+			GetStakeDifficultyResult: b.CurrentStakeDiff,
+			Estimates:                b.EstStakeDiff,
+		},
+		PriceWindowNum:   b.PriceWindowNum,
+		IdxBlockInWindow: b.IdxBlockInWindow,
+		PoolInfo:         b.PoolInfo,
+	}
+}
+
 func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 	return apitypes.BlockDataBasic{
 		Height:     b.Header.Height,
