@@ -114,7 +114,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 			// rawTx.Vin[iv].AmountIn
 			rawTx, err := db.client.GetRawTransaction(&newSStx[it])
 			if err != nil {
-				log.Errorf("Unable to get sstx details: %v", err)
+				return fmt.Errorf("Unable to get sstx details (are you running"+
+					"dcrd with --txindex?): %v", err)
 			}
 			msgTx := rawTx.MsgTx()
 			var amtIn int64
@@ -159,6 +160,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 			return fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 	}
+
+	log.Info("Resync complete.")
 
 	return nil
 }
