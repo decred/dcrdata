@@ -1,26 +1,34 @@
 package main
 
 import (
-	"path/filepath"
+	"bytes"
 	"html/template"
+	"io"
 	"net/http"
+	"path/filepath"
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 )
 
-type TemplateData struct {
-	blockSummary apitypes.BlockDataBasic
-	stakeSummary apitypes.StakeInfoExtendedEstimates
+func TemplateExecToString(t *template.Template, name string, data interface{}) (string, error) {
+	var page bytes.Buffer
+	err := t.ExecuteTemplate(&page, name, data)
+	return page.String(), err
+}
+
+type WebTemplateData struct {
+	BlockSummary apitypes.BlockDataBasic
+	StakeSummary apitypes.StakeInfoExtendedEstimates
 }
 
 type WebUI struct {
-	templateData TemplateData
+	TemplateData WebTemplateData
 	templ        *template.Template
 }
 
 func NewWebUI() *WebUI {
-	fp := filepath.Join("views", "root.html")
+	fp := filepath.Join("views", "root.tmpl")
 	tmpl, err := template.New("home").ParseFiles(fp)
 	if err != nil {
 		return nil
@@ -32,14 +40,19 @@ func NewWebUI() *WebUI {
 }
 
 func (td *WebUI) Store(blockData *blockdata.BlockData) error {
-	td.templateData.blockSummary = blockData.ToBlockSummary()
-	td.templateData.stakeSummary = blockData.ToStakeInfoExtendedEstimates()
+	td.TemplateData.BlockSummary = blockData.ToBlockSummary()
+	td.TemplateData.StakeSummary = blockData.ToStakeInfoExtendedEstimates()
 	return nil
 }
 
 func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
-	err := td.templ.Execute(w, td.templateData)
+	//err := td.templ.Execute(w, td.TemplateData)
+	str, err := TemplateExecToString(td.templ, "home", td.TemplateData)
 	if err != nil {
-		http.Error(w, "execute failure", http.StatusInternalServerError)
+		http.Error(w, "template execute failure", http.StatusInternalServerError)
+		return
 	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
 }

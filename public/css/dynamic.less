@@ -1,0 +1,173 @@
+.radial-progress {
+	@circle-size: 350px;
+	@circle-background: #d6dadc;
+	@circle-color: #5bc0de;
+	@inset-size: 280px;
+	@inset-color: #fbfbfb;
+	@transition-length: 1s;
+	@shadow: 6px 6px 10px rgba(0,0,0,0.2);
+
+	margin: 60px 0 20px 25px;
+	width:  @circle-size;
+	height: @circle-size;
+
+	background-color: @circle-background;
+	border-radius: 50%;
+	.circle {
+		.mask, .fill, .shadow {
+			width:    @circle-size;
+			height:   @circle-size;
+			position: absolute;
+			border-radius: 50%;
+		}
+		.shadow {
+			box-shadow: @shadow inset;
+		}
+		.mask, .fill {
+			-webkit-backface-visibility: hidden;
+			transition: -webkit-transform @transition-length;
+			transition: -ms-transform @transition-length;
+			transition: transform @transition-length;
+		}
+		.mask {
+			clip: rect(0px, @circle-size, @circle-size, @circle-size/2);
+			.fill {
+				clip: rect(0px, @circle-size/2, @circle-size, 0px);
+				background-color: @circle-color;
+			}
+		}
+	}
+	.inset {
+		width:       @inset-size;
+		height:      @inset-size;
+		position:    absolute;
+		margin-left: (@circle-size - @inset-size)/2;
+		margin-top:  (@circle-size - @inset-size)/2;
+		color: #5bc0de;
+		font-size: 1.5em;
+		background-color: @inset-color;
+		border-radius: 50%;
+		box-shadow: @shadow;
+	}
+	.textinset {
+		font-size:0.6em;
+		color: #0c1e3e;
+	}
+}
+
+
+
+.radial-progress2 {
+        @circle-size: 350px;
+        @circle-background: #d6dadc;
+        @circle-color: #5bc0de;
+        @inset-size: 280px;
+        @inset-color: #fbfbfb;
+        @transition-length: 1s;
+        @shadow: 6px 6px 10px rgba(0,0,0,0.2);
+
+        margin: 60px 0 20px 25px;
+        width:  @circle-size;
+        height: @circle-size;
+
+        background-color: @circle-background;
+        border-radius: 50%;
+        .circle2 {
+                .mask, .fill, .shadow {
+                        width:    @circle-size;
+                        height:   @circle-size;
+                        position: absolute;
+                        border-radius: 50%;
+                }
+                .shadow {
+                        box-shadow: @shadow inset;
+                }
+                .mask, .fill {
+                        -webkit-backface-visibility: hidden;
+                        transition: -webkit-transform @transition-length;
+                        transition: -ms-transform @transition-length;
+                        transition: transform @transition-length;
+                }
+                .mask {
+                        clip: rect(0px, @circle-size, @circle-size, @circle-size/2);
+                        .fill {
+                                clip: rect(0px, @circle-size/2, @circle-size, 0px);
+                                background-color: @circle-color;
+                        }
+                }
+        }
+        .inset {
+                width:       @inset-size;
+                height:      @inset-size;
+                position:    absolute;
+                margin-left: (@circle-size - @inset-size)/2;
+                margin-top:  (@circle-size - @inset-size)/2;
+                color: #5bc0de;
+                font-size: 1.5em;
+                background-color: @inset-color;
+                border-radius: 50%;
+                box-shadow: @shadow;
+        }
+        .textinset {
+                font-size:0.6em;
+                color: #0c1e3e;
+        }
+}
+
+.radial-progress3 {
+        @circle-size: 350px;
+        @circle-background: #d6dadc;
+        @circle-color: #5bc0de;
+        @inset-size: 280px;
+        @inset-color: #fbfbfb;
+        @transition-length: 1s;
+        @shadow: 6px 6px 10px rgba(0,0,0,0.2);
+
+        margin: 60px 0 20px 25px;
+        width:  @circle-size;
+        height: @circle-size;
+
+        background-color: @circle-background;
+        border-radius: 50%;
+        .circle3 {
+                .mask, .fill, .shadow {
+                        width:    @circle-size;
+                        height:   @circle-size;
+                        position: absolute;
+                        border-radius: 50%;
+                }
+                .shadow {
+                        box-shadow: @shadow inset;
+                }
+                .mask, .fill {
+                        -webkit-backface-visibility: hidden;
+                        transition: -webkit-transform @transition-length;
+                        transition: -ms-transform @transition-length;
+                        transition: transform @transition-length;
+                }
+                .mask {
+                        clip: rect(0px, @circle-size, @circle-size, @circle-size/2);
+                        .fill {
+                                clip: rect(0px, @circle-size/2, @circle-size, 0px);
+                                background-color: @circle-color;
+                        }
+                }
+        }
+        .inset {
+                width:       @inset-size;
+                height:      @inset-size;
+                position:    absolute;
+                margin-left: (@circle-size - @inset-size)/2;
+                margin-top:  (@circle-size - @inset-size)/2;
+                color: #5bc0de;
+                font-size: 1.5em;
+                background-color: @inset-color;
+                border-radius: 50%;
+                box-shadow: @shadow;
+        }
+        .textinset {
+                font-size:0.6em;
+                color: #0c1e3e;
+        }
+}
+

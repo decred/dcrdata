@@ -122,9 +122,23 @@ func mainCore() int {
 
 	blockDataSavers = append(blockDataSavers, &sqliteDB)
 
-	// Web template data
+	// Web template data. WebUI implements BlockDataSaver interface
 	webUI := NewWebUI()
 	blockDataSavers = append(blockDataSavers, webUI)
+
+	// Initial data summary for web ui
+	blockData, err := collector.Collect(!cfg.PoolValue)
+	if err != nil {
+		fmt.Printf("Block data collection for initial summary failed: %v",
+			err.Error())
+		return 10
+	}
+
+	if err = webUI.Store(blockData); err != nil {
+		fmt.Printf("Failed to store initial block data: %v",
+			err.Error())
+		return 11
+	}
 
 	// Ctrl-C to shut down.
 	// Nothing should be sent the quit channel.  It should only be closed.
