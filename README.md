@@ -1,26 +1,27 @@
 # dcrdata
 
-This is very much a work-in-progress!
+This is very much a work-in-progres.
 
 What it is/does presently:
 
 * Registers for new-block notifications (and other ntfns) from dcrd
 * When signaled by the notifier, collects a bunch of block data
-* Saves it into a map in memory
+* Saves it into sqlite and/or a map in memory
+* A basic webui facility (make your template)
 * Starts a HTTP JSON API and serves up what it has
+* A CLI in cmd/rebuilddb that performs a full blockchain scan that fills past
+  block data into SQLite.
+* A CLI in cmd/scanblocks to scan the blockchain and save data into JSON.
+* Various packages, such as the API types (package dcrdataapi).
 
 What it needs (just a few top ones):
 
-* A real database backend, perhaps PostgreSQL and/or mongodb
-* A command line utility, in cmd/rebuilddb for instance, to perform a full block
-  chain scan to get past data into the database.
+* More database backend options, perhaps PostgreSQL and/or mongodb too
 * mempool data collection and storage. Collection is already implemented, but no
 storage or API endpoints.  For instance, a realtime read of the ticket fee
 distribution in mempool, stake submissions included as they come in.
-* An actual web interface.  However, with the JSON API, perhaps a separate
-process or a plain old php+js page from a web server could consume and present
-the data. Maybe there's no need for php here, given golang templates.
-* Refactored into reusable golang packages.  Secondary apps in a cmd directory.
+* Chain reorg handling.
+* test cases.
 
 ## Getting Started ##
 
@@ -32,3 +33,7 @@ cp ./sample-dcrdata.conf ./dcrdata.conf
 vim dcrdata.conf
 ./dcrdata
 ```
+
+The sqlite driver uses cgo, which requires gcc to compile the C sources. On
+Windows this is easily handles with MSYS2 ([download](http://www.msys2.org/) and
+install MinGW-w64 gcc packages.).
