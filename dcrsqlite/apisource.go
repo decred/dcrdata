@@ -54,7 +54,6 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
 	return db.resyncDB(quit)
 }
 
-
 func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) error {
 	defer wg.Done()
 	var err error

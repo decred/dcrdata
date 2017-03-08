@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	rescanLogBlockChunk = 1000
+	rescanLogBlockChunk = 250
 	// dbType is the database backend type to use
 	dbType = "ffldb"
 	// DefaultStakeDbName is the default database name
@@ -232,6 +232,9 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		return err
 	}
 
+	log.Info("Best node height: ", bestNode.Height())
+	//firstTicketHash, _ := chainhash.NewHashFromStr("a10547a4bcb59914e85d747a1acb971f2f989b9a0600ec5c4d60d6a58a679dc8")
+
 	// a ticket treap would be nice, but a map will do for a cache
 	liveTicketMap := make(map[chainhash.Hash]int64)
 
@@ -268,16 +271,13 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			blockQueue.Enqueue(block)
 		}
 
-		if i%rescanLogBlockChunk == 0 /* || i == startHeight */ {
-			log.Infof("Scanning blocks %d to %d...", i, i+rescanLogBlockChunk)
-		}
-
-		if i < startHeight {
-			continue
-		}
-
-		//numLive := bestNode.PoolSize()
+		numLive := bestNode.PoolSize()
 		liveTickets := bestNode.LiveTickets()
+
+		if i%rescanLogBlockChunk == 0 /* || i == startHeight */ {
+			log.Infof("Scanning blocks %d to %d (%d live)...",
+				i, i+rescanLogBlockChunk, numLive)
+		}
 
 		var poolValue int64
 		for _, hash := range liveTickets {
@@ -295,47 +295,58 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			poolValue += val
 		}
 
-		var ticketsToAdd []chainhash.Hash
-		if i >= db.params.StakeEnabledHeight {
-			//matureHeight := (i - int64(db.params.TicketMaturity))
-			if blockQueue.Size() != int(db.params.TicketMaturity)+1 {
-				panic("crap: " + strconv.Itoa(blockQueue.Size()) + " " + strconv.Itoa(int(i)))
+		if i > 0 {
+			var ticketsToAdd []chainhash.Hash
+			if /*i >= startHeight && i >= int64(db.params.TicketMaturity)*/ i >= db.params.StakeEnabledHeight {
+				//matureHeight := (i - int64(db.params.TicketMaturity))
+				if blockQueue.Size() != int(db.params.TicketMaturity)+1 {
+					panic("crap: " + strconv.Itoa(blockQueue.Size()) + " " + strconv.Itoa(int(i)))
+				}
+				maturingBlock := blockQueue.Dequeue().(*dcrutil.Block)
+				if maturingBlock.Height() != i-int64(db.params.TicketMaturity) {
+					panic("crap: " + strconv.Itoa(int(maturingBlock.Height())) + " " +
+						strconv.Itoa(int(i)-int(db.params.TicketMaturity)))
+				}
+				ticketsToAdd = txhelpers.TicketsInBlock(maturingBlock)
+				//log.Infof("Number of tickets in block %d: %d", i, len(ticketsToAdd))
+
+				// if txhelpers.HashInSlice(*firstTicketHash, ticketsToAdd) {
+				// 	log.Infof("GOT IT (%d, %d)!", i, maturingBlock.Height())
+				// }
 			}
-			maturingBlock := blockQueue.Dequeue().(*dcrutil.Block)
-			if maturingBlock.Height() != i - int64(db.params.TicketMaturity) {
-				panic("crap: " + strconv.Itoa(int(maturingBlock.Height())) + " " +
-					strconv.Itoa(int(i) - int(db.params.TicketMaturity)))
+
+			spentTickets := txhelpers.TicketsSpentInBlock(block)
+			for it := range spentTickets {
+				delete(liveTicketMap, spentTickets[it])
 			}
-			ticketsToAdd = txhelpers.TicketsInBlock(maturingBlock)
-		}
+			revokedTickets := txhelpers.RevokedTicketsInBlock(block)
+			for it := range revokedTickets {
+				delete(liveTicketMap, revokedTickets[it])
+			}
 
-		spentTickets := txhelpers.TicketsSpentInBlock(block)
-		for it := range spentTickets {
-			delete(liveTicketMap, spentTickets[it])
-		}
-		revokedTickets := txhelpers.RevokedTicketsInBlock(block)
-		for it := range revokedTickets {
-			delete(liveTicketMap, revokedTickets[it])
-		}
-
-		bestNode, err = bestNode.ConnectNode(block.MsgBlock().Header,
-			spentTickets, revokedTickets, ticketsToAdd)
-		if err != nil {
-			return fmt.Errorf("couldn't connect node: %v\n", err.Error())
-		}
-
-		err = stakeDB.Update(func(dbTx database.Tx) error {
-			// Write the new node to db.
-			err = stake.WriteConnectedBestNode(dbTx, bestNode, *block.Hash())
+			bestNode, err = bestNode.ConnectNode(block.MsgBlock().Header,
+				spentTickets, revokedTickets, ticketsToAdd)
 			if err != nil {
-				return fmt.Errorf("failure writing the best node: %v\n",
-					err.Error())
+				return fmt.Errorf("couldn't connect node %d: %v\n", i, err.Error())
 			}
 
-			return nil
-		})
-		if err != nil {
-			return err
+			err = stakeDB.Update(func(dbTx database.Tx) error {
+				// Write the new node to db.
+				err = stake.WriteConnectedBestNode(dbTx, bestNode, *block.Hash())
+				if err != nil {
+					return fmt.Errorf("failure writing the best node: %v\n",
+						err.Error())
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		if i < startHeight {
+			continue
 		}
 
 		header := block.MsgBlock().Header
