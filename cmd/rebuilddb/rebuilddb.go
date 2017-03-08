@@ -2,18 +2,20 @@ package main
 
 import (
 	"fmt"
-	"math"
+	//"math"
 	"os"
 	"runtime/pprof"
 
 	"github.com/btcsuite/btclog"
-	"github.com/dcrdata/dcrdata/blockdata"
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	//"github.com/dcrdata/dcrdata/blockdata"
+	//apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
 	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/dcrdata/dcrdata/txhelpers"
+	//"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	//"github.com/decred/dcrutil"
+	"os/signal"
+	"sync"
 )
 
 func init() {
@@ -49,15 +51,15 @@ func mainCore() int {
 	dcrrpcclient.UseLogger(btclogger)
 
 	// Setup Sqlite db
-	dcrsqlite.UseLogger(btclogger)
-	db, err := dcrsqlite.InitDB(&dcrsqlite.DBInfo{cfg.DBFileName})
-	if err != nil {
-		log.Fatalf("InitDB failed: %v", err)
-		return 1
-	}
+	// dcrsqlite.UseLogger(btclogger)
+	// db, err := dcrsqlite.InitDB(&dcrsqlite.DBInfo{cfg.DBFileName})
+	// if err != nil {
+	// 	log.Fatalf("InitDB failed: %v", err)
+	// 	return 1
+	// }
 
-	log.Infof("sqlite db successfully opened: %s", cfg.DBFileName)
-	defer db.Close()
+	// log.Infof("sqlite db successfully opened: %s", cfg.DBFileName)
+	// defer db.Close()
 
 	// Connect to node RPC server
 	client, _, err := rpcutils.ConnectNodeRPC(cfg.DcrdServ, cfg.DcrdUser,
@@ -74,14 +76,52 @@ func mainCore() int {
 	}
 	log.Info("Node connection count: ", infoResult.Connections)
 
-	_, height, err := client.GetBestBlock()
+	_, _, err = client.GetBestBlock()
 	if err != nil {
 		log.Error("GetBestBlock failed: ", err)
 		return 2
 	}
 
-	log.Info("Current block:")
+	// Sqlite output
+	dcrsqlite.UseLogger(btclogger)
+	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
+	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
+	sqliteDB, err := dcrsqlite.InitWiredDB(&dbInfo, client, activeChain)
+	if err != nil {
+		log.Errorf("Unable to initialize SQLite database: %v", err)
+	}
+	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
+	defer sqliteDB.Close()
 
+	// Ctrl-C to shut down.
+	// Nothing should be sent the quit channel.  It should only be closed.
+	quit := make(chan struct{})
+	// Only accept a single CTRL+C
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	// Start waiting for the interrupt signal
+	go func() {
+		<-c
+		signal.Stop(c)
+		// Close the channel so multiple goroutines can get the message
+		log.Infof("CTRL+C hit.  Closing goroutines.")
+		close(quit)
+		return
+	}()
+
+	// Resync db
+	var waitSync sync.WaitGroup
+	waitSync.Add(1)
+	//go sqliteDB.SyncDB(&waitSync, quit)
+	err = sqliteDB.SyncDBWithPoolValue(&waitSync, quit)
+	if err != nil {
+		log.Error(err)
+	}
+
+	waitSync.Wait()
+
+	/*log.Info("Current block:")
 	blockSummaries := make([]apitypes.BlockDataBasic, 0, height+1)
 	blocks := make(map[int64]*dcrutil.Block)
 
@@ -229,6 +269,7 @@ func mainCore() int {
 			return 5
 		}
 	}
+	*/
 
 	log.Print("Done!")
 
