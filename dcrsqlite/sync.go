@@ -249,9 +249,20 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 	if bestNodeHeight < startHeight {
 		startHeight = bestNodeHeight
 	} else if bestNodeHeight > startHeight {
-		log.Infof("Rewinding stake node from %d to %d", bestNodeHeight, startHeight)
+		rewindTo := startHeight
+		if rewindTo < 0 {
+			rewindTo = 0
+		}
+		log.Infof("Rewinding stake node from %d to %d", bestNodeHeight, rewindTo)
 		// rewind best node in ticket db
-		for bestNodeHeight > startHeight {
+		for bestNodeHeight > rewindTo {
+			// check for quit signal
+			select {
+			case <-quit:
+				log.Infof("Rewind cancelled at height %d.", bestNodeHeight)
+				return nil
+			default:
+			}
 			// previous best node
 			err = stakeDB.Update(func(dbTx database.Tx) error {
 				var errLocal error
