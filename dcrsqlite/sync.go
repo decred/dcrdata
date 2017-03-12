@@ -1,9 +1,11 @@
 package dcrsqlite
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"os"
+	"strconv"
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
@@ -13,7 +15,6 @@ import (
 	"github.com/decred/dcrd/database"
 	"github.com/decred/dcrutil"
 	"github.com/oleiade/lane"
-	"strconv"
 )
 
 const (
@@ -213,23 +214,55 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 
 	// Create a new database to store the accepted stake node data into.
 	dbName := DefaultStakeDbName
-	_ = os.RemoveAll(dbName)
-	stakeDB, err := database.Create(dbType, dbName, db.params.Net)
+	stakeDB, err := database.Open(dbType, dbName, db.params.Net)
 	if err != nil {
-		return fmt.Errorf("error creating db: %v\n", err)
+		_ = os.RemoveAll(dbName)
+		stakeDB, err = database.Create(dbType, dbName, db.params.Net)
+		if err != nil {
+			return fmt.Errorf("error creating db: %v\n", err)
+		}
 	}
-	defer os.RemoveAll(dbName)
+	//defer os.RemoveAll(dbName)
 	defer stakeDB.Close()
 
-	// Load the genesis block
+	// Load the best block from stake db
 	var bestNode *stake.Node
-	err = stakeDB.Update(func(dbTx database.Tx) error {
+	var bestNodeHeight int64
+	err = stakeDB.View(func(dbTx database.Tx) error {
+		v := dbTx.Metadata().Get([]byte("stakechainstate"))
+		if v == nil {
+			return fmt.Errorf("missing key for chain state data")
+		}
+
+		var stakeDBHash chainhash.Hash
+		copy(stakeDBHash[:], v[:chainhash.HashSize])
+		offset := chainhash.HashSize
+		stakeDBHeight := binary.LittleEndian.Uint32(v[offset : offset+4])
+		bestNodeHeight = int64(stakeDBHeight)
+
 		var errLocal error
-		bestNode, errLocal = stake.InitDatabaseState(dbTx, db.params)
+		block, errLocal := db.client.GetBlock(&stakeDBHash)
+		if err != nil {
+			return fmt.Errorf("GetBlock failed (%s): %v", stakeDBHash, err)
+		}
+		header := block.MsgBlock().Header
+
+		bestNode, errLocal = stake.LoadBestNode(dbTx, stakeDBHeight,
+			stakeDBHash, header, db.params)
 		return errLocal
 	})
 	if err != nil {
-		return err
+		err = stakeDB.Update(func(dbTx database.Tx) error {
+			var errLocal error
+			bestNode, errLocal = stake.InitDatabaseState(dbTx, db.params)
+			return errLocal
+		})
+		if err != nil {
+			return err
+		}
+		log.Infof("Created new stake db.")
+	} else {
+		log.Infof("Opened existing stake db.")
 	}
 
 	log.Info("Best node height: ", bestNode.Height())
@@ -295,9 +328,9 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			poolValue += val
 		}
 
-		if i > 0 {
+		if i > bestNodeHeight {
 			var ticketsToAdd []chainhash.Hash
-			if /*i >= startHeight && i >= int64(db.params.TicketMaturity)*/ i >= db.params.StakeEnabledHeight {
+			if i >= startHeight && i >= db.params.StakeEnabledHeight {
 				//matureHeight := (i - int64(db.params.TicketMaturity))
 				if blockQueue.Size() != int(db.params.TicketMaturity)+1 {
 					panic("crap: " + strconv.Itoa(blockQueue.Size()) + " " + strconv.Itoa(int(i)))
@@ -343,6 +376,10 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			if err != nil {
 				return err
 			}
+		}
+
+		if blockQueue.Size() == int(db.params.TicketMaturity)+1 {
+			blockQueue.Dequeue()
 		}
 
 		if i < startHeight {
