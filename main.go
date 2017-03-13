@@ -160,7 +160,9 @@ func mainCore() int {
 	// Resync db
 	var waitSync sync.WaitGroup
 	waitSync.Add(1)
-	go sqliteDB.SyncDB(&waitSync, quit)
+	// start as goroutine to let chain monitor start, but the sync will keep up
+	// with current height, it is not likely to matter.
+	sqliteDB.SyncDBWithPoolValue(&waitSync, quit)
 
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup

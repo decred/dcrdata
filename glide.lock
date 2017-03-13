@@ -1,12 +1,8 @@
-hash: 587da80a063ed6e5e29c0be1a335d3277f08ea704bfaa7d15e5561e485462a18
-updated: 2017-03-06T14:28:30.404238425-08:00
+hash: 4a4af8f934226d916845c046f14283eddcc10ca94231c0c769432b514852f0b7
+updated: 2017-03-09T00:24:05.003940423Z
 imports:
-- name: github.com/boltdb/bolt
-  version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
 - name: github.com/btcsuite/btclog
   version: 73889fb79bd687870312b6e40effcecffbd57d30
-- name: github.com/btcsuite/fastsha256
-  version: 637e656429416087660c84436a2a035d69d54e2e
 - name: github.com/btcsuite/go-flags
   version: 6c288d648c1cc1befcb90cb5511dcacf64ae8e61
 - name: github.com/btcsuite/go-socks
@@ -16,26 +12,7 @@ imports:
 - name: github.com/btcsuite/golangcrypto
   version: 53f62d9b43e87a6c56975cf862af7edf33a8d0df
   subpackages:
-  - blowfish
-  - cast5
-  - curve25519
-  - hkdf
-  - nacl/secretbox
-  - openpgp
-  - openpgp/armor
-  - openpgp/elgamal
-  - openpgp/errors
-  - openpgp/packet
-  - openpgp/s2k
-  - pbkdf2
-  - poly1305
   - ripemd160
-  - salsa20/salsa
-  - scrypt
-  - ssh
-  - ssh/agent
-  - ssh/terminal
-  - ssh/testdata
 - name: github.com/btcsuite/goleveldb
   version: 7834afc9e8cd15233b6c3d97e12674a31ca24602
   subpackages:
@@ -57,32 +34,14 @@ imports:
   version: 0bdef8d067237991ddaa1bb6072a740bc40601ba
 - name: github.com/btcsuite/websocket
   version: 31079b6807923eb23992c421b114992b95131b55
-- name: github.com/btcsuite/winsvc
-  version: f8fb11f83f7e860e3769a08e6811d1b399a43722
-  subpackages:
-  - eventlog
-  - mgr
-  - registry
-  - svc
-  - winapi
 - name: github.com/chappjc/logrus-prefix
   version: 94df605435ff3ac370e1ab342aa9f128d688d769
-- name: github.com/davecgh/go-spew
-  version: 346938d642f2ec3594ed81d874461961cd0faa76
-  subpackages:
-  - spew
-- name: github.com/decred/bitset
-  version: 484b833245d5f9046e2893a6bd2e54b1df3a53a4
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
   version: 54d1da3151ee8883399ffdf114d2a49196423e42
   subpackages:
-  - addrmgr
   - blockchain
-  - blockchain/chaingen
-  - blockchain/fullblocktests
-  - blockchain/indexers
   - blockchain/internal/dbnamespace
   - blockchain/internal/progresslog
   - blockchain/stake
@@ -99,10 +58,6 @@ imports:
   - dcrec/secp256k1
   - dcrec/secp256k1/schnorr
   - dcrjson
-  - limits
-  - mempool
-  - mining
-  - peer
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
@@ -111,46 +66,16 @@ imports:
   version: ba0a5f399a43abc0e1a0a0442509c36f35321bce
   subpackages:
   - base58
-  - bloom
-  - coinset
-  - hdkeychain
 - name: github.com/decred/dcrwallet
   version: 43620621173cdfb7997ccb10fe29321d412aa8e6
   subpackages:
-  - chain
-  - internal/cfgutil
-  - internal/helpers
-  - internal/prompt
-  - internal/rpchelp
-  - internal/zero
   - netparams
-  - pgpwordlist
-  - rpc/legacyrpc
-  - rpc/rpcserver
-  - rpc/walletrpc
-  - rpctest
-  - snacl
-  - ticketbuyer
-  - waddrmgr
-  - wallet
-  - wallet/internal/txsizes
-  - wallet/txauthor
-  - wallet/txrules
   - walletdb
-  - walletdb/bdb
-  - walletseed
-  - wstakemgr
   - wtxmgr
 - name: github.com/decred/ed25519
   version: b0909d3f798b97a03c9e77023f97a5301a2a7900
   subpackages:
   - edwards25519
-- name: github.com/golang/protobuf
-  version: 8ee79997227bf9b34611aee7946ae64735e6fd93
-  subpackages:
-  - proto
-- name: github.com/jessevdk/go-flags
-  version: 48cf8722c3375517aba351d1f7577c40663a4407
 - name: github.com/mattn/go-colorable
   version: acb9493f2794fd0f820de7a27a217dafbb1b65ea
 - name: github.com/mattn/go-isatty
@@ -159,6 +84,8 @@ imports:
   version: ca5e3819723d8eeaf170ad510e7da1d6d2e94a08
 - name: github.com/mgutz/ansi
   version: 9520e82c474b0a04dd04f8a40959027271bab992
+- name: github.com/oleiade/lane
+  version: 28f7c3f09254f12b51e620fa4db136ba58804762
 - name: github.com/pressly/chi
   version: 57ee7612d4405274628c71d1dc9455a12646f056
   subpackages:
@@ -172,39 +99,8 @@ imports:
   version: b4690f45fa1cafc47b1c280c2e75116efe40cc13
   subpackages:
   - context
-  - http2
-  - http2/hpack
-  - idna
-  - internal/timeseries
-  - lex/httplex
-  - trace
 - name: golang.org/x/sys
   version: e24f485414aeafb646f6fca458b0bf869c0880a1
   subpackages:
   - unix
-- name: google.golang.org/grpc
-  version: 708a7f9f3283aa2d4f6132d287d78683babe55c8
-  subpackages:
-  - codes
-  - credentials
-  - grpclog
-  - internal
-  - metadata
-  - naming
-  - peer
-  - stats
-  - tap
-  - transport
-testImports:
-- name: github.com/pmezard/go-difflib
-  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
-  subpackages:
-  - difflib
-- name: github.com/stretchr/testify
-  version: 4d4bfba8f1d1027c4fdbe371823030df51419987
-  subpackages:
-  - assert
-- name: golang.org/x/crypto
-  version: 453249f01cfeb54c3d549ddb75ff152ca243f9d8
-  subpackages:
-  - curve25519
+testImports: []

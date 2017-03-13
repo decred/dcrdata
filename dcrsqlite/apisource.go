@@ -54,6 +54,21 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
 	return db.resyncDB(quit)
 }
 
+func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) error {
+	defer wg.Done()
+	var err error
+	if err = db.Ping(); err != nil {
+		return err
+	}
+	if err = db.client.Ping(); err != nil {
+		return err
+	}
+	// Do not allow Store() while doing sync
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+	return db.resyncDBWithPoolValue(quit)
+}
+
 func (db *wiredDB) GetHeight() int {
 	return db.GetBlockSummaryHeight()
 }
