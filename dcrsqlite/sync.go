@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
@@ -179,6 +180,13 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		return fmt.Errorf("GetBestBlock failed: %v", err)
 	}
 
+	// Time this function
+	defer func(start time.Time, perr *error) {
+		if *perr != nil {
+			log.Infof("blockDataCollector.Collect() completed in %v", time.Since(start))
+		}
+	}(time.Now(), &err)
+
 	// Get DB's best block (for block summary and stake info tables)
 	bestBlockHeight := int64(db.GetBlockSummaryHeight())
 	bestStakeHeight := int64(db.GetStakeInfoHeight())
@@ -340,6 +348,9 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 
 		if i%rescanLogBlockChunk == 0 || i == startHeight0 {
 			endRangeBlock := rescanLogBlockChunk * (1 + i/rescanLogBlockChunk)
+			if endRangeBlock > height {
+				endRangeBlock = height
+			}
 			log.Infof("Scanning blocks %d to %d (%d live)...",
 				i, endRangeBlock, numLive)
 		}
