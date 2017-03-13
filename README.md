@@ -35,6 +35,38 @@ several components including:
 1. RESTful JSON API over HTTP(S).
 1. Web interface.
 
+### REST API
+
+Some example endpoints:
+
+| Best block | |
+|----------|---------------|
+| Summary | /api/block/best |
+| Stake info |  /api/block/best/pos |
+| Header |  /api/block/best/header |
+
+
+| Block X | |
+|----------|---------------|
+| Summary | /api/block/6666 |
+| Stake info |  /api/block/6666/pos |
+| Header |  /api/block/6666/header |
+
+| Block range | |
+|----------|---------------|
+| Summary array | /api/block/range/6664/6666 |
+
+| Stake Difficulty | |
+|--------|-----------|
+| Current sdiff and estimates | /api/stake |
+| Current sdiff separately | /api/stake/current |
+| Estimates separately | /api/stake/estimates |
+
+| Other | |
+|--------|-----------|
+| Status | /status |
+| Directory | /directory |
+
 ## command line utilities
 
 ### rebuilddb
