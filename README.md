@@ -40,7 +40,7 @@ several components including:
 The API serves JSON data over HTTP(S).  After dcrdata syncs with the blockchain
 server, by default it will begin listening on `http://0.0.0.0:7777/`.  This means
 it starts a web server listening on all network interfaces on port 7777. All API
-endpoints are prefixed with /api.
+endpoints are prefixed with `/api`.
 
 Some example endpoints:
 
@@ -77,18 +77,20 @@ Some example endpoints:
 In addition to the API that is accessible via paths beginning with `/api`, an
 HTML interface is served on the root path (`/`).
 
-## command line utilities
+## Command Line Utilities
 
 ### rebuilddb
 
 rebuilddb is a CLI app that performs a full blockchain scan that fills past
-block data into SQLite. This functionality is included in the startup of the
-dcrdata daemon, but may be called alone with rebuilddb.
+block data into a SQLite database. This functionality is included in the startup
+of the dcrdata daemon, but may be called alone with rebuilddb.
 
 ### scanblocks
 
-scanblocks is a CLI app to scan the blockchain and save data into JSON. More
-details are in [its own README](./cmd/scanblocks/README.md).
+scanblocks is a CLI app to scan the blockchain and save data into a JSON file.
+More details are in [its own README](./cmd/scanblocks/README.md). The repository
+also includes a shell script, jsonarray2csv.sh, to convert the result into a
+comma-separated value (CSV) file.
 
 ## Helper packages
 
