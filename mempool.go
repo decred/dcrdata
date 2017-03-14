@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
@@ -53,6 +54,20 @@ func NewMempoolMonitor(collector *mempoolDataCollector,
 		quit:           quit,
 		wg:             wg,
 	}
+}
+
+type TicketsDetails []apitypes.TicketDetails
+
+func (tix TicketsDetails) Len() int {
+	return len(tix)
+}
+
+func (tix TicketsDetails) Less(i, j int) bool {
+	return tix[i].FeeRate < tix[j].FeeRate
+}
+
+func (tix TicketsDetails) Swap(i, j int) {
+	tix[i], tix[j] = tix[j], tix[i]
 }
 
 // txHandler receives signals from OnTxAccepted via the newTxChan, indicating
@@ -232,11 +247,12 @@ type Stakelimitfeeinfo struct {
 }
 
 type mempoolData struct {
-	height      uint32
-	numTickets  uint32
-	newTickets  uint32
-	ticketfees  *dcrjson.TicketFeeInfoResult
-	minableFees *MinableFeeInfo
+	height            uint32
+	numTickets        uint32
+	newTickets        uint32
+	ticketfees        *dcrjson.TicketFeeInfoResult
+	minableFees       *MinableFeeInfo
+	allTicketsDetails TicketsDetails
 }
 
 type mempoolDataCollector struct {
@@ -273,12 +289,15 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 	mempoolTickets, err := c.GetRawMempoolVerbose(dcrjson.GRMTickets)
 	N := len(mempoolTickets)
 	allFees := make([]float64, 0, N)
-	for _, t := range mempoolTickets {
-		ageSec := time.Since(time.Unix(t.Time, 0)).Seconds()
-		heightSSTx := t.Height
+	allTicketsDetails := make(TicketsDetails, 0, N)
+	for hash, t := range mempoolTickets {
+		//ageSec := time.Since(time.Unix(t.Time, 0)).Seconds()
+		//heightSSTx := t.Height
 		// Compute fee in DCR / kB
-		txSize := float64(t.Size)
-		allFees = append(allFees, t.Fee/txSize*1000)
+		feeRate := t.Fee / float64(t.Size) * 1000
+		allFees = append(allFees, feeRate)
+		allTicketsDetails = append(allTicketsDetails, apitypes.TicketDetails{hash,
+			feeRate, t.Size, t.Height})
 	}
 	// Verify we get the correct median result
 	//medianFee := MedianCoin(allFees)
@@ -297,6 +316,8 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 		lowestMineableIdx = 0
 		lowestMineableFee = allFees[0]
 	}
+
+	sort.Sort(allTicketsDetails)
 
 	// Extract the fees for a window about the mileability threshold
 	var targetFeeWindow []float64
@@ -336,13 +357,12 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 		return nil, err
 	}
 
-	//feeInfoMempool := feeInfo.FeeInfoMempool
-
 	mpoolData := &mempoolData{
-		height:      uint32(height),
-		numTickets:  feeInfo.FeeInfoMempool.Number,
-		ticketfees:  feeInfo,
-		minableFees: mineables,
+		height:            uint32(height),
+		numTickets:        feeInfo.FeeInfoMempool.Number,
+		ticketfees:        feeInfo,
+		minableFees:       mineables,
+		allTicketsDetails: allTicketsDetails,
 	}
 
 	return mpoolData, err
