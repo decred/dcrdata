@@ -38,8 +38,8 @@ type mempoolMonitor struct {
 	mtx            sync.RWMutex
 }
 
-// newMempoolMonitor creates a new mempoolMonitor
-func newMempoolMonitor(collector *mempoolDataCollector,
+// NewMempoolMonitor creates a new mempoolMonitor
+func NewMempoolMonitor(collector *mempoolDataCollector,
 	savers []MempoolDataSaver,
 	quit chan struct{}, wg *sync.WaitGroup, newTicketLimit int32,
 	mini time.Duration, maxi time.Duration, mpi *mempoolInfo) *mempoolMonitor {
@@ -56,11 +56,11 @@ func newMempoolMonitor(collector *mempoolDataCollector,
 }
 
 // txHandler receives signals from OnTxAccepted via the newTxChan, indicating
-// that a new transaction has entered mempool.
-// This function should be launched as a goroutine, and stopped by closing the
-// quit channel, the broadcasting mechanism used by main.
-// The newTxChan contains a chain hash for the transaction from the
-// notificiation, or a zero value hash indicating it was from a Ticker.
+// that a new transaction has entered mempool. This function should be launched
+// as a goroutine, and stopped by closing the quit channel, the broadcasting
+// mechanism used by main. The newTxChan contains a chain hash for the
+// transaction from the notificiation, or a zero value hash indicating it was
+// from a Ticker or manually triggered.
 func (p *mempoolMonitor) txHandler(client *dcrrpcclient.Client) {
 	defer p.wg.Done()
 	for {
@@ -213,15 +213,15 @@ func (p *mempoolMonitor) txHandler(client *dcrrpcclient.Client) {
 
 // COLLECTOR
 
-// Fees for tickets in mempool that are near top
-type minableFeeInfo struct {
+// MinableFeeInfo describes the ticket fees
+type MinableFeeInfo struct {
 	// All fees in mempool
 	allFees []float64
 	// The index of the 20th largest fee, or largest if number in mempool < 20
 	lowestMineableIdx int
 	// The corresponding fee (i.e. all[lowestMineableIdx])
 	lowestMineableFee float64
-	// A window of fees in "all about lowestMineableIdx
+	// A window of fees about lowestMineableIdx
 	targetFeeWindow []float64
 }
 
@@ -236,7 +236,7 @@ type mempoolData struct {
 	numTickets  uint32
 	newTickets  uint32
 	ticketfees  *dcrjson.TicketFeeInfoResult
-	minableFees *minableFeeInfo
+	minableFees *MinableFeeInfo
 }
 
 type mempoolDataCollector struct {
@@ -244,8 +244,8 @@ type mempoolDataCollector struct {
 	dcrdChainSvr *dcrrpcclient.Client
 }
 
-// newMempoolDataCollector creates a new mempoolDataCollector.
-func newMempoolDataCollector(dcrdChainSvr *dcrrpcclient.Client) *mempoolDataCollector {
+// NewMempoolDataCollector creates a new mempoolDataCollector.
+func NewMempoolDataCollector(dcrdChainSvr *dcrrpcclient.Client) *mempoolDataCollector {
 	return &mempoolDataCollector{
 		mtx:          sync.Mutex{},
 		dcrdChainSvr: dcrdChainSvr,
@@ -274,6 +274,8 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 	N := len(mempoolTickets)
 	allFees := make([]float64, 0, N)
 	for _, t := range mempoolTickets {
+		ageSec := time.Since(time.Unix(t.Time, 0)).Seconds()
+		heightSSTx := t.Height
 		// Compute fee in DCR / kB
 		txSize := float64(t.Size)
 		allFees = append(allFees, t.Fee/txSize*1000)
@@ -316,7 +318,7 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 		targetFeeWindow = allFees[lowEnd:highEnd]
 	}
 
-	mineables := &minableFeeInfo{
+	mineables := &MinableFeeInfo{
 		allFees,
 		lowestMineableIdx,
 		lowestMineableFee,

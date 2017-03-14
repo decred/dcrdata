@@ -177,7 +177,7 @@ func mainCore() int {
 	go wsChainMonitor.BlockConnectedHandler()
 
 	if cfg.MonitorMempool {
-		mpoolCollector := newMempoolDataCollector(dcrdClient)
+		mpoolCollector := NewMempoolDataCollector(dcrdClient)
 		if mpoolCollector == nil {
 			log.Error("Failed to create mempool data collector")
 			return 13
@@ -201,7 +201,7 @@ func mainCore() int {
 		mini := time.Duration(cfg.MempoolMinInterval) * time.Second
 		maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
 
-		mpm := newMempoolMonitor(mpoolCollector, mempoolSavers,
+		mpm := NewMempoolMonitor(mpoolCollector, mempoolSavers,
 			quit, &wg, newTicketLimit, mini, maxi, mpi)
 		wg.Add(1)
 		go mpm.txHandler(dcrdClient)
