@@ -37,6 +37,11 @@ several components including:
 
 ### REST API
 
+The API serves JSON data over HTTP(S).  After dcrdata syncs with the blockchain
+server, by default it will begin listening on `http://0.0.0.0:7777/`.  This means
+it starts a web server listening on all network interfaces on port 7777. All API
+endpoints are prefixed with /api.
+
 Some example endpoints:
 
 | Best block | |
@@ -66,6 +71,11 @@ Some example endpoints:
 |--------|-----------|
 | Status | /status |
 | Directory | /directory |
+
+### Web Interface
+
+In addition to the API that is accessible via paths beginning with `/api`, an
+HTML interface is served on the root path (`/`).
 
 ## command line utilities
 
