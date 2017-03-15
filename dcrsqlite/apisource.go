@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -14,16 +15,17 @@ import (
 // wiredDB is intended to satisfy APIDataSource interface. The block header is
 // not stored in the DB, so the RPC client is used to get it on demand.
 type wiredDB struct {
-	*DB
+	*DBDataSaver
+	MPC    *mempool.MempoolDataCache
 	client *dcrrpcclient.Client
 	params *chaincfg.Params
 }
 
 func NewWiredDB(db *sql.DB, cl *dcrrpcclient.Client, p *chaincfg.Params) wiredDB {
 	return wiredDB{
-		DB:     NewDB(db),
-		client: cl,
-		params: p,
+		DBDataSaver: &DBDataSaver{NewDB(db)},
+		client:      cl,
+		params:      p,
 	}
 }
 
@@ -33,9 +35,9 @@ func InitWiredDB(dbInfo *DBInfo, cl *dcrrpcclient.Client, p *chaincfg.Params) (w
 		return wiredDB{}, err
 	}
 	return wiredDB{
-		DB:     db,
-		client: cl,
-		params: p,
+		DBDataSaver: &DBDataSaver{db},
+		client:      cl,
+		params:      p,
 	}, nil
 }
 
@@ -143,4 +145,9 @@ func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	}
 
 	return blockSummary
+}
+
+func (db *wiredDB) GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo {
+	_, feeInfo := db.MPC.GetFeeInfoExtra()
+	return feeInfo
 }

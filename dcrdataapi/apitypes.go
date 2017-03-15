@@ -70,6 +70,7 @@ type MempoolTicketFees struct {
 
 type TicketDetails struct {
 	Hash    string  `json:"hash"`
+	Fee     float64 `json:"abs_fee"`
 	FeeRate float64 `json:"fee"`
 	Size    int32   `json:"size"`
 	Height  int64   `json:"height_received"`

@@ -64,6 +64,18 @@ func newAPIRouter(app *appContext) apiMux {
 		http.ServeFile(w, r, "./favicon.ico")
 	})
 
+	mux.Route("/mempool", func(r chi.Router) {
+		r.Get("/", http.NotFound /*app.getMempoolOverview*/)
+		// ticket purchases
+		r.Route("/sstx", func(rd chi.Router) {
+			rd.Get("/", app.getSSTxSummary)
+			// rd.Get("/fees", app.getSSTxFees)
+			// rd.Use(NPathCtx).Get("/details/:N", app.getSSTxFees)
+			// rd.Get("/details", app.getSSTxDetails)
+			// rd.Use(NPathCtx).Get("/details/:N", app.getSSTxDetails)
+		})
+	})
+
 	//mux.FileServer("/browse", http.Dir(context.RootDataFolder))
 
 	mux.NotFound(func(w http.ResponseWriter, r *http.Request) {

@@ -23,6 +23,7 @@ const (
 	ctxAPIStatus
 	ctxBlockIndex0
 	ctxBlockIndex
+	ctxN
 )
 
 func (c *appContext) StatusCtx(next http.Handler) http.Handler {
@@ -82,6 +83,21 @@ func BlockIndex0PathCtx(next http.Handler) http.Handler {
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxBlockIndex0, idx)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func NPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pathNStr := chi.URLParam(r, "N")
+		N, err := strconv.Atoi(pathNStr)
+		if err != nil {
+			apiLog.Infof("No/invalid numeric value (uint64): %v", err)
+			http.NotFound(w, r)
+			//http.Error(w, http.StatusText(404), 404)
+			return
+		}
+		ctx := context.WithValue(r.Context(), ctxN, N)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

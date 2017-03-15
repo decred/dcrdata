@@ -23,6 +23,9 @@ type APIDataSource interface {
 	//GetBestBlock() *blockdata.BlockData
 	GetSummary(idx int) *apitypes.BlockDataBasic
 	GetBestBlockSummary() *apitypes.BlockDataBasic
+	GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo
+	//GetMempoolSSTxFees(N int) *apitypes.MempoolTicketFees
+	//GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
 }
 
 // dcrdata application context used by all route handlers
@@ -64,6 +67,15 @@ func getBlockIndex0Ctx(r *http.Request) int {
 		return -1
 	}
 	return idx
+}
+
+func getNCtx(r *http.Request) int {
+	N, ok := r.Context().Value(ctxN).(int)
+	if !ok {
+		apiLog.Trace("N not set")
+		return -1
+	}
+	return N
 }
 
 func getStatusCtx(r *http.Request) *apitypes.Status {
@@ -225,6 +237,31 @@ func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Reques
 		apiLog.Infof("JSON encode error: %v", err)
 	}
 }
+
+func (c *appContext) getSSTxSummary(w http.ResponseWriter, r *http.Request) {
+	sstxSummary := c.BlockData.GetMempoolSSTxSummary()
+	if sstxSummary == nil {
+		apiLog.Errorf("Unable to get SSTx info from mempool")
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(sstxSummary); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+// func (c *appContext) getSSTxFees(w http.ResponseWriter, r *http.Request) {
+// 	N := getNCtx(r)
+// 	sstxFees := c.BlockData.GetMempoolSSTxFees(N)
+// 	if sstxFees == nil {
+// 		apiLog.Errorf("Unable to get SSTx fees from mempool")
+// 	}
+
+// 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+// 	if err := json.NewEncoder(w).Encode(sstxFees); err != nil {
+// 		apiLog.Infof("JSON encode error: %v", err)
+// 	}
+// }
 
 func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request) {
 	idx0 := getBlockIndex0Ctx(r)

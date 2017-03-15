@@ -14,6 +14,7 @@ import (
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/semver"
 	"github.com/dcrdata/dcrdata/txhelpers"
@@ -96,12 +97,12 @@ func mainCore() int {
 
 	// Build a slice of each required saver type for each data source
 	var blockDataSavers []blockdata.BlockDataSaver
-	var mempoolSavers []MempoolDataSaver
+	var mempoolSavers []mempool.MempoolDataSaver
 
 	// For example, dumping all mempool fees with a custom saver
 	if cfg.DumpAllMPTix {
 		log.Debugf("Dumping all mempool tickets to file in %s.\n", cfg.OutFolder)
-		mempoolFeeDumper := NewMempoolFeeDumper(cfg.OutFolder, "mempool-fees")
+		mempoolFeeDumper := mempool.NewMempoolFeeDumper(cfg.OutFolder, "mempool-fees")
 		mempoolSavers = append(mempoolSavers, mempoolFeeDumper)
 	}
 
@@ -177,7 +178,7 @@ func mainCore() int {
 	go wsChainMonitor.BlockConnectedHandler()
 
 	if cfg.MonitorMempool {
-		mpoolCollector := NewMempoolDataCollector(dcrdClient)
+		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
 		if mpoolCollector == nil {
 			log.Error("Failed to create mempool data collector")
 			return 13
@@ -190,21 +191,16 @@ func mainCore() int {
 			return 14
 		}
 
-		mpi := &mempoolInfo{
-			currentHeight:               mpData.height,
-			numTicketPurchasesInMempool: mpData.numTickets,
-			numTicketsSinceStatsReport:  0,
-			lastCollectTime:             time.Now(),
-		}
+		mpi := &mempool.MempoolInfo{mpData.GetHeight(), mpData.GetNumTickets(), 0, time.Now()}
 
 		newTicketLimit := int32(cfg.MPTriggerTickets)
 		mini := time.Duration(cfg.MempoolMinInterval) * time.Second
 		maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
 
-		mpm := NewMempoolMonitor(mpoolCollector, mempoolSavers,
+		mpm := mempool.NewMempoolMonitor(mpoolCollector, mempoolSavers, ntfnChans.newTxChan,
 			quit, &wg, newTicketLimit, mini, maxi, mpi)
 		wg.Add(1)
-		go mpm.txHandler(dcrdClient)
+		go mpm.TxHandler(dcrdClient)
 	}
 
 	// wait for resync before serving

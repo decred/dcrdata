@@ -132,20 +132,24 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	return NewDB(db), err
 }
 
+type DBDataSaver struct {
+	*DB
+}
+
 // Store satisfies the blockdata.BlockDataSaver interface
-func (db *DB) Store(data *blockdata.BlockData) error {
+func (db *DBDataSaver) Store(data *blockdata.BlockData) error {
 	// TODO: make a queue instead of blocking
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
+	db.DB.mtx.Lock()
+	defer db.DB.mtx.Unlock()
 
 	summary := data.ToBlockSummary()
-	err := db.StoreBlockSummary(&summary)
+	err := db.DB.StoreBlockSummary(&summary)
 	if err != nil {
 		return err
 	}
 
 	stakeInfoExtended := data.ToStakeInfoExtended()
-	return db.StoreStakeInfoExtended(&stakeInfoExtended)
+	return db.DB.StoreStakeInfoExtended(&stakeInfoExtended)
 }
 
 func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
