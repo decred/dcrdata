@@ -18,7 +18,7 @@ type MempoolDataCache struct {
 	allTicketsDetails       TicketsDetails
 }
 
-func (c *MempoolDataCache) Store(data *mempoolData) error {
+func (c *MempoolDataCache) StoreMPData(data *mempoolData) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -60,16 +60,18 @@ func (c *MempoolDataCache) GetFeeInfoExtra() (uint32, *apitypes.MempoolTicketFee
 	return c.height, &feeInfo
 }
 
-func (c *MempoolDataCache) GetFees(N int) (uint32, []float64) {
-	var fees []float64
-	if N == 0 {
-		return c.height, fees
-	}
-
+func (c *MempoolDataCache) GetFees(N int) (uint32, int, []float64) {
 	c.RLock()
 	defer c.RUnlock()
 
 	numFees := len(c.allFees)
+
+	//var fees []float64
+	fees := []float64{} // for consistency
+	if N == 0 {
+		return c.height, numFees, fees
+	}
+
 	if N < 0 || N >= numFees {
 		fees = make([]float64, numFees)
 		copy(fees, c.allFees)
@@ -80,19 +82,21 @@ func (c *MempoolDataCache) GetFees(N int) (uint32, []float64) {
 		copy(fees, c.allFees[smallestFeeInd:])
 	}
 
-	return c.height, fees
+	return c.height, numFees, fees
 }
 
-func (c *MempoolDataCache) GetFeeRates(N int) (uint32, []float64) {
-	var fees []float64
-	if N == 0 {
-		return c.height, fees
-	}
-
+func (c *MempoolDataCache) GetFeeRates(N int) (uint32, int, []float64) {
 	c.RLock()
 	defer c.RUnlock()
 
 	numFees := len(c.allFeeRates)
+
+	//var fees []float64
+	fees := []float64{}
+	if N == 0 {
+		return c.height, numFees, fees
+	}
+
 	if N < 0 || N >= numFees {
 		fees = make([]float64, numFees)
 		copy(fees, c.allFeeRates)
@@ -103,19 +107,20 @@ func (c *MempoolDataCache) GetFeeRates(N int) (uint32, []float64) {
 		copy(fees, c.allFeeRates[smallestFeeInd:])
 	}
 
-	return c.height, fees
+	return c.height, numFees, fees
 }
 
-func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, TicketsDetails) {
-	var details TicketsDetails
-	if N == 0 {
-		return c.height, details
-	}
-
+func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int, TicketsDetails) {
 	c.RLock()
 	defer c.RUnlock()
 
 	numSSTx := len(c.allTicketsDetails)
+
+	//var details TicketsDetails
+	details := TicketsDetails{}
+	if N == 0 {
+		return c.height, numSSTx, details
+	}
 	if N < 0 || N >= numSSTx {
 		details = make(TicketsDetails, numSSTx)
 		copy(details, c.allTicketsDetails)
@@ -126,5 +131,5 @@ func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, TicketsDetails) {
 		copy(details, c.allTicketsDetails[smallestFeeInd:])
 	}
 
-	return c.height, details
+	return c.height, numSSTx, details
 }

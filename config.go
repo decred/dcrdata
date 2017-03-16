@@ -23,8 +23,7 @@ const (
 	defaultConfigFilename = "dcrdata.conf"
 	defaultLogLevel       = "info"
 	defaultLogDirname     = "logs"
-	defaultLogFilename    = "dcrdataapi.log"
-	defaultOutputDirname  = "spydata"
+	defaultLogFilename    = "dcrdata.log"
 )
 
 var curDir, _ = os.Getwd()
@@ -38,24 +37,19 @@ var (
 	defaultDaemonRPCCertFile = filepath.Join(dcrdHomeDir, "rpc.cert")
 	defaultConfigFile        = filepath.Join(curDir, defaultConfigFilename)
 	defaultLogDir            = filepath.Join(curDir, defaultLogDirname)
-	defaultOutputDir         = filepath.Join(curDir, defaultOutputDirname)
 	defaultHost              = "localhost"
 	defaultEmailSubject      = "dcrdataapi transaction notification"
 
 	defaultAPIProto  = "http"
 	defaultAPIListen = "127.0.0.1:6000"
 
-	defaultMonitorMempool     = false
+	defaultMonitorMempool     = true
 	defaultMempoolMinInterval = 4
 	defaultMempoolMaxInterval = 120
 	defaultMPTriggerTickets   = 4
 	defaultFeeWinRadius       = 0
 
 	defaultDBFileName = "dcrdata.sqlt.db"
-
-	// defaultAccountName    = "default"
-	// defaultTicketAddress  = ""
-	// defaultPoolAddress    = ""
 )
 
 type config struct {
@@ -78,7 +72,6 @@ type config struct {
 	CmdArgs string `short:"a" long:"cmdargs" description:"Comma-separated list of arguments for command to run. The specifier %n is substituted for block height at execution, and %h is substituted for block hash."`
 
 	// Data I/O
-	NoMonitor          bool   `short:"e" long:"nomonitor" description:"Do not launch monitors. Display current data and (e)xit."`
 	MonitorMempool     bool   `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added."`
 	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen."`
 	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen."`
@@ -99,12 +92,7 @@ type config struct {
 	EmailAddr    string `long:"emailaddr" description:"Destination email address for alerts"`
 	EmailSubject string `long:"emailsubj" description:"Email subject. (default \"dcrdataapi transaction notification\")"`
 
-	SummaryOut     bool   `short:"s" long:"summary" description:"Write plain text summary of key data to stdout"`
-	SaveJSONStdout bool   `short:"o" long:"save-jsonstdout" description:"Save JSON-formatted data to stdout"`
-	SaveJSONFile   bool   `short:"j" long:"save-jsonfile" description:"Save JSON-formatted data to file"`
-	OutFolder      string `short:"f" long:"outfolder" description:"Folder for file outputs"`
-	//SaveMongoDB        bool    `short:"g" long:"save-mongo" description:"Save data to MongoDB"`
-	//SaveMySQL          bool    `short:"q" long:"save-mysql" description:"Save data to MySQL"`
+	OutFolder string `short:"f" long:"outfolder" description:"Folder for file outputs"`
 
 	// RPC client options
 	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name"`
@@ -112,11 +100,6 @@ type config struct {
 	DcrdServ         string `long:"dcrdserv" description:"Hostname/IP and port of dcrd RPC server to connect to (default localhost:9109, testnet: localhost:19109, simnet: localhost:19556)"`
 	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file"`
 	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
-
-	// TODO
-	//AccountName   string `long:"accountname" description:"Account name (other than default or imported) for which balances should be listed."`
-	//TicketAddress string `long:"ticketaddress" description:"Address to which you have given voting rights"`
-	//PoolAddress   string `long:"pooladdress" description:"Address to which you have given rights to pool fees"`
 }
 
 var (
@@ -126,7 +109,6 @@ var (
 		LogDir:             defaultLogDir,
 		APIProto:           defaultAPIProto,
 		APIListen:          defaultAPIListen,
-		OutFolder:          defaultOutputDir,
 		DcrdCert:           defaultDaemonRPCCertFile,
 		MonitorMempool:     defaultMonitorMempool,
 		MempoolMinInterval: defaultMempoolMinInterval,
@@ -135,9 +117,6 @@ var (
 		DBFileName:         defaultDBFileName,
 		FeeWinRadius:       defaultFeeWinRadius,
 		EmailSubject:       defaultEmailSubject,
-		// AccountName:        defaultAccountName,
-		// TicketAddress:      defaultTicketAddress,
-		// PoolAddress:        defaultPoolAddress,
 	}
 )
 
@@ -347,7 +326,7 @@ func loadConfig() (*config, error) {
 	// Put comma-separated comamnd line aguments into slice of strings
 	//cfg.CmdArgs = strings.Split(cfg.CmdArgs[0], ",")
 
-	// Output folder
+	// // Output folder
 	cfg.OutFolder = cleanAndExpandPath(cfg.OutFolder)
 	cfg.OutFolder = filepath.Join(cfg.OutFolder, activeNet.Name)
 
@@ -384,14 +363,6 @@ func loadConfig() (*config, error) {
 		fmt.Fprintln(os.Stderr, err)
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
-	}
-
-	// mempool: new transactions, new tickets
-	//cfg.MonitorMempool = cfg.MonitorMempool && !cfg.NoMonitor
-	if cfg.MonitorMempool && cfg.NoMonitor {
-		log.Warn("Both --nomonitor (-e) and --mempool (-m) specified. " +
-			"Not monitoring mempool.")
-		cfg.MonitorMempool = false
 	}
 
 	return &cfg, nil

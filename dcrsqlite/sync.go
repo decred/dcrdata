@@ -256,14 +256,21 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 	}
 	if bestNodeHeight < startHeight {
 		startHeight = bestNodeHeight
-	} else if bestNodeHeight > startHeight {
-		rewindTo := startHeight
-		if rewindTo < 0 {
-			rewindTo = 0
+	} else if bestNodeHeight > startHeight && bestNodeHeight > 0 {
+		if startHeight < 0 || bestNodeHeight > 2*startHeight {
+			// log.Debug("Creating new stake db.")
+			// if err = stakeDB.Update(func(dbTx database.Tx) error {
+			// 	var errLocal error
+			// 	bestNode, errLocal = stake.InitDatabaseState(dbTx, db.params)
+			// 	return errLocal
+			// }); err != nil {
+			// 	return err
+			// }
+			return fmt.Errorf("Delete stake db (ffld_stake) and try again.")
 		}
-		log.Infof("Rewinding stake node from %d to %d", bestNodeHeight, rewindTo)
+		log.Infof("Rewinding stake node from %d to %d", bestNodeHeight, startHeight)
 		// rewind best node in ticket db
-		for bestNodeHeight > rewindTo {
+		for bestNodeHeight > startHeight {
 			// check for quit signal
 			select {
 			case <-quit:
@@ -345,6 +352,8 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 
 		numLive := bestNode.PoolSize()
 		liveTickets := bestNode.LiveTickets()
+		// TODO: winning tickets
+		//winningTickets := bestNode.Winners()
 
 		if i%rescanLogBlockChunk == 0 || i == startHeight0 {
 			endRangeBlock := rescanLogBlockChunk * (1 + i/rescanLogBlockChunk)
@@ -385,11 +394,6 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 						strconv.Itoa(int(i)-int(db.params.TicketMaturity)))
 				}
 				ticketsToAdd = txhelpers.TicketsInBlock(maturingBlock)
-				//log.Infof("Number of tickets in block %d: %d", i, len(ticketsToAdd))
-
-				// if txhelpers.HashInSlice(*firstTicketHash, ticketsToAdd) {
-				// 	log.Infof("GOT IT (%d, %d)!", i, maturingBlock.Height())
-				// }
 			}
 
 			spentTickets := txhelpers.TicketsSpentInBlock(block)
@@ -458,6 +462,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				return fmt.Errorf("Unable to store block summary in database: %v", err)
 			}
 		}
+		//log.Debugf("Stored block summary: %d", i)
 
 		if i <= bestStakeHeight {
 			// update height, the end condition for the loop
@@ -509,11 +514,13 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			fees[it] = fee
 		}
 
-		meanFee /= float64(si.Feeinfo.Number)
-		si.Feeinfo.Mean = meanFee
-		si.Feeinfo.Median = txhelpers.MedianCoin(fees)
-		si.Feeinfo.Min = minFee
-		si.Feeinfo.Max = maxFee
+		if si.Feeinfo.Number > 0 {
+			meanFee /= float64(si.Feeinfo.Number)
+			si.Feeinfo.Mean = meanFee
+			si.Feeinfo.Median = txhelpers.MedianCoin(fees)
+			si.Feeinfo.Min = minFee
+			si.Feeinfo.Max = maxFee
+		}
 
 		// Price window number and block index
 		si.PriceWindowNum = int(i) / int(winSize)
@@ -525,6 +532,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		if err = db.StoreStakeInfoExtended(&si); err != nil {
 			return fmt.Errorf("Unable to store stake info in database: %v", err)
 		}
+		//log.Debugf("Stored stake info: %d", i)
 
 		// update height, the end condition for the loop
 		if _, height, err = db.client.GetBestBlock(); err != nil {

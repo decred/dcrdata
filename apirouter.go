@@ -69,10 +69,10 @@ func newAPIRouter(app *appContext) apiMux {
 		// ticket purchases
 		r.Route("/sstx", func(rd chi.Router) {
 			rd.Get("/", app.getSSTxSummary)
-			// rd.Get("/fees", app.getSSTxFees)
-			// rd.Use(NPathCtx).Get("/details/:N", app.getSSTxFees)
-			// rd.Get("/details", app.getSSTxDetails)
-			// rd.Use(NPathCtx).Get("/details/:N", app.getSSTxDetails)
+			rd.Get("/fees", app.getSSTxFees)
+			rd.With(NPathCtx).Get("/fees/:N", app.getSSTxFees)
+			rd.Get("/details", app.getSSTxDetails)
+			rd.With(NPathCtx).Get("/details/:N", app.getSSTxDetails)
 		})
 	})
 

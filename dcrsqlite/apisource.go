@@ -24,6 +24,7 @@ type wiredDB struct {
 func NewWiredDB(db *sql.DB, cl *dcrrpcclient.Client, p *chaincfg.Params) wiredDB {
 	return wiredDB{
 		DBDataSaver: &DBDataSaver{NewDB(db)},
+		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
 		params:      p,
 	}
@@ -36,6 +37,7 @@ func InitWiredDB(dbInfo *DBInfo, cl *dcrrpcclient.Client, p *chaincfg.Params) (w
 	}
 	return wiredDB{
 		DBDataSaver: &DBDataSaver{db},
+		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
 		params:      p,
 	}, nil
@@ -150,4 +152,26 @@ func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 func (db *wiredDB) GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo {
 	_, feeInfo := db.MPC.GetFeeInfoExtra()
 	return feeInfo
+}
+
+func (db *wiredDB) GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees {
+	height, totalFees, fees := db.MPC.GetFeeRates(N)
+	mpTicketFees := apitypes.MempoolTicketFees{
+		Height:   height,
+		Length:   uint32(len(fees)),
+		Total:    uint32(totalFees),
+		FeeRates: fees,
+	}
+	return &mpTicketFees
+}
+
+func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
+	height, totalSSTx, details := db.MPC.GetTicketsDetails(N)
+	mpTicketDetails := apitypes.MempoolTicketDetails{
+		Height:  height,
+		Length:  uint32(len(details)),
+		Total:   uint32(totalSSTx),
+		Tickets: []*apitypes.TicketDetails(details),
+	}
+	return &mpTicketDetails
 }

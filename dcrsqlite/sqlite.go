@@ -168,7 +168,7 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 
 	if err = logDBResult(res); err == nil {
 		// TODO: atomic with CAS
-		log.Debugf("Store height: %v", bd.Height)
+		//log.Debugf("Store height: %v", bd.Height)
 		height := int64(bd.Height)
 		if height > db.dbSummaryHeight {
 			db.dbSummaryHeight = height

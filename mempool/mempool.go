@@ -104,17 +104,12 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			var err error
 			// oneTicket is 0 for a Ticker event or 1 for a ticket purchase Tx.
 			var oneTicket int32
-			bestBlock, err := client.GetBlockCount()
-			if err != nil {
-				log.Error("Unable to get block count")
-				continue
-			}
-			txHeight := uint32(bestBlock)
+			bestBlock := int64(-1)
 
 			// OnTxAccepted probably sent on newTxChan
 			tx, err := client.GetRawTransaction(s)
 			if err != nil {
-				log.Errorf("Failed to get transaction %v: %v",
+				log.Errorf("Failed to get transaction (do you have --txindex with dcrd?) %v: %v",
 					s.String(), err)
 				continue
 			}
@@ -149,7 +144,12 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 				log.Tracef("Received vote %v for ticket %v", tx.Hash(), ticketHash)
 				// TODO: Show subsidy for this vote (Vout[2] - Vin[1] ?)
 				// No continue statement so we can proceed if first of block
-				if txHeight <= p.mpoolInfo.CurrentHeight {
+				bestBlock, err = client.GetBlockCount()
+				if err != nil {
+					log.Error("Unable to get block count")
+					continue
+				}
+				if uint32(bestBlock) <= p.mpoolInfo.CurrentHeight {
 					continue
 				}
 				log.Debugf("Vote in new block triggering mempool data collection")
@@ -187,10 +187,20 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			//       AND
 			//       time since lastCollectTime >= minInterval)
 
+			if bestBlock == -1 {
+				bestBlock, err = client.GetBlockCount()
+				if err != nil {
+					log.Error("Unable to get block count")
+					continue
+				}
+			}
+			txHeight := uint32(bestBlock)
+
 			// Atomics really aren't necessary here because of mutex
 			newBlock := txHeight > p.mpoolInfo.CurrentHeight
 			enoughNewTickets := atomic.AddInt32(
 				&p.mpoolInfo.NumTicketsSinceStatsReport, oneTicket) >= p.newTicketLimit
+			slotsNotFull := (len(ticketHashes) - 1) < int(p.collector.activeChain.MaxFreshStakePerBlock)
 			timeSinceLast := time.Since(p.mpoolInfo.LastCollectTime)
 			quiteLong := timeSinceLast > p.maxInterval
 			longEnough := timeSinceLast >= p.minInterval
@@ -202,7 +212,7 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			newTickets := p.mpoolInfo.NumTicketsSinceStatsReport
 
 			var data *mempoolData
-			if newBlock || quiteLong || (enoughNewTickets && longEnough) {
+			if newBlock || slotsNotFull || quiteLong || (enoughNewTickets && longEnough) {
 				// reset counter for tickets since last report
 				atomic.StoreInt32(&p.mpoolInfo.NumTicketsSinceStatsReport, 0)
 				// and timer
@@ -229,8 +239,9 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			// Store mempool data with each saver
 			for _, s := range p.dataSavers {
 				if s != nil {
+					log.Trace("Saving MP data.")
 					// save data to wherever the saver wants to put it
-					go s.Store(data)
+					go s.StoreMPData(data)
 				}
 			}
 
@@ -410,7 +421,7 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 
 // MempoolDataSaver is an interface for saving/storing mempoolData
 type MempoolDataSaver interface {
-	Store(data *mempoolData) error
+	StoreMPData(data *mempoolData) error
 }
 
 // MempoolDataToJSONStdOut implements MempoolDataSaver interface for JSON output to
@@ -525,7 +536,7 @@ func NewMempoolDataToJSONFiles(folder string, fileBase string,
 }
 
 // Store writes mempoolData to stdout in JSON format
-func (s *MempoolDataToJSONStdOut) Store(data *mempoolData) error {
+func (s *MempoolDataToJSONStdOut) StoreMPData(data *mempoolData) error {
 	// Do not write JSON data if there are no new tickets since last report
 	if data.newTickets == 0 {
 		return nil
@@ -554,7 +565,7 @@ func (s *MempoolDataToJSONStdOut) Store(data *mempoolData) error {
 }
 
 // Store writes mempoolData to stdout as plain text summary
-func (s *MempoolDataToSummaryStdOut) Store(data *mempoolData) error {
+func (s *MempoolDataToSummaryStdOut) StoreMPData(data *mempoolData) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
@@ -609,7 +620,7 @@ func (s *MempoolDataToSummaryStdOut) Store(data *mempoolData) error {
 
 // Store writes mempoolData to a file in JSON format
 // The file name is nameBase+height+".json".
-func (s *MempoolDataToJSONFiles) Store(data *mempoolData) error {
+func (s *MempoolDataToJSONFiles) StoreMPData(data *mempoolData) error {
 	// Do not write JSON data if there are no new tickets since last report
 	if data.newTickets == 0 {
 		return nil
@@ -648,7 +659,7 @@ func (s *MempoolDataToJSONFiles) Store(data *mempoolData) error {
 
 // Store writes all the ticket fees to a file
 // The file name is nameBase+".json".
-func (s *MempoolFeeDumper) Store(data *mempoolData) error {
+func (s *MempoolFeeDumper) StoreMPData(data *mempoolData) error {
 	// Do not write JSON data if there are no new tickets since last report
 	// if data.newTickets == 0 {
 	// 	return nil

@@ -77,8 +77,10 @@ type TicketDetails struct {
 }
 
 type MempoolTicketDetails struct {
-	Height  uint32          `json:"height"`
-	Length  uint32          `json:"length"`
-	Total   uint32          `json:"total"`
-	Tickets []TicketDetails `json:"tickets"`
+	Height  uint32         `json:"height"`
+	Length  uint32         `json:"length"`
+	Total   uint32         `json:"total"`
+	Tickets TicketsDetails `json:"tickets"`
 }
+
+type TicketsDetails []*TicketDetails

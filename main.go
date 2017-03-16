@@ -48,15 +48,15 @@ func mainCore() int {
 
 	dcrrpcclient.UseLogger(clientLog)
 
-	log.Debugf("Output folder: %v", cfg.OutFolder)
+	//log.Debugf("Output folder: %v", cfg.OutFolder)
 	log.Debugf("Log folder: %v", cfg.LogDir)
 
-	// Create data output folder if it does not already exist
-	if err = os.MkdirAll(cfg.OutFolder, 0750); err != nil {
-		fmt.Printf("Failed to create data output folder %s. Error: %s\n",
-			cfg.OutFolder, err.Error())
-		return 2
-	}
+	// // Create data output folder if it does not already exist
+	// if err = os.MkdirAll(cfg.OutFolder, 0750); err != nil {
+	// 	log.Errorf("Failed to create data output folder %s. Error: %s\n",
+	// 		cfg.OutFolder, err.Error())
+	// 	return 2
+	// }
 
 	// Connect to dcrd RPC server using websockets
 
@@ -64,17 +64,17 @@ func mainCore() int {
 	makeNtfnChans(cfg)
 
 	// Daemon client connection
-	rpcutils.UseLogger(daemonLog)
+	rpcutils.UseLogger(clientLog)
 	dcrdClient, nodeVer, err := connectNodeRPC(cfg)
 	if err != nil || dcrdClient == nil {
-		log.Infof("Connection to dcrd failed: %v", err)
+		log.Errorf("Connection to dcrd failed: %v", err)
 		return 4
 	}
 
 	// Display connected network
 	curnet, err := dcrdClient.GetCurrentNet()
 	if err != nil {
-		fmt.Println("Unable to get current network from dcrd:", err.Error())
+		log.Errorf("Unable to get current network from dcrd:", err.Error())
 		return 5
 	}
 	log.Infof("Connected to dcrd (JSON-RPC API v%s) on %v",
@@ -87,13 +87,16 @@ func mainCore() int {
 	}
 
 	// Block data collector
+	blockdata.UseLogger(daemonLog)
 	collector := blockdata.NewBlockDataCollector(dcrdClient, activeChain)
 	if collector == nil {
 		log.Errorf("Failed to create block data collector")
 		return 9
 	}
 
-	backendLog.Flush()
+	defer backendLog.Flush()
+
+	mempool.UseLogger(mempoolLog)
 
 	// Build a slice of each required saver type for each data source
 	var blockDataSavers []blockdata.BlockDataSaver
@@ -111,17 +114,19 @@ func mainCore() int {
 	// blockDataSavers = append(blockDataSavers, blockDataMapSaver)
 
 	// Sqlite output
-	dcrsqlite.UseLogger(log)
+	dcrsqlite.UseLogger(sqliteLog)
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
 	sqliteDB, err := dcrsqlite.InitWiredDB(&dbInfo, dcrdClient, activeChain)
 	if err != nil {
 		log.Errorf("Unable to initialize SQLite database: %v", err)
+		return 16
 	}
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer sqliteDB.Close()
 
 	blockDataSavers = append(blockDataSavers, &sqliteDB)
+	mempoolSavers = append(mempoolSavers, sqliteDB.MPC)
 
 	// Web template data. WebUI implements BlockDataSaver interface
 	webUI := NewWebUI()
@@ -130,13 +135,13 @@ func mainCore() int {
 	// Initial data summary for web ui
 	blockData, err := collector.Collect(!cfg.PoolValue)
 	if err != nil {
-		fmt.Printf("Block data collection for initial summary failed: %v",
+		log.Errorf("Block data collection for initial summary failed: %v",
 			err.Error())
 		return 10
 	}
 
 	if err = webUI.Store(blockData); err != nil {
-		fmt.Printf("Failed to store initial block data: %v",
+		log.Errorf("Failed to store initial block data: %v",
 			err.Error())
 		return 11
 	}
@@ -163,7 +168,10 @@ func mainCore() int {
 	waitSync.Add(1)
 	// start as goroutine to let chain monitor start, but the sync will keep up
 	// with current height, it is not likely to matter.
-	sqliteDB.SyncDBWithPoolValue(&waitSync, quit)
+	if err = sqliteDB.SyncDBWithPoolValue(&waitSync, quit); err != nil {
+		log.Error("Resync failed: ", err)
+		return 15
+	}
 
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
@@ -186,11 +194,15 @@ func mainCore() int {
 
 		mpData, err := mpoolCollector.Collect()
 		if err != nil {
-			log.Error("Mempool info collection failed while gathering initial"+
+			log.Errorf("Mempool info collection failed while gathering initial"+
 				"data: %v", err.Error())
 			return 14
 		}
 
+		// Store initial MP data
+		sqliteDB.MPC.StoreMPData(mpData)
+
+		// Setup monitor
 		mpi := &mempool.MempoolInfo{mpData.GetHeight(), mpData.GetNumTickets(), 0, time.Now()}
 
 		newTicketLimit := int32(cfg.MPTriggerTickets)
