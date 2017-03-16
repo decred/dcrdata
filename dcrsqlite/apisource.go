@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -14,16 +15,18 @@ import (
 // wiredDB is intended to satisfy APIDataSource interface. The block header is
 // not stored in the DB, so the RPC client is used to get it on demand.
 type wiredDB struct {
-	*DB
+	*DBDataSaver
+	MPC    *mempool.MempoolDataCache
 	client *dcrrpcclient.Client
 	params *chaincfg.Params
 }
 
 func NewWiredDB(db *sql.DB, cl *dcrrpcclient.Client, p *chaincfg.Params) wiredDB {
 	return wiredDB{
-		DB:     NewDB(db),
-		client: cl,
-		params: p,
+		DBDataSaver: &DBDataSaver{NewDB(db)},
+		MPC:         new(mempool.MempoolDataCache),
+		client:      cl,
+		params:      p,
 	}
 }
 
@@ -33,9 +36,10 @@ func InitWiredDB(dbInfo *DBInfo, cl *dcrrpcclient.Client, p *chaincfg.Params) (w
 		return wiredDB{}, err
 	}
 	return wiredDB{
-		DB:     db,
-		client: cl,
-		params: p,
+		DBDataSaver: &DBDataSaver{db},
+		MPC:         new(mempool.MempoolDataCache),
+		client:      cl,
+		params:      p,
 	}, nil
 }
 
@@ -143,4 +147,31 @@ func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	}
 
 	return blockSummary
+}
+
+func (db *wiredDB) GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo {
+	_, feeInfo := db.MPC.GetFeeInfoExtra()
+	return feeInfo
+}
+
+func (db *wiredDB) GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees {
+	height, totalFees, fees := db.MPC.GetFeeRates(N)
+	mpTicketFees := apitypes.MempoolTicketFees{
+		Height:   height,
+		Length:   uint32(len(fees)),
+		Total:    uint32(totalFees),
+		FeeRates: fees,
+	}
+	return &mpTicketFees
+}
+
+func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
+	height, totalSSTx, details := db.MPC.GetTicketsDetails(N)
+	mpTicketDetails := apitypes.MempoolTicketDetails{
+		Height:  height,
+		Length:  uint32(len(details)),
+		Total:   uint32(totalSSTx),
+		Tickets: []*apitypes.TicketDetails(details),
+	}
+	return &mpTicketDetails
 }

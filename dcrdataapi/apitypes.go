@@ -54,3 +54,33 @@ type StakeInfoExtendedEstimates struct {
 	IdxBlockInWindow int                  `json:"window_block_index"`
 	PoolInfo         TicketPoolInfo       `json:"ticket_pool"`
 }
+
+type MempoolTicketFeeInfo struct {
+	Height uint32 `json:"height"`
+	dcrjson.FeeInfoMempool
+	LowestMineable float64 `json:"lowest_mineable"`
+}
+
+type MempoolTicketFees struct {
+	Height   uint32    `json:"height"`
+	Length   uint32    `json:"length"`
+	Total    uint32    `json:"total"`
+	FeeRates []float64 `json:"top_fees"`
+}
+
+type TicketDetails struct {
+	Hash    string  `json:"hash"`
+	Fee     float64 `json:"abs_fee"`
+	FeeRate float64 `json:"fee"`
+	Size    int32   `json:"size"`
+	Height  int64   `json:"height_received"`
+}
+
+type MempoolTicketDetails struct {
+	Height  uint32         `json:"height"`
+	Length  uint32         `json:"length"`
+	Total   uint32         `json:"total"`
+	Tickets TicketsDetails `json:"tickets"`
+}
+
+type TicketsDetails []*TicketDetails

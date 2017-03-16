@@ -34,22 +34,18 @@ var ntfnChans struct {
 func makeNtfnChans(cfg *config) {
 	// If we're monitoring for blocks OR collecting block data, these channels
 	// are necessary to handle new block notifications. Otherwise, leave them
-	// as nil so that both a send (below) blocks and a receive (in spy.go,
+	// as nil so that both a send (below) blocks and a receive (in
 	// blockConnectedHandler) block. default case makes non-blocking below.
 	// quit channel case manages blockConnectedHandlers.
-	if !cfg.NoCollectBlockData && !cfg.NoMonitor {
-		ntfnChans.connectChan = make(chan *chainhash.Hash, blockConnChanBuffer)
-		//ntfnChans.stakeDiffChan = make(chan int64, blockConnChanBuffer)
-	}
+	ntfnChans.connectChan = make(chan *chainhash.Hash, blockConnChanBuffer)
+	//ntfnChans.stakeDiffChan = make(chan int64, blockConnChanBuffer)
 
 	// Like connectChan for block data, connectChanStkInf is used when a new
 	// block is connected, but to signal the stake info monitor.
-	if !cfg.NoCollectStakeInfo && !cfg.NoMonitor {
-		ntfnChans.connectChanStkInf = make(chan int32, blockConnChanBuffer)
-	}
+	ntfnChans.connectChanStkInf = make(chan int32, blockConnChanBuffer)
 
 	// watchaddress
-	if len(cfg.WatchAddresses) > 0 && !cfg.NoMonitor {
+	if len(cfg.WatchAddresses) > 0 {
 		// recv/spendTxBlockChan come with connected blocks
 		ntfnChans.recvTxBlockChan = make(chan *txhelpers.BlockWatchedTx, blockConnChanBuffer)
 		ntfnChans.spendTxBlockChan = make(chan *txhelpers.BlockWatchedTx, blockConnChanBuffer)

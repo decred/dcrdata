@@ -28,6 +28,7 @@ var (
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]btclog.Logger{
+	"DATD": log,
 	"DSQL": sqliteLog,
 	"DCRD": daemonLog,
 	"RPCC": clientLog,
@@ -60,8 +61,10 @@ func useLogger(subsystemID string, logger btclog.Logger) {
 	subsystemLoggers[subsystemID] = logger
 
 	switch subsystemID {
-	case "DSQL":
+	case "DATD":
 		log = logger
+	case "DSQL":
+		sqliteLog = logger
 	case "DCRD":
 		daemonLog = logger
 	case "RPCC":
