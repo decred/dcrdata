@@ -221,8 +221,8 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 
 		var errLocal error
 		block, errLocal := db.client.GetBlock(&stakeDBHash)
-		if err != nil {
-			return fmt.Errorf("GetBlock failed (%s): %v", stakeDBHash, err)
+		if errLocal != nil {
+			return fmt.Errorf("GetBlock failed (%s): %v", stakeDBHash, errLocal)
 		}
 		header := block.MsgBlock().Header
 
