@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"sync"
+	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
@@ -10,6 +11,7 @@ import (
 type MempoolDataCache struct {
 	sync.RWMutex
 	height                  uint32
+	timestamp               time.Time
 	numTickets              uint32
 	ticketFeeInfo           dcrjson.FeeInfoMempool
 	allFees                 []float64
@@ -18,11 +20,12 @@ type MempoolDataCache struct {
 	allTicketsDetails       TicketsDetails
 }
 
-func (c *MempoolDataCache) StoreMPData(data *mempoolData) error {
+func (c *MempoolDataCache) StoreMPData(data *mempoolData, timestamp time.Time) error {
 	c.Lock()
 	defer c.Unlock()
 
 	c.height = data.height
+	c.timestamp = timestamp
 	c.numTickets = data.numTickets
 	c.ticketFeeInfo = data.ticketfees.FeeInfoMempool
 	c.allFees = data.minableFees.allFees
@@ -54,6 +57,7 @@ func (c *MempoolDataCache) GetFeeInfoExtra() (uint32, *apitypes.MempoolTicketFee
 	defer c.RUnlock()
 	feeInfo := apitypes.MempoolTicketFeeInfo{
 		Height:         c.height,
+		Time:           c.timestamp.Unix(),
 		FeeInfoMempool: c.ticketFeeInfo,
 		LowestMineable: c.lowestMineableByFeeRate,
 	}
@@ -85,7 +89,7 @@ func (c *MempoolDataCache) GetFees(N int) (uint32, int, []float64) {
 	return c.height, numFees, fees
 }
 
-func (c *MempoolDataCache) GetFeeRates(N int) (uint32, int, []float64) {
+func (c *MempoolDataCache) GetFeeRates(N int) (uint32, int64, int, []float64) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -94,7 +98,7 @@ func (c *MempoolDataCache) GetFeeRates(N int) (uint32, int, []float64) {
 	//var fees []float64
 	fees := []float64{}
 	if N == 0 {
-		return c.height, numFees, fees
+		return c.height, c.timestamp.Unix(), numFees, fees
 	}
 
 	if N < 0 || N >= numFees {
@@ -107,10 +111,10 @@ func (c *MempoolDataCache) GetFeeRates(N int) (uint32, int, []float64) {
 		copy(fees, c.allFeeRates[smallestFeeInd:])
 	}
 
-	return c.height, numFees, fees
+	return c.height, c.timestamp.Unix(), numFees, fees
 }
 
-func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int, TicketsDetails) {
+func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int64, int, TicketsDetails) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -119,7 +123,7 @@ func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int, TicketsDetails
 	//var details TicketsDetails
 	details := TicketsDetails{}
 	if N == 0 {
-		return c.height, numSSTx, details
+		return c.height, c.timestamp.Unix(), numSSTx, details
 	}
 	if N < 0 || N >= numSSTx {
 		details = make(TicketsDetails, numSSTx)
@@ -131,5 +135,5 @@ func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int, TicketsDetails
 		copy(details, c.allTicketsDetails[smallestFeeInd:])
 	}
 
-	return c.height, numSSTx, details
+	return c.height, c.timestamp.Unix(), numSSTx, details
 }

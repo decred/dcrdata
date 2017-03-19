@@ -57,12 +57,14 @@ type StakeInfoExtendedEstimates struct {
 
 type MempoolTicketFeeInfo struct {
 	Height uint32 `json:"height"`
+	Time   int64  `json:"time"`
 	dcrjson.FeeInfoMempool
 	LowestMineable float64 `json:"lowest_mineable"`
 }
 
 type MempoolTicketFees struct {
 	Height   uint32    `json:"height"`
+	Time     int64     `json:"time"`
 	Length   uint32    `json:"length"`
 	Total    uint32    `json:"total"`
 	FeeRates []float64 `json:"top_fees"`
@@ -78,6 +80,7 @@ type TicketDetails struct {
 
 type MempoolTicketDetails struct {
 	Height  uint32         `json:"height"`
+	Time    int64          `json:"time"`
 	Length  uint32         `json:"length"`
 	Total   uint32         `json:"total"`
 	Tickets TicketsDetails `json:"tickets"`
