@@ -155,9 +155,10 @@ func (db *wiredDB) GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo {
 }
 
 func (db *wiredDB) GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees {
-	height, totalFees, fees := db.MPC.GetFeeRates(N)
+	height, timestamp, totalFees, fees := db.MPC.GetFeeRates(N)
 	mpTicketFees := apitypes.MempoolTicketFees{
 		Height:   height,
+		Time:     timestamp,
 		Length:   uint32(len(fees)),
 		Total:    uint32(totalFees),
 		FeeRates: fees,
@@ -166,9 +167,10 @@ func (db *wiredDB) GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees {
 }
 
 func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
-	height, totalSSTx, details := db.MPC.GetTicketsDetails(N)
+	height, timestamp, totalSSTx, details := db.MPC.GetTicketsDetails(N)
 	mpTicketDetails := apitypes.MempoolTicketDetails{
 		Height:  height,
+		Time:    timestamp,
 		Length:  uint32(len(details)),
 		Total:   uint32(totalSSTx),
 		Tickets: []*apitypes.TicketDetails(details),

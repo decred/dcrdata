@@ -200,7 +200,7 @@ func mainCore() int {
 		}
 
 		// Store initial MP data
-		sqliteDB.MPC.StoreMPData(mpData)
+		sqliteDB.MPC.StoreMPData(mpData, time.Now())
 
 		// Setup monitor
 		mpi := &mempool.MempoolInfo{mpData.GetHeight(), mpData.GetNumTickets(), 0, time.Now()}

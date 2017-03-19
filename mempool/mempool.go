@@ -233,6 +233,7 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 
 			// Insert new ticket counter into data structure
 			data.newTickets = uint32(newTickets)
+			timestamp := time.Now()
 
 			//p.mpoolInfo.NumTicketPurchasesInMempool = data.ticketfees.FeeInfoMempool.Number
 
@@ -241,7 +242,7 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 				if s != nil {
 					log.Trace("Saving MP data.")
 					// save data to wherever the saver wants to put it
-					go s.StoreMPData(data)
+					go s.StoreMPData(data, timestamp)
 				}
 			}
 
@@ -421,7 +422,7 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 
 // MempoolDataSaver is an interface for saving/storing mempoolData
 type MempoolDataSaver interface {
-	StoreMPData(data *mempoolData) error
+	StoreMPData(data *mempoolData, timestamp time.Time) error
 }
 
 // MempoolDataToJSONStdOut implements MempoolDataSaver interface for JSON output to
@@ -659,7 +660,7 @@ func (s *MempoolDataToJSONFiles) StoreMPData(data *mempoolData) error {
 
 // Store writes all the ticket fees to a file
 // The file name is nameBase+".json".
-func (s *MempoolFeeDumper) StoreMPData(data *mempoolData) error {
+func (s *MempoolFeeDumper) StoreMPData(data *mempoolData, timestamp time.Time) error {
 	// Do not write JSON data if there are no new tickets since last report
 	// if data.newTickets == 0 {
 	// 	return nil
@@ -684,10 +685,12 @@ func (s *MempoolFeeDumper) StoreMPData(data *mempoolData) error {
 
 	j, err := json.MarshalIndent(struct {
 		N        int       `json:"n"`
+		Time     int64     `json:"time"`
 		AllFees  []float64 `json:"allfees"`
 		DateTime string    `json:"datetime"`
 	}{
 		len(data.minableFees.allFees),
+		timestamp.Unix(),
 		data.minableFees.allFees,
 		time.Now().UTC().Format(time.RFC822)},
 		"", "    ")
