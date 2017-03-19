@@ -35,40 +35,48 @@ several components including:
 1. RESTful JSON API over HTTP(S).
 1. Web interface.
 
-### REST API
+### JSON REST API
 
 The API serves JSON data over HTTP(S).  After dcrdata syncs with the blockchain
 server, by default it will begin listening on `http://0.0.0.0:7777/`.  This means
-it starts a web server listening on all network interfaces on port 7777. All API
-endpoints are prefixed with `/api`.
+it starts a web server listening on all network interfaces on port 7777. **All API
+endpoints are currently prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`), but this may be configurable in the future.
 
 Some example endpoints:
 
 | Best block | |
-|----------|---------------|
-| Summary | /api/block/best |
-| Stake info |  /api/block/best/pos |
-| Header |  /api/block/best/header |
+| --- | --- |
+| Summary | `/block/best` |
+| Stake info |  `/block/best/pos` |
+| Header |  `/block/best/header` |
 
 
-| Block X | |
-|----------|---------------|
-| Summary | /api/block/6666 |
-| Stake info |  /api/block/6666/pos |
-| Header |  /api/block/6666/header |
+| Block X (block index) | |
+| --- | --- |
+| Summary | `/block/X` |
+| Stake info |  `/block/X/pos` |
+| Header |  `/block/X/header` |
 
-| Block range | |
-|----------|---------------|
-| Summary array | /api/block/range/6664/6666 |
+| Block range (X < Y) | |
+| --- | --- |
+| Summary array | `/block/range/X/Y` |
 
 | Stake Difficulty | |
-|--------|-----------|
-| Current sdiff and estimates | /api/stake |
-| Current sdiff separately | /api/stake/current |
-| Estimates separately | /api/stake/estimates |
+| --- | --- |
+| Current sdiff and estimates | `/stake` |
+| Current sdiff separately | `/stake/current` |
+| Estimates separately | `/stake/estimates` |
+
+| Mempool | |
+| --- | --- |
+| Ticket fee rate summary | `/mempool/sstx` |
+| Ticket fee rate list (all) | `/mempool/sstx/fees` |
+| Ticket fee rate list (N highest) | `/mempool/sstx/fees/N` |
+| Detailed ticket list (fee, hash, size, age, etc.) | `/mempool/sstx/details` 
+| Detailed ticket list (N highest fee rates) | `/mempool/sstx/details/N`|
 
 | Other | |
-|--------|-----------|
+| --- | --- |
 | Status | /status |
 | Directory | /directory |
 
@@ -76,6 +84,15 @@ Some example endpoints:
 
 In addition to the API that is accessible via paths beginning with `/api`, an
 HTML interface is served on the root path (`/`).
+
+## Important Node About Mempool
+
+Although there is mempool data collection and serving, it is **very important**
+to keep in mind that the mempool in your node (dcrd) is not likely to be the
+same as other nodes' mempool.  Also, your mempool is cleared out when you
+shutdown dcrd.  So, if you have recently (e.g. after the start of the current
+ticket price window) started dcrd, your mempool _will_ be missing transactions
+that other nodes have.
 
 ## Command Line Utilities
 
