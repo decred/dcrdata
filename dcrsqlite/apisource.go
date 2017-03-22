@@ -149,6 +149,42 @@ func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	return blockSummary
 }
 
+func (db *wiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
+	ticketPoolInfo, err := db.RetrievePoolInfo(int64(idx))
+	if err != nil {
+		log.Errorf("Unable to retrieve ticket pool info: %v", err)
+		return nil
+	}
+	return ticketPoolInfo
+}
+
+func (db *wiredDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
+	ticketPoolInfos, err := db.RetrievePoolInfoRange(int64(idx0), int64(idx1))
+	if err != nil {
+		log.Errorf("Unable to retrieve ticket pool info range: %v", err)
+		return nil
+	}
+	return ticketPoolInfos
+}
+
+func (db *wiredDB) GetSDiff(idx int) float64 {
+	sdiff, err := db.RetrieveSDiff(int64(idx))
+	if err != nil {
+		log.Errorf("Unable to retrieve stake difficulty: %v", err)
+		return -1
+	}
+	return sdiff
+}
+
+func (db *wiredDB) GetSDiffRange(idx0, idx1 int) []float64 {
+	sdiffs, err := db.RetrieveSDiffRange(int64(idx0), int64(idx1))
+	if err != nil {
+		log.Errorf("Unable to retrieve stake difficulty range: %v", err)
+		return nil
+	}
+	return sdiffs
+}
+
 func (db *wiredDB) GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo {
 	_, feeInfo := db.MPC.GetFeeInfoExtra()
 	return feeInfo

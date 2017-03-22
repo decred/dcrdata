@@ -43,6 +43,8 @@ type DB struct {
 	mtx                                                 sync.Mutex
 	dbSummaryHeight                                     int64
 	dbStakeInfoHeight                                   int64
+	getPoolSQL, getPoolRangeSQL                         string
+	getSDiffSQL, getSDiffRangeSQL                       string
 	getLatestBlockSQL                                   string
 	getBlockSQL, insertBlockSQL                         string
 	getLatestStakeInfoExtendedSQL                       string
@@ -51,32 +53,49 @@ type DB struct {
 
 // NewDB creates a new DB instance with pre-generated sql statements from an
 // existing sql.DB. Use InitDB to create a new DB without having a sql.DB.
+// TODO: if this db exists, figure out best heights
 func NewDB(db *sql.DB) *DB {
-	getBlockSQL := fmt.Sprintf(`select * from %s where height = ?`,
+	d := DB{
+		DB:                db,
+		dbSummaryHeight:   -1,
+		dbStakeInfoHeight: -1,
+	}
+
+	// Ticket pool queries
+	d.getPoolSQL = fmt.Sprintf(`select poolsize, poolval, poolavg from %s where height = ?`,
 		TableNameSummaries)
-	getLatestBlockSQL := fmt.Sprintf(`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`,
+	d.getPoolRangeSQL = fmt.Sprintf(`select poolsize, poolval, poolavg from %s where height between ? and ?`,
 		TableNameSummaries)
-	insertBlockSQL := fmt.Sprintf(`
+
+	d.getSDiffSQL = fmt.Sprintf(`select sdiff from %s where height = ?`,
+		TableNameSummaries)
+	d.getSDiffRangeSQL = fmt.Sprintf(`select sdiff from %s where height between ? and ?`,
+		TableNameSummaries)
+
+	// Block queries
+	d.getBlockSQL = fmt.Sprintf(`select * from %s where height = ?`,
+		TableNameSummaries)
+	d.getLatestBlockSQL = fmt.Sprintf(`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`,
+		TableNameSummaries)
+	d.insertBlockSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
             height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, TableNameSummaries)
-	getStakeInfoExtendedSQL := fmt.Sprintf(`select * from %s where height = ?`,
+
+	// Stake info queries
+	d.getStakeInfoExtendedSQL = fmt.Sprintf(`select * from %s where height = ?`,
 		TableNameStakeInfo)
-	getLatestStakeInfoExtendedSQL := fmt.Sprintf(
+	d.getLatestStakeInfoExtendedSQL = fmt.Sprintf(
 		`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
-	insertStakeInfoExtendedSQL := fmt.Sprintf(`
+	d.insertStakeInfoExtendedSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
             height, num_tickets, fee_min, fee_max, fee_mean, fee_med, fee_std,
 			sdiff, window_num, window_ind, pool_size, pool_val, pool_valavg
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, TableNameStakeInfo)
-	// TODO: if this db exists, figure out best heights
-	return &DB{db, sync.Mutex{}, -1, -1,
-		getLatestBlockSQL,
-		getBlockSQL, insertBlockSQL,
-		getLatestStakeInfoExtendedSQL,
-		getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL}
+
+	return &d
 }
 
 // InitDB creates a new DB instance from a DBInfo containing the name of the
@@ -176,6 +195,104 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	}
 
 	return err
+}
+
+func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo, error) {
+	N := ind1 - ind0 + 1
+	if N == 0 {
+		return []apitypes.TicketPoolInfo{}, nil
+	}
+	if N < 0 {
+		return nil, fmt.Errorf("Cannnot retrieve pool info range (%d<%d)",
+			ind1, ind0)
+	}
+	if ind1 > db.dbSummaryHeight || ind0 < 0 {
+		return nil, fmt.Errorf("Cannnot retrieve pool info range [%d,%d], have height %d",
+			ind1, ind0, db.dbSummaryHeight)
+	}
+
+	tpis := make([]apitypes.TicketPoolInfo, 0, N)
+
+	stmt, err := db.Prepare(db.getPoolRangeSQL)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(ind0, ind1)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tpi apitypes.TicketPoolInfo
+		if err = rows.Scan(&tpi.Size, &tpi.Value, &tpi.ValAvg); err != nil {
+			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
+		}
+		tpis = append(tpis, tpi)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	return tpis, nil
+}
+
+func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
+	tpi := new(apitypes.TicketPoolInfo)
+	err := db.QueryRow(db.getPoolSQL, ind).Scan(&tpi.Size, &tpi.Value, &tpi.ValAvg)
+	return tpi, err
+}
+
+func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
+	N := ind1 - ind0 + 1
+	if N == 0 {
+		return []float64{}, nil
+	}
+	if N < 0 {
+		return nil, fmt.Errorf("Cannnot retrieve sdiff range (%d<%d)",
+			ind1, ind0)
+	}
+	if ind1 > db.dbSummaryHeight || ind0 < 0 {
+		return nil, fmt.Errorf("Cannnot retrieve sdiff range [%d,%d], have height %d",
+			ind1, ind0, db.dbSummaryHeight)
+	}
+
+	sdiffs := make([]float64, 0, N)
+
+	stmt, err := db.Prepare(db.getSDiffRangeSQL)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(ind0, ind1)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var sdiff float64
+		if err = rows.Scan(&sdiff); err != nil {
+			log.Errorf("Unable to scan for sdiff fields: %v", err)
+		}
+		sdiffs = append(sdiffs, sdiff)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	return sdiffs, nil
+}
+
+func (db *DB) RetrieveSDiff(ind int64) (float64, error) {
+	var sdiff float64
+	err := db.QueryRow(db.getSDiffSQL, ind).Scan(&sdiff)
+	return sdiff, err
 }
 
 func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
