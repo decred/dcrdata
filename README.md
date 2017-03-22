@@ -63,9 +63,20 @@ Some example endpoints:
 
 | Stake Difficulty | |
 | --- | --- |
-| Current sdiff and estimates | `/stake` |
-| Current sdiff separately | `/stake/current` |
-| Estimates separately | `/stake/estimates` |
+| Current sdiff and estimates | `/stake/diff` |
+| Current sdiff separately | `/stake/diff/current` |
+| Estimates separately | `/stake/diff/estimates` |
+
+| Ticket Pool | |
+| --- | --- |
+| Current pool info (size, total value, and average price) | `/stake/pool` |
+| Pool info for block `X` | `/stake/pool/b/X` |
+| Pool info for block range `[X,Y] (X <= Y)` | `/stake/pool/r/X/Y?arrays=[true|false]` <sup>*</sup> |
+
+<sup>*</sup>For the pool info for block range endpoint that accepts the `arrays` url query,
+a value of `true` will put all pool values and pool sizes into separate arrays,
+rather than having a single array of pool info JSON objects.  This may make
+parsing more efficient for the client.
 
 | Mempool | |
 | --- | --- |
