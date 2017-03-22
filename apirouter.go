@@ -45,7 +45,7 @@ func newAPIRouter(app *appContext) apiMux {
 		})
 
 		r.Route("/range/:idx0/:idx", func(rd chi.Router) {
-			rd.Use(BlockIndex0PathCtx, BlockIndexPathCtx, middleware.Compress(2))
+			rd.Use(BlockIndex0PathCtx, BlockIndexPathCtx)
 			rd.Get("/", app.getBlockRangeSummary)
 			// rd.Get("/header", app.getBlockHeader)
 			// rd.Get("/pos", app.getBlockStakeInfoExtended)
@@ -65,7 +65,7 @@ func newAPIRouter(app *appContext) apiMux {
 			rd.Get("/current", app.getStakeDiffCurrent)
 			rd.Get("/estimates", app.getStakeDiffEstimates)
 			rd.With(BlockIndexPathCtx).Get("/b/:idx", app.getStakeDiff)
-			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx, middleware.DefaultCompress).Get("/r/:idx0/:idx", app.getStakeDiffRange)
+			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/:idx0/:idx", app.getStakeDiffRange)
 		})
 	})
 
