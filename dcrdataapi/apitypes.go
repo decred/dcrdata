@@ -23,6 +23,13 @@ type TicketPoolInfo struct {
 	ValAvg float64 `json:"valavg"`
 }
 
+type TicketPoolValsAndSizes struct {
+	StartHeight uint32    `json:"start_height"`
+	EndHeight   uint32    `json:"end_height"`
+	Value       []float64 `json:"value"`
+	Size        []float64 `json:"size"`
+}
+
 type BlockDataBasic struct {
 	Height     uint32  `json:"height"`
 	Size       uint32  `json:"size"`
