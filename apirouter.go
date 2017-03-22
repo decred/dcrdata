@@ -22,7 +22,7 @@ func newAPIRouter(app *appContext) apiMux {
 	//mux.Use(middleware.DefaultCompress)
 	//mux.Use(middleware.Compress(2))
 
-	mux.HandleFunc("/", app.root)
+	mux.Get("/", app.root)
 
 	mux.With(app.StatusCtx).HandleFunc("/status", app.status)
 
@@ -105,6 +105,23 @@ func newAPIRouter(app *appContext) apiMux {
 
 	mux.HandleFunc("/directory", APIDirectory)
 	mux.With(apiDocs(mux)).HandleFunc("/directory", APIDirectory)
+
+	var listRoutePatterns func(routes []chi.Route) []string
+	listRoutePatterns = func(routes []chi.Route) []string {
+		patterns := []string{}
+		for _, rt := range routes {
+			patterns = append(patterns, rt.Pattern)
+			if rt.SubRoutes == nil {
+				continue
+			}
+			for _, pt := range listRoutePatterns(rt.SubRoutes.Routes()) {
+				patterns = append(patterns, rt.Pattern+pt)
+			}
+		}
+		return patterns
+	}
+
+	mux.HandleFunc("/list", writeJSONHandlerFunc(listRoutePatterns(mux.Routes())))
 
 	return apiMux{mux}
 }

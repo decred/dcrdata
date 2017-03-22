@@ -47,12 +47,9 @@ func newContext(client *dcrrpcclient.Client, blockData APIDataSource) *appContex
 	}
 }
 
-// root is a http.Handler for the "/" path
+// root is a http.Handler intended for the API root path. This essentially
+// provides a heartbeat, and no information about the application status.
 func (c *appContext) root(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
 	fmt.Fprint(w, "dcrdata api running")
 }
 
@@ -90,6 +87,19 @@ func getStatusCtx(r *http.Request) *apitypes.Status {
 		return nil
 	}
 	return status
+}
+
+func writeJSONHandlerFunc(thing interface{}) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, thing)
+	}
+}
+
+func writeJSON(w http.ResponseWriter, thing interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(thing); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
 }
 
 func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
