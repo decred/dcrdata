@@ -17,7 +17,7 @@ func newAPIRouter(app *appContext) apiMux {
 	mux := chi.NewRouter()
 
 	mux.Use(middleware.Logger)
-	mux.Use(middleware.RealIP)
+	//mux.Use(middleware.RealIP)
 	mux.Use(middleware.Recoverer)
 	//mux.Use(middleware.DefaultCompress)
 	//mux.Use(middleware.Compress(2))
@@ -27,12 +27,12 @@ func newAPIRouter(app *appContext) apiMux {
 	mux.With(app.StatusCtx).HandleFunc("/status", app.status)
 
 	mux.Route("/block", func(r chi.Router) {
-		r.Use(app.StatusCtx)
+		//r.Use(app.StatusCtx)
 
 		r.Route("/best", func(rd chi.Router) {
 			rd.Use(app.BlockIndexLatestCtx)
 			rd.Get("/", app.getBlockSummary) // app.getLatestBlock
-			rd.Get("/height", app.currentHeight)
+			rd.With(app.StatusCtx).Get("/height", app.currentHeight)
 			rd.Get("/header", app.getBlockHeader)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 		})
@@ -55,13 +55,18 @@ func newAPIRouter(app *appContext) apiMux {
 	})
 
 	mux.Route("/stake", func(r chi.Router) {
-		r.Get("/", app.getStakeDiff)
-		r.Get("/current", app.getStakeDiffCurrent)
-		r.Get("/estimates", app.getStakeDiffEstimates)
-	})
-
-	mux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./favicon.ico")
+		r.Route("/pool", func(rd chi.Router) {
+			rd.With(app.BlockIndexLatestCtx).Get("/", app.getTicketPoolInfo)
+			rd.With(BlockIndexPathCtx).Get("/b/:idx", app.getTicketPoolInfo)
+			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/:idx0/:idx", app.getTicketPoolInfoRange)
+		})
+		r.Route("/diff", func(rd chi.Router) {
+			rd.Get("/", app.getStakeDiffSummary)
+			rd.Get("/current", app.getStakeDiffCurrent)
+			rd.Get("/estimates", app.getStakeDiffEstimates)
+			rd.With(BlockIndexPathCtx).Get("/b/:idx", app.getStakeDiff)
+			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/:idx0/:idx", app.getStakeDiffRange)
+		})
 	})
 
 	mux.Route("/mempool", func(r chi.Router) {
@@ -77,6 +82,10 @@ func newAPIRouter(app *appContext) apiMux {
 	})
 
 	//mux.FileServer("/browse", http.Dir(context.RootDataFolder))
+
+	mux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./favicon.ico")
+	})
 
 	mux.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, r.URL.RequestURI()+" ain't no country I've ever heard of! (404)", http.StatusNotFound)

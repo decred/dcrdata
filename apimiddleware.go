@@ -77,7 +77,7 @@ func BlockIndex0PathCtx(next http.Handler) http.Handler {
 		pathIdxStr := chi.URLParam(r, "idx0")
 		idx, err := strconv.Atoi(pathIdxStr)
 		if err != nil {
-			apiLog.Infof("No/invalid idx value (int64): %v", err)
+			apiLog.Infof("No/invalid idx0 value (int64): %v", err)
 			http.NotFound(w, r)
 			//http.Error(w, http.StatusText(404), 404)
 			return

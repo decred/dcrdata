@@ -23,6 +23,10 @@ type APIDataSource interface {
 	//GetBestBlock() *blockdata.BlockData
 	GetSummary(idx int) *apitypes.BlockDataBasic
 	GetBestBlockSummary() *apitypes.BlockDataBasic
+	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
+	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
+	GetSDiff(idx int) float64
+	GetSDiffRange(idx0, idx1 int) []float64
 	GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo
 	GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees
 	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
@@ -197,7 +201,7 @@ func (c *appContext) getBlockStakeInfoExtended(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
+func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request) {
 	stakeDiff := c.BlockData.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
@@ -309,4 +313,76 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 	// if _, err := io.WriteString(w, msg); err != nil {
 	// 	apiLog.Infof("failed to write response: %v", err)
 	// }
+}
+
+func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	tpi := c.BlockData.GetPoolInfo(idx)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(tpi); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Request) {
+	idx0 := getBlockIndex0Ctx(r)
+	if idx0 < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	tpis := c.BlockData.GetPoolInfoRange(idx0, idx)
+	if tpis == nil {
+		http.Error(w, "invalid range", http.StatusUnprocessableEntity)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(tpis); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	sdiff := c.BlockData.GetSDiff(idx)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode([]float64{sdiff}); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
+	idx0 := getBlockIndex0Ctx(r)
+	if idx0 < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	sdiffs := c.BlockData.GetSDiffRange(idx0, idx)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(sdiffs); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
 }
