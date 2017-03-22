@@ -246,6 +246,55 @@ func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
 	return tpi, err
 }
 
+func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float64, error) {
+	N := ind1 - ind0 + 1
+	if N == 0 {
+		return []float64{}, []float64{}, nil
+	}
+	if N < 0 {
+		return nil, nil, fmt.Errorf("Cannnot retrieve pool val and size range (%d<%d)",
+			ind1, ind0)
+	}
+	if ind1 > db.dbSummaryHeight || ind0 < 0 {
+		return nil, nil, fmt.Errorf("Cannnot retrieve pool val and size range [%d,%d], have height %d",
+			ind1, ind0, db.dbSummaryHeight)
+	}
+
+	poolvals := make([]float64, 0, N)
+	poolsizes := make([]float64, 0, N)
+
+	stmt, err := db.Prepare(db.getPoolRangeSQL)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(ind0, ind1)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var pval, psize, pavg float64
+		if err = rows.Scan(&psize, &pval, &pavg); err != nil {
+			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
+		}
+		poolvals = append(poolvals, pval)
+		poolsizes = append(poolsizes, psize)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	if len(poolsizes) != int(N) {
+		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(poolsizes), N)
+	}
+
+	return poolvals, poolsizes, nil
+}
+
 func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {

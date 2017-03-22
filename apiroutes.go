@@ -25,6 +25,7 @@ type APIDataSource interface {
 	GetBestBlockSummary() *apitypes.BlockDataBasic
 	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
 	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
+	GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 	GetSDiff(idx int) float64
 	GetSDiffRange(idx0, idx1 int) []float64
 	GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo
@@ -342,6 +343,12 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	useArray := r.URL.Query().Get("arrays")
+	if useArray == "1" || useArray == "true" {
+		c.getTicketPoolValAndSizeRange(w, r)
+		return
+	}
+
 	tpis := c.BlockData.GetPoolInfoRange(idx0, idx)
 	if tpis == nil {
 		http.Error(w, "invalid range", http.StatusUnprocessableEntity)
@@ -349,6 +356,38 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if err := json.NewEncoder(w).Encode(tpis); err != nil {
+		apiLog.Infof("JSON encode error: %v", err)
+	}
+}
+
+func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http.Request) {
+	idx0 := getBlockIndex0Ctx(r)
+	if idx0 < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	pvs, pss := c.BlockData.GetPoolValAndSizeRange(idx0, idx)
+	if pvs == nil || pss == nil {
+		http.Error(w, "invalid range", http.StatusUnprocessableEntity)
+		return
+	}
+
+	tPVS := apitypes.TicketPoolValsAndSizes{
+		StartHeight: uint32(idx0),
+		EndHeight:   uint32(idx),
+		Value:       pvs,
+		Size:        pss,
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(tPVS); err != nil {
 		apiLog.Infof("JSON encode error: %v", err)
 	}
 }

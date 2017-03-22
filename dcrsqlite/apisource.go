@@ -167,6 +167,15 @@ func (db *wiredDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
 	return ticketPoolInfos
 }
 
+func (db *wiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64) {
+	poolvals, poolsizes, err := db.RetrievePoolValAndSizeRange(int64(idx0), int64(idx1))
+	if err != nil {
+		log.Errorf("Unable to retrieve ticket value and size range: %v", err)
+		return nil, nil
+	}
+	return poolvals, poolsizes
+}
+
 func (db *wiredDB) GetSDiff(idx int) float64 {
 	sdiff, err := db.RetrieveSDiff(int64(idx))
 	if err != nil {
