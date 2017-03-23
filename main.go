@@ -74,7 +74,7 @@ func mainCore() int {
 	// Display connected network
 	curnet, err := dcrdClient.GetCurrentNet()
 	if err != nil {
-		log.Errorf("Unable to get current network from dcrd:", err.Error())
+		log.Errorf("Unable to get current network from dcrd: %v", err)
 		return 5
 	}
 	log.Infof("Connected to dcrd (JSON-RPC API v%s) on %v",

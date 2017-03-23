@@ -644,7 +644,7 @@ func (s *MempoolDataToJSONFiles) StoreMPData(data *mempoolData) error {
 	fullfile := filepath.Join(s.folder, fname)
 	fp, err := os.Create(fullfile)
 	if err != nil {
-		log.Errorf("Unable to open file %v for writting.", fullfile)
+		log.Errorf("Unable to open file %v for writing.", fullfile)
 		return err
 	}
 	defer fp.Close()
@@ -678,7 +678,7 @@ func (s *MempoolFeeDumper) StoreMPData(data *mempoolData, timestamp time.Time) e
 	fullfile := filepath.Join(s.folder, fname)
 	fp, err := os.Create(fullfile)
 	if err != nil {
-		log.Errorf("Unable to open file %v for writting.", fullfile)
+		log.Errorf("Unable to open file %v for writing.", fullfile)
 		return err
 	}
 	defer fp.Close()

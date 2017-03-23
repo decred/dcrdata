@@ -203,11 +203,11 @@ func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo
 		return []apitypes.TicketPoolInfo{}, nil
 	}
 	if N < 0 {
-		return nil, fmt.Errorf("Cannnot retrieve pool info range (%d<%d)",
+		return nil, fmt.Errorf("Cannot retrieve pool info range (%d<%d)",
 			ind1, ind0)
 	}
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
-		return nil, fmt.Errorf("Cannnot retrieve pool info range [%d,%d], have height %d",
+		return nil, fmt.Errorf("Cannot retrieve pool info range [%d,%d], have height %d",
 			ind1, ind0, db.dbSummaryHeight)
 	}
 
@@ -252,11 +252,11 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 		return []float64{}, []float64{}, nil
 	}
 	if N < 0 {
-		return nil, nil, fmt.Errorf("Cannnot retrieve pool val and size range (%d<%d)",
+		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range (%d<%d)",
 			ind1, ind0)
 	}
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
-		return nil, nil, fmt.Errorf("Cannnot retrieve pool val and size range [%d,%d], have height %d",
+		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range [%d,%d], have height %d",
 			ind1, ind0, db.dbSummaryHeight)
 	}
 
@@ -301,11 +301,11 @@ func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 		return []float64{}, nil
 	}
 	if N < 0 {
-		return nil, fmt.Errorf("Cannnot retrieve sdiff range (%d<%d)",
+		return nil, fmt.Errorf("Cannot retrieve sdiff range (%d<%d)",
 			ind1, ind0)
 	}
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
-		return nil, fmt.Errorf("Cannnot retrieve sdiff range [%d,%d], have height %d",
+		return nil, fmt.Errorf("Cannot retrieve sdiff range [%d,%d], have height %d",
 			ind1, ind0, db.dbSummaryHeight)
 	}
 
