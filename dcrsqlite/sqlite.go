@@ -7,7 +7,7 @@ import (
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 
 // BlockSummaryDatabaser is the interface for a block data saving database

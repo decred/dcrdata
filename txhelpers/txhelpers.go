@@ -56,7 +56,7 @@ func TxhashInSlice(txs []*dcrutil.Tx, txHash *chainhash.Hash) *dcrutil.Tx {
 	return nil
 }
 
-// includesStakeTx checks if a block contains a stake transaction hash
+// IncludesStakeTx checks if a block contains a stake transaction hash
 func IncludesStakeTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 	blockTxs := block.STransactions()
 
@@ -66,7 +66,7 @@ func IncludesStakeTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 	return -1, -1
 }
 
-// includesTx checks if a block contains a transaction hash
+// IncludesTx checks if a block contains a transaction hash
 func IncludesTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 	blockTxs := block.Transactions()
 

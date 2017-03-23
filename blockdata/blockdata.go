@@ -18,8 +18,8 @@ import (
 	"github.com/decred/dcrutil"
 )
 
-// BlockData
-// consider if pointers are desirable here
+// BlockData contains all the data collected by a blockDataCollector and stored
+// by a BlockDataSaver. TODO: consider if pointers are desirable here.
 type BlockData struct {
 	Header           dcrjson.GetBlockHeaderVerboseResult
 	Connections      int32
