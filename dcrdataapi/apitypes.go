@@ -45,7 +45,9 @@ type BlockDataBasic struct {
 
 type StakeDiff struct {
 	dcrjson.GetStakeDifficultyResult
-	Estimates dcrjson.EstimateStakeDiffResult `json:"estimates"`
+	Estimates        dcrjson.EstimateStakeDiffResult `json:"estimates"`
+	IdxBlockInWindow int                             `json:"window_block_index"`
+	PriceWindowNum   int                             `json:"window_number"`
 }
 
 type StakeInfoExtended struct {

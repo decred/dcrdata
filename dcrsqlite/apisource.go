@@ -82,7 +82,14 @@ func (db *wiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
 }
 
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
-	return rpcutils.GetStakeDiffEstimates(db.client)
+	sd := rpcutils.GetStakeDiffEstimates(db.client)
+
+	height := db.MPC.GetHeight()
+	winSize := uint32(db.params.StakeDiffWindowSize)
+	sd.IdxBlockInWindow = int(height%winSize) + 1
+	sd.PriceWindowNum = int(height / winSize)
+
+	return sd
 }
 
 func (db *wiredDB) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
