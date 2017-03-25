@@ -11,21 +11,23 @@ import (
 
 const (
 	// blockConnChanBuffer is the size of the block connected channel buffer.
-	blockConnChanBuffer = 8
+	blockConnChanBuffer = 24
 
 	// newTxChanBuffer is the size of the new transaction channel buffer, for
 	// ANY transactions are added into mempool.
-	newTxChanBuffer = 2000
+	newTxChanBuffer = 4096
 
 	// relevantMempoolTxChanBuffer is the size of the new transaction channel
 	// buffer, for relevant transactions that are added into mempool.
-	relevantMempoolTxChanBuffer = 512
+	relevantMempoolTxChanBuffer = 2048
 )
 
 // Channels are package-level variables for simplicity
 var ntfnChans struct {
 	connectChan                       chan *chainhash.Hash
 	connectChanStkInf                 chan int32
+	updateStatusNodeHeight            chan uint32
+	updateStatusDBHeight              chan uint32
 	spendTxBlockChan, recvTxBlockChan chan *txhelpers.BlockWatchedTx
 	relevantTxMempoolChan             chan *dcrutil.Tx
 	newTxChan                         chan *chainhash.Hash
@@ -43,6 +45,10 @@ func makeNtfnChans(cfg *config) {
 	// Like connectChan for block data, connectChanStkInf is used when a new
 	// block is connected, but to signal the stake info monitor.
 	ntfnChans.connectChanStkInf = make(chan int32, blockConnChanBuffer)
+
+	// To update app status
+	ntfnChans.updateStatusNodeHeight = make(chan uint32, blockConnChanBuffer)
+	ntfnChans.updateStatusDBHeight = make(chan uint32, blockConnChanBuffer)
 
 	// watchaddress
 	if len(cfg.WatchAddresses) > 0 {
@@ -66,6 +72,12 @@ func closeNtfnChans() {
 	}
 	if ntfnChans.connectChanStkInf != nil {
 		close(ntfnChans.connectChanStkInf)
+	}
+	if ntfnChans.updateStatusNodeHeight != nil {
+		close(ntfnChans.updateStatusNodeHeight)
+	}
+	if ntfnChans.updateStatusDBHeight != nil {
+		close(ntfnChans.updateStatusDBHeight)
 	}
 
 	if ntfnChans.newTxChan != nil {

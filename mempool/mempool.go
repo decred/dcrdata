@@ -325,6 +325,15 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 	// Get a map of ticket hashes to getrawmempool results
 	// mempoolTickets[ticketHashes[0].String()].Fee
 	mempoolTickets, err := c.GetRawMempoolVerbose(dcrjson.GRMTickets)
+
+	// Fee info
+	var numFeeWindows, numFeeBlocks uint32 = 0, 0
+	feeInfo, err := c.TicketFeeInfo(&numFeeBlocks, &numFeeWindows)
+	if err != nil {
+		return nil, err
+	}
+
+	// Make slice of TicketDetails
 	N := len(mempoolTickets)
 	allTicketsDetails := make(TicketsDetails, 0, N)
 	for hash, t := range mempoolTickets {
@@ -397,15 +406,6 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 	}
 
 	height, err := c.GetBlockCount()
-
-	// Fee info
-	numFeeBlocks := uint32(0)
-	numFeeWindows := uint32(0)
-
-	feeInfo, err := c.TicketFeeInfo(&numFeeBlocks, &numFeeWindows)
-	if err != nil {
-		return nil, err
-	}
 
 	mpoolData := &mempoolData{
 		height:            uint32(height),

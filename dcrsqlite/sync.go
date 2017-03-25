@@ -42,9 +42,9 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 	log.Info("Current best block (stakeinfo DB): ", bestStakeHeight)
 
 	// Start with the older of summary or stake table heights
-	i := int64(bestStakeHeight)
+	i := bestStakeHeight
 	if bestBlockHeight < bestStakeHeight {
-		i = int64(bestBlockHeight)
+		i = bestBlockHeight
 	}
 	if i < -1 {
 		i = -1
@@ -188,8 +188,8 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 	}(time.Now(), &err)
 
 	// Get DB's best block (for block summary and stake info tables)
-	bestBlockHeight := int64(db.GetBlockSummaryHeight())
-	bestStakeHeight := int64(db.GetStakeInfoHeight())
+	bestBlockHeight := db.GetBlockSummaryHeight()
+	bestStakeHeight := db.GetStakeInfoHeight()
 
 	// Create a new database to store the accepted stake node data into.
 	dbName := DefaultStakeDbName
@@ -198,7 +198,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		_ = os.RemoveAll(dbName)
 		stakeDB, err = database.Create(dbType, dbName, db.params.Net)
 		if err != nil {
-			return fmt.Errorf("error creating db: %v\n", err)
+			return fmt.Errorf("error creating db: %v", err)
 		}
 	}
 	//defer os.RemoveAll(dbName)
@@ -266,7 +266,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			// }); err != nil {
 			// 	return err
 			// }
-			return fmt.Errorf("Delete stake db (ffld_stake) and try again.")
+			return fmt.Errorf("delete stake db (ffldb_stake) and try again")
 		}
 		log.Infof("Rewinding stake node from %d to %d", bestNodeHeight, startHeight)
 		// rewind best node in ticket db
@@ -394,6 +394,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 						strconv.Itoa(int(i)-int(db.params.TicketMaturity)))
 				}
 				ticketsToAdd = txhelpers.TicketsInBlock(maturingBlock)
+				log.Tracef("Adding %02d tickets from block %d", len(ticketsToAdd), i)
 			}
 
 			spentTickets := txhelpers.TicketsSpentInBlock(block)
@@ -405,17 +406,21 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				delete(liveTicketCache, revokedTickets[it])
 			}
 
+			if bestNode.Height()+1 != uint32(i) {
+				panic(fmt.Sprintf("Best node height %d, trying to add %d", bestNode.Height(), i))
+			}
+
 			bestNode, err = bestNode.ConnectNode(block.MsgBlock().Header,
 				spentTickets, revokedTickets, ticketsToAdd)
 			if err != nil {
-				return fmt.Errorf("couldn't connect node %d: %v\n", i, err.Error())
+				return fmt.Errorf("couldn't connect node %d: %v", i, err.Error())
 			}
 
 			err = stakeDB.Update(func(dbTx database.Tx) error {
 				// Write the new node to db.
 				err = stake.WriteConnectedBestNode(dbTx, bestNode, *block.Hash())
 				if err != nil {
-					return fmt.Errorf("failure writing the best node: %v\n",
+					return fmt.Errorf("failure writing the best node: %v",
 						err.Error())
 				}
 

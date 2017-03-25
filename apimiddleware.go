@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/pressly/chi"
 	"github.com/pressly/chi/docgen"
 	//"github.com/decred/dcrrpcclient"
@@ -28,22 +27,8 @@ const (
 
 func (c *appContext) StatusCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		status := &apitypes.Status{}
-		// When no data yet, BlockData.Height = -1
-		apiLog.Trace(c.BlockData.GetHeight(), c.BlockData != nil)
-		if c.BlockData != nil && c.BlockData.GetHeight() >= 0 {
-			if summary := c.BlockData.GetBestBlockSummary(); summary != nil {
-				apiLog.Trace("have block summary")
-				if summary.Height == uint32(c.BlockData.GetHeight()) {
-					apiLog.Trace("full block data agrees with summary data")
-					status.Ready = true
-					status.Height = summary.Height
-				}
-			}
-		}
-
 		// Set API status context
-		ctx := context.WithValue(r.Context(), ctxAPIStatus, status)
+		ctx := context.WithValue(r.Context(), ctxAPIStatus, &c.Status)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

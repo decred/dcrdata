@@ -78,6 +78,11 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			// send to nil channel blocks
 			default:
 			}
+			select {
+			case ntfnChans.updateStatusNodeHeight <- blockHeader.Height:
+			// send to nil channel blocks
+			default:
+			}
 		},
 		// Not too useful since this notifies on every block
 		// OnStakeDifficulty: func(hash *chainhash.Hash, height int64,

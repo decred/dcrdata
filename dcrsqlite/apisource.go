@@ -21,22 +21,22 @@ type wiredDB struct {
 	params *chaincfg.Params
 }
 
-func NewWiredDB(db *sql.DB, cl *dcrrpcclient.Client, p *chaincfg.Params) wiredDB {
+func NewWiredDB(db *sql.DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) wiredDB {
 	return wiredDB{
-		DBDataSaver: &DBDataSaver{NewDB(db)},
+		DBDataSaver: &DBDataSaver{NewDB(db), statusC},
 		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
 		params:      p,
 	}
 }
 
-func InitWiredDB(dbInfo *DBInfo, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, error) {
+func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
 		return wiredDB{}, err
 	}
 	return wiredDB{
-		DBDataSaver: &DBDataSaver{db},
+		DBDataSaver: &DBDataSaver{db, statusC},
 		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
 		params:      p,
@@ -74,31 +74,7 @@ func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) e
 }
 
 func (db *wiredDB) GetHeight() int {
-	return db.GetBlockSummaryHeight()
-}
-
-func (db *wiredDB) GetBlockSummaryHeight() int {
-	if db.dbSummaryHeight < 0 {
-		sum, err := db.RetrieveLatestBlockSummary()
-		if err != nil || sum == nil {
-			log.Errorf("RetrieveLatestBlockSummary failed: %v", err)
-			return -1
-		}
-		db.dbSummaryHeight = int64(sum.Height)
-	}
-	return int(db.dbSummaryHeight)
-}
-
-func (db *wiredDB) GetStakeInfoHeight() int {
-	if db.dbStakeInfoHeight < 0 {
-		sum, err := db.RetrieveLatestBlockSummary()
-		if err != nil || sum == nil {
-			log.Errorf("RetrieveLatestBlockSummary failed: %v", err)
-			return -1
-		}
-		db.dbStakeInfoHeight = int64(sum.Height)
-	}
-	return int(db.dbStakeInfoHeight)
+	return int(db.GetBlockSummaryHeight())
 }
 
 func (db *wiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
@@ -140,9 +116,10 @@ func (db *wiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
 }
 
 func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
-	blockSummary, err := db.RetrieveBlockSummary(db.dbSummaryHeight)
+	dbBlkHeight := db.GetBlockSummaryHeight()
+	blockSummary, err := db.RetrieveBlockSummary(dbBlkHeight)
 	if err != nil {
-		log.Errorf("Unable to retrieve block summary: %v", err)
+		log.Errorf("Unable to retrieve block %d summary: %v", dbBlkHeight, err)
 		return nil
 	}
 

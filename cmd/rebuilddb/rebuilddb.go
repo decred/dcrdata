@@ -81,7 +81,7 @@ func mainCore() int {
 	dcrsqlite.UseLogger(btclogger)
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
-	sqliteDB, err := dcrsqlite.InitWiredDB(&dbInfo, client, activeChain)
+	sqliteDB, err := dcrsqlite.InitWiredDB(&dbInfo, nil, client, activeChain)
 	if err != nil {
 		log.Errorf("Unable to initialize SQLite database: %v", err)
 	}

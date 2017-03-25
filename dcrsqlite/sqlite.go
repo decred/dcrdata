@@ -87,13 +87,16 @@ func NewDB(db *sql.DB) *DB {
 	d.getStakeInfoExtendedSQL = fmt.Sprintf(`select * from %s where height = ?`,
 		TableNameStakeInfo)
 	d.getLatestStakeInfoExtendedSQL = fmt.Sprintf(
-		`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
+		`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameStakeInfo)
 	d.insertStakeInfoExtendedSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
             height, num_tickets, fee_min, fee_max, fee_mean, fee_med, fee_std,
 			sdiff, window_num, window_ind, pool_size, pool_val, pool_valavg
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, TableNameStakeInfo)
+
+	d.dbSummaryHeight = d.GetBlockSummaryHeight()
+	d.dbStakeInfoHeight = d.GetStakeInfoHeight()
 
 	return &d
 }
@@ -153,6 +156,7 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 
 type DBDataSaver struct {
 	*DB
+	updateStatusChan chan uint32
 }
 
 // Store satisfies the blockdata.BlockDataSaver interface
@@ -165,6 +169,11 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData) error {
 	err := db.DB.StoreBlockSummary(&summary)
 	if err != nil {
 		return err
+	}
+
+	select {
+	case db.updateStatusChan <- summary.Height:
+	default:
 	}
 
 	stakeInfoExtended := data.ToStakeInfoExtended()
@@ -195,6 +204,30 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	}
 
 	return err
+}
+
+func (db *DB) GetBlockSummaryHeight() int64 {
+	if db.dbSummaryHeight < 0 {
+		sum, err := db.RetrieveLatestBlockSummary()
+		if err != nil || sum == nil {
+			log.Errorf("RetrieveLatestBlockSummary failed: %v", err)
+			return -1
+		}
+		db.dbSummaryHeight = int64(sum.Height)
+	}
+	return db.dbSummaryHeight
+}
+
+func (db *DB) GetStakeInfoHeight() int64 {
+	if db.dbStakeInfoHeight < 0 {
+		si, err := db.RetrieveLatestStakeInfoExtended()
+		if err != nil || si == nil {
+			log.Errorf("RetrieveLatestStakeInfoExtended failed: %v", err)
+			return -1
+		}
+		db.dbStakeInfoHeight = int64(si.Feeinfo.Height)
+	}
+	return db.dbStakeInfoHeight
 }
 
 func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo, error) {
