@@ -19,7 +19,7 @@ const (
 
 	// relevantMempoolTxChanBuffer is the size of the new transaction channel
 	// buffer, for relevant transactions that are added into mempool.
-	relevantMempoolTxChanBuffer = 2048
+	//relevantMempoolTxChanBuffer = 2048
 )
 
 // Channels are package-level variables for simplicity
@@ -51,12 +51,12 @@ func makeNtfnChans(cfg *config) {
 	ntfnChans.updateStatusDBHeight = make(chan uint32, blockConnChanBuffer)
 
 	// watchaddress
-	if len(cfg.WatchAddresses) > 0 {
-		// recv/spendTxBlockChan come with connected blocks
-		ntfnChans.recvTxBlockChan = make(chan *txhelpers.BlockWatchedTx, blockConnChanBuffer)
-		ntfnChans.spendTxBlockChan = make(chan *txhelpers.BlockWatchedTx, blockConnChanBuffer)
-		ntfnChans.relevantTxMempoolChan = make(chan *dcrutil.Tx, relevantMempoolTxChanBuffer)
-	}
+	// if len(cfg.WatchAddresses) > 0 {
+	// // recv/spendTxBlockChan come with connected blocks
+	// 	ntfnChans.recvTxBlockChan = make(chan *txhelpers.BlockWatchedTx, blockConnChanBuffer)
+	// 	ntfnChans.spendTxBlockChan = make(chan *txhelpers.BlockWatchedTx, blockConnChanBuffer)
+	// 	ntfnChans.relevantTxMempoolChan = make(chan *dcrutil.Tx, relevantMempoolTxChanBuffer)
+	// }
 
 	if cfg.MonitorMempool {
 		ntfnChans.newTxChan = make(chan *chainhash.Hash, newTxChanBuffer)

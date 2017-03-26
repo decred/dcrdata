@@ -39,10 +39,11 @@ type appContext struct {
 	nodeClient *dcrrpcclient.Client
 	BlockData  APIDataSource
 	Status     apitypes.Status
+	JSONIndent string
 }
 
 // Constructor for appContext
-func newContext(client *dcrrpcclient.Client, blockData APIDataSource) *appContext {
+func newContext(client *dcrrpcclient.Client, blockData APIDataSource, JSONIndent string) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 	return &appContext{
@@ -54,6 +55,7 @@ func newContext(client *dcrrpcclient.Client, blockData APIDataSource) *appContex
 			APIVersion:      APIVersion,
 			DcrdataVersion:  ver.String(),
 		},
+		JSONIndent: JSONIndent,
 	}
 }
 
@@ -163,39 +165,34 @@ func getStatusCtx(r *http.Request) *apitypes.Status {
 	return status
 }
 
-func writeJSONHandlerFunc(thing interface{}) http.HandlerFunc {
+func (c *appContext) writeJSONHandlerFunc(thing interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, thing)
+		writeJSON(w, thing, c.JSONIndent)
 	}
 }
 
-func writeJSON(w http.ResponseWriter, thing interface{}) {
+func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(thing); err != nil {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", indent)
+	if err := encoder.Encode(thing); err != nil {
 		apiLog.Infof("JSON encode error: %v", err)
 	}
+}
+
+func (c *appContext) getIndentQuery(r *http.Request) (indent string) {
+	useIndentation := r.URL.Query().Get("indent")
+	if useIndentation == "1" || useIndentation == "true" {
+		indent = c.JSONIndent
+	}
+	return
 }
 
 func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
-	// status := getStatusCtx(r)
-	// if status == nil {
-	// 	http.Error(w, http.StatusText(422), 422)
-	// 	return
-	// }
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(c.Status); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, c.Status, c.getIndentQuery(r))
 }
 
 func (c *appContext) currentHeight(w http.ResponseWriter, r *http.Request) {
-	// status := getStatusCtx(r)
-	// if status == nil {
-	// 	http.Error(w, http.StatusText(422), 422)
-	// 	return
-	// }
-
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if _, err := io.WriteString(w, strconv.Itoa(int(c.Status.Height))); err != nil {
 		apiLog.Infof("failed to write height response: %v", err)
@@ -208,10 +205,7 @@ func (c *appContext) getLatestBlock(w http.ResponseWriter, r *http.Request) {
 		apiLog.Error("Unable to get latest block summary")
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(latestBlockSummary); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, latestBlockSummary, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
@@ -226,10 +220,7 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 		apiLog.Errorf("Unable to get block %d summary", idx)
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(blockSummary); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, blockSummary, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
@@ -244,10 +235,7 @@ func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
 		apiLog.Errorf("Unable to get block %d header", idx)
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(blockHeader); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, blockHeader, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
@@ -262,10 +250,7 @@ func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
 		apiLog.Errorf("Unable to get block %d fee info", idx)
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(blockFeeInfo); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, blockFeeInfo, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockStakeInfoExtended(w http.ResponseWriter, r *http.Request) {
@@ -280,10 +265,7 @@ func (c *appContext) getBlockStakeInfoExtended(w http.ResponseWriter, r *http.Re
 		apiLog.Errorf("Unable to get block %d fee info", idx)
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(stakeinfo); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, stakeinfo, c.getIndentQuery(r))
 }
 
 func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request) {
@@ -292,10 +274,7 @@ func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request)
 		apiLog.Errorf("Unable to get stake diff info")
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(stakeDiff); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, stakeDiff, c.getIndentQuery(r))
 }
 
 func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request) {
@@ -309,10 +288,7 @@ func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request)
 		NextStakeDifficulty:    stakeDiff.NextStakeDifficulty,
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(stakeDiffCurrent); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, stakeDiffCurrent, c.getIndentQuery(r))
 }
 
 func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Request) {
@@ -321,10 +297,7 @@ func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Reques
 		apiLog.Errorf("Unable to get stake diff info")
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(stakeDiff.Estimates); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, stakeDiff.Estimates, c.getIndentQuery(r))
 }
 
 func (c *appContext) getSSTxSummary(w http.ResponseWriter, r *http.Request) {
@@ -333,10 +306,7 @@ func (c *appContext) getSSTxSummary(w http.ResponseWriter, r *http.Request) {
 		apiLog.Errorf("Unable to get SSTx info from mempool")
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(sstxSummary); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, sstxSummary, c.getIndentQuery(r))
 }
 
 func (c *appContext) getSSTxFees(w http.ResponseWriter, r *http.Request) {
@@ -346,10 +316,7 @@ func (c *appContext) getSSTxFees(w http.ResponseWriter, r *http.Request) {
 		apiLog.Errorf("Unable to get SSTx fees from mempool")
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(sstxFees); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, sstxFees, c.getIndentQuery(r))
 }
 
 func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
@@ -359,10 +326,7 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 		apiLog.Errorf("Unable to get SSTx details from mempool")
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(sstxDetails); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, sstxDetails, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request) {
@@ -386,10 +350,7 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 		summaries = append(summaries, c.BlockData.GetSummary(i))
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(summaries); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, summaries, c.getIndentQuery(r))
 
 	// DEBUGGING
 	// msg := fmt.Sprintf("block range: %d to %d", idx0, idx)
@@ -408,10 +369,7 @@ func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tpi := c.BlockData.GetPoolInfo(idx)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(tpi); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, tpi, c.getIndentQuery(r))
 }
 
 func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Request) {
@@ -438,10 +396,7 @@ func (c *appContext) getTicketPoolInfoRange(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "invalid range", http.StatusUnprocessableEntity)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(tpis); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, tpis, c.getIndentQuery(r))
 }
 
 func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http.Request) {
@@ -469,11 +424,7 @@ func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http
 		Value:       pvs,
 		Size:        pss,
 	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(tPVS); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, tPVS, c.getIndentQuery(r))
 }
 
 func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
@@ -484,10 +435,7 @@ func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sdiff := c.BlockData.GetSDiff(idx)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode([]float64{sdiff}); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, []float64{sdiff}, c.getIndentQuery(r))
 }
 
 func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
@@ -504,8 +452,5 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sdiffs := c.BlockData.GetSDiffRange(idx0, idx)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(sdiffs); err != nil {
-		apiLog.Infof("JSON encode error: %v", err)
-	}
+	writeJSON(w, sdiffs, c.getIndentQuery(r))
 }

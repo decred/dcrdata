@@ -38,16 +38,17 @@ var (
 	defaultConfigFile        = filepath.Join(curDir, defaultConfigFilename)
 	defaultLogDir            = filepath.Join(curDir, defaultLogDirname)
 	defaultHost              = "localhost"
-	defaultEmailSubject      = "dcrdataapi transaction notification"
+	//defaultEmailSubject      = "dcrdataapi transaction notification"
 
-	defaultAPIProto  = "http"
-	defaultAPIListen = "127.0.0.1:6000"
+	defaultAPIProto   = "http"
+	defaultAPIListen  = "127.0.0.1:6000"
+	defaultIndentJSON = "   "
 
 	defaultMonitorMempool     = true
 	defaultMempoolMinInterval = 4
 	defaultMempoolMaxInterval = 120
 	defaultMPTriggerTickets   = 4
-	defaultFeeWinRadius       = 0
+	//defaultFeeWinRadius       = 0
 
 	defaultDBFileName = "dcrdata.sqlt.db"
 )
@@ -64,33 +65,32 @@ type config struct {
 	CPUProfile  string `long:"cpuprofile" description:"File for CPU profiling."`
 
 	// API
-	APIProto  string `long:"apiproto" description:"Protocol for API (http or https)"`
-	APIListen string `long:"apilisten" description:"Listen address for API"`
+	APIProto   string `long:"apiproto" description:"Protocol for API (http or https)"`
+	APIListen  string `long:"apilisten" description:"Listen address for API"`
+	IndentJSON string `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
 
 	// Comamnd execution
-	CmdName string `short:"c" long:"cmdname" description:"Command name to run. Must be on %PATH%."`
-	CmdArgs string `short:"a" long:"cmdargs" description:"Comma-separated list of arguments for command to run. The specifier %n is substituted for block height at execution, and %h is substituted for block hash."`
+	//CmdName string `short:"c" long:"cmdname" description:"Command name to run. Must be on %PATH%."`
+	//CmdArgs string `short:"a" long:"cmdargs" description:"Comma-separated list of arguments for command to run. The specifier %n is substituted for block height at execution, and %h is substituted for block hash."`
 
 	// Data I/O
-	MonitorMempool     bool   `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added."`
-	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen."`
-	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen."`
-	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report."`
-	FeeWinRadius       int    `short:"r" long:"feewinradius" description:"Half-width of a window around the ticket with the lowest mineable fee."`
-	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
-	NoCollectBlockData bool   `long:"noblockdata" description:"Do not collect block data (default false)"`
-	NoCollectStakeInfo bool   `long:"nostakeinfo" description:"Do not collect stake info data (default false)"`
-	PoolValue          bool   `short:"p" long:"poolvalue" description:"Collect ticket pool value information (8-9 sec)."`
-	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
+	MonitorMempool     bool `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added."`
+	MempoolMinInterval int  `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen."`
+	MempoolMaxInterval int  `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen."`
+	MPTriggerTickets   int  `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report."`
+	//FeeWinRadius       int    `short:"r" long:"feewinradius" description:"Half-width of a window around the ticket with the lowest mineable fee."`
+	DumpAllMPTix bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
+	PoolValue    bool   `short:"p" long:"poolvalue" description:"Collect ticket pool value information (8-9 sec)."`
+	DBFileName   string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
 
-	WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
+	//WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
 	//WatchOutpoints []string `short:"o" long:"watchout" description:"Watched outpoint (sending). One per line."`
 
-	SMTPUser     string `long:"smtpuser" description:"SMTP user name"`
-	SMTPPass     string `long:"smtppass" description:"SMTP password"`
-	SMTPServer   string `long:"smtpserver" description:"SMTP host name"`
-	EmailAddr    string `long:"emailaddr" description:"Destination email address for alerts"`
-	EmailSubject string `long:"emailsubj" description:"Email subject. (default \"dcrdataapi transaction notification\")"`
+	// SMTPUser     string `long:"smtpuser" description:"SMTP user name"`
+	// SMTPPass     string `long:"smtppass" description:"SMTP password"`
+	// SMTPServer   string `long:"smtpserver" description:"SMTP host name"`
+	// EmailAddr    string `long:"emailaddr" description:"Destination email address for alerts"`
+	// EmailSubject string `long:"emailsubj" description:"Email subject. (default \"dcrdataapi transaction notification\")"`
 
 	OutFolder string `short:"f" long:"outfolder" description:"Folder for file outputs"`
 
@@ -109,14 +109,15 @@ var (
 		LogDir:             defaultLogDir,
 		APIProto:           defaultAPIProto,
 		APIListen:          defaultAPIListen,
+		IndentJSON:         defaultIndentJSON,
 		DcrdCert:           defaultDaemonRPCCertFile,
 		MonitorMempool:     defaultMonitorMempool,
 		MempoolMinInterval: defaultMempoolMinInterval,
 		MempoolMaxInterval: defaultMempoolMaxInterval,
 		MPTriggerTickets:   defaultMPTriggerTickets,
 		DBFileName:         defaultDBFileName,
-		FeeWinRadius:       defaultFeeWinRadius,
-		EmailSubject:       defaultEmailSubject,
+		//FeeWinRadius:       defaultFeeWinRadius,
+		//EmailSubject:       defaultEmailSubject,
 	}
 )
 

@@ -245,7 +245,7 @@ func mainCore() int {
 	}
 
 	// Start web API
-	app := newContext(dcrdClient, &sqliteDB)
+	app := newContext(dcrdClient, &sqliteDB, cfg.IndentJSON)
 	// Start notification hander to keep /status up-to-date
 	wg.Add(1)
 	go app.StatusNtfnHandler(&wg, quit)

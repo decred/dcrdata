@@ -122,7 +122,7 @@ func newAPIRouter(app *appContext) apiMux {
 		return patterns
 	}
 
-	mux.HandleFunc("/list", writeJSONHandlerFunc(listRoutePatterns(mux.Routes())))
+	mux.HandleFunc("/list", app.writeJSONHandlerFunc(listRoutePatterns(mux.Routes())))
 
 	return apiMux{mux}
 }

@@ -38,11 +38,12 @@ several components including:
 ### JSON REST API
 
 The API serves JSON data over HTTP(S).  After dcrdata syncs with the blockchain
-server, by default it will begin listening on `http://0.0.0.0:7777/`.  This means
-it starts a web server listening on all network interfaces on port 7777. **All API
-endpoints are currently prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`), but this may be configurable in the future.
+server, by default it will begin listening on `http://0.0.0.0:7777/`.  This
+means it starts a web server listening on all network interfaces on port 7777.
+**All API endpoints are currently prefixed with `/api`** (e.g.
+`http://localhost:7777/api/stake`), but this may be configurable in the future.
 
-Some example endpoints:
+#### Endpoint List
 
 | Best block | |
 | --- | --- |
@@ -88,8 +89,14 @@ parsing more efficient for the client.
 
 | Other | |
 | --- | --- |
-| Status | /status |
-| Directory | /directory |
+| Status | `/status` |
+| Endpoint list (always indented) | `/list` |
+| Directory | `/directory` |
+
+All JSON endpoints accept the URL query `indent=[true|false]`.  For example,
+`/stake/diff?indent=true`. By default, indentation is off. The characters to use
+for indentation may be specified with the `indentjson` string configuration
+option.
 
 ### Web Interface
 
