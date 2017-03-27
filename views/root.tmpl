@@ -55,6 +55,8 @@
                 </ul>
                 <ul class="nav navbar-nav navbar-right">
                     <li><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" title="_blank">dcrdata GitHub</a></li>
+                    <li><a href="https://decred.org/" title="Decred Home" title="_blank">Decred Home</a></li>
+                    <li><a href="https://decred.slack.com/" title="Decred Slack" title="_blank">Decred Slack</a></li>
                 </ul>
             </div>
             <!--/.nav-collapse -->
@@ -63,76 +65,71 @@
 
 
     <div class="wrapper" style="margin-top:60px;">
-        <div class="col-md-5">
-        </div>
-
         <div id="boxagenda">
             <div style="clear:both;">&nbsp;</div>
-            <h4><span>Best Block</span></h4>
-            <div class="col-md-10">
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Height: {{.BlockSummary.Height}}<br>
-                    Hash: <span class="inco" style="padding:15px;font-size:12px;">
-                        {{.BlockSummary.Hash}}</span><br>
-                    Size: {{.BlockSummary.Size}}<br>
-                    Difficulty: {{printf "%20.2f" .BlockSummary.Difficulty}}<br>
-                </p>
-            </div>
-
-            <div class="col-md-5 text-right">
-                <strong>Blah.</strong>
-            </div>
-        </div> <!-- boxagenda -->
-
-        <div id="boxagenda">
-            <div style="clear:both;">&nbsp;</div>
-            <h4><span>Stake</span></h4>
+            <h4><span>Proof of Stake (PoS)</span></h4>
 
             <div class="col-md-10">
+                Current
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Current Ticket Price: {{.BlockSummary.StakeDiff}}<br>
+                    Current Ticket Price: {{printf "%12.4f" .BlockSummary.StakeDiff}}<br>
                     Window Progress: block {{.StakeSummary.IdxBlockInWindow}} of 144<br>
                 </p>
                 Next Price
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Min: {{.StakeSummary.StakeDiff.Estimates.Min}}<br>
-                    Max: {{.StakeSummary.StakeDiff.Estimates.Max}}<br>
-                    Guess: {{.StakeSummary.StakeDiff.Estimates.Expected}}<br>
+                    Min: {{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}<br>
+                    Max: {{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}<br>
+                    Guess: {{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}<br>
+                </p>
+                Fee Info (Block)
+                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                    Number of Tickets: {{.StakeSummary.Feeinfo.Number}}<br>
+                    Min Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Min}}<br>
+                    Max Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Max}}<br>
+                    Median Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Median}}<br>
+                    Mean Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Mean}}<br>
                 </p>
             </div>
 
-            <div class="col-md-10">
+            <div class="col-md-5 text-right">
+                <strong>Best Block</strong>
+                <table class="table table-condensed">
+                <tbody>
+                <tr><td>Height</td><td><strong><span style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td></tr>
+                <tr><td>Hash</td><td><strong><span class="inco" style="float: right; max-width: 180px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
+                        {{.BlockSummary.Hash}}</span></strong></td></tr>
+                <tr><td>Size (bytes)</td><td><strong>{{.BlockSummary.Size}}</td></tr>
+                <tr><td>Difficulty</td><td><strong>{{printf "%16.2f" .BlockSummary.Difficulty}}</strong></td></tr>
+                </tbody>
+                </table>
+                <br>
+                <strong>Ticket Pool</strong>
+                <table class="table table-condensed">
+                <tbody>
+                <tr><td>Number of Tickets</td><td><strong><span style="color:#41BF53">{{.BlockSummary.PoolInfo.Size}}</span></strong></td></tr>
+                <tr><td>Value (DCR)</td><td><strong>{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</strong></td></tr>
+                <tr><td>Avg. Value (DCR/ticket)</td><td><strong>{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</td></tr>
+                </tbody>
+                </table>
+            </div>
+
+            <!--<div class="col-md-10">
                 Ticket Pool
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
                     Pool Size (bytes): {{.BlockSummary.PoolInfo.Size}}<br>
                     Pool Value (DCR): {{.BlockSummary.PoolInfo.Value}}<br>
                     Pool Avg. Value (DCR/ticket): {{.BlockSummary.PoolInfo.ValAvg}}<br>
                 </p>
-            </div>
-
-            <div class="col-md-10">
-                Fee Info (Block)
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Number of Tickets: {{.StakeSummary.Feeinfo.Number}}<br>
-                    Min Fee: {{.StakeSummary.Feeinfo.Min}}<br>
-                    Max Fee: {{.StakeSummary.Feeinfo.Max}}<br>
-                    Median Fee: {{.StakeSummary.Feeinfo.Median}}<br>
-                    Mean Fee: {{.StakeSummary.Feeinfo.Mean}}<br>
-                </p>
-            </div>
-
-            <div class="col-md-5 text-right">
-                <strong>Blah.</strong>
-            </div>
+            </div>-->
         </div>
 
         <div id="boxagenda">
             <div style="clear:both;">&nbsp;</div>
-            <h4><span>Mempool (waiting to be mined)</span></h4>
+            <h4><span>Mempool (queued for mining)</span></h4>
             <div class="col-md-10">
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
                     Number of Tickets: {{.MempoolFeeInfo.Number}}<br>
-                    Lowest Mineable Fee: {{.MempoolFeeInfo.LowestMineable}}<br>
+                    Lowest Mineable Fee: {{printf "%.8f" .MempoolFeeInfo.LowestMineable}}<br>
                     Min Fee: {{.MempoolFeeInfo.Min}}<br>
                     Max Fee: {{.MempoolFeeInfo.Max}}<br>
                     Median Fee: {{.MempoolFeeInfo.Median}}<br>
@@ -140,9 +137,9 @@
                 </p>
             </div>
 
-            <div class="col-md-5 text-right">
+            <!--<div class="col-md-5 text-right">
                 <strong>Blah.</strong>
-            </div>
+            </div>-->
         </div> <!-- boxagenda -->
 
         <br /><br /><br /><br /><br />&nbsp;

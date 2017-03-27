@@ -8,9 +8,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/dcrdata/dcrdata/mempool"
 )
 
 func TemplateExecToString(t *template.Template, name string, data interface{}) (string, error) {
@@ -27,6 +29,7 @@ type WebTemplateData struct {
 }
 
 type WebUI struct {
+	MPC          mempool.MempoolDataCache
 	TemplateData WebTemplateData
 	templ        *template.Template
 	templFiles   []string
@@ -76,6 +79,22 @@ func (td *WebUI) reloadTemplatesSig(sig os.Signal) {
 func (td *WebUI) Store(blockData *blockdata.BlockData) error {
 	td.TemplateData.BlockSummary = blockData.ToBlockSummary()
 	td.TemplateData.StakeSummary = blockData.ToStakeInfoExtendedEstimates()
+	return nil
+}
+
+func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) error {
+	td.MPC.StoreMPData(data, timestamp)
+
+	td.MPC.RLock()
+	defer td.MPC.RUnlock()
+
+	_, fie := td.MPC.GetFeeInfoExtra()
+	td.TemplateData.MempoolFeeInfo = *fie
+
+	mpf := &td.TemplateData.MempoolFees
+	mpf.Height, mpf.Time, _, mpf.FeeRates = td.MPC.GetFeeRates(25)
+	mpf.Length = uint32(len(mpf.FeeRates))
+
 	return nil
 }
 

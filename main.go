@@ -141,6 +141,7 @@ func mainCore() int {
 	webUI := NewWebUI()
 	webUI.UseSIGToReloadTemplates()
 	blockDataSavers = append(blockDataSavers, webUI)
+	mempoolSavers = append(mempoolSavers, webUI)
 
 	// Initial data summary for web ui
 	blockData, err := collector.Collect(!cfg.PoolValue)

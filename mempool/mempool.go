@@ -211,7 +211,7 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 
 			newTickets := p.mpoolInfo.NumTicketsSinceStatsReport
 
-			var data *mempoolData
+			var data *MempoolData
 			if newBlock || slotsNotFull || quiteLong || (enoughNewTickets && longEnough) {
 				// reset counter for tickets since last report
 				atomic.StoreInt32(&p.mpoolInfo.NumTicketsSinceStatsReport, 0)
@@ -232,7 +232,7 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			}
 
 			// Insert new ticket counter into data structure
-			data.newTickets = uint32(newTickets)
+			data.NewTickets = uint32(newTickets)
 			timestamp := time.Now()
 
 			//p.mpoolInfo.NumTicketPurchasesInMempool = data.ticketfees.FeeInfoMempool.Number
@@ -274,21 +274,21 @@ type Stakelimitfeeinfo struct {
 	// others...
 }
 
-type mempoolData struct {
-	height            uint32
-	numTickets        uint32
-	newTickets        uint32
-	ticketfees        *dcrjson.TicketFeeInfoResult
-	minableFees       *MinableFeeInfo
-	allTicketsDetails TicketsDetails
+type MempoolData struct {
+	Height            uint32
+	NumTickets        uint32
+	NewTickets        uint32
+	Ticketfees        *dcrjson.TicketFeeInfoResult
+	MinableFees       *MinableFeeInfo
+	AllTicketsDetails TicketsDetails
 }
 
-func (m *mempoolData) GetHeight() uint32 {
-	return m.height
+func (m *MempoolData) GetHeight() uint32 {
+	return m.Height
 }
 
-func (m *mempoolData) GetNumTickets() uint32 {
-	return m.numTickets
+func (m *MempoolData) GetNumTickets() uint32 {
+	return m.NumTickets
 }
 
 type mempoolDataCollector struct {
@@ -307,7 +307,7 @@ func NewMempoolDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg
 }
 
 // collect is the main handler for collecting chain data
-func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
+func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -407,12 +407,12 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 
 	height, err := c.GetBlockCount()
 
-	mpoolData := &mempoolData{
-		height:            uint32(height),
-		numTickets:        feeInfo.FeeInfoMempool.Number,
-		ticketfees:        feeInfo,
-		minableFees:       mineables,
-		allTicketsDetails: allTicketsDetails,
+	mpoolData := &MempoolData{
+		Height:            uint32(height),
+		NumTickets:        feeInfo.FeeInfoMempool.Number,
+		Ticketfees:        feeInfo,
+		MinableFees:       mineables,
+		AllTicketsDetails: allTicketsDetails,
 	}
 
 	return mpoolData, err
@@ -420,9 +420,9 @@ func (t *mempoolDataCollector) Collect() (*mempoolData, error) {
 
 // SAVER
 
-// MempoolDataSaver is an interface for saving/storing mempoolData
+// MempoolDataSaver is an interface for saving/storing MempoolData
 type MempoolDataSaver interface {
-	StoreMPData(data *mempoolData, timestamp time.Time) error
+	StoreMPData(data *MempoolData, timestamp time.Time) error
 }
 
 // MempoolDataToJSONStdOut implements MempoolDataSaver interface for JSON output to
@@ -536,10 +536,10 @@ func NewMempoolDataToJSONFiles(folder string, fileBase string,
 	}
 }
 
-// Store writes mempoolData to stdout in JSON format
-func (s *MempoolDataToJSONStdOut) StoreMPData(data *mempoolData) error {
+// Store writes MempoolData to stdout in JSON format
+func (s *MempoolDataToJSONStdOut) StoreMPData(data *MempoolData) error {
 	// Do not write JSON data if there are no new tickets since last report
-	if data.newTickets == 0 {
+	if data.NewTickets == 0 {
 		return nil
 	}
 
@@ -555,9 +555,9 @@ func (s *MempoolDataToJSONStdOut) StoreMPData(data *mempoolData) error {
 	}
 
 	// Write JSON to stdout with guards to delimit the object from other text
-	fmt.Printf("\n--- BEGIN mempoolData JSON ---\n")
+	fmt.Printf("\n--- BEGIN MempoolData JSON ---\n")
 	_, err = writeFormattedJSONMempoolData(jsonConcat, os.Stdout)
-	fmt.Printf("--- END mempoolData JSON ---\n\n")
+	fmt.Printf("--- END MempoolData JSON ---\n\n")
 	if err != nil {
 		log.Error("Write JSON mempool data to stdout pipe: ", os.Stdout)
 	}
@@ -565,26 +565,26 @@ func (s *MempoolDataToJSONStdOut) StoreMPData(data *mempoolData) error {
 	return err
 }
 
-// Store writes mempoolData to stdout as plain text summary
-func (s *MempoolDataToSummaryStdOut) StoreMPData(data *mempoolData) error {
+// Store writes MempoolData to stdout as plain text summary
+func (s *MempoolDataToSummaryStdOut) StoreMPData(data *MempoolData) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
 	}
 
-	mempoolTicketFees := data.ticketfees.FeeInfoMempool
+	mempoolTicketFees := data.Ticketfees.FeeInfoMempool
 
 	// time.Now().UTC().Format(time.UnixDate)
 	_, err := fmt.Printf("%v - Mempool ticket fees (%v):  %.5f, %.4f, %.4f, %.4f (l/m, mean, median, std), n=%d\n",
-		time.Now().Format("2006-01-02 15:04:05.00 -0700 MST"), data.height,
-		data.minableFees.lowestMineableFee,
+		time.Now().Format("2006-01-02 15:04:05.00 -0700 MST"), data.Height,
+		data.MinableFees.lowestMineableFee,
 		mempoolTicketFees.Mean, mempoolTicketFees.Median,
 		mempoolTicketFees.StdDev, mempoolTicketFees.Number)
 
 	// Inspect a range of ticket fees in the sorted list, about the 20th
 	// largest or the largest if less than 20 tickets in mempool.
-	boundIdx := data.minableFees.lowestMineableIdx
-	N := len(data.minableFees.allFees)
+	boundIdx := data.MinableFees.lowestMineableIdx
+	N := len(data.MinableFees.allFees)
 
 	if N < 2 {
 		return err
@@ -609,21 +609,21 @@ func (s *MempoolDataToSummaryStdOut) StoreMPData(data *mempoolData) error {
 	}
 
 	// center value not included in upper/lower windows
-	lowerFees = data.minableFees.allFees[lowEnd:boundIdx]
-	upperFees = data.minableFees.allFees[boundIdx+1 : highEnd]
+	lowerFees = data.MinableFees.allFees[lowEnd:boundIdx]
+	upperFees = data.MinableFees.allFees[boundIdx+1 : highEnd]
 
 	_, err = fmt.Printf("Mineable tickets, limit -%d/+%d:\t%.5f --> %.5f (threshold) --> %.5f\n",
 		len(lowerFees), len(upperFees), lowerFees,
-		data.minableFees.lowestMineableFee, upperFees)
+		data.MinableFees.lowestMineableFee, upperFees)
 
 	return err
 }
 
-// Store writes mempoolData to a file in JSON format
+// Store writes MempoolData to a file in JSON format
 // The file name is nameBase+height+".json".
-func (s *MempoolDataToJSONFiles) StoreMPData(data *mempoolData) error {
+func (s *MempoolDataToJSONFiles) StoreMPData(data *MempoolData) error {
 	// Do not write JSON data if there are no new tickets since last report
-	if data.newTickets == 0 {
+	if data.NewTickets == 0 {
 		return nil
 	}
 
@@ -639,8 +639,8 @@ func (s *MempoolDataToJSONFiles) StoreMPData(data *mempoolData) error {
 	}
 
 	// Write JSON to a file with block height in the name
-	fname := fmt.Sprintf("%s%d-%d.json", s.nameBase, data.height,
-		data.numTickets)
+	fname := fmt.Sprintf("%s%d-%d.json", s.nameBase, data.Height,
+		data.NumTickets)
 	fullfile := filepath.Join(s.folder, fname)
 	fp, err := os.Create(fullfile)
 	if err != nil {
@@ -660,7 +660,7 @@ func (s *MempoolDataToJSONFiles) StoreMPData(data *mempoolData) error {
 
 // Store writes all the ticket fees to a file
 // The file name is nameBase+".json".
-func (s *MempoolFeeDumper) StoreMPData(data *mempoolData, timestamp time.Time) error {
+func (s *MempoolFeeDumper) StoreMPData(data *MempoolData, timestamp time.Time) error {
 	// Do not write JSON data if there are no new tickets since last report
 	// if data.newTickets == 0 {
 	// 	return nil
@@ -672,8 +672,8 @@ func (s *MempoolFeeDumper) StoreMPData(data *mempoolData, timestamp time.Time) e
 	}
 
 	// Write fees to a file with block height in the name
-	fname := fmt.Sprintf("%s-%d-%d-%d.json", s.nameBase, data.height,
-		data.numTickets, time.Now().Unix())
+	fname := fmt.Sprintf("%s-%d-%d-%d.json", s.nameBase, data.Height,
+		data.NumTickets, time.Now().Unix())
 	//fname := fmt.Sprintf("%s.json", s.nameBase)
 	fullfile := filepath.Join(s.folder, fname)
 	fp, err := os.Create(fullfile)
@@ -689,9 +689,9 @@ func (s *MempoolFeeDumper) StoreMPData(data *mempoolData, timestamp time.Time) e
 		AllFees  []float64 `json:"allfees"`
 		DateTime string    `json:"datetime"`
 	}{
-		len(data.minableFees.allFees),
+		len(data.MinableFees.allFees),
 		timestamp.Unix(),
-		data.minableFees.allFees,
+		data.MinableFees.allFees,
 		time.Now().UTC().Format(time.RFC822)},
 		"", "    ")
 
@@ -713,11 +713,11 @@ func writeFormattedJSONMempoolData(jsonConcat *bytes.Buffer, w io.Writer) (int, 
 
 // JSONFormatMempoolData concatenates block data results into a single JSON
 // object with primary keys for the result type
-func JSONFormatMempoolData(data *mempoolData) (*bytes.Buffer, error) {
+func JSONFormatMempoolData(data *MempoolData) (*bytes.Buffer, error) {
 	var jsonAll bytes.Buffer
 
 	jsonAll.WriteString("{\"ticketfeeinfo_mempool\": ")
-	feeInfoMempoolJSON, err := json.Marshal(data.ticketfees.FeeInfoMempool)
+	feeInfoMempoolJSON, err := json.Marshal(data.Ticketfees.FeeInfoMempool)
 	if err != nil {
 		log.Error("Unable to marshall mempool ticketfee info to JSON: ",
 			err.Error())
@@ -727,7 +727,7 @@ func JSONFormatMempoolData(data *mempoolData) (*bytes.Buffer, error) {
 	//feeInfoMempoolJSON, err := json.MarshalIndent(data.ticketfees.FeeInfoMempool, "", "    ")
 	//fmt.Println(string(feeInfoMempoolJSON))
 
-	limitinfo := Stakelimitfeeinfo{data.minableFees.lowestMineableFee}
+	limitinfo := Stakelimitfeeinfo{data.MinableFees.lowestMineableFee}
 
 	jsonAll.WriteString(",\"stakelimitfee\": ")
 	limitInfoJSON, err := json.Marshal(limitinfo)
