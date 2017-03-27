@@ -34,7 +34,8 @@ func mainCore() int {
 	defer backendLog.Flush()
 
 	if cfg.CPUProfile != "" {
-		f, err := os.Create(cfg.CPUProfile)
+		var f *os.File
+		f, err = os.Create(cfg.CPUProfile)
 		if err != nil {
 			log.Critical(err)
 			return -1
@@ -138,6 +139,7 @@ func mainCore() int {
 
 	// Web template data. WebUI implements BlockDataSaver interface
 	webUI := NewWebUI()
+	webUI.UseSIGToReloadTemplates()
 	blockDataSavers = append(blockDataSavers, webUI)
 
 	// Initial data summary for web ui

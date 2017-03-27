@@ -394,7 +394,8 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 						strconv.Itoa(int(i)-int(db.params.TicketMaturity)))
 				}
 				ticketsToAdd = txhelpers.TicketsInBlock(maturingBlock)
-				log.Tracef("Adding %02d tickets from block %d", len(ticketsToAdd), i)
+				log.Tracef("Adding %02d tickets from block %d", len(ticketsToAdd),
+					maturingBlock.Height())
 			}
 
 			spentTickets := txhelpers.TicketsSpentInBlock(block)
