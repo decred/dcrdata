@@ -13,7 +13,7 @@ type apiMux struct {
 }
 
 // APIVersion is an integer value, incremented for breaking changes
-const APIVersion = 1
+const APIVersion = 0
 
 func newAPIRouter(app *appContext) apiMux {
 	// chi router
@@ -80,12 +80,6 @@ func newAPIRouter(app *appContext) apiMux {
 			rd.Get("/details", app.getSSTxDetails)
 			rd.With(NPathCtx).Get("/details/:N", app.getSSTxDetails)
 		})
-	})
-
-	//mux.FileServer("/browse", http.Dir(context.RootDataFolder))
-
-	mux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./favicon.ico")
 	})
 
 	mux.NotFound(func(w http.ResponseWriter, r *http.Request) {
