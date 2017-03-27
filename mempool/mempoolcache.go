@@ -20,18 +20,18 @@ type MempoolDataCache struct {
 	allTicketsDetails       TicketsDetails
 }
 
-func (c *MempoolDataCache) StoreMPData(data *mempoolData, timestamp time.Time) error {
+func (c *MempoolDataCache) StoreMPData(data *MempoolData, timestamp time.Time) error {
 	c.Lock()
 	defer c.Unlock()
 
-	c.height = data.height
+	c.height = data.Height
 	c.timestamp = timestamp
-	c.numTickets = data.numTickets
-	c.ticketFeeInfo = data.ticketfees.FeeInfoMempool
-	c.allFees = data.minableFees.allFees
-	c.allFeeRates = data.minableFees.allFeeRates
-	c.lowestMineableByFeeRate = data.minableFees.lowestMineableFee
-	c.allTicketsDetails = data.allTicketsDetails
+	c.numTickets = data.NumTickets
+	c.ticketFeeInfo = data.Ticketfees.FeeInfoMempool
+	c.allFees = data.MinableFees.allFees
+	c.allFeeRates = data.MinableFees.allFeeRates
+	c.lowestMineableByFeeRate = data.MinableFees.lowestMineableFee
+	c.allTicketsDetails = data.AllTicketsDetails
 
 	return nil
 }
