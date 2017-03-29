@@ -304,6 +304,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				return err
 			}
 			bestNodeHeight = int64(bestNode.Height())
+			log.Infof("Stake db now at height %d.", bestNodeHeight)
 		}
 	}
 	if startHeight < -1 {
