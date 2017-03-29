@@ -278,15 +278,27 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				return nil
 			default:
 			}
+			formerBestNode := bestNode
+			parentBlock, _, err := db.getBlock(bestNodeHeight - 1)
+			if err != nil {
+				return err
+			}
 			// previous best node
-			err = stakeDB.Update(func(dbTx database.Tx) error {
+			err = stakeDB.View(func(dbTx database.Tx) error {
 				var errLocal error
-				block, _, errLocal := db.getBlock(bestNodeHeight - 1)
-				if errLocal != nil {
-					return errLocal
-				}
-				bestNode, errLocal = bestNode.DisconnectNode(block.MsgBlock().Header, nil, nil, dbTx)
+				bestNode, errLocal = bestNode.DisconnectNode(parentBlock.MsgBlock().Header, nil, nil, dbTx)
 				return errLocal
+			})
+			if err != nil {
+				return err
+			}
+			err = stakeDB.Update(func(dbTx database.Tx) error {
+				if e := stake.WriteDisconnectedBestNode(dbTx, bestNode,
+					*parentBlock.Hash(), formerBestNode.UndoData()); e != nil {
+					return fmt.Errorf("failure writing the best node: %v",
+						e.Error())
+				}
+				return nil
 			})
 			if err != nil {
 				return err
