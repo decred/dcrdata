@@ -20,3 +20,4 @@ LOCK
 LOG
 MANIFEST-*
 ffldb_stake/
+*.pprof
