@@ -13,6 +13,7 @@ import (
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/mempool"
+	"github.com/decred/dcrd/chaincfg"
 )
 
 func TemplateExecToString(t *template.Template, name string, data interface{}) (string, error) {
@@ -33,6 +34,7 @@ type WebUI struct {
 	TemplateData WebTemplateData
 	templ        *template.Template
 	templFiles   []string
+	params       *chaincfg.Params
 }
 
 func NewWebUI() *WebUI {
@@ -90,6 +92,13 @@ func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) err
 
 	_, fie := td.MPC.GetFeeInfoExtra()
 	td.TemplateData.MempoolFeeInfo = *fie
+
+	// LowestMineable is the lowest fee of those in the top 20 (mainnet), but
+	// for the web interface, we want to interpret "lowest mineable" as the
+	// lowest fee the user needs to get a new ticket purchase mined right away.
+	if td.TemplateData.MempoolFeeInfo.Number < uint32(td.params.MaxFreshStakePerBlock) {
+		td.TemplateData.MempoolFeeInfo.LowestMineable = 0.01
+	}
 
 	mpf := &td.TemplateData.MempoolFees
 	mpf.Height, mpf.Time, _, mpf.FeeRates = td.MPC.GetFeeRates(25)
