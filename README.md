@@ -72,9 +72,9 @@ means it starts a web server listening on all network interfaces on port 7777.
 | --- | --- |
 | Current pool info (size, total value, and average price) | `/stake/pool` |
 | Pool info for block `X` | `/stake/pool/b/X` |
-| Pool info for block range `[X,Y] (X <= Y)` | `/stake/pool/r/X/Y?arrays=[true|false]` <sup>*</sup> |
+| Pool info for block range `[X,Y] (X <= Y)` | `/stake/pool/r/X/Y?arrays=[true\|false]` <sup>*</sup> |
 
-<sup>*</sup>For the pool info for block range endpoint that accepts the `arrays` url query,
+<sup>*</sup>For the pool info block range endpoint that accepts the `arrays` url query,
 a value of `true` will put all pool values and pool sizes into separate arrays,
 rather than having a single array of pool info JSON objects.  This may make
 parsing more efficient for the client.
@@ -135,7 +135,7 @@ API.  This facilitates authoring of robust golang clients of the API.
 `package rpcutils` includes helper functions for interacting with a
 `dcrrpcclient.Client`.
 
-`package txhelpers` includes helper function for working with the common types
+`package txhelpers` includes helper functions for working with the common types
 `dcrutil.Tx`, `dcrutil.Block`, `chainhash.Hash`, and others.
 
 ## Internal-use packages
@@ -168,9 +168,6 @@ The GitHub issue tracker for dcrdata lists planned improvements. A few important
 ones:
 
 * More database backend options, perhaps PostgreSQL and/or mongodb.
-* mempool data collection and storage. Collection is already implemented, but no
-  storage or API endpoints.  For instance, a realtime read of the ticket fee
-  distribution in mempool, stake submissions included as they come in.
 * Chain reorg handling.
 * test cases.
 
@@ -191,7 +188,7 @@ The following instructions assume a Unix-like shell (e.g. bash).
 
         go env GOROOT GOPATH
 
-* Ensure $GOPATH/bin is on your $PATH
+* Ensure `$GOPATH/bin` is on your `$PATH`
 * Install glide
 
         go get -u -v github.com/Masterminds/glide
