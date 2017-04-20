@@ -50,6 +50,7 @@ func NewWebUI() *WebUI {
 	return &WebUI{
 		templ:      tmpl,
 		templFiles: templFiles,
+		params:     activeChain,
 	}
 }
 
