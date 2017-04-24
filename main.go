@@ -17,6 +17,7 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/semver"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrrpcclient"
 	"github.com/pressly/chi"
@@ -122,11 +123,13 @@ func mainCore() int {
 	// blockDataSavers = append(blockDataSavers, blockDataMapSaver)
 
 	// Sqlite output
+	stakedb.UseLogger(sqliteLog)
 	dcrsqlite.UseLogger(sqliteLog)
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
-	sqliteDB, err := dcrsqlite.InitWiredDB(&dbInfo,
+	sqliteDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
 		ntfnChans.updateStatusDBHeight, dcrdClient, activeChain)
+	defer cleanupDB()
 	if err != nil {
 		log.Errorf("Unable to initialize SQLite database: %v", err)
 		return 16

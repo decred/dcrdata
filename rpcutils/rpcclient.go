@@ -13,6 +13,7 @@ import (
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/semver"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
@@ -168,4 +169,19 @@ func GetStakeDiffEstimates(client *dcrrpcclient.Client) *apitypes.StakeDiff {
 		Estimates: *estStakeDiff,
 	}
 	return &stakeDiffEstimates
+}
+
+func GetBlock(ind int64, client *dcrrpcclient.Client) (*dcrutil.Block, *chainhash.Hash, error) {
+	blockhash, err := client.GetBlockHash(ind)
+	if err != nil {
+		return nil, nil, fmt.Errorf("GetBlockHash(%d) failed: %v", ind, err)
+	}
+
+	block, err := client.GetBlock(blockhash)
+	if err != nil {
+		return nil, blockhash,
+			fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
+	}
+
+	return block, blockhash, nil
 }
