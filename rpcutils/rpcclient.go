@@ -19,7 +19,7 @@ import (
 	"github.com/decred/dcrutil"
 )
 
-var requiredChainServerAPI = semver.NewSemver(2, 0, 0)
+var requiredChainServerAPI = semver.NewSemver(3, 0, 0)
 
 func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	ntfnHandlers ...*dcrrpcclient.NotificationHandlers) (*dcrrpcclient.Client, semver.Semver, error) {
