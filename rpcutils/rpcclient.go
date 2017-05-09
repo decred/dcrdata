@@ -22,6 +22,8 @@ import (
 
 var requiredChainServerAPI = semver.NewSemver(3, 0, 0)
 
+// ConnectNodeRPC attempts to create a new websocket connection to a dcrd node,
+// with the given credentials and optional notification handlers.
 func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	ntfnHandlers ...*dcrrpcclient.NotificationHandlers) (*dcrrpcclient.Client, semver.Semver, error) {
 	var dcrdCerts []byte
@@ -82,6 +84,9 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	return dcrdClient, nodeVer, nil
 }
 
+// BuildBlockHeaderVerbose creates a *dcrjson.GetBlockHeaderVerboseResult from
+// an input *wire.BlockHeader and current best block height, which is used to
+// compute confirmations.  The next block hash may optionally be provided.
 func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 	currentHeight int64, nextHash ...string) *dcrjson.GetBlockHeaderVerboseResult {
 	if header == nil {
@@ -121,18 +126,19 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 	return &blockHeaderResult
 }
 
+// GetBlockHeaderVerbose creates a *dcrjson.GetBlockHeaderVerboseResult for the
+// block index specified by idx via an RPC connection to a chain server.
 func GetBlockHeaderVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
 	idx int64) *dcrjson.GetBlockHeaderVerboseResult {
-	_, height, err := client.GetBestBlock()
-	// if err != nil {
-	// 	log.Errorf("GetBestBlock failed: %v", err)
-	// 	return nil
-	// }
-
-	// if idx > height {
-	// 	log.Errorf("Block %d does not exist.", idx)
-	// 	return nil
-	// }
+	height, err := client.GetBlockCount()
+	if err != nil {
+		log.Errorf("GetBlockCount failed: %v", err)
+		return nil
+	}
+	if idx > height {
+		log.Errorf("Block %d does not exist.", idx)
+		return nil
+	}
 
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
@@ -152,6 +158,8 @@ func GetBlockHeaderVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
 	return blockHeaderVerbose
 }
 
+// GetStakeDiffEstimates combines the results of EstimateStakeDiff and
+// GetStakeDifficulty into a *apitypes.StakeDiff.
 func GetStakeDiffEstimates(client *dcrrpcclient.Client) *apitypes.StakeDiff {
 	stakeDiff, err := client.GetStakeDifficulty()
 	if err != nil {
@@ -171,6 +179,7 @@ func GetStakeDiffEstimates(client *dcrrpcclient.Client) *apitypes.StakeDiff {
 	return &stakeDiffEstimates
 }
 
+// GetBlock gets a block at the given height from a chain server.
 func GetBlock(ind int64, client *dcrrpcclient.Client) (*dcrutil.Block, *chainhash.Hash, error) {
 	blockhash, err := client.GetBlockHash(ind)
 	if err != nil {

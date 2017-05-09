@@ -255,20 +255,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 	// a ticket treap would be nice, but a map will do for a cache
 	liveTicketCache := make(map[chainhash.Hash]int64)
 
-	var startHeight0, firstMatureHeight int64
-	if startHeight < db.params.StakeEnabledHeight {
-		startHeight0 = 0
-		firstMatureHeight = db.params.StakeEnabledHeight - int64(db.params.TicketMaturity)
-		log.Infof("Start height (rewound): %d (%d); First maturing ticket height: %d",
-			startHeight, startHeight0, firstMatureHeight)
-	} else {
-		startHeight0 = startHeight - int64(db.params.TicketMaturity)
-		firstMatureHeight = startHeight0
-		log.Infof("Start height (rewound/maturing height): %d (%d)",
-			startHeight, startHeight0)
-	}
-
-	for i := startHeight0; i <= height; i++ {
+	for i := startHeight; i <= height; i++ {
 		// check for quit signal
 		select {
 		case <-quit:
@@ -287,13 +274,13 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		// TODO: winning tickets
 		//winningTickets := db.sDB.BestNode.Winners()
 
-		if i%rescanLogBlockChunk == 0 || i == startHeight0 {
+		if i%rescanLogBlockChunk == 0 || i == startHeight {
 			endRangeBlock := rescanLogBlockChunk * (1 + i/rescanLogBlockChunk)
 			if endRangeBlock > height {
 				endRangeBlock = height
 			}
 			log.Infof("Scanning blocks %d to %d (%d live)...",
-				i, endRangeBlock, numLive)
+				i, endRangeBlock-1, numLive)
 		}
 
 		var poolValue int64
@@ -351,7 +338,6 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				return fmt.Errorf("Unable to store block summary in database: %v", err)
 			}
 		}
-		//log.Debugf("Stored block summary: %d", i)
 
 		if i <= bestStakeHeight {
 			// update height, the end condition for the loop
@@ -421,7 +407,6 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		if err = db.StoreStakeInfoExtended(&si); err != nil {
 			return fmt.Errorf("Unable to store stake info in database: %v", err)
 		}
-		//log.Debugf("Stored stake info: %d", i)
 
 		// update height, the end condition for the loop
 		if _, height, err = db.client.GetBestBlock(); err != nil {
