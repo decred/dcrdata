@@ -5,7 +5,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -77,7 +76,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 		}
 
 		header := block.MsgBlock().Header
-		diffRatio := blockdata.GetDifficultyRatio(header.Bits, db.params)
+		diffRatio := txhelpers.GetDifficultyRatio(header.Bits, db.params)
 
 		blockSummary := apitypes.BlockDataBasic{
 			Height:     header.Height,
@@ -231,6 +230,9 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			bestNodeHeight = int64(db.sDB.Height())
 			log.Infof("Stake db now at height %d.", bestNodeHeight)
 		}
+		if bestNodeHeight != startHeight {
+			panic("rewind failed")
+		}
 	}
 	if startHeight < -1 {
 		startHeight = -1
@@ -248,9 +250,6 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 
 	// Start at next block we don't have in every DB
 	startHeight++
-	log.Infof("Resyncing from %v", startHeight)
-
-	winSize := uint32(db.params.StakeDiffWindowSize)
 
 	// a ticket treap would be nice, but a map will do for a cache
 	liveTicketCache := make(map[chainhash.Hash]int64)
@@ -269,18 +268,32 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			return fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
 		}
 
+		if i != int64(db.sDB.Height()+1) {
+			panic("about to connect the wrong block")
+		}
+
+		if i > bestNodeHeight {
+			if err = db.sDB.ConnectBlock(block); err != nil {
+				return err
+			}
+		}
+
+		if i < startHeight {
+			continue
+		}
+
 		numLive := db.sDB.BestNode.PoolSize()
 		liveTickets := db.sDB.BestNode.LiveTickets()
 		// TODO: winning tickets
 		//winningTickets := db.sDB.BestNode.Winners()
 
-		if i%rescanLogBlockChunk == 0 || i == startHeight {
-			endRangeBlock := rescanLogBlockChunk * (1 + i/rescanLogBlockChunk)
+		if (i-1)%rescanLogBlockChunk == 0 || i == startHeight {
+			endRangeBlock := rescanLogBlockChunk * (1 + (i-1)/rescanLogBlockChunk)
 			if endRangeBlock > height {
 				endRangeBlock = height
 			}
 			log.Infof("Scanning blocks %d to %d (%d live)...",
-				i, endRangeBlock-1, numLive)
+				i, endRangeBlock, numLive)
 		}
 
 		var poolValue int64
@@ -300,18 +313,8 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			poolValue += val
 		}
 
-		if i > bestNodeHeight {
-			if err = db.sDB.ConnectBlock(block); err != nil {
-				return err
-			}
-		}
-
-		if i < startHeight {
-			continue
-		}
-
 		header := block.MsgBlock().Header
-		diffRatio := blockdata.GetDifficultyRatio(header.Bits, db.params)
+		diffRatio := txhelpers.GetDifficultyRatio(header.Bits, db.params)
 
 		poolCoin := dcrutil.Amount(poolValue).ToCoin()
 		valAvg, poolSize := 0.0, float64(header.PoolSize)
@@ -398,6 +401,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		}
 
 		// Price window number and block index
+		winSize := uint32(db.params.StakeDiffWindowSize)
 		si.PriceWindowNum = int(i) / int(winSize)
 		si.IdxBlockInWindow = int(i)%int(winSize) + 1
 

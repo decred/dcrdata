@@ -9,9 +9,9 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/semver"
+	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
@@ -93,7 +93,7 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 		return nil
 	}
 
-	diffRatio := blockdata.GetDifficultyRatio(header.Bits, params)
+	diffRatio := txhelpers.GetDifficultyRatio(header.Bits, params)
 
 	var next string
 	if len(nextHash) > 0 {

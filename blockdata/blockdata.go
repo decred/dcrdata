@@ -4,13 +4,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/big"
 	"strconv"
 	"sync"
 	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
-	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
@@ -219,24 +217,4 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	}
 
 	return blockdata, err
-}
-
-// GetDifficultyRatio returns the proof-of-work difficulty as a multiple of the
-// minimum difficulty using the passed bits field from the header of a block.
-func GetDifficultyRatio(bits uint32, params *chaincfg.Params) float64 {
-	// The minimum difficulty is the max possible proof-of-work limit bits
-	// converted back to a number.  Note this is not the same as the proof of
-	// work limit directly because the block difficulty is encoded in a block
-	// with the compact form which loses precision.
-	max := blockchain.CompactToBig(params.PowLimitBits)
-	target := blockchain.CompactToBig(bits)
-
-	difficulty := new(big.Rat).SetFrac(max, target)
-	outString := difficulty.FloatString(8)
-	diff, err := strconv.ParseFloat(outString, 64)
-	if err != nil {
-		log.Errorf("Cannot get difficulty: %v", err)
-		return 0
-	}
-	return diff
 }
