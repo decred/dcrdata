@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-
 	"sync"
 
 	"github.com/dcrdata/dcrdata/rpcutils"
@@ -20,6 +19,7 @@ import (
 type StakeDatabase struct {
 	params     *chaincfg.Params
 	NodeClient *dcrrpcclient.Client
+	nodeMtx    sync.RWMutex
 	StakeDB    database.DB
 	BestNode   *stake.Node
 	blkMtx     sync.RWMutex
@@ -50,13 +50,15 @@ func (db *StakeDatabase) Height() uint32 {
 		log.Error("Stake database not yet opened")
 		return 0
 	}
+	db.nodeMtx.RLock()
+	defer db.nodeMtx.RUnlock()
 	return db.BestNode.Height()
 }
 
 func (db *StakeDatabase) Block(ind int64) (*dcrutil.Block, bool) {
 	db.blkMtx.RLock()
-	defer db.blkMtx.RUnlock()
 	block, ok := db.blockCache[ind]
+	db.blkMtx.RUnlock()
 	//log.Info(ind, block, ok)
 	if !ok {
 		var err error
@@ -110,11 +112,17 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 
 	//log.Info("Connect ", len(revokedTickets), len(spentTickets), len(maturingTickets))
 
+	if int64(db.Height()+1) != height {
+		panic(fmt.Sprintf("trying to connect the wrong next block: %d, %d", height, db.Height()))
+	}
+
 	return db.connectBlock(block, spentTickets, revokedTickets, maturingTickets)
 }
 
 func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Hash,
 	revoked []chainhash.Hash, maturing []chainhash.Hash) error {
+	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
 
 	var err error
 	db.BestNode, err = db.BestNode.ConnectNode(block.MsgBlock().Header,
@@ -130,6 +138,9 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 }
 
 func (db *StakeDatabase) DisconnectBlock() error {
+	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
+
 	formerBestNode := db.BestNode
 	parentBlock, _ := db.Block(int64(db.Height()) - 1)
 	if parentBlock == nil {
@@ -154,6 +165,9 @@ func (db *StakeDatabase) DisconnectBlock() error {
 }
 
 func (db *StakeDatabase) Open() error {
+	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
+
 	// Create a new database to store the accepted stake node data into.
 	dbName := DefaultStakeDbName
 	var err error
