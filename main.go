@@ -207,6 +207,12 @@ func mainCore() int {
 		ntfnChans.connectChan, ntfnChans.recvTxBlockChan)
 	go wsChainMonitor.BlockConnectedHandler()
 
+	// Blockchain monitor for the stake DB
+	wg.Add(1)
+	sdbChainMonitor := sqliteDB.NewChainMonitor(quit, &wg,
+		ntfnChans.connectChanStakeDB)
+	go sdbChainMonitor.BlockConnectedHandler()
+
 	if cfg.MonitorMempool {
 		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
 		if mpoolCollector == nil {

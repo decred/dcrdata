@@ -11,7 +11,7 @@ import (
 
 const (
 	// blockConnChanBuffer is the size of the block connected channel buffer.
-	blockConnChanBuffer = 24
+	blockConnChanBuffer = 64
 
 	// newTxChanBuffer is the size of the new transaction channel buffer, for
 	// ANY transactions are added into mempool.
@@ -26,6 +26,7 @@ const (
 var ntfnChans struct {
 	connectChan                       chan *chainhash.Hash
 	connectChanStkInf                 chan int32
+	connectChanStakeDB                chan *chainhash.Hash
 	updateStatusNodeHeight            chan uint32
 	updateStatusDBHeight              chan uint32
 	spendTxBlockChan, recvTxBlockChan chan *txhelpers.BlockWatchedTx
@@ -41,6 +42,9 @@ func makeNtfnChans(cfg *config) {
 	// quit channel case manages blockConnectedHandlers.
 	ntfnChans.connectChan = make(chan *chainhash.Hash, blockConnChanBuffer)
 	//ntfnChans.stakeDiffChan = make(chan int64, blockConnChanBuffer)
+
+	// Stake DB channel for connecting new blocks
+	ntfnChans.connectChanStakeDB = make(chan *chainhash.Hash, blockConnChanBuffer)
 
 	// Like connectChan for block data, connectChanStkInf is used when a new
 	// block is connected, but to signal the stake info monitor.
@@ -69,6 +73,9 @@ func closeNtfnChans() {
 	// }
 	if ntfnChans.connectChan != nil {
 		close(ntfnChans.connectChan)
+	}
+	if ntfnChans.connectChanStakeDB != nil {
+		close(ntfnChans.connectChanStakeDB)
 	}
 	if ntfnChans.connectChanStkInf != nil {
 		close(ntfnChans.connectChanStkInf)

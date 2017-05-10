@@ -66,8 +66,15 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			}
 			height := int32(blockHeader.Height)
 			hash := blockHeader.BlockHash()
+
 			select {
 			case ntfnChans.connectChan <- &hash:
+			// send to nil channel blocks
+			default:
+			}
+
+			select {
+			case ntfnChans.connectChanStakeDB <- &hash:
 			// send to nil channel blocks
 			default:
 			}
@@ -107,7 +114,7 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 		OnNewTickets: func(hash *chainhash.Hash, height int64, stakeDiff int64,
 			tickets map[chainhash.Hash]chainhash.Hash) {
 			for _, tick := range tickets {
-				log.Debugf("Mined new ticket: %v", tick.String())
+				log.Tracef("Mined new ticket: %v", tick.String())
 			}
 		},
 		// OnRelevantTxAccepted is invoked when a transaction containing a

@@ -75,9 +75,17 @@ func (db *StakeDatabase) ForgetBlock(ind int64) {
 	delete(db.blockCache, ind)
 }
 
-func (db *StakeDatabase) ConnectBlockHeight(height int64) error {
+func (db *StakeDatabase) ConnectBlockHeight(height int64) (*dcrutil.Block, error) {
 	block, _ := db.Block(height)
-	return db.ConnectBlock(block)
+	return block, db.ConnectBlock(block)
+}
+
+func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block, error) {
+	block, err := db.NodeClient.GetBlock(hash)
+	if err != nil {
+		return nil, err
+	}
+	return block, db.ConnectBlock(block)
 }
 
 func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {

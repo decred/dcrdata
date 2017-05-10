@@ -9,6 +9,7 @@ import (
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
 )
@@ -53,6 +54,11 @@ func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *dcrrpcclient.Client, p
 
 	wDB, cleanup := newWiredDB(db, statusC, cl, p)
 	return wDB, cleanup, nil
+}
+
+func (db *wiredDB) NewChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
+	blockChan chan *chainhash.Hash) *stakedb.ChainMonitor {
+	return db.sDB.NewChainMonitor(quit, wg, blockChan)
 }
 
 func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
