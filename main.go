@@ -123,7 +123,7 @@ func mainCore() int {
 	// blockDataSavers = append(blockDataSavers, blockDataMapSaver)
 
 	// Sqlite output
-	stakedb.UseLogger(sqliteLog)
+	stakedb.UseLogger(stakedbLog)
 	dcrsqlite.UseLogger(sqliteLog)
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)

@@ -20,6 +20,7 @@ var (
 	backendLog = seelog.Disabled
 	log        = btclog.Disabled
 	sqliteLog  = btclog.Disabled
+	stakedbLog = btclog.Disabled
 	daemonLog  = btclog.Disabled
 	clientLog  = btclog.Disabled
 	mempoolLog = btclog.Disabled
@@ -30,6 +31,7 @@ var (
 var subsystemLoggers = map[string]btclog.Logger{
 	"DATD": log,
 	"DSQL": sqliteLog,
+	"SKDB": stakedbLog,
 	"DCRD": daemonLog,
 	"RPCC": clientLog,
 	"MEMP": mempoolLog,
@@ -65,6 +67,8 @@ func useLogger(subsystemID string, logger btclog.Logger) {
 		log = logger
 	case "DSQL":
 		sqliteLog = logger
+	case "SKDB":
+		stakedbLog = logger
 	case "DCRD":
 		daemonLog = logger
 	case "RPCC":
