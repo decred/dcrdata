@@ -176,7 +176,7 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	// instead:
 	blockHeaderResults := dcrjson.GetBlockHeaderVerboseResult{
 		Hash:          bestBlockHash.String(),
-		Confirmations: uint64(1),
+		Confirmations: int64(1),
 		Version:       blockHeader.Version,
 		PreviousHash:  blockHeader.PrevBlock.String(),
 		MerkleRoot:    blockHeader.MerkleRoot.String(),

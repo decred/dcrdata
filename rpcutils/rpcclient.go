@@ -102,7 +102,7 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 
 	blockHeaderResult := dcrjson.GetBlockHeaderVerboseResult{
 		Hash:          header.BlockHash().String(),
-		Confirmations: uint64(currentHeight - int64(header.Height)),
+		Confirmations: int64(currentHeight - int64(header.Height)),
 		Version:       header.Version,
 		PreviousHash:  header.PrevBlock.String(),
 		MerkleRoot:    header.MerkleRoot.String(),

@@ -11,7 +11,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
-	"github.com/decred/dcrwallet/wtxmgr"
+	"github.com/decred/dcrwallet/wallet/udb"
 )
 
 func registerNodeNtfnHandlers(dcrdClient *dcrrpcclient.Client) *ContextualError {
@@ -120,7 +120,7 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 		// OnRelevantTxAccepted is invoked when a transaction containing a
 		// registered address is inserted into mempool.
 		OnRelevantTxAccepted: func(transaction []byte) {
-			rec, err := wtxmgr.NewTxRecord(transaction, time.Now())
+			rec, err := udb.NewTxRecord(transaction, time.Now())
 			if err != nil {
 				return
 			}
