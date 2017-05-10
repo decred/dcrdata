@@ -268,11 +268,10 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			return fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
 		}
 
-		if i != int64(db.sDB.Height()+1) {
-			panic("about to connect the wrong block")
-		}
-
 		if i > bestNodeHeight {
+			if i != int64(db.sDB.Height()+1) {
+				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", i, db.sDB.Height()))
+			}
 			if err = db.sDB.ConnectBlock(block); err != nil {
 				return err
 			}
