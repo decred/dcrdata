@@ -96,7 +96,7 @@ func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block,
 func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	height := block.Height()
 	maturingHeight := height - int64(db.params.TicketMaturity)
-	//log.Info("Connect ", height, maturingHeight)
+	
 	var maturingTickets []chainhash.Hash
 	if maturingHeight >= 0 {
 		maturingBlock, wasCached := db.Block(maturingHeight)
@@ -113,10 +113,15 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	revokedTickets := txhelpers.RevokedTicketsInBlock(block)
 	spentTickets := txhelpers.TicketsSpentInBlock(block)
 
-	//log.Info("Connect ", len(revokedTickets), len(spentTickets), len(maturingTickets))
-
-	if int64(db.Height()+1) != height {
-		panic(fmt.Sprintf("trying to connect the wrong next block: %d, %d", height, db.Height()))
+	// If the stake db is ahead, it was probably a reorg, so rewind before
+	// adding the new block
+	bestNodeHeight := int64(db.Height())
+	for height <= bestNodeHeight {
+		log.Infof("Disconnecting block %d.", bestNodeHeight)
+		if err := db.DisconnectBlock(); err != nil {
+			return err
+		}
+		bestNodeHeight = int64(db.Height())
 	}
 
 	return db.connectBlock(block, spentTickets, revokedTickets, maturingTickets)
