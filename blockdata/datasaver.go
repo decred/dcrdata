@@ -1,3 +1,6 @@
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 // Interface for saving/storing BlockData.
 // Create a BlockDataSaver by implementing Store(*BlockData).
 
