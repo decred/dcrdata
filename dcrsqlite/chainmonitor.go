@@ -154,7 +154,7 @@ out:
 
 		case _, ok := <-p.quit:
 			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler for BLOCK monitor.")
+				log.Debugf("Got quit signal. Exiting block connected handler for REORG monitor.")
 				break out
 			}
 		}
