@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
@@ -16,7 +18,7 @@ import (
 
 func registerNodeNtfnHandlers(dcrdClient *dcrrpcclient.Client) *ContextualError {
 	var err error
-	// Register for block connection notifications.
+	// Register for block connection and chain reorg notifications.
 	if err = dcrdClient.NotifyBlocks(); err != nil {
 		return newContextualError("block notification "+
 			"registration failed", err)
@@ -74,20 +76,48 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			}
 
 			select {
-			case ntfnChans.connectChanStakeDB <- &hash:
+			case ntfnChans.connectChanWiredDB <- &hash:
 			// send to nil channel blocks
+			default:
+			}
+
+			select {
+			case ntfnChans.connectChanStakeDB <- &hash:
 			default:
 			}
 
 			// Also send on stake info channel, if enabled.
 			select {
 			case ntfnChans.connectChanStkInf <- height:
-			// send to nil channel blocks
 			default:
 			}
+
+			// Web UI status update handler
 			select {
 			case ntfnChans.updateStatusNodeHeight <- blockHeader.Height:
-			// send to nil channel blocks
+			default:
+			}
+		},
+		OnReorganization: func(oldHash *chainhash.Hash, oldHeight int32,
+			newHash *chainhash.Hash, newHeight int32) {
+			// Send reorg data to dcrsqlite's monitor
+			select {
+			case ntfnChans.reorgChanWiredDB <- &dcrsqlite.ReorgData{
+				OldChainHead:   *oldHash,
+				OldChainHeight: oldHeight,
+				NewChainHead:   *newHash,
+				NewChainHeight: newHeight,
+			}:
+			default:
+			}
+			// Send reorg data to stakedb's monitor
+			select {
+			case ntfnChans.reorgChanStakeDB <- &stakedb.ReorgData{
+				OldChainHead:   *oldHash,
+				OldChainHeight: oldHeight,
+				NewChainHead:   *newHash,
+				NewChainHeight: newHeight,
+			}:
 			default:
 			}
 		},

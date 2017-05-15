@@ -96,7 +96,7 @@ func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block,
 func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	height := block.Height()
 	maturingHeight := height - int64(db.params.TicketMaturity)
-	
+
 	var maturingTickets []chainhash.Hash
 	if maturingHeight >= 0 {
 		maturingBlock, wasCached := db.Block(maturingHeight)
@@ -149,6 +149,10 @@ func (db *StakeDatabase) DisconnectBlock() error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
 
+	return db.disconnectBlock()
+}
+
+func (db *StakeDatabase) disconnectBlock() error {
 	formerBestNode := db.BestNode
 	parentBlock, _ := db.Block(int64(db.Height()) - 1)
 	if parentBlock == nil {
@@ -170,6 +174,19 @@ func (db *StakeDatabase) DisconnectBlock() error {
 		return stake.WriteDisconnectedBestNode(dbTx, db.BestNode,
 			*parentBlock.Hash(), formerBestNode.UndoData())
 	})
+}
+
+func (db *StakeDatabase) DisconnectBlocks(count int64) error {
+	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
+
+	for i := int64(0); i < count; i++ {
+		if err := db.disconnectBlock(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (db *StakeDatabase) Open() error {

@@ -59,9 +59,9 @@ func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *dcrrpcclient.Client, p
 	return wDB, cleanup, nil
 }
 
-func (db *wiredDB) NewChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
-	blockChan chan *chainhash.Hash) *stakedb.ChainMonitor {
-	return db.sDB.NewChainMonitor(quit, wg, blockChan)
+func (db *wiredDB) NewStakeDBChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
+	blockChan chan *chainhash.Hash, reorgChan chan *stakedb.ReorgData) *stakedb.ChainMonitor {
+	return db.sDB.NewChainMonitor(quit, wg, blockChan, reorgChan)
 }
 
 func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {

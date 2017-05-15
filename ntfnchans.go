@@ -4,6 +4,8 @@
 package main
 
 import (
+	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrutil"
@@ -17,6 +19,8 @@ const (
 	// ANY transactions are added into mempool.
 	newTxChanBuffer = 4096
 
+	reorgBuffer = 2
+
 	// relevantMempoolTxChanBuffer is the size of the new transaction channel
 	// buffer, for relevant transactions that are added into mempool.
 	//relevantMempoolTxChanBuffer = 2048
@@ -26,7 +30,10 @@ const (
 var ntfnChans struct {
 	connectChan                       chan *chainhash.Hash
 	connectChanStkInf                 chan int32
+	connectChanWiredDB                chan *chainhash.Hash
+	reorgChanWiredDB                  chan *dcrsqlite.ReorgData
 	connectChanStakeDB                chan *chainhash.Hash
+	reorgChanStakeDB                  chan *stakedb.ReorgData
 	updateStatusNodeHeight            chan uint32
 	updateStatusDBHeight              chan uint32
 	spendTxBlockChan, recvTxBlockChan chan *txhelpers.BlockWatchedTx
@@ -43,12 +50,19 @@ func makeNtfnChans(cfg *config) {
 	ntfnChans.connectChan = make(chan *chainhash.Hash, blockConnChanBuffer)
 	//ntfnChans.stakeDiffChan = make(chan int64, blockConnChanBuffer)
 
+	// WiredDB channel for connecting new blocks
+	ntfnChans.connectChanWiredDB = make(chan *chainhash.Hash, blockConnChanBuffer)
+
 	// Stake DB channel for connecting new blocks
 	ntfnChans.connectChanStakeDB = make(chan *chainhash.Hash, blockConnChanBuffer)
 
 	// Like connectChan for block data, connectChanStkInf is used when a new
 	// block is connected, but to signal the stake info monitor.
 	ntfnChans.connectChanStkInf = make(chan int32, blockConnChanBuffer)
+
+	// Reorg data channels
+	ntfnChans.reorgChanWiredDB = make(chan *dcrsqlite.ReorgData, reorgBuffer)
+	ntfnChans.reorgChanStakeDB = make(chan *stakedb.ReorgData, reorgBuffer)
 
 	// To update app status
 	ntfnChans.updateStatusNodeHeight = make(chan uint32, blockConnChanBuffer)
@@ -74,11 +88,20 @@ func closeNtfnChans() {
 	if ntfnChans.connectChan != nil {
 		close(ntfnChans.connectChan)
 	}
+	if ntfnChans.connectChanWiredDB != nil {
+		close(ntfnChans.connectChanWiredDB)
+	}
 	if ntfnChans.connectChanStakeDB != nil {
 		close(ntfnChans.connectChanStakeDB)
 	}
 	if ntfnChans.connectChanStkInf != nil {
 		close(ntfnChans.connectChanStkInf)
+	}
+	if ntfnChans.reorgChanWiredDB != nil {
+		close(ntfnChans.reorgChanWiredDB)
+	}
+	if ntfnChans.reorgChanStakeDB != nil {
+		close(ntfnChans.reorgChanStakeDB)
 	}
 	if ntfnChans.updateStatusNodeHeight != nil {
 		close(ntfnChans.updateStatusNodeHeight)

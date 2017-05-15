@@ -200,18 +200,25 @@ func mainCore() int {
 	var wg sync.WaitGroup
 
 	// Blockchain monitor for the collector
-	wg.Add(1)
 	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
 		quit, &wg, !cfg.PoolValue, addrMap,
 		ntfnChans.connectChan, ntfnChans.recvTxBlockChan)
+	wg.Add(1)
 	go wsChainMonitor.BlockConnectedHandler()
 
 	// Blockchain monitor for the stake DB
-	wg.Add(1)
-	sdbChainMonitor := sqliteDB.NewChainMonitor(quit, &wg,
-		ntfnChans.connectChanStakeDB)
+	sdbChainMonitor := sqliteDB.NewStakeDBChainMonitor(quit, &wg,
+		ntfnChans.connectChanStakeDB, ntfnChans.reorgChanStakeDB)
+	wg.Add(2)
 	go sdbChainMonitor.BlockConnectedHandler()
+	go sdbChainMonitor.ReorgHandler()
+
+	wiredDBChainMonitor := sqliteDB.NewChainMonitor(quit, &wg,
+		ntfnChans.connectChanWiredDB, ntfnChans.reorgChanWiredDB)
+	wg.Add(2)
+	go wiredDBChainMonitor.BlockConnectedHandler()
+	go wiredDBChainMonitor.ReorgHandler()
 
 	if cfg.MonitorMempool {
 		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)

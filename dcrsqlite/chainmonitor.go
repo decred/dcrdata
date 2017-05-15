@@ -1,7 +1,7 @@
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
-package stakedb
+package dcrsqlite
 
 import (
 	"fmt"
@@ -18,9 +18,9 @@ type ReorgData struct {
 	NewChainHeight int32
 }
 
-// ChainMonitor connects blocks to the stake DB as they come in.
+// ChainMonitor handles change notifications from the node client
 type ChainMonitor struct {
-	db        *StakeDatabase
+	db        *wiredDB
 	quit      chan struct{}
 	wg        *sync.WaitGroup
 	blockChan chan *chainhash.Hash
@@ -34,7 +34,7 @@ type ChainMonitor struct {
 }
 
 // NewChainMonitor creates a new ChainMonitor
-func (db *StakeDatabase) NewChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
+func (db *wiredDB) NewChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
 	return &ChainMonitor{
 		db:        db,
@@ -45,8 +45,8 @@ func (db *StakeDatabase) NewChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
 	}
 }
 
-// BlockConnectedHandler handles block connected notifications, which trigger
-// data collection and storage.
+// BlockConnectedHandler handles block connected notifications, which helps deal
+// with a chain reorganization.
 func (p *ChainMonitor) BlockConnectedHandler() {
 	defer p.wg.Done()
 out:
@@ -74,16 +74,16 @@ out:
 				}
 
 				// Once all blocks in side chain are lined up, switch over
-				newHeight, newHash, err := p.switchToSideChain()
-				if err != nil {
-					log.Error(err)
-				}
+				// newHeight, newHash, err := p.switchToSideChain()
+				// if err != nil {
+				// 	log.Error(err)
+				// }
 
-				if !p.reorgData.NewChainHead.IsEqual(newHash) ||
-					p.reorgData.NewChainHeight != newHeight {
-					panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
-						p.reorgData.NewChainHead, newHash, newHeight))
-				}
+				// if !p.reorgData.NewChainHead.IsEqual(newHash) ||
+				// 	p.reorgData.NewChainHeight != newHeight {
+				// 	panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
+				// 		p.reorgData.NewChainHead, newHash, newHeight))
+				// }
 
 				// Reorg is complete
 				p.sideChain = nil
@@ -92,15 +92,6 @@ out:
 				p.reorgLock.Unlock()
 				log.Infof("Reorganization to block %v (height %d) complete",
 					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
-			} else {
-				// Extend main chain
-				block, err := p.db.ConnectBlockHash(hash)
-				if err != nil {
-					log.Error(err)
-					break keepon
-				}
-
-				log.Infof("Connected block %d to stake DB.", block.Height())
 			}
 
 		case _, ok := <-p.quit:
@@ -121,43 +112,9 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 		return 0, nil, fmt.Errorf("no side chain")
 	}
 
-	// Determine highest common ancestor of side chain and main chain
-	block, err := p.db.NodeClient.GetBlock(&p.sideChain[0])
-	if err != nil {
-		return 0, nil, fmt.Errorf("unable to get block on side chain")
-	}
+	// Update DBs, just overwrite
 
-	commonAncestorHeight := int64(block.Height()) - 1
-	mainTip := int64(p.db.Height())
-
-	// Disconnect blocks back to common ancestor
-	if err = p.db.DisconnectBlocks(mainTip - commonAncestorHeight); err != nil {
-		return 0, nil, err
-	}
-
-	mainTip = int64(p.db.Height())
-	if mainTip != commonAncestorHeight {
-		panic(fmt.Sprintf("disconnect blocks failed: tip height %d, expected %d",
-			mainTip, commonAncestorHeight))
-	}
-
-	// Connect blocks in side chain onto main chain
-	for i := range p.sideChain {
-		if block, err = p.db.ConnectBlockHash(&p.sideChain[i]); err != nil {
-			mainTip = int64(p.db.Height())
-			block, _ = p.db.Block(mainTip)
-			return int32(mainTip), block.Hash(), fmt.Errorf("error connecting block %v", p.sideChain[i])
-		}
-		log.Infof("Connected block %v (height %d) from side chain.",
-			block.Hash(), block.Height())
-	}
-
-	mainTip = int64(p.db.Height())
-	if mainTip != block.Height() {
-		panic("connected block height not db tip height")
-	}
-
-	return int32(mainTip), block.Hash(), nil
+	return 0, nil, nil
 }
 
 // ReorgHandler receives notification of a chain reorganization and initiates a
