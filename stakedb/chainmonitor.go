@@ -69,17 +69,18 @@ out:
 				log.Infof("Adding block %v to sidechain", *hash)
 
 				// Just append to side chain until the new main chain tip block is reached
-				if !reorgData.NewChainHead.IsEqual(hash) {
+				if reorgData.NewChainHead != *hash {
 					break keepon
 				}
 
 				// Once all blocks in side chain are lined up, switch over
+				log.Info("Switching to side chain...")
 				newHeight, newHash, err := p.switchToSideChain()
 				if err != nil {
 					log.Error(err)
 				}
 
-				if !p.reorgData.NewChainHead.IsEqual(newHash) ||
+				if p.reorgData.NewChainHead != *newHash ||
 					p.reorgData.NewChainHeight != newHeight {
 					panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
 						p.reorgData.NewChainHead, newHash, newHeight))
@@ -105,7 +106,7 @@ out:
 
 		case _, ok := <-p.quit:
 			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler for BLOCK monitor.")
+				log.Debugf("Got quit signal. Exiting block connected handler.")
 				break out
 			}
 		}
@@ -197,7 +198,7 @@ out:
 
 		case _, ok := <-p.quit:
 			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler for REORG monitor.")
+				log.Debugf("Got quit signal. Exiting reorg notification handler.")
 				break out
 			}
 		}

@@ -9,24 +9,27 @@ import (
 	"os"
 	"sync"
 
+	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/database"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
 
 type StakeDatabase struct {
-	params     *chaincfg.Params
-	NodeClient *dcrrpcclient.Client
-	nodeMtx    sync.RWMutex
-	StakeDB    database.DB
-	BestNode   *stake.Node
-	blkMtx     sync.RWMutex
-	blockCache map[int64]*dcrutil.Block
+	params          *chaincfg.Params
+	NodeClient      *dcrrpcclient.Client
+	nodeMtx         sync.RWMutex
+	StakeDB         database.DB
+	BestNode        *stake.Node
+	blkMtx          sync.RWMutex
+	blockCache      map[int64]*dcrutil.Block
+	liveTicketCache map[chainhash.Hash]int64
 }
 
 const (
@@ -38,13 +41,33 @@ const (
 
 func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*StakeDatabase, error) {
 	sDB := &StakeDatabase{
-		params:     params,
-		NodeClient: client,
-		blockCache: make(map[int64]*dcrutil.Block),
+		params:          params,
+		NodeClient:      client,
+		blockCache:      make(map[int64]*dcrutil.Block),
+		liveTicketCache: make(map[chainhash.Hash]int64),
 	}
 	if err := sDB.Open(); err != nil {
 		return nil, err
 	}
+
+	liveTickets, err := sDB.NodeClient.LiveTickets()
+	if err != nil {
+		return sDB, err
+	}
+
+	log.Info("Pre-populating live ticket cache...")
+	for _, hash := range liveTickets {
+		var txid *dcrutil.Tx
+		txid, err = sDB.NodeClient.GetRawTransaction(hash)
+		if err != nil {
+			log.Errorf("Unable to get transaction %v: %v\n", hash, err)
+			continue
+		}
+		// This isn't quite right for pool tickets where the small
+		// pool fees are included in vout[0], but it's close.
+		sDB.liveTicketCache[*hash] = txid.MsgTx().TxOut[0].Value
+	}
+
 	return sDB, nil
 }
 
@@ -56,6 +79,19 @@ func (db *StakeDatabase) Height() uint32 {
 	db.nodeMtx.RLock()
 	defer db.nodeMtx.RUnlock()
 	return db.BestNode.Height()
+}
+
+func (db *StakeDatabase) Header() (*wire.BlockHeader, int64) {
+	if db == nil || db.BestNode == nil {
+		log.Error("Stake database not yet opened")
+		return nil, -1
+	}
+	db.nodeMtx.RLock()
+	height := int64(db.BestNode.Height())
+	db.nodeMtx.RUnlock()
+	block, _ := db.Block(height)
+	header := block.MsgBlock().Header
+	return &header, height
 }
 
 func (db *StakeDatabase) Block(ind int64) (*dcrutil.Block, bool) {
@@ -159,6 +195,8 @@ func (db *StakeDatabase) disconnectBlock() error {
 		return fmt.Errorf("Unable to get parent block")
 	}
 
+	log.Debugf("Disconnecting block %d.", formerBestNode.Height())
+
 	// previous best node
 	err := db.StakeDB.View(func(dbTx database.Tx) error {
 		var errLocal error
@@ -245,4 +283,42 @@ func (db *StakeDatabase) Open() error {
 	}
 
 	return err
+}
+
+func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
+	poolSize := db.BestNode.PoolSize()
+	liveTickets := db.BestNode.LiveTickets()
+
+	var poolValue int64
+	for _, hash := range liveTickets {
+		val, ok := db.liveTicketCache[hash]
+		if !ok {
+			txid, err := db.NodeClient.GetRawTransaction(&hash)
+			if err != nil {
+				log.Errorf("Unable to get transaction %v: %v\n", hash, err)
+				continue
+			}
+			// This isn't quite right for pool tickets where the small
+			// pool fees are included in vout[0], but it's close.
+			db.liveTicketCache[hash] = txid.MsgTx().TxOut[0].Value
+		}
+		poolValue += val
+	}
+
+	header, _ := db.Header()
+	if int(header.PoolSize) != len(liveTickets) {
+		log.Warnf("Inconsistent pool sizes: %d, %d", header.PoolSize, len(liveTickets))
+	}
+
+	poolCoin := dcrutil.Amount(poolValue).ToCoin()
+	valAvg := 0.0
+	if header.PoolSize > 0 {
+		valAvg = poolCoin / float64(poolSize)
+	}
+
+	return apitypes.TicketPoolInfo{
+		Size:   uint32(poolSize),
+		Value:  poolCoin,
+		ValAvg: valAvg,
+	}
 }

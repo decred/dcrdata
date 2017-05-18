@@ -5,6 +5,7 @@ package txhelpers
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
@@ -217,4 +219,56 @@ func GetDifficultyRatio(bits uint32, params *chaincfg.Params) float64 {
 		return 0
 	}
 	return diff
+}
+
+func FeeInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfoBlock {
+	feeInfo := new(dcrjson.FeeInfoBlock)
+	newSStx := TicketsInBlock(block)
+
+	feeInfo.Height = uint32(block.Height())
+	feeInfo.Number = uint32(len(newSStx))
+
+	var minFee, maxFee, meanFee float64
+	maxFee = math.MaxFloat64
+	fees := make([]float64, feeInfo.Number)
+	for it := range newSStx {
+		//var rawTx *dcrutil.Tx
+		// rawTx, err := c.GetRawTransactionVerbose(&newSStx[it])
+		// if err != nil {
+		// 	log.Errorf("Unable to get sstx details: %v", err)
+		// }
+		// rawTx.Vin[iv].AmountIn
+		rawTx, err := c.GetRawTransaction(&newSStx[it])
+		if err != nil {
+			fmt.Printf("Unable to get sstx details: %v", err)
+		}
+		msgTx := rawTx.MsgTx()
+		var amtIn int64
+		for iv := range msgTx.TxIn {
+			amtIn += msgTx.TxIn[iv].ValueIn
+		}
+		var amtOut int64
+		for iv := range msgTx.TxOut {
+			amtOut += msgTx.TxOut[iv].Value
+		}
+		fee := dcrutil.Amount(amtIn - amtOut).ToCoin()
+		if fee < minFee {
+			minFee = fee
+		}
+		if fee > maxFee {
+			maxFee = fee
+		}
+		meanFee += fee
+		fees[it] = fee
+	}
+
+	if feeInfo.Number > 0 {
+		meanFee /= float64(feeInfo.Number)
+		feeInfo.Mean = meanFee
+		feeInfo.Median = MedianCoin(fees)
+		feeInfo.Min = minFee
+		feeInfo.Max = maxFee
+	}
+
+	return feeInfo
 }

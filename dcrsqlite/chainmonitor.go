@@ -96,7 +96,7 @@ out:
 
 		case _, ok := <-p.quit:
 			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler for BLOCK monitor.")
+				log.Debugf("Got quit signal. Exiting block connected handler.")
 				break out
 			}
 		}
@@ -118,7 +118,7 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 }
 
 // ReorgHandler receives notification of a chain reorganization and initiates a
-// corresponding reorganization of the stakedb.StakeDatabase.
+// corresponding update of the SQL db keeping the main chain data.
 func (p *ChainMonitor) ReorgHandler() {
 	defer p.wg.Done()
 out:
@@ -154,7 +154,7 @@ out:
 
 		case _, ok := <-p.quit:
 			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler for REORG monitor.")
+				log.Debugf("Got quit signal. Exiting reorg notification handler.")
 				break out
 			}
 		}

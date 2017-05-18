@@ -4,6 +4,7 @@
 package main
 
 import (
+	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/dcrdata/dcrdata/txhelpers"
@@ -29,6 +30,7 @@ const (
 // Channels are package-level variables for simplicity
 var ntfnChans struct {
 	connectChan                       chan *chainhash.Hash
+	reorgChanBlockData                chan *blockdata.ReorgData
 	connectChanStkInf                 chan int32
 	connectChanWiredDB                chan *chainhash.Hash
 	reorgChanWiredDB                  chan *dcrsqlite.ReorgData
@@ -61,6 +63,7 @@ func makeNtfnChans(cfg *config) {
 	ntfnChans.connectChanStkInf = make(chan int32, blockConnChanBuffer)
 
 	// Reorg data channels
+	ntfnChans.reorgChanBlockData = make(chan *blockdata.ReorgData, reorgBuffer)
 	ntfnChans.reorgChanWiredDB = make(chan *dcrsqlite.ReorgData, reorgBuffer)
 	ntfnChans.reorgChanStakeDB = make(chan *stakedb.ReorgData, reorgBuffer)
 
@@ -96,6 +99,9 @@ func closeNtfnChans() {
 	}
 	if ntfnChans.connectChanStkInf != nil {
 		close(ntfnChans.connectChanStkInf)
+	}
+	if ntfnChans.reorgChanBlockData != nil {
+		close(ntfnChans.reorgChanBlockData)
 	}
 	if ntfnChans.reorgChanWiredDB != nil {
 		close(ntfnChans.reorgChanWiredDB)
