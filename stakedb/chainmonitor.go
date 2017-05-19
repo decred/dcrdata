@@ -125,10 +125,19 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	// Determine highest common ancestor of side chain and main chain
 	block, err := p.db.NodeClient.GetBlock(&p.sideChain[0])
 	if err != nil {
-		return 0, nil, fmt.Errorf("unable to get block on side chain")
+		return 0, nil, fmt.Errorf("unable to get block at root of side chain")
 	}
 
-	commonAncestorHeight := int64(block.Height()) - 1
+	prevBlock, err := p.db.NodeClient.GetBlock(&block.MsgBlock().Header.PrevBlock)
+	if err != nil {
+		return 0, nil, fmt.Errorf("unable to get common ancestor on side chain")
+	}
+
+	commonAncestorHeight := block.Height() - 1
+	if prevBlock.Height() != commonAncestorHeight {
+		panic("Failed to determine common ancestor.")
+	}
+
 	mainTip := int64(p.db.Height())
 
 	// Disconnect blocks back to common ancestor

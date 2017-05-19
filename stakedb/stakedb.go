@@ -151,14 +151,16 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 
 	// If the stake db is ahead, it was probably a reorg, so rewind before
 	// adding the new block
-	bestNodeHeight := int64(db.Height())
+	db.nodeMtx.Lock()
+	bestNodeHeight := int64(db.BestNode.Height())
 	for height <= bestNodeHeight {
 		log.Infof("Disconnecting block %d.", bestNodeHeight)
-		if err := db.DisconnectBlock(); err != nil {
+		if err := db.disconnectBlock(); err != nil {
 			return err
 		}
-		bestNodeHeight = int64(db.Height())
+		bestNodeHeight = int64(db.BestNode.Height())
 	}
+	db.nodeMtx.Unlock()
 
 	return db.connectBlock(block, spentTickets, revokedTickets, maturingTickets)
 }
@@ -190,12 +192,13 @@ func (db *StakeDatabase) DisconnectBlock() error {
 
 func (db *StakeDatabase) disconnectBlock() error {
 	formerBestNode := db.BestNode
-	parentBlock, _ := db.Block(int64(db.Height()) - 1)
+	prunedTipBlockHeight := formerBestNode.Height()
+	parentBlock, _ := db.Block(int64(prunedTipBlockHeight) - 1)
 	if parentBlock == nil {
 		return fmt.Errorf("Unable to get parent block")
 	}
 
-	log.Debugf("Disconnecting block %d.", formerBestNode.Height())
+	log.Debugf("Disconnecting block %d.", prunedTipBlockHeight)
 
 	// previous best node
 	err := db.StakeDB.View(func(dbTx database.Tx) error {
