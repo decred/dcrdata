@@ -34,12 +34,12 @@ type WebTemplateData struct {
 }
 
 type WebUI struct {
-	MPC          mempool.MempoolDataCache
-	TemplateData WebTemplateData
+	MPC             mempool.MempoolDataCache
+	TemplateData    WebTemplateData
 	templateDataMtx sync.RWMutex
-	templ        *template.Template
-	templFiles   []string
-	params       *chaincfg.Params
+	templ           *template.Template
+	templFiles      []string
+	params          *chaincfg.Params
 }
 
 func NewWebUI() *WebUI {
