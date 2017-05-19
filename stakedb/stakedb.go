@@ -94,6 +94,8 @@ func (db *StakeDatabase) Header() (*wire.BlockHeader, int64) {
 	return &header, height
 }
 
+// Block first tries to find the block at the input height in cache, and if that
+// fails it will request it from the node RPC client.
 func (db *StakeDatabase) Block(ind int64) (*dcrutil.Block, bool) {
 	db.blkMtx.RLock()
 	block, ok := db.blockCache[ind]
@@ -110,17 +112,23 @@ func (db *StakeDatabase) Block(ind int64) (*dcrutil.Block, bool) {
 	return block, ok
 }
 
+// ForgetBlock deletes the block with the input height from the block cache.
 func (db *StakeDatabase) ForgetBlock(ind int64) {
 	db.blkMtx.Lock()
 	defer db.blkMtx.Unlock()
 	delete(db.blockCache, ind)
 }
 
+// ConnectBlockHeight is a wrapper for ConnectBlock.  For the input height, it
+// fetches either the cached block with that height or requests it from the node
+// RPC client. Use ConnectBlockHash instead when possible.
 func (db *StakeDatabase) ConnectBlockHeight(height int64) (*dcrutil.Block, error) {
 	block, _ := db.Block(height)
 	return block, db.ConnectBlock(block)
 }
 
+// ConnectBlockHash is a wrapper for ConnectBlock. For the input block hash, it
+// gets the block from the node RPC client and calls ConnectBlock.
 func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block, error) {
 	block, err := db.NodeClient.GetBlock(hash)
 	if err != nil {
@@ -129,6 +137,10 @@ func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block,
 	return block, db.ConnectBlock(block)
 }
 
+// ConnectBlock connects the input block to the tip of the stake DB and updates
+// the best stake node. This exported function gets any revoked and spend
+// tickets from the input block, and any maturing tickets from the past block in
+// which those tickets would be found, and passes them to connectBlock.
 func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	height := block.Height()
 	maturingHeight := height - int64(db.params.TicketMaturity)
@@ -149,18 +161,13 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	revokedTickets := txhelpers.RevokedTicketsInBlock(block)
 	spentTickets := txhelpers.TicketsSpentInBlock(block)
 
-	// If the stake db is ahead, it was probably a reorg, so rewind before
-	// adding the new block
+	// If the stake db is ahead, it was probably a reorg, unhandled!
 	db.nodeMtx.Lock()
 	bestNodeHeight := int64(db.BestNode.Height())
-	for height <= bestNodeHeight {
-		log.Infof("Disconnecting block %d.", bestNodeHeight)
-		if err := db.disconnectBlock(); err != nil {
-			return err
-		}
-		bestNodeHeight = int64(db.BestNode.Height())
-	}
 	db.nodeMtx.Unlock()
+	if height <= bestNodeHeight {
+		return fmt.Errorf("cannot connect block height %d at height %d", height, bestNodeHeight)
+	}
 
 	return db.connectBlock(block, spentTickets, revokedTickets, maturingTickets)
 }
@@ -183,6 +190,8 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	})
 }
 
+// DisconnectBlock attempts to disconnect the current best block from the stake
+// DB and updates the best stake node.
 func (db *StakeDatabase) DisconnectBlock() error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
@@ -190,33 +199,37 @@ func (db *StakeDatabase) DisconnectBlock() error {
 	return db.disconnectBlock()
 }
 
+// disconnectBlock is the non-thread-safe version of DisconnectBlock.
 func (db *StakeDatabase) disconnectBlock() error {
-	formerBestNode := db.BestNode
-	prunedTipBlockHeight := formerBestNode.Height()
+	prunedTipBlockHeight := db.BestNode.Height()
 	parentBlock, _ := db.Block(int64(prunedTipBlockHeight) - 1)
 	if parentBlock == nil {
 		return fmt.Errorf("Unable to get parent block")
 	}
+	childUndoData := append(stake.UndoTicketDataSlice(nil), db.BestNode.UndoData()...)
 
 	log.Debugf("Disconnecting block %d.", prunedTipBlockHeight)
 
 	// previous best node
+	var parentStakeNode *stake.Node
 	err := db.StakeDB.View(func(dbTx database.Tx) error {
 		var errLocal error
-		db.BestNode, errLocal = db.BestNode.DisconnectNode(
+		parentStakeNode, errLocal = db.BestNode.DisconnectNode(
 			parentBlock.MsgBlock().Header, nil, nil, dbTx)
 		return errLocal
 	})
 	if err != nil {
 		return err
 	}
+	db.BestNode = parentStakeNode
 
 	return db.StakeDB.Update(func(dbTx database.Tx) error {
-		return stake.WriteDisconnectedBestNode(dbTx, db.BestNode,
-			*parentBlock.Hash(), formerBestNode.UndoData())
+		return stake.WriteDisconnectedBestNode(dbTx, parentStakeNode,
+			*parentBlock.Hash(), childUndoData)
 	})
 }
 
+// DisconnectBlocks disconnects N blocks from the head of the chain.
 func (db *StakeDatabase) DisconnectBlocks(count int64) error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()

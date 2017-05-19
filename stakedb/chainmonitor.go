@@ -77,7 +77,7 @@ out:
 				log.Info("Switching to side chain...")
 				newHeight, newHash, err := p.switchToSideChain()
 				if err != nil {
-					log.Error(err)
+					panic(err)
 				}
 
 				if p.reorgData.NewChainHead != *newHash ||
