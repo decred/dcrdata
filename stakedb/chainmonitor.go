@@ -141,6 +141,7 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	mainTip := int64(p.db.Height())
 
 	// Disconnect blocks back to common ancestor
+	log.Debugf("Disconnecting %d blocks", mainTip-commonAncestorHeight)
 	if err = p.db.DisconnectBlocks(mainTip - commonAncestorHeight); err != nil {
 		return 0, nil, err
 	}
@@ -152,11 +153,14 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	}
 
 	// Connect blocks in side chain onto main chain
+	log.Debugf("Connecting %d blocks", len(p.sideChain))
 	for i := range p.sideChain {
 		if block, err = p.db.ConnectBlockHash(&p.sideChain[i]); err != nil {
 			mainTip = int64(p.db.Height())
-			block, _ = p.db.Block(mainTip)
-			return int32(mainTip), block.Hash(), fmt.Errorf("error connecting block %v", p.sideChain[i])
+			currentBlockHdr, _ := p.db.DBTipBlockHeader()
+			currentBlockHash := currentBlockHdr.BlockHash()
+			return int32(mainTip), &currentBlockHash,
+				fmt.Errorf("error connecting block %v", p.sideChain[i])
 		}
 		log.Infof("Connected block %v (height %d) from side chain.",
 			block.Hash(), block.Height())

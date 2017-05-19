@@ -81,22 +81,10 @@ func (db *StakeDatabase) Height() uint32 {
 	return db.BestNode.Height()
 }
 
-func (db *StakeDatabase) Header() (*wire.BlockHeader, int64) {
-	if db == nil || db.BestNode == nil {
-		log.Error("Stake database not yet opened")
-		return nil, -1
-	}
-	db.nodeMtx.RLock()
-	height := int64(db.BestNode.Height())
-	db.nodeMtx.RUnlock()
-	block, _ := db.Block(height)
-	header := block.MsgBlock().Header
-	return &header, height
-}
-
-// Block first tries to find the block at the input height in cache, and if that
-// fails it will request it from the node RPC client.
-func (db *StakeDatabase) Block(ind int64) (*dcrutil.Block, bool) {
+// block first tries to find the block at the input height in cache, and if that
+// fails it will request it from the node RPC client. Don't use this casually
+// since reorganization may redefine a block at a given height.
+func (db *StakeDatabase) block(ind int64) (*dcrutil.Block, bool) {
 	db.blkMtx.RLock()
 	block, ok := db.blockCache[ind]
 	db.blkMtx.RUnlock()
@@ -119,14 +107,6 @@ func (db *StakeDatabase) ForgetBlock(ind int64) {
 	delete(db.blockCache, ind)
 }
 
-// ConnectBlockHeight is a wrapper for ConnectBlock.  For the input height, it
-// fetches either the cached block with that height or requests it from the node
-// RPC client. Use ConnectBlockHash instead when possible.
-func (db *StakeDatabase) ConnectBlockHeight(height int64) (*dcrutil.Block, error) {
-	block, _ := db.Block(height)
-	return block, db.ConnectBlock(block)
-}
-
 // ConnectBlockHash is a wrapper for ConnectBlock. For the input block hash, it
 // gets the block from the node RPC client and calls ConnectBlock.
 func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block, error) {
@@ -147,7 +127,7 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 
 	var maturingTickets []chainhash.Hash
 	if maturingHeight >= 0 {
-		maturingBlock, wasCached := db.Block(maturingHeight)
+		maturingBlock, wasCached := db.block(maturingHeight)
 		if wasCached {
 			db.ForgetBlock(maturingHeight)
 		}
@@ -201,18 +181,22 @@ func (db *StakeDatabase) DisconnectBlock() error {
 
 // disconnectBlock is the non-thread-safe version of DisconnectBlock.
 func (db *StakeDatabase) disconnectBlock() error {
-	prunedTipBlockHeight := db.BestNode.Height()
-	parentBlock, _ := db.Block(int64(prunedTipBlockHeight) - 1)
-	if parentBlock == nil {
-		return fmt.Errorf("Unable to get parent block")
+	childHeight := db.BestNode.Height()
+	parentBlock, err := db.dbPrevBlock()
+	if err != nil {
+		return err
 	}
+	if parentBlock.Height() != int64(childHeight)-1 {
+		panic("BestNode and stake DB are inconsistent")
+	}
+
 	childUndoData := append(stake.UndoTicketDataSlice(nil), db.BestNode.UndoData()...)
 
-	log.Debugf("Disconnecting block %d.", prunedTipBlockHeight)
+	log.Debugf("Disconnecting block %d.", childHeight)
 
 	// previous best node
 	var parentStakeNode *stake.Node
-	err := db.StakeDB.View(func(dbTx database.Tx) error {
+	err = db.StakeDB.View(func(dbTx database.Tx) error {
 		var errLocal error
 		parentStakeNode, errLocal = db.BestNode.DisconnectNode(
 			parentBlock.MsgBlock().Header, nil, nil, dbTx)
@@ -321,7 +305,7 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 		poolValue += val
 	}
 
-	header, _ := db.Header()
+	header, _ := db.DBTipBlockHeader()
 	if int(header.PoolSize) != len(liveTickets) {
 		log.Warnf("Inconsistent pool sizes: %d, %d", header.PoolSize, len(liveTickets))
 	}
@@ -337,4 +321,89 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 		Value:  poolCoin,
 		ValAvg: valAvg,
 	}
+}
+
+func (db *StakeDatabase) DBState() (uint32, *chainhash.Hash, error) {
+	db.nodeMtx.RLock()
+	defer db.nodeMtx.RUnlock()
+
+	return db.dbState()
+}
+
+func (db *StakeDatabase) dbState() (uint32, *chainhash.Hash, error) {
+	var stakeDBHeight uint32
+	var stakeDBHash chainhash.Hash
+	err := db.StakeDB.View(func(dbTx database.Tx) error {
+		v := dbTx.Metadata().Get([]byte("stakechainstate"))
+		if v == nil {
+			return fmt.Errorf("missing key for chain state data")
+		}
+
+		copy(stakeDBHash[:], v[:chainhash.HashSize])
+		offset := chainhash.HashSize
+		stakeDBHeight = binary.LittleEndian.Uint32(v[offset : offset+4])
+
+		return nil
+	})
+	return stakeDBHeight, &stakeDBHash, err
+}
+
+func (db *StakeDatabase) DBTipBlockHeader() (*wire.BlockHeader, error) {
+	_, hash, err := db.DBState()
+	if err != nil {
+		return nil, err
+	}
+
+	return db.NodeClient.GetBlockHeader(hash)
+}
+
+func (db *StakeDatabase) DBPrevBlockHeader() (*wire.BlockHeader, error) {
+	_, hash, err := db.DBState()
+	if err != nil {
+		return nil, err
+	}
+
+	parentHeader, err := db.NodeClient.GetBlockHeader(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.NodeClient.GetBlockHeader(&parentHeader.PrevBlock)
+}
+
+func (db *StakeDatabase) DBTipBlock() (*dcrutil.Block, error) {
+	_, hash, err := db.DBState()
+	if err != nil {
+		return nil, err
+	}
+
+	return db.NodeClient.GetBlock(hash)
+}
+
+func (db *StakeDatabase) DBPrevBlock() (*dcrutil.Block, error) {
+	_, hash, err := db.DBState()
+	if err != nil {
+		return nil, err
+	}
+
+	parentHeader, err := db.NodeClient.GetBlockHeader(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.NodeClient.GetBlock(&parentHeader.PrevBlock)
+}
+
+func (db *StakeDatabase) dbPrevBlock() (*dcrutil.Block, error) {
+	_, hash, err := db.dbState()
+	if err != nil {
+		return nil, err
+	}
+
+	parentHeader, err := db.NodeClient.GetBlockHeader(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.NodeClient.GetBlock(&parentHeader.PrevBlock)
 }
