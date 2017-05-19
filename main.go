@@ -142,6 +142,10 @@ func mainCore() int {
 
 	// Web template data. WebUI implements BlockDataSaver interface
 	webUI := NewWebUI()
+	if webUI == nil {
+		log.Info("Failed to start WebUI. Missing HTML resources?")
+		return 16
+	}
 	webUI.UseSIGToReloadTemplates()
 	blockDataSavers = append(blockDataSavers, webUI)
 	mempoolSavers = append(mempoolSavers, webUI)

@@ -203,7 +203,10 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	// estimatestakediff
 	estStakeDiff, err := t.dcrdChainSvr.EstimateStakeDiff(nil)
 	if err != nil {
-		return nil, err
+		log.Warn("estimatestakediff is broken: ", err)
+		estStakeDiff = &dcrjson.EstimateStakeDiffResult{}
+		err = nil
+		//return nil, err
 	}
 
 	// Output
