@@ -39,6 +39,7 @@ type appContext struct {
 	nodeClient *dcrrpcclient.Client
 	BlockData  APIDataSource
 	Status     apitypes.Status
+	statusMtx  sync.RWMutex
 	JSONIndent string
 }
 
@@ -71,15 +72,18 @@ out:
 				break out
 			}
 
+			c.statusMtx.Lock()
 			c.Status.Height = height
 
 			var err error
 			c.Status.NodeConnections, err = c.nodeClient.GetConnectionCount()
 			if err != nil {
 				c.Status.Ready = false
+				c.statusMtx.Unlock()
 				log.Warn("Failed to get connection count: ", err)
 				break keepon
 			}
+			c.statusMtx.Unlock()
 
 		case height, ok := <-ntfnChans.updateStatusDBHeight:
 			if !ok {
@@ -98,6 +102,7 @@ out:
 			}
 
 			bdHeight := c.BlockData.GetHeight()
+			c.statusMtx.Lock()
 			if bdHeight >= 0 && summary.Height == uint32(bdHeight) &&
 				height == uint32(bdHeight) {
 				c.Status.DBHeight = height
@@ -107,10 +112,12 @@ out:
 				} else {
 					c.Status.Ready = false
 				}
+				c.statusMtx.Unlock()
 				break keepon
 			}
 
 			c.Status.Ready = false
+			c.statusMtx.Unlock()
 			log.Errorf("New DB height (%d) and stored block data (%d, %d) not consistent.",
 				height, bdHeight, summary.Height)
 
@@ -189,6 +196,8 @@ func (c *appContext) getIndentQuery(r *http.Request) (indent string) {
 }
 
 func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
+	c.statusMtx.RLock()
+	defer c.statusMtx.RUnlock()
 	writeJSON(w, c.Status, c.getIndentQuery(r))
 }
 
