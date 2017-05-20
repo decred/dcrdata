@@ -189,7 +189,7 @@ out:
 			}
 
 			newHeight, oldHeight := reorgData.NewChainHeight, reorgData.OldChainHeight
-			newHash, oldHash := reorgData.NewChainHeight, reorgData.OldChainHeight
+			newHash, oldHash := reorgData.NewChainHead, reorgData.OldChainHead
 
 			p.reorgLock.Lock()
 			if p.reorganizing {

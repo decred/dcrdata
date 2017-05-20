@@ -71,6 +71,9 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 	return sDB, nil
 }
 
+// Height gets the block height of the best stake node.  It is thread-safe,
+// unlike using db.BestNode.Height(), and checks that the stake database is
+// opened first.
 func (db *StakeDatabase) Height() uint32 {
 	if db == nil || db.BestNode == nil {
 		log.Error("Stake database not yet opened")
@@ -246,7 +249,6 @@ func (db *StakeDatabase) Open() error {
 	}
 
 	// Load the best block from stake db
-	var bestNodeHeight = int64(-1)
 	err = db.StakeDB.View(func(dbTx database.Tx) error {
 		v := dbTx.Metadata().Get([]byte("stakechainstate"))
 		if v == nil {
@@ -257,7 +259,6 @@ func (db *StakeDatabase) Open() error {
 		copy(stakeDBHash[:], v[:chainhash.HashSize])
 		offset := chainhash.HashSize
 		stakeDBHeight := binary.LittleEndian.Uint32(v[offset : offset+4])
-		bestNodeHeight = int64(stakeDBHeight)
 
 		var errLocal error
 		block, errLocal := db.NodeClient.GetBlock(&stakeDBHash)
@@ -285,6 +286,9 @@ func (db *StakeDatabase) Open() error {
 	return err
 }
 
+// PoolInfo computes ticket pool value using the database and, if needed, the
+// node RPC client to fetch ticket values that are not cached. Returned are a
+// structure including ticket pool value, size, and average value.
 func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 	poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
@@ -323,6 +327,7 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 	}
 }
 
+// DBState queries the stake database for the best block height and hash.
 func (db *StakeDatabase) DBState() (uint32, *chainhash.Hash, error) {
 	db.nodeMtx.RLock()
 	defer db.nodeMtx.RUnlock()
@@ -348,6 +353,9 @@ func (db *StakeDatabase) dbState() (uint32, *chainhash.Hash, error) {
 	return stakeDBHeight, &stakeDBHash, err
 }
 
+// DBTipBlockHeader gets the block header for the current best block in the
+// stake database. It used DBState to get the best block hash, and the node RPC
+// client to get the header.
 func (db *StakeDatabase) DBTipBlockHeader() (*wire.BlockHeader, error) {
 	_, hash, err := db.DBState()
 	if err != nil {
@@ -357,6 +365,9 @@ func (db *StakeDatabase) DBTipBlockHeader() (*wire.BlockHeader, error) {
 	return db.NodeClient.GetBlockHeader(hash)
 }
 
+// DBPrevBlockHeader gets the block header for the previous best block in the
+// stake database. It used DBState to get the best block hash, and the node RPC
+// client to get the header.
 func (db *StakeDatabase) DBPrevBlockHeader() (*wire.BlockHeader, error) {
 	_, hash, err := db.DBState()
 	if err != nil {
@@ -371,6 +382,9 @@ func (db *StakeDatabase) DBPrevBlockHeader() (*wire.BlockHeader, error) {
 	return db.NodeClient.GetBlockHeader(&parentHeader.PrevBlock)
 }
 
+// DBTipBlock gets the dcrutil.Block for the current best block in the stake
+// database. It used DBState to get the best block hash, and the node RPC client
+// to get the block itself.
 func (db *StakeDatabase) DBTipBlock() (*dcrutil.Block, error) {
 	_, hash, err := db.DBState()
 	if err != nil {
@@ -380,6 +394,9 @@ func (db *StakeDatabase) DBTipBlock() (*dcrutil.Block, error) {
 	return db.NodeClient.GetBlock(hash)
 }
 
+// DBPrevBlock gets the dcrutil.Block for the previous best block in the stake
+// database. It used DBState to get the best block hash, and the node RPC client
+// to get the block itself.
 func (db *StakeDatabase) DBPrevBlock() (*dcrutil.Block, error) {
 	_, hash, err := db.DBState()
 	if err != nil {
@@ -394,6 +411,7 @@ func (db *StakeDatabase) DBPrevBlock() (*dcrutil.Block, error) {
 	return db.NodeClient.GetBlock(&parentHeader.PrevBlock)
 }
 
+// dbPrevBlock is the non-thread-safe version of DBPrevBlock.
 func (db *StakeDatabase) dbPrevBlock() (*dcrutil.Block, error) {
 	_, hash, err := db.dbState()
 	if err != nil {
