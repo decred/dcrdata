@@ -1,5 +1,5 @@
 hash: 664e7ff075f23ed044db2989e0fa71842d337b1688d17c6415bf713dbdd4116e
-updated: 2017-05-09T22:24:30.315306525-07:00
+updated: 2017-05-19T21:52:49.5799233-07:00
 imports:
 - name: github.com/btcsuite/btclog
   version: 73889fb79bd687870312b6e40effcecffbd57d30
@@ -35,7 +35,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: ecd27f0d4d0b6a9b6b64ee4c38eaab2c4b81e557
+  version: 3428a4011fc64efb125a5c926addefcc5dc46a40
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -57,14 +57,14 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: d6edcb0f8f2d01fbf9169f240f73756b41423189
+  version: 7208596a68e5114e0c27d08b26c69cf38ccd1ee2
 - name: github.com/decred/dcrutil
-  version: ebd2e98736e819ac043d54439969b30144b92ced
+  version: a6bb98a643e1209e609dffa412f0561e3e4b4e50
   subpackages:
   - base58
   - hdkeychain
 - name: github.com/decred/dcrwallet
-  version: f554425c18066a374f6536e8d8bc3249a636b5dc
+  version: 9b2d1454660414635a2c5c0d81a36b11838cc702
   subpackages:
   - apperrors
   - chain
@@ -87,7 +87,7 @@ imports:
 - name: github.com/mgutz/ansi
   version: 9520e82c474b0a04dd04f8a40959027271bab992
 - name: github.com/pressly/chi
-  version: a57b1fbe2989382bdef31d3793d4a50a0e4a1d7c
+  version: 5f645ae32b572998bed8ceaf80318569ef3b69fc
   subpackages:
   - docgen
   - middleware
@@ -96,7 +96,7 @@ imports:
 - name: github.com/Sirupsen/logrus
   version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
 - name: golang.org/x/crypto
-  version: 122d919ec1efcfb58483215da23f815853e24b81
+  version: 0fe963104e9d1877082f8fb38f816fcd97eb1d10
   subpackages:
   - nacl/secretbox
   - pbkdf2
@@ -105,11 +105,11 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: da118f7b8e5954f39d0d2130ab35d4bf0e3cb344
+  version: 513929065c19401a1c7b76ecd942f9f86a0c061b
   subpackages:
   - context
 - name: golang.org/x/sys
-  version: 9ccfe848b9db8435a24c424abbc07a921adf1df5
+  version: a2e06a18b0d52d8cb2010e04b372a1965d8e3439
   subpackages:
   - unix
 testImports: []

@@ -138,11 +138,9 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			}
 			log.Debugf("Winning tickets: %v", strings.Join(txstr, ", "))
 		},
-		// maturing tickets
-		// BUG: dcrrpcclient/notify.go (parseNewTicketsNtfnParams) is unable to
-		// Unmarshal fourth parameter as a map[hash]hash.
+		// maturing tickets. Thanks for fixing the tickets type bug, jolan!
 		OnNewTickets: func(hash *chainhash.Hash, height int64, stakeDiff int64,
-			tickets map[chainhash.Hash]chainhash.Hash) {
+			tickets []*chainhash.Hash) {
 			for _, tick := range tickets {
 				log.Tracef("Mined new ticket: %v", tick.String())
 			}
