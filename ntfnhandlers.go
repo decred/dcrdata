@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
@@ -77,7 +77,6 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 
 			select {
 			case ntfnChans.connectChanWiredDB <- &hash:
-			// send to nil channel blocks
 			default:
 			}
 
@@ -102,7 +101,7 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			newHash *chainhash.Hash, newHeight int32) {
 			// Send reorg data to dcrsqlite's monitor
 			select {
-			case ntfnChans.reorgChanWiredDB <- &dcrsqlite.ReorgData{
+			case ntfnChans.reorgChanBlockData <- &blockdata.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,

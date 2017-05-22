@@ -212,6 +212,7 @@ func mainCore() int {
 	wg.Add(1)
 	go wsChainMonitor.BlockConnectedHandler()
 	//go wsChainMonitor.ReorgHandler()
+	ntfnChans.reorgChanBlockData = nil
 
 	// Blockchain monitor for the stake DB
 	sdbChainMonitor := sqliteDB.NewStakeDBChainMonitor(quit, &wg,
@@ -225,6 +226,8 @@ func mainCore() int {
 	// wg.Add(2)
 	// go wiredDBChainMonitor.BlockConnectedHandler()
 	// go wiredDBChainMonitor.ReorgHandler()
+	ntfnChans.reorgChanWiredDB = nil
+	ntfnChans.connectChanWiredDB = nil
 
 	if cfg.MonitorMempool {
 		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
