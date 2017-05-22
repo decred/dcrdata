@@ -200,7 +200,7 @@ func loadConfig() (*config, error) {
 	// Set the host names and ports to the default if the
 	// user does not specify them.
 	if cfg.DcrdServ == "" {
-		cfg.DcrdServ = defaultHost + ":" + activeNet.RPCClientPort
+		cfg.DcrdServ = defaultHost + ":" + activeNet.JSONRPCClientPort
 	}
 
 	// Append the network type to the log directory so it is "namespaced"
