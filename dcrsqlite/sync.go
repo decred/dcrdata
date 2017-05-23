@@ -1,21 +1,17 @@
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package dcrsqlite
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
-	"strconv"
 	"time"
 
-	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/txhelpers"
-	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/database"
 	"github.com/decred/dcrutil"
-	"github.com/oleiade/lane"
 )
 
 const (
@@ -83,7 +79,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 		}
 
 		header := block.MsgBlock().Header
-		diffRatio := blockdata.GetDifficultyRatio(header.Bits, db.params)
+		diffRatio := txhelpers.GetDifficultyRatio(header.Bits, db.params)
 
 		blockSummary := apitypes.BlockDataBasic{
 			Height:     header.Height,
@@ -192,57 +188,10 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 	bestStakeHeight := db.GetStakeInfoHeight()
 
 	// Create a new database to store the accepted stake node data into.
-	dbName := DefaultStakeDbName
-	stakeDB, err := database.Open(dbType, dbName, db.params.Net)
-	if err != nil {
-		_ = os.RemoveAll(dbName)
-		stakeDB, err = database.Create(dbType, dbName, db.params.Net)
-		if err != nil {
-			return fmt.Errorf("error creating db: %v", err)
-		}
+	if db.sDB == nil || db.sDB.BestNode == nil {
+		return fmt.Errorf("Cannot resync without the stake DB")
 	}
-	//defer os.RemoveAll(dbName)
-	defer stakeDB.Close()
-
-	// Load the best block from stake db
-	var bestNode *stake.Node
-	var bestNodeHeight int64
-	err = stakeDB.View(func(dbTx database.Tx) error {
-		v := dbTx.Metadata().Get([]byte("stakechainstate"))
-		if v == nil {
-			return fmt.Errorf("missing key for chain state data")
-		}
-
-		var stakeDBHash chainhash.Hash
-		copy(stakeDBHash[:], v[:chainhash.HashSize])
-		offset := chainhash.HashSize
-		stakeDBHeight := binary.LittleEndian.Uint32(v[offset : offset+4])
-		bestNodeHeight = int64(stakeDBHeight)
-
-		var errLocal error
-		block, errLocal := db.client.GetBlock(&stakeDBHash)
-		if errLocal != nil {
-			return fmt.Errorf("GetBlock failed (%s): %v", stakeDBHash, errLocal)
-		}
-		header := block.MsgBlock().Header
-
-		bestNode, errLocal = stake.LoadBestNode(dbTx, stakeDBHeight,
-			stakeDBHash, header, db.params)
-		return errLocal
-	})
-	if err != nil {
-		err = stakeDB.Update(func(dbTx database.Tx) error {
-			var errLocal error
-			bestNode, errLocal = stake.InitDatabaseState(dbTx, db.params)
-			return errLocal
-		})
-		if err != nil {
-			return err
-		}
-		log.Debug("Created new stake db.")
-	} else {
-		log.Debug("Opened existing stake db.")
-	}
+	bestNodeHeight := int64(db.sDB.Height())
 
 	log.Info("Current best block (chain server): ", height)
 	log.Info("Current best block (summary DB):   ", bestBlockHeight)
@@ -278,33 +227,14 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				return nil
 			default:
 			}
-			formerBestNode := bestNode
-			parentBlock, _, err := db.getBlock(bestNodeHeight - 1)
-			if err != nil {
+			if err = db.sDB.DisconnectBlock(); err != nil {
 				return err
 			}
-			// previous best node
-			err = stakeDB.View(func(dbTx database.Tx) error {
-				var errLocal error
-				bestNode, errLocal = bestNode.DisconnectNode(parentBlock.MsgBlock().Header, nil, nil, dbTx)
-				return errLocal
-			})
-			if err != nil {
-				return err
-			}
-			err = stakeDB.Update(func(dbTx database.Tx) error {
-				if e := stake.WriteDisconnectedBestNode(dbTx, bestNode,
-					*parentBlock.Hash(), formerBestNode.UndoData()); e != nil {
-					return fmt.Errorf("failure writing the best node: %v",
-						e.Error())
-				}
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-			bestNodeHeight = int64(bestNode.Height())
+			bestNodeHeight = int64(db.sDB.Height())
 			log.Infof("Stake db now at height %d.", bestNodeHeight)
+		}
+		if bestNodeHeight != startHeight {
+			panic("rewind failed")
 		}
 	}
 	if startHeight < -1 {
@@ -323,29 +253,11 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 
 	// Start at next block we don't have in every DB
 	startHeight++
-	log.Infof("Resyncing from %v", startHeight)
-
-	winSize := uint32(db.params.StakeDiffWindowSize)
 
 	// a ticket treap would be nice, but a map will do for a cache
 	liveTicketCache := make(map[chainhash.Hash]int64)
 
-	blockQueue := lane.NewQueue()
-
-	var startHeight0, firstMatureHeight int64
-	if startHeight < db.params.StakeEnabledHeight {
-		startHeight0 = 0
-		firstMatureHeight = db.params.StakeEnabledHeight - int64(db.params.TicketMaturity)
-		log.Infof("Start height (rewound): %d (%d); First maturing ticket height: %d",
-			startHeight, startHeight0, firstMatureHeight)
-	} else {
-		startHeight0 = startHeight - int64(db.params.TicketMaturity)
-		firstMatureHeight = startHeight0
-		log.Infof("Start height (rewound/maturing height): %d (%d)",
-			startHeight, startHeight0)
-	}
-
-	for i := startHeight0; i <= height; i++ {
+	for i := startHeight; i <= height; i++ {
 		// check for quit signal
 		select {
 		case <-quit:
@@ -359,17 +271,26 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			return fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
 		}
 
-		if i >= firstMatureHeight {
-			blockQueue.Enqueue(block)
+		if i > bestNodeHeight {
+			if i != int64(db.sDB.Height()+1) {
+				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", i, db.sDB.Height()))
+			}
+			if err = db.sDB.ConnectBlock(block); err != nil {
+				return err
+			}
 		}
 
-		numLive := bestNode.PoolSize()
-		liveTickets := bestNode.LiveTickets()
-		// TODO: winning tickets
-		//winningTickets := bestNode.Winners()
+		if i < startHeight {
+			continue
+		}
 
-		if i%rescanLogBlockChunk == 0 || i == startHeight0 {
-			endRangeBlock := rescanLogBlockChunk * (1 + i/rescanLogBlockChunk)
+		numLive := db.sDB.BestNode.PoolSize()
+		liveTickets := db.sDB.BestNode.LiveTickets()
+		// TODO: winning tickets
+		//winningTickets := db.sDB.BestNode.Winners()
+
+		if (i-1)%rescanLogBlockChunk == 0 || i == startHeight {
+			endRangeBlock := rescanLogBlockChunk * (1 + (i-1)/rescanLogBlockChunk)
 			if endRangeBlock > height {
 				endRangeBlock = height
 			}
@@ -394,67 +315,8 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			poolValue += val
 		}
 
-		if i > bestNodeHeight {
-			var ticketsToAdd []chainhash.Hash
-			if i >= startHeight && i >= db.params.StakeEnabledHeight {
-				//matureHeight := (i - int64(db.params.TicketMaturity))
-				if blockQueue.Size() != int(db.params.TicketMaturity)+1 {
-					panic("crap: " + strconv.Itoa(blockQueue.Size()) + " " + strconv.Itoa(int(i)))
-				}
-				maturingBlock := blockQueue.Dequeue().(*dcrutil.Block)
-				if maturingBlock.Height() != i-int64(db.params.TicketMaturity) {
-					panic("crap: " + strconv.Itoa(int(maturingBlock.Height())) + " " +
-						strconv.Itoa(int(i)-int(db.params.TicketMaturity)))
-				}
-				ticketsToAdd = txhelpers.TicketsInBlock(maturingBlock)
-				log.Tracef("Adding %02d tickets from block %d", len(ticketsToAdd),
-					maturingBlock.Height())
-			}
-
-			spentTickets := txhelpers.TicketsSpentInBlock(block)
-			for it := range spentTickets {
-				delete(liveTicketCache, spentTickets[it])
-			}
-			revokedTickets := txhelpers.RevokedTicketsInBlock(block)
-			for it := range revokedTickets {
-				delete(liveTicketCache, revokedTickets[it])
-			}
-
-			if bestNode.Height()+1 != uint32(i) {
-				panic(fmt.Sprintf("Best node height %d, trying to add %d", bestNode.Height(), i))
-			}
-
-			bestNode, err = bestNode.ConnectNode(block.MsgBlock().Header,
-				spentTickets, revokedTickets, ticketsToAdd)
-			if err != nil {
-				return fmt.Errorf("couldn't connect node %d: %v", i, err.Error())
-			}
-
-			err = stakeDB.Update(func(dbTx database.Tx) error {
-				// Write the new node to db.
-				err = stake.WriteConnectedBestNode(dbTx, bestNode, *block.Hash())
-				if err != nil {
-					return fmt.Errorf("failure writing the best node: %v",
-						err.Error())
-				}
-
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-		}
-
-		if blockQueue.Size() == int(db.params.TicketMaturity)+1 {
-			blockQueue.Dequeue()
-		}
-
-		if i < startHeight {
-			continue
-		}
-
 		header := block.MsgBlock().Header
-		diffRatio := blockdata.GetDifficultyRatio(header.Bits, db.params)
+		diffRatio := txhelpers.GetDifficultyRatio(header.Bits, db.params)
 
 		poolCoin := dcrutil.Amount(poolValue).ToCoin()
 		valAvg, poolSize := 0.0, float64(header.PoolSize)
@@ -481,7 +343,6 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				return fmt.Errorf("Unable to store block summary in database: %v", err)
 			}
 		}
-		//log.Debugf("Stored block summary: %d", i)
 
 		if i <= bestStakeHeight {
 			// update height, the end condition for the loop
@@ -542,6 +403,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		}
 
 		// Price window number and block index
+		winSize := uint32(db.params.StakeDiffWindowSize)
 		si.PriceWindowNum = int(i) / int(winSize)
 		si.IdxBlockInWindow = int(i)%int(winSize) + 1
 
@@ -551,7 +413,6 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		if err = db.StoreStakeInfoExtended(&si); err != nil {
 			return fmt.Errorf("Unable to store stake info in database: %v", err)
 		}
-		//log.Debugf("Stored stake info: %d", i)
 
 		// update height, the end condition for the loop
 		if _, height, err = db.client.GetBestBlock(); err != nil {

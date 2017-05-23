@@ -1,3 +1,6 @@
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package blockdata
 
 import (
@@ -7,6 +10,14 @@ import (
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
+
+// ReorgData contains the information from a reoranization notification
+type ReorgData struct {
+	OldChainHead   chainhash.Hash
+	OldChainHeight int32
+	NewChainHead   chainhash.Hash
+	NewChainHeight int32
+}
 
 // for getblock, ticketfeeinfo, estimatestakediff, etc.
 type chainMonitor struct {
@@ -18,6 +29,13 @@ type chainMonitor struct {
 	watchaddrs      map[string]txhelpers.TxAction
 	blockChan       chan *chainhash.Hash
 	recvTxBlockChan chan *txhelpers.BlockWatchedTx
+	reorgChan       chan *ReorgData
+
+	// reorg handling
+	reorgLock    sync.Mutex
+	reorgData    *ReorgData
+	sideChain    []chainhash.Hash
+	reorganizing bool
 }
 
 // NewChainMonitor creates a new chainMonitor
@@ -25,7 +43,8 @@ func NewChainMonitor(collector *blockDataCollector,
 	savers []BlockDataSaver,
 	quit chan struct{}, wg *sync.WaitGroup, noPoolValue bool,
 	addrs map[string]txhelpers.TxAction, blockChan chan *chainhash.Hash,
-	recvTxBlockChan chan *txhelpers.BlockWatchedTx) *chainMonitor {
+	recvTxBlockChan chan *txhelpers.BlockWatchedTx,
+	reorgChan chan *ReorgData) *chainMonitor {
 	return &chainMonitor{
 		collector:       collector,
 		dataSavers:      savers,
@@ -35,6 +54,7 @@ func NewChainMonitor(collector *blockDataCollector,
 		watchaddrs:      addrs,
 		blockChan:       blockChan,
 		recvTxBlockChan: recvTxBlockChan,
+		reorgChan:       reorgChan,
 	}
 }
 
@@ -51,6 +71,30 @@ out:
 				log.Warnf("Block connected channel closed.")
 				break out
 			}
+
+			// If reorganizing, the block will first go to a side chain
+			p.reorgLock.Lock()
+			reorg, reorgData := p.reorganizing, p.reorgData
+			p.reorgLock.Unlock()
+
+			if reorg {
+				p.sideChain = append(p.sideChain, *hash)
+				log.Infof("Adding block %v to sidechain", *hash)
+
+				// Just append to side chain until the new main chain tip block is reached
+				if !reorgData.NewChainHead.IsEqual(hash) {
+					break keepon
+				}
+
+				// Reorg is complete
+				p.sideChain = nil
+				p.reorgLock.Lock()
+				p.reorganizing = false
+				p.reorgLock.Unlock()
+				log.Infof("Reorganization to block %v (height %d) complete",
+					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
+			}
+
 			block, _ := p.collector.dcrdChainSvr.GetBlock(hash)
 			height := block.Height()
 			log.Infof("Block height %v connected", height)
@@ -105,10 +149,54 @@ out:
 
 		case _, ok := <-p.quit:
 			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler for BLOCK monitor.")
+				log.Debugf("Got quit signal. Exiting block connected handler.")
 				break out
 			}
 		}
 	}
 
+}
+
+// ReorgHandler receives notification of a chain reorganization and initiates a
+// corresponding update of the SQL db keeping the main chain data.
+func (p *chainMonitor) ReorgHandler() {
+	defer p.wg.Done()
+out:
+	for {
+	keepon:
+		select {
+		case reorgData, ok := <-p.reorgChan:
+			if !ok {
+				log.Warnf("Reorg channel closed.")
+				break out
+			}
+
+			newHeight, oldHeight := reorgData.NewChainHeight, reorgData.OldChainHeight
+			newHash, oldHash := reorgData.NewChainHead, reorgData.OldChainHead
+
+			p.reorgLock.Lock()
+			if p.reorganizing {
+				p.reorgLock.Unlock()
+				log.Errorf("Reorg notified for chain tip %v (height %v), but already "+
+					"processing a reorg to block %v", newHash, newHeight,
+					p.reorgData.NewChainHead)
+				break keepon
+			}
+
+			p.reorganizing = true
+			p.reorgData = reorgData
+			p.reorgLock.Unlock()
+
+			log.Infof("Reorganize started. NEW head block %v at height %d.",
+				newHash, newHeight)
+			log.Infof("Reorganize started. OLD head block %v at height %d.",
+				oldHash, oldHeight)
+
+		case _, ok := <-p.quit:
+			if !ok {
+				log.Debugf("Got quit signal. Exiting reorg notification handler.")
+				break out
+			}
+		}
+	}
 }

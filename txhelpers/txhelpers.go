@@ -5,10 +5,15 @@ package txhelpers
 
 import (
 	"fmt"
+	"math"
+	"math/big"
 	"sort"
+	"strconv"
 
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
@@ -194,4 +199,76 @@ func MedianCoin(s []float64) float64 {
 		return s[middle]
 	}
 	return (s[middle] + s[middle-1]) / 2
+}
+
+// GetDifficultyRatio returns the proof-of-work difficulty as a multiple of the
+// minimum difficulty using the passed bits field from the header of a block.
+func GetDifficultyRatio(bits uint32, params *chaincfg.Params) float64 {
+	// The minimum difficulty is the max possible proof-of-work limit bits
+	// converted back to a number.  Note this is not the same as the proof of
+	// work limit directly because the block difficulty is encoded in a block
+	// with the compact form which loses precision.
+	max := blockchain.CompactToBig(params.PowLimitBits)
+	target := blockchain.CompactToBig(bits)
+
+	difficulty := new(big.Rat).SetFrac(max, target)
+	outString := difficulty.FloatString(8)
+	diff, err := strconv.ParseFloat(outString, 64)
+	if err != nil {
+		fmt.Printf("Cannot get difficulty: %v", err)
+		return 0
+	}
+	return diff
+}
+
+func FeeInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfoBlock {
+	feeInfo := new(dcrjson.FeeInfoBlock)
+	newSStx := TicketsInBlock(block)
+
+	feeInfo.Height = uint32(block.Height())
+	feeInfo.Number = uint32(len(newSStx))
+
+	var minFee, maxFee, meanFee float64
+	maxFee = math.MaxFloat64
+	fees := make([]float64, feeInfo.Number)
+	for it := range newSStx {
+		//var rawTx *dcrutil.Tx
+		// rawTx, err := c.GetRawTransactionVerbose(&newSStx[it])
+		// if err != nil {
+		// 	log.Errorf("Unable to get sstx details: %v", err)
+		// }
+		// rawTx.Vin[iv].AmountIn
+		rawTx, err := c.GetRawTransaction(&newSStx[it])
+		if err != nil {
+			fmt.Printf("Unable to get sstx details: %v", err)
+		}
+		msgTx := rawTx.MsgTx()
+		var amtIn int64
+		for iv := range msgTx.TxIn {
+			amtIn += msgTx.TxIn[iv].ValueIn
+		}
+		var amtOut int64
+		for iv := range msgTx.TxOut {
+			amtOut += msgTx.TxOut[iv].Value
+		}
+		fee := dcrutil.Amount(amtIn - amtOut).ToCoin()
+		if fee < minFee {
+			minFee = fee
+		}
+		if fee > maxFee {
+			maxFee = fee
+		}
+		meanFee += fee
+		fees[it] = fee
+	}
+
+	if feeInfo.Number > 0 {
+		meanFee /= float64(feeInfo.Number)
+		feeInfo.Mean = meanFee
+		feeInfo.Median = MedianCoin(fees)
+		feeInfo.Min = minFee
+		feeInfo.Max = maxFee
+	}
+
+	return feeInfo
 }

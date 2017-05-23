@@ -17,6 +17,7 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/semver"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrrpcclient"
 	"github.com/pressly/chi"
@@ -122,11 +123,13 @@ func mainCore() int {
 	// blockDataSavers = append(blockDataSavers, blockDataMapSaver)
 
 	// Sqlite output
+	stakedb.UseLogger(stakedbLog)
 	dcrsqlite.UseLogger(sqliteLog)
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
-	sqliteDB, err := dcrsqlite.InitWiredDB(&dbInfo,
+	sqliteDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
 		ntfnChans.updateStatusDBHeight, dcrdClient, activeChain)
+	defer cleanupDB()
 	if err != nil {
 		log.Errorf("Unable to initialize SQLite database: %v", err)
 		return 16
@@ -139,6 +142,10 @@ func mainCore() int {
 
 	// Web template data. WebUI implements BlockDataSaver interface
 	webUI := NewWebUI()
+	if webUI == nil {
+		log.Info("Failed to start WebUI. Missing HTML resources?")
+		return 16
+	}
 	webUI.UseSIGToReloadTemplates()
 	blockDataSavers = append(blockDataSavers, webUI)
 	mempoolSavers = append(mempoolSavers, webUI)
@@ -197,12 +204,30 @@ func mainCore() int {
 	var wg sync.WaitGroup
 
 	// Blockchain monitor for the collector
-	wg.Add(1)
 	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
 		quit, &wg, !cfg.PoolValue, addrMap,
-		ntfnChans.connectChan, ntfnChans.recvTxBlockChan)
+		ntfnChans.connectChan, ntfnChans.recvTxBlockChan,
+		ntfnChans.reorgChanBlockData)
+	wg.Add(1)
 	go wsChainMonitor.BlockConnectedHandler()
+	//go wsChainMonitor.ReorgHandler()
+	ntfnChans.reorgChanBlockData = nil
+
+	// Blockchain monitor for the stake DB
+	sdbChainMonitor := sqliteDB.NewStakeDBChainMonitor(quit, &wg,
+		ntfnChans.connectChanStakeDB, ntfnChans.reorgChanStakeDB)
+	wg.Add(2)
+	go sdbChainMonitor.BlockConnectedHandler()
+	go sdbChainMonitor.ReorgHandler()
+
+	// wiredDBChainMonitor := sqliteDB.NewChainMonitor(quit, &wg,
+	// 	ntfnChans.connectChanWiredDB, ntfnChans.reorgChanWiredDB)
+	// wg.Add(2)
+	// go wiredDBChainMonitor.BlockConnectedHandler()
+	// go wiredDBChainMonitor.ReorgHandler()
+	ntfnChans.reorgChanWiredDB = nil
+	ntfnChans.connectChanWiredDB = nil
 
 	if cfg.MonitorMempool {
 		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)

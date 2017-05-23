@@ -1,3 +1,6 @@
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package dcrsqlite
 
 import (
@@ -7,7 +10,9 @@ import (
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
 )
@@ -19,28 +24,44 @@ type wiredDB struct {
 	MPC    *mempool.MempoolDataCache
 	client *dcrrpcclient.Client
 	params *chaincfg.Params
+	sDB    *stakedb.StakeDatabase
 }
 
-func NewWiredDB(db *sql.DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) wiredDB {
-	return wiredDB{
-		DBDataSaver: &DBDataSaver{NewDB(db), statusC},
+func newWiredDB(DB *DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
+	wDB := wiredDB{
+		DBDataSaver: &DBDataSaver{DB, statusC},
 		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
 		params:      p,
 	}
+
+	//err := wDB.openStakeDB()
+	var err error
+	wDB.sDB, err = stakedb.NewStakeDatabase(cl, p)
+	if err != nil {
+		log.Error("Unable to create stake DB: ", err)
+		return wDB, func() error { return nil }
+	}
+	return wDB, wDB.sDB.StakeDB.Close
 }
 
-func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, error) {
+func NewWiredDB(db *sql.DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
+	return newWiredDB(NewDB(db), statusC, cl, p)
+}
+
+func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
-		return wiredDB{}, err
+		return wiredDB{}, func() error { return nil }, err
 	}
-	return wiredDB{
-		DBDataSaver: &DBDataSaver{db, statusC},
-		MPC:         new(mempool.MempoolDataCache),
-		client:      cl,
-		params:      p,
-	}, nil
+
+	wDB, cleanup := newWiredDB(db, statusC, cl, p)
+	return wDB, cleanup, nil
+}
+
+func (db *wiredDB) NewStakeDBChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
+	blockChan chan *chainhash.Hash, reorgChan chan *stakedb.ReorgData) *stakedb.ChainMonitor {
+	return db.sDB.NewChainMonitor(quit, wg, blockChan, reorgChan)
 }
 
 func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {

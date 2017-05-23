@@ -300,8 +300,8 @@ func loadConfig() (*config, error) {
 	activeNet = &netparams.MainNetParams
 	activeChain = &chaincfg.MainNetParams
 	if cfg.TestNet {
-		activeNet = &netparams.TestNetParams
-		activeChain = &chaincfg.TestNetParams
+		activeNet = &netparams.TestNet2Params
+		activeChain = &chaincfg.TestNet2Params
 		numNets++
 	}
 	if cfg.SimNet {
@@ -321,7 +321,7 @@ func loadConfig() (*config, error) {
 	// Set the host names and ports to the default if the
 	// user does not specify them.
 	if cfg.DcrdServ == "" {
-		cfg.DcrdServ = defaultHost + ":" + activeNet.RPCClientPort
+		cfg.DcrdServ = defaultHost + ":" + activeNet.JSONRPCClientPort
 	}
 
 	// Put comma-separated comamnd line aguments into slice of strings

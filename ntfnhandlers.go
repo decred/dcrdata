@@ -7,16 +7,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dcrdata/dcrdata/blockdata"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
-	"github.com/decred/dcrwallet/wtxmgr"
+	"github.com/decred/dcrwallet/wallet/udb"
 )
 
 func registerNodeNtfnHandlers(dcrdClient *dcrrpcclient.Client) *ContextualError {
 	var err error
-	// Register for block connection notifications.
+	// Register for block connection and chain reorg notifications.
 	if err = dcrdClient.NotifyBlocks(); err != nil {
 		return newContextualError("block notification "+
 			"registration failed", err)
@@ -66,21 +68,55 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			}
 			height := int32(blockHeader.Height)
 			hash := blockHeader.BlockHash()
+
 			select {
 			case ntfnChans.connectChan <- &hash:
 			// send to nil channel blocks
 			default:
 			}
 
+			select {
+			case ntfnChans.connectChanWiredDB <- &hash:
+			default:
+			}
+
+			select {
+			case ntfnChans.connectChanStakeDB <- &hash:
+			default:
+			}
+
 			// Also send on stake info channel, if enabled.
 			select {
 			case ntfnChans.connectChanStkInf <- height:
-			// send to nil channel blocks
 			default:
 			}
+
+			// Web UI status update handler
 			select {
 			case ntfnChans.updateStatusNodeHeight <- blockHeader.Height:
-			// send to nil channel blocks
+			default:
+			}
+		},
+		OnReorganization: func(oldHash *chainhash.Hash, oldHeight int32,
+			newHash *chainhash.Hash, newHeight int32) {
+			// Send reorg data to dcrsqlite's monitor
+			select {
+			case ntfnChans.reorgChanBlockData <- &blockdata.ReorgData{
+				OldChainHead:   *oldHash,
+				OldChainHeight: oldHeight,
+				NewChainHead:   *newHash,
+				NewChainHeight: newHeight,
+			}:
+			default:
+			}
+			// Send reorg data to stakedb's monitor
+			select {
+			case ntfnChans.reorgChanStakeDB <- &stakedb.ReorgData{
+				OldChainHead:   *oldHash,
+				OldChainHeight: oldHeight,
+				NewChainHead:   *newHash,
+				NewChainHeight: newHeight,
+			}:
 			default:
 			}
 		},
@@ -101,19 +137,17 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			}
 			log.Debugf("Winning tickets: %v", strings.Join(txstr, ", "))
 		},
-		// maturing tickets
-		// BUG: dcrrpcclient/notify.go (parseNewTicketsNtfnParams) is unable to
-		// Unmarshal fourth parameter as a map[hash]hash.
+		// maturing tickets. Thanks for fixing the tickets type bug, jolan!
 		OnNewTickets: func(hash *chainhash.Hash, height int64, stakeDiff int64,
-			tickets map[chainhash.Hash]chainhash.Hash) {
+			tickets []*chainhash.Hash) {
 			for _, tick := range tickets {
-				log.Debugf("Mined new ticket: %v", tick.String())
+				log.Tracef("Mined new ticket: %v", tick.String())
 			}
 		},
 		// OnRelevantTxAccepted is invoked when a transaction containing a
 		// registered address is inserted into mempool.
 		OnRelevantTxAccepted: func(transaction []byte) {
-			rec, err := wtxmgr.NewTxRecord(transaction, time.Now())
+			rec, err := udb.NewTxRecord(transaction, time.Now())
 			if err != nil {
 				return
 			}

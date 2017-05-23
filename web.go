@@ -1,3 +1,6 @@
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package main
 
 import (
@@ -8,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/dcrdata/dcrdata/blockdata"
@@ -30,11 +34,12 @@ type WebTemplateData struct {
 }
 
 type WebUI struct {
-	MPC          mempool.MempoolDataCache
-	TemplateData WebTemplateData
-	templ        *template.Template
-	templFiles   []string
-	params       *chaincfg.Params
+	MPC             mempool.MempoolDataCache
+	TemplateData    WebTemplateData
+	templateDataMtx sync.RWMutex
+	templ           *template.Template
+	templFiles      []string
+	params          *chaincfg.Params
 }
 
 func NewWebUI() *WebUI {
@@ -80,6 +85,8 @@ func (td *WebUI) reloadTemplatesSig(sig os.Signal) {
 }
 
 func (td *WebUI) Store(blockData *blockdata.BlockData) error {
+	td.templateDataMtx.Lock()
+	defer td.templateDataMtx.Unlock()
 	td.TemplateData.BlockSummary = blockData.ToBlockSummary()
 	td.TemplateData.StakeSummary = blockData.ToStakeInfoExtendedEstimates()
 	return nil
@@ -92,6 +99,9 @@ func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) err
 	defer td.MPC.RUnlock()
 
 	_, fie := td.MPC.GetFeeInfoExtra()
+
+	td.templateDataMtx.Lock()
+	defer td.templateDataMtx.Unlock()
 	td.TemplateData.MempoolFeeInfo = *fie
 
 	// LowestMineable is the lowest fee of those in the top 20 (mainnet), but
@@ -109,8 +119,10 @@ func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) err
 }
 
 func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
+	td.templateDataMtx.RLock()
 	//err := td.templ.Execute(w, td.TemplateData)
 	str, err := TemplateExecToString(td.templ, "home", td.TemplateData)
+	td.templateDataMtx.RUnlock()
 	if err != nil {
 		http.Error(w, "template execute failure", http.StatusInternalServerError)
 		return
