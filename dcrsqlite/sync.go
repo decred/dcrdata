@@ -255,7 +255,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 	startHeight++
 
 	// a ticket treap would be nice, but a map will do for a cache
-	liveTicketCache := make(map[chainhash.Hash]int64)
+	//liveTicketCache := make(map[chainhash.Hash]int64)
 
 	for i := startHeight; i <= height; i++ {
 		// check for quit signal
@@ -285,7 +285,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		}
 
 		numLive := db.sDB.BestNode.PoolSize()
-		liveTickets := db.sDB.BestNode.LiveTickets()
+		//liveTickets := db.sDB.BestNode.LiveTickets()
 		// TODO: winning tickets
 		//winningTickets := db.sDB.BestNode.Winners()
 
@@ -298,31 +298,10 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				i, endRangeBlock, numLive)
 		}
 
-		var poolValue int64
-		for _, hash := range liveTickets {
-			val, ok := liveTicketCache[hash]
-			if !ok {
-				var txid *dcrutil.Tx
-				txid, err = db.client.GetRawTransaction(&hash)
-				if err != nil {
-					fmt.Printf("Unable to get transaction %v: %v\n", hash, err)
-					continue
-				}
-				// This isn't quite right for pool tickets where the small
-				// pool fees are included in vout[0], but it's close.
-				liveTicketCache[hash] = txid.MsgTx().TxOut[0].Value
-			}
-			poolValue += val
-		}
+		tpi := db.sDB.PoolInfo()
 
 		header := block.MsgBlock().Header
 		diffRatio := txhelpers.GetDifficultyRatio(header.Bits, db.params)
-
-		poolCoin := dcrutil.Amount(poolValue).ToCoin()
-		valAvg, poolSize := 0.0, float64(header.PoolSize)
-		if header.PoolSize > 0 {
-			valAvg = poolCoin / poolSize
-		}
 
 		blockSummary := apitypes.BlockDataBasic{
 			Height:     header.Height,
@@ -331,12 +310,14 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			Difficulty: diffRatio,
 			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
 			Time:       header.Timestamp.Unix(),
-			PoolInfo: apitypes.TicketPoolInfo{
-				Size:   header.PoolSize,
-				Value:  poolCoin,
-				ValAvg: valAvg,
-			},
+			PoolInfo:   tpi,
 		}
+
+		// TODO: Why was there a discrepancy using a ticket cache in this function?
+		// if blockSummary.PoolInfo != tpi {
+		// 	fmt.Println(blockSummary.PoolInfo)
+		// 	fmt.Println(tpi)
+		// }
 
 		if i > bestBlockHeight {
 			if err = db.StoreBlockSummary(&blockSummary); err != nil {

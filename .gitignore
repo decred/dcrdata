@@ -6,7 +6,7 @@ debug
 *.cert
 *.key
 dcrdata
-dcrdata.conf
+dcrdata*.conf
 vendor/
 *.orig
 *.db

@@ -29,6 +29,7 @@ type StakeDatabase struct {
 	BestNode        *stake.Node
 	blkMtx          sync.RWMutex
 	blockCache      map[int64]*dcrutil.Block
+	liveTicketMtx   sync.Mutex
 	liveTicketCache map[chainhash.Hash]int64
 }
 
@@ -159,6 +160,18 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	revoked []chainhash.Hash, maturing []chainhash.Hash) error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
+
+	cleanLiveTicketCache := func() {
+		db.liveTicketMtx.Lock()
+		for i := range spent {
+			delete(db.liveTicketCache, spent[i])
+		}
+		for i := range revoked {
+			delete(db.liveTicketCache, revoked[i])
+		}
+		db.liveTicketMtx.Unlock()
+	}
+	defer cleanLiveTicketCache()
 
 	var err error
 	db.BestNode, err = db.BestNode.ConnectNode(block.MsgBlock().Header,
@@ -293,6 +306,7 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 	poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
 
+	db.liveTicketMtx.Lock()
 	var poolValue int64
 	for _, hash := range liveTickets {
 		val, ok := db.liveTicketCache[hash]
@@ -308,15 +322,17 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 		}
 		poolValue += val
 	}
+	db.liveTicketMtx.Unlock()
 
-	header, _ := db.DBTipBlockHeader()
-	if int(header.PoolSize) != len(liveTickets) {
-		log.Warnf("Inconsistent pool sizes: %d, %d", header.PoolSize, len(liveTickets))
-	}
+	// header, _ := db.DBTipBlockHeader()
+	// if int(header.PoolSize) != len(liveTickets) {
+	// 	log.Infof("Header at %d, DB at %d.", header.Height, db.BestNode.Height())
+	// 	log.Warnf("Inconsistent pool sizes: %d, %d", header.PoolSize, len(liveTickets))
+	// }
 
 	poolCoin := dcrutil.Amount(poolValue).ToCoin()
 	valAvg := 0.0
-	if header.PoolSize > 0 {
+	if len(liveTickets) > 0 {
 		valAvg = poolCoin / float64(poolSize)
 	}
 
