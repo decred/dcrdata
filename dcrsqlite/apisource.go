@@ -94,6 +94,10 @@ func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) e
 	return db.resyncDBWithPoolValue(quit)
 }
 
+func (db *wiredDB) GetStakeDB() *stakedb.StakeDatabase {
+	return db.sDB
+}
+
 func (db *wiredDB) GetHeight() int {
 	return int(db.GetBlockSummaryHeight())
 }
