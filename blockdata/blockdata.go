@@ -12,6 +12,7 @@ import (
 	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
@@ -71,14 +72,17 @@ type blockDataCollector struct {
 	mtx          sync.Mutex
 	dcrdChainSvr *dcrrpcclient.Client
 	netParams    *chaincfg.Params
+	stakeDB      *stakedb.StakeDatabase
 }
 
 // NewBlockDataCollector creates a new blockDataCollector.
-func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params) *blockDataCollector {
+func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params,
+	stakeDB *stakedb.StakeDatabase) *blockDataCollector {
 	return &blockDataCollector{
 		mtx:          sync.Mutex{},
 		dcrdChainSvr: dcrdChainSvr,
 		netParams:    params,
+		stakeDB:      stakeDB,
 	}
 }
 
@@ -129,21 +133,23 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	height := blockHeader.Height
 
 	// In datasaver.go check TicketPoolInfo.PoolValue >= 0
-	poolSize := blockHeader.PoolSize
-	ticketPoolInfo := apitypes.TicketPoolInfo{poolSize, -1, -1}
-	if !noTicketPool {
-		poolValue, err := t.dcrdChainSvr.GetTicketPoolValue()
-		if err != nil {
-			return nil, err
-		}
-		avgPricePoolAmt := dcrutil.Amount(0)
-		if poolSize != 0 {
-			avgPricePoolAmt = poolValue / dcrutil.Amount(poolSize)
-		}
+	ticketPoolInfo := t.stakeDB.PoolInfoOnceFresh()
+	// poolSize := t.stakeDB.PoolSize()
+	// ticketPoolInfo := apitypes.TicketPoolInfo{uint32(poolSize), -1, -1}
+	// if !noTicketPool {
+	// 	poolValue, err := t.dcrdChainSvr.GetTicketPoolValue()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	avgPricePoolAmt := dcrutil.Amount(0)
+	// 	if poolSize != 0 {
+	// 		avgPricePoolAmt = poolValue / dcrutil.Amount(poolSize)
+	// 	}
 
-		ticketPoolInfo = apitypes.TicketPoolInfo{poolSize, poolValue.ToCoin(),
-			avgPricePoolAmt.ToCoin()}
-	}
+	// 	ticketPoolInfo = apitypes.TicketPoolInfo{poolSize, poolValue.ToCoin(),
+	// 		avgPricePoolAmt.ToCoin()}
+	// }
+
 	// Fee info
 	numFeeBlocks := uint32(1)
 	numFeeWindows := uint32(0)
@@ -166,6 +172,9 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 
 	// To get difficulty, use getinfo or getmininginfo
 	info, err := t.dcrdChainSvr.GetInfo()
+	if err != nil {
+		return nil, err
+	}
 	//t.dcrdChainSvr.GetConnectionCount()
 
 	// blockVerbose, err := t.dcrdChainSvr.GetBlockVerbose(bestBlockHash, false)

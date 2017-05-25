@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/rpcutils"
@@ -31,6 +32,7 @@ type StakeDatabase struct {
 	blockCache      map[int64]*dcrutil.Block
 	liveTicketMtx   sync.Mutex
 	liveTicketCache map[chainhash.Hash]int64
+	fresh           chan struct{}
 }
 
 const (
@@ -46,6 +48,7 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 		NodeClient:      client,
 		blockCache:      make(map[int64]*dcrutil.Block),
 		liveTicketCache: make(map[chainhash.Hash]int64),
+		fresh:           make(chan struct{}, 4),
 	}
 	if err := sDB.Open(); err != nil {
 		return nil, err
@@ -57,17 +60,52 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 	}
 
 	log.Info("Pre-populating live ticket cache...")
+
+	type promiseGetRawTransaction struct {
+		result dcrrpcclient.FutureGetRawTransactionResult
+		ticket *chainhash.Hash
+	}
+	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(liveTickets))
+
+	// Send all the live ticket requests
 	for _, hash := range liveTickets {
-		var txid *dcrutil.Tx
-		txid, err = sDB.NodeClient.GetRawTransaction(hash)
+		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
+			result: sDB.NodeClient.GetRawTransactionAsync(hash),
+			ticket: hash,
+		})
+	}
+
+	// Receive the live ticket tx results
+	for _, p := range promisesGetRawTransaction {
+		ticketTx, err := p.result.Receive()
 		if err != nil {
-			log.Errorf("Unable to get transaction %v: %v\n", hash, err)
 			continue
 		}
-		// This isn't quite right for pool tickets where the small
-		// pool fees are included in vout[0], but it's close.
-		sDB.liveTicketCache[*hash] = txid.MsgTx().TxOut[0].Value
+		if !ticketTx.Hash().IsEqual(p.ticket) {
+			panic("Failed to receive Tx details for requested ticket hash")
+		}
+
+		sDB.liveTicketCache[*p.ticket] = ticketTx.MsgTx().TxOut[0].Value
+
+		// txHeight := ticketTx.BlockHeight
+		// unconfirmed := (txHeight == 0)
+		// immature := (tipHeight-int32(txHeight) < int32(w.ChainParams().TicketMaturity))
 	}
+
+	// Old synchronous way
+	// for _, hash := range liveTickets {
+	// 	var txid *dcrutil.Tx
+	// 	txid, err = sDB.NodeClient.GetRawTransaction(hash)
+	// 	if err != nil {
+	// 		log.Errorf("Unable to get transaction %v: %v\n", hash, err)
+	// 		continue
+	// 	}
+	// 	// This isn't quite right for pool tickets where the small
+	// 	// pool fees are included in vout[0], but it's close.
+	// 	sDB.liveTicketCache[*hash] = txid.MsgTx().TxOut[0].Value
+	// }
+
+	sDB.fresh <- struct{}{}
 
 	return sDB, nil
 }
@@ -161,6 +199,16 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
 
+drain:
+	for {
+		select {
+		case <-db.fresh:
+			break drain
+		default:
+			break drain
+		}
+	}
+
 	cleanLiveTicketCache := func() {
 		db.liveTicketMtx.Lock()
 		for i := range spent {
@@ -179,6 +227,10 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		db.fresh <- struct{}{}
+	}()
 
 	// Write the new node to db
 	return db.StakeDB.Update(func(dbTx database.Tx) error {
@@ -299,6 +351,22 @@ func (db *StakeDatabase) Open() error {
 	return err
 }
 
+// PoolInfoOnceFresh waits for connectBlock() or times out. This feels really
+// hackish.  Give this some more thought.
+func (db *StakeDatabase) PoolInfoOnceFresh() apitypes.TicketPoolInfo {
+	timer := time.NewTimer(time.Second * 10)
+	defer timer.Stop()
+
+	select {
+	case <-db.fresh:
+	case <-timer.C:
+		log.Warn("(db *StakeDatabase) PoolInfoOnceFresh(): TIMED OUT waiting for fresh block connection.")
+		return apitypes.TicketPoolInfo{0, -1, -1}
+	}
+
+	return db.PoolInfo()
+}
+
 // PoolInfo computes ticket pool value using the database and, if needed, the
 // node RPC client to fetch ticket values that are not cached. Returned are a
 // structure including ticket pool value, size, and average value.
@@ -318,7 +386,8 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 			}
 			// This isn't quite right for pool tickets where the small
 			// pool fees are included in vout[0], but it's close.
-			db.liveTicketCache[hash] = txid.MsgTx().TxOut[0].Value
+			val = txid.MsgTx().TxOut[0].Value
+			db.liveTicketCache[hash] = val
 		}
 		poolValue += val
 	}
@@ -341,6 +410,11 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 		Value:  poolCoin,
 		ValAvg: valAvg,
 	}
+}
+
+// PoolSize returns the ticket pool size in the best node of the stake database
+func (db *StakeDatabase) PoolSize() int {
+	return db.BestNode.PoolSize()
 }
 
 // DBState queries the stake database for the best block height and hash.

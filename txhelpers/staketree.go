@@ -86,7 +86,8 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 						}
 						// This isn't quite right for pool tickets where the small
 						// pool fees are included in vout[0], but it's close.
-						liveTicketMap[hash] = txid.MsgTx().TxOut[0].Value
+						val = txid.MsgTx().TxOut[0].Value
+						liveTicketMap[hash] = val
 					}
 					amt += val
 				}

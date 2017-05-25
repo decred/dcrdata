@@ -95,28 +95,8 @@ func mainCore() int {
 	log.Infof("Connected to dcrd (JSON-RPC API v%s) on %v",
 		nodeVer.String(), curnet.String())
 
-	// Block data collector
-	blockdata.UseLogger(daemonLog)
-	collector := blockdata.NewBlockDataCollector(dcrdClient, activeChain)
-	if collector == nil {
-		log.Errorf("Failed to create block data collector")
-		return 9
-	}
-
 	defer backendLog.Flush()
-
 	mempool.UseLogger(mempoolLog)
-
-	// Build a slice of each required saver type for each data source
-	var blockDataSavers []blockdata.BlockDataSaver
-	var mempoolSavers []mempool.MempoolDataSaver
-
-	// For example, dumping all mempool fees with a custom saver
-	if cfg.DumpAllMPTix {
-		log.Debugf("Dumping all mempool tickets to file in %s.\n", cfg.OutFolder)
-		mempoolFeeDumper := mempool.NewMempoolFeeDumper(cfg.OutFolder, "mempool-fees")
-		mempoolSavers = append(mempoolSavers, mempoolFeeDumper)
-	}
 
 	// Another (horrible) example of saving to a map in memory
 	// blockDataMapSaver := NewBlockDataToMemdb()
@@ -136,6 +116,25 @@ func mainCore() int {
 	}
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer sqliteDB.Close()
+
+	// Block data collector
+	blockdata.UseLogger(daemonLog)
+	collector := blockdata.NewBlockDataCollector(dcrdClient, activeChain, sqliteDB.GetStakeDB())
+	if collector == nil {
+		log.Errorf("Failed to create block data collector")
+		return 9
+	}
+
+	// Build a slice of each required saver type for each data source
+	var blockDataSavers []blockdata.BlockDataSaver
+	var mempoolSavers []mempool.MempoolDataSaver
+
+	// For example, dumping all mempool fees with a custom saver
+	if cfg.DumpAllMPTix {
+		log.Debugf("Dumping all mempool tickets to file in %s.\n", cfg.OutFolder)
+		mempoolFeeDumper := mempool.NewMempoolFeeDumper(cfg.OutFolder, "mempool-fees")
+		mempoolSavers = append(mempoolSavers, mempoolFeeDumper)
+	}
 
 	blockDataSavers = append(blockDataSavers, &sqliteDB)
 	mempoolSavers = append(mempoolSavers, sqliteDB.MPC)
