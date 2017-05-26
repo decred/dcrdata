@@ -33,6 +33,7 @@ type StakeDatabase struct {
 	liveTicketMtx   sync.Mutex
 	liveTicketCache map[chainhash.Hash]int64
 	fresh           chan struct{}
+	PoolInfoLock    chan struct{}
 }
 
 const (
@@ -42,6 +43,8 @@ const (
 	DefaultStakeDbName = "ffldb_stake"
 )
 
+// NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
+// ffldb-backed stake database, and loads all live tickets into a cache.
 func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*StakeDatabase, error) {
 	sDB := &StakeDatabase{
 		params:          params,
@@ -49,6 +52,7 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 		blockCache:      make(map[int64]*dcrutil.Block),
 		liveTicketCache: make(map[chainhash.Hash]int64),
 		fresh:           make(chan struct{}, 4),
+		PoolInfoLock:    make(chan struct{}, 1),
 	}
 	if err := sDB.Open(); err != nil {
 		return nil, err
@@ -203,7 +207,6 @@ drain:
 	for {
 		select {
 		case <-db.fresh:
-			break drain
 		default:
 			break drain
 		}
@@ -360,7 +363,7 @@ func (db *StakeDatabase) PoolInfoOnceFresh() apitypes.TicketPoolInfo {
 	select {
 	case <-db.fresh:
 	case <-timer.C:
-		log.Warn("(db *StakeDatabase) PoolInfoOnceFresh(): TIMED OUT waiting for fresh block connection.")
+		log.Warn("(db *StakeDatabase).PoolInfoOnceFresh(): TIMED OUT waiting for fresh block connection.")
 		return apitypes.TicketPoolInfo{0, -1, -1}
 	}
 
@@ -371,6 +374,9 @@ func (db *StakeDatabase) PoolInfoOnceFresh() apitypes.TicketPoolInfo {
 // node RPC client to fetch ticket values that are not cached. Returned are a
 // structure including ticket pool value, size, and average value.
 func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
+	db.PoolInfoLock <- struct{}{}
+	<-db.PoolInfoLock
+
 	poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
 
