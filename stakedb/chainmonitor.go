@@ -104,6 +104,13 @@ out:
 				log.Infof("Connected block %d to stake DB.", block.Height())
 			}
 
+			// If the someone, like the registered OnBlockConnected notification
+			// handler, set the pool info lock, release it.
+			select {
+			case <-p.db.PoolInfoLock:
+			default:
+			}
+
 		case _, ok := <-p.quit:
 			if !ok {
 				log.Debugf("Got quit signal. Exiting block connected handler.")

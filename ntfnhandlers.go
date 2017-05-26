@@ -69,6 +69,18 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			height := int32(blockHeader.Height)
 			hash := blockHeader.BlockHash()
 
+			// Prevent handlers other than the stakedb block connected handler
+			// from executing certain stake DB functions, namely PoolInfo().
+			ntfnChans.stakeDBLock <- struct{}{}
+
+			// stakedb.(p *ChainMonitor).BlockConnectedHandler will unlock
+			// stakeDBLock when it finishes handling the new block.
+			select {
+			case ntfnChans.connectChanStakeDB <- &hash:
+			default:
+				<-ntfnChans.stakeDBLock
+			}
+
 			select {
 			case ntfnChans.connectChan <- &hash:
 			// send to nil channel blocks
@@ -77,11 +89,6 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 
 			select {
 			case ntfnChans.connectChanWiredDB <- &hash:
-			default:
-			}
-
-			select {
-			case ntfnChans.connectChanStakeDB <- &hash:
 			default:
 			}
 

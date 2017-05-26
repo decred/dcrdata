@@ -132,23 +132,9 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	//timestamp := blockHeader.Timestamp
 	height := blockHeader.Height
 
+	// Ticket pool info (value, size, avg)
+	ticketPoolInfo := t.stakeDB.PoolInfo()
 	// In datasaver.go check TicketPoolInfo.PoolValue >= 0
-	ticketPoolInfo := t.stakeDB.PoolInfoOnceFresh()
-	// poolSize := t.stakeDB.PoolSize()
-	// ticketPoolInfo := apitypes.TicketPoolInfo{uint32(poolSize), -1, -1}
-	// if !noTicketPool {
-	// 	poolValue, err := t.dcrdChainSvr.GetTicketPoolValue()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	avgPricePoolAmt := dcrutil.Amount(0)
-	// 	if poolSize != 0 {
-	// 		avgPricePoolAmt = poolValue / dcrutil.Amount(poolSize)
-	// 	}
-
-	// 	ticketPoolInfo = apitypes.TicketPoolInfo{poolSize, poolValue.ToCoin(),
-	// 		avgPricePoolAmt.ToCoin()}
-	// }
 
 	// Fee info
 	numFeeBlocks := uint32(1)

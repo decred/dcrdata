@@ -36,6 +36,7 @@ var ntfnChans struct {
 	reorgChanWiredDB                  chan *dcrsqlite.ReorgData
 	connectChanStakeDB                chan *chainhash.Hash
 	reorgChanStakeDB                  chan *stakedb.ReorgData
+	stakeDBLock                       chan struct{}
 	updateStatusNodeHeight            chan uint32
 	updateStatusDBHeight              chan uint32
 	spendTxBlockChan, recvTxBlockChan chan *txhelpers.BlockWatchedTx

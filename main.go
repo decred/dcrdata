@@ -117,6 +117,18 @@ func mainCore() int {
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer sqliteDB.Close()
 
+	// Get pool info lock for new block handler
+	ntfnChans.stakeDBLock = sqliteDB.GetStakeDB().PoolInfoLock
+	// if it's closed or nil, panic
+	select {
+	case ntfnChans.stakeDBLock <- struct{}{}:
+		<-ntfnChans.stakeDBLock
+	default:
+		log.Error("Stake DB lock wasn't there!")
+		return 18
+		//ntfnChans.stakeDBLock = make(chan struct{}, 1)
+	}
+
 	// Block data collector
 	blockdata.UseLogger(daemonLog)
 	collector := blockdata.NewBlockDataCollector(dcrdClient, activeChain, sqliteDB.GetStakeDB())
@@ -143,7 +155,7 @@ func mainCore() int {
 	webUI := NewWebUI()
 	if webUI == nil {
 		log.Info("Failed to start WebUI. Missing HTML resources?")
-		return 16
+		return 17
 	}
 	webUI.UseSIGToReloadTemplates()
 	blockDataSavers = append(blockDataSavers, webUI)
