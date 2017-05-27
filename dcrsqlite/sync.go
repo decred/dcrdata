@@ -5,7 +5,6 @@ package dcrsqlite
 
 import (
 	"fmt"
-	"math"
 	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
@@ -101,50 +100,11 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 		si := apitypes.StakeInfoExtended{}
 
 		// Ticket fee info
-		newSStx := txhelpers.TicketsInBlock(block)
-		si.Feeinfo.Height = uint32(i)
-		si.Feeinfo.Number = uint32(len(newSStx))
-
-		var minFee, maxFee, meanFee float64
-		maxFee = math.MaxFloat64
-		fees := make([]float64, si.Feeinfo.Number)
-		for it := range newSStx {
-			var rawTx *dcrutil.Tx
-			// rawTx, err = db.client.GetRawTransactionVerbose(&newSStx[it])
-			// if err != nil {
-			// 	log.Errorf("Unable to get sstx details: %v", err)
-			// }
-			// rawTx.Vin[iv].AmountIn
-			rawTx, err = db.client.GetRawTransaction(&newSStx[it])
-			if err != nil {
-				return fmt.Errorf("Unable to get sstx details (are you running"+
-					"dcrd with --txindex?): %v", err)
-			}
-			msgTx := rawTx.MsgTx()
-			var amtIn int64
-			for iv := range msgTx.TxIn {
-				amtIn += msgTx.TxIn[iv].ValueIn
-			}
-			var amtOut int64
-			for iv := range msgTx.TxOut {
-				amtOut += msgTx.TxOut[iv].Value
-			}
-			fee := dcrutil.Amount(amtIn - amtOut).ToCoin()
-			if fee < minFee {
-				minFee = fee
-			}
-			if fee > maxFee {
-				maxFee = fee
-			}
-			meanFee += fee
-			fees[it] = fee
+		fib := txhelpers.FeeInfoBlock(block, db.client)
+		if fib == nil {
+			return fmt.Errorf("FeeInfoBlock failed.")
 		}
-
-		meanFee /= float64(si.Feeinfo.Number)
-		si.Feeinfo.Mean = meanFee
-		si.Feeinfo.Median = txhelpers.MedianCoin(fees)
-		si.Feeinfo.Min = minFee
-		si.Feeinfo.Max = maxFee
+		si.Feeinfo = *fib
 
 		// Price window number and block index
 		si.PriceWindowNum = int(i) / int(winSize)
@@ -337,51 +297,11 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		si := apitypes.StakeInfoExtended{}
 
 		// Ticket fee info
-		newSStx := txhelpers.TicketsInBlock(block)
-		si.Feeinfo.Height = uint32(i)
-		si.Feeinfo.Number = uint32(len(newSStx))
-
-		var minFee, maxFee, meanFee float64
-		maxFee = math.MaxFloat64
-		fees := make([]float64, si.Feeinfo.Number)
-		for it := range newSStx {
-			var rawTx *dcrutil.Tx
-			// rawTx, err := db.client.GetRawTransactionVerbose(&newSStx[it])
-			// if err != nil {
-			// 	log.Errorf("Unable to get sstx details: %v", err)
-			// }
-			// rawTx.Vin[iv].AmountIn
-			rawTx, err = db.client.GetRawTransaction(&newSStx[it])
-			if err != nil {
-				log.Errorf("Unable to get sstx details: %v", err)
-			}
-			msgTx := rawTx.MsgTx()
-			var amtIn int64
-			for iv := range msgTx.TxIn {
-				amtIn += msgTx.TxIn[iv].ValueIn
-			}
-			var amtOut int64
-			for iv := range msgTx.TxOut {
-				amtOut += msgTx.TxOut[iv].Value
-			}
-			fee := dcrutil.Amount(amtIn - amtOut).ToCoin()
-			if fee < minFee {
-				minFee = fee
-			}
-			if fee > maxFee {
-				maxFee = fee
-			}
-			meanFee += fee
-			fees[it] = fee
+		fib := txhelpers.FeeInfoBlock(block, db.client)
+		if fib == nil {
+			return fmt.Errorf("FeeInfoBlock failed.")
 		}
-
-		if si.Feeinfo.Number > 0 {
-			meanFee /= float64(si.Feeinfo.Number)
-			si.Feeinfo.Mean = meanFee
-			si.Feeinfo.Median = txhelpers.MedianCoin(fees)
-			si.Feeinfo.Min = minFee
-			si.Feeinfo.Max = maxFee
-		}
+		si.Feeinfo = *fib
 
 		// Price window number and block index
 		winSize := uint32(db.params.StakeDiffWindowSize)

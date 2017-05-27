@@ -6,13 +6,13 @@ package blockdata
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"strconv"
 	"sync"
 	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/stakedb"
+	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
@@ -137,18 +137,27 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	// In datasaver.go check TicketPoolInfo.PoolValue >= 0
 
 	// Fee info
-	numFeeBlocks := uint32(1)
-	numFeeWindows := uint32(0)
+	// numFeeBlocks := uint32(1)
+	// numFeeWindows := uint32(0)
 
-	feeInfo, err := t.dcrdChainSvr.TicketFeeInfo(&numFeeBlocks, &numFeeWindows)
-	if err != nil {
-		return nil, err
+	// feeInfo, err := t.dcrdChainSvr.TicketFeeInfo(&numFeeBlocks, &numFeeWindows)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	fib := txhelpers.FeeInfoBlock(bestBlock, t.dcrdChainSvr)
+	if fib == nil {
+		log.Error("FeeInfoBlock failed")
 	}
 
-	if len(feeInfo.FeeInfoBlocks) == 0 {
-		return nil, fmt.Errorf("Unable to get fee info for block %d", height)
-	}
-	feeInfoBlock := feeInfo.FeeInfoBlocks[0]
+	// if len(feeInfo.FeeInfoBlocks) == 0 {
+	// 	return nil, fmt.Errorf("Unable to get fee info for block %d", height)
+	// }
+	// feeInfoBlock := feeInfo.FeeInfoBlocks[0]
+
+	// if feeInfoBlock != *fib {
+	// 	fmt.Println(fib, *feeInfo)
+	// }
+	feeInfoBlock := *fib
 
 	// Stake difficulty
 	stakeDiff, err := t.dcrdChainSvr.GetStakeDifficulty()

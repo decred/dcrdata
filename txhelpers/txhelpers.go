@@ -263,11 +263,21 @@ func FeeInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfo
 	}
 
 	if feeInfo.Number > 0 {
-		meanFee /= float64(feeInfo.Number)
+		N := float64(feeInfo.Number)
+		meanFee /= N
 		feeInfo.Mean = meanFee
 		feeInfo.Median = MedianCoin(fees)
 		feeInfo.Min = minFee
 		feeInfo.Max = maxFee
+
+		if N > 1 {
+			var variance float64
+			for _, f := range fees {
+				variance += (f - meanFee) * (f - meanFee)
+			}
+			variance /= (N - 1)
+			feeInfo.StdDev = math.Sqrt(variance)
+		}
 	}
 
 	return feeInfo
