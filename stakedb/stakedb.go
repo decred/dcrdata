@@ -377,8 +377,10 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 	db.PoolInfoLock <- struct{}{}
 	<-db.PoolInfoLock
 
+	db.nodeMtx.RLock()
 	poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
+	db.nodeMtx.RUnlock()
 
 	db.liveTicketMtx.Lock()
 	var poolValue int64
