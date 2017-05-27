@@ -59,6 +59,16 @@ out:
 				break out
 			}
 
+			releaseStakeDB := func() {
+				// If the someone, like the registered OnBlockConnected
+				// notification handler, set the pool info lock, release it when
+				// we're done connecting/disconnecting blocks.
+				select {
+				case <-p.db.PoolInfoLock:
+				default:
+				}
+			}
+
 			// If reorganizing, the block will first go to a side chain
 			p.reorgLock.Lock()
 			reorg, reorgData := p.reorganizing, p.reorgData
@@ -70,12 +80,14 @@ out:
 
 				// Just append to side chain until the new main chain tip block is reached
 				if reorgData.NewChainHead != *hash {
+					releaseStakeDB()
 					break keepon
 				}
 
 				// Once all blocks in side chain are lined up, switch over
 				log.Info("Switching to side chain...")
 				newHeight, newHash, err := p.switchToSideChain()
+				releaseStakeDB()
 				if err != nil {
 					panic(err)
 				}
@@ -98,17 +110,12 @@ out:
 				block, err := p.db.ConnectBlockHash(hash)
 				if err != nil {
 					log.Error(err)
+					releaseStakeDB()
 					break keepon
 				}
 
+				releaseStakeDB()
 				log.Infof("Connected block %d to stake DB.", block.Height())
-			}
-
-			// If the someone, like the registered OnBlockConnected notification
-			// handler, set the pool info lock, release it.
-			select {
-			case <-p.db.PoolInfoLock:
-			default:
 			}
 
 		case _, ok := <-p.quit:
