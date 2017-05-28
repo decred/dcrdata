@@ -229,7 +229,7 @@ func FeeInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfo
 	feeInfo.Number = uint32(len(newSStx))
 
 	var minFee, maxFee, meanFee float64
-	maxFee = math.MaxFloat64
+	minFee = math.MaxFloat64
 	fees := make([]float64, feeInfo.Number)
 	for it := range newSStx {
 		//var rawTx *dcrutil.Tx
