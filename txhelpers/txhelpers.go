@@ -47,6 +47,8 @@ func HashInSlice(h chainhash.Hash, list []chainhash.Hash) bool {
 	return false
 }
 
+// TxhashInSlice searches a slice of *dcrutil.Tx for a transaction with the hash
+// txHash. If found, it returns the corresponding *Tx, otherwise nil.
 func TxhashInSlice(txs []*dcrutil.Tx, txHash *chainhash.Hash) *dcrutil.Tx {
 	if len(txs) < 1 {
 		return nil
@@ -81,6 +83,13 @@ func IncludesTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 	return -1, -1
 }
 
+// BlockConsumesOutpointWithAddresses checks the specified block to see if it
+// includes transactions that spend from outputs created using any of the
+// addresses in addrs. The TxAction for each address is not important, but it
+// would logically be TxMined. Both regular and stake transactions are checked.
+// The RPC client is used to get the PreviousOutPoint for each TxIn of each
+// transaction in the block, from which the address is obtained from the
+// PkScript of that output. chaincfg Params is requried to decode the script.
 func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 	c *dcrrpcclient.Client, params *chaincfg.Params) map[string][]*dcrutil.Tx {
 	addrMap := make(map[string][]*dcrutil.Tx)
@@ -221,6 +230,9 @@ func GetDifficultyRatio(bits uint32, params *chaincfg.Params) float64 {
 	return diff
 }
 
+// FeeInfoBlock computes ticket fee statistics for the tickets included in the
+// specified block.  The RPC client is used to fetch raw transaction details
+// need to compute the fee for each sstx.
 func FeeInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfoBlock {
 	feeInfo := new(dcrjson.FeeInfoBlock)
 	newSStx := TicketsInBlock(block)
