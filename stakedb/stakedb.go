@@ -83,10 +83,11 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 	for _, p := range promisesGetRawTransaction {
 		ticketTx, err := p.result.Receive()
 		if err != nil {
+			log.Error(err)
 			continue
 		}
 		if !ticketTx.Hash().IsEqual(p.ticket) {
-			panic("Failed to receive Tx details for requested ticket hash")
+			panic(fmt.Sprintf("Failed to receive Tx details for requested ticket hash: %v, %v", p.ticket, ticketTx.Hash()))
 		}
 
 		sDB.liveTicketCache[*p.ticket] = ticketTx.MsgTx().TxOut[0].Value
