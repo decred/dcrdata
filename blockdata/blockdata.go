@@ -144,7 +144,7 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	// if err != nil {
 	// 	return nil, err
 	// }
-	fib := txhelpers.FeeInfoBlock(bestBlock, t.dcrdChainSvr)
+	fib := txhelpers.FeeRateInfoBlock(bestBlock, t.dcrdChainSvr)
 	if fib == nil {
 		log.Error("FeeInfoBlock failed")
 	}
