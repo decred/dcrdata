@@ -257,6 +257,13 @@ func mainCore() int {
 		// Store initial MP data
 		sqliteDB.MPC.StoreMPData(mpData, time.Now())
 
+		// Store initial MP data to webUI
+		if err = webUI.StoreMPData(mpData, time.Now()); err != nil {
+			log.Errorf("Failed to store initial mempool data: %v",
+				err.Error())
+			return 19
+		}
+
 		// Setup monitor
 		mpi := &mempool.MempoolInfo{mpData.GetHeight(), mpData.GetNumTickets(), 0, time.Now()}
 
