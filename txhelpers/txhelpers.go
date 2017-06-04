@@ -294,3 +294,61 @@ func FeeInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfo
 
 	return feeInfo
 }
+
+// FeeRateInfoBlock computes ticket fee rate statistics for the tickets included
+// in the specified block.  The RPC client is used to fetch raw transaction
+// details need to compute the fee rate for each sstx.
+func FeeRateInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfoBlock {
+	feeInfo := new(dcrjson.FeeInfoBlock)
+	newSStx := TicketsInBlock(block)
+
+	feeInfo.Height = uint32(block.Height())
+	feeInfo.Number = uint32(len(newSStx))
+
+	var minFee, maxFee, meanFee dcrutil.Amount
+	minFee = dcrutil.MaxAmount
+	feesRates := make([]dcrutil.Amount, feeInfo.Number)
+	for it := range newSStx {
+		rawTx, err := c.GetRawTransaction(&newSStx[it])
+		if err != nil {
+			fmt.Printf("Unable to get sstx details: %v", err)
+		}
+		msgTx := rawTx.MsgTx()
+		var amtIn, amtOut int64
+		for iv := range msgTx.TxIn {
+			amtIn += msgTx.TxIn[iv].ValueIn
+		}
+		for iv := range msgTx.TxOut {
+			amtOut += msgTx.TxOut[iv].Value
+		}
+		fee := dcrutil.Amount(1000*(amtIn-amtOut)) / dcrutil.Amount(msgTx.SerializeSize())
+		if fee < minFee {
+			minFee = fee
+		}
+		if fee > maxFee {
+			maxFee = fee
+		}
+		meanFee += fee
+		feesRates[it] = fee
+	}
+
+	if feeInfo.Number > 0 {
+		N := float64(feeInfo.Number)
+		feeInfo.Mean = meanFee.ToCoin() / N
+		feeInfo.Median = float64(MedianAmount(feesRates))
+		feeInfo.Min = minFee.ToCoin()
+		feeInfo.Max = maxFee.ToCoin()
+
+		if feeInfo.Number > 1 {
+			var variance float64
+			for _, f := range feesRates {
+				fDev := f.ToCoin() - feeInfo.Mean
+				variance += fDev * fDev
+			}
+			variance /= (N - 1)
+			feeInfo.StdDev = math.Sqrt(variance)
+		}
+	}
+
+	return feeInfo
+}
