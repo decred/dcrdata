@@ -4,9 +4,7 @@
 package blockdata
 
 import (
-	"encoding/hex"
 	"errors"
-	"strconv"
 	"sync"
 	"time"
 
@@ -17,7 +15,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
 )
 
 // BlockData contains all the data collected by a blockDataCollector and stored
@@ -128,35 +125,17 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 		return nil, err
 	}
 
-	blockHeader := bestBlock.MsgBlock().Header
-	//timestamp := blockHeader.Timestamp
-	height := blockHeader.Height
+	height := bestBlock.Height()
 
 	// Ticket pool info (value, size, avg)
 	ticketPoolInfo := t.stakeDB.PoolInfo()
 	// In datasaver.go check TicketPoolInfo.PoolValue >= 0
 
 	// Fee info
-	// numFeeBlocks := uint32(1)
-	// numFeeWindows := uint32(0)
-
-	// feeInfo, err := t.dcrdChainSvr.TicketFeeInfo(&numFeeBlocks, &numFeeWindows)
-	// if err != nil {
-	// 	return nil, err
-	// }
 	fib := txhelpers.FeeRateInfoBlock(bestBlock, t.dcrdChainSvr)
 	if fib == nil {
 		log.Error("FeeInfoBlock failed")
 	}
-
-	// if len(feeInfo.FeeInfoBlocks) == 0 {
-	// 	return nil, fmt.Errorf("Unable to get fee info for block %d", height)
-	// }
-	// feeInfoBlock := feeInfo.FeeInfoBlocks[0]
-
-	// if feeInfoBlock != *fib {
-	// 	fmt.Println(fib, *feeInfo)
-	// }
 	feeInfoBlock := *fib
 
 	// Stake difficulty
@@ -165,43 +144,14 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 		return nil, err
 	}
 
-	// To get difficulty, use getinfo or getmininginfo
-	info, err := t.dcrdChainSvr.GetInfo()
+	numConn, err := t.dcrdChainSvr.GetConnectionCount()
+	if err != nil {
+		log.Warn("Unable to get connection count: ", err)
+	}
+
+	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(bestBlockHash)
 	if err != nil {
 		return nil, err
-	}
-	//t.dcrdChainSvr.GetConnectionCount()
-
-	// blockVerbose, err := t.dcrdChainSvr.GetBlockVerbose(bestBlockHash, false)
-	// if err != nil {
-	// 	log.Error(err)
-	// }
-
-	// We want a GetBlockHeaderVerboseResult
-	// Not sure how to manage this:
-	//cmd := dcrjson.NewGetBlockHeaderCmd(bestBlockHash.String(), dcrjson.Bool(true))
-	// instead:
-	blockHeaderResults := dcrjson.GetBlockHeaderVerboseResult{
-		Hash:          bestBlockHash.String(),
-		Confirmations: int64(1),
-		Version:       blockHeader.Version,
-		PreviousHash:  blockHeader.PrevBlock.String(),
-		MerkleRoot:    blockHeader.MerkleRoot.String(),
-		StakeRoot:     blockHeader.StakeRoot.String(),
-		VoteBits:      blockHeader.VoteBits,
-		FinalState:    hex.EncodeToString(blockHeader.FinalState[:]),
-		Voters:        blockHeader.Voters,
-		FreshStake:    blockHeader.FreshStake,
-		Revocations:   blockHeader.Revocations,
-		PoolSize:      blockHeader.PoolSize,
-		Bits:          strconv.FormatInt(int64(blockHeader.Bits), 16),
-		SBits:         dcrutil.Amount(blockHeader.SBits).ToCoin(),
-		Height:        blockHeader.Height,
-		Size:          blockHeader.Size,
-		Time:          blockHeader.Timestamp.Unix(),
-		Nonce:         blockHeader.Nonce,
-		Difficulty:    info.Difficulty,
-		NextHash:      "",
 	}
 
 	// estimatestakediff
@@ -214,10 +164,10 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	}
 
 	// Output
-	winSize := uint32(t.netParams.StakeDiffWindowSize)
+	winSize := t.netParams.StakeDiffWindowSize
 	blockdata := &BlockData{
-		Header:           blockHeaderResults,
-		Connections:      info.Connections,
+		Header:           *blockHeaderResults,
+		Connections:      int32(numConn),
 		FeeInfo:          feeInfoBlock,
 		CurrentStakeDiff: *stakeDiff,
 		EstStakeDiff:     *estStakeDiff,
