@@ -58,57 +58,65 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 		return nil, err
 	}
 
-	liveTickets, err := sDB.NodeClient.LiveTickets()
+	nodeHeight, err := client.GetBlockCount()
 	if err != nil {
-		return sDB, err
+		log.Errorf("Unable to get best block height: %v", err)
 	}
 
-	log.Info("Pre-populating live ticket cache...")
+	if int64(sDB.Height()) >= nodeHeight-int64(params.TicketPoolSize)/4 {
 
-	type promiseGetRawTransaction struct {
-		result dcrrpcclient.FutureGetRawTransactionResult
-		ticket *chainhash.Hash
-	}
-	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(liveTickets))
-
-	// Send all the live ticket requests
-	for _, hash := range liveTickets {
-		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
-			result: sDB.NodeClient.GetRawTransactionAsync(hash),
-			ticket: hash,
-		})
-	}
-
-	// Receive the live ticket tx results
-	for _, p := range promisesGetRawTransaction {
-		ticketTx, err := p.result.Receive()
+		liveTickets, err := sDB.NodeClient.LiveTickets()
 		if err != nil {
-			log.Error(err)
-			continue
-		}
-		if !ticketTx.Hash().IsEqual(p.ticket) {
-			panic(fmt.Sprintf("Failed to receive Tx details for requested ticket hash: %v, %v", p.ticket, ticketTx.Hash()))
+			return sDB, err
 		}
 
-		sDB.liveTicketCache[*p.ticket] = ticketTx.MsgTx().TxOut[0].Value
+		log.Info("Pre-populating live ticket cache...")
 
-		// txHeight := ticketTx.BlockHeight
-		// unconfirmed := (txHeight == 0)
-		// immature := (tipHeight-int32(txHeight) < int32(w.ChainParams().TicketMaturity))
+		type promiseGetRawTransaction struct {
+			result dcrrpcclient.FutureGetRawTransactionResult
+			ticket *chainhash.Hash
+		}
+		promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(liveTickets))
+
+		// Send all the live ticket requests
+		for _, hash := range liveTickets {
+			promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
+				result: sDB.NodeClient.GetRawTransactionAsync(hash),
+				ticket: hash,
+			})
+		}
+
+		// Receive the live ticket tx results
+		for _, p := range promisesGetRawTransaction {
+			ticketTx, err := p.result.Receive()
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			if !ticketTx.Hash().IsEqual(p.ticket) {
+				panic(fmt.Sprintf("Failed to receive Tx details for requested ticket hash: %v, %v", p.ticket, ticketTx.Hash()))
+			}
+
+			sDB.liveTicketCache[*p.ticket] = ticketTx.MsgTx().TxOut[0].Value
+
+			// txHeight := ticketTx.BlockHeight
+			// unconfirmed := (txHeight == 0)
+			// immature := (tipHeight-int32(txHeight) < int32(w.ChainParams().TicketMaturity))
+		}
+
+		// Old synchronous way
+		// for _, hash := range liveTickets {
+		// 	var txid *dcrutil.Tx
+		// 	txid, err = sDB.NodeClient.GetRawTransaction(hash)
+		// 	if err != nil {
+		// 		log.Errorf("Unable to get transaction %v: %v\n", hash, err)
+		// 		continue
+		// 	}
+		// 	// This isn't quite right for pool tickets where the small
+		// 	// pool fees are included in vout[0], but it's close.
+		// 	sDB.liveTicketCache[*hash] = txid.MsgTx().TxOut[0].Value
+		// }
 	}
-
-	// Old synchronous way
-	// for _, hash := range liveTickets {
-	// 	var txid *dcrutil.Tx
-	// 	txid, err = sDB.NodeClient.GetRawTransaction(hash)
-	// 	if err != nil {
-	// 		log.Errorf("Unable to get transaction %v: %v\n", hash, err)
-	// 		continue
-	// 	}
-	// 	// This isn't quite right for pool tickets where the small
-	// 	// pool fees are included in vout[0], but it's close.
-	// 	sDB.liveTicketCache[*hash] = txid.MsgTx().TxOut[0].Value
-	// }
 
 	sDB.fresh <- struct{}{}
 
