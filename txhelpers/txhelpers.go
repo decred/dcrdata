@@ -15,9 +15,15 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
+
+// RawTransactionGetter is an interface satisfied by dcrrpcclient.Client, and
+// required by functions that would otherwise require a dcrrpcclient.Client just
+// for GetRawTransaction.
+type RawTransactionGetter interface {
+	GetRawTransaction(txHash *chainhash.Hash) (*dcrutil.Tx, error)
+}
 
 // BlockWatchedTx contains, for a certain block, the transactions for certain
 // watched addresses
@@ -91,7 +97,7 @@ func IncludesTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 // transaction in the block, from which the address is obtained from the
 // PkScript of that output. chaincfg Params is requried to decode the script.
 func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]TxAction,
-	c *dcrrpcclient.Client, params *chaincfg.Params) map[string][]*dcrutil.Tx {
+	c RawTransactionGetter, params *chaincfg.Params) map[string][]*dcrutil.Tx {
 	addrMap := make(map[string][]*dcrutil.Tx)
 
 	checkForOutpointAddr := func(blockTxs []*dcrutil.Tx) {
@@ -230,10 +236,24 @@ func GetDifficultyRatio(bits uint32, params *chaincfg.Params) float64 {
 	return diff
 }
 
+// SSTXInBlock gets a slice containing all of the SSTX mined in a block
+func SSTXInBlock(block *dcrutil.Block, c RawTransactionGetter) []*dcrutil.Tx {
+	newSStx := TicketsInBlock(block)
+	allSSTx := make([]*dcrutil.Tx, len(newSStx))
+	for it := range newSStx {
+		var err error
+		allSSTx[it], err = c.GetRawTransaction(&newSStx[it])
+		if err != nil {
+			fmt.Printf("Unable to get sstx details: %v", err)
+		}
+	}
+	return allSSTx
+}
+
 // FeeInfoBlock computes ticket fee statistics for the tickets included in the
 // specified block.  The RPC client is used to fetch raw transaction details
 // need to compute the fee for each sstx.
-func FeeInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfoBlock {
+func FeeInfoBlock(block *dcrutil.Block, c RawTransactionGetter) *dcrjson.FeeInfoBlock {
 	feeInfo := new(dcrjson.FeeInfoBlock)
 	newSStx := TicketsInBlock(block)
 
@@ -298,16 +318,18 @@ func FeeInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfo
 // FeeRateInfoBlock computes ticket fee rate statistics for the tickets included
 // in the specified block.  The RPC client is used to fetch raw transaction
 // details need to compute the fee rate for each sstx.
-func FeeRateInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.FeeInfoBlock {
+func FeeRateInfoBlock(block *dcrutil.Block, c RawTransactionGetter) *dcrjson.FeeInfoBlock {
 	feeInfo := new(dcrjson.FeeInfoBlock)
 	newSStx := TicketsInBlock(block)
 
 	feeInfo.Height = uint32(block.Height())
 	feeInfo.Number = uint32(len(newSStx))
 
-	var minFee, maxFee, meanFee dcrutil.Amount
-	minFee = dcrutil.MaxAmount
-	feesRates := make([]dcrutil.Amount, feeInfo.Number)
+	//var minFee, maxFee dcrutil.Amount
+	//minFee = dcrutil.MaxAmount
+	var minFee, maxFee, meanFee float64
+	minFee = math.MaxFloat64
+	feesRates := make([]float64, feeInfo.Number)
 	for it := range newSStx {
 		rawTx, err := c.GetRawTransaction(&newSStx[it])
 		if err != nil {
@@ -321,7 +343,7 @@ func FeeRateInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.Fee
 		for iv := range msgTx.TxOut {
 			amtOut += msgTx.TxOut[iv].Value
 		}
-		fee := dcrutil.Amount(1000*(amtIn-amtOut)) / dcrutil.Amount(msgTx.SerializeSize())
+		fee := dcrutil.Amount(1000*(amtIn-amtOut)).ToCoin() / float64(msgTx.SerializeSize())
 		if fee < minFee {
 			minFee = fee
 		}
@@ -334,15 +356,15 @@ func FeeRateInfoBlock(block *dcrutil.Block, c *dcrrpcclient.Client) *dcrjson.Fee
 
 	if feeInfo.Number > 0 {
 		N := float64(feeInfo.Number)
-		feeInfo.Mean = meanFee.ToCoin() / N
-		feeInfo.Median = float64(MedianAmount(feesRates))
-		feeInfo.Min = minFee.ToCoin()
-		feeInfo.Max = maxFee.ToCoin()
+		feeInfo.Mean = meanFee / N
+		feeInfo.Median = MedianCoin(feesRates)
+		feeInfo.Min = minFee
+		feeInfo.Max = maxFee
 
 		if feeInfo.Number > 1 {
 			var variance float64
 			for _, f := range feesRates {
-				fDev := f.ToCoin() - feeInfo.Mean
+				fDev := f - feeInfo.Mean
 				variance += fDev * fDev
 			}
 			variance /= (N - 1)
