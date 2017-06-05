@@ -130,30 +130,17 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 // block index specified by idx via an RPC connection to a chain server.
 func GetBlockHeaderVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
 	idx int64) *dcrjson.GetBlockHeaderVerboseResult {
-	height, err := client.GetBlockCount()
-	if err != nil {
-		log.Errorf("GetBlockCount failed: %v", err)
-		return nil
-	}
-	if idx > height {
-		log.Errorf("Block %d does not exist.", idx)
-		return nil
-	}
-
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
 		return nil
 	}
 
-	block, err := client.GetBlock(blockhash)
+	blockHeaderVerbose, err := client.GetBlockHeaderVerbose(blockhash)
 	if err != nil {
-		log.Errorf("GetBlock failed (%s): %v", blockhash, err)
+		log.Errorf("GetBlockHeaderVerbose(%v) failed: %v", blockhash, err)
 		return nil
 	}
-
-	blockHeader := block.MsgBlock().Header
-	blockHeaderVerbose := BuildBlockHeaderVerbose(&blockHeader, params, height)
 
 	return blockHeaderVerbose
 }
