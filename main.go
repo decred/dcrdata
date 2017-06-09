@@ -128,6 +128,42 @@ func mainCore() int {
 		return 18
 	}
 
+	// Ctrl-C to shut down.
+	// Nothing should be sent the quit channel.  It should only be closed.
+	quit := make(chan struct{})
+	// Only accept a single CTRL+C
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	// Start waiting for the interrupt signal
+	go func() {
+		<-c
+		signal.Stop(c)
+		// Close the channel so multiple goroutines can get the message
+		log.Infof("CTRL+C hit.  Closing goroutines.")
+		close(quit)
+		return
+	}()
+
+	// Resync db
+	var waitSync sync.WaitGroup
+	waitSync.Add(1)
+	// start as goroutine to let chain monitor start, but the sync will keep up
+	// with current height, it is not likely to matter.
+	if err = sqliteDB.SyncDBWithPoolValue(&waitSync, quit); err != nil {
+		log.Error("Resync failed: ", err)
+		return 15
+	}
+
+	// wait for resync before serving or collecting
+	waitSync.Wait()
+
+	select {
+	case <-quit:
+		return 20
+	default:
+	}
+
 	// Block data collector
 	blockdata.UseLogger(daemonLog)
 	collector := blockdata.NewBlockDataCollector(dcrdClient, activeChain, sqliteDB.GetStakeDB())
@@ -169,45 +205,8 @@ func mainCore() int {
 	}
 
 	if err = webUI.Store(blockData); err != nil {
-		log.Errorf("Failed to store initial block data: %v",
-			err.Error())
+		log.Errorf("Failed to store initial block data: %v", err.Error())
 		return 11
-	}
-
-	// Ctrl-C to shut down.
-	// Nothing should be sent the quit channel.  It should only be closed.
-	quit := make(chan struct{})
-	// Only accept a single CTRL+C
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-
-	// Start waiting for the interrupt signal
-	go func() {
-		<-c
-		signal.Stop(c)
-		// Close the channel so multiple goroutines can get the message
-		log.Infof("CTRL+C hit.  Closing goroutines.")
-		close(quit)
-		return
-	}()
-
-	// Resync db
-	var waitSync sync.WaitGroup
-	waitSync.Add(1)
-	// start as goroutine to let chain monitor start, but the sync will keep up
-	// with current height, it is not likely to matter.
-	if err = sqliteDB.SyncDBWithPoolValue(&waitSync, quit); err != nil {
-		log.Error("Resync failed: ", err)
-		return 15
-	}
-
-	// wait for resync before serving
-	waitSync.Wait()
-
-	select {
-	case <-quit:
-		return 20
-	default:
 	}
 
 	// WaitGroup for the monitor goroutines
@@ -264,7 +263,12 @@ func mainCore() int {
 		}
 
 		// Setup monitor
-		mpi := &mempool.MempoolInfo{mpData.GetHeight(), mpData.GetNumTickets(), 0, time.Now()}
+		mpi := &mempool.MempoolInfo{
+			CurrentHeight:               mpData.GetHeight(),
+			NumTicketPurchasesInMempool: mpData.GetNumTickets(),
+			NumTicketsSinceStatsReport:  0,
+			LastCollectTime:             time.Now(),
+		}
 
 		newTicketLimit := int32(cfg.MPTriggerTickets)
 		mini := time.Duration(cfg.MempoolMinInterval) * time.Second
