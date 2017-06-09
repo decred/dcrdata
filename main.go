@@ -117,8 +117,8 @@ func mainCore() int {
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer sqliteDB.Close()
 
-	// Get pool info lock for new block handler
-	ntfnChans.stakeDBLock = sqliteDB.GetStakeDB().PoolInfoLock
+	// Get stake DB's block connection lock for new block handler
+	ntfnChans.stakeDBLock = sqliteDB.GetStakeDB().ConnectingLock
 	// if it's closed or nil, panic
 	select {
 	case ntfnChans.stakeDBLock <- struct{}{}:
@@ -126,7 +126,6 @@ func mainCore() int {
 	default:
 		log.Error("Stake DB lock wasn't there!")
 		return 18
-		//ntfnChans.stakeDBLock = make(chan struct{}, 1)
 	}
 
 	// Block data collector

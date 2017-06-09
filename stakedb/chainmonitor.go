@@ -60,11 +60,11 @@ out:
 			}
 
 			releaseStakeDB := func() {
-				// If the someone, like the registered OnBlockConnected
-				// notification handler, set the pool info lock, release it when
-				// we're done connecting/disconnecting blocks.
+				// If someone like the registered OnBlockConnected notification
+				// handler set the pool info lock, release it when we're done
+				// connecting/disconnecting blocks.
 				select {
-				case <-p.db.PoolInfoLock:
+				case <-p.db.ConnectingLock:
 				default:
 				}
 			}
