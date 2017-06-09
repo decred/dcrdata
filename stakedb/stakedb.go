@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/rpcutils"
@@ -32,8 +31,7 @@ type StakeDatabase struct {
 	blockCache      map[int64]*dcrutil.Block
 	liveTicketMtx   sync.Mutex
 	liveTicketCache map[chainhash.Hash]int64
-	fresh           chan struct{}
-	PoolInfoLock    chan struct{}
+	ConnectingLock  chan struct{}
 }
 
 const (
@@ -51,8 +49,7 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 		NodeClient:      client,
 		blockCache:      make(map[int64]*dcrutil.Block),
 		liveTicketCache: make(map[chainhash.Hash]int64),
-		fresh:           make(chan struct{}, 4),
-		PoolInfoLock:    make(chan struct{}, 1),
+		ConnectingLock:  make(chan struct{}, 1),
 	}
 	if err := sDB.Open(); err != nil {
 		return nil, err
@@ -117,8 +114,6 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 		// 	sDB.liveTicketCache[*hash] = txid.MsgTx().TxOut[0].Value
 		// }
 	}
-
-	sDB.fresh <- struct{}{}
 
 	return sDB, nil
 }
@@ -212,15 +207,6 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
 
-drain:
-	for {
-		select {
-		case <-db.fresh:
-		default:
-			break drain
-		}
-	}
-
 	cleanLiveTicketCache := func() {
 		db.liveTicketMtx.Lock()
 		for i := range spent {
@@ -239,10 +225,6 @@ drain:
 	if err != nil {
 		return err
 	}
-
-	defer func() {
-		db.fresh <- struct{}{}
-	}()
 
 	// Write the new node to db
 	return db.StakeDB.Update(func(dbTx database.Tx) error {
@@ -363,28 +345,14 @@ func (db *StakeDatabase) Open() error {
 	return err
 }
 
-// PoolInfoOnceFresh waits for connectBlock() or times out. This feels really
-// hackish.  Give this some more thought.
-func (db *StakeDatabase) PoolInfoOnceFresh() apitypes.TicketPoolInfo {
-	timer := time.NewTimer(time.Second * 10)
-	defer timer.Stop()
-
-	select {
-	case <-db.fresh:
-	case <-timer.C:
-		log.Warn("(db *StakeDatabase).PoolInfoOnceFresh(): TIMED OUT waiting for fresh block connection.")
-		return apitypes.TicketPoolInfo{0, -1, -1}
-	}
-
-	return db.PoolInfo()
-}
-
 // PoolInfo computes ticket pool value using the database and, if needed, the
 // node RPC client to fetch ticket values that are not cached. Returned are a
 // structure including ticket pool value, size, and average value.
 func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
-	db.PoolInfoLock <- struct{}{}
-	<-db.PoolInfoLock
+	// Wait for BlockConnectedHandler to finish, it someone like the
+	// OnBlockConnected notification handler said to wait.
+	db.ConnectingLock <- struct{}{}
+	<-db.ConnectingLock
 
 	db.nodeMtx.RLock()
 	poolSize := db.BestNode.PoolSize()
