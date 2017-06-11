@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/pressly/chi"
-	//"github.com/pressly/chi/docgen"
 	"github.com/pressly/chi/middleware"
 )
 
@@ -15,12 +14,14 @@ type apiMux struct {
 // APIVersion is an integer value, incremented for breaking changes
 const APIVersion = 0
 
-func newAPIRouter(app *appContext) apiMux {
+func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 	// chi router
 	mux := chi.NewRouter()
 
+	if userRealIP {
+		mux.Use(middleware.RealIP)
+	}
 	mux.Use(middleware.Logger)
-	//mux.Use(middleware.RealIP)
 	mux.Use(middleware.Recoverer)
 	//mux.Use(middleware.DefaultCompress)
 	//mux.Use(middleware.Compress(2))
