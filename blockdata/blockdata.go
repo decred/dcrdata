@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrutil"
 )
 
 // BlockData contains all the data collected by a blockDataCollector and stored
@@ -83,9 +84,53 @@ func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.P
 	}
 }
 
+func (t *blockDataCollector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
+	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult, error) {
+	block, err := t.dcrdChainSvr.GetBlock(hash)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	height := block.Height()
+
+	// Ticket pool info (value, size, avg)
+	ticketPoolInfo, sdbHeight := t.stakeDB.PoolInfo()
+	if sdbHeight != uint32(height) {
+		log.Warnf("Chain server height %d != stake db height %d. Pool info will not match.", sdbHeight, height)
+	}
+
+	// Fee info
+	feeInfoBlock := txhelpers.FeeRateInfoBlock(block, t.dcrdChainSvr)
+	if feeInfoBlock == nil {
+		log.Error("FeeInfoBlock failed")
+	}
+
+	// Work/Stake difficulty
+	header := block.MsgBlock().Header
+	diff := txhelpers.GetDifficultyRatio(header.Bits, t.netParams)
+	sdiff := dcrutil.Amount(header.SBits).ToCoin()
+
+	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(hash)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Output
+	blockdata := &apitypes.BlockDataBasic{
+		Height:     uint32(height),
+		Size:       uint32(block.MsgBlock().SerializeSize()),
+		Hash:       hash.String(),
+		Difficulty: diff,
+		StakeDiff:  sdiff,
+		Time:       header.Timestamp.Unix(),
+		PoolInfo:   ticketPoolInfo,
+	}
+
+	return blockdata, feeInfoBlock, blockHeaderResults, err
+}
+
 // Collect is the main handler for collecting chain data at the current best
 // block. The input argument specifies if ticket pool value should be omitted.
-func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
+func (t *blockDataCollector) Collect() (*BlockData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -118,38 +163,8 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 		return nil, errors.New("Timeout")
 	}
 
-	bestBlockHash := bbs.hash
-
-	bestBlock, err := t.dcrdChainSvr.GetBlock(bestBlockHash)
-	if err != nil {
-		return nil, err
-	}
-
-	height := bestBlock.Height()
-
-	// Ticket pool info (value, size, avg)
-	ticketPoolInfo := t.stakeDB.PoolInfo()
-	// In datasaver.go check TicketPoolInfo.PoolValue >= 0
-
-	// Fee info
-	fib := txhelpers.FeeRateInfoBlock(bestBlock, t.dcrdChainSvr)
-	if fib == nil {
-		log.Error("FeeInfoBlock failed")
-	}
-	feeInfoBlock := *fib
-
 	// Stake difficulty
 	stakeDiff, err := t.dcrdChainSvr.GetStakeDifficulty()
-	if err != nil {
-		return nil, err
-	}
-
-	numConn, err := t.dcrdChainSvr.GetConnectionCount()
-	if err != nil {
-		log.Warn("Unable to get connection count: ", err)
-	}
-
-	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(bestBlockHash)
 	if err != nil {
 		return nil, err
 	}
@@ -159,19 +174,30 @@ func (t *blockDataCollector) Collect(noTicketPool bool) (*BlockData, error) {
 	if err != nil {
 		log.Warn("estimatestakediff is broken: ", err)
 		estStakeDiff = &dcrjson.EstimateStakeDiffResult{}
-		err = nil
-		//return nil, err
+	}
+
+	// Info specific to the block hash
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, err := t.CollectBlockInfo(bbs.hash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Number of peer connection to chain server
+	numConn, err := t.dcrdChainSvr.GetConnectionCount()
+	if err != nil {
+		log.Warn("Unable to get connection count: ", err)
 	}
 
 	// Output
+	height := int64(blockDataBasic.Height)
 	winSize := t.netParams.StakeDiffWindowSize
 	blockdata := &BlockData{
-		Header:           *blockHeaderResults,
+		Header:           *blockHeaderVerbose,
 		Connections:      int32(numConn),
-		FeeInfo:          feeInfoBlock,
+		FeeInfo:          *feeInfoBlock,
 		CurrentStakeDiff: *stakeDiff,
 		EstStakeDiff:     *estStakeDiff,
-		PoolInfo:         ticketPoolInfo,
+		PoolInfo:         blockDataBasic.PoolInfo,
 		PriceWindowNum:   int(height / winSize),
 		IdxBlockInWindow: int(height%winSize) + 1,
 	}

@@ -81,7 +81,6 @@ type config struct {
 	MPTriggerTickets   int  `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report."`
 	//FeeWinRadius       int    `short:"r" long:"feewinradius" description:"Half-width of a window around the ticket with the lowest mineable fee."`
 	DumpAllMPTix bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
-	PoolValue    bool   `short:"p" long:"poolvalue" description:"Collect ticket pool value information (8-9 sec)."`
 	DBFileName   string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
 
 	//WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`

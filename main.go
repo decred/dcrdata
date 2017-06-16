@@ -191,7 +191,7 @@ func mainCore() int {
 	mempoolSavers = append(mempoolSavers, webUI)
 
 	// Initial data summary for web ui
-	blockData, err := collector.Collect(!cfg.PoolValue)
+	blockData, err := collector.Collect()
 	if err != nil {
 		log.Errorf("Block data collection for initial summary failed: %v",
 			err.Error())
@@ -210,7 +210,7 @@ func mainCore() int {
 	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 	ntfnChans.reorgChanBlockData = nil
 	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
-		quit, &wg, !cfg.PoolValue, addrMap,
+		quit, &wg, addrMap,
 		ntfnChans.connectChan, ntfnChans.recvTxBlockChan,
 		ntfnChans.reorgChanBlockData)
 	wg.Add(1)

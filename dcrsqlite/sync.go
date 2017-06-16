@@ -258,7 +258,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				i, endRangeBlock, numLive)
 		}
 
-		tpi := db.sDB.PoolInfo()
+		tpi, _ := db.sDB.PoolInfo()
 
 		header := block.MsgBlock().Header
 		diffRatio := txhelpers.GetDifficultyRatio(header.Bits, db.params)

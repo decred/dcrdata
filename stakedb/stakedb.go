@@ -348,7 +348,7 @@ func (db *StakeDatabase) Open() error {
 // PoolInfo computes ticket pool value using the database and, if needed, the
 // node RPC client to fetch ticket values that are not cached. Returned are a
 // structure including ticket pool value, size, and average value.
-func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
+func (db *StakeDatabase) PoolInfo() (apitypes.TicketPoolInfo, uint32) {
 	// Wait for BlockConnectedHandler to finish, it someone like the
 	// OnBlockConnected notification handler said to wait.
 	db.ConnectingLock <- struct{}{}
@@ -357,6 +357,7 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 	db.nodeMtx.RLock()
 	poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
+	height := db.BestNode.Height()
 	db.nodeMtx.RUnlock()
 
 	db.liveTicketMtx.Lock()
@@ -394,7 +395,7 @@ func (db *StakeDatabase) PoolInfo() apitypes.TicketPoolInfo {
 		Size:   uint32(poolSize),
 		Value:  poolCoin,
 		ValAvg: valAvg,
-	}
+	}, height
 }
 
 // PoolSize returns the ticket pool size in the best node of the stake database
