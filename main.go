@@ -301,7 +301,7 @@ func mainCore() int {
 	// Initial setting of db_height. Subsequently, Store() will send this.
 	ntfnChans.updateStatusDBHeight <- uint32(sqliteDB.GetHeight())
 
-	apiMux := newAPIRouter(app)
+	apiMux := newAPIRouter(app, cfg.UseRealIP)
 
 	webMux := chi.NewRouter()
 	webMux.Get("/", webUI.RootPage)

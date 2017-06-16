@@ -68,6 +68,7 @@ type config struct {
 	APIProto   string `long:"apiproto" description:"Protocol for API (http or https)"`
 	APIListen  string `long:"apilisten" description:"Listen address for API"`
 	IndentJSON string `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
+	UseRealIP  bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order."`
 
 	// Comamnd execution
 	//CmdName string `short:"c" long:"cmdname" description:"Command name to run. Must be on %PATH%."`
