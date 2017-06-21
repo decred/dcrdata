@@ -12,14 +12,12 @@ import "github.com/btcsuite/btclog"
 var log = btclog.Disabled
 
 // DisableLog disables all library log output.  Logging output is disabled
-// by default until either UseLogger or SetLogWriter are called.
+// by default until UseLogger is called.
 func DisableLog() {
 	log = btclog.Disabled
 }
 
 // UseLogger uses a specified Logger to output package logging info.
-// This should be used in preference to SetLogWriter if the caller is also
-// using btclog.
 func UseLogger(logger btclog.Logger) {
 	log = logger
 }

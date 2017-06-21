@@ -17,7 +17,6 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/semver"
-	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrrpcclient"
 	"github.com/pressly/chi"
@@ -32,7 +31,11 @@ func mainCore() int {
 		fmt.Printf("Failed to load dcrdata config: %s\n", err.Error())
 		return 1
 	}
-	defer backendLog.Flush()
+	defer func() {
+		if logRotator != nil {
+			logRotator.Close()
+		}
+	}()
 
 	if cfg.CPUProfile != "" {
 		var f *os.File
@@ -47,8 +50,6 @@ func mainCore() int {
 
 	// Start with version info
 	log.Infof(appName+" version %s", ver.String())
-
-	dcrrpcclient.UseLogger(clientLog)
 
 	//log.Debugf("Output folder: %v", cfg.OutFolder)
 	log.Debugf("Log folder: %v", cfg.LogDir)
@@ -66,7 +67,6 @@ func mainCore() int {
 	makeNtfnChans(cfg)
 
 	// Daemon client connection
-	rpcutils.UseLogger(clientLog)
 	dcrdClient, nodeVer, err := connectNodeRPC(cfg)
 	if err != nil || dcrdClient == nil {
 		log.Errorf("Connection to dcrd failed: %v", err)
@@ -95,16 +95,11 @@ func mainCore() int {
 	log.Infof("Connected to dcrd (JSON-RPC API v%s) on %v",
 		nodeVer.String(), curnet.String())
 
-	defer backendLog.Flush()
-	mempool.UseLogger(mempoolLog)
-
 	// Another (horrible) example of saving to a map in memory
 	// blockDataMapSaver := NewBlockDataToMemdb()
 	// blockDataSavers = append(blockDataSavers, blockDataMapSaver)
 
 	// Sqlite output
-	stakedb.UseLogger(stakedbLog)
-	dcrsqlite.UseLogger(sqliteLog)
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
 	sqliteDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
@@ -165,7 +160,6 @@ func mainCore() int {
 	}
 
 	// Block data collector
-	blockdata.UseLogger(daemonLog)
 	collector := blockdata.NewBlockDataCollector(dcrdClient, activeChain, sqliteDB.GetStakeDB())
 	if collector == nil {
 		log.Errorf("Failed to create block data collector")
