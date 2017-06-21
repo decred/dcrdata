@@ -13,12 +13,23 @@ import (
 	"github.com/decred/dcrrpcclient"
 )
 
+var (
+	backendLog      *btclog.Backend
+	rpcclientLogger btclog.Logger
+	sqliteLogger    btclog.Logger
+)
+
 func init() {
 	err := InitLogger()
 	if err != nil {
 		fmt.Printf("Unable to start logger: %v", err)
 		os.Exit(1)
 	}
+	backendLog = btclog.NewBackend(log.Writer())
+	rpcclientLogger = backendLog.Logger("RPC")
+	dcrrpcclient.UseLogger(rpcclientLogger)
+	sqliteLogger = backendLog.Logger("DSQL")
+	dcrsqlite.UseLogger(rpcclientLogger)
 }
 
 func mainCore() int {
@@ -38,23 +49,6 @@ func mainCore() int {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
-
-	btclogger, err := btclog.NewLoggerFromWriter(log.Writer(), btclog.InfoLvl)
-	if err != nil {
-		log.Error("Unable to create logger for dcrrpcclient: ", err)
-	}
-	dcrrpcclient.UseLogger(btclogger)
-
-	// Setup Sqlite db
-	// dcrsqlite.UseLogger(btclogger)
-	// db, err := dcrsqlite.InitDB(&dcrsqlite.DBInfo{cfg.DBFileName})
-	// if err != nil {
-	// 	log.Fatalf("InitDB failed: %v", err)
-	// 	return 1
-	// }
-
-	// log.Infof("sqlite db successfully opened: %s", cfg.DBFileName)
-	// defer db.Close()
 
 	// Connect to node RPC server
 	client, _, err := rpcutils.ConnectNodeRPC(cfg.DcrdServ, cfg.DcrdUser,
@@ -78,7 +72,6 @@ func mainCore() int {
 	}
 
 	// Sqlite output
-	dcrsqlite.UseLogger(btclogger)
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
 	sqliteDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo, nil, client, activeChain)

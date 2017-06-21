@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/btcsuite/btclog"
-	//"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/txhelpers"
@@ -17,7 +16,6 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
-	//"github.com/pkg/profile"
 )
 
 var host = flag.String("host", "127.0.0.1:9109", "node RPC host:port")
@@ -26,11 +24,19 @@ var pass = flag.String("pass", "bananas", "node RPC password")
 var cert = flag.String("cert", "dcrd.cert", "node RPC TLS certificate (when notls=false)")
 var notls = flag.Bool("notls", true, "Disable use of TLS for node connection")
 
-var activeNetParams = &chaincfg.MainNetParams
+var (
+	activeNetParams = &chaincfg.MainNetParams
+
+	backendLog      *btclog.Backend
+	rpcclientLogger btclog.Logger
+)
 
 func mainCore() int {
 	//defer profile.Start(profile.CPUProfile).Stop()
-	defer logFILE.Close()
+	defer func() {
+		logFILE.Close()
+		os.Stdout.Sync()
+	}()
 	flag.Parse()
 
 	client, _, err := rpcutils.ConnectNodeRPC(*host, *user, *pass, *cert, *notls)
@@ -145,13 +151,11 @@ func init() {
 		fmt.Printf("Unable to start logger: %v", err)
 		os.Exit(1)
 	}
-	btclogger, err := btclog.NewLoggerFromWriter(log.Writer(), btclog.InfoLvl)
-	if err != nil {
-		log.Error("Unable to create logger for dcrrpcclient: ", err)
-	}
-	dcrrpcclient.UseLogger(btclogger)
 
-	rpcutils.UseLogger(btclogger)
+	backendLog = btclog.NewBackend(log.Writer())
+	rpcclientLogger = backendLog.Logger("RPC")
+	dcrrpcclient.UseLogger(rpcclientLogger)
+	rpcutils.UseLogger(rpcclientLogger)
 }
 
 // getDifficultyRatio returns the proof-of-work difficulty as a multiple of the
