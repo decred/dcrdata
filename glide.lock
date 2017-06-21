@@ -1,8 +1,12 @@
-hash: 487cae65912e1d8abde5cf27813ab0c1ae0fdf667e2381c36a4b2a8f2b8ce734
-updated: 2017-05-30T14:03:04.4792673-07:00
+hash: dcdb75bac42f5ef04d88ae53ced7d62231b8843c2abde2e79aab2bea9c36eca8
+updated: 2017-06-20T20:07:07.353586651-07:00
 imports:
+- name: github.com/agl/ed25519
+  version: 278e1ec8e8a6e017cd07577924d6766039146ced
+  subpackages:
+  - edwards25519
 - name: github.com/btcsuite/btclog
-  version: 1dfb68239632ee8c667290e30b31cf294bc3d6ae
+  version: 30bef3d5a6b4600e2129de8b6527ffcc1ee397ca
 - name: github.com/btcsuite/go-flags
   version: 6c288d648c1cc1befcb90cb5511dcacf64ae8e61
 - name: github.com/btcsuite/go-socks
@@ -24,8 +28,6 @@ imports:
   - leveldb/storage
   - leveldb/table
   - leveldb/util
-- name: github.com/btcsuite/seelog
-  version: ae8891d029dd3c269dcfd6f261ad23e761acd99f
 - name: github.com/btcsuite/snappy-go
   version: 0bdef8d067237991ddaa1bb6072a740bc40601ba
 - name: github.com/btcsuite/websocket
@@ -35,7 +37,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: 9987b029831ff37ae110bbcfc6ce21fd37fbb788
+  version: 0d406ffde87da224466ba5c83548941e15179872
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -57,14 +59,14 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: 8d50fd214785c06b93840b093b6a7ee2c0fd1dcc
+  version: e7732bfa71b4b098494fa0ce62d42fded970c393
 - name: github.com/decred/dcrutil
-  version: fec3ce59332a199600d81ddd0b06194efff545f0
+  version: a5fab53cab39b793142c8453caa4c6f83bc152d4
   subpackages:
   - base58
   - hdkeychain
 - name: github.com/decred/dcrwallet
-  version: efea1f9f8ab14f3fb1efa5c9a8a5366e6d74cea7
+  version: 6a50ff0b9188af4b2dec68e42add0028c97fb11c
   subpackages:
   - apperrors
   - chain
@@ -74,20 +76,20 @@ imports:
   - wallet/txrules
   - wallet/udb
   - walletdb
-- name: github.com/decred/ed25519
-  version: b0909d3f798b97a03c9e77023f97a5301a2a7900
+- name: github.com/jrick/logrotate
+  version: 4ed05ed86ef17d10ff99cce77481e0fcf6f2c7b0
   subpackages:
-  - edwards25519
+  - rotator
 - name: github.com/mattn/go-colorable
-  version: ded68f7a9561c023e790de24279db7ebf473ea80
+  version: 941b50ebc6efddf4c41c8e4537a5f68a4e686b24
 - name: github.com/mattn/go-isatty
   version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/mattn/go-sqlite3
-  version: 83772a7051f5e30d8e59746a9e43dfa706b72f3b
+  version: afe454f6220b3972691678af2c5579781563183f
 - name: github.com/mgutz/ansi
   version: 9520e82c474b0a04dd04f8a40959027271bab992
 - name: github.com/pressly/chi
-  version: 35ec20b432d9c9d57c5da99623ebffd172433da5
+  version: d96632ea8f31cab87b99211cf6e651ada1420ca8
   subpackages:
   - docgen
   - middleware
@@ -96,7 +98,7 @@ imports:
 - name: github.com/Sirupsen/logrus
   version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
 - name: golang.org/x/crypto
-  version: 7e9105388ebff089b3f99f0ef676ea55a6da3a7e
+  version: adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d
   subpackages:
   - nacl/secretbox
   - pbkdf2
@@ -105,11 +107,11 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: 3da985ce5951d99de868be4385f21ea6c2b22f24
+  version: fe686d45ea04bc1bd4eff6a52865ce8757320325
   subpackages:
   - context
 - name: golang.org/x/sys
-  version: b90f89a1e7a9c1f6b918820b3daa7f08488c8594
+  version: fb4cac33e3196ff7f507ab9b2d2a44b0142f5b5a
   subpackages:
   - unix
 testImports: []
