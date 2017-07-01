@@ -298,6 +298,7 @@ func mainCore() int {
 
 	webMux := chi.NewRouter()
 	webMux.Get("/", webUI.RootPage)
+	webMux.Get("/ws", webUI.WSBlockUpdater)
 	webMux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./public/images/favicon.ico")
 	})

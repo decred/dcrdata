@@ -34,6 +34,32 @@
 </head>
 
 <body>
+    <script>
+        var loc = window.location;
+        var uri = 'ws:';
+
+        if (loc.protocol === 'https:') {
+            uri = 'wss:';
+        }
+        uri += '//' + loc.host;
+        uri += loc.pathname + 'ws';
+
+        ws = new WebSocket(uri)
+
+        ws.onopen = function () {
+            console.log('Connected')
+        }
+
+        ws.onmessage = function (evt) {
+            var out = document.getElementById('blockheight');
+            out.innerHTML += evt.data + '<br>';
+        }
+
+        setInterval(function () {
+            ws.send('Hello, Server!');
+        }, 1000);
+    </script>
+
     <!-- Fixed navbar -->
     <nav class="navbar navbar-default navbar-fixed-top">
         <div class="container wrapper">
@@ -96,11 +122,11 @@
                 <strong>Best Block</strong>
                 <table class="table table-condensed">
                 <tbody>
-                <tr><td>Height</td><td><strong><span style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td></tr>
-                <tr><td>Hash</td><td><strong><span class="inco" style="float: right; max-width: 180px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
+                <tr><td>Height</td><td><strong><span id="blockheight" style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td></tr>
+                <tr><td>Hash</td><td><strong><span id="blockhash" class="inco" style="float: right; max-width: 180px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
                         {{.BlockSummary.Hash}}</span></strong></td></tr>
-                <tr><td>Size (bytes)</td><td><strong>{{.BlockSummary.Size}}</td></tr>
-                <tr><td>Difficulty</td><td><strong>{{printf "%16.2f" .BlockSummary.Difficulty}}</strong></td></tr>
+                <tr><td>Size (bytes)</td><td><strong><p id="blocksize" >{{.BlockSummary.Size}}</p></strong></td></tr>
+                <tr><td>Difficulty</td><td><strong><p id="blockdiff" >{{printf "%16.2f" .BlockSummary.Difficulty}}</p></strong></td></tr>
                 </tbody>
                 </table>
                 <br>
