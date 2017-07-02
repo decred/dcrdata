@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/rs/cors"
 )
 
 type apiMux struct {
@@ -25,6 +26,8 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 	mux.Use(middleware.Recoverer)
 	//mux.Use(middleware.DefaultCompress)
 	//mux.Use(middleware.Compress(2))
+	corsMW := cors.Default()
+	mux.Use(corsMW.Handler)
 
 	mux.Get("/", app.root)
 

@@ -26,3 +26,5 @@ import:
 - package: github.com/shiena/ansicolor
 - package: github.com/go-chi/chi
   version: ~3.0.0
+- package: github.com/rs/cors
+  version: ~1.1.0
