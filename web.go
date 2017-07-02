@@ -68,6 +68,8 @@ func NewWebsocketHub() *WebsocketHub {
 // 	wsh.Register <- c
 // }
 
+// RegisterClient registers a websocket connection with the hub. It does not use
+// the run() loop, and instead locks the client map. This is not ideal (TODO).
 func (wsh *WebsocketHub) RegisterClient(c *websocket.Conn) chan struct{} {
 	wsh.Lock()
 	defer wsh.Unlock()
@@ -76,13 +78,16 @@ func (wsh *WebsocketHub) RegisterClient(c *websocket.Conn) chan struct{} {
 	return clientChan
 }
 
+// UnregisterClient unregisters the input websocket connection via the main
+// run() loop.  This call will block if the run() loop is not running.
 func (wsh *WebsocketHub) UnregisterClient(c *websocket.Conn) {
 	wsh.Unregister <- c
 }
 
+// unregisterClient should only be called from the loop in run().
 func (wsh *WebsocketHub) unregisterClient(c *websocket.Conn) {
-	// wsh.Lock()
-	// defer wsh.Unlock()
+	wsh.Lock()
+	defer wsh.Unlock()
 	c.Close()
 	if clientChan, ok := wsh.clients[c]; ok {
 		close(clientChan)
@@ -90,19 +95,22 @@ func (wsh *WebsocketHub) unregisterClient(c *websocket.Conn) {
 	}
 }
 
+// Stop kills the run() loop and unregisteres all clients (connections).
 func (wsh *WebsocketHub) Stop() {
+	// end the run() loop
 	close(wsh.quitWSHandler)
-	wsh.Lock()
+	// unregister all clients
 	for client := range wsh.clients {
 		wsh.unregisterClient(client)
 	}
-	wsh.Unlock()
 }
 
 func (wsh *WebsocketHub) run() {
+	log.Info("Starting WebsocketHub run loop.")
 	for {
 		select {
 		case <-wsh.NewBlockSummary:
+			log.Info("Signaling to clients.")
 			wsh.RLock()
 			for client, clientChan := range wsh.clients {
 				select {
@@ -123,10 +131,10 @@ func (wsh *WebsocketHub) run() {
 }
 
 type WebUI struct {
+	wsHub           *WebsocketHub
 	MPC             mempool.MempoolDataCache
 	TemplateData    WebTemplateData
 	templateDataMtx sync.RWMutex
-	wsHub           *WebsocketHub
 	templ           *template.Template
 	templFiles      []string
 	params          *chaincfg.Params
@@ -153,6 +161,7 @@ func NewWebUI() *WebUI {
 	}
 }
 
+// ParseTemplates parses all the template files, updating the *html/template.Template.
 func (td *WebUI) ParseTemplates() (err error) {
 	td.templ, err = template.New("home").ParseFiles(td.templFiles...)
 	return
@@ -178,6 +187,9 @@ func (td *WebUI) reloadTemplatesSig(sig os.Signal) {
 	}()
 }
 
+// Store extracts the block and stake data from the input BlockData and stores
+// it in the HTML template data. Store also signals the WebsocketHub of the
+// updated data.
 func (td *WebUI) Store(blockData *blockdata.BlockData) error {
 	td.templateDataMtx.Lock()
 	td.TemplateData.BlockSummary = blockData.ToBlockSummary()
@@ -186,7 +198,7 @@ func (td *WebUI) Store(blockData *blockdata.BlockData) error {
 
 	td.templateDataMtx.RLock()
 	td.wsHub.NewBlockSummary <- td.TemplateData.BlockSummary
-	td.wsHub.NewStakeSummary <- td.TemplateData.StakeSummary
+	//td.wsHub.NewStakeSummary <- td.TemplateData.StakeSummary
 	td.templateDataMtx.RUnlock()
 	return nil
 }
@@ -231,6 +243,14 @@ func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// WSBlockUpdater handles requests on the websocket path (e.g. /ws). The wrapped
+// websocket.Handler registers the connection with the WebsocketHub, which
+// provides an update channel, and starts an update loop. The loop writes the
+// current block data when it receives a signal on the update channel. The run()
+// loop must be running to receive signals on the update channel. The update
+// loop quits in the following situations: when the quitWSHandler channel is
+// closed, when the update channel is closed, or when a write on the
+// websocket.Conn fails.
 func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
 		// Register this websocket connection with the hub
@@ -246,6 +266,7 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 			// Wait for signal from the hub to update
 			select {
 			case _, ok := <-updateSig:
+				// Check if the updaate channel was closed
 				if !ok {
 					//ws.WriteClose(1)
 					td.wsHub.UnregisterClient(ws)
@@ -254,10 +275,12 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 
 				ws.SetWriteDeadline(time.Now().Add(writeWait))
 
-				// Write
+				// Write block data to websocket client
 				td.templateDataMtx.RLock()
 				err := websocket.JSON.Send(ws, td.TemplateData.BlockSummary)
 				td.templateDataMtx.RUnlock()
+				// If the send failed, the client is probably gone, so close the
+				// connection and quit.
 				if err != nil {
 					log.Error(err)
 					td.wsHub.UnregisterClient(ws)

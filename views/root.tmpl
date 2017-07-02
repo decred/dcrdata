@@ -34,7 +34,7 @@
 </head>
 
 <body>
-    <script>
+    <script type="text/javascript">
         var loc = window.location;
         var uri = 'ws:';
 
@@ -51,13 +51,28 @@
         }
 
         ws.onmessage = function (evt) {
-            var out = document.getElementById('blockheight');
-            out.innerHTML += evt.data + '<br>';
+            var m = JSON.parse(evt.data);
+            console.debug("Received message:", m.height);
+
+            var height = document.getElementById('blockheight');
+            height.innerHTML = String(m.height);
+
+            var hash = document.getElementById('blockhash');
+            hash.innerHTML = m.hash;
+
+            var blockhash = document.getElementById('blocksize');
+            blockhash.innerHTML = String(m.size);
+
+            var diff = document.getElementById('blockdiff');
+            diff.innerHTML = String(m.diff);
+
+            var sdiff = document.getElementById('blocksdiff');
+            sdiff.innerHTML = String(m.sdiff);
         }
 
-        setInterval(function () {
-            ws.send('Hello, Server!');
-        }, 1000);
+        // setInterval(function () {
+        //     ws.send('Hello, Server!');
+        // }, 1000);
     </script>
 
     <!-- Fixed navbar -->
@@ -99,7 +114,7 @@
             <div class="col-md-10">
                 Current
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Current Ticket Price: {{printf "%12.4f" .BlockSummary.StakeDiff}}<br>
+                    Current Ticket Price: <span id="blocksdiff" >{{printf "%12.4f" .BlockSummary.StakeDiff}}</span><br>
                     Window Progress: block {{.StakeSummary.IdxBlockInWindow}} of 144<br>
                 </p>
                 Next Price
