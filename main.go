@@ -19,7 +19,7 @@ import (
 	"github.com/dcrdata/dcrdata/semver"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrrpcclient"
-	"github.com/pressly/chi"
+	"github.com/go-chi/chi"
 )
 
 // mainCore does all the work. Deferred functions do not run after os.Exit(),
@@ -302,10 +302,10 @@ func mainCore() int {
 	webMux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./public/images/favicon.ico")
 	})
-	webMux.FileServer("/js", http.Dir("./public/js"))
-	webMux.FileServer("/css", http.Dir("./public/css"))
-	webMux.FileServer("/fonts", http.Dir("./public/fonts"))
-	webMux.FileServer("/images", http.Dir("./public/images"))
+	FileServer(webMux, "/js", http.Dir("./public/js"))
+	FileServer(webMux, "/css", http.Dir("./public/css"))
+	FileServer(webMux, "/fonts", http.Dir("./public/fonts"))
+	FileServer(webMux, "/images", http.Dir("./public/images"))
 	webMux.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, r.URL.RequestURI()+" ain't no country I've ever heard of! (404)", http.StatusNotFound)
 	})

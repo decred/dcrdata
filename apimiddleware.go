@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/pressly/chi"
-	"github.com/pressly/chi/docgen"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/docgen"
 	//"github.com/decred/dcrrpcclient"
 )
 

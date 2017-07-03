@@ -3,8 +3,8 @@ package main
 import (
 	"net/http"
 
-	"github.com/pressly/chi"
-	"github.com/pressly/chi/middleware"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 )
 
 type apiMux struct {
@@ -39,14 +39,14 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 		})
 
-		r.Route("/:idx", func(rd chi.Router) {
+		r.Route("/{idx}", func(rd chi.Router) {
 			rd.Use(BlockIndexPathCtx)
 			rd.Get("/", app.getBlockSummary)
 			rd.Get("/header", app.getBlockHeader)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 		})
 
-		r.Route("/range/:idx0/:idx", func(rd chi.Router) {
+		r.Route("/range/{idx0}/{idx}", func(rd chi.Router) {
 			rd.Use(BlockIndex0PathCtx, BlockIndexPathCtx)
 			rd.Get("/", app.getBlockRangeSummary)
 			// rd.Get("/header", app.getBlockHeader)
@@ -59,15 +59,15 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 	mux.Route("/stake", func(r chi.Router) {
 		r.Route("/pool", func(rd chi.Router) {
 			rd.With(app.BlockIndexLatestCtx).Get("/", app.getTicketPoolInfo)
-			rd.With(BlockIndexPathCtx).Get("/b/:idx", app.getTicketPoolInfo)
-			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/:idx0/:idx", app.getTicketPoolInfoRange)
+			rd.With(BlockIndexPathCtx).Get("/b/{idx}", app.getTicketPoolInfo)
+			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/{idx0}/{idx}", app.getTicketPoolInfoRange)
 		})
 		r.Route("/diff", func(rd chi.Router) {
 			rd.Get("/", app.getStakeDiffSummary)
 			rd.Get("/current", app.getStakeDiffCurrent)
 			rd.Get("/estimates", app.getStakeDiffEstimates)
-			rd.With(BlockIndexPathCtx).Get("/b/:idx", app.getStakeDiff)
-			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/:idx0/:idx", app.getStakeDiffRange)
+			rd.With(BlockIndexPathCtx).Get("/b/{idx}", app.getStakeDiff)
+			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/{idx0}/{idx}", app.getStakeDiffRange)
 		})
 	})
 
@@ -77,9 +77,9 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		r.Route("/sstx", func(rd chi.Router) {
 			rd.Get("/", app.getSSTxSummary)
 			rd.Get("/fees", app.getSSTxFees)
-			rd.With(NPathCtx).Get("/fees/:N", app.getSSTxFees)
+			rd.With(NPathCtx).Get("/fees/{N}", app.getSSTxFees)
 			rd.Get("/details", app.getSSTxDetails)
-			rd.With(NPathCtx).Get("/details/:N", app.getSSTxDetails)
+			rd.With(NPathCtx).Get("/details/{N}", app.getSSTxDetails)
 		})
 	})
 
