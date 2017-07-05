@@ -240,10 +240,6 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			}
 		}
 
-		if i < startHeight {
-			continue
-		}
-
 		numLive := db.sDB.BestNode.PoolSize()
 		//liveTickets := db.sDB.BestNode.LiveTickets()
 		// TODO: winning tickets

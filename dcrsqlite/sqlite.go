@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/btcsuite/btclog"
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
@@ -502,14 +503,21 @@ func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended,
 }
 
 func logDBResult(res sql.Result) error {
+	if log.Level() > btclog.LevelTrace {
+		return nil
+	}
+
 	lastID, err := res.LastInsertId()
 	if err != nil {
 		return err
+
 	}
 	rowCnt, err := res.RowsAffected()
 	if err != nil {
 		return err
 	}
+
 	log.Tracef("ID = %d, affected = %d", lastID, rowCnt)
+
 	return nil
 }
