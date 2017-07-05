@@ -155,6 +155,7 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 				if uint32(bestBlock) <= p.mpoolInfo.CurrentHeight {
 					continue
 				}
+				time.Sleep(500 * time.Millisecond)
 				log.Debugf("Vote in new block triggering mempool data collection")
 			case stake.TxTypeSSRtx:
 				// Revoke
