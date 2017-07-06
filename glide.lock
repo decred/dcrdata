@@ -1,12 +1,12 @@
 hash: 76ec7402dd3f847fe02e12ec76537fc4d39c7886e0e56e68a20489c6218793ab
-updated: 2017-07-06T20:22:14.4014478+08:00
+updated: 2017-07-06T09:47:41.533483499-07:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
   subpackages:
   - edwards25519
 - name: github.com/btcsuite/btclog
-  version: 30bef3d5a6b4600e2129de8b6527ffcc1ee397ca
+  version: 84c8d2346e9fc8c7b947e243b9c24e6df9fd206a
 - name: github.com/btcsuite/go-flags
   version: 6c288d648c1cc1befcb90cb5511dcacf64ae8e61
 - name: github.com/btcsuite/go-socks
@@ -37,7 +37,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: 0d406ffde87da224466ba5c83548941e15179872
+  version: be12e0688b185a054de5825f022d5b0bd67308ae
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -66,14 +66,13 @@ imports:
   - base58
   - hdkeychain
 - name: github.com/decred/dcrwallet
-  version: 6a50ff0b9188af4b2dec68e42add0028c97fb11c
+  version: 1020bdd0bcc4ea416e2efc8af3a228ae0397744e
   subpackages:
   - apperrors
   - chain
   - internal/zero
   - netparams
   - snacl
-  - wallet/txrules
   - wallet/udb
   - walletdb
 - name: github.com/go-chi/chi
@@ -82,7 +81,7 @@ imports:
   - docgen
   - middleware
 - name: github.com/jrick/logrotate
-  version: 4ed05ed86ef17d10ff99cce77481e0fcf6f2c7b0
+  version: a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a
   subpackages:
   - rotator
 - name: github.com/mattn/go-colorable
@@ -90,7 +89,7 @@ imports:
 - name: github.com/mattn/go-isatty
   version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/mattn/go-sqlite3
-  version: afe454f6220b3972691678af2c5579781563183f
+  version: acfa60124032040b9f5a9406f5a772ee16fe845e
 - name: github.com/mgutz/ansi
   version: 9520e82c474b0a04dd04f8a40959027271bab992
 - name: github.com/rs/cors
@@ -100,7 +99,7 @@ imports:
 - name: github.com/Sirupsen/logrus
   version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
 - name: golang.org/x/crypto
-  version: d625dfd80595a76324dea1452ceb9cfbcaee8e3e
+  version: a48ac81e47fd6f9ed1258f3b60ae9e75f93cb7ed
   subpackages:
   - nacl/secretbox
   - pbkdf2
@@ -109,11 +108,11 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: fe686d45ea04bc1bd4eff6a52865ce8757320325
+  version: 054b33e6527139ad5b1ec2f6232c3b175bd9a30c
   subpackages:
   - context
 - name: golang.org/x/sys
-  version: fb4cac33e3196ff7f507ab9b2d2a44b0142f5b5a
+  version: 6faef541c73732f438fb660a212750a9ba9f9362
   subpackages:
   - unix
 testImports: []
