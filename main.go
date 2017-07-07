@@ -160,7 +160,7 @@ func mainCore() int {
 	}
 
 	// Block data collector
-	collector := blockdata.NewBlockDataCollector(dcrdClient, activeChain, sqliteDB.GetStakeDB())
+	collector := blockdata.NewCollector(dcrdClient, activeChain, sqliteDB.GetStakeDB())
 	if collector == nil {
 		log.Errorf("Failed to create block data collector")
 		return 9
@@ -226,11 +226,11 @@ func mainCore() int {
 
 	ntfnChans.reorgChanWiredDB = nil
 	ntfnChans.connectChanWiredDB = nil
-	// wiredDBChainMonitor := sqliteDB.NewChainMonitor(quit, &wg,
-	// 	ntfnChans.connectChanWiredDB, ntfnChans.reorgChanWiredDB)
-	// wg.Add(2)
-	// go wiredDBChainMonitor.BlockConnectedHandler()
-	// go wiredDBChainMonitor.ReorgHandler()
+	wiredDBChainMonitor := sqliteDB.NewChainMonitor(collector, quit, &wg,
+		ntfnChans.connectChanWiredDB, ntfnChans.reorgChanWiredDB)
+	wg.Add(2)
+	go wiredDBChainMonitor.BlockConnectedHandler()
+	go wiredDBChainMonitor.ReorgHandler()
 
 	if cfg.MonitorMempool {
 		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
