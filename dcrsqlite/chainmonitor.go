@@ -140,17 +140,29 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	log.Debugf("Overwriting data for %d blocks from main chain.", numOverwrittenBlocks)
 	*/
 
-	// Save blocks from previous side chain
+	// Save blocks from previous side chain that is now the main chain
 	log.Infof("Saving %d new blocks from previous side chain to sqlite", len(p.sideChain))
 	for i := range p.sideChain {
 		blockDataSummary, stakeInfoSummaryExtended := p.collector.CollectAPITypes(&p.sideChain[i])
-		p.db.StoreBlockSummary(blockDataSummary)
-		p.db.StoreStakeInfoExtended(stakeInfoSummaryExtended)
+		if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
+			log.Error("Failed to collect data for reorg.")
+			continue
+		}
+		if err := p.db.StoreBlockSummary(blockDataSummary); err != nil {
+			log.Errorf("Failed to store block summary data: %v", err)
+		}
+		if err := p.db.StoreStakeInfoExtended(stakeInfoSummaryExtended); err != nil {
+			log.Errorf("Failed to store stake info data: %v", err)
+		}
 		log.Infof("Stored block %v (height %d) from side chain.",
 			blockDataSummary.Hash, blockDataSummary.Height)
 	}
 
+	// Retrieve height of chain in sqlite DB, and hash of best block
 	bestBlockSummary := p.db.GetBestBlockSummary()
+	if bestBlockSummary == nil {
+		return 0, nil, fmt.Errorf("Unable to retrieve best block summary")
+	}
 	height := bestBlockSummary.Height
 	hash, err := chainhash.NewHashFromStr(bestBlockSummary.Hash)
 	if err != nil {

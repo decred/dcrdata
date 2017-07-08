@@ -224,8 +224,7 @@ func mainCore() int {
 	go sdbChainMonitor.BlockConnectedHandler()
 	go sdbChainMonitor.ReorgHandler()
 
-	ntfnChans.reorgChanWiredDB = nil
-	ntfnChans.connectChanWiredDB = nil
+	// Blockchain monitor for the wired sqlite DB
 	wiredDBChainMonitor := sqliteDB.NewChainMonitor(collector, quit, &wg,
 		ntfnChans.connectChanWiredDB, ntfnChans.reorgChanWiredDB)
 	wg.Add(2)
