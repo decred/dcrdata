@@ -107,9 +107,8 @@ out:
 
 }
 
-// switchToSideChain attempts to switch to a new side chain by: determining a
-// common ancestor block, disconnecting blocks from the main chain back to this
-// block, and connecting the side chain blocks onto the mainchain.
+// switchToSideChain attempts to switch to a side chain by collecting data for
+// each block in the side chain, and saving it as the new mainchain in sqlite.
 func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	if len(p.sideChain) == 0 {
 		return 0, nil, fmt.Errorf("no side chain")
@@ -198,6 +197,9 @@ out:
 				break keepon
 			}
 
+			// Set the reorg flag so that when BlockConnectedHandler gets called
+			// for the side chain blocks, it knows to prepare then to be stored
+			// as main chain data.
 			p.reorganizing = true
 			p.reorgData = reorgData
 			p.reorgLock.Unlock()
