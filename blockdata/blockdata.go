@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrutil"
 )
 
-// BlockData contains all the data collected by a blockDataCollector and stored
+// BlockData contains all the data collected by a Collector and stored
 // by a BlockDataSaver. TODO: consider if pointers are desirable here.
 type BlockData struct {
 	Header           dcrjson.GetBlockHeaderVerboseResult
@@ -66,17 +66,17 @@ func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 	}
 }
 
-type blockDataCollector struct {
+type Collector struct {
 	mtx          sync.Mutex
 	dcrdChainSvr *dcrrpcclient.Client
 	netParams    *chaincfg.Params
 	stakeDB      *stakedb.StakeDatabase
 }
 
-// NewBlockDataCollector creates a new blockDataCollector.
-func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params,
-	stakeDB *stakedb.StakeDatabase) *blockDataCollector {
-	return &blockDataCollector{
+// NewCollector creates a new Collector.
+func NewCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params,
+	stakeDB *stakedb.StakeDatabase) *Collector {
+	return &Collector{
 		mtx:          sync.Mutex{},
 		dcrdChainSvr: dcrdChainSvr,
 		netParams:    params,
@@ -84,7 +84,32 @@ func NewBlockDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.P
 	}
 }
 
-func (t *blockDataCollector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
+// CollectAPITypes uses CollectBlockInfo to collect block data, then organizes
+// it into the BlockDataBasic and StakeInfoExtended and dcrdataapi types.
+func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBasic, *apitypes.StakeInfoExtended) {
+	blockDataBasic, feeInfoBlock, _, err := t.CollectBlockInfo(hash)
+	if err != nil {
+		return nil, nil
+	}
+
+	height := int64(blockDataBasic.Height)
+	winSize := t.netParams.StakeDiffWindowSize
+
+	stakeInfoExtended := &apitypes.StakeInfoExtended{
+		Feeinfo:          *feeInfoBlock,
+		StakeDiff:        blockDataBasic.StakeDiff,
+		PriceWindowNum:   int(height / winSize),
+		IdxBlockInWindow: int(height%winSize) + 1,
+		PoolInfo:         blockDataBasic.PoolInfo,
+	}
+
+	return blockDataBasic, stakeInfoExtended
+}
+
+// CollectBlockInfo uses the chain server and the stake DB to collect most of
+// the block data required by Collect() that is specific to the block with the
+// given hash.
+func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
 	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult, error) {
 	block, err := t.dcrdChainSvr.GetBlock(hash)
 	if err != nil {
@@ -130,7 +155,7 @@ func (t *blockDataCollector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.B
 
 // Collect is the main handler for collecting chain data at the current best
 // block. The input argument specifies if ticket pool value should be omitted.
-func (t *blockDataCollector) Collect() (*BlockData, error) {
+func (t *Collector) Collect() (*BlockData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -138,7 +163,7 @@ func (t *blockDataCollector) Collect() (*BlockData, error) {
 
 	// Time this function
 	defer func(start time.Time) {
-		log.Debugf("blockDataCollector.Collect() completed in %v", time.Since(start))
+		log.Debugf("Collector.Collect() completed in %v", time.Since(start))
 	}(time.Now())
 
 	// Run first client call with a timeout

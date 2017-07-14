@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
 
@@ -21,6 +22,7 @@ type ReorgData struct {
 // ChainMonitor handles change notifications from the node client
 type ChainMonitor struct {
 	db        *wiredDB
+	collector *blockdata.Collector
 	quit      chan struct{}
 	wg        *sync.WaitGroup
 	blockChan chan *chainhash.Hash
@@ -34,10 +36,11 @@ type ChainMonitor struct {
 }
 
 // NewChainMonitor creates a new ChainMonitor
-func (db *wiredDB) NewChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
+func (db *wiredDB) NewChainMonitor(collector *blockdata.Collector, quit chan struct{}, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
 	return &ChainMonitor{
 		db:        db,
+		collector: collector,
 		quit:      quit,
 		wg:        wg,
 		blockChan: blockChan,
@@ -74,16 +77,16 @@ out:
 				}
 
 				// Once all blocks in side chain are lined up, switch over
-				// newHeight, newHash, err := p.switchToSideChain()
-				// if err != nil {
-				// 	log.Error(err)
-				// }
+				newHeight, newHash, err := p.switchToSideChain()
+				if err != nil {
+					log.Error(err)
+				}
 
-				// if !p.reorgData.NewChainHead.IsEqual(newHash) ||
-				// 	p.reorgData.NewChainHeight != newHeight {
-				// 	panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
-				// 		p.reorgData.NewChainHead, newHash, newHeight))
-				// }
+				if !p.reorgData.NewChainHead.IsEqual(newHash) ||
+					p.reorgData.NewChainHeight != newHeight {
+					panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
+						p.reorgData.NewChainHead, newHash, newHeight))
+				}
 
 				// Reorg is complete
 				p.sideChain = nil
@@ -104,9 +107,8 @@ out:
 
 }
 
-// switchToSideChain attempts to switch to a new side chain by: determining a
-// common ancestor block, disconnecting blocks from the main chain back to this
-// block, and connecting the side chain blocks onto the mainchain.
+// switchToSideChain attempts to switch to a side chain by collecting data for
+// each block in the side chain, and saving it as the new mainchain in sqlite.
 func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	if len(p.sideChain) == 0 {
 		return 0, nil, fmt.Errorf("no side chain")
@@ -114,7 +116,59 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 
 	// Update DBs, just overwrite
 
-	return 0, nil, nil
+	/* // Determine highest common ancestor of side chain and main chain
+	block, err := p.db.client.GetBlock(&p.sideChain[0])
+	if err != nil {
+		return 0, nil, fmt.Errorf("unable to get block at root of side chain")
+	}
+
+	prevBlock, err := p.db.client.GetBlock(&block.MsgBlock().Header.PrevBlock)
+	if err != nil {
+		return 0, nil, fmt.Errorf("unable to get common ancestor on side chain")
+	}
+
+	commonAncestorHeight := block.Height() - 1
+	if prevBlock.Height() != commonAncestorHeight {
+		panic("Failed to determine common ancestor.")
+	}
+
+	mainTip := int64(p.db.GetHeight())
+	numOverwrittenBlocks := mainTip - commonAncestorHeight
+
+	// Disconnect blocks back to common ancestor
+	log.Debugf("Overwriting data for %d blocks from main chain.", numOverwrittenBlocks)
+	*/
+
+	// Save blocks from previous side chain that is now the main chain
+	log.Infof("Saving %d new blocks from previous side chain to sqlite", len(p.sideChain))
+	for i := range p.sideChain {
+		blockDataSummary, stakeInfoSummaryExtended := p.collector.CollectAPITypes(&p.sideChain[i])
+		if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
+			log.Error("Failed to collect data for reorg.")
+			continue
+		}
+		if err := p.db.StoreBlockSummary(blockDataSummary); err != nil {
+			log.Errorf("Failed to store block summary data: %v", err)
+		}
+		if err := p.db.StoreStakeInfoExtended(stakeInfoSummaryExtended); err != nil {
+			log.Errorf("Failed to store stake info data: %v", err)
+		}
+		log.Infof("Stored block %v (height %d) from side chain.",
+			blockDataSummary.Hash, blockDataSummary.Height)
+	}
+
+	// Retrieve height of chain in sqlite DB, and hash of best block
+	bestBlockSummary := p.db.GetBestBlockSummary()
+	if bestBlockSummary == nil {
+		return 0, nil, fmt.Errorf("Unable to retrieve best block summary")
+	}
+	height := bestBlockSummary.Height
+	hash, err := chainhash.NewHashFromStr(bestBlockSummary.Hash)
+	if err != nil {
+		log.Errorf("Invalid block hash")
+	}
+
+	return int32(height), hash, err
 }
 
 // ReorgHandler receives notification of a chain reorganization and initiates a
@@ -143,6 +197,9 @@ out:
 				break keepon
 			}
 
+			// Set the reorg flag so that when BlockConnectedHandler gets called
+			// for the side chain blocks, it knows to prepare then to be stored
+			// as main chain data.
 			p.reorganizing = true
 			p.reorgData = reorgData
 			p.reorgLock.Unlock()

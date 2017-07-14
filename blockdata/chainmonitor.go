@@ -21,7 +21,7 @@ type ReorgData struct {
 
 // for getblock, ticketfeeinfo, estimatestakediff, etc.
 type chainMonitor struct {
-	collector       *blockDataCollector
+	collector       *Collector
 	dataSavers      []BlockDataSaver
 	quit            chan struct{}
 	wg              *sync.WaitGroup
@@ -38,7 +38,7 @@ type chainMonitor struct {
 }
 
 // NewChainMonitor creates a new chainMonitor
-func NewChainMonitor(collector *blockDataCollector,
+func NewChainMonitor(collector *Collector,
 	savers []BlockDataSaver,
 	quit chan struct{}, wg *sync.WaitGroup,
 	addrs map[string]txhelpers.TxAction, blockChan chan *chainhash.Hash,
