@@ -25,17 +25,22 @@ import (
 )
 
 const (
-	writeWait  = 10 * time.Second
-	pongWait   = 60 * time.Second
-	pingPeriod = (pongWait * 9) / 10
+	wsWriteTimeout  = 10 * time.Second
+	pingInterval    = 30 * time.Second
 )
 
+// TemplateExecToString executes the input template with given name using the
+// supplied data, and writes the result into a string. If the template fails to
+// execute, a non-nil error will be returned. Check it before writing to the
+// client, otherwise you might as well execute directly into your response
+// writer instead of the internal buffer of this function.
 func TemplateExecToString(t *template.Template, name string, data interface{}) (string, error) {
 	var page bytes.Buffer
 	err := t.ExecuteTemplate(&page, name, data)
 	return page.String(), err
 }
 
+// WebTemplateData holds all of the data structures used to update the web page.
 type WebTemplateData struct {
 	BlockSummary   apitypes.BlockDataBasic
 	StakeSummary   apitypes.StakeInfoExtendedEstimates
@@ -43,6 +48,9 @@ type WebTemplateData struct {
 	MempoolFees    apitypes.MempoolTicketFees
 }
 
+// WebsocketHub and its event loop manage all websocket client connections.
+// WebsocketHub is responsible for closing all connections registered with it.
+// If the event loop is running, calling (*WebsocketHub).Stop() will handle it.
 type WebsocketHub struct {
 	sync.RWMutex
 	clients         map[*websocket.Conn]chan struct{}
@@ -256,7 +264,8 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 		// Register this websocket connection with the hub
 		updateSig := td.wsHub.RegisterClient(ws)
 
-		ticker := time.NewTicker(pingPeriod)
+		// ping ticker
+		ticker := time.NewTicker(pingInterval)
 		defer func() {
 			ticker.Stop()
 			ws.Close()
@@ -273,7 +282,7 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				ws.SetWriteDeadline(time.Now().Add(writeWait))
+				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 
 				// Write block data to websocket client
 				td.templateDataMtx.RLock()
@@ -288,9 +297,10 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 				}
 			case <-td.wsHub.quitWSHandler:
 				return
+			// ping fired
 			case <-ticker.C:
+				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 				// ping
-				ws.SetWriteDeadline(time.Now().Add(writeWait))
 				if _, err := ws.Write([]byte{}); err != nil {
 					return
 				}
