@@ -56,7 +56,7 @@ type EventStreamHub struct {
 	Unregister      chan *chan struct{}
 	NewBlockSummary chan apitypes.BlockDataBasic
 	NewStakeSummary chan apitypes.StakeInfoExtendedEstimates
-	quitWSHandler   chan struct{}
+	quitESHandler   chan struct{}
 }
 
 // NewEventStreamHub creates a new EventStreamHub
@@ -67,35 +67,35 @@ func NewEventStreamHub() *EventStreamHub {
 		Unregister:      make(chan *chan struct{}),
 		NewBlockSummary: make(chan apitypes.BlockDataBasic),
 		NewStakeSummary: make(chan apitypes.StakeInfoExtendedEstimates),
-		quitWSHandler:   make(chan struct{}),
+		quitESHandler:   make(chan struct{}),
 	}
 }
 
 // RegisterClient registers a event-stream writer
-func (wsh *EventStreamHub) RegisterClient(cc *chan struct{}) {
+func (esh *EventStreamHub) RegisterClient(cc *chan struct{}) {
 	log.Debug("Registering new event stream client")
-	wsh.Register <- cc
+	esh.Register <- cc
 }
 
 // registerClient should only be called from the run loop
-func (wsh *EventStreamHub) registerClient(cc *chan struct{}) {
-	wsh.clients[cc] = struct{}{}
+func (esh *EventStreamHub) registerClient(cc *chan struct{}) {
+	esh.clients[cc] = struct{}{}
 }
 
 // UnregisterClient unregisters the input websocket connection via the main
 // run() loop.  This call will block if the run() loop is not running.
-func (wsh *EventStreamHub) UnregisterClient(cc *chan struct{}) {
-	wsh.Unregister <- cc
+func (esh *EventStreamHub) UnregisterClient(cc *chan struct{}) {
+	esh.Unregister <- cc
 }
 
 // unregisterClient should only be called from the loop in run().
-func (wsh *EventStreamHub) unregisterClient(cc *chan struct{}) {
-	if _, ok := wsh.clients[cc]; !ok {
+func (esh *EventStreamHub) unregisterClient(cc *chan struct{}) {
+	if _, ok := esh.clients[cc]; !ok {
 		// unknown client, do not close channel
 		log.Warnf("unknown client")
 		return
 	}
-	delete(wsh.clients, cc)
+	delete(esh.clients, cc)
 
 	// Close the channel, but make sure the client didn't do it
 	safeClose(*cc)
@@ -114,39 +114,39 @@ func safeClose(cc chan struct{}) {
 }
 
 // Stop kills the run() loop and unregisteres all clients (connections).
-func (wsh *EventStreamHub) Stop() {
+func (esh *EventStreamHub) Stop() {
 	// end the run() loop, allowing in progress operations to complete
-	wsh.quitWSHandler <- struct{}{}
+	esh.quitESHandler <- struct{}{}
 	// unregister all clients
-	for client := range wsh.clients {
-		wsh.unregisterClient(client)
+	for client := range esh.clients {
+		esh.unregisterClient(client)
 	}
 }
 
-func (wsh *EventStreamHub) run() {
+func (esh *EventStreamHub) run() {
 	log.Info("Starting EventStreamHub run loop.")
 	for {
 		select {
-		case <-wsh.NewBlockSummary:
-			log.Infof("Signaling to %d clients.", len(wsh.clients))
-			for client := range wsh.clients {
+		case <-esh.NewBlockSummary:
+			log.Infof("Signaling to %d clients.", len(esh.clients))
+			for client := range esh.clients {
 				// signal or unregister the client
 				select {
 				case *client <- struct{}{}:
 				default:
-					wsh.unregisterClient(client)
+					esh.unregisterClient(client)
 				}
 			}
-		case c := <-wsh.Register:
-			wsh.registerClient(c)
-		case c := <-wsh.Unregister:
-			wsh.unregisterClient(c)
-		case _, ok := <-wsh.quitWSHandler:
+		case c := <-esh.Register:
+			esh.registerClient(c)
+		case c := <-esh.Unregister:
+			esh.unregisterClient(c)
+		case _, ok := <-esh.quitESHandler:
 			if !ok {
 				log.Error("close channel already closed. This should not happen.")
 				return
 			}
-			close(wsh.quitWSHandler)
+			close(esh.quitESHandler)
 			return
 		}
 	}
@@ -172,11 +172,11 @@ func NewWebUI() *WebUI {
 	//var templFiles []string
 	templFiles := []string{fp}
 
-	wsh := NewEventStreamHub()
-	go wsh.run()
+	esh := NewEventStreamHub()
+	go esh.run()
 
 	return &WebUI{
-		esHub:      wsh,
+		esHub:      esh,
 		templ:      tmpl,
 		templFiles: templFiles,
 		params:     activeChain,
@@ -273,7 +273,7 @@ func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
 // channel, and starts an update loop. The loop writes the current block data
 // when it receives a signal on the update channel. The hub's run() loop must be
 // running to receive signals on the update channel. The update loop quits in
-// the following situations: when the quitWSHandler channel is closed, when the
+// the following situations: when the quitESHandler channel is closed, when the
 // update channel is closed, when a write on the http.ResponseWriter fails, or
 // when a closed connection triggers CloseNotify().
 func (td *WebUI) ESBlockUpdater(w http.ResponseWriter, r *http.Request) {
@@ -358,7 +358,7 @@ loop:
 
 			// Send any buffered data to client
 			flusher.Flush()
-		case <-td.esHub.quitWSHandler:
+		case <-td.esHub.quitESHandler:
 			break loop
 		case <-ticker.C:
 			// ping with an event comprising a single comment
