@@ -34,6 +34,61 @@
 </head>
 
 <body>
+    <script type="text/javascript">
+        var eventSource = new EventSource('/sse');
+
+        eventSource.onopen = function () {
+            console.log('Connected')
+        }
+
+        eventSource.onerror = function(e) {
+            console.log("EventSource failed.");
+        };
+
+        eventSource.addEventListener("newblock", function (e) {
+            console.debug(e.data)
+
+            var m = JSON.parse(e.data);
+            console.log("Received newblock event message:", m.height);
+
+            var height = document.getElementById('blockheight');
+            height.innerHTML = String(m.height);
+
+            var hash = document.getElementById('blockhash');
+            hash.innerHTML = m.hash;
+
+            var blockhash = document.getElementById('blocksize');
+            blockhash.innerHTML = String(m.size);
+
+            var diff = document.getElementById('blockdiff');
+            diff.innerHTML = String(m.diff);
+
+            var sdiff = document.getElementById('blocksdiff');
+            sdiff.innerHTML = String(m.sdiff);
+        }, false)
+
+        eventSource.onmessage = function (e) {
+            console.debug(e.data)
+            var m = JSON.parse(e.data);
+            console.log("Received message:", m.height);
+
+            var height = document.getElementById('blockheight');
+            height.innerHTML = String(m.height);
+
+            var hash = document.getElementById('blockhash');
+            hash.innerHTML = m.hash;
+
+            var blockhash = document.getElementById('blocksize');
+            blockhash.innerHTML = String(m.size);
+
+            var diff = document.getElementById('blockdiff');
+            diff.innerHTML = String(m.diff);
+
+            var sdiff = document.getElementById('blocksdiff');
+            sdiff.innerHTML = String(m.sdiff);
+        }
+    </script>
+
     <!-- Fixed navbar -->
     <nav class="navbar navbar-default navbar-fixed-top">
         <div class="container wrapper">
@@ -73,7 +128,7 @@
             <div class="col-md-10">
                 Current
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Current Ticket Price: {{printf "%12.4f" .BlockSummary.StakeDiff}}<br>
+                    Current Ticket Price: <span id="blocksdiff" >{{printf "%12.4f" .BlockSummary.StakeDiff}}</span><br>
                     Window Progress: block {{.StakeSummary.IdxBlockInWindow}} of 144<br>
                 </p>
                 Next Price
@@ -96,11 +151,11 @@
                 <strong>Best Block</strong>
                 <table class="table table-condensed">
                 <tbody>
-                <tr><td>Height</td><td><strong><span style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td></tr>
-                <tr><td>Hash</td><td><strong><span class="inco" style="float: right; max-width: 180px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
+                <tr><td>Height</td><td><strong><span id="blockheight" style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td></tr>
+                <tr><td>Hash</td><td><strong><span id="blockhash" class="inco" style="float: right; max-width: 180px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
                         {{.BlockSummary.Hash}}</span></strong></td></tr>
-                <tr><td>Size (bytes)</td><td><strong>{{.BlockSummary.Size}}</td></tr>
-                <tr><td>Difficulty</td><td><strong>{{printf "%16.2f" .BlockSummary.Difficulty}}</strong></td></tr>
+                <tr><td>Size (bytes)</td><td><strong><p id="blocksize" >{{.BlockSummary.Size}}</p></strong></td></tr>
+                <tr><td>Difficulty</td><td><strong><p id="blockdiff" >{{printf "%16.2f" .BlockSummary.Difficulty}}</p></strong></td></tr>
                 </tbody>
                 </table>
                 <br>
