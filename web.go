@@ -183,6 +183,11 @@ func NewWebUI() *WebUI {
 	}
 }
 
+func (td *WebUI) StopEventStreamHub() {
+	log.Info("Stopping event stream hub.")
+	td.esHub.Stop()
+}
+
 // ParseTemplates parses all the template files, updating the *html/template.Template.
 func (td *WebUI) ParseTemplates() (err error) {
 	td.templ, err = template.New("home").ParseFiles(td.templFiles...)
