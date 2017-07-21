@@ -49,43 +49,69 @@
             console.debug(e.data)
 
             var m = JSON.parse(e.data);
-            console.log("Received newblock event message:", m.height);
+            var b = m.block;
+            console.log("Received newblock event message:", b.height);
 
+            // block summary data
             var height = document.getElementById('blockheight');
-            height.innerHTML = String(m.height);
+            height.innerHTML = String(b.height);
 
-            var hash = document.getElementById('blockhash');
-            hash.innerHTML = m.hash;
+            var blockhash = document.getElementById('blockhash');
+            blockhash.innerHTML = b.hash;
 
-            var blockhash = document.getElementById('blocksize');
-            blockhash.innerHTML = String(m.size);
+            var blocksize = document.getElementById('blocksize');
+            blocksize.innerHTML = String(b.size);
 
             var diff = document.getElementById('blockdiff');
-            diff.innerHTML = String(m.diff);
+            diff.innerHTML = String(b.diff);
 
             var sdiff = document.getElementById('blocksdiff');
-            sdiff.innerHTML = String(m.sdiff);
+            sdiff.innerHTML = String(b.sdiff);
+
+            var poolsize = document.getElementById('poolsize');
+            poolsize.innerHTML = String(b.ticket_pool.size);
+
+            var poolvalue = document.getElementById('poolvalue');
+            poolvalue.innerHTML = String(b.ticket_pool.value);
+
+            var poolvalavg = document.getElementById('poolvalavg');
+            poolvalavg.innerHTML = String(b.ticket_pool.valavg);
+
+            // stake data
+            var s = m.stake;
+            var sdiffcurrent = document.getElementById('blocksdiff');
+            sdiffcurrent.innerHTML = String(s.stakediff.current);
+            // var sdiffnext = document.getElementById('blocksdiffnext');
+            // sdiffnext.innerHTML = String(s.next);
+
+            var sdiffEstimates = s.stakediff.estimates;
+            var sdiffmin = document.getElementById('sdiffmin');
+            sdiffmin.innerHTML = String(sdiffEstimates.min);
+            var sdiffmax = document.getElementById('sdiffmax');
+            sdiffmax.innerHTML = String(sdiffEstimates.max);
+            var sdiffexp = document.getElementById('sdiffexp');
+            sdiffexp.innerHTML = String(sdiffEstimates.expected);
+
+            var window_block_index = document.getElementById('window_block_index');
+            window_block_index.innerHTML = String(s.window_block_index);
+
+            var feeinfo = s.feeinfo;
+            var feeinfonumber = document.getElementById('feeinfo_number');
+            feeinfonumber.innerHTML = String(feeinfo.number);
+            var feeinfomin = document.getElementById('feeinfo_min');
+            feeinfomin.innerHTML = String(feeinfo.min);
+            var feeinfomax = document.getElementById('feeinfo_max');
+            feeinfomax.innerHTML = String(feeinfo.max);
+            var feeinfomedian = document.getElementById('feeinfo_median');
+            feeinfomedian.innerHTML = String(feeinfo.median);
+            var feeinfomean = document.getElementById('feeinfo_mean');
+            feeinfomean.innerHTML = String(feeinfo.mean);
         }, false)
 
         eventSource.onmessage = function (e) {
             console.debug(e.data)
             var m = JSON.parse(e.data);
-            console.log("Received message:", m.height);
-
-            var height = document.getElementById('blockheight');
-            height.innerHTML = String(m.height);
-
-            var hash = document.getElementById('blockhash');
-            hash.innerHTML = m.hash;
-
-            var blockhash = document.getElementById('blocksize');
-            blockhash.innerHTML = String(m.size);
-
-            var diff = document.getElementById('blockdiff');
-            diff.innerHTML = String(m.diff);
-
-            var sdiff = document.getElementById('blocksdiff');
-            sdiff.innerHTML = String(m.sdiff);
+            console.log("Received unnamed event message:", m);
         }
     </script>
 
@@ -129,21 +155,21 @@
                 Current
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
                     Current Ticket Price: <span id="blocksdiff" >{{printf "%12.4f" .BlockSummary.StakeDiff}}</span><br>
-                    Window Progress: block {{.StakeSummary.IdxBlockInWindow}} of 144<br>
+                    Window Progress: block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144<br>
                 </p>
                 Next Price
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Min: {{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}<br>
-                    Max: {{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}<br>
-                    Guess: {{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}<br>
+                    Min: <span id="sdiffmin" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}</span><br>
+                    Max: <span id="sdiffmax" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}</span><br>
+                    Guess: <span id="sdiffexp" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}</span><br>
                 </p>
                 Fee Info (Block)
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Number of Tickets: {{.StakeSummary.Feeinfo.Number}}<br>
-                    Min Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Min}}<br>
-                    Max Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Max}}<br>
-                    Median Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Median}}<br>
-                    Mean Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Mean}}<br>
+                    Number of Tickets: <span id="feeinfo_number" >{{.StakeSummary.Feeinfo.Number}}</span><br>
+                    Min Fee: <span id="feeinfo_min" >{{printf "%16.6f" .StakeSummary.Feeinfo.Min}}</span><br>
+                    Max Fee: <span id="feeinfo_max" >{{printf "%16.6f" .StakeSummary.Feeinfo.Max}}</span><br>
+                    Median Fee: <span id="feeinfo_median" >{{printf "%16.6f" .StakeSummary.Feeinfo.Median}}</span><br>
+                    Mean Fee: <span id="feeinfo_mean" >{{printf "%16.6f" .StakeSummary.Feeinfo.Mean}}</span><br>
                 </p>
             </div>
 
@@ -162,9 +188,9 @@
                 <strong>Ticket Pool</strong>
                 <table class="table table-condensed">
                 <tbody>
-                <tr><td>Number of Tickets</td><td><strong><span style="color:#41BF53">{{.BlockSummary.PoolInfo.Size}}</span></strong></td></tr>
-                <tr><td>Value (DCR)</td><td><strong>{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</strong></td></tr>
-                <tr><td>Avg. Value (DCR/ticket)</td><td><strong>{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</td></tr>
+                <tr><td>Number of Tickets</td><td><strong><span id="poolsize" style="color:#41BF53">{{.BlockSummary.PoolInfo.Size}}</span></strong></td></tr>
+                <tr><td>Value (DCR)</td><td><strong><span id="poolvalue">{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</span></strong></td></tr>
+                <tr><td>Avg. Value (DCR/ticket)</td><td><strong><span id="poolvalavg">{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</span></strong></td></tr>
                 </tbody>
                 </table>
             </div>

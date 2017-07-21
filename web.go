@@ -48,12 +48,18 @@ type WebTemplateData struct {
 	MempoolFees    apitypes.MempoolTicketFees
 }
 
+type WebBlockInfo struct {
+	BlockDataBasic *apitypes.BlockDataBasic             `json:"block"`
+	StakeInfoExt   *apitypes.StakeInfoExtendedEstimates `json:"stake"`
+}
+
 // EventStreamHub and its event loop manage all event-stream client connections.
 type EventStreamHub struct {
 	sync.RWMutex
 	clients         map[*chan struct{}]struct{}
 	Register        chan *chan struct{}
 	Unregister      chan *chan struct{}
+	NewBlockInfo    chan WebBlockInfo
 	NewBlockSummary chan apitypes.BlockDataBasic
 	NewStakeSummary chan apitypes.StakeInfoExtendedEstimates
 	quitESHandler   chan struct{}
@@ -65,6 +71,7 @@ func NewEventStreamHub() *EventStreamHub {
 		clients:         make(map[*chan struct{}]struct{}),
 		Register:        make(chan *chan struct{}),
 		Unregister:      make(chan *chan struct{}),
+		NewBlockInfo:    make(chan WebBlockInfo),
 		NewBlockSummary: make(chan apitypes.BlockDataBasic),
 		NewStakeSummary: make(chan apitypes.StakeInfoExtendedEstimates),
 		quitESHandler:   make(chan struct{}),
@@ -127,7 +134,7 @@ func (esh *EventStreamHub) run() {
 	log.Info("Starting EventStreamHub run loop.")
 	for {
 		select {
-		case <-esh.NewBlockSummary:
+		case <-esh.NewBlockInfo:
 			log.Infof("Signaling to %d clients.", len(esh.clients))
 			for client := range esh.clients {
 				// signal or unregister the client
@@ -224,8 +231,7 @@ func (td *WebUI) Store(blockData *blockdata.BlockData) error {
 	td.templateDataMtx.Unlock()
 
 	td.templateDataMtx.RLock()
-	td.esHub.NewBlockSummary <- td.TemplateData.BlockSummary
-	//td.esHub.NewStakeSummary <- td.TemplateData.StakeSummary
+	td.esHub.NewBlockInfo <- WebBlockInfo{&td.TemplateData.BlockSummary, &td.TemplateData.StakeSummary}
 	td.templateDataMtx.RUnlock()
 	return nil
 }
@@ -308,7 +314,7 @@ func (td *WebUI) ESBlockUpdater(w http.ResponseWriter, r *http.Request) {
 		// Ensure that channel is closed so the loop in this function can exit
 		//td.esHub.UnregisterClient(&updateSig)
 		safeClose(updateSig)
-		log.Debug("connection closed (CloseNotify)")
+		log.Debug("Event stream client connection closed (CloseNotify)")
 	}()
 
 	// Even stream HTTP response headers
@@ -349,7 +355,9 @@ loop:
 
 			// Marshal block data to JSON directly to the event stream client
 			td.templateDataMtx.RLock()
-			err := json.NewEncoder(w).Encode(td.TemplateData.BlockSummary)
+			webBlockInfo := WebBlockInfo{&td.TemplateData.BlockSummary, &td.TemplateData.StakeSummary}
+			err := json.NewEncoder(w).Encode(webBlockInfo)
+			//err := json.NewEncoder(w).Encode(td.TemplateData.BlockSummary)
 			td.templateDataMtx.RUnlock()
 			// If the send failed, the client is probably gone, so close the
 			// connection and quit (unregister is deferred).
