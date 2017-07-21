@@ -155,7 +155,8 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 				if uint32(bestBlock) <= p.mpoolInfo.CurrentHeight {
 					continue
 				}
-				time.Sleep(500 * time.Millisecond)
+				// Add short delay for any block data collection
+				time.Sleep(200 * time.Millisecond)
 				log.Debugf("Vote in new block triggering mempool data collection")
 			case stake.TxTypeSSRtx:
 				// Revoke
@@ -204,7 +205,6 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			newBlock := txHeight > p.mpoolInfo.CurrentHeight
 			enoughNewTickets := atomic.AddInt32(
 				&p.mpoolInfo.NumTicketsSinceStatsReport, oneTicket) >= p.newTicketLimit
-			slotsNotFull := (len(ticketHashes) - 1) < int(p.collector.activeChain.MaxFreshStakePerBlock)
 			timeSinceLast := time.Since(p.mpoolInfo.LastCollectTime)
 			quiteLong := timeSinceLast > p.maxInterval
 			longEnough := timeSinceLast >= p.minInterval
@@ -216,7 +216,7 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			newTickets := p.mpoolInfo.NumTicketsSinceStatsReport
 
 			var data *MempoolData
-			if newBlock || slotsNotFull || quiteLong || (enoughNewTickets && longEnough) {
+			if newBlock || quiteLong || (enoughNewTickets && longEnough) {
 				// reset counter for tickets since last report
 				atomic.StoreInt32(&p.mpoolInfo.NumTicketsSinceStatsReport, 0)
 				// and timer
