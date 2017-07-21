@@ -31,18 +31,92 @@
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
+    <style>
+        /* Notice: Portions of the connection indicator style come from html5rocks.com */
+        @-webkit-keyframes glowGreen {
+            from {
+                -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+            }
+            50% {
+                -webkit-box-shadow: rgba(0, 255, 0, 1) 0 0 10px;
+            }
+            to {
+                -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+            }
+        }
+        @-webkit-keyframes glowRed {
+            from {
+                -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+            }
+            50% {
+                -webkit-box-shadow: rgba(255, 0, 0, 1) 0 0 10px;
+            }
+            to {
+                -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+            }
+        }
+        #connection {
+            font: 14px sans-serif;
+            font-weight: bold;
+            vertical-align: middle;
+            color: silver;
+            line-height: 66px;
+        }
+        #connection div {
+            background-color: orange;
+            width: 10px;
+            height: 10px;
+            display: inline-block;
+            border-radius: 10px;
+            margin-left: 5px;
+            -webkit-animation-duration: 2s;
+            -webkit-animation-iteration-count: infinite;
+            -webkit-animation-timing-function: linear;
+        }
+        #connection.connected div {
+            background-color: green;
+            -webkit-box-shadow: rgba(0, 255, 0, 0.5) 0px 0px 5px;
+            -webkit-animation-name: glowGreen;
+        }
+        #connection.disconnected div {
+            background-color: red;
+            -webkit-box-shadow: rgba(255, 0, 0, 0.5) 0px 0px 5px;
+            -webkit-animation-name: glowRed;
+        }
+    </style>
 </head>
 
 <body>
     <script type="text/javascript">
+        if (!window.DOMTokenList) {
+            Element.prototype.containsClass = function(name) {
+                return new RegExp("(?:^|\\s+)" + name + "(?:\\s+|$)").test(this.className);
+            };
+            Element.prototype.addClass = function(name) {
+                if (!this.containsClass(name)) {
+                var c = this.className;
+                this.className = c ? [c, name].join(' ') : name;
+                }
+            };
+            Element.prototype.removeClass = function(name) {
+                if (this.containsClass(name)) {
+                var c = this.className;
+                this.className = c.replace(
+                    new RegExp("(?:^|\\s+)" + name + "(?:\\s+|$)", "g"), "");
+                }
+            };
+        }
+
         var eventSource = new EventSource('/sse');
 
         eventSource.onopen = function () {
-            console.log('Connected')
+            console.log('Connected to event source')
+            updateConnectionStatus('Connected', true);
         }
 
         eventSource.onerror = function(e) {
             console.log("EventSource failed.");
+            updateConnectionStatus('Disconnected', false);
         };
 
         eventSource.addEventListener("newblock", function (e) {
@@ -113,6 +187,33 @@
             var m = JSON.parse(e.data);
             console.log("Received unnamed event message:", m);
         }
+
+        function updateConnectionStatus(msg, connected) {
+            var el = document.querySelector('#connection');
+            if (connected) {
+                if (el.classList) {
+                    el.classList.add('connected');
+                    el.classList.remove('disconnected');
+                } else {
+                    el.addClass('connected');
+                    el.removeClass('disconnected');
+                }
+            } else {
+                if (el.classList) {
+                    el.classList.remove('connected');
+                    el.classList.add('disconnected');
+                } else {
+                    el.removeClass('connected');
+                    el.addClass('disconnected');
+                }
+            }
+            el.innerHTML = msg + '<div></div>';
+        }
+
+        function closeConnection() {
+            eventSource.close();
+            updateConnectionStatus('Disconnected', false);
+        }
     </script>
 
     <!-- Fixed navbar -->
@@ -120,15 +221,15 @@
         <div class="container wrapper">
             <div class="navbar-header">
                 <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
                 <a class="navbar-brand" href="#">
                     <svg class="svg-logo">
-        <use xlink:href="images/sprites.svg#svg-decred-logo" />
-        </svg>
+                        <use xlink:href="images/sprites.svg#svg-decred-logo" />
+                    </svg>
                 </a>
             </div>
             <div id="navbar" class="navbar-collapse collapse">
@@ -139,16 +240,18 @@
                     <li><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" title="_blank">API</a></li>
                     <li><a href="https://api.dcrdata.net/status" title="API Status" title="_blank">API Status</a></li>
                     <li><a href="https://decred.slack.com/" title="Decred Slack" title="_blank">Decred Slack</a></li>
+                    <li><span id="connection" onclick="closeConnection()">Connecting to event source...<div></div></span></li> 
                 </ul>
             </div>
             <!--/.nav-collapse -->
         </div>
     </nav>
 
-
     <div class="wrapper" style="margin-top:60px;">
+        <!-- <p style="padding-top: 10px;"></p> -->
         <div id="boxagenda">
-            <div style="clear:both;">&nbsp;</div>
+            <div style="clear:both;padding-top: 10px; text-align: right;"></div>
+            <!-- <div style="clear:both;padding-top: 10px; text-align: right;"><span id="connection" onclick="closeConnection()">Connecting to event source...<div></div></span></div> -->
             <h4><span>Proof of Stake (PoS)</span></h4>
 
             <div class="col-md-10">
@@ -218,10 +321,6 @@
                     Mean Fee: {{.MempoolFeeInfo.Mean}}<br>
                 </p>
             </div>
-
-            <!--<div class="col-md-5 text-right">
-                <strong>Blah.</strong>
-            </div>-->
         </div> <!-- boxagenda -->
 
         <br /><br /><br /><br /><br />&nbsp;
