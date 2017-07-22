@@ -26,7 +26,7 @@ import (
 
 const (
 	wsWriteTimeout = 10 * time.Second
-	pingInterval   = 30 * time.Second
+	pingInterval   = 12 * time.Second
 )
 
 // TemplateExecToString executes the input template with given name using the
@@ -321,7 +321,7 @@ func (td *WebUI) ESBlockUpdater(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("X-Accel-Buffering", "no")
-	w.Header().Set("Connection", "keep-alive")
+	//	w.Header().Set("Connection", "keep-alive")
 
 	// Get this party started
 	fmt.Fprintf(w, ": beep boop\n\n") // ":" indicates comment in event
@@ -380,6 +380,7 @@ loop:
 				log.Error(err)
 				return
 			}
+			flusher.Flush()
 		}
 	}
 	log.Debug("Done handling event stream")
