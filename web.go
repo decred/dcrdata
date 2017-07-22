@@ -320,6 +320,7 @@ func (td *WebUI) ESBlockUpdater(w http.ResponseWriter, r *http.Request) {
 	// Even stream HTTP response headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Accel-Buffering", "no")
 	w.Header().Set("Connection", "keep-alive")
 
 	// Get this party started
