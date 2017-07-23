@@ -56,21 +56,37 @@ type WebBlockInfo struct {
 // EventStreamHub and its event loop manage all event-stream client connections.
 type EventStreamHub struct {
 	sync.RWMutex
-	clients         map[*chan struct{}]struct{}
-	Register        chan *chan struct{}
-	Unregister      chan *chan struct{}
+	clients         map[*hubSpoke]struct{}
+	Register        chan *hubSpoke
+	Unregister      chan *hubSpoke
+	HubRelay        chan hubSignal
 	NewBlockInfo    chan WebBlockInfo
 	NewBlockSummary chan apitypes.BlockDataBasic
 	NewStakeSummary chan apitypes.StakeInfoExtendedEstimates
 	quitESHandler   chan struct{}
 }
 
+type hubSignal int
+type hubSpoke chan hubSignal
+
+const (
+	sigNewBlock hubSignal = iota
+	sigMempoolUpdate
+)
+
+// Event type field for an SSE event
+var eventIDs = map[hubSignal]string{
+	sigNewBlock:      "newblock",
+	sigMempoolUpdate: "mempool",
+}
+
 // NewEventStreamHub creates a new EventStreamHub
 func NewEventStreamHub() *EventStreamHub {
 	return &EventStreamHub{
-		clients:         make(map[*chan struct{}]struct{}),
-		Register:        make(chan *chan struct{}),
-		Unregister:      make(chan *chan struct{}),
+		clients:         make(map[*hubSpoke]struct{}),
+		Register:        make(chan *hubSpoke),
+		Unregister:      make(chan *hubSpoke),
+		HubRelay:        make(chan hubSignal),
 		NewBlockInfo:    make(chan WebBlockInfo),
 		NewBlockSummary: make(chan apitypes.BlockDataBasic),
 		NewStakeSummary: make(chan apitypes.StakeInfoExtendedEstimates),
@@ -79,24 +95,24 @@ func NewEventStreamHub() *EventStreamHub {
 }
 
 // RegisterClient registers a event-stream writer
-func (esh *EventStreamHub) RegisterClient(cc *chan struct{}) {
+func (esh *EventStreamHub) RegisterClient(cc *hubSpoke) {
 	log.Debug("Registering new event stream client")
 	esh.Register <- cc
 }
 
 // registerClient should only be called from the run loop
-func (esh *EventStreamHub) registerClient(cc *chan struct{}) {
+func (esh *EventStreamHub) registerClient(cc *hubSpoke) {
 	esh.clients[cc] = struct{}{}
 }
 
 // UnregisterClient unregisters the input websocket connection via the main
 // run() loop.  This call will block if the run() loop is not running.
-func (esh *EventStreamHub) UnregisterClient(cc *chan struct{}) {
+func (esh *EventStreamHub) UnregisterClient(cc *hubSpoke) {
 	esh.Unregister <- cc
 }
 
 // unregisterClient should only be called from the loop in run().
-func (esh *EventStreamHub) unregisterClient(cc *chan struct{}) {
+func (esh *EventStreamHub) unregisterClient(cc *hubSpoke) {
 	if _, ok := esh.clients[cc]; !ok {
 		// unknown client, do not close channel
 		log.Warnf("unknown client")
@@ -108,7 +124,7 @@ func (esh *EventStreamHub) unregisterClient(cc *chan struct{}) {
 	safeClose(*cc)
 }
 
-func safeClose(cc chan struct{}) {
+func safeClose(cc hubSpoke) {
 	select {
 	case _, ok := <-cc:
 		if !ok {
@@ -133,13 +149,22 @@ func (esh *EventStreamHub) Stop() {
 func (esh *EventStreamHub) run() {
 	log.Info("Starting EventStreamHub run loop.")
 	for {
+	events:
 		select {
-		case <-esh.NewBlockInfo:
-			log.Infof("Signaling to %d clients.", len(esh.clients))
+		case hubSignal := <-esh.HubRelay:
+			switch hubSignal {
+			case sigNewBlock:
+				log.Infof("Signaling new block to %d clients.", len(esh.clients))
+			case sigMempoolUpdate:
+				log.Infof("Signaling mempool info update to %d clients.", len(esh.clients))
+			default:
+				log.Errorf("Unknown hub signal: %v", hubSignal)
+				break events
+			}
 			for client := range esh.clients {
 				// signal or unregister the client
 				select {
-				case *client <- struct{}{}:
+				case *client <- hubSignal:
 				default:
 					esh.unregisterClient(client)
 				}
@@ -230,9 +255,8 @@ func (td *WebUI) Store(blockData *blockdata.BlockData) error {
 	td.TemplateData.StakeSummary = blockData.ToStakeInfoExtendedEstimates()
 	td.templateDataMtx.Unlock()
 
-	td.templateDataMtx.RLock()
-	td.esHub.NewBlockInfo <- WebBlockInfo{&td.TemplateData.BlockSummary, &td.TemplateData.StakeSummary}
-	td.templateDataMtx.RUnlock()
+	td.esHub.HubRelay <- sigNewBlock
+
 	return nil
 }
 
@@ -245,7 +269,6 @@ func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) err
 	_, fie := td.MPC.GetFeeInfoExtra()
 
 	td.templateDataMtx.Lock()
-	defer td.templateDataMtx.Unlock()
 	td.TemplateData.MempoolFeeInfo = *fie
 
 	// LowestMineable is the lowest fee of those in the top 20 (mainnet), but
@@ -258,6 +281,9 @@ func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) err
 	mpf := &td.TemplateData.MempoolFees
 	mpf.Height, mpf.Time, _, mpf.FeeRates = td.MPC.GetFeeRates(25)
 	mpf.Length = uint32(len(mpf.FeeRates))
+	td.templateDataMtx.Unlock()
+
+	td.esHub.HubRelay <- sigMempoolUpdate
 
 	return nil
 }
@@ -297,7 +323,7 @@ func (td *WebUI) ESBlockUpdater(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create channel to signal updated data availability
-	updateSig := make(chan struct{})
+	updateSig := make(hubSpoke)
 	// register event stream client with our signal channel
 	td.esHub.RegisterClient(&updateSig)
 	// unregister (and close signal channel) before return
@@ -331,7 +357,7 @@ loop:
 	for {
 		// Wait for signal from the hub to update
 		select {
-		case _, ok := <-updateSig:
+		case sig, ok := <-updateSig:
 			// Check if the update channel was closed. Either the event stream
 			// hub will do it after unregistering the client, or forcibly in
 			// response to (http.CloseNotifier).CloseNotify() and only then if
@@ -344,7 +370,7 @@ loop:
 			// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
 			log.Tracef("signaling client: %p", &updateSig)
 			// Event type field. Use addEventListener with named event in JS.
-			if _, err := fmt.Fprintf(w, "event: newblock\n"); err != nil {
+			if _, err := fmt.Fprintf(w, "event: %s\n", eventIDs[sig]); err != nil {
 				log.Error(err)
 				return
 			}
@@ -356,8 +382,16 @@ loop:
 
 			// Marshal block data to JSON directly to the event stream client
 			td.templateDataMtx.RLock()
-			webBlockInfo := WebBlockInfo{&td.TemplateData.BlockSummary, &td.TemplateData.StakeSummary}
-			err := json.NewEncoder(w).Encode(webBlockInfo)
+			var webData interface{}
+			switch sig {
+			case sigNewBlock:
+				webData = WebBlockInfo{&td.TemplateData.BlockSummary, &td.TemplateData.StakeSummary}
+			case sigMempoolUpdate:
+				webData = &td.TemplateData.MempoolFeeInfo
+			}
+			err := json.NewEncoder(w).Encode(webData)
+			// webBlockInfo := WebBlockInfo{&td.TemplateData.BlockSummary, &td.TemplateData.StakeSummary}
+			// err := json.NewEncoder(w).Encode(webBlockInfo)
 			//err := json.NewEncoder(w).Encode(td.TemplateData.BlockSummary)
 			td.templateDataMtx.RUnlock()
 			// If the send failed, the client is probably gone, so close the
