@@ -119,6 +119,32 @@
             updateConnectionStatus('Disconnected', false);
         };
 
+        eventSource.addEventListener("mempoolsstxfeeinfo", function (e) {
+            console.debug(e.data)
+
+            var m = JSON.parse(e.data);
+            console.log("Received mempool event message:", m.height);
+
+            // mempool fee info
+            var number = document.getElementById('mempoolfeeinfo_number');
+            number.innerHTML = String(m.number);
+
+            var min = document.getElementById('mempoolfeeinfo_min');
+            min.innerHTML = String(m.min);
+
+            var max = document.getElementById('mempoolfeeinfo_max');
+            max.innerHTML = String(m.max);
+
+            var median = document.getElementById('mempoolfeeinfo_median');
+            median.innerHTML = String(m.median);
+
+            var mean = document.getElementById('mempoolfeeinfo_mean');
+            mean.innerHTML = String(m.mean);
+
+            var lm = document.getElementById('mempoolfeeinfo_lowestmineable');
+            lm.innerHTML = String(m.lowest_mineable);
+        }, false);
+
         eventSource.addEventListener("newblock", function (e) {
             console.debug(e.data)
 
@@ -313,12 +339,12 @@
             <h4><span>Mempool (queued for mining)</span></h4>
             <div class="col-md-10">
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Number of Tickets: {{.MempoolFeeInfo.Number}}<br>
-                    Lowest Mineable Fee: {{printf "%.8f" .MempoolFeeInfo.LowestMineable}}<br>
-                    Min Fee: {{.MempoolFeeInfo.Min}}<br>
-                    Max Fee: {{.MempoolFeeInfo.Max}}<br>
-                    Median Fee: {{.MempoolFeeInfo.Median}}<br>
-                    Mean Fee: {{.MempoolFeeInfo.Mean}}<br>
+                    Number of Tickets: <span id="mempoolfeeinfo_number" >{{.MempoolFeeInfo.Number}}</span><br>
+                    Lowest Mineable Fee: <span id="mempoolfeeinfo_lowestmineable" >{{printf "%.8f" .MempoolFeeInfo.LowestMineable}}</span><br>
+                    Min Fee: <span id="mempoolfeeinfo_min" >{{.MempoolFeeInfo.Min}}</span><br>
+                    Max Fee: <span id="mempoolfeeinfo_max" >{{.MempoolFeeInfo.Max}}</span><br>
+                    Median Fee: <span id="mempoolfeeinfo_median" >{{.MempoolFeeInfo.Median}}</span><br>
+                    Mean Fee: <span id="mempoolfeeinfo_mean" >{{.MempoolFeeInfo.Mean}}</span><br>
                 </p>
             </div>
         </div> <!-- boxagenda -->

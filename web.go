@@ -71,13 +71,13 @@ type hubSpoke chan hubSignal
 
 const (
 	sigNewBlock hubSignal = iota
-	sigMempoolUpdate
+	sigMempoolFeeInfoUpdate
 )
 
 // Event type field for an SSE event
 var eventIDs = map[hubSignal]string{
-	sigNewBlock:      "newblock",
-	sigMempoolUpdate: "mempool",
+	sigNewBlock:             "newblock",
+	sigMempoolFeeInfoUpdate: "mempoolsstxfeeinfo",
 }
 
 // NewEventStreamHub creates a new EventStreamHub
@@ -155,7 +155,7 @@ func (esh *EventStreamHub) run() {
 			switch hubSignal {
 			case sigNewBlock:
 				log.Infof("Signaling new block to %d clients.", len(esh.clients))
-			case sigMempoolUpdate:
+			case sigMempoolFeeInfoUpdate:
 				log.Infof("Signaling mempool info update to %d clients.", len(esh.clients))
 			default:
 				log.Errorf("Unknown hub signal: %v", hubSignal)
@@ -283,7 +283,7 @@ func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) err
 	mpf.Length = uint32(len(mpf.FeeRates))
 	td.templateDataMtx.Unlock()
 
-	td.esHub.HubRelay <- sigMempoolUpdate
+	td.esHub.HubRelay <- sigMempoolFeeInfoUpdate
 
 	return nil
 }
@@ -386,7 +386,7 @@ loop:
 			switch sig {
 			case sigNewBlock:
 				webData = WebBlockInfo{&td.TemplateData.BlockSummary, &td.TemplateData.StakeSummary}
-			case sigMempoolUpdate:
+			case sigMempoolFeeInfoUpdate:
 				webData = &td.TemplateData.MempoolFeeInfo
 			}
 			err := json.NewEncoder(w).Encode(webData)
