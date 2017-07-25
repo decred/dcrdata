@@ -353,21 +353,33 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 
 	// TODO: check that we have all in range
 
-	N := idx - idx0 + 1
-	summaries := make([]*apitypes.BlockDataBasic, 0, N)
-	for i := idx0; i <= idx; i++ {
-		summaries = append(summaries, c.BlockData.GetSummary(i))
-	}
-
-	writeJSON(w, summaries, c.getIndentQuery(r))
-
-	// DEBUGGING
-	// msg := fmt.Sprintf("block range: %d to %d", idx0, idx)
-
-	// w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	// if _, err := io.WriteString(w, msg); err != nil {
-	// 	apiLog.Infof("failed to write response: %v", err)
+	// N := idx - idx0 + 1
+	// summaries := make([]*apitypes.BlockDataBasic, 0, N)
+	// for i := idx0; i <= idx; i++ {
+	// 	summaries = append(summaries, c.BlockData.GetSummary(i))
 	// }
+
+	// writeJSON(w, summaries, c.getIndentQuery(r))
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	encoder := json.NewEncoder(w)
+	indent := c.getIndentQuery(r)
+	prefix, newline := indent, ""
+	encoder.SetIndent(prefix, indent)
+	if indent != "" {
+		newline = "\n"
+	}
+	fmt.Fprintf(w, "[%s%s", newline, prefix)
+	for i := idx0; i <= idx; i++ {
+		// TODO: deal with the extra newline from Encode, if needed
+		if err := encoder.Encode(c.BlockData.GetSummary(i)); err != nil {
+			apiLog.Infof("JSON encode error: %v", err)
+		}
+		if i != idx {
+			fmt.Fprintf(w, ",%s%s", newline, prefix)
+		}
+	}
+	fmt.Fprintf(w, "]")
 }
 
 func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {

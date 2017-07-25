@@ -51,6 +51,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 
 		r.Route("/range/{idx0}/{idx}", func(rd chi.Router) {
 			rd.Use(BlockIndex0PathCtx, BlockIndexPathCtx)
+			rd.Use(middleware.Compress(1))
 			rd.Get("/", app.getBlockRangeSummary)
 			// rd.Get("/header", app.getBlockHeader)
 			// rd.Get("/pos", app.getBlockStakeInfoExtended)
