@@ -1,0 +1,66 @@
+{{define "block"}}
+<!DOCTYPE html>
+<html lang="en">
+
+ {{template "html-head"}}
+
+<body>
+    <!-- Fixed navbar -->
+    {{template "navbar"}}
+
+    <div class="wrapper" style="margin-top:60px;">
+        <div id="boxagenda">
+            <div style="clear:both;">&nbsp;</div>
+            <h4><span>Block #{{.Height}}</span></h4>
+
+            <div class="col-md-15">
+                <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                    Height: {{.Height}}<br>
+                    Size: {{.Size}}<br>
+                    Time: {{.Time | getTime}}<br>
+                    Hash:  {{.Hash}}<br>
+                    Difficulty: {{printf "%12.2f" .Difficulty}}<br>
+                    Previous Block Hash: <a href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a><br>
+                    {{if .NextHash}}
+                    Next Block Hash: <a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a><br>
+                    {{end}}
+                    Confirmations: {{.Confirmations}}<br>
+                    Verison: {{.Version}}<br>
+                    Merkle Root: {{.MerkleRoot}}<br>
+                    Stake Root: {{.StakeRoot}}<br>
+                    Voters: {{.Voters}}<br>
+                    Fresh Stake: {{.FreshStake}}<br>
+                    Vote Bits: {{.VoteBits}}<br>
+                    Final State: {{.FinalState}}<br>
+                    Revocations: {{.Revocations}}<br>
+                    Pool Size: {{.PoolSize}}<br>
+                    Stake Version: {{.StakeVersion}}<br>
+                    Nonce: {{.Nonce}}<br>
+                    Sbits: {{.SBits}}<br>
+                    Bits: {{.Bits}}<br>
+                     </p>
+                <h4><span>Transactions</span></h4>
+                    {{ range .RawTx}}
+                        <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                        Transactions ID: <a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a><br>
+                        Total Value:  {{ .Vout | getTotal }} DCR<br>
+                        Size: {{.Hex | len}}
+                        </p>
+                    {{end}}
+                <h4><span>Stake Transactions</span></h4>
+                    {{ range .RawSTx}}
+                        <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                        Transactions ID: <a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a><br>
+                        Total Value:  {{ .Vout | getTotal }} DCR<br>
+                        Size: {{.Hex | len}}
+                        </p>
+                    {{end}}
+                
+            </div>
+        </div>
+    </div>
+ 
+</body>
+
+</html>
+{{ end }}
