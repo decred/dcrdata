@@ -18,7 +18,7 @@ type explorerMux struct {
 func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 	fp := filepath.Join("views", "explorer.tmpl")
 	tmpl, err := template.New("home").ParseFiles(fp)
-	str, err := TemplateExecToString(tmpl, "explorer", c.getBlockRangeSummary)
+	str, err := TemplateExecToString(tmpl, "explorer", c.BlockData.GetSummary(c.BlockData.GetHeight))
 	if err != nil {
 		http.Error(w, "template execute failure", http.StatusInternalServerError)
 		return
