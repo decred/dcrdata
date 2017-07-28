@@ -1,0 +1,42 @@
+{{define "explorer"}}
+<!DOCTYPE html>
+<html lang="en">
+
+{{template "html-head"}}
+
+<body>
+    
+    <!-- Fixed navbar -->
+    {{template "navbar"}}
+
+    <div class="wrapper" style="margin-top:60px;">
+        <div id="boxagenda">
+            <div style="clear:both;">&nbsp;</div>
+            <h4><span>Recent Blocks</span></h4>
+            <table class="col-md-15">
+                <thead style="text-align: center;">
+                <tr>
+                    <th style="width: 20%;"> Height </th>
+                    <th style="width: 20%;"> Voters </th>
+                    <th style="width: 20%;"> Fresh Stake </th>
+                    <th style="width: 40%;"> Time </th>
+                    <th style="width: 20%;"> Size </th>
+                </tr>
+                </thead>
+            {{range .Data}}
+                <tr >
+                    <td> <a href="explorer/block/{{.Hash}}">{{.Height}}</a> </td>
+                    <td> {{.Voters}} </td>
+                    <td> {{.FreshStake}} </td>
+                    <td> {{.Time | getTime}} </td>
+                    <td> {{.Size}} </td>
+                </tr>
+            {{end}}
+            </table>
+        </div>
+    </div>
+ 
+</body>
+
+</html>
+{{ end }}
