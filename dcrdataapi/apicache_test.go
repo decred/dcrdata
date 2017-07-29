@@ -5,14 +5,6 @@ import (
 	"testing"
 )
 
-// constants from time
-const (
-	secondsPerMinute int64 = 60
-	secondsPerHour   int64 = 60 * 60
-	secondsPerDay    int64 = 24 * secondsPerHour
-	secondsPerWeek   int64 = 7 * secondsPerDay
-)
-
 // TODO: Make a proper test rather than a playground
 
 func TestBlockPriorityQueue(t *testing.T) {
@@ -21,19 +13,19 @@ func TestBlockPriorityQueue(t *testing.T) {
 	//pq.SetLessFn(LessByAccessCount)
 	//pq.SetLessFn(LessByAccessTime)
 	//pq.SetLessFn(LessByHeight)
-	pq.SetLessFn(MakeLessByAccessTimeThenCount(secondsPerDay))
+	pq.SetLessFn(MakeLessByAccessTimeThenCount(SecondsPerDay))
 
 	cachedBlocks := []*CachedBlock{
-		NewCachedBlock(&BlockDataBasic{
+		newCachedBlock(&BlockDataBasic{
 			Height: 123,
 		}),
-		NewCachedBlock(&BlockDataBasic{
+		newCachedBlock(&BlockDataBasic{
 			Height: 1000,
 		}),
-		NewCachedBlock(&BlockDataBasic{
+		newCachedBlock(&BlockDataBasic{
 			Height: 1,
 		}),
-		NewCachedBlock(&BlockDataBasic{
+		newCachedBlock(&BlockDataBasic{
 			Height: 400,
 		}),
 	}

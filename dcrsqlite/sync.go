@@ -92,7 +92,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 			},
 		}
 
-		freeCache := int64(db.APICache.Capacity()) - db.APICache.Utilization()
+		freeCache := int64(db.APICache.Capacity()) - db.APICache.UtilizationBlocks()
 		remainingBlocks := i - height
 		if db.APICache != nil && remainingBlocks <= freeCache {
 			if err = db.APICache.StoreBlockSummary(&blockSummary); err != nil {
