@@ -1,6 +1,7 @@
 .vscode/
 *.exe
 *.log
+*.log.*.gz
 *.bak
 debug
 *.cert
