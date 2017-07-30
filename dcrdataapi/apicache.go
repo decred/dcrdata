@@ -110,8 +110,17 @@ func (apic *APICache) StoreBlockSummary(blockSummary *BlockDataBasic) error {
 	// insert into the cache and queue
 	cachedBlock := newCachedBlock(blockSummary)
 	cachedBlock.Access()
-	apic.blockCache[*hash] = cachedBlock
-	apic.expireQueue.Insert(blockSummary)
+
+	// Insert into queue and delete any cached block that was removed
+	wasAdded, removedBlock := apic.expireQueue.Insert(blockSummary)
+	if removedBlock != nil {
+		delete(apic.blockCache, *removedBlock)
+	}
+
+	// Add new block to to the block cache, if it went into the queue
+	if wasAdded {
+		apic.blockCache[*hash] = cachedBlock
+	}
 
 	return nil
 }
@@ -244,7 +253,7 @@ func NewBlockPriorityQueue(capacity uint32) *BlockPriorityQueue {
 		minHeight: math.MaxUint32,
 		maxHeight: -1,
 	}
-	pq.SetLessFn(MakeLessByAccessTimeThenCount(SecondsPerDay))
+	pq.SetLessFn(MakeLessByAccessTimeThenCount(1))
 	return pq
 }
 
@@ -308,23 +317,23 @@ func LessByAccessCountThenHeight(bi, bj *CachedBlock) bool {
 }
 
 // MakeLessByAccessTimeThenCount will create a CachedBlock comparison function
-// given the specified time resolution in seconds.  Two access times less than
+// given the specified time resolution in milliseconds.  Two access times less than
 // the given time apart are considered the same time, and access count is used
-// to break the tie.  e.g. SecondsPerDay require accesses to be 1 day apart.
-func MakeLessByAccessTimeThenCount(secondsBinned int64) func(bi, bj *CachedBlock) bool {
-	nanosecondThreshold := time.Duration(secondsBinned) * time.Second
+// to break the tie.
+func MakeLessByAccessTimeThenCount(millisecondsBinned int64) func(bi, bj *CachedBlock) bool {
+	millisecondThreshold := time.Duration(millisecondsBinned) * time.Millisecond
 	return func(bi, bj *CachedBlock) bool {
 		// higher priority is more recent (larger) access time
-		epochDiff := (bi.accessTime - bj.accessTime) / int64(nanosecondThreshold)
+		epochDiff := (bi.accessTime - bj.accessTime) / int64(millisecondThreshold)
 		if epochDiff == 0 {
 			return LessByAccessCount(bi, bj)
 		}
 		// time diff is large enough, return direction (negative means i<j)
-		return epochDiff < 0
+		return LessByAccessTime(bi, bj) // epochDiff < 0
 	}
 }
 
-// Push a *BlockDataBasic
+// Push a *BlockDataBasic. Use heap.Push, not this directly.
 func (pq *BlockPriorityQueue) Push(blockSummary interface{}) {
 	b := &CachedBlock{
 		summary:    blockSummary.(*BlockDataBasic),
@@ -336,7 +345,8 @@ func (pq *BlockPriorityQueue) Push(blockSummary interface{}) {
 	pq.bh = append(pq.bh, b)
 }
 
-// Pop will return an interface{} that may be cast to *CachedBlock
+// Pop will return an interface{} that may be cast to *CachedBlock.  Use
+// heap.Pop, not this.
 func (pq *BlockPriorityQueue) Pop() interface{} {
 	n := pq.Len()
 	old := pq.bh
@@ -378,13 +388,14 @@ func (pq *BlockPriorityQueue) Reheap() {
 // 		- if replaced top, heapdown (Fix(pq,0))
 // else (not at capacity)
 // 		- heap.Push, which is pq.Push (append at bottom) then heapup
-func (pq *BlockPriorityQueue) Insert(summary *BlockDataBasic) {
+func (pq *BlockPriorityQueue) Insert(summary *BlockDataBasic) (bool, *chainhash.Hash) {
 	if pq.capacity == 0 {
-		return
+		return false, nil
 	}
 
 	// At capacity
 	for int(pq.capacity) <= pq.Len() {
+		//fmt.Printf("Cache full: %d / %d\n", pq.Len(), pq.capacity)
 		cachedBlock := &CachedBlock{
 			summary:    summary,
 			accesses:   1,
@@ -396,18 +407,23 @@ func (pq *BlockPriorityQueue) Insert(summary *BlockDataBasic) {
 		// queue and fix up the heap.  Usuall you don't replace if equal, but
 		// new one is necessariy more recently accessed, so we replace.
 		if pq.lessFn(pq.bh[0], cachedBlock) {
-			heightAdded, heightRemoved := summary.Height, pq.bh[0].summary.Height
-			pq.bh[0] = cachedBlock
-			heap.Fix(pq, 0)
-			pq.RescanMinMaxForUpdate(heightAdded, heightRemoved)
+			// heightAdded, heightRemoved := summary.Height, pq.bh[0].summary.Height
+			// pq.bh[0] = cachedBlock
+			// heap.Fix(pq, 0)
+			// pq.RescanMinMaxForUpdate(heightAdded, heightRemoved)
+			removedBlockHashStr := pq.bh[0].summary.Hash
+			removedBlockHash, _ := chainhash.NewHashFromStr(removedBlockHashStr)
+			pq.UpdateBlock(pq.bh[0], summary)
+			return true, removedBlockHash
 		}
 		// otherwise this block is too low priority to add to queue
-		return
+		return false, nil
 	}
 
 	// With room to grow, append at bottom and bubble up
 	heap.Push(pq, summary)
 	pq.RescanMinMaxForAdd(summary.Height) // no rescan, just set min/max
+	return true, nil
 }
 
 // UpdateBlock will update the specified CachedBlock, which must be in the queue
@@ -415,6 +431,8 @@ func (pq *BlockPriorityQueue) UpdateBlock(b *CachedBlock, summary *BlockDataBasi
 	if b != nil {
 		heightAdded, heightRemoved := summary.Height, b.summary.Height
 		b.summary = summary
+		b.accesses = 0
+		b.Access()
 		heap.Fix(pq, b.heapIdx)
 		pq.RescanMinMaxForUpdate(heightAdded, heightRemoved)
 	}
@@ -447,8 +465,8 @@ func (pq *BlockPriorityQueue) RescanMinMaxForRemove(height uint32) {
 func (pq *BlockPriorityQueue) RescanMinMaxForUpdate(heightAdd, heightRemove uint32) {
 	// If removing a block at either min or max height AND the added block does
 	// not expand the range on the on relevant end, a rescan is necessary.
-	if (int64(heightRemove) == pq.minHeight && heightAdd > heightRemove) ||
-		(int64(heightRemove) == pq.maxHeight && heightAdd < heightRemove) {
+	if (int64(heightRemove) == pq.minHeight && heightAdd >= heightRemove) ||
+		(int64(heightRemove) == pq.maxHeight && heightAdd <= heightRemove) {
 		pq.RescanMinMax()
 	}
 	// only the added block height needs to be checked now, no rescan needed
