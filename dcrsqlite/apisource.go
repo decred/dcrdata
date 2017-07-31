@@ -518,7 +518,7 @@ func (db *wiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
 		if err = db.APICache.StoreBlockSummary(blockSummary); err != nil {
 			log.Warnf("Unable to store block summary in APICache: %v", err)
 		} else {
-			log.Debugf("Stored block in cache: %d / %v. Utilization: %v%%",
+			log.Tracef("Stored block in cache: %d / %v. Utilization: %v%%",
 				blockSummary.Height, blockSummary.Hash, db.APICache.Utilization())
 		}
 	}
