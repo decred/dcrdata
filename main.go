@@ -295,7 +295,7 @@ func mainCore() int {
 	ntfnChans.updateStatusDBHeight <- uint32(sqliteDB.GetHeight())
 
 	apiMux := newAPIRouter(app, cfg.UseRealIP)
-	expMux := newExplorer(app, cfg.UseRealIP)
+	expMux := newExplorerMux(app, cfg.UseRealIP)
 
 	webMux := chi.NewRouter()
 	webMux.Get("/", webUI.RootPage)
