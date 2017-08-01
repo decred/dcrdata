@@ -186,6 +186,7 @@ func mainCore() int {
 		log.Info("Failed to start WebUI. Missing HTML resources?")
 		return 17
 	}
+	defer webUI.StopWebsocketHub()
 	webUI.UseSIGToReloadTemplates()
 	blockDataSavers = append(blockDataSavers, webUI)
 	mempoolSavers = append(mempoolSavers, webUI)
