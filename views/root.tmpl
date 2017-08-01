@@ -31,9 +31,214 @@
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
+    <style>
+        /* Notice: Portions of the connection indicator style come from html5rocks.com */
+        @-webkit-keyframes glowGreen {
+            from {
+                -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+            }
+            50% {
+                -webkit-box-shadow: rgba(0, 255, 0, 1) 0 0 10px;
+            }
+            to {
+                -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+            }
+        }
+        @-webkit-keyframes glowRed {
+            from {
+                -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+            }
+            50% {
+                -webkit-box-shadow: rgba(255, 0, 0, 1) 0 0 10px;
+            }
+            to {
+                -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+            }
+        }
+        #connection {
+            font: 14px sans-serif;
+            font-weight: bold;
+            vertical-align: middle;
+            color: silver;
+            line-height: 71px;
+        }
+        #connection div {
+            background-color: orange;
+            width: 10px;
+            height: 10px;
+            display: inline-block;
+            border-radius: 10px;
+            margin-left: 5px;
+            -webkit-animation-duration: 2s;
+            -webkit-animation-iteration-count: infinite;
+            -webkit-animation-timing-function: linear;
+        }
+        #connection.connected div {
+            background-color: green;
+            -webkit-box-shadow: rgba(0, 255, 0, 0.5) 0px 0px 5px;
+            -webkit-animation-name: glowGreen;
+        }
+        #connection.disconnected div {
+            background-color: red;
+            -webkit-box-shadow: rgba(255, 0, 0, 0.5) 0px 0px 5px;
+            -webkit-animation-name: glowRed;
+        }
+    </style>
 </head>
 
 <body>
+    <script type="text/javascript">
+        if (!window.DOMTokenList) {
+            Element.prototype.containsClass = function(name) {
+                return new RegExp("(?:^|\\s+)" + name + "(?:\\s+|$)").test(this.className);
+            };
+            Element.prototype.addClass = function(name) {
+                if (!this.containsClass(name)) {
+                var c = this.className;
+                this.className = c ? [c, name].join(' ') : name;
+                }
+            };
+            Element.prototype.removeClass = function(name) {
+                if (this.containsClass(name)) {
+                var c = this.className;
+                this.className = c.replace(
+                    new RegExp("(?:^|\\s+)" + name + "(?:\\s+|$)", "g"), "");
+                }
+            };
+        }
+	
+	var loc = window.location;
+        var uri = 'ws:';
+
+        if (loc.protocol === 'https:') {
+            uri = 'wss:';
+        }
+        uri += '//' + loc.host;
+        uri += loc.pathname + 'ws';
+
+        ws = new WebSocket(uri)
+
+        ws.onopen = function () {
+            console.log('Connected')
+            updateConnectionStatus('Connected', true);
+        }
+	
+	ws.onerror = function(evt) {
+            console.log("WebSocket errord.");
+            updateConnectionStatus('Disconnected', false);
+        };
+
+        ws.onmessage = function (evt) {
+            var m = JSON.parse(evt.data);
+            console.log("Received message:", m.height);
+	    
+            // mempool fee info
+            var number = document.getElementById('mempoolfeeinfo_number');
+            number.innerHTML = String(m.number);
+
+            var min = document.getElementById('mempoolfeeinfo_min');
+            min.innerHTML = String(m.min);
+
+            var max = document.getElementById('mempoolfeeinfo_max');
+            max.innerHTML = String(m.max);
+
+            var median = document.getElementById('mempoolfeeinfo_median');
+            median.innerHTML = String(m.median);
+
+            var mean = document.getElementById('mempoolfeeinfo_mean');
+            mean.innerHTML = String(m.mean);
+
+            var lm = document.getElementById('mempoolfeeinfo_lowestmineable');
+            lm.innerHTML = String(m.lowest_mineable);
+
+            // block summary data
+            var height = document.getElementById('blockheight');
+            height.innerHTML = String(m.height);
+
+            var hash = document.getElementById('blockhash');
+            hash.innerHTML = m.hash;
+
+            var blockhash = document.getElementById('blocksize');
+            blockhash.innerHTML = String(m.size);
+
+            var diff = document.getElementById('blockdiff');
+            diff.innerHTML = String(m.diff);
+
+            var sdiff = document.getElementById('blocksdiff');
+            sdiff.innerHTML = String(m.sdiff);
+	    
+	    var poolsize = document.getElementById('poolsize');
+            poolsize.innerHTML = String(b.ticket_pool.size);
+
+            var poolvalue = document.getElementById('poolvalue');
+            poolvalue.innerHTML = String(b.ticket_pool.value);
+
+            var poolvalavg = document.getElementById('poolvalavg');
+            poolvalavg.innerHTML = String(b.ticket_pool.valavg);
+
+            // stake data
+            var s = m.stake;
+            var sdiffcurrent = document.getElementById('blocksdiff');
+            sdiffcurrent.innerHTML = String(s.stakediff.current);
+            // var sdiffnext = document.getElementById('blocksdiffnext');
+            // sdiffnext.innerHTML = String(s.next);
+
+            var sdiffEstimates = s.stakediff.estimates;
+            var sdiffmin = document.getElementById('sdiffmin');
+            sdiffmin.innerHTML = String(sdiffEstimates.min);
+            var sdiffmax = document.getElementById('sdiffmax');
+            sdiffmax.innerHTML = String(sdiffEstimates.max);
+            var sdiffexp = document.getElementById('sdiffexp');
+            sdiffexp.innerHTML = String(sdiffEstimates.expected);
+
+            var window_block_index = document.getElementById('window_block_index');
+            window_block_index.innerHTML = String(s.window_block_index);
+
+            var feeinfo = s.feeinfo;
+            var feeinfonumber = document.getElementById('feeinfo_number');
+            feeinfonumber.innerHTML = String(feeinfo.number);
+            var feeinfomin = document.getElementById('feeinfo_min');
+            feeinfomin.innerHTML = String(feeinfo.min);
+            var feeinfomax = document.getElementById('feeinfo_max');
+            feeinfomax.innerHTML = String(feeinfo.max);
+            var feeinfomedian = document.getElementById('feeinfo_median');
+            feeinfomedian.innerHTML = String(feeinfo.median);
+            var feeinfomean = document.getElementById('feeinfo_mean');
+            feeinfomean.innerHTML = String(feeinfo.mean);
+        }
+
+        // setInterval(function () {
+        //     ws.send('Hello, Server!');
+        // }, 1000);
+	
+	function updateConnectionStatus(msg, connected) {
+            var el = document.querySelector('#connection');
+            if (connected) {
+                if (el.classList) {
+                    el.classList.add('connected');
+                    el.classList.remove('disconnected');
+                } else {
+                    el.addClass('connected');
+                    el.removeClass('disconnected');
+                }
+            } else {
+                if (el.classList) {
+                    el.classList.remove('connected');
+                    el.classList.add('disconnected');
+                } else {
+                    el.removeClass('connected');
+                    el.addClass('disconnected');
+                }
+            }
+            el.innerHTML = msg + '<div></div>';
+        }
+
+        function closeConnection() {
+            ws.close();
+            updateConnectionStatus('Disconnected', false);
+        }
+    </script>
+
     <!-- Fixed navbar -->
     <nav class="navbar navbar-default navbar-fixed-top">
         <div class="container wrapper">
@@ -58,37 +263,39 @@
                     <li><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" title="_blank">API</a></li>
                     <li><a href="https://api.dcrdata.net/status" title="API Status" title="_blank">API Status</a></li>
                     <li><a href="https://decred.slack.com/" title="Decred Slack" title="_blank">Decred Slack</a></li>
+                    <li><span id="connection" onclick="closeConnection()">Connecting to event source...<div></div></span></li> 
                 </ul>
             </div>
             <!--/.nav-collapse -->
         </div>
     </nav>
 
-
     <div class="wrapper" style="margin-top:60px;">
+        <!-- <p style="padding-top: 10px;"></p> -->
         <div id="boxagenda">
-            <div style="clear:both;">&nbsp;</div>
+            <div style="clear:both;padding-top: 10px; text-align: right;">&nbsp;</div>
+            <!-- <div style="clear:both;padding-top: 10px; text-align: right;"><span id="connection" onclick="closeConnection()">Connecting to event source...<div></div></span></div> -->
             <h4><span>Proof of Stake (PoS)</span></h4>
 
             <div class="col-md-10">
                 Current
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Current Ticket Price: {{printf "%12.4f" .BlockSummary.StakeDiff}}<br>
-                    Window Progress: block {{.StakeSummary.IdxBlockInWindow}} of 144<br>
+                    Current Ticket Price: <span id="blocksdiff" >{{printf "%12.4f" .BlockSummary.StakeDiff}}</span><br>
+                    Window Progress: block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144<br>
                 </p>
                 Next Price
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Min: {{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}<br>
-                    Max: {{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}<br>
-                    Guess: {{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}<br>
+                    Min: <span id="sdiffmin" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}</span><br>
+                    Max: <span id="sdiffmax" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}</span><br>
+                    Guess: <span id="sdiffexp" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}</span><br>
                 </p>
                 Fee Info (Block)
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Number of Tickets: {{.StakeSummary.Feeinfo.Number}}<br>
-                    Min Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Min}}<br>
-                    Max Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Max}}<br>
-                    Median Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Median}}<br>
-                    Mean Fee: {{printf "%16.6f" .StakeSummary.Feeinfo.Mean}}<br>
+                    Number of Tickets: <span id="feeinfo_number" >{{.StakeSummary.Feeinfo.Number}}</span><br>
+                    Min Fee: <span id="feeinfo_min" >{{printf "%16.6f" .StakeSummary.Feeinfo.Min}}</span><br>
+                    Max Fee: <span id="feeinfo_max" >{{printf "%16.6f" .StakeSummary.Feeinfo.Max}}</span><br>
+                    Median Fee: <span id="feeinfo_median" >{{printf "%16.6f" .StakeSummary.Feeinfo.Median}}</span><br>
+                    Mean Fee: <span id="feeinfo_mean" >{{printf "%16.6f" .StakeSummary.Feeinfo.Mean}}</span><br>
                 </p>
             </div>
 
@@ -96,20 +303,20 @@
                 <strong>Best Block</strong>
                 <table class="table table-condensed">
                 <tbody>
-                <tr><td>Height</td><td><strong><span style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td></tr>
-                <tr><td>Hash</td><td><strong><span class="inco" style="float: right; max-width: 180px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
+                <tr><td>Height</td><td><strong><span id="blockheight" style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td></tr>
+                <tr><td>Hash</td><td><strong><span id="blockhash" class="inco" style="float: right; max-width: 180px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
                         {{.BlockSummary.Hash}}</span></strong></td></tr>
-                <tr><td>Size (bytes)</td><td><strong>{{.BlockSummary.Size}}</td></tr>
-                <tr><td>Difficulty</td><td><strong>{{printf "%16.2f" .BlockSummary.Difficulty}}</strong></td></tr>
+                <tr><td>Size (bytes)</td><td><strong><p id="blocksize" >{{.BlockSummary.Size}}</p></strong></td></tr>
+                <tr><td>Difficulty</td><td><strong><p id="blockdiff" >{{printf "%16.2f" .BlockSummary.Difficulty}}</p></strong></td></tr>
                 </tbody>
                 </table>
                 <br>
                 <strong>Ticket Pool</strong>
                 <table class="table table-condensed">
                 <tbody>
-                <tr><td>Number of Tickets</td><td><strong><span style="color:#41BF53">{{.BlockSummary.PoolInfo.Size}}</span></strong></td></tr>
-                <tr><td>Value (DCR)</td><td><strong>{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</strong></td></tr>
-                <tr><td>Avg. Value (DCR/ticket)</td><td><strong>{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</td></tr>
+                <tr><td>Number of Tickets</td><td><strong><span id="poolsize" style="color:#41BF53">{{.BlockSummary.PoolInfo.Size}}</span></strong></td></tr>
+                <tr><td>Value (DCR)</td><td><strong><span id="poolvalue">{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</span></strong></td></tr>
+                <tr><td>Avg. Value (DCR/ticket)</td><td><strong><span id="poolvalavg">{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</span></strong></td></tr>
                 </tbody>
                 </table>
             </div>
@@ -129,18 +336,14 @@
             <h4><span>Mempool (queued for mining)</span></h4>
             <div class="col-md-10">
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Number of Tickets: {{.MempoolFeeInfo.Number}}<br>
-                    Lowest Mineable Fee: {{printf "%.8f" .MempoolFeeInfo.LowestMineable}}<br>
-                    Min Fee: {{.MempoolFeeInfo.Min}}<br>
-                    Max Fee: {{.MempoolFeeInfo.Max}}<br>
-                    Median Fee: {{.MempoolFeeInfo.Median}}<br>
-                    Mean Fee: {{.MempoolFeeInfo.Mean}}<br>
+                    Number of Tickets: <span id="mempoolfeeinfo_number" >{{.MempoolFeeInfo.Number}}</span><br>
+                    Lowest Mineable Fee: <span id="mempoolfeeinfo_lowestmineable" >{{printf "%.8f" .MempoolFeeInfo.LowestMineable}}</span><br>
+                    Min Fee: <span id="mempoolfeeinfo_min" >{{.MempoolFeeInfo.Min}}</span><br>
+                    Max Fee: <span id="mempoolfeeinfo_max" >{{.MempoolFeeInfo.Max}}</span><br>
+                    Median Fee: <span id="mempoolfeeinfo_median" >{{.MempoolFeeInfo.Median}}</span><br>
+                    Mean Fee: <span id="mempoolfeeinfo_mean" >{{.MempoolFeeInfo.Mean}}</span><br>
                 </p>
             </div>
-
-            <!--<div class="col-md-5 text-right">
-                <strong>Blah.</strong>
-            </div>-->
         </div> <!-- boxagenda -->
 
         <br /><br /><br /><br /><br />&nbsp;
