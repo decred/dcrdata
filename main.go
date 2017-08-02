@@ -186,6 +186,7 @@ func mainCore() int {
 		log.Info("Failed to start WebUI. Missing HTML resources?")
 		return 17
 	}
+	defer webUI.StopEventStreamHub()
 	webUI.UseSIGToReloadTemplates()
 	blockDataSavers = append(blockDataSavers, webUI)
 	mempoolSavers = append(mempoolSavers, webUI)
@@ -298,6 +299,7 @@ func mainCore() int {
 
 	webMux := chi.NewRouter()
 	webMux.Get("/", webUI.RootPage)
+	webMux.Get("/sse", webUI.ESBlockUpdater)
 	webMux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./public/images/favicon.ico")
 	})
