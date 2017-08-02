@@ -20,6 +20,7 @@ type WebSocketMessage struct {
 var eventIDs = map[hubSignal]string{
 	sigNewBlock:             "newblock",
 	sigMempoolFeeInfoUpdate: "mempoolsstxfeeinfo",
+	sigPingAndUserCount:     "ping",
 }
 
 type WebBlockInfo struct {
@@ -48,6 +49,7 @@ type hubSpoke chan hubSignal
 const (
 	sigNewBlock hubSignal = iota
 	sigMempoolFeeInfoUpdate
+	sigPingAndUserCount
 )
 
 // NewWebsocketHub creates a new WebsocketHub
@@ -60,6 +62,10 @@ func NewWebsocketHub() *WebsocketHub {
 		NewBlockInfo:  make(chan WebBlockInfo),
 		quitWSHandler: make(chan struct{}),
 	}
+}
+
+func (wsh *WebsocketHub) NumClients() int {
+	return len(wsh.clients)
 }
 
 // RegisterClient registers a websocket connection with the hub.
@@ -125,6 +131,8 @@ func (wsh *WebsocketHub) run() {
 				log.Infof("Signaling new block to %d clients.", len(wsh.clients))
 			case sigMempoolFeeInfoUpdate:
 				log.Infof("Signaling mempool info update to %d clients.", len(wsh.clients))
+			case sigPingAndUserCount:
+				log.Tracef("Signaling ping/user count to %d clients.", len(wsh.clients))
 			default:
 				log.Errorf("Unknown hub signal: %v", hubSignal)
 				break events

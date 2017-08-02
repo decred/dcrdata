@@ -134,7 +134,7 @@
         });
 
         ws.registerEvtHandler("ping", function(evt) {
-            console.debug("ponging a ping")
+            console.debug("ping. users online: ", evt)
             ws.send("pong", "copy")
         });
 

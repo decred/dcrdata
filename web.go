@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -191,6 +192,12 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 		ticker := time.NewTicker(pingInterval)
 		defer ticker.Stop()
 
+		go func() {
+			for range ticker.C {
+				td.wsHub.HubRelay <- sigPingAndUserCount
+			}
+		}()
+
 	loop:
 		for {
 			// Wait for signal from the hub to update
@@ -230,31 +237,21 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 				case sigMempoolFeeInfoUpdate:
 					enc.Encode(td.TemplateData.MempoolFeeInfo)
 					webData.Messsage = buff.String()
+				case sigPingAndUserCount:
+					// ping and send user count
+					webData.Messsage = strconv.Itoa(td.wsHub.NumClients())
 				}
 
 				err := websocket.JSON.Send(ws, webData)
 				td.templateDataMtx.RUnlock()
 				if err != nil {
-					log.Warnf("Failed to encode WebSocketMessage: %v", err)
+					log.Warnf("Failed to encode WebSocketMessage %v: %v", sig, err)
 					// If the send failed, the client is probably gone, so close
 					// the connection and quit.
 					return
 				}
 			case <-td.wsHub.quitWSHandler:
 				break loop
-			// ping fired
-			case <-ticker.C:
-				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				// ping
-				webData := WebSocketMessage{
-					Event_id: "ping",
-					Messsage: "sup",
-				}
-
-				if err := websocket.JSON.Send(ws, webData); err != nil {
-					log.Warnf("Failed to send ping: %v", err)
-					return
-				}
 			}
 		}
 	})
