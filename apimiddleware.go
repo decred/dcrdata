@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/docgen"
+	//"github.com/decred/dcrrpcclient"
 )
 
 // Middlewares

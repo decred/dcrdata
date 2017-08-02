@@ -5,7 +5,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"html/template"
 	"io"
 	"net/http"
@@ -16,8 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/websocket"
-
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/mempool"
@@ -25,23 +22,12 @@ import (
 	"github.com/go-chi/chi"
 )
 
-const (
-	wsWriteTimeout = 10 * time.Second
-	pingInterval   = 12 * time.Second
-)
-
-// TemplateExecToString executes the input template with given name using the
-// supplied data, and writes the result into a string. If the template fails to
-// execute, a non-nil error will be returned. Check it before writing to the
-// client, otherwise you might as well execute directly into your response
-// writer instead of the internal buffer of this function.
 func TemplateExecToString(t *template.Template, name string, data interface{}) (string, error) {
 	var page bytes.Buffer
 	err := t.ExecuteTemplate(&page, name, data)
 	return page.String(), err
 }
 
-// WebTemplateData holds all of the data structures used to update the web page.
 type WebTemplateData struct {
 	BlockSummary   apitypes.BlockDataBasic
 	StakeSummary   apitypes.StakeInfoExtendedEstimates
@@ -50,7 +36,6 @@ type WebTemplateData struct {
 }
 
 type WebUI struct {
-	wsHub           *WebsocketHub
 	MPC             mempool.MempoolDataCache
 	TemplateData    WebTemplateData
 	templateDataMtx sync.RWMutex
@@ -69,23 +54,13 @@ func NewWebUI() *WebUI {
 	//var templFiles []string
 	templFiles := []string{fp}
 
-	wsh := NewWebsocketHub()
-	go wsh.run()
-
 	return &WebUI{
-		wsHub:      wsh,
 		templ:      tmpl,
 		templFiles: templFiles,
 		params:     activeChain,
 	}
 }
 
-func (td *WebUI) StopWebsocketHub() {
-	log.Info("Stopping websocket hub.")
-	td.wsHub.Stop()
-}
-
-// ParseTemplates parses all the template files, updating the *html/template.Template.
 func (td *WebUI) ParseTemplates() (err error) {
 	td.templ, err = template.New("home").ParseFiles(td.templFiles...)
 	return
@@ -111,17 +86,11 @@ func (td *WebUI) reloadTemplatesSig(sig os.Signal) {
 	}()
 }
 
-// Store extracts the block and stake data from the input BlockData and stores
-// it in the HTML template data. Store also signals the WebsocketHub of the
-// updated data.
 func (td *WebUI) Store(blockData *blockdata.BlockData) error {
 	td.templateDataMtx.Lock()
+	defer td.templateDataMtx.Unlock()
 	td.TemplateData.BlockSummary = blockData.ToBlockSummary()
 	td.TemplateData.StakeSummary = blockData.ToStakeInfoExtendedEstimates()
-	td.templateDataMtx.Unlock()
-
-	td.wsHub.HubRelay <- sigNewBlock
-
 	return nil
 }
 
@@ -134,31 +103,26 @@ func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) err
 	_, fie := td.MPC.GetFeeInfoExtra()
 
 	td.templateDataMtx.Lock()
+	defer td.templateDataMtx.Unlock()
 	td.TemplateData.MempoolFeeInfo = *fie
 
 	// LowestMineable is the lowest fee of those in the top 20 (mainnet), but
 	// for the web interface, we want to interpret "lowest mineable" as the
 	// lowest fee the user needs to get a new ticket purchase mined right away.
 	if td.TemplateData.MempoolFeeInfo.Number < uint32(td.params.MaxFreshStakePerBlock) {
-		td.TemplateData.MempoolFeeInfo.LowestMineable = 0.001
+		td.TemplateData.MempoolFeeInfo.LowestMineable = 0.01
 	}
 
 	mpf := &td.TemplateData.MempoolFees
 	mpf.Height, mpf.Time, _, mpf.FeeRates = td.MPC.GetFeeRates(25)
 	mpf.Length = uint32(len(mpf.FeeRates))
-	td.templateDataMtx.Unlock()
-
-	td.wsHub.HubRelay <- sigMempoolFeeInfoUpdate
 
 	return nil
 }
 
-// RootPage is the http.HandlerFunc for the "/" http path
 func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
 	td.templateDataMtx.RLock()
-	// Execute template to a string instead of directly to the
-	// http.ResponseWriter so that execute errors can be handled first. This can
-	// avoid partial writes of the page to the client.
+	//err := td.templ.Execute(w, td.TemplateData)
 	str, err := TemplateExecToString(td.templ, "home", td.TemplateData)
 	td.templateDataMtx.RUnlock()
 	if err != nil {
@@ -168,111 +132,6 @@ func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
-}
-
-// WSBlockUpdater handles requests on the websocket path (e.g. /ws). The wrapped
-// websocket.Handler registers the connection with the WebsocketHub, which
-// provides an update channel, and starts an update loop. The loop writes the
-// current block data when it receives a signal on the update channel. The run()
-// loop must be running to receive signals on the update channel. The update
-// loop quits in the following situations: when the quitWSHandler channel is
-// closed, when the update channel is closed, or when a write on the
-// websocket.Conn fails.
-func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
-	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
-		// end the run() loop, allowing in progress operations to complete
-		td.wsHub.quitWSHandler <- struct{}{}
-		// unregister all clients
-		for client := range td.wsHub.clients {
-			td.wsHub.UnregisterClient(client)
-		}
-
-		// Create channel to signal updated data availability
-		updateSig := make(hubSpoke)
-		// register websocket client with our signal channel
-		td.wsHub.RegisterClient(&updateSig)
-		// unregister (and close signal channel) before return
-		defer td.wsHub.UnregisterClient(&updateSig)
-
-		// Ticker for a regular ping
-		ticker := time.NewTicker(pingInterval)
-		defer ticker.Stop()
-
-		// Listen for the connection closing
-		notify := w.(http.CloseNotifier).CloseNotify()
-		go func() {
-			<-notify
-			// Ensure that channel is closed so the loop in this function can exit
-			//td.ewHub.UnregisterClient(&updateSig)
-			safeClose(updateSig)
-			log.Debug("Websocket client connection closed (CloseNotify)")
-		}()
-
-	loop:
-		for {
-			// Wait for signal from the hub to update
-			select {
-			case sig, ok := <-updateSig:
-				// Check if the update channel was closed. Either the websocket
-				// hub will do it after unregistering the client, or forcibly in
-				// response to (http.CloseNotifier).CloseNotify() and only then if
-				// the hub has somehow lost track of the client.
-				if !ok {
-					//ws.WriteClose(1)
-					td.wsHub.UnregisterClient(&updateSig)
-					break loop
-				}
-
-				if _, ok = eventIDs[sig]; !ok {
-					break loop
-				}
-
-				log.Tracef("signaling client: %p", &updateSig)
-				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-
-				// Write block data to websocket client
-				td.templateDataMtx.RLock()
-				webData := WebSocketMessage{
-					Event_id: eventIDs[sig],
-				}
-				buff := new(bytes.Buffer)
-				enc := json.NewEncoder(buff)
-				switch sig {
-				case sigNewBlock:
-					enc.Encode(WebBlockInfo{
-						BlockDataBasic: &td.TemplateData.BlockSummary,
-						StakeInfoExt:   &td.TemplateData.StakeSummary,
-					})
-					webData.Messsage = buff.String()
-				case sigMempoolFeeInfoUpdate:
-					enc.Encode(td.TemplateData.MempoolFeeInfo)
-					webData.Messsage = buff.String()
-				}
-
-				enc = json.NewEncoder(ws)
-				err := enc.Encode(webData)
-				td.templateDataMtx.RUnlock()
-				if err != nil {
-					log.Warnf("Failed to encode WebSocketMessage: %v", err)
-					// If the send failed, the client is probably gone, so close
-					// the connection and quit.
-					td.wsHub.UnregisterClient(&updateSig)
-					return
-				}
-			case <-td.wsHub.quitWSHandler:
-				break loop
-			// ping fired
-			case <-ticker.C:
-				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				// ping
-				if _, err := ws.Write([]byte{}); err != nil {
-					return
-				}
-			}
-		}
-	})
-
-	wsHandler.ServeHTTP(w, r)
 }
 
 // FileServer conveniently sets up a http.FileServer handler to serve

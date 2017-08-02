@@ -47,10 +47,7 @@ func (b *BlockData) ToStakeInfoExtendedEstimates() apitypes.StakeInfoExtendedEst
 		StakeDiff: apitypes.StakeDiff{
 			GetStakeDifficultyResult: b.CurrentStakeDiff,
 			Estimates:                b.EstStakeDiff,
-			IdxBlockInWindow:         b.IdxBlockInWindow,
-			PriceWindowNum:           b.PriceWindowNum,
 		},
-		// PriceWindowNum and Idx... are repeated here since this is a kludge
 		PriceWindowNum:   b.PriceWindowNum,
 		IdxBlockInWindow: b.IdxBlockInWindow,
 		PoolInfo:         b.PoolInfo,
