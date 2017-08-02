@@ -5,6 +5,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"html/template"
 	"io"
 	"net/http"
@@ -46,142 +47,6 @@ type WebTemplateData struct {
 	StakeSummary   apitypes.StakeInfoExtendedEstimates
 	MempoolFeeInfo apitypes.MempoolTicketFeeInfo
 	MempoolFees    apitypes.MempoolTicketFees
-}
-
-type WebBlockInfo struct {
-	BlockDataBasic *apitypes.BlockDataBasic             `json:"block"`
-	StakeInfoExt   *apitypes.StakeInfoExtendedEstimates `json:"stake"`
-}
-
-// WebsocketHub and its event loop manage all websocket client connections.
-// WebsocketHub is responsible for closing all connections registered with it.
-// If the event loop is running, calling (*WebsocketHub).Stop() will handle it.
-type WebsocketHub struct {
-	sync.RWMutex
-	clients         map[*hubSpoke]struct{}
-	Register        chan *hubSpoke
-	Unregister      chan *hubSpoke
-	HubRelay        chan hubSignal
-	NewBlockInfo    chan WebBlockInfo
-	NewBlockSummary chan apitypes.BlockDataBasic
-	NewStakeSummary chan apitypes.StakeInfoExtendedEstimates
-	quitWSHandler   chan struct{}
-}
-
-type hubSignal int
-type hubSpoke chan hubSignal
-
-const (
-	sigNewBlock hubSignal = iota
-	sigMempoolFeeInfoUpdate
-)
-
-// Event type field for an SSE event
-var eventIDs = map[hubSignal]string{
-	sigNewBlock:             "newblock",
-	sigMempoolFeeInfoUpdate: "mempoolsstxfeeinfo",
-}
-
-// NewWebsocketHub creates a new WebsocketHub
-func NewWebsocketHub() *WebsocketHub {
-	return &WebsocketHub{
-		clients:       make(map[*hubSpoke]struct{}),
-		Register:      make(chan *hubSpoke),
-		Unregister:    make(chan *hubSpoke),
-		HubRelay:      make(chan hubSignal),
-		NewBlockInfo:  make(chan WebBlockInfo),
-		quitWSHandler: make(chan struct{}),
-	}
-}
-
-// RegisterClient registers a websocket connection with the hub.
-func (wsh *WebsocketHub) RegisterClient(c *hubSpoke) {
-	log.Debug("Registering new websocket client")
-	wsh.Register <- c
-}
-
-// registerClient should only be called from the run loop
-func (wsh *WebsocketHub) registerClient(c *hubSpoke) {
-	wsh.clients[c] = struct{}{}
-}
-
-// UnregisterClient unregisters the input websocket connection via the main
-// run() loop.  This call will block if the run() loop is not running.
-func (wsh *WebsocketHub) UnregisterClient(c *hubSpoke) {
-	wsh.Unregister <- c
-}
-
-// unregisterClient should only be called from the loop in run().
-func (wsh *WebsocketHub) unregisterClient(c *hubSpoke) {
-	if _, ok := wsh.clients[c]; !ok {
-		// unknown client, do not close channel
-		log.Warnf("unknown client")
-		return
-	}
-	delete(wsh.clients, c)
-
-	// Close the channel, but make sure the client didn't do it
-	safeClose(*c)
-}
-
-func safeClose(cc hubSpoke) {
-	select {
-	case _, ok := <-cc:
-		if !ok {
-			log.Debug("Channel already closed!")
-			return
-		}
-	default:
-	}
-	close(cc)
-}
-
-// Stop kills the run() loop and unregisteres all clients (connections).
-func (wsh *WebsocketHub) Stop() {
-	// end the run() loop, allowing in progress operations to complete
-	wsh.quitWSHandler <- struct{}{}
-	// unregister all clients
-	for client := range wsh.clients {
-		wsh.unregisterClient(client)
-	}
-}
-
-func (wsh *WebsocketHub) run() {
-	log.Info("Starting WebsocketHub run loop.")
-	for {
-	events:
-		select {
-		case hubSignal := <-wsh.HubRelay:
-			switch hubSignal {
-			case sigNewBlock:
-				log.Infof("Signaling new block to %d clients.", len(wsh.clients))
-			case sigMempoolFeeInfoUpdate:
-				log.Infof("Signaling mempool info update to %d clients.", len(wsh.clients))
-			default:
-				log.Errorf("Unknown hub signal: %v", hubSignal)
-				break events
-			}
-			for client := range wsh.clients {
-				// signal or unregister the client
-				select {
-				case *client <- hubSignal:
-				default:
-					go wsh.unregisterClient(client)
-				}
-			}
-		case c := <-wsh.Register:
-			wsh.registerClient(c)
-		case c := <-wsh.Unregister:
-			wsh.unregisterClient(c)
-		case _, ok := <-wsh.quitWSHandler:
-			if !ok {
-				log.Error("close channel already closed. This should not happen.")
-				return
-			}
-			close(wsh.quitWSHandler)
-			return
-		}
-	}
 }
 
 type WebUI struct {
@@ -315,13 +180,6 @@ func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
 // websocket.Conn fails.
 func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
-		// end the run() loop, allowing in progress operations to complete
-		td.wsHub.quitWSHandler <- struct{}{}
-		// unregister all clients
-		for client := range td.wsHub.clients {
-			td.wsHub.UnregisterClient(client)
-		}
-
 		// Create channel to signal updated data availability
 		updateSig := make(hubSpoke)
 		// register websocket client with our signal channel
@@ -332,16 +190,6 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 		// Ticker for a regular ping
 		ticker := time.NewTicker(pingInterval)
 		defer ticker.Stop()
-
-		// Listen for the connection closing
-		notify := w.(http.CloseNotifier).CloseNotify()
-		go func() {
-			<-notify
-			// Ensure that channel is closed so the loop in this function can exit
-			//td.ewHub.UnregisterClient(&updateSig)
-			safeClose(updateSig)
-			log.Debug("Websocket client connection closed (CloseNotify)")
-		}()
 
 	loop:
 		for {
@@ -358,29 +206,38 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 					break loop
 				}
 
-				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+				if _, ok = eventIDs[sig]; !ok {
+					break loop
+				}
 
 				log.Tracef("signaling client: %p", &updateSig)
-
-				// TODO: use a custom websocket event thinger with a custom JSON format
+				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 
 				// Write block data to websocket client
 				td.templateDataMtx.RLock()
-				var webData interface{}
+				webData := WebSocketMessage{
+					Event_id: eventIDs[sig],
+				}
+				buff := new(bytes.Buffer)
+				enc := json.NewEncoder(buff)
 				switch sig {
 				case sigNewBlock:
-					webData = WebBlockInfo{&td.TemplateData.BlockSummary, &td.TemplateData.StakeSummary}
+					enc.Encode(WebBlockInfo{
+						BlockDataBasic: &td.TemplateData.BlockSummary,
+						StakeInfoExt:   &td.TemplateData.StakeSummary,
+					})
+					webData.Messsage = buff.String()
 				case sigMempoolFeeInfoUpdate:
-					webData = &td.TemplateData.MempoolFeeInfo
+					enc.Encode(td.TemplateData.MempoolFeeInfo)
+					webData.Messsage = buff.String()
 				}
+
 				err := websocket.JSON.Send(ws, webData)
 				td.templateDataMtx.RUnlock()
-
-				// If the send failed, the client is probably gone, so close the
-				// connection and quit.
 				if err != nil {
-					log.Error(err)
-					td.wsHub.UnregisterClient(&updateSig)
+					log.Warnf("Failed to encode WebSocketMessage: %v", err)
+					// If the send failed, the client is probably gone, so close
+					// the connection and quit.
 					return
 				}
 			case <-td.wsHub.quitWSHandler:
@@ -389,7 +246,13 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 			case <-ticker.C:
 				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 				// ping
-				if _, err := ws.Write([]byte{}); err != nil {
+				webData := WebSocketMessage{
+					Event_id: "ping",
+					Messsage: "sup",
+				}
+
+				if err := websocket.JSON.Send(ws, webData); err != nil {
+					log.Warnf("Failed to send ping: %v", err)
 					return
 				}
 			}
