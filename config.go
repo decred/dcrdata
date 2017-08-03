@@ -50,6 +50,8 @@ var (
 	defaultMPTriggerTickets   = 1
 
 	defaultDBFileName = "dcrdata.sqlt.db"
+
+	defaultWalletServer = "127.0.0.1:19110"
 )
 
 type config struct {
@@ -98,6 +100,8 @@ type config struct {
 	DcrdServ         string `long:"dcrdserv" description:"Hostname/IP and port of dcrd RPC server to connect to (default localhost:9109, testnet: localhost:19109, simnet: localhost:19556)"`
 	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file"`
 	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
+
+	WalletSever      string `long:"walletserver" description:"Hostname/IP and port where dcrwallet is  listening on"`
 }
 
 var (
@@ -114,6 +118,7 @@ var (
 		MempoolMaxInterval: defaultMempoolMaxInterval,
 		MPTriggerTickets:   defaultMPTriggerTickets,
 		DBFileName:         defaultDBFileName,
+		WalletSever:        defaultWalletServer,
 		//EmailSubject:       defaultEmailSubject,
 	}
 )
@@ -319,6 +324,12 @@ func loadConfig() (*config, error) {
 	// user does not specify them.
 	if cfg.DcrdServ == "" {
 		cfg.DcrdServ = defaultHost + ":" + activeNet.JSONRPCClientPort
+	}
+
+	//Set the host name and port of the walletserver
+	//if the user does not specify them
+	if cfg.WalletSever == "" {
+		cfg.WalletSever = defaultWalletServer
 	}
 
 	// Put comma-separated comamnd line aguments into slice of strings
