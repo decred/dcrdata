@@ -75,7 +75,7 @@
                     <td> Height </td>
                     <td> Voters </td>
                     <td> Fresh Stake </td>
-                    <td> Cofirmations </td>
+                    <td> Time </td>
                     <td> Size </td>
                 </tr>
             {{range .Data}}
@@ -83,7 +83,7 @@
                     <td> <a href="explorer/block/{{.Height}}">{{.Height}}</a> </td>
                     <td> {{.Voters}} </td>
                     <td> {{.FreshStake}} </td>
-                    <td> {{.Confirmations}} </td>
+                    <td> {{printf getTime .Confirmations}} </td>
                     <td> {{.Size}} </td>
                 </tr>
             {{end}}
