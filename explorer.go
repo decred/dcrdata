@@ -4,7 +4,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
-	"path/filepath"
+	"time"
 
 	"github.com/decred/dcrd/dcrjson"
 
@@ -17,24 +17,17 @@ type explorerMux struct {
 	*chi.Mux
 }
 
-type explorer struct {
-	app          *appContext
-	page         string
-	pageFunction map[string]func()
-}
+var explorerTemplate *template.Template
+var blockTemplate *template.Template
 
 func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
-	templateFile := filepath.Join("views", "explorer.tmpl")
 	idx := c.BlockData.GetHeight()
 	N := 10
 	summaries := make([]*dcrjson.GetBlockHeaderVerboseResult, 0, N)
-
 	for i := idx; i >= idx-N-1; i-- {
 		summaries = append(summaries, c.BlockData.GetHeader(i))
 	}
-
-	tmpl, _ := template.New("explorer").ParseFiles(templateFile)
-	str, err := TemplateExecToString(tmpl, "explorer", struct {
+	str, err := TemplateExecToString(explorerTemplate, "explorer", struct {
 		Data []*dcrjson.GetBlockHeaderVerboseResult
 	}{summaries})
 
@@ -53,9 +46,7 @@ func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	templateFile := filepath.Join("views", "block.tmpl")
-	tmpl, _ := template.New("block").ParseFiles(templateFile)
-	str, err := TemplateExecToString(tmpl, "block", c.BlockData.GetHeader(idx))
+	str, err := TemplateExecToString(blockTemplate, "block", c.BlockData.GetHeader(idx))
 	if err != nil {
 		http.Error(w, "template execute failure", http.StatusInternalServerError)
 		return
@@ -65,13 +56,16 @@ func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-func newExplorer(c *appContext) explorer {
-	return explorer{app: c}
+func gettime(btime int64) string {
+	t := time.Unix(btime, 0)
+	return t.String()
 }
 
 func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 	mux := chi.NewRouter()
-
+	helpers := template.FuncMap{"getTime": gettime}
+	explorerTemplate, _ = template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl")
+	blockTemplate, _ = template.New("block").Funcs(helpers).ParseFiles("views/block.tmpl")
 	if userRealIP {
 		mux.Use(middleware.RealIP)
 	}
