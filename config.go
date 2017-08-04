@@ -329,7 +329,7 @@ func loadConfig() (*config, error) {
 	//Set the host name and port of the walletserver
 	//if the user does not specify them
 	if cfg.WalletSever == "" {
-		cfg.WalletSever = defaultWalletServer
+		cfg.WalletSever = WalletServer
 	}
 
 	// Put comma-separated comamnd line aguments into slice of strings
