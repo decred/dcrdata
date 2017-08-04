@@ -24,7 +24,7 @@ func NewWalletClient(host, user, pass, cert string, disableTLS bool) *Wallet {
 
 func connectWalletRPC(host, user, pass, cert string, disableTLS bool) *dcrrpcclient.Client {
     ntfnHandlers := dcrrpcclient.NotificationHandlers{}
-    
+
     certs, err := ioutil.ReadFile(cert)
     if err != nil {
         log.Fatal(err)
@@ -44,9 +44,7 @@ func connectWalletRPC(host, user, pass, cert string, disableTLS bool) *dcrrpccli
 		log.Fatal(err)
 	}
     return client
-
 }
-
 
 func (scope *Wallet) GetUnspent(w http.ResponseWriter, r *http.Request) {
     unspent, err := scope.client.ListUnspent()
@@ -61,7 +59,6 @@ func (scope *Wallet) GetAccounts(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         log.Fatal(err)
     }
-
     scope.json(w, accounts)
 }
 
