@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	//"github.com/dcrdata/dcrdata/wallet"
 	"github.com/rs/cors"
 )
 
