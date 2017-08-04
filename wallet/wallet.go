@@ -24,9 +24,7 @@ func NewWalletClient(host, user, pass, cert string, disableTLS bool) *Wallet {
 
 func connectWalletRPC(host, user, pass, cert string, disableTLS bool) *dcrrpcclient.Client {
     ntfnHandlers := dcrrpcclient.NotificationHandlers{}
-
-    fmt.Println(cert)
-
+    
     certs, err := ioutil.ReadFile(cert)
     if err != nil {
         log.Fatal(err)
