@@ -51,7 +51,7 @@ var (
 
 	defaultDBFileName = "dcrdata.sqlt.db"
 
-	defaultWalletServer = "127.0.0.1:19110"
+	WalletServer = "127.0.0.1:19110"
 )
 
 type config struct {
@@ -118,7 +118,7 @@ var (
 		MempoolMaxInterval: defaultMempoolMaxInterval,
 		MPTriggerTickets:   defaultMPTriggerTickets,
 		DBFileName:         defaultDBFileName,
-		WalletSever:        defaultWalletServer,
+		WalletSever:        WalletServer,
 		//EmailSubject:       defaultEmailSubject,
 	}
 )
