@@ -1,7 +1,6 @@
 package wallet
 
 import (
-    "fmt"
     "log"
     "io/ioutil"
     "net/http"
