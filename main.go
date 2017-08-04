@@ -292,7 +292,6 @@ func mainCore() int {
 	}
 
 	// Start web API
-
 	app := newContext(dcrdClient, dcrwalletClient, &sqliteDB, cfg.IndentJSON)
 	// Start notification hander to keep /status up-to-date
 	wg.Add(1)
@@ -333,12 +332,6 @@ func connectNodeRPC(cfg *config) (*dcrrpcclient.Client, semver.Semver, error) {
 	return rpcutils.ConnectNodeRPC(cfg.DcrdServ, cfg.DcrdUser, cfg.DcrdPass,
 		cfg.DcrdCert, cfg.DisableDaemonTLS, notificationHandlers)
 }
-
-
-
-
-
-
 
 func listenAndServeProto(listen, proto string, mux http.Handler) {
 	apiLog.Infof("Now serving on %s://%v/", proto, listen)
