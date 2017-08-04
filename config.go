@@ -101,7 +101,7 @@ type config struct {
 	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file"`
 	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
 
-	WalletSever      string `long:"walletserver" description:"Hostname/IP and port where dcrwallet is  listening on"`
+	WalletSever      string `long:"walletserver" description:"Hostname/IP and port where dcrwallet is listening on"`
 }
 
 var (
