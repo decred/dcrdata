@@ -88,9 +88,8 @@ func mainCore() int {
 	}()
 
 
-	//Initialize the dcrwallet funcs for accesing the dcr wallet daemon
-	//This creates its own RPC connection since the wallet daemon
-	//Listens on a different port from the dcrd RPC server
+	// Initialize the dcrwallet funcs for accesing the dcr wallet daemon. This creates its own RPC connection since the wallet daemon
+	// Listens on a different port from the dcrd RPC server
 	dcrwalletClient := wallet.NewWalletClient(cfg.WalletSever, cfg.DcrdUser, cfg.DcrdPass, cfg.DcrdCert, cfg.DisableDaemonTLS)
 
 
