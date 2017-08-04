@@ -9,6 +9,7 @@ import (
 
     "github.com/decred/dcrrpcclient"
 )
+
 type (
     Wallet struct {
         client *dcrrpcclient.Client
