@@ -51,6 +51,7 @@ type DB struct {
 	getLatestBlockSQL                                   string
 	getBlockSQL, insertBlockSQL                         string
 	getBlockHashSQL, getBlockHeightSQL                  string
+	getBestBlockHashSQL, getBestBlockHeightSQL          string
 	getLatestStakeInfoExtendedSQL                       string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
 }
@@ -86,6 +87,9 @@ func NewDB(db *sql.DB) *DB {
             height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameSummaries)
+
+	d.getBestBlockHashSQL = fmt.Sprintf(`select hash from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
+	d.getBestBlockHeightSQL = fmt.Sprintf(`select height from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 
 	d.getBlockHashSQL = fmt.Sprintf(`select hash from %s where height = ?`, TableNameSummaries)
 	d.getBlockHeightSQL = fmt.Sprintf(`select height from %s where hash = ?`, TableNameSummaries)
@@ -406,6 +410,18 @@ func (db *DB) RetrieveBlockHash(ind int64) (string, error) {
 func (db *DB) RetrieveBlockHeight(hash string) (int64, error) {
 	var blockHeight int64
 	err := db.QueryRow(db.getBlockHeightSQL, hash).Scan(&blockHeight)
+	return blockHeight, err
+}
+
+func (db *DB) RetrieveBestBlockHash() (string, error) {
+	var blockHash string
+	err := db.QueryRow(db.getBestBlockHashSQL).Scan(&blockHash)
+	return blockHash, err
+}
+
+func (db *DB) RetrieveBestBlockHeight() (int64, error) {
+	var blockHeight int64
+	err := db.QueryRow(db.getBestBlockHeightSQL).Scan(&blockHeight)
 	return blockHeight, err
 }
 
