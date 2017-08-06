@@ -15,6 +15,107 @@ type BlockTransactions struct {
 	STx []string `json:"stx"`
 }
 
+// tx raw
+// tx short (tx raw - extra context)
+// txout
+// scriptPubKey (hex -> decodescript -> result)
+// vout
+// vin
+
+type Tx struct {
+	TxShort
+	Confirmations int64    `json:"confirmations"`
+	Block         *BlockID `json:"block,omitempty"`
+}
+
+type TxShort struct {
+	Txid     string        `json:"txid"`
+	Version  int32         `json:"version"`
+	Locktime uint32        `json:"locktime"`
+	Expiry   uint32        `json:"expiry"`
+	Vin      []dcrjson.Vin `json:"vin"`
+	Vout     []Vout        `json:"vout"`
+}
+
+type BlockID struct {
+	BlockHash   string `json:"blockhash"`
+	BlockHeight int64  `json:"blockheight"`
+	BlockIndex  uint32 `json:"blockindex"`
+	Time        int64  `json:"time"`
+	Blocktime   int64  `json:"blocktime"`
+}
+
+type TxOut struct {
+	Vout
+	BestBlock     string `json:"bestblock"`
+	Confirmations int64  `json:"confirmations"`
+	Coinbase      bool   `json:"coinbase"`
+}
+
+type Vout struct {
+	Value               float64      `json:"value"`
+	N                   uint32       `json:"n"`
+	Version             uint16       `json:"version"`
+	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey"`
+}
+
+type VoutHexScript struct {
+	Value           float64 `json:"value"`
+	N               uint32  `json:"n"`
+	Version         uint16  `json:"version"`
+	ScriptPubKeyHex string  `json:"scriptPubKey"`
+}
+
+// decodescript(ScriptPubKeyHex) -> ScriptPubKey
+type ScriptPubKey struct {
+	Asm       string   `json:"asm"`
+	ReqSigs   int32    `json:"reqSigs,omitempty"`
+	Type      string   `json:"type"`
+	Addresses []string `json:"addresses,omitempty"`
+	CommitAmt *float64 `json:"commitamt,omitempty"`
+}
+
+// below are notes essentially copy-paste from dcrjson
+
+// type Vin struct {
+// 	Coinbase    string     `json:"coinbase"`
+// 	Txid        string     `json:"txid"`
+// 	Vout        uint32     `json:"vout"`
+// 	Tree        int8       `json:"tree"`
+// 	Sequence    uint32     `json:"sequence"`
+// 	AmountIn    float64    `json:"amountin"`
+// 	BlockHeight uint32     `json:"blockheight"`
+// 	BlockIndex  uint32     `json:"blockindex"`
+// 	ScriptSig   *ScriptSig `json:"scriptSig"`
+// }
+
+type ScriptSig struct {
+	Asm string `json:"asm"`
+	Hex string `json:"hex"`
+}
+
+// PrevOut represents previous output for an input Vin.
+type PrevOut struct {
+	Addresses []string `json:"addresses,omitempty"`
+	Value     float64  `json:"value"`
+}
+
+// VinPrevOut is like Vin except it includes PrevOut.  It is used by searchrawtransaction
+type VinPrevOut struct {
+	Coinbase    string     `json:"coinbase"`
+	Txid        string     `json:"txid"`
+	Vout        uint32     `json:"vout"`
+	Tree        int8       `json:"tree"`
+	AmountIn    *float64   `json:"amountin,omitempty"`
+	BlockHeight *uint32    `json:"blockheight,omitempty"`
+	BlockIndex  *uint32    `json:"blockindex,omitempty"`
+	ScriptSig   *ScriptSig `json:"scriptSig"`
+	PrevOut     *PrevOut   `json:"prevOut"`
+	Sequence    uint32     `json:"sequence"`
+}
+
+// end copy-paste from dcrjson
+
 // Status indicates the state of the server, including the API version and the
 // software version.
 type Status struct {
