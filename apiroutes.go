@@ -15,18 +15,24 @@ import (
 
 type APIDataSource interface {
 	GetHeight() int
-	GetHash(idx int64) (string, error)
+	GetBestBlockHash() (string, error)
+	GetBlockHash(idx int64) (string, error)
+	GetBlockHeight(hash string) (int64, error)
 	//Get(idx int) *blockdata.BlockData
 	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
+	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
 	//GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult
 	GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended
+	//needs db update: GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
 	GetStakeDiffEstimates() *apitypes.StakeDiff
 	//GetBestBlock() *blockdata.BlockData
 	GetSummary(idx int) *apitypes.BlockDataBasic
+	GetSummaryByHash(hash string) *apitypes.BlockDataBasic
 	GetBestBlockSummary() *apitypes.BlockDataBasic
 	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
+	GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
 	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
 	GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 	GetSDiff(idx int) float64
@@ -156,6 +162,40 @@ func getBlockIndex0Ctx(r *http.Request) int {
 	return idx
 }
 
+func getBlockHashOnlyCtx(r *http.Request) string {
+	hash, ok := r.Context().Value(ctxBlockHash).(string)
+	if !ok {
+		apiLog.Error("block hash not set")
+		return ""
+	}
+	return hash
+}
+
+func (c *appContext) getBlockHashCtx(r *http.Request) string {
+	hash := getBlockHashOnlyCtx(r)
+	if hash == "" {
+		var err error
+		hash, err = c.BlockData.GetBlockHash(int64(getBlockIndexCtx(r)))
+		if err != nil {
+			apiLog.Errorf("Unable to GetBlockHash: %v", err)
+		}
+	}
+	return hash
+}
+
+func (c *appContext) getBlockHeightCtx(r *http.Request) int64 {
+	idxI, ok := r.Context().Value(ctxBlockIndex).(int)
+	idx := int64(idxI)
+	if !ok || idx < 0 {
+		var err error
+		idx, err = c.BlockData.GetBlockHeight(getBlockHashOnlyCtx(r))
+		if err != nil {
+			apiLog.Errorf("Unable to GetBlockHeight: %v", err)
+		}
+	}
+	return idx
+}
+
 func getNCtx(r *http.Request) int {
 	N, ok := r.Context().Value(ctxN).(int)
 	if !ok {
@@ -219,29 +259,47 @@ func (c *appContext) getLatestBlock(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, latestBlockSummary, c.getIndentQuery(r))
 }
 
+func (c *appContext) getBlockHeight(w http.ResponseWriter, r *http.Request) {
+	idx := c.getBlockHeightCtx(r)
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if _, err := io.WriteString(w, strconv.Itoa(int(idx))); err != nil {
+		apiLog.Infof("failed to write height response: %v", err)
+	}
+}
+
+func (c *appContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
+	hash := c.getBlockHashCtx(r)
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if _, err := io.WriteString(w, hash); err != nil {
+		apiLog.Infof("failed to write height response: %v", err)
+	}
+}
+
 func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
-	idx := getBlockIndexCtx(r)
-	if idx < 0 {
+	// attempt to get hash of block set by hash or (fallback) height set on path
+	hash := c.getBlockHashCtx(r)
+	if hash == "" {
 		http.Error(w, http.StatusText(422), 422)
-		return
 	}
 
-	blockSummary := c.BlockData.GetSummary(idx)
+	blockSummary := c.BlockData.GetSummaryByHash(hash)
 	if blockSummary == nil {
-		apiLog.Errorf("Unable to get block %d summary", idx)
+		apiLog.Errorf("Unable to get block %s summary", hash)
 	}
 
 	writeJSON(w, blockSummary, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
-	idx := getBlockIndexCtx(r)
+	idx := c.getBlockHeightCtx(r)
 	if idx < 0 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	blockHeader := c.BlockData.GetHeader(idx)
+	blockHeader := c.BlockData.GetHeader(int(idx))
 	if blockHeader == nil {
 		apiLog.Errorf("Unable to get block %d header", idx)
 	}
@@ -250,28 +308,27 @@ func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
-	idx := getBlockIndexCtx(r)
-	if idx < 0 {
+	hash := c.getBlockHashCtx(r)
+	if hash == "" {
 		http.Error(w, http.StatusText(422), 422)
-		return
 	}
 
-	blockVerbose := c.BlockData.GetBlockVerbose(idx, false)
+	blockVerbose := c.BlockData.GetBlockVerboseByHash(hash, false)
 	if blockVerbose == nil {
-		apiLog.Errorf("Unable to get block %d", idx)
+		apiLog.Errorf("Unable to get block %s", hash)
 	}
 
 	writeJSON(w, blockVerbose, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
-	idx := getBlockIndexCtx(r)
+	idx := c.getBlockHeightCtx(r)
 	if idx < 0 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	blockFeeInfo := c.BlockData.GetFeeInfo(idx)
+	blockFeeInfo := c.BlockData.GetFeeInfo(int(idx))
 	if blockFeeInfo == nil {
 		apiLog.Errorf("Unable to get block %d fee info", idx)
 	}
@@ -280,13 +337,13 @@ func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getBlockStakeInfoExtended(w http.ResponseWriter, r *http.Request) {
-	idx := getBlockIndexCtx(r)
+	idx := c.getBlockHeightCtx(r)
 	if idx < 0 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	stakeinfo := c.BlockData.GetStakeInfoExtended(idx)
+	stakeinfo := c.BlockData.GetStakeInfoExtended(int(idx))
 	if stakeinfo == nil {
 		apiLog.Errorf("Unable to get block %d fee info", idx)
 	}
@@ -400,13 +457,13 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 }
 
 func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
-	idx := getBlockIndexCtx(r)
+	idx := c.getBlockHeightCtx(r)
 	if idx < 0 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	tpi := c.BlockData.GetPoolInfo(idx)
+	tpi := c.BlockData.GetPoolInfo(int(idx))
 	writeJSON(w, tpi, c.getIndentQuery(r))
 }
 
@@ -466,13 +523,13 @@ func (c *appContext) getTicketPoolValAndSizeRange(w http.ResponseWriter, r *http
 }
 
 func (c *appContext) getStakeDiff(w http.ResponseWriter, r *http.Request) {
-	idx := getBlockIndexCtx(r)
+	idx := c.getBlockHeightCtx(r)
 	if idx < 0 {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	sdiff := c.BlockData.GetSDiff(idx)
+	sdiff := c.BlockData.GetSDiff(int(idx))
 	writeJSON(w, []float64{sdiff}, c.getIndentQuery(r))
 }
 

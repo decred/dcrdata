@@ -5,6 +5,7 @@ package dcrsqlite
 
 import (
 	"database/sql"
+	"fmt"
 	"sync"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
@@ -98,12 +99,20 @@ func (db *wiredDB) GetStakeDB() *stakedb.StakeDatabase {
 	return db.sDB
 }
 
-// TODO: Update this to use RetrieveBlockHeight
 func (db *wiredDB) GetHeight() int {
-	return int(db.GetBlockSummaryHeight())
+	return int(db.GetBestBlockHeight())
 }
 
-func (db *wiredDB) GetHash(idx int64) (string, error) {
+func (db *wiredDB) GetBestBlockHash() (string, error) {
+	hash := db.DBDataSaver.GetBestBlockHash()
+	var err error
+	if len(hash) == 0 {
+		err = fmt.Errorf("Unable to get best block hash.")
+	}
+	return hash, err
+}
+
+func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
 	hash, err := db.RetrieveBlockHash(idx)
 	if err != nil {
 		log.Errorf("Unable to block hash for index %d: %v", idx, err)
@@ -112,12 +121,25 @@ func (db *wiredDB) GetHash(idx int64) (string, error) {
 	return hash, nil
 }
 
+func (db *wiredDB) GetBlockHeight(hash string) (int64, error) {
+	height, err := db.RetrieveBlockHeight(hash)
+	if err != nil {
+		log.Errorf("Unable to block height for hash %s: %v", hash, err)
+		return -1, err
+	}
+	return height, nil
+}
+
 func (db *wiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
 	return rpcutils.GetBlockHeaderVerbose(db.client, db.params, int64(idx))
 }
 
 func (db *wiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	return rpcutils.GetBlockVerbose(db.client, db.params, int64(idx), verboseTx)
+}
+
+func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+	return rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, verboseTx)
 }
 
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
@@ -161,6 +183,16 @@ func (db *wiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
 	return blockSummary
 }
 
+func (db *wiredDB) GetSummaryByHash(hash string) *apitypes.BlockDataBasic {
+	blockSummary, err := db.RetrieveBlockSummaryByHash(hash)
+	if err != nil {
+		log.Errorf("Unable to retrieve block summary: %v", err)
+		return nil
+	}
+
+	return blockSummary
+}
+
 func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	dbBlkHeight := db.GetBlockSummaryHeight()
 	blockSummary, err := db.RetrieveBlockSummary(dbBlkHeight)
@@ -174,6 +206,15 @@ func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 
 func (db *wiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
 	ticketPoolInfo, err := db.RetrievePoolInfo(int64(idx))
+	if err != nil {
+		log.Errorf("Unable to retrieve ticket pool info: %v", err)
+		return nil
+	}
+	return ticketPoolInfo
+}
+
+func (db *wiredDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
+	ticketPoolInfo, err := db.RetrievePoolInfoByHash(hash)
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket pool info: %v", err)
 		return nil

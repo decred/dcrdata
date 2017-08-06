@@ -38,6 +38,16 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Use(app.BlockIndexLatestCtx)
 			rd.Get("/", app.getBlockSummary) // app.getLatestBlock
 			rd.Get("/height", app.currentHeight)
+			rd.Get("/hash", app.getBlockHash)
+			rd.Get("/header", app.getBlockHeader)
+			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
+			rd.Get("/pos", app.getBlockStakeInfoExtended)
+		})
+
+		r.Route("/hash/{blockhash}", func(rd chi.Router) {
+			rd.Use(app.BlockHashPathAndIndexCtx)
+			rd.Get("/", app.getBlockSummary)
+			rd.Get("/height", app.getBlockHeight)
 			rd.Get("/header", app.getBlockHeader)
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
@@ -47,6 +57,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Use(BlockIndexPathCtx)
 			rd.Get("/", app.getBlockSummary)
 			rd.Get("/header", app.getBlockHeader)
+			rd.Get("/hash", app.getBlockHash)
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 		})
