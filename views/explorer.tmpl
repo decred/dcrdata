@@ -70,8 +70,8 @@
         <div id="boxagenda">
             <div style="clear:both;">&nbsp;</div>
             <h4><span>Recent Blocks</span></h4>
-            <table class="col-md-15">
-                <tr>
+            <table class="col-md-15" >
+                <tr style="padding-bottom: 1em;padding-top: 1em;">
                     <td> Height </td>
                     <td> Voters </td>
                     <td> Fresh Stake </td>
@@ -79,11 +79,11 @@
                     <td> Size </td>
                 </tr>
             {{range .Data}}
-                <tr class="bg-info" style="background-color:#2971FF;padding:15px;">
+                <tr style="padding-bottom: 1em;padding-top: 1em;">
                     <td> <a href="explorer/block/{{.Height}}">{{.Height}}</a> </td>
                     <td> {{.Voters}} </td>
                     <td> {{.FreshStake}} </td>
-                    <td> {{printf getTime .Confirmations}} </td>
+                    <td> {{.Time | getTime}} </td>
                     <td> {{.Size}} </td>
                 </tr>
             {{end}}

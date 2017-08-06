@@ -32,7 +32,7 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 	}{summaries})
 
 	if err != nil {
-		http.Error(w, "template execute failure", http.StatusInternalServerError)
+		http.Error(w, "template execute failure, Error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -61,9 +61,16 @@ func gettime(btime int64) string {
 	return t.String()
 }
 
+func nextBlock(n uint32) uint32 {
+	return n + 1
+}
+func prevBlock(n uint32) uint32 {
+	return n - 1
+}
+
 func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 	mux := chi.NewRouter()
-	helpers := template.FuncMap{"getTime": gettime}
+	helpers := template.FuncMap{"getTime": gettime, "next": nextBlock, "prev": prevBlock}
 	explorerTemplate, _ = template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl")
 	blockTemplate, _ = template.New("block").Funcs(helpers).ParseFiles("views/block.tmpl")
 	if userRealIP {
