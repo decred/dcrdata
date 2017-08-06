@@ -39,6 +39,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/", app.getBlockSummary) // app.getLatestBlock
 			rd.Get("/height", app.currentHeight)
 			rd.Get("/header", app.getBlockHeader)
+			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 		})
 
@@ -46,6 +47,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Use(BlockIndexPathCtx)
 			rd.Get("/", app.getBlockSummary)
 			rd.Get("/header", app.getBlockHeader)
+			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 		})
 

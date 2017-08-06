@@ -15,8 +15,10 @@ import (
 
 type APIDataSource interface {
 	GetHeight() int
+	GetHash(idx int64) (string, error)
 	//Get(idx int) *blockdata.BlockData
 	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
+	GetBlockVerbose(idx int) *dcrjson.GetBlockVerboseResult
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
 	//GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult
 	GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended
@@ -245,6 +247,21 @@ func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, blockHeader, c.getIndentQuery(r))
+}
+
+func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockVerbose := c.BlockData.GetBlockVerbose(idx)
+	if blockVerbose == nil {
+		apiLog.Errorf("Unable to get block %d", idx)
+	}
+
+	writeJSON(w, blockVerbose, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {

@@ -98,12 +98,26 @@ func (db *wiredDB) GetStakeDB() *stakedb.StakeDatabase {
 	return db.sDB
 }
 
+// TODO: Update this to use RetrieveBlockHeight
 func (db *wiredDB) GetHeight() int {
 	return int(db.GetBlockSummaryHeight())
 }
 
+func (db *wiredDB) GetHash(idx int64) (string, error) {
+	hash, err := db.RetrieveBlockHash(idx)
+	if err != nil {
+		log.Errorf("Unable to block hash for index %d: %v", idx, err)
+		return "", err
+	}
+	return hash, nil
+}
+
 func (db *wiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
 	return rpcutils.GetBlockHeaderVerbose(db.client, db.params, int64(idx))
+}
+
+func (db *wiredDB) GetBlockVerbose(idx int) *dcrjson.GetBlockVerboseResult {
+	return rpcutils.GetBlockVerbose(db.client, db.params, int64(idx))
 }
 
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {

@@ -21,6 +21,7 @@ const (
 	ctxAPIStatus
 	ctxBlockIndex0
 	ctxBlockIndex
+	ctxBlockHash
 	ctxN
 )
 
