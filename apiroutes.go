@@ -18,7 +18,7 @@ type APIDataSource interface {
 	GetHash(idx int64) (string, error)
 	//Get(idx int) *blockdata.BlockData
 	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
-	GetBlockVerbose(idx int) *dcrjson.GetBlockVerboseResult
+	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
 	//GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult
 	GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended
@@ -256,7 +256,7 @@ func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockVerbose := c.BlockData.GetBlockVerbose(idx)
+	blockVerbose := c.BlockData.GetBlockVerbose(idx, false)
 	if blockVerbose == nil {
 		apiLog.Errorf("Unable to get block %d", idx)
 	}

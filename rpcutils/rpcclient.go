@@ -148,14 +148,14 @@ func GetBlockHeaderVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
 // GetBlockVerbose creates a *dcrjson.GetBlockVerboseResult for the block index
 // specified by idx via an RPC connection to a chain server.
 func GetBlockVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
-	idx int64) *dcrjson.GetBlockVerboseResult {
+	idx int64, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
 		return nil
 	}
 
-	blockVerbose, err := client.GetBlockVerbose(blockhash, true)
+	blockVerbose, err := client.GetBlockVerbose(blockhash, verboseTx)
 	if err != nil {
 		log.Errorf("GetBlockVerbose(%v) failed: %v", blockhash, err)
 		return nil

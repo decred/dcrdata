@@ -116,8 +116,8 @@ func (db *wiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
 	return rpcutils.GetBlockHeaderVerbose(db.client, db.params, int64(idx))
 }
 
-func (db *wiredDB) GetBlockVerbose(idx int) *dcrjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerbose(db.client, db.params, int64(idx))
+func (db *wiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+	return rpcutils.GetBlockVerbose(db.client, db.params, int64(idx), verboseTx)
 }
 
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
