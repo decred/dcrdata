@@ -165,7 +165,7 @@ func getBlockIndex0Ctx(r *http.Request) int {
 func getBlockHashOnlyCtx(r *http.Request) string {
 	hash, ok := r.Context().Value(ctxBlockHash).(string)
 	if !ok {
-		apiLog.Error("block hash not set")
+		apiLog.Trace("block hash not set")
 		return ""
 	}
 	return hash
