@@ -14,15 +14,14 @@ import (
 	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 
-// BlockSummaryDatabaser is the interface for a block data saving database
-type BlockSummaryDatabaser interface {
+// StakeInfoDatabaser is the interface for an extended stake info saving database
+type StakeInfoDatabaser interface {
 	StoreStakeInfoExtended(bd *apitypes.StakeInfoExtended) error
 	RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error)
 }
 
-// StakeInfoDatabaser is the interface for an extended stake info saving
-// database
-type StakeInfoDatabaser interface {
+// BlockSummaryDatabaser is the interface for a block data saving database
+type BlockSummaryDatabaser interface {
 	StoreBlockSummary(bd *apitypes.BlockDataBasic) error
 	RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error)
 }
@@ -51,6 +50,7 @@ type DB struct {
 	getSDiffSQL, getSDiffRangeSQL                       string
 	getLatestBlockSQL                                   string
 	getBlockSQL, insertBlockSQL                         string
+	getBlockHashSQL, getBlockHeightSQL                  string
 	getLatestStakeInfoExtendedSQL                       string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
 }
@@ -85,7 +85,10 @@ func NewDB(db *sql.DB) *DB {
         INSERT OR REPLACE INTO %s(
             height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, TableNameSummaries)
+		`, TableNameSummaries)
+
+	d.getBlockHashSQL = fmt.Sprintf(`select hash from %s where height = ?`, TableNameSummaries)
+	d.getBlockHeightSQL = fmt.Sprintf(`select height from %s where hash = ?`, TableNameSummaries)
 
 	// Stake info queries
 	d.getStakeInfoExtendedSQL = fmt.Sprintf(`select * from %s where height = ?`,
@@ -392,6 +395,18 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	}
 
 	return bd, nil
+}
+
+func (db *DB) RetrieveBlockHash(ind int64) (string, error) {
+	var blockHash string
+	err := db.QueryRow(db.getBlockHashSQL, ind).Scan(&blockHash)
+	return blockHash, err
+}
+
+func (db *DB) RetrieveBlockHeight(hash string) (int64, error) {
+	var blockHeight int64
+	err := db.QueryRow(db.getBlockHeightSQL, hash).Scan(&blockHeight)
+	return blockHeight, err
 }
 
 func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
