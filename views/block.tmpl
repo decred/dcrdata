@@ -74,11 +74,12 @@
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
                     Height: {{.Height}}<br>
                     Size: {{.Size}}<br>
+                    Time: {{.Time | getTime}}<br>
                     Hash:  {{.Hash}}<br>
                     Difficulty: {{printf "%12.2f" .Difficulty}}<br>
-                    Previous Block Hash: <a href="../block/{{.Height | prev}}">{{.PreviousHash}}</a><br>
+                    Previous Block Hash: <a href="../block/{{.PreviousHash}}">{{.PreviousHash}}</a><br>
                     {{if .NextHash}}
-                    Next Block Hash: <a href="../block/{{.Height | next}}">{{.NextHash}}</a><br>
+                    Next Block Hash: <a href="../block/{{.NextHash}}">{{.NextHash}}</a><br>
                     {{end}}
                     Confirmations: {{.Confirmations}}<br>
                     Verison: {{.Version}}<br>
@@ -94,14 +95,30 @@
                     Nonce: {{.Nonce}}<br>
                     Sbits: {{.SBits}}<br>
                     Bits: {{.Bits}}<br>
-                    <!--Time<br>-->
-                </p>
+                     </p>
+                <h4><span>Transactions</span></h4>
+                    {{ range .RawTx}}
+                        <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                        Transactions ID: {{.Txid}}<br>
+                        Total Value Out:  {{ .Vout | getTotal }} DCR<br>
+                        Time: {{.Time | getTime}}<br>
+                        Size: {{.Hex | len}}
+                        </p>
+                    {{end}}
+                <h4><span>Stake Transactions</span></h4>
+                    {{ range .RawSTx}}
+                        <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                        Transactions ID: {{.Txid}}<br>
+                        Total Value Out:  {{ .Vout | getTotal }} DCR<br>
+                        Time: {{.Time | getTime}}<br>
+                        Size: {{.Hex | len}}
+                        </p>
+                    {{end}}
+                
             </div>
         </div>
     </div>
-
-    <script src="js/complete.js"></script>
-
+ 
 </body>
 
 </html>

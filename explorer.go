@@ -41,14 +41,11 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
-	idx := getBlockIndexCtx(r)
-	if idx < 0 {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-	str, err := TemplateExecToString(blockTemplate, "block", c.BlockData.GetHeader(idx))
+	hash := c.getBlockHashCtx(r)
+
+	str, err := TemplateExecToString(blockTemplate, "block", c.BlockData.GetBlockVerboseByHash(hash, true))
 	if err != nil {
-		http.Error(w, "template execute failure", http.StatusInternalServerError)
+		http.Error(w, "template execute failure Error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -56,21 +53,23 @@ func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-func gettime(btime int64) string {
+func getTime(btime int64) string {
 	t := time.Unix(btime, 0)
 	return t.String()
 }
 
-func nextBlock(n uint32) uint32 {
-	return n + 1
-}
-func prevBlock(n uint32) uint32 {
-	return n - 1
+func getTotal(vout []dcrjson.Vout) float64 {
+	//var total float64
+	total := 0.0
+	for _, v := range vout {
+		total = total + v.Value
+	}
+	return total
 }
 
 func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 	mux := chi.NewRouter()
-	helpers := template.FuncMap{"getTime": gettime, "next": nextBlock, "prev": prevBlock}
+	helpers := template.FuncMap{"getTime": getTime, "getTotal": getTotal, "len": func(s string) int { return len(s) / 2 }}
 	explorerTemplate, _ = template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl")
 	blockTemplate, _ = template.New("block").Funcs(helpers).ParseFiles("views/block.tmpl")
 	if userRealIP {
@@ -85,12 +84,12 @@ func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 
 	mux.Route("/block", func(r chi.Router) {
 		r.Route("/best", func(rd chi.Router) {
-			rd.Use(app.BlockIndexLatestCtx)
+			rd.Use(app.BlockHashLatestCtx)
 			rd.Get("/", app.blockPage)
 		})
 
-		r.Route("/{idx}", func(rd chi.Router) {
-			rd.Use(BlockIndexPathCtx)
+		r.Route("/{blockhash}", func(rd chi.Router) {
+			rd.Use(app.BlockHashPathAndIndexCtx)
 			rd.Get("/", app.blockPage)
 		})
 	})

@@ -80,7 +80,7 @@
                 </tr>
             {{range .Data}}
                 <tr style="padding-bottom: 1em;padding-top: 1em;">
-                    <td> <a href="explorer/block/{{.Height}}">{{.Height}}</a> </td>
+                    <td> <a href="explorer/block/{{.Hash}}">{{.Height}}</a> </td>
                     <td> {{.Voters}} </td>
                     <td> {{.FreshStake}} </td>
                     <td> {{.Time | getTime}} </td>
@@ -90,9 +90,7 @@
             </table>
         </div>
     </div>
-
-    <script src="js/complete.js"></script>
-
+ 
 </body>
 
 </html>
