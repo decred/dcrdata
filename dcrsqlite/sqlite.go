@@ -53,6 +53,7 @@ type DB struct {
 	getBlockSQL, insertBlockSQL                         string
 	getBlockByHashSQL                                   string
 	getBlockHashSQL, getBlockHeightSQL                  string
+	getBlockSizeRangeSQL                                string
 	getBestBlockHashSQL, getBestBlockHeightSQL          string
 	getLatestStakeInfoExtendedSQL                       string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
@@ -91,6 +92,9 @@ func NewDB(db *sql.DB) *DB {
             height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameSummaries)
+
+	d.getBlockSizeRangeSQL = fmt.Sprintf(`select size from %s where height between ? and ?`,
+		TableNameSummaries)
 
 	d.getBestBlockHashSQL = fmt.Sprintf(`select hash from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 	d.getBestBlockHeightSQL = fmt.Sprintf(`select height from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
@@ -507,6 +511,49 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 	// }
 
 	return bd, nil
+}
+
+func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
+	N := ind1 - ind0 + 1
+	if N == 0 {
+		return []int32{}, nil
+	}
+	if N < 0 {
+		return nil, fmt.Errorf("Cannot retrieve block size range (%d<%d)",
+			ind1, ind0)
+	}
+	if ind1 > db.dbSummaryHeight || ind0 < 0 {
+		return nil, fmt.Errorf("Cannot retrieve block size range [%d,%d], have height %d",
+			ind1, ind0, db.dbSummaryHeight)
+	}
+
+	blockSizes := make([]int32, 0, N)
+
+	stmt, err := db.Prepare(db.getBlockSizeRangeSQL)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(ind0, ind1)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var blockSize int32
+		if err = rows.Scan(&blockSize); err != nil {
+			log.Errorf("Unable to scan for sdiff fields: %v", err)
+		}
+		blockSizes = append(blockSizes, blockSize)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	return blockSizes, nil
 }
 
 func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
