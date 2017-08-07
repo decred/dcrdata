@@ -22,6 +22,8 @@ type APIDataSource interface {
 	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
+	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
+	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
 	//GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult
 	GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended
@@ -290,6 +292,20 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, blockSummary, c.getIndentQuery(r))
+}
+
+func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request) {
+	hash := c.getBlockHashCtx(r)
+	if hash == "" {
+		http.Error(w, http.StatusText(422), 422)
+	}
+
+	blockTransactions := c.BlockData.GetTransactionsForBlockByHash(hash)
+	if blockTransactions == nil {
+		apiLog.Errorf("Unable to get block %s summary", hash)
+	}
+
+	writeJSON(w, blockTransactions, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {

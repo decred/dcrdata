@@ -142,6 +142,30 @@ func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.G
 	return rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, verboseTx)
 }
 
+func (db *wiredDB) GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions {
+	blockVerbose := rpcutils.GetBlockVerbose(db.client, db.params, idx, false)
+
+	return makeBlockTransactions(blockVerbose)
+}
+
+func (db *wiredDB) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
+	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, false)
+
+	return makeBlockTransactions(blockVerbose)
+}
+
+func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitypes.BlockTransactions {
+	blockTransactions := new(apitypes.BlockTransactions)
+
+	blockTransactions.Tx = make([]string, len(blockVerbose.Tx))
+	copy(blockTransactions.Tx, blockVerbose.Tx)
+
+	blockTransactions.STx = make([]string, len(blockVerbose.STx))
+	copy(blockTransactions.STx, blockVerbose.STx)
+
+	return blockTransactions
+}
+
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 	sd := rpcutils.GetStakeDiffEstimates(db.client)
 
