@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
 
 	"github.com/go-chi/chi"
@@ -17,10 +18,11 @@ type explorerMux struct {
 	*chi.Mux
 }
 
-var explorerTemplate *template.Template
-var blockTemplate *template.Template
-
 func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
+
+	helpers := template.FuncMap{"getTime": getTime}
+	explorerTemplate, _ := template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl", "views/extras.tmpl")
+
 	idx := c.BlockData.GetHeight()
 	N := 10
 	summaries := make([]*dcrjson.GetBlockHeaderVerboseResult, 0, N)
@@ -43,7 +45,30 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
 	hash := c.getBlockHashCtx(r)
 
+	helpers := template.FuncMap{"getTime": getTime, "getTotal": getTotaljs, "len": func(s string) int { return len(s) / 2 }}
+	blockTemplate, _ := template.New("block").Funcs(helpers).ParseFiles("views/block.tmpl", "views/extras.tmpl")
+
 	str, err := TemplateExecToString(blockTemplate, "block", c.BlockData.GetBlockVerboseByHash(hash, true))
+	if err != nil {
+		http.Error(w, "template execute failure Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+func (c *appContext) txPage(w http.ResponseWriter, r *http.Request) {
+	hash, ok := r.Context().Value(ctxTxHash).(string)
+
+	helpers := template.FuncMap{"getTime": getTime, "getTotal": getTotalapi, "len": func(s string) int { return len(s) / 2 }}
+	txTemplate, _ := template.New("tx").Funcs(helpers).ParseFiles("views/tx.tmpl", "views/extras.tmpl")
+
+	if !ok {
+		apiLog.Trace("txid not set")
+	}
+
+	str, err := TemplateExecToString(txTemplate, "tx", c.BlockData.GetRawTransaction(hash))
 	if err != nil {
 		http.Error(w, "template execute failure Error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -58,7 +83,15 @@ func getTime(btime int64) string {
 	return t.String()
 }
 
-func getTotal(vout []dcrjson.Vout) float64 {
+func getTotaljs(vout []dcrjson.Vout) float64 {
+	//var total float64
+	total := 0.0
+	for _, v := range vout {
+		total = total + v.Value
+	}
+	return total
+}
+func getTotalapi(vout []apitypes.Vout) float64 {
 	//var total float64
 	total := 0.0
 	for _, v := range vout {
@@ -69,9 +102,6 @@ func getTotal(vout []dcrjson.Vout) float64 {
 
 func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 	mux := chi.NewRouter()
-	helpers := template.FuncMap{"getTime": getTime, "getTotal": getTotal, "len": func(s string) int { return len(s) / 2 }}
-	explorerTemplate, _ = template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl")
-	blockTemplate, _ = template.New("block").Funcs(helpers).ParseFiles("views/block.tmpl")
 	if userRealIP {
 		mux.Use(middleware.RealIP)
 	}
@@ -91,6 +121,13 @@ func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 		r.Route("/{blockhash}", func(rd chi.Router) {
 			rd.Use(app.BlockHashPathAndIndexCtx)
 			rd.Get("/", app.blockPage)
+		})
+	})
+
+	mux.Route("/tx", func(r chi.Router) {
+		r.Route("/{txid}", func(rd chi.Router) {
+			rd.Use(TransactionHashCtx)
+			rd.Get("/", app.txPage)
 		})
 	})
 	return explorerMux{mux}

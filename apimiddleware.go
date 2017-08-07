@@ -22,6 +22,7 @@ const (
 	ctxBlockIndex0
 	ctxBlockIndex
 	ctxBlockHash
+	ctxTxHash
 	ctxN
 )
 
@@ -136,6 +137,14 @@ func (c *appContext) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
 		}
 		ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
 		ctx = context.WithValue(ctx, ctxBlockIndex, height)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func TransactionHashCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		txid := chi.URLParam(r, "txid")
+		ctx := context.WithValue(r.Context(), ctxTxHash, txid)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

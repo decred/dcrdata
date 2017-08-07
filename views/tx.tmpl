@@ -1,0 +1,35 @@
+{{define "tx"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head"}}
+<body>
+{{template "navbar"}}
+
+<div class="wrapper" style="margin-top:60px;">
+        <div id="boxagenda">
+            <div style="clear:both;">&nbsp;</div>
+            <h4><span>Transaction</span></h4>
+            <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                {{with .TxShort}}
+                Transactions ID: {{.TxID}}<br>
+                Total Value Out:  {{ .Vout | getTotal }} DCR<br>
+                Time: {{$.Block.Time | getTime }}<br>
+                Size: {{.Size}}<br>
+                {{end}}
+                </p>
+            <h4><span>Outputs</span></h4>
+                {{range .Vout}}
+                <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                    Value: {{.Value}}<br>
+                    Addresses: <br>
+                        {{range .ScriptPubKeyDecoded.Addresses}}
+                            {{.}}<br>
+                        {{end}}
+                </p>
+                {{end}}
+            
+        </div>
+    </div>
+</body>
+</html>
+{{end}}
