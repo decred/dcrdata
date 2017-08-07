@@ -29,6 +29,7 @@ type Tx struct {
 }
 
 type TxShort struct {
+	Size     int32         `json:"size"`
 	TxID     string        `json:"txid"`
 	Version  int32         `json:"version"`
 	Locktime uint32        `json:"locktime"`
