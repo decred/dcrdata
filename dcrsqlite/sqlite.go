@@ -14,15 +14,14 @@ import (
 	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 
-// BlockSummaryDatabaser is the interface for a block data saving database
-type BlockSummaryDatabaser interface {
+// StakeInfoDatabaser is the interface for an extended stake info saving database
+type StakeInfoDatabaser interface {
 	StoreStakeInfoExtended(bd *apitypes.StakeInfoExtended) error
 	RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error)
 }
 
-// StakeInfoDatabaser is the interface for an extended stake info saving
-// database
-type StakeInfoDatabaser interface {
+// BlockSummaryDatabaser is the interface for a block data saving database
+type BlockSummaryDatabaser interface {
 	StoreBlockSummary(bd *apitypes.BlockDataBasic) error
 	RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error)
 }
@@ -48,9 +47,13 @@ type DB struct {
 	dbSummaryHeight                                     int64
 	dbStakeInfoHeight                                   int64
 	getPoolSQL, getPoolRangeSQL                         string
+	getPoolByHashSQL                                    string
 	getSDiffSQL, getSDiffRangeSQL                       string
 	getLatestBlockSQL                                   string
 	getBlockSQL, insertBlockSQL                         string
+	getBlockByHashSQL                                   string
+	getBlockHashSQL, getBlockHeightSQL                  string
+	getBestBlockHashSQL, getBestBlockHeightSQL          string
 	getLatestStakeInfoExtendedSQL                       string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
 }
@@ -68,6 +71,8 @@ func NewDB(db *sql.DB) *DB {
 	// Ticket pool queries
 	d.getPoolSQL = fmt.Sprintf(`select poolsize, poolval, poolavg from %s where height = ?`,
 		TableNameSummaries)
+	d.getPoolByHashSQL = fmt.Sprintf(`select poolsize, poolval, poolavg from %s where hash = ?`,
+		TableNameSummaries)
 	d.getPoolRangeSQL = fmt.Sprintf(`select poolsize, poolval, poolavg from %s where height between ? and ?`,
 		TableNameSummaries)
 
@@ -77,15 +82,21 @@ func NewDB(db *sql.DB) *DB {
 		TableNameSummaries)
 
 	// Block queries
-	d.getBlockSQL = fmt.Sprintf(`select * from %s where height = ?`,
-		TableNameSummaries)
+	d.getBlockSQL = fmt.Sprintf(`select * from %s where height = ?`, TableNameSummaries)
+	d.getBlockByHashSQL = fmt.Sprintf(`select * from %s where hash = ?`, TableNameSummaries)
 	d.getLatestBlockSQL = fmt.Sprintf(`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`,
 		TableNameSummaries)
 	d.insertBlockSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
             height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, TableNameSummaries)
+		`, TableNameSummaries)
+
+	d.getBestBlockHashSQL = fmt.Sprintf(`select hash from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
+	d.getBestBlockHeightSQL = fmt.Sprintf(`select height from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
+
+	d.getBlockHashSQL = fmt.Sprintf(`select hash from %s where height = ?`, TableNameSummaries)
+	d.getBlockHeightSQL = fmt.Sprintf(`select height from %s where hash = ?`, TableNameSummaries)
 
 	// Stake info queries
 	d.getStakeInfoExtendedSQL = fmt.Sprintf(`select * from %s where height = ?`,
@@ -210,14 +221,27 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	return err
 }
 
+func (db *DB) GetBestBlockHash() string {
+	hash, err := db.RetrieveBestBlockHash()
+	if err != nil {
+		log.Errorf("RetrieveBestBlockHash failed: %v", err)
+		return ""
+	}
+	return hash
+}
+
+func (db *DB) GetBestBlockHeight() int64 {
+	return db.GetBlockSummaryHeight()
+}
+
 func (db *DB) GetBlockSummaryHeight() int64 {
 	if db.dbSummaryHeight < 0 {
-		sum, err := db.RetrieveLatestBlockSummary()
-		if err != nil || sum == nil {
-			log.Errorf("RetrieveLatestBlockSummary failed: %v", err)
+		height, err := db.RetrieveBestBlockHeight()
+		if err != nil {
+			log.Errorf("RetrieveBestBlockHeight failed: %v", err)
 			return -1
 		}
-		db.dbSummaryHeight = int64(sum.Height)
+		db.dbSummaryHeight = height
 	}
 	return db.dbSummaryHeight
 }
@@ -280,6 +304,12 @@ func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo
 func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
 	tpi := new(apitypes.TicketPoolInfo)
 	err := db.QueryRow(db.getPoolSQL, ind).Scan(&tpi.Size, &tpi.Value, &tpi.ValAvg)
+	return tpi, err
+}
+
+func (db *DB) RetrievePoolInfoByHash(hash string) (*apitypes.TicketPoolInfo, error) {
+	tpi := new(apitypes.TicketPoolInfo)
+	err := db.QueryRow(db.getPoolByHashSQL, hash).Scan(&tpi.Size, &tpi.Value, &tpi.ValAvg)
 	return tpi, err
 }
 
@@ -391,6 +421,42 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 		return nil, err
 	}
 
+	return bd, nil
+}
+
+func (db *DB) RetrieveBlockHash(ind int64) (string, error) {
+	var blockHash string
+	err := db.QueryRow(db.getBlockHashSQL, ind).Scan(&blockHash)
+	return blockHash, err
+}
+
+func (db *DB) RetrieveBlockHeight(hash string) (int64, error) {
+	var blockHeight int64
+	err := db.QueryRow(db.getBlockHeightSQL, hash).Scan(&blockHeight)
+	return blockHeight, err
+}
+
+func (db *DB) RetrieveBestBlockHash() (string, error) {
+	var blockHash string
+	err := db.QueryRow(db.getBestBlockHashSQL).Scan(&blockHash)
+	return blockHash, err
+}
+
+func (db *DB) RetrieveBestBlockHeight() (int64, error) {
+	var blockHeight int64
+	err := db.QueryRow(db.getBestBlockHeightSQL).Scan(&blockHeight)
+	return blockHeight, err
+}
+
+func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic, error) {
+	bd := new(apitypes.BlockDataBasic)
+
+	err := db.QueryRow(db.getBlockByHashSQL, hash).Scan(&bd.Height, &bd.Size, &bd.Hash,
+		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
+	if err != nil {
+		return nil, err
+	}
 	return bd, nil
 }
 

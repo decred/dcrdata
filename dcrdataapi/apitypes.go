@@ -10,6 +10,11 @@ import (
 // much of the time, dcrdata will be using the types in dcrjson, but others are
 // defined here
 
+type BlockTransactions struct {
+	Tx  []string `json:"tx"`
+	STx []string `json:"stx"`
+}
+
 // Status indicates the state of the server, including the API version and the
 // software version.
 type Status struct {
