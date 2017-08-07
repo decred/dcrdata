@@ -22,6 +22,7 @@ type APIDataSource interface {
 	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
+	GetRawTransaction(txid string) *apitypes.Tx
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
@@ -198,6 +199,15 @@ func (c *appContext) getBlockHeightCtx(r *http.Request) int64 {
 	return idx
 }
 
+func getTxIDCtx(r *http.Request) string {
+	hash, ok := r.Context().Value(ctxTxHash).(string)
+	if !ok {
+		apiLog.Trace("txid not set")
+		return ""
+	}
+	return hash
+}
+
 func getNCtx(r *http.Request) int {
 	N, ok := r.Context().Value(ctxN).(int)
 	if !ok {
@@ -335,6 +345,20 @@ func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, blockVerbose, c.getIndentQuery(r))
+}
+
+func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
+	txid := getTxIDCtx(r)
+	if txid == "" {
+		http.Error(w, http.StatusText(422), 422)
+	}
+
+	tx := c.BlockData.GetRawTransaction(txid)
+	if tx == nil {
+		apiLog.Errorf("Unable to get block %s", txid)
+	}
+
+	writeJSON(w, tx, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {

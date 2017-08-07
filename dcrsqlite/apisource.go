@@ -166,6 +166,58 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	return blockTransactions
 }
 
+func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
+	tx := new(apitypes.Tx)
+
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil
+	}
+
+	txraw, err := db.client.GetRawTransactionVerbose(txhash)
+	if err != nil {
+		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
+		return nil
+	}
+
+	// TxShort
+	tx.TxID = txraw.Txid
+	tx.Version = txraw.Version
+	tx.Locktime = txraw.LockTime
+	tx.Expiry = txraw.Expiry
+	tx.Vin = make([]dcrjson.Vin, len(txraw.Vin))
+	copy(tx.Vin, txraw.Vin)
+	tx.Vout = make([]apitypes.Vout, len(txraw.Vout))
+	for i := range txraw.Vout {
+		tx.Vout[i].Value = txraw.Vout[i].Value
+		tx.Vout[i].N = txraw.Vout[i].N
+		tx.Vout[i].Version = txraw.Vout[i].Version
+		spk := &tx.Vout[i].ScriptPubKeyDecoded
+		spkRaw := &txraw.Vout[i].ScriptPubKey
+		spk.Asm = spkRaw.Asm
+		spk.ReqSigs = spkRaw.ReqSigs
+		spk.Type = spkRaw.Type
+		spk.Addresses = make([]string, len(spkRaw.Addresses))
+		if spkRaw.CommitAmt != nil {
+			spk.CommitAmt = new(float64)
+			*spk.CommitAmt = *spkRaw.CommitAmt
+		}
+	}
+
+	tx.Confirmations = txraw.Confirmations
+
+	// BlockID
+	tx.Block = new(apitypes.BlockID)
+	tx.Block.BlockHash = txraw.BlockHash
+	tx.Block.BlockHeight = txraw.BlockHeight
+	tx.Block.BlockIndex = txraw.BlockIndex
+	tx.Block.Time = txraw.Time
+	tx.Block.BlockTime = txraw.Blocktime
+
+	return tx
+}
+
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 	sd := rpcutils.GetStakeDiffEstimates(db.client)
 

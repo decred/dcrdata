@@ -29,7 +29,7 @@ type Tx struct {
 }
 
 type TxShort struct {
-	Txid     string        `json:"txid"`
+	TxID     string        `json:"txid"`
 	Version  int32         `json:"version"`
 	Locktime uint32        `json:"locktime"`
 	Expiry   uint32        `json:"expiry"`
@@ -42,7 +42,7 @@ type BlockID struct {
 	BlockHeight int64  `json:"blockheight"`
 	BlockIndex  uint32 `json:"blockindex"`
 	Time        int64  `json:"time"`
-	Blocktime   int64  `json:"blocktime"`
+	BlockTime   int64  `json:"blocktime"`
 }
 
 type TxOut struct {
