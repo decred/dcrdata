@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/docgen"
-	//"github.com/decred/dcrrpcclient"
 )
 
 // Middlewares
@@ -22,6 +21,7 @@ const (
 	ctxAPIStatus
 	ctxBlockIndex0
 	ctxBlockIndex
+	ctxBlockHash
 	ctxN
 )
 
@@ -94,6 +94,48 @@ func (c *appContext) BlockIndexLatestCtx(next http.Handler) http.Handler {
 			idx = c.BlockData.GetHeight()
 		}
 		ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (c *appContext) BlockHashLatestCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		idx := -1
+		hash := ""
+		if c.BlockData != nil {
+			var err error
+			// if hash, err = c.BlockData.GetBestBlockHash(int64(idx)); err != nil {
+			// 	apiLog.Errorf("Unable to GetBestBlockHash: %v", idx, err)
+			// }
+			if idx = c.BlockData.GetHeight(); idx >= 0 {
+				if hash, err = c.BlockData.GetBlockHash(int64(idx)); err != nil {
+					apiLog.Errorf("Unable to GetBlockHash(%d): %v", idx, err)
+				}
+			}
+		}
+		ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
+		ctx = context.WithValue(ctx, ctxBlockHash, hash)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func BlockHashPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hash := chi.URLParam(r, "blockhash")
+		ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (c *appContext) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hash := chi.URLParam(r, "blockhash")
+		height, err := c.BlockData.GetBlockHeight(hash)
+		if err != nil {
+			apiLog.Errorf("Unable to GetBlockHeight(%d): %v", height, err)
+		}
+		ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
+		ctx = context.WithValue(ctx, ctxBlockIndex, height)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

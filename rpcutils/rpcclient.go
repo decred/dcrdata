@@ -145,6 +145,44 @@ func GetBlockHeaderVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
 	return blockHeaderVerbose
 }
 
+// GetBlockVerbose creates a *dcrjson.GetBlockVerboseResult for the block index
+// specified by idx via an RPC connection to a chain server.
+func GetBlockVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
+	idx int64, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+	blockhash, err := client.GetBlockHash(idx)
+	if err != nil {
+		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
+		return nil
+	}
+
+	blockVerbose, err := client.GetBlockVerbose(blockhash, verboseTx)
+	if err != nil {
+		log.Errorf("GetBlockVerbose(%v) failed: %v", blockhash, err)
+		return nil
+	}
+
+	return blockVerbose
+}
+
+// GetBlockVerboseByHash creates a *dcrjson.GetBlockVerboseResult for the
+// specified block hash via an RPC connection to a chain server.
+func GetBlockVerboseByHash(client *dcrrpcclient.Client, params *chaincfg.Params,
+	hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+	blockhash, err := chainhash.NewHashFromStr(hash)
+	if err != nil {
+		log.Errorf("Invalid block hash %s", hash)
+		return nil
+	}
+
+	blockVerbose, err := client.GetBlockVerbose(blockhash, verboseTx)
+	if err != nil {
+		log.Errorf("GetBlockVerbose(%v) failed: %v", blockhash, err)
+		return nil
+	}
+
+	return blockVerbose
+}
+
 // GetStakeDiffEstimates combines the results of EstimateStakeDiff and
 // GetStakeDifficulty into a *apitypes.StakeDiff.
 func GetStakeDiffEstimates(client *dcrrpcclient.Client) *apitypes.StakeDiff {
