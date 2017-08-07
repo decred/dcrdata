@@ -23,6 +23,7 @@ const (
 	ctxBlockIndex
 	ctxBlockHash
 	ctxTxHash
+	ctxTxInOutIndex
 	ctxN
 )
 
@@ -145,6 +146,21 @@ func TransactionHashCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		txid := chi.URLParam(r, "txid")
 		ctx := context.WithValue(r.Context(), ctxTxHash, txid)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func TransactionIOIndexCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		idxStr := chi.URLParam(r, "txinoutindex")
+		idx, err := strconv.Atoi(idxStr)
+		if err != nil {
+			apiLog.Infof("No/invalid numeric value (%v): %v", idxStr, err)
+			http.NotFound(w, r)
+			//http.Error(w, http.StatusText(404), 404)
+			return
+		}
+		ctx := context.WithValue(r.Context(), ctxTxInOutIndex, idx)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
