@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
@@ -207,24 +208,38 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
-		log.Errorf("Invalid transaction hash %s", txid)
+		log.Infof("Invalid transaction hash %s", txid)
 		return nil
 	}
 
 	tx, err := db.client.GetRawTransaction(txhash)
 	if err != nil {
-		log.Errorf("Unknown transaction %s", txid)
+		log.Warnf("Unknown transaction %s", txid)
 		return nil
 	}
 
 	allTxOut0 := tx.MsgTx().TxOut
 	allTxOut := make([]*apitypes.TxOut, len(allTxOut0))
 	for i := range allTxOut {
-		txOut := &apitypes.TxOut{
-			Value:    dcrutil.Amount(allTxOut0[i].Value).ToCoin(),
-			Version:  allTxOut0[i].Version,
-			PkScript: hex.EncodeToString(allTxOut0[i].PkScript),
+		var addresses []string
+		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
+			allTxOut0[i].Version, allTxOut0[i].PkScript, db.params)
+		if err != nil {
+			log.Warnf("Unable to extract addresses from PkScript: %v", err)
+		} else {
+			addresses = make([]string, 0, len(txAddrs))
+			for i := range txAddrs {
+				addresses = append(addresses, txAddrs[i].String())
+			}
 		}
+
+		txOut := &apitypes.TxOut{
+			Value:     dcrutil.Amount(allTxOut0[i].Value).ToCoin(),
+			Version:   allTxOut0[i].Version,
+			PkScript:  hex.EncodeToString(allTxOut0[i].PkScript),
+			Addresses: addresses,
+		}
+
 		allTxOut[i] = txOut
 	}
 
