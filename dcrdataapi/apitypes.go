@@ -46,7 +46,7 @@ type BlockID struct {
 	BlockTime   int64  `json:"blocktime"`
 }
 
-type TxOut struct {
+type VoutMined struct {
 	Vout
 	BestBlock     string `json:"bestblock"`
 	Confirmations int64  `json:"confirmations"`
@@ -74,6 +74,33 @@ type ScriptPubKey struct {
 	Type      string   `json:"type"`
 	Addresses []string `json:"addresses,omitempty"`
 	CommitAmt *float64 `json:"commitamt,omitempty"`
+}
+
+// TxOut defines a decred transaction output.
+type TxOut struct {
+	Value    float64 `json:"value"`
+	Version  uint16  `json:"version"`
+	PkScript string  `json:"pkscript"`
+}
+
+// TxIn defines a decred transaction input.
+type TxIn struct {
+	// Non-witness
+	PreviousOutPoint OutPoint `json:"prevout"`
+	Sequence         uint32   `json:"sequence"`
+
+	// Witness
+	ValueIn         float64 `json:"value"`
+	BlockHeight     uint32  `json:"blockheight"`
+	BlockIndex      uint32  `json:"blockindex"`
+	SignatureScript string  `json:"sigscript"`
+}
+
+// OutPoint is used to track previous transaction outputs.
+type OutPoint struct {
+	Hash  string `json:"hash"`
+	Index uint32 `json:"index"`
+	Tree  int8   `json:"tree"`
 }
 
 // below are notes essentially copy-paste from dcrjson

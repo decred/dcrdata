@@ -23,6 +23,8 @@ type APIDataSource interface {
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetRawTransaction(txid string) *apitypes.Tx
+	GetAllTxIn(txid string) []*apitypes.TxIn
+	GetAllTxOut(txid string) []*apitypes.TxOut
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
@@ -355,10 +357,40 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 
 	tx := c.BlockData.GetRawTransaction(txid)
 	if tx == nil {
-		apiLog.Errorf("Unable to get block %s", txid)
+		apiLog.Errorf("Unable to get transaction %s", txid)
 	}
 
 	writeJSON(w, tx, c.getIndentQuery(r))
+}
+
+func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request) {
+	txid := getTxIDCtx(r)
+	if txid == "" {
+		http.Error(w, http.StatusText(422), 422)
+	}
+
+	allTxIn := c.BlockData.GetAllTxIn(txid)
+	// allTxIn may be empty, but not a nil slice
+	if allTxIn == nil {
+		apiLog.Errorf("Unable to get all TxIn for transaction %s", txid)
+	}
+
+	writeJSON(w, allTxIn, c.getIndentQuery(r))
+}
+
+func (c *appContext) getTransactionOutputs(w http.ResponseWriter, r *http.Request) {
+	txid := getTxIDCtx(r)
+	if txid == "" {
+		http.Error(w, http.StatusText(422), 422)
+	}
+
+	allTxOut := c.BlockData.GetAllTxOut(txid)
+	// allTxOut may be empty, but not a nil slice
+	if allTxOut == nil {
+		apiLog.Errorf("Unable to get all TxOut for transaction %s", txid)
+	}
+
+	writeJSON(w, allTxOut, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {

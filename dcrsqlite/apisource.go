@@ -5,6 +5,7 @@ package dcrsqlite
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrutil"
 )
 
 // wiredDB is intended to satisfy APIDataSource interface. The block header is
@@ -164,6 +166,69 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	copy(blockTransactions.STx, blockVerbose.STx)
 
 	return blockTransactions
+}
+
+func (db *wiredDB) GetAllTxIn(txid string) []*apitypes.TxIn {
+
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil
+	}
+
+	tx, err := db.client.GetRawTransaction(txhash)
+	if err != nil {
+		log.Errorf("Unknown transaction %s", txid)
+		return nil
+	}
+
+	allTxIn0 := tx.MsgTx().TxIn
+	allTxIn := make([]*apitypes.TxIn, len(allTxIn0))
+	for i := range allTxIn {
+		txIn := &apitypes.TxIn{
+			PreviousOutPoint: apitypes.OutPoint{
+				Hash:  allTxIn0[i].PreviousOutPoint.Hash.String(),
+				Index: allTxIn0[i].PreviousOutPoint.Index,
+				Tree:  allTxIn0[i].PreviousOutPoint.Tree,
+			},
+			Sequence:        allTxIn0[i].Sequence,
+			ValueIn:         dcrutil.Amount(allTxIn0[i].ValueIn).ToCoin(),
+			BlockHeight:     allTxIn0[i].BlockHeight,
+			BlockIndex:      allTxIn0[i].BlockIndex,
+			SignatureScript: hex.EncodeToString(allTxIn0[i].SignatureScript),
+		}
+		allTxIn[i] = txIn
+	}
+
+	return allTxIn
+}
+
+func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
+
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil
+	}
+
+	tx, err := db.client.GetRawTransaction(txhash)
+	if err != nil {
+		log.Errorf("Unknown transaction %s", txid)
+		return nil
+	}
+
+	allTxOut0 := tx.MsgTx().TxOut
+	allTxOut := make([]*apitypes.TxOut, len(allTxOut0))
+	for i := range allTxOut {
+		txOut := &apitypes.TxOut{
+			Value:    dcrutil.Amount(allTxOut0[i].Value).ToCoin(),
+			Version:  allTxOut0[i].Version,
+			PkScript: hex.EncodeToString(allTxOut0[i].PkScript),
+		}
+		allTxOut[i] = txOut
+	}
+
+	return allTxOut
 }
 
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
