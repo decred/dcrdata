@@ -265,6 +265,9 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 		spk.ReqSigs = spkRaw.ReqSigs
 		spk.Type = spkRaw.Type
 		spk.Addresses = make([]string, len(spkRaw.Addresses))
+		for j := range spkRaw.Addresses {
+			spk.Addresses[j] = spkRaw.Addresses[j]
+		}
 		if spkRaw.CommitAmt != nil {
 			spk.CommitAmt = new(float64)
 			*spk.CommitAmt = *spkRaw.CommitAmt
