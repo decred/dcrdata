@@ -5,6 +5,7 @@ package dcrsqlite
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -15,7 +16,9 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrutil"
 )
 
 // wiredDB is intended to satisfy APIDataSource interface. The block header is
@@ -164,6 +167,139 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	copy(blockTransactions.STx, blockVerbose.STx)
 
 	return blockTransactions
+}
+
+func (db *wiredDB) GetAllTxIn(txid string) []*apitypes.TxIn {
+
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil
+	}
+
+	tx, err := db.client.GetRawTransaction(txhash)
+	if err != nil {
+		log.Errorf("Unknown transaction %s", txid)
+		return nil
+	}
+
+	allTxIn0 := tx.MsgTx().TxIn
+	allTxIn := make([]*apitypes.TxIn, len(allTxIn0))
+	for i := range allTxIn {
+		txIn := &apitypes.TxIn{
+			PreviousOutPoint: apitypes.OutPoint{
+				Hash:  allTxIn0[i].PreviousOutPoint.Hash.String(),
+				Index: allTxIn0[i].PreviousOutPoint.Index,
+				Tree:  allTxIn0[i].PreviousOutPoint.Tree,
+			},
+			Sequence:        allTxIn0[i].Sequence,
+			ValueIn:         dcrutil.Amount(allTxIn0[i].ValueIn).ToCoin(),
+			BlockHeight:     allTxIn0[i].BlockHeight,
+			BlockIndex:      allTxIn0[i].BlockIndex,
+			SignatureScript: hex.EncodeToString(allTxIn0[i].SignatureScript),
+		}
+		allTxIn[i] = txIn
+	}
+
+	return allTxIn
+}
+
+func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
+
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Infof("Invalid transaction hash %s", txid)
+		return nil
+	}
+
+	tx, err := db.client.GetRawTransaction(txhash)
+	if err != nil {
+		log.Warnf("Unknown transaction %s", txid)
+		return nil
+	}
+
+	allTxOut0 := tx.MsgTx().TxOut
+	allTxOut := make([]*apitypes.TxOut, len(allTxOut0))
+	for i := range allTxOut {
+		var addresses []string
+		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
+			allTxOut0[i].Version, allTxOut0[i].PkScript, db.params)
+		if err != nil {
+			log.Warnf("Unable to extract addresses from PkScript: %v", err)
+		} else {
+			addresses = make([]string, 0, len(txAddrs))
+			for i := range txAddrs {
+				addresses = append(addresses, txAddrs[i].String())
+			}
+		}
+
+		txOut := &apitypes.TxOut{
+			Value:     dcrutil.Amount(allTxOut0[i].Value).ToCoin(),
+			Version:   allTxOut0[i].Version,
+			PkScript:  hex.EncodeToString(allTxOut0[i].PkScript),
+			Addresses: addresses,
+		}
+
+		allTxOut[i] = txOut
+	}
+
+	return allTxOut
+}
+
+func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
+	tx := new(apitypes.Tx)
+
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil
+	}
+
+	txraw, err := db.client.GetRawTransactionVerbose(txhash)
+	if err != nil {
+		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
+		return nil
+	}
+
+	// TxShort
+	tx.Size = int32(len(txraw.Hex) / 2)
+	tx.TxID = txraw.Txid
+	tx.Version = txraw.Version
+	tx.Locktime = txraw.LockTime
+	tx.Expiry = txraw.Expiry
+	tx.Vin = make([]dcrjson.Vin, len(txraw.Vin))
+	copy(tx.Vin, txraw.Vin)
+	tx.Vout = make([]apitypes.Vout, len(txraw.Vout))
+	for i := range txraw.Vout {
+		tx.Vout[i].Value = txraw.Vout[i].Value
+		tx.Vout[i].N = txraw.Vout[i].N
+		tx.Vout[i].Version = txraw.Vout[i].Version
+		spk := &tx.Vout[i].ScriptPubKeyDecoded
+		spkRaw := &txraw.Vout[i].ScriptPubKey
+		spk.Asm = spkRaw.Asm
+		spk.ReqSigs = spkRaw.ReqSigs
+		spk.Type = spkRaw.Type
+		spk.Addresses = make([]string, len(spkRaw.Addresses))
+		for j := range spkRaw.Addresses {
+			spk.Addresses[j] = spkRaw.Addresses[j]
+		}
+		if spkRaw.CommitAmt != nil {
+			spk.CommitAmt = new(float64)
+			*spk.CommitAmt = *spkRaw.CommitAmt
+		}
+	}
+
+	tx.Confirmations = txraw.Confirmations
+
+	// BlockID
+	tx.Block = new(apitypes.BlockID)
+	tx.Block.BlockHash = txraw.BlockHash
+	tx.Block.BlockHeight = txraw.BlockHeight
+	tx.Block.BlockIndex = txraw.BlockIndex
+	tx.Block.Time = txraw.Time
+	tx.Block.BlockTime = txraw.Blocktime
+
+	return tx
 }
 
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {

@@ -97,6 +97,21 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		})
 	})
 
+	mux.Route("/tx", func(r chi.Router) {
+		r.Route("/{txid}", func(rd chi.Router) {
+			rd.Use(TransactionHashCtx)
+			rd.Get("/", app.getTransaction)
+			rd.Route("/out", func(ro chi.Router) {
+				ro.Get("/", app.getTransactionOutputs)
+				ro.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionOutput)
+			})
+			rd.Route("/in", func(ri chi.Router) {
+				ri.Get("/", app.getTransactionInputs)
+				ri.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionInput)
+			})
+		})
+	})
+
 	mux.Route("/mempool", func(r chi.Router) {
 		r.Get("/", http.NotFound /*app.getMempoolOverview*/)
 		// ticket purchases
