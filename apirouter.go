@@ -40,6 +40,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/height", app.currentHeight)
 			rd.Get("/hash", app.getBlockHash)
 			rd.Get("/header", app.getBlockHeader)
+			rd.Get("/size", app.getBlockSize)
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 			rd.Route("/tx", func(rt chi.Router) {
@@ -52,6 +53,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/", app.getBlockSummary)
 			rd.Get("/height", app.getBlockHeight)
 			rd.Get("/header", app.getBlockHeader)
+			rd.Get("/size", app.getBlockSize)
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 			rd.Route("/tx", func(rt chi.Router) {
@@ -64,6 +66,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/", app.getBlockSummary)
 			rd.Get("/header", app.getBlockHeader)
 			rd.Get("/hash", app.getBlockHash)
+			rd.Get("/size", app.getBlockSize)
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 			rd.Route("/tx", func(rt chi.Router) {
@@ -75,6 +78,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Use(BlockIndex0PathCtx, BlockIndexPathCtx)
 			rd.Use(middleware.Compress(1))
 			rd.Get("/", app.getBlockRangeSummary)
+			rd.Get("/size", app.getBlockRangeSize)
 			// rd.Get("/header", app.getBlockHeader)
 			// rd.Get("/pos", app.getBlockStakeInfoExtended)
 		})

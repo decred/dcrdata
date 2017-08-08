@@ -364,6 +364,28 @@ func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	return blockSummary
 }
 
+func (db *wiredDB) GetBlockSize(idx int) (int32, error) {
+	blockSizes, err := db.RetrieveBlockSizeRange(int64(idx), int64(idx))
+	if err != nil {
+		log.Errorf("Unable to retrieve block %d size: %v", idx, err)
+		return -1, err
+	}
+	if len(blockSizes) == 0 {
+		log.Errorf("Unable to retrieve block %d size: %v", idx, err)
+		return -1, fmt.Errorf("empty block size slice")
+	}
+	return blockSizes[0], nil
+}
+
+func (db *wiredDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
+	blockSizes, err := db.RetrieveBlockSizeRange(int64(idx0), int64(idx1))
+	if err != nil {
+		log.Errorf("Unable to retrieve block size range: %v", err)
+		return nil, err
+	}
+	return blockSizes, nil
+}
+
 func (db *wiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
 	ticketPoolInfo, err := db.RetrievePoolInfo(int64(idx))
 	if err != nil {

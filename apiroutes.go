@@ -36,6 +36,8 @@ type APIDataSource interface {
 	GetSummary(idx int) *apitypes.BlockDataBasic
 	GetSummaryByHash(hash string) *apitypes.BlockDataBasic
 	GetBestBlockSummary() *apitypes.BlockDataBasic
+	GetBlockSize(idx int) (int32, error)
+	GetBlockSizeRange(idx0, idx1 int) ([]int32, error)
 	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
 	GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
 	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
@@ -594,6 +596,44 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, sstxDetails, c.getIndentQuery(r))
+}
+
+func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
+	idx := c.getBlockHeightCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockSize, err := c.BlockData.GetBlockSize(int(idx))
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, blockSize, "")
+}
+
+func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
+	idx0 := getBlockIndex0Ctx(r)
+	if idx0 < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	idx := getBlockIndexCtx(r)
+	if idx < 0 || idx < idx0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockSizes, err := c.BlockData.GetBlockSizeRange(idx0, idx)
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, blockSizes, "")
 }
 
 func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request) {
