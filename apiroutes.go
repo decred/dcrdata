@@ -23,6 +23,11 @@ type APIDataSource interface {
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetRawTransaction(txid string) *apitypes.Tx
+<<<<<<< HEAD
+=======
+	GetAllTxIn(txid string) []*apitypes.TxIn
+	GetAllTxOut(txid string) []*apitypes.TxOut
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
@@ -34,6 +39,8 @@ type APIDataSource interface {
 	GetSummary(idx int) *apitypes.BlockDataBasic
 	GetSummaryByHash(hash string) *apitypes.BlockDataBasic
 	GetBestBlockSummary() *apitypes.BlockDataBasic
+	GetBlockSize(idx int) (int32, error)
+	GetBlockSizeRange(idx0, idx1 int) ([]int32, error)
 	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
 	GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
 	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
@@ -208,6 +215,18 @@ func getTxIDCtx(r *http.Request) string {
 	return hash
 }
 
+<<<<<<< HEAD
+=======
+func getTxIOIndexCtx(r *http.Request) int {
+	index, ok := r.Context().Value(ctxTxInOutIndex).(int)
+	if !ok {
+		apiLog.Trace("txinoutindex not set")
+		return -1
+	}
+	return index
+}
+
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 func getNCtx(r *http.Request) int {
 	N, ok := r.Context().Value(ctxN).(int)
 	if !ok {
@@ -266,6 +285,8 @@ func (c *appContext) getLatestBlock(w http.ResponseWriter, r *http.Request) {
 	latestBlockSummary := c.BlockData.GetBestBlockSummary()
 	if latestBlockSummary == nil {
 		apiLog.Error("Unable to get latest block summary")
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	writeJSON(w, latestBlockSummary, c.getIndentQuery(r))
@@ -299,6 +320,11 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 	blockSummary := c.BlockData.GetSummaryByHash(hash)
 	if blockSummary == nil {
 		apiLog.Errorf("Unable to get block %s summary", hash)
+<<<<<<< HEAD
+=======
+		http.Error(w, http.StatusText(422), 422)
+		return
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	writeJSON(w, blockSummary, c.getIndentQuery(r))
@@ -308,11 +334,20 @@ func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request
 	hash := c.getBlockHashCtx(r)
 	if hash == "" {
 		http.Error(w, http.StatusText(422), 422)
+<<<<<<< HEAD
+=======
+		return
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	blockTransactions := c.BlockData.GetTransactionsForBlockByHash(hash)
 	if blockTransactions == nil {
 		apiLog.Errorf("Unable to get block %s summary", hash)
+<<<<<<< HEAD
+=======
+		http.Error(w, http.StatusText(422), 422)
+		return
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	writeJSON(w, blockTransactions, c.getIndentQuery(r))
@@ -328,6 +363,8 @@ func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
 	blockHeader := c.BlockData.GetHeader(int(idx))
 	if blockHeader == nil {
 		apiLog.Errorf("Unable to get block %d header", idx)
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	writeJSON(w, blockHeader, c.getIndentQuery(r))
@@ -337,11 +374,20 @@ func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
 	hash := c.getBlockHashCtx(r)
 	if hash == "" {
 		http.Error(w, http.StatusText(422), 422)
+<<<<<<< HEAD
+=======
+		return
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	blockVerbose := c.BlockData.GetBlockVerboseByHash(hash, false)
 	if blockVerbose == nil {
 		apiLog.Errorf("Unable to get block %s", hash)
+<<<<<<< HEAD
+=======
+		http.Error(w, http.StatusText(422), 422)
+		return
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	writeJSON(w, blockVerbose, c.getIndentQuery(r))
@@ -351,16 +397,130 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 	txid := getTxIDCtx(r)
 	if txid == "" {
 		http.Error(w, http.StatusText(422), 422)
+<<<<<<< HEAD
+=======
+		return
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	tx := c.BlockData.GetRawTransaction(txid)
 	if tx == nil {
+<<<<<<< HEAD
 		apiLog.Errorf("Unable to get block %s", txid)
+=======
+		apiLog.Errorf("Unable to get transaction %s", txid)
+		http.Error(w, http.StatusText(422), 422)
+		return
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	writeJSON(w, tx, c.getIndentQuery(r))
 }
 
+<<<<<<< HEAD
+=======
+// getTransactionInputs serves []TxIn
+func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request) {
+	txid := getTxIDCtx(r)
+	if txid == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	allTxIn := c.BlockData.GetAllTxIn(txid)
+	// allTxIn may be empty, but not a nil slice
+	if allTxIn == nil {
+		apiLog.Errorf("Unable to get all TxIn for transaction %s", txid)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, allTxIn, c.getIndentQuery(r))
+}
+
+// getTransactionInput serves TxIn[i]
+func (c *appContext) getTransactionInput(w http.ResponseWriter, r *http.Request) {
+	txid := getTxIDCtx(r)
+	if txid == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	index := getTxIOIndexCtx(r)
+	if index < 0 {
+		http.NotFound(w, r)
+		//http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	allTxIn := c.BlockData.GetAllTxIn(txid)
+	// allTxIn may be empty, but not a nil slice
+	if allTxIn == nil {
+		apiLog.Warnf("Unable to get all TxIn for transaction %s", txid)
+		http.NotFound(w, r)
+		return
+	}
+
+	if len(allTxIn) <= index {
+		apiLog.Debugf("Index %d larger than []TxIn length %d", index, len(allTxIn))
+		http.NotFound(w, r)
+		return
+	}
+
+	writeJSON(w, *allTxIn[index], c.getIndentQuery(r))
+}
+
+// getTransactionOutputs serves []TxOut
+func (c *appContext) getTransactionOutputs(w http.ResponseWriter, r *http.Request) {
+	txid := getTxIDCtx(r)
+	if txid == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	allTxOut := c.BlockData.GetAllTxOut(txid)
+	// allTxOut may be empty, but not a nil slice
+	if allTxOut == nil {
+		apiLog.Errorf("Unable to get all TxOut for transaction %s", txid)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, allTxOut, c.getIndentQuery(r))
+}
+
+// getTransactionOutput serves TxOut[i]
+func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request) {
+	txid := getTxIDCtx(r)
+	if txid == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	index := getTxIOIndexCtx(r)
+	if index < 0 {
+		http.NotFound(w, r)
+		return
+	}
+
+	allTxOut := c.BlockData.GetAllTxOut(txid)
+	// allTxOut may be empty, but not a nil slice
+	if allTxOut == nil {
+		apiLog.Errorf("Unable to get all TxOut for transaction %s", txid)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	if len(allTxOut) <= index {
+		apiLog.Debugf("Index %d larger than []TxOut length %d", index, len(allTxOut))
+		http.NotFound(w, r)
+		return
+	}
+
+	writeJSON(w, *allTxOut[index], c.getIndentQuery(r))
+}
+
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
 	idx := c.getBlockHeightCtx(r)
 	if idx < 0 {
@@ -371,6 +531,8 @@ func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
 	blockFeeInfo := c.BlockData.GetFeeInfo(int(idx))
 	if blockFeeInfo == nil {
 		apiLog.Errorf("Unable to get block %d fee info", idx)
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	writeJSON(w, blockFeeInfo, c.getIndentQuery(r))
@@ -386,6 +548,8 @@ func (c *appContext) getBlockStakeInfoExtended(w http.ResponseWriter, r *http.Re
 	stakeinfo := c.BlockData.GetStakeInfoExtended(int(idx))
 	if stakeinfo == nil {
 		apiLog.Errorf("Unable to get block %d fee info", idx)
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	writeJSON(w, stakeinfo, c.getIndentQuery(r))
@@ -395,6 +559,8 @@ func (c *appContext) getStakeDiffSummary(w http.ResponseWriter, r *http.Request)
 	stakeDiff := c.BlockData.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	writeJSON(w, stakeDiff, c.getIndentQuery(r))
@@ -404,6 +570,8 @@ func (c *appContext) getStakeDiffCurrent(w http.ResponseWriter, r *http.Request)
 	stakeDiff := c.BlockData.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	stakeDiffCurrent := dcrjson.GetStakeDifficultyResult{
@@ -418,6 +586,8 @@ func (c *appContext) getStakeDiffEstimates(w http.ResponseWriter, r *http.Reques
 	stakeDiff := c.BlockData.GetStakeDiffEstimates()
 	if stakeDiff == nil {
 		apiLog.Errorf("Unable to get stake diff info")
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	writeJSON(w, stakeDiff.Estimates, c.getIndentQuery(r))
@@ -427,6 +597,8 @@ func (c *appContext) getSSTxSummary(w http.ResponseWriter, r *http.Request) {
 	sstxSummary := c.BlockData.GetMempoolSSTxSummary()
 	if sstxSummary == nil {
 		apiLog.Errorf("Unable to get SSTx info from mempool")
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	writeJSON(w, sstxSummary, c.getIndentQuery(r))
@@ -437,6 +609,8 @@ func (c *appContext) getSSTxFees(w http.ResponseWriter, r *http.Request) {
 	sstxFees := c.BlockData.GetMempoolSSTxFeeRates(N)
 	if sstxFees == nil {
 		apiLog.Errorf("Unable to get SSTx fees from mempool")
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	writeJSON(w, sstxFees, c.getIndentQuery(r))
@@ -447,9 +621,49 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 	sstxDetails := c.BlockData.GetMempoolSSTxDetails(N)
 	if sstxDetails == nil {
 		apiLog.Errorf("Unable to get SSTx details from mempool")
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	writeJSON(w, sstxDetails, c.getIndentQuery(r))
+}
+
+func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
+	idx := c.getBlockHeightCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockSize, err := c.BlockData.GetBlockSize(int(idx))
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, blockSize, "")
+}
+
+func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
+	idx0 := getBlockIndex0Ctx(r)
+	if idx0 < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	idx := getBlockIndexCtx(r)
+	if idx < 0 || idx < idx0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockSizes, err := c.BlockData.GetBlockSizeRange(idx0, idx)
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, blockSizes, "")
 }
 
 func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request) {

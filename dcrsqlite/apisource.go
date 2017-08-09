@@ -5,6 +5,10 @@ package dcrsqlite
 
 import (
 	"database/sql"
+<<<<<<< HEAD
+=======
+	"encoding/hex"
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	"fmt"
 	"sync"
 
@@ -15,7 +19,9 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrutil"
 )
 
 // wiredDB is intended to satisfy APIDataSource interface. The block header is
@@ -166,6 +172,86 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	return blockTransactions
 }
 
+<<<<<<< HEAD
+=======
+func (db *wiredDB) GetAllTxIn(txid string) []*apitypes.TxIn {
+
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil
+	}
+
+	tx, err := db.client.GetRawTransaction(txhash)
+	if err != nil {
+		log.Errorf("Unknown transaction %s", txid)
+		return nil
+	}
+
+	allTxIn0 := tx.MsgTx().TxIn
+	allTxIn := make([]*apitypes.TxIn, len(allTxIn0))
+	for i := range allTxIn {
+		txIn := &apitypes.TxIn{
+			PreviousOutPoint: apitypes.OutPoint{
+				Hash:  allTxIn0[i].PreviousOutPoint.Hash.String(),
+				Index: allTxIn0[i].PreviousOutPoint.Index,
+				Tree:  allTxIn0[i].PreviousOutPoint.Tree,
+			},
+			Sequence:        allTxIn0[i].Sequence,
+			ValueIn:         dcrutil.Amount(allTxIn0[i].ValueIn).ToCoin(),
+			BlockHeight:     allTxIn0[i].BlockHeight,
+			BlockIndex:      allTxIn0[i].BlockIndex,
+			SignatureScript: hex.EncodeToString(allTxIn0[i].SignatureScript),
+		}
+		allTxIn[i] = txIn
+	}
+
+	return allTxIn
+}
+
+func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
+
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Infof("Invalid transaction hash %s", txid)
+		return nil
+	}
+
+	tx, err := db.client.GetRawTransaction(txhash)
+	if err != nil {
+		log.Warnf("Unknown transaction %s", txid)
+		return nil
+	}
+
+	allTxOut0 := tx.MsgTx().TxOut
+	allTxOut := make([]*apitypes.TxOut, len(allTxOut0))
+	for i := range allTxOut {
+		var addresses []string
+		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
+			allTxOut0[i].Version, allTxOut0[i].PkScript, db.params)
+		if err != nil {
+			log.Warnf("Unable to extract addresses from PkScript: %v", err)
+		} else {
+			addresses = make([]string, 0, len(txAddrs))
+			for i := range txAddrs {
+				addresses = append(addresses, txAddrs[i].String())
+			}
+		}
+
+		txOut := &apitypes.TxOut{
+			Value:     dcrutil.Amount(allTxOut0[i].Value).ToCoin(),
+			Version:   allTxOut0[i].Version,
+			PkScript:  hex.EncodeToString(allTxOut0[i].PkScript),
+			Addresses: addresses,
+		}
+
+		allTxOut[i] = txOut
+	}
+
+	return allTxOut
+}
+
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	tx := new(apitypes.Tx)
 
@@ -200,6 +286,12 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 		spk.ReqSigs = spkRaw.ReqSigs
 		spk.Type = spkRaw.Type
 		spk.Addresses = make([]string, len(spkRaw.Addresses))
+<<<<<<< HEAD
+=======
+		for j := range spkRaw.Addresses {
+			spk.Addresses[j] = spkRaw.Addresses[j]
+		}
+>>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 		if spkRaw.CommitAmt != nil {
 			spk.CommitAmt = new(float64)
 			*spk.CommitAmt = *spkRaw.CommitAmt
@@ -279,6 +371,28 @@ func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	}
 
 	return blockSummary
+}
+
+func (db *wiredDB) GetBlockSize(idx int) (int32, error) {
+	blockSizes, err := db.RetrieveBlockSizeRange(int64(idx), int64(idx))
+	if err != nil {
+		log.Errorf("Unable to retrieve block %d size: %v", idx, err)
+		return -1, err
+	}
+	if len(blockSizes) == 0 {
+		log.Errorf("Unable to retrieve block %d size: %v", idx, err)
+		return -1, fmt.Errorf("empty block size slice")
+	}
+	return blockSizes[0], nil
+}
+
+func (db *wiredDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
+	blockSizes, err := db.RetrieveBlockSizeRange(int64(idx0), int64(idx1))
+	if err != nil {
+		log.Errorf("Unable to retrieve block size range: %v", err)
+		return nil, err
+	}
+	return blockSizes, nil
 }
 
 func (db *wiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {

@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/btcsuite/btclog"
 	flags "github.com/btcsuite/go-flags"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrutil"
@@ -138,21 +139,8 @@ func cleanAndExpandPath(path string) string {
 
 // validLogLevel returns whether or not logLevel is a valid debug log level.
 func validLogLevel(logLevel string) bool {
-	switch logLevel {
-	case "trace":
-		fallthrough
-	case "debug":
-		fallthrough
-	case "info":
-		fallthrough
-	case "warn":
-		fallthrough
-	case "error":
-		fallthrough
-	case "critical":
-		return true
-	}
-	return false
+	_, ok := btclog.LevelFromString(logLevel)
+	return ok
 }
 
 // supportedSubsystems returns a sorted slice of the supported subsystems for
@@ -286,8 +274,7 @@ func loadConfig() (*config, error) {
 	// succeeds.  This prevents the warning on help messages and invalid
 	// options.
 	if configFileError != nil {
-		log.Warnf("%v", configFileError)
-		//fmt.Printf("%v\n",configFileError)
+		fmt.Printf("%v\n",configFileError)
 		return loadConfigError(configFileError)
 	}
 
