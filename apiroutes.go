@@ -23,11 +23,8 @@ type APIDataSource interface {
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetRawTransaction(txid string) *apitypes.Tx
-<<<<<<< HEAD
-=======
 	GetAllTxIn(txid string) []*apitypes.TxIn
 	GetAllTxOut(txid string) []*apitypes.TxOut
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
@@ -215,8 +212,6 @@ func getTxIDCtx(r *http.Request) string {
 	return hash
 }
 
-<<<<<<< HEAD
-=======
 func getTxIOIndexCtx(r *http.Request) int {
 	index, ok := r.Context().Value(ctxTxInOutIndex).(int)
 	if !ok {
@@ -226,7 +221,6 @@ func getTxIOIndexCtx(r *http.Request) int {
 	return index
 }
 
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 func getNCtx(r *http.Request) int {
 	N, ok := r.Context().Value(ctxN).(int)
 	if !ok {
@@ -320,11 +314,8 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 	blockSummary := c.BlockData.GetSummaryByHash(hash)
 	if blockSummary == nil {
 		apiLog.Errorf("Unable to get block %s summary", hash)
-<<<<<<< HEAD
-=======
 		http.Error(w, http.StatusText(422), 422)
 		return
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	writeJSON(w, blockSummary, c.getIndentQuery(r))
@@ -334,20 +325,14 @@ func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request
 	hash := c.getBlockHashCtx(r)
 	if hash == "" {
 		http.Error(w, http.StatusText(422), 422)
-<<<<<<< HEAD
-=======
 		return
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	blockTransactions := c.BlockData.GetTransactionsForBlockByHash(hash)
 	if blockTransactions == nil {
 		apiLog.Errorf("Unable to get block %s summary", hash)
-<<<<<<< HEAD
-=======
 		http.Error(w, http.StatusText(422), 422)
 		return
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	writeJSON(w, blockTransactions, c.getIndentQuery(r))
@@ -374,20 +359,14 @@ func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
 	hash := c.getBlockHashCtx(r)
 	if hash == "" {
 		http.Error(w, http.StatusText(422), 422)
-<<<<<<< HEAD
-=======
 		return
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	blockVerbose := c.BlockData.GetBlockVerboseByHash(hash, false)
 	if blockVerbose == nil {
 		apiLog.Errorf("Unable to get block %s", hash)
-<<<<<<< HEAD
-=======
 		http.Error(w, http.StatusText(422), 422)
 		return
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	writeJSON(w, blockVerbose, c.getIndentQuery(r))
@@ -397,28 +376,19 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 	txid := getTxIDCtx(r)
 	if txid == "" {
 		http.Error(w, http.StatusText(422), 422)
-<<<<<<< HEAD
-=======
 		return
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	tx := c.BlockData.GetRawTransaction(txid)
 	if tx == nil {
-<<<<<<< HEAD
-		apiLog.Errorf("Unable to get block %s", txid)
-=======
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		http.Error(w, http.StatusText(422), 422)
 		return
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	}
 
 	writeJSON(w, tx, c.getIndentQuery(r))
 }
 
-<<<<<<< HEAD
-=======
 // getTransactionInputs serves []TxIn
 func (c *appContext) getTransactionInputs(w http.ResponseWriter, r *http.Request) {
 	txid := getTxIDCtx(r)
@@ -520,7 +490,6 @@ func (c *appContext) getTransactionOutput(w http.ResponseWriter, r *http.Request
 	writeJSON(w, *allTxOut[index], c.getIndentQuery(r))
 }
 
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
 	idx := c.getBlockHeightCtx(r)
 	if idx < 0 {

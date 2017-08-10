@@ -40,10 +40,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/height", app.currentHeight)
 			rd.Get("/hash", app.getBlockHash)
 			rd.Get("/header", app.getBlockHeader)
-<<<<<<< HEAD
-=======
 			rd.Get("/size", app.getBlockSize)
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 			rd.Route("/tx", func(rt chi.Router) {
@@ -56,10 +53,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/", app.getBlockSummary)
 			rd.Get("/height", app.getBlockHeight)
 			rd.Get("/header", app.getBlockHeader)
-<<<<<<< HEAD
-=======
 			rd.Get("/size", app.getBlockSize)
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 			rd.Route("/tx", func(rt chi.Router) {
@@ -72,10 +66,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/", app.getBlockSummary)
 			rd.Get("/header", app.getBlockHeader)
 			rd.Get("/hash", app.getBlockHash)
-<<<<<<< HEAD
-=======
 			rd.Get("/size", app.getBlockSize)
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 			rd.Route("/tx", func(rt chi.Router) {
@@ -114,8 +105,6 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		r.Route("/{txid}", func(rd chi.Router) {
 			rd.Use(TransactionHashCtx)
 			rd.Get("/", app.getTransaction)
-<<<<<<< HEAD
-=======
 			rd.Route("/out", func(ro chi.Router) {
 				ro.Get("/", app.getTransactionOutputs)
 				ro.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionOutput)
@@ -124,7 +113,6 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 				ri.Get("/", app.getTransactionInputs)
 				ri.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionInput)
 			})
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 		})
 	})
 

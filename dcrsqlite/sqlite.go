@@ -53,10 +53,7 @@ type DB struct {
 	getBlockSQL, insertBlockSQL                         string
 	getBlockByHashSQL                                   string
 	getBlockHashSQL, getBlockHeightSQL                  string
-<<<<<<< HEAD
-=======
 	getBlockSizeRangeSQL                                string
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	getBestBlockHashSQL, getBestBlockHeightSQL          string
 	getLatestStakeInfoExtendedSQL                       string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
@@ -96,12 +93,9 @@ func NewDB(db *sql.DB) *DB {
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameSummaries)
 
-<<<<<<< HEAD
-=======
 	d.getBlockSizeRangeSQL = fmt.Sprintf(`select size from %s where height between ? and ?`,
 		TableNameSummaries)
 
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	d.getBestBlockHashSQL = fmt.Sprintf(`select hash from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 	d.getBestBlockHeightSQL = fmt.Sprintf(`select height from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 

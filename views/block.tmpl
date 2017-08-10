@@ -43,7 +43,7 @@
                     {{ range .RawTx}}
                         <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
                         Transactions ID: <a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a><br>
-                        Total Value Out:  {{ .Vout | getTotal }} DCR<br>
+                        Total Value:  {{ .Vout | getTotal }} DCR<br>
                         Size: {{.Hex | len}}
                         </p>
                     {{end}}
@@ -51,7 +51,7 @@
                     {{ range .RawSTx}}
                         <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
                         Transactions ID: <a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a><br>
-                        Total Value Out:  {{ .Vout | getTotal }} DCR<br>
+                        Total Value:  {{ .Vout | getTotal }} DCR<br>
                         Size: {{.Hex | len}}
                         </p>
                     {{end}}

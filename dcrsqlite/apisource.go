@@ -5,10 +5,7 @@ package dcrsqlite
 
 import (
 	"database/sql"
-<<<<<<< HEAD
-=======
 	"encoding/hex"
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	"fmt"
 	"sync"
 
@@ -172,8 +169,6 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	return blockTransactions
 }
 
-<<<<<<< HEAD
-=======
 func (db *wiredDB) GetAllTxIn(txid string) []*apitypes.TxIn {
 
 	txhash, err := chainhash.NewHashFromStr(txid)
@@ -251,7 +246,6 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 	return allTxOut
 }
 
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	tx := new(apitypes.Tx)
 
@@ -286,12 +280,9 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 		spk.ReqSigs = spkRaw.ReqSigs
 		spk.Type = spkRaw.Type
 		spk.Addresses = make([]string, len(spkRaw.Addresses))
-<<<<<<< HEAD
-=======
 		for j := range spkRaw.Addresses {
 			spk.Addresses[j] = spkRaw.Addresses[j]
 		}
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 		if spkRaw.CommitAmt != nil {
 			spk.CommitAmt = new(float64)
 			*spk.CommitAmt = *spkRaw.CommitAmt

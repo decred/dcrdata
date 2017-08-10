@@ -14,15 +14,17 @@
             <div style="clear:both;">&nbsp;</div>
             <h4><span>Recent Blocks</span></h4>
             <table class="col-md-15">
+                <thead style="text-align: center;">
                 <tr>
-                    <td> Height </td>
-                    <td> Voters </td>
-                    <td> Fresh Stake </td>
-                    <td> Time </td>
-                    <td> Size </td>
+                    <th style="width: 20%;"> Height </th>
+                    <th style="width: 20%;"> Voters </th>
+                    <th style="width: 20%;"> Fresh Stake </th>
+                    <th style="width: 40%;"> Time </th>
+                    <th style="width: 20%;"> Size </th>
                 </tr>
+                </thead>
             {{range .Data}}
-                <tr>
+                <tr >
                     <td> <a href="explorer/block/{{.Hash}}">{{.Height}}</a> </td>
                     <td> {{.Voters}} </td>
                     <td> {{.FreshStake}} </td>

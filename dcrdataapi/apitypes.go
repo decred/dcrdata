@@ -46,11 +46,7 @@ type BlockID struct {
 	BlockTime   int64  `json:"blocktime"`
 }
 
-<<<<<<< HEAD
-type TxOut struct {
-=======
 type VoutMined struct {
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	Vout
 	BestBlock     string `json:"bestblock"`
 	Confirmations int64  `json:"confirmations"`
@@ -80,8 +76,6 @@ type ScriptPubKey struct {
 	CommitAmt *float64 `json:"commitamt,omitempty"`
 }
 
-<<<<<<< HEAD
-=======
 // TxOut defines a decred transaction output.
 type TxOut struct {
 	Value     float64  `json:"value"`
@@ -110,7 +104,6 @@ type OutPoint struct {
 	Tree  int8   `json:"tree"`
 }
 
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 // below are notes essentially copy-paste from dcrjson
 
 // type Vin struct {

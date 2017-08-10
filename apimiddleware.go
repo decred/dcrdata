@@ -23,10 +23,7 @@ const (
 	ctxBlockIndex
 	ctxBlockHash
 	ctxTxHash
-<<<<<<< HEAD
-=======
 	ctxTxInOutIndex
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 	ctxN
 )
 
@@ -153,8 +150,6 @@ func TransactionHashCtx(next http.Handler) http.Handler {
 	})
 }
 
-<<<<<<< HEAD
-=======
 func TransactionIOIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idxStr := chi.URLParam(r, "txinoutindex")
@@ -170,7 +165,6 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
->>>>>>> 1b53ad7867c324fee73e5249c0639de45a277d68
 // apiDocs generates a middleware with a "docs" in the context containing a
 // map of the routers handlers, etc.
 func apiDocs(mux *chi.Mux) func(next http.Handler) http.Handler {
