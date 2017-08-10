@@ -309,6 +309,7 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 	hash := c.getBlockHashCtx(r)
 	if hash == "" {
 		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
 	blockSummary := c.BlockData.GetSummaryByHash(hash)

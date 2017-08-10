@@ -24,7 +24,7 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 	explorerTemplate, _ := template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl", "views/extras.tmpl")
 
 	idx := c.BlockData.GetHeight()
-	N := 10
+	N := 20
 	summaries := make([]*dcrjson.GetBlockHeaderVerboseResult, 0, N)
 	for i := idx; i >= idx-N-1; i-- {
 		summaries = append(summaries, c.BlockData.GetHeader(i))
@@ -66,6 +66,8 @@ func (c *appContext) txPage(w http.ResponseWriter, r *http.Request) {
 
 	if !ok {
 		apiLog.Trace("txid not set")
+		http.Error(w, "txid not set", http.StatusInternalServerError)
+		return
 	}
 
 	str, err := TemplateExecToString(txTemplate, "tx", c.BlockData.GetRawTransaction(hash))
@@ -84,7 +86,6 @@ func getTime(btime int64) string {
 }
 
 func getTotaljs(vout []dcrjson.Vout) float64 {
-	//var total float64
 	total := 0.0
 	for _, v := range vout {
 		total = total + v.Value
@@ -92,7 +93,6 @@ func getTotaljs(vout []dcrjson.Vout) float64 {
 	return total
 }
 func getTotalapi(vout []apitypes.Vout) float64 {
-	//var total float64
 	total := 0.0
 	for _, v := range vout {
 		total = total + v.Value
