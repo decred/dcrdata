@@ -296,6 +296,7 @@ func mainCore() int {
 	ntfnChans.updateStatusDBHeight <- uint32(sqliteDB.GetHeight())
 
 	apiMux := newAPIRouter(app, cfg.UseRealIP)
+	expMux := newExplorerMux(app, cfg.UseRealIP)
 
 	webMux := chi.NewRouter()
 	webMux.Get("/", webUI.RootPage)
@@ -311,7 +312,7 @@ func mainCore() int {
 		http.Error(w, r.URL.RequestURI()+" ain't no country I've ever heard of! (404)", http.StatusNotFound)
 	})
 	webMux.Mount("/api", apiMux.Mux)
-
+	webMux.Mount("/explorer", expMux.Mux)
 	listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux)
 
 	// Wait for notification handlers to quit
