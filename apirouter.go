@@ -45,6 +45,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 			rd.Route("/tx", func(rt chi.Router) {
 				rt.Get("/", app.getBlockTransactions)
+				rt.Get("/count", app.getBlockTransactionsCount)
 			})
 		})
 
@@ -58,6 +59,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 			rd.Route("/tx", func(rt chi.Router) {
 				rt.Get("/", app.getBlockTransactions)
+				rt.Get("/count", app.getBlockTransactionsCount)
 			})
 		})
 
@@ -71,6 +73,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/pos", app.getBlockStakeInfoExtended)
 			rd.Route("/tx", func(rt chi.Router) {
 				rt.Get("/", app.getBlockTransactions)
+				rt.Get("/count", app.getBlockTransactionsCount)
 			})
 		})
 

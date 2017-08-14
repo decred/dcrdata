@@ -331,12 +331,30 @@ func (c *appContext) getBlockTransactions(w http.ResponseWriter, r *http.Request
 
 	blockTransactions := c.BlockData.GetTransactionsForBlockByHash(hash)
 	if blockTransactions == nil {
-		apiLog.Errorf("Unable to get block %s summary", hash)
+		apiLog.Errorf("Unable to get block %s transactions", hash)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
 	writeJSON(w, blockTransactions, c.getIndentQuery(r))
+}
+
+func (c *appContext) getBlockTransactionsCount(w http.ResponseWriter, r *http.Request) {
+	hash := c.getBlockHashCtx(r)
+	if hash == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockTransactions := c.BlockData.GetTransactionsForBlockByHash(hash)
+	if blockTransactions == nil {
+		apiLog.Errorf("Unable to get block %s transactions", hash)
+		return
+	}
+	writeJSON(w, &struct {
+		Tx  int `json:"tx"`
+		STx int `json:"stx"`
+	}{len(blockTransactions.Tx), len(blockTransactions.STx)}, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {
