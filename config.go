@@ -274,7 +274,7 @@ func loadConfig() (*config, error) {
 	// succeeds.  This prevents the warning on help messages and invalid
 	// options.
 	if configFileError != nil {
-		fmt.Printf("%v\n",configFileError)
+		fmt.Printf("%v\n", configFileError)
 		return loadConfigError(configFileError)
 	}
 
