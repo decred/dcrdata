@@ -88,6 +88,8 @@ func (apic *APICache) UtilizationBlocks() int64 { return int64(len(apic.blockCac
 
 // Utilization returns the percent utilization of the cache
 func (apic *APICache) Utilization() float64 {
+	apic.RLock()
+	defer apic.RUnlock()
 	return 100.0 * float64(len(apic.blockCache)) / float64(apic.capacity)
 }
 
@@ -149,8 +151,8 @@ func (apic *APICache) StoreBlockSummary(blockSummary *BlockDataBasic) error {
 // RemoveCachedBlock removes the input CachedBlock the cache. If the block is
 // not in cache, this is essentially a silent no-op.
 func (apic *APICache) RemoveCachedBlock(cachedBlock *CachedBlock) {
-	apic.RLock()
-	defer apic.RUnlock()
+	apic.Lock()
+	defer apic.Unlock()
 	// remove the block from the expiration queue
 	apic.expireQueue.RemoveBlock(cachedBlock)
 	// remove from block cache
@@ -210,8 +212,8 @@ func (apic *APICache) GetCachedBlockByHash(hash chainhash.Hash) *CachedBlock {
 // and increment the block's access count.
 func (apic *APICache) getCachedBlockByHash(hash chainhash.Hash) *CachedBlock {
 
-	apic.RLock()
-	defer apic.RUnlock()
+	apic.Lock()
+	defer apic.Unlock()
 
 	cachedBlock, ok := apic.blockCache[hash]
 	if ok {
