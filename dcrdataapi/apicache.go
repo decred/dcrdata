@@ -54,6 +54,8 @@ type APICache struct {
 	blockCache                       // map[chainhash.Hash]*CachedBlock
 	MainchainBlocks []chainhash.Hash // needs to be handled in reorg
 	expireQueue     *BlockPriorityQueue
+	hits            uint64
+	misses          uint64
 }
 
 // NewAPICache creates an APICache with the specified capacity.
@@ -92,6 +94,12 @@ func (apic *APICache) Utilization() float64 {
 	defer apic.RUnlock()
 	return 100.0 * float64(len(apic.blockCache)) / float64(apic.capacity)
 }
+
+// Hits returns the hit count of the APICache
+func (apic *APICache) Hits() uint64 { return apic.hits }
+
+// Misses returns the miss count of the APICache
+func (apic *APICache) Misses() uint64 { return apic.misses }
 
 // StoreBlockSummary caches the input BlockDataBasic, if the priority queue
 // indicates that the block should be added.
@@ -174,11 +182,13 @@ func (apic *APICache) GetBlockSummary(height int64) *BlockDataBasic {
 // GetCachedBlockByHeight attempts to fetch a CachedBlock with the given height.
 // The return is nil if no block with that height is cached.
 func (apic *APICache) GetCachedBlockByHeight(height int64) *CachedBlock {
-	if int(height) > len(apic.MainchainBlocks) || height < 0 {
+	apic.RLock()
+	if int(height) >= len(apic.MainchainBlocks) || height < 0 {
 		fmt.Printf("block not in MainchainBlocks slice!")
 		return nil
 	}
 	hash := apic.MainchainBlocks[height]
+	apic.RUnlock()
 	return apic.GetCachedBlockByHash(hash)
 }
 
@@ -220,8 +230,10 @@ func (apic *APICache) getCachedBlockByHash(hash chainhash.Hash) *CachedBlock {
 		cachedBlock.Access()
 		apic.expireQueue.setNeedsReheap(true)
 		apic.expireQueue.setAccessTime(time.Now())
+		apic.hits++
 		return cachedBlock
 	}
+	apic.misses++
 	return nil
 }
 

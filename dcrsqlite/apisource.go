@@ -89,7 +89,7 @@ func (db *wiredDB) buildMainchainBlockMap() error {
 
 	dbHeight := db.dbSummaryHeight
 
-	db.APICache.MainchainBlocks = make([]chainhash.Hash, 0, dbHeight)
+	db.APICache.MainchainBlocks = make([]chainhash.Hash, 0, dbHeight+20000)
 
 	for i := int64(0); i <= dbHeight; i++ {
 		hashStr, err := db.RetrieveBlockHash(i)

@@ -198,6 +198,9 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData) error {
 			log.Debugf("Stored block in cache: %d / %v. Utilization: %v%%",
 				summary.Height, summary.Hash, utilization)
 		}
+		hits := db.cache.(*apitypes.APICache).Hits()
+		misses := db.cache.(*apitypes.APICache).Misses()
+		log.Debugf("Cache hits: %d, misses: %d", hits, misses)
 	}
 
 	select {
