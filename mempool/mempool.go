@@ -41,7 +41,6 @@ type mempoolMonitor struct {
 	newTxHash      chan *chainhash.Hash
 	quit           chan struct{}
 	wg             *sync.WaitGroup
-	mtx            sync.RWMutex
 }
 
 // NewMempoolMonitor creates a new mempoolMonitor
@@ -170,8 +169,6 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 
 			// TODO: Get fee for this ticket (Vin[0] - Vout[0])
 
-			p.mtx.Lock()
-
 			// s.server.txMemPool.TxDescs()
 			ticketHashes, err := client.GetRawMempool(dcrjson.GRMTickets)
 			if err != nil {
@@ -221,7 +218,6 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 				atomic.StoreInt32(&p.mpoolInfo.NumTicketsSinceStatsReport, 0)
 				// and timer
 				p.mpoolInfo.LastCollectTime = time.Now()
-				p.mtx.Unlock()
 				// Collect mempool data (currently ticket fees)
 				log.Trace("Gathering new mempool data.")
 				data, err = p.collector.Collect()
@@ -231,7 +227,6 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 					continue
 				}
 			} else {
-				p.mtx.Unlock()
 				continue
 			}
 
