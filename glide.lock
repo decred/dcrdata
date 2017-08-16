@@ -1,5 +1,5 @@
-hash: 76ec7402dd3f847fe02e12ec76537fc4d39c7886e0e56e68a20489c6218793ab
-updated: 2017-07-06T09:47:41.533483499-07:00
+hash: d3f6dd204a93cf31bf583b4f386477a76ec227a748683fa9bb03cb6bb3c6575a
+updated: 2017-08-16T12:02:42.713146275-07:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -37,7 +37,7 @@ imports:
 - name: github.com/decred/blake256
   version: a840e32d7c31fe2e0218607334cb120a683951a4
 - name: github.com/decred/dcrd
-  version: be12e0688b185a054de5825f022d5b0bd67308ae
+  version: 4c1f4f10382dc5ae0ce3fe13c69e588099a3e674
   subpackages:
   - blockchain
   - blockchain/internal/dbnamespace
@@ -59,14 +59,14 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: e7732bfa71b4b098494fa0ce62d42fded970c393
+  version: abc326aeb97b299c7eb6b13b81353fc375e9b95d
 - name: github.com/decred/dcrutil
-  version: a5fab53cab39b793142c8453caa4c6f83bc152d4
+  version: 166211f0196be1d3be344ae64149e7c4f5ca36b0
   subpackages:
   - base58
   - hdkeychain
 - name: github.com/decred/dcrwallet
-  version: 1020bdd0bcc4ea416e2efc8af3a228ae0397744e
+  version: a2599956184c6cecce9e8c20a7d6c37e03ae84c5
   subpackages:
   - apperrors
   - chain
@@ -83,13 +83,14 @@ imports:
 - name: github.com/jrick/logrotate
   version: a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a
   subpackages:
+  - logrotator
   - rotator
 - name: github.com/mattn/go-colorable
-  version: 941b50ebc6efddf4c41c8e4537a5f68a4e686b24
+  version: ad5389df28cdac544c99bd7b9161a0b5b6ca9d1b
 - name: github.com/mattn/go-isatty
   version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/mattn/go-sqlite3
-  version: acfa60124032040b9f5a9406f5a772ee16fe845e
+  version: 6654e412c3c7eabb310d920cf73a2102dbf8c632
 - name: github.com/mgutz/ansi
   version: 9520e82c474b0a04dd04f8a40959027271bab992
 - name: github.com/rs/cors
@@ -99,7 +100,7 @@ imports:
 - name: github.com/Sirupsen/logrus
   version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
 - name: golang.org/x/crypto
-  version: a48ac81e47fd6f9ed1258f3b60ae9e75f93cb7ed
+  version: b176d7def5d71bdd214203491f89843ed217f420
   subpackages:
   - nacl/secretbox
   - pbkdf2
@@ -108,11 +109,12 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: 054b33e6527139ad5b1ec2f6232c3b175bd9a30c
+  version: 1c05540f6879653db88113bc4a2b70aec4bd491f
   subpackages:
   - context
+  - websocket
 - name: golang.org/x/sys
-  version: 6faef541c73732f438fb660a212750a9ba9f9362
+  version: 9f7170bcd8e9f4d3691c06401119c46a769a1e03
   subpackages:
   - unix
 testImports: []

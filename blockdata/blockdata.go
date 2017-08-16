@@ -114,16 +114,17 @@ func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBa
 // given hash.
 func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
 	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult, error) {
-	block, err := t.dcrdChainSvr.GetBlock(hash)
+	msgBlock, err := t.dcrdChainSvr.GetBlock(hash)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	height := block.Height()
+	height := msgBlock.Header.Height
+	block := dcrutil.NewBlock(msgBlock)
 
 	// Ticket pool info (value, size, avg)
 	ticketPoolInfo, sdbHeight := t.stakeDB.PoolInfo()
-	if sdbHeight != uint32(height) {
-		log.Warnf("Chain server height %d != stake db height %d. Pool info will not match.", sdbHeight, height)
+	if sdbHeight != height {
+		log.Warnf("Collected block height %d != stake db height %d. Pool info will not match.", height, sdbHeight)
 	}
 
 	// Fee info
@@ -144,7 +145,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 
 	// Output
 	blockdata := &apitypes.BlockDataBasic{
-		Height:     uint32(height),
+		Height:     height,
 		Size:       uint32(block.MsgBlock().SerializeSize()),
 		Hash:       hash.String(),
 		Difficulty: diff,

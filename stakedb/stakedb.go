@@ -160,10 +160,11 @@ func (db *StakeDatabase) ForgetBlock(ind int64) {
 // ConnectBlockHash is a wrapper for ConnectBlock. For the input block hash, it
 // gets the block from the node RPC client and calls ConnectBlock.
 func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block, error) {
-	block, err := db.NodeClient.GetBlock(hash)
+	msgBlock, err := db.NodeClient.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
+	block := dcrutil.NewBlock(msgBlock)
 	return block, db.ConnectBlock(block)
 }
 
@@ -320,11 +321,11 @@ func (db *StakeDatabase) Open() error {
 		stakeDBHeight := binary.LittleEndian.Uint32(v[offset : offset+4])
 
 		var errLocal error
-		block, errLocal := db.NodeClient.GetBlock(&stakeDBHash)
+		msgBlock, errLocal := db.NodeClient.GetBlock(&stakeDBHash)
 		if errLocal != nil {
 			return fmt.Errorf("GetBlock failed (%s): %v", stakeDBHash, errLocal)
 		}
-		header := block.MsgBlock().Header
+		header := msgBlock.Header
 
 		db.BestNode, errLocal = stake.LoadBestNode(dbTx, stakeDBHeight,
 			stakeDBHash, header, db.params)
@@ -467,7 +468,7 @@ func (db *StakeDatabase) DBTipBlock() (*dcrutil.Block, error) {
 		return nil, err
 	}
 
-	return db.NodeClient.GetBlock(hash)
+	return db.getBlock(hash)
 }
 
 // DBPrevBlock gets the dcrutil.Block for the previous best block in the stake
@@ -484,7 +485,7 @@ func (db *StakeDatabase) DBPrevBlock() (*dcrutil.Block, error) {
 		return nil, err
 	}
 
-	return db.NodeClient.GetBlock(&parentHeader.PrevBlock)
+	return db.getBlock(&parentHeader.PrevBlock)
 }
 
 // dbPrevBlock is the non-thread-safe version of DBPrevBlock.
@@ -499,5 +500,13 @@ func (db *StakeDatabase) dbPrevBlock() (*dcrutil.Block, error) {
 		return nil, err
 	}
 
-	return db.NodeClient.GetBlock(&parentHeader.PrevBlock)
+	return db.getBlock(&parentHeader.PrevBlock)
+}
+
+func (db *StakeDatabase) getBlock(hash *chainhash.Hash) (*dcrutil.Block, error) {
+	msgBlock, err := db.NodeClient.GetBlock(hash)
+	if err == nil {
+		return dcrutil.NewBlock(msgBlock), nil
+	}
+	return nil, err
 }

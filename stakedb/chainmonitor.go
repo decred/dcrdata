@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrutil"
 )
 
 // ReorgData contains the information from a reoranization notification
@@ -137,15 +138,17 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	}
 
 	// Determine highest common ancestor of side chain and main chain
-	block, err := p.db.NodeClient.GetBlock(&p.sideChain[0])
+	msgBlock, err := p.db.NodeClient.GetBlock(&p.sideChain[0])
 	if err != nil {
 		return 0, nil, fmt.Errorf("unable to get block at root of side chain")
 	}
+	block := dcrutil.NewBlock(msgBlock)
 
-	prevBlock, err := p.db.NodeClient.GetBlock(&block.MsgBlock().Header.PrevBlock)
+	prevMsgBlock, err := p.db.NodeClient.GetBlock(&msgBlock.Header.PrevBlock)
 	if err != nil {
 		return 0, nil, fmt.Errorf("unable to get common ancestor on side chain")
 	}
+	prevBlock := dcrutil.NewBlock(prevMsgBlock)
 
 	commonAncestorHeight := block.Height() - 1
 	if prevBlock.Height() != commonAncestorHeight {
