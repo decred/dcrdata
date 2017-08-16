@@ -6,6 +6,7 @@ package main
 import (
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -18,7 +19,7 @@ const (
 
 	// newTxChanBuffer is the size of the new transaction channel buffer, for
 	// ANY transactions are added into mempool.
-	newTxChanBuffer = 4096
+	newTxChanBuffer = 20
 
 	reorgBuffer = 2
 
@@ -41,7 +42,7 @@ var ntfnChans struct {
 	updateStatusDBHeight              chan uint32
 	spendTxBlockChan, recvTxBlockChan chan *txhelpers.BlockWatchedTx
 	relevantTxMempoolChan             chan *dcrutil.Tx
-	newTxChan                         chan *chainhash.Hash
+	newTxChan                         chan *mempool.NewTx
 }
 
 func makeNtfnChans(cfg *config) {
@@ -81,7 +82,7 @@ func makeNtfnChans(cfg *config) {
 	// }
 
 	if cfg.MonitorMempool {
-		ntfnChans.newTxChan = make(chan *chainhash.Hash, newTxChanBuffer)
+		ntfnChans.newTxChan = make(chan *mempool.NewTx, newTxChanBuffer)
 	}
 }
 
