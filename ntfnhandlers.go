@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dcrdata/dcrdata/blockdata"
+	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
@@ -108,7 +109,7 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			newHash *chainhash.Hash, newHeight int32) {
 			// Send reorg data to dcrsqlite's monitor
 			select {
-			case ntfnChans.reorgChanBlockData <- &blockdata.ReorgData{
+			case ntfnChans.reorgChanWiredDB <- &dcrsqlite.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
@@ -174,8 +175,9 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 		OnTxAccepted: func(hash *chainhash.Hash, amount dcrutil.Amount) {
 			// Just send the tx hash and let the goroutine handle everything.
 			select {
-			case ntfnChans.newTxChan <- hash:
+			case ntfnChans.newTxChan <- &mempool.NewTx{hash, time.Now()}:
 			default:
+				log.Warn("newTxChan buffer full!")
 			}
 			//log.Trace("Transaction accepted to mempool: ", hash, amount)
 		},

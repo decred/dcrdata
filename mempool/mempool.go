@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
@@ -23,6 +22,11 @@ import (
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
+
+type NewTx struct {
+	Hash *chainhash.Hash
+	T    time.Time
+}
 
 type MempoolInfo struct {
 	CurrentHeight               uint32
@@ -38,15 +42,14 @@ type mempoolMonitor struct {
 	maxInterval    time.Duration
 	collector      *mempoolDataCollector
 	dataSavers     []MempoolDataSaver
-	newTxHash      chan *chainhash.Hash
+	newTxHash      chan *NewTx
 	quit           chan struct{}
 	wg             *sync.WaitGroup
-	mtx            sync.RWMutex
 }
 
 // NewMempoolMonitor creates a new mempoolMonitor
 func NewMempoolMonitor(collector *mempoolDataCollector,
-	savers []MempoolDataSaver, newTxChan chan *chainhash.Hash,
+	savers []MempoolDataSaver, newTxChan chan *NewTx,
 	quit chan struct{}, wg *sync.WaitGroup, newTicketLimit int32,
 	mini time.Duration, maxi time.Duration, mpi *MempoolInfo) *mempoolMonitor {
 	return &mempoolMonitor{
@@ -105,15 +108,15 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			}
 
 			var err error
-			// oneTicket is 0 for a Ticker event or 1 for a ticket purchase Tx.
+			// oneTicket is 1 for a ticket purchase Tx or 0 for other tx types
 			var oneTicket int32
 			bestBlock := int64(-1)
 
 			// OnTxAccepted probably sent on newTxChan
-			tx, err := client.GetRawTransaction(s)
+			tx, err := client.GetRawTransaction(s.Hash)
 			if err != nil {
 				log.Errorf("Failed to get transaction (do you have --txindex with dcrd?) %v: %v",
-					s.String(), err)
+					s.Hash.String(), err)
 				continue
 			}
 
@@ -122,7 +125,7 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			txType := stake.DetermineTxType(tx.MsgTx())
 			//s.Tree() == dcrutil.TxTreeRegular
 			// See dcrd/blockchain/stake/staketx.go for information about
-			// specifications for different transaction types (TODO).
+			// specifications for different transaction types.
 
 			// Tx hash for either a current ticket purchase (SStx), or the
 			// original ticket purchase for a vote (SSGen).
@@ -170,16 +173,6 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 
 			// TODO: Get fee for this ticket (Vin[0] - Vout[0])
 
-			p.mtx.Lock()
-
-			// s.server.txMemPool.TxDescs()
-			ticketHashes, err := client.GetRawMempool(dcrjson.GRMTickets)
-			if err != nil {
-				log.Errorf("Could not get raw mempool: %v", err.Error())
-				continue
-			}
-			p.mpoolInfo.NumTicketPurchasesInMempool = uint32(len(ticketHashes))
-
 			// Decide if it is time to collect and record new data
 			// 1. Get block height
 			// 2. Record num new and total tickets in mp
@@ -201,27 +194,29 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			}
 			txHeight := uint32(bestBlock)
 
-			// Atomics really aren't necessary here because of mutex
 			newBlock := txHeight > p.mpoolInfo.CurrentHeight
-			enoughNewTickets := atomic.AddInt32(
-				&p.mpoolInfo.NumTicketsSinceStatsReport, oneTicket) >= p.newTicketLimit
+			if newBlock {
+				p.mpoolInfo.CurrentHeight = txHeight
+			}
+
+			p.mpoolInfo.NumTicketsSinceStatsReport += oneTicket
+			newTickets := p.mpoolInfo.NumTicketsSinceStatsReport
+			enoughNewTickets := newTickets >= p.newTicketLimit
+
 			timeSinceLast := time.Since(p.mpoolInfo.LastCollectTime)
 			quiteLong := timeSinceLast > p.maxInterval
 			longEnough := timeSinceLast >= p.minInterval
 
-			if newBlock {
-				atomic.StoreUint32(&p.mpoolInfo.CurrentHeight, txHeight)
-			}
-
-			newTickets := p.mpoolInfo.NumTicketsSinceStatsReport
-
 			var data *MempoolData
 			if newBlock || quiteLong || (enoughNewTickets && longEnough) {
+				if time.Since(s.T) > timeSinceLast {
+					log.Debugf("A Tx was queued before last mempool collection, which would have included it. SKIPPING.")
+					continue
+				}
 				// reset counter for tickets since last report
-				atomic.StoreInt32(&p.mpoolInfo.NumTicketsSinceStatsReport, 0)
+				p.mpoolInfo.NumTicketsSinceStatsReport = 0
 				// and timer
 				p.mpoolInfo.LastCollectTime = time.Now()
-				p.mtx.Unlock()
 				// Collect mempool data (currently ticket fees)
 				log.Trace("Gathering new mempool data.")
 				data, err = p.collector.Collect()
@@ -231,17 +226,16 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 					continue
 				}
 			} else {
-				p.mtx.Unlock()
 				continue
 			}
 
 			// Insert new ticket counter into data structure
 			data.NewTickets = uint32(newTickets)
-			timestamp := time.Now()
 
-			//p.mpoolInfo.NumTicketPurchasesInMempool = data.ticketfees.FeeInfoMempool.Number
+			p.mpoolInfo.NumTicketPurchasesInMempool = data.Ticketfees.FeeInfoMempool.Number
 
 			// Store mempool data with each saver
+			timestamp := time.Now()
 			for _, s := range p.dataSavers {
 				if s != nil {
 					log.Trace("Saving MP data.")
