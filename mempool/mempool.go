@@ -204,15 +204,15 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			enoughNewTickets := newTickets >= p.newTicketLimit
 
 			timeSinceLast := time.Since(p.mpoolInfo.LastCollectTime)
-			if time.Since(s.T) > timeSinceLast {
-				log.Debugf("A Tx was queued before last mempool collection, which would have included it. SKIPPING.")
-				continue
-			}
 			quiteLong := timeSinceLast > p.maxInterval
 			longEnough := timeSinceLast >= p.minInterval
 
 			var data *MempoolData
 			if newBlock || quiteLong || (enoughNewTickets && longEnough) {
+				if time.Since(s.T) > timeSinceLast {
+					log.Debugf("A Tx was queued before last mempool collection, which would have included it. SKIPPING.")
+					continue
+				}
 				// reset counter for tickets since last report
 				p.mpoolInfo.NumTicketsSinceStatsReport = 0
 				// and timer
