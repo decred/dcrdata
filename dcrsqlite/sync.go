@@ -328,11 +328,12 @@ func (db *wiredDB) getBlock(ind int64) (*dcrutil.Block, *chainhash.Hash, error) 
 		return nil, nil, fmt.Errorf("GetBlockHash(%d) failed: %v", ind, err)
 	}
 
-	block, err := db.client.GetBlock(blockhash)
+	msgBlock, err := db.client.GetBlock(blockhash)
 	if err != nil {
 		return nil, blockhash,
 			fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
 	}
+	block := dcrutil.NewBlock(msgBlock)
 
 	return block, blockhash, nil
 }

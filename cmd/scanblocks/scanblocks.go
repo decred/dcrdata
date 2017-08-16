@@ -68,13 +68,12 @@ func mainCore() int {
 			return 3
 		}
 
-		block, err := client.GetBlock(blockhash)
+		msgBlock, err := client.GetBlock(blockhash)
 		if err != nil {
 			log.Errorf("GetBlock failed (%s): %v", blockhash, err)
 			return 4
 		}
-
-		blocks[i] = block
+		blocks[i] = dcrutil.NewBlock(msgBlock)
 
 		// info, err := client.GetInfo()
 		// if err != nil {
@@ -83,10 +82,10 @@ func mainCore() int {
 		// }
 
 		if i%500 == 0 {
-			log.Infof("%d", block.Height())
+			log.Infof("%d", msgBlock.Header.Height)
 		}
 
-		header := block.MsgBlock().Header
+		header := msgBlock.Header
 		diffRatio := getDifficultyRatio(header.Bits)
 
 		blockSummaries[i] = apitypes.BlockDataBasic{
