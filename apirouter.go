@@ -124,6 +124,14 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		})
 	})
 
+	mux.Route("/address", func(r chi.Router) {
+		r.Route("/{address}", func(rd chi.Router) {
+			rd.Use(AddressPathCtx)
+			rd.Use(middleware.Compress(1))
+			rd.Get("/", app.getAddressTransactions)
+		})
+	})
+
 	mux.Route("/mempool", func(r chi.Router) {
 		r.Get("/", http.NotFound /*app.getMempoolOverview*/)
 		// ticket purchases

@@ -468,3 +468,61 @@ func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 	}
 	return &mpTicketDetails
 }
+
+func (db *wiredDB) GetAddressTransactions(addr string) []*apitypes.Tx {
+
+	address, err := dcrutil.DecodeAddress(addr, db.params)
+	if err != nil {
+		log.Errorf("Invalid address %s", addr)
+		return nil
+	}
+	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, 10, true, false, make([]string, 0))
+	if err != nil {
+		log.Errorf("GetAddressTransactions failed for address %s", addr)
+		return nil
+	}
+	txarray := make([]*apitypes.Tx, 0)
+	for i := range txs {
+		tx := new(apitypes.Tx)
+		// TxShort
+		tx.Size = int32(len(txs[i].Hex) / 2)
+		tx.TxID = txs[i].Txid
+		tx.Version = txs[i].Version
+		tx.Locktime = txs[i].LockTime
+		//tx.Expiry = txs[i].Expiry
+		//tx.Vin = make([]dcrjson.Vin, len(txraw.Vin))
+		//copy(tx.Vin, txraw.Vin)
+		tx.Vout = make([]apitypes.Vout, len(txs[i].Vout))
+		for j := range txs[i].Vout {
+			tx.Vout[j].Value = txs[i].Vout[j].Value
+			tx.Vout[j].N = txs[i].Vout[j].N
+			tx.Vout[j].Version = txs[i].Vout[j].Version
+			spk := &tx.Vout[j].ScriptPubKeyDecoded
+			spkRaw := &txs[i].Vout[j].ScriptPubKey
+			spk.Asm = spkRaw.Asm
+			spk.ReqSigs = spkRaw.ReqSigs
+			spk.Type = spkRaw.Type
+			spk.Addresses = make([]string, len(spkRaw.Addresses))
+			for k := range spkRaw.Addresses {
+				spk.Addresses[k] = spkRaw.Addresses[k]
+			}
+			if spkRaw.CommitAmt != nil {
+				spk.CommitAmt = new(float64)
+				*spk.CommitAmt = *spkRaw.CommitAmt
+			}
+		}
+
+		//tx.Confirmations = txraw.Confirmations
+
+		// BlockID
+		tx.Block = new(apitypes.BlockID)
+		tx.Block.BlockHash = txs[i].BlockHash
+		//tx.Block.BlockHeight = txs[i].BlockHeight
+		//tx.Block.BlockIndex = txs[i].BlockIndex
+		tx.Block.Time = txs[i].Time
+		tx.Block.BlockTime = txs[i].Blocktime
+		txarray = append(txarray, tx)
+	}
+
+	return txarray
+}
