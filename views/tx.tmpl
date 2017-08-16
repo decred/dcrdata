@@ -14,6 +14,7 @@
                 Transactions ID: {{.TxID}}<br>
                 Total Value: {{ .Vout | getTotal }} DCR<br>
                 Time: {{$.Block.Time | getTime }}<br>
+                Confirmations: {{$.Confirmations}}<br>
                 Included in block: <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a><br>
                 Size: {{.Size}}<br>
                 {{end}}
@@ -26,10 +27,12 @@
                     {{end}}
                     {{if ne .BlockHeight 0}}
                     Transaction: <a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a><br>
-                    {{else}}
+                    Block Height: {{.BlockHeight}}<br>
+                    {{else if ne .Txid ""}}
                     Transaction: {{.Txid}}<br>
                     {{end}}
-                    Block Height: {{.BlockHeight}}<br>
+                    Sequence: {{.Sequence}}<br>
+                    Tree: {{.Tree}} <br>
                     Value: {{.AmountIn}}<br>
                 </p>
                 {{end}}
