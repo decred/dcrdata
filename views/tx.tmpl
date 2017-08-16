@@ -1,0 +1,54 @@
+{{define "tx"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head"}}
+<body>
+{{template "navbar"}}
+
+<div class="wrapper" style="margin-top:60px;">
+        <div id="boxagenda">
+            <div style="clear:both;">&nbsp;</div>
+            <h4><span>Transaction  {{.TxShort.TxID}}</span></h4>
+            <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                {{with .TxShort}}
+                Transactions ID: {{.TxID}}<br>
+                Total Value: {{ .Vout | getTotal }} DCR<br>
+                Time: {{$.Block.Time | getTime }}<br>
+                Included in block: <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a><br>
+                Size: {{.Size}}<br>
+                {{end}}
+                </p>
+            <h4><span>In</span></h4>
+            {{range .Vin}}
+                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                    {{ if .Coinbase}}
+                    Coinbase: {{ .Coinbase }}<br>
+                    {{end}}
+                    {{if ne .BlockHeight 0}}
+                    Transaction: <a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a><br>
+                    {{else}}
+                    Transaction: {{.Txid}}<br>
+                    {{end}}
+                    Block Height: {{.BlockHeight}}<br>
+                    Value: {{.AmountIn}}<br>
+                </p>
+                {{end}}
+            
+            <h4><span>Out</span></h4>
+                {{range .Vout}}
+                    {{ if ne .Value 0.0}}
+                    <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                    Value: {{.Value}}<br>
+                    Address: 
+                        {{range .ScriptPubKeyDecoded.Addresses}}
+                            {{.}}<br>
+                        {{end}}
+                        </p>
+                    {{end}}
+                {{end}}
+            
+        </div>
+    </div>
+</body>
+</html>
+{{end}}
