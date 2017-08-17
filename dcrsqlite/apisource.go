@@ -469,7 +469,9 @@ func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 	return &mpTicketDetails
 }
 
-func (db *wiredDB) GetAddressTransactions(addr string) []*apitypes.Tx {
+//GetAddressTransactions returns an apitypes.Address Object
+// with at most the last 10 transactions the address was in
+func (db *wiredDB) GetAddressTransactions(addr string) *apitypes.Address {
 
 	address, err := dcrutil.DecodeAddress(addr, db.params)
 	if err != nil {
@@ -481,17 +483,20 @@ func (db *wiredDB) GetAddressTransactions(addr string) []*apitypes.Tx {
 		log.Errorf("GetAddressTransactions failed for address %s", addr)
 		return nil
 	}
-	txarray := make([]*apitypes.Tx, 0)
+	txarray := make([]*apitypes.AddressTx, 0)
 	for i := range txs {
-		tx := new(apitypes.Tx)
-		// TxShort
+		tx := new(apitypes.AddressTx)
+		// AddressTx
 		tx.Size = int32(len(txs[i].Hex) / 2)
 		tx.TxID = txs[i].Txid
 		tx.Version = txs[i].Version
 		tx.Locktime = txs[i].LockTime
-		//tx.Expiry = txs[i].Expiry
-		//tx.Vin = make([]dcrjson.Vin, len(txraw.Vin))
-		//copy(tx.Vin, txraw.Vin)
+		tx.Vin = make([]dcrjson.VinPrevOut, len(txs[i].Vin))
+		copy(tx.Vin, txs[i].Vin)
+		tx.Confirmations = int64(txs[i].Confirmations)
+		tx.BlockHash = txs[i].BlockHash
+		tx.Blocktime = txs[i].Blocktime
+		tx.Time = txs[i].Blocktime
 		tx.Vout = make([]apitypes.Vout, len(txs[i].Vout))
 		for j := range txs[i].Vout {
 			tx.Vout[j].Value = txs[i].Vout[j].Value
@@ -511,18 +516,11 @@ func (db *wiredDB) GetAddressTransactions(addr string) []*apitypes.Tx {
 				*spk.CommitAmt = *spkRaw.CommitAmt
 			}
 		}
-
-		//tx.Confirmations = txraw.Confirmations
-
-		// BlockID
-		tx.Block = new(apitypes.BlockID)
-		tx.Block.BlockHash = txs[i].BlockHash
-		//tx.Block.BlockHeight = txs[i].BlockHeight
-		//tx.Block.BlockIndex = txs[i].BlockIndex
-		tx.Block.Time = txs[i].Time
-		tx.Block.BlockTime = txs[i].Blocktime
 		txarray = append(txarray, tx)
 	}
 
-	return txarray
+	return &apitypes.Address{
+		Address:      addr,
+		Transactions: txarray,
+	}
 }

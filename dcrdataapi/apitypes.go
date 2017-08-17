@@ -104,6 +104,26 @@ type OutPoint struct {
 	Tree  int8   `json:"tree"`
 }
 
+//Address models the address string with the transactions as TxShort
+type Address struct {
+	Address      string       `json:"address"`
+	Transactions []*AddressTx `json:"address transactions"`
+}
+
+//AddressTx modeled from SearchRawTransactionsResult but with size in place of hex
+type AddressTx struct {
+	Size          int32                `json:"size"`
+	TxID          string               `json:"txid"`
+	Version       int32                `json:"version"`
+	Locktime      uint32               `json:"locktime"`
+	Vin           []dcrjson.VinPrevOut `json:"vin"`
+	Vout          []Vout               `json:"vout"`
+	Confirmations int64                `json:"confirmations"`
+	BlockHash     string               `json:"blockhash"`
+	Time          int64                `json:"time,omitempty"`
+	Blocktime     int64                `json:"blocktime,omitempty"`
+}
+
 // below are notes essentially copy-paste from dcrjson
 
 // type Vin struct {

@@ -47,7 +47,7 @@ type APIDataSource interface {
 	GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo
 	GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees
 	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
-	GetAddressTransactions(addr string) []*apitypes.Tx
+	GetAddressTransactions(addr string) *apitypes.Address
 }
 
 // dcrdata application context used by all route handlers
