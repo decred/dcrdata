@@ -33,6 +33,13 @@
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
     <style>
+    .wrapper {
+        width: 60%;
+        min-width: 360px;
+    }
+    .navbar-default .navbar-nav > .open > a, .navbar-default .navbar-nav > .open > a:hover, .navbar-default .navbar-nav > .open > a:focus {
+        background: black;
+    }
         /* Notice: Portions of the connection indicator style come from html5rocks.com */
         @-webkit-keyframes glowGreen {
             from {
@@ -262,7 +269,7 @@
 
     <!-- Fixed navbar -->
     <nav class="navbar navbar-default navbar-fixed-top">
-        <div class="container wrapper" style="width:60%">
+        <div class="container wrapper">
             <div class="navbar-header">
                 <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
                 <span class="sr-only">Toggle navigation</span>
@@ -281,14 +288,13 @@
                     <li><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" title="_blank">GitHub</a></li>
                     <li><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" title="_blank">API</a></li>
                     <li><a href="/api/status" title="API Status" title="_blank">API Status</a></li>
-                    <li></li> 
                 </ul>
             </div>
             <!--/.nav-collapse -->
         </div>
     </nav>
 
-    <div class="wrapper" style="width:60%; margin-top:60px;">
+    <div class="wrapper" style="margin-top:60px;">
         <!-- <p style="padding-top: 10px;"></p> -->
         <div id="pricebox" style="margin: 0 auto;">
             <div style="clear:both;padding-top: 10px; text-align: right;">&nbsp;</div>
@@ -368,7 +374,7 @@
     <!-- end wrapper -->
 
     <footer class="navbar-fixed-bottom">
-      <div class="container wrapper text-center" style="width:60%">
+      <div class="container wrapper text-center">
         <strong>dcrdata</strong>.org &emsp; | &emsp;  <span id="connection">Connecting to WebSocket...<div></div></span>
       </div>
     </footer>
