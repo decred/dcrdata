@@ -139,7 +139,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 	// Time this function
 	defer func(start time.Time, perr *error) {
 		if *perr != nil {
-			log.Infof("Collector.Collect() completed in %v", time.Since(start))
+			log.Infof("resyncDBWithPoolValue() completed in %v", time.Since(start))
 		}
 	}(time.Now(), &err)
 

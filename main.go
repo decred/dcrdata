@@ -18,6 +18,7 @@ import (
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/semver"
 	"github.com/dcrdata/dcrdata/txhelpers"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrrpcclient"
 	"github.com/go-chi/chi"
 )
@@ -67,7 +68,8 @@ func mainCore() int {
 	makeNtfnChans(cfg)
 
 	// Daemon client connection
-	dcrdClient, nodeVer, err := connectNodeRPC(cfg)
+	ntfnHandlers, collectionQueue := makeNodeNtfnHandlers(cfg)
+	dcrdClient, nodeVer, err := connectNodeRPC(cfg, ntfnHandlers)
 	if err != nil || dcrdClient == nil {
 		log.Errorf("Connection to dcrd failed: %v", err)
 		return 4
@@ -112,17 +114,6 @@ func mainCore() int {
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer sqliteDB.Close()
 
-	// Get stake DB's block connection lock for new block handler
-	ntfnChans.stakeDBLock = sqliteDB.GetStakeDB().ConnectingLock
-	// if it's closed or nil, panic
-	select {
-	case ntfnChans.stakeDBLock <- struct{}{}:
-		<-ntfnChans.stakeDBLock
-	default:
-		log.Error("Stake DB lock wasn't there!")
-		return 18
-	}
-
 	// Ctrl-C to shut down.
 	// Nothing should be sent the quit channel.  It should only be closed.
 	quit := make(chan struct{})
@@ -137,7 +128,6 @@ func mainCore() int {
 		// Close the channel so multiple goroutines can get the message
 		log.Infof("CTRL+C hit.  Closing goroutines.")
 		close(quit)
-		return
 	}()
 
 	// Resync db
@@ -232,6 +222,14 @@ func mainCore() int {
 	go wiredDBChainMonitor.BlockConnectedHandler()
 	go wiredDBChainMonitor.ReorgHandler()
 
+	// Setup the synchronous handler functions called by the collectionQueue via
+	// OnBlockConnected.
+	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
+		sdbChainMonitor.BlockConnectedSync,     // 1. Stake DB for pool info
+		wsChainMonitor.BlockConnectedSync,      // 2. blockdata for regular block data collection and storage
+		wiredDBChainMonitor.BlockConnectedSync, // 3. dcrsqlite for sqlite DB reorg handling
+	})
+
 	if cfg.MonitorMempool {
 		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
 		if mpoolCollector == nil {
@@ -324,10 +322,9 @@ func main() {
 	os.Exit(mainCore())
 }
 
-func connectNodeRPC(cfg *config) (*dcrrpcclient.Client, semver.Semver, error) {
-	notificationHandlers := getNodeNtfnHandlers(cfg)
+func connectNodeRPC(cfg *config, ntfnHandlers *dcrrpcclient.NotificationHandlers) (*dcrrpcclient.Client, semver.Semver, error) {
 	return rpcutils.ConnectNodeRPC(cfg.DcrdServ, cfg.DcrdUser, cfg.DcrdPass,
-		cfg.DcrdCert, cfg.DisableDaemonTLS, notificationHandlers)
+		cfg.DcrdCert, cfg.DisableDaemonTLS, ntfnHandlers)
 }
 
 func listenAndServeProto(listen, proto string, mux http.Handler) {

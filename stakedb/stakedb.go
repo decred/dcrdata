@@ -33,7 +33,6 @@ type StakeDatabase struct {
 	blockCache      map[int64]*dcrutil.Block
 	liveTicketMtx   sync.Mutex
 	liveTicketCache map[chainhash.Hash]int64
-	ConnectingLock  chan struct{}
 }
 
 const (
@@ -51,7 +50,6 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 		NodeClient:      client,
 		blockCache:      make(map[int64]*dcrutil.Block),
 		liveTicketCache: make(map[chainhash.Hash]int64),
-		ConnectingLock:  make(chan struct{}, 1),
 	}
 	if err := sDB.Open(); err != nil {
 		return nil, err
@@ -356,11 +354,6 @@ func (db *StakeDatabase) Open() error {
 // node RPC client to fetch ticket values that are not cached. Returned are a
 // structure including ticket pool value, size, and average value.
 func (db *StakeDatabase) PoolInfo() (apitypes.TicketPoolInfo, uint32) {
-	// Wait for BlockConnectedHandler to finish, it someone like the
-	// OnBlockConnected notification handler said to wait.
-	db.ConnectingLock <- struct{}{}
-	<-db.ConnectingLock
-
 	db.nodeMtx.RLock()
 	poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()

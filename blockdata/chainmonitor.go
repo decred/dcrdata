@@ -5,7 +5,6 @@ package blockdata
 
 import (
 	"sync"
-	"time"
 
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -30,6 +29,9 @@ type chainMonitor struct {
 	blockChan       chan *chainhash.Hash
 	recvTxBlockChan chan *txhelpers.BlockWatchedTx
 	reorgChan       chan *ReorgData
+	ConnectingLock  chan struct{}
+	DoneConnecting  chan struct{}
+	syncConnect     sync.Mutex
 
 	// reorg handling
 	reorgLock    sync.Mutex
@@ -54,7 +56,22 @@ func NewChainMonitor(collector *Collector,
 		blockChan:       blockChan,
 		recvTxBlockChan: recvTxBlockChan,
 		reorgChan:       reorgChan,
+		ConnectingLock:  make(chan struct{}, 1),
+		DoneConnecting:  make(chan struct{}),
 	}
+}
+
+// BlockConnectedSync is the synchronous (blocking call) handler for the newly
+// connected block given by the hash.
+func (p *chainMonitor) BlockConnectedSync(hash *chainhash.Hash) {
+	// Connections go one at a time so signals cannot be mixed
+	p.syncConnect.Lock()
+	defer p.syncConnect.Unlock()
+	// lock with buffered channel
+	p.ConnectingLock <- struct{}{}
+	p.blockChan <- hash
+	// wait
+	<-p.DoneConnecting
 }
 
 // blockConnectedHandler handles block connected notifications, which trigger
@@ -66,8 +83,17 @@ out:
 	keepon:
 		select {
 		case hash, ok := <-p.blockChan:
+			release := func() {}
+			select {
+			case <-p.ConnectingLock:
+				// send on unbuffered channel
+				release = func() { p.DoneConnecting <- struct{}{} }
+			default:
+			}
+
 			if !ok {
 				log.Warnf("Block connected channel closed.")
+				release()
 				break out
 			}
 
@@ -82,16 +108,20 @@ out:
 
 				// Just append to side chain until the new main chain tip block is reached
 				if !reorgData.NewChainHead.IsEqual(hash) {
+					release()
 					break keepon
 				}
 
-				// Reorg is complete
+				// Reorg is complete, do nothing lol
 				p.sideChain = nil
 				p.reorgLock.Lock()
 				p.reorganizing = false
 				p.reorgLock.Unlock()
 				log.Infof("Reorganization to block %v (height %d) complete",
 					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
+				// dcrsqlite's chainmonitor handles the reorg collection
+				release()
+				break keepon
 			}
 
 			msgBlock, _ := p.collector.dcrdChainSvr.GetBlock(hash)
@@ -115,37 +145,44 @@ out:
 				}
 			}
 
-			// data collection with timeout
-			bdataChan := make(chan *BlockData)
-			// fire it off and get the BlockData pointer back through the channel
-			go func() {
-				BlockData, err := p.collector.Collect()
-				if err != nil {
-					log.Errorf("Block data collection failed: %v", err.Error())
-					// BlockData is nil when err != nil
-				}
-				bdataChan <- BlockData
-			}()
+			var blockData *BlockData
+			chainHeight, err := p.collector.dcrdChainSvr.GetBlockCount()
+			if err != nil {
+				log.Errorf("Unable to get chain height: %v", err)
+				release()
+				break keepon
+			}
 
-			// Wait for X seconds before giving up on Collect()
-			var BlockData *BlockData
-			select {
-			case BlockData = <-bdataChan:
-				if BlockData == nil {
+			// If new block height not equal to chain height, then we are behind
+			// on data collection, so specify the hash of the notified, skipping
+			// stake diff estimates and other stuff for web ui that is only
+			// relevant for the best block.
+			if chainHeight != height {
+				log.Infof("Behind on our collection...")
+				blockData, err = p.collector.CollectHash(hash)
+				if err != nil {
+					log.Errorf("blockdata.CollectHash(hash) failed: %v", err.Error())
+					release()
 					break keepon
 				}
-			case <-time.After(time.Second * 20):
-				log.Errorf("Block data collection TIMEOUT after 20 seconds.")
-				break keepon
+			} else {
+				blockData, err = p.collector.Collect()
+				if err != nil {
+					log.Errorf("blockdata.Collect() failed: %v", err.Error())
+					release()
+					break keepon
+				}
 			}
 
 			// Store block data with each saver
 			for _, s := range p.dataSavers {
 				if s != nil {
 					// save data to wherever the saver wants to put it
-					go s.Store(BlockData)
+					s.Store(blockData)
 				}
 			}
+
+			release()
 
 		case _, ok := <-p.quit:
 			if !ok {

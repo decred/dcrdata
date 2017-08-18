@@ -5,6 +5,7 @@ package main
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dcrdata/dcrdata/dcrsqlite"
@@ -26,10 +27,10 @@ func registerNodeNtfnHandlers(dcrdClient *dcrrpcclient.Client) *ContextualError 
 	}
 
 	// Register for stake difficulty change notifications.
-	if err = dcrdClient.NotifyStakeDifficulty(); err != nil {
-		return newContextualError("stake difficulty change "+
-			"notification registration failed", err)
-	}
+	// if err = dcrdClient.NotifyStakeDifficulty(); err != nil {
+	// 	return newContextualError("stake difficulty change "+
+	// 		"notification registration failed", err)
+	// }
 
 	// Register for tx accepted into mempool ntfns
 	if err = dcrdClient.NotifyNewTransactions(false); err != nil {
@@ -58,8 +59,67 @@ func registerNodeNtfnHandlers(dcrdClient *dcrrpcclient.Client) *ContextualError 
 	return nil
 }
 
+type blockHashHeight struct {
+	hash   chainhash.Hash
+	height int64
+}
+
+type collectionQueue struct {
+	sync.Mutex
+	q            chan *blockHashHeight
+	syncHandlers []func(hash *chainhash.Hash)
+}
+
+func NewCollectionQueue() *collectionQueue {
+	return &collectionQueue{
+		q: make(chan *blockHashHeight, 1e7),
+	}
+}
+
+func (q *collectionQueue) SetSynchronousHandlers(syncHandlers []func(hash *chainhash.Hash)) {
+	q.syncHandlers = syncHandlers
+}
+
+func (q *collectionQueue) ProcessBlocks() {
+	// process queued blocks one at a time
+	for bh := range q.q {
+		hash := bh.hash
+		height := bh.height
+
+		start := time.Now()
+
+		// Run synchronous block connected handlers in order
+		for _, h := range q.syncHandlers {
+			h(&hash)
+		}
+
+		log.Debugf("Synchronous handlers of collectionQueue.ProcessBlocks() completed in %v", time.Since(start))
+
+		// Web UI status update handler
+		select {
+		case ntfnChans.updateStatusNodeHeight <- uint32(height):
+		default:
+		}
+	}
+}
+
+// func (q *collectionQueue) PushBlock(b *blockHashHeight) {
+// 	q.blockQueue = append(q.blockQueue, b)
+// }
+
+// func (q *collectionQueue) PopBlock() *blockHashHeight {
+// 	if len(q.blockQueue) == 0 {
+// 		return nil
+// 	}
+// 	b := q.blockQueue[0]
+// 	q.blockQueue = q.blockQueue[1:]
+// 	return b
+// }
+
 // Define notification handlers
-func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
+func makeNodeNtfnHandlers(cfg *config) (*dcrrpcclient.NotificationHandlers, *collectionQueue) {
+	blockQueue := NewCollectionQueue()
+	go blockQueue.ProcessBlocks()
 	return &dcrrpcclient.NotificationHandlers{
 		OnBlockConnected: func(blockHeaderSerialized []byte, transactions [][]byte) {
 			blockHeader := new(wire.BlockHeader)
@@ -70,39 +130,10 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 			height := int32(blockHeader.Height)
 			hash := blockHeader.BlockHash()
 
-			// Prevent handlers other than the stakedb block connected handler
-			// from executing certain stake DB functions, namely PoolInfo().
-			ntfnChans.stakeDBLock <- struct{}{}
-
-			// stakedb.(p *ChainMonitor).BlockConnectedHandler will unlock
-			// stakeDBLock when it finishes handling the new block.
-			select {
-			case ntfnChans.connectChanStakeDB <- &hash:
-			default:
-				<-ntfnChans.stakeDBLock
-			}
-
-			select {
-			case ntfnChans.connectChan <- &hash:
-			// send to nil channel blocks
-			default:
-			}
-
-			select {
-			case ntfnChans.connectChanWiredDB <- &hash:
-			default:
-			}
-
-			// Also send on stake info channel, if enabled.
-			select {
-			case ntfnChans.connectChanStkInf <- height:
-			default:
-			}
-
-			// Web UI status update handler
-			select {
-			case ntfnChans.updateStatusNodeHeight <- blockHeader.Height:
-			default:
+			// queue this block
+			blockQueue.q <- &blockHashHeight{
+				hash:   hash,
+				height: int64(height),
 			}
 		},
 		OnReorganization: func(oldHash *chainhash.Hash, oldHeight int32,
@@ -175,7 +206,10 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 		OnTxAccepted: func(hash *chainhash.Hash, amount dcrutil.Amount) {
 			// Just send the tx hash and let the goroutine handle everything.
 			select {
-			case ntfnChans.newTxChan <- &mempool.NewTx{hash, time.Now()}:
+			case ntfnChans.newTxChan <- &mempool.NewTx{
+				Hash: hash,
+				T:    time.Now(),
+			}:
 			default:
 				log.Warn("newTxChan buffer full!")
 			}
@@ -186,5 +220,5 @@ func getNodeNtfnHandlers(cfg *config) *dcrrpcclient.NotificationHandlers {
 		//txDetails.Hex
 		//log.Info("Transaction accepted to mempool: ", txDetails.Txid)
 		//},
-	}
+	}, blockQueue
 }

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/dcrdata/dcrdata/blockdata"
+	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
 
@@ -19,19 +20,28 @@ type ReorgData struct {
 	NewChainHeight int32
 }
 
+type blockAPISourceData struct {
+	hash      *chainhash.Hash
+	blockData *apitypes.BlockDataBasic
+	stakeData *apitypes.StakeInfoExtended
+}
+
 // ChainMonitor handles change notifications from the node client
 type ChainMonitor struct {
-	db        *wiredDB
-	collector *blockdata.Collector
-	quit      chan struct{}
-	wg        *sync.WaitGroup
-	blockChan chan *chainhash.Hash
-	reorgChan chan *ReorgData
+	db             *wiredDB
+	collector      *blockdata.Collector
+	quit           chan struct{}
+	wg             *sync.WaitGroup
+	blockChan      chan *chainhash.Hash
+	reorgChan      chan *ReorgData
+	ConnectingLock chan struct{}
+	DoneConnecting chan struct{}
+	syncConnect    sync.Mutex
 
 	// reorg handling
 	reorgLock    sync.Mutex
 	reorgData    *ReorgData
-	sideChain    []chainhash.Hash
+	sideChain    []blockAPISourceData
 	reorganizing bool
 }
 
@@ -39,13 +49,28 @@ type ChainMonitor struct {
 func (db *wiredDB) NewChainMonitor(collector *blockdata.Collector, quit chan struct{}, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
 	return &ChainMonitor{
-		db:        db,
-		collector: collector,
-		quit:      quit,
-		wg:        wg,
-		blockChan: blockChan,
-		reorgChan: reorgChan,
+		db:             db,
+		collector:      collector,
+		quit:           quit,
+		wg:             wg,
+		blockChan:      blockChan,
+		reorgChan:      reorgChan,
+		ConnectingLock: make(chan struct{}, 1),
+		DoneConnecting: make(chan struct{}),
 	}
+}
+
+// BlockConnectedSync is the synchronous (blocking call) handler for the newly
+// connected block given by the hash.
+func (p *ChainMonitor) BlockConnectedSync(hash *chainhash.Hash) {
+	// Connections go one at a time so signals cannot be mixed
+	p.syncConnect.Lock()
+	defer p.syncConnect.Unlock()
+	// lock with buffered channel
+	p.ConnectingLock <- struct{}{}
+	p.blockChan <- hash
+	// wait
+	<-p.DoneConnecting
 }
 
 // BlockConnectedHandler handles block connected notifications, which helps deal
@@ -57,8 +82,17 @@ out:
 	keepon:
 		select {
 		case hash, ok := <-p.blockChan:
+			release := func() {}
+			select {
+			case <-p.ConnectingLock:
+				// send on unbuffered channel
+				release = func() { p.DoneConnecting <- struct{}{} }
+			default:
+			}
+
 			if !ok {
 				log.Warnf("Block connected channel closed.")
+				release()
 				break out
 			}
 
@@ -68,11 +102,24 @@ out:
 			p.reorgLock.Unlock()
 
 			if reorg {
-				p.sideChain = append(p.sideChain, *hash)
+				// get data now, not just hash, because stakeDB is on our level now (pool info)
+				blockDataSummary, stakeInfoSummaryExtended := p.collector.CollectAPITypes(hash)
+				if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
+					log.Error("Failed to collect data for reorg.")
+					release()
+					break keepon
+				}
+
+				p.sideChain = append(p.sideChain, blockAPISourceData{
+					hash:      hash,
+					blockData: blockDataSummary,
+					stakeData: stakeInfoSummaryExtended,
+				})
 				log.Infof("Adding block %v to sidechain", *hash)
 
 				// Just append to side chain until the new main chain tip block is reached
 				if !reorgData.NewChainHead.IsEqual(hash) {
+					release()
 					break keepon
 				}
 
@@ -84,6 +131,7 @@ out:
 
 				if !p.reorgData.NewChainHead.IsEqual(newHash) ||
 					p.reorgData.NewChainHeight != newHeight {
+					release()
 					panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
 						p.reorgData.NewChainHead, newHash, newHeight))
 				}
@@ -96,6 +144,7 @@ out:
 				log.Infof("Reorganization to block %v (height %d) complete",
 					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
 			}
+			release()
 
 		case _, ok := <-p.quit:
 			if !ok {
@@ -142,11 +191,8 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	// Save blocks from previous side chain that is now the main chain
 	log.Infof("Saving %d new blocks from previous side chain to sqlite", len(p.sideChain))
 	for i := range p.sideChain {
-		blockDataSummary, stakeInfoSummaryExtended := p.collector.CollectAPITypes(&p.sideChain[i])
-		if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
-			log.Error("Failed to collect data for reorg.")
-			continue
-		}
+		blockDataSummary := p.sideChain[i].blockData
+		stakeInfoSummaryExtended := p.sideChain[i].stakeData
 		if err := p.db.StoreBlockSummary(blockDataSummary); err != nil {
 			log.Errorf("Failed to store block summary data: %v", err)
 		}

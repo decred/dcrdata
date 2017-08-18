@@ -130,7 +130,8 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	// Ticket pool info (value, size, avg)
 	ticketPoolInfo, sdbHeight := t.stakeDB.PoolInfo()
 	if sdbHeight != height {
-		log.Warnf("Collected block height %d != stake db height %d. Pool info will not match.", height, sdbHeight)
+		log.Warnf("Collected block height %d != stake db height %d. Pool info "+
+			"will not match the rest of this block's data.", height, sdbHeight)
 	}
 
 	// Fee info
@@ -163,8 +164,48 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	return blockdata, feeInfoBlock, blockHeaderResults, err
 }
 
-// Collect is the main handler for collecting chain data at the current best
-// block. The input argument specifies if ticket pool value should be omitted.
+// CollectHash collects chain data at the block with the specified hash.
+func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, error) {
+	// In case of a very fast block, make sure previous call to collect is not
+	// still running, or dcrd may be mad.
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
+	// Time this function
+	defer func(start time.Time) {
+		log.Debugf("Collector.CollectHash() completed in %v", time.Since(start))
+	}(time.Now())
+
+	// Info specific to the block hash
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, err := t.CollectBlockInfo(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Number of peer connection to chain server
+	numConn, err := t.dcrdChainSvr.GetConnectionCount()
+	if err != nil {
+		log.Warn("Unable to get connection count: ", err)
+	}
+
+	// Output
+	height := int64(blockDataBasic.Height)
+	winSize := t.netParams.StakeDiffWindowSize
+	blockdata := &BlockData{
+		Header:           *blockHeaderVerbose,
+		Connections:      int32(numConn),
+		FeeInfo:          *feeInfoBlock,
+		CurrentStakeDiff: dcrjson.GetStakeDifficultyResult{CurrentStakeDifficulty: blockDataBasic.StakeDiff},
+		EstStakeDiff:     dcrjson.EstimateStakeDiffResult{},
+		PoolInfo:         blockDataBasic.PoolInfo,
+		PriceWindowNum:   int(height / winSize),
+		IdxBlockInWindow: int(height%winSize) + 1,
+	}
+
+	return blockdata, err
+}
+
+// Collect collects chain data at the current best block.
 func (t *Collector) Collect() (*BlockData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
@@ -187,7 +228,6 @@ func (t *Collector) Collect() (*BlockData, error) {
 	go func() {
 		bestBlockHash, err := t.dcrdChainSvr.GetBestBlockHash()
 		toch <- bbhRes{err, bestBlockHash}
-		return
 	}()
 
 	var bbs bbhRes

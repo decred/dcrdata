@@ -190,8 +190,8 @@ by other dcrdata packages, but they may be of general value in the future.
 * The `chainMonitor` type and its `BlockConnectedHandler()` method that handles
   block-connected notifications and triggers data collection and storage.
 * The `BlockData` type and methods for converting to API types.
-* The `blockDataCollector` type its `Collect()` method that is called by
-  the chain monitor when a new block is detected.
+* The `blockDataCollector` type and its `Collect()` and `CollectHash()` methods
+  that are called by the chain monitor when a new block is detected.
 * The `BlockDataSaver` interface required by `chainMonitor` for storage of
   collected data.
 
