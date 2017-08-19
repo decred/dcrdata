@@ -11,6 +11,7 @@ import (
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrrpcclient"
+	"github.com/dcrdata/dcrdata/wallet"
 )
 
 type APIDataSource interface {
@@ -53,18 +54,20 @@ type APIDataSource interface {
 type appContext struct {
 	nodeClient *dcrrpcclient.Client
 	BlockData  APIDataSource
+	Wallet     *wallet.Wallet
 	Status     apitypes.Status
 	statusMtx  sync.RWMutex
 	JSONIndent string
 }
 
 // Constructor for appContext
-func newContext(client *dcrrpcclient.Client, blockData APIDataSource, JSONIndent string) *appContext {
+func newContext(client *dcrrpcclient.Client, dcrwalletClient *wallet.Wallet, blockData APIDataSource, JSONIndent string) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 	return &appContext{
 		nodeClient: client,
 		BlockData:  blockData,
+		Wallet: dcrwalletClient,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -669,33 +672,21 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 
 	// TODO: check that we have all in range
 
-	// N := idx - idx0 + 1
-	// summaries := make([]*apitypes.BlockDataBasic, 0, N)
-	// for i := idx0; i <= idx; i++ {
-	// 	summaries = append(summaries, c.BlockData.GetSummary(i))
-	// }
-
-	// writeJSON(w, summaries, c.getIndentQuery(r))
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	encoder := json.NewEncoder(w)
-	indent := c.getIndentQuery(r)
-	prefix, newline := indent, ""
-	encoder.SetIndent(prefix, indent)
-	if indent != "" {
-		newline = "\n"
-	}
-	fmt.Fprintf(w, "[%s%s", newline, prefix)
+	N := idx - idx0 + 1
+	summaries := make([]*apitypes.BlockDataBasic, 0, N)
 	for i := idx0; i <= idx; i++ {
-		// TODO: deal with the extra newline from Encode, if needed
-		if err := encoder.Encode(c.BlockData.GetSummary(i)); err != nil {
-			apiLog.Infof("JSON encode error: %v", err)
-		}
-		if i != idx {
-			fmt.Fprintf(w, ",%s%s", newline, prefix)
-		}
+		summaries = append(summaries, c.BlockData.GetSummary(i))
 	}
-	fmt.Fprintf(w, "]")
+
+	writeJSON(w, summaries, c.getIndentQuery(r))
+
+	// DEBUGGING
+	// msg := fmt.Sprintf("block range: %d to %d", idx0, idx)
+
+	// w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	// if _, err := io.WriteString(w, msg); err != nil {
+	// 	apiLog.Infof("failed to write response: %v", err)
+	// }
 }
 
 func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dcrdata/dcrdata/wallet"
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
 	"github.com/dcrdata/dcrdata/mempool"
@@ -85,6 +86,10 @@ func mainCore() int {
 		log.Infof("Bye!")
 		time.Sleep(250 * time.Millisecond)
 	}()
+
+	// Initialize the dcrwallet funcs for accesing the dcr wallet daemon. This creates its own RPC connection since the wallet daemon
+	// Listens on a different port from the dcrd RPC server
+	dcrwalletClient := wallet.NewWalletClient(cfg.WalletSever, cfg.DcrdUser, cfg.DcrdPass, cfg.DcrdCert, cfg.DisableDaemonTLS)
 
 	// Display connected network
 	curnet, err := dcrdClient.GetCurrentNet()
@@ -288,7 +293,7 @@ func mainCore() int {
 	}
 
 	// Start web API
-	app := newContext(dcrdClient, &sqliteDB, cfg.IndentJSON)
+	app := newContext(dcrdClient, dcrwalletClient, &sqliteDB, cfg.IndentJSON)
 	// Start notification hander to keep /status up-to-date
 	wg.Add(1)
 	go app.StatusNtfnHandler(&wg, quit)

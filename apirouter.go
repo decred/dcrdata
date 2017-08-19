@@ -33,6 +33,14 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 
 	mux.HandleFunc("/status", app.status)
 
+	mux.Route("/wallet", func(r chi.Router){
+		r.Get("/accounts", app.Wallet.GetAccounts)
+		r.Get("/transactions", app.Wallet.GetTransactions)
+		r.Get("/unspent", app.Wallet.GetUnspent)
+		r.Get("/balance", app.Wallet.GetBalance)
+	})
+
+
 	mux.Route("/block", func(r chi.Router) {
 		r.Route("/best", func(rd chi.Router) {
 			rd.Use(app.BlockIndexLatestCtx)
@@ -79,7 +87,6 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 
 		r.Route("/range/{idx0}/{idx}", func(rd chi.Router) {
 			rd.Use(BlockIndex0PathCtx, BlockIndexPathCtx)
-			rd.Use(middleware.Compress(1))
 			rd.Get("/", app.getBlockRangeSummary)
 			rd.Get("/size", app.getBlockRangeSize)
 			// rd.Get("/header", app.getBlockHeader)
