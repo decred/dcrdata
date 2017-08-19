@@ -33,6 +33,13 @@
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
     <style>
+    .wrapper {
+        width: 60%;
+        min-width: 360px;
+    }
+    .navbar-default .navbar-nav > .open > a, .navbar-default .navbar-nav > .open > a:hover, .navbar-default .navbar-nav > .open > a:focus {
+        background: black;
+    }
         /* Notice: Portions of the connection indicator style come from html5rocks.com */
         @-webkit-keyframes glowGreen {
             from {
@@ -61,7 +68,6 @@
             font-weight: bold;
             vertical-align: middle;
             color: silver;
-            line-height: 71px;
         }
         #connection div {
             background-color: orange;
@@ -147,19 +153,19 @@
             number.innerHTML = String(m.number);
 
             var min = document.getElementById('mempoolfeeinfo_min');
-            min.innerHTML = String(m.min);
+            min.innerHTML = m.min.toFixed(8);
 
             var max = document.getElementById('mempoolfeeinfo_max');
-            max.innerHTML = String(m.max);
+            max.innerHTML = m.max.toFixed(8);
 
             var median = document.getElementById('mempoolfeeinfo_median');
-            median.innerHTML = String(m.median);
+            median.innerHTML = m.median.toFixed(8);
 
             var mean = document.getElementById('mempoolfeeinfo_mean');
-            mean.innerHTML = String(m.mean);
+            mean.innerHTML = m.mean.toFixed(8);
 
             var lm = document.getElementById('mempoolfeeinfo_lowestmineable');
-            lm.innerHTML = String(m.lowest_mineable);
+            lm.innerHTML = m.lowest_mineable.toFixed(8);
         };
 
         ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
@@ -181,35 +187,35 @@
             blockhash.innerHTML = String(b.size);
 
             var diff = document.getElementById('blockdiff');
-            diff.innerHTML = String(b.diff);
+            diff.innerHTML = b.diff.toFixed(2);
 
             var sdiff = document.getElementById('blocksdiff');
-            sdiff.innerHTML = String(b.sdiff);
+            sdiff.innerHTML = b.sdiff.toFixed(4);
 	    
 	        var poolsize = document.getElementById('poolsize');
             poolsize.innerHTML = String(b.ticket_pool.size);
 
             var poolvalue = document.getElementById('poolvalue');
-            poolvalue.innerHTML = String(b.ticket_pool.value);
+            poolvalue.innerHTML = b.ticket_pool.value.toFixed(2);
 
             var poolvalavg = document.getElementById('poolvalavg');
-            poolvalavg.innerHTML = String(b.ticket_pool.valavg);
+            poolvalavg.innerHTML = b.ticket_pool.valavg.toFixed(4);
 
             // stake
             var s = newblock.stake;
 
-            var sdiffcurrent = document.getElementById('blocksdiff');
-            sdiffcurrent.innerHTML = String(s.stakediff.current);
+            // var sdiffcurrent = document.getElementById('blocksdiff');
+            // sdiffcurrent.innerHTML = String(s.stakediff.current);
             // var sdiffnext = document.getElementById('blocksdiffnext');
             // sdiffnext.innerHTML = String(s.next);
 
             var sdiffEstimates = s.stakediff.estimates;
             var sdiffmin = document.getElementById('sdiffmin');
-            sdiffmin.innerHTML = String(sdiffEstimates.min);
+            sdiffmin.innerHTML = sdiffEstimates.min.toFixed(2);
             var sdiffmax = document.getElementById('sdiffmax');
-            sdiffmax.innerHTML = String(sdiffEstimates.max);
+            sdiffmax.innerHTML = sdiffEstimates.max.toFixed(2);
             var sdiffexp = document.getElementById('sdiffexp');
-            sdiffexp.innerHTML = String(sdiffEstimates.expected);
+            sdiffexp.innerHTML = sdiffEstimates.expected.toFixed(2);
 
             var window_block_index = document.getElementById('window_block_index');
             window_block_index.innerHTML = String(s.window_block_index);
@@ -218,13 +224,13 @@
             var feeinfonumber = document.getElementById('feeinfo_number');
             feeinfonumber.innerHTML = String(feeinfo.number);
             var feeinfomin = document.getElementById('feeinfo_min');
-            feeinfomin.innerHTML = String(feeinfo.min);
+            feeinfomin.innerHTML = feeinfo.min.toFixed(8);
             var feeinfomax = document.getElementById('feeinfo_max');
-            feeinfomax.innerHTML = String(feeinfo.max);
+            feeinfomax.innerHTML = feeinfo.max.toFixed(8);
             var feeinfomedian = document.getElementById('feeinfo_median');
-            feeinfomedian.innerHTML = String(feeinfo.median);
+            feeinfomedian.innerHTML = feeinfo.median.toFixed(8);
             var feeinfomean = document.getElementById('feeinfo_mean');
-            feeinfomean.innerHTML = String(feeinfo.mean);
+            feeinfomean.innerHTML = feeinfo.mean.toFixed(8);
         };
 
         ws.registerEvtHandler("newblock", updateBlockData);
@@ -266,26 +272,22 @@
         <div class="container wrapper">
             <div class="navbar-header">
                 <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                </button>
                 <a class="navbar-brand" href="#">
                     <svg class="svg-logo">
-        <use xlink:href="images/sprites.svg#svg-decred-logo" />
-        </svg>
+                        <use xlink:href="images/sprites.svg#svg-decred-logo" />
+                    </svg>
                 </a>
             </div>
             <div id="navbar" class="navbar-collapse collapse">
-                <ul class="nav navbar-nav">
-                </ul>
                 <ul class="nav navbar-nav navbar-right">
-                    <li><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" title="_blank">dcrdata GitHub</a></li>
+                    <li><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" title="_blank">GitHub</a></li>
                     <li><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" title="_blank">API</a></li>
-                    <li><a href="https://api.dcrdata.net/status" title="API Status" title="_blank">API Status</a></li>
-                    <li><a href="https://decred.slack.com/" title="Decred Slack" title="_blank">Decred Slack</a></li>
-                    <li><span id="connection">Connecting to event source...<div></div></span></li> 
+                    <li><a href="/api/status" title="API Status" title="_blank">API Status</a></li>
                 </ul>
             </div>
             <!--/.nav-collapse -->
@@ -294,83 +296,88 @@
 
     <div class="wrapper" style="margin-top:60px;">
         <!-- <p style="padding-top: 10px;"></p> -->
-        <div id="boxagenda">
+        <div id="pricebox" style="margin: 0 auto;">
             <div style="clear:both;padding-top: 10px; text-align: right;">&nbsp;</div>
-            <!-- <div style="clear:both;padding-top: 10px; text-align: right;"><span id="connection" onclick="closeConnection()">Connecting to event source...<div></div></span></div> -->
-            <h4><span>Proof of Stake (PoS)</span></h4>
-
-            <div class="col-md-10">
-                Current
+            <h4><span>Ticket Price</span></h4>
+            <div class="col-md-7" style="margin: 0 auto;">
+                <strong>Current Price Window</strong>
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Current Ticket Price: <span id="blocksdiff" >{{printf "%12.4f" .BlockSummary.StakeDiff}}</span><br>
-                    Window Progress: block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144<br>
-                </p>
-                Next Price
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Min: <span id="sdiffmin" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}</span><br>
-                    Max: <span id="sdiffmax" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}</span><br>
-                    Guess: <span id="sdiffexp" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}</span><br>
-                </p>
-                Fee Info (Block)
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Number of Tickets: <span id="feeinfo_number" >{{.StakeSummary.Feeinfo.Number}}</span><br>
-                    Min Fee: <span id="feeinfo_min" >{{printf "%16.6f" .StakeSummary.Feeinfo.Min}}</span><br>
-                    Max Fee: <span id="feeinfo_max" >{{printf "%16.6f" .StakeSummary.Feeinfo.Max}}</span><br>
-                    Median Fee: <span id="feeinfo_median" >{{printf "%16.6f" .StakeSummary.Feeinfo.Median}}</span><br>
-                    Mean Fee: <span id="feeinfo_mean" >{{printf "%16.6f" .StakeSummary.Feeinfo.Mean}}</span><br>
+                    Ticket Price: <span style="float: right; color:#61DF13;" id="blocksdiff" ><strong>{{printf "%12.4f" .BlockSummary.StakeDiff}}</strong></span><br>
+                    Progress: <span style="float: right;">block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144</span><br>
                 </p>
             </div>
+            <div class="col-md-6" style="margin: 0 auto;">
+                <strong>Next Price Window</strong>
+                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                    Min: <span style="float: right;" id="sdiffmin" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}</span><br>
+                    Max: <span style="float: right;" id="sdiffmax" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}</span><br>
+                    Guess: <span style="float: right;" id="sdiffexp" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}</span><br>
+                </p>
+            </div>
+        </div>
 
-            <div class="col-md-5 text-right">
+        <div id="feebox" style="margin: 0 auto;">
+            <div style="clear:both;">&nbsp;</div>
+            <h4><span>Ticket Fees</span></h4>
+            <div class="col-md-7">
+                <strong>Mempool (queued for mining)</strong>
+                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                    Number of Tickets: <span style="float: right;" id="mempoolfeeinfo_number" >{{.MempoolFeeInfo.Number}}</span><br>
+                    Lowest Mineable Fee: <span style="float: right;" id="mempoolfeeinfo_lowestmineable" >{{printf "%.8f" .MempoolFeeInfo.LowestMineable}}</span><br>
+                    Min Fee: <span style="float: right;" id="mempoolfeeinfo_min" >{{printf "%.8f" .MempoolFeeInfo.Min}}</span><br>
+                    Max Fee: <span style="float: right;" id="mempoolfeeinfo_max" >{{printf "%.8f" .MempoolFeeInfo.Max}}</span><br>
+                    Median Fee: <span style="float: right;" id="mempoolfeeinfo_median" >{{printf "%.8f" .MempoolFeeInfo.Median}}</span><br>
+                    Mean Fee: <span style="float: right;" id="mempoolfeeinfo_mean" >{{printf "%.8f" .MempoolFeeInfo.Mean}}</span><br>
+                </p>
+            </div>
+            <div class="col-md-6 text-left">
+                <strong>Mined in Last Block</strong>
+                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                    Number of Tickets: <span style="float: right;" id="feeinfo_number" >{{.StakeSummary.Feeinfo.Number}}</span><br>
+                    Min Fee: <span style="float: right;" id="feeinfo_min" >{{printf "%16.6f" .StakeSummary.Feeinfo.Min}}</span><br>
+                    Max Fee: <span style="float: right;" id="feeinfo_max" >{{printf "%16.6f" .StakeSummary.Feeinfo.Max}}</span><br>
+                    Median Fee: <span style="float: right;" id="feeinfo_median" >{{printf "%16.6f" .StakeSummary.Feeinfo.Median}}</span><br>
+                    Mean Fee: <span style="float: right;" id="feeinfo_mean" >{{printf "%16.6f" .StakeSummary.Feeinfo.Mean}}</span><br>
+                </p>
+            </div>
+        </div>
+
+        <div id="chainbox">
+            <div style="clear:both;">&nbsp;</div>
+            <h4><span>Chain State</span></h4>
+            <div class="col-md-8">
                 <strong>Best Block</strong>
                 <table class="table table-condensed">
                 <tbody>
                 <tr><td>Height</td><td><strong><span id="blockheight" style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td></tr>
-                <tr><td>Hash</td><td><strong><span id="blockhash" class="inco" style="float: right; max-width: 180px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
+                <tr><td>Hash</td><td><strong><span id="blockhash" class="inco" style="max-width: 200px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
                         {{.BlockSummary.Hash}}</span></strong></td></tr>
                 <tr><td>Size (bytes)</td><td><strong><p id="blocksize" >{{.BlockSummary.Size}}</p></strong></td></tr>
                 <tr><td>Difficulty</td><td><strong><p id="blockdiff" >{{printf "%16.2f" .BlockSummary.Difficulty}}</p></strong></td></tr>
                 </tbody>
                 </table>
-                <br>
+            </div>
+            <div class="col-md-6 text-left">
                 <strong>Ticket Pool</strong>
                 <table class="table table-condensed">
                 <tbody>
-                <tr><td>Number of Tickets</td><td><strong><span id="poolsize" style="color:#41BF53">{{.BlockSummary.PoolInfo.Size}}</span></strong></td></tr>
+                <tr><td>Size</td><td><strong><span id="poolsize" style="color:#41BF53">{{.BlockSummary.PoolInfo.Size}}</span></strong></td></tr>
                 <tr><td>Value (DCR)</td><td><strong><span id="poolvalue">{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</span></strong></td></tr>
-                <tr><td>Avg. Value (DCR/ticket)</td><td><strong><span id="poolvalavg">{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</span></strong></td></tr>
+                <tr><td>Average (DCR/ticket)</td><td><strong><span id="poolvalavg">{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</span></strong></td></tr>
                 </tbody>
                 </table>
             </div>
-
-            <!--<div class="col-md-10">
-                Ticket Pool
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Pool Size (bytes): {{.BlockSummary.PoolInfo.Size}}<br>
-                    Pool Value (DCR): {{.BlockSummary.PoolInfo.Value}}<br>
-                    Pool Avg. Value (DCR/ticket): {{.BlockSummary.PoolInfo.ValAvg}}<br>
-                </p>
-            </div>-->
         </div>
-
-        <div id="boxagenda">
-            <div style="clear:both;">&nbsp;</div>
-            <h4><span>Mempool (queued for mining)</span></h4>
-            <div class="col-md-10">
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    Number of Tickets: <span id="mempoolfeeinfo_number" >{{.MempoolFeeInfo.Number}}</span><br>
-                    Lowest Mineable Fee: <span id="mempoolfeeinfo_lowestmineable" >{{printf "%.8f" .MempoolFeeInfo.LowestMineable}}</span><br>
-                    Min Fee: <span id="mempoolfeeinfo_min" >{{.MempoolFeeInfo.Min}}</span><br>
-                    Max Fee: <span id="mempoolfeeinfo_max" >{{.MempoolFeeInfo.Max}}</span><br>
-                    Median Fee: <span id="mempoolfeeinfo_median" >{{.MempoolFeeInfo.Median}}</span><br>
-                    Mean Fee: <span id="mempoolfeeinfo_mean" >{{.MempoolFeeInfo.Mean}}</span><br>
-                </p>
-            </div>
-        </div> <!-- boxagenda -->
 
         <br /><br /><br /><br /><br />&nbsp;
     </div>
     <!-- end wrapper -->
+
+    <footer class="navbar-fixed-bottom">
+      <div class="container wrapper text-center">
+        <strong>dcrdata</strong>.org &emsp; | &emsp;  <span id="connection">Connecting to WebSocket...<div></div></span>
+      </div>
+    </footer>
 
     <script src="js/complete.js"></script>
 
