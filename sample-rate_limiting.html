@@ -1,0 +1,14 @@
+<!-- Response header should look something like:
+HTTP/1.1 429 Too Many Requests
+Content-Type: text/html
+Retry-After: 30
+-->
+<html>
+<head>
+    <title>Rate Limiting in Effect</title>
+</head>
+<body>
+    <h1>Too Many Requests</h1>
+    <p>I only allow 3 requests per second per client IP, with small bursts permitted. Try again soon.</p>
+</body>
+</html>
