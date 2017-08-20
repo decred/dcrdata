@@ -21,6 +21,7 @@ const (
 	ctxAPIStatus
 	ctxBlockIndex0
 	ctxBlockIndex
+	ctxBlockStep
 	ctxBlockHash
 	ctxTxHash
 	ctxTxInOutIndex
@@ -43,6 +44,20 @@ func (c *appContext) StatusCtx(next http.Handler) http.Handler {
 // 		next.ServeHTTP(w, r.WithContext(ctx))
 // 	})
 // }
+
+func BlockStepPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		stepIdxStr := chi.URLParam(r, "step")
+		step, err := strconv.Atoi(stepIdxStr)
+		if err != nil {
+			apiLog.Infof("No/invalid step value (int64): %v", err)
+			http.NotFound(w, r)
+			return
+		}
+		ctx := context.WithValue(r.Context(), ctxBlockStep, step)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 func BlockIndexPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

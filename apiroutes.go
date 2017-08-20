@@ -151,6 +151,15 @@ func (c *appContext) root(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "dcrdata api running")
 }
 
+func getBlockStepCtx(r *http.Request) int {
+	step, ok := r.Context().Value(ctxBlockStep).(int)
+	if !ok {
+		apiLog.Error("block step not set")
+		return -1
+	}
+	return step
+}
+
 func getBlockIndexCtx(r *http.Request) int {
 	idx, ok := r.Context().Value(ctxBlockIndex).(int)
 	if !ok {
@@ -692,6 +701,46 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 			apiLog.Infof("JSON encode error: %v", err)
 			http.Error(w, http.StatusText(422), 422)
 			return
+		}
+		if i != idx {
+			fmt.Fprintf(w, ",%s%s", newline, prefix)
+		}
+	}
+	fmt.Fprintf(w, "]")
+}
+
+func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.Request) {
+	idx0 := getBlockIndex0Ctx(r)
+	if idx0 < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	idx := getBlockIndexCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	step := getBlockStepCtx(r)
+	if step <= 0 {
+		http.Error(w, "Yeaaah, that step's not gonna work with me.", 422)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	encoder := json.NewEncoder(w)
+	indent := c.getIndentQuery(r)
+	prefix, newline := indent, ""
+	encoder.SetIndent(prefix, indent)
+	if indent != "" {
+		newline = "\n"
+	}
+	fmt.Fprintf(w, "[%s%s", newline, prefix)
+	for i := idx0; i <= idx; i += step {
+		// TODO: deal with the extra newline from Encode, if needed
+		if err := encoder.Encode(c.BlockData.GetSummary(i)); err != nil {
+			apiLog.Infof("JSON encode error: %v", err)
 		}
 		if i != idx {
 			fmt.Fprintf(w, ",%s%s", newline, prefix)
