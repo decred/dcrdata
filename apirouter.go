@@ -85,6 +85,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Route("/{step}", func(rs chi.Router) {
 				rs.Use(BlockStepPathCtx)
 				rs.Get("/", app.getBlockRangeSteppedSummary)
+				rs.Get("/size", app.getBlockRangeSteppedSize)
 			})
 			// rd.Get("/header", app.getBlockHeader)
 			// rd.Get("/pos", app.getBlockStakeInfoExtended)
