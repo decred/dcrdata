@@ -334,6 +334,9 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 	// Get a map of ticket hashes to getrawmempool results
 	// mempoolTickets[ticketHashes[0].String()].Fee
 	mempoolTickets, err := c.GetRawMempoolVerbose(dcrjson.GRMTickets)
+	if err != nil {
+		return nil, err
+	}
 
 	// Fee info
 	var numFeeWindows, numFeeBlocks uint32 = 0, 0
@@ -703,6 +706,11 @@ func (s *MempoolFeeDumper) StoreMPData(data *MempoolData, timestamp time.Time) e
 		data.MinableFees.allFees,
 		time.Now().UTC().Format(time.RFC822)},
 		"", "    ")
+
+	if err != nil {
+		log.Errorf("Failed to Marshal mempool data: %v", err)
+		return err
+	}
 
 	s.file = *fp
 	_, err = fmt.Fprintln(&s.file, string(j))
