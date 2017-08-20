@@ -663,6 +663,46 @@ func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, blockSizes, "")
 }
 
+func (c *appContext) getBlockRangeSteppedSize(w http.ResponseWriter, r *http.Request) {
+	idx0 := getBlockIndex0Ctx(r)
+	if idx0 < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	idx := getBlockIndexCtx(r)
+	if idx < 0 || idx < idx0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	step := getBlockStepCtx(r)
+	if step <= 0 {
+		http.Error(w, "Yeaaah, that step's not gonna work with me.", 422)
+		return
+	}
+
+	blockSizesFull, err := c.BlockData.GetBlockSizeRange(idx0, idx)
+	if err != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	var blockSizes []int32
+	if step == 1 {
+		blockSizes = blockSizesFull
+	} else {
+		numValues := (idx - idx0 + 1) / step
+		blockSizes = make([]int32, 0, numValues)
+		for i := idx0; i <= idx; i += step {
+			blockSizes = append(blockSizes, blockSizesFull[i-idx0])
+		}
+		// it's the client's problem if i doesn't go all the way to idx
+	}
+
+	writeJSON(w, blockSizes, "")
+}
+
 func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request) {
 	idx0 := getBlockIndex0Ctx(r)
 	if idx0 < 0 {
