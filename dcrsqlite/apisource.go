@@ -80,8 +80,8 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
 		return err
 	}
 	// Do not allow Store() while doing sync
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	return db.resyncDB(quit)
 }
 
@@ -95,8 +95,8 @@ func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) e
 		return err
 	}
 	// Do not allow Store() while doing sync
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
+	db.Lock()
+	defer db.Unlock()
 	return db.resyncDBWithPoolValue(quit)
 }
 
