@@ -690,6 +690,8 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 		// TODO: deal with the extra newline from Encode, if needed
 		if err := encoder.Encode(c.BlockData.GetSummary(i)); err != nil {
 			apiLog.Infof("JSON encode error: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
 		}
 		if i != idx {
 			fmt.Fprintf(w, ",%s%s", newline, prefix)
