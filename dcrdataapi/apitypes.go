@@ -104,14 +104,14 @@ type OutPoint struct {
 	Tree  int8   `json:"tree"`
 }
 
-//Address models the address string with the transactions as TxShort
+//Address models the address string with the transactions as AddressTx
 type Address struct {
-	Address      string       `json:"address"`
-	Transactions []*AddressTx `json:"address transactions"`
+	Address      string            `json:"address"`
+	Transactions []*AddressTxShort `json:"address transactions"`
 }
 
-//AddressTx modeled from SearchRawTransactionsResult but with size in place of hex
-type AddressTx struct {
+//AddressTxRaw is modeled from SearchRawTransactionsResult but with size in place of hex
+type AddressTxRaw struct {
 	Size          int32                `json:"size"`
 	TxID          string               `json:"txid"`
 	Version       int32                `json:"version"`
@@ -122,6 +122,21 @@ type AddressTx struct {
 	BlockHash     string               `json:"blockhash"`
 	Time          int64                `json:"time,omitempty"`
 	Blocktime     int64                `json:"blocktime,omitempty"`
+}
+
+//AddressTxShort is a subset of AddressTx with just the basic tx details pertaining the
+//particular address
+type AddressTxShort struct {
+	TxID   string           `json:"txid"`
+	Time   int64            `json:"time"`
+	Values []AddressTxValue `json:"values"`
+}
+
+//AddressTxValue contains the amount involved and type of value (in / out) for an
+//address in a transaction
+type AddressTxValue struct {
+	ValueType string  `json:"value type"`
+	Amount    float64 `json:"amount"`
 }
 
 // below are notes essentially copy-paste from dcrjson

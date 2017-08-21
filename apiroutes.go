@@ -47,7 +47,8 @@ type APIDataSource interface {
 	GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo
 	GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees
 	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
-	GetAddressTransactions(addr string) *apitypes.Address
+	GetAddressTransactions(addr string, count int) *apitypes.Address
+	GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw
 }
 
 // dcrdata application context used by all route handlers
@@ -897,11 +898,28 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
 	address := getAddressCtx(r)
+	count := getNCtx(r)
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+	if count == -1 {
+		count = 10
+	}
+	txs := c.BlockData.GetAddressTransactions(address, count)
+	writeJSON(w, txs, c.getIndentQuery(r))
+}
 
-	txs := c.BlockData.GetAddressTransactions(address)
+func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
+	address := getAddressCtx(r)
+	count := getNCtx(r)
+	if address == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	if count == -1 {
+		count = 10
+	}
+	txs := c.BlockData.GetAddressTransactionsRaw(address, count)
 	writeJSON(w, txs, c.getIndentQuery(r))
 }

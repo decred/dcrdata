@@ -470,22 +470,70 @@ func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 }
 
 //GetAddressTransactions returns an apitypes.Address Object
-// with at most the last 10 transactions the address was in
-func (db *wiredDB) GetAddressTransactions(addr string) *apitypes.Address {
-
-	address, err := dcrutil.DecodeAddress(addr, db.params)
+//with at most the last 10 transactions the address was in
+func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Address {
+	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
 		log.Errorf("Invalid address %s", addr)
 		return nil
 	}
-	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, 10, true, false, make([]string, 0))
+	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, false, make([]string, 0))
 	if err != nil {
 		log.Errorf("GetAddressTransactions failed for address %s", addr)
 		return nil
 	}
-	txarray := make([]*apitypes.AddressTx, 0)
+	tx := make([]*apitypes.AddressTxShort, 0)
 	for i := range txs {
-		tx := new(apitypes.AddressTx)
+		txarray := make([]apitypes.AddressTxValue, 0)
+		for j := range txs[i].Vin {
+			for c := range txs[i].Vin[j].PrevOut.Addresses {
+				if txs[i].Vin[j].PrevOut.Addresses[c] == addr {
+					txarray = append(txarray, apitypes.AddressTxValue{
+						ValueType: "Vin",
+						Amount:    txs[i].Vin[j].PrevOut.Value,
+					})
+				}
+			}
+		}
+		for j := range txs[i].Vout {
+			for c := range txs[i].Vout[j].ScriptPubKey.Addresses {
+				if txs[i].Vout[j].ScriptPubKey.Addresses[c] == addr {
+					txarray = append(txarray, apitypes.AddressTxValue{
+						ValueType: "Vout",
+						Amount:    txs[i].Vout[j].Value,
+					})
+				}
+			}
+		}
+		tx = append(tx, &apitypes.AddressTxShort{
+			TxID:   txs[i].Txid,
+			Time:   txs[i].Time,
+			Values: txarray,
+		})
+	}
+	return &apitypes.Address{
+		Address:      addr,
+		Transactions: tx,
+	}
+
+}
+
+//GetAddressTransactions returns an array of apitypes.AddressTxRaw
+//objects representing the raw result of SearchRawTransactionsverbose
+func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw {
+	address, err := dcrutil.DecodeAddress(addr)
+	if err != nil {
+		log.Errorf("Invalid address %s", addr)
+		return nil
+	}
+	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, false, make([]string, 0))
+	if err != nil {
+		log.Errorf("GetAddressTransactionsRaw failed for address %s", addr)
+		return nil
+	}
+	txarray := make([]*apitypes.AddressTxRaw, 0)
+	for i := range txs {
+		tx := new(apitypes.AddressTxRaw)
 		// AddressTx
 		tx.Size = int32(len(txs[i].Hex) / 2)
 		tx.TxID = txs[i].Txid
@@ -519,8 +567,5 @@ func (db *wiredDB) GetAddressTransactions(addr string) *apitypes.Address {
 		txarray = append(txarray, tx)
 	}
 
-	return &apitypes.Address{
-		Address:      addr,
-		Transactions: txarray,
-	}
+	return txarray
 }
