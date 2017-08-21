@@ -254,7 +254,16 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				i, endRangeBlock, numLive)
 		}
 
-		tpi, _ := db.sDB.PoolInfo()
+		var tpi *apitypes.TicketPoolInfo
+		var found bool
+		if tpi, found = db.sDB.PoolInfo(*blockhash); !found {
+			ticketPoolInfo, sdbHeight := db.sDB.PoolInfoBest()
+			if int64(sdbHeight) != i {
+				log.Warnf("Collected block height %d != stake db height %d. Pool info "+
+					"will not match the rest of this block's data.", height, i)
+			}
+			tpi = &ticketPoolInfo
+		}
 
 		header := block.MsgBlock().Header
 		diffRatio := txhelpers.GetDifficultyRatio(header.Bits, db.params)
@@ -266,7 +275,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			Difficulty: diffRatio,
 			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
 			Time:       header.Timestamp.Unix(),
-			PoolInfo:   tpi,
+			PoolInfo:   *tpi,
 		}
 
 		// TODO: Why was there a discrepancy using a ticket cache in this function?

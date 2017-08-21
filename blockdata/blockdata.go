@@ -128,10 +128,15 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	block := dcrutil.NewBlock(msgBlock)
 
 	// Ticket pool info (value, size, avg)
-	ticketPoolInfo, sdbHeight := t.stakeDB.PoolInfo()
-	if sdbHeight != height {
-		log.Warnf("Collected block height %d != stake db height %d. Pool info "+
-			"will not match the rest of this block's data.", height, sdbHeight)
+	var ticketPoolInfo *apitypes.TicketPoolInfo
+	var found bool
+	if ticketPoolInfo, found = t.stakeDB.PoolInfo(*hash); !found {
+		tpi, sdbHeight := t.stakeDB.PoolInfoBest()
+		if sdbHeight != height {
+			log.Warnf("Collected block height %d != stake db height %d. Pool info "+
+				"will not match the rest of this block's data.", height, sdbHeight)
+		}
+		ticketPoolInfo = &tpi
 	}
 
 	// Fee info
@@ -158,7 +163,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 		Difficulty: diff,
 		StakeDiff:  sdiff,
 		Time:       header.Timestamp.Unix(),
-		PoolInfo:   ticketPoolInfo,
+		PoolInfo:   *ticketPoolInfo,
 	}
 
 	return blockdata, feeInfoBlock, blockHeaderResults, err

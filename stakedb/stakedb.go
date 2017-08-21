@@ -22,6 +22,30 @@ import (
 	"github.com/decred/dcrutil"
 )
 
+type PoolInfoCache struct {
+	sync.RWMutex
+	poolInfo map[chainhash.Hash]*apitypes.TicketPoolInfo
+}
+
+func NewPoolInfoCache() *PoolInfoCache {
+	return &PoolInfoCache{
+		poolInfo: make(map[chainhash.Hash]*apitypes.TicketPoolInfo),
+	}
+}
+
+func (c *PoolInfoCache) Get(hash chainhash.Hash) (*apitypes.TicketPoolInfo, bool) {
+	c.RLock()
+	defer c.RUnlock()
+	tpi, ok := c.poolInfo[hash]
+	return tpi, ok
+}
+
+func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
+	c.Lock()
+	defer c.Unlock()
+	c.poolInfo[hash] = p
+}
+
 // StakeDatabase models data for the stake database
 type StakeDatabase struct {
 	params          *chaincfg.Params
@@ -33,6 +57,7 @@ type StakeDatabase struct {
 	blockCache      map[int64]*dcrutil.Block
 	liveTicketMtx   sync.Mutex
 	liveTicketCache map[chainhash.Hash]int64
+	poolInfo        *PoolInfoCache
 }
 
 const (
@@ -50,6 +75,7 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 		NodeClient:      client,
 		blockCache:      make(map[int64]*dcrutil.Block),
 		liveTicketCache: make(map[chainhash.Hash]int64),
+		poolInfo:        NewPoolInfoCache(),
 	}
 	if err := sDB.Open(); err != nil {
 		return nil, err
@@ -192,7 +218,6 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	revokedTickets := txhelpers.RevokedTicketsInBlock(block)
 	spentTickets := txhelpers.TicketsSpentInBlock(block)
 
-	// If the stake db is ahead, it was probably a reorg, unhandled!
 	db.nodeMtx.Lock()
 	bestNodeHeight := int64(db.BestNode.Height())
 	db.nodeMtx.Unlock()
@@ -206,7 +231,6 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Hash,
 	revoked []chainhash.Hash, maturing []chainhash.Hash) error {
 	db.nodeMtx.Lock()
-	defer db.nodeMtx.Unlock()
 
 	cleanLiveTicketCache := func() {
 		db.liveTicketMtx.Lock()
@@ -227,10 +251,18 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 		return err
 	}
 
-	// Write the new node to db
-	return db.StakeDB.Update(func(dbTx database.Tx) error {
+	if err = db.StakeDB.Update(func(dbTx database.Tx) error {
 		return stake.WriteConnectedBestNode(dbTx, db.BestNode, *block.Hash())
-	})
+	}); err != nil {
+		return err
+	}
+
+	db.nodeMtx.Unlock()
+
+	tpi, _ := db.PoolInfoBest()
+	db.poolInfo.Set(*block.Hash(), &tpi)
+
+	return err
 }
 
 // DisconnectBlock attempts to disconnect the current best block from the stake
@@ -290,7 +322,8 @@ func (db *StakeDatabase) DisconnectBlocks(count int64) error {
 	return nil
 }
 
-// Open attemps to open the stake database and returns and error upon failure
+// Open attempts to open an existing stake database, and will create a new one
+// if one does not exist.
 func (db *StakeDatabase) Open() error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
@@ -350,10 +383,10 @@ func (db *StakeDatabase) Open() error {
 	return err
 }
 
-// PoolInfo computes ticket pool value using the database and, if needed, the
+// PoolInfoBest computes ticket pool value using the database and, if needed, the
 // node RPC client to fetch ticket values that are not cached. Returned are a
 // structure including ticket pool value, size, and average value.
-func (db *StakeDatabase) PoolInfo() (apitypes.TicketPoolInfo, uint32) {
+func (db *StakeDatabase) PoolInfoBest() (apitypes.TicketPoolInfo, uint32) {
 	db.nodeMtx.RLock()
 	poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
@@ -396,6 +429,13 @@ func (db *StakeDatabase) PoolInfo() (apitypes.TicketPoolInfo, uint32) {
 		Value:  poolCoin,
 		ValAvg: valAvg,
 	}, height
+}
+
+// PoolInfo attempts to fetch the ticket pool info for the specified block hash
+// from an internal pool info cache. If it is not found, you should attempt to
+// use PoolInfoBest if the target block is at the tip of the chain.
+func (db *StakeDatabase) PoolInfo(hash chainhash.Hash) (*apitypes.TicketPoolInfo, bool) {
+	return db.poolInfo.Get(hash)
 }
 
 // PoolSize returns the ticket pool size in the best node of the stake database
