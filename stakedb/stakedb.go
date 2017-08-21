@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
@@ -299,6 +300,9 @@ func (db *StakeDatabase) Open() error {
 	var err error
 	db.StakeDB, err = database.Open(dbType, dbName, db.params.Net)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "resource temporarily unavailable") {
+			return fmt.Errorf("Stake DB already opened. dcrdata running?")
+		}
 		log.Infof("Unable to open stake DB (%v). Removing and creating new.", err)
 		_ = os.RemoveAll(dbName)
 		db.StakeDB, err = database.Create(dbType, dbName, db.params.Net)
