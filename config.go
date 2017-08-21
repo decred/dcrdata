@@ -42,7 +42,7 @@ var (
 	//defaultEmailSubject      = "dcrdataapi transaction notification"
 
 	defaultAPIProto   = "http"
-	defaultAPIListen  = "127.0.0.1:6000"
+	defaultAPIListen  = "127.0.0.1:7777"
 	defaultIndentJSON = "   "
 
 	defaultMonitorMempool     = true
