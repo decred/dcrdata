@@ -43,7 +43,7 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincf
 	var err error
 	wDB.sDB, err = stakedb.NewStakeDatabase(cl, p)
 	if err != nil {
-		log.Error("Unable to create stake DB: ", err)
+		log.Errorf("Unable to create stake DB: %v", err)
 		return wDB, func() error { return nil }
 	}
 	return wDB, wDB.sDB.StakeDB.Close
