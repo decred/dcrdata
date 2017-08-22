@@ -469,46 +469,31 @@ func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 	return &mpTicketDetails
 }
 
-//GetAddressTransactions returns an apitypes.Address Object
-//with at most the last 10 transactions the address was in
+// GetAddressTransactions returns an apitypes.Address Object with at most the
+// last count transactions the address was in
 func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Address {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
-		log.Errorf("Invalid address %s", addr)
+		log.Errorf("Invalid address %s: %v", addr, err)
 		return nil
 	}
-	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, false, make([]string, 0))
+	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, false, false, nil)
 	if err != nil {
-		log.Errorf("GetAddressTransactions failed for address %s", addr)
+		log.Errorf("GetAddressTransactions failed for address %s: %v", addr, err)
 		return nil
 	}
-	tx := make([]*apitypes.AddressTxShort, 0)
+	tx := make([]*apitypes.AddressTxShort, 0, len(txs))
 	for i := range txs {
-		txarray := make([]apitypes.AddressTxValue, 0)
-		for j := range txs[i].Vin {
-			for c := range txs[i].Vin[j].PrevOut.Addresses {
-				if txs[i].Vin[j].PrevOut.Addresses[c] == addr {
-					txarray = append(txarray, apitypes.AddressTxValue{
-						ValueType: "Vin",
-						Amount:    txs[i].Vin[j].PrevOut.Value,
-					})
-				}
-			}
-		}
+		var value float64
 		for j := range txs[i].Vout {
-			for c := range txs[i].Vout[j].ScriptPubKey.Addresses {
-				if txs[i].Vout[j].ScriptPubKey.Addresses[c] == addr {
-					txarray = append(txarray, apitypes.AddressTxValue{
-						ValueType: "Vout",
-						Amount:    txs[i].Vout[j].Value,
-					})
-				}
-			}
+			value += txs[i].Vout[j].Value
 		}
 		tx = append(tx, &apitypes.AddressTxShort{
-			TxID:   txs[i].Txid,
-			Time:   txs[i].Time,
-			Values: txarray,
+			TxID:          txs[i].Txid,
+			Time:          txs[i].Time,
+			Value:         value,
+			Confirmations: int64(txs[i].Confirmations),
+			Size:          int32(len(txs[i].Hex) / 2),
 		})
 	}
 	return &apitypes.Address{
@@ -518,23 +503,22 @@ func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Addr
 
 }
 
-//GetAddressTransactions returns an array of apitypes.AddressTxRaw
-//objects representing the raw result of SearchRawTransactionsverbose
+// GetAddressTransactions returns an array of apitypes.AddressTxRaw objects
+// representing the raw result of SearchRawTransactionsverbose
 func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
-		log.Errorf("Invalid address %s", addr)
+		log.Errorf("Invalid address %s: %v", addr, err)
 		return nil
 	}
-	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, false, make([]string, 0))
+	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, false, nil)
 	if err != nil {
-		log.Errorf("GetAddressTransactionsRaw failed for address %s", addr)
+		log.Errorf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return nil
 	}
-	txarray := make([]*apitypes.AddressTxRaw, 0)
+	txarray := make([]*apitypes.AddressTxRaw, 0, len(txs))
 	for i := range txs {
 		tx := new(apitypes.AddressTxRaw)
-		// AddressTx
 		tx.Size = int32(len(txs[i].Hex) / 2)
 		tx.TxID = txs[i].Txid
 		tx.Version = txs[i].Version
@@ -544,7 +528,7 @@ func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes
 		tx.Confirmations = int64(txs[i].Confirmations)
 		tx.BlockHash = txs[i].BlockHash
 		tx.Blocktime = txs[i].Blocktime
-		tx.Time = txs[i].Blocktime
+		tx.Time = txs[i].Time
 		tx.Vout = make([]apitypes.Vout, len(txs[i].Vout))
 		for j := range txs[i].Vout {
 			tx.Vout[j].Value = txs[i].Vout[j].Value

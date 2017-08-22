@@ -903,7 +903,7 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	if count == -1 {
+	if count <= 0 {
 		count = 10
 	}
 	txs := c.BlockData.GetAddressTransactions(address, count)
@@ -917,7 +917,7 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	if count == -1 {
+	if count <= 0 {
 		count = 10
 	}
 	txs := c.BlockData.GetAddressTransactionsRaw(address, count)
