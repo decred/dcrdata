@@ -50,21 +50,56 @@ means it starts a web server listening on all network interfaces on port 7777.
 | Summary | `/block/best` |
 | Stake info |  `/block/best/pos` |
 | Header |  `/block/best/header` |
+| Hash |  `/block/best/hash` |
+| Height | `/block/best/height` |
+| Size | `/block/best/size` |
+| Transactions | `/block/best/tx` |
+| Transactions Count | `/block/best/tx/count` |
+| Verbose Result | `/block/best/verbose` |
 
 
-| Block X (block index) | |
+| Block X (block index)  | |
 | --- | --- |
 | Summary | `/block/X` |
 | Stake info |  `/block/X/pos` |
 | Header |  `/block/X/header` |
+| Hash |  `/block/X/hash` |
+| Size | `/block/X/size` |
+| Transactions | `/block/X/tx` |
+| Transactions Count | `/block/X/tx/count` |
+| Verbose Result | `/block/X/verbose` |
+
+| Block H (block hash) | |
+| --- | --- |
+| Summary | `/block/hash/H` |
+| Stake info |  `/block/hash/H/pos` |
+| Header |  `/block/hash/H/header` |
+| Height |  `/block/hash/H/height` |
+| Size | `/block/hash/H/size` |
+| Transactions | `/block/hash/H/tx` |
+| Transactions Count | `/block/hash/H/tx/count` |
+| Verbose Result | `/block/hash/H/verbose` |
 
 | Block range (X < Y) | |
 | --- | --- |
 | Summary array | `/block/range/X/Y` |
+| Summary array with step `S` | `/block/range/X/Y/S` |
+| Size array | `/block/range/X/Y/size` |
+| Size array with step `S` | `/block/range/X/Y/S/size` |
+
+| Transactions T (transaction id) | |
+| --- | --- |
+| Transaction Details | `/tx/T` |
+| Inputs | `/tx/T/in` |
+| Details for input at index `X` | `/tx/T/in/X` |
+| Outputs | `/tx/T/out` |
+| Details for output at index `X` | `/tx/T/out/X` |
 
 | Stake Difficulty | |
 | --- | --- |
 | Current sdiff and estimates | `/stake/diff` |
+| Sdiff for block `X` | `/stake/diff/b/X` |
+| Sdiff for block range `[X,Y] (X <= Y)` | `/stake/diff/r/X/Y` |
 | Current sdiff separately | `/stake/diff/current` |
 | Estimates separately | `/stake/diff/estimates` |
 
