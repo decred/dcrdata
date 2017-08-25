@@ -257,10 +257,10 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		var tpi *apitypes.TicketPoolInfo
 		var found bool
 		if tpi, found = db.sDB.PoolInfo(*blockhash); !found {
-			log.Infof("Unable to find block (%s) in pool info cache, trying best block.", blockhash.String())
+			log.Warnf("Unable to find block (%s) in pool info cache. Resync is malfunctioning!", blockhash.String())
 			ticketPoolInfo, sdbHeight := db.sDB.PoolInfoBest()
 			if int64(sdbHeight) != i {
-				log.Warnf("Collected block height %d != stake db height %d. Pool info "+
+				log.Errorf("Collected block height %d != stake db height %d. Pool info "+
 					"will not match the rest of this block's data.", height, i)
 			}
 			tpi = &ticketPoolInfo
@@ -278,12 +278,6 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			Time:       header.Timestamp.Unix(),
 			PoolInfo:   *tpi,
 		}
-
-		// TODO: Why was there a discrepancy using a ticket cache in this function?
-		// if blockSummary.PoolInfo != tpi {
-		// 	fmt.Println(blockSummary.PoolInfo)
-		// 	fmt.Println(tpi)
-		// }
 
 		if i > bestBlockHeight {
 			if err = db.StoreBlockSummary(&blockSummary); err != nil {
