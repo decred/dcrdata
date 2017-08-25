@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/dcrdata/dcrdata/blockdata"
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
 
@@ -18,12 +17,6 @@ type ReorgData struct {
 	OldChainHeight int32
 	NewChainHead   chainhash.Hash
 	NewChainHeight int32
-}
-
-type blockAPISourceData struct {
-	hash      *chainhash.Hash
-	blockData *apitypes.BlockDataBasic
-	stakeData *apitypes.StakeInfoExtended
 }
 
 // ChainMonitor handles change notifications from the node client
@@ -41,7 +34,7 @@ type ChainMonitor struct {
 	// reorg handling
 	reorgLock    sync.Mutex
 	reorgData    *ReorgData
-	sideChain    []blockAPISourceData
+	sideChain    []chainhash.Hash
 	reorganizing bool
 }
 
@@ -102,20 +95,13 @@ out:
 			p.reorgLock.Unlock()
 
 			if reorg {
-				// get data now, not just hash, because stakeDB is on our level now (pool info)
-				blockDataSummary, stakeInfoSummaryExtended := p.collector.CollectAPITypes(hash)
-				if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
-					log.Error("Failed to collect data for reorg.")
-					release()
-					break keepon
-				}
-
-				p.sideChain = append(p.sideChain, blockAPISourceData{
-					hash:      hash,
-					blockData: blockDataSummary,
-					stakeData: stakeInfoSummaryExtended,
-				})
-				log.Infof("Adding block %v to sidechain", *hash)
+				// stakedb will not be at this level until it switches to the
+				// complete side chain (during the last side chain block
+				// handling). So, store only the hash now and get data by hash
+				// after stakedb has switched over, at which point the pool info
+				// at each level will have been saved in the PoolInfoCache.
+				p.sideChain = append(p.sideChain, *hash)
+				log.Infof("Adding block hash %v to sidechain", *hash)
 
 				// Just append to side chain until the new main chain tip block is reached
 				if !reorgData.NewChainHead.IsEqual(hash) {
@@ -191,8 +177,14 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	// Save blocks from previous side chain that is now the main chain
 	log.Infof("Saving %d new blocks from previous side chain to sqlite", len(p.sideChain))
 	for i := range p.sideChain {
-		blockDataSummary := p.sideChain[i].blockData
-		stakeInfoSummaryExtended := p.sideChain[i].stakeData
+		// Get data by block hash, which requires the stakedb's PoolInfoCache to
+		// contain data for the side chain blocks already (guaranteed if stakedb
+		// block-connected ntfns are always handled before these).
+		blockDataSummary, stakeInfoSummaryExtended := p.collector.CollectAPITypes(&p.sideChain[i])
+		if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
+			log.Error("Failed to collect data for reorg.")
+			continue
+		}
 		if err := p.db.StoreBlockSummary(blockDataSummary); err != nil {
 			log.Errorf("Failed to store block summary data: %v", err)
 		}
