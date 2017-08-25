@@ -131,6 +131,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	var ticketPoolInfo *apitypes.TicketPoolInfo
 	var found bool
 	if ticketPoolInfo, found = t.stakeDB.PoolInfo(*hash); !found {
+		log.Infof("Unable to find block (%s) in pool info cache, trying best block.", hash.String())
 		tpi, sdbHeight := t.stakeDB.PoolInfoBest()
 		if sdbHeight != height {
 			log.Warnf("Collected block height %d != stake db height %d. Pool info "+
