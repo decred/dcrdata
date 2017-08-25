@@ -13,6 +13,7 @@ import (
 	"github.com/decred/dcrrpcclient"
 )
 
+// APIDataSource implements an interface for collecting data for the api
 type APIDataSource interface {
 	GetHeight() int
 	GetBestBlockHash() (string, error)

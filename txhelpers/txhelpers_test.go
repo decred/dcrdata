@@ -176,7 +176,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclie
 
 	dcrdClient, err := dcrrpcclient.New(connCfgDaemon, nil)
 	if err != nil {
-		return nil, nodeVer, fmt.Errorf("Failed to start dcrd RPC client: %s\n", err.Error())
+		return nil, nodeVer, fmt.Errorf("Failed to start dcrd RPC client: %s", err.Error())
 	}
 
 	// Ensure the RPC server has a compatible API version.

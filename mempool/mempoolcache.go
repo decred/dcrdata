@@ -11,6 +11,7 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 )
 
+// MempoolDataCache models the basic data for the mempool cache
 type MempoolDataCache struct {
 	sync.RWMutex
 	height                  uint32
@@ -23,6 +24,7 @@ type MempoolDataCache struct {
 	allTicketsDetails       TicketsDetails
 }
 
+// StoreMPData stores info from data in the mempool cache
 func (c *MempoolDataCache) StoreMPData(data *MempoolData, timestamp time.Time) error {
 	c.Lock()
 	defer c.Unlock()
@@ -39,22 +41,26 @@ func (c *MempoolDataCache) StoreMPData(data *MempoolData, timestamp time.Time) e
 	return nil
 }
 
+// GetHeight returns the mempool height
 func (c *MempoolDataCache) GetHeight() uint32 {
 	return c.height
 }
 
+// GetNumTickets returns the mempool height and number of tickets
 func (c *MempoolDataCache) GetNumTickets() (uint32, uint32) {
 	c.RLock()
 	defer c.RUnlock()
 	return c.height, c.numTickets
 }
 
+// GetFeeInfo returns the mempool height and basic fee info
 func (c *MempoolDataCache) GetFeeInfo() (uint32, dcrjson.FeeInfoMempool) {
 	c.RLock()
 	defer c.RUnlock()
 	return c.height, c.ticketFeeInfo
 }
 
+// GetFeeInfoExtra returns the mempool height and detailed fee info
 func (c *MempoolDataCache) GetFeeInfoExtra() (uint32, *apitypes.MempoolTicketFeeInfo) {
 	c.RLock()
 	defer c.RUnlock()
@@ -67,6 +73,7 @@ func (c *MempoolDataCache) GetFeeInfoExtra() (uint32, *apitypes.MempoolTicketFee
 	return c.height, &feeInfo
 }
 
+// GetFees returns the mempool height number of fees and an array of the fields
 func (c *MempoolDataCache) GetFees(N int) (uint32, int, []float64) {
 	c.RLock()
 	defer c.RUnlock()
@@ -92,6 +99,8 @@ func (c *MempoolDataCache) GetFees(N int) (uint32, int, []float64) {
 	return c.height, numFees, fees
 }
 
+// GetFeeRates returns the mempool height, time, number of fees and an array of
+// fee rates
 func (c *MempoolDataCache) GetFeeRates(N int) (uint32, int64, int, []float64) {
 	c.RLock()
 	defer c.RUnlock()
@@ -117,6 +126,8 @@ func (c *MempoolDataCache) GetFeeRates(N int) (uint32, int64, int, []float64) {
 	return c.height, c.timestamp.Unix(), numFees, fees
 }
 
+// GetTicketsDetails returns the mempool height, time, number of tickets and the
+// ticket details
 func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int64, int, TicketsDetails) {
 	c.RLock()
 	defer c.RUnlock()

@@ -13,6 +13,7 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 )
 
+// BlockDataToMemdb models the block data and block data basic as maps
 type BlockDataToMemdb struct {
 	mtx             *sync.Mutex
 	Height          int
@@ -20,6 +21,7 @@ type BlockDataToMemdb struct {
 	blockSummaryMap map[int]*apitypes.BlockDataBasic
 }
 
+// NewBlockDataToMemdb returns a new BlockDataToMemdb
 func NewBlockDataToMemdb(m ...*sync.Mutex) *BlockDataToMemdb {
 	if len(m) > 1 {
 		panic("Too many inputs.")
@@ -53,10 +55,12 @@ func (s *BlockDataToMemdb) Store(data *blockdata.BlockData) error {
 	return nil
 }
 
+// GetHeight returns the blockdata height
 func (s *BlockDataToMemdb) GetHeight() int {
 	return s.Height
 }
 
+// Get returns blockdata for block idx
 func (s *BlockDataToMemdb) Get(idx int) *blockdata.BlockData {
 	if idx < 0 {
 		return nil
@@ -68,6 +72,7 @@ func (s *BlockDataToMemdb) Get(idx int) *blockdata.BlockData {
 	return s.blockDataMap[idx]
 }
 
+// GetHeader returns the block header for block idx
 func (s *BlockDataToMemdb) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
 	if idx < 0 {
 		return nil
@@ -83,6 +88,7 @@ func (s *BlockDataToMemdb) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResu
 	return &blockdata.Header
 }
 
+// GetFeeInfo returns the fee info for block idx
 func (s *BlockDataToMemdb) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
 	if idx < 0 {
 		return nil
@@ -98,6 +104,7 @@ func (s *BlockDataToMemdb) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
 	return &blockdata.FeeInfo
 }
 
+// GetStakeDiffEstimate returns the stake difficulty estimates for block idx
 func (s *BlockDataToMemdb) GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult {
 	if idx < 0 {
 		return nil
@@ -113,6 +120,7 @@ func (s *BlockDataToMemdb) GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeD
 	return &blockdata.EstStakeDiff
 }
 
+// GetStakeInfoExtended returns the stake info for block idx
 func (s *BlockDataToMemdb) GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended {
 	if idx < 0 {
 		return nil
@@ -130,10 +138,12 @@ func (s *BlockDataToMemdb) GetStakeInfoExtended(idx int) *apitypes.StakeInfoExte
 	return &stakeinfo
 }
 
+// GetBestBlock returns the best block
 func (s *BlockDataToMemdb) GetBestBlock() *blockdata.BlockData {
 	return s.Get(s.Height)
 }
 
+// GetSummary returns the block data summary for block idx
 func (s *BlockDataToMemdb) GetSummary(idx int) *apitypes.BlockDataBasic {
 	if idx < 0 {
 		return nil
@@ -145,6 +155,7 @@ func (s *BlockDataToMemdb) GetSummary(idx int) *apitypes.BlockDataBasic {
 	return s.blockSummaryMap[idx]
 }
 
+// GetBestBlockSummary returns the block data summary for the best block
 func (s *BlockDataToMemdb) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	return s.GetSummary(s.Height)
 }

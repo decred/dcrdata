@@ -10,6 +10,8 @@ import (
 // much of the time, dcrdata will be using the types in dcrjson, but others are
 // defined here
 
+// BlockTransactions models an array of stake and regular transactions for a
+// block
 type BlockTransactions struct {
 	Tx  []string `json:"tx"`
 	STx []string `json:"stx"`
@@ -22,12 +24,14 @@ type BlockTransactions struct {
 // vout
 // vin
 
+// Tx models TxShort with the number of confirmations and block info Block
 type Tx struct {
 	TxShort
 	Confirmations int64    `json:"confirmations"`
 	Block         *BlockID `json:"block,omitempty"`
 }
 
+// TxShort models info about transaction TXID
 type TxShort struct {
 	Size     int32         `json:"size"`
 	TxID     string        `json:"txid"`
@@ -38,6 +42,7 @@ type TxShort struct {
 	Vout     []Vout        `json:"vout"`
 }
 
+// BlockID models very basic info about a block
 type BlockID struct {
 	BlockHash   string `json:"blockhash"`
 	BlockHeight int64  `json:"blockheight"`
@@ -46,6 +51,8 @@ type BlockID struct {
 	BlockTime   int64  `json:"blocktime"`
 }
 
+// VoutMined appends a best block string, number of confimations and if a
+// transaction is a coinbase to a transaction output
 type VoutMined struct {
 	Vout
 	BestBlock     string `json:"bestblock"`
@@ -53,6 +60,7 @@ type VoutMined struct {
 	Coinbase      bool   `json:"coinbase"`
 }
 
+// Vout defines a transaction output
 type Vout struct {
 	Value               float64      `json:"value"`
 	N                   uint32       `json:"n"`
@@ -60,6 +68,7 @@ type Vout struct {
 	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey"`
 }
 
+// VoutHexScript models the hex script for a transaction output
 type VoutHexScript struct {
 	Value           float64 `json:"value"`
 	N               uint32  `json:"n"`
@@ -67,7 +76,7 @@ type VoutHexScript struct {
 	ScriptPubKeyHex string  `json:"scriptPubKey"`
 }
 
-// decodescript(ScriptPubKeyHex) -> ScriptPubKey
+// ScriptPubKey is the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKey struct {
 	Asm       string   `json:"asm"`
 	ReqSigs   int32    `json:"reqSigs,omitempty"`
@@ -149,6 +158,8 @@ type AddressTxShort struct {
 // 	ScriptSig   *ScriptSig `json:"scriptSig"`
 // }
 
+// ScriptSig models the signature script used to redeem the origin transaction
+// as a JSON object (non-coinbase txns only)
 type ScriptSig struct {
 	Asm string `json:"asm"`
 	Hex string `json:"hex"`
@@ -160,7 +171,8 @@ type PrevOut struct {
 	Value     float64  `json:"value"`
 }
 
-// VinPrevOut is like Vin except it includes PrevOut.  It is used by searchrawtransaction
+// VinPrevOut is like Vin except it includes PrevOut.  It is used by
+// searchrawtransaction
 type VinPrevOut struct {
 	Coinbase    string     `json:"coinbase"`
 	Txid        string     `json:"txid"`
@@ -194,6 +206,8 @@ type TicketPoolInfo struct {
 	ValAvg float64 `json:"valavg"`
 }
 
+// TicketPoolValsAndSizes models two arrays, one each for ticket values and
+// sizes for blocks StartHeight to EndHeight
 type TicketPoolValsAndSizes struct {
 	StartHeight uint32    `json:"start_height"`
 	EndHeight   uint32    `json:"end_height"`
@@ -201,6 +215,7 @@ type TicketPoolValsAndSizes struct {
 	Size        []float64 `json:"size"`
 }
 
+// BlockDataBasic models primary information about block at height Height
 type BlockDataBasic struct {
 	Height     uint32  `json:"height"`
 	Size       uint32  `json:"size"`
@@ -212,6 +227,7 @@ type BlockDataBasic struct {
 	PoolInfo TicketPoolInfo `json:"ticket_pool"`
 }
 
+// StakeDiff represents data about the evaluated stake difficulty and estimates
 type StakeDiff struct {
 	dcrjson.GetStakeDifficultyResult
 	Estimates        dcrjson.EstimateStakeDiffResult `json:"estimates"`
@@ -219,6 +235,7 @@ type StakeDiff struct {
 	PriceWindowNum   int                             `json:"window_number"`
 }
 
+// StakeInfoExtended models data about the fee, pool and stake difficulty
 type StakeInfoExtended struct {
 	Feeinfo          dcrjson.FeeInfoBlock `json:"feeinfo"`
 	StakeDiff        float64              `json:"stakediff"`
@@ -227,6 +244,8 @@ type StakeInfoExtended struct {
 	PoolInfo         TicketPoolInfo       `json:"ticket_pool"`
 }
 
+// StakeInfoExtendedEstimates is similar to StakeInfoExtended but includes stake
+// difficulty estimates with the stake difficulty
 type StakeInfoExtendedEstimates struct {
 	Feeinfo          dcrjson.FeeInfoBlock `json:"feeinfo"`
 	StakeDiff        StakeDiff            `json:"stakediff"`
@@ -235,6 +254,8 @@ type StakeInfoExtendedEstimates struct {
 	PoolInfo         TicketPoolInfo       `json:"ticket_pool"`
 }
 
+// MempoolTicketFeeInfo models statistical ticket fee info at block height
+// Height
 type MempoolTicketFeeInfo struct {
 	Height uint32 `json:"height"`
 	Time   int64  `json:"time"`
@@ -242,6 +263,7 @@ type MempoolTicketFeeInfo struct {
 	LowestMineable float64 `json:"lowest_mineable"`
 }
 
+// MempoolTicketFees models info about ticket fees at block height Height
 type MempoolTicketFees struct {
 	Height   uint32    `json:"height"`
 	Time     int64     `json:"time"`
@@ -250,6 +272,7 @@ type MempoolTicketFees struct {
 	FeeRates []float64 `json:"top_fees"`
 }
 
+// TicketDetails models details about ticket Hash recieved at height Height
 type TicketDetails struct {
 	Hash    string  `json:"hash"`
 	Fee     float64 `json:"abs_fee"`
@@ -258,6 +281,7 @@ type TicketDetails struct {
 	Height  int64   `json:"height_received"`
 }
 
+// MempoolTicketDetails models basic mempool info with ticket details Tickets
 type MempoolTicketDetails struct {
 	Height  uint32         `json:"height"`
 	Time    int64          `json:"time"`
@@ -266,4 +290,6 @@ type MempoolTicketDetails struct {
 	Tickets TicketsDetails `json:"tickets"`
 }
 
+// TicketsDetails is an array of pointers of TicketDetails used in
+// MempoolTicketDetails
 type TicketsDetails []*TicketDetails

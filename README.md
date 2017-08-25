@@ -55,7 +55,7 @@ means it starts a web server listening on all network interfaces on port 7777.
 | Size | `/block/best/size` |
 | Transactions | `/block/best/tx` |
 | Transactions Count | `/block/best/tx/count` |
-| Verbose Result | `/block/best/verbose` |
+| Verbose block result | `/block/best/verbose` |
 
 
 | Block X (block index)  | |
@@ -67,7 +67,7 @@ means it starts a web server listening on all network interfaces on port 7777.
 | Size | `/block/X/size` |
 | Transactions | `/block/X/tx` |
 | Transactions Count | `/block/X/tx/count` |
-| Verbose Result | `/block/X/verbose` |
+| Verbose block result | `/block/X/verbose` |
 
 | Block H (block hash) | |
 | --- | --- |
@@ -78,7 +78,7 @@ means it starts a web server listening on all network interfaces on port 7777.
 | Size | `/block/hash/H/size` |
 | Transactions | `/block/hash/H/tx` |
 | Transactions Count | `/block/hash/H/tx/count` |
-| Verbose Result | `/block/hash/H/verbose` |
+| Verbose block result | `/block/hash/H/verbose` |
 
 | Block range (X < Y) | |
 | --- | --- |
@@ -87,13 +87,20 @@ means it starts a web server listening on all network interfaces on port 7777.
 | Size array | `/block/range/X/Y/size` |
 | Size array with step `S` | `/block/range/X/Y/S/size` |
 
-| Transactions T (transaction id) | |
+| Transaction T (transaction id) | |
 | --- | --- |
 | Transaction Details | `/tx/T` |
 | Inputs | `/tx/T/in` |
 | Details for input at index `X` | `/tx/T/in/X` |
 | Outputs | `/tx/T/out` |
 | Details for output at index `X` | `/tx/T/out/X` |
+
+| Address A | |
+| --- | --- |
+| Summary of last 10 transactions | `/address/A` |
+| Verbose transaction result for last <br> 10 transactions | `/address/A/raw` |
+| Summary of last `X` transactions | `/address/A/count/X` |
+| Verbose transaction result for last <br> `X` transactions | `/address/A/count/X/raw` |
 
 | Stake Difficulty | |
 | --- | --- |

@@ -49,10 +49,12 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincf
 	return wDB, wDB.sDB.StakeDB.Close
 }
 
+// NewWiredDB returns a new database
 func NewWiredDB(db *sql.DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
 	return newWiredDB(NewDB(db), statusC, cl, p)
 }
 
+// InitWiredDB initializes the wiredDB
 func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
@@ -110,7 +112,7 @@ func (db *wiredDB) GetBestBlockHash() (string, error) {
 	hash := db.DBDataSaver.GetBestBlockHash()
 	var err error
 	if len(hash) == 0 {
-		err = fmt.Errorf("Unable to get best block hash.")
+		err = fmt.Errorf("Unable to get best block hash")
 	}
 	return hash, err
 }

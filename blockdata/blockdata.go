@@ -31,6 +31,8 @@ type BlockData struct {
 	IdxBlockInWindow int
 }
 
+// ToStakeInfoExtended returns an apitypes.StakeInfoExtended object from the
+// blockdata
 func (b *BlockData) ToStakeInfoExtended() apitypes.StakeInfoExtended {
 	return apitypes.StakeInfoExtended{
 		Feeinfo:          b.FeeInfo,
@@ -41,6 +43,8 @@ func (b *BlockData) ToStakeInfoExtended() apitypes.StakeInfoExtended {
 	}
 }
 
+// ToStakeInfoExtendedEstimates returns an apitypes.StakeInfoExtendedEstimates
+// object from the blockdata
 func (b *BlockData) ToStakeInfoExtendedEstimates() apitypes.StakeInfoExtendedEstimates {
 	return apitypes.StakeInfoExtendedEstimates{
 		Feeinfo: b.FeeInfo,
@@ -57,6 +61,7 @@ func (b *BlockData) ToStakeInfoExtendedEstimates() apitypes.StakeInfoExtendedEst
 	}
 }
 
+// ToBlockSummary returns an apitypes.BlockDataBasic object from the blockdata
 func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 	return apitypes.BlockDataBasic{
 		Height:     b.Header.Height,
@@ -69,6 +74,7 @@ func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 	}
 }
 
+// Collector models a structure for the source of the blockdata
 type Collector struct {
 	mtx          sync.Mutex
 	dcrdChainSvr *dcrrpcclient.Client
