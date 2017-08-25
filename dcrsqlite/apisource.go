@@ -474,12 +474,12 @@ func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Address {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
-		log.Errorf("Invalid address %s: %v", addr, err)
+		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
 	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, false, false, nil)
 	if err != nil {
-		log.Errorf("GetAddressTransactions failed for address %s: %v", addr, err)
+		log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
 		return nil
 	}
 	tx := make([]*apitypes.AddressTxShort, 0, len(txs))
@@ -508,12 +508,12 @@ func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Addr
 func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
-		log.Errorf("Invalid address %s: %v", addr, err)
+		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
 	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, false, nil)
 	if err != nil {
-		log.Errorf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return nil
 	}
 	txarray := make([]*apitypes.AddressTxRaw, 0, len(txs))
