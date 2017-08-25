@@ -267,6 +267,8 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 
 	db.nodeMtx.Unlock()
 
+	// Get ticket pool info at current best (just connected in stakedb) block,
+	// and store it in the StakeDatabase's PoolInfoCache.
 	tpi, _ := db.PoolInfoBest()
 	db.poolInfo.Set(*block.Hash(), &tpi)
 
