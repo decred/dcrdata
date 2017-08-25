@@ -31,7 +31,7 @@ type Tx struct {
 	Block         *BlockID `json:"block,omitempty"`
 }
 
-// TxShort models info about transaction TXID
+// TxShort models info about transaction TxID
 type TxShort struct {
 	Size     int32         `json:"size"`
 	TxID     string        `json:"txid"`
@@ -51,7 +51,7 @@ type BlockID struct {
 	BlockTime   int64  `json:"blocktime"`
 }
 
-// VoutMined appends a best block string, number of confimations and if a
+// VoutMined appends a best block hash, number of confimations and if a
 // transaction is a coinbase to a transaction output
 type VoutMined struct {
 	Vout

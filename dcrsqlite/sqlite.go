@@ -173,7 +173,7 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	return NewDB(db), err
 }
 
-// DBDataSaver models a DB with a channel for an update integer
+// DBDataSaver models a DB with a channel to communicate new block height to the web interface
 type DBDataSaver struct {
 	*DB
 	updateStatusChan chan uint32
@@ -244,7 +244,7 @@ func (db *DB) GetBestBlockHeight() int64 {
 }
 
 // GetBlockSummaryHeight returns the largest block height for which the database
-// can provide a block summary for
+// can provide a block summary
 func (db *DB) GetBlockSummaryHeight() int64 {
 	if db.dbSummaryHeight < 0 {
 		height, err := db.RetrieveBestBlockHeight()
@@ -258,7 +258,7 @@ func (db *DB) GetBlockSummaryHeight() int64 {
 }
 
 // GetStakeInfoHeight returns the largest block height for which the database
-// can provide a stake info for
+// can provide a stake info
 func (db *DB) GetStakeInfoHeight() int64 {
 	if db.dbStakeInfoHeight < 0 {
 		si, err := db.RetrieveLatestStakeInfoExtended()
@@ -272,7 +272,7 @@ func (db *DB) GetStakeInfoHeight() int64 {
 }
 
 // RetrievePoolInfoRange returns an array of apitypes.TicketPoolInfo for block
-// range ind0 to ind1 and a non nil error on success
+// range ind0 to ind1 and a non-nil error on success
 func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
@@ -331,7 +331,7 @@ func (db *DB) RetrievePoolInfoByHash(hash string) (*apitypes.TicketPoolInfo, err
 }
 
 // RetrievePoolValAndSizeRange retuns an array each of the pool values and sizes
-// for range ind0 to ind1
+// for block range ind0 to ind1
 func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float64, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
@@ -381,7 +381,7 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	return poolvals, poolsizes, nil
 }
 
-// RetrieveSDiffRange returns an array of stake difficulties for range ind0 to
+// RetrieveSDiffRange returns an array of stake difficulties for block range ind0 to
 // ind1
 func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 	N := ind1 - ind0 + 1

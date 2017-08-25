@@ -46,8 +46,8 @@ func (c *appContext) StatusCtx(next http.Handler) http.Handler {
 // 	})
 // }
 
-// BlockStepPathCtx returns a http.HandlerFunc embeds the value at the url
-// part {step} into a request context
+// BlockStepPathCtx returns a http.HandlerFunc that embeds the value at the url
+// part {step} into the request context
 func BlockStepPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		stepIdxStr := chi.URLParam(r, "step")
@@ -62,8 +62,8 @@ func BlockStepPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockIndexPathCtx returns a http.HandlerFunc embeds the value at the url
-// part {idx} into a request context
+// BlockIndexPathCtx returns a http.HandlerFunc that embeds the value at the url
+// part {idx} into the request context
 func BlockIndexPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pathIdxStr := chi.URLParam(r, "idx")
@@ -79,8 +79,8 @@ func BlockIndexPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockIndex0PathCtx returns a http.HandlerFunc embeds the value at the url
-// part {idx0} into a request context
+// BlockIndex0PathCtx returns a http.HandlerFunc that embeds the value at the url
+// part {idx0} into the request context
 func BlockIndex0PathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pathIdxStr := chi.URLParam(r, "idx0")
@@ -96,8 +96,8 @@ func BlockIndex0PathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// NPathCtx returns a http.HandlerFunc embeds the value at the url
-// part {N} into a request context
+// NPathCtx returns a http.HandlerFunc that embeds the value at the url
+// part {N} into the request context
 func NPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pathNStr := chi.URLParam(r, "N")
@@ -145,8 +145,8 @@ func (c *appContext) BlockHashLatestCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockHashPathCtx returns a http.HandlerFunc embeds the value at the url
-// part {blockhash} into a request context
+// BlockHashPathCtx returns a http.HandlerFunc that embeds the value at the url
+// part {blockhash} into the request context
 func BlockHashPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hash := chi.URLParam(r, "blockhash")
@@ -168,8 +168,8 @@ func (c *appContext) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
-// TransactionHashCtx returns a http.HandlerFunc embeds the value at the url
-// part {txid} into a request context
+// TransactionHashCtx returns a http.HandlerFunc that embeds the value at the url
+// part {txid} into the request context
 func TransactionHashCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		txid := chi.URLParam(r, "txid")
@@ -178,8 +178,8 @@ func TransactionHashCtx(next http.Handler) http.Handler {
 	})
 }
 
-// TransactionIOIndexCtx returns a http.HandlerFunc embeds the value at the url
-// part {txinoutindex} into a request context
+// TransactionIOIndexCtx returns a http.HandlerFunc that embeds the value at the url
+// part {txinoutindex} into the request context
 func TransactionIOIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idxStr := chi.URLParam(r, "txinoutindex")
@@ -195,8 +195,8 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
-// AddressPathCtx returns a http.HandlerFunc embeds the value at the url part
-// {address} into a request context
+// AddressPathCtx returns a http.HandlerFunc that embeds the value at the url part
+// {address} into the request context
 func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")

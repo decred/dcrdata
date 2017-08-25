@@ -61,7 +61,8 @@ type WebUI struct {
 	params          *chaincfg.Params
 }
 
-// NewWebUI returns a pointer to a new WebUI
+// NewWebUI constructs a new WebUI by loading and parsing the html templates
+// then launching the WebSocket event handler
 func NewWebUI() *WebUI {
 	fp := filepath.Join("views", "root.tmpl")
 	tmpl, err := template.New("home").ParseFiles(fp)

@@ -70,7 +70,10 @@ func NewMempoolMonitor(collector *mempoolDataCollector,
 // TicketsDetails localizes apitypes.TicketsDetails
 type TicketsDetails apitypes.TicketsDetails
 
-// Len returns the lenght of TicketsDetails
+// Below is the implementation of sort.Interface
+// { Len(), Swap(i, j int), Less(i, j int) bool }
+
+// Len returns the length of TicketsDetails
 func (tix TicketsDetails) Len() int {
 	return len(tix)
 }
@@ -85,7 +88,7 @@ type ByFeeRate struct {
 	TicketsDetails
 }
 
-// Less returns TicketsDetails[i].FeeRate < TicketsDetails[j].FeeRate
+// Less compares fee rates by rate_i < ate_j
 func (tix ByFeeRate) Less(i, j int) bool {
 	return tix.TicketsDetails[i].FeeRate < tix.TicketsDetails[j].FeeRate
 }
@@ -95,7 +98,7 @@ type ByAbsoluteFee struct {
 	TicketsDetails
 }
 
-// Less returns TicketsDetails[i].FeeRate < TicketsDetails[j].FeeRate
+// Less compares fee rates by fee_i < fee_j
 func (tix ByAbsoluteFee) Less(i, j int) bool {
 	return tix.TicketsDetails[i].Fee < tix.TicketsDetails[j].Fee
 }
@@ -281,7 +284,7 @@ type Stakelimitfeeinfo struct {
 	// others...
 }
 
-//MempoolData models info about the mempool
+// MempoolData models info about ticket purchases in mempool
 type MempoolData struct {
 	Height            uint32
 	NumTickets        uint32

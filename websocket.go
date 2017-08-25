@@ -23,7 +23,7 @@ var eventIDs = map[hubSignal]string{
 	sigPingAndUserCount:     "ping",
 }
 
-// WebBlockInfo represents the JSON  object used to send block data and stake
+// WebBlockInfo represents the JSON object used to send block data and stake
 // info to the web client
 type WebBlockInfo struct {
 	BlockDataBasic *apitypes.BlockDataBasic             `json:"block"`

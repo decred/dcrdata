@@ -7,8 +7,8 @@ import (
 	"errors"
 )
 
-// ContextualError models an error and it's root error and is returned by
-// returned by registerNodeNtfnHandlers
+// ContextualError models an error and its root error and is returned by
+// registerNodeNtfnHandlers
 type ContextualError struct {
 	RootErr error
 	Err     error

@@ -8,7 +8,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/database"
-	//_ "github.com/decred/dcrd/database/ffldb"
+	_ "github.com/decred/dcrd/database/ffldb"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )

@@ -58,7 +58,7 @@ means it starts a web server listening on all network interfaces on port 7777.
 | Verbose block result | `/block/best/verbose` |
 
 
-| Block X (block index)  | |
+| Block X (block index) | |
 | --- | --- |
 | Summary | `/block/X` |
 | Stake info |  `/block/X/pos` |
@@ -99,8 +99,8 @@ means it starts a web server listening on all network interfaces on port 7777.
 | --- | --- |
 | Summary of last 10 transactions | `/address/A` |
 | Verbose transaction result for last <br> 10 transactions | `/address/A/raw` |
-| Summary of last `X` transactions | `/address/A/count/X` |
-| Verbose transaction result for last <br> `X` transactions | `/address/A/count/X/raw` |
+| Summary of last `N` transactions | `/address/A/count/N` |
+| Verbose transaction result for last <br> `N` transactions | `/address/A/count/N/raw` |
 
 | Stake Difficulty | |
 | --- | --- |
