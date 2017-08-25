@@ -104,7 +104,7 @@ out:
 
 			if reorg {
 				p.sideChain = append(p.sideChain, *hash)
-				log.Infof("Adding block %v to sidechain", *hash)
+				log.Tracef("Adding block %v to blockdata sidechain", *hash)
 
 				// Just append to side chain until the new main chain tip block is reached
 				if !reorgData.NewChainHead.IsEqual(hash) {
@@ -117,7 +117,7 @@ out:
 				p.reorgLock.Lock()
 				p.reorganizing = false
 				p.reorgLock.Unlock()
-				log.Infof("Reorganization to block %v (height %d) complete",
+				log.Tracef("Reorganization to block %v (height %d) complete in blockdata",
 					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
 				// dcrsqlite's chainmonitor handles the reorg collection
 				release()
@@ -127,7 +127,7 @@ out:
 			msgBlock, _ := p.collector.dcrdChainSvr.GetBlock(hash)
 			block := dcrutil.NewBlock(msgBlock)
 			height := block.Height()
-			log.Infof("Block height %v connected", height)
+			log.Infof("Block height %v connected. Collecting data...", height)
 
 			if len(p.watchaddrs) > 0 {
 				// txsForOutpoints := blockConsumesOutpointWithAddresses(block, p.watchaddrs,
@@ -194,8 +194,7 @@ out:
 
 }
 
-// ReorgHandler receives notification of a chain reorganization and initiates a
-// corresponding update of the SQL db keeping the main chain data.
+// ReorgHandler receives notification of a chain reorganization
 func (p *chainMonitor) ReorgHandler() {
 	defer p.wg.Done()
 out:
@@ -224,9 +223,9 @@ out:
 			p.reorgData = reorgData
 			p.reorgLock.Unlock()
 
-			log.Infof("Reorganize started. NEW head block %v at height %d.",
+			log.Tracef("Reorganize started in blockdata. NEW head block %v at height %d.",
 				newHash, newHeight)
-			log.Infof("Reorganize started. OLD head block %v at height %d.",
+			log.Tracef("Reorganize started in blockdata. OLD head block %v at height %d.",
 				oldHash, oldHeight)
 
 		case _, ok := <-p.quit:

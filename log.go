@@ -47,20 +47,20 @@ var (
 	// application shutdown.
 	logRotator *rotator.Rotator
 
-	sqliteLog  = backendLog.Logger("DSQL")
-	stakedbLog = backendLog.Logger("SKDB")
-	daemonLog  = backendLog.Logger("DCRD")
-	clientLog  = backendLog.Logger("RPCC")
-	mempoolLog = backendLog.Logger("MEMP")
-	apiLog     = backendLog.Logger("JAPI")
-	log        = backendLog.Logger("DATD")
+	sqliteLog    = backendLog.Logger("DSQL")
+	stakedbLog   = backendLog.Logger("SKDB")
+	blockdataLog = backendLog.Logger("BLKD")
+	clientLog    = backendLog.Logger("RPCC")
+	mempoolLog   = backendLog.Logger("MEMP")
+	apiLog       = backendLog.Logger("JAPI")
+	log          = backendLog.Logger("DATD")
 )
 
 // Initialize package-global logger variables.
 func init() {
 	dcrsqlite.UseLogger(sqliteLog)
 	stakedb.UseLogger(stakedbLog)
-	blockdata.UseLogger(daemonLog)
+	blockdata.UseLogger(blockdataLog)
 	dcrrpcclient.UseLogger(clientLog)
 	rpcutils.UseLogger(clientLog)
 	mempool.UseLogger(mempoolLog)
@@ -70,7 +70,7 @@ func init() {
 var subsystemLoggers = map[string]btclog.Logger{
 	"DSQL": sqliteLog,
 	"SKDB": stakedbLog,
-	"DCRD": daemonLog,
+	"BLKD": blockdataLog,
 	"RPCC": clientLog,
 	"MEMP": mempoolLog,
 	"JAPI": apiLog,
