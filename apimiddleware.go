@@ -19,6 +19,7 @@ type contextKey int
 const (
 	ctxAPIDocs contextKey = iota
 	ctxAPIStatus
+	ctxAddress
 	ctxBlockIndex0
 	ctxBlockIndex
 	ctxBlockStep
@@ -176,6 +177,14 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxTxInOutIndex, idx)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func AddressPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		address := chi.URLParam(r, "address")
+		ctx := context.WithValue(r.Context(), ctxAddress, address)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

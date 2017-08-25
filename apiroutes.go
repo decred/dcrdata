@@ -47,6 +47,8 @@ type APIDataSource interface {
 	GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo
 	GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees
 	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
+	GetAddressTransactions(addr string, count int) *apitypes.Address
+	GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw
 }
 
 // dcrdata application context used by all route handlers
@@ -228,6 +230,15 @@ func getTxIOIndexCtx(r *http.Request) int {
 		return -1
 	}
 	return index
+}
+
+func getAddressCtx(r *http.Request) string {
+	address, ok := r.Context().Value(ctxAddress).(string)
+	if !ok {
+		apiLog.Trace("address not set")
+		return ""
+	}
+	return address
 }
 
 func getNCtx(r *http.Request) int {
@@ -883,4 +894,32 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 
 	sdiffs := c.BlockData.GetSDiffRange(idx0, idx)
 	writeJSON(w, sdiffs, c.getIndentQuery(r))
+}
+
+func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
+	address := getAddressCtx(r)
+	count := getNCtx(r)
+	if address == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	if count <= 0 {
+		count = 10
+	}
+	txs := c.BlockData.GetAddressTransactions(address, count)
+	writeJSON(w, txs, c.getIndentQuery(r))
+}
+
+func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
+	address := getAddressCtx(r)
+	count := getNCtx(r)
+	if address == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	if count <= 0 {
+		count = 10
+	}
+	txs := c.BlockData.GetAddressTransactionsRaw(address, count)
+	writeJSON(w, txs, c.getIndentQuery(r))
 }

@@ -468,3 +468,88 @@ func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 	}
 	return &mpTicketDetails
 }
+
+// GetAddressTransactions returns an apitypes.Address Object with at most the
+// last count transactions the address was in
+func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Address {
+	address, err := dcrutil.DecodeAddress(addr)
+	if err != nil {
+		log.Errorf("Invalid address %s: %v", addr, err)
+		return nil
+	}
+	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, false, false, nil)
+	if err != nil {
+		log.Errorf("GetAddressTransactions failed for address %s: %v", addr, err)
+		return nil
+	}
+	tx := make([]*apitypes.AddressTxShort, 0, len(txs))
+	for i := range txs {
+		var value float64
+		for j := range txs[i].Vout {
+			value += txs[i].Vout[j].Value
+		}
+		tx = append(tx, &apitypes.AddressTxShort{
+			TxID:          txs[i].Txid,
+			Time:          txs[i].Time,
+			Value:         value,
+			Confirmations: int64(txs[i].Confirmations),
+			Size:          int32(len(txs[i].Hex) / 2),
+		})
+	}
+	return &apitypes.Address{
+		Address:      addr,
+		Transactions: tx,
+	}
+
+}
+
+// GetAddressTransactions returns an array of apitypes.AddressTxRaw objects
+// representing the raw result of SearchRawTransactionsverbose
+func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw {
+	address, err := dcrutil.DecodeAddress(addr)
+	if err != nil {
+		log.Errorf("Invalid address %s: %v", addr, err)
+		return nil
+	}
+	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, false, nil)
+	if err != nil {
+		log.Errorf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+		return nil
+	}
+	txarray := make([]*apitypes.AddressTxRaw, 0, len(txs))
+	for i := range txs {
+		tx := new(apitypes.AddressTxRaw)
+		tx.Size = int32(len(txs[i].Hex) / 2)
+		tx.TxID = txs[i].Txid
+		tx.Version = txs[i].Version
+		tx.Locktime = txs[i].LockTime
+		tx.Vin = make([]dcrjson.VinPrevOut, len(txs[i].Vin))
+		copy(tx.Vin, txs[i].Vin)
+		tx.Confirmations = int64(txs[i].Confirmations)
+		tx.BlockHash = txs[i].BlockHash
+		tx.Blocktime = txs[i].Blocktime
+		tx.Time = txs[i].Time
+		tx.Vout = make([]apitypes.Vout, len(txs[i].Vout))
+		for j := range txs[i].Vout {
+			tx.Vout[j].Value = txs[i].Vout[j].Value
+			tx.Vout[j].N = txs[i].Vout[j].N
+			tx.Vout[j].Version = txs[i].Vout[j].Version
+			spk := &tx.Vout[j].ScriptPubKeyDecoded
+			spkRaw := &txs[i].Vout[j].ScriptPubKey
+			spk.Asm = spkRaw.Asm
+			spk.ReqSigs = spkRaw.ReqSigs
+			spk.Type = spkRaw.Type
+			spk.Addresses = make([]string, len(spkRaw.Addresses))
+			for k := range spkRaw.Addresses {
+				spk.Addresses[k] = spkRaw.Addresses[k]
+			}
+			if spkRaw.CommitAmt != nil {
+				spk.CommitAmt = new(float64)
+				*spk.CommitAmt = *spkRaw.CommitAmt
+			}
+		}
+		txarray = append(txarray, tx)
+	}
+
+	return txarray
+}
