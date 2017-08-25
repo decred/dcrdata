@@ -22,17 +22,24 @@ import (
 	"github.com/decred/dcrutil"
 )
 
+// PoolInfoCache contains a map of block hashes to ticket pool info data at that
+// block height.
 type PoolInfoCache struct {
 	sync.RWMutex
 	poolInfo map[chainhash.Hash]*apitypes.TicketPoolInfo
 }
 
+// NewPoolInfoCache constructs a new PoolInfoCache, and is needed to initialize
+// the internal map.
 func NewPoolInfoCache() *PoolInfoCache {
 	return &PoolInfoCache{
 		poolInfo: make(map[chainhash.Hash]*apitypes.TicketPoolInfo),
 	}
 }
 
+// Get attempts to fetch the ticket pool info for a given block hash, returning
+// a *apitypes.TicketPoolInfo, and a bool indicating if the hash was found in
+// the map.
 func (c *PoolInfoCache) Get(hash chainhash.Hash) (*apitypes.TicketPoolInfo, bool) {
 	c.RLock()
 	defer c.RUnlock()
@@ -40,6 +47,7 @@ func (c *PoolInfoCache) Get(hash chainhash.Hash) (*apitypes.TicketPoolInfo, bool
 	return tpi, ok
 }
 
+// Set stores the ticket pool info for the given hash in the pool info cache.
 func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
 	c.Lock()
 	defer c.Unlock()
