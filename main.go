@@ -199,14 +199,19 @@ func mainCore() int {
 
 	// Blockchain monitor for the collector
 	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
-	ntfnChans.reorgChanBlockData = nil
+	// On reorg, only update web UI since dcrsqlite's own reorg handler will
+	// deal with patching up the block info database.
+	reorgBlockDataSavers := []blockdata.BlockDataSaver{webUI}
 	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
-		quit, &wg, addrMap,
+		reorgBlockDataSavers, quit, &wg, addrMap,
 		ntfnChans.connectChan, ntfnChans.recvTxBlockChan,
 		ntfnChans.reorgChanBlockData)
-	wg.Add(1)
+	wg.Add(2)
 	go wsChainMonitor.BlockConnectedHandler()
-	//go wsChainMonitor.ReorgHandler()
+	// The blockdata reorg handler disables collection during reorg, leaving
+	// dcrsqlite to do the switch, except for the last block which gets
+	// collected and stored via reorgBlockDataSavers.
+	go wsChainMonitor.ReorgHandler()
 
 	// Blockchain monitor for the stake DB
 	sdbChainMonitor := sqliteDB.NewStakeDBChainMonitor(quit, &wg,
@@ -219,6 +224,7 @@ func mainCore() int {
 	wiredDBChainMonitor := sqliteDB.NewChainMonitor(collector, quit, &wg,
 		ntfnChans.connectChanWiredDB, ntfnChans.reorgChanWiredDB)
 	wg.Add(2)
+	// dcrsqlite does not handle new blocks except during reorg
 	go wiredDBChainMonitor.BlockConnectedHandler()
 	go wiredDBChainMonitor.ReorgHandler()
 

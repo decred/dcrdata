@@ -23,6 +23,7 @@ type ReorgData struct {
 type chainMonitor struct {
 	collector       *Collector
 	dataSavers      []BlockDataSaver
+	reorgDataSavers []BlockDataSaver
 	quit            chan struct{}
 	wg              *sync.WaitGroup
 	watchaddrs      map[string]txhelpers.TxAction
@@ -42,7 +43,7 @@ type chainMonitor struct {
 
 // NewChainMonitor creates a new chainMonitor
 func NewChainMonitor(collector *Collector,
-	savers []BlockDataSaver,
+	savers []BlockDataSaver, reorgSavers []BlockDataSaver,
 	quit chan struct{}, wg *sync.WaitGroup,
 	addrs map[string]txhelpers.TxAction, blockChan chan *chainhash.Hash,
 	recvTxBlockChan chan *txhelpers.BlockWatchedTx,
@@ -50,6 +51,7 @@ func NewChainMonitor(collector *Collector,
 	return &chainMonitor{
 		collector:       collector,
 		dataSavers:      savers,
+		reorgDataSavers: reorgSavers,
 		quit:            quit,
 		wg:              wg,
 		watchaddrs:      addrs,
@@ -104,7 +106,7 @@ out:
 
 			if reorg {
 				p.sideChain = append(p.sideChain, *hash)
-				log.Tracef("Adding block %v to blockdata sidechain", *hash)
+				log.Infof("Adding block %v to blockdata sidechain", *hash)
 
 				// Just append to side chain until the new main chain tip block is reached
 				if !reorgData.NewChainHead.IsEqual(hash) {
@@ -117,11 +119,10 @@ out:
 				p.reorgLock.Lock()
 				p.reorganizing = false
 				p.reorgLock.Unlock()
-				log.Tracef("Reorganization to block %v (height %d) complete in blockdata",
+				log.Infof("Reorganization to block %v (height %d) complete in blockdata",
 					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
-				// dcrsqlite's chainmonitor handles the reorg collection
-				release()
-				break keepon
+				// dcrsqlite's chainmonitor handles the reorg, but we keep going
+				// to update the web UI with the new best block.
 			}
 
 			msgBlock, _ := p.collector.dcrdChainSvr.GetBlock(hash)
@@ -175,7 +176,11 @@ out:
 			}
 
 			// Store block data with each saver
-			for _, s := range p.dataSavers {
+			savers := p.dataSavers
+			if reorg {
+				savers = p.reorgDataSavers
+			}
+			for _, s := range savers {
 				if s != nil {
 					// save data to wherever the saver wants to put it
 					s.Store(blockData)
@@ -223,9 +228,9 @@ out:
 			p.reorgData = reorgData
 			p.reorgLock.Unlock()
 
-			log.Tracef("Reorganize started in blockdata. NEW head block %v at height %d.",
+			log.Infof("Reorganize started in blockdata. NEW head block %v at height %d.",
 				newHash, newHeight)
-			log.Tracef("Reorganize started in blockdata. OLD head block %v at height %d.",
+			log.Infof("Reorganize started in blockdata. OLD head block %v at height %d.",
 				oldHash, oldHeight)
 
 		case _, ok := <-p.quit:

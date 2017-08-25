@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/stakedb"
@@ -95,7 +96,16 @@ func (q *collectionQueue) ProcessBlocks() {
 
 		log.Debugf("Synchronous handlers of collectionQueue.ProcessBlocks() completed in %v", time.Since(start))
 
-		// Web UI status update handler
+		// Signal to mempool monitor that a block was mined
+		select {
+		case ntfnChans.newTxChan <- &mempool.NewTx{
+			Hash: nil,
+			T:    time.Now(),
+		}:
+		default:
+		}
+
+		// API status update handler
 		select {
 		case ntfnChans.updateStatusNodeHeight <- uint32(height):
 		default:
@@ -141,6 +151,16 @@ func makeNodeNtfnHandlers(cfg *config) (*dcrrpcclient.NotificationHandlers, *col
 			// Send reorg data to dcrsqlite's monitor
 			select {
 			case ntfnChans.reorgChanWiredDB <- &dcrsqlite.ReorgData{
+				OldChainHead:   *oldHash,
+				OldChainHeight: oldHeight,
+				NewChainHead:   *newHash,
+				NewChainHeight: newHeight,
+			}:
+			default:
+			}
+			// Send reorg data to blockdata's monitor (so that it stops collecting)
+			select {
+			case ntfnChans.reorgChanBlockData <- &blockdata.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,

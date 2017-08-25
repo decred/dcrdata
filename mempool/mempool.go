@@ -120,10 +120,11 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 				return
 			}
 
-			var err error
-			// oneTicket is 1 for a ticket purchase Tx or 0 for other tx types
-			var oneTicket int32
-			bestBlock := int64(-1)
+			// A nil hash is our signal of a new block
+			if s.Hash == nil {
+				_ = p.CollectAndStore()
+				continue
+			}
 
 			// OnTxAccepted probably sent on newTxChan
 			tx, err := client.GetRawTransaction(s.Hash)
@@ -140,10 +141,6 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			// See dcrd/blockchain/stake/staketx.go for information about
 			// specifications for different transaction types.
 
-			// Tx hash for either a current ticket purchase (SStx), or the
-			// original ticket purchase for a vote (SSGen).
-			var ticketHash *chainhash.Hash
-
 			switch txType {
 			case stake.TxTypeRegular:
 				// Regular Tx
@@ -151,29 +148,16 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 				continue
 			case stake.TxTypeSStx:
 				// Ticket purchase
-				ticketHash = tx.Hash()
-				oneTicket = 1
 				price := tx.MsgTx().TxOut[0].Value
 				log.Tracef("Received ticket purchase %v, price %v",
-					ticketHash, dcrutil.Amount(price).ToCoin())
+					tx.Hash(), dcrutil.Amount(price).ToCoin())
 				// txHeight = tx.MsgTx().TxIn[0].BlockHeight // uh, no
 			case stake.TxTypeSSGen:
 				// Vote
-				ticketHash = &tx.MsgTx().TxIn[1].PreviousOutPoint.Hash
-				log.Tracef("Received vote %v for ticket %v", tx.Hash(), ticketHash)
+				voteHash := &tx.MsgTx().TxIn[1].PreviousOutPoint.Hash
+				log.Tracef("Received vote %v for ticket %v", tx.Hash(), voteHash)
 				// TODO: Show subsidy for this vote (Vout[2] - Vin[1] ?)
-				// No continue statement so we can proceed if first of block
-				bestBlock, err = client.GetBlockCount()
-				if err != nil {
-					log.Error("Unable to get block count")
-					continue
-				}
-				if uint32(bestBlock) <= p.mpoolInfo.CurrentHeight {
-					continue
-				}
-				// Add short delay for any block data collection
-				time.Sleep(200 * time.Millisecond)
-				log.Debugf("Vote in new block triggering mempool data collection")
+				continue
 			case stake.TxTypeSSRtx:
 				// Revoke
 				log.Tracef("Received revoke transaction: %v", tx.Hash())
@@ -198,12 +182,11 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			//       AND
 			//       time since lastCollectTime >= minInterval)
 
-			if bestBlock == -1 {
-				bestBlock, err = client.GetBlockCount()
-				if err != nil {
-					log.Error("Unable to get block count")
-					continue
-				}
+			// Get best block height at time of transaction broadcast
+			bestBlock, err := client.GetBlockCount()
+			if err != nil {
+				log.Error("Unable to get block count")
+				continue
 			}
 			txHeight := uint32(bestBlock)
 
@@ -212,48 +195,25 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 				p.mpoolInfo.CurrentHeight = txHeight
 			}
 
-			p.mpoolInfo.NumTicketsSinceStatsReport += oneTicket
-			newTickets := p.mpoolInfo.NumTicketsSinceStatsReport
-			enoughNewTickets := newTickets >= p.newTicketLimit
+			// Increment new ticket count (assuming we only get here via a sstx)
+			p.mpoolInfo.NumTicketsSinceStatsReport++
+			enoughNewTickets := p.mpoolInfo.NumTicketsSinceStatsReport >= p.newTicketLimit
 
+			// See how long it has been since we last collected mempool data
 			timeSinceLast := time.Since(p.mpoolInfo.LastCollectTime)
 			quiteLong := timeSinceLast > p.maxInterval
 			longEnough := timeSinceLast >= p.minInterval
 
-			var data *MempoolData
 			if newBlock || quiteLong || (enoughNewTickets && longEnough) {
+				// Do not bother collecting if this transaction came in before
+				// last collection, in which case we'd have it already.
 				if time.Since(s.T) > timeSinceLast {
 					log.Debugf("A Tx was queued before last mempool collection, which would have included it. SKIPPING.")
 					continue
 				}
-				// reset counter for tickets since last report
-				p.mpoolInfo.NumTicketsSinceStatsReport = 0
-				// and timer
-				p.mpoolInfo.LastCollectTime = time.Now()
-				// Collect mempool data (currently ticket fees)
-				log.Trace("Gathering new mempool data.")
-				data, err = p.collector.Collect()
-				if err != nil {
-					log.Errorf("mempool data collection failed: %v", err.Error())
-					// data is nil when err != nil
+
+				if err = p.CollectAndStore(); err != nil {
 					continue
-				}
-			} else {
-				continue
-			}
-
-			// Insert new ticket counter into data structure
-			data.NewTickets = uint32(newTickets)
-
-			p.mpoolInfo.NumTicketPurchasesInMempool = data.Ticketfees.FeeInfoMempool.Number
-
-			// Store mempool data with each saver
-			timestamp := time.Now()
-			for _, s := range p.dataSavers {
-				if s != nil {
-					log.Trace("Saving MP data.")
-					// save data to wherever the saver wants to put it
-					go s.StoreMPData(data, timestamp)
 				}
 			}
 
@@ -262,6 +222,41 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 			return
 		}
 	}
+}
+
+// CollectAndStore collects mempool data, resets counters ticket counters and
+// the timer, and dispatches the storers.
+func (p *mempoolMonitor) CollectAndStore() error {
+	// reset counter for tickets since last report
+	newTickets := p.mpoolInfo.NumTicketsSinceStatsReport
+	p.mpoolInfo.NumTicketsSinceStatsReport = 0
+	// and timer
+	p.mpoolInfo.LastCollectTime = time.Now()
+	// Collect mempool data (currently ticket fees)
+	log.Trace("Gathering new mempool data.")
+	data, err := p.collector.Collect()
+	if err != nil {
+		log.Errorf("mempool data collection failed: %v", err.Error())
+		// data is nil when err != nil
+		return err
+	}
+
+	// Insert new ticket counter into data structure
+	data.NewTickets = uint32(newTickets)
+
+	p.mpoolInfo.NumTicketPurchasesInMempool = data.Ticketfees.FeeInfoMempool.Number
+
+	// Store mempool data with each saver
+	timestamp := time.Now()
+	for _, s := range p.dataSavers {
+		if s != nil {
+			log.Trace("Saving MP data.")
+			// save data to wherever the saver wants to put it
+			go s.StoreMPData(data, timestamp)
+		}
+	}
+
+	return nil
 }
 
 // COLLECTOR
