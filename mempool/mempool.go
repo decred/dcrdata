@@ -71,7 +71,8 @@ func NewMempoolMonitor(collector *mempoolDataCollector,
 type TicketsDetails apitypes.TicketsDetails
 
 // Below is the implementation of sort.Interface
-// { Len(), Swap(i, j int), Less(i, j int) bool }
+// { Len(), Swap(i, j int), Less(i, j int) bool }. This implementation sorts
+// the structure in acending order
 
 // Len returns the length of TicketsDetails
 func (tix TicketsDetails) Len() int {
@@ -88,7 +89,7 @@ type ByFeeRate struct {
 	TicketsDetails
 }
 
-// Less compares fee rates by rate_i < ate_j
+// Less compares fee rates by rate_i < rate_j
 func (tix ByFeeRate) Less(i, j int) bool {
 	return tix.TicketsDetails[i].FeeRate < tix.TicketsDetails[j].FeeRate
 }
