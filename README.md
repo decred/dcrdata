@@ -1,12 +1,11 @@
 # dcrdata
 
-[![Build Status](http://img.shields.io/travis/dcrdata/dcrdata.svg)](https://travis-ci.org/dcrdata/dcrdata)
+[![Build Status](https://img.shields.io/travis/dcrdata/dcrdata.svg)](https://travis-ci.org/dcrdata/dcrdata)
 [![GitHub release](https://img.shields.io/github/release/dcrdata/dcrdata.svg)](https://github.com/dcrdata/dcrdata/releases)
 [![Latest tag](https://img.shields.io/github/tag/dcrdata/dcrdata.svg)](https://github.com/dcrdata/dcrdata/tags)
-[![ISC License](http://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
+[![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
 
-The dcrdata repository is a collection of golang packages and apps for Decred data
-collection, storage, and presentation.
+The dcrdata repository is a collection of golang packages and apps for [Decred](https://www.decred.org/) datacollection, storage, and presentation.
 
 ## Repository overview
 
@@ -19,8 +18,10 @@ collection, storage, and presentation.
 ├── dcrdataapi          Package dcrdataapi for golang API clients.
 ├── dcrsqlite           Package dcrsqlite providing SQLite backend.
 ├── public              Public resources for web UI (css, js, etc.).
+├── mempool             Package mempool.
 ├── rpcutils            Package rpcutils.
 ├── semver              Package semver.
+├── stakedb             Package stakedb, for tracking tickets.
 ├── txhelpers           Package txhelpers.
 └── views               HTML temlates for web UI.
 ```
@@ -30,10 +31,11 @@ collection, storage, and presentation.
 The root of the repository is the `main` package for the dcrdata app, which has
 several components including:
 
-1. Block chain monitoring and data collection.
-1. Data storage in durable database.
+1. Blockchain monitoring and data collection.
+1. Mempool monitoring and reporting.
+1. Data storage in durable database (sqlite presently).
 1. RESTful JSON API over HTTP(S).
-1. Web interface.
+1. Basic web interface.
 
 ### JSON REST API
 
@@ -82,9 +84,9 @@ means it starts a web server listening on all network interfaces on port 7777.
 
 | Block range (X < Y) | |
 | --- | --- |
-| Summary array | `/block/range/X/Y` |
-| Summary array with step `S` | `/block/range/X/Y/S` |
-| Size array | `/block/range/X/Y/size` |
+| Summary array for blocks on `[X,Y]` | `/block/range/X/Y` |
+| Summary array with block index step `S` | `/block/range/X/Y/S` |
+| Size (bytes) array | `/block/range/X/Y/size` |
 | Size array with step `S` | `/block/range/X/Y/S/size` |
 
 | Transaction T (transaction id) | |
@@ -102,7 +104,7 @@ means it starts a web server listening on all network interfaces on port 7777.
 | Summary of last `N` transactions | `/address/A/count/N` |
 | Verbose transaction result for last <br> `N` transactions | `/address/A/count/N/raw` |
 
-| Stake Difficulty | |
+| Stake Difficulty (Ticket Price) | |
 | --- | --- |
 | Current sdiff and estimates | `/stake/diff` |
 | Sdiff for block `X` | `/stake/diff/b/X` |
@@ -145,7 +147,7 @@ option.
 In addition to the API that is accessible via paths beginning with `/api`, an
 HTML interface is served on the root path (`/`).
 
-## Important Node About Mempool
+## Important Note About Mempool
 
 Although there is mempool data collection and serving, it is **very important**
 to keep in mind that the mempool in your node (dcrd) is not likely to be the
@@ -174,8 +176,12 @@ comma-separated value (CSV) file.
 `package dcrdataapi` defines the data types, with json tags, used by the JSON
 API.  This facilitates authoring of robust golang clients of the API.
 
+`package mempool` ...
+
 `package rpcutils` includes helper functions for interacting with a
 `dcrrpcclient.Client`.
+
+`package stakedb` defines the `StakeDatabase` and `ChainMonitor` types for efficiently tracking live tickets, with the primary purpose of computing ticket pool value quickly.  It uses the `database.DB` type from `github.com/decred/dcrd/database` with an ffldb storage backend from `github.com/decred/dcrd/database/ffldb`.  It also makes use of the `stake.Node` type from `github.com/decred/dcrd/blockchain/stake`.  The `ChainMonitor` type handles connecting new blocks and reorganiations in response to notifications from dcrd.
 
 `package txhelpers` includes helper functions for working with the common types
 `dcrutil.Tx`, `dcrutil.Block`, `chainhash.Hash`, and others.
@@ -259,9 +265,10 @@ First, update the repository (assuming you have `master` checked out):
 
     cd $GOPATH/src/github.com/dcrdata/dcrdata
     git pull origin master
+    glide install
+    go build
 
 Look carefully for errors with git pull, and revert changed files if necessary.
-Then follow the install instructions starting at "Glide install...".
 
 ## Getting Started
 
