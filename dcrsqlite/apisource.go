@@ -49,12 +49,15 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincf
 	return wDB, wDB.sDB.StakeDB.Close
 }
 
-// NewWiredDB returns a new database
+// NewWiredDB creates a new wiredDB from a *sql.DB, a node client, network
+// parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
+// new DB that wrapps the sql.DB.
 func NewWiredDB(db *sql.DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
 	return newWiredDB(NewDB(db), statusC, cl, p)
 }
 
-// InitWiredDB initializes the wiredDB
+// InitWiredDB creates a new wiredDB from a file containing the data for a
+// sql.DB. The other parameters are same as those for NewWiredDB.
 func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
@@ -79,9 +82,7 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
 	if err = db.client.Ping(); err != nil {
 		return err
 	}
-	// Do not allow Store() while doing sync
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
+
 	return db.resyncDB(quit)
 }
 
@@ -94,9 +95,7 @@ func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) e
 	if err = db.client.Ping(); err != nil {
 		return err
 	}
-	// Do not allow Store() while doing sync
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
+
 	return db.resyncDBWithPoolValue(quit)
 }
 

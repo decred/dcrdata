@@ -21,12 +21,15 @@ type ReorgData struct {
 
 // ChainMonitor handles change notifications from the node client
 type ChainMonitor struct {
-	db        *wiredDB
-	collector *blockdata.Collector
-	quit      chan struct{}
-	wg        *sync.WaitGroup
-	blockChan chan *chainhash.Hash
-	reorgChan chan *ReorgData
+	db             *wiredDB
+	collector      *blockdata.Collector
+	quit           chan struct{}
+	wg             *sync.WaitGroup
+	blockChan      chan *chainhash.Hash
+	reorgChan      chan *ReorgData
+	ConnectingLock chan struct{}
+	DoneConnecting chan struct{}
+	syncConnect    sync.Mutex
 
 	// reorg handling
 	reorgLock    sync.Mutex
@@ -39,13 +42,28 @@ type ChainMonitor struct {
 func (db *wiredDB) NewChainMonitor(collector *blockdata.Collector, quit chan struct{}, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
 	return &ChainMonitor{
-		db:        db,
-		collector: collector,
-		quit:      quit,
-		wg:        wg,
-		blockChan: blockChan,
-		reorgChan: reorgChan,
+		db:             db,
+		collector:      collector,
+		quit:           quit,
+		wg:             wg,
+		blockChan:      blockChan,
+		reorgChan:      reorgChan,
+		ConnectingLock: make(chan struct{}, 1),
+		DoneConnecting: make(chan struct{}),
 	}
+}
+
+// BlockConnectedSync is the synchronous (blocking call) handler for the newly
+// connected block given by the hash.
+func (p *ChainMonitor) BlockConnectedSync(hash *chainhash.Hash) {
+	// Connections go one at a time so signals cannot be mixed
+	p.syncConnect.Lock()
+	defer p.syncConnect.Unlock()
+	// lock with buffered channel
+	p.ConnectingLock <- struct{}{}
+	p.blockChan <- hash
+	// wait
+	<-p.DoneConnecting
 }
 
 // BlockConnectedHandler handles block connected notifications, which helps deal
@@ -57,8 +75,17 @@ out:
 	keepon:
 		select {
 		case hash, ok := <-p.blockChan:
+			release := func() {}
+			select {
+			case <-p.ConnectingLock:
+				// send on unbuffered channel
+				release = func() { p.DoneConnecting <- struct{}{} }
+			default:
+			}
+
 			if !ok {
 				log.Warnf("Block connected channel closed.")
+				release()
 				break out
 			}
 
@@ -68,11 +95,17 @@ out:
 			p.reorgLock.Unlock()
 
 			if reorg {
+				// stakedb will not be at this level until it switches to the
+				// complete side chain (during the last side chain block
+				// handling). So, store only the hash now and get data by hash
+				// after stakedb has switched over, at which point the pool info
+				// at each level will have been saved in the PoolInfoCache.
 				p.sideChain = append(p.sideChain, *hash)
-				log.Infof("Adding block %v to sidechain", *hash)
+				log.Infof("Adding block hash %v to sidechain", *hash)
 
 				// Just append to side chain until the new main chain tip block is reached
 				if !reorgData.NewChainHead.IsEqual(hash) {
+					release()
 					break keepon
 				}
 
@@ -84,6 +117,7 @@ out:
 
 				if !p.reorgData.NewChainHead.IsEqual(newHash) ||
 					p.reorgData.NewChainHeight != newHeight {
+					release()
 					panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
 						p.reorgData.NewChainHead, newHash, newHeight))
 				}
@@ -96,6 +130,7 @@ out:
 				log.Infof("Reorganization to block %v (height %d) complete",
 					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
 			}
+			release()
 
 		case _, ok := <-p.quit:
 			if !ok {
@@ -142,6 +177,9 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	// Save blocks from previous side chain that is now the main chain
 	log.Infof("Saving %d new blocks from previous side chain to sqlite", len(p.sideChain))
 	for i := range p.sideChain {
+		// Get data by block hash, which requires the stakedb's PoolInfoCache to
+		// contain data for the side chain blocks already (guaranteed if stakedb
+		// block-connected ntfns are always handled before these).
 		blockDataSummary, stakeInfoSummaryExtended := p.collector.CollectAPITypes(&p.sideChain[i])
 		if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
 			log.Error("Failed to collect data for reorg.")

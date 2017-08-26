@@ -43,7 +43,7 @@ const (
 // future.
 type DB struct {
 	*sql.DB
-	mtx                                                 sync.Mutex
+	sync.RWMutex
 	dbSummaryHeight                                     int64
 	dbStakeInfoHeight                                   int64
 	getPoolSQL, getPoolRangeSQL                         string
@@ -181,10 +181,6 @@ type DBDataSaver struct {
 
 // Store satisfies the blockdata.BlockDataSaver interface
 func (db *DBDataSaver) Store(data *blockdata.BlockData) error {
-	// TODO: make a queue instead of blocking
-	db.DB.mtx.Lock()
-	defer db.DB.mtx.Unlock()
-
 	summary := data.ToBlockSummary()
 	err := db.DB.StoreBlockSummary(&summary)
 	if err != nil {
@@ -216,6 +212,8 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 		return err
 	}
 
+	db.Lock()
+	defer db.Unlock()
 	if err = logDBResult(res); err == nil {
 		// TODO: atomic with CAS
 		//log.Debugf("Store height: %v", bd.Height)
@@ -246,6 +244,8 @@ func (db *DB) GetBestBlockHeight() int64 {
 // GetBlockSummaryHeight returns the largest block height for which the database
 // can provide a block summary
 func (db *DB) GetBlockSummaryHeight() int64 {
+	db.RLock()
+	defer db.RUnlock()
 	if db.dbSummaryHeight < 0 {
 		height, err := db.RetrieveBestBlockHeight()
 		if err != nil {
@@ -260,6 +260,8 @@ func (db *DB) GetBlockSummaryHeight() int64 {
 // GetStakeInfoHeight returns the largest block height for which the database
 // can provide a stake info
 func (db *DB) GetStakeInfoHeight() int64 {
+	db.RLock()
+	defer db.RUnlock()
 	if db.dbStakeInfoHeight < 0 {
 		si, err := db.RetrieveLatestStakeInfoExtended()
 		if err != nil || si == nil {
@@ -282,10 +284,13 @@ func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo
 		return nil, fmt.Errorf("Cannot retrieve pool info range (%d<%d)",
 			ind1, ind0)
 	}
+	db.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
+		defer db.RUnlock()
 		return nil, fmt.Errorf("Cannot retrieve pool info range [%d,%d], have height %d",
 			ind1, ind0, db.dbSummaryHeight)
 	}
+	db.RUnlock()
 
 	tpis := make([]apitypes.TicketPoolInfo, 0, N)
 
@@ -341,10 +346,13 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range (%d<%d)",
 			ind1, ind0)
 	}
+	db.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
+		defer db.RUnlock()
 		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range [%d,%d], have height %d",
 			ind1, ind0, db.dbSummaryHeight)
 	}
+	db.RUnlock()
 
 	poolvals := make([]float64, 0, N)
 	poolsizes := make([]float64, 0, N)
@@ -392,10 +400,13 @@ func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 		return nil, fmt.Errorf("Cannot retrieve sdiff range (%d<%d)",
 			ind1, ind0)
 	}
+	db.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
+		defer db.RUnlock()
 		return nil, fmt.Errorf("Cannot retrieve sdiff range [%d,%d], have height %d",
 			ind1, ind0, db.dbSummaryHeight)
 	}
+	db.RUnlock()
 
 	sdiffs := make([]float64, 0, N)
 
@@ -548,10 +559,13 @@ func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
 		return nil, fmt.Errorf("Cannot retrieve block size range (%d<%d)",
 			ind1, ind0)
 	}
+	db.Lock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
+		defer db.RUnlock()
 		return nil, fmt.Errorf("Cannot retrieve block size range [%d,%d], have height %d",
 			ind1, ind0, db.dbSummaryHeight)
 	}
+	db.RUnlock()
 
 	blockSizes := make([]int32, 0, N)
 
@@ -600,6 +614,8 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 		return err
 	}
 
+	db.Lock()
+	defer db.Unlock()
 	if err = logDBResult(res); err == nil {
 		height := int64(si.Feeinfo.Height)
 		if height > db.dbStakeInfoHeight {

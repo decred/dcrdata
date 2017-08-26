@@ -5,7 +5,6 @@ package blockdata
 
 import (
 	"sync"
-	"time"
 
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -24,12 +23,16 @@ type ReorgData struct {
 type chainMonitor struct {
 	collector       *Collector
 	dataSavers      []BlockDataSaver
+	reorgDataSavers []BlockDataSaver
 	quit            chan struct{}
 	wg              *sync.WaitGroup
 	watchaddrs      map[string]txhelpers.TxAction
 	blockChan       chan *chainhash.Hash
 	recvTxBlockChan chan *txhelpers.BlockWatchedTx
 	reorgChan       chan *ReorgData
+	ConnectingLock  chan struct{}
+	DoneConnecting  chan struct{}
+	syncConnect     sync.Mutex
 
 	// reorg handling
 	reorgLock    sync.Mutex
@@ -40,7 +43,7 @@ type chainMonitor struct {
 
 // NewChainMonitor creates a new chainMonitor
 func NewChainMonitor(collector *Collector,
-	savers []BlockDataSaver,
+	savers []BlockDataSaver, reorgSavers []BlockDataSaver,
 	quit chan struct{}, wg *sync.WaitGroup,
 	addrs map[string]txhelpers.TxAction, blockChan chan *chainhash.Hash,
 	recvTxBlockChan chan *txhelpers.BlockWatchedTx,
@@ -48,13 +51,29 @@ func NewChainMonitor(collector *Collector,
 	return &chainMonitor{
 		collector:       collector,
 		dataSavers:      savers,
+		reorgDataSavers: reorgSavers,
 		quit:            quit,
 		wg:              wg,
 		watchaddrs:      addrs,
 		blockChan:       blockChan,
 		recvTxBlockChan: recvTxBlockChan,
 		reorgChan:       reorgChan,
+		ConnectingLock:  make(chan struct{}, 1),
+		DoneConnecting:  make(chan struct{}),
 	}
+}
+
+// BlockConnectedSync is the synchronous (blocking call) handler for the newly
+// connected block given by the hash.
+func (p *chainMonitor) BlockConnectedSync(hash *chainhash.Hash) {
+	// Connections go one at a time so signals cannot be mixed
+	p.syncConnect.Lock()
+	defer p.syncConnect.Unlock()
+	// lock with buffered channel
+	p.ConnectingLock <- struct{}{}
+	p.blockChan <- hash
+	// wait
+	<-p.DoneConnecting
 }
 
 // blockConnectedHandler handles block connected notifications, which trigger
@@ -66,8 +85,17 @@ out:
 	keepon:
 		select {
 		case hash, ok := <-p.blockChan:
+			release := func() {}
+			select {
+			case <-p.ConnectingLock:
+				// send on unbuffered channel
+				release = func() { p.DoneConnecting <- struct{}{} }
+			default:
+			}
+
 			if !ok {
 				log.Warnf("Block connected channel closed.")
+				release()
 				break out
 			}
 
@@ -78,26 +106,29 @@ out:
 
 			if reorg {
 				p.sideChain = append(p.sideChain, *hash)
-				log.Infof("Adding block %v to sidechain", *hash)
+				log.Infof("Adding block %v to blockdata sidechain", *hash)
 
 				// Just append to side chain until the new main chain tip block is reached
 				if !reorgData.NewChainHead.IsEqual(hash) {
+					release()
 					break keepon
 				}
 
-				// Reorg is complete
+				// Reorg is complete, do nothing lol
 				p.sideChain = nil
 				p.reorgLock.Lock()
 				p.reorganizing = false
 				p.reorgLock.Unlock()
-				log.Infof("Reorganization to block %v (height %d) complete",
+				log.Infof("Reorganization to block %v (height %d) complete in blockdata",
 					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
+				// dcrsqlite's chainmonitor handles the reorg, but we keep going
+				// to update the web UI with the new best block.
 			}
 
 			msgBlock, _ := p.collector.dcrdChainSvr.GetBlock(hash)
 			block := dcrutil.NewBlock(msgBlock)
 			height := block.Height()
-			log.Infof("Block height %v connected", height)
+			log.Infof("Block height %v connected. Collecting data...", height)
 
 			if len(p.watchaddrs) > 0 {
 				// txsForOutpoints := blockConsumesOutpointWithAddresses(block, p.watchaddrs,
@@ -115,37 +146,48 @@ out:
 				}
 			}
 
-			// data collection with timeout
-			bdataChan := make(chan *BlockData)
-			// fire it off and get the BlockData pointer back through the channel
-			go func() {
-				BlockData, err := p.collector.Collect()
-				if err != nil {
-					log.Errorf("Block data collection failed: %v", err.Error())
-					// BlockData is nil when err != nil
-				}
-				bdataChan <- BlockData
-			}()
-
-			// Wait for X seconds before giving up on Collect()
-			var BlockData *BlockData
-			select {
-			case BlockData = <-bdataChan:
-				if BlockData == nil {
-					break keepon
-				}
-			case <-time.After(time.Second * 20):
-				log.Errorf("Block data collection TIMEOUT after 20 seconds.")
+			var blockData *BlockData
+			chainHeight, err := p.collector.dcrdChainSvr.GetBlockCount()
+			if err != nil {
+				log.Errorf("Unable to get chain height: %v", err)
+				release()
 				break keepon
 			}
 
-			// Store block data with each saver
-			for _, s := range p.dataSavers {
-				if s != nil {
-					// save data to wherever the saver wants to put it
-					go s.Store(BlockData)
+			// If new block height not equal to chain height, then we are behind
+			// on data collection, so specify the hash of the notified, skipping
+			// stake diff estimates and other stuff for web ui that is only
+			// relevant for the best block.
+			if chainHeight != height {
+				log.Infof("Behind on our collection...")
+				blockData, err = p.collector.CollectHash(hash)
+				if err != nil {
+					log.Errorf("blockdata.CollectHash(hash) failed: %v", err.Error())
+					release()
+					break keepon
+				}
+			} else {
+				blockData, err = p.collector.Collect()
+				if err != nil {
+					log.Errorf("blockdata.Collect() failed: %v", err.Error())
+					release()
+					break keepon
 				}
 			}
+
+			// Store block data with each saver
+			savers := p.dataSavers
+			if reorg {
+				savers = p.reorgDataSavers
+			}
+			for _, s := range savers {
+				if s != nil {
+					// save data to wherever the saver wants to put it
+					s.Store(blockData)
+				}
+			}
+
+			release()
 
 		case _, ok := <-p.quit:
 			if !ok {
@@ -157,8 +199,7 @@ out:
 
 }
 
-// ReorgHandler receives notification of a chain reorganization and initiates a
-// corresponding update of the SQL db keeping the main chain data.
+// ReorgHandler receives notification of a chain reorganization
 func (p *chainMonitor) ReorgHandler() {
 	defer p.wg.Done()
 out:
@@ -187,9 +228,9 @@ out:
 			p.reorgData = reorgData
 			p.reorgLock.Unlock()
 
-			log.Infof("Reorganize started. NEW head block %v at height %d.",
+			log.Infof("Reorganize started in blockdata. NEW head block %v at height %d.",
 				newHash, newHeight)
-			log.Infof("Reorganize started. OLD head block %v at height %d.",
+			log.Infof("Reorganize started in blockdata. OLD head block %v at height %d.",
 				oldHash, oldHeight)
 
 		case _, ok := <-p.quit:

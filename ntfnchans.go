@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	// blockConnChanBuffer is the size of the block connected channel buffer.
+	// blockConnChanBuffer is the size of the block connected channel buffers.
 	blockConnChanBuffer = 64
 
 	// newTxChanBuffer is the size of the new transaction channel buffer, for
 	// ANY transactions are added into mempool.
-	newTxChanBuffer = 20
+	newTxChanBuffer = 48
 
 	reorgBuffer = 2
 
@@ -32,12 +32,10 @@ const (
 var ntfnChans struct {
 	connectChan                       chan *chainhash.Hash
 	reorgChanBlockData                chan *blockdata.ReorgData
-	connectChanStkInf                 chan int32
 	connectChanWiredDB                chan *chainhash.Hash
 	reorgChanWiredDB                  chan *dcrsqlite.ReorgData
 	connectChanStakeDB                chan *chainhash.Hash
 	reorgChanStakeDB                  chan *stakedb.ReorgData
-	stakeDBLock                       chan struct{}
 	updateStatusNodeHeight            chan uint32
 	updateStatusDBHeight              chan uint32
 	spendTxBlockChan, recvTxBlockChan chan *txhelpers.BlockWatchedTx
@@ -52,17 +50,12 @@ func makeNtfnChans(cfg *config) {
 	// blockConnectedHandler) block. default case makes non-blocking below.
 	// quit channel case manages blockConnectedHandlers.
 	ntfnChans.connectChan = make(chan *chainhash.Hash, blockConnChanBuffer)
-	//ntfnChans.stakeDiffChan = make(chan int64, blockConnChanBuffer)
 
 	// WiredDB channel for connecting new blocks
 	ntfnChans.connectChanWiredDB = make(chan *chainhash.Hash, blockConnChanBuffer)
 
-	// Stake DB channel for connecting new blocks
-	ntfnChans.connectChanStakeDB = make(chan *chainhash.Hash, blockConnChanBuffer)
-
-	// Like connectChan for block data, connectChanStkInf is used when a new
-	// block is connected, but to signal the stake info monitor.
-	ntfnChans.connectChanStkInf = make(chan int32, blockConnChanBuffer)
+	// Stake DB channel for connecting new blocks - BLOCKING!
+	ntfnChans.connectChanStakeDB = make(chan *chainhash.Hash)
 
 	// Reorg data channels
 	ntfnChans.reorgChanBlockData = make(chan *blockdata.ReorgData, reorgBuffer)
@@ -87,9 +80,6 @@ func makeNtfnChans(cfg *config) {
 }
 
 func closeNtfnChans() {
-	// if ntfnChans.stakeDiffChan != nil {
-	// 	close(ntfnChans.stakeDiffChan)
-	// }
 	if ntfnChans.connectChan != nil {
 		close(ntfnChans.connectChan)
 	}
@@ -99,9 +89,7 @@ func closeNtfnChans() {
 	if ntfnChans.connectChanStakeDB != nil {
 		close(ntfnChans.connectChanStakeDB)
 	}
-	if ntfnChans.connectChanStkInf != nil {
-		close(ntfnChans.connectChanStkInf)
-	}
+
 	if ntfnChans.reorgChanBlockData != nil {
 		close(ntfnChans.reorgChanBlockData)
 	}
@@ -111,6 +99,7 @@ func closeNtfnChans() {
 	if ntfnChans.reorgChanStakeDB != nil {
 		close(ntfnChans.reorgChanStakeDB)
 	}
+
 	if ntfnChans.updateStatusNodeHeight != nil {
 		close(ntfnChans.updateStatusNodeHeight)
 	}

@@ -21,11 +21,14 @@ type ReorgData struct {
 
 // ChainMonitor connects blocks to the stake DB as they come in.
 type ChainMonitor struct {
-	db        *StakeDatabase
-	quit      chan struct{}
-	wg        *sync.WaitGroup
-	blockChan chan *chainhash.Hash
-	reorgChan chan *ReorgData
+	db             *StakeDatabase
+	quit           chan struct{}
+	wg             *sync.WaitGroup
+	blockChan      chan *chainhash.Hash
+	reorgChan      chan *ReorgData
+	syncConnect    sync.Mutex
+	ConnectingLock chan struct{}
+	DoneConnecting chan struct{}
 
 	// reorg handling
 	reorgLock    sync.Mutex
@@ -38,12 +41,27 @@ type ChainMonitor struct {
 func (db *StakeDatabase) NewChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
 	return &ChainMonitor{
-		db:        db,
-		quit:      quit,
-		wg:        wg,
-		blockChan: blockChan,
-		reorgChan: reorgChan,
+		db:             db,
+		quit:           quit,
+		wg:             wg,
+		blockChan:      blockChan,
+		reorgChan:      reorgChan,
+		ConnectingLock: make(chan struct{}, 1),
+		DoneConnecting: make(chan struct{}),
 	}
+}
+
+// BlockConnectedSync is the synchronous (blocking call) handler for the newly
+// connected block given by the hash.
+func (p *ChainMonitor) BlockConnectedSync(hash *chainhash.Hash) {
+	// Connections go one at a time so signals cannot be mixed
+	p.syncConnect.Lock()
+	defer p.syncConnect.Unlock()
+	// lock with buffered channel, accepting handoff in BlockConnectedHandler
+	p.ConnectingLock <- struct{}{}
+	p.blockChan <- hash
+	// wait
+	<-p.DoneConnecting
 }
 
 // BlockConnectedHandler handles block connected notifications, which trigger
@@ -55,19 +73,18 @@ out:
 	keepon:
 		select {
 		case hash, ok := <-p.blockChan:
-			if !ok {
-				log.Warnf("Block connected channel closed.")
-				break out
+			release := func() {}
+			select {
+			case <-p.ConnectingLock:
+				// send on unbuffered channel
+				release = func() { p.DoneConnecting <- struct{}{} }
+			default:
 			}
 
-			releaseStakeDB := func() {
-				// If someone like the registered OnBlockConnected notification
-				// handler set the pool info lock, release it when we're done
-				// connecting/disconnecting blocks.
-				select {
-				case <-p.db.ConnectingLock:
-				default:
-				}
+			if !ok {
+				log.Warnf("Block connected channel closed.")
+				release()
+				break out
 			}
 
 			// If reorganizing, the block will first go to a side chain
@@ -81,14 +98,13 @@ out:
 
 				// Just append to side chain until the new main chain tip block is reached
 				if reorgData.NewChainHead != *hash {
-					releaseStakeDB()
+					release()
 					break keepon
 				}
 
 				// Once all blocks in side chain are lined up, switch over
 				log.Info("Switching to side chain...")
 				newHeight, newHash, err := p.switchToSideChain()
-				releaseStakeDB()
 				if err != nil {
 					panic(err)
 				}
@@ -104,18 +120,18 @@ out:
 				p.reorgLock.Lock()
 				p.reorganizing = false
 				p.reorgLock.Unlock()
+				release()
 				log.Infof("Reorganization to block %v (height %d) complete",
 					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
 			} else {
 				// Extend main chain
 				block, err := p.db.ConnectBlockHash(hash)
+				release()
 				if err != nil {
 					log.Error(err)
-					releaseStakeDB()
 					break keepon
 				}
 
-				releaseStakeDB()
 				log.Infof("Connected block %d to stake DB.", block.Height())
 			}
 
