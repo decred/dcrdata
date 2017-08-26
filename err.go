@@ -7,6 +7,8 @@ import (
 	"errors"
 )
 
+// ContextualError models an error and its root error and is returned by
+// registerNodeNtfnHandlers
 type ContextualError struct {
 	RootErr error
 	Err     error
@@ -16,6 +18,7 @@ func (e *ContextualError) Error() string {
 	return e.Err.Error()
 }
 
+// Cause returns the root error string
 func (e *ContextualError) Cause() string {
 	return e.RootErr.Error()
 }

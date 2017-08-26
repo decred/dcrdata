@@ -6,14 +6,18 @@ package semver
 
 import "fmt"
 
+// NewSemver returns a new Semver with the version major.minor.patch
 func NewSemver(major, minor, patch uint32) Semver {
 	return Semver{major, minor, patch}
 }
 
+// Semver models a semantic version (semver) major.minor.patch
 type Semver struct {
 	major, minor, patch uint32
 }
 
+// SemverCompatible evaluates if the versions passed are compatible and returns a
+// bool
 func SemverCompatible(required, actual Semver) bool {
 	switch {
 	case required.major != actual.major:

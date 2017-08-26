@@ -56,13 +56,13 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	var ntfnHdlrs *dcrrpcclient.NotificationHandlers
 	if len(ntfnHandlers) > 0 {
 		if len(ntfnHandlers) > 1 {
-			return nil, nodeVer, fmt.Errorf("Invalid notification handler argument.")
+			return nil, nodeVer, fmt.Errorf("Invalid notification handler argument")
 		}
 		ntfnHdlrs = ntfnHandlers[0]
 	}
 	dcrdClient, err := dcrrpcclient.New(connCfgDaemon, ntfnHdlrs)
 	if err != nil {
-		return nil, nodeVer, fmt.Errorf("Failed to start dcrd RPC client: %s\n", err.Error())
+		return nil, nodeVer, fmt.Errorf("Failed to start dcrd RPC client: %s", err.Error())
 	}
 
 	// Ensure the RPC server has a compatible API version.

@@ -23,6 +23,7 @@ const (
 // TODO: maybe kill this function, but definitely make a new one that is a stake
 // tree update with a single block or chunk of blocks.  This does NOT SCALE!
 
+// BuildStakeTree returns a database with a stake tree
 func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 	nodeClient *dcrrpcclient.Client, poolRequiredHeight int64, DBName ...string) (database.DB, []int64, error) {
 
@@ -40,7 +41,7 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 	_ = os.RemoveAll(dbName)
 	db, err := database.Create(dbType, dbName, netParams.Net)
 	if err != nil {
-		return db, nil, fmt.Errorf("error creating db: %v\n", err)
+		return db, nil, fmt.Errorf("error creating db: %v", err)
 	}
 	//defer db.Close()
 
@@ -116,13 +117,13 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 			bestNode, err = bestNode.ConnectNode(block.MsgBlock().Header,
 				spentTickets, revokedTickets, ticketsToAdd)
 			if err != nil {
-				return fmt.Errorf("couldn't connect node: %v\n", err.Error())
+				return fmt.Errorf("couldn't connect node: %v", err.Error())
 			}
 
 			// Write the new node to db.
 			err = stake.WriteConnectedBestNode(dbTx, bestNode, *block.Hash())
 			if err != nil {
-				return fmt.Errorf("failure writing the best node: %v\n",
+				return fmt.Errorf("failure writing the best node: %v",
 					err.Error())
 			}
 		}

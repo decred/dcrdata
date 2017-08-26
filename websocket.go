@@ -12,7 +12,7 @@ import (
 // WebSocketMessage represents the JSON object used to send and received typed
 // messages to the web client.
 type WebSocketMessage struct {
-	Event_id string `json:"event"`
+	EventId  string `json:"event"`
 	Messsage string `json:"message"`
 }
 
@@ -23,6 +23,8 @@ var eventIDs = map[hubSignal]string{
 	sigPingAndUserCount:     "ping",
 }
 
+// WebBlockInfo represents the JSON object used to send block data and stake
+// info to the web client
 type WebBlockInfo struct {
 	BlockDataBasic *apitypes.BlockDataBasic             `json:"block"`
 	StakeInfoExt   *apitypes.StakeInfoExtendedEstimates `json:"stake"`
@@ -64,6 +66,7 @@ func NewWebsocketHub() *WebsocketHub {
 	}
 }
 
+// NumClients returns the number of clients connected to the websocket hub
 func (wsh *WebsocketHub) NumClients() int {
 	return len(wsh.clients)
 }

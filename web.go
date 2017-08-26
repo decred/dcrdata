@@ -50,6 +50,7 @@ type WebTemplateData struct {
 	MempoolFees    apitypes.MempoolTicketFees
 }
 
+// WebUI models data for the web page and websocket
 type WebUI struct {
 	wsHub           *WebsocketHub
 	MPC             mempool.MempoolDataCache
@@ -60,6 +61,8 @@ type WebUI struct {
 	params          *chaincfg.Params
 }
 
+// NewWebUI constructs a new WebUI by loading and parsing the html templates
+// then launching the WebSocket event handler
 func NewWebUI() *WebUI {
 	fp := filepath.Join("views", "root.tmpl")
 	tmpl, err := template.New("home").ParseFiles(fp)
@@ -81,6 +84,7 @@ func NewWebUI() *WebUI {
 	}
 }
 
+// StopWebsocketHub stops the websocket hub
 func (td *WebUI) StopWebsocketHub() {
 	log.Info("Stopping websocket hub.")
 	td.wsHub.Stop()
@@ -126,6 +130,7 @@ func (td *WebUI) Store(blockData *blockdata.BlockData) error {
 	return nil
 }
 
+// StoreMPData stores mempool data in the mempool cache and update the webui via websocket
 func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) error {
 	td.MPC.StoreMPData(data, timestamp)
 
@@ -223,7 +228,7 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 				// Write block data to websocket client
 				td.templateDataMtx.RLock()
 				webData := WebSocketMessage{
-					Event_id: eventIDs[sig],
+					EventId: eventIDs[sig],
 				}
 				buff := new(bytes.Buffer)
 				enc := json.NewEncoder(buff)

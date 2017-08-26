@@ -19,6 +19,7 @@ var log *logrus.Logger
 
 const logFile = "scanblocks.log"
 
+// InitLogger starts the logger
 func InitLogger() error {
 	logFilePath, _ := filepath.Abs(logFile)
 	logFILE, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND,

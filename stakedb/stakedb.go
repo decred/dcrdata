@@ -22,6 +22,7 @@ import (
 	"github.com/decred/dcrutil"
 )
 
+// StakeDatabase models data for the stake database
 type StakeDatabase struct {
 	params          *chaincfg.Params
 	NodeClient      *dcrrpcclient.Client
@@ -291,6 +292,7 @@ func (db *StakeDatabase) DisconnectBlocks(count int64) error {
 	return nil
 }
 
+// Open attemps to open the stake database and returns and error upon failure
 func (db *StakeDatabase) Open() error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()

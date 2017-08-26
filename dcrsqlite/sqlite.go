@@ -173,6 +173,7 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	return NewDB(db), err
 }
 
+// DBDataSaver models a DB with a channel to communicate new block height to the web interface
 type DBDataSaver struct {
 	*DB
 	updateStatusChan chan uint32
@@ -199,6 +200,8 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData) error {
 	return db.DB.StoreStakeInfoExtended(&stakeInfoExtended)
 }
 
+// StoreBlockSummary attemps to stores the block data in the database and
+// returns an error on failure
 func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	stmt, err := db.Prepare(db.insertBlockSQL)
 	if err != nil {
@@ -225,6 +228,7 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	return err
 }
 
+// GetBestBlockHash returns the hash of the best block
 func (db *DB) GetBestBlockHash() string {
 	hash, err := db.RetrieveBestBlockHash()
 	if err != nil {
@@ -234,10 +238,13 @@ func (db *DB) GetBestBlockHash() string {
 	return hash
 }
 
+// GetBestBlockHeight returns the height of the best block
 func (db *DB) GetBestBlockHeight() int64 {
 	return db.GetBlockSummaryHeight()
 }
 
+// GetBlockSummaryHeight returns the largest block height for which the database
+// can provide a block summary
 func (db *DB) GetBlockSummaryHeight() int64 {
 	if db.dbSummaryHeight < 0 {
 		height, err := db.RetrieveBestBlockHeight()
@@ -250,6 +257,8 @@ func (db *DB) GetBlockSummaryHeight() int64 {
 	return db.dbSummaryHeight
 }
 
+// GetStakeInfoHeight returns the largest block height for which the database
+// can provide a stake info
 func (db *DB) GetStakeInfoHeight() int64 {
 	if db.dbStakeInfoHeight < 0 {
 		si, err := db.RetrieveLatestStakeInfoExtended()
@@ -262,6 +271,8 @@ func (db *DB) GetStakeInfoHeight() int64 {
 	return db.dbStakeInfoHeight
 }
 
+// RetrievePoolInfoRange returns an array of apitypes.TicketPoolInfo for block
+// range ind0 to ind1 and a non-nil error on success
 func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
@@ -305,18 +316,22 @@ func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo
 	return tpis, nil
 }
 
+// RetrievePoolInfo returns ticket pool info for block height ind
 func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
 	tpi := new(apitypes.TicketPoolInfo)
 	err := db.QueryRow(db.getPoolSQL, ind).Scan(&tpi.Size, &tpi.Value, &tpi.ValAvg)
 	return tpi, err
 }
 
+// RetrievePoolInfoByHash returns ticket pool info for blockhash hash
 func (db *DB) RetrievePoolInfoByHash(hash string) (*apitypes.TicketPoolInfo, error) {
 	tpi := new(apitypes.TicketPoolInfo)
 	err := db.QueryRow(db.getPoolByHashSQL, hash).Scan(&tpi.Size, &tpi.Value, &tpi.ValAvg)
 	return tpi, err
 }
 
+// RetrievePoolValAndSizeRange retuns an array each of the pool values and sizes
+// for block range ind0 to ind1
 func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float64, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
@@ -366,6 +381,8 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	return poolvals, poolsizes, nil
 }
 
+// RetrieveSDiffRange returns an array of stake difficulties for block range ind0 to
+// ind1
 func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
@@ -409,12 +426,14 @@ func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 	return sdiffs, nil
 }
 
+// RetrieveSDiff returns the stake difficulty for block ind
 func (db *DB) RetrieveSDiff(ind int64) (float64, error) {
 	var sdiff float64
 	err := db.QueryRow(db.getSDiffSQL, ind).Scan(&sdiff)
 	return sdiff, err
 }
 
+// RetrieveLatestBlockSummary returns the block summary for the best block
 func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	bd := new(apitypes.BlockDataBasic)
 
@@ -428,30 +447,35 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	return bd, nil
 }
 
+// RetrieveBlockHash returns the block hash for block ind
 func (db *DB) RetrieveBlockHash(ind int64) (string, error) {
 	var blockHash string
 	err := db.QueryRow(db.getBlockHashSQL, ind).Scan(&blockHash)
 	return blockHash, err
 }
 
+// RetrieveBlockHeight returns the block height for blockhash hash
 func (db *DB) RetrieveBlockHeight(hash string) (int64, error) {
 	var blockHeight int64
 	err := db.QueryRow(db.getBlockHeightSQL, hash).Scan(&blockHeight)
 	return blockHeight, err
 }
 
+// RetrieveBestBlockHash returns the block hash for the best block
 func (db *DB) RetrieveBestBlockHash() (string, error) {
 	var blockHash string
 	err := db.QueryRow(db.getBestBlockHashSQL).Scan(&blockHash)
 	return blockHash, err
 }
 
+// RetrieveBestBlockHeight returns the block height for the best block
 func (db *DB) RetrieveBestBlockHeight() (int64, error) {
 	var blockHeight int64
 	err := db.QueryRow(db.getBestBlockHeightSQL).Scan(&blockHeight)
 	return blockHeight, err
 }
 
+// RetrieveBlockSummaryByHash returns basic block data for a block given its hash
 func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic, error) {
 	bd := new(apitypes.BlockDataBasic)
 
@@ -464,6 +488,7 @@ func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic,
 	return bd, nil
 }
 
+// RetrieveBlockSummary returns basic block data for block ind
 func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
 	bd := new(apitypes.BlockDataBasic)
 
@@ -513,6 +538,7 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 	return bd, nil
 }
 
+// RetrieveBlockSizeRange returns an array of block sizes for block range ind0 to ind1
 func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
@@ -556,6 +582,7 @@ func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
 	return blockSizes, nil
 }
 
+// StoreStakeInfoExtended stores the extended stake info in the database
 func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 	stmt, err := db.Prepare(db.insertStakeInfoExtendedSQL)
 	if err != nil {
@@ -582,6 +609,7 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 	return err
 }
 
+// RetrieveLatestStakeInfoExtended returns the extended stake info for the best block
 func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, error) {
 	si := new(apitypes.StakeInfoExtended)
 
@@ -599,6 +627,7 @@ func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, er
 	return si, nil
 }
 
+// RetrieveStakeInfoExtended returns the extended stake info for block ind
 func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error) {
 	si := new(apitypes.StakeInfoExtended)
 

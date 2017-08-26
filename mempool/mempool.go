@@ -23,11 +23,13 @@ import (
 	"github.com/decred/dcrutil"
 )
 
+// NewTx models data for a new transaction
 type NewTx struct {
 	Hash *chainhash.Hash
 	T    time.Time
 }
 
+// MempoolInfo models basic data about the node's mempool
 type MempoolInfo struct {
 	CurrentHeight               uint32
 	NumTicketPurchasesInMempool uint32
@@ -65,28 +67,39 @@ func NewMempoolMonitor(collector *mempoolDataCollector,
 	}
 }
 
-type TicketsDetails []*apitypes.TicketDetails
+// TicketsDetails localizes apitypes.TicketsDetails
+type TicketsDetails apitypes.TicketsDetails
 
+// Below is the implementation of sort.Interface
+// { Len(), Swap(i, j int), Less(i, j int) bool }. This implementation sorts
+// the structure in acending order
+
+// Len returns the length of TicketsDetails
 func (tix TicketsDetails) Len() int {
 	return len(tix)
 }
 
+// Swap swaps TicketsDetails elements at i and j
 func (tix TicketsDetails) Swap(i, j int) {
 	tix[i], tix[j] = tix[j], tix[i]
 }
 
+// ByFeeRate models TicketsDetails sorted by fee rates
 type ByFeeRate struct {
 	TicketsDetails
 }
 
+// Less compares fee rates by rate_i < rate_j
 func (tix ByFeeRate) Less(i, j int) bool {
 	return tix.TicketsDetails[i].FeeRate < tix.TicketsDetails[j].FeeRate
 }
 
+// ByAbsoluteFee models TicketDetails sorted by fee
 type ByAbsoluteFee struct {
 	TicketsDetails
 }
 
+// Less compares fee rates by fee_i < fee_j
 func (tix ByAbsoluteFee) Less(i, j int) bool {
 	return tix.TicketsDetails[i].Fee < tix.TicketsDetails[j].Fee
 }
@@ -272,6 +285,7 @@ type Stakelimitfeeinfo struct {
 	// others...
 }
 
+// MempoolData models info about ticket purchases in mempool
 type MempoolData struct {
 	Height            uint32
 	NumTickets        uint32
@@ -281,10 +295,12 @@ type MempoolData struct {
 	AllTicketsDetails TicketsDetails
 }
 
+// GetHeight returns the mempool height
 func (m *MempoolData) GetHeight() uint32 {
 	return m.Height
 }
 
+// GetNumTickets returns the mempool height and number of tickets
 func (m *MempoolData) GetNumTickets() uint32 {
 	return m.NumTickets
 }
@@ -304,7 +320,7 @@ func NewMempoolDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg
 	}
 }
 
-// collect is the main handler for collecting chain data
+// Collect is the main handler for collecting chain data
 func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
@@ -534,7 +550,7 @@ func NewMempoolDataToJSONFiles(folder string, fileBase string,
 	}
 }
 
-// Store writes MempoolData to stdout in JSON format
+// StoreMPData writes MempoolData to stdout in JSON format
 func (s *MempoolDataToJSONStdOut) StoreMPData(data *MempoolData) error {
 	// Do not write JSON data if there are no new tickets since last report
 	if data.NewTickets == 0 {
@@ -563,7 +579,7 @@ func (s *MempoolDataToJSONStdOut) StoreMPData(data *MempoolData) error {
 	return err
 }
 
-// Store writes MempoolData to stdout as plain text summary
+// StoreMPData writes MempoolData to stdout as plain text summary
 func (s *MempoolDataToSummaryStdOut) StoreMPData(data *MempoolData) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
@@ -617,7 +633,7 @@ func (s *MempoolDataToSummaryStdOut) StoreMPData(data *MempoolData) error {
 	return err
 }
 
-// Store writes MempoolData to a file in JSON format
+// StoreMPData writes MempoolData to a file in JSON format
 // The file name is nameBase+height+".json".
 func (s *MempoolDataToJSONFiles) StoreMPData(data *MempoolData) error {
 	// Do not write JSON data if there are no new tickets since last report
@@ -656,7 +672,7 @@ func (s *MempoolDataToJSONFiles) StoreMPData(data *MempoolData) error {
 	return err
 }
 
-// Store writes all the ticket fees to a file
+// StoreMPData writes all the ticket fees to a file
 // The file name is nameBase+".json".
 func (s *MempoolFeeDumper) StoreMPData(data *MempoolData, timestamp time.Time) error {
 	// Do not write JSON data if there are no new tickets since last report
