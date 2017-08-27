@@ -1,12 +1,11 @@
 # dcrdata
 
-[![Build Status](http://img.shields.io/travis/dcrdata/dcrdata.svg)](https://travis-ci.org/dcrdata/dcrdata)
+[![Build Status](https://img.shields.io/travis/dcrdata/dcrdata.svg)](https://travis-ci.org/dcrdata/dcrdata)
 [![GitHub release](https://img.shields.io/github/release/dcrdata/dcrdata.svg)](https://github.com/dcrdata/dcrdata/releases)
 [![Latest tag](https://img.shields.io/github/tag/dcrdata/dcrdata.svg)](https://github.com/dcrdata/dcrdata/tags)
-[![ISC License](http://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
+[![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
 
-The dcrdata repository is a collection of golang packages and apps for Decred data
-collection, storage, and presentation.
+The dcrdata repository is a collection of golang packages and apps for [Decred](https://www.decred.org/) datacollection, storage, and presentation.
 
 ## Repository overview
 
@@ -19,8 +18,10 @@ collection, storage, and presentation.
 ├── dcrdataapi          Package dcrdataapi for golang API clients.
 ├── dcrsqlite           Package dcrsqlite providing SQLite backend.
 ├── public              Public resources for web UI (css, js, etc.).
+├── mempool             Package mempool.
 ├── rpcutils            Package rpcutils.
 ├── semver              Package semver.
+├── stakedb             Package stakedb, for tracking tickets.
 ├── txhelpers           Package txhelpers.
 └── views               HTML temlates for web UI.
 ```
@@ -30,10 +31,11 @@ collection, storage, and presentation.
 The root of the repository is the `main` package for the dcrdata app, which has
 several components including:
 
-1. Block chain monitoring and data collection.
-1. Data storage in durable database.
+1. Blockchain monitoring and data collection.
+1. Mempool monitoring and reporting.
+1. Data storage in durable database (sqlite presently).
 1. RESTful JSON API over HTTP(S).
-1. Web interface.
+1. Basic web interface.
 
 ### JSON REST API
 
@@ -82,9 +84,9 @@ means it starts a web server listening on all network interfaces on port 7777.
 
 | Block range (X < Y) | |
 | --- | --- |
-| Summary array | `/block/range/X/Y` |
-| Summary array with step `S` | `/block/range/X/Y/S` |
-| Size array | `/block/range/X/Y/size` |
+| Summary array for blocks on `[X,Y]` | `/block/range/X/Y` |
+| Summary array with block index step `S` | `/block/range/X/Y/S` |
+| Size (bytes) array | `/block/range/X/Y/size` |
 | Size array with step `S` | `/block/range/X/Y/S/size` |
 
 | Transaction T (transaction id) | |
@@ -102,7 +104,7 @@ means it starts a web server listening on all network interfaces on port 7777.
 | Summary of last `N` transactions | `/address/A/count/N` |
 | Verbose transaction result for last <br> `N` transactions | `/address/A/count/N/raw` |
 
-| Stake Difficulty | |
+| Stake Difficulty (Ticket Price) | |
 | --- | --- |
 | Current sdiff and estimates | `/stake/diff` |
 | Sdiff for block `X` | `/stake/diff/b/X` |
@@ -145,7 +147,7 @@ option.
 In addition to the API that is accessible via paths beginning with `/api`, an
 HTML interface is served on the root path (`/`).
 
-## Important Node About Mempool
+## Important Note About Mempool
 
 Although there is mempool data collection and serving, it is **very important**
 to keep in mind that the mempool in your node (dcrd) is not likely to be the
@@ -177,6 +179,15 @@ API.  This facilitates authoring of robust golang clients of the API.
 `package rpcutils` includes helper functions for interacting with a
 `dcrrpcclient.Client`.
 
+`package stakedb` defines the `StakeDatabase` and `ChainMonitor` types for
+efficiently tracking live tickets, with the primary purpose of computing ticket
+pool value quickly.  It uses the `database.DB` type from
+`github.com/decred/dcrd/database` with an ffldb storage backend from
+`github.com/decred/dcrd/database/ffldb`.  It also makes use of the `stake.Node`
+type from `github.com/decred/dcrd/blockchain/stake`.  The `ChainMonitor` type
+handles connecting new blocks and chain reorganiation in response to notifications
+from dcrd.
+
 `package txhelpers` includes helper functions for working with the common types
 `dcrutil.Tx`, `dcrutil.Block`, `chainhash.Hash`, and others.
 
@@ -204,14 +215,16 @@ by other dcrdata packages, but they may be of general value in the future.
   client is used by `wiredDB` to get it on demand. `wiredDB` also includes
   methods to resync the database file.
 
+`package mempool` defines a `mempoolMonitor` type that can monitor a node's
+mempool using the `OnTxAccepted` notification handler to send newly received
+transaction hashes via a designated channel. Ticket purchases (SSTx) are
+triggers for mempool data collection, which is handled by the
+`mempoolDataCollector` class, and data storage, which is handled by any number
+of objects implementing the `MempoolDataSaver` interface.
+
 ## Plans
 
-The GitHub issue tracker for dcrdata lists planned improvements. A few important
-ones:
-
-* More database backend options, perhaps PostgreSQL and/or mongodb.
-* Chain reorg handling.
-* test cases.
+See the GitHub issue tracker and the [project milestones](https://github.com/dcrdata/dcrdata/milestones).
 
 ## Requirements
 
@@ -246,7 +259,7 @@ The following instructions assume a Unix-like shell (e.g. bash).
         go build # or go install $(glide nv)
 
 The sqlite driver uses cgo, which requires gcc to compile the C sources. On
-Windows this is easily handles with MSYS2 ([download](http://www.msys2.org/) and
+Windows this is easily handled with MSYS2 ([download](http://www.msys2.org/) and
 install MinGW-w64 gcc packages).
 
 If you receive other build errors, it may be due to "vendor" directories left by
@@ -259,9 +272,10 @@ First, update the repository (assuming you have `master` checked out):
 
     cd $GOPATH/src/github.com/dcrdata/dcrdata
     git pull origin master
+    glide install
+    go build
 
-Look carefully for errors with git pull, and revert changed files if necessary.
-Then follow the install instructions starting at "Glide install...".
+Look carefully for errors with `git pull`, and reset changed files if necessary.
 
 ## Getting Started
 
@@ -273,8 +287,22 @@ cp ./sample-dcrdata.conf ./dcrdata.conf
 
 Then edit dcrdata.conf with your dcrd RPC settings.
 
-Finally, launch the daemon and allow the databases to sync.
+Finally, launch the daemon and allow the databases to sync.  This takes about an hour on the first time. On subsequent launches, only new blocks need to be scanned.
 
 ```bash
 ./dcrdata
 ```
+
+## Contributing
+
+Yes, please!
+
+1. Fork the repo.
+1. Create a branch for your work (`git branch -b cool-stuff`).
+1. Code something great.
+1. Commit and push to your repo.
+1. Create a [pull request](https://github.com/dcrdata/dcrdata/compare).
+
+## License
+
+This project is licensed under the ISC License. See the [LICENSE](LICENSE) file for details.
