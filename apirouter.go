@@ -165,7 +165,8 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 	// 	return
 	// }
 
-	mux.With(apiDocs(mux)).HandleFunc("/directory", APIDirectory)
+	// mux.HandleFunc("/directory", APIDirectory)
+	// mux.With(apiDocs(mux)).HandleFunc("/directory", APIDirectory)
 
 	var listRoutePatterns func(routes []chi.Route) []string
 	listRoutePatterns = func(routes []chi.Route) []string {
