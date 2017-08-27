@@ -906,6 +906,8 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 	}
 	if count <= 0 {
 		count = 10
+	} else if count > 2000 {
+		count = 2000
 	}
 	txs := c.BlockData.GetAddressTransactions(address, count)
 	if txs == nil {
@@ -924,6 +926,8 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 	}
 	if count <= 0 {
 		count = 10
+	} else if count > 2000 {
+		count = 2000
 	}
 	txs := c.BlockData.GetAddressTransactionsRaw(address, count)
 	if txs == nil {
