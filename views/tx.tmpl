@@ -44,7 +44,7 @@
                     Value: {{.Value}}<br>
                     Address: 
                         {{range .ScriptPubKeyDecoded.Addresses}}
-                            {{.}}<br>
+                            <a href="/explorer/address/{{.}}">{{.}}</a><br>
                         {{end}}
                         </p>
                     {{end}}

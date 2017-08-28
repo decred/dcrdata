@@ -80,6 +80,28 @@ func (c *appContext) txPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+func (c *appContext) addressPage(w http.ResponseWriter, r *http.Request) {
+	address, ok := r.Context().Value(ctxAddress).(string)
+
+	helpers := template.FuncMap{"getTime": getTime, "getTotal": getTotalapi, "len": func(s string) int { return len(s) / 2 }}
+	txTemplate, _ := template.New("address").Funcs(helpers).ParseFiles("views/address.tmpl", "views/extras.tmpl")
+
+	if !ok {
+		apiLog.Trace("address not set")
+		http.Error(w, "address not set", http.StatusInternalServerError)
+		return
+	}
+
+	str, err := TemplateExecToString(txTemplate, "address", c.BlockData.GetAddressTransactions(address, 10))
+	if err != nil {
+		http.Error(w, "template execute failure Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 func getTime(btime int64) string {
 	t := time.Unix(btime, 0)
 	return t.String()
@@ -130,5 +152,13 @@ func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 			rd.Get("/", app.txPage)
 		})
 	})
+
+	mux.Route("/address", func(r chi.Router) {
+		r.Route("/{address}", func(rd chi.Router) {
+			rd.Use(AddressPathCtx)
+			rd.Get("/", app.addressPage)
+		})
+	})
+
 	return explorerMux{mux}
 }
