@@ -24,7 +24,7 @@
                     <th> Voters </th>
                     <th> Fresh Stake </th>
                     <th> Transactions </th>
-                    <th> Size(bytes)</th>
+                    <th> Size </th>
                     <th> Time </th>
                 </tr>
                 </thead>
@@ -34,7 +34,7 @@
                     <td> {{.Voters}} </td>
                     <td> {{.FreshStake}} </td>
                     <td> {{.TxCount}}</td>
-                    <td> {{.Size}}</td>
+                    <td> {{.Size}} B</td>
                     <td> {{.Time | getTime}} </td>
                 </tr>
             {{end}}

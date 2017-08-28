@@ -16,7 +16,7 @@
             <div class="col-md-15">
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
                     Height: <span style="float: right;" >{{.Height}}</span><br>
-                    Size: <span style="float: right;" >{{.Size}}</span><br>
+                    Size: <span style="float: right;" >{{.Size}} B</span><br>
                     Time: <span style="float: right;" >{{.Time | getTime}}</span><br>
                     Hash:  <span style="float: right;" >{{template "copyButton" .Hash}}{{.Hash}}</span><br>
                     Difficulty: <span style="float: right;" >{{printf "%12.2f" .Difficulty}}</span><br>
@@ -44,7 +44,7 @@
                         <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
                         Transactions ID: <span style="float: right;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
                         Total Value:  <span style="float: right;" >{{ .Vout | getTotal | getAmount}}</span><br>
-                        Size: <span style="float: right;" >{{.Hex | size}}</span><br>
+                        Size: <span style="float: right;" >{{.Hex | size}} B</span><br>
                         </p>
                     {{end}}
                 <h4><span>Stake Transactions</span></h4>
@@ -52,7 +52,7 @@
                         <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
                         Transactions ID: <span style="float: right;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
                         Total Value:  <span style="float: right;" >{{ .Vout | getTotal | getAmount}}</span><br>
-                        Size: <span style="float: right;" >{{.Hex | size}}</span><br>
+                        Size: <span style="float: right;" >{{.Hex | size}} B</span><br>
                         </p>
                     {{end}}
                 
