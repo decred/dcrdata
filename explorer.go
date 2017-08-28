@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/decred/dcrutil"
+
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
 
@@ -19,19 +21,30 @@ type explorerMux struct {
 }
 
 func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
-
-	helpers := template.FuncMap{"getTime": getTime}
+	helpers := template.FuncMap{
+		"getTime": getTime,
+		"addTx": func(tx, stx []dcrjson.TxRawResult) int {
+			return len(tx) + len(stx)
+		},
+	}
 	explorerTemplate, _ := template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl", "views/extras.tmpl")
 
 	idx := c.BlockData.GetHeight()
 	N := 20
-	summaries := make([]*dcrjson.GetBlockHeaderVerboseResult, 0, N)
-	for i := idx; i >= idx-N-1; i-- {
-		summaries = append(summaries, c.BlockData.GetHeader(i))
+	type explorerData struct {
+		*dcrjson.GetBlockVerboseResult
+		TxCount int
 	}
-	str, err := TemplateExecToString(explorerTemplate, "explorer", struct {
-		Data []*dcrjson.GetBlockHeaderVerboseResult
-	}{summaries})
+	summaries := make([]explorerData, 0, N)
+	for i := idx; i >= idx-N-1; i-- {
+		data := c.BlockData.GetBlockVerbose(i, false)
+		count := len(data.Tx) + len(data.STx)
+		summaries = append(summaries, explorerData{
+			data,
+			count,
+		})
+	}
+	str, err := TemplateExecToString(explorerTemplate, "explorer", summaries)
 
 	if err != nil {
 		http.Error(w, "template execute failure, Error: "+err.Error(), http.StatusInternalServerError)
@@ -45,7 +58,14 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
 	hash := c.getBlockHashCtx(r)
 
-	helpers := template.FuncMap{"getTime": getTime, "getTotal": getTotaljs, "len": func(s string) int { return len(s) / 2 }}
+	helpers := template.FuncMap{
+		"getTime":   getTime,
+		"getTotal":  getTotaljs,
+		"getAmount": getAmount,
+		"size": func(h string) int {
+			return len(h) / 2
+		},
+	}
 	blockTemplate, _ := template.New("block").Funcs(helpers).ParseFiles("views/block.tmpl", "views/extras.tmpl")
 
 	str, err := TemplateExecToString(blockTemplate, "block", c.BlockData.GetBlockVerboseByHash(hash, true))
@@ -61,7 +81,12 @@ func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
 func (c *appContext) txPage(w http.ResponseWriter, r *http.Request) {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 
-	helpers := template.FuncMap{"getTime": getTime, "getTotal": getTotalapi, "len": func(s string) int { return len(s) / 2 }}
+	helpers := template.FuncMap{
+		"getTime":   getTime,
+		"getTotal":  getTotalapi,
+		"getAmount": getAmount,
+	}
+
 	txTemplate, _ := template.New("tx").Funcs(helpers).ParseFiles("views/tx.tmpl", "views/extras.tmpl")
 
 	if !ok {
@@ -83,7 +108,11 @@ func (c *appContext) txPage(w http.ResponseWriter, r *http.Request) {
 func (c *appContext) addressPage(w http.ResponseWriter, r *http.Request) {
 	address, ok := r.Context().Value(ctxAddress).(string)
 
-	helpers := template.FuncMap{"getTime": getTime, "getTotal": getTotalapi, "len": func(s string) int { return len(s) / 2 }}
+	helpers := template.FuncMap{
+		"getTime":   getTime,
+		"getTotal":  getTotalapi,
+		"getAmount": getAmount,
+	}
 	txTemplate, _ := template.New("address").Funcs(helpers).ParseFiles("views/address.tmpl", "views/extras.tmpl")
 
 	if !ok {
@@ -122,6 +151,10 @@ func getTotalapi(vout []apitypes.Vout) float64 {
 	return total
 }
 
+func getAmount(v float64) dcrutil.Amount {
+	amount, _ := dcrutil.NewAmount(v)
+	return amount
+}
 func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 	mux := chi.NewRouter()
 	if userRealIP {

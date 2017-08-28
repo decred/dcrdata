@@ -11,29 +11,29 @@
             <h4><span>Transaction  {{.TxShort.TxID}}</span></h4>
             <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
                 {{with .TxShort}}
-                Transactions ID: {{.TxID}}<br>
-                Total Value: {{ .Vout | getTotal }} DCR<br>
-                Time: {{$.Block.Time | getTime }}<br>
-                Confirmations: {{$.Confirmations}}<br>
-                Included in block: <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a><br>
-                Size: {{.Size}}<br>
+                Transactions ID: <span style="float: right;" >{{template "copyButton" .TxID}}{{.TxID}}</span><br>
+                Total Value: <span style="float: right;" >{{ .Vout | getTotal }} DCR</span><br>
+                Time: <span style="float: right;" >{{$.Block.Time | getTime }}</span><br>
+                Confirmations: <span style="float: right;" >{{$.Confirmations}}</span><br>
+                Included in block: <span style="float: right;" ><a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></span><br>
+                Size: <span style="float: right;" >{{.Size}}</span><br>
                 {{end}}
                 </p>
             <h4><span>In</span></h4>
             {{range .Vin}}
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;">
                     {{ if .Coinbase}}
-                    Coinbase: {{ .Coinbase }}<br>
+                    Coinbase: <span style="float: right;" >{{template "copyButton" .Coinbase}}{{ .Coinbase }}</span><br>
                     {{end}}
                     {{if ne .BlockHeight 0}}
-                    Transaction: <a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a><br>
-                    Block Height: {{.BlockHeight}}<br>
+                    Transaction: <span style="float: right;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
+                    Block Height: <span style="float: right;" >{{.BlockHeight}}</span><br>
                     {{else if ne .Txid ""}}
-                    Transaction: {{.Txid}}<br>
+                    Transaction: <span style="float: right;" >{{template "copyButton" .Txid}}{{.Txid}}</span><br>
                     {{end}}
-                    Sequence: {{.Sequence}}<br>
-                    Tree: {{.Tree}} <br>
-                    Value: {{.AmountIn}}<br>
+                    Sequence: <span style="float: right;" >{{.Sequence}}</span><br>
+                    Tree: <span style="float: right;" >{{.Tree}}</span><br>
+                    Value: <span style="float: right;" >{{.AmountIn | getAmount}}</span><br>
                 </p>
                 {{end}}
             
@@ -41,10 +41,10 @@
                 {{range .Vout}}
                     {{ if ne .Value 0.0}}
                     <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                    Value: {{.Value}}<br>
+                    Value: <span style="float: right;" >{{.Value | getAmount}}</span><br>
                     Address: 
                         {{range .ScriptPubKeyDecoded.Addresses}}
-                            <a href="/explorer/address/{{.}}">{{.}}</a><br>
+                        <span style="float: right;" >{{template "copyButton" .}}<a href="/explorer/address/{{.}}">{{.}}</a></span><br>
                         {{end}}
                         </p>
                     {{end}}

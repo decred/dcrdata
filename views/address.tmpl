@@ -4,27 +4,27 @@
 {{template "html-head"}}
 <body>
 {{template "navbar"}}
-
 <div class="wrapper" style="margin-top:60px;">
         <div id="boxagenda">
             <div style="clear:both;">&nbsp;</div>
-            <h4><span>Transaction  {{.Address}}</span></h4>
+            <h4><span>Address  {{.Address}}</span></h4>
             <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                Address: {{.Address}}
+                Address: <span style="float: right;" >{{template "copyButton" .Address}}{{.Address}}</span> 
             </p>
 
             <h4><span>Transactions</span></h4>
             {{range .Transactions}}
-            <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                Transaction ID: <a href="../tx/{{.TxID}}">{{.TxID}}</a> <br>
-                Time: {{.Time | getTime }}<br>
-                Confirmations: {{.Confirmations}}<br>
-                Total Value: {{.Value}}<br>
-                Size: {{.Size}}<br>
+            <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                Transaction ID: <span style="float: right;" >{{template "copyButton" .TxID}}<a href="../tx/{{.TxID}}" id="{{.TxID}}">{{.TxID}}</a>
+                </span><br>
+                Time: <span style="float: right;" >{{.Time | getTime }}</span><br>
+                Confirmations: <span style="float: right;" >{{.Confirmations}}</span><br>
+                Total Value: <span style="float: right;" >{{.Value | getAmount}}</span><br>
+                Size (bytes): <span style="float: right;" >{{.Size}}</span><br>
             </p>
             {{end}}
         </div>
-    </div>
+</div>
 </body>
 </html>
 {{end}}

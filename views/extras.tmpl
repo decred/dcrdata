@@ -22,7 +22,8 @@
     <title>dcrdata web</title>
     <link href="/css/main.css" rel="stylesheet">
     <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less">
-    <script src="/js/Chart.min.js"></script>
+    <!-- <script src="/js/Chart.min.js"></script> -->
+    <script src="/js/clipboard.min.js"></script>
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
@@ -30,13 +31,25 @@
     <![endif]-->
     <style>
         a {
-            color: wheat;
+            color: white;
+            text-decoration: underline;
+        }
+        .copy_btn {
+            background-color: #2971FF;
+            border: none;
+            padding: 0 0;
+        }
+        .copy_btn img {
+            width: 10px;
         }
     </style>
 </head>
 {{end}}
 
 {{define "navbar"}}
+<script>
+        new Clipboard('.copy_btn');
+</script>
 <nav class="navbar navbar-default navbar-fixed-top">
         <div class="container wrapper">
             <div class="navbar-header">
@@ -56,14 +69,19 @@
                 <ul class="nav navbar-nav">
                 </ul>
                 <ul class="nav navbar-nav navbar-right">
-                    <li><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" title="_blank">dcrdata GitHub</a></li>
+                    <li><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" title="_blank">GitHub</a></li>
                     <li><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" title="_blank">API</a></li>
                     <li><a href="/api/status" title="API Status" title="_blank">API Status</a></li>
                     <li><a href="/explorer" title="Block Explorer" title="_blank">Explore</a></li>
-                    <li><a href="https://decred.slack.com/" title="Decred Slack" title="_blank">Decred Slack</a></li>
                 </ul>
             </div>
             <!--/.nav-collapse -->
         </div>
     </nav>
+{{end}}
+
+{{ define "copyButton"}}
+<button class="copy_btn" data-clipboard-text="{{.}}">
+        <img src="/images/copy.png" alt="Copy to clipboard" style="width: 13px;">
+</button>
 {{end}}

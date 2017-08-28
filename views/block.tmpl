@@ -15,44 +15,44 @@
 
             <div class="col-md-15">
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                    Height: {{.Height}}<br>
-                    Size: {{.Size}}<br>
-                    Time: {{.Time | getTime}}<br>
-                    Hash:  {{.Hash}}<br>
-                    Difficulty: {{printf "%12.2f" .Difficulty}}<br>
-                    Previous Block Hash: <a href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a><br>
+                    Height: <span style="float: right;" >{{.Height}}</span><br>
+                    Size: <span style="float: right;" >{{.Size}}</span><br>
+                    Time: <span style="float: right;" >{{.Time | getTime}}</span><br>
+                    Hash:  <span style="float: right;" >{{template "copyButton" .Hash}}{{.Hash}}</span><br>
+                    Difficulty: <span style="float: right;" >{{printf "%12.2f" .Difficulty}}</span><br>
+                    Previous Block Hash: <span style="float: right;" >{{template "copyButton" .PreviousHash}}<a href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></span><br>
                     {{if .NextHash}}
-                    Next Block Hash: <a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a><br>
+                    Next Block Hash: <span style="float: right;" >{{template "copyButton" .NextHash}}<a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></span><br>
                     {{end}}
-                    Confirmations: {{.Confirmations}}<br>
-                    Verison: {{.Version}}<br>
-                    Merkle Root: {{.MerkleRoot}}<br>
-                    Stake Root: {{.StakeRoot}}<br>
-                    Voters: {{.Voters}}<br>
-                    Fresh Stake: {{.FreshStake}}<br>
-                    Vote Bits: {{.VoteBits}}<br>
-                    Final State: {{.FinalState}}<br>
-                    Revocations: {{.Revocations}}<br>
-                    Pool Size: {{.PoolSize}}<br>
-                    Stake Version: {{.StakeVersion}}<br>
-                    Nonce: {{.Nonce}}<br>
-                    Sbits: {{.SBits}}<br>
-                    Bits: {{.Bits}}<br>
+                    Confirmations: <span style="float: right;" >{{.Confirmations}}</span><br>
+                    Verison: <span style="float: right;" >{{.Version}}</span><br>
+                    Merkle Root: <span style="float: right;" >{{template "copyButton" .MerkleRoot}}{{.MerkleRoot}}</span><br>
+                    Stake Root: <span style="float: right;" >{{template "copyButton" .StakeRoot}}{{.StakeRoot}}</span><br>
+                    Voters: <span style="float: right;" >{{.Voters}}</span><br>
+                    Fresh Stake: <span style="float: right;" >{{.FreshStake}}</span><br>
+                    Vote Bits: <span style="float: right;" >{{.VoteBits}}</span><br>
+                    Final State: <span style="float: right;" >{{.FinalState}}</span><br>
+                    Revocations: <span style="float: right;" >{{.Revocations}}</span><br>
+                    Pool Size: <span style="float: right;" >{{.PoolSize}}</span><br>
+                    Stake Version: <span style="float: right;" >{{.StakeVersion}}</span><br>
+                    Nonce: <span style="float: right;" >{{.Nonce}}</span><br>
+                    Sbits: <span style="float: right;" >{{.SBits}}</span><br>
+                    Bits: <span style="float: right;" >{{.Bits}}</span><br>
                      </p>
                 <h4><span>Transactions</span></h4>
                     {{ range .RawTx}}
                         <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                        Transactions ID: <a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a><br>
-                        Total Value:  {{ .Vout | getTotal }} DCR<br>
-                        Size: {{.Hex | len}}
+                        Transactions ID: <span style="float: right;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
+                        Total Value:  <span style="float: right;" >{{ .Vout | getTotal | getAmount}}</span><br>
+                        Size: <span style="float: right;" >{{.Hex | size}}</span><br>
                         </p>
                     {{end}}
                 <h4><span>Stake Transactions</span></h4>
                     {{ range .RawSTx}}
                         <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                        Transactions ID: <a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a><br>
-                        Total Value:  {{ .Vout | getTotal }} DCR<br>
-                        Size: {{.Hex | len}}
+                        Transactions ID: <span style="float: right;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
+                        Total Value:  <span style="float: right;" >{{ .Vout | getTotal | getAmount}}</span><br>
+                        Size: <span style="float: right;" >{{.Hex | size}}</span><br>
                         </p>
                     {{end}}
                 
