@@ -559,7 +559,7 @@ func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
 		return nil, fmt.Errorf("Cannot retrieve block size range (%d<%d)",
 			ind1, ind0)
 	}
-	db.Lock()
+	db.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
 		defer db.RUnlock()
 		return nil, fmt.Errorf("Cannot retrieve block size range [%d,%d], have height %d",
