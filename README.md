@@ -228,7 +228,7 @@ See the GitHub issue tracker and the [project milestones](https://github.com/dcr
 
 ## Requirements
 
-* [Go](http://golang.org) 1.7 or newer.
+* [Go](http://golang.org) 1.8.3 or newer.
 * Running `dcrd` (>=0.6.1) synchronized to the current best block on the network.
 
 ## Installation
