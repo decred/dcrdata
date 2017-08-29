@@ -26,6 +26,9 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 		"addTx": func(tx, stx []dcrjson.TxRawResult) int {
 			return len(tx) + len(stx)
 		},
+		"txCount": func(d *dcrjson.GetBlockVerboseResult) int {
+			return len(d.Tx) + len(d.STx)
+		},
 	}
 	explorerTemplate, _ := template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl", "views/extras.tmpl")
 
@@ -68,7 +71,16 @@ func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
 	}
 	blockTemplate, _ := template.New("block").Funcs(helpers).ParseFiles("views/block.tmpl", "views/extras.tmpl")
 
-	str, err := TemplateExecToString(blockTemplate, "block", c.BlockData.GetBlockVerboseByHash(hash, true))
+	type blockData struct {
+		*dcrjson.GetBlockVerboseResult
+		TxCount int
+	}
+	data := c.BlockData.GetBlockVerboseByHash(hash, true)
+	count := len(data.RawTx) + len(data.RawSTx)
+	str, err := TemplateExecToString(blockTemplate, "block", blockData{
+		data,
+		count,
+	})
 	if err != nil {
 		http.Error(w, "template execute failure Error: "+err.Error(), http.StatusInternalServerError)
 		return

@@ -25,6 +25,7 @@
                     Next Block Hash: <span style="float: right;" >{{template "copyButton" .NextHash}}<a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></span><br>
                     {{end}}
                     Confirmations: <span style="float: right;" >{{.Confirmations}}</span><br>
+                    Transactions: <span style="float: right;" >{{.TxCount}}</span><br>
                     Verison: <span style="float: right;" >{{.Version}}</span><br>
                     Merkle Root: <span style="float: right;" >{{template "copyButton" .MerkleRoot}}{{.MerkleRoot}}</span><br>
                     Stake Root: <span style="float: right;" >{{template "copyButton" .StakeRoot}}{{.StakeRoot}}</span><br>
