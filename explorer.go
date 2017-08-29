@@ -33,7 +33,7 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 	explorerTemplate, _ := template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl", "views/extras.tmpl")
 
 	idx := c.BlockData.GetHeight()
-	N := 20
+	N := 40
 	type explorerData struct {
 		*dcrjson.GetBlockVerboseResult
 		TxCount int
