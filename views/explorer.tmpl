@@ -25,23 +25,72 @@
                     <th> Fresh Stake </th>
                     <th> Transactions </th>
                     <th> Size </th>
+                    <th> Age </th>
                     <th> Time </th>
                 </tr>
                 </thead>
-            {{range .}}
-                <tr style="background-color:#2971FF;">
+            {{range .Data}}
+                <tr id="{{.Height}}"style="background-color:#2971FF;">
                     <td> <a href="/explorer/block/{{.Hash}}">{{.Height}}</a> </td>
                     <td> {{.Voters}} </td>
                     <td> {{.FreshStake}} </td>
                     <td> {{.TxCount}}</td>
                     <td> {{.Size}} B</td>
+                    <td class="age"> {{.Time}} </td>
                     <td> {{.Time | getTime}} </td>
                 </tr>
             {{end}}
             </table>
+            <form action="/explorer#{{.Last}}"  class="form">
+                Start at: <input type="text" id="startat" name="startat" value="{{.Last}}" style="color:blue;">
+                <input type="submit" value="go" style="color:blue;">
+            </form>
         </div>
     </div>
- 
+    <script>
+        function timeSince(date) {
+            var seconds = Math.floor((new Date() - date) / 1000);
+            var interval = Math.floor(seconds / 31536000);
+            
+            if (interval > 1) {
+                    return interval + " years";
+                  }
+                  interval = Math.floor(seconds / 2592000);
+                  if (interval > 1) {
+                    return interval + " months";
+                  }
+                  interval = Math.floor(seconds / 86400);
+                  if (interval > 1) {
+                    return interval + " days";
+                  }
+                  interval = Math.floor(seconds / 3600);
+                  if (interval > 1) {
+                    return interval + " hours";
+                  }
+                  interval = Math.floor(seconds / 60);
+                  if (interval > 1) {
+                    return interval + " minutes";
+                  }
+                  return Math.floor(seconds) + " seconds";
+                }
+
+        
+        var ages = document.getElementsByClassName("age")
+        var age_times = []
+        for (var i = 0; i < ages.length; i++) {
+            age_times[i] = new Date(parseInt(ages[i].innerText) * 1000)
+            ages[i].innerText = timeSince(age_times[i])
+        }
+        function updateTime() {
+            for (var i = 0; i < ages.length; i++) {
+                ages[i].innerText = timeSince(age_times[i])
+            }
+        }
+        setInterval(updateTime, 60000)
+
+        var startat = document.getElementById("startat")
+        startat.value = parseInt(startat.value) - 25
+        </script>
 </body>
 
 </html>

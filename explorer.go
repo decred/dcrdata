@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/decred/dcrutil"
@@ -23,23 +24,21 @@ type explorerMux struct {
 func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 	helpers := template.FuncMap{
 		"getTime": getTime,
-		"addTx": func(tx, stx []dcrjson.TxRawResult) int {
-			return len(tx) + len(stx)
-		},
-		"txCount": func(d *dcrjson.GetBlockVerboseResult) int {
-			return len(d.Tx) + len(d.STx)
-		},
 	}
 	explorerTemplate, _ := template.New("explorer").Funcs(helpers).ParseFiles("views/explorer.tmpl", "views/extras.tmpl")
 
 	idx := c.BlockData.GetHeight()
-	N := 40
+	N := 25
+	start, errS := strconv.Atoi(r.URL.Query().Get("startat"))
+	if errS != nil || start == 0 {
+		start = idx - N + 1
+	}
 	type explorerData struct {
 		*dcrjson.GetBlockVerboseResult
 		TxCount int
 	}
 	summaries := make([]explorerData, 0, N)
-	for i := idx; i >= idx-N-1; i-- {
+	for i := idx; i >= start; i-- {
 		data := c.BlockData.GetBlockVerbose(i, false)
 		count := len(data.Tx) + len(data.STx)
 		summaries = append(summaries, explorerData{
@@ -47,7 +46,13 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 			count,
 		})
 	}
-	str, err := TemplateExecToString(explorerTemplate, "explorer", summaries)
+	str, err := TemplateExecToString(explorerTemplate, "explorer", struct {
+		Data []explorerData
+		Last int
+	}{
+		summaries,
+		start,
+	})
 
 	if err != nil {
 		http.Error(w, "template execute failure, Error: "+err.Error(), http.StatusInternalServerError)
