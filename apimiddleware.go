@@ -168,6 +168,21 @@ func (c *appContext) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
+func (c *appContext) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hash := chi.URLParam(r, "blockhash")
+		height, _ := c.BlockData.GetBlockHeight(hash)
+		idx, err := strconv.ParseInt(hash, 10, 0)
+		if err == nil {
+			height = idx
+			hash, err = c.BlockData.GetBlockHash(idx)
+		}
+		ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
+		ctx = context.WithValue(ctx, ctxBlockIndex, height)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 // TransactionHashCtx returns a http.HandlerFunc that embeds the value at the url
 // part {txid} into the request context
 func TransactionHashCtx(next http.Handler) http.Handler {

@@ -81,6 +81,11 @@ func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
 		TxCount int
 	}
 	data := c.BlockData.GetBlockVerboseByHash(hash, true)
+	if data == nil {
+		apiLog.Errorf("Unable to get block %s", hash)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
 	count := len(data.RawTx) + len(data.RawSTx)
 	str, err := TemplateExecToString(blockTemplate, "block", blockData{
 		data,
@@ -111,8 +116,13 @@ func (c *appContext) txPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "txid not set", http.StatusInternalServerError)
 		return
 	}
-
-	str, err := TemplateExecToString(txTemplate, "tx", c.BlockData.GetRawTransaction(hash))
+	data := c.BlockData.GetRawTransaction(hash)
+	if data == nil {
+		apiLog.Errorf("Unable to get transaction %s", hash)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	str, err := TemplateExecToString(txTemplate, "tx", data)
 	if err != nil {
 		http.Error(w, "template execute failure Error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -137,8 +147,13 @@ func (c *appContext) addressPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "address not set", http.StatusInternalServerError)
 		return
 	}
-
-	str, err := TemplateExecToString(txTemplate, "address", c.BlockData.GetAddressTransactions(address, 10))
+	data := c.BlockData.GetAddressTransactions(address, 10)
+	if data == nil {
+		apiLog.Errorf("Unable to get address %s", address)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	str, err := TemplateExecToString(txTemplate, "address", data)
 	if err != nil {
 		http.Error(w, "template execute failure Error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -191,7 +206,7 @@ func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 		})
 
 		r.Route("/{blockhash}", func(rd chi.Router) {
-			rd.Use(app.BlockHashPathAndIndexCtx)
+			rd.Use(app.BlockHashPathOrIndexCtx)
 			rd.Get("/", app.blockPage)
 		})
 	})
