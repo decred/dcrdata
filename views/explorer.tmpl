@@ -42,43 +42,64 @@
             {{end}}
             </table>
             <form action="/explorer#{{.Last}}"  class="form">
-                Start at: <input type="text" id="startat" name="startat" value="{{.Last}}" style="color:blue;">
+                from: <input type="text" id="start" name="start" style="color:blue;">
+                to: <input type="text" id="end" name="end" style="color:blue;">
                 <input type="submit" value="go" style="color:blue;">
             </form>
         </div>
     </div>
     <script>
         function timeSince(date) {
-            var seconds = Math.floor((new Date() - date) / 1000);
+            var seconds = Math.floor(((new Date().getTime()/1000) - date))
             var interval = Math.floor(seconds / 31536000);
             
-            if (interval > 1) {
-                    return interval + " years";
-                  }
-                  interval = Math.floor(seconds / 2592000);
-                  if (interval > 1) {
-                    return interval + " months";
-                  }
-                  interval = Math.floor(seconds / 86400);
-                  if (interval > 1) {
-                    return interval + " days";
-                  }
-                  interval = Math.floor(seconds / 3600);
-                  if (interval > 1) {
-                    return interval + " hours";
-                  }
-                  interval = Math.floor(seconds / 60);
-                  if (interval > 1) {
-                    return interval + " minutes";
-                  }
-                  return Math.floor(seconds) + " seconds";
+            if (interval >= 1) {
+                var s = "";
+                if (interval > 1) {
+                    s = "s"
                 }
+                return interval + " year" + s;
+            }
+            interval = Math.floor(seconds / 2592000);
+            if (interval >= 1) {
+                var s = "";
+                if (interval > 1) {
+                    s = "s"
+                }
+                return interval + " month" + s;
+            }
+            interval = Math.floor(seconds / 86400);
+            if (interval >= 1) {
+                var s = "";
+                if (interval > 1) {
+                    s = "s"
+                }
+                return interval + " day" + s;
+            }
+            interval = Math.floor(seconds / 3600);
+            if (interval >= 1) {
+                var s = "";
+                if (interval > 1) {
+                    s = "s"
+                }
+                return interval + " hour" + s;
+            }
+            interval = Math.floor(seconds / 60);
+            if (interval >= 1) {
+                var s = "";
+                if (interval > 1) {
+                    s = "s"
+                }
+                return interval + " minute" + s;
+            }
+            return Math.floor(seconds) + " seconds";
+        }
 
         
         var ages = document.getElementsByClassName("age")
         var age_times = []
         for (var i = 0; i < ages.length; i++) {
-            age_times[i] = new Date(parseInt(ages[i].innerText) * 1000)
+            age_times[i] = new Date(parseInt(ages[i].innerText))
             ages[i].innerText = timeSince(age_times[i])
         }
         function updateTime() {
@@ -87,9 +108,6 @@
             }
         }
         setInterval(updateTime, 60000)
-
-        var startat = document.getElementById("startat")
-        startat.value = parseInt(startat.value) - 25
         </script>
 </body>
 

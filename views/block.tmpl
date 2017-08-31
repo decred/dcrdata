@@ -13,37 +13,37 @@
             <div style="clear:both;">&nbsp;</div>
             <h4><span>Block #{{.Height}}</span></h4>
 
-            <div class="col-md-15">
+            <div class="col-md-12" style="float: none; margin: 0 auto;">
                 <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
                     Height: <span style="float: right;" >{{.Height}}</span><br>
                     Size: <span style="float: right;" >{{.Size}} B</span><br>
-                    Time: <span style="float: right;" >{{.Time | getTime}}</span><br>
-                    Hash:  <span style="float: right;" >{{template "copyButton" .Hash}}{{.Hash}}</span><br>
-                    Difficulty: <span style="float: right;" >{{printf "%12.2f" .Difficulty}}</span><br>
-                    Previous Block Hash: <span style="float: right;" >{{template "copyButton" .PreviousHash}}<a href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></span><br>
-                    {{if .NextHash}}
-                    Next Block Hash: <span style="float: right;" >{{template "copyButton" .NextHash}}<a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></span><br>
-                    {{end}}
                     Confirmations: <span style="float: right;" >{{.Confirmations}}</span><br>
+                    Time: <span style="float: right;" >{{.Time | getTime}}</span><br>
+                    Hash:  <span style="float: right;font: 12px monospace;" >{{template "copyButton" .Hash}}{{.Hash}}</span><br>
+                    Difficulty: <span style="float: right;" >{{printf "%12.2f" .Difficulty}}</span><br>
+                    POS Difficulty(Sbits): <span style="float: right;" >{{.SBits}}</span><br>
+                    Previous Block Hash: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .PreviousHash}}<a href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></span><br>
+                    {{if .NextHash}}
+                    Next Block Hash: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .NextHash}}<a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></span><br>
+                    {{end}}
                     Transactions: <span style="float: right;" >{{.TxCount}}</span><br>
-                    Verison: <span style="float: right;" >{{.Version}}</span><br>
-                    Merkle Root: <span style="float: right;" >{{template "copyButton" .MerkleRoot}}{{.MerkleRoot}}</span><br>
-                    Stake Root: <span style="float: right;" >{{template "copyButton" .StakeRoot}}{{.StakeRoot}}</span><br>
+                    Block Verison: <span style="float: right;" >{{.Version}}</span><br>
+                    Stake Version: <span style="float: right;" >{{.StakeVersion}}</span><br>
+                    Merkle Root: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .MerkleRoot}}{{.MerkleRoot}}</span><br>
+                    Stake Root: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .StakeRoot}}{{.StakeRoot}}</span><br>
                     Voters: <span style="float: right;" >{{.Voters}}</span><br>
                     Fresh Stake: <span style="float: right;" >{{.FreshStake}}</span><br>
-                    Vote Bits: <span style="float: right;" >{{.VoteBits}}</span><br>
-                    Final State: <span style="float: right;" >{{.FinalState}}</span><br>
                     Revocations: <span style="float: right;" >{{.Revocations}}</span><br>
+                    Vote Bits: <span style="float: right;" >{{.VoteBits}}</span><br>
+                    Final State: <span style="float: right;font: 12px monospace;" >{{.FinalState}}</span><br>
                     Pool Size: <span style="float: right;" >{{.PoolSize}}</span><br>
-                    Stake Version: <span style="float: right;" >{{.StakeVersion}}</span><br>
                     Nonce: <span style="float: right;" >{{.Nonce}}</span><br>
-                    Sbits: <span style="float: right;" >{{.SBits}}</span><br>
                     Bits: <span style="float: right;" >{{.Bits}}</span><br>
                      </p>
                 <h4><span>Transactions</span></h4>
                     {{ range .RawTx}}
                         <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                        Transactions ID: <span style="float: right;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
+                        Transactions ID: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
                         Total Value:  <span style="float: right;" >{{ .Vout | getTotal | getAmount}}</span><br>
                         Size: <span style="float: right;" >{{.Hex | size}} B</span><br>
                         </p>
@@ -51,7 +51,7 @@
                 <h4><span>Stake Transactions</span></h4>
                     {{ range .RawSTx}}
                         <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                        Transactions ID: <span style="float: right;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
+                        Transactions ID: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
                         Total Value:  <span style="float: right;" >{{ .Vout | getTotal | getAmount}}</span><br>
                         Size: <span style="float: right;" >{{.Hex | size}} B</span><br>
                         </p>

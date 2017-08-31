@@ -34,12 +34,12 @@
             color: white;
             text-decoration: underline;
         }
-        .copy_btn {
+        .copy-btn {
             background-color: #2971FF;
             border: none;
             padding: 0 0;
         }
-        .copy_btn img {
+        .copy-btn img {
             width: 10px;
         }
     </style>
@@ -54,25 +54,23 @@
         <div class="container wrapper">
             <div class="navbar-header">
                 <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-                    <span class="sr-only">Toggle navigation</span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
                 </button>
-                <a class="navbar-brand" href="#">
+                <a class="navbar-brand" href="/">
                     <svg class="svg-logo">
                         <use xlink:href="/images/sprites.svg#svg-decred-logo" />
                     </svg>
                 </a>
             </div>
             <div id="navbar" class="navbar-collapse collapse">
-                <ul class="nav navbar-nav">
-                </ul>
                 <ul class="nav navbar-nav navbar-right">
                     <li><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a></li>
                     <li><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a></li>
                     <li><a href="/api/status" title="API Status" target="_blank">API Status</a></li>
-                    <li><a href="/explorer" title="Block Explorer">Explore</a></li>
+                    <li><a href="/explorer" title="Explorer">Explore</a></li>
                 </ul>
             </div>
             <!--/.nav-collapse -->
@@ -81,7 +79,7 @@
 {{end}}
 
 {{ define "copyButton"}}
-<button class="copy_btn" data-clipboard-text="{{.}}">
+<button class="copy-btn" data-clipboard-text="{{.}}">
         <img src="/images/copy.png" alt="Copy to clipboard" style="width: 13px;">
 </button>
 {{end}}
