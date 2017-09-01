@@ -35,7 +35,7 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 	}
 	end, errS := strconv.Atoi(r.URL.Query().Get("end"))
 	if errS != nil || end == 0 || start-end < 10 {
-		end = start - 26
+		end = start - 25
 	} else if start-end > 200 {
 		end = start - 200
 	}

@@ -29,9 +29,9 @@
                     <th> Time </th>
                 </tr>
                 </thead>
-            {{range .Data}}
+            {{range .}}
                 <tr id="{{.Height}}"style="background-color:#2971FF;">
-                    <td> <a href="/explorer/block/{{.Hash}}">{{.Height}}</a> </td>
+                    <td> <a href="/explorer/block/{{.Hash}}" class="height">{{.Height}}</a> </td>
                     <td> {{.Voters}} </td>
                     <td> {{.FreshStake}} </td>
                     <td> {{.TxCount}}</td>
@@ -41,11 +41,8 @@
                 </tr>
             {{end}}
             </table>
-            <form action="/explorer#{{.Last}}"  class="form">
-                from: <input type="text" id="start" name="start" style="color:blue;">
-                to: <input type="text" id="end" name="end" style="color:blue;">
-                <input type="submit" value="go" style="color:blue;">
-            </form>
+            <a id="prev" href="/explorer">Previous Blocks</a>
+            <a id="next" href="/explorer">Next Blocks</a>
         </div>
     </div>
     <script>
@@ -94,20 +91,32 @@
             }
             return Math.floor(seconds) + " seconds";
         }
-
-        
-        var ages = document.getElementsByClassName("age")
-        var age_times = []
+        var ages = document.getElementsByClassName("age");
+        var age_times = [];
         for (var i = 0; i < ages.length; i++) {
-            age_times[i] = new Date(parseInt(ages[i].innerText))
-            ages[i].innerText = timeSince(age_times[i])
+            age_times[i] = new Date(parseInt(ages[i].innerText));
+            ages[i].innerText = timeSince(age_times[i]);
         }
+        var heights = document.getElementsByClassName("height");
+        var first = parseInt(heights[0].innerText);
+        var last = parseInt(heights[heights.length-1].innerText);
+        var numBlocks = first - last
         function updateTime() {
             for (var i = 0; i < ages.length; i++) {
-                ages[i].innerText = timeSince(age_times[i])
+                ages[i].innerText = timeSince(age_times[i]);
             }
         }
-        setInterval(updateTime, 60000)
+        setInterval(updateTime, 60000);
+        var prev = document.getElementById("prev");
+        var next = document.getElementById("next");
+        prev.addEventListener('click', function(event) {
+            event.preventDefault();
+            window.location.href = prev.href + '?start='+ (first-numBlocks).toString() + "&end=" + (last-numBlocks).toString();
+        }, false);
+        next.addEventListener('click', function(event) {
+            event.preventDefault();
+            window.location.href = next.href + '?start='+ (first+numBlocks).toString() + "&end=" + (last+numBlocks).toString();
+        }, false);
         </script>
 </body>
 
