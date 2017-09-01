@@ -29,22 +29,22 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 
 	idx := c.BlockData.GetHeight()
 
-	start, errE := strconv.Atoi(r.URL.Query().Get("start"))
-	if errE != nil || start == 0 || start > idx {
-		start = idx
+	end, errE := strconv.Atoi(r.URL.Query().Get("end"))
+	if errE != nil || end == 0 || end > idx {
+		end = idx
 	}
-	end, errS := strconv.Atoi(r.URL.Query().Get("end"))
-	if errS != nil || end == 0 || start-end < 10 {
-		end = start - 25
-	} else if start-end > 200 {
-		end = start - 200
+	start, errS := strconv.Atoi(r.URL.Query().Get("start"))
+	if errS != nil || start == 0 || end-start < 10 {
+		start = end - 25
+	} else if end-start > 200 {
+		start = end - 200
 	}
 	type explorerData struct {
 		*dcrjson.GetBlockVerboseResult
 		TxCount int
 	}
-	summaries := make([]explorerData, 0, start-end)
-	for i := start; i >= end; i-- {
+	summaries := make([]explorerData, 0, end-start)
+	for i := end; i >= start; i-- {
 		data := c.BlockData.GetBlockVerbose(i, false)
 		count := len(data.Tx) + len(data.STx)
 		summaries = append(summaries, explorerData{
@@ -52,7 +52,13 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 			count,
 		})
 	}
-	str, err := TemplateExecToString(explorerTemplate, "explorer", summaries)
+	str, err := TemplateExecToString(explorerTemplate, "explorer", struct {
+		Data      []explorerData
+		BestBlock int
+	}{
+		summaries,
+		idx,
+	})
 
 	if err != nil {
 		http.Error(w, "template execute failure, Error: "+err.Error(), http.StatusInternalServerError)
