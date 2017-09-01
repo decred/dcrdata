@@ -387,6 +387,15 @@ func (db *wiredDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
 	return blockSizes, nil
 }
 
+func (db *wiredDB) GetBlockSummaryByTime(start, end int) ([]*apitypes.BlockDataBasic, error) {
+	blocks, err := db.RetrieveBlockSummaryRangeTime(int64(start), int64(end))
+	if err != nil {
+		log.Errorf("Unable to retrieve block summaries from time range: %v", err)
+		return nil, err
+	}
+	return blocks, nil
+}
+
 func (db *wiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
 	ticketPoolInfo, err := db.RetrievePoolInfo(int64(idx))
 	if err != nil {

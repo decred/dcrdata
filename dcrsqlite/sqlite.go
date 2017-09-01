@@ -53,7 +53,7 @@ type DB struct {
 	getBlockSQL, insertBlockSQL                         string
 	getBlockByHashSQL                                   string
 	getBlockHashSQL, getBlockHeightSQL                  string
-	getBlockSizeRangeSQL                                string
+	getBlockSizeRangeSQL, getBlockByTimeSQL             string
 	getBestBlockHashSQL, getBestBlockHeightSQL          string
 	getLatestStakeInfoExtendedSQL                       string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
@@ -101,6 +101,7 @@ func NewDB(db *sql.DB) *DB {
 
 	d.getBlockHashSQL = fmt.Sprintf(`select hash from %s where height = ?`, TableNameSummaries)
 	d.getBlockHeightSQL = fmt.Sprintf(`select height from %s where hash = ?`, TableNameSummaries)
+	d.getBlockByTimeSQL = fmt.Sprintf(`select * from %s where time between ? and ?`, TableNameSummaries)
 
 	// Stake info queries
 	d.getStakeInfoExtendedSQL = fmt.Sprintf(`select * from %s where height = ?`,
@@ -594,6 +595,45 @@ func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
 	}
 
 	return blockSizes, nil
+}
+
+// RetrieveBlockSummaryRangeTime returns an array of apitypes.BlockDataBasic for
+// blocks in given time frame
+func (db *DB) RetrieveBlockSummaryRangeTime(start, end int64) ([]*apitypes.BlockDataBasic, error) {
+	N := start - end
+	if N == 0 {
+		return []*apitypes.BlockDataBasic{}, nil
+	}
+
+	blocks := []*apitypes.BlockDataBasic{}
+
+	stmt, err := db.Prepare(db.getBlockByTimeSQL)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(start, end)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		bd := new(apitypes.BlockDataBasic)
+		if err = rows.Scan(&bd.Height, &bd.Size, &bd.Hash, &bd.Difficulty,
+			&bd.StakeDiff, &bd.Time, &bd.PoolInfo.Size, &bd.PoolInfo.Value,
+			&bd.PoolInfo.ValAvg); err != nil {
+			log.Errorf("Unable to scan for sdiff fields: %v", err)
+		}
+		blocks = append(blocks, bd)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	return blocks, nil
 }
 
 // StoreStakeInfoExtended stores the extended stake info in the database
