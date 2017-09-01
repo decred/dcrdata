@@ -91,6 +91,12 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			// rd.Get("/pos", app.getBlockStakeInfoExtended)
 		})
 
+		r.Route("/time", func(rd chi.Router) {
+
+			rd.Use(middleware.Compress(1))
+			rd.Get("/day", app.getBlockSummaryByDate)
+			rd.With(DatePathCtx).Get("/day/{date}", app.getBlockSummaryByDate)
+		})
 		//r.With(middleware.DefaultCompress).Get("/raw", app.someLargeResponse)
 	})
 

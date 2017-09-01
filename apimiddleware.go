@@ -27,6 +27,7 @@ const (
 	ctxTxHash
 	ctxTxInOutIndex
 	ctxN
+	ctxDate
 )
 
 func (c *appContext) StatusCtx(next http.Handler) http.Handler {
@@ -201,6 +202,16 @@ func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
 		ctx := context.WithValue(r.Context(), ctxAddress, address)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// DatePathCtx returns a http.HandlerFunc that embeds the value at the url part
+// {date} into the request context
+func DatePathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		date := chi.URLParam(r, "date")
+		ctx := context.WithValue(r.Context(), ctxDate, date)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

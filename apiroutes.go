@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
@@ -39,6 +41,7 @@ type APIDataSource interface {
 	GetBestBlockSummary() *apitypes.BlockDataBasic
 	GetBlockSize(idx int) (int32, error)
 	GetBlockSizeRange(idx0, idx1 int) ([]int32, error)
+	GetBlockSummaryByTime(start, end int) ([]*apitypes.BlockDataBasic, error)
 	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
 	GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
 	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
@@ -242,6 +245,21 @@ func getAddressCtx(r *http.Request) string {
 	return address
 }
 
+func getDateCtx(r *http.Request) int {
+	dateString, ok := r.Context().Value(ctxDate).(string)
+	if !ok {
+		apiLog.Trace("date not set")
+		today := time.Now()
+		return int(math.Floor(float64(today.Unix() / 86400)))
+	}
+	dateTime, err := time.Parse("01-02-2006", dateString)
+	if err != nil {
+		apiLog.Trace("cannot parse date %s: %s", dateString, err.Error())
+		today := time.Now()
+		return int(math.Floor(float64(today.Unix() / 86400)))
+	}
+	return int(math.Floor(float64(dateTime.Unix() / 86400)))
+}
 func getNCtx(r *http.Request) int {
 	N, ok := r.Context().Value(ctxN).(int)
 	if !ok {
@@ -803,6 +821,36 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 	fmt.Fprintf(w, "]")
 }
 
+func (c *appContext) getBlockSummaryByDate(w http.ResponseWriter, r *http.Request) {
+	date := getDateCtx(r)
+	blocks, er := c.BlockData.GetBlockSummaryByTime(date*86400, (date+1)*86400)
+	if er != nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	encoder := json.NewEncoder(w)
+	indent := c.getIndentQuery(r)
+	prefix, newline := indent, ""
+	encoder.SetIndent(prefix, indent)
+	if indent != "" {
+		newline = "\n"
+	}
+	fmt.Fprintf(w, "[%s%s", newline, prefix)
+	for i := range blocks {
+		// TODO: deal with the extra newline from Encode, if needed
+		if err := encoder.Encode(blocks[i]); err != nil {
+			apiLog.Infof("JSON encode error: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		if i != len(blocks)-1 {
+			fmt.Fprintf(w, ",%s%s", newline, prefix)
+		}
+	}
+	fmt.Fprintf(w, "]")
+
+}
 func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
 	idx := c.getBlockHeightCtx(r)
 	if idx < 0 {
