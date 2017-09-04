@@ -26,7 +26,7 @@
                     {{if .NextHash}}
                     Next Block Hash: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .NextHash}}<a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></span><br>
                     {{end}}
-                    Transactions: <span style="float: right;" >{{.TxCount}}</span><br>
+                    Transactions: <span style="float: right;" >{{.RawTx | len}}</span><br>
                     Block Verison: <span style="float: right;" >{{.Version}}</span><br>
                     Stake Version: <span style="float: right;" >{{.StakeVersion}}</span><br>
                     Merkle Root: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .MerkleRoot}}{{.MerkleRoot}}</span><br>
@@ -49,11 +49,12 @@
                         </p>
                     {{end}}
                 <h4><span>Stake Transactions</span></h4>
-                    {{ range .RawSTx}}
+                    {{ range .RawSTxWithTypes}}
                         <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
                         Transactions ID: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
                         Total Value:  <span style="float: right;" >{{ .Vout | getTotal | getAmount}}</span><br>
                         Size: <span style="float: right;" >{{.Hex | size}} B</span><br>
+                        Type: <span style="float: right;" >{{.TxType}}</span><br>
                         </p>
                     {{end}}
             </div>

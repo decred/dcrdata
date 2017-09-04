@@ -144,6 +144,19 @@ type AddressTxShort struct {
 	Confirmations int64   `json:"confirmations"`
 }
 
+// BlockDataWithTxType adds an array of TxRawWithTxType to
+// dcrjson.GetBlockVerboseResult to include the stake transaction type
+type BlockDataWithTxType struct {
+	*dcrjson.GetBlockVerboseResult
+	RawSTxWithTypes []*TxRawWithTxType
+}
+
+//TxRawWithTxType adds the stake transaction type to dcrjson.TxRawResult
+type TxRawWithTxType struct {
+	dcrjson.TxRawResult
+	TxType string
+}
+
 // below are notes essentially copy-paste from dcrjson
 
 // type Vin struct {

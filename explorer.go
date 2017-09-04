@@ -82,21 +82,13 @@ func (c *appContext) blockPage(w http.ResponseWriter, r *http.Request) {
 	}
 	blockTemplate, _ := template.New("block").Funcs(helpers).ParseFiles("views/block.tmpl", "views/extras.tmpl")
 
-	type blockData struct {
-		*dcrjson.GetBlockVerboseResult
-		TxCount int
-	}
-	data := c.BlockData.GetBlockVerboseByHash(hash, true)
+	data := c.BlockData.GetBlockVerboseWithTxTypes(hash)
 	if data == nil {
 		apiLog.Errorf("Unable to get block %s", hash)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	count := len(data.RawTx) + len(data.RawSTx)
-	str, err := TemplateExecToString(blockTemplate, "block", blockData{
-		data,
-		count,
-	})
+	str, err := TemplateExecToString(blockTemplate, "block", data)
 	if err != nil {
 		http.Error(w, "template execute failure Error: "+err.Error(), http.StatusInternalServerError)
 		return
