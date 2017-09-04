@@ -342,6 +342,13 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	return tx
 }
 
+func (db *wiredDB) DoesTxExist(txid string) bool {
+	if _, err := chainhash.NewHashFromStr(txid); err != nil {
+		return false
+	}
+	return true
+}
+
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 	sd := rpcutils.GetStakeDiffEstimates(db.client)
 

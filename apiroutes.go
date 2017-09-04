@@ -25,6 +25,7 @@ type APIDataSource interface {
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseWithTxTypes(hash string) *apitypes.BlockDataWithTxType
 	GetRawTransaction(txid string) *apitypes.Tx
+	DoesTxExist(txid string) bool
 	GetAllTxIn(txid string) []*apitypes.TxIn
 	GetAllTxOut(txid string) []*apitypes.TxOut
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions

@@ -29,12 +29,12 @@ func (c *appContext) explorerUI(w http.ResponseWriter, r *http.Request) {
 
 	idx := c.BlockData.GetHeight()
 
-	end, errE := strconv.Atoi(r.URL.Query().Get("end"))
-	if errE != nil || end == 0 || end > idx {
+	end, err := strconv.Atoi(r.URL.Query().Get("end"))
+	if err != nil || end == 0 || end > idx {
 		end = idx
 	}
-	start, errS := strconv.Atoi(r.URL.Query().Get("start"))
-	if errS != nil || start < 0 || end-start < 10 {
+	start, err := strconv.Atoi(r.URL.Query().Get("start"))
+	if err != nil || start < 0 || end-start < 10 {
 		start = end - 25
 	} else if end-start > 200 {
 		start = end - 200
@@ -161,6 +161,34 @@ func (c *appContext) addressPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+func (c *appContext) search(w http.ResponseWriter, r *http.Request) {
+	searchStr := r.URL.Query().Get("search")
+	_, err := c.BlockData.GetBlockHeight(searchStr)
+	if err == nil {
+		http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
+		return
+	}
+	idx, err := strconv.ParseInt(searchStr, 10, 0)
+	if err == nil {
+		_, err := c.BlockData.GetBlockHash(idx)
+		if err == nil {
+			http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
+			return
+		}
+	}
+	address := c.BlockData.GetAddressTransactions(searchStr, 1)
+	if address != nil {
+		http.Redirect(w, r, "/explorer/address/"+searchStr, http.StatusPermanentRedirect)
+		return
+	}
+	tx := c.BlockData.DoesTxExist(searchStr)
+	if tx {
+		http.Redirect(w, r, "/explorer/tx/"+searchStr, http.StatusPermanentRedirect)
+		return
+	}
+	http.Error(w, "Cannot find "+searchStr, http.StatusNotFound)
+	return
+}
 func getTime(btime int64) string {
 	t := time.Unix(btime, 0)
 	return t.String()
@@ -222,6 +250,8 @@ func newExplorerMux(app *appContext, userRealIP bool) explorerMux {
 			rd.Get("/", app.addressPage)
 		})
 	})
+
+	mux.Get("/search", app.search)
 
 	return explorerMux{mux}
 }
