@@ -5,52 +5,57 @@
 {{template "html-head"}}
 
 <body>
-    
+
     <!-- Fixed navbar -->
     {{template "navbar"}}
-    <style>
-        td, th{
-            text-align: center;
-        }
-    </style>
-    <div class="wrapper" style="margin-top:60px;">
-        <div id="boxagenda">
-            <div style="clear:both;">&nbsp;</div>
-            <h4><span>Blocks</span></h4>
-            <table class="table table-condensed">
-                <thead>
-                <tr>
-                    <th> Height </th>
-                    <th> Voters </th>
-                    <th> Fresh Stake </th>
-                    <th> Transactions </th>
-                    <th> Size </th>
-                    <th> Age </th>
-                    <th> Time </th>
-                </tr>
-                </thead>
-            {{range .Data}}
-                <tr id="{{.Height}}"style="background-color:#2971FF;">
-                    <td> <a href="/explorer/block/{{.Hash}}" class="height">{{.Height}}</a> </td>
-                    <td> {{.Voters}} </td>
-                    <td> {{.FreshStake}} </td>
-                    <td> {{.TxCount}}</td>
-                    <td> {{.Size}} B</td>
-                    <td class="age"> {{.Time}} </td>
-                    <td> {{.Time | getTime}} </td>
-                </tr>
-            {{end}}
-            </table>
-            <p id="best" class="hidden">{{.BestBlock}}</p>
-            <a id="prev" href="/explorer">Previous Blocks</a>
-            <a id="next" href="/explorer">Next Blocks</a>
+
+    <div class="container">
+        <h4><span>Blocks</span></h4>
+        <div class="row">
+            <div class="col-md-12">
+                <table class="table table-condensed">
+                    <thead>
+                        <tr>
+                            <th>Height</th>
+                            <th>Voters</th>
+                            <th>Fresh Stake</th>
+                            <th>Transactions</th>
+                            <th>Size</th>
+                            <th>Age</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {{range .Data}}
+                        <tr id="{{.Height}}">
+                            <td><a href="/explorer/block/{{.Hash}}" class="height">{{.Height}}</a></td>
+                            <td>{{.Voters}}</td>
+                            <td>{{.FreshStake}}</td>
+                            <td>{{.TxCount}}</td>
+                            <td>{{.Size}} B</td>
+                            <td class="age">{{.Time}}</td>
+                            <td>{{.Time | getTime}}</td>
+                        </tr>
+                    {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <p id="best" class="hidden">{{.BestBlock}}</p>
+                <a id="prev" href="/explorer">Previous Blocks</a>
+                <a id="next" href="/explorer">Next Blocks</a>
+            </div>
         </div>
     </div>
+
     <script>
         function timeSince(date) {
             var seconds = Math.floor(((new Date().getTime()/1000) - date))
             var interval = Math.floor(seconds / 31536000);
-            
+
             if (interval >= 1) {
                 var s = "";
                 if (interval > 1) {

@@ -8,88 +8,51 @@
     <meta name="author" content="dcrdata">
     <!--  Custom favicon  -->
     <link rel="apple-touch-icon" sizes="180x180" href="/images/favicon/apple-touch-icon.png">
-  <link rel="icon" type="image/png" href="/images/favicon/favicon-32x32.png" sizes="32x32">
-  <link rel="icon" type="image/png" href="/images/favicon/favicon-16x16.png" sizes="16x16">
-  <link rel="manifest" href="/images/favicon/manifest.json">
-  <link rel="mask-icon" href="/images/favicon/safari-pinned-tab.svg">
-  <link rel="shortcut icon" href="/images/favicon/favicon.ico">
-  <meta name="apple-mobile-web-app-title" content="deCRED - decentralized credit">
-  <meta name="application-name" content="deCRED - decentralized credit">
-  <meta name="msapplication-TileColor" content="#2973ff">
-  <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png">
-  <meta name="msapplication-config" content="/images/favicon/browserconfig.xml">
+    <link rel="icon" type="image/png" href="/images/favicon/favicon-32x32.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="/images/favicon/favicon-16x16.png" sizes="16x16">
+    <link rel="manifest" href="/images/favicon/manifest.json">
+    <link rel="mask-icon" href="/images/favicon/safari-pinned-tab.svg">
+    <link rel="shortcut icon" href="/images/favicon/favicon.ico">
+    <meta name="apple-mobile-web-app-title" content="deCRED - decentralized credit">
+    <meta name="application-name" content="deCRED - decentralized credit">
+    <meta name="msapplication-TileColor" content="#2973ff">
+    <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png">
+    <meta name="msapplication-config" content="/images/favicon/browserconfig.xml">
     <link rel="icon" href="/favicon.ico">
     <title>dcrdata web</title>
     <link href="/css/main.css" rel="stylesheet">
     <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less">
     <!-- <script src="/js/Chart.min.js"></script> -->
-    <script src="/js/clipboard.min.js"></script>
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
-    <style>
-        a {
-            color: white;
-            text-decoration: underline;
-        }
-        .copy-btn {
-            background-color: #2971FF;
-            border: none;
-            padding: 0 0;
-        }
-        .copy-btn img {
-            width: 10px;
-        }
-    </style>
 </head>
 {{end}}
 
 {{define "navbar"}}
-<script>
-        new Clipboard('.copy_btn');
-</script>
-<nav class="navbar navbar-default navbar-fixed-top">
-        <div class="container wrapper">
-            <div class="navbar-header">
-                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                </button>
-                <a class="navbar-brand" href="/">
-                    <svg class="svg-logo">
-                        <use xlink:href="/images/sprites.svg#svg-decred-logo" />
-                    </svg>
-                </a>
-            </div>
-            <div id="navbar" class="navbar-collapse collapse">
-                <ul class="nav navbar-nav navbar-right">
-                    <li><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a></li>
-                    <li><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a></li>
-                    <li><a href="/api/status" title="API Status" target="_blank">API Status</a></li>
-                    <li><a href="/explorer" title="Explorer">Explore</a></li>
-                    <li>
-                        <div style="line-height: 53px">
-                        <form class="navbar-form" role="search">
-                        <div class="input-group">
-                            <input type="text" class="form-control" placeholder="Search for blocks, addresses or transactions" name="search">
-                        </div>
+<div class="top-nav">
+    <div class="container">
+        <div class="d-flex align-items-center">
+            <div class="col-sm-auto"><a href="/">Home</a></div>
+            <div class="col-sm-auto"><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a></div>
+            <div class="col-sm-auto"><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a></div>
+            <div class="col-sm-auto"><a href="/api/status" title="API Status" target="_blank">Status</a></div>
+            <div class="col-sm-auto"><a href="/explorer" title="Explorer">Explore</a></div>
+            <div class="col">
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            name="search"
+                            class="form-control top-search"
+                            placeholder="Search for blocks, addresses or transactions"
+                        />
                     </div>
-                    </li>
-                    </ul>
                 </form>
             </div>
-            
-            <!--/.nav-collapse -->
         </div>
-    </nav>
-{{end}}
-
-{{ define "copyButton"}}
-<button class="copy-btn" data-clipboard-text="{{.}}">
-        <img src="/images/copy.png" alt="Copy to clipboard" style="width: 13px;">
-</button>
+    </div>
+</div>
 {{end}}

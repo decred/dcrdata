@@ -5,53 +5,90 @@
 <body>
 {{template "navbar"}}
 
-<div class="wrapper" style="margin-top:60px;">
-        <div id="boxagenda">
-            <div style="clear:both;">&nbsp;</div>
-            <h4><span>Transaction  {{.TxShort.TxID}}</span></h4>
-            <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                {{with .TxShort}}
-                Transactions ID: <span style="float: right;" >{{template "copyButton" .TxID}}{{.TxID}}</span><br>
-                Total Value: <span style="float: right;" >{{ .Vout | getTotal }} DCR</span><br>
-                Time: <span style="float: right;" >{{$.Block.Time | getTime }}</span><br>
-                Confirmations: <span style="float: right;" >{{$.Confirmations}}</span><br>
-                Included in block: <span style="float: right;" ><a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></span><br>
-                Size: <span style="float: right;" >{{.Size}} B</span><br>
-                {{end}}
-                </p>
-            <h4><span>In</span></h4>
-            {{range .Vin}}
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    {{ if .Coinbase}}
-                    Coinbase: <span style="float: right;" >{{template "copyButton" .Coinbase}}{{ .Coinbase }}</span><br>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h4>Transaction</h4>
+            <p>{{.TxID}}</p>
+            <table class="table">
+                <thead>
+                    <th>Transactions ID:</th>
+                    <th>Total Value:</th>
+                    <th>Time:</th>
+                    <th>Confirmations:</th>
+                    <th>Included in block:</th>
+                    <th>Size:</th>
+                </thead>
+                <tbody>
+                    {{with .TxShort}}
+                    <tr>
+                        <td><span class="hash collapse">{{.TxID}}</span></td>
+                        <td>{{ .Vout | getTotal }} DCR</td>
+                        <td>{{$.Block.Time | getTime }}</td>
+                        <td>{{$.Confirmations}}</td>
+                        <td><a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></td>
+                        <td>{{.Size}} B</td>
+                    </tr>
                     {{end}}
-                    {{if ne .BlockHeight 0}}
-                    Transaction: <span style="float: right;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
-                    Block Height: <span style="float: right;" >{{.BlockHeight}}</span><br>
-                    {{else if ne .Txid ""}}
-                    Transaction: <span style="float: right;" >{{template "copyButton" .Txid}}{{.Txid}}</span><br>
-                    {{end}}
-                    Sequence: <span style="float: right;" >{{.Sequence}}</span><br>
-                    Tree: <span style="float: right;" >{{.Tree}}</span><br>
-                    Value: <span style="float: right;" >{{.AmountIn | getAmount}}</span><br>
-                </p>
-                {{end}}
-            
-            <h4><span>Out</span></h4>
-                {{range .Vout}}
-                    {{ if ne .Value 0.0}}
-                    <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                    Value: <span style="float: right;" >{{.Value | getAmount}}</span><br>
-                    Address: 
-                        {{range .ScriptPubKeyDecoded.Addresses}}
-                        <span style="float: right;" >{{template "copyButton" .}}<a href="/explorer/address/{{.}}">{{.}}</a></span><br>
-                        {{end}}
-                        </p>
-                    {{end}}
-                {{end}}
-            
+                </tbody>
+            </table>
         </div>
     </div>
+    <div class="row">
+        <div class="col-md-7">
+            <h4>In:</h4>
+            <table class="table table-sm">
+                <thead>
+                    <th>Transaction</th>
+                    <th>Block Height: </th>
+                    <th>Sequence</th>
+                    <th>Tree</th>
+                    <th>Value</th>
+                </thead>
+                <tbody>
+                    {{range .Vin}}
+                    <tr>
+                        <td>
+                            {{ if .Coinbase}}<span>{{ .Coinbase }}</span>{{end}}
+                            <span class="hash collapse">{{.Txid}}</span>
+                        </td>
+                        <td>{{if ne .BlockHeight 0}}{{.BlockHeight}}{{end}}</td>
+                        <td>{{.Sequence}}</td>
+                        <td>{{.Tree}}</td>
+                        <td>{{.AmountIn | getAmount}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-5">
+            <h4>Out:</h4>
+            <table class="table table-sm">
+                <thead>
+                    <th>Value</th>
+                    <th>Address</th>
+                </thead>
+                <tbody>
+                    {{range .Vout}}
+                    {{ if ne .Value 0.0}}
+                    <tr>
+                        <td>
+                            {{.Value | getAmount}}
+                        </td>
+                        <td>
+                            {{range .ScriptPubKeyDecoded.Addresses}}
+                                <div class="hash"><a href="/explorer/address/{{.}}">{{.}}</a></div>
+                            {{end}}
+                        </td>
+                    </tr>
+                    {{end}}
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </body>
 </html>
 {{end}}

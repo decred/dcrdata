@@ -3,28 +3,40 @@
 <html lang="en">
 {{template "html-head"}}
 <body>
-{{template "navbar"}}
-<div class="wrapper" style="margin-top:60px;">
-        <div id="boxagenda">
-            <div style="clear:both;">&nbsp;</div>
-            <h4><span>Address  {{.Address}}</span></h4>
-            <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                Address: <span style="float: right;" >{{template "copyButton" .Address}}{{.Address}}</span> 
-            </p>
 
-            <h4><span>Transactions</span></h4>
-            {{range .Transactions}}
-            <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                Transaction ID: <span style="float: right;" >{{template "copyButton" .TxID}}<a href="../tx/{{.TxID}}" id="{{.TxID}}">{{.TxID}}</a>
-                </span><br>
-                Time: <span style="float: right;" >{{.Time | getTime }}</span><br>
-                Confirmations: <span style="float: right;" >{{.Confirmations}}</span><br>
-                Total Value: <span style="float: right;" >{{.Value | getAmount}}</span><br>
-                Size : <span style="float: right;" >{{.Size}} B</span><br>
-            </p>
-            {{end}}
+    {{template "navbar"}}
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+
+                <h4>Address</h4>
+                <p>{{.Address}}</p>
+
+                <h4>Transactions</h4>
+                <table class="table">
+                    <thead>
+                        <th>Transactions ID:</th>
+                        <th>Total Value:</th>
+                        <th>Time:</th>
+                        <th>Confirmations:</th>
+                        <th>Size:</th>
+                    </thead>
+                    <tbody>
+                        {{range .Transactions}}
+                        <tr>
+                            <td><a href="../tx/{{.TxID}}" class="hash collapse">{{.TxID}}</a></td>
+                            <td>{{.Value | getAmount}} DCR</td>
+                            <td>{{.Time | getTime }}</td>
+                            <td>{{.Confirmations}}</td>
+                            <td>{{.Size}} B</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
         </div>
-</div>
+    </div>
 </body>
 </html>
 {{end}}

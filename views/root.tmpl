@@ -64,7 +64,7 @@
             }
         }
         #connection {
-            font: 14px sans-serif;
+            font: 12px sans-serif;
             font-weight: bold;
             vertical-align: middle;
             color: silver;
@@ -113,7 +113,7 @@
                 }
             };
         }
-	
+
 	    var loc = window.location;
         var uri = 'ws:';
         if (loc.protocol === 'https:') {
@@ -147,7 +147,7 @@
         var updateMempool = function (event) {
             console.log("Received mempoolsstxfeeinfo message", event);
             var m = JSON.parse(event);
-	    
+
             // mempool fee info
             var number = document.getElementById('mempoolfeeinfo_number');
             number.innerHTML = String(m.number);
@@ -191,7 +191,7 @@
 
             var sdiff = document.getElementById('blocksdiff');
             sdiff.innerHTML = b.sdiff.toFixed(4);
-	    
+
 	        var poolsize = document.getElementById('poolsize');
             poolsize.innerHTML = String(b.ticket_pool.size);
 
@@ -238,7 +238,7 @@
         setInterval(function () {
             ws.send("ping", 'Hi. I am a client!');
         }, 1000);
-	
+
 	    function updateConnectionStatus(msg, connected) {
             var el = document.querySelector('#connection');
             if (connected) {
@@ -267,49 +267,78 @@
         // }
     </script>
 
-    <!-- Fixed navbar -->
-    <nav class="navbar navbar-default navbar-fixed-top">
-        <div class="container wrapper">
-            <div class="navbar-header">
-                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                </button>
-                <a class="navbar-brand" href="/">
-                    <svg class="svg-logo">
-                        <use xlink:href="images/sprites.svg#svg-decred-logo" />
-                    </svg>
-                </a>
-            </div>
-            <div id="navbar" class="navbar-collapse collapse">
-                <ul class="nav navbar-nav navbar-right">
-                    <li><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a></li>
-                    <li><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a></li>
-                    <li><a href="/api/status" title="API Status" target="_blank">API Status</a></li>
-                    <li><a href="/explorer" title="Explorer">Explore</a></li>
-                </ul>
-            </div>
-            <!--/.nav-collapse -->
+    <div class="col-md-12">
+        <div class="row top-nav">
+            <div class="col"><a href="/">Home</a></div>
+            <div class="col"><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a></div>
+            <div class="col"><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a></div>
+            <div class="col"><a href="/api/status" title="API Status" target="_blank">Status</a></div>
+            <div class="col"><a href="/explorer" title="Explorer">Explore</a></div>
         </div>
-    </nav>
+    </div>
 
-    <div class="wrapper" style="margin-top:60px;">
-        <!-- <p style="padding-top: 10px;"></p> -->
-        <div id="pricebox" style="margin: 0 auto;">
-            <div style="clear:both;padding-top: 10px; text-align: right;">&nbsp;</div>
-            <h4><span>Ticket Price</span></h4>
-            <div class="col-md-7" style="margin: 0 auto;">
+    <div class="container">
+
+        <h4><span>Chain State</span></h4>
+        <div class="row" id="chainbox">
+            <div class="col-md-6">
+                <strong>Best Block</strong>
+                <table class="table table-condensed">
+                    <tbody>
+                        <tr>
+                            <td>Height</td>
+                            <td><strong><span id="blockheight" style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td>
+                        </tr>
+                        <tr>
+                            <td>Hash</td>
+                            <td><strong><span id="blockhash" class="inco" style="max-width: 200px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
+                                {{.BlockSummary.Hash}}</span></strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Size (bytes)</td>
+                            <td><strong><p id="blocksize" >{{.BlockSummary.Size}}</p></strong></td>
+                        </tr>
+                        <tr>
+                            <td>Difficulty</td>
+                            <td><strong><p id="blockdiff" >{{printf "%16.2f" .BlockSummary.Difficulty}}</p></strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-md-6 text-left">
+                <strong>Ticket Pool</strong>
+                <table class="table table-condensed">
+                    <tbody>
+                        <tr>
+                            <td>Size</td>
+                            <td><strong><span id="poolsize" style="color:#41BF53">{{.BlockSummary.PoolInfo.Size}}</span></strong></td>
+                        </tr>
+                        <tr>
+                            <td>Value (DCR)</td>
+                            <td><strong><span id="poolvalue">{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</span></strong></td>
+                        </tr>
+                        <tr>
+                            <td>Average (DCR/ticket)</td>
+                            <td><strong><span id="poolvalavg">{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</span></strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h4><span>Ticket Price</span></h4>
+        <div class="row">
+            <div class="col-md-6">
                 <strong>Current Price Window</strong>
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                <p>
                     Ticket Price: <span style="float: right; color:#61DF13;" id="blocksdiff" ><strong>{{printf "%12.4f" .BlockSummary.StakeDiff}}</strong></span><br>
                     Progress: <span style="float: right;">block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144</span><br>
                 </p>
             </div>
-            <div class="col-md-6" style="margin: 0 auto;">
+            <div class="col-md-6">
                 <strong>Next Price Window</strong>
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                <p>
                     Min: <span style="float: right;" id="sdiffmin" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}</span><br>
                     Max: <span style="float: right;" id="sdiffmax" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}</span><br>
                     Guess: <span style="float: right;" id="sdiffexp" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}</span><br>
@@ -317,12 +346,11 @@
             </div>
         </div>
 
-        <div id="feebox" style="margin: 0 auto;">
-            <div style="clear:both;">&nbsp;</div>
-            <h4><span>Ticket Fees</span></h4>
-            <div class="col-md-7">
+        <h4><span>Ticket Fees</span></h4>
+        <div class="row">
+            <div class="col-md-6">
                 <strong>Mempool (queued for mining)</strong>
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                <p>
                     Number of Tickets: <span style="float: right;" id="mempoolfeeinfo_number" >{{.MempoolFeeInfo.Number}}</span><br>
                     Lowest Mineable Fee: <span style="float: right;" id="mempoolfeeinfo_lowestmineable" >{{printf "%.8f" .MempoolFeeInfo.LowestMineable}}</span><br>
                     Min Fee: <span style="float: right;" id="mempoolfeeinfo_min" >{{printf "%.8f" .MempoolFeeInfo.Min}}</span><br>
@@ -333,7 +361,7 @@
             </div>
             <div class="col-md-6 text-left">
                 <strong>Mined in Last Block</strong>
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                <p>
                     Number of Tickets: <span style="float: right;" id="feeinfo_number" >{{.StakeSummary.Feeinfo.Number}}</span><br>
                     Min Fee: <span style="float: right;" id="feeinfo_min" >{{printf "%16.6f" .StakeSummary.Feeinfo.Min}}</span><br>
                     Max Fee: <span style="float: right;" id="feeinfo_max" >{{printf "%16.6f" .StakeSummary.Feeinfo.Max}}</span><br>
@@ -343,34 +371,6 @@
             </div>
         </div>
 
-        <div id="chainbox">
-            <div style="clear:both;">&nbsp;</div>
-            <h4><span>Chain State</span></h4>
-            <div class="col-md-8">
-                <strong>Best Block</strong>
-                <table class="table table-condensed">
-                <tbody>
-                <tr><td>Height</td><td><strong><span id="blockheight" style="color:#41BF53">{{.BlockSummary.Height}}</span></strong></td></tr>
-                <tr><td>Hash</td><td><strong><span id="blockhash" class="inco" style="max-width: 200px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;font-size:12px;">
-                        {{.BlockSummary.Hash}}</span></strong></td></tr>
-                <tr><td>Size (bytes)</td><td><strong><p id="blocksize" >{{.BlockSummary.Size}}</p></strong></td></tr>
-                <tr><td>Difficulty</td><td><strong><p id="blockdiff" >{{printf "%16.2f" .BlockSummary.Difficulty}}</p></strong></td></tr>
-                </tbody>
-                </table>
-            </div>
-            <div class="col-md-6 text-left">
-                <strong>Ticket Pool</strong>
-                <table class="table table-condensed">
-                <tbody>
-                <tr><td>Size</td><td><strong><span id="poolsize" style="color:#41BF53">{{.BlockSummary.PoolInfo.Size}}</span></strong></td></tr>
-                <tr><td>Value (DCR)</td><td><strong><span id="poolvalue">{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</span></strong></td></tr>
-                <tr><td>Average (DCR/ticket)</td><td><strong><span id="poolvalavg">{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</span></strong></td></tr>
-                </tbody>
-                </table>
-            </div>
-        </div>
-
-        <br /><br /><br /><br /><br />&nbsp;
     </div>
     <!-- end wrapper -->
 

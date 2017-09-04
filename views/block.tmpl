@@ -1,66 +1,179 @@
 {{define "block"}}
 <!DOCTYPE html>
 <html lang="en">
-
- {{template "html-head"}}
-
+{{template "html-head"}}
 <body>
-    <!-- Fixed navbar -->
+
     {{template "navbar"}}
 
-    <div class="wrapper" style="margin-top:60px;">
-        <div id="boxagenda">
-            <div style="clear:both;">&nbsp;</div>
-            <h4><span>Block #{{.Height}}</span></h4>
+    <div class="container">
+        <h4><span>Block #{{.Height}}</span></h4>
 
-            <div class="col-md-12" style="float: none; margin: 0 auto;">
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                    Height: <span style="float: right;" >{{.Height}}</span><br>
-                    Size: <span style="float: right;" >{{.Size}} B</span><br>
-                    Confirmations: <span style="float: right;" >{{.Confirmations}}</span><br>
-                    Time: <span style="float: right;" >{{.Time | getTime}}</span><br>
-                    Hash:  <span style="float: right;font: 12px monospace;" >{{template "copyButton" .Hash}}{{.Hash}}</span><br>
-                    Difficulty: <span style="float: right;" >{{printf "%12.2f" .Difficulty}}</span><br>
-                    POS Difficulty(Sbits): <span style="float: right;" >{{.SBits}}</span><br>
-                    Previous Block Hash: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .PreviousHash}}<a href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></span><br>
+        <div class="row">
+            <div class="col-md-4">
+                <table class="table table-sm">
+                    <tr>
+                        <td>Hash:</td>
+                        <td><span class="hash collapse">{{.Hash}}</span></td>
+                    </tr>
+                    <tr>
+                        <td>Height:</td>
+                        <td>{{.Height}}</td>
+                    </tr>
+                    <tr>
+                        <td>Size:</td>
+                        <td>{{.Size}} B</td>
+                    </tr>
+                    <tr>
+                        <td>Confirmations:</td>
+                        <td>{{.Confirmations}}</td>
+                    </tr>
+                    <tr>
+                        <td>Time:</td>
+                        <td>{{.Time | getTime}}</td>
+                    </tr>
+                    <tr>
+                        <td>Difficulty:</td>
+                        <td>{{printf "%12.2f" .Difficulty}}</td>
+                    </tr>
+                    <tr>
+                        <td>POS Difficulty(Sbits):</td>
+                        <td>{{.SBits}}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="col-md-4">
+                <table class="table table-sm">
+                    <tr>
+                        <td>Previous Block Hash:</td>
+                        <td><a class="hash collapse" href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></td>
+                    </tr>
                     {{if .NextHash}}
-                    Next Block Hash: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .NextHash}}<a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></span><br>
+                    <tr>
+                        <td>Next Block Hash:</td>
+                        <td><span class="hash collapse"><a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></td>
+                    </tr>
                     {{end}}
-                    Transactions: <span style="float: right;" >{{.RawTx | len}}</span><br>
-                    Block Verison: <span style="float: right;" >{{.Version}}</span><br>
-                    Stake Version: <span style="float: right;" >{{.StakeVersion}}</span><br>
-                    Merkle Root: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .MerkleRoot}}{{.MerkleRoot}}</span><br>
-                    Stake Root: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .StakeRoot}}{{.StakeRoot}}</span><br>
-                    Voters: <span style="float: right;" >{{.Voters}}</span><br>
-                    Fresh Stake: <span style="float: right;" >{{.FreshStake}}</span><br>
-                    Revocations: <span style="float: right;" >{{.Revocations}}</span><br>
-                    Vote Bits: <span style="float: right;" >{{.VoteBits}}</span><br>
-                    Final State: <span style="float: right;font: 12px monospace;" >{{.FinalState}}</span><br>
-                    Pool Size: <span style="float: right;" >{{.PoolSize}}</span><br>
-                    Nonce: <span style="float: right;" >{{.Nonce}}</span><br>
-                    Bits: <span style="float: right;" >{{.Bits}}</span><br>
-                     </p>
-                <h4><span>Transactions</span></h4>
-                    {{ range .RawTx}}
-                        <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                        Transactions ID: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
-                        Total Value:  <span style="float: right;" >{{ .Vout | getTotal | getAmount}}</span><br>
-                        Size: <span style="float: right;" >{{.Hex | size}} B</span><br>
-                        </p>
-                    {{end}}
-                <h4><span>Stake Transactions</span></h4>
-                    {{ range .RawSTxWithTypes}}
-                        <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                        Transactions ID: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
-                        Total Value:  <span style="float: right;" >{{ .Vout | getTotal | getAmount}}</span><br>
-                        Size: <span style="float: right;" >{{.Hex | size}} B</span><br>
-                        Type: <span style="float: right;" >{{.TxType}}</span><br>
-                        </p>
-                    {{end}}
+                    <tr>
+                        <td>Transactions:</td>
+                        <td><a href="#transactions">{{.RawTx | len}}</a></td>
+                    </tr>
+                    <tr>
+                        <td>Voters:</td>
+                        <td><a href="#stake-transactions">{{.Voters}}</a></td>
+                    </tr>
+                    <tr>
+                        <td>Fresh Stake:</td>
+                        <td><a href="#stake-transactions">{{.FreshStake}}</a></td>
+                    </tr>
+                    <tr>
+                        <td>Revocations:</td>
+                        <td><a href="#stake-transactions">{{.Revocations}}</a></td>
+                    </tr>
+                    <tr>
+                        <td>Merkle Root:</td>
+                        <td><span class="hash collapse" >{{.MerkleRoot}}</span></td>
+                    </tr>
+                    <tr>
+                        <td>Stake Root:</td>
+                        <td><span class="hash collapse" >{{.StakeRoot}}</span></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="col-md-4">
+                <table class="table table-sm">
+                    <tr>
+                        <td>Block Verison:</td>
+                        <td>{{.Version}}</span>
+                    </tr>
+                    <tr>
+                        <td>Stake Version:</td>
+                        <td>{{.StakeVersion}}</td>
+                    </tr>
+                    <tr>
+                        <td>Vote Bits:</td>
+                        <td>{{.VoteBits}}</td>
+                    </tr>
+                    <tr>
+                        <td>Final State:</td>
+                        <td><span class="hash collapse" >{{.FinalState}}</span></td>
+                    </tr>
+                    <tr>
+                        <td>Pool Size:</td>
+                        <td>{{.PoolSize}}</td>
+                    </tr>
+                    <tr>
+                        <td>Nonce:</td>
+                        <td>{{.Nonce}}</td>
+                    </tr>
+                    <tr>
+                        <td>Bits:</td>
+                        <td>{{.Bits}}</td>
+                    </tr>
+                </table>
             </div>
         </div>
+
+
+        <div class="row">
+            <div class="col-md-12">
+                <h4 id="stake-transactions"><span>Stake Transactions</span></h4>
+                <table class="table table-sm">
+                    <thead>
+                        <th>Transactions ID:</th>
+                        <th>Total Value:</th>
+                        <th>Size:</th>
+                        <th>Type:</th>
+                    </thead>
+                    <tbody>
+                        {{ range .RawSTxWithTypes}}
+                        <tr>
+                            <td>
+                                <span>
+                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                </span>
+                            </td>
+                            <td>{{ .Vout | getTotal | getAmount}}</td>
+                            <td>{{.Hex | size}} B</td>
+                            <td>{{.TxType}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h4 id="transactions"><span>Transactions</span></h4>
+                <table class="table table-sm">
+                    <thead>
+                        <th>Transactions ID:</th>
+                        <th>Total Value:</th>
+                        <th>Size:</th>
+                    </thead>
+                    <tbody>
+                        {{ range .RawTx}}
+                        <tr>
+                            <td>
+                                <span>
+                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                </span>
+                            </td>
+                            <td>{{ .Vout | getTotal | getAmount}}</td>
+                            <td>{{.Hex | size}} B</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
- 
+</div>
+
 </body>
 
 </html>
