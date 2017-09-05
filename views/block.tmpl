@@ -13,31 +13,31 @@
             <div class="col-md-4">
                 <table class="table table-sm">
                     <tr>
-                        <td>Hash:</td>
+                        <td>Hash</td>
                         <td><span class="hash collapse">{{.Hash}}</span></td>
                     </tr>
                     <tr>
-                        <td>Height:</td>
+                        <td>Height</td>
                         <td>{{.Height}}</td>
                     </tr>
                     <tr>
-                        <td>Size:</td>
+                        <td>Size</td>
                         <td>{{.Size}} B</td>
                     </tr>
                     <tr>
-                        <td>Confirmations:</td>
+                        <td>Confirmations</td>
                         <td>{{.Confirmations}}</td>
                     </tr>
                     <tr>
-                        <td>Time:</td>
+                        <td>Time</td>
                         <td>{{.Time | getTime}}</td>
                     </tr>
                     <tr>
-                        <td>Difficulty:</td>
+                        <td>Difficulty</td>
                         <td>{{printf "%12.2f" .Difficulty}}</td>
                     </tr>
                     <tr>
-                        <td>POS Difficulty(Sbits):</td>
+                        <td>POS Difficulty(Sbits)</td>
                         <td>{{.SBits}}</td>
                     </tr>
                 </table>
@@ -46,72 +46,37 @@
             <div class="col-md-4">
                 <table class="table table-sm">
                     <tr>
-                        <td>Previous Block Hash:</td>
+                        <td>Previous Block Hash</td>
                         <td><a class="hash collapse" href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></td>
                     </tr>
                     {{if .NextHash}}
-<<<<<<< 6af6a8a7bfbd323418f5c8646f05be999132868a
                     <tr>
-                        <td>Next Block Hash:</td>
+                        <td>Next Block Hash</td>
                         <td><span class="hash collapse"><a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></td>
                     </tr>
-=======
-                    Next Block Hash: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .NextHash}}<a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></span><br>
-                    {{end}}
-                    Transactions: <span style="float: right;" >{{len .RawTx}}</span><br>
-                    Block Verison: <span style="float: right;" >{{.Version}}</span><br>
-                    Stake Version: <span style="float: right;" >{{.StakeVersion}}</span><br>
-                    Merkle Root: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .MerkleRoot}}{{.MerkleRoot}}</span><br>
-                    Stake Root: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .StakeRoot}}{{.StakeRoot}}</span><br>
-                    Voters: <span style="float: right;" >{{.Voters}}</span><br>
-                    Fresh Stake: <span style="float: right;" >{{.FreshStake}}</span><br>
-                    Revocations: <span style="float: right;" >{{.Revocations}}</span><br>
-                    Vote Bits: <span style="float: right;" >{{.VoteBits}}</span><br>
-                    Final State: <span style="float: right;font: 12px monospace;" >{{.FinalState}}</span><br>
-                    Pool Size: <span style="float: right;" >{{.PoolSize}}</span><br>
-                    Nonce: <span style="float: right;" >{{.Nonce}}</span><br>
-                    Bits: <span style="float: right;" >{{.Bits}}</span><br>
-                     </p>
-                <h4><span>Transactions</span></h4>
-                    {{ range .RawTx}}
-                        <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                        Transactions ID: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
-                        Total Value:  <span style="float: right;" >{{ .Vout | getTotalFromBlock | getAmount}}</span><br>
-                        Size: <span style="float: right;" >{{.Hex | size}} B</span><br>
-                        </p>
-                    {{end}}
-                <h4><span>Stake Transactions</span></h4>
-                    {{ range .RawSTxWithTypes}}
-                        <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                        Transactions ID: <span style="float: right;font: 12px monospace;" >{{template "copyButton" .Txid}}<a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></span><br>
-                        Total Value:  <span style="float: right;" >{{ .Vout | getTotalFromBlock | getAmount}}</span><br>
-                        Size: <span style="float: right;" >{{.Hex | size}} B</span><br>
-                        Type: <span style="float: right;" >{{.TxType}}</span><br>
-                        </p>
->>>>>>> Added signal support for reloading the templates and documented the explorer search
                     {{end}}
                     <tr>
-                        <td>Transactions:</td>
+                        <td>Transactions</td>
                         <td><a href="#transactions">{{.RawTx | len}}</a></td>
                     </tr>
                     <tr>
-                        <td>Voters:</td>
+                        <td>Voters</td>
                         <td><a href="#stake-transactions">{{.Voters}}</a></td>
                     </tr>
                     <tr>
-                        <td>Fresh Stake:</td>
+                        <td>Fresh Stake</td>
                         <td><a href="#stake-transactions">{{.FreshStake}}</a></td>
                     </tr>
                     <tr>
-                        <td>Revocations:</td>
+                        <td>Revocations</td>
                         <td><a href="#stake-transactions">{{.Revocations}}</a></td>
                     </tr>
                     <tr>
-                        <td>Merkle Root:</td>
+                        <td>Merkle Root</td>
                         <td><span class="hash collapse" >{{.MerkleRoot}}</span></td>
                     </tr>
                     <tr>
-                        <td>Stake Root:</td>
+                        <td>Stake Root</td>
                         <td><span class="hash collapse" >{{.StakeRoot}}</span></td>
                     </tr>
                 </table>
@@ -120,31 +85,31 @@
             <div class="col-md-4">
                 <table class="table table-sm">
                     <tr>
-                        <td>Block Verison:</td>
+                        <td>Block Verison</td>
                         <td>{{.Version}}</span>
                     </tr>
                     <tr>
-                        <td>Stake Version:</td>
+                        <td>Stake Version</td>
                         <td>{{.StakeVersion}}</td>
                     </tr>
                     <tr>
-                        <td>Vote Bits:</td>
+                        <td>Vote Bits</td>
                         <td>{{.VoteBits}}</td>
                     </tr>
                     <tr>
-                        <td>Final State:</td>
+                        <td>Final State</td>
                         <td><span class="hash collapse" >{{.FinalState}}</span></td>
                     </tr>
                     <tr>
-                        <td>Pool Size:</td>
+                        <td>Pool Size</td>
                         <td>{{.PoolSize}}</td>
                     </tr>
                     <tr>
-                        <td>Nonce:</td>
+                        <td>Nonce</td>
                         <td>{{.Nonce}}</td>
                     </tr>
                     <tr>
-                        <td>Bits:</td>
+                        <td>Bits</td>
                         <td>{{.Bits}}</td>
                     </tr>
                 </table>
@@ -157,10 +122,10 @@
                 <h4 id="stake-transactions"><span>Stake Transactions</span></h4>
                 <table class="table table-sm">
                     <thead>
-                        <th>Transactions ID:</th>
-                        <th>Total Value:</th>
-                        <th>Size:</th>
-                        <th>Type:</th>
+                        <th>Transactions ID</th>
+                        <th>Total Value</th>
+                        <th>Size</th>
+                        <th>Type</th>
                     </thead>
                     <tbody>
                         {{ range .RawSTxWithTypes}}
@@ -170,7 +135,7 @@
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td>{{ .Vout | getTotal | getAmount}}</td>
+                            <td>{{ .Vout | getTotalFromBlock | getAmount}}</td>
                             <td>{{.Hex | size}} B</td>
                             <td>{{.TxType}}</td>
                         </tr>
@@ -185,9 +150,9 @@
                 <h4 id="transactions"><span>Transactions</span></h4>
                 <table class="table table-sm">
                     <thead>
-                        <th>Transactions ID:</th>
-                        <th>Total Value:</th>
-                        <th>Size:</th>
+                        <th>Transactions ID</th>
+                        <th>Total Value</th>
+                        <th>Size</th>
                     </thead>
                     <tbody>
                         {{ range .RawTx}}
@@ -197,7 +162,7 @@
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td>{{ .Vout | getTotal | getAmount}}</td>
+                            <td>{{ .Vout | getTotalFromBlock | getAmount}}</td>
                             <td>{{.Hex | size}} B</td>
                         </tr>
                         {{end}}

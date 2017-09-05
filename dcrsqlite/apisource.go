@@ -165,9 +165,9 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 		var txType string
 		switch stake.DetermineTxType(tx.MsgTx()) {
 		case stake.TxTypeSSGen:
-			txType = "Ticket"
-		case stake.TxTypeSStx:
 			txType = "Vote"
+		case stake.TxTypeSStx:
+			txType = "Ticket"
 		case stake.TxTypeSSRtx:
 			txType = "Revocation"
 		default:

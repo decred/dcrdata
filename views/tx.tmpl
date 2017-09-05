@@ -5,7 +5,6 @@
 <body>
 {{template "navbar"}}
 
-<<<<<<< 6af6a8a7bfbd323418f5c8646f05be999132868a
 
 <div class="container">
     <div class="row">
@@ -14,44 +13,24 @@
             <p>{{.TxID}}</p>
             <table class="table">
                 <thead>
-                    <th>Transactions ID:</th>
-                    <th>Total Value:</th>
-                    <th>Time:</th>
-                    <th>Confirmations:</th>
-                    <th>Included in block:</th>
-                    <th>Size:</th>
+                    <th>Transactions ID</th>
+                    <th>Total Value</th>
+                    <th>Time</th>
+                    <th>Confirmations</th>
+                    <th>Included in block</th>
+                    <th>Size</th>
                 </thead>
                 <tbody>
                     {{with .TxShort}}
                     <tr>
                         <td><span class="hash collapse">{{.TxID}}</span></td>
-                        <td>{{ .Vout | getTotal }} DCR</td>
+
+                        <td>{{ .Vout | getTotalFromTx | getAmount}}</td>
                         <td>{{$.Block.Time | getTime }}</td>
                         <td>{{$.Confirmations}}</td>
                         <td><a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></td>
                         <td>{{.Size}} B</td>
                     </tr>
-=======
-<div class="wrapper" style="margin-top:60px;">
-        <div id="boxagenda">
-            <div style="clear:both;">&nbsp;</div>
-            <h4><span>Transaction  {{.TxShort.TxID}}</span></h4>
-            <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
-                {{with .TxShort}}
-                Transactions ID: <span style="float: right;" >{{template "copyButton" .TxID}}{{.TxID}}</span><br>
-                Total Value: <span style="float: right;" >{{ .Vout | getTotalFromTx }} DCR</span><br>
-                Time: <span style="float: right;" >{{$.Block.Time | getTime }}</span><br>
-                Confirmations: <span style="float: right;" >{{$.Confirmations}}</span><br>
-                Included in block: <span style="float: right;" ><a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></span><br>
-                Size: <span style="float: right;" >{{.Size}} B</span><br>
-                {{end}}
-                </p>
-            <h4><span>In</span></h4>
-            {{range .Vin}}
-                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
-                    {{ if .Coinbase}}
-                    Coinbase: <span style="float: right;" >{{template "copyButton" .Coinbase}}{{ .Coinbase }}</span><br>
->>>>>>> Added signal support for reloading the templates and documented the explorer search
                     {{end}}
                 </tbody>
             </table>
@@ -59,11 +38,11 @@
     </div>
     <div class="row">
         <div class="col-md-7">
-            <h4>In:</h4>
+            <h4>In</h4>
             <table class="table table-sm">
                 <thead>
                     <th>Transaction</th>
-                    <th>Block Height: </th>
+                    <th>Block Height </th>
                     <th>Sequence</th>
                     <th>Tree</th>
                     <th>Value</th>
@@ -85,7 +64,7 @@
             </table>
         </div>
         <div class="col-md-5">
-            <h4>Out:</h4>
+            <h4>Out</h4>
             <table class="table table-sm">
                 <thead>
                     <th>Value</th>

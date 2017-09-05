@@ -141,7 +141,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 
 // search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
-// redirects to the appropiate page or displays an error
+// redirects to the appropriate page or displays an error
 func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	searchStr, ok := r.Context().Value(ctxSearch).(string)
 	if !ok {
@@ -149,6 +149,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "search parameter missing", http.StatusInternalServerError)
 		return
 	}
+
 	// Attempt to get a block hash by calling GetBlockHash to see if the value
 	// is a block index and then redirect to the block page if it is
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
@@ -158,6 +159,14 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
 			return
 		}
+	}
+
+	// Call GetAddressTransactions to see if the value is an address hash and
+	// then redirect to the address page if it is
+	address := exp.app.BlockData.GetAddressTransactions(searchStr, 1)
+	if address != nil {
+		http.Redirect(w, r, "/explorer/address/"+searchStr, http.StatusPermanentRedirect)
+		return
 	}
 
 	// Check if the value is a valid hash
@@ -171,14 +180,6 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	_, err = exp.app.BlockData.GetBlockHeight(searchStr)
 	if err == nil {
 		http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
-		return
-	}
-
-	// Call GetAddressTransactions to see if the value is an address hash and
-	// then redirect to the address page if it is
-	address := exp.app.BlockData.GetAddressTransactions(searchStr, 1)
-	if address != nil {
-		http.Redirect(w, r, "/explorer/address/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
 

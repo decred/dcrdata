@@ -41,11 +41,12 @@
             <div class="col-sm-auto"><a href="/api/status" title="API Status" target="_blank">Status</a></div>
             <div class="col-sm-auto"><a href="/explorer" title="Explorer">Explore</a></div>
             <div class="col">
-                <form class="navbar-form" role="search">
+                <form class="navbar-form" role="search" id="search-form">
                     <div class="input-group">
                         <input
                             type="text"
                             name="search"
+                            id="search"
                             class="form-control top-search"
                             placeholder="Search for blocks, addresses or transactions"
                         />
@@ -55,4 +56,14 @@
         </div>
     </div>
 </div>
+<script>
+        document.getElementById('search').onkeypress = function(e){
+            if (!e) e = window.event;
+            var keyCode = e.keyCode || e.which;
+            if (keyCode == '13'){
+                window.location.href = "/explorer/search/" + this.value
+              return false;
+            }
+          }
+</script>
 {{end}}
