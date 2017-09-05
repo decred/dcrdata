@@ -65,13 +65,14 @@ type WebUI struct {
 // then launching the WebSocket event handler
 func NewWebUI() *WebUI {
 	fp := filepath.Join("views", "root.tmpl")
-	tmpl, err := template.New("home").ParseFiles(fp)
+	efp := filepath.Join("views", "extras.tmpl")
+	tmpl, err := template.New("home").ParseFiles(fp, efp)
 	if err != nil {
 		return nil
 	}
 
 	//var templFiles []string
-	templFiles := []string{fp}
+	templFiles := []string{fp, efp}
 
 	wsh := NewWebsocketHub()
 	go wsh.run()

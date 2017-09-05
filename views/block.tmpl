@@ -1,0 +1,180 @@
+{{define "block"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head"}}
+<body>
+
+    {{template "navbar"}}
+
+    <div class="container">
+        <h4><span>Block #{{.Height}}</span></h4>
+
+        <div class="row">
+            <div class="col-md-4">
+                <table class="table table-sm">
+                    <tr>
+                        <td>Hash</td>
+                        <td><span class="hash collapse">{{.Hash}}</span></td>
+                    </tr>
+                    <tr>
+                        <td>Height</td>
+                        <td>{{.Height}}</td>
+                    </tr>
+                    <tr>
+                        <td>Size</td>
+                        <td>{{.Size}} B</td>
+                    </tr>
+                    <tr>
+                        <td>Confirmations</td>
+                        <td>{{.Confirmations}}</td>
+                    </tr>
+                    <tr>
+                        <td>Time</td>
+                        <td>{{.Time | getTime}}</td>
+                    </tr>
+                    <tr>
+                        <td>Difficulty</td>
+                        <td>{{printf "%12.2f" .Difficulty}}</td>
+                    </tr>
+                    <tr>
+                        <td>POS Difficulty(Sbits)</td>
+                        <td>{{.SBits}}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="col-md-4">
+                <table class="table table-sm">
+                    <tr>
+                        <td>Previous Block Hash</td>
+                        <td><a class="hash collapse" href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></td>
+                    </tr>
+                    {{if .NextHash}}
+                    <tr>
+                        <td>Next Block Hash</td>
+                        <td><span class="hash collapse"><a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></td>
+                    </tr>
+                    {{end}}
+                    <tr>
+                        <td>Transactions</td>
+                        <td><a href="#transactions">{{.RawTx | len}}</a></td>
+                    </tr>
+                    <tr>
+                        <td>Voters</td>
+                        <td><a href="#stake-transactions">{{.Voters}}</a></td>
+                    </tr>
+                    <tr>
+                        <td>Fresh Stake</td>
+                        <td><a href="#stake-transactions">{{.FreshStake}}</a></td>
+                    </tr>
+                    <tr>
+                        <td>Revocations</td>
+                        <td><a href="#stake-transactions">{{.Revocations}}</a></td>
+                    </tr>
+                    <tr>
+                        <td>Merkle Root</td>
+                        <td><span class="hash collapse" >{{.MerkleRoot}}</span></td>
+                    </tr>
+                    <tr>
+                        <td>Stake Root</td>
+                        <td><span class="hash collapse" >{{.StakeRoot}}</span></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="col-md-4">
+                <table class="table table-sm">
+                    <tr>
+                        <td>Block Verison</td>
+                        <td>{{.Version}}</span>
+                    </tr>
+                    <tr>
+                        <td>Stake Version</td>
+                        <td>{{.StakeVersion}}</td>
+                    </tr>
+                    <tr>
+                        <td>Vote Bits</td>
+                        <td>{{.VoteBits}}</td>
+                    </tr>
+                    <tr>
+                        <td>Final State</td>
+                        <td><span class="hash collapse" >{{.FinalState}}</span></td>
+                    </tr>
+                    <tr>
+                        <td>Pool Size</td>
+                        <td>{{.PoolSize}}</td>
+                    </tr>
+                    <tr>
+                        <td>Nonce</td>
+                        <td>{{.Nonce}}</td>
+                    </tr>
+                    <tr>
+                        <td>Bits</td>
+                        <td>{{.Bits}}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+
+        <div class="row">
+            <div class="col-md-12">
+                <h4 id="stake-transactions"><span>Stake Transactions</span></h4>
+                <table class="table table-sm">
+                    <thead>
+                        <th>Transactions ID</th>
+                        <th>Total Value</th>
+                        <th>Size</th>
+                        <th>Type</th>
+                    </thead>
+                    <tbody>
+                        {{ range .RawSTxWithTypes}}
+                        <tr>
+                            <td>
+                                <span>
+                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                </span>
+                            </td>
+                            <td>{{ .Vout | getTotalFromBlock | getAmount}}</td>
+                            <td>{{.Hex | size}} B</td>
+                            <td>{{.TxType}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h4 id="transactions"><span>Transactions</span></h4>
+                <table class="table table-sm">
+                    <thead>
+                        <th>Transactions ID</th>
+                        <th>Total Value</th>
+                        <th>Size</th>
+                    </thead>
+                    <tbody>
+                        {{ range .RawTx}}
+                        <tr>
+                            <td>
+                                <span>
+                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                </span>
+                            </td>
+                            <td>{{ .Vout | getTotalFromBlock | getAmount}}</td>
+                            <td>{{.Hex | size}} B</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+</body>
+
+</html>
+{{ end }}
