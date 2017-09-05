@@ -26,6 +26,7 @@ const (
 	ctxBlockHash
 	ctxTxHash
 	ctxTxInOutIndex
+	ctxSearch
 	ctxN
 )
 
@@ -216,6 +217,16 @@ func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
 		ctx := context.WithValue(r.Context(), ctxAddress, address)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// SearchPathCtx returns a http.HandlerFunc that embeds the value at the url part
+// {search} into the request context
+func SearchPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		str := chi.URLParam(r, "search")
+		ctx := context.WithValue(r.Context(), ctxSearch, str)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

@@ -151,7 +151,7 @@ type BlockDataWithTxType struct {
 	RawSTxWithTypes []*TxRawWithTxType
 }
 
-//TxRawWithTxType adds the stake transaction type to dcrjson.TxRawResult
+// TxRawWithTxType adds the stake transaction type to dcrjson.TxRawResult
 type TxRawWithTxType struct {
 	dcrjson.TxRawResult
 	TxType string

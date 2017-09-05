@@ -9,3 +9,9 @@ import "fmt"
 func (wu *WebUI) UseSIGToReloadTemplates() {
 	fmt.Println("Signals are unsupported on Windows.")
 }
+
+// UseSIGToReloadTemplates wraps (*explorerUI).UseSIGToReloadTemplates for Windows
+// systems, where there are no signals to use.
+func (exp *explorerUI) UseSIGToReloadTemplates() {
+	fmt.Println("Signals are unsupported on Windows.")
+}

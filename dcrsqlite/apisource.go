@@ -9,12 +9,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain/stake"
-
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/stakedb"
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
@@ -148,7 +147,7 @@ func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.G
 	return rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, verboseTx)
 }
 
-func (db *wiredDB) GetBlockVerboseWithTxTypes(hash string) *apitypes.BlockDataWithTxType {
+func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.BlockDataWithTxType {
 	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, true)
 	stxTypes := make([]*apitypes.TxRawWithTxType, 0, len(blockVerbose.RawSTx))
 	for _, stx := range blockVerbose.RawSTx {
@@ -340,13 +339,6 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	tx.Block.BlockTime = txraw.Blocktime
 
 	return tx
-}
-
-func (db *wiredDB) DoesTxExist(txid string) bool {
-	if _, err := chainhash.NewHashFromStr(txid); err != nil {
-		return false
-	}
-	return true
 }
 
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {

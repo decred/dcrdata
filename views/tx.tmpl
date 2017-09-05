@@ -5,6 +5,7 @@
 <body>
 {{template "navbar"}}
 
+<<<<<<< 6af6a8a7bfbd323418f5c8646f05be999132868a
 
 <div class="container">
     <div class="row">
@@ -30,6 +31,27 @@
                         <td><a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></td>
                         <td>{{.Size}} B</td>
                     </tr>
+=======
+<div class="wrapper" style="margin-top:60px;">
+        <div id="boxagenda">
+            <div style="clear:both;">&nbsp;</div>
+            <h4><span>Transaction  {{.TxShort.TxID}}</span></h4>
+            <p class="bg-info" style="background-color:#2971FF;padding:15px;"> 
+                {{with .TxShort}}
+                Transactions ID: <span style="float: right;" >{{template "copyButton" .TxID}}{{.TxID}}</span><br>
+                Total Value: <span style="float: right;" >{{ .Vout | getTotalFromTx }} DCR</span><br>
+                Time: <span style="float: right;" >{{$.Block.Time | getTime }}</span><br>
+                Confirmations: <span style="float: right;" >{{$.Confirmations}}</span><br>
+                Included in block: <span style="float: right;" ><a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></span><br>
+                Size: <span style="float: right;" >{{.Size}} B</span><br>
+                {{end}}
+                </p>
+            <h4><span>In</span></h4>
+            {{range .Vin}}
+                <p class="bg-info" style="background-color:#2971FF;padding:15px;">
+                    {{ if .Coinbase}}
+                    Coinbase: <span style="float: right;" >{{template "copyButton" .Coinbase}}{{ .Coinbase }}</span><br>
+>>>>>>> Added signal support for reloading the templates and documented the explorer search
                     {{end}}
                 </tbody>
             </table>
