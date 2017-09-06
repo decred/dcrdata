@@ -35,12 +35,11 @@
 {{define "navbar"}}
 <div class="top-nav">
     <div class="container">
-        <div class="d-flex align-items-center">
-            <div class="col-sm-auto"><a href="/">Home</a></div>
-            <div class="col-sm-auto"><a href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a></div>
-            <div class="col-sm-auto"><a href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a></div>
-            <div class="col-sm-auto"><a href="/api/status" title="API Status" target="_blank">Status</a></div>
-            <div class="col-sm-auto"><a href="/explorer" title="Explorer">Explore</a></div>
+        <div class="d-flex align-items-center flex-wrap">
+            <div class="d-flex align-items-center">
+                <div class="col-sm-auto"><a href="/">Home</a></div>
+                <div class="col-sm-auto"><a href="/explorer" title="Explorer">Explore</a></div>
+            </div>
             <div class="col">
                 <form class="navbar-form" role="search" id="search-form">
                     <div class="input-group">
@@ -67,4 +66,17 @@
             }
           }
 </script>
+{{end}}
+
+
+{{define "footer"}}
+<footer class="navbar-fixed-bottom">
+    <div class="container wrapper text-center">
+        <a class="nav-item" href="dcrdata.org">dcrdata.org</a>
+        <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
+        <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
+        <a class="nav-item" href="/api/status" title="API Status" target="_blank">Status</a>
+        <span class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
+    </div>
+</footer>
 {{end}}

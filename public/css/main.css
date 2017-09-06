@@ -9,10 +9,13 @@
 /* Quick and Dirty CSS, just layer on top of boostrap */
 
 html {
-    color: #5f5f5f;
+  color: #5f5f5f;
+}
+body {
+  padding-bottom: 2.1rem;
 }
 .hidden {
-  visibility: hidden;
+  display: none;
 }
 
 .top-nav,
@@ -27,12 +30,26 @@ html {
   font-size: 12px;
   line-height: 22px;
 }
+
 .top-nav a {
     color: white;
 }
 .top-search {
   height: 30px;
   margin: 2px 0 !important;
+}
+
+.navbar-fixed-bottom {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  font-size: 12px;
+  line-height: 22px;
+}
+.navbar-fixed-bottom .nav-item {
+  color: silver;
+  padding: 0 6px;
+  position: relative;
 }
 h4 {
     margin-top: 10px;
@@ -63,13 +80,12 @@ h4 {
 }
 @media only screen and (max-width: 940px)  {
     .hash.collapse {
-        font-size: 10px;
         width: 142px;
     }
 }
 @media only screen and (max-width: 768px)  {
     .hash.collapse {
-        font-size: 12px;
+        width: 198px;
     }
     .table {
         margin-bottom: 0;
@@ -85,3 +101,4 @@ h4 {
         width: 198px;
     }
 }
+
