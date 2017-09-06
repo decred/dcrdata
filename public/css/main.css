@@ -20,6 +20,9 @@ html {
     background: #3B3F45;
 }
 .navbar-fixed-bottom {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
   color: silver;
   font-size: 12px;
   line-height: 22px;
