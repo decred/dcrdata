@@ -313,9 +313,7 @@ func mainCore() int {
 	FileServer(webMux, "/css", http.Dir("./public/css"))
 	FileServer(webMux, "/fonts", http.Dir("./public/fonts"))
 	FileServer(webMux, "/images", http.Dir("./public/images"))
-	webMux.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, r.URL.RequestURI()+" ain't no country I've ever heard of! (404)", http.StatusNotFound)
-	})
+	webMux.NotFound(webUI.ErrorPage)
 	webMux.Mount("/api", apiMux.Mux)
 	webMux.Mount("/explorer", exp.Mux)
 	listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux)

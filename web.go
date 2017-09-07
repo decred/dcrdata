@@ -57,6 +57,7 @@ type WebUI struct {
 	TemplateData    WebTemplateData
 	templateDataMtx sync.RWMutex
 	templ           *template.Template
+	errorTempl      *template.Template
 	templFiles      []string
 	params          *chaincfg.Params
 }
@@ -66,13 +67,17 @@ type WebUI struct {
 func NewWebUI() *WebUI {
 	fp := filepath.Join("views", "root.tmpl")
 	efp := filepath.Join("views", "extras.tmpl")
+	errorfp := filepath.Join("views", "error.tmpl")
 	tmpl, err := template.New("home").ParseFiles(fp, efp)
 	if err != nil {
 		return nil
 	}
-
+	errtmpl, err := template.New("error").ParseFiles(errorfp, efp)
+	if err != nil {
+		return nil
+	}
 	//var templFiles []string
-	templFiles := []string{fp, efp}
+	templFiles := []string{fp, efp, errorfp}
 
 	wsh := NewWebsocketHub()
 	go wsh.run()
@@ -80,6 +85,7 @@ func NewWebUI() *WebUI {
 	return &WebUI{
 		wsHub:      wsh,
 		templ:      tmpl,
+		errorTempl: errtmpl,
 		templFiles: templFiles,
 		params:     activeChain,
 	}
@@ -93,7 +99,11 @@ func (td *WebUI) StopWebsocketHub() {
 
 // ParseTemplates parses all the template files, updating the *html/template.Template.
 func (td *WebUI) ParseTemplates() (err error) {
-	td.templ, err = template.New("home").ParseFiles(td.templFiles...)
+	td.templ, err = template.New("home").ParseFiles(td.templFiles[0], td.templFiles[1])
+	if err != nil {
+		return err
+	}
+	td.errorTempl, err = template.New("error").ParseFiles(td.templFiles[2], td.templFiles[1])
 	return
 }
 
@@ -174,6 +184,24 @@ func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// ErrorPage is the http.HandlerFunc for the "/error" http path
+func (td *WebUI) ErrorPage(w http.ResponseWriter, r *http.Request) {
+	str, err := TemplateExecToString(td.errorTempl, "error", struct {
+		ErrorCode   string
+		ErrorString string
+	}{
+		"404",
+		"Whatever you were looking for... doesn't exit here",
+	})
+	if err != nil {
+		http.Error(w, "template execute failure", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusNotFound)
 	io.WriteString(w, str)
 }
 
