@@ -22,13 +22,13 @@ import (
 )
 
 const (
-	maxExplorerRows       = 2000
-	minExplorerRows       = 12
-	addressRows           = 2000
 	rootTemplateIndex int = iota
 	blockTemplateIndex
 	txTemplateIndex
 	addressTemplateIndex
+	maxExplorerRows = 2000
+	minExplorerRows = 12
+	addressRows     = 2000
 )
 
 type explorerUI struct {
@@ -54,7 +54,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 
 	summaries := make([]*dcrjson.GetBlockVerboseResult, 0, rows)
 	for i := height; i > height-rows; i-- {
-		data := exp.app.BlockData.GetBlockVerbose(i, false)
+		data := exp.app.BlockData.GetBlockVerbose(i, true)
 		summaries = append(summaries, data)
 	}
 	str, err := TemplateExecToString(exp.templates[rootTemplateIndex], "explorer", struct {
@@ -277,9 +277,13 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
 
 	exp.templateHelpers = template.FuncMap{
+		"timezone": func() string {
+			t, _ := time.Now().Zone()
+			return t
+		},
 		"getTime": func(btime int64) string {
 			t := time.Unix(btime, 0)
-			return t.String()
+			return t.Format("Jan _2 15:04:05 2006")
 		},
 		"getTotalFromBlock": func(vout []dcrjson.Vout) float64 {
 			total := 0.0
@@ -301,6 +305,36 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 		},
 		"size": func(h string) int {
 			return len(h) / 2
+		},
+		"TotalSentInBlock": func(block *dcrjson.GetBlockVerboseResult) dcrutil.Amount {
+			var total float64
+			for _, i := range block.RawTx {
+				for _, j := range i.Vout {
+					total = total + j.Value
+				}
+			}
+			for _, i := range block.RawSTx {
+				for _, j := range i.Vout {
+					total = total + j.Value
+				}
+			}
+			amount, _ := dcrutil.NewAmount(total)
+			return amount
+		},
+		"totalSentInBlock": func(block *apitypes.BlockDataWithTxType) dcrutil.Amount {
+			var total float64
+			for _, i := range block.RawTx {
+				for _, j := range i.Vout {
+					total = total + j.Value
+				}
+			}
+			for _, i := range block.RawSTx {
+				for _, j := range i.Vout {
+					total = total + j.Value
+				}
+			}
+			amount, _ := dcrutil.NewAmount(total)
+			return amount
 		},
 	}
 
