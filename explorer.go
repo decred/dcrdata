@@ -39,18 +39,18 @@ type explorerUI struct {
 func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 	idx := exp.app.BlockData.GetHeight()
 
-	end, err := strconv.Atoi(r.URL.Query().Get("end"))
-	if err != nil || end == 0 || end > idx {
-		end = idx
+	height, err := strconv.Atoi(r.URL.Query().Get("height"))
+	if err != nil || height > idx {
+		height = idx
 	}
-	start, err := strconv.Atoi(r.URL.Query().Get("start"))
-	if err != nil || start < 0 || end-start < 10 {
-		start = end - 25
-	} else if end-start > 200 {
-		start = end - 200
+
+	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
+	if err != nil || rows > 2000 || rows < 12 || height-rows < 0 {
+		rows = 12
 	}
-	summaries := make([]*dcrjson.GetBlockVerboseResult, 0, end-start+1)
-	for i := end; i >= start; i-- {
+
+	summaries := make([]*dcrjson.GetBlockVerboseResult, 0, rows)
+	for i := height; i > height-rows; i-- {
 		data := exp.app.BlockData.GetBlockVerbose(i, false)
 		summaries = append(summaries, data)
 	}

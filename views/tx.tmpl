@@ -25,9 +25,29 @@
                         <td><span class="hash collapse">{{.TxID}}</span></td>
 
                         <td>{{ .Vout | getTotalFromTx | getAmount}}</td>
-                        <td>{{$.Block.Time | getTime }}</td>
-                        <td>{{$.Confirmations}}</td>
-                        <td><a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></td>
+                        <td>
+                        {{if eq $.Block.Time 0}}
+                            N/A
+                        {{else}}
+                            {{$.Block.Time | getTime }}
+                        {{end}}
+                        </td>
+
+                        <td>
+                        {{if eq $.Confirmations 0}}
+                            Unconfirmed
+                        {{else}}
+                            {{$.Confirmations}}
+                        {{end}}
+                        </td>
+
+                        <td>
+                        {{if eq $.Block.BlockHeight 0}}
+                            N/A
+                        {{else}}
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></td>
+                        {{end}}
+
                         <td>{{.Size}} B</td>
                     </tr>
                     {{end}}
@@ -50,10 +70,21 @@
                     {{range .Vin}}
                     <tr>
                         <td>
-                            {{ if .Coinbase}}<span>{{ .Coinbase }}</span>{{end}}
-                            <span class="hash collapse">{{.Txid}}</span>
+                            {{if .Coinbase}}
+                                {{ .Coinbase }}
+                            {{else if eq .Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
+                                N/A
+                            {{else}}
+                            <a href="/explorer/tx/{{.Txid}}"><span class="hash collapse">{{.Txid}}</span></a>
+                            {{end}}
                         </td>
-                        <td>{{if ne .BlockHeight 0}}{{.BlockHeight}}{{end}}</td>
+                        <td>
+                        {{if eq .BlockHeight 0}}
+                            N/A
+                        {{else}}
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{.BlockHeight}}</a></td>
+                        {{end}}
+                        </td>
                         <td>{{.Sequence}}</td>
                         <td>{{.Tree}}</td>
                         <td>{{.AmountIn | getAmount}}</td>

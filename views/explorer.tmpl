@@ -106,7 +106,7 @@
         var heights = document.getElementsByClassName("height");
         var first = parseInt(heights[0].innerText);
         var last = parseInt(heights[heights.length-1].innerText);
-        var numBlocks = first - last
+        var numBlocks = first - last + 1
         function updateTime() {
             for (var i = 0; i < ages.length; i++) {
                 ages[i].innerText = timeSince(age_times[i]);
@@ -117,11 +117,11 @@
         var next = document.getElementById("next");
         prev.addEventListener('click', function(event) {
             event.preventDefault();
-            window.location.href = prev.href + '?start='+ (first-numBlocks).toString() + "&end=" + (last-numBlocks).toString();
+            window.location.href = prev.href + '?height='+ (first-numBlocks).toString() + "&rows=" + (numBlocks).toString();
         }, false);
         next.addEventListener('click', function(event) {
             event.preventDefault();
-            window.location.href = next.href + '?start='+ (first+numBlocks).toString() + "&end=" + (last+numBlocks).toString();
+            window.location.href = next.href + '?height='+ (first+numBlocks).toString() + "&rows=" + (numBlocks).toString();
         }, false);
         var best = document.getElementById("best");
         if (parseInt(best.innerText) == first) {
