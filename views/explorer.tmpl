@@ -61,7 +61,7 @@
                 if (interval > 1) {
                     s = "s"
                 }
-                return interval + " year" + s;
+                return interval + " year" + s + " "+ Math.floor((seconds - interval * 31536000) / 2592000) + " months";
             }
             interval = Math.floor(seconds / 2592000);
             if (interval >= 1) {
@@ -69,7 +69,7 @@
                 if (interval > 1) {
                     s = "s"
                 }
-                return interval + " month" + s;
+                return interval + " month" + s + " "+ Math.floor((seconds - interval * 2592000) / 86400) + " days";
             }
             interval = Math.floor(seconds / 86400);
             if (interval >= 1) {
@@ -77,7 +77,7 @@
                 if (interval > 1) {
                     s = "s"
                 }
-                return interval + " day" + s;
+                return interval + " day" + s + " "+ Math.floor((seconds - interval * 86400) / 3600) + " hours";
             }
             interval = Math.floor(seconds / 3600);
             if (interval >= 1) {
@@ -85,7 +85,7 @@
                 if (interval > 1) {
                     s = "s"
                 }
-                return interval + " hour" + s;
+                return interval + " hour" + s + " "+ Math.floor((seconds - interval * 3600) / 60) + " minutes";
             }
             interval = Math.floor(seconds / 60);
             if (interval >= 1) {
@@ -93,7 +93,7 @@
                 if (interval > 1) {
                     s = "s"
                 }
-                return interval + " minute" + s;
+                return interval + " minute" + s + " "+(seconds - interval * 60) + " seconds";
             }
             return Math.floor(seconds) + " seconds";
         }
@@ -112,7 +112,7 @@
                 ages[i].innerText = timeSince(age_times[i]);
             }
         }
-        setInterval(updateTime, 60000);
+        setInterval(updateTime, 30000);
         var prev = document.getElementById("prev");
         var next = document.getElementById("next");
         prev.addEventListener('click', function(event) {
