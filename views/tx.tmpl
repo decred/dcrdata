@@ -71,9 +71,9 @@
                     <tr>
                         <td>
                             {{if .Coinbase}}
-                                {{ .Coinbase }}
+                                Coinbase: {{ .Coinbase }}
                             {{else if eq .Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
-                                N/A
+                                Vote Reward
                             {{else}}
                             <a href="/explorer/tx/{{.Txid}}"><span class="hash collapse">{{.Txid}}</span></a>
                             {{end}}
