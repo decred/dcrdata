@@ -22,6 +22,9 @@ import (
 )
 
 const (
+	maxExplorerRows       = 2000
+	minExplorerRows       = 12
+	addressRows           = 2000
 	rootTemplateIndex int = iota
 	blockTemplateIndex
 	txTemplateIndex
@@ -45,7 +48,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-	if err != nil || rows > 2000 || rows < 12 || height-rows < 0 {
+	if err != nil || rows > maxExplorerRows || rows < minExplorerRows || height-rows < 0 {
 		rows = 12
 	}
 
@@ -122,7 +125,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "address not set", http.StatusInternalServerError)
 		return
 	}
-	data := exp.app.BlockData.GetAddressTransactions(address, 2000)
+	data := exp.app.BlockData.GetAddressTransactions(address, addressRows)
 	if data == nil {
 		apiLog.Errorf("Unable to get address %s", address)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
