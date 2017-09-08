@@ -54,7 +54,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 
 	summaries := make([]*dcrjson.GetBlockVerboseResult, 0, rows)
 	for i := height; i > height-rows; i-- {
-		data := exp.app.BlockData.GetBlockVerbose(i, true)
+		data := exp.app.BlockData.GetBlockVerbose(i, false)
 		summaries = append(summaries, data)
 	}
 	str, err := TemplateExecToString(exp.templates[rootTemplateIndex], "explorer", struct {
@@ -311,21 +311,6 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 		},
 		"size": func(h string) int {
 			return len(h) / 2
-		},
-		"TotalSentInBlock": func(block *dcrjson.GetBlockVerboseResult) dcrutil.Amount {
-			var total float64
-			for _, i := range block.RawTx {
-				for _, j := range i.Vout {
-					total = total + j.Value
-				}
-			}
-			for _, i := range block.RawSTx {
-				for _, j := range i.Vout {
-					total = total + j.Value
-				}
-			}
-			amount, _ := dcrutil.NewAmount(total)
-			return amount
 		},
 		"totalSentInBlock": func(block *apitypes.BlockDataWithTxType) dcrutil.Amount {
 			var total float64

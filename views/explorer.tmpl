@@ -20,7 +20,7 @@
                             <th>Votes</th>
                             <th>Tickets</th>
                             <th>Transactions</th>
-                            <th>Total Sent</th>
+                            <th>Revocations</th>
                             <th>Size</th>
                             <th>Age</th>
                             <th>Time({{timezone}})</th>
@@ -33,7 +33,7 @@
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>
                             <td>{{len .Tx}}</td>
-                            <td>{{. | TotalSentInBlock}}</td>
+                            <td>{{.Revocations}}</td>
                             <td>{{.Size}} B</td>
                             <td class="age">{{.Time}}</td>
                             <td>{{.Time | getTime}}</td>
