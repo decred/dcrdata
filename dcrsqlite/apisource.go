@@ -570,7 +570,7 @@ func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Addr
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
-	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, false, false, nil)
+	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, false, true, nil)
 	if err != nil {
 		log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
 		return nil
@@ -604,7 +604,7 @@ func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
-	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, false, nil)
+	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, true, nil)
 	if err != nil {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return nil
