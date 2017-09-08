@@ -59,19 +59,12 @@
             var interval = Math.floor(seconds / 31536000);
 
             if (interval >= 1) {
-                var s = "";
-                if (interval > 1) {
-                    s = "s"
-                }
-                return interval + " year" + s + " "+ Math.floor((seconds - interval * 31536000) / 2592000) + " months";
+                var months = Math.floor((seconds - interval * 31536000) / 2592000)
+                return interval + " y" + " "+ months + " mo";
             }
             interval = Math.floor(seconds / 2592000);
             if (interval >= 1) {
-                var s = "";
-                if (interval > 1) {
-                    s = "s"
-                }
-                return interval + " month" + s + " "+ Math.floor((seconds - interval * 2592000) / 86400) + " days";
+                return interval + " mo" + " "+ Math.floor((seconds - interval * 2592000) / 86400) + " d";
             }
             interval = Math.floor(seconds / 86400);
             if (interval >= 1) {
@@ -79,25 +72,17 @@
                 if (interval > 1) {
                     s = "s"
                 }
-                return interval + " day" + s + " "+ Math.floor((seconds - interval * 86400) / 3600) + " hours";
+                return interval + " d" + " "+ Math.floor((seconds - interval * 86400) / 3600) + " h";
             }
             interval = Math.floor(seconds / 3600);
             if (interval >= 1) {
-                var s = "";
-                if (interval > 1) {
-                    s = "s"
-                }
-                return interval + " hour" + s + " "+ Math.floor((seconds - interval * 3600) / 60) + " minutes";
+                return interval + " h" + " "+ Math.floor((seconds - interval * 3600) / 60) + " m";
             }
             interval = Math.floor(seconds / 60);
             if (interval >= 1) {
-                var s = "";
-                if (interval > 1) {
-                    s = "s"
-                }
-                return interval + " minute" + s + " "+(seconds - interval * 60) + " seconds";
+                return interval + " m" + " " + (seconds - interval * 60) + " s";
             }
-            return Math.floor(seconds) + " seconds";
+            return Math.floor(seconds) + " s";
         }
         var ages = document.getElementsByClassName("age");
         var age_times = [];
