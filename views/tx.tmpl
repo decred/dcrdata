@@ -87,7 +87,7 @@
                         </td>
                         <td>{{.Sequence}}</td>
                         <td>{{.Tree}}</td>
-                        <td>{{if lt .AmountIn 0.0}} N/A {{else}} {{.AmountIn}} {{end}}</td>
+                        <td>{{if lt .AmountIn 0.0}} N/A {{else}} {{getAmount .AmountIn}} {{end}}</td>
                     </tr>
                     {{end}}
                 </tbody>
