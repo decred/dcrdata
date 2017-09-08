@@ -189,12 +189,19 @@ func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
 
 // ErrorPage is the http.HandlerFunc for the "/error" http path
 func (td *WebUI) ErrorPage(w http.ResponseWriter, r *http.Request) {
+	code := "404"
+	msg := "Whatever you were looking for... doesn't exit here"
+	searchStr, ok := r.Context().Value(ctxSearch).(string)
+	if ok {
+		code = "Not Found"
+		msg = "No Items matching \"" + searchStr + "\" were found"
+	}
 	str, err := TemplateExecToString(td.errorTempl, "error", struct {
 		ErrorCode   string
 		ErrorString string
 	}{
-		"404",
-		"Whatever you were looking for... doesn't exit here",
+		code,
+		msg,
 	})
 	if err != nil {
 		http.Error(w, "template execute failure", http.StatusInternalServerError)

@@ -313,6 +313,7 @@ func mainCore() int {
 	FileServer(webMux, "/css", http.Dir("./public/css"))
 	FileServer(webMux, "/fonts", http.Dir("./public/fonts"))
 	FileServer(webMux, "/images", http.Dir("./public/images"))
+	webMux.With(SearchPathCtx).Get("/error/{search}", webUI.ErrorPage)
 	webMux.NotFound(webUI.ErrorPage)
 	webMux.Mount("/api", apiMux.Mux)
 	webMux.Mount("/explorer", exp.Mux)

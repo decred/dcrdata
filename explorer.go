@@ -67,7 +67,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -79,20 +79,20 @@ func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 	hash := exp.app.getBlockHashCtx(r)
 	height := exp.app.getBlockHeightCtx(r)
 	if height == -1 {
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 
 	data := exp.app.BlockData.GetBlockVerboseWithStakeTxDetails(hash)
 	if data == nil {
 		apiLog.Errorf("Unable to get block %s", hash)
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	str, err := TemplateExecToString(exp.templates[blockTemplateIndex], "block", data)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -104,19 +104,19 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		apiLog.Trace("txid not set")
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	data := exp.app.BlockData.GetRawTransaction(hash)
 	if data == nil {
 		apiLog.Errorf("Unable to get transaction %s", hash)
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	str, err := TemplateExecToString(exp.templates[txTemplateIndex], "tx", data)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -128,19 +128,19 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
 		apiLog.Trace("address not set")
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 		return
 	}
 	data := exp.app.BlockData.GetAddressTransactions(address, addressRows)
 	if data == nil {
 		apiLog.Errorf("Unable to get address %s", address)
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 		return
 	}
 	str, err := TemplateExecToString(exp.templates[addressTemplateIndex], "address", data)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -155,7 +155,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	searchStr, ok := r.Context().Value(ctxSearch).(string)
 	if !ok {
 		apiLog.Trace("search parameter missing")
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -180,7 +180,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 
 	// Check if the value is a valid hash
 	if _, err := chainhash.NewHashFromStr(searchStr); err != nil {
-		http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -201,7 +201,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Display an error since searchStr is not a block index, block hash, address hash or transaction hash
-	http.Redirect(w, r, "/404", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
 	return
 }
 
