@@ -204,6 +204,7 @@ func (td *WebUI) ErrorPage(w http.ResponseWriter, r *http.Request) {
 		msg,
 	})
 	if err != nil {
+		log.Errorf("Failed to execute template: %v", err)
 		http.Error(w, "template execute failure", http.StatusInternalServerError)
 		return
 	}
