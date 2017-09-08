@@ -194,7 +194,7 @@ func (td *WebUI) ErrorPage(w http.ResponseWriter, r *http.Request) {
 	searchStr, ok := r.Context().Value(ctxSearch).(string)
 	if ok {
 		code = "Not Found"
-		msg = "No Items matching \"" + searchStr + "\" were found"
+		msg = "I'm sorry, Dave, \"" + searchStr + "\" could not be found."
 	}
 	str, err := TemplateExecToString(td.errorTempl, "error", struct {
 		ErrorCode   string
