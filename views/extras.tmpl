@@ -8,6 +8,7 @@
     <meta name="author" content="dcrdata">
     <!--  Custom favicon  -->
     <link rel="apple-touch-icon" sizes="180x180" href="/images/favicon/apple-touch-icon.png">
+    <link rel="icon" href="/images/favicon/favicon.ico">
     <link rel="icon" type="image/png" href="/images/favicon/favicon-32x32.png" sizes="32x32">
     <link rel="icon" type="image/png" href="/images/favicon/favicon-16x16.png" sizes="16x16">
     <link rel="manifest" href="/images/favicon/manifest.json">
@@ -18,11 +19,12 @@
     <meta name="msapplication-TileColor" content="#2973ff">
     <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png">
     <meta name="msapplication-config" content="/images/favicon/browserconfig.xml">
-    <link rel="icon" href="/favicon.ico">
     <title>{{.}}</title>
+    <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
     <script src="/js/messagesocket.js"></script>
+    <script src="/js/cookies.js"></script>
     <!-- <script src="/js/Chart.min.js"></script> -->
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -37,10 +39,12 @@
     <div class="container">
         <div class="d-flex align-items-center flex-wrap">
             <div class="d-flex align-items-center">
-                <div class="col-sm-auto"><a href="/">Home</a></div>
+                <div class="col-sm-auto" style="padding: 0 2px">
+                    <a href="/" class="dcricon-decred no-underline"></a>
+                </div>
                 <div class="col-sm-auto"><a href="/explorer" title="Explorer">Explore</a></div>
             </div>
-            <div class="col">
+            <div class="col" style="padding: 0 5px;">
                 <form class="navbar-form" role="search" id="search-form">
                     <div class="input-group">
                         <input
@@ -52,6 +56,9 @@
                         />
                     </div>
                 </form>
+            </div>
+            <div>
+                <a id="sun-toggle" href="javascript:toggleSun()" class="dcricon-sun-fill no-underline"></a>
             </div>
         </div>
     </div>
@@ -79,4 +86,31 @@
         <span class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
     </div>
 </footer>
+<script type="text/javascript">
+    var sunToggle = document.getElementById("sun-toggle")
+    if (docCookies.getItem("darkBG") === "1") {
+        toggleToDarkClasses()
+    } else {
+        toggleToLightClasses()
+    }
+    function toggleToDarkClasses(argument) {
+        sunToggle.classList.remove('dcricon-sun-fill')
+        sunToggle.classList.add('dcricon-sun-stroke')
+        document.body.classList.add('darkBG')
+    }
+    function toggleToLightClasses(argument) {
+        document.body.classList.remove('darkBG');
+        sunToggle.classList.remove('dcricon-sun-stroke')
+        sunToggle.classList.add('dcricon-sun-fill')
+    }
+    function toggleSun() {
+        if (docCookies.getItem("darkBG") === "1") {
+            docCookies.setItem("darkBG","0",Infinity,"/")
+            toggleToLightClasses()
+        } else {
+            docCookies.setItem("darkBG","1",Infinity,"/")
+            toggleToDarkClasses()
+        }
+    }
+</script>
 {{end}}
