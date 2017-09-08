@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 
-{{template "html-head"}}
+{{template "html-head" "Decred Blocks"}}
 
 <body>
 
@@ -13,16 +13,22 @@
         <h4><span>Blocks</span></h4>
         <div class="row">
             <div class="col-md-12">
+                <a id="next" href="/explorer">Newer</a>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
                 <table class="table table-condensed">
                     <thead>
                         <tr>
                             <th>Height</th>
-                            <th>Voters</th>
-                            <th>Fresh Stake</th>
+                            <th>Votes</th>
+                            <th>Tickets</th>
                             <th>Transactions</th>
+                            <th>Revocations</th>
                             <th>Size</th>
                             <th>Age</th>
-                            <th>Time</th>
+                            <th>Time ({{timezone}})</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -32,6 +38,7 @@
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>
                             <td>{{len .Tx}}</td>
+                            <td>{{.Revocations}}</td>
                             <td>{{.Size}} B</td>
                             <td class="age">{{.Time}}</td>
                             <td>{{.Time | getTime}}</td>
@@ -45,8 +52,7 @@
         <div class="row">
             <div class="col-md-12">
                 <p id="best" class="hidden">{{.BestBlock}}</p>
-                <a id="prev" href="/explorer">Previous Blocks</a>
-                <a id="next" href="/explorer">Next Blocks</a>
+                <a id="prev" href="/explorer">Older</a>
             </div>
         </div>
     </div>
@@ -57,19 +63,12 @@
             var interval = Math.floor(seconds / 31536000);
 
             if (interval >= 1) {
-                var s = "";
-                if (interval > 1) {
-                    s = "s"
-                }
-                return interval + " year" + s;
+                var months = Math.floor((seconds - interval * 31536000) / 2592000)
+                return interval + "y" + " "+ months + "mo";
             }
             interval = Math.floor(seconds / 2592000);
             if (interval >= 1) {
-                var s = "";
-                if (interval > 1) {
-                    s = "s"
-                }
-                return interval + " month" + s;
+                return interval + "mo" + " "+ Math.floor((seconds - interval * 2592000) / 86400) + "d";
             }
             interval = Math.floor(seconds / 86400);
             if (interval >= 1) {
@@ -77,25 +76,17 @@
                 if (interval > 1) {
                     s = "s"
                 }
-                return interval + " day" + s;
+                return interval + "d" + " "+ Math.floor((seconds - interval * 86400) / 3600) + "h";
             }
             interval = Math.floor(seconds / 3600);
             if (interval >= 1) {
-                var s = "";
-                if (interval > 1) {
-                    s = "s"
-                }
-                return interval + " hour" + s;
+                return interval + "h" + " "+ Math.floor((seconds - interval * 3600) / 60) + "m";
             }
             interval = Math.floor(seconds / 60);
             if (interval >= 1) {
-                var s = "";
-                if (interval > 1) {
-                    s = "s"
-                }
-                return interval + " minute" + s;
+                return interval + "m" + " " + (seconds - interval * 60) + "s";
             }
-            return Math.floor(seconds) + " seconds";
+            return Math.floor(seconds) + "s";
         }
         var ages = document.getElementsByClassName("age");
         var age_times = [];
@@ -106,22 +97,22 @@
         var heights = document.getElementsByClassName("height");
         var first = parseInt(heights[0].innerText);
         var last = parseInt(heights[heights.length-1].innerText);
-        var numBlocks = first - last
+        var numBlocks = first - last + 1
         function updateTime() {
             for (var i = 0; i < ages.length; i++) {
                 ages[i].innerText = timeSince(age_times[i]);
             }
         }
-        setInterval(updateTime, 60000);
+        setInterval(updateTime, 30000);
         var prev = document.getElementById("prev");
         var next = document.getElementById("next");
         prev.addEventListener('click', function(event) {
             event.preventDefault();
-            window.location.href = prev.href + '?start='+ (first-numBlocks).toString() + "&end=" + (last-numBlocks).toString();
+            window.location.href = prev.href + '?height='+ (first-numBlocks).toString() + "&rows=" + (numBlocks).toString();
         }, false);
         next.addEventListener('click', function(event) {
             event.preventDefault();
-            window.location.href = next.href + '?start='+ (first+numBlocks).toString() + "&end=" + (last+numBlocks).toString();
+            window.location.href = next.href + '?height='+ (first+numBlocks).toString() + "&rows=" + (numBlocks).toString();
         }, false);
         var best = document.getElementById("best");
         if (parseInt(best.innerText) == first) {

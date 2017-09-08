@@ -1,7 +1,7 @@
 {{define "tx"}}
 <!DOCTYPE html>
 <html lang="en">
-{{template "html-head"}}
+{{template "html-head" printf "Decred Transaction %.20s..." .TxID}}
 <body>
 {{template "navbar"}}
 
@@ -9,7 +9,7 @@
     <div class="row">
         <div class="col-md-12">
             <h4>Transaction</h4>
-            <p>{{.TxID}}</p>
+            <p>{{.TxID}}   <span style="font-size: 12px;"><a href="/api/tx/{{.TxID}}?indent=true">view raw</a></span></p>
             <table class="table">
                 <thead>
                     <th>Transactions ID</th>
@@ -25,9 +25,29 @@
                         <td><span class="hash collapse">{{.TxID}}</span></td>
 
                         <td>{{ .Vout | getTotalFromTx | getAmount}}</td>
-                        <td>{{$.Block.Time | getTime }}</td>
-                        <td>{{$.Confirmations}}</td>
-                        <td><a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></td>
+                        <td>
+                        {{if eq $.Block.Time 0}}
+                            N/A
+                        {{else}}
+                            {{$.Block.Time | getTime }}
+                        {{end}}
+                        </td>
+
+                        <td>
+                        {{if eq $.Confirmations 0}}
+                            Unconfirmed
+                        {{else}}
+                            {{$.Confirmations}}
+                        {{end}}
+                        </td>
+
+                        <td>
+                        {{if eq $.Block.BlockHeight 0}}
+                            N/A
+                        {{else}}
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></td>
+                        {{end}}
+
                         <td>{{.Size}} B</td>
                     </tr>
                     {{end}}
@@ -50,13 +70,24 @@
                     {{range .Vin}}
                     <tr>
                         <td>
-                            {{ if .Coinbase}}<span>{{ .Coinbase }}</span>{{end}}
-                            <span class="hash collapse">{{.Txid}}</span>
+                            {{if .Coinbase}}
+                                Coinbase: {{ .Coinbase }}
+                            {{else if eq .Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
+                                Vote Reward
+                            {{else}}
+                            <a href="/explorer/tx/{{.Txid}}"><span class="hash collapse">{{.Txid}}</span></a>
+                            {{end}}
                         </td>
-                        <td>{{if ne .BlockHeight 0}}{{.BlockHeight}}{{end}}</td>
+                        <td>
+                        {{if eq .BlockHeight 0}}
+                            N/A
+                        {{else}}
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{.BlockHeight}}</a></td>
+                        {{end}}
+                        </td>
                         <td>{{.Sequence}}</td>
                         <td>{{.Tree}}</td>
-                        <td>{{.AmountIn | getAmount}}</td>
+                        <td>{{if lt .AmountIn 0.0}} N/A {{else}} {{getAmount .AmountIn}} {{end}}</td>
                     </tr>
                     {{end}}
                 </tbody>

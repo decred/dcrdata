@@ -26,6 +26,9 @@ const (
 	blockTemplateIndex
 	txTemplateIndex
 	addressTemplateIndex
+	maxExplorerRows = 2000
+	minExplorerRows = 12
+	addressRows     = 2000
 )
 
 type explorerUI struct {
@@ -39,18 +42,18 @@ type explorerUI struct {
 func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 	idx := exp.app.BlockData.GetHeight()
 
-	end, err := strconv.Atoi(r.URL.Query().Get("end"))
-	if err != nil || end == 0 || end > idx {
-		end = idx
+	height, err := strconv.Atoi(r.URL.Query().Get("height"))
+	if err != nil || height > idx {
+		height = idx
 	}
-	start, err := strconv.Atoi(r.URL.Query().Get("start"))
-	if err != nil || start < 0 || end-start < 10 {
-		start = end - 25
-	} else if end-start > 200 {
-		start = end - 200
+
+	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
+	if err != nil || rows > maxExplorerRows || rows < minExplorerRows || height-rows < 0 {
+		rows = 12
 	}
-	summaries := make([]*dcrjson.GetBlockVerboseResult, 0, end-start+1)
-	for i := end; i >= start; i-- {
+
+	summaries := make([]*dcrjson.GetBlockVerboseResult, 0, rows)
+	for i := height; i > height-rows; i-- {
 		data := exp.app.BlockData.GetBlockVerbose(i, false)
 		summaries = append(summaries, data)
 	}
@@ -64,7 +67,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -74,16 +77,22 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 
 func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 	hash := exp.app.getBlockHashCtx(r)
+	height := exp.app.getBlockHeightCtx(r)
+	if height == -1 {
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		return
+	}
+
 	data := exp.app.BlockData.GetBlockVerboseWithStakeTxDetails(hash)
 	if data == nil {
 		apiLog.Errorf("Unable to get block %s", hash)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	str, err := TemplateExecToString(exp.templates[blockTemplateIndex], "block", data)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -95,19 +104,19 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		apiLog.Trace("txid not set")
-		http.Error(w, "txid not set", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	data := exp.app.BlockData.GetRawTransaction(hash)
 	if data == nil {
 		apiLog.Errorf("Unable to get transaction %s", hash)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	str, err := TemplateExecToString(exp.templates[txTemplateIndex], "tx", data)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -119,19 +128,19 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
 		apiLog.Trace("address not set")
-		http.Error(w, "address not set", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 		return
 	}
-	data := exp.app.BlockData.GetAddressTransactions(address, 2000)
+	data := exp.app.BlockData.GetAddressTransactions(address, addressRows)
 	if data == nil {
 		apiLog.Errorf("Unable to get address %s", address)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 		return
 	}
 	str, err := TemplateExecToString(exp.templates[addressTemplateIndex], "address", data)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -146,7 +155,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	searchStr, ok := r.Context().Value(ctxSearch).(string)
 	if !ok {
 		apiLog.Trace("search parameter missing")
-		http.Error(w, "search parameter missing", http.StatusInternalServerError)
+		http.Redirect(w, r, "/error/", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -171,7 +180,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 
 	// Check if the value is a valid hash
 	if _, err := chainhash.NewHashFromStr(searchStr); err != nil {
-		http.Error(w, "Cannot find "+searchStr, http.StatusNotFound)
+		http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -192,7 +201,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Display an error since searchStr is not a block index, block hash, address hash or transaction hash
-	http.Error(w, "Cannot find "+searchStr, http.StatusNotFound)
+	http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
 	return
 }
 
@@ -274,9 +283,13 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
 
 	exp.templateHelpers = template.FuncMap{
+		"timezone": func() string {
+			t, _ := time.Now().Zone()
+			return t
+		},
 		"getTime": func(btime int64) string {
 			t := time.Unix(btime, 0)
-			return t.String()
+			return t.Format("Jan _2 15:04:05 2006")
 		},
 		"getTotalFromBlock": func(vout []dcrjson.Vout) float64 {
 			total := 0.0
@@ -298,6 +311,21 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 		},
 		"size": func(h string) int {
 			return len(h) / 2
+		},
+		"totalSentInBlock": func(block *apitypes.BlockDataWithTxType) dcrutil.Amount {
+			var total float64
+			for _, i := range block.RawTx {
+				for _, j := range i.Vout {
+					total = total + j.Value
+				}
+			}
+			for _, i := range block.RawSTx {
+				for _, j := range i.Vout {
+					total = total + j.Value
+				}
+			}
+			amount, _ := dcrutil.NewAmount(total)
+			return amount
 		},
 	}
 

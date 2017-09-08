@@ -1,14 +1,14 @@
 {{define "block"}}
 <!DOCTYPE html>
 <html lang="en">
-{{template "html-head"}}
+{{template "html-head" printf "Decred Block %d" .Height}}
 <body>
 
     {{template "navbar"}}
 
     <div class="container">
-        <h4><span>Block #{{.Height}}</span></h4>
-
+        <h4>Block #{{.Height}}  <span style="font-size: 12px;"><a href="/api/block/{{.Height}}/verbose?indent=true">view raw</a></span></span></h4>
+        
         <div class="row">
             <div class="col-md-4">
                 <table class="table table-sm">
@@ -29,7 +29,7 @@
                         <td>{{.Confirmations}}</td>
                     </tr>
                     <tr>
-                        <td>Time</td>
+                        <td>Time ({{timezone}})</td>
                         <td>{{.Time | getTime}}</td>
                     </tr>
                     <tr>
@@ -39,6 +39,10 @@
                     <tr>
                         <td>POS Difficulty(Sbits)</td>
                         <td>{{.SBits}}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Sent in Block</td>
+                        <td>{{$ | totalSentInBlock}}</td>
                     </tr>
                 </table>
             </div>
@@ -60,11 +64,11 @@
                         <td><a href="#transactions">{{.RawTx | len}}</a></td>
                     </tr>
                     <tr>
-                        <td>Voters</td>
+                        <td>Votes</td>
                         <td><a href="#stake-transactions">{{.Voters}}</a></td>
                     </tr>
                     <tr>
-                        <td>Fresh Stake</td>
+                        <td>Tickets</td>
                         <td><a href="#stake-transactions">{{.FreshStake}}</a></td>
                     </tr>
                     <tr>
