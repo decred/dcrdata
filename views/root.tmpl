@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 
-{{ template "html-head" "Dcrdata Web"}}
+{{ template "html-head" "dcrdata.org"}}
 
 <body>
         <style>
@@ -247,130 +247,35 @@
 
     <div class="container">
 
-        <h4><span>Chain State</span></h4>
-        <div class="row" id="chainbox">
+       <BR>
+        <div class="row">
             <div class="col-md-6">
-                <strong>Best Block</strong>
+                <strong>Mempool</strong>
                 <table class="table table-sm">
                     <tbody>
                         <tr>
-                            <td>Height</td>
-                            <td><span id="blockheight" class="height">{{.BlockSummary.Height}}</span></td>
-                        </tr>
-                        <tr>
-                            <td>Hash</td>
-                            <td>
-                                <a href="/explorer/block/{{.BlockSummary.Hash}}" id="blockhash" class="hash collapse">{{.BlockSummary.Hash}}</a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Size (bytes)</td>
-                            <td><strong id="blocksize" >{{.BlockSummary.Size}}</strong></td>
-                        </tr>
-                        <tr>
-                            <td>Difficulty</td>
-                            <td><strong id="blockdiff" >{{printf "%16.2f" .BlockSummary.Difficulty}}</strong></td>
+                            <td width=45%>Tickets</td>
+                            <td><strong id="feeinfo_number">{{.MempoolFeeInfo.Number}}</strong></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-            <div class="col-md-6 text-left">
+
+            <div class="col-md-6">
                 <strong>Ticket Pool</strong>
                 <table class="table table-sm">
                     <tbody>
                         <tr>
-                            <td>Size</td>
-                            <td><strong><span id="poolsize" style="color: #65d4a5">{{.BlockSummary.PoolInfo.Size}}</span></strong></td>
-                        </tr>
-                        <tr>
-                            <td>Value (DCR)</td>
-                            <td><strong><span id="poolvalue">{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</span></strong></td>
-                        </tr>
-                        <tr>
-                            <td>Average (DCR/ticket)</td>
-                            <td><strong><span id="poolvalavg">{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</span></strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <h4><span>Ticket Price</span></h4>
-        <div class="row">
-            <div class="col-md-6">
-                <strong>Current Price Window</strong>
-                <table class="table table-sm">
-                    <thead>
-                        <th>Ticket Price</th>
-                        <th>Progress</th>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span style="color:#65d4a5;" id="blocksdiff" ><strong>{{printf "%12.4f" .BlockSummary.StakeDiff}}</strong></span></td>
+                            <td>Price</td>
+                            <td><span id="blocksdiff" ><strong>{{printf "%12.4f" .BlockSummary.StakeDiff}}</strong></span></td>
+			</tr>
+			<tr>
+                            <td>Window</td>
                             <td id="blocksdiff">block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144</td>
                         </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="col-md-6">
-                <strong>Next Price Window</strong>
-                <table class="table table-sm">
-                    <thead>
-                        <th>Min</th>
-                        <th>Max</th>
-                        <th>Guess</th>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span id="sdiffmin" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}</span></td>
-                            <td><span id="sdiffmax" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}</span></td>
-                            <td><span id="sdiffexp" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <h4><span>Ticket Fees</span></h4>
-        <div class="row">
-            <div class="col-md-6">
-                <div>Tickets in Mempool: <strong id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</strong></div>
-                <strong>Fees:</strong>
-                <table class="table table-sm">
-                    <thead>
-                        <th>Lowest Minable</th>
-                        <th>Min</th>
-                        <th>Max</th>
-                        <th>Median</th>
-                        <th>Mean</th>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span id="mempoolfeeinfo_lowestmineable" >{{printf "%.8f" .MempoolFeeInfo.LowestMineable}}</span></td>
-                            <td><span id="mempoolfeeinfo_min" >{{printf "%.8f" .MempoolFeeInfo.Min}}</span></td>
-                            <td><span id="mempoolfeeinfo_max" >{{printf "%.8f" .MempoolFeeInfo.Max}}</span></td>
-                            <td><span id="mempoolfeeinfo_median" >{{printf "%.8f" .MempoolFeeInfo.Median}}</span></td>
-                            <td><span id="mempoolfeeinfo_mean" >{{printf "%.8f" .MempoolFeeInfo.Mean}}</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="col-md-6 text-left">
-                <div>Tickets in Latest Block: <strong id="feeinfo_number">{{.StakeSummary.Feeinfo.Number}}</strong></div>
-                <strong>Fees in Last Block:</strong>
-                <table class="table table-sm">
-                    <thead>
-                        <th>Min</th>
-                        <th>Max</th>
-                        <th>Median</th>
-                        <th>Mean</th>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span id="feeinfo_min" >{{printf "%16.6f" .StakeSummary.Feeinfo.Min}}</span></td>
-                            <td><span id="feeinfo_max" >{{printf "%16.6f" .StakeSummary.Feeinfo.Max}}</span></td>
-                            <td><span id="feeinfo_median" >{{printf "%16.6f" .StakeSummary.Feeinfo.Median}}</span></td>
-                            <td><span id="feeinfo_mean" >{{printf "%16.6f" .StakeSummary.Feeinfo.Mean}}</span></td>
+			<tr>
+                            <td>Size</td>
+                            <td><strong><span id="poolsize">{{.BlockSummary.PoolInfo.Size}} tickets</span></strong></td>
                         </tr>
                     </tbody>
                 </table>

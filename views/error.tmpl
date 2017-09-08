@@ -1,19 +1,15 @@
 {{define "error"}}
 <!DOCTYPE html>
 <html lang="en">
-{{template "html-head" printf "Error %s" .ErrorCode}}
+{{template "html-head" printf "%s" .ErrorCode}}
 <body>
 
     {{template "navbar"}}
 
-    <div class="container">
-        <div class="row">
-            <h1>Error {{.ErrorCode}}</h1>
-        </div>
-        <div class="row">
-            <p>{{.ErrorString}}</p>
-        </div>
-    </div>
+    <BR>
+    <center>
+    <p>{{.ErrorString}}</p>
+    </center>
 
     {{template "footer"}}
 
