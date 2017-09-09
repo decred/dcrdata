@@ -1,14 +1,14 @@
-﻿@font-face {
+﻿/*icons*/
+@font-face {
   font-family: 'icomoon';
   src:  url('/fonts/icomoon.eot?ftag0k');
   src:  url('/fonts/icomoon.eot?ftag0k#iefix') format('embedded-opentype'),
-    url('/fonts/icomoon.ttf?ftag0k') format('truetype'),
-    url('/fonts/icomoon.woff?ftag0k') format('woff'),
-    url('/fonts/icomoon.svg?ftag0k#icomoon') format('svg');
+  url('/fonts/icomoon.ttf?ftag0k') format('truetype'),
+  url('/fonts/icomoon.woff?ftag0k') format('woff'),
+  url('/fonts/icomoon.svg?ftag0k#icomoon') format('svg');
   font-weight: normal;
   font-style: normal;
 }
-
 [class^="dcricon-"], [class*=" dcricon-"] {
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: 'icomoon' !important;
@@ -18,12 +18,10 @@
   font-variant: normal;
   text-transform: none;
   line-height: 1;
-
   /* Better Font Rendering =========== */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 .dcricon-sun-fill:before {
   content: "\e901";
 }
@@ -33,63 +31,39 @@
 .dcricon-decred:before {
   content: "\e900";
 }
-
-
-[class^="dcricon-"], [class*=" dcricon-"] {
-  /* use !important to prevent issues with browser extensions that change fonts */
-  font-family: 'icomoon' !important;
-  speak: none;
-  font-style: normal;
-  font-weight: normal;
-  font-variant: normal;
-  text-transform: none;
-  line-height: 1;
-
-  /* Better Font Rendering =========== */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.dcricon-sun-fill:before {
-  content: "\e901";
-}
-.dcricon-sun-stroke:before {
-  content: "\e902";
-}
-.dcricon-decred-symbol:before {
-  content: "\e900";
-  color: #091440;
-}
 #sun-toggle {
-    padding: 5px;
+  padding: 5px;
 }
 body.darkBG {
-    background: #3B3F45;
-    color: #fdfdfd;
+  background: #3B3F45;
+  color: #fdfdfd;
 }
 body.darkBG a {
-    color: #94b9ff;
+  color: #94ffca;
 }
 body.darkBG .table td, body.darkBG .table th {
-    border-top: 1px solid #292929;
+  /*border-top: 1px solid #292929;*/
 }
 body.darkBG .table thead th {
-    vertical-align: bottom;
-    border-bottom: 2px solid #292929;
+  vertical-align: bottom;
+  /*border-bottom: 2px solid #292929;*/
 }
 body.darkBG .top-nav,
 body.darkBG .navbar-fixed-bottom {
-    background: #292929;
+  background: #292929;
 }
 body.darkBG .top-nav a,
 body.darkBG .navbar-fixed-bottom a {
-    color: #fff;
+  color: #fff;
 }
 
-/* Quick and Dirty CSS, just layer on top of boostrap */
-
+/*elements*/
 html {
   color: #5f5f5f;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-font-smoothing: antialiased !important;
+  text-rendering: optimizelegibility !important;
 }
 body {
   padding-bottom: 2.1rem;
@@ -97,13 +71,29 @@ body {
 a {
   color: #3575f6
 }
+h4 {
+  margin-top: 10px;
+}
+
+/*utils*/
 .hidden {
   display: none;
 }
+.nowrap {
+  white-space: nowrap;
+}
+.fs12 {
+  font-size: 12px
+}
+.no-underline,
+.no-underline:hover {
+  text-decoration: none;
+}
 
+/*nav*/
 .top-nav,
 .navbar-fixed-bottom {
-    background: #3B3F45;
+  background: #3B3F45;
 }
 .navbar-fixed-bottom {
   position: fixed;
@@ -113,9 +103,8 @@ a {
   font-size: 12px;
   line-height: 22px;
 }
-
 .top-nav a {
-    color: white;
+  color: white;
 }
 .top-nav .dcricon-decred {
   font-size: 22px;
@@ -124,7 +113,6 @@ a {
   height: 30px;
   margin: 2px 0 !important;
 }
-
 .navbar-fixed-bottom {
   position: fixed;
   bottom: 0;
@@ -137,57 +125,81 @@ a {
   padding: 0 6px;
   position: relative;
 }
-h4 {
-    margin-top: 10px;
-}
-.hash {
-    font-family: monospace;
-    display: inline-block;
-    word-wrap: break-word;
-    transition: .133s transform;
-}
+
+/*table*/
 .table th {
-    font-size: 12px;
+  font-size: 12px;
 }
 .table td {
-    height: 36px;
-    font-size: 12px;
-    vertical-align: middle;
+  height: 33px;
+  font-size: 12px;
+  vertical-align: middle;
 }
-.hash.collapse {
-    font-size: 10px;
-    display: inline-block;
-    width: 198px;
+.table thead th {
+  border-bottom: none;
 }
-.no-underline {
-  text-decoration: none !important;
+.table thead {
 }
-@media only screen and (max-width: 992px)  {
-    .container {
-      max-width: 100% !important;
-    }
+.table thead th {
+  padding: 0.36rem .5rem;
 }
-@media only screen and (max-width: 940px)  {
-    .hash.collapse {
-        width: 142px;
-    }
+.table thead tr {
+  background: rgba(0, 0, 0, 0.06) !important;
 }
-@media only screen and (max-width: 768px)  {
-    .hash.collapse {
-        width: 198px;
-    }
-    .table {
-        margin-bottom: 0;
-        width: 100%;
-    }
-    .table td:first-child {
-        width: 140px;
-    }
+.table td, .table th {
+  border: none;
+  padding: .25rem .5rem;
 }
-@media only screen and (max-width: 630px)  {
-    .table .hash {
-        font-size: 10px;
-        width: 198px;
-    }
+.table.striped tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.02);
+}
+.table.striped tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+.table-sm td {
+  padding: .1rem .5rem;
+  height: 25px;
+}
+.table.flush-left tr td:first-child {
+  padding-left: 0px;
 }
 
+/*content*/
+.hash {
+  font-family: monospace;
+  display: inline-block;
+  word-wrap: break-word;
+  transition: .133s transform;
+}
+.hash.collapse {
+  font-size: 10px;
+  display: inline-block;
+  width: 198px;
+}
+
+/*responsive*/
+@media only screen and (max-width: 992px)  {
+  .container {
+    max-width: 100% !important;
+  }
+}
+@media only screen and (max-width: 940px)  {
+  .hash.collapse {
+    width: 142px;
+  }
+}
+@media only screen and (max-width: 768px)  {
+  .hash.collapse {
+    width: 198px;
+  }
+  .table {
+    margin-bottom: 0;
+    width: 100%;
+  }
+}
+@media only screen and (max-width: 630px)  {
+  .table .hash {
+    font-size: 10px;
+    width: 198px;
+  }
+}
