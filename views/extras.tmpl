@@ -63,15 +63,15 @@
     </div>
 </div>
 <script>
-        document.getElementById('search').onkeypress = function(e){
-            if (!e) e = window.event;
-            var keyCode = e.keyCode || e.which;
-            if (keyCode == '13'){
-                window.location.href = "/explorer/search/" + this.value
-              return false;
-            }
-          }
-          var sunToggle = document.getElementById("sun-toggle")
+    document.getElementById('search').onkeypress = function(e){
+        if (!e) e = window.event;
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == '13'){
+            window.location.href = "/explorer/search/" + this.value
+            return false;
+        }
+    }
+    var sunToggle = document.getElementById("sun-toggle")
     var darkBGCookieName = 'dcrdataDarkBG';
     function setCookie(cname, cvalue, exMins) {
         var d = new Date();
