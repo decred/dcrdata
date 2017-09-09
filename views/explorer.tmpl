@@ -11,14 +11,18 @@
 
     <div class="container">
         <h4><span>Blocks</span></h4>
-        <div class="row">
-            <div class="col-md-12">
-                <a id="next" href="/explorer">Newer</a>
+
+        <div class="row fs12">
+            <div class="col d-flex justify-content-between">
+                <a id="prev" class="no-underline" href="/explorer">◄ Older</a>
+                <p id="best" class="hidden">{{.BestBlock}}</p>
+                <a id="next" class="no-underline" href="/explorer">Newer ►</a>
             </div>
         </div>
+
         <div class="row">
             <div class="col-md-12">
-                <table class="table table-condensed">
+                <table class="table striped">
                     <thead>
                         <tr>
                             <th>Height</th>
@@ -46,13 +50,6 @@
                     {{end}}
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-12">
-                <p id="best" class="hidden">{{.BestBlock}}</p>
-                <a id="prev" href="/explorer">Older</a>
             </div>
         </div>
     </div>

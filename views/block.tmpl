@@ -8,10 +8,10 @@
 
     <div class="container">
         <h4>Block #{{.Height}}  <span style="font-size: 12px;"><a href="/api/block/{{.Height}}/verbose?indent=true">view raw</a></span></span></h4>
-        
+
         <div class="row">
             <div class="col-md-4">
-                <table class="table table-sm">
+                <table class="table table-sm flush-left">
                     <tr>
                         <td>Hash</td>
                         <td><span class="hash collapse">{{.Hash}}</span></td>
@@ -48,7 +48,7 @@
             </div>
 
             <div class="col-md-4">
-                <table class="table table-sm">
+                <table class="table table-sm flush-left">
                     <tr>
                         <td>Previous Block Hash</td>
                         <td><a class="hash collapse" href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></td>
@@ -87,7 +87,7 @@
             </div>
 
             <div class="col-md-4">
-                <table class="table table-sm">
+                <table class="table table-sm flush-left">
                     <tr>
                         <td>Block Verison</td>
                         <td>{{.Version}}</span>
@@ -124,7 +124,7 @@
         <div class="row">
             <div class="col-md-12">
                 <h4 id="stake-transactions"><span>Stake Transactions</span></h4>
-                <table class="table table-sm">
+                <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
                         <th>Total Value</th>
@@ -152,7 +152,7 @@
         <div class="row">
             <div class="col-sm-12">
                 <h4 id="transactions"><span>Transactions</span></h4>
-                <table class="table table-sm">
+                <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
                         <th>Total Value</th>

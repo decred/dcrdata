@@ -27,7 +27,7 @@ const (
 	txTemplateIndex
 	addressTemplateIndex
 	maxExplorerRows = 2000
-	minExplorerRows = 12
+	minExplorerRows = 20
 	addressRows     = 2000
 )
 
@@ -49,7 +49,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
 	if err != nil || rows > maxExplorerRows || rows < minExplorerRows || height-rows < 0 {
-		rows = 12
+		rows = 20
 	}
 
 	summaries := make([]*dcrjson.GetBlockVerboseResult, 0, rows)
