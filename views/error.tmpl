@@ -7,11 +7,14 @@
     {{template "navbar"}}
 
     <div class="container">
-        <div class="row">
-            <h1>Error {{.ErrorCode}}</h1>
+        <br/>
+        <div class="alert alert-info">
+            <h4>Error: {{.ErrorCode}}</h4>
         </div>
         <div class="row">
-            <p>{{.ErrorString}}</p>
+            <div class="col">
+                <p>{{.ErrorString}}</p>
+            </div>
         </div>
     </div>
 
