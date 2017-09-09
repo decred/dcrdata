@@ -30,6 +30,17 @@ const (
 	ctxN
 )
 
+// CacheControl creates a new middleware to set the HTTP response header with
+// "Cache-Control: max-age=maxAge" where maxAge is in seconds.
+func CacheControl(maxAge int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "max-age="+strconv.FormatInt(maxAge, 10))
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func (c *appContext) StatusCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set API status context
@@ -37,15 +48,6 @@ func (c *appContext) StatusCtx(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
-
-// SomeCtx sets X in the http.Request context used by all handlers with certain
-// endpoints
-// func SomeCtx(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		ctx := context.WithValue(r.Context(), ctxX, "A")
-// 		next.ServeHTTP(w, r.WithContext(ctx))
-// 	})
-// }
 
 // BlockStepPathCtx returns a http.HandlerFunc that embeds the value at the url
 // part {step} into the request context
