@@ -41,9 +41,10 @@ var (
 	defaultHost              = "localhost"
 	//defaultEmailSubject      = "dcrdataapi transaction notification"
 
-	defaultAPIProto   = "http"
-	defaultAPIListen  = "127.0.0.1:7777"
-	defaultIndentJSON = "   "
+	defaultAPIProto           = "http"
+	defaultAPIListen          = "127.0.0.1:7777"
+	defaultIndentJSON         = "   "
+	defaultCacheControlMaxAge = 86400
 
 	defaultMonitorMempool     = true
 	defaultMempoolMinInterval = 2
@@ -65,10 +66,11 @@ type config struct {
 	CPUProfile  string `long:"cpuprofile" description:"File for CPU profiling."`
 
 	// API
-	APIProto   string `long:"apiproto" description:"Protocol for API (http or https)"`
-	APIListen  string `long:"apilisten" description:"Listen address for API"`
-	IndentJSON string `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
-	UseRealIP  bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order."`
+	APIProto           string `long:"apiproto" description:"Protocol for API (http or https)"`
+	APIListen          string `long:"apilisten" description:"Listen address for API"`
+	IndentJSON         string `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
+	UseRealIP          bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order."`
+	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes."`
 
 	// Comamnd execution
 	//CmdName string `short:"c" long:"cmdname" description:"Command name to run. Must be on %PATH%."`
@@ -109,6 +111,7 @@ var (
 		APIProto:           defaultAPIProto,
 		APIListen:          defaultAPIListen,
 		IndentJSON:         defaultIndentJSON,
+		CacheControlMaxAge: defaultCacheControlMaxAge,
 		DcrdCert:           defaultDaemonRPCCertFile,
 		MonitorMempool:     defaultMonitorMempool,
 		MempoolMinInterval: defaultMempoolMinInterval,
