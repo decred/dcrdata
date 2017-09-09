@@ -49,7 +49,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
 	if err != nil || rows > maxExplorerRows || rows < minExplorerRows || height-rows < 0 {
-		rows = 20
+		rows = minExplorerRows
 	}
 
 	summaries := make([]*dcrjson.GetBlockVerboseResult, 0, rows)
