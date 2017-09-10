@@ -107,13 +107,19 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-	data := exp.app.BlockData.GetRawTransaction(hash)
-	if data == nil {
+	tx, prevOutAddresses := exp.app.BlockData.GetRawTransactionWithPrevOutAddresses(hash)
+	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", hash)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-	str, err := TemplateExecToString(exp.templates[txTemplateIndex], "tx", data)
+	txSuppl := struct {
+		*apitypes.Tx
+		VinAddrs [][]string
+	}{
+		tx, prevOutAddresses,
+	}
+	str, err := TemplateExecToString(exp.templates[txTemplateIndex], "tx", txSuppl)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)

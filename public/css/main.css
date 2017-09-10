@@ -177,6 +177,18 @@ h4 {
   width: 198px;
 }
 
+.outpoint {
+  font-family: monospace;
+  display: inline-block;
+  word-wrap: break-word;
+  transition: .133s transform;
+}
+.outpoint.collapse {
+  font-size: 10px;
+  display: inline-block;
+  width: 206px;
+}
+
 /*responsive*/
 @media only screen and (max-width: 992px)  {
   .container {
