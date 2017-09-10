@@ -4,6 +4,7 @@
 package txhelpers
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"math/big"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/decred/dcrd/blockchain"
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
@@ -299,6 +301,137 @@ func SSTXInBlock(block *dcrutil.Block, c RawTransactionGetter) []*dcrutil.Tx {
 		}
 	}
 	return allSSTx
+}
+
+// SSGenVoteBlockValid determines if a vote transaction is voting yes or no to a
+// block, and returns the votebits in case the caller wants to check agenda
+// votes. The error return may be ignored if the input transaction is known to
+// be a valid ssgen (vote), otherwise it should be checked.
+func SSGenVoteBlockValid(msgTx *wire.MsgTx) (BlockValidation, uint16, error) {
+	if isVote, _ := stake.IsSSGen(msgTx); !isVote {
+		return BlockValidation{}, 0, fmt.Errorf("not a vote transaction")
+	}
+	ssGenVoteBits := stake.SSGenVoteBits(msgTx)
+
+	blockHash, blockHeight, err := stake.SSGenBlockVotedOn(msgTx)
+	if err != nil {
+		return BlockValidation{}, 0, err
+	}
+	blockValid := BlockValidation{
+		Hash:     blockHash,
+		Height:   int64(blockHeight),
+		Validity: dcrutil.IsFlagSet16(ssGenVoteBits, dcrutil.BlockValid),
+	}
+	return blockValid, ssGenVoteBits, nil
+}
+
+// VoteBitsInBlock returns a list of vote bits for the votes in a block
+func VoteBitsInBlock(block *dcrutil.Block) []blockchain.VoteVersionTuple {
+	var voteBits []blockchain.VoteVersionTuple
+	for _, stx := range block.MsgBlock().STransactions {
+		if isVote, _ := stake.IsSSGen(stx); !isVote {
+			continue
+		}
+
+		voteBits = append(voteBits, blockchain.VoteVersionTuple{
+			Version: stake.SSGenVersion(stx),
+			Bits:    stake.SSGenVoteBits(stx),
+		})
+	}
+
+	return voteBits
+}
+
+// SSGenVoteBits returns the VoteBits of txOut[1] of a ssgen tx
+func SSGenVoteBits(tx *wire.MsgTx) (uint16, error) {
+	if len(tx.TxOut) < 2 {
+		return 0, fmt.Errorf("not a ssgen")
+	}
+
+	pkScript := tx.TxOut[1].PkScript
+	if len(pkScript) < 8 {
+		return 0, fmt.Errorf("vote consensus version abent")
+	}
+
+	return binary.LittleEndian.Uint16(pkScript[2:4]), nil
+}
+
+// BlockValidation models the block validation indicated by an ssgen (vote)
+// transaction.
+type BlockValidation struct {
+	// Hash is the hash of the block being targeted (in)validated
+	Hash chainhash.Hash
+
+	// Height is the height of the block
+	Height int64
+
+	// Validity indicates the vote is to validate (true) or invalidate (false)
+	// the block.
+	Validity bool
+}
+
+// VoteChoice represents the choice made by a vote transaction on a single vote
+// item in an agenda. The ID, Description, and Mask fields describe the vote
+// item for which the choice is being made. Those are the initial fields in
+// chaincfg.Params.Deployments[VoteVersion][VoteIndex].
+type VoteChoice struct {
+	// Single unique word identifying the vote.
+	ID string
+
+	// Longer description of what the vote is about.
+	Description string
+
+	// Usable bits for this vote.
+	Mask uint16
+
+	// VoteVersion and VoteIndex specify which vote item is referenced by this
+	// VoteChoice (i.e. chaincfg.Params.Deployments[VoteVersion][VoteIndex]).
+	VoteVersion uint32
+	VoteIndex   int
+
+	// Choice is the selected choice for the specified vote item
+	Choice *chaincfg.Choice
+	// ChoiceIdx indicates the corresponding element in the vote item's []Choice
+	ChoiceIdx int
+}
+
+// SSGenVoteChoices gets a ssgen's vote choices (block validity and any
+// agendas). The vote's stake version is also returned, to which the vote
+// choices correspond. Note that []*VoteChoice may be an empty slice if there
+// are no consensus deployments for the transaction's vote version. The error
+// value may be non-nil if the tx is not a valid ssgen.
+func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation, uint32, []*VoteChoice, error) {
+	validBlock, voteBits, err := SSGenVoteBlockValid(tx)
+	if err != nil {
+		return validBlock, 0, nil, err
+	}
+
+	// Determine the ssgen's vote version and get the relevent consensus
+	// deployments containing the vote items targeted.
+	voteVersion := stake.SSGenVersion(tx)
+	deployments := params.Deployments[voteVersion]
+
+	// Allocate space for each choice
+	choices := make([]*VoteChoice, 0, len(deployments))
+
+	// For each vote item (consensus deployment), extract the choice from the
+	// vote bits and store the vote item's Id, Description and vote bits Mask.
+	for d := range deployments {
+		voteAgenda := &deployments[d].Vote
+		choiceIndex := voteAgenda.VoteIndex(voteBits)
+		voteChoice := VoteChoice{
+			ID:          voteAgenda.Id,
+			Description: voteAgenda.Description,
+			Mask:        voteAgenda.Mask,
+			VoteVersion: voteVersion,
+			VoteIndex:   d,
+			Choice:      &voteAgenda.Choices[choiceIndex],
+			ChoiceIdx:   choiceIndex,
+		}
+		choices = append(choices, &voteChoice)
+	}
+
+	return validBlock, voteVersion, choices, nil
 }
 
 // FeeInfoBlock computes ticket fee statistics for the tickets included in the
