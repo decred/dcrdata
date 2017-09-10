@@ -13,6 +13,7 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/stakedb"
+	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -283,6 +284,25 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 	}
 
 	return allTxOut
+}
+
+// GetRawTransactionWithPrevOutAddresses looks up the previous outpoints for a
+// transaction and extracts a slice of addresses encoded by the pkScript for
+// each previous outpoint consumed by the transaction.
+func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string) {
+	tx := db.GetRawTransaction(txid)
+	prevOutAddresses := make([][]string, len(tx.Vin))
+	if tx == nil {
+		return tx, prevOutAddresses
+	}
+
+	for i := range tx.Vin {
+		vin := &tx.Vin[i]
+		prevOutAddresses[i] = txhelpers.OutPointAddressesFromString(
+			vin.Txid, vin.Vout, vin.Tree, db.client, db.params)
+	}
+
+	return tx, prevOutAddresses
 }
 
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {

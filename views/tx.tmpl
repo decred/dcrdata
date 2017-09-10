@@ -60,34 +60,42 @@
             <h4>In</h4>
             <table class="table table-sm striped">
                 <thead>
-                    <th>Transaction</th>
-                    <th class="nowrap">Block Height </th>
-                    <th>Sequence</th>
-                    <th>Tree</th>
+                    <th>Previous Outpoint</th>
+                    <th>Addresses</th>
+                    <!-- <th>Tree</th> -->
+                    <th class="nowrap">Block</th>
                     <th>Value</th>
                 </thead>
                 <tbody>
-                    {{range .Vin}}
+                    {{range $i, $vin := .Vin}}
                     <tr>
                         <td>
-                            {{if .Coinbase}}
-                                Coinbase: {{ .Coinbase }}
-                            {{else if eq .Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
+                            {{if $vin.Coinbase}}
+                                Coinbase: {{ $vin.Coinbase }}
+                            {{else if eq $vin.Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
                                 Vote Reward
                             {{else}}
-                            <a href="/explorer/tx/{{.Txid}}"><span class="hash collapse">{{.Txid}}</span></a>
+                            <a href="/explorer/tx/{{$vin.Txid}}"><span class="outpoint collapse">{{$vin.Txid}}:{{$vin.Vout}}</span></a>
                             {{end}}
                         </td>
+                        <td><div class="hash">
+                        {{with $as := index $.VinAddrs $i}}
+                            {{if (len $as) gt 0}}
+                                {{index $as 0}}
+                            {{else}}
+                                N/A
+                            {{end}}
+                        {{end}}
+                        </div></td>
+                        <!-- <td>{{$vin.Tree}}</td> -->
                         <td>
-                        {{if eq .BlockHeight 0}}
+                        {{if eq $vin.BlockHeight 0}}
                             N/A
                         {{else}}
-                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{.BlockHeight}}</a></td>
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight}}</a></td>
                         {{end}}
                         </td>
-                        <td>{{.Sequence}}</td>
-                        <td>{{.Tree}}</td>
-                        <td>{{if lt .AmountIn 0.0}} N/A {{else}} {{getAmount .AmountIn}} {{end}}</td>
+                        <td>{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{getAmount $vin.AmountIn}} {{end}}</td>
                     </tr>
                     {{end}}
                 </tbody>

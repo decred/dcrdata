@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrutil"
 )
 
@@ -178,6 +179,56 @@ func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 	checkForAddrOut(block.STransactions())
 
 	return addrMap
+}
+
+// OutPointAddresses gets the addresses payed to by a transaction output.
+func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
+	params *chaincfg.Params) []string {
+	// The addresses are encoded in the pkScript, so we need to get the
+	// raw transaction, and the TxOut that contains the pkScript.
+	prevTx, err := c.GetRawTransaction(&outPoint.Hash)
+	if err != nil {
+		fmt.Printf("Unable to get raw transaction for %s", outPoint.Hash.String())
+		return nil
+	}
+
+	txOuts := prevTx.MsgTx().TxOut
+	if len(txOuts) <= int(outPoint.Index) {
+		fmt.Printf("PrevOut index (%d) is beyond the TxOuts slice (length %d)",
+			outPoint.Index, len(txOuts))
+		return nil
+	}
+
+	// For the TxOut of interest, extract the list of addresses
+	txOut := txOuts[outPoint.Index]
+	_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
+		txOut.Version, txOut.PkScript, params)
+	if err != nil {
+		fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
+		return nil
+	}
+
+	addresses := make([]string, 0, len(txAddrs))
+	for _, txAddr := range txAddrs {
+		addr := txAddr.EncodeAddress()
+		addresses = append(addresses, addr)
+	}
+	return addresses
+}
+
+// OutPointAddressesFromString is the same as OutPointAddresses, but it takes
+// the outpoint as the tx string, vout index, and tree.
+func OutPointAddressesFromString(txid string, index uint32, tree int8,
+	c RawTransactionGetter, params *chaincfg.Params) []string {
+	hash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		fmt.Printf("Invalid hash %s", txid)
+		return nil
+	}
+
+	outPoint := wire.NewOutPoint(hash, index, tree)
+
+	return OutPointAddresses(outPoint, c, params)
 }
 
 // MedianAmount gets the median Amount from a slice of Amounts
