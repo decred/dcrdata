@@ -63,28 +63,14 @@
     </div>
 </div>
 <script>
-        document.getElementById('search').onkeypress = function(e){
-            if (!e) e = window.event;
-            var keyCode = e.keyCode || e.which;
-            if (keyCode == '13'){
-                window.location.href = "/explorer/search/" + this.value
-              return false;
-            }
-          }
-</script>
-{{end}}
-
-{{define "footer"}}
-<footer class="navbar-fixed-bottom">
-    <div class="container wrapper text-center">
-        <a class="nav-item" href="www.dcrdata.org">dcrdata.org</a>
-        <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
-        <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
-        <a class="nav-item" href="/api/status" title="API Status" target="_blank">Status</a>
-        <span class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
-    </div>
-</footer>
-<script type="text/javascript">
+    document.getElementById('search').onkeypress = function(e){
+        if (!e) e = window.event;
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == '13'){
+            window.location.href = "/explorer/search/" + this.value
+            return false;
+        }
+    }
     var sunToggle = document.getElementById("sun-toggle")
     var darkBGCookieName = 'dcrdataDarkBG';
     function setCookie(cname, cvalue, exMins) {
@@ -121,4 +107,16 @@
         }
     }
 </script>
+{{end}}
+
+{{define "footer"}}
+<footer class="navbar-fixed-bottom">
+    <div class="container wrapper text-center">
+        <a class="nav-item" href="www.dcrdata.org">dcrdata.org</a>
+        <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
+        <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
+        <a class="nav-item" href="/api/status" title="API Status" target="_blank">Status</a>
+        <span class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
+    </div>
+</footer>
 {{end}}
