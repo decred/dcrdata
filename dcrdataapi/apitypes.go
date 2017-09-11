@@ -43,17 +43,18 @@ type TxShort struct {
 	Vout     []Vout        `json:"vout"`
 }
 
-// VoteInfo models data about a SSGEN Transaction (Vote)
+// VoteInfo models data about a SSGen transaction (vote)
 type VoteInfo struct {
 	Validation BlockValidation         `json:"block_validation"`
 	Version    uint32                  `json:"vote_version"`
 	Choices    []*txhelpers.VoteChoice `json:"vote_choices"`
 }
 
-//BlockValidation models data about a votes decision on a block
+// BlockValidation models data about a vote's decision on a block
 type BlockValidation struct {
-	Height   int64 `json:"height"`
-	Validity bool  `json:"block_validity"`
+	Hash     string `json:"hash"`
+	Height   int64  `json:"height"`
+	Validity bool   `json:"validity"`
 }
 
 // BlockID models very basic info about a block

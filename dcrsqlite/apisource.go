@@ -361,6 +361,11 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	return tx
 }
 
+// GetVoteInfo attempts to decode the vote bits of a SSGen transaction. If the
+// transaction is not a valid SSGen, the VoteInfo output will be nil. Depending
+// on the stake version with which dcrdata is compiled with (chaincfg.Params),
+// the Choices field of VoteInfo may be a nil slice even if the votebits were
+// set for a previously-valid agenda.
 func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
@@ -375,15 +380,19 @@ func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
 	}
 
 	validation, version, choices, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), db.params)
-	vinfo := &apitypes.VoteInfo{
-		apitypes.BlockValidation{
-			validation.Height,
-			validation.Validity,
-		},
-		version,
-		choices,
+	if err != nil {
+		return nil, err
 	}
-	return vinfo, err
+	vinfo := &apitypes.VoteInfo{
+		Validation: apitypes.BlockValidation{
+			Hash:     validation.Hash.String(),
+			Height:   validation.Height,
+			Validity: validation.Validity,
+		},
+		Version: version,
+		Choices: choices,
+	}
+	return vinfo, nil
 }
 
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {

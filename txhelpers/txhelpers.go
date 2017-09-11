@@ -376,23 +376,24 @@ type BlockValidation struct {
 // chaincfg.Params.Deployments[VoteVersion][VoteIndex].
 type VoteChoice struct {
 	// Single unique word identifying the vote.
-	ID string
+	ID string `json:"id"`
 
 	// Longer description of what the vote is about.
-	Description string
+	Description string `json:"description"`
 
 	// Usable bits for this vote.
-	Mask uint16
+	Mask uint16 `json:"mask"`
 
 	// VoteVersion and VoteIndex specify which vote item is referenced by this
 	// VoteChoice (i.e. chaincfg.Params.Deployments[VoteVersion][VoteIndex]).
-	VoteVersion uint32
-	VoteIndex   int
+	VoteVersion uint32 `json:"vote_version"`
+	VoteIndex   int    `json:"vote_index"`
+
+	// ChoiceIdx indicates the corresponding element in the vote item's []Choice
+	ChoiceIdx int `json:"choice_index"`
 
 	// Choice is the selected choice for the specified vote item
-	Choice *chaincfg.Choice
-	// ChoiceIdx indicates the corresponding element in the vote item's []Choice
-	ChoiceIdx int
+	Choice *chaincfg.Choice `json:"choice"`
 }
 
 // SSGenVoteChoices gets a ssgen's vote choices (block validity and any
@@ -425,8 +426,8 @@ func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation,
 			Mask:        voteAgenda.Mask,
 			VoteVersion: voteVersion,
 			VoteIndex:   d,
-			Choice:      &voteAgenda.Choices[choiceIndex],
 			ChoiceIdx:   choiceIndex,
+			Choice:      &voteAgenda.Choices[choiceIndex],
 		}
 		choices = append(choices, &voteChoice)
 	}

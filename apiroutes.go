@@ -441,7 +441,7 @@ func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 	vinfo, err := c.BlockData.GetVoteInfo(txid)
 	if err != nil {
 		apiLog.Errorf("Unable to get vote info for transaction %s", txid)
-		http.Error(w, "Unable to get vote info, is tx "+txid+" a vote?", 422)
+		http.Error(w, "Unable to get vote info. Is tx "+txid+" a vote?", 422)
 		return
 	}
 	writeJSON(w, vinfo, c.getIndentQuery(r))
