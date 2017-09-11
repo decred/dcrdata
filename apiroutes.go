@@ -26,6 +26,7 @@ type APIDataSource interface {
 	GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.BlockDataWithTxType
 	GetRawTransaction(txid string) *apitypes.Tx
 	GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string)
+	GetVoteInfo(txid string) (*apitypes.VoteInfo, error)
 	GetAllTxIn(txid string) []*apitypes.TxIn
 	GetAllTxOut(txid string) []*apitypes.TxOut
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
@@ -429,6 +430,21 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, tx, c.getIndentQuery(r))
+}
+
+func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
+	txid := getTxIDCtx(r)
+	if txid == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	vinfo, err := c.BlockData.GetVoteInfo(txid)
+	if err != nil {
+		apiLog.Errorf("Unable to get vote info for transaction %s", txid)
+		http.Error(w, "Unable to get vote info, is tx "+txid+" a vote?", 422)
+		return
+	}
+	writeJSON(w, vinfo, c.getIndentQuery(r))
 }
 
 // getTransactionInputs serves []TxIn

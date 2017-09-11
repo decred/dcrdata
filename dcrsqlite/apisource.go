@@ -361,6 +361,31 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	return tx
 }
 
+func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil, nil
+	}
+
+	tx, err := db.client.GetRawTransaction(txhash)
+	if err != nil {
+		log.Errorf("GetRawTransaction failed for: %v", txhash)
+		return nil, nil
+	}
+
+	validation, version, choices, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), db.params)
+	vinfo := &apitypes.VoteInfo{
+		apitypes.BlockValidation{
+			validation.Height,
+			validation.Validity,
+		},
+		version,
+		choices,
+	}
+	return vinfo, err
+}
+
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 	sd := rpcutils.GetStakeDiffEstimates(db.client)
 
