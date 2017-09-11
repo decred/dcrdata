@@ -4,6 +4,7 @@
 package dcrdataapi
 
 import (
+	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
 )
 
@@ -40,6 +41,19 @@ type TxShort struct {
 	Expiry   uint32        `json:"expiry"`
 	Vin      []dcrjson.Vin `json:"vin"`
 	Vout     []Vout        `json:"vout"`
+}
+
+// VoteInfo models data about a SSGEN Transaction (Vote)
+type VoteInfo struct {
+	Validation BlockValidation         `json:"block_validation"`
+	Version    uint32                  `json:"vote_version"`
+	Choices    []*txhelpers.VoteChoice `json:"vote_choices"`
+}
+
+//BlockValidation models data about a votes decision on a block
+type BlockValidation struct {
+	Height   int64 `json:"height"`
+	Validity bool  `json:"block_validity"`
 }
 
 // BlockID models very basic info about a block
