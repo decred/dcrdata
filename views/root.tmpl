@@ -147,30 +147,40 @@
 
             // block summary data
             var b = newblock.block;
+            var expTable = document.getElementById('explorertable');
+            expTable.deleteRow(6)
+            var newRow = expTable.insertRow(1);
+            
+            var height = newRow.insertCell();
+            var heightlink = document.createElement("A")
+            heightlink.href = "/explorer/block/"+String(b.height)
+            height.appendChild(heightlink)
+            heightlink.innerHTML = b.height
 
-            var height = document.getElementById('blockheight');
-            height.innerHTML = String(b.height);
+            var votes = newRow.insertCell();
+            votes.innerHTML = b.votes
 
-            var hash = document.getElementById('blockhash');
-            hash.innerHTML = b.hash;
+            var tickets = newRow.insertCell();
+            tickets.innerHTML = b.tickets
 
-            var blockhash = document.getElementById('blocksize');
-            blockhash.innerHTML = String(b.size);
+            var tx = newRow.insertCell();
+            tx.innerHTML = b.tx
 
-            var diff = document.getElementById('blockdiff');
-            diff.innerHTML = b.diff.toFixed(2);
+            var revocations = newRow.insertCell();
+            revocations.innerHTML = b.revocations
+
+            var size = newRow.insertCell();
+            size.innerHTML = String(b.size) + " B"
+
+            var age = newRow.insertCell();
+            age.addClass('age')
+            age.innerHTML = b.time
+
+            var time = newRow.insertCell();
+            time.innerHTML = b.ftime
 
             var sdiff = document.getElementById('blocksdiff');
             sdiff.innerHTML = b.sdiff.toFixed(4);
-
-	        var poolsize = document.getElementById('poolsize');
-            poolsize.innerHTML = String(b.ticket_pool.size);
-
-            var poolvalue = document.getElementById('poolvalue');
-            poolvalue.innerHTML = b.ticket_pool.value.toFixed(2);
-
-            var poolvalavg = document.getElementById('poolvalavg');
-            poolvalavg.innerHTML = b.ticket_pool.valavg.toFixed(4);
 
             // stake
             var s = newblock.stake;
@@ -248,53 +258,41 @@
     <div class="container">
 
         <h4><span>Chain State</span></h4>
-        <div class="row" id="chainbox">
-            <div class="col-md-6">
-                <strong>Best Block</strong>
-                <table class="table table-sm flush-left">
-                    <tbody>
-                        <tr>
-                            <td>Height</td>
-                            <td><span id="blockheight" class="height">{{.BlockSummary.Height}}</span></td>
-                        </tr>
-                        <tr>
-                            <td>Hash</td>
-                            <td>
-                                <a href="/explorer/block/{{.BlockSummary.Hash}}" id="blockhash" class="hash collapse">{{.BlockSummary.Hash}}</a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Size (bytes)</td>
-                            <td><strong id="blocksize" >{{.BlockSummary.Size}}</strong></td>
-                        </tr>
-                        <tr>
-                            <td>Difficulty</td>
-                            <td><strong id="blockdiff" >{{printf "%16.2f" .BlockSummary.Difficulty}}</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
+        
+            <div class="row">
+                <div class="col-md-12">
+                    <table class="table striped" id="explorertable">
+                        <thead>
+                            <tr>
+                                <th>Height</th>
+                                <th>Votes</th>
+                                <th>Tickets</th>
+                                <th>Transactions</th>
+                                <th>Revocations</th>
+                                <th>Size</th>
+                                <th>Age</th>
+                                <th>Time ({{timezone}})</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .InitialData}}
+                            <tr id="{{.Height}}">
+                                <td><a href="/explorer/block/{{.Height}}" class="height">{{.Height}}</a></td>
+                                <td>{{.Voters}}</td>
+                                <td>{{.FreshStake}}</td>
+                                <td>{{len .Tx}}</td>
+                                <td>{{.Revocations}}</td>
+                                <td>{{.Size}} B</td>
+                                <td class="age">{{.Time}}</td>
+                                <td>{{.Time | getTime}}</td>
+                            </tr>
+                        {{end}}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="col-md-6 text-left">
-                <strong>Ticket Pool</strong>
-                <table class="table table-sm flush-left">
-                    <tbody>
-                        <tr>
-                            <td>Size</td>
-                            <td><strong><span id="poolsize" style="color: #65d4a5">{{.BlockSummary.PoolInfo.Size}}</span></strong></td>
-                        </tr>
-                        <tr>
-                            <td>Value (DCR)</td>
-                            <td><strong><span id="poolvalue">{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</span></strong></td>
-                        </tr>
-                        <tr>
-                            <td>Average (DCR/ticket)</td>
-                            <td><strong><span id="poolvalavg">{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</span></strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
+        
+        {{with .Data}}
         <h4><span>Ticket Price</span></h4>
         <div class="row">
             <div class="col-md-6">
@@ -376,7 +374,7 @@
                 </table>
             </div>
         </div>
-
+        {{end}}
     </div>
     <!-- end wrapper -->
 

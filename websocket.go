@@ -26,7 +26,7 @@ var eventIDs = map[hubSignal]string{
 // WebBlockInfo represents the JSON object used to send block data and stake
 // info to the web client
 type WebBlockInfo struct {
-	BlockDataBasic *apitypes.BlockDataBasic             `json:"block"`
+	BlockDataBasic *apitypes.BlockExplorerBasic         `json:"block"`
 	StakeInfoExt   *apitypes.StakeInfoExtendedEstimates `json:"stake"`
 }
 

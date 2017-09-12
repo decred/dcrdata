@@ -55,72 +55,11 @@
     </div>
 
     <script>
-        function timeSince(date) {
-            var seconds = Math.floor(((new Date().getTime()/1000) - date))
-            var interval = Math.floor(seconds / 31536000);
-
-            if (interval >= 1) {
-                var extra = Math.floor((seconds - interval * 31536000) / 2592000)
-                var result = interval + "y"
-                if (extra > 0) {
-                    result = result + " " + extra + "mo"
-                }
-                return result
-            }
-            interval = Math.floor(seconds / 2592000);
-            if (interval >= 1) {
-                var extra = Math.floor((seconds - interval * 2592000) / 86400)
-                var result = interval + "mo"
-                if (extra > 0) {
-                    result = result + " " + extra + "d"
-                }
-                return result
-            }
-            interval = Math.floor(seconds / 86400);
-            if (interval >= 1) {
-                var extra = Math.floor((seconds - interval * 86400) / 3600)
-                var result = interval + "d"
-                if (extra > 0) {
-                    result = result + " " + extra + "h"
-                }
-                return result
-            }
-            interval = Math.floor(seconds / 3600);
-            if (interval >= 1) {
-                var extra = Math.floor((seconds - interval * 3600) / 60)
-                var result = interval + "h"
-                if (extra > 0) {
-                    result = result + " " + extra + "m"
-                }
-                return result
-            }
-            interval = Math.floor(seconds / 60);
-            if (interval >= 1) {
-                var extra = seconds - interval * 60
-                var result = interval + "m"
-                if (extra > 0) {
-                    result = result + " " + extra + "s"
-                }
-                return result
-            }
-            return Math.floor(seconds) + "s";
-        }
-        var ages = document.getElementsByClassName("age");
-        var age_times = [];
-        for (var i = 0; i < ages.length; i++) {
-            age_times[i] = new Date(parseInt(ages[i].innerText));
-            ages[i].innerText = timeSince(age_times[i]);
-        }
+        
         var heights = document.getElementsByClassName("height");
         var first = parseInt(heights[0].innerText);
         var last = parseInt(heights[heights.length-1].innerText);
-        var numBlocks = first - last + 1
-        function updateTime() {
-            for (var i = 0; i < ages.length; i++) {
-                ages[i].innerText = timeSince(age_times[i]);
-            }
-        }
-        setInterval(updateTime, 1000);
+        var numBlocks = first - last + 1;
         var prev = document.getElementById("prev");
         var next = document.getElementById("next");
         prev.addEventListener('click', function(event) {

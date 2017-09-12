@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/go-chi/chi"
 )
 
@@ -44,7 +46,7 @@ func TemplateExecToString(t *template.Template, name string, data interface{}) (
 
 // WebTemplateData holds all of the data structures used to update the web page.
 type WebTemplateData struct {
-	BlockSummary   apitypes.BlockDataBasic
+	BlockSummary   apitypes.BlockExplorerBasic
 	StakeSummary   apitypes.StakeInfoExtendedEstimates
 	MempoolFeeInfo apitypes.MempoolTicketFeeInfo
 	MempoolFees    apitypes.MempoolTicketFees
@@ -60,22 +62,36 @@ type WebUI struct {
 	errorTempl      *template.Template
 	templFiles      []string
 	params          *chaincfg.Params
+	ExplorerSource  APIDataSource
+	tmpHelpers      template.FuncMap
 }
 
 // NewWebUI constructs a new WebUI by loading and parsing the html templates
 // then launching the WebSocket event handler
-func NewWebUI() *WebUI {
+func NewWebUI(expSource APIDataSource) *WebUI {
 	fp := filepath.Join("views", "root.tmpl")
 	efp := filepath.Join("views", "extras.tmpl")
 	errorfp := filepath.Join("views", "error.tmpl")
-	tmpl, err := template.New("home").ParseFiles(fp, efp)
+	helpers := template.FuncMap{
+		"timezone": func() string {
+			t, _ := time.Now().Zone()
+			return t
+		},
+		"getTime": func(btime int64) string {
+			t := time.Unix(btime, 0)
+			return t.Format("Jan _2 15:04:05 2006")
+		},
+	}
+	tmpl, err := template.New("home").Funcs(helpers).ParseFiles(fp, efp)
 	if err != nil {
 		return nil
 	}
+
 	errtmpl, err := template.New("error").ParseFiles(errorfp, efp)
 	if err != nil {
 		return nil
 	}
+
 	//var templFiles []string
 	templFiles := []string{fp, efp, errorfp}
 
@@ -83,11 +99,13 @@ func NewWebUI() *WebUI {
 	go wsh.run()
 
 	return &WebUI{
-		wsHub:      wsh,
-		templ:      tmpl,
-		errorTempl: errtmpl,
-		templFiles: templFiles,
-		params:     activeChain,
+		wsHub:          wsh,
+		templ:          tmpl,
+		errorTempl:     errtmpl,
+		templFiles:     templFiles,
+		params:         activeChain,
+		ExplorerSource: expSource,
+		tmpHelpers:     helpers,
 	}
 }
 
@@ -99,7 +117,7 @@ func (td *WebUI) StopWebsocketHub() {
 
 // ParseTemplates parses all the template files, updating the *html/template.Template.
 func (td *WebUI) ParseTemplates() (err error) {
-	td.templ, err = template.New("home").ParseFiles(td.templFiles[0], td.templFiles[1])
+	td.templ, err = template.New("home").Funcs(td.tmpHelpers).ParseFiles(td.templFiles[0], td.templFiles[1])
 	if err != nil {
 		return err
 	}
@@ -132,7 +150,7 @@ func (td *WebUI) reloadTemplatesSig(sig os.Signal) {
 // updated data.
 func (td *WebUI) Store(blockData *blockdata.BlockData) error {
 	td.templateDataMtx.Lock()
-	td.TemplateData.BlockSummary = blockData.ToBlockSummary()
+	td.TemplateData.BlockSummary = blockData.ToBlockExplorerSummary()
 	td.TemplateData.StakeSummary = blockData.ToStakeInfoExtendedEstimates()
 	td.templateDataMtx.Unlock()
 
@@ -176,9 +194,24 @@ func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
 	// Execute template to a string instead of directly to the
 	// http.ResponseWriter so that execute errors can be handled first. This can
 	// avoid partial writes of the page to the client.
-	str, err := TemplateExecToString(td.templ, "home", td.TemplateData)
+	chainHeight := td.ExplorerSource.GetHeight()
+
+	initialBlocks := make([]*dcrjson.GetBlockVerboseResult, 0, 6)
+	for i := chainHeight; i > chainHeight-6; i-- {
+		data := td.ExplorerSource.GetBlockVerbose(i, false)
+		initialBlocks = append(initialBlocks, data)
+	}
+
+	str, err := TemplateExecToString(td.templ, "home", struct {
+		InitialData []*dcrjson.GetBlockVerboseResult
+		Data        WebTemplateData
+	}{
+		initialBlocks,
+		td.TemplateData,
+	})
 	td.templateDataMtx.RUnlock()
 	if err != nil {
+		fmt.Print(err)
 		http.Error(w, "template execute failure", http.StatusInternalServerError)
 		return
 	}
