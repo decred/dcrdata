@@ -106,6 +106,7 @@
             toggleToDarkClasses()
         }
     }
+    
 </script>
 {{end}}
 
@@ -172,14 +173,16 @@
             return Math.floor(seconds) + "s";
         }
         var ages = document.getElementsByClassName("age");
+        var hidden_ages = document.querySelectorAll("td.hidden");
         var age_times = [];
         for (var i = 0; i < ages.length; i++) {
-            age_times[i] = new Date(parseInt(ages[i].innerText));
+            age_times[i] = new Date(parseInt(hidden_ages[i].innerText));
             ages[i].innerText = timeSince(age_times[i]);
         }
         function updateTime() {
-            for (var i = 0; i < ages.length; i++) {
-                ages[i].innerText = timeSince(age_times[i]);
+            hidden_ages = document.querySelectorAll("td.hidden");
+            for (var i = 0; i < ages.length; i++) { 
+                ages[i].innerText = timeSince(new Date(parseInt(hidden_ages[i].innerText)));
             }
         }
         setInterval(updateTime, 1000);

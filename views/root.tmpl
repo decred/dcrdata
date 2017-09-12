@@ -150,7 +150,7 @@
             var expTable = document.getElementById('explorertable');
             expTable.deleteRow(6)
             var newRow = expTable.insertRow(1);
-            
+            newRow.id = String(b.height)
             var height = newRow.insertCell();
             var heightlink = document.createElement("A")
             heightlink.href = "/explorer/block/"+String(b.height)
@@ -165,7 +165,7 @@
 
             var tx = newRow.insertCell();
             tx.innerHTML = b.tx
-
+            
             var revocations = newRow.insertCell();
             revocations.innerHTML = b.revocations
 
@@ -173,8 +173,14 @@
             size.innerHTML = String(b.size) + " B"
 
             var age = newRow.insertCell();
-            age.addClass('age')
+            age.className = "age"
             age.innerHTML = b.time
+
+            var h_age = newRow.insertCell();
+            h_age.className = "hidden"
+            h_age.innerHTML = b.time
+
+
 
             var time = newRow.insertCell();
             time.innerHTML = b.ftime
@@ -284,6 +290,7 @@
                                 <td>{{.Revocations}}</td>
                                 <td>{{.Size}} B</td>
                                 <td class="age">{{.Time}}</td>
+                                <td class="hidden">{{.Time}}</td>
                                 <td>{{.Time | getTime}}</td>
                             </tr>
                         {{end}}
