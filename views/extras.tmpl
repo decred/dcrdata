@@ -174,14 +174,19 @@
         }
         var ages = document.getElementsByClassName("age");
         var hidden_ages = document.querySelectorAll("td.hidden");
-        var age_times = [];
         for (var i = 0; i < ages.length; i++) {
-            age_times[i] = new Date(parseInt(hidden_ages[i].innerText));
-            ages[i].innerText = timeSince(age_times[i]);
+            var age_time = new Date(parseInt(hidden_ages[i].innerText));
+            if (hidden_ages[i].innerText == "0") {
+                continue;
+            }
+            ages[i].innerText = timeSince(age_time);
         }
         function updateTime() {
             hidden_ages = document.querySelectorAll("td.hidden");
             for (var i = 0; i < ages.length; i++) { 
+                if (hidden_ages[i].innerText == "0") {
+                    continue;
+                }
                 ages[i].innerText = timeSince(new Date(parseInt(hidden_ages[i].innerText)));
             }
         }
