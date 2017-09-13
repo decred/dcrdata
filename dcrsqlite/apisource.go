@@ -289,20 +289,41 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 // GetRawTransactionWithPrevOutAddresses looks up the previous outpoints for a
 // transaction and extracts a slice of addresses encoded by the pkScript for
 // each previous outpoint consumed by the transaction.
-func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string) {
+func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string, string) {
 	tx := db.GetRawTransaction(txid)
 	prevOutAddresses := make([][]string, len(tx.Vin))
 	if tx == nil {
-		return tx, prevOutAddresses
+		return nil, prevOutAddresses, ""
+	}
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil, prevOutAddresses, ""
 	}
 
+	txR, err := db.client.GetRawTransaction(txhash)
+	if err != nil {
+		log.Errorf("Unknown transaction %s", txid)
+		return nil, prevOutAddresses, ""
+	}
 	for i := range tx.Vin {
 		vin := &tx.Vin[i]
 		prevOutAddresses[i] = txhelpers.OutPointAddressesFromString(
 			vin.Txid, vin.Vout, vin.Tree, db.client, db.params)
 	}
+	var txType string
+	switch stake.DetermineTxType(txR.MsgTx()) {
+	case stake.TxTypeSSGen:
+		txType = "Vote"
+	case stake.TxTypeSStx:
+		txType = "Ticket"
+	case stake.TxTypeSSRtx:
+		txType = "Revocation"
+	default:
+		txType = "Regular"
+	}
 
-	return tx, prevOutAddresses
+	return tx, prevOutAddresses, txType
 }
 
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {

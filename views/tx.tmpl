@@ -17,6 +17,7 @@
                     <th>Time</th>
                     <th>Confirmations</th>
                     <th>Included in block</th>
+                    <th>Type</th>
                     <th>Size</th>
                 </thead>
                 <tbody>
@@ -47,7 +48,7 @@
                         {{else}}
                             <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></td>
                         {{end}}
-
+                        <td>{{$.Type}}</td>
                         <td>{{.Size}} B</td>
                     </tr>
                     {{end}}
