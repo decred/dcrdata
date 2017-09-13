@@ -6,7 +6,6 @@ package dcrdataapi
 import (
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrutil"
 )
 
 // much of the time, dcrdata will be using the types in dcrjson, but others are
@@ -270,11 +269,17 @@ type BlockExplorerBasic struct {
 
 //
 type BlockExplorerExtraInfo struct {
-	TxLen            int                            `json:"tx"`
-	FormattedTime    string                         `json:"formatted_time"`
-	CoinSupply       dcrutil.Amount                 `json:"coin_supply`
-	BlockSubsidy     *dcrjson.GetBlockSubsidyResult `json:"block_subsidy"`
-	NextBlockSubsidy *dcrjson.GetBlockSubsidyResult `json:"next_block_subsidy"`
+	TxLen            int                 `json:"tx"`
+	FormattedTime    string              `json:"formatted_time"`
+	CoinSupply       string              `json:"coin_supply"`
+	NextBlockSubsidy BlockSubsidyAmounts `json:"next_block_subsidy"`
+}
+
+type BlockSubsidyAmounts struct {
+	Developer string `json:"dev"`
+	PoS       string `json:"pos"`
+	PoW       string `json:"pow"`
+	Total     string `json:"total"`
 }
 
 // StakeDiff represents data about the evaluated stake difficulty and estimates

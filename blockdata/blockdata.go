@@ -145,8 +145,13 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	block := dcrutil.NewBlock(msgBlock)
 	txLen := len(block.Transactions())
 	coinSupply, _ := t.dcrdChainSvr.GetCoinSupply()
-	bSubsidy, _ := t.dcrdChainSvr.GetBlockSubsidy(int64(msgBlock.Header.Height), 1)
 	nbSubsidy, _ := t.dcrdChainSvr.GetBlockSubsidy(int64(msgBlock.Header.Height)+1, 1)
+	expSubsidy := apitypes.BlockSubsidyAmounts{
+		Developer: dcrutil.Amount(nbSubsidy.Developer).String(),
+		PoS:       dcrutil.Amount(nbSubsidy.PoS).String(),
+		PoW:       dcrutil.Amount(nbSubsidy.PoW).String(),
+		Total:     dcrutil.Amount(nbSubsidy.Total).String(),
+	}
 	// Ticket pool info (value, size, avg)
 	var ticketPoolInfo *apitypes.TicketPoolInfo
 	var found bool
@@ -188,9 +193,8 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	}
 	extrainfo := &apitypes.BlockExplorerExtraInfo{
 		TxLen:            txLen,
-		CoinSupply:       coinSupply,
-		BlockSubsidy:     bSubsidy,
-		NextBlockSubsidy: nbSubsidy,
+		CoinSupply:       coinSupply.String(),
+		NextBlockSubsidy: expSubsidy,
 	}
 	return blockdata, feeInfoBlock, blockHeaderResults, extrainfo, err
 }
