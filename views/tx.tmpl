@@ -13,7 +13,7 @@
             <table class="table">
                 <thead>
                     <th>Transactions ID</th>
-                    <th>Total Value</th>
+                    <th>Total DCR</th>
                     <th>Time</th>
                     <th>Age</th>
                     <th>Confirmations</th>
@@ -26,7 +26,7 @@
                     <tr>
                         <td><span class="hash collapse">{{.TxID}}</span></td>
 
-                        <td>{{ .Vout | getTotalFromTx | getAmount}}</td>
+                        <td>{{ .Vout | getTotalFromTx | float64Commaf}}</td>
                         <td>
                         {{if eq $.Block.Time 0}}
                             N/A
@@ -44,7 +44,7 @@
                         {{if eq $.Confirmations 0}}
                             Unconfirmed
                         {{else}}
-                            {{$.Confirmations}}
+                            {{$.Confirmations | int64Comma}}
                         {{end}}
                         </td>
 
@@ -52,10 +52,10 @@
                         {{if eq $.Block.BlockHeight 0}}
                             N/A
                         {{else}}
-                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight}}</a></td>
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight | int64Comma}}</a></td>
                         {{end}}
                         <td>{{$.Type}}</td>
-                        <td>{{.Size}} B</td>
+                        <td>{{.Size | formatBytes}} B</td>
                     </tr>
                     {{end}}
                 </tbody>
@@ -71,7 +71,7 @@
                     <th>Addresses</th>
                     <!-- <th>Tree</th> -->
                     <th class="nowrap">Block</th>
-                    <th>Value</th>
+                    <th>DCR</th>
                 </thead>
                 <tbody>
                     {{range $i, $vin := .Vin}}
@@ -99,10 +99,10 @@
                         {{if eq $vin.BlockHeight 0}}
                             N/A
                         {{else}}
-                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight}}</a></td>
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight | uint32Comma}}</a></td>
                         {{end}}
                         </td>
-                        <td>{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{getAmount $vin.AmountIn}} {{end}}</td>
+                        <td>{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{float64Commaf $vin.AmountIn}} {{end}}</td>
                     </tr>
                     {{end}}
                 </tbody>
@@ -112,7 +112,7 @@
             <h4>Out</h4>
             <table class="table striped">
                 <thead>
-                    <th>Value</th>
+                    <th>DCR</th>
                     <th>Address</th>
                 </thead>
                 <tbody>
@@ -120,7 +120,7 @@
                     {{ if ne .Value 0.0}}
                     <tr>
                         <td>
-                            {{.Value | getAmount}}
+                            {{.Value | float64Commaf}}
                         </td>
                         <td>
                             {{range .ScriptPubKeyDecoded.Addresses}}

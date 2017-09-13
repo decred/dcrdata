@@ -37,13 +37,13 @@
                     </thead>
                     <tbody>
                     {{range .Data}}
-                        <tr id="{{.Height}}">
-                            <td><a href="/explorer/block/{{.Hash}}" class="height">{{.Height}}</a></td>
+                        <tr id="{{ .Height }}">
+                            <td><a href="/explorer/block/{{.Hash}}" class="height">{{ .Height | int64Comma }}</a></td>
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>
                             <td>{{len .Tx}}</td>
                             <td>{{.Revocations}}</td>
-                            <td>{{.Size}} B</td>
+                            <td>{{.Size | formatBytes}}</td>
                             <td class="age">{{.Time}}</td>
                             <td class="hidden">{{.Time}}</td>
                             <td>{{.Time | getTime}}</td>
