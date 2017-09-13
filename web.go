@@ -6,7 +6,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -211,7 +210,7 @@ func (td *WebUI) RootPage(w http.ResponseWriter, r *http.Request) {
 	})
 	td.templateDataMtx.RUnlock()
 	if err != nil {
-		fmt.Print(err)
+		log.Errorf("Failed to execute template: %v", err)
 		http.Error(w, "template execute failure", http.StatusInternalServerError)
 		return
 	}

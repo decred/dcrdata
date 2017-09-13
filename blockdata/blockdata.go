@@ -144,8 +144,14 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	height := msgBlock.Header.Height
 	block := dcrutil.NewBlock(msgBlock)
 	txLen := len(block.Transactions())
-	coinSupply, _ := t.dcrdChainSvr.GetCoinSupply()
-	nbSubsidy, _ := t.dcrdChainSvr.GetBlockSubsidy(int64(msgBlock.Header.Height)+1, 1)
+	coinSupply, err := t.dcrdChainSvr.GetCoinSupply()
+	if err != nil {
+		log.Error("GetCoinSupply failed")
+	}
+	nbSubsidy, err := t.dcrdChainSvr.GetBlockSubsidy(int64(msgBlock.Header.Height)+1, 1)
+	if err != nil {
+		log.Errorf("GetBlockSubsidy for %d failed", msgBlock.Header.Height)
+	}
 	expSubsidy := apitypes.BlockSubsidyAmounts{
 		Developer: dcrutil.Amount(nbSubsidy.Developer).String(),
 		PoS:       dcrutil.Amount(nbSubsidy.PoS).String(),

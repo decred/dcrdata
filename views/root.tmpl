@@ -122,21 +122,7 @@
             //mempool fee info
             var number = document.getElementById('mempoolfeeinfo_number');
             number.innerHTML = String(m.number);
-
-            var min = document.getElementById('mempoolfeeinfo_min');
-            min.innerHTML = m.min.toFixed(8);
-
-            var max = document.getElementById('mempoolfeeinfo_max');
-            max.innerHTML = m.max.toFixed(8);
-
-            var median = document.getElementById('mempoolfeeinfo_median');
-            median.innerHTML = m.median.toFixed(8);
-
-            var mean = document.getElementById('mempoolfeeinfo_mean');
-            mean.innerHTML = m.mean.toFixed(8);
-
-            var lm = document.getElementById('mempoolfeeinfo_lowestmineable');
-            lm.innerHTML = m.lowest_mineable.toFixed(8);
+            
         };
 
         ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
