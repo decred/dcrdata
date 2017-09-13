@@ -185,6 +185,22 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 	}
 }
 
+func (db *wiredDB) GetCoinSupply() dcrutil.Amount {
+	coinSupply, err := db.client.GetCoinSupply()
+	if err != nil {
+		return dcrutil.Amount(-1)
+	}
+	return coinSupply
+}
+
+func (db *wiredDB) GetBlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult {
+	blockSubsidy, err := db.client.GetBlockSubsidy(height, voters)
+	if err != nil {
+		return nil
+	}
+	return blockSubsidy
+}
+
 func (db *wiredDB) GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions {
 	blockVerbose := rpcutils.GetBlockVerbose(db.client, db.params, idx, false)
 

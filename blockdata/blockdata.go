@@ -27,7 +27,7 @@ type BlockData struct {
 	CurrentStakeDiff dcrjson.GetStakeDifficultyResult
 	EstStakeDiff     dcrjson.EstimateStakeDiffResult
 	PoolInfo         apitypes.TicketPoolInfo
-	TxLen            int
+	ExtraInfo        apitypes.BlockExplorerExtraInfo
 	PriceWindowNum   int
 	IdxBlockInWindow int
 }
@@ -77,16 +77,17 @@ func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 	t := time.Unix(b.Header.Time, 0)
 	ftime := t.Format("1/_2/06 15:04:05")
+	extra := b.ExtraInfo
+	extra.FormattedTime = ftime
 	return apitypes.BlockExplorerBasic{
-		Height:        b.Header.Height,
-		Size:          b.Header.Size,
-		Voters:        b.Header.Voters,
-		Revocations:   b.Header.Revocations,
-		FreshStake:    b.Header.FreshStake,
-		StakeDiff:     b.Header.SBits,
-		TxLen:         b.TxLen,
-		Time:          b.Header.Time,
-		FormattedTime: ftime,
+		Height:                 b.Header.Height,
+		Size:                   b.Header.Size,
+		Voters:                 b.Header.Voters,
+		Revocations:            b.Header.Revocations,
+		FreshStake:             b.Header.FreshStake,
+		StakeDiff:              b.Header.SBits,
+		BlockExplorerExtraInfo: extra,
+		Time: b.Header.Time,
 	}
 }
 
@@ -135,14 +136,17 @@ func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBa
 // the block data required by Collect() that is specific to the block with the
 // given hash.
 func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
-	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult, int, error) {
+	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult, *apitypes.BlockExplorerExtraInfo, error) {
 	msgBlock, err := t.dcrdChainSvr.GetBlock(hash)
 	if err != nil {
-		return nil, nil, nil, 0, err
+		return nil, nil, nil, nil, err
 	}
 	height := msgBlock.Header.Height
 	block := dcrutil.NewBlock(msgBlock)
 	txLen := len(block.Transactions())
+	coinSupply, _ := t.dcrdChainSvr.GetCoinSupply()
+	bSubsidy, _ := t.dcrdChainSvr.GetBlockSubsidy(int64(msgBlock.Header.Height), 1)
+	nbSubsidy, _ := t.dcrdChainSvr.GetBlockSubsidy(int64(msgBlock.Header.Height)+1, 1)
 	// Ticket pool info (value, size, avg)
 	var ticketPoolInfo *apitypes.TicketPoolInfo
 	var found bool
@@ -169,7 +173,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 
 	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(hash)
 	if err != nil {
-		return nil, nil, nil, 0, err
+		return nil, nil, nil, nil, err
 	}
 
 	// Output
@@ -182,8 +186,13 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 		Time:       header.Timestamp.Unix(),
 		PoolInfo:   *ticketPoolInfo,
 	}
-
-	return blockdata, feeInfoBlock, blockHeaderResults, txLen, err
+	extrainfo := &apitypes.BlockExplorerExtraInfo{
+		TxLen:            txLen,
+		CoinSupply:       coinSupply,
+		BlockSubsidy:     bSubsidy,
+		NextBlockSubsidy: nbSubsidy,
+	}
+	return blockdata, feeInfoBlock, blockHeaderResults, extrainfo, err
 }
 
 // CollectHash collects chain data at the block with the specified hash.
@@ -199,7 +208,7 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, error) {
 	}(time.Now())
 
 	// Info specific to the block hash
-	blockDataBasic, feeInfoBlock, blockHeaderVerbose, txLen, err := t.CollectBlockInfo(hash)
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, err := t.CollectBlockInfo(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +229,7 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, error) {
 		CurrentStakeDiff: dcrjson.GetStakeDifficultyResult{CurrentStakeDifficulty: blockDataBasic.StakeDiff},
 		EstStakeDiff:     dcrjson.EstimateStakeDiffResult{},
 		PoolInfo:         blockDataBasic.PoolInfo,
-		TxLen:            txLen,
+		ExtraInfo:        *extra,
 		PriceWindowNum:   int(height / winSize),
 		IdxBlockInWindow: int(height%winSize) + 1,
 	}
@@ -275,7 +284,7 @@ func (t *Collector) Collect() (*BlockData, error) {
 	}
 
 	// Info specific to the block hash
-	blockDataBasic, feeInfoBlock, blockHeaderVerbose, txLen, err := t.CollectBlockInfo(bbs.hash)
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, err := t.CollectBlockInfo(bbs.hash)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +304,7 @@ func (t *Collector) Collect() (*BlockData, error) {
 		FeeInfo:          *feeInfoBlock,
 		CurrentStakeDiff: *stakeDiff,
 		EstStakeDiff:     *estStakeDiff,
-		TxLen:            txLen,
+		ExtraInfo:        *extra,
 		PoolInfo:         blockDataBasic.PoolInfo,
 		PriceWindowNum:   int(height / winSize),
 		IdxBlockInWindow: int(height%winSize) + 1,

@@ -183,7 +183,7 @@
 
 
             var time = newRow.insertCell();
-            time.innerHTML = b.ftime
+            time.innerHTML = b.formatted_time
 
             var sdiff = document.getElementById('blocksdiff');
             sdiff.innerHTML = b.sdiff.toFixed(4);
@@ -195,14 +195,6 @@
             // sdiffcurrent.innerHTML = String(s.stakediff.current);
             // var sdiffnext = document.getElementById('blocksdiffnext');
             // sdiffnext.innerHTML = String(s.next);
-
-            var sdiffEstimates = s.stakediff.estimates;
-            var sdiffmin = document.getElementById('sdiffmin');
-            sdiffmin.innerHTML = sdiffEstimates.min.toFixed(2);
-            var sdiffmax = document.getElementById('sdiffmax');
-            sdiffmax.innerHTML = sdiffEstimates.max.toFixed(2);
-            var sdiffexp = document.getElementById('sdiffexp');
-            sdiffexp.innerHTML = sdiffEstimates.expected.toFixed(2);
 
             var window_block_index = document.getElementById('window_block_index');
             window_block_index.innerHTML = String(s.window_block_index);
@@ -319,18 +311,20 @@
                 </table>
             </div>
             <div class="col-md-6">
-                <strong>Next Price Window</strong>
+                <strong>Next Block Subsidy</strong>
                 <table class="table table-sm">
                     <thead>
-                        <th>Min</th>
-                        <th>Max</th>
-                        <th>Guess</th>
+                        <th>Developer</th>
+                        <th>POS</th>
+                        <th>POW</th>
+                        <th>Total</th>
                     </thead>
                     <tbody>
                         <tr>
-                            <td><span id="sdiffmin" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}</span></td>
-                            <td><span id="sdiffmax" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}</span></td>
-                            <td><span id="sdiffexp" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}</span></td>
+                            <td><span id="bsubsidydev" >{{.BlockSummary.NextBlockSubsidy.Developer}}</span></td>
+                            <td><span id="bsubsidypos" >{{.BlockSummary.NextBlockSubsidy.PoS}}</span></td>
+                            <td><span id="bsubsidypow" >{{.BlockSummary.NextBlockSubsidy.PoW}}</span></td>
+                            <td><span id="bsubsidytotal" >{{.BlockSummary.NextBlockSubsidy.Total}}</span></td>
                         </tr>
                     </tbody>
                 </table>
