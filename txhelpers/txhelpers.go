@@ -5,6 +5,7 @@ package txhelpers
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -558,4 +559,32 @@ func FeeRateInfoBlock(block *dcrutil.Block, c RawTransactionGetter) *dcrjson.Fee
 	}
 
 	return feeInfo
+}
+
+// MsgTxFromHex returns a wire.MsgTx struct built from the transaction hex string
+func MsgTxFromHex(txhex string) *wire.MsgTx {
+	txBytes, err := hex.DecodeString(txhex)
+	if err != nil {
+		return nil
+	}
+	msgTx := wire.NewMsgTx()
+	if err = msgTx.FromBytes(txBytes); err != nil {
+		return nil
+	}
+	return msgTx
+}
+
+// DetermineTxTypeString returns a string representing the transaction type given
+// a wire.MsgTx struct
+func DetermineTxTypeString(msgTx *wire.MsgTx) string {
+	switch stake.DetermineTxType(msgTx) {
+	case stake.TxTypeSSGen:
+		return "Vote"
+	case stake.TxTypeSStx:
+		return "Ticket"
+	case stake.TxTypeSSRtx:
+		return "Revocation"
+	default:
+		return "Regular"
+	}
 }

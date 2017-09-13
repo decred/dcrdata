@@ -14,12 +14,10 @@ import (
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/dcrdata/dcrdata/txhelpers"
-	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
@@ -164,17 +162,7 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 			log.Errorf("Unknown transaction %s", stx.Txid)
 			return nil
 		}
-		var txType string
-		switch stake.DetermineTxType(tx.MsgTx()) {
-		case stake.TxTypeSSGen:
-			txType = "Vote"
-		case stake.TxTypeSStx:
-			txType = "Ticket"
-		case stake.TxTypeSSRtx:
-			txType = "Revocation"
-		default:
-			txType = "Regular"
-		}
+		txType := txhelpers.DetermineTxTypeString(tx.MsgTx())
 		stxTypes = append(stxTypes, &apitypes.TxRawWithTxType{
 			stx,
 			txType,
@@ -303,28 +291,13 @@ func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 			vin.Txid, vin.Vout, vin.Tree, db.client, db.params)
 	}
 
-	txBytes, err := hex.DecodeString(txhex)
-	if err != nil {
-		log.Errorf("Unable to read tx %v: %v", txid, err)
-		return nil, nil, ""
-	}
-	msgTx := wire.NewMsgTx()
-	if err = msgTx.FromBytes(txBytes); err != nil {
-		log.Errorf("Failed to deserialize MsgTx: %v", err)
-		return nil, nil, ""
+	msgTx := txhelpers.MsgTxFromHex(txhex)
+
+	if msgTx == nil {
+		return tx, prevOutAddresses, ""
 	}
 
-	var txType string
-	switch stake.DetermineTxType(msgTx) {
-	case stake.TxTypeSSGen:
-		txType = "Vote"
-	case stake.TxTypeSStx:
-		txType = "Ticket"
-	case stake.TxTypeSSRtx:
-		txType = "Revocation"
-	default:
-		txType = "Regular"
-	}
+	txType := txhelpers.DetermineTxTypeString(msgTx)
 
 	return tx, prevOutAddresses, txType
 }
