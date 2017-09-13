@@ -79,7 +79,7 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 		},
 		"getTime": func(btime int64) string {
 			t := time.Unix(btime, 0)
-			return t.Format("Jan _2 15:04:05 2006")
+			return t.Format("1/_2/06 15:04:05")
 		},
 	}
 	tmpl, err := template.New("home").Funcs(helpers).ParseFiles(fp, efp)
