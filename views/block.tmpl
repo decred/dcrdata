@@ -18,11 +18,11 @@
                     </tr>
                     <tr>
                         <td>Height</td>
-                        <td>{{.Height}}</td>
+                        <td>{{.Height | int64Comma}}</td>
                     </tr>
                     <tr>
                         <td>Size</td>
-                        <td>{{.Size}} B</td>
+                        <td>{{.Size | formatBytes}}</td>
                     </tr>
                     <tr>
                         <td>Confirmations</td>
@@ -34,7 +34,7 @@
                     </tr>
                     <tr>
                         <td>Difficulty</td>
-                        <td>{{printf "%12.2f" .Difficulty}}</td>
+                        <td>{{.Difficulty | float64Commaf}}</td>
                     </tr>
                     <tr>
                         <td>POS Difficulty(Sbits)</td>
@@ -106,7 +106,7 @@
                     </tr>
                     <tr>
                         <td>Pool Size</td>
-                        <td>{{.PoolSize}}</td>
+                        <td>{{.PoolSize | uint32Comma}}</td>
                     </tr>
                     <tr>
                         <td>Nonce</td>
@@ -132,7 +132,7 @@
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
-                        <th>Total Value</th>
+                        <th>Total DCR</th>
                         <th>Size</th>
                         <th>Type</th>
                     </thead>
@@ -144,8 +144,8 @@
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td>{{ .Vout | getTotalFromBlock | getAmount}}</td>
-                            <td>{{.Hex | size}} B</td>
+                            <td>{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td>{{.Hex | size | formatBytesInt}}</td>
                             <td>{{.TxType}}</td>
                         </tr>
                         {{end}}
@@ -160,7 +160,7 @@
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
-                        <th>Total Value</th>
+                        <th>Total DCR</th>
                         <th>Size</th>
                     </thead>
                     <tbody>
@@ -171,8 +171,8 @@
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td>{{ .Vout | getTotalFromBlock | getAmount}}</td>
-                            <td>{{.Hex | size}} B</td>
+                            <td>{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td>{{.Hex | size | formatBytesInt}}</td>
                         </tr>
                         {{end}}
                     </tbody>

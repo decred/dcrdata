@@ -10,15 +10,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/decred/dcrutil"
-
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
-
+	"github.com/decred/dcrutil"
+	
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
+	"github.com/dustin/go-humanize"
 )
 
 const (
@@ -290,6 +290,25 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
 
 	exp.templateHelpers = template.FuncMap{
+		"uint32Comma": func(v uint32) string {
+			i64 := int64(v)
+			return humanize.Comma(i64)
+		},
+		"int64Comma": func(v int64) string {
+			t := humanize.Comma(v)
+			return t
+		},
+		"float64Commaf": func(v float64) string {
+			return humanize.Commaf(v)
+		},
+		"formatBytes": func(v int32) string {
+			i64 := uint64(v)
+			return humanize.Bytes(i64)
+		},
+		"formatBytesInt": func(v int) string {
+			i64 := uint64(v)
+			return humanize.Bytes(i64)
+		},
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
@@ -319,7 +338,7 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 		"size": func(h string) int {
 			return len(h) / 2
 		},
-		"totalSentInBlock": func(block *apitypes.BlockDataWithTxType) dcrutil.Amount {
+		"totalSentInBlock": func(block *apitypes.BlockDataWithTxType) string {
 			var total float64
 			for _, i := range block.RawTx {
 				for _, j := range i.Vout {
@@ -331,8 +350,7 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 					total = total + j.Value
 				}
 			}
-			amount, _ := dcrutil.NewAmount(total)
-			return amount
+			return humanize.Commaf(total) + " DCR"
 		},
 	}
 

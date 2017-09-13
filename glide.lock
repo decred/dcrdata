@@ -1,5 +1,5 @@
-hash: d3f6dd204a93cf31bf583b4f386477a76ec227a748683fa9bb03cb6bb3c6575a
-updated: 2017-09-13T02:11:09.518968752+02:00
+hash: f5c28732361293a4532bbf42fd9fcd10981304a404969e7cec51b58f4aa54108
+updated: 2017-09-13T21:44:38.255121694-07:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -75,6 +75,8 @@ imports:
   - snacl
   - wallet/udb
   - walletdb
+- name: github.com/dustin/go-humanize
+  version: 79e699ccd02f240a1f1fbbdcee7e64c1c12e41aa
 - name: github.com/go-chi/chi
   version: 967844826e58cf31213a7dfb82455d242ad85101
   subpackages:

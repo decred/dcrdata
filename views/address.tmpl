@@ -17,7 +17,7 @@
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
-                        <th>Total Value</th>
+                        <th>Total DCR</th>
                         <th>Time</th>
                         <th>Age</th>
                         <th>Confirmations</th>
@@ -27,7 +27,7 @@
                         {{range .Transactions}}
                         <tr>
                             <td><a href="../tx/{{.TxID}}" class="hash collapse">{{.TxID}}</a></td>
-                            <td>{{.Value | getAmount}}</td>
+                            <td>{{.Value | float64Commaf}}</td>
                             <td>{{.Time | getTime }}</td>
                             <td class="age">{{if eq .Time 0}}
                                 N/A
@@ -36,8 +36,8 @@
                             {{end}}
                             </td>
                             <td class="hidden">{{.Time}}</td>
-                            <td>{{.Confirmations}}</td>
-                            <td>{{.Size}} B</td>
+                            <td>{{.Confirmations | int64Comma}}</td>
+                            <td>{{.Size | formatBytes}} B</td>
                         </tr>
                         {{end}}
                     </tbody>
