@@ -19,6 +19,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
@@ -290,29 +291,31 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 // transaction and extracts a slice of addresses encoded by the pkScript for
 // each previous outpoint consumed by the transaction.
 func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string, string) {
-	tx := db.GetRawTransaction(txid)
+	tx, txhex := db.getRawTransaction(txid)
 	prevOutAddresses := make([][]string, len(tx.Vin))
 	if tx == nil {
 		return nil, prevOutAddresses, ""
 	}
-	txhash, err := chainhash.NewHashFromStr(txid)
-	if err != nil {
-		log.Errorf("Invalid transaction hash %s", txid)
-		return nil, prevOutAddresses, ""
-	}
 
-	txR, err := db.client.GetRawTransaction(txhash)
-	if err != nil {
-		log.Errorf("Unknown transaction %s", txid)
-		return nil, prevOutAddresses, ""
-	}
 	for i := range tx.Vin {
 		vin := &tx.Vin[i]
 		prevOutAddresses[i] = txhelpers.OutPointAddressesFromString(
 			vin.Txid, vin.Vout, vin.Tree, db.client, db.params)
 	}
+
+	txBytes, err := hex.DecodeString(txhex)
+	if err != nil {
+		log.Errorf("Unable to read tx %v: %v", txid, err)
+		return nil, nil, ""
+	}
+	msgTx := wire.NewMsgTx()
+	if err = msgTx.FromBytes(txBytes); err != nil {
+		log.Errorf("Failed to deserialize MsgTx: %v", err)
+		return nil, nil, ""
+	}
+
 	var txType string
-	switch stake.DetermineTxType(txR.MsgTx()) {
+	switch stake.DetermineTxType(msgTx) {
 	case stake.TxTypeSSGen:
 		txType = "Vote"
 	case stake.TxTypeSStx:
@@ -327,19 +330,26 @@ func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 }
 
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
+	tx, _ := db.getRawTransaction(txid)
+	return tx
+}
+
+func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 	tx := new(apitypes.Tx)
 
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
 		log.Errorf("Invalid transaction hash %s", txid)
-		return nil
+		return nil, ""
 	}
 
 	txraw, err := db.client.GetRawTransactionVerbose(txhash)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
-		return nil
+		return nil, ""
 	}
+
+	txhex := txraw.Hex
 
 	// TxShort
 	tx.Size = int32(len(txraw.Hex) / 2)
@@ -379,7 +389,7 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	tx.Block.Time = txraw.Time
 	tx.Block.BlockTime = txraw.Blocktime
 
-	return tx
+	return tx, txhex
 }
 
 // GetVoteInfo attempts to decode the vote bits of a SSGen transaction. If the
