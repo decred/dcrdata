@@ -320,7 +320,7 @@
                 </table>
             </div>
             <div class="col-md-6">
-                <strong>Next Block Subsidy</strong>
+                <strong>Block Subsidy</strong>
                 <table class="table table-sm">
                     <thead>
                         <th>Developer</th>
@@ -344,29 +344,10 @@
             
             <div class="col-md-6">
                 <div><strong>Coin Supply:</strong> <span id="coin_supply" >{{.BlockSummary.CoinSupply}}</span></div>
-                <div><strong>Tickets in Mempool:</strong>  <span id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</span></div>
             </div>
             <div class="col-md-6  text-left">
-                    <strong>Ticket Fees:</strong>
-                    <table class="table table-sm">
-                        <thead>
-                            <th>Lowest Minable</th>
-                            <th>Min</th>
-                            <th>Max</th>
-                            <th>Median</th>
-                            <th>Mean</th>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><span id="mempoolfeeinfo_lowestmineable" >{{printf "%.8f" .MempoolFeeInfo.LowestMineable}}</span></td>
-                                <td><span id="mempoolfeeinfo_min" >{{printf "%.8f" .MempoolFeeInfo.Min}}</span></td>
-                                <td><span id="mempoolfeeinfo_max" >{{printf "%.8f" .MempoolFeeInfo.Max}}</span></td>
-                                <td><span id="mempoolfeeinfo_median" >{{printf "%.8f" .MempoolFeeInfo.Median}}</span></td>
-                                <td><span id="mempoolfeeinfo_mean" >{{printf "%.8f" .MempoolFeeInfo.Mean}}</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <div><strong>Tickets in Mempool:</strong>  <span id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</span></div>  
+            </div>
         </div>
         {{end}}
     </div>
