@@ -123,20 +123,6 @@
             var number = document.getElementById('mempoolfeeinfo_number');
             number.innerHTML = String(m.number);
 
-            var min = document.getElementById('mempoolfeeinfo_min');
-            min.innerHTML = m.min.toFixed(8);
-
-            var max = document.getElementById('mempoolfeeinfo_max');
-            max.innerHTML = m.max.toFixed(8);
-
-            var median = document.getElementById('mempoolfeeinfo_median');
-            median.innerHTML = m.median.toFixed(8);
-
-            var mean = document.getElementById('mempoolfeeinfo_mean');
-            mean.innerHTML = m.mean.toFixed(8);
-
-            var lm = document.getElementById('mempoolfeeinfo_lowestmineable');
-            lm.innerHTML = m.lowest_mineable.toFixed(8);
         };
 
         ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
@@ -147,30 +133,66 @@
 
             // block summary data
             var b = newblock.block;
+            var expTable = document.getElementById('explorertable');
+            expTable.deleteRow(6);
 
-            var height = document.getElementById('blockheight');
-            height.innerHTML = String(b.height);
+            var newRow = expTable.insertRow(1);
+            newRow.id = String(b.height);
 
-            var hash = document.getElementById('blockhash');
-            hash.innerHTML = b.hash;
+            var height = newRow.insertCell();
+            var heightlink = document.createElement("A");
 
-            var blockhash = document.getElementById('blocksize');
-            blockhash.innerHTML = String(b.size);
+            heightlink.href = "/explorer/block/"+String(b.height);
+            height.appendChild(heightlink);
+            heightlink.innerHTML = b.height;
 
-            var diff = document.getElementById('blockdiff');
-            diff.innerHTML = b.diff.toFixed(2);
+            var votes = newRow.insertCell();
+            votes.innerHTML = b.votes;
+
+            var tickets = newRow.insertCell();
+            tickets.innerHTML = b.tickets;
+
+            var tx = newRow.insertCell();
+            tx.innerHTML = b.tx;
+            
+            var revocations = newRow.insertCell();
+            revocations.innerHTML = b.revocations;
+
+            var size = newRow.insertCell();
+            size.innerHTML = String(b.size) + " B";
+
+            var age = newRow.insertCell();
+            age.className = "age";
+            age.innerHTML = b.time;
+
+            var h_age = newRow.insertCell();
+            h_age.className = "hidden";
+            h_age.innerHTML = b.time;
+
+            var blocksubsidy = b.next_block_subsidy;
+            
+            var bsdev = document.getElementById("bsubsidy_dev");
+            bsdev.innerHTML = blocksubsidy.dev;
+
+            var bspos = document.getElementById("bsubsidy_pos");
+            bspos.innerHTML = blocksubsidy.pos;
+
+            var bspow = document.getElementById("bsubsidy_pow");
+            bspow.innerHTML = blocksubsidy.pow;
+
+            var bstotal = document.getElementById("bsubsidy_total");
+            bstotal.innerHTML = blocksubsidy.total;
+
+            var coin_supply = b.coin_supply;
+
+            var csupply = document.getElementById("coin_supply");
+            csupply.innerHTML = coin_supply;
+
+            var time = newRow.insertCell();
+            time.innerHTML = b.formatted_time;
 
             var sdiff = document.getElementById('blocksdiff');
             sdiff.innerHTML = b.sdiff.toFixed(4);
-
-	        var poolsize = document.getElementById('poolsize');
-            poolsize.innerHTML = String(b.ticket_pool.size);
-
-            var poolvalue = document.getElementById('poolvalue');
-            poolvalue.innerHTML = b.ticket_pool.value.toFixed(2);
-
-            var poolvalavg = document.getElementById('poolvalavg');
-            poolvalavg.innerHTML = b.ticket_pool.valavg.toFixed(4);
 
             // stake
             var s = newblock.stake;
@@ -180,28 +202,10 @@
             // var sdiffnext = document.getElementById('blocksdiffnext');
             // sdiffnext.innerHTML = String(s.next);
 
-            var sdiffEstimates = s.stakediff.estimates;
-            var sdiffmin = document.getElementById('sdiffmin');
-            sdiffmin.innerHTML = sdiffEstimates.min.toFixed(2);
-            var sdiffmax = document.getElementById('sdiffmax');
-            sdiffmax.innerHTML = sdiffEstimates.max.toFixed(2);
-            var sdiffexp = document.getElementById('sdiffexp');
-            sdiffexp.innerHTML = sdiffEstimates.expected.toFixed(2);
-
             var window_block_index = document.getElementById('window_block_index');
             window_block_index.innerHTML = String(s.window_block_index);
 
-            var feeinfo = s.feeinfo;
-            var feeinfonumber = document.getElementById('feeinfo_number');
-            feeinfonumber.innerHTML = String(feeinfo.number);
-            var feeinfomin = document.getElementById('feeinfo_min');
-            feeinfomin.innerHTML = feeinfo.min.toFixed(8);
-            var feeinfomax = document.getElementById('feeinfo_max');
-            feeinfomax.innerHTML = feeinfo.max.toFixed(8);
-            var feeinfomedian = document.getElementById('feeinfo_median');
-            feeinfomedian.innerHTML = feeinfo.median.toFixed(8);
-            var feeinfomean = document.getElementById('feeinfo_mean');
-            feeinfomean.innerHTML = feeinfo.mean.toFixed(8);
+            
         };
 
         ws.registerEvtHandler("newblock", updateBlockData);
@@ -248,57 +252,46 @@
     <div class="container">
 
         <h4><span>Chain State</span></h4>
-        <div class="row" id="chainbox">
-            <div class="col-md-6">
-                <strong>Best Block</strong>
-                <table class="table table-sm flush-left">
-                    <tbody>
-                        <tr>
-                            <td>Height</td>
-                            <td><span id="blockheight" class="height">{{.BlockSummary.Height}}</span></td>
-                        </tr>
-                        <tr>
-                            <td>Hash</td>
-                            <td>
-                                <a href="/explorer/block/{{.BlockSummary.Hash}}" id="blockhash" class="hash collapse">{{.BlockSummary.Hash}}</a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Size (bytes)</td>
-                            <td><strong id="blocksize" >{{.BlockSummary.Size}}</strong></td>
-                        </tr>
-                        <tr>
-                            <td>Difficulty</td>
-                            <td><strong id="blockdiff" >{{printf "%16.2f" .BlockSummary.Difficulty}}</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
+        
+            <div class="row">
+                <div class="col-md-12">
+                    <table class="table striped" id="explorertable">
+                        <thead>
+                            <tr>
+                                <th>Height</th>
+                                <th>Votes</th>
+                                <th>Tickets</th>
+                                <th>Transactions</th>
+                                <th>Revocations</th>
+                                <th>Size</th>
+                                <th>Age</th>
+                                <th>Time ({{timezone}})</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .InitialData}}
+                            <tr id="{{.Height}}">
+                                <td><a href="/explorer/block/{{.Height}}" class="height">{{.Height}}</a></td>
+                                <td>{{.Voters}}</td>
+                                <td>{{.FreshStake}}</td>
+                                <td>{{len .Tx}}</td>
+                                <td>{{.Revocations}}</td>
+                                <td>{{.Size}} B</td>
+                                <td class="age">{{.Time}}</td>
+                                <td class="hidden">{{.Time}}</td>
+                                <td>{{.Time | getTime}}</td>
+                            </tr>
+                        {{end}}
+                        </tbody>
+                    </table>
+                    <a href="/explorer">More blocks...</a>
+                </div>
             </div>
-            <div class="col-md-6 text-left">
-                <strong>Ticket Pool</strong>
-                <table class="table table-sm flush-left">
-                    <tbody>
-                        <tr>
-                            <td>Size</td>
-                            <td><strong><span id="poolsize" style="color: #65d4a5">{{.BlockSummary.PoolInfo.Size}}</span></strong></td>
-                        </tr>
-                        <tr>
-                            <td>Value (DCR)</td>
-                            <td><strong><span id="poolvalue">{{printf "%16.2f" .BlockSummary.PoolInfo.Value}}</span></strong></td>
-                        </tr>
-                        <tr>
-                            <td>Average (DCR/ticket)</td>
-                            <td><strong><span id="poolvalavg">{{printf "%16.4f" .BlockSummary.PoolInfo.ValAvg}}</span></strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <h4><span>Ticket Price</span></h4>
+        
+        {{with .Data}}
         <div class="row">
             <div class="col-md-6">
-                <strong>Current Price Window</strong>
+                <strong>Current Ticket Price Window</strong>
                 <table class="table table-sm">
                     <thead>
                         <th>Ticket Price</th>
@@ -313,70 +306,36 @@
                 </table>
             </div>
             <div class="col-md-6">
-                <strong>Next Price Window</strong>
+                <strong>Block Subsidy</strong>
                 <table class="table table-sm">
                     <thead>
-                        <th>Min</th>
-                        <th>Max</th>
-                        <th>Guess</th>
+                        <th>Developer</th>
+                        <th>PoS (per vote)</th>
+                        <th>PoW</th>
+                        <th>Total</th>
                     </thead>
                     <tbody>
                         <tr>
-                            <td><span id="sdiffmin" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Min}}</span></td>
-                            <td><span id="sdiffmax" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Max}}</span></td>
-                            <td><span id="sdiffexp" >{{printf "%12.2f" .StakeSummary.StakeDiff.Estimates.Expected}}</span></td>
+                            <td><span id="bsubsidy_dev" >{{.BlockSummary.NextBlockSubsidy.Developer}}</span></td>
+                            <td><span id="bsubsidy_pos" >{{.BlockSummary.NextBlockSubsidy.PoS}}</span></td>
+                            <td><span id="bsubsidy_pow" >{{.BlockSummary.NextBlockSubsidy.PoW}}</span></td>
+                            <td><span id="bsubsidy_total" >{{.BlockSummary.NextBlockSubsidy.Total}}</span></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <h4><span>Ticket Fees</span></h4>
         <div class="row">
+            
             <div class="col-md-6">
-                <div>Tickets in Mempool: <strong id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</strong></div>
-                <strong>Fees:</strong>
-                <table class="table table-sm">
-                    <thead>
-                        <th>Lowest Minable</th>
-                        <th>Min</th>
-                        <th>Max</th>
-                        <th>Median</th>
-                        <th>Mean</th>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span id="mempoolfeeinfo_lowestmineable" >{{printf "%.8f" .MempoolFeeInfo.LowestMineable}}</span></td>
-                            <td><span id="mempoolfeeinfo_min" >{{printf "%.8f" .MempoolFeeInfo.Min}}</span></td>
-                            <td><span id="mempoolfeeinfo_max" >{{printf "%.8f" .MempoolFeeInfo.Max}}</span></td>
-                            <td><span id="mempoolfeeinfo_median" >{{printf "%.8f" .MempoolFeeInfo.Median}}</span></td>
-                            <td><span id="mempoolfeeinfo_mean" >{{printf "%.8f" .MempoolFeeInfo.Mean}}</span></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div><strong>Tickets in Mempool:</strong>  <span id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</span></div>
             </div>
-            <div class="col-md-6 text-left">
-                <div>Tickets in Latest Block: <strong id="feeinfo_number">{{.StakeSummary.Feeinfo.Number}}</strong></div>
-                <strong>Fees in Last Block:</strong>
-                <table class="table table-sm">
-                    <thead>
-                        <th>Min</th>
-                        <th>Max</th>
-                        <th>Median</th>
-                        <th>Mean</th>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span id="feeinfo_min" >{{printf "%16.6f" .StakeSummary.Feeinfo.Min}}</span></td>
-                            <td><span id="feeinfo_max" >{{printf "%16.6f" .StakeSummary.Feeinfo.Max}}</span></td>
-                            <td><span id="feeinfo_median" >{{printf "%16.6f" .StakeSummary.Feeinfo.Median}}</span></td>
-                            <td><span id="feeinfo_mean" >{{printf "%16.6f" .StakeSummary.Feeinfo.Mean}}</span></td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="col-md-6  text-left">
+                <div><strong>Coin Supply:</strong> <span id="coin_supply" >{{.BlockSummary.CoinSupply}}</span></div>
             </div>
         </div>
-
+        {{end}}
     </div>
     <!-- end wrapper -->
 

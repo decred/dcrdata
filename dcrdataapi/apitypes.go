@@ -255,6 +255,33 @@ type BlockDataBasic struct {
 	PoolInfo TicketPoolInfo `json:"ticket_pool"`
 }
 
+// BlockExplorerBasic models primary information about block at height Height for the block explorer
+type BlockExplorerBasic struct {
+	Height      uint32  `json:"height"`
+	Size        uint32  `json:"size"`
+	Voters      uint16  `json:"votes"`
+	FreshStake  uint8   `json:"tickets"`
+	StakeDiff   float64 `json:"sdiff"`
+	Revocations uint8   `json:"revocations"`
+	Time        int64   `json:"time"`
+	BlockExplorerExtraInfo
+}
+
+//
+type BlockExplorerExtraInfo struct {
+	TxLen            int                 `json:"tx"`
+	FormattedTime    string              `json:"formatted_time"`
+	CoinSupply       string              `json:"coin_supply"`
+	NextBlockSubsidy BlockSubsidyAmounts `json:"next_block_subsidy"`
+}
+
+type BlockSubsidyAmounts struct {
+	Developer string `json:"dev"`
+	PoS       string `json:"pos"`
+	PoW       string `json:"pow"`
+	Total     string `json:"total"`
+}
+
 // StakeDiff represents data about the evaluated stake difficulty and estimates
 type StakeDiff struct {
 	dcrjson.GetStakeDifficultyResult

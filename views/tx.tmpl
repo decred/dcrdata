@@ -15,6 +15,7 @@
                     <th>Transactions ID</th>
                     <th>Total Value</th>
                     <th>Time</th>
+                    <th>Age</th>
                     <th>Confirmations</th>
                     <th>Included in block</th>
                     <th>Type</th>
@@ -33,7 +34,12 @@
                             {{$.Block.Time | getTime }}
                         {{end}}
                         </td>
-
+                        <td class="age">{{if eq $.Block.Time 0}}
+                            N/A
+                        {{else}}
+                            {{$.Block.Time}}
+                        {{end}}</td>
+                        <td class="hidden">{{$.Block.Time}}</td>
                         <td>
                         {{if eq $.Confirmations 0}}
                             Unconfirmed

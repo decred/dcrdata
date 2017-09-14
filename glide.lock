@@ -1,5 +1,5 @@
 hash: d3f6dd204a93cf31bf583b4f386477a76ec227a748683fa9bb03cb6bb3c6575a
-updated: 2017-08-16T12:02:42.713146275-07:00
+updated: 2017-09-13T02:11:09.518968752+02:00
 imports:
 - name: github.com/agl/ed25519
   version: 278e1ec8e8a6e017cd07577924d6766039146ced
@@ -59,7 +59,7 @@ imports:
   - txscript
   - wire
 - name: github.com/decred/dcrrpcclient
-  version: c25ea196a4f6bd9c37a7d74224f6e6027c3ee3d7
+  version: bd992834efae9f8a81842221a634f4af22b77a0f
 - name: github.com/decred/dcrutil
   version: ddbde93f65ab0692e54ed8a5ad325fa2e8af4daa
   subpackages:
@@ -100,7 +100,7 @@ imports:
 - name: github.com/Sirupsen/logrus
   version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
 - name: golang.org/x/crypto
-  version: 74b34b9dd60829a9fcaf56a59e81c3877a8ecd2c
+  version: faadfbdc035307d901e69eea569f5dda451a3ee3
   subpackages:
   - nacl/secretbox
   - pbkdf2
