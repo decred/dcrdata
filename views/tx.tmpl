@@ -55,7 +55,7 @@
                             <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight | int64Comma}}</a></td>
                         {{end}}
                         <td>{{$.Type}}</td>
-                        <td>{{.Size | formatBytes}} B</td>
+                        <td>{{.Size | formatBytes}}</td>
                     </tr>
                     {{end}}
                 </tbody>

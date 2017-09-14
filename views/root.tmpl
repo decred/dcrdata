@@ -276,10 +276,10 @@
                                 <td>{{.FreshStake}}</td>
                                 <td>{{len .Tx}}</td>
                                 <td>{{.Revocations}}</td>
-                                <td>{{.Size}} B</td>
+                                <td>{{formatBytes .Size}}</td>
                                 <td class="age">{{.Time}}</td>
                                 <td class="hidden">{{.Time}}</td>
-                                <td>{{.Time | getTime}}</td>
+                                <td>{{getTime .Time}}</td>
                             </tr>
                         {{end}}
                         </tbody>

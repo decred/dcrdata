@@ -24,6 +24,7 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 )
 
@@ -75,6 +76,10 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
+		},
+		"formatBytes": func(v int32) string {
+			i64 := uint64(v)
+			return humanize.Bytes(i64)
 		},
 		"getTime": func(btime int64) string {
 			t := time.Unix(btime, 0)
