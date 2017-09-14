@@ -146,11 +146,11 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	txLen := len(block.Transactions())
 	coinSupply, err := t.dcrdChainSvr.GetCoinSupply()
 	if err != nil {
-		log.Error("GetCoinSupply failed")
+		log.Error("GetCoinSupply failed: ", err)
 	}
 	nbSubsidy, err := t.dcrdChainSvr.GetBlockSubsidy(int64(msgBlock.Header.Height)+1, 1)
 	if err != nil {
-		log.Errorf("GetBlockSubsidy for %d failed", msgBlock.Header.Height)
+		log.Errorf("GetBlockSubsidy for %d failed: %v", msgBlock.Header.Height, err)
 	}
 	expSubsidy := apitypes.BlockSubsidyAmounts{
 		Developer: dcrutil.Amount(nbSubsidy.Developer).String(),
