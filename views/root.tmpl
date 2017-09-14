@@ -122,7 +122,7 @@
             //mempool fee info
             var number = document.getElementById('mempoolfeeinfo_number');
             number.innerHTML = String(m.number);
-            
+
         };
 
         ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
@@ -310,8 +310,8 @@
                 <table class="table table-sm">
                     <thead>
                         <th>Developer</th>
-                        <th>POS</th>
-                        <th>POW</th>
+                        <th>PoS (per vote)</th>
+                        <th>PoW</th>
                         <th>Total</th>
                     </thead>
                     <tbody>
@@ -329,10 +329,10 @@
         <div class="row">
             
             <div class="col-md-6">
-                <div><strong>Coin Supply:</strong> <span id="coin_supply" >{{.BlockSummary.CoinSupply}}</span></div>
+                <div><strong>Tickets in Mempool:</strong>  <span id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</span></div>
             </div>
             <div class="col-md-6  text-left">
-                <div><strong>Tickets in Mempool:</strong>  <span id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</span></div>  
+                <div><strong>Coin Supply:</strong> <span id="coin_supply" >{{.BlockSummary.CoinSupply}}</span></div>
             </div>
         </div>
         {{end}}
