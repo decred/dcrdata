@@ -259,10 +259,16 @@
                     <thead>
                         <tr>
                             <th>Height</th>
+                            <th>
+                                <span class="d-none d-md-block">Transactions</span>
+                                <span class="d-md-none">Txns</span>
+                            </th>
                             <th>Votes</th>
                             <th>Tickets</th>
-                            <th>Transactions</th>
-                            <th>Revocations</th>
+                            <th>
+                                <span class="d-none d-md-block">Revocations</span>
+                                <span class="d-md-none">Revokes</span>
+                            </th>
                             <th>Size</th>
                             <th>Age</th>
                             <th>Time ({{timezone}})</th>
@@ -272,9 +278,9 @@
                         {{range .InitialData}}
                         <tr id="{{.Height}}">
                             <td><a href="/explorer/block/{{.Height}}" class="height">{{.Height | int64Comma}}</a></td>
+                            <td>{{len .Tx}}</td>
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>
-                            <td>{{len .Tx}}</td>
                             <td>{{.Revocations}}</td>
                             <td>{{formatBytes .Size}}</td>
                             <td class="age">{{.Time}}</td>

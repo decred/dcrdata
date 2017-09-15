@@ -7,7 +7,7 @@
     {{template "navbar"}}
 
     <div class="container">
-        <h4>Block #{{.Height}}  <span style="font-size: 12px;"><a href="/api/block/{{.Height}}/verbose?indent=true">view raw</a></span></span></h4>
+        <h4>Block #{{.Height | int64Comma}}  <span style="font-size: 12px;"><a href="/api/block/{{.Height}}/verbose?indent=true">view raw</a></span></span></h4>
 
         <div class="row">
             <div class="col-md-4">
