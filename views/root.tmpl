@@ -85,6 +85,9 @@
             };
         }
 
+        var subsidyToString = function(x, y = 1) {
+            return (x / 100000000 / y) + " DCR"
+        }
 	    var loc = window.location;
         var uri = 'ws:';
         if (loc.protocol === 'https:') {
@@ -172,16 +175,16 @@
             var blocksubsidy = b.next_block_subsidy;
 
             var bsdev = document.getElementById("bsubsidy_dev");
-            bsdev.innerHTML = blocksubsidy.dev;
+            bsdev.innerHTML = subsidyToString(blocksubsidy.developer);
 
             var bspos = document.getElementById("bsubsidy_pos");
-            bspos.innerHTML = blocksubsidy.pos;
+            bspos.innerHTML = subsidyToString(blocksubsidy.pos, 5);
 
             var bspow = document.getElementById("bsubsidy_pow");
-            bspow.innerHTML = blocksubsidy.pow;
+            bspow.innerHTML = subsidyToString(blocksubsidy.pow);
 
             var bstotal = document.getElementById("bsubsidy_total");
-            bstotal.innerHTML = blocksubsidy.total;
+            bstotal.innerHTML = subsidyToString(blocksubsidy.total);
 
             var coin_supply = b.coin_supply;
 
@@ -213,7 +216,7 @@
         setInterval(function () {
             ws.send("ping", 'Hi. I am a client!');
         }, 1000);
-
+        
 	    function updateConnectionStatus(msg, connected) {
             var el = document.getElementById('connection');
             if (el.classList) {
@@ -351,6 +354,18 @@
     {{ template "footer"}}
 
 </body>
-
+<script>
+    var bsdev = document.getElementById("bsubsidy_dev");
+    bsdev.innerHTML = subsidyToString(bsdev.innerHTML);
+                        
+    var bspos = document.getElementById("bsubsidy_pos");
+    bspos.innerHTML = subsidyToString(bspos.innerHTML, 5);
+                        
+    var bspow = document.getElementById("bsubsidy_pow");
+    bspow.innerHTML = subsidyToString(bspow.innerHTML);
+                        
+    var bstotal = document.getElementById("bsubsidy_total");
+    bstotal.innerHTML = subsidyToString(bstotal.innerHTML);
+</script>
 </html>
 {{end}}
