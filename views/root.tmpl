@@ -144,7 +144,7 @@
 
             heightlink.href = "/explorer/block/"+String(b.height);
             height.appendChild(heightlink);
-            heightlink.innerHTML = b.height;
+            heightlink.innerHTML = b.height.toLocaleString();
 
             var votes = newRow.insertCell();
             votes.innerHTML = b.votes;
