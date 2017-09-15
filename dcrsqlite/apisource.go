@@ -112,7 +112,7 @@ func (db *wiredDB) GetBestBlockHash() (string, error) {
 	hash := db.DBDataSaver.GetBestBlockHash()
 	var err error
 	if len(hash) == 0 {
-		err = fmt.Errorf("Unable to get best block hash")
+		err = fmt.Errorf("unable to get best block hash")
 	}
 	return hash, err
 }
@@ -120,7 +120,7 @@ func (db *wiredDB) GetBestBlockHash() (string, error) {
 func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
 	hash, err := db.RetrieveBlockHash(idx)
 	if err != nil {
-		log.Errorf("Unable to block hash for index %d: %v", idx, err)
+		log.Errorf("Unable to get block hash for block number %d: %v", idx, err)
 		return "", err
 	}
 	return hash, nil
@@ -129,7 +129,7 @@ func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
 func (db *wiredDB) GetBlockHeight(hash string) (int64, error) {
 	height, err := db.RetrieveBlockHeight(hash)
 	if err != nil {
-		log.Errorf("Unable to block height for hash %s: %v", hash, err)
+		log.Errorf("Unable to get block height for hash %s: %v", hash, err)
 		return -1, err
 	}
 	return height, nil

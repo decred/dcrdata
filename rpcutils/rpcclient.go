@@ -56,7 +56,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	var ntfnHdlrs *dcrrpcclient.NotificationHandlers
 	if len(ntfnHandlers) > 0 {
 		if len(ntfnHandlers) > 1 {
-			return nil, nodeVer, fmt.Errorf("Invalid notification handler argument")
+			return nil, nodeVer, fmt.Errorf("invalid notification handler argument")
 		}
 		ntfnHdlrs = ntfnHandlers[0]
 	}
@@ -69,7 +69,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	ver, err := dcrdClient.Version()
 	if err != nil {
 		log.Error("Unable to get RPC version: ", err)
-		return nil, nodeVer, fmt.Errorf("Unable to get node RPC version")
+		return nil, nodeVer, fmt.Errorf("unable to get node RPC version")
 	}
 
 	dcrdVer := ver["dcrdjsonrpcapi"]

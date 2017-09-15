@@ -198,7 +198,7 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	// Retrieve height of chain in sqlite DB, and hash of best block
 	bestBlockSummary := p.db.GetBestBlockSummary()
 	if bestBlockSummary == nil {
-		return 0, nil, fmt.Errorf("Unable to retrieve best block summary")
+		return 0, nil, fmt.Errorf("unable to retrieve best block summary")
 	}
 	height := bestBlockSummary.Height
 	hash, err := chainhash.NewHashFromStr(bestBlockSummary.Hash)

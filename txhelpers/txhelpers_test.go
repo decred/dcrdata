@@ -182,7 +182,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclie
 	// Ensure the RPC server has a compatible API version.
 	ver, err := dcrdClient.Version()
 	if err != nil {
-		return nil, nodeVer, fmt.Errorf("Unable to get node RPC version")
+		return nil, nodeVer, fmt.Errorf("unable to get node RPC version")
 	}
 
 	dcrdVer := ver["dcrdjsonrpcapi"]

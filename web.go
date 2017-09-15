@@ -324,7 +324,7 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 				err := websocket.JSON.Send(ws, webData)
 				td.templateDataMtx.RUnlock()
 				if err != nil {
-					log.Warnf("Failed to encode WebSocketMessage %v: %v", sig, err)
+					log.Debugf("Failed to encode WebSocketMessage %v: %v", sig, err)
 					// If the send failed, the client is probably gone, so close
 					// the connection and quit.
 					return
