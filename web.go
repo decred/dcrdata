@@ -73,6 +73,10 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 	efp := filepath.Join("views", "extras.tmpl")
 	errorfp := filepath.Join("views", "error.tmpl")
 	helpers := template.FuncMap{
+		"int64Comma": func(v int64) string {
+			t := humanize.Comma(v)
+			return t
+		},
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
