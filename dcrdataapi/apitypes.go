@@ -269,17 +269,10 @@ type BlockExplorerBasic struct {
 
 //
 type BlockExplorerExtraInfo struct {
-	TxLen            int                 `json:"tx"`
-	FormattedTime    string              `json:"formatted_time"`
-	CoinSupply       string              `json:"coin_supply"`
-	NextBlockSubsidy BlockSubsidyAmounts `json:"next_block_subsidy"`
-}
-
-type BlockSubsidyAmounts struct {
-	Developer string `json:"dev"`
-	PoS       string `json:"pos"`
-	PoW       string `json:"pow"`
-	Total     string `json:"total"`
+	TxLen            int                            `json:"tx"`
+	FormattedTime    string                         `json:"formatted_time"`
+	CoinSupply       string                         `json:"coin_supply"`
+	NextBlockSubsidy *dcrjson.GetBlockSubsidyResult `json:"next_block_subsidy"`
 }
 
 // StakeDiff represents data about the evaluated stake difficulty and estimates
