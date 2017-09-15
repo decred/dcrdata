@@ -22,19 +22,26 @@ import (
 	"github.com/decred/dcrutil"
 )
 
+type BlockSummarySaver interface {
+	StoreBlockSummary(blockSummary *apitypes.BlockDataBasic) error
+}
+
 // wiredDB is intended to satisfy APIDataSource interface. The block header is
 // not stored in the DB, so the RPC client is used to get it on demand.
 type wiredDB struct {
 	*DBDataSaver
-	MPC    *mempool.MempoolDataCache
-	client *dcrrpcclient.Client
-	params *chaincfg.Params
-	sDB    *stakedb.StakeDatabase
+	APICache *apitypes.APICache
+	MPC      *mempool.MempoolDataCache
+	client   *dcrrpcclient.Client
+	params   *chaincfg.Params
+	sDB      *stakedb.StakeDatabase
 }
 
 func newWiredDB(DB *DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
+	apic := apitypes.NewAPICache(50000)
 	wDB := wiredDB{
-		DBDataSaver: &DBDataSaver{DB, statusC},
+		DBDataSaver: &DBDataSaver{DB, statusC, apic},
+		APICache:    apic,
 		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
 		params:      p,
@@ -47,6 +54,12 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincf
 		log.Errorf("Unable to create stake DB: %v", err)
 		return wDB, func() error { return nil }
 	}
+
+	log.Info("Generating main chain block map...")
+	if err = wDB.buildMainchainBlockMap(); err != nil {
+		panic(fmt.Sprintf("Unable to build mainchain block map: %v", err))
+	}
+
 	return wDB, wDB.sDB.StakeDB.Close
 }
 
@@ -67,6 +80,34 @@ func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *dcrrpcclient.Client, p
 
 	wDB, cleanup := newWiredDB(db, statusC, cl, p)
 	return wDB, cleanup, nil
+}
+
+func (db *wiredDB) buildMainchainBlockMap() error {
+	if db.APICache == nil {
+		return fmt.Errorf("API cache disabled, unable to build MainchainBlock map")
+	}
+
+	dbHeight := db.dbSummaryHeight
+
+	db.APICache.MainchainBlocks = make([]chainhash.Hash, 0, dbHeight+20000)
+
+	for i := int64(0); i <= dbHeight; i++ {
+		hashStr, err := db.RetrieveBlockHash(i)
+		if err != nil {
+			log.Errorf("Unable to get block hash for index %d: %v", i, err)
+			return err
+		}
+
+		hash, err := chainhash.NewHashFromStr(hashStr)
+		if err != nil {
+			log.Errorf("Invalid hash (%s) stored in DB for index %d: %v", hashStr, i, err)
+			return err
+		}
+
+		db.APICache.MainchainBlocks = append(db.APICache.MainchainBlocks, *hash)
+	}
+
+	return nil
 }
 
 func (db *wiredDB) NewStakeDBChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
@@ -415,6 +456,16 @@ func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
 	return vinfo, nil
 }
 
+func (db *wiredDB) GetHash(idx int64) (string, error) {
+	hash, err := db.RetrieveBlockHash(idx)
+	if err != nil {
+		log.Errorf("Unable to block hash for index %d: %v", idx, err)
+		return "", err
+	}
+
+	return hash, nil
+}
+
 func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 	sd := rpcutils.GetStakeDiffEstimates(db.client)
 
@@ -447,10 +498,29 @@ func (db *wiredDB) GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended {
 }
 
 func (db *wiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
-	blockSummary, err := db.RetrieveBlockSummary(int64(idx))
+	var blockSummary *apitypes.BlockDataBasic
+
+	if db.APICache != nil {
+		blockSummary = db.APICache.GetBlockSummary(int64(idx))
+		if blockSummary != nil {
+			return blockSummary
+		}
+	}
+
+	var err error
+	blockSummary, err = db.RetrieveBlockSummary(int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve block summary: %v", err)
 		return nil
+	}
+
+	if db.APICache != nil {
+		if err = db.APICache.StoreBlockSummary(blockSummary); err != nil {
+			log.Warnf("Unable to store block summary in APICache: %v", err)
+		} else {
+			log.Tracef("Stored block in cache: %d / %v. Utilization: %v%%",
+				blockSummary.Height, blockSummary.Hash, db.APICache.Utilization())
+		}
 	}
 
 	return blockSummary

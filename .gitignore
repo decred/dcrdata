@@ -4,6 +4,7 @@
 *.log.*.gz
 *.bak
 debug
+debug.test
 *.cert
 *.key
 dcrdata
