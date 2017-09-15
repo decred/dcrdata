@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/decred/dcrd/blockchain/stake"
+
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
@@ -149,28 +151,29 @@ func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.G
 
 func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.BlockDataWithTxType {
 	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, true)
-	stxTypes := make([]*apitypes.TxRawWithTxType, 0, len(blockVerbose.RawSTx))
+	votes := make([]dcrjson.TxRawResult, 0, blockVerbose.Voters)
+	revocations := make([]dcrjson.TxRawResult, 0, blockVerbose.Revocations)
+	tickets := make([]dcrjson.TxRawResult, 0, blockVerbose.FreshStake)
 	for _, stx := range blockVerbose.RawSTx {
-		txhash, err := chainhash.NewHashFromStr(stx.Txid)
-		if err != nil {
-			log.Errorf("Invalid transaction hash %s", stx.Txid)
-			return nil
-		}
-
-		tx, err := db.client.GetRawTransaction(txhash)
-		if err != nil {
+		msgTx := txhelpers.MsgTxFromHex(stx.Hex)
+		if msgTx == nil {
 			log.Errorf("Unknown transaction %s", stx.Txid)
 			return nil
 		}
-		txType := txhelpers.DetermineTxTypeString(tx.MsgTx())
-		stxTypes = append(stxTypes, &apitypes.TxRawWithTxType{
-			stx,
-			txType,
-		})
+		switch stake.DetermineTxType(msgTx) {
+		case stake.TxTypeSSGen:
+			votes = append(votes, stx)
+		case stake.TxTypeSStx:
+			tickets = append(tickets, stx)
+		case stake.TxTypeSSRtx:
+			revocations = append(revocations, stx)
+		}
 	}
 	return &apitypes.BlockDataWithTxType{
 		blockVerbose,
-		stxTypes,
+		votes,
+		tickets,
+		revocations,
 	}
 }
 
