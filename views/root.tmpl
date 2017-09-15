@@ -154,7 +154,7 @@
 
             var tx = newRow.insertCell();
             tx.innerHTML = b.tx;
-            
+
             var revocations = newRow.insertCell();
             revocations.innerHTML = b.revocations;
 
@@ -170,7 +170,7 @@
             h_age.innerHTML = b.time;
 
             var blocksubsidy = b.next_block_subsidy;
-            
+
             var bsdev = document.getElementById("bsubsidy_dev");
             bsdev.innerHTML = blocksubsidy.dev;
 
@@ -205,7 +205,7 @@
             var window_block_index = document.getElementById('window_block_index');
             window_block_index.innerHTML = String(s.window_block_index);
 
-            
+
         };
 
         ws.registerEvtHandler("newblock", updateBlockData);
@@ -251,92 +251,95 @@
 
     <div class="container">
 
-        <h4><span>Chain State</span></h4>
-        
-            <div class="row">
-                <div class="col-md-12">
-                    <table class="table striped" id="explorertable">
-                        <thead>
-                            <tr>
-                                <th>Height</th>
-                                <th>Votes</th>
-                                <th>Tickets</th>
-                                <th>Transactions</th>
-                                <th>Revocations</th>
-                                <th>Size</th>
-                                <th>Age</th>
-                                <th>Time ({{timezone}})</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {{range .InitialData}}
-                            <tr id="{{.Height}}">
-                                <td><a href="/explorer/block/{{.Height}}" class="height">{{.Height}}</a></td>
-                                <td>{{.Voters}}</td>
-                                <td>{{.FreshStake}}</td>
-                                <td>{{len .Tx}}</td>
-                                <td>{{.Revocations}}</td>
-                                <td>{{formatBytes .Size}}</td>
-                                <td class="age">{{.Time}}</td>
-                                <td class="hidden">{{.Time}}</td>
-                                <td>{{getTime .Time}}</td>
-                            </tr>
-                        {{end}}
-                        </tbody>
-                    </table>
-                    <a href="/explorer">More blocks...</a>
+        <div class="row mt-3">
+
+            <div class="col-lg-7">
+                <strong>Latest Blocks</strong>
+                <table class="table striped" id="explorertable">
+                    <thead>
+                        <tr>
+                            <th>Height</th>
+                            <th>Votes</th>
+                            <th>Tickets</th>
+                            <th>Transactions</th>
+                            <th>Revocations</th>
+                            <th>Size</th>
+                            <th>Age</th>
+                            <th>Time ({{timezone}})</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .InitialData}}
+                        <tr id="{{.Height}}">
+                            <td><a href="/explorer/block/{{.Height}}" class="height">{{.Height | int64Comma}}</a></td>
+                            <td>{{.Voters}}</td>
+                            <td>{{.FreshStake}}</td>
+                            <td>{{len .Tx}}</td>
+                            <td>{{.Revocations}}</td>
+                            <td>{{formatBytes .Size}}</td>
+                            <td class="age">{{.Time}}</td>
+                            <td class="hidden">{{.Time}}</td>
+                            <td>{{getTime .Time}}</td>
+                        </tr>
+                    {{end}}
+                    </tbody>
+                </table>
+                <div class="mb-3"><a href="/explorer">More blocks...</a></div>
+            </div>
+
+            <div class="col-lg-5">
+                {{with .Data}}
+                <div class="row">
+                    <div class="col-md-12">
+                        <strong>Current Ticket Price Window</strong>
+                        <table class="table table-sm">
+                            <thead>
+                                <th>Ticket Price</th>
+                                <th>Progress</th>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span style="color:#65d4a5;" id="blocksdiff" ><strong>{{printf "%12.4f" .BlockSummary.StakeDiff}}</strong></span></td>
+                                    <td id="blocksdiff">block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+
+                <div class="mb-3"><strong>Tickets in Mempool:</strong>  <span id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</span></div>
+
+                <div class="row">
+                    <div class="col-md-12 mb-1">
+                        <strong>Block Subsidy</strong>
+                        <table class="table table-sm">
+                            <thead>
+                                <th>Developer</th>
+                                <th>PoS (per vote)</th>
+                                <th>PoW</th>
+                                <th>Total</th>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span id="bsubsidy_dev" >{{.BlockSummary.NextBlockSubsidy.Developer}}</span></td>
+                                    <td><span id="bsubsidy_pos" >{{.BlockSummary.NextBlockSubsidy.PoS}}</span></td>
+                                    <td><span id="bsubsidy_pow" >{{.BlockSummary.NextBlockSubsidy.PoW}}</span></td>
+                                    <td><span id="bsubsidy_total" >{{.BlockSummary.NextBlockSubsidy.Total}}</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mb-3"><strong>Coin Supply:</strong> <span id="coin_supply" >{{.BlockSummary.CoinSupply}}</span></div>
+                {{end}}
+
             </div>
-        
-        {{with .Data}}
-        <div class="row">
-            <div class="col-md-6">
-                <strong>Current Ticket Price Window</strong>
-                <table class="table table-sm">
-                    <thead>
-                        <th>Ticket Price</th>
-                        <th>Progress</th>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span style="color:#65d4a5;" id="blocksdiff" ><strong>{{printf "%12.4f" .BlockSummary.StakeDiff}}</strong></span></td>
-                            <td id="blocksdiff">block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="col-md-6">
-                <strong>Block Subsidy</strong>
-                <table class="table table-sm">
-                    <thead>
-                        <th>Developer</th>
-                        <th>PoS (per vote)</th>
-                        <th>PoW</th>
-                        <th>Total</th>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span id="bsubsidy_dev" >{{.BlockSummary.NextBlockSubsidy.Developer}}</span></td>
-                            <td><span id="bsubsidy_pos" >{{.BlockSummary.NextBlockSubsidy.PoS}}</span></td>
-                            <td><span id="bsubsidy_pow" >{{.BlockSummary.NextBlockSubsidy.PoW}}</span></td>
-                            <td><span id="bsubsidy_total" >{{.BlockSummary.NextBlockSubsidy.Total}}</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+
         </div>
 
-        <div class="row">
-            
-            <div class="col-md-6">
-                <div><strong>Tickets in Mempool:</strong>  <span id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</span></div>
-            </div>
-            <div class="col-md-6  text-left">
-                <div><strong>Coin Supply:</strong> <span id="coin_supply" >{{.BlockSummary.CoinSupply}}</span></div>
-            </div>
-        </div>
-        {{end}}
     </div>
+
     <!-- end wrapper -->
 
     {{ template "footer"}}
