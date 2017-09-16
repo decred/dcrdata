@@ -90,7 +90,14 @@ func (apic *APICache) SetLessFn(lessFn func(bi, bj *CachedBlock) bool) {
 	apic.expireQueue.SetLessFn(lessFn)
 }
 
-//var _ BlockSummarySaver = (*APICache)(nil)
+// BlockSummarySaver is likely to be required to be implemented by the type
+// utilizing APICache.
+type BlockSummarySaver interface {
+	StoreBlockSummary(blockSummary *BlockDataBasic) error
+}
+
+// Make sure APICache itself implements the methods of BlockSummarySaver
+var _ BlockSummarySaver = (*APICache)(nil)
 
 // Capacity returns the capacity of the APICache
 func (apic *APICache) Capacity() uint32 { return apic.capacity }
