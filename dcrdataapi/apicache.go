@@ -59,6 +59,16 @@ type APICache struct {
 }
 
 // NewAPICache creates an APICache with the specified capacity.
+//
+// NOTE: The consumer of APICache should fill out MainChainBlocks before using
+// it.  For example, given a struct DB at height dbHeight with an APICache:
+//
+//  DB.APICache = NewAPICache(10000)
+//	DB.APICache.MainchainBlocks = make([]chainhash.Hash, 0, dbHeight+NExtra)
+//	for i := int64(0); i <= dbHeight; i++ {
+//		hash := DB.SomeFunctionToGetBlockHash(i)
+//		DB.APICache.MainchainBlocks = append(DB.APICache.MainchainBlocks, *hash)
+//	}
 func NewAPICache(capacity uint32) *APICache {
 	apic := &APICache{
 		isEnabled:   true,
@@ -119,8 +129,10 @@ func (apic *APICache) StoreBlockSummary(blockSummary *BlockDataBasic) error {
 	}
 
 	if len(apic.MainchainBlocks) < int(height) {
-		return fmt.Errorf("MainchainBlock slice too short (%d) add block at %d",
+		fmt.Printf("MainchainBlock slice too short (%d) to add block at %d. Padding with empty Hashes!",
 			len(apic.MainchainBlocks), height)
+		tail := make([]chainhash.Hash, int(height)-len(apic.MainchainBlocks))
+		apic.MainchainBlocks = append(apic.MainchainBlocks, tail...)
 	}
 
 	if len(apic.MainchainBlocks) == int(height) {
