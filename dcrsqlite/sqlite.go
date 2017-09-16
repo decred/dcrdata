@@ -177,7 +177,11 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 type DBDataSaver struct {
 	*DB
 	updateStatusChan chan uint32
+	cache            apitypes.BlockSummarySaver
 }
+
+// BlockSummarySaver should be implemented by DBDataSaver to work with APICache
+var _ apitypes.BlockSummarySaver = (*DBDataSaver)(nil)
 
 // Store satisfies the blockdata.BlockDataSaver interface
 func (db *DBDataSaver) Store(data *blockdata.BlockData) error {
@@ -185,6 +189,19 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData) error {
 	err := db.DB.StoreBlockSummary(&summary)
 	if err != nil {
 		return err
+	}
+
+	if db.cache != nil {
+		if err = db.cache.StoreBlockSummary(&summary); err != nil {
+			log.Errorf("Unable to save block summary to cache: %v", err)
+		} else {
+			utilization := db.cache.(*apitypes.APICache).Utilization()
+			log.Debugf("Stored block in cache: %d / %v. Utilization: %v%%",
+				summary.Height, summary.Hash, utilization)
+		}
+		hits := db.cache.(*apitypes.APICache).Hits()
+		misses := db.cache.(*apitypes.APICache).Misses()
+		log.Debugf("Cache hits: %d, misses: %d", hits, misses)
 	}
 
 	select {
