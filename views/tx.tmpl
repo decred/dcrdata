@@ -12,7 +12,6 @@
             <p>{{.TxID}}   <span style="font-size: 12px;"><a href="/api/tx/{{.TxID}}?indent=true">view raw</a></span></p>
             <table class="table">
                 <thead>
-                    <th>Transactions ID</th>
                     <th>Total DCR</th>
                     <th>Time</th>
                     <th>Age</th>
@@ -24,8 +23,6 @@
                 <tbody>
                     {{with .TxShort}}
                     <tr>
-                        <td><span class="hash collapse">{{.TxID}}</span></td>
-
                         <td>{{ .Vout | getTotalFromTx | float64Commaf}}</td>
                         <td>
                         {{if eq $.Block.Time 0}}
@@ -60,10 +57,6 @@
                     {{end}}
                 </tbody>
             </table>
-        </div>
-    </div>
-    <div class="row">
-        <div class="col-md-7">
             <h4>In</h4>
             <table class="table table-sm striped">
                 <thead>
@@ -85,10 +78,10 @@
                             <a href="/explorer/tx/{{$vin.Txid}}"><span class="outpoint collapse">{{$vin.Txid}}:{{$vin.Vout}}</span></a>
                             {{end}}
                         </td>
-                        <td><div class="hash">
+                        <td><div class="address collapse">
                         {{with $as := index $.VinAddrs $i}}
                             {{if (len $as) gt 0}}
-                                {{index $as 0}}
+                                <a href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
                             {{else}}
                                 N/A
                             {{end}}
@@ -107,8 +100,6 @@
                     {{end}}
                 </tbody>
             </table>
-        </div>
-        <div class="col-md-5">
             <h4>Out</h4>
             <table class="table striped">
                 <thead>
@@ -125,7 +116,7 @@
                         </td>
                         <td>
                             {{range .ScriptPubKeyDecoded.Addresses}}
-                                <div class="hash"><a href="/explorer/address/{{.}}">{{.}}</a></div>
+                                <div class="address"><a href="/explorer/address/{{.}}">{{.}}</a></div>
                             {{end}}
                         </td>
                         <td>

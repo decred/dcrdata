@@ -64,6 +64,7 @@ html {
   -webkit-font-smoothing: antialiased !important;
   -moz-font-smoothing: antialiased !important;
   text-rendering: optimizelegibility !important;
+  padding-top: 30px;
 }
 body {
   padding-bottom: 2.1rem;
@@ -93,10 +94,15 @@ h4 {
 /*nav*/
 .top-nav,
 .navbar-fixed-bottom {
+  position: fixed;
   background: #3B3F45;
+  z-index: 1;
+}
+.top-nav {
+  width: 100%;
+  top: 0;
 }
 .navbar-fixed-bottom {
-  position: fixed;
   bottom: 0;
   width: 100%;
   color: silver;
@@ -176,6 +182,17 @@ h4 {
   display: inline-block;
   width: 198px;
 }
+.address {
+  font-family: monospace;
+  display: inline-block;
+  word-wrap: break-word;
+  transition: .133s transform;
+}
+.address.collapse {
+  font-size: 10px;
+  display: inline-block;
+  width: 211px;
+}
 
 .outpoint {
   font-family: monospace;
@@ -199,10 +216,16 @@ h4 {
   .hash.collapse {
     width: 142px;
   }
+  .address.collapse {
+    width: 142px;
+  }
 }
 @media only screen and (max-width: 768px)  {
   .hash.collapse {
     width: 198px;
+  }
+  .address.collapse {
+    width: 110px;
   }
   .table {
     margin-bottom: 0;

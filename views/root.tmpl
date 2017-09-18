@@ -216,7 +216,7 @@
         setInterval(function () {
             ws.send("ping", 'Hi. I am a client!');
         }, 1000);
-        
+
 	    function updateConnectionStatus(msg, connected) {
             var el = document.getElementById('connection');
             if (el.classList) {
@@ -357,13 +357,13 @@
 <script>
     var bsdev = document.getElementById("bsubsidy_dev");
     bsdev.innerHTML = subsidyToString(bsdev.innerHTML);
-                        
+
     var bspos = document.getElementById("bsubsidy_pos");
     bspos.innerHTML = subsidyToString(bspos.innerHTML, 5);
-                        
+
     var bspow = document.getElementById("bsubsidy_pow");
     bspow.innerHTML = subsidyToString(bspow.innerHTML);
-                        
+
     var bstotal = document.getElementById("bsubsidy_total");
     bstotal.innerHTML = subsidyToString(bstotal.innerHTML);
 </script>
