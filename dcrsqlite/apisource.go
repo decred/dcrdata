@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"sync"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
@@ -26,21 +27,24 @@ import (
 // not stored in the DB, so the RPC client is used to get it on demand.
 type wiredDB struct {
 	*DBDataSaver
-	APICache *apitypes.APICache
-	MPC      *mempool.MempoolDataCache
-	client   *dcrrpcclient.Client
-	params   *chaincfg.Params
-	sDB      *stakedb.StakeDatabase
+	APICache     *apitypes.APICache
+	AddressCache *apitypes.AddressCache
+	MPC          *mempool.MempoolDataCache
+	client       *dcrrpcclient.Client
+	params       *chaincfg.Params
+	sDB          *stakedb.StakeDatabase
 }
 
 func newWiredDB(DB *DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
 	apic := apitypes.NewAPICache(50000)
+	addrc := apitypes.NewAddressCache(80000)
 	wDB := wiredDB{
-		DBDataSaver: &DBDataSaver{DB, statusC, apic},
-		APICache:    apic,
-		MPC:         new(mempool.MempoolDataCache),
-		client:      cl,
-		params:      p,
+		DBDataSaver:  &DBDataSaver{DB, statusC, apic},
+		APICache:     apic,
+		AddressCache: addrc,
+		MPC:          new(mempool.MempoolDataCache),
+		client:       cl,
+		params:       p,
 	}
 
 	//err := wDB.openStakeDB()
@@ -656,11 +660,58 @@ func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Addr
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
-	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, false, true, nil)
-	if err != nil {
-		log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
-		return nil
+	// skip could be a variable at some point
+	skip := 0
+	var txs apitypes.AddressSearchResults
+	var currentBestBlock int64
+	var cacheHit bool
+	if db.AddressCache != nil {
+		cachedAddressResults := db.AddressCache.GetCachedAddress(addr)
+		if cachedAddressResults != nil {
+			// Only examine a current cached result
+			addressSearch := cachedAddressResults.Access()
+			currentBestBlock = int64(db.GetHeight())
+			if addressSearch.AddedAtBlock >= currentBestBlock {
+				// Ensure the desired range is covered
+				cachedReq := addressSearch.Request
+				start, end := skip, skip+count
+				cStart, cEnd := cachedReq.Skip, cachedReq.Skip+cachedReq.Count
+				if cStart <= start && cEnd >= end {
+					// Extract the desired range from the cached results
+					startSub := start - cStart
+					endSub := startSub + count
+					endSub = int(math.Min(float64(endSub), float64(len(addressSearch.Results))))
+					txs = addressSearch.Results[startSub:endSub]
+					cacheHit = true
+					log.Debugf("Address search %v[%d,%d,reversed]@%d found in cache!",
+						addr, start, end, addressSearch.AddedAtBlock)
+				}
+			}
+		}
 	}
+
+	if !cacheHit {
+		txs, err = db.client.SearchRawTransactionsVerbose(address, skip, count, false, true, nil)
+		if err != nil {
+			log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
+			return nil
+		}
+	}
+
+	if db.AddressCache != nil && !cacheHit {
+		if inserted, err := db.AddressCache.StoreAddressSearchResults(currentBestBlock,
+			apitypes.AddressSearchRequest{
+				Address: addr,
+				Count:   count,
+				Skip:    skip,
+			}, txs); !inserted {
+			log.Warnf("Unable to store address search in AddressCache: %v", err)
+		} else {
+			log.Debugf("Stored address search in cache: %s. Utilization: %v txns (%f%%)",
+				addr, db.AddressCache.UtilizationTransactions(), db.AddressCache.UtilizationPct())
+		}
+	}
+
 	tx := make([]*apitypes.AddressTxShort, 0, len(txs))
 	for i := range txs {
 		var value float64
