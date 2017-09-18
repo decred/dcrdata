@@ -9,13 +9,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/decred/dcrd/blockchain/stake"
-
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/dcrdata/dcrdata/txhelpers"
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
@@ -170,10 +169,10 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 		}
 	}
 	return &apitypes.BlockDataWithTxType{
-		blockVerbose,
-		votes,
-		tickets,
-		revocations,
+		GetBlockVerboseResult: blockVerbose,
+		Votes:   votes,
+		Tickets: tickets,
+		Revs:    revocations,
 	}
 }
 

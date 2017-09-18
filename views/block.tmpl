@@ -65,15 +65,15 @@
                     </tr>
                     <tr>
                         <td>Votes</td>
-                        <td><a href="#stake-transactions">{{.Voters}}</a></td>
+                        <td><a href="#votes">{{.Voters}}</a></td>
                     </tr>
                     <tr>
                         <td>Tickets</td>
-                        <td><a href="#stake-transactions">{{.FreshStake}}</a></td>
+                        <td><a href="#tickets">{{.FreshStake}}</a></td>
                     </tr>
                     <tr>
                         <td>Revocations</td>
-                        <td><a href="#stake-transactions">{{.Revocations}}</a></td>
+                        <td><a href="#revs">{{.Revocations}}</a></td>
                     </tr>
                     <tr>
                         <td>Merkle Root</td>
@@ -128,7 +128,7 @@
 
         <div class="row">
             <div class="col-md-12">
-                <h4 id="Vote"><span>Votes</span></h4>
+                <h4 id="vote"><span>Votes</span></h4>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -154,7 +154,7 @@
 
         <div class="row">
             <div class="col-md-12">
-                <h4 id="Vote"><span>Tickets</span></h4>
+                <h4 id="tickets"><span>Tickets</span></h4>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -180,7 +180,7 @@
         {{if .Revocations}}
         <div class="row">
             <div class="col-md-12">
-                <h4 id="Vote"><span>Revocations</span></h4>
+                <h4 id="revs"><span>Revocations</span></h4>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
