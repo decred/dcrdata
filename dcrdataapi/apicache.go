@@ -164,6 +164,7 @@ func (apic *APICache) StoreBlockSummary(blockSummary *BlockDataBasic) error {
 	// Insert into queue and delete any cached block that was removed
 	wasAdded, removedBlock := apic.expireQueue.Insert(blockSummary)
 	if removedBlock != nil {
+		apic.blockCache[*removedBlock] = nil
 		delete(apic.blockCache, *removedBlock)
 	}
 
@@ -184,6 +185,7 @@ func (apic *APICache) RemoveCachedBlock(cachedBlock *CachedBlock) {
 	apic.expireQueue.RemoveBlock(cachedBlock)
 	// remove from block cache
 	if hash, err := chainhash.NewHashFromStr(cachedBlock.summary.Hash); err != nil {
+		apic.blockCache[*hash] = nil
 		delete(apic.blockCache, *hash)
 	}
 }
