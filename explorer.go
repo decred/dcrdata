@@ -14,11 +14,10 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrutil"
-	
+	"github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
-	"github.com/dustin/go-humanize"
 )
 
 const (
@@ -28,7 +27,7 @@ const (
 	addressTemplateIndex
 	maxExplorerRows = 2000
 	minExplorerRows = 20
-	addressRows     = 2000
+	addressRows     = 1200
 )
 
 type explorerUI struct {

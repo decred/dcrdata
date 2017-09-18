@@ -185,6 +185,25 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 			log.Error("Failed to collect data for reorg.")
 			continue
 		}
+		// Cache
+		if p.db.APICache != nil {
+			// If a block was cached at this height already, it was from the
+			// previous mainchain, so remove it.
+			height := int64(blockDataSummary.Height)
+			if cachedBlock, err := p.db.APICache.GetCachedBlockByHeight(height); cachedBlock != nil {
+				p.db.APICache.RemoveCachedBlock(cachedBlock)
+			} else {
+				log.Warnf("No cached block at height %d: %v", height, err)
+			}
+			// Store block summary in a new cached block
+			if err := p.db.APICache.StoreBlockSummary(blockDataSummary); err != nil {
+				log.Warn("Unable to store block summary in cache:", err)
+			} else {
+				log.Debugf("Stored block in cache: %d / %v. Utilization: %v%%",
+					blockDataSummary.Height, blockDataSummary.Hash, p.db.APICache.Utilization())
+			}
+		}
+		// DB
 		if err := p.db.StoreBlockSummary(blockDataSummary); err != nil {
 			log.Errorf("Failed to store block summary data: %v", err)
 		}

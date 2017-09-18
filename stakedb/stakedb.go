@@ -188,6 +188,7 @@ func (db *StakeDatabase) block(ind int64) (*dcrutil.Block, bool) {
 func (db *StakeDatabase) ForgetBlock(ind int64) {
 	db.blkMtx.Lock()
 	defer db.blkMtx.Unlock()
+	db.blockCache[ind] = nil
 	delete(db.blockCache, ind)
 }
 

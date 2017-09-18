@@ -164,6 +164,7 @@ func (apic *APICache) StoreBlockSummary(blockSummary *BlockDataBasic) error {
 	// Insert into queue and delete any cached block that was removed
 	wasAdded, removedBlock := apic.expireQueue.Insert(blockSummary)
 	if removedBlock != nil {
+		apic.blockCache[*removedBlock] = nil
 		delete(apic.blockCache, *removedBlock)
 	}
 
@@ -184,6 +185,7 @@ func (apic *APICache) RemoveCachedBlock(cachedBlock *CachedBlock) {
 	apic.expireQueue.RemoveBlock(cachedBlock)
 	// remove from block cache
 	if hash, err := chainhash.NewHashFromStr(cachedBlock.summary.Hash); err != nil {
+		apic.blockCache[*hash] = nil
 		delete(apic.blockCache, *hash)
 	}
 }
@@ -191,7 +193,7 @@ func (apic *APICache) RemoveCachedBlock(cachedBlock *CachedBlock) {
 // GetBlockSummary attempts to retrieve the block summary for the input height.
 // The return is nil if no block with that height is cached.
 func (apic *APICache) GetBlockSummary(height int64) *BlockDataBasic {
-	cachedBlock := apic.GetCachedBlockByHeight(height)
+	cachedBlock, _ := apic.GetCachedBlockByHeight(height)
 	if cachedBlock != nil {
 		return cachedBlock.summary
 	}
@@ -200,11 +202,11 @@ func (apic *APICache) GetBlockSummary(height int64) *BlockDataBasic {
 
 // GetCachedBlockByHeight attempts to fetch a CachedBlock with the given height.
 // The return is nil if no block with that height is cached.
-func (apic *APICache) GetCachedBlockByHeight(height int64) *CachedBlock {
+func (apic *APICache) GetCachedBlockByHeight(height int64) (*CachedBlock, error) {
 	apic.RLock()
 	if int(height) >= len(apic.MainchainBlocks) || height < 0 {
-		fmt.Printf("block not in MainchainBlocks slice!")
-		return nil
+		apic.RUnlock()
+		return nil, fmt.Errorf("block not in MainchainBlocks slice")
 	}
 	hash := apic.MainchainBlocks[height]
 	apic.RUnlock()
@@ -213,34 +215,31 @@ func (apic *APICache) GetCachedBlockByHeight(height int64) *CachedBlock {
 
 // GetCachedBlockByHashStr attempts to fetch a CachedBlock with the given hash.
 // The return is nil if no block with that hash is cached.
-func (apic *APICache) GetCachedBlockByHashStr(hashStr string) *CachedBlock {
+func (apic *APICache) GetCachedBlockByHashStr(hashStr string) (*CachedBlock, error) {
 	// Validate the hash string, and get a *chainhash.Hash
 	hash, err := chainhash.NewHashFromStr(hashStr)
 	if err != nil {
-		fmt.Printf("that's not a real hash!")
-		return nil
+		return nil, fmt.Errorf("invalid hash string: %v", err)
 	}
 
-	return apic.getCachedBlockByHash(*hash)
+	return apic.getCachedBlockByHash(*hash), nil
 }
 
 // GetCachedBlockByHash attempts to fetch a CachedBlock with the given hash. The
 // return is nil if no block with that hash is cached.
-func (apic *APICache) GetCachedBlockByHash(hash chainhash.Hash) *CachedBlock {
+func (apic *APICache) GetCachedBlockByHash(hash chainhash.Hash) (*CachedBlock, error) {
 	// validate the chainhash.Hash
 	if _, err := chainhash.NewHashFromStr(hash.String()); err != nil {
-		fmt.Printf("that's not a real hash!")
-		return nil
+		return nil, fmt.Errorf("invalid chainhash.Hash: %v", err)
 	}
 
-	return apic.getCachedBlockByHash(hash)
+	return apic.getCachedBlockByHash(hash), nil
 }
 
 // getCachedBlockByHash retrieves the block with the given hash, or nil if it is
 // not found. Successful retrieval will update the cached block's access time,
 // and increment the block's access count.
 func (apic *APICache) getCachedBlockByHash(hash chainhash.Hash) *CachedBlock {
-
 	apic.Lock()
 	defer apic.Unlock()
 
