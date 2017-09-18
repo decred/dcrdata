@@ -298,10 +298,11 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 // each previous outpoint consumed by the transaction.
 func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string, string) {
 	tx, txhex := db.getRawTransaction(txid)
-	prevOutAddresses := make([][]string, len(tx.Vin))
 	if tx == nil {
-		return nil, prevOutAddresses, ""
+		return nil, nil, ""
 	}
+
+	prevOutAddresses := make([][]string, len(tx.Vin))
 
 	for i := range tx.Vin {
 		vin := &tx.Vin[i]
