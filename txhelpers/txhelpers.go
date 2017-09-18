@@ -113,7 +113,7 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 				// txrr, err := c.GetRawTransactionVerbose(&prevOut.Hash)
 				prevTx, err := c.GetRawTransaction(&prevOut.Hash)
 				if err != nil {
-					fmt.Printf("Unable to get raw transaction for %s", prevOut.Hash.String())
+					fmt.Printf("Unable to get raw transaction for %s\n", prevOut.Hash.String())
 					continue
 				}
 
@@ -122,7 +122,7 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 					_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
 						txOut.Version, txOut.PkScript, params)
 					if err != nil {
-						fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
+						fmt.Printf("ExtractPkScriptAddrs: %v\n", err.Error())
 						continue
 					}
 
@@ -186,20 +186,18 @@ func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 
 // OutPointAddresses gets the addresses payed to by a transaction output.
 func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
-	params *chaincfg.Params) []string {
+	params *chaincfg.Params) ([]string, error) {
 	// The addresses are encoded in the pkScript, so we need to get the
 	// raw transaction, and the TxOut that contains the pkScript.
 	prevTx, err := c.GetRawTransaction(&outPoint.Hash)
 	if err != nil {
-		fmt.Printf("Unable to get raw transaction for %s", outPoint.Hash.String())
-		return nil
+		return nil, fmt.Errorf("unable to get raw transaction for %s", outPoint.Hash.String())
 	}
 
 	txOuts := prevTx.MsgTx().TxOut
 	if len(txOuts) <= int(outPoint.Index) {
-		fmt.Printf("PrevOut index (%d) is beyond the TxOuts slice (length %d)",
+		return nil, fmt.Errorf("PrevOut index (%d) is beyond the TxOuts slice (length %d)",
 			outPoint.Index, len(txOuts))
-		return nil
 	}
 
 	// For the TxOut of interest, extract the list of addresses
@@ -207,8 +205,7 @@ func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
 	_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
 		txOut.Version, txOut.PkScript, params)
 	if err != nil {
-		fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
-		return nil
+		return nil, fmt.Errorf("ExtractPkScriptAddrs: %v", err.Error())
 	}
 
 	addresses := make([]string, 0, len(txAddrs))
@@ -216,17 +213,16 @@ func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
 		addr := txAddr.EncodeAddress()
 		addresses = append(addresses, addr)
 	}
-	return addresses
+	return addresses, nil
 }
 
 // OutPointAddressesFromString is the same as OutPointAddresses, but it takes
 // the outpoint as the tx string, vout index, and tree.
 func OutPointAddressesFromString(txid string, index uint32, tree int8,
-	c RawTransactionGetter, params *chaincfg.Params) []string {
+	c RawTransactionGetter, params *chaincfg.Params) ([]string, error) {
 	hash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
-		fmt.Printf("Invalid hash %s", txid)
-		return nil
+		return nil, fmt.Errorf("Invalid hash %s", txid)
 	}
 
 	outPoint := wire.NewOutPoint(hash, index, tree)
