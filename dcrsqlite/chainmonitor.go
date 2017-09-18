@@ -190,8 +190,10 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 			// If a block was cached at this height already, it was from the
 			// previous mainchain, so remove it.
 			height := int64(blockDataSummary.Height)
-			if cachedBlock := p.db.APICache.GetCachedBlockByHeight(height); cachedBlock != nil {
+			if cachedBlock, err := p.db.APICache.GetCachedBlockByHeight(height); cachedBlock != nil {
 				p.db.APICache.RemoveCachedBlock(cachedBlock)
+			} else {
+				log.Warnf("No cached block at height %d: %v", height, err)
 			}
 			// Store block summary in a new cached block
 			if err := p.db.APICache.StoreBlockSummary(blockDataSummary); err != nil {
