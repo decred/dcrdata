@@ -306,8 +306,15 @@ func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 
 	for i := range tx.Vin {
 		vin := &tx.Vin[i]
-		prevOutAddresses[i] = txhelpers.OutPointAddressesFromString(
+		if vin.IsCoinBase() /* || vin.IsStakeBase() */ {
+			continue
+		}
+		var err error
+		prevOutAddresses[i], err = txhelpers.OutPointAddressesFromString(
 			vin.Txid, vin.Vout, vin.Tree, db.client, db.params)
+		if err != nil {
+			log.Warnf("failed to get outpoint address from txid: %v", err)
+		}
 	}
 
 	msgTx := txhelpers.MsgTxFromHex(txhex)
