@@ -65,15 +65,15 @@
                     </tr>
                     <tr>
                         <td>Votes</td>
-                        <td><a href="#stake-transactions">{{.Voters}}</a></td>
+                        <td><a href="#votes">{{.Voters}}</a></td>
                     </tr>
                     <tr>
                         <td>Tickets</td>
-                        <td><a href="#stake-transactions">{{.FreshStake}}</a></td>
+                        <td><a href="#tickets">{{.FreshStake}}</a></td>
                     </tr>
                     <tr>
                         <td>Revocations</td>
-                        <td><a href="#stake-transactions">{{.Revocations}}</a></td>
+                        <td><a href="#revs">{{.Revocations}}</a></td>
                     </tr>
                     <tr>
                         <td>Merkle Root</td>
@@ -128,16 +128,15 @@
 
         <div class="row">
             <div class="col-md-12">
-                <h4 id="stake-transactions"><span>Stake Transactions</span></h4>
+                <h4 id="votes"><span>Votes</span></h4>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
                         <th>Total DCR</th>
                         <th>Size</th>
-                        <th>Type</th>
                     </thead>
                     <tbody>
-                        {{ range .RawSTxWithTypes}}
+                        {{ range .Votes}}
                         <tr>
                             <td>
                                 <span>
@@ -146,13 +145,65 @@
                             </td>
                             <td>{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
                             <td>{{.Hex | size | formatBytesInt}}</td>
-                            <td>{{.TxType}}</td>
                         </tr>
                         {{end}}
                     </tbody>
                 </table>
             </div>
         </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <h4 id="tickets"><span>Tickets</span></h4>
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Transactions ID</th>
+                        <th>Total DCR</th>
+                        <th>Size</th>
+                    </thead>
+                    <tbody>
+                        {{ range .Tickets}}
+                        <tr>
+                            <td>
+                                <span>
+                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                </span>
+                            </td>
+                            <td>{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td>{{.Hex | size | formatBytesInt}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {{if .Revocations}}
+        <div class="row">
+            <div class="col-md-12">
+                <h4 id="revs"><span>Revocations</span></h4>
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Transactions ID</th>
+                        <th>Total DCR</th>
+                        <th>Size</th>
+                    </thead>
+                    <tbody>
+                        {{ range .Revs}}
+                        <tr>
+                            <td>
+                                <span>
+                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                </span>
+                            </td>
+                            <td>{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td>{{.Hex | size | formatBytesInt}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {{end}}
 
         <div class="row">
             <div class="col-sm-12">
