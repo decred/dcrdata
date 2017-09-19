@@ -598,7 +598,7 @@ func TxFee(msgTx *wire.MsgTx) float64 {
 	return dcrutil.Amount(amtIn - amtOut).ToCoin()
 }
 
-// TxFeeRates computes and returns the fee rate in DCR/bytes for a given tx
+// TxFeeRates computes and returns the fee rate in DCR/KB for a given tx
 func TxFeeRate(msgTx *wire.MsgTx) float64 {
 	var amtIn int64
 	for iv := range msgTx.TxIn {
