@@ -584,3 +584,29 @@ func DetermineTxTypeString(msgTx *wire.MsgTx) string {
 		return "Regular"
 	}
 }
+
+// TxFee computes and returns the fee for a given tx
+func TxFee(msgTx *wire.MsgTx) float64 {
+	var amtIn int64
+	for iv := range msgTx.TxIn {
+		amtIn += msgTx.TxIn[iv].ValueIn
+	}
+	var amtOut int64
+	for iv := range msgTx.TxOut {
+		amtOut += msgTx.TxOut[iv].Value
+	}
+	return dcrutil.Amount(amtIn - amtOut).ToCoin()
+}
+
+// TxFeeRates computes and returns the fee rate in DCR/bytes for a given tx
+func TxFeeRate(msgTx *wire.MsgTx) float64 {
+	var amtIn int64
+	for iv := range msgTx.TxIn {
+		amtIn += msgTx.TxIn[iv].ValueIn
+	}
+	var amtOut int64
+	for iv := range msgTx.TxOut {
+		amtOut += msgTx.TxOut[iv].Value
+	}
+	return dcrutil.Amount(1000*(amtIn-amtOut)).ToCoin() / float64(msgTx.SerializeSize())
+}
