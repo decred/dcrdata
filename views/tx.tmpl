@@ -9,8 +9,8 @@
     <div class="row">
         <div class="col-md-12">
             <h4>Transaction</h4>
-            <p class="break-word">{{.TxID}} <a class="fs12" href="/api/tx/{{.TxID}}?indent=true">view raw</a></p>
-            <table class="table">
+            <p class="break-word"><span class="mono">{{.TxID}}</span> <a class="fs12" href="/api/tx/{{.TxID}}?indent=true">view raw</a></p>
+            <table class="table table-mono-cells">
                 <thead>
                     <th>Total DCR</th>
                     <th>Time</th>
@@ -44,12 +44,11 @@
                             {{$.Confirmations | int64Comma}}
                         {{end}}
                         </td>
-
                         <td>
                         {{if eq $.Block.BlockHeight 0}}
                             N/A
                         {{else}}
-                            <a href="/explorer/block/{{$.Block.BlockHash}}" class="mono">{{$.Block.BlockHeight | int64Comma}}</a></td>
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight | int64Comma}}</a></td>
                         {{end}}
                         <td>{{$.Type}}</td>
                         <td>{{.Size | formatBytes}}</td>
@@ -79,13 +78,13 @@
                             {{else if eq $vin.Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
                                 Vote Reward
                             {{else}}
-                            <a href="/explorer/tx/{{$vin.Txid}}"><span class="mono break-word">{{$vin.Txid}}:{{$vin.Vout}}</span></a>
+                            <a href="/explorer/tx/{{$vin.Txid}}"><span class="break-word">{{$vin.Txid}}:{{$vin.Vout}}</span></a>
                             {{end}}
                         </td>
                         <td><div>
                         {{with $as := index $.VinAddrs $i}}
                             {{if (len $as) gt 0}}
-                                <a class="mono break-word" href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
+                                <a class="break-word" href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
                             {{else}}
                                 N/A
                             {{end}}
@@ -96,10 +95,10 @@
                         {{if eq $vin.BlockHeight 0}}
                             N/A
                         {{else}}
-                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight | uint32Comma}}</a></td>
+                            <a class="mono fs12" href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight | uint32Comma}}</a></td>
                         {{end}}
                         </td>
-                        <td class="dcr text-right">{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{float64Commaf $vin.AmountIn}} {{end}}</td>
+                        <td class="dcr mono fs12 text-right">{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{float64Commaf $vin.AmountIn}} {{end}}</td>
                     </tr>
                     {{end}}
                 </tbody>
@@ -107,7 +106,7 @@
         </div>
         <div class="col-md-5">
             <h4>Out</h4>
-            <table class="table striped">
+            <table class="table table-sm striped">
                 <thead>
                     <th>Address</th>
                     <th class="text-center">Type</th>
@@ -119,13 +118,13 @@
                     <tr>
                         <td>
                             {{range .ScriptPubKeyDecoded.Addresses}}
-                                <a class="mono break-word" href="/explorer/address/{{.}}">{{.}}</a>
+                                <a class="break-word" href="/explorer/address/{{.}}">{{.}}</a>
                             {{end}}
                         </td>
                         <td>
                             {{.ScriptPubKeyDecoded.Type}}
                         </td>
-                        <td class="dcr text-right">
+                        <td class="dcr mono fs12 text-right">
                             {{.Value | float64Commaf}}
                         </td>
                     </tr>
@@ -140,7 +139,7 @@
     <div class="row">
         <div class="col-md-12">
             <h4>Vote Info</h4>
-            <p>Version: {{.Version}} | Bits: {{printf "%#04x" .Bits}}</p>
+            <p>Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span></p>
             <table class="table striped">
                 <thead>
                     <th class="text-right">Issue ID</th>
