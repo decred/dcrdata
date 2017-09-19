@@ -143,7 +143,7 @@
             <p>Version: {{.Version}} | Bits: {{printf "%#x" .Bits}}</p>
             <table class="table striped">
                 <thead>
-                    <th>Issue ID</th>
+                    <th class="text-right">Issue ID</th>
                     <th>Issue Description</th>
                     <th>Choice ID</th>
                     <th>Choice Description</th>
@@ -151,10 +151,13 @@
                 <tbody>
                     {{range .Choices}}
                     <tr>
-                    <td>{{.ID}}</td>
-                    <td>{{.Description}}</td>
-                    <td>{{.Choice.Id}}</td>
-                    <td>{{.Choice.Description}}</td>
+                        <td class="text-right"><span class="highlight-text">{{.ID}}</span></td>
+                        <td>{{.Description}}</td>
+                        <td>
+                            <span class="agenda-voting-overview-option-dot _{{.Choice.Id}}"></span>
+                            {{.Choice.Id}}
+                        </td>
+                        <td>{{.Choice.Description}}</td>
                     </tr>
                     {{end}}
                 </tbody>
