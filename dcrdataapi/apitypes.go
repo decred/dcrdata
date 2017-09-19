@@ -43,6 +43,14 @@ type TxShort struct {
 	Vout     []Vout        `json:"vout"`
 }
 
+type ExplorerTxData struct {
+	*Tx
+	VinAddrs [][]string
+	Type     string
+	Fee      float64
+	FeeRate  float64
+}
+
 // VoteInfo models data about a SSGen transaction (vote)
 type VoteInfo struct {
 	Validation BlockValidation         `json:"block_validation"`

@@ -15,6 +15,10 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrutil"
+<<<<<<< HEAD
+=======
+
+>>>>>>> Added fees to tx page data
 	"github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -108,38 +112,13 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-
-	// Get transaction information with addresses exctracted from pkScripts of
-	// previous outpoints redeemed by the transaction.
-	tx, prevOutAddresses, txtype, msgTx := exp.app.BlockData.GetRawTransactionWithPrevOutAddresses(hash)
+	tx := exp.app.BlockData.GetRawTransactionWithPrevOutAddresses(hash)
 	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", hash)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-
-	// If the transaction is a vote, extract the vote info
-	var vinfo *apitypes.VoteInfo
-	if isVote, _ := stake.IsSSGen(msgTx); isVote {
-		var err error
-		vinfo, err = exp.app.BlockData.GetVoteInfo(hash)
-		if err != nil {
-			apiLog.Errorf("Unable to get vote info for transaction %s", hash)
-			http.Error(w, "Unable to get vote info. Is tx "+hash+" a vote?", 422)
-			return
-		}
-	}
-
-	// Execute template with anon struct containing the above information.
-	txSuppl := struct {
-		*apitypes.Tx
-		VinAddrs [][]string
-		Type     string
-		VoteInfo *apitypes.VoteInfo
-	}{
-		tx, prevOutAddresses, txtype, vinfo,
-	}
-	str, err := TemplateExecToString(exp.templates[txTemplateIndex], "tx", txSuppl)
+	str, err := TemplateExecToString(exp.templates[txTemplateIndex], "tx", tx)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)

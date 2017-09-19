@@ -19,7 +19,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
@@ -297,10 +296,12 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 // GetRawTransactionWithPrevOutAddresses looks up the previous outpoints for a
 // transaction and extracts a slice of addresses encoded by the pkScript for
 // each previous outpoint consumed by the transaction.
-func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string, string, *wire.MsgTx) {
+func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) apitypes.ExplorerTxData {
 	tx, txhex := db.getRawTransaction(txid)
 	if tx == nil {
-		return nil, nil, "", nil
+		return apitypes.ExplorerTxData{
+			Tx: nil,
+		}
 	}
 
 	prevOutAddresses := make([][]string, len(tx.Vin))
@@ -320,12 +321,22 @@ func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 
 	msgTx := txhelpers.MsgTxFromHex(txhex)
 	if msgTx == nil {
-		return tx, prevOutAddresses, "", nil
+		return apitypes.ExplorerTxData{
+			Tx:       tx,
+			VinAddrs: prevOutAddresses,
+		}
 	}
-
+	txFee := txhelpers.TxFee(msgTx)
+	txFeeRate := txhelpers.TxFeeRate(msgTx)
 	txType := txhelpers.DetermineTxTypeString(msgTx)
 
-	return tx, prevOutAddresses, txType, msgTx
+	return apitypes.ExplorerTxData{
+		Tx:       tx,
+		VinAddrs: prevOutAddresses,
+		Type:     txType,
+		Fee:      txFee,
+		FeeRate:  txFeeRate,
+	}
 }
 
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
