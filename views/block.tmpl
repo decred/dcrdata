@@ -9,7 +9,7 @@
     <div class="container">
         <h4>Block <span class="mono">#{{.Height | int64Comma}}</span> <span style="font-size: 12px;"><a href="/api/block/{{.Height}}/verbose?indent=true">view raw</a></span></span></h4>
 
-        <div class="row">
+        <div class="row mb-3">
             <div class="col-md-4">
                 <table class="table table-sm flush-left">
                     <tr>
@@ -18,31 +18,31 @@
                     </tr>
                     <tr>
                         <td>Height</td>
-                        <td class="mono fs12">{{.Height | int64Comma}}</td>
+                        <td class="mono fs15">{{.Height | int64Comma}}</td>
                     </tr>
                     <tr>
                         <td>Size</td>
-                        <td class="mono fs12">{{.Size | formatBytes}}</td>
+                        <td class="mono fs15">{{.Size | formatBytes}}</td>
                     </tr>
                     <tr>
                         <td>Confirmations</td>
-                        <td class="mono fs12">{{.Confirmations}}</td>
+                        <td class="mono fs15">{{.Confirmations}}</td>
                     </tr>
                     <tr>
                         <td>Time ({{timezone}})</td>
-                        <td class="mono fs12">{{.Time | getTime}}</td>
+                        <td class="mono fs15">{{.Time | getTime}}</td>
                     </tr>
                     <tr>
                         <td>Difficulty</td>
-                        <td class="mono fs12">{{.Difficulty | float64Commaf}}</td>
+                        <td class="mono fs15">{{.Difficulty | float64Commaf}}</td>
                     </tr>
                     <tr>
                         <td>POS Difficulty(Sbits)</td>
-                        <td class="mono fs12">{{.SBits}}</td>
+                        <td class="mono fs15">{{.SBits}}</td>
                     </tr>
                     <tr>
                         <td>Total Sent in Block</td>
-                        <td class="dcr mono fs12">{{$ | totalSentInBlock}}</td>
+                        <td class="dcr mono fs15">{{$ | totalSentInBlock}}</td>
                     </tr>
                 </table>
             </div>
@@ -61,19 +61,19 @@
                     {{end}}
                     <tr>
                         <td>Transactions</td>
-                        <td><a class="mono fs12" href="#transactions">{{.RawTx | len}}</a></td>
+                        <td><a class="mono fs15" href="#transactions">{{.RawTx | len}}</a></td>
                     </tr>
                     <tr>
                         <td>Votes</td>
-                        <td><a class="mono fs12" href="#votes">{{.Voters}}</a></td>
+                        <td><a class="mono fs15" href="#votes">{{.Voters}}</a></td>
                     </tr>
                     <tr>
                         <td>Tickets</td>
-                        <td><a class="mono fs12" href="#tickets">{{.FreshStake}}</a></td>
+                        <td><a class="mono fs15" href="#tickets">{{.FreshStake}}</a></td>
                     </tr>
                     <tr>
                         <td>Revocations</td>
-                        <td><a class="mono fs12" href="#revs">{{.Revocations}}</a></td>
+                        <td><a class="mono fs15" href="#revs">{{.Revocations}}</a></td>
                     </tr>
                     <tr>
                         <td>Merkle Root</td>
@@ -90,19 +90,19 @@
                 <table class="table table-sm flush-left">
                     <tr>
                         <td>Block Verison</td>
-                        <td class="mono fs12">{{.Version}}</span>
+                        <td class="mono fs15">{{.Version}}</span>
                     </tr>
                     <tr>
                         <td>Stake Version</td>
-                        <td class="mono fs12">{{.StakeVersion}}</td>
+                        <td class="mono fs15">{{.StakeVersion}}</td>
                     </tr>
                     <tr>
                         <td>Vote Bits</td>
-                        <td class="mono fs12">{{.VoteBits}}</td>
+                        <td class="mono fs15">{{.VoteBits}}</td>
                     </tr>
                     <tr>
                         <td>Final State</td>
-                        <td><span class="hash collapse" >{{.FinalState}}</span></td>
+                        <td><span class="hash collapse fs15" >{{.FinalState}}</span></td>
                     </tr>
                     <tr>
                         <td>Pool Size</td>
@@ -110,16 +110,16 @@
                     </tr>
                     <tr>
                         <td>Nonce</td>
-                        <td class="mono fs12">{{.Nonce}}</td>
+                        <td class="mono fs15">{{.Nonce}}</td>
                     </tr>
                     <tr>
                         <td>Bits</td>
-                        <td class="mono fs12">{{.Bits}}</td>
+                        <td class="mono fs15">{{.Bits}}</td>
                     </tr>
                     <tr>
                         <td>Age</td>
                         <td class="hidden">{{.Time}}</td>
-                        <td class="mono fs12 age">{{.Time}}</td>
+                        <td class="mono fs15 age">{{.Time}}</td>
                     </tr>
                 </table>
             </div>
@@ -128,7 +128,7 @@
 
         <div class="row">
             <div class="col-md-12">
-                <h4 id="votes"><span>Votes</span></h4>
+                <h5 id="votes"><span>Votes</span></h5>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -143,8 +143,8 @@
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td class="dcr mono fs12 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs12">{{.Hex | size | formatBytesInt}}</td>
+                            <td class="dcr mono fs15 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -154,7 +154,7 @@
 
         <div class="row">
             <div class="col-md-12">
-                <h4 id="tickets"><span>Tickets</span></h4>
+                <h5 id="tickets"><span>Tickets</span></h5>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -169,8 +169,8 @@
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td class="text-right dcr mono fs12">{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs12">{{.Hex | size | formatBytesInt}}</td>
+                            <td class="text-right dcr mono fs15">{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -180,7 +180,7 @@
         {{if .Revocations}}
         <div class="row">
             <div class="col-md-12">
-                <h4 id="revs"><span>Revocations</span></h4>
+                <h5 id="revs"><span>Revocations</span></h5>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -195,8 +195,8 @@
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td class="dcr mono fs12">{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs12">{{.Hex | size | formatBytesInt}}</td>
+                            <td class="dcr mono fs15">{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -207,7 +207,7 @@
 
         <div class="row">
             <div class="col-sm-12">
-                <h4 id="transactions"><span>Transactions</span></h4>
+                <h5 id="transactions"><span>Transactions</span></h5>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -222,8 +222,8 @@
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td class="dcr mono fs12 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs12">{{.Hex | size | formatBytesInt}}</td>
+                            <td class="dcr mono fs15 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
                         </tr>
                         {{end}}
                     </tbody>

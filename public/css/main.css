@@ -43,11 +43,11 @@
   font-style: normal;
 }
 @font-face {
-  font-family: 'DroidSansMono';
-  src:  url('/fonts/DroidSansMono.eot');
-  src:  url('/fonts/DroidSansMono.eot#iefix') format('embedded-opentype'),
-  url('/fonts/DroidSansMono.woff') format('woff'),
-  url('/fonts/DroidSansMono.svg') format('svg');
+  font-family: 'inconsolata-v15-latin-regular';
+  src:  url('/fonts/inconsolata-v15-latin-regular.eot');
+  src:  url('/fonts/inconsolata-v15-latin-regular.eot#iefix') format('embedded-opentype'),
+  url('/fonts/inconsolata-v15-latin-regular.woff') format('woff'),
+  url('/fonts/inconsolata-v15-latin-regular.svg') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -59,10 +59,10 @@ html {
   -webkit-font-smoothing: antialiased !important;
   -moz-font-smoothing: antialiased !important;
   text-rendering: optimizelegibility !important;
-  padding-top: 30px;
+  padding-top: 35px;
 }
 .mono {
-  font-family: 'DroidSansMono';
+  font-family: 'inconsolata-v15-latin-regular';
 }
 body {
   font-family: 'source-sans-pro-v9-latin-regular';
@@ -109,8 +109,8 @@ body.darkBG .navbar-fixed-bottom a {
   word-wrap: break-word;
   word-break: break-word;
 }
-.fs12 {
-  font-size: 12px !important;
+.fs15 {
+  font-size: 15px !important;
 }
 .no-underline,
 .no-underline:hover {
@@ -166,7 +166,7 @@ body.darkBG .navbar-fixed-bottom a {
   font-size: 14px;
 }
 .table td {
-  font-size: 13px;
+  font-size: 14px;
   vertical-align: middle;
 }
 .table thead th {
@@ -198,32 +198,32 @@ body.darkBG .navbar-fixed-bottom a {
   padding-left: 0px;
 }
 .table-mono-cells td {
-  font-family: 'DroidSansMono';
-  font-size: 12px;
+  font-family: 'inconsolata-v15-latin-regular';
+  font-size: 14px;
 }
 
 /*content*/
 .hash {
-  font-size: 12px;
-  font-family: 'DroidSansMono', monospace;
+  font-size: 14px;
+  font-family: 'inconsolata-v15-latin-regular', monospace;
   display: inline-block;
   word-wrap: break-word;
   transition: .133s transform;
 }
 .hash.collapse {
-  font-size: 10px;
+  font-size: 12px;
   display: inline-block;
-  width: 198px;
+  width: 197px;
 }
 
 .outpoint {
-  font-family: 'DroidSansMono', monospace;
+  font-family: 'inconsolata-v15-latin-regular', monospace;
   display: inline-block;
   word-wrap: break-word;
   transition: .133s transform;
 }
 .outpoint.collapse {
-  font-size: 10px;
+  font-size: 12px;
   display: inline-block;
   width: 206px;
 }
@@ -267,7 +267,7 @@ body.darkBG .navbar-fixed-bottom a {
 }
 @media only screen and (max-width: 768px)  {
   .hash.collapse {
-    width: 198px;
+    width: 197px;
   }
   .table {
     margin-bottom: 0;
@@ -276,7 +276,7 @@ body.darkBG .navbar-fixed-bottom a {
 }
 @media only screen and (max-width: 630px)  {
   .table .hash {
-    font-size: 10px;
-    width: 198px;
+    font-size: 12px;
+    width: 197px;
   }
 }
