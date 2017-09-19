@@ -31,6 +31,27 @@
 .dcricon-decred:before {
   content: "\e900";
 }
+@font-face {
+  font-family: 'inconsolata-v15-latin-regular';
+  src:  url('/fonts/inconsolata-v15-latin-regular.eot');
+  src:  url('/fonts/inconsolata-v15-latin-regular.eot#iefix') format('embedded-opentype'),
+  url('/fonts/inconsolata-v15-latin-regular.ttf') format('truetype'),
+  url('/fonts/inconsolata-v15-latin-regular.woff') format('woff'),
+  url('/fonts/inconsolata-v15-latin-regular.svg') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+/*@font-face {
+  font-family: 'source-sans-pro-v9-latin-regular';
+  src:  url('/fonts/source-sans-pro-v9-latin-regular.eot');
+  src:  url('/fonts/source-sans-pro-v9-latin-regular.eot#iefix') format('embedded-opentype'),
+  url('/fonts/source-sans-pro-v9-latin-regular.ttf') format('truetype'),
+  url('/fonts/source-sans-pro-v9-latin-regular.woff') format('woff'),
+  url('/fonts/source-sans-pro-v9-latin-regular.svg') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}*/
+
 #sun-toggle {
   padding: 5px;
 }
@@ -65,6 +86,10 @@ html {
   -moz-font-smoothing: antialiased !important;
   text-rendering: optimizelegibility !important;
   padding-top: 30px;
+  /*font-family: 'source-sans-pro-v9-latin-regular';*/
+}
+.mono {
+  font-family: 'inconsolata-v15-latin-regular';
 }
 body {
   padding-bottom: 2.1rem;
@@ -101,7 +126,7 @@ h4 {
   opacity: .3
 }
 .dcr {
-  font-family: monospace;
+  font-family: 'inconsolata-v15-latin-regular', monospace;
 }
 
 /*nav*/
@@ -151,8 +176,9 @@ h4 {
 }
 .table td {
   height: 33px;
-  font-size: 12px;
+  font-size: 14px;
   vertical-align: middle;
+  font-family: 'inconsolata-v15-latin-regular' !important;
 }
 .table thead th {
   border-bottom: none;

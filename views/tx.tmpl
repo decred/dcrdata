@@ -49,7 +49,7 @@
                         {{if eq $.Block.BlockHeight 0}}
                             N/A
                         {{else}}
-                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight | int64Comma}}</a></td>
+                            <a href="/explorer/block/{{$.Block.BlockHash}}" class="mono">{{$.Block.BlockHeight | int64Comma}}</a></td>
                         {{end}}
                         <td>{{$.Type}}</td>
                         <td>{{.Size | formatBytes}}</td>
