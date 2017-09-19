@@ -42,7 +42,7 @@
                     </tr>
                     <tr>
                         <td>Total Sent in Block</td>
-                        <td>{{$ | totalSentInBlock}}</td>
+                        <td class="dcr">{{$ | totalSentInBlock}}</td>
                     </tr>
                 </table>
             </div>
@@ -132,7 +132,7 @@
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
-                        <th>Total DCR</th>
+                        <th class="text-right">Total DCR</th>
                         <th>Size</th>
                     </thead>
                     <tbody>
@@ -143,7 +143,7 @@
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td>{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td class="dcr text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
                             <td>{{.Hex | size | formatBytesInt}}</td>
                         </tr>
                         {{end}}
@@ -211,18 +211,18 @@
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
-                        <th>Total DCR</th>
+                        <th class="text-right">Total DCR</th>
                         <th>Size</th>
                     </thead>
                     <tbody>
-                        {{ range .RawTx}}
+                        {{range .RawTx}}
                         <tr>
                             <td>
                                 <span>
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td>{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td class="dcr text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
                             <td>{{.Hex | size | formatBytesInt}}</td>
                         </tr>
                         {{end}}

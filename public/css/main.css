@@ -97,6 +97,12 @@ h4 {
 .no-underline:hover {
   text-decoration: none;
 }
+.trailing-zeroes {
+  opacity: .3
+}
+.dcr {
+  font-family: monospace;
+}
 
 /*nav*/
 .top-nav,

@@ -23,7 +23,7 @@
                 <tbody>
                     {{with .TxShort}}
                     <tr>
-                        <td>{{ .Vout | getTotalFromTx | float64Commaf}}</td>
+                        <td class="dcr">{{ .Vout | getTotalFromTx | float64Commaf}}</td>
                         <td>
                         {{if eq $.Block.Time 0}}
                             N/A
@@ -67,8 +67,8 @@
                     <th>Previous Outpoint</th>
                     <th>Addresses</th>
                     <!-- <th>Tree</th> -->
-                    <th class="nowrap">Block</th>
-                    <th>DCR</th>
+                    <th class="text-center">Block</th>
+                    <th class="text-center">DCR</th>
                 </thead>
                 <tbody>
                     {{range $i, $vin := .Vin}}
@@ -99,7 +99,7 @@
                             <a href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight | uint32Comma}}</a></td>
                         {{end}}
                         </td>
-                        <td>{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{float64Commaf $vin.AmountIn}} {{end}}</td>
+                        <td class="dcr text-right">{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{float64Commaf $vin.AmountIn}} {{end}}</td>
                     </tr>
                     {{end}}
                 </tbody>
@@ -109,17 +109,14 @@
             <h4>Out</h4>
             <table class="table striped">
                 <thead>
-                    <th>DCR</th>
                     <th>Address</th>
-                    <th>Type</th>
+                    <th class="text-center">Type</th>
+                    <th class="text-center">DCR</th>
                 </thead>
                 <tbody>
                     {{range .Vout}}
                     {{ if ne .Value 0.0}}
                     <tr>
-                        <td>
-                            {{.Value | float64Commaf}}
-                        </td>
                         <td>
                             {{range .ScriptPubKeyDecoded.Addresses}}
                                 <a class="mono break-word" href="/explorer/address/{{.}}">{{.}}</a>
@@ -127,6 +124,9 @@
                         </td>
                         <td>
                             {{.ScriptPubKeyDecoded.Type}}
+                        </td>
+                        <td class="dcr text-right">
+                            {{.Value | float64Commaf}}
                         </td>
                     </tr>
                     {{end}}
