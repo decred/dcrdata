@@ -114,6 +114,7 @@
                 <thead>
                     <th>DCR</th>
                     <th>Address</th>
+                    <th>Type</th>
                 </thead>
                 <tbody>
                     {{range .Vout}}
@@ -126,6 +127,9 @@
                             {{range .ScriptPubKeyDecoded.Addresses}}
                                 <div class="hash"><a href="/explorer/address/{{.}}">{{.}}</a></div>
                             {{end}}
+                        </td>
+                        <td>
+                            {{.ScriptPubKeyDecoded.Type}}
                         </td>
                     </tr>
                     {{end}}
