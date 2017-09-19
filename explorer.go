@@ -11,14 +11,14 @@ import (
 	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrutil"
-	
+	"github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
-	"github.com/dustin/go-humanize"
 )
 
 const (
@@ -101,24 +101,43 @@ func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
+	// attempt to get tx hash string from URL path
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		apiLog.Trace("txid not set")
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-	tx, prevOutAddresses, txtype := exp.app.BlockData.GetRawTransactionWithPrevOutAddresses(hash)
+
+	// Get transaction information with addresses exctracted from pkScripts of
+	// previous outpoints redeemed by the transaction.
+	tx, prevOutAddresses, txtype, msgTx := exp.app.BlockData.GetRawTransactionWithPrevOutAddresses(hash)
 	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", hash)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
+
+	// If the transaction is a vote, extract the vote info
+	var vinfo *apitypes.VoteInfo
+	if isVote, _ := stake.IsSSGen(msgTx); isVote {
+		var err error
+		vinfo, err = exp.app.BlockData.GetVoteInfo(hash)
+		if err != nil {
+			apiLog.Errorf("Unable to get vote info for transaction %s", hash)
+			http.Error(w, "Unable to get vote info. Is tx "+hash+" a vote?", 422)
+			return
+		}
+	}
+
+	// Execute template with anon struct containing the above information.
 	txSuppl := struct {
 		*apitypes.Tx
 		VinAddrs [][]string
 		Type     string
+		VoteInfo *apitypes.VoteInfo
 	}{
-		tx, prevOutAddresses, txtype,
+		tx, prevOutAddresses, txtype, vinfo,
 	}
 	str, err := TemplateExecToString(exp.templates[txTemplateIndex], "tx", txSuppl)
 	if err != nil {

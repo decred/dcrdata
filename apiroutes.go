@@ -10,6 +10,7 @@ import (
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 )
 
@@ -25,7 +26,7 @@ type APIDataSource interface {
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.BlockDataWithTxType
 	GetRawTransaction(txid string) *apitypes.Tx
-	GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string, string)
+	GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string, string, *wire.MsgTx)
 	GetVoteInfo(txid string) (*apitypes.VoteInfo, error)
 	GetAllTxIn(txid string) []*apitypes.TxIn
 	GetAllTxOut(txid string) []*apitypes.TxOut

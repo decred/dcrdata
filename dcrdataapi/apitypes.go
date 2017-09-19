@@ -47,6 +47,7 @@ type TxShort struct {
 type VoteInfo struct {
 	Validation BlockValidation         `json:"block_validation"`
 	Version    uint32                  `json:"vote_version"`
+	Bits       uint16                  `json:"vote_bits"`
 	Choices    []*txhelpers.VoteChoice `json:"vote_choices"`
 }
 
