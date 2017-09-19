@@ -135,6 +135,34 @@
             </table>
         </div>
     </div>
+    {{if .VoteInfo}}
+    {{with .VoteInfo}}
+    <div class="row">
+        <div class="col-md-12">
+            <h4>Vote Info</h4>
+            <p>Version: {{.Version}} | Bits: {{printf "%#x" .Bits}}</p>
+            <table class="table striped">
+                <thead>
+                    <th>Issue ID</th>
+                    <th>Issue Description</th>
+                    <th>Choice ID</th>
+                    <th>Choice Description</th>
+                </thead>
+                <tbody>
+                    {{range .Choices}}
+                    <tr>
+                    <td>{{.ID}}</td>
+                    <td>{{.Description}}</td>
+                    <td>{{.Choice.Id}}</td>
+                    <td>{{.Choice.Description}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{end}}
+    {{end}}
 </div>
 
 {{template "footer"}}

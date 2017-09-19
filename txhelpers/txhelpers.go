@@ -394,14 +394,14 @@ type VoteChoice struct {
 }
 
 // SSGenVoteChoices gets a ssgen's vote choices (block validity and any
-// agendas). The vote's stake version is also returned, to which the vote
-// choices correspond. Note that []*VoteChoice may be an empty slice if there
-// are no consensus deployments for the transaction's vote version. The error
-// value may be non-nil if the tx is not a valid ssgen.
-func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation, uint32, []*VoteChoice, error) {
+// agendas). The vote's stake version, to which the vote choices correspond, and
+// vote bits are also returned. Note that []*VoteChoice may be an empty slice if
+// there are no consensus deployments for the transaction's vote version. The
+// error value may be non-nil if the tx is not a valid ssgen.
+func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation, uint32, uint16, []*VoteChoice, error) {
 	validBlock, voteBits, err := SSGenVoteBlockValid(tx)
 	if err != nil {
-		return validBlock, 0, nil, err
+		return validBlock, 0, 0, nil, err
 	}
 
 	// Determine the ssgen's vote version and get the relevent consensus
@@ -429,7 +429,7 @@ func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation,
 		choices = append(choices, &voteChoice)
 	}
 
-	return validBlock, voteVersion, choices, nil
+	return validBlock, voteVersion, voteBits, choices, nil
 }
 
 // FeeInfoBlock computes ticket fee statistics for the tickets included in the

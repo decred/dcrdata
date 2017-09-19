@@ -19,6 +19,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
@@ -296,10 +297,10 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 // GetRawTransactionWithPrevOutAddresses looks up the previous outpoints for a
 // transaction and extracts a slice of addresses encoded by the pkScript for
 // each previous outpoint consumed by the transaction.
-func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string, string) {
+func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string, string, *wire.MsgTx) {
 	tx, txhex := db.getRawTransaction(txid)
 	if tx == nil {
-		return nil, nil, ""
+		return nil, nil, "", nil
 	}
 
 	prevOutAddresses := make([][]string, len(tx.Vin))
@@ -318,14 +319,13 @@ func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 	}
 
 	msgTx := txhelpers.MsgTxFromHex(txhex)
-
 	if msgTx == nil {
-		return tx, prevOutAddresses, ""
+		return tx, prevOutAddresses, "", nil
 	}
 
 	txType := txhelpers.DetermineTxTypeString(msgTx)
 
-	return tx, prevOutAddresses, txType
+	return tx, prevOutAddresses, txType, msgTx
 }
 
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
@@ -409,7 +409,7 @@ func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
 		return nil, nil
 	}
 
-	validation, version, choices, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), db.params)
+	validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), db.params)
 	if err != nil {
 		return nil, err
 	}
@@ -420,6 +420,7 @@ func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
 			Validity: validation.Validity,
 		},
 		Version: version,
+		Bits:    bits,
 		Choices: choices,
 	}
 	return vinfo, nil
