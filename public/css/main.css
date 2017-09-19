@@ -83,6 +83,13 @@ h4 {
 .nowrap {
   white-space: nowrap;
 }
+.break-word {
+  word-wrap: break-word;
+  word-break: break-word;
+}
+.mono {
+  font-family: monospace;
+}
 .fs12 {
   font-size: 12px
 }
@@ -182,29 +189,6 @@ h4 {
   display: inline-block;
   width: 198px;
 }
-.address {
-  font-family: monospace;
-  display: inline-block;
-  word-wrap: break-word;
-  transition: .133s transform;
-}
-.address.collapse {
-  font-size: 10px;
-  display: inline-block;
-  width: 211px;
-}
-
-.outpoint {
-  font-family: monospace;
-  display: inline-block;
-  word-wrap: break-word;
-  transition: .133s transform;
-}
-.outpoint.collapse {
-  font-size: 10px;
-  display: inline-block;
-  width: 206px;
-}
 
 /*responsive*/
 @media only screen and (max-width: 992px)  {
@@ -216,16 +200,10 @@ h4 {
   .hash.collapse {
     width: 142px;
   }
-  .address.collapse {
-    width: 142px;
-  }
 }
 @media only screen and (max-width: 768px)  {
   .hash.collapse {
     width: 198px;
-  }
-  .address.collapse {
-    width: 110px;
   }
   .table {
     margin-bottom: 0;
