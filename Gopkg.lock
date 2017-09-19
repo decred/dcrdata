@@ -56,6 +56,12 @@
   revision = "94df605435ff3ac370e1ab342aa9f128d688d769"
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/dchest/blake256"
   packages = ["."]
@@ -102,6 +108,12 @@
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/lib/pq"
+  packages = [".","oid"]
+  revision = "017e4c14d80628353eaee677a1aeffe47a10c0dc"
 
 [[projects]]
   name = "github.com/mattn/go-colorable"

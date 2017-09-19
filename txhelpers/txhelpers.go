@@ -557,6 +557,20 @@ func DetermineTxTypeString(msgTx *wire.MsgTx) string {
 	}
 }
 
+// IsStakeTx indicates if the input MsgTx is a stake transaction.
+func IsStakeTx(msgTx *wire.MsgTx) bool {
+	switch stake.DetermineTxType(msgTx) {
+	case stake.TxTypeSSGen:
+		fallthrough
+	case stake.TxTypeSStx:
+		fallthrough
+	case stake.TxTypeSSRtx:
+		return true
+	default:
+		return false
+	}
+}
+
 // TxFee computes and returns the fee for a given tx
 func TxFee(msgTx *wire.MsgTx) dcrutil.Amount {
 	var amtIn int64

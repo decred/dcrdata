@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/btcsuite/btclog"
-	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/db/dcrsqlite"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/decred/dcrd/rpcclient"
 )

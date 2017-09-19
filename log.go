@@ -11,7 +11,7 @@ import (
 
 	"github.com/btcsuite/btclog"
 	"github.com/dcrdata/dcrdata/blockdata"
-	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/db/dcrsqlite"
 	"github.com/dcrdata/dcrdata/explorer"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
