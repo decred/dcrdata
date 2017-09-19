@@ -206,8 +206,7 @@ h4 {
 .highlight-text {
   height: 20px;
   margin-top: 3px;
-  padding-right: 4px;
-  padding-left: 4px;
+  padding: 2px 4px 3px;
   border-radius: 3px;
   line-height: 20px;
   font-weight: 600;
