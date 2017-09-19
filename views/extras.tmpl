@@ -24,6 +24,7 @@
     <link href="/css/main.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
     <script src="/js/messagesocket.js"></script>
+    <script src="/js/humanize.js"></script>
     <!-- <script src="/js/Chart.min.js"></script> -->
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -123,56 +124,6 @@
     </div>
 </footer>
 <script>
-    function timeSince(date) {
-            var seconds = Math.floor(((new Date().getTime()/1000) - date))
-            var interval = Math.floor(seconds / 31536000);
-
-            if (interval >= 1) {
-                var extra = Math.floor((seconds - interval * 31536000) / 2592000)
-                var result = interval + "y"
-                if (extra > 0) {
-                    result = result + " " + extra + "mo"
-                }
-                return result
-            }
-            interval = Math.floor(seconds / 2592000);
-            if (interval >= 1) {
-                var extra = Math.floor((seconds - interval * 2592000) / 86400)
-                var result = interval + "mo"
-                if (extra > 0) {
-                    result = result + " " + extra + "d"
-                }
-                return result
-            }
-            interval = Math.floor(seconds / 86400);
-            if (interval >= 1) {
-                var extra = Math.floor((seconds - interval * 86400) / 3600)
-                var result = interval + "d"
-                if (extra > 0) {
-                    result = result + " " + extra + "h"
-                }
-                return result
-            }
-            interval = Math.floor(seconds / 3600);
-            if (interval >= 1) {
-                var extra = Math.floor((seconds - interval * 3600) / 60)
-                var result = interval + "h"
-                if (extra > 0) {
-                    result = result + " " + extra + "m"
-                }
-                return result
-            }
-            interval = Math.floor(seconds / 60);
-            if (interval >= 1) {
-                var extra = seconds - interval * 60
-                var result = interval + "m"
-                if (extra > 0) {
-                    result = result + " " + extra + "s"
-                }
-                return result
-            }
-            return Math.floor(seconds) + "s";
-        }
         var ages = document.getElementsByClassName("age");
         var hidden_ages = document.querySelectorAll("td.hidden");
         for (var i = 0; i < ages.length; i++) {
@@ -180,7 +131,7 @@
             if (hidden_ages[i].innerText == "0") {
                 continue;
             }
-            ages[i].innerText = timeSince(age_time);
+            ages[i].innerText = humanize.timeSince(age_time);
         }
         function updateTime() {
             hidden_ages = document.querySelectorAll("td.hidden");
@@ -188,7 +139,7 @@
                 if (hidden_ages[i].innerText == "0") {
                     continue;
                 }
-                ages[i].innerText = timeSince(new Date(parseInt(hidden_ages[i].innerText)));
+                ages[i].innerText = humanize.timeSince(new Date(parseInt(hidden_ages[i].innerText)));
             }
         }
         setInterval(updateTime, 10000);

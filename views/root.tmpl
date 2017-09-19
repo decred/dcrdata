@@ -162,11 +162,11 @@
             revocations.innerHTML = b.revocations;
 
             var size = newRow.insertCell();
-            size.innerHTML = String(b.size) + " B";
+            size.innerHTML = humanize.bytes(b.size);
 
             var age = newRow.insertCell();
             age.className = "age";
-            age.innerHTML = b.time;
+            age.innerHTML = timeSince(b.time);
 
             var h_age = newRow.insertCell();
             h_age.className = "hidden";
