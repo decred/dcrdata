@@ -49,6 +49,7 @@ type ExplorerTxData struct {
 	Type     string
 	Fee      float64
 	FeeRate  float64
+	*VoteInfo
 }
 
 // VoteInfo models data about a SSGen transaction (vote)

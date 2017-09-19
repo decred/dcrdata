@@ -18,7 +18,11 @@
                     <th>Confirmations</th>
                     <th>Included in block</th>
                     <th>Type</th>
-                    <th>Size</th>
+                    {{if .FeeRate}}
+                    <th>Fee</th>
+                    <th>Fee Rate</th>
+                    {{end}}
+                    <th>Size {{(index .Vin 0).Coinbase}}</th>
                 </thead>
                 <tbody>
                     {{with .TxShort}}
@@ -52,6 +56,10 @@
                             <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight | int64Comma}}</a></td>
                         {{end}}
                         <td>{{$.Type}}</td>
+                        {{if $.FeeRate}}
+                        <td>{{$.Fee}}</td>
+                        <td>{{$.FeeRate}}</td>
+                        {{end}}
                         <td>{{.Size | formatBytes}}</td>
                     </tr>
                     {{end}}

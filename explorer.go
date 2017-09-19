@@ -11,14 +11,9 @@ import (
 	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
-	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrutil"
-<<<<<<< HEAD
-=======
-
->>>>>>> Added fees to tx page data
 	"github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -112,7 +107,7 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-	tx := exp.app.BlockData.GetRawTransactionWithPrevOutAddresses(hash)
+	tx := exp.app.BlockData.GetExplorerTxData(hash)
 	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", hash)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
