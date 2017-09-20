@@ -144,4 +144,25 @@
         }
         setInterval(updateTime, 10000);
 </script>
+<script type="text/javascript">
+    function styleDCRVal(el) {
+        var text = el.innerText;
+        var chunks = text.split(".");
+        var int = chunks[0];
+        var decimal = (chunks[1] || "").substring(0,8);
+        var numTrailingZeroes = (8 - decimal.length);
+        var zeros = ""
+        if (numTrailingZeroes > 0) {
+            for (var i = 0; i < numTrailingZeroes; i++) {
+                zeros = zeros + "0" + ""
+            }
+        }
+        if (numTrailingZeroes == 8) {
+            el.innerHTML = int + "<span class='decimal'><span class='trailing-zeroes'>." + zeros + "</span></span>"
+        }   else {
+            el.innerHTML = int + ".<span class='decimal'>" + decimal + "<span class='trailing-zeroes'>" + zeros + "</span></span>"
+        }
+    }
+    [].forEach.call(document.getElementsByClassName("dcr"), styleDCRVal)
+</script>
 {{end}}

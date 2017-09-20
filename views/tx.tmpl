@@ -6,11 +6,11 @@
 {{template "navbar"}}
 
 <div class="container">
-    <div class="row">
+    <div class="row mb-3">
         <div class="col-md-12">
             <h4>Transaction</h4>
-            <p class="break-word">{{.TxID}} <a class="fs12" href="/api/tx/{{.TxID}}?indent=true">view raw</a></p>
-            <table class="table">
+            <p class="break-word"><span class="mono">{{.TxID}}</span> <a class="fs13" href="/api/tx/{{.TxID}}?indent=true">view raw</a></p>
+            <table class="table table-mono-cells">
                 <thead>
                     <th>Total DCR</th>
                     <th>Time</th>
@@ -23,7 +23,7 @@
                 <tbody>
                     {{with .TxShort}}
                     <tr>
-                        <td>{{ .Vout | getTotalFromTx | float64Commaf}}</td>
+                        <td class="dcr">{{ .Vout | getTotalFromTx | float64Commaf}}</td>
                         <td>
                         {{if eq $.Block.Time 0}}
                             N/A
@@ -44,7 +44,6 @@
                             {{$.Confirmations | int64Comma}}
                         {{end}}
                         </td>
-
                         <td>
                         {{if eq $.Block.BlockHeight 0}}
                             N/A
@@ -60,15 +59,15 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-md-7">
+        <div class="col-md-7 mb-3">
             <h4>In</h4>
-            <table class="table table-sm striped">
+            <table class="table table-mono-cells table-sm striped">
                 <thead>
                     <th>Previous Outpoint</th>
                     <th>Addresses</th>
                     <!-- <th>Tree</th> -->
-                    <th class="nowrap">Block</th>
-                    <th>DCR</th>
+                    <th class="text-center">Block</th>
+                    <th class="text-center">DCR</th>
                 </thead>
                 <tbody>
                     {{range $i, $vin := .Vin}}
@@ -79,13 +78,13 @@
                             {{else if eq $vin.Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
                                 Vote Reward
                             {{else}}
-                            <a href="/explorer/tx/{{$vin.Txid}}"><span class="mono break-word">{{$vin.Txid}}:{{$vin.Vout}}</span></a>
+                            <a href="/explorer/tx/{{$vin.Txid}}"><span class="break-word">{{$vin.Txid}}:{{$vin.Vout}}</span></a>
                             {{end}}
                         </td>
                         <td><div>
                         {{with $as := index $.VinAddrs $i}}
                             {{if (len $as) gt 0}}
-                                <a class="mono break-word" href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
+                                <a class="break-word" href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
                             {{else}}
                                 N/A
                             {{end}}
@@ -96,37 +95,37 @@
                         {{if eq $vin.BlockHeight 0}}
                             N/A
                         {{else}}
-                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight | uint32Comma}}</a></td>
+                            <a class="mono fs13" href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight | uint32Comma}}</a></td>
                         {{end}}
                         </td>
-                        <td>{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{float64Commaf $vin.AmountIn}} {{end}}</td>
+                        <td class="dcr mono fs13 text-right">{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{float64Commaf $vin.AmountIn}} {{end}}</td>
                     </tr>
                     {{end}}
                 </tbody>
             </table>
         </div>
-        <div class="col-md-5">
+        <div class="col-md-5 mb-3">
             <h4>Out</h4>
-            <table class="table striped">
+            <table class="table table-mono-cells table-sm striped">
                 <thead>
-                    <th>DCR</th>
                     <th>Address</th>
-                    <th>Type</th>
+                    <th class="text-center">Type</th>
+                    <th class="text-center">DCR</th>
                 </thead>
                 <tbody>
                     {{range .Vout}}
                     {{ if ne .Value 0.0}}
                     <tr>
                         <td>
-                            {{.Value | float64Commaf}}
-                        </td>
-                        <td>
                             {{range .ScriptPubKeyDecoded.Addresses}}
-                                <a class="mono break-word" href="/explorer/address/{{.}}">{{.}}</a>
+                                <a href="/explorer/address/{{.}}">{{.}}</a>
                             {{end}}
                         </td>
                         <td>
                             {{.ScriptPubKeyDecoded.Type}}
+                        </td>
+                        <td class="dcr text-right">
+                            {{.Value | float64Commaf}}
                         </td>
                     </tr>
                     {{end}}
@@ -137,10 +136,10 @@
     </div>
     {{if .VoteInfo}}
     {{with .VoteInfo}}
-    <div class="row">
+    <div class="row mb-3">
         <div class="col-md-12">
             <h4>Vote Info</h4>
-            <p>Version: {{.Version}} | Bits: {{printf "%#04x" .Bits}}</p>
+            <p>Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span></p>
             <table class="table striped">
                 <thead>
                     <th class="text-right">Issue ID</th>

@@ -257,8 +257,8 @@
         <div class="row mt-3">
 
             <div class="col-lg-7">
-                <strong>Latest Blocks</strong>
-                <table class="table striped table-sm table-responsive full-width" id="explorertable">
+                <h4>Latest Blocks</h4>
+                <table class="table-mono-cells table striped table-sm table-responsive full-width" id="explorertable">
                     <thead>
                         <tr>
                             <th>Height</th>
@@ -300,15 +300,15 @@
                 {{with .Data}}
                 <div class="row">
                     <div class="col-md-12">
-                        <strong>Current Ticket Price Window</strong>
-                        <table class="table table-sm">
+                        <h5>Current Ticket Price Window</h5>
+                        <table class="table-mono-cells table table-sm">
                             <thead>
                                 <th>Ticket Price</th>
                                 <th>Progress</th>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><span style="color:#65d4a5;" id="blocksdiff" ><strong>{{printf "%12.4f" .BlockSummary.StakeDiff}}</strong></span></td>
+                                    <td><span id="blocksdiff" ><strong>{{printf "%12.4f" .BlockSummary.StakeDiff}}</strong></span></td>
                                     <td id="blocksdiff">block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144</td>
                                 </tr>
                             </tbody>
@@ -316,12 +316,12 @@
                     </div>
                 </div>
 
-                <div class="mb-2"><strong>Tickets in Mempool:</strong>  <span id="mempoolfeeinfo_number">{{.MempoolFeeInfo.Number}}</span></div>
+                <div class="mb-2"><h5>Tickets in Mempool:  <span id="mempoolfeeinfo_number" class="mono">{{.MempoolFeeInfo.Number}}</span></h5></div>
 
                 <div class="row">
                     <div class="col-md-12 mb-1">
-                        <strong>Block Subsidy</strong>
-                        <table class="table table-sm">
+                        <h5>Block Subsidy</h5>
+                        <table class="table table-mono-cells table-sm">
                             <thead>
                                 <th>Developer</th>
                                 <th>PoS (per vote)</th>
@@ -340,7 +340,7 @@
                     </div>
                 </div>
 
-                <div class="mb-3"><strong>Coin Supply:</strong> <span id="coin_supply" >{{.BlockSummary.CoinSupply}}</span></div>
+                <div class="mb-3"><h5>Coin Supply: <span id="coin_supply" class="mono" >{{.BlockSummary.CoinSupply}}</span></h5></div>
                 {{end}}
 
             </div>
