@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"time"
 
@@ -30,6 +31,25 @@ const (
 	minExplorerRows = 20
 	addressRows     = 2000
 )
+
+type ByValue []dcrjson.TxRawResult
+
+func (s ByValue) Len() int {
+	return len(s)
+}
+func (s ByValue) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByValue) Less(i, j int) bool {
+	srt := func(vout []dcrjson.Vout) float64 {
+		total := 0.0
+		for _, v := range vout {
+			total = total + v.Value
+		}
+		return total
+	}
+	return srt(s[i].Vout) < srt(s[j].Vout)
+}
 
 type explorerUI struct {
 	Mux             *chi.Mux
@@ -89,6 +109,10 @@ func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
+	sort.Sort(sort.Reverse(ByValue(data.RawTx)))
+	sort.Sort(sort.Reverse(ByValue(data.Tickets)))
+	sort.Sort(sort.Reverse(ByValue(data.Votes)))
+	sort.Sort(sort.Reverse(ByValue(data.Revs)))
 	str, err := TemplateExecToString(exp.templates[blockTemplateIndex], "block", data)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
