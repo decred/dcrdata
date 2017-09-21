@@ -8,9 +8,10 @@
   version = "v0.11.5"
 
 [[projects]]
+  branch = "master"
   name = "github.com/agl/ed25519"
   packages = [".","edwards25519"]
-  revision = "278e1ec8e8a6e017cd07577924d6766039146ced"
+  revision = "5312a61534124124185d41f09206b9fef1d88403"
 
 [[projects]]
   branch = "master"
@@ -56,39 +57,51 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/decred/blake256"
+  name = "github.com/dchest/blake256"
   packages = ["."]
-  revision = "a840e32d7c31fe2e0218607334cb120a683951a4"
+  revision = "dee3fe6eb0e98dc774a94fc231f85baf7c29d360"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrd"
   packages = ["blockchain","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","database/ffldb","database/internal/treap","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","txscript","wire"]
-  revision = "3384dd195b9a8ac49885bfb2c5040150bf7acc38"
+  revision = "bd78208c3727edae8ca8c37f7ab9b3e840670745"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrrpcclient"
   packages = ["."]
-  revision = "abc326aeb97b299c7eb6b13b81353fc375e9b95d"
+  revision = "bd992834efae9f8a81842221a634f4af22b77a0f"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrutil"
   packages = [".","base58","hdkeychain"]
-  revision = "166211f0196be1d3be344ae64149e7c4f5ca36b0"
+  revision = "ddbde93f65ab0692e54ed8a5ad325fa2e8af4daa"
 
 [[projects]]
+  branch = "master"
   name = "github.com/decred/dcrwallet"
   packages = ["apperrors","chain","internal/zero","netparams","snacl","wallet/udb","walletdb"]
-  revision = "a2599956184c6cecce9e8c20a7d6c37e03ae84c5"
-  version = "v1.0.7"
+  revision = "b4f040d49da115efbdab10b7dbae6ce8c7896f1e"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/dustin/go-humanize"
+  packages = ["."]
+  revision = "79e699ccd02f240a1f1fbbdcee7e64c1c12e41aa"
 
 [[projects]]
   name = "github.com/go-chi/chi"
-  packages = [".","docgen","middleware"]
-  revision = "967844826e58cf31213a7dfb82455d242ad85101"
-  version = "v3.0.0"
+  packages = [".","middleware"]
+  revision = "04ec7fc4179604b2390947258f9143eaae23b596"
+  version = "v3.2.1"
+
+[[projects]]
+  name = "github.com/go-chi/docgen"
+  packages = ["."]
+  revision = "ac43d9a63f3b58b1e82922411d2de365d896ee72"
+  version = "v1.0.2"
 
 [[projects]]
   branch = "master"
@@ -97,10 +110,10 @@
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
 
 [[projects]]
-  branch = "master"
   name = "github.com/mattn/go-colorable"
   packages = ["."]
-  revision = "ad5389df28cdac544c99bd7b9161a0b5b6ca9d1b"
+  revision = "167de6bfdfba052fa6b2d3664c8f5272e23c9072"
+  version = "v0.0.9"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"
@@ -109,10 +122,9 @@
   version = "v0.0.2"
 
 [[projects]]
-  branch = "master"
   name = "github.com/mattn/go-sqlite3"
   packages = ["."]
-  revision = "6654e412c3c7eabb310d920cf73a2102dbf8c632"
+  revision = "d40d4905434d5abfab8d29584adc850797897769"
 
 [[projects]]
   branch = "master"
@@ -123,8 +135,7 @@
 [[projects]]
   name = "github.com/rs/cors"
   packages = ["."]
-  revision = "8dd4211afb5d08dbb39a533b9bb9e4b486351df6"
-  version = "v1.1"
+  revision = "eabcc6af4bbe5ad3a949d36450326a2b0b9894b8"
 
 [[projects]]
   branch = "master"
@@ -133,24 +144,26 @@
   revision = "a422bbe96644373c5753384a59d678f7d261ff10"
 
 [[projects]]
+  branch = "master"
   name = "golang.org/x/crypto"
   packages = ["nacl/secretbox","pbkdf2","poly1305","ripemd160","salsa20/salsa","scrypt"]
-  revision = "b176d7def5d71bdd214203491f89843ed217f420"
+  revision = "7d9177d70076375b9a59c8fde23d52d9c4a7ecd5"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","websocket"]
-  revision = "1c05540f6879653db88113bc4a2b70aec4bd491f"
+  revision = "b60f3a92103dfd93dfcb900ec77c6d0643510868"
 
 [[projects]]
+  branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "9f7170bcd8e9f4d3691c06401119c46a769a1e03"
+  revision = "2320a9c15898af1b1b24f99700d5c1e957f9d8cf"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a40ae86aaa66a70c9937829b7e44f6a3558c7abc024ce2f37194be573176e5d6"
+  inputs-digest = "c260f40991b35af1ebae743bdce0241a4ddc8a4ac0eda750de9ec96db56c9ce4"
   solver-name = "gps-cdcl"
   solver-version = 1

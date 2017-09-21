@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/docgen"
+	"github.com/go-chi/docgen"
 )
 
 // Middlewares

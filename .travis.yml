@@ -14,4 +14,4 @@ install:
   - go get -v $gotools/cmd/cover
 script:
   - export PATH=$PATH:$GOPATH/bin
-  - go install . ./cmd/...
+  - ./goclean.sh
