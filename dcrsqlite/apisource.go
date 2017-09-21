@@ -19,7 +19,6 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 	"github.com/decred/dcrutil"
 )
@@ -294,13 +293,11 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 	return allTxOut
 }
 
-// GetRawTransactionWithPrevOutAddresses looks up the previous outpoints for a
-// transaction and extracts a slice of addresses encoded by the pkScript for
-// each previous outpoint consumed by the transaction.
-func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string, string, *wire.MsgTx) {
+// GetExplorerTxData returns the bundled data for the explorer tx page
+func (db *wiredDB) GetExplorerTxData(txid string) *apitypes.ExplorerTxData {
 	tx, txhex := db.getRawTransaction(txid)
 	if tx == nil {
-		return nil, nil, "", nil
+		return nil
 	}
 
 	prevOutAddresses := make([][]string, len(tx.Vin))
@@ -320,12 +317,78 @@ func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 
 	msgTx := txhelpers.MsgTxFromHex(txhex)
 	if msgTx == nil {
-		return tx, prevOutAddresses, "", nil
+		return &apitypes.ExplorerTxData{
+			Tx:       tx,
+			VinAddrs: prevOutAddresses,
+		}
 	}
 
 	txType := txhelpers.DetermineTxTypeString(msgTx)
+	var txFee, txFeeRate dcrutil.Amount
+	if !(txType == "Vote" || (txType == "Regular" && len(tx.Vin[0].Coinbase) > 4)) {
+		txFee, txFeeRate = txhelpers.TxFeeRate(msgTx)
+	}
 
-	return tx, prevOutAddresses, txType, msgTx
+	var vinfo *apitypes.VoteInfo
+	if stake.DetermineTxType(msgTx) == stake.TxTypeSSGen {
+		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, db.params)
+		if err != nil {
+			log.Debugf("Cannot get vote choices for %s", txid)
+			return &apitypes.ExplorerTxData{
+				Tx:       tx,
+				VinAddrs: prevOutAddresses,
+				Type:     txType,
+				Fee:      txFee,
+				FeeRate:  txFeeRate,
+			}
+		}
+		vinfo = &apitypes.VoteInfo{
+			Validation: apitypes.BlockValidation{
+				Hash:     validation.Hash.String(),
+				Height:   validation.Height,
+				Validity: validation.Validity,
+			},
+			Version: version,
+			Bits:    bits,
+			Choices: choices,
+		}
+	}
+
+	return &apitypes.ExplorerTxData{
+		Tx:       tx,
+		VinAddrs: prevOutAddresses,
+		Type:     txType,
+		Fee:      txFee,
+		FeeRate:  txFeeRate,
+		VoteInfo: vinfo,
+	}
+}
+
+// GetRawTransactionWithPrevOutAddresses looks up the previous outpoints for a
+// transaction and extracts a slice of addresses encoded by the pkScript for
+// each previous outpoint consumed by the transaction.
+func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string) {
+	tx, _ := db.getRawTransaction(txid)
+	if tx == nil {
+		return nil, nil
+	}
+
+	prevOutAddresses := make([][]string, len(tx.Vin))
+
+	for i := range tx.Vin {
+		vin := &tx.Vin[i]
+		if vin.IsCoinBase() /* || vin.IsStakeBase() */ {
+			continue
+		}
+		var err error
+		prevOutAddresses[i], err = txhelpers.OutPointAddressesFromString(
+			vin.Txid, vin.Vout, vin.Tree, db.client, db.params)
+		if err != nil {
+			log.Warnf("failed to get outpoint address from txid: %v", err)
+		}
+	}
+
+	return tx, prevOutAddresses
 }
 
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
