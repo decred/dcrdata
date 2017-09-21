@@ -295,13 +295,15 @@ Finally, launch the daemon and allow the databases to sync.  This takes about an
 
 ## Contributing
 
-Yes, please!
+Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it:
 
 1. Fork the repo.
 1. Create a branch for your work (`git branch -b cool-stuff`).
 1. Code something great.
 1. Commit and push to your repo.
 1. Create a [pull request](https://github.com/dcrdata/dcrdata/compare).
+
+Note that all dcrdata.org community and team members are expected to adhere to the code of conduct, described in the CODE_OF_CONDUCT file.
 
 ## License
 
