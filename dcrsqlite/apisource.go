@@ -324,19 +324,16 @@ func (db *wiredDB) GetExplorerTxData(txid string) *apitypes.ExplorerTxData {
 	}
 
 	txType := txhelpers.DetermineTxTypeString(msgTx)
-	var txFee, txFeeRate float64
-	if txType == "Ticket" || (txType == "Regular" && len(tx.Vin[0].Coinbase) < 5) {
-		txFee = txhelpers.TxFee(msgTx)
-		txFeeRate = txhelpers.TxFeeRate(msgTx)
-	} else {
-		txFee = 0.0
-		txFeeRate = 0.0
+	var txFee, txFeeRate dcrutil.Amount
+	if !(txType == "Vote" || (txType == "Regular" && len(tx.Vin[0].Coinbase) > 4)) {
+		txFee, txFeeRate = txhelpers.TxFeeRate(msgTx)
 	}
 
-	vinfo := new(apitypes.VoteInfo)
+	var vinfo *apitypes.VoteInfo
 	if stake.DetermineTxType(msgTx) == stake.TxTypeSSGen {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, db.params)
 		if err != nil {
+			log.Debugf("Cannot get vote choices for %s", txid)
 			return &apitypes.ExplorerTxData{
 				Tx:       tx,
 				VinAddrs: prevOutAddresses,
@@ -355,8 +352,6 @@ func (db *wiredDB) GetExplorerTxData(txid string) *apitypes.ExplorerTxData {
 			Bits:    bits,
 			Choices: choices,
 		}
-	} else {
-		vinfo = nil
 	}
 
 	return &apitypes.ExplorerTxData{
