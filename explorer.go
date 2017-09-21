@@ -32,23 +32,11 @@ const (
 	addressRows     = 2000
 )
 
-type ByValue []dcrjson.TxRawResult
-
-func (s ByValue) Len() int {
-	return len(s)
-}
-func (s ByValue) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-func (s ByValue) Less(i, j int) bool {
-	srt := func(vout []dcrjson.Vout) float64 {
-		total := 0.0
-		for _, v := range vout {
-			total = total + v.Value
-		}
-		return total
+func voutTotal(vouts []dcrjson.Vout) (total float64) {
+	for i := range vouts {
+		total += vouts[i].Value
 	}
-	return srt(s[i].Vout) < srt(s[j].Vout)
+	return
 }
 
 type explorerUI struct {
@@ -109,10 +97,18 @@ func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-	sort.Sort(sort.Reverse(ByValue(data.RawTx)))
-	sort.Sort(sort.Reverse(ByValue(data.Tickets)))
-	sort.Sort(sort.Reverse(ByValue(data.Votes)))
-	sort.Sort(sort.Reverse(ByValue(data.Revs)))
+	sort.Slice(data.RawTx, func(i, j int) bool {
+		return voutTotal(data.RawTx[i].Vout) > voutTotal(data.RawTx[j].Vout)
+	})
+	sort.Slice(data.Tickets, func(i, j int) bool {
+		return voutTotal(data.Tickets[i].Vout) > voutTotal(data.Tickets[j].Vout)
+	})
+	sort.Slice(data.Votes, func(i, j int) bool {
+		return voutTotal(data.Votes[i].Vout) > voutTotal(data.Votes[j].Vout)
+	})
+	sort.Slice(data.Revs, func(i, j int) bool {
+		return voutTotal(data.Revs[i].Vout) > voutTotal(data.Revs[j].Vout)
+	})
 	str, err := TemplateExecToString(exp.templates[blockTemplateIndex], "block", data)
 	if err != nil {
 		apiLog.Errorf("Template execute failure: %v", err)
