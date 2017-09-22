@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -173,12 +174,12 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 	listRoutePatterns = func(routes []chi.Route) []string {
 		patterns := []string{}
 		for _, rt := range routes {
-			patterns = append(patterns, rt.Pattern)
+			patterns = append(patterns, strings.Replace(rt.Pattern, "/*", "", -1))
 			if rt.SubRoutes == nil {
 				continue
 			}
 			for _, pt := range listRoutePatterns(rt.SubRoutes.Routes()) {
-				patterns = append(patterns, rt.Pattern+pt)
+				patterns = append(patterns, strings.Replace(rt.Pattern+pt, "/*", "", -1))
 			}
 		}
 		return patterns
