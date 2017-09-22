@@ -64,7 +64,7 @@
 
 [[constraint]]
   name = "github.com/mattn/go-sqlite3"
-  revision = "d40d4905434d5abfab8d29584adc850797897769"
+  revision = "05548ff55570cdb9ac72ff4a25a3b5e77a6fb7e5"
 
 [[constraint]]
   name = "github.com/rs/cors"
