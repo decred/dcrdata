@@ -30,7 +30,7 @@
                             <td class="dcr text-right">{{.Value | float64Commaf}}</td>
                             <td>
                                 {{if eq .Time 0}}
-                                    N/A
+                                    Unconfirmed
                                 {{else}}
                                     {{.Time | getTime }}
                                 {{end}}
