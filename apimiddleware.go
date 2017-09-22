@@ -74,7 +74,6 @@ func BlockIndexPathCtx(next http.Handler) http.Handler {
 		if err != nil {
 			apiLog.Infof("No/invalid idx value (int64): %v", err)
 			http.NotFound(w, r)
-			//http.Error(w, http.StatusText(404), 404)
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
@@ -91,7 +90,6 @@ func BlockIndex0PathCtx(next http.Handler) http.Handler {
 		if err != nil {
 			apiLog.Infof("No/invalid idx0 value (int64): %v", err)
 			http.NotFound(w, r)
-			//http.Error(w, http.StatusText(404), 404)
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxBlockIndex0, idx)
@@ -108,7 +106,6 @@ func NPathCtx(next http.Handler) http.Handler {
 		if err != nil {
 			apiLog.Infof("No/invalid numeric value (uint64): %v", err)
 			http.NotFound(w, r)
-			//http.Error(w, http.StatusText(404), 404)
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxN, N)
@@ -179,6 +176,11 @@ func (c *appContext) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 		if err == nil {
 			height = idx
 			hash, err = c.BlockData.GetBlockHash(idx)
+			if err != nil {
+				apiLog.Errorf("GetBlockHash(%d) failed: %v", idx, err)
+				http.NotFound(w, r)
+				return
+			}
 		}
 		ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
 		ctx = context.WithValue(ctx, ctxBlockIndex, height)
@@ -205,7 +207,6 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 		if err != nil {
 			apiLog.Infof("No/invalid numeric value (%v): %v", idxStr, err)
 			http.NotFound(w, r)
-			//http.Error(w, http.StatusText(404), 404)
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxTxInOutIndex, idx)

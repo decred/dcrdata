@@ -297,12 +297,12 @@ type blockHeap []*CachedBlock
 
 // BlockPriorityQueue implements heap.Interface and holds CachedBlocks
 type BlockPriorityQueue struct {
-	sync.RWMutex
+	*sync.RWMutex
 	bh                   blockHeap
 	capacity             uint32
+	needsReheap          bool
 	minHeight, maxHeight int64
 	lessFn               func(bi, bj *CachedBlock) bool
-	needsReheap          bool
 	lastAccess           time.Time
 }
 
@@ -313,6 +313,7 @@ type BlockPriorityQueue struct {
 // by access count. Use BlockPriorityQueue.SetLessFn to redefine the comparator.
 func NewBlockPriorityQueue(capacity uint32) *BlockPriorityQueue {
 	pq := &BlockPriorityQueue{
+		RWMutex:    new(sync.RWMutex),
 		bh:         blockHeap{},
 		capacity:   capacity,
 		minHeight:  math.MaxUint32,
