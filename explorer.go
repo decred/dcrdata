@@ -222,7 +222,6 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 
 	// Display an error since searchStr is not a block index, block hash, address hash or transaction hash
 	http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
-	return
 }
 
 func (exp *explorerUI) reloadTemplates() error {

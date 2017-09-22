@@ -1,0 +1,79 @@
+# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
+# for detailed Gopkg.toml documentation.
+#
+# required = ["github.com/user/thing/cmd/thing"]
+# ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
+#
+# [[constraint]]
+#   name = "github.com/user/project"
+#   version = "1.0.0"
+#
+# [[constraint]]
+#   name = "github.com/user/project2"
+#   branch = "dev"
+#   source = "github.com/myfork/project2"
+#
+# [[override]]
+#  name = "github.com/x/y"
+#  version = "2.4.0"
+
+
+[[constraint]]
+  name = "github.com/Sirupsen/logrus"
+  version = "0.11.5"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/btcsuite/btclog"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/btcsuite/go-flags"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/chappjc/logrus-prefix"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/decred/dcrd"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/decred/dcrrpcclient"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/decred/dcrutil"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/decred/dcrwallet"
+
+[[constraint]]
+  name = "github.com/go-chi/chi"
+  version = "3.2.1"
+
+[[constraint]]
+  name = "github.com/go-chi/docgen"
+  version = "1.0.2"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/jrick/logrotate"
+
+[[constraint]]
+  name = "github.com/mattn/go-sqlite3"
+  revision = "05548ff55570cdb9ac72ff4a25a3b5e77a6fb7e5"
+
+[[constraint]]
+  name = "github.com/rs/cors"
+  revision = "eabcc6af4bbe5ad3a949d36450326a2b0b9894b8"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/shiena/ansicolor"
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/net"
