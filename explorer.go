@@ -29,7 +29,7 @@ const (
 	addressTemplateIndex
 	maxExplorerRows = 2000
 	minExplorerRows = 20
-	addressRows     = 700
+	addressRows     = 500
 )
 
 func voutTotal(vouts []dcrjson.Vout) (total float64) {
