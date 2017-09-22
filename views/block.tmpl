@@ -29,9 +29,10 @@
                         <td class="mono fs15">{{.Confirmations}}</td>
                     </tr>
                     <tr>
-                        <td>Time ({{timezone}})</td>
-                        <td class="mono fs15">{{.Time | getTime}}</td>
-                    </tr>
+                        <td>Time</td>
+                        <td class="mono fs15">({{timezone}}) {{.Time | getTime}} (<span class="mono fs15 age">{{.Time}}</span> ago)</td>
+                        <td class="hidden">{{.Time}}</td>
+                        </tr>
                     <tr>
                         <td>Difficulty</td>
                         <td class="mono fs15">{{.Difficulty | float64Commaf}}</td>
@@ -115,11 +116,6 @@
                     <tr>
                         <td>Bits</td>
                         <td class="mono fs15">{{.Bits}}</td>
-                    </tr>
-                    <tr>
-                        <td>Age</td>
-                        <td class="hidden">{{.Time}}</td>
-                        <td class="mono fs15 age">{{.Time}}</td>
                     </tr>
                 </table>
             </div>

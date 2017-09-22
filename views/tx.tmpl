@@ -14,7 +14,6 @@
                 <thead>
                     <th>Total DCR</th>
                     <th>Time</th>
-                    <th>Age</th>
                     <th>Confirmations</th>
                     <th>Included in block</th>
                     <th>Type</th>
@@ -32,14 +31,9 @@
                         {{if eq $.Block.Time 0}}
                             N/A
                         {{else}}
-                            {{$.Block.Time | getTime }}
+                            ({{timezone}}) {{$.Block.Time | getTime }} (<span class="age">{{$.Block.Time}}</span> ago)
                         {{end}}
                         </td>
-                        <td class="age">{{if eq $.Block.Time 0}}
-                            N/A
-                        {{else}}
-                            {{$.Block.Time}}
-                        {{end}}</td>
                         <td class="hidden">{{$.Block.Time}}</td>
                         <td>
                         {{if eq $.Confirmations 0}}
@@ -112,8 +106,12 @@
                         </div></td>
                         <!-- <td>{{$vin.Tree}}</td> -->
                         <td>
-                        {{if eq $vin.BlockHeight 0}}
-                            N/A
+                        {{if $vin.Coinbase}}
+                            Created
+                        {{else if eq $vin.Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
+                            Created
+                        {{else if eq $vin.BlockHeight 0}}
+                            Pending
                         {{else}}
                             <a class="mono fs13" href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight | uint32Comma}}</a></td>
                         {{end}}

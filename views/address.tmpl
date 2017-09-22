@@ -28,7 +28,13 @@
                         <tr>
                             <td><a href="../tx/{{.TxID}}" class="hash collapse">{{.TxID}}</a></td>
                             <td class="dcr text-right">{{.Value | float64Commaf}}</td>
-                            <td>{{.Time | getTime }}</td>
+                            <td>
+                                {{if eq .Time 0}}
+                                    Unconfirmed
+                                {{else}}
+                                    {{.Time | getTime }}
+                                {{end}}
+                            </td>
                             <td class="age">{{if eq .Time 0}}
                                 N/A
                             {{else}}
