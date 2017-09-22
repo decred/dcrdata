@@ -62,10 +62,10 @@
   revision = "dee3fe6eb0e98dc774a94fc231f85baf7c29d360"
 
 [[projects]]
-  branch = "master"
   name = "github.com/decred/dcrd"
   packages = ["blockchain","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","database/ffldb","database/internal/treap","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","txscript","wire"]
-  revision = "bd78208c3727edae8ca8c37f7ab9b3e840670745"
+  revision = "1500e972e2b0f0a687bc83308c868708ca5f7c16"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -80,10 +80,10 @@
   revision = "ddbde93f65ab0692e54ed8a5ad325fa2e8af4daa"
 
 [[projects]]
-  branch = "master"
   name = "github.com/decred/dcrwallet"
   packages = ["apperrors","chain","internal/zero","netparams","snacl","wallet/udb","walletdb"]
-  revision = "b4f040d49da115efbdab10b7dbae6ce8c7896f1e"
+  revision = "cf426bf26d89e6b0c750bd0cdb0f2b2635eecda9"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -153,13 +153,13 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","websocket"]
-  revision = "b60f3a92103dfd93dfcb900ec77c6d0643510868"
+  revision = "0744d001aa8470aaa53df28d32e5ceeb8af9bd70"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "2320a9c15898af1b1b24f99700d5c1e957f9d8cf"
+  revision = "429f518978ab01db8bb6f44b66785088e7fba58b"
 
 [solve-meta]
   analyzer-name = "dep"
