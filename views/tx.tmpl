@@ -91,7 +91,7 @@
                         {{else if eq $vin.Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
                             Created
                         {{else if eq $vin.BlockHeight 0}}
-                            Created
+                            Pending
                         {{else}}
                             <a class="mono fs13" href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight | uint32Comma}}</a></td>
                         {{end}}
