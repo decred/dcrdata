@@ -56,8 +56,20 @@
                         {{end}}
                         <td>{{$.Type}}</td>
                         {{if $.FeeRate}}
-                        <td>{{$.Fee}}</td>
-                        <td>{{$.FeeRate}}/kB</td>
+                            <td>
+                                {{if gt $.Fee 0}}
+                                    {{$.Fee}}
+                                {{else}}
+                                    N/A
+                                {{end}}
+                            </td>
+                            <td>
+                                {{if gt $.FeeRate 0}}
+                                    {{$.FeeRate}}/kB
+                                {{else}}
+                                    N/A
+                                {{end}}
+                            </td>
                         {{end}}
                         <td>{{.Size | formatBytes}}</td>
                     </tr>
