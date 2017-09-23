@@ -1,4 +1,7 @@
-package main
+// Package explorer handles the explorer subsystem for displaying the explorer pages
+// Copyright (c) 2017, The dcrdata developers
+// See LICENSE for details.
+package explorer
 
 import (
 	"html/template"
@@ -7,15 +10,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"time"
 
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrutil"
-	"github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
@@ -31,23 +29,27 @@ const (
 	addressRows     = 500
 )
 
-func voutTotal(vouts []dcrjson.Vout) (total float64) {
-	for i := range vouts {
-		total += vouts[i].Value
-	}
-	return
+// ExplorerDataSource implements an interface for collecting data for the explorer pages
+type explorerDataSource interface {
+	GetExplorerBlock(hash string) *BlockInfo
+	GetExploreBlocks(start int, end int) []*BlockBasic
+	GetBlockHeight(hash string) (int64, error)
+	GetBlockHash(idx int64) (string, error)
+	GetExplorerTx(txid string) *TxInfo
+	GetExplorerAddress(address string, count int) *AddressInfo
+	GetHeight() int
 }
 
 type explorerUI struct {
 	Mux             *chi.Mux
-	app             *appContext
+	blockData       explorerDataSource
 	templates       []*template.Template
 	templateFiles   map[string]string
 	templateHelpers template.FuncMap
 }
 
 func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
-	idx := exp.app.BlockData.GetHeight()
+	idx := exp.blockData.GetHeight()
 
 	height, err := strconv.Atoi(r.URL.Query().Get("height"))
 	if err != nil || height > idx {
@@ -59,13 +61,9 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 		rows = minExplorerRows
 	}
 
-	summaries := make([]*dcrjson.GetBlockVerboseResult, 0, rows)
-	for i := height; i > height-rows; i-- {
-		data := exp.app.BlockData.GetBlockVerbose(i, false)
-		summaries = append(summaries, data)
-	}
-	str, err := TemplateExecToString(exp.templates[rootTemplateIndex], "explorer", struct {
-		Data      []*dcrjson.GetBlockVerboseResult
+	summaries := exp.blockData.GetExploreBlocks(height, height-rows)
+	str, err := templateExecToString(exp.templates[rootTemplateIndex], "explorer", struct {
+		Data      []*BlockBasic
 		BestBlock int
 	}{
 		summaries,
@@ -73,7 +71,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		apiLog.Errorf("Template execute failure: %v", err)
+		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
 		return
 	}
@@ -83,34 +81,18 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 }
 
 func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
-	hash := exp.app.getBlockHashCtx(r)
-	height := exp.app.getBlockHeightCtx(r)
-	if height == -1 {
+	hash := getBlockHashCtx(r)
+
+	data := exp.blockData.GetExplorerBlock(hash)
+	if data == nil {
+		log.Errorf("Unable to get block %s", hash)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
 
-	data := exp.app.BlockData.GetBlockVerboseWithStakeTxDetails(hash)
-	if data == nil {
-		apiLog.Errorf("Unable to get block %s", hash)
-		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
-		return
-	}
-	sort.Slice(data.RawTx, func(i, j int) bool {
-		return voutTotal(data.RawTx[i].Vout) > voutTotal(data.RawTx[j].Vout)
-	})
-	sort.Slice(data.Tickets, func(i, j int) bool {
-		return voutTotal(data.Tickets[i].Vout) > voutTotal(data.Tickets[j].Vout)
-	})
-	sort.Slice(data.Votes, func(i, j int) bool {
-		return voutTotal(data.Votes[i].Vout) > voutTotal(data.Votes[j].Vout)
-	})
-	sort.Slice(data.Revs, func(i, j int) bool {
-		return voutTotal(data.Revs[i].Vout) > voutTotal(data.Revs[j].Vout)
-	})
-	str, err := TemplateExecToString(exp.templates[blockTemplateIndex], "block", data)
+	str, err := templateExecToString(exp.templates[blockTemplateIndex], "block", data)
 	if err != nil {
-		apiLog.Errorf("Template execute failure: %v", err)
+		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
@@ -123,19 +105,19 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 	// attempt to get tx hash string from URL path
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
-		apiLog.Trace("txid not set")
+		log.Trace("txid not set")
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-	tx := exp.app.BlockData.GetExplorerTxData(hash)
+	tx := exp.blockData.GetExplorerTx(hash)
 	if tx == nil {
-		apiLog.Errorf("Unable to get transaction %s", hash)
+		log.Errorf("Unable to get transaction %s", hash)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-	str, err := TemplateExecToString(exp.templates[txTemplateIndex], "tx", tx)
+	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", tx)
 	if err != nil {
-		apiLog.Errorf("Template execute failure: %v", err)
+		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
@@ -147,19 +129,19 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
-		apiLog.Trace("address not set")
+		log.Trace("address not set")
 		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 		return
 	}
-	data := exp.app.BlockData.GetAddressTransactions(address, addressRows)
+	data := exp.blockData.GetExplorerAddress(address, addressRows)
 	if data == nil {
-		apiLog.Errorf("Unable to get address %s", address)
+		log.Errorf("Unable to get address %s", address)
 		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 		return
 	}
-	str, err := TemplateExecToString(exp.templates[addressTemplateIndex], "address", data)
+	str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", data)
 	if err != nil {
-		apiLog.Errorf("Template execute failure: %v", err)
+		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
 		return
 	}
@@ -174,7 +156,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	searchStr, ok := r.Context().Value(ctxSearch).(string)
 	if !ok {
-		apiLog.Trace("search parameter missing")
+		log.Trace("search parameter missing")
 		http.Redirect(w, r, "/error/", http.StatusTemporaryRedirect)
 		return
 	}
@@ -183,16 +165,16 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	// is a block index and then redirect to the block page if it is
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
 	if err == nil {
-		_, err := exp.app.BlockData.GetBlockHash(idx)
+		_, err := exp.blockData.GetBlockHash(idx)
 		if err == nil {
 			http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
 			return
 		}
 	}
 
-	// Call GetAddressTransactions to see if the value is an address hash and
+	// Call GetExplorerAddress to see if the value is an address hash and
 	// then redirect to the address page if it is
-	address := exp.app.BlockData.GetAddressTransactions(searchStr, 1)
+	address := exp.blockData.GetExplorerAddress(searchStr, 1)
 	if address != nil {
 		http.Redirect(w, r, "/explorer/address/"+searchStr, http.StatusPermanentRedirect)
 		return
@@ -206,15 +188,15 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 
 	// Attempt to get a block index by calling GetBlockHeight to see if the
 	// value is a block hash and then redirect to the block page if it is
-	_, err = exp.app.BlockData.GetBlockHeight(searchStr)
+	_, err = exp.blockData.GetBlockHeight(searchStr)
 	if err == nil {
 		http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
 
-	// Call GetRawTransaction to see if the value is a transaction hash and then
+	// Call GetExplorerTx to see if the value is a transaction hash and then
 	// redirect to the tx page if it is
-	tx := exp.app.BlockData.GetRawTransaction(searchStr)
+	tx := exp.blockData.GetExplorerTx(searchStr)
 	if tx != nil {
 		http.Redirect(w, r, "/explorer/tx/"+searchStr, http.StatusPermanentRedirect)
 		return
@@ -285,10 +267,11 @@ func (exp *explorerUI) reloadTemplatesSig(sig os.Signal) {
 	}()
 }
 
-func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
+// New returns an initialized instance of explorerUI
+func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
-	exp.app = app
+	exp.blockData = dataSource
 
 	if userRealIP {
 		exp.Mux.Use(middleware.RealIP)
@@ -297,72 +280,13 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 	exp.templateFiles = make(map[string]string)
 	exp.templateFiles["explorer"] = filepath.Join("views", "explorer.tmpl")
 	exp.templateFiles["block"] = filepath.Join("views", "block.tmpl")
-	exp.templateFiles["address"] = filepath.Join("views", "address.tmpl")
 	exp.templateFiles["tx"] = filepath.Join("views", "tx.tmpl")
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
-
+	exp.templateFiles["address"] = filepath.Join("views", "address.tmpl")
 	exp.templateHelpers = template.FuncMap{
-		"uint32Comma": func(v uint32) string {
-			i64 := int64(v)
-			return humanize.Comma(i64)
-		},
-		"int64Comma": func(v int64) string {
-			t := humanize.Comma(v)
-			return t
-		},
-		"float64Commaf": func(v float64) string {
-			return humanize.Commaf(v)
-		},
-		"formatBytes": func(v int32) string {
-			i64 := uint64(v)
-			return humanize.Bytes(i64)
-		},
-		"formatBytesInt": func(v int) string {
-			i64 := uint64(v)
-			return humanize.Bytes(i64)
-		},
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
-		},
-		"getTime": func(btime int64) string {
-			t := time.Unix(btime, 0)
-			return t.Format("1/_2/06 15:04:05")
-		},
-		"getTotalFromBlock": func(vout []dcrjson.Vout) float64 {
-			total := 0.0
-			for _, v := range vout {
-				total = total + v.Value
-			}
-			return total
-		},
-		"getTotalFromTx": func(vout []apitypes.Vout) float64 {
-			total := 0.0
-			for _, v := range vout {
-				total = total + v.Value
-			}
-			return total
-		},
-		"getAmount": func(v float64) dcrutil.Amount {
-			amount, _ := dcrutil.NewAmount(v)
-			return amount
-		},
-		"size": func(h string) int {
-			return len(h) / 2
-		},
-		"totalSentInBlock": func(block *apitypes.BlockDataWithTxType) string {
-			var total float64
-			for _, i := range block.RawTx {
-				for _, j := range i.Vout {
-					total = total + j.Value
-				}
-			}
-			for _, i := range block.RawSTx {
-				for _, j := range i.Vout {
-					total = total + j.Value
-				}
-			}
-			return humanize.Commaf(total) + " DCR"
 		},
 	}
 
@@ -373,7 +297,7 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		apiLog.Errorf("Unable to create new html template: %v", err)
+		log.Errorf("Unable to create new html template: %v", err)
 	}
 	exp.templates = append(exp.templates, explorerTemplate)
 
@@ -382,7 +306,7 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		apiLog.Errorf("Unable to create new html template: %v", err)
+		log.Errorf("Unable to create new html template: %v", err)
 	}
 	exp.templates = append(exp.templates, blockTemplate)
 
@@ -391,18 +315,17 @@ func newExplorerMux(app *appContext, userRealIP bool) *explorerUI {
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		apiLog.Errorf("Unable to create new html template: %v", err)
+		log.Errorf("Unable to create new html template: %v", err)
 	}
 	exp.templates = append(exp.templates, txTemplate)
-
-	addressTemplate, err := template.New("address").Funcs(exp.templateHelpers).ParseFiles(
+	addrTemplate, err := template.New("address").Funcs(exp.templateHelpers).ParseFiles(
 		exp.templateFiles["address"],
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		apiLog.Errorf("Unable to create new html template: %v", err)
+		log.Errorf("Unable to create new html template: %v", err)
 	}
-	exp.templates = append(exp.templates, addressTemplate)
+	exp.templates = append(exp.templates, addrTemplate)
 
 	exp.addRoutes()
 
@@ -414,34 +337,28 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Use(middleware.Recoverer)
 	corsMW := cors.Default()
 	exp.Mux.Use(corsMW.Handler)
-	//Basically following the same format as the apiroutes
+
 	exp.Mux.Get("/", exp.root)
 
 	exp.Mux.Route("/block", func(r chi.Router) {
-		r.Route("/best", func(rd chi.Router) {
-			rd.Use(exp.app.BlockHashLatestCtx)
-			rd.Get("/", exp.blockPage)
-		})
-
 		r.Route("/{blockhash}", func(rd chi.Router) {
-			rd.Use(exp.app.BlockHashPathOrIndexCtx)
+			rd.Use(exp.blockHashPathOrIndexCtx)
 			rd.Get("/", exp.blockPage)
 		})
 	})
 
 	exp.Mux.Route("/tx", func(r chi.Router) {
 		r.Route("/{txid}", func(rd chi.Router) {
-			rd.Use(TransactionHashCtx)
+			rd.Use(transactionHashCtx)
 			rd.Get("/", exp.txPage)
 		})
 	})
-
 	exp.Mux.Route("/address", func(r chi.Router) {
 		r.Route("/{address}", func(rd chi.Router) {
-			rd.Use(AddressPathCtx)
+			rd.Use(addressPathCtx)
 			rd.Get("/", exp.addressPage)
 		})
 	})
 
-	exp.Mux.With(SearchPathCtx).Get("/search/{search}", exp.search)
+	exp.Mux.With(searchPathCtx).Get("/search/{search}", exp.search)
 }

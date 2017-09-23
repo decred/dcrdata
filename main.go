@@ -14,6 +14,7 @@ import (
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/explorer"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/semver"
@@ -300,8 +301,10 @@ func mainCore() int {
 	ntfnChans.updateStatusDBHeight <- uint32(sqliteDB.GetHeight())
 
 	apiMux := newAPIRouter(app, cfg.UseRealIP)
-	exp := newExplorerMux(app, cfg.UseRealIP)
-	exp.UseSIGToReloadTemplates()
+
+	// Start the explorer system
+	explore := explorer.New(&sqliteDB, cfg.UseRealIP)
+	explore.UseSIGToReloadTemplates()
 
 	webMux := chi.NewRouter()
 	webMux.Get("/", webUI.RootPage)
@@ -317,7 +320,7 @@ func mainCore() int {
 	webMux.With(SearchPathCtx).Get("/error/{search}", webUI.ErrorPage)
 	webMux.NotFound(webUI.ErrorPage)
 	webMux.Mount("/api", apiMux.Mux)
-	webMux.Mount("/explorer", exp.Mux)
+	webMux.Mount("/explorer", explore.Mux)
 	listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux)
 
 	// Wait for notification handlers to quit

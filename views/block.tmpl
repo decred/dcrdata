@@ -23,7 +23,7 @@
                 <table>
                     <tr class="h2rem">
                         <td class="pr-2 lh1rem vam text-right xs-w117">TOTAL SENT</td>
-                        <td class="fs28 mono"><span class="dcr mr-1">{{$ | totalSentInBlock}}</span><span class="fs18 vam">DCR</span></td>
+                        <td class="fs28 mono"><span class="dcr mr-1">{{.TotalSent}}</span><span class="fs18 vam">DCR</span></td>
                     </tr>
                 </table>
             </div>
@@ -95,13 +95,13 @@
                     <tr>
                         <td class="text-right lh1rem pr-2">TIME</td>
                         <td class="lh1rem" style="min-width: 178px ">
-                            <span class="hidden timestamp">{{.Time}}</span>
-                            ({{timezone}}) {{.Time | getTime}} <span class="op60 fs12 nowrap">(<span class="age">{{.Time}}</span> ago)</span>
+                            <span class="hidden timestamp">{{.BlockTime}}</span>
+                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span class="age">{{.BlockTime}}</span> ago)</span>
                         </td>
                     </tr>
                     <tr>
                         <td class="text-right pr-2 lh1rem">SIZE</td>
-                        <td class="mono">{{.Size | formatBytes}}</td>
+                        <td class="mono">{{.FormattedBytes}}</td>
                     </tr>
                     <tr>
                         <td class="text-right pr-2 lh1rem p03rem0"><a href="#votes">VOTES</a></td>
@@ -124,9 +124,9 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">{{if gt (.RawTx | len)  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0">{{if gt .Transactions  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
                         <td class="lh1rem">
-                            {{.RawTx | len}}
+                            {{.Transactions}}
                         </td>
                     </tr>
                     <tr>
@@ -137,12 +137,12 @@
                     </tr>
                     <tr>
                         <td class="text-right pr-2 lh1rem nowrap p03rem0 p03rem0">POOL SIZE</td>
-                        <td class="lh1rem">{{.PoolSize | uint32Comma}}</td>
+                        <td class="lh1rem">{{.PoolSize}}</td>
                     </tr>
                     <tr>
                         <td class="text-right pr-2 lh1rem nowrap p03rem0">POW DIFFICULTY</td>
                         <td class="lh1rem">
-                            {{.Difficulty | float64Commaf}}
+                            {{.Difficulty}}
                         </td>
                     </tr>
                 </table>
@@ -167,7 +167,7 @@
                         <tr>
                             <td class="break-word">
                                 <span>
-                                    <a class="hash lh1rem" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                    <a class="hash lh1rem" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
                                 </span>
                             </td>
                             <td class="mono fs15">{{.VoteInfo.Version}}</td>
@@ -181,8 +181,8 @@
                             {{else}}
                                 -
                             {{end}}</td>
-                            <td class="dcr mono fs15 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
+                            <td class="dcr mono fs15 text-right">{{.FormattedTotal}}</td>
+                            <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -198,6 +198,7 @@
                     <thead>
                         <th>Transaction ID</th>
                         <th class="text-right">Total DCR</th>
+                        <th class="text-right">Fee</th>
                         <th>Size</th>
                     </thead>
                     <tbody>
@@ -205,11 +206,12 @@
                         <tr>
                             <td class="break-word">
                                 <span>
-                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                    <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
                                 </span>
                             </td>
-                            <td class="text-right dcr mono fs15">{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
+                            <td class="text-right dcr mono fs15">{{ .FormattedTotal}}</td>
+                            <td class="mono fs15 text-right">{{.Fee}}</td>
+                            <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -233,11 +235,11 @@
                         <tr>
                             <td class="break-word">
                                 <span>
-                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                    <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
                                 </span>
                             </td>
-                            <td class="dcr mono fs15 text-right">{{ .Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
+                            <td class="dcr mono fs15 text-right">{{ .FormattedTotal}}</td>
+                            <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -254,18 +256,20 @@
                     <thead>
                         <th>Transaction ID</th>
                         <th class="text-right">Total DCR</th>
+                        <th class="text-right">Fee</th>
                         <th>Size</th>
                     </thead>
                     <tbody>
-                        {{range .RawTx}}
+                        {{range .Tx}}
                         <tr>
                             <td class="break-word">
                                 <span>
-                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                    <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
                                 </span>
                             </td>
-                            <td class="dcr mono fs15 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
+                            <td class="dcr mono fs15 text-right">{{.FormattedTotal}}</td>
+                            <td class="mono fs15 text-right">{{.Fee}}</td>
+                            <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>
                         {{end}}
                     </tbody>

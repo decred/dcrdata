@@ -26,13 +26,13 @@
                     <tbody>
                         {{range .Transactions}}
                         <tr>
-                            <td class="break-word"><a href="../tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
-                            <td class="dcr text-right">{{.Value | float64Commaf}}</td>
+                            <td><a href="../tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
+                            <td class="dcr text-right">{{.FormattedTotal}}</td>
                             <td>
                                 {{if eq .Time 0}}
                                     Unconfirmed
                                 {{else}}
-                                    {{.Time | getTime }}
+                                    {{.FormattedTime}}
                                 {{end}}
                             </td>
                             <td class="age">{{if eq .Time 0}}
@@ -42,8 +42,8 @@
                             {{end}}
                             </td>
                             <td class="hidden timestamp">{{.Time}}</td>
-                            <td>{{.Confirmations | int64Comma}}</td>
-                            <td>{{.Size | formatBytes}}</td>
+                            <td>{{.Confirmations}}</td>
+                            <td>{{.FormattedSize}}</td>
                         </tr>
                         {{end}}
                     </tbody>
