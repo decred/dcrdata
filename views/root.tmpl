@@ -341,6 +341,7 @@
                 </div>
 
                 <div class="mb-3"><h5>Coin Supply: <span id="coin_supply" class="mono" >{{.BlockSummary.CoinSupply}}</span></h5></div>
+                <div class="mb-3"><h5>Difficulty: <span id="difficulty" class="mono" >{{printf "%.2f" (index $.InitialData 1).Difficulty}}</span></h5></div>
                 {{end}}
 
             </div>
