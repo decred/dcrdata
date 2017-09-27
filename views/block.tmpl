@@ -7,124 +7,149 @@
     {{template "navbar"}}
 
     <div class="container">
-        <h4>Block <span class="mono">#{{.Height | int64Comma}}</span> <span style="font-size: 12px;"><a href="/api/block/{{.Height}}/verbose?indent=true">view raw</a></span></span></h4>
 
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <table class="table table-sm flush-left">
-                    <tr>
-                        <td>Hash</td>
-                        <td><span class="hash collapse">{{.Hash}}</span></td>
-                    </tr>
-                    <tr>
-                        <td>Height</td>
-                        <td class="mono fs15">{{.Height | int64Comma}}</td>
-                    </tr>
-                    <tr>
-                        <td>Size</td>
-                        <td class="mono fs15">{{.Size | formatBytes}}</td>
-                    </tr>
-                    <tr>
-                        <td>Confirmations</td>
-                        <td class="mono fs15">{{.Confirmations}}</td>
-                    </tr>
-                    <tr>
-                        <td>Time</td>
-                        <td class="mono fs15">({{timezone}}) {{.Time | getTime}} (<span class="mono fs15 age">{{.Time}}</span> ago)</td>
-                        <td class="hidden">{{.Time}}</td>
-                        </tr>
-                    <tr>
-                        <td>Difficulty</td>
-                        <td class="mono fs15">{{.Difficulty | float64Commaf}}</td>
-                    </tr>
-                    <tr>
-                        <td>POS Difficulty(Sbits)</td>
-                        <td class="mono fs15">{{.SBits}}</td>
-                    </tr>
-                    <tr>
-                        <td>Total Sent in Block</td>
-                        <td class="dcr mono fs15">{{$ | totalSentInBlock}}</td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="col-md-4">
-                <table class="table table-sm flush-left">
-                    <tr>
-                        <td>Previous Block Hash</td>
-                        <td><a class="hash collapse" href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></td>
-                    </tr>
-                    {{if .NextHash}}
-                    <tr>
-                        <td>Next Block Hash</td>
-                        <td><span class="hash collapse"><a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></td>
-                    </tr>
+        <div class="row justify-content-between">
+            <div class="col-md-7 col-sm-6">
+                <h4 class="mb-2">
+                    Block #{{.Height}} {{ if gt .Confirmations 1 }}
+                        <span class="op60 fs12">( {{.Confirmations}} confirmations)</span>
+                    {{else}}
+                        <span class="op60 fs12">best block</span>
                     {{end}}
-                    <tr>
-                        <td>Transactions</td>
-                        <td><a class="mono fs15" href="#transactions">{{.RawTx | len}}</a></td>
-                    </tr>
-                    <tr>
-                        <td>Votes</td>
-                        <td><a class="mono fs15" href="#votes">{{.Voters}}</a></td>
-                    </tr>
-                    <tr>
-                        <td>Tickets</td>
-                        <td><a class="mono fs15" href="#tickets">{{.FreshStake}}</a></td>
-                    </tr>
-                    <tr>
-                        <td>Revocations</td>
-                        <td><a class="mono fs15" href="#revs">{{.Revocations}}</a></td>
-                    </tr>
-                    <tr>
-                        <td>Merkle Root</td>
-                        <td><span class="hash collapse" >{{.MerkleRoot}}</span></td>
-                    </tr>
-                    <tr>
-                        <td>Stake Root</td>
-                        <td><span class="hash collapse" >{{.StakeRoot}}</span></td>
-                    </tr>
-                </table>
+                    <a class="fs12" href="/api/block/{{.Height}}/verbose?indent=true">raw</a>
+                </h4>
             </div>
-
-            <div class="col-md-4">
-                <table class="table table-sm flush-left">
-                    <tr>
-                        <td>Block Verison</td>
-                        <td class="mono fs15">{{.Version}}</span>
-                    </tr>
-                    <tr>
-                        <td>Stake Version</td>
-                        <td class="mono fs15">{{.StakeVersion}}</td>
-                    </tr>
-                    <tr>
-                        <td>Vote Bits</td>
-                        <td class="mono fs15">{{.VoteBits}}</td>
-                    </tr>
-                    <tr>
-                        <td>Final State</td>
-                        <td><span class="hash collapse fs15" >{{.FinalState}}</span></td>
-                    </tr>
-                    <tr>
-                        <td>Pool Size</td>
-                        <td>{{.PoolSize | uint32Comma}}</td>
-                    </tr>
-                    <tr>
-                        <td>Nonce</td>
-                        <td class="mono fs15">{{.Nonce}}</td>
-                    </tr>
-                    <tr>
-                        <td>Bits</td>
-                        <td class="mono fs15">{{.Bits}}</td>
+            <div class="col-md-5 col-sm-6 d-flex">
+                <table class="">
+                    <tr class="h2rem">
+                        <td class="text-right pr-2 w80 nowrap">TOTAL SENT</td>
+                        <td class="fs28 mono"><span class="dcr">{{$ | totalSentInBlock}}</span></td>
                     </tr>
                 </table>
             </div>
         </div>
 
+        <div class="row justify-content-between">
+            <div class="col-md-7 col-sm-6 d-flex">
+                <table class="">
+                    <tr>
+                        <td class="text-right pr-2 lh1rem vam nowrap">BLOCK HASH</td>
+                        <td>
+                            <span class="hash break-word lh1rem">{{.Hash}}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/explorer/block/{{.PreviousHash}}">PREV BLOCK</a></td>
+                        <td>
+                            <span class="hash break-word lh1rem"  href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</span>
+                        </td>
+                    </tr>
+                    {{if .NextHash}}
+                    <tr>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/explorer/block/{{.NextHash}}">NEXT BLOCK</a></td>
+                        <td>
+                            <span class="hash break-word lh1rem">{{.NextHash}}</span>
+                        </td>
+                    </tr>
+                    {{end}}
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">BLOCK VERSION</td>
+                        <td class="lh1rem">{{.Version}}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0" >STAKE VERSION</td>
+                        <td class="lh1rem">{{.StakeVersion}}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">VOTE BITS</td>
+                        <td class="lh1rem">{{.VoteBits}}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">FINAL STATE</td>
+                        <td class="lh1rem">{{.FinalState}}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">NONCE</td>
+                        <td class="lh1rem">{{.Nonce}}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">BITS</td>
+                        <td class="lh1rem">{{.Bits}}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">MERKLE ROOT</td>
+                        <td><span class="lh1rem hash break-word">{{.MerkleRoot}}</span></td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">STAKE ROOT</td>
+                        <td><span class="lh1rem hash break-word">{{.StakeRoot}}</span></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="col-md-5 col-sm-6 d-flex">
+                <table class="">
+                    <tr>
+                        <td class="text-right pr-2 lh1rem">SIZE</td>
+                        <td class="mono">{{.Size | formatBytes}}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-right lh1rem pr-2">TIME</td>
+                        <td class="lh1rem" style="min-width: 178px ">
+                            <span class="hidden timestamp">{{.Time}}</span>
+                            ({{timezone}}) {{.Time | getTime}} <span class="op60 fs12 nowrap">(<span class="age">{{.Time}}</span> ago)</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem p03rem0">{{if gt (.RawTx | len)  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
+                        <td class="lh1rem">
+                           {{.RawTx | len}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem p03rem0"><a href="#votes">VOTES</a></td>
+                        <td class="lh1rem">
+                            {{.Voters}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem p03rem0">
+                            {{if gt .FreshStake  0 }}<a href="#tickets">TICKETS</a>{{else}}TICKETS{{end}}
+                        </td>
+                        <td class="lh1rem">
+                            {{.FreshStake}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem p03rem0">{{if gt .Revocations  0 }}<a href="#revocations">REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
+                        <td class="lh1rem">
+                            {{.Revocations}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">POW DIFFICULTY</td>
+                        <td class="lh1rem">
+                            {{.Difficulty | float64Commaf}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 p03rem0">TICKET PRICE</td>
+                        <td class="lh1rem">
+                            {{.SBits}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0 p03rem0">POOL SIZE</td>
+                        <td class="lh1rem">{{.PoolSize | uint32Comma}}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
 
         <div class="row">
+            <span class="anchor" id="votes"></span>
             <div class="col-md-12">
-                <h4 id="votes"><span>Votes</span></h4>
+                <h4><span>Votes</span></h4>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -163,11 +188,12 @@
         </div>
 
         <div class="row">
+            <span class="anchor" id="tickets"></span>
             <div class="col-md-12">
-                <h4 id="tickets"><span>Tickets</span></h4>
+                <h4><span>Tickets</span></h4>
                 <table class="table table-sm striped">
                     <thead>
-                        <th>Transactions ID</th>
+                        <th>Transaction ID</th>
                         <th class="text-right">Total DCR</th>
                         <th>Size</th>
                     </thead>
@@ -190,11 +216,12 @@
 
         {{if .Revocations}}
         <div class="row">
+            <span class="achor" id="revs"></span>
             <div class="col-md-12">
-                <h4 id="revs"><span>Revocations</span></h4>
+                <h4><span>Revocations</span></h4>
                 <table class="table table-sm striped">
                     <thead>
-                        <th>Transactions ID</th>
+                        <th>Transaction ID</th>
                         <th class="text-right">Total DCR</th>
                         <th>Size</th>
                     </thead>
@@ -217,11 +244,12 @@
         {{end}}
 
         <div class="row">
+            <span class="anchor" id="transactions"></span>
             <div class="col-sm-12">
-                <h4 id="transactions"><span>Transactions</span></h4>
+                <h4><span>Transactions</span></h4>
                 <table class="table table-sm striped">
                     <thead>
-                        <th>Transactions ID</th>
+                        <th>Transaction ID</th>
                         <th class="text-right">Total DCR</th>
                         <th>Size</th>
                     </thead>

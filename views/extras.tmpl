@@ -125,7 +125,7 @@
 </footer>
 <script>
         var ages = document.getElementsByClassName("age");
-        var hidden_ages = document.querySelectorAll("td.hidden");
+        var hidden_ages = document.querySelectorAll(".hidden.timestamp");
         for (var i = 0; i < ages.length; i++) {
             var age_time = new Date(parseInt(hidden_ages[i].innerText));
             if (hidden_ages[i].innerText == "0") {
@@ -134,7 +134,7 @@
             ages[i].innerText = humanize.timeSince(age_time);
         }
         function updateTime() {
-            hidden_ages = document.querySelectorAll("td.hidden");
+            hidden_ages = document.querySelectorAll(".hidden.timestamp");
             for (var i = 0; i < ages.length; i++) {
                 if (hidden_ages[i].innerText == "0") {
                     continue;

@@ -15,7 +15,7 @@
         <div class="row fs13">
             <div class="col d-flex justify-content-between">
                 <a id="prev" class="no-underline" href="/explorer">◄ Older</a>
-                <p id="best" class="hidden">{{.BestBlock}}</p>
+                <p id="best" class="hidden timestamp">{{.BestBlock}}</p>
                 <a id="next" class="no-underline" href="/explorer">Newer ►</a>
             </div>
         </div>
@@ -51,7 +51,7 @@
                             <td>{{.Revocations}}</td>
                             <td>{{.Size | formatBytes}}</td>
                             <td class="age">{{.Time}}</td>
-                            <td class="hidden">{{.Time}}</td>
+                            <td class="hidden timestamp">{{.Time}}</td>
                             <td>{{.Time | getTime}}</td>
                         </tr>
                     {{end}}
