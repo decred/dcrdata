@@ -150,7 +150,7 @@ func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.G
 
 func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.BlockDataWithTxType {
 	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, true)
-	votes := make([]dcrjson.TxRawResult, 0, blockVerbose.Voters)
+	votes := make([]apitypes.TxRawWithVoteInfo, 0, blockVerbose.Voters)
 	revocations := make([]dcrjson.TxRawResult, 0, blockVerbose.Revocations)
 	tickets := make([]dcrjson.TxRawResult, 0, blockVerbose.FreshStake)
 	for _, stx := range blockVerbose.RawSTx {
@@ -161,7 +161,16 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 		}
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
-			votes = append(votes, stx)
+			voteinfo, err := db.GetVoteInfoFromTxHex(stx.Hex)
+			if err != nil || voteinfo == nil {
+				log.Debugf("Cannot get vote choices for %s", stx.Txid)
+				voteinfo = new(apitypes.VoteInfo)
+			}
+			vote := apitypes.TxRawWithVoteInfo{
+				TxRawResult: stx,
+				VoteInfo:    *voteinfo,
+			}
+			votes = append(votes, vote)
 		case stake.TxTypeSStx:
 			tickets = append(tickets, stx)
 		case stake.TxTypeSSRtx:
@@ -473,6 +482,31 @@ func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
 	}
 
 	validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), db.params)
+	if err != nil {
+		return nil, err
+	}
+	vinfo := &apitypes.VoteInfo{
+		Validation: apitypes.BlockValidation{
+			Hash:     validation.Hash.String(),
+			Height:   validation.Height,
+			Validity: validation.Validity,
+		},
+		Version: version,
+		Bits:    bits,
+		Choices: choices,
+	}
+	return vinfo, nil
+}
+
+// GetVoteInfoFromTxHex is like GetVoteInfo except that it accepts the full tx
+// as a hex string, and avoids an RPC call.
+func (db *wiredDB) GetVoteInfoFromTxHex(txhex string) (*apitypes.VoteInfo, error) {
+	msgTx := txhelpers.MsgTxFromHex(txhex)
+	if msgTx == nil {
+		return nil, fmt.Errorf("unable to decode tx hex")
+	}
+
+	validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, db.params)
 	if err != nil {
 		return nil, err
 	}
