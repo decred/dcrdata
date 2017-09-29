@@ -131,18 +131,27 @@
                         <th class="text-right">Total DCR</th>
                         <th>Version</th>
                         <th>Size</th>
+                        <th>Issue ID</th>
+                        <th>Choice ID</th>
                     </thead>
                     <tbody>
-                        {{ range .Votes}}
+                        {{range $i, $v := .Votes}}
                         <tr>
                             <td>
                                 <span>
-                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{$v.Txid}}</a>
                                 </span>
                             </td>
+<<<<<<< HEAD
                             <td class="dcr mono fs15 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
                             <td class="mono fs15">{{.VoteInfo.Version}}</td>
                             <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
+=======
+                            <td class="dcr mono fs15 text-right">{{$v.Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td class="mono fs15">{{$v.Hex | size | formatBytesInt}}</td>
+                            <td>{{(index (index $.VoteInfo $i).Choices 0).ID}}</td>
+                            <td>{{(index (index $.VoteInfo $i).Choices 0).Choice.Id}}</td>
+>>>>>>> 676ef86... Adding vote details to block page
                         </tr>
                         {{end}}
                     </tbody>
@@ -175,6 +184,7 @@
                 </table>
             </div>
         </div>
+
         {{if .Revocations}}
         <div class="row">
             <div class="col-md-12">

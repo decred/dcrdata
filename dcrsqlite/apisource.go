@@ -153,6 +153,7 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 	votes := make([]apitypes.TxRawWithVoteInfo, 0, blockVerbose.Voters)
 	revocations := make([]dcrjson.TxRawResult, 0, blockVerbose.Revocations)
 	tickets := make([]dcrjson.TxRawResult, 0, blockVerbose.FreshStake)
+	voteinfo := make([]*apitypes.VoteInfo, 0, blockVerbose.Voters)
 	for _, stx := range blockVerbose.RawSTx {
 		msgTx := txhelpers.MsgTxFromHex(stx.Hex)
 		if msgTx == nil {
@@ -161,6 +162,7 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 		}
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
+<<<<<<< HEAD
 			voteinfo, err := db.GetVoteInfoFromTxHex(stx.Hex)
 			if err != nil || voteinfo == nil {
 				log.Debugf("Cannot get vote choices for %s", stx.Txid)
@@ -171,6 +173,11 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 				VoteInfo:    *voteinfo,
 			}
 			votes = append(votes, vote)
+=======
+			votes = append(votes, stx)
+			vinfo, _ := db.GetVoteInfo(stx.Txid)
+			voteinfo = append(voteinfo, vinfo)
+>>>>>>> 676ef86... Adding vote details to block page
 		case stake.TxTypeSStx:
 			tickets = append(tickets, stx)
 		case stake.TxTypeSSRtx:
@@ -179,9 +186,10 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 	}
 	return &apitypes.BlockDataWithTxType{
 		GetBlockVerboseResult: blockVerbose,
-		Votes:   votes,
-		Tickets: tickets,
-		Revs:    revocations,
+		Votes:    votes,
+		Tickets:  tickets,
+		Revs:     revocations,
+		VoteInfo: voteinfo,
 	}
 }
 

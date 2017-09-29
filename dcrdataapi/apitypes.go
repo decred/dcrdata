@@ -175,9 +175,10 @@ type AddressTxShort struct {
 // dcrjson.GetBlockVerboseResult to include the stake transaction type
 type BlockDataWithTxType struct {
 	*dcrjson.GetBlockVerboseResult
-	Votes   []TxRawWithVoteInfo
-	Tickets []dcrjson.TxRawResult
-	Revs    []dcrjson.TxRawResult
+	Votes    []dcrjson.TxRawResult
+	Tickets  []dcrjson.TxRawResult
+	Revs     []dcrjson.TxRawResult
+	VoteInfo []*VoteInfo
 }
 
 // TxRawWithVoteInfo adds the vote info to dcrjson.TxRawResult
