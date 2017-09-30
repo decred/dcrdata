@@ -73,10 +73,6 @@
                         <td class="lh1rem">{{.Nonce}}</td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem nowrap p03rem0">BITS</td>
-                        <td class="lh1rem">{{.Bits}}</td>
-                    </tr>
-                    <tr>
                         <td class="text-right pr-2 lh1rem nowrap p03rem0">MERKLE ROOT</td>
                         <td><span class="lh1rem hash break-word">{{.MerkleRoot}}</span></td>
                     </tr>
@@ -86,19 +82,19 @@
                     </tr>
                 </table>
             </div>
-
+ 
             <div class="col-md-5 col-sm-6 d-flex">
                 <table class="">
-                    <tr>
-                        <td class="text-right pr-2 lh1rem">SIZE</td>
-                        <td class="mono">{{.Size | formatBytes}}</td>
-                    </tr>
                     <tr>
                         <td class="text-right lh1rem pr-2">TIME</td>
                         <td class="lh1rem" style="min-width: 178px ">
                             <span class="hidden timestamp">{{.Time}}</span>
                             ({{timezone}}) {{.Time | getTime}} <span class="op60 fs12 nowrap">(<span class="age">{{.Time}}</span> ago)</span>
                         </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem">SIZE</td>
+                        <td class="mono">{{.Size | formatBytes}}</td>
                     </tr>
                     <tr>
                         <td class="text-right pr-2 lh1rem p03rem0">{{if gt (.RawTx | len)  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
@@ -127,13 +123,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem nowrap p03rem0">POW DIFFICULTY</td>
-                        <td class="lh1rem">
-                            {{.Difficulty | float64Commaf}}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2 p03rem0">TICKET PRICE</td>
+                        <td class="text-right pr-2 lh1rem p03rem0">TICKET PRICE</td>
                         <td class="lh1rem">
                             {{.SBits}}
                         </td>
@@ -141,6 +131,12 @@
                     <tr>
                         <td class="text-right pr-2 lh1rem nowrap p03rem0 p03rem0">POOL SIZE</td>
                         <td class="lh1rem">{{.PoolSize | uint32Comma}}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">POW DIFFICULTY</td>
+                        <td class="lh1rem">
+                            {{.Difficulty | float64Commaf}}
+                        </td>
                     </tr>
                 </table>
             </div>

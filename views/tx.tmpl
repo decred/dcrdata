@@ -48,6 +48,17 @@
                     <td class="fs28 mono d-flex align-items-center"><span class="dcr">{{ .Vout | getTotalFromTx | float64Commaf}}</span></td>
                 </tr>
                 <tr>
+                    <td class="text-right pr-2">TIME</td>
+                    <td class="lh1rem">
+                        {{if eq $.Block.Time 0}}
+                            N/A
+                        {{else}}
+                            <span class="hidden timestamp">{{$.Block.Time}}</span>
+                            ({{timezone}}) {{$.Block.Time | getTime }} <span class="op60 fs12 nowrap">(<span class="age">{{$.Block.Time}}</span> ago)</span>
+                        {{end}}
+                    </td>
+                </tr>
+                <tr>
                     <td class="text-right pr-2">SIZE</td>
                     <td class="mono">{{.Size | formatBytes}}</td>
                 </tr>
@@ -67,17 +78,6 @@
                 </tr>
                 {{end}}
                 {{end}}
-                <tr>
-                    <td class="text-right pr-2">TIME</td>
-                    <td class="lh1rem">
-                        {{if eq $.Block.Time 0}}
-                            N/A
-                        {{else}}
-                            <span class="hidden timestamp">{{$.Block.Time}}</span>
-                            ({{timezone}}) {{$.Block.Time | getTime }} <span class="op60 fs12 nowrap">(<span class="age">{{$.Block.Time}}</span> ago)</span>
-                        {{end}}
-                    </td>
-                </tr>
             </table>
 
         </div>
@@ -86,7 +86,7 @@
     <div class="row">
         <div class="col-md-7 mb-3">
             <h4>Input</h4>
-            <table class="table table-mono-cells table-sm striped">
+            <table class="table table-sm striped">
                 <thead>
                     <th>Previous Outpoint</th>
                     <th>Addresses</th>
@@ -97,7 +97,7 @@
                 <tbody>
                     {{range $i, $vin := .Vin}}
                     <tr>
-                        <td class="break-word">
+                        <td class="break-word mono">
                             {{if $vin.Coinbase}}
                                 Coinbase: {{ $vin.Coinbase }}
                             {{else if eq $vin.Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
@@ -106,7 +106,7 @@
                             <a href="/explorer/tx/{{$vin.Txid}}"><span class="break-word">{{$vin.Txid}}:{{$vin.Vout}}</span></a>
                             {{end}}
                         </td>
-                        <td class="break-word">
+                        <td class="break-word mono">
                         {{with $as := index $.VinAddrs $i}}
                             {{if (len $as) gt 0}}
                                 <a href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
@@ -124,7 +124,7 @@
                         {{else if eq $vin.BlockHeight 0}}
                             Pending
                         {{else}}
-                            <a class="mono fs13" href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight}}</a></td>
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight}}</a></td>
                         {{end}}
                         </td>
                         <td class="dcr mono fs13 text-right">{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{float64Commaf $vin.AmountIn}} {{end}}</td>
@@ -135,7 +135,7 @@
         </div>
         <div class="col-md-5 mb-3">
             <h4>Output</h4>
-            <table class="table table-mono-cells table-sm striped">
+            <table class="table table-sm striped">
                 <thead>
                     <th>Address</th>
                     <th class="text-center">Type</th>
@@ -145,7 +145,7 @@
                     {{range .Vout}}
                     {{ if ne .Value 0.0}}
                     <tr>
-                        <td class="break-word">
+                        <td class="break-word mono">
                             {{range .ScriptPubKeyDecoded.Addresses}}
                                 <a href="/explorer/address/{{.}}">{{.}}</a>
                             {{end}}
