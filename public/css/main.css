@@ -111,7 +111,7 @@ body.darkBG .navbar-fixed-bottom a {
 }
 .break-word {
   word-wrap: break-word;
-  word-break: break-word;
+  word-break: break-all;
 }
 .fs11 {
   font-size: 11px !important;

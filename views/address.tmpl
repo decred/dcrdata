@@ -26,7 +26,7 @@
                     <tbody>
                         {{range .Transactions}}
                         <tr>
-                            <td><a href="../tx/{{.TxID}}" class="hash collapse">{{.TxID}}</a></td>
+                            <td class="break-word"><a href="../tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
                             <td class="dcr text-right">{{.Value | float64Commaf}}</td>
                             <td>
                                 {{if eq .Time 0}}

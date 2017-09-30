@@ -90,7 +90,7 @@
                 <tbody>
                     {{range $i, $vin := .Vin}}
                     <tr>
-                        <td>
+                        <td class="break-word">
                             {{if $vin.Coinbase}}
                                 Coinbase: {{ $vin.Coinbase }}
                             {{else if eq $vin.Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
@@ -99,15 +99,15 @@
                             <a href="/explorer/tx/{{$vin.Txid}}"><span class="break-word">{{$vin.Txid}}:{{$vin.Vout}}</span></a>
                             {{end}}
                         </td>
-                        <td><div>
+                        <td class="break-word">
                         {{with $as := index $.VinAddrs $i}}
                             {{if (len $as) gt 0}}
-                                <a class="break-word" href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
+                                <a href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
                             {{else}}
                                 N/A
                             {{end}}
                         {{end}}
-                        </div></td>
+                        </td>
                         <!-- <td>{{$vin.Tree}}</td> -->
                         <td>
                         {{if $vin.Coinbase}}
@@ -138,9 +138,9 @@
                     {{range .Vout}}
                     {{ if ne .Value 0.0}}
                     <tr>
-                        <td>
+                        <td class="break-word">
                             {{range .ScriptPubKeyDecoded.Addresses}}
-                                <a  class="break-word" href="/explorer/address/{{.}}">{{.}}</a>
+                                <a href="/explorer/address/{{.}}">{{.}}</a>
                             {{end}}
                         </td>
                         <td>
