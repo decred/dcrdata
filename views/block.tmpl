@@ -35,7 +35,7 @@
                     <tr>
                         <td class="text-right pr-2 lh1rem vam nowrap">BLOCK HASH</td>
                         <td>
-                            <span class="hash break-word lh1rem">{{.Hash}}</span>
+                            <span class="hash break-word  lh1rem">{{.Hash}}</span>
                         </td>
                     </tr>
                     <tr>
@@ -162,9 +162,9 @@
                     <tbody>
                         {{range .Votes}}
                         <tr>
-                            <td>
+                            <td class="break-word">
                                 <span>
-                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                    <a class="hash lh1rem" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
                             <td class="dcr mono fs15 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
@@ -200,7 +200,7 @@
                     <tbody>
                         {{ range .Tickets}}
                         <tr>
-                            <td>
+                            <td class="break-word">
                                 <span>
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
@@ -228,7 +228,7 @@
                     <tbody>
                         {{ range .Revs}}
                         <tr>
-                            <td>
+                            <td class="break-word">
                                 <span>
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
@@ -256,7 +256,7 @@
                     <tbody>
                         {{range .RawTx}}
                         <tr>
-                            <td>
+                            <td class="break-word">
                                 <span>
                                     <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>

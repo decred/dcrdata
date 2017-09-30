@@ -272,23 +272,6 @@ body.darkBG .navbar-fixed-bottom a {
   word-wrap: break-word;
   transition: .133s transform;
 }
-.hash.collapse {
-  font-size: 12px;
-  display: inline-block;
-  width: 197px;
-}
-
-.outpoint {
-  font-family: 'inconsolata-v15-latin-regular', monospace;
-  display: inline-block;
-  word-wrap: break-word;
-  transition: .133s transform;
-}
-.outpoint.collapse {
-  font-size: 12px;
-  display: inline-block;
-  width: 206px;
-}
 
 /*resemble voting.decred.org*/
 .highlight-text {
@@ -325,15 +308,7 @@ body.darkBG .navbar-fixed-bottom a {
     max-width: 100% !important;
   }
 }
-@media only screen and (max-width: 940px)  {
-  .hash.collapse {
-    width: 142px;
-  }
-}
 @media only screen and (max-width: 768px)  {
-  .hash.collapse {
-    width: 197px;
-  }
   .table {
     margin-bottom: 0;
     width: 100%;
@@ -342,13 +317,6 @@ body.darkBG .navbar-fixed-bottom a {
     width: 151px;
   }
 }
-@media only screen and (max-width: 630px)  {
-  .table .hash {
-    font-size: 12px;
-    width: 197px;
-  }
-}
-
 @media only screen and (max-width: 576px)  {
   .xs-w91 {
     width: 91px;
