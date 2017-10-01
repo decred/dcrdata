@@ -153,7 +153,6 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 	votes := make([]apitypes.TxRawWithVoteInfo, 0, blockVerbose.Voters)
 	revocations := make([]dcrjson.TxRawResult, 0, blockVerbose.Revocations)
 	tickets := make([]dcrjson.TxRawResult, 0, blockVerbose.FreshStake)
-	voteinfo := make([]*apitypes.VoteInfo, 0, blockVerbose.Voters)
 	for _, stx := range blockVerbose.RawSTx {
 		msgTx := txhelpers.MsgTxFromHex(stx.Hex)
 		if msgTx == nil {
@@ -180,10 +179,9 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 	}
 	return &apitypes.BlockDataWithTxType{
 		GetBlockVerboseResult: blockVerbose,
-		Votes:    votes,
-		Tickets:  tickets,
-		Revs:     revocations,
-		VoteInfo: voteinfo,
+		Votes:   votes,
+		Tickets: tickets,
+		Revs:    revocations,
 	}
 }
 
