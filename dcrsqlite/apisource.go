@@ -162,7 +162,6 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 		}
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
-<<<<<<< HEAD
 			voteinfo, err := db.GetVoteInfoFromTxHex(stx.Hex)
 			if err != nil || voteinfo == nil {
 				log.Debugf("Cannot get vote choices for %s", stx.Txid)
@@ -173,11 +172,6 @@ func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.Bloc
 				VoteInfo:    *voteinfo,
 			}
 			votes = append(votes, vote)
-=======
-			votes = append(votes, stx)
-			vinfo, _ := db.GetVoteInfo(stx.Txid)
-			voteinfo = append(voteinfo, vinfo)
->>>>>>> 676ef86... Adding vote details to block page
 		case stake.TxTypeSStx:
 			tickets = append(tickets, stx)
 		case stake.TxTypeSSRtx:
