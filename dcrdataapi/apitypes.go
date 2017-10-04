@@ -192,20 +192,6 @@ type TxRawWithTxType struct {
 	TxType string
 }
 
-// below are notes essentially copy-paste from dcrjson
-
-// type Vin struct {
-// 	Coinbase    string     `json:"coinbase"`
-// 	Txid        string     `json:"txid"`
-// 	Vout        uint32     `json:"vout"`
-// 	Tree        int8       `json:"tree"`
-// 	Sequence    uint32     `json:"sequence"`
-// 	AmountIn    float64    `json:"amountin"`
-// 	BlockHeight uint32     `json:"blockheight"`
-// 	BlockIndex  uint32     `json:"blockindex"`
-// 	ScriptSig   *ScriptSig `json:"scriptSig"`
-// }
-
 // ScriptSig models the signature script used to redeem the origin transaction
 // as a JSON object (non-coinbase txns only)
 type ScriptSig struct {
@@ -223,6 +209,7 @@ type PrevOut struct {
 // searchrawtransaction
 type VinPrevOut struct {
 	Coinbase    string     `json:"coinbase"`
+	Stakebase   string     `json:"stakebase"`
 	Txid        string     `json:"txid"`
 	Vout        uint32     `json:"vout"`
 	Tree        int8       `json:"tree"`
