@@ -44,15 +44,15 @@
                     <tbody>
                     {{range .Data}}
                         <tr id="{{ .Height }}">
-                            <td><a href="/explorer/block/{{.Hash}}" class="fs18">{{ .Height }}</a></td>
-                            <td>{{len .Tx}}</td>
+                            <td><a href="/explorer/block/{{.Height}}" class="height">{{ .FormattedHeight }}</a></td>
+                            <td>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>
                             <td>{{.Revocations}}</td>
-                            <td>{{.Size | formatBytes}}</td>
-                            <td class="age">{{.Time}}</td>
-                            <td class="hidden timestamp">{{.Time}}</td>
-                            <td>{{.Time | getTime}}</td>
+                            <td>{{.FormattedBytes}}</td>
+                            <td class="age">{{.BlockTime}}</td>
+                            <td class="hidden timestamp">{{.BlockTime}}</td>
+                            <td>{{.FormattedTime}}</td>
                         </tr>
                     {{end}}
                     </tbody>

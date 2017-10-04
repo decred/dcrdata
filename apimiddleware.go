@@ -168,26 +168,6 @@ func (c *appContext) BlockHashPathAndIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
-func (c *appContext) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hash := chi.URLParam(r, "blockhash")
-		height, _ := c.BlockData.GetBlockHeight(hash)
-		idx, err := strconv.ParseInt(hash, 10, 0)
-		if err == nil {
-			height = idx
-			hash, err = c.BlockData.GetBlockHash(idx)
-			if err != nil {
-				apiLog.Errorf("GetBlockHash(%d) failed: %v", idx, err)
-				http.NotFound(w, r)
-				return
-			}
-		}
-		ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
-		ctx = context.WithValue(ctx, ctxBlockIndex, height)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 // TransactionHashCtx returns a http.HandlerFunc that embeds the value at the url
 // part {txid} into the request context
 func TransactionHashCtx(next http.Handler) http.Handler {
@@ -224,16 +204,6 @@ func AddressPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// SearchPathCtx returns a http.HandlerFunc that embeds the value at the url part
-// {search} into the request context
-func SearchPathCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		str := chi.URLParam(r, "search")
-		ctx := context.WithValue(r.Context(), ctxSearch, str)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 // apiDocs generates a middleware with a "docs" in the context containing a
 // map of the routers handlers, etc.
 func apiDocs(mux *chi.Mux) func(next http.Handler) http.Handler {
@@ -246,6 +216,17 @@ func apiDocs(mux *chi.Mux) func(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// SearchPathCtx returns a http.HandlerFunc that embeds the value at the url part
+// {search} into the request context (Still need this for the error page)
+// TODO: make new error system
+func SearchPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		str := chi.URLParam(r, "search")
+		ctx := context.WithValue(r.Context(), ctxSearch, str)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // APIDirectory is the actual handler used with apiDocs

@@ -16,6 +16,8 @@ rebuilddb.conf
 cmd/rebuilddb/rebuilddb
 cmd/scanblocks/scanblocks
 fullscan.json
+*.swp
+*.swo
 CURRENT
 LOCK
 LOG

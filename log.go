@@ -12,6 +12,7 @@ import (
 	"github.com/btcsuite/btclog"
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/explorer"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/stakedb"
@@ -52,6 +53,7 @@ var (
 	blockdataLog = backendLog.Logger("BLKD")
 	clientLog    = backendLog.Logger("RPCC")
 	mempoolLog   = backendLog.Logger("MEMP")
+	expLog       = backendLog.Logger("EXPR")
 	apiLog       = backendLog.Logger("JAPI")
 	log          = backendLog.Logger("DATD")
 )
@@ -64,6 +66,7 @@ func init() {
 	dcrrpcclient.UseLogger(clientLog)
 	rpcutils.UseLogger(clientLog)
 	mempool.UseLogger(mempoolLog)
+	explorer.UseLogger(expLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
@@ -73,6 +76,7 @@ var subsystemLoggers = map[string]btclog.Logger{
 	"BLKD": blockdataLog,
 	"RPCC": clientLog,
 	"MEMP": mempoolLog,
+	"EXPR": expLog,
 	"JAPI": apiLog,
 	"DATD": log,
 }
