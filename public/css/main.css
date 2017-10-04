@@ -99,6 +99,10 @@ body.darkBG .navbar-fixed-bottom a {
 }
 
 /*utils*/
+.anchor {
+  position: relative;
+  top: -33px;
+}
 .hidden {
   display: none;
 }
@@ -107,10 +111,28 @@ body.darkBG .navbar-fixed-bottom a {
 }
 .break-word {
   word-wrap: break-word;
-  word-break: break-word;
+  word-break: break-all;
+}
+.fs11 {
+  font-size: 11px !important;
+}
+.fs12 {
+  font-size: 12px !important;
+}
+.fs13 {
+  font-size: 13px !important;
 }
 .fs15 {
   font-size: 15px !important;
+}
+.fs18 {
+  font-size: 18px !important;
+}
+.fs24 {
+  font-size: 24px !important;
+}
+.fs28 {
+  font-size: 28px !important;
 }
 .no-underline,
 .no-underline:hover {
@@ -118,6 +140,30 @@ body.darkBG .navbar-fixed-bottom a {
 }
 .trailing-zeroes {
   opacity: .3
+}
+.op60 {
+  opacity: .7
+}
+.lh1rem {
+  line-height: 1rem;
+}
+.h2rem {
+  height: 2rem;
+}
+.h3rem {
+  height: 3rem;
+}
+.w80 {
+  width: 80px;
+}
+.w142 {
+  width: 142px;
+}
+.vam {
+  vertical-align: middle;
+}
+.p03rem0 {
+  padding: .3rem 0;
 }
 
 /*nav*/
@@ -162,6 +208,10 @@ body.darkBG .navbar-fixed-bottom a {
 }
 
 /*table*/
+.table-centered-1rem td {
+  line-height: 1rem;
+  vertical-align: middle;
+}
 .table th {
   font-size: 14px;
 }
@@ -203,29 +253,27 @@ body.darkBG .navbar-fixed-bottom a {
 }
 
 /*content*/
+.dcr-total .dcr {
+  font-size: 28px;
+}
+.dcr-total .total-text {
+  line-height: 11px;
+  opacity: 0.8;
+  font-weight: bold;
+  letter-spacing: 0px;
+}
+.dcr-total .total-text .d-block {
+  letter-spacing: 1px;
+  font-weight: bold;
+  font-size: 13px;
+}
+
 .hash {
   font-size: 14px;
   font-family: 'inconsolata-v15-latin-regular', monospace;
   display: inline-block;
   word-wrap: break-word;
   transition: .133s transform;
-}
-.hash.collapse {
-  font-size: 12px;
-  display: inline-block;
-  width: 197px;
-}
-
-.outpoint {
-  font-family: 'inconsolata-v15-latin-regular', monospace;
-  display: inline-block;
-  word-wrap: break-word;
-  transition: .133s transform;
-}
-.outpoint.collapse {
-  font-size: 12px;
-  display: inline-block;
-  width: 206px;
 }
 
 /*resemble voting.decred.org*/
@@ -240,12 +288,15 @@ body.darkBG .navbar-fixed-bottom a {
 }
 .agenda-voting-overview-option-dot {
   position: relative;
-  top: 2px;
+  top: 3px;
   width: 15px;
   height: 15px;
   margin-right: 6px;
   float: left;
   border-radius: 50%;
+}
+.agenda-voting-overview-option-dot._abstain {
+  background-color: rgba(0, 0, 0, 0.5);
 }
 .agenda-voting-overview-option-dot._yes {
   background-color: #2ed6a1;
@@ -260,23 +311,20 @@ body.darkBG .navbar-fixed-bottom a {
     max-width: 100% !important;
   }
 }
-@media only screen and (max-width: 940px)  {
-  .hash.collapse {
-    width: 142px;
-  }
-}
 @media only screen and (max-width: 768px)  {
-  .hash.collapse {
-    width: 197px;
-  }
   .table {
     margin-bottom: 0;
     width: 100%;
   }
+  .sm-w151 {
+    width: 151px;
+  }
 }
-@media only screen and (max-width: 630px)  {
-  .table .hash {
-    font-size: 12px;
-    width: 197px;
+@media only screen and (max-width: 576px)  {
+  .xs-w91 {
+    width: 91px;
+  }
+  .xs-w117 {
+    width: 117px;
   }
 }

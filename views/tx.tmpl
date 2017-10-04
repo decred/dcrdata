@@ -6,76 +6,87 @@
 {{template "navbar"}}
 
 <div class="container">
-    <div class="row mb-3">
-        <div class="col-md-12">
-            <h4>Transaction</h4>
-            <p class="break-word"><span class="mono">{{.TxID}}</span> <a class="fs13" href="/api/tx/{{.TxID}}?indent=true">view raw</a></p>
-            <table class="table table-mono-cells">
-                <thead>
-                    <th>Total DCR</th>
-                    <th>Time</th>
-                    <th>Confirmations</th>
-                    <th>Included in block</th>
-                    <th>Type</th>
-                    {{if .FeeRate}}
-                    <th>Fee</th>
-                    <th>Fee Rate</th>
-                    {{end}}
-                    <th>Size</th>
-                </thead>
-                <tbody>
-                    {{with .TxShort}}
+
+    <div class="row justify-content-between">
+        <div class="col-md-8 col-sm-6">
+            <h4 class="mb-2">
+                Transaction
+                <span class="fs15">
+                {{if eq $.Confirmations 0}}
+                    <strong>( unconfirmed )</strong>
+                {{else}}
+                    ({{$.Confirmations | int64Comma}} confirmations)
+                {{end}}
+                </span>
+            </h4>
+            <div class="lh1rem mb-1">
+                <span class="break-word fs15 w80">{{.TxID}}</span>
+                <a class="fs13 nowrap" href="/api/tx/{{.TxID}}?indent=true">view raw</a>
+            </div>
+            <table class="table-centered-1rem">
+                {{if gt $.Block.BlockHeight 0}}
                     <tr>
-                        <td class="dcr">{{ .Vout | getTotalFromTx | float64Commaf}}</td>
+                        <td class="text-right pr-2 h1rem p03rem0 xs-w91">INCLUDED IN BLOCK</td>
                         <td>
+                             <a href="/explorer/block/{{$.Block.BlockHash}}" class="fs18">{{$.Block.BlockHeight | int64Comma}}</a>
+                        </td>
+                    </tr>
+                {{end}}
+                <tr>
+                    <td class="text-right pr-2 h1rem p03rem0">TYPE</td>
+                    <td>
+                        {{$.Type}}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="col-md-4 col-sm-6 d-flex">
+
+            <table>
+                <tr class="h2rem">
+                    <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL SENT</td>
+                    <td class="fs28 mono nowrap"><span class="dcr mr-1">{{ .Vout | getTotalFromTx | float64Commaf}}</span><span class="fs18 vam">DCR</span></td>
+                </tr>
+                <tr>
+                    <td class="text-right pr-2">TIME</td>
+                    <td class="lh1rem">
                         {{if eq $.Block.Time 0}}
                             N/A
                         {{else}}
-                            ({{timezone}}) {{$.Block.Time | getTime }} (<span class="age">{{$.Block.Time}}</span> ago)
+                            <span class="hidden timestamp">{{$.Block.Time}}</span>
+                            ({{timezone}}) {{$.Block.Time | getTime }} <span class="op60 fs12 nowrap">(<span class="age">{{$.Block.Time}}</span> ago)</span>
                         {{end}}
-                        </td>
-                        <td class="hidden">{{$.Block.Time}}</td>
-                        <td>
-                        {{if eq $.Confirmations 0}}
-                            Unconfirmed
-                        {{else}}
-                            {{$.Confirmations | int64Comma}}
-                        {{end}}
-                        </td>
-                        <td>
-                        {{if eq $.Block.BlockHeight 0}}
-                            N/A
-                        {{else}}
-                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$.Block.BlockHeight | int64Comma}}</a></td>
-                        {{end}}
-                        <td>{{$.Type}}</td>
-                        {{if $.FeeRate}}
-                            <td>
-                                {{if gt $.Fee 0}}
-                                    {{$.Fee}}
-                                {{else}}
-                                    N/A
-                                {{end}}
-                            </td>
-                            <td>
-                                {{if gt $.FeeRate 0}}
-                                    {{$.FeeRate}}/kB
-                                {{else}}
-                                    N/A
-                                {{end}}
-                            </td>
-                        {{end}}
-                        <td>{{.Size | formatBytes}}</td>
-                    </tr>
-                    {{end}}
-                </tbody>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-right pr-2">SIZE</td>
+                    <td class="mono">{{.Size | formatBytes}}</td>
+                </tr>
+                {{if .Fee }}
+                {{if gt $.Fee 0}}
+                <tr>
+                    <td class="text-right pr-2">FEE</td>
+                    <td class="mono">{{$.Fee}}</td>
+                </tr>
+                {{end}}
+                {{end}}
+                {{if .FeeRate}}
+                {{if gt $.Fee 0}}
+                <tr>
+                    <td class="text-right pr-2">RATE</td>
+                    <td class="mono">{{$.FeeRate}}/kB</td>
+                </tr>
+                {{end}}
+                {{end}}
             </table>
+
         </div>
     </div>
+
     <div class="row">
         <div class="col-md-7 mb-3">
-            <h4>In</h4>
-            <table class="table table-mono-cells table-sm striped">
+            <h4>Input</h4>
+            <table class="table table-sm striped">
                 <thead>
                     <th>Previous Outpoint</th>
                     <th>Addresses</th>
@@ -86,7 +97,7 @@
                 <tbody>
                     {{range $i, $vin := .Vin}}
                     <tr>
-                        <td>
+                        <td class="break-word mono">
                             {{if $vin.Coinbase}}
                                 Coinbase: {{ $vin.Coinbase }}
                             {{else if eq $vin.Txid "0000000000000000000000000000000000000000000000000000000000000000"}}
@@ -95,15 +106,15 @@
                             <a href="/explorer/tx/{{$vin.Txid}}"><span class="break-word">{{$vin.Txid}}:{{$vin.Vout}}</span></a>
                             {{end}}
                         </td>
-                        <td><div>
+                        <td class="break-word mono">
                         {{with $as := index $.VinAddrs $i}}
                             {{if (len $as) gt 0}}
-                                <a class="break-word" href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
+                                <a href="/explorer/address/{{index $as 0}}">{{index $as 0}}</a>
                             {{else}}
                                 N/A
                             {{end}}
                         {{end}}
-                        </div></td>
+                        </td>
                         <!-- <td>{{$vin.Tree}}</td> -->
                         <td>
                         {{if $vin.Coinbase}}
@@ -113,7 +124,7 @@
                         {{else if eq $vin.BlockHeight 0}}
                             Pending
                         {{else}}
-                            <a class="mono fs13" href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight | uint32Comma}}</a></td>
+                            <a href="/explorer/block/{{$.Block.BlockHash}}">{{$vin.BlockHeight}}</a></td>
                         {{end}}
                         </td>
                         <td class="dcr mono fs13 text-right">{{if lt $vin.AmountIn 0.0}} N/A {{else}} {{float64Commaf $vin.AmountIn}} {{end}}</td>
@@ -123,8 +134,8 @@
             </table>
         </div>
         <div class="col-md-5 mb-3">
-            <h4>Out</h4>
-            <table class="table table-mono-cells table-sm striped">
+            <h4>Output</h4>
+            <table class="table table-sm striped">
                 <thead>
                     <th>Address</th>
                     <th class="text-center">Type</th>
@@ -134,7 +145,7 @@
                     {{range .Vout}}
                     {{ if ne .Value 0.0}}
                     <tr>
-                        <td>
+                        <td class="break-word mono">
                             {{range .ScriptPubKeyDecoded.Addresses}}
                                 <a href="/explorer/address/{{.}}">{{.}}</a>
                             {{end}}
@@ -190,3 +201,4 @@
 </body>
 </html>
 {{end}}
+

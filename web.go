@@ -89,6 +89,10 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 			t := time.Unix(btime, 0)
 			return t.Format("1/_2/06 15:04:05")
 		},
+		"ticketWindowProgress": func(i int) float64 {
+			p := (float64(i) / 144) * 100
+			return p
+		},
 	}
 	tmpl, err := template.New("home").Funcs(helpers).ParseFiles(fp, efp)
 	if err != nil {
