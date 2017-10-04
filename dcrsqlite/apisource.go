@@ -825,7 +825,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		return nil
 	}
 	msgTx := txhelpers.MsgTxFromHex(txraw.Hex)
-	if err != nil {
+	if msgTx == nil {
 		log.Errorf("Cannot create MsgTx for tx %v", txhash)
 		return nil
 	}
