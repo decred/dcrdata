@@ -65,13 +65,13 @@
   branch = "master"
   name = "github.com/decred/dcrd"
   packages = ["blockchain","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","database/ffldb","database/internal/treap","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","txscript","wire"]
-  revision = "f11fac8134626768ef7b1f278fd4331f004bfb49"
+  revision = "1eef90fb732d0b7eaa87757fc0123af99836abd2"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrrpcclient"
   packages = ["."]
-  revision = "bd992834efae9f8a81842221a634f4af22b77a0f"
+  revision = "efe7aaf4a0f0616b75e3f3ad8fa494572ff96760"
 
 [[projects]]
   branch = "master"
@@ -80,10 +80,10 @@
   revision = "ddbde93f65ab0692e54ed8a5ad325fa2e8af4daa"
 
 [[projects]]
+  branch = "master"
   name = "github.com/decred/dcrwallet"
-  packages = ["apperrors","chain","internal/zero","netparams","snacl","wallet/udb","walletdb"]
-  revision = "cf426bf26d89e6b0c750bd0cdb0f2b2635eecda9"
-  version = "v1.1.0"
+  packages = ["apperrors","internal/zero","netparams","snacl","wallet/udb","walletdb"]
+  revision = "d4f4a9abffb96821f5066b72333b7710b3942edd"
 
 [[projects]]
   branch = "master"
@@ -118,8 +118,8 @@
 [[projects]]
   name = "github.com/mattn/go-isatty"
   packages = ["."]
-  revision = "fc9e8d8ef48496124e79ae0df75490096eccf6fe"
-  version = "v0.0.2"
+  revision = "0360b2af4f38e8d38c7fce2a9f4e702702d73a39"
+  version = "v0.0.3"
 
 [[projects]]
   name = "github.com/mattn/go-sqlite3"
@@ -147,19 +147,19 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["nacl/secretbox","pbkdf2","poly1305","ripemd160","salsa20/salsa","scrypt"]
-  revision = "7d9177d70076375b9a59c8fde23d52d9c4a7ecd5"
+  revision = "9419663f5a44be8b34ca85f08abc5fe1be11f8a3"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","websocket"]
-  revision = "0744d001aa8470aaa53df28d32e5ceeb8af9bd70"
+  revision = "a04bdaca5b32abe1c069418fb7088ae607de5bd0"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "429f518978ab01db8bb6f44b66785088e7fba58b"
+  revision = "314a259e304ff91bd6985da2a7149bbf91237993"
 
 [solve-meta]
   analyzer-name = "dep"
