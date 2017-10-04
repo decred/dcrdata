@@ -129,11 +129,13 @@
                     <thead>
                         <th>Transactions ID</th>
                         <th class="text-right">Total DCR</th>
-                        <th>Version</th>
                         <th>Size</th>
+                        <th>Version</th>
+                        <th>Issue ID</th>
+                        <th>Choice ID</th>
                     </thead>
                     <tbody>
-                        {{ range .Votes}}
+                        {{range .Votes}}
                         <tr>
                             <td>
                                 <span>
@@ -141,8 +143,18 @@
                                 </span>
                             </td>
                             <td class="dcr mono fs15 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs15">{{.VoteInfo.Version}}</td>
                             <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
+                            <td class="mono fs15">{{.VoteInfo.Version}}</td>
+                            <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
+                                {{(index .VoteInfo.Choices 0).ID}}
+                            {{else}}
+                                -
+                            {{end}}</td>
+                            <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
+                                {{(index .VoteInfo.Choices 0).Choice.Id}}
+                            {{else}}
+                                -
+                            {{end}}</td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -175,6 +187,7 @@
                 </table>
             </div>
         </div>
+
         {{if .Revocations}}
         <div class="row">
             <div class="col-md-12">
