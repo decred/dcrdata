@@ -156,11 +156,11 @@
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
-                        <th class="text-right">Total DCR</th>
-                        <th>Size</th>
                         <th>Version</th>
                         <th>Issue ID</th>
                         <th>Choice ID</th>
+                        <th class="text-right">Total DCR</th>
+                        <th>Size</th>
                     </thead>
                     <tbody>
                         {{range .Votes}}
@@ -170,8 +170,6 @@
                                     <a class="hash lh1rem" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
                                 </span>
                             </td>
-                            <td class="dcr mono fs15 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
-                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
                             <td class="mono fs15">{{.VoteInfo.Version}}</td>
                             <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
                                 {{(index .VoteInfo.Choices 0).ID}}
@@ -183,6 +181,8 @@
                             {{else}}
                                 -
                             {{end}}</td>
+                            <td class="dcr mono fs15 text-right">{{.Vout | getTotalFromBlock | float64Commaf}}</td>
+                            <td class="mono fs15">{{.Hex | size | formatBytesInt}}</td>
                         </tr>
                         {{end}}
                     </tbody>
