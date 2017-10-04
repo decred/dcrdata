@@ -284,7 +284,9 @@ func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 
 	for i := range tx.Vin {
 		vin := &tx.Vin[i]
-		if strings.Replace(vin.Txid, "0", "", -1) == "" /*vin.IsStakeBase()*/ {
+		// Skip inspecting previous outpoint for coinbase transaction, and
+		// vin[0] of stakebase transcation.
+		if vin.IsCoinBase() || (vin.IsStakeBase() && i == 0) {
 			continue
 		}
 		var err error
@@ -757,8 +759,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
 			stx := makeExplorerTxBasic(tx, msgTx, db.params)
-			stx.Fee = 0.0
-			stx.FeeRate = 0.0
+			stx.Fee, stx.FeeRate = 0.0, 0.0
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
 			stx := makeExplorerTxBasic(tx, msgTx, db.params)
@@ -843,11 +844,8 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 
 	inputs := make([]explorer.Vin, 0, len(txraw.Vin))
 	for i, vin := range txraw.Vin {
-		// TODO: Handle StakeBase
-		coinbase := vin.Coinbase
 		var addresses []string
-		if strings.Replace(vin.Txid, "0", "", -1) != "" /*vin.IsStakeBase()*/ {
-			coinbase = ""
+		if !(tx.Vin[i].IsCoinBase() || (tx.Vin[i].IsStakeBase() && i==0)) {
 			addrs, err := txhelpers.OutPointAddresses(&msgTx.TxIn[i].PreviousOutPoint, db.client, db.params)
 			if err != nil {
 				log.Warnf("Failed to get outpoint address from txid: %v", err)
@@ -857,7 +855,8 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		}
 		inputs = append(inputs, explorer.Vin{
 			TxID:            vin.Txid,
-			CoinBase:        coinbase,
+			CoinBase:        vin.Coinbase,
+			StakeBase:       vin.Stakebase,
 			Addresses:       addresses,
 			Vout:            vin.Vout,
 			Amount:          vin.AmountIn,

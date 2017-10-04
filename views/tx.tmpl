@@ -99,8 +99,8 @@
                         <td>
                             {{if .CoinBase}}
                                 Coinbase: {{ .CoinBase }}
-                            {{else if eq .TxID "0000000000000000000000000000000000000000000000000000000000000000"}}
-                                Vote Reward
+                            {{else if $vin.Stakebase}}
+                                Stakebase: {{ $vin.Stakebase }}
                             {{else}}
                                 <a href="/explorer/tx/{{.TxID}}"><span class="break-word">{{.TxID}}:{{.Vout}}</span></a>
                             {{end}}
@@ -115,12 +115,10 @@
                             {{end}}
                         </div></td>
                         <td>
-                        {{if .CoinBase}}
-                            Created
-                        {{else if eq .TxID "0000000000000000000000000000000000000000000000000000000000000000"}}
-                            Created
-                        {{else if eq .BlockHeight 0}}
-                            Pending
+                        {{if or $vin.CoinBase $vin.Stakebase}}
+                            created
+                        {{else if eq $vin.BlockHeight 0}}
+                            pending
                         {{else}}
                             <a class="mono fs13" href="/explorer/block/{{.BlockHeight}}">{{.BlockHeight}}</a></td>
                         {{end}}
