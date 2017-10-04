@@ -154,43 +154,6 @@ func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.G
 	return rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, verboseTx)
 }
 
-func (db *wiredDB) GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.BlockDataWithTxType {
-	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, true)
-	votes := make([]apitypes.TxRawWithVoteInfo, 0, blockVerbose.Voters)
-	revocations := make([]dcrjson.TxRawResult, 0, blockVerbose.Revocations)
-	tickets := make([]dcrjson.TxRawResult, 0, blockVerbose.FreshStake)
-	for _, stx := range blockVerbose.RawSTx {
-		msgTx := txhelpers.MsgTxFromHex(stx.Hex)
-		if msgTx == nil {
-			log.Errorf("Unknown transaction %s", stx.Txid)
-			return nil
-		}
-		switch stake.DetermineTxType(msgTx) {
-		case stake.TxTypeSSGen:
-			voteinfo, err := db.GetVoteInfoFromTxHex(stx.Hex)
-			if err != nil || voteinfo == nil {
-				log.Debugf("Cannot get vote choices for %s", stx.Txid)
-				voteinfo = new(apitypes.VoteInfo)
-			}
-			vote := apitypes.TxRawWithVoteInfo{
-				TxRawResult: stx,
-				VoteInfo:    *voteinfo,
-			}
-			votes = append(votes, vote)
-		case stake.TxTypeSStx:
-			tickets = append(tickets, stx)
-		case stake.TxTypeSSRtx:
-			revocations = append(revocations, stx)
-		}
-	}
-	return &apitypes.BlockDataWithTxType{
-		GetBlockVerboseResult: blockVerbose,
-		Votes:   votes,
-		Tickets: tickets,
-		Revs:    revocations,
-	}
-}
-
 func (db *wiredDB) GetCoinSupply() dcrutil.Amount {
 	coinSupply, err := db.client.GetCoinSupply()
 	if err != nil {
@@ -417,31 +380,6 @@ func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
 	}
 
 	validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(tx.MsgTx(), db.params)
-	if err != nil {
-		return nil, err
-	}
-	vinfo := &apitypes.VoteInfo{
-		Validation: apitypes.BlockValidation{
-			Hash:     validation.Hash.String(),
-			Height:   validation.Height,
-			Validity: validation.Validity,
-		},
-		Version: version,
-		Bits:    bits,
-		Choices: choices,
-	}
-	return vinfo, nil
-}
-
-// GetVoteInfoFromTxHex is like GetVoteInfo except that it accepts the full tx
-// as a hex string, and avoids an RPC call.
-func (db *wiredDB) GetVoteInfoFromTxHex(txhex string) (*apitypes.VoteInfo, error) {
-	msgTx := txhelpers.MsgTxFromHex(txhex)
-	if msgTx == nil {
-		return nil, fmt.Errorf("unable to decode tx hex")
-	}
-
-	validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, db.params)
 	if err != nil {
 		return nil, err
 	}
@@ -857,23 +795,20 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	sortTx(block.Revs)
 	sortTx(block.Tickets)
 
+	getTotalFee := func(txs []*explorer.TxBasic) (total dcrutil.Amount) {
+		for _, tx := range txs {
+			total += tx.Fee
+		}
+		return
+	}
 	getTotalSent := func(txs []*explorer.TxBasic) (total float64) {
 		for _, tx := range txs {
 			total += tx.Total
 		}
 		return
 	}
-
-	getTotalSpent := func(txs []*explorer.TxBasic) (total float64) {
-		for _, tx := range txs {
-			total += tx.Fee.ToCoin()
-		}
-		return
-	}
-
 	block.TotalSent = getTotalSent(block.Tx) + getTotalSent(block.Revs) + getTotalSent(block.Tickets)
-	block.TotalSpent = getTotalSpent(block.Tx) + getTotalSpent(block.Revs) + getTotalSpent(block.Tickets)
-	block.MiningFee = block.TotalSent - block.TotalSpent
+	block.MiningFee = getTotalFee(block.Tx) + getTotalFee(block.Revs) + getTotalFee(block.Tickets)
 
 	return block
 }

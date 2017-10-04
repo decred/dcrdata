@@ -106,8 +106,7 @@ type BlockInfo struct {
 	PreviousHash  string
 	NextHash      string
 	TotalSent     float64
-	TotalSpent    float64
-	MiningFee     float64
+	MiningFee     dcrutil.Amount
 }
 
 // AddressInfo models data for display on the address page

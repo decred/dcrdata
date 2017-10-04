@@ -23,7 +23,6 @@ type APIDataSource interface {
 	GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
-	GetBlockVerboseWithStakeTxDetails(hash string) *apitypes.BlockDataWithTxType
 	GetRawTransaction(txid string) *apitypes.Tx
 	GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string)
 	GetVoteInfo(txid string) (*apitypes.VoteInfo, error)
