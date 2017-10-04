@@ -255,9 +255,91 @@
     <div class="container">
 
         <div class="row">
+            <div class="col">
 
-            <div class="col-md-8">
-                <h4>Latest Blocks</h4>
+            </div>
+        </div>
+
+        <div class="row">
+
+            <div class="col-md-6">
+
+                <h3 class="mt-2">Chain State</h3>
+
+                {{with .Data}}
+
+                <div>
+                    <table class="mb-3 col">
+                        <tr class="h2rem">
+                            <td class="text-right pr-2 p03rem0 sm-w151 w142 lh1rem">TOTAL SUPPLY</td>
+                            <td class="fs24 mono lh1rem"><span class="dcr">{{.BlockSummary.CoinSupply}}</span>DCR</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET PRICE</td>
+                            <td class="mono vam fs24"><span class="dcr"><span id="blocksdiff" ><strong>{{.BlockSummary.StakeDiff}}</strong></span></span><span class="pl-1">DCR</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKETS IN MEMPOOL</td>
+                            <td><span id="mempoolfeeinfo_number" class="mono fs24">{{.MempoolFeeInfo.Number}}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET WINDOW PROGRESS</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-12 col-sm-10">
+                                        <div class="progress">
+                                            <div
+                                                class="progress-bar"
+                                                role="progressbar"
+                                                style="width: {{ticketWindowProgress .StakeSummary.IdxBlockInWindow}}%; background: #2ed8a3;"
+                                                aria-valuenow="25"
+                                                aria-valuemin="0"
+                                                aria-valuemax="100"
+                                            >
+                                            <span id="blocksdiff" style="color:#383b41"><span id="window_block_index" >block {{.StakeSummary.IdxBlockInWindow}}</span> of 144</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">PROOF OF WORK DIFFICULTY</td>
+                            <td class="mono lh1rem p03rem0"><span id="difficulty">{{printf "%.2f" (index $.InitialData 1).Difficulty}}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">BLOCK REWARD</td>
+                            <td>
+                                <div class="mono lh1rem p03rem0"><span id="bsubsidy_total">{{.BlockSummary.NextBlockSubsidy.Total}}</span></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">DEV REWARD</td>
+                            <td>
+                                <div class="mono lh1rem p03rem0"><span id="bsubsidy_dev">{{.BlockSummary.NextBlockSubsidy.Developer}}</span></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">POS REWARD</td>
+                            <td>
+                                <div class="mono lh1rem p03rem0"><span id="bsubsidy_pos">{{.BlockSummary.NextBlockSubsidy.PoS}}</span></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">POW REWARD</td>
+                            <td>
+                                <div class="mono lh1rem p03rem0"><span id="bsubsidy_pow">{{.BlockSummary.NextBlockSubsidy.PoW}}</span></div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                {{end}}
+
+            </div>
+
+            <div class="col-md-6">
+
+                <h4 class="mb-3">Latest Blocks</h4>
                 <table class="table striped table-responsive full-width" id="explorertable">
                     <thead>
                         <tr>
@@ -294,50 +376,7 @@
                     </tbody>
                 </table>
                 <div class="mb-3"><a href="/explorer"><small>More blocks...</small></a></div>
-            </div>
 
-            <div class="col-md-4">
-
-                {{with .Data}}
-                <table class="mb-3">
-                    <tr class="h2rem">
-                        <td class="text-right pr-2 nowrap p03rem0 sm-w151">TOTAL DCR SUPPLY</td>
-                        <td class="fs28 mono"><span class="dcr">{{.BlockSummary.CoinSupply}}</span></td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2 nowrap lh1rem p03rem0">TICKET PRICE</td>
-                        <td class="mono"><span class="dcr"><span id="blocksdiff" ><strong>{{.BlockSummary.StakeDiff}}</strong></span></span></td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">TICKETS IN MEMPOOL</td>
-                        <td><span id="mempoolfeeinfo_number" class="mono">{{.MempoolFeeInfo.Number}}</span></td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">TICKET WINDOW PROGRESS</td>
-                        <td id="blocksdiff"><span id="window_block_index" >block {{.StakeSummary.IdxBlockInWindow}}</span> of 144</td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">POW DIFFICULTY</td>
-                        <td class="mono lh1rem p03rem0"><span id="difficulty">{{printf "%.2f" (index $.InitialData 1).Difficulty}}</span></td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0 sm-w151">BLOCK REWARD</td>
-                        <td class="mono lh1rem p03rem0"><span id="bsubsidy_total">{{.BlockSummary.NextBlockSubsidy.Total}}</span></td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">DEV REWARD</td>
-                        <td class="mono lh1rem p03rem0">{{if gt .BlockSummary.NextBlockSubsidy.Developer 10}}&nbsp;{{end}}<span id="bsubsidy_dev">{{.BlockSummary.NextBlockSubsidy.Developer}}</span></td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">POS REWARD</td>
-                        <td class="lh1rem p03rem0">{{if gt .BlockSummary.NextBlockSubsidy.PoS 10}}<span class="mono">&nbsp;</span>{{end}}<span class="mono" id="bsubsidy_pos">{{.BlockSummary.NextBlockSubsidy.PoS}}</span class="fs12 op60 nowrap pl-1"> / <span></span> ticket</td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">POW REWARD</td>
-                        <td class="mono lh1rem p03rem0"><span id="bsubsidy_pow">{{.BlockSummary.NextBlockSubsidy.PoW}}</span></td>
-                    </tr>
-                </table>
-                {{end}}
             </div>
 
         </div>

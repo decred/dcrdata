@@ -128,6 +128,9 @@ body.darkBG .navbar-fixed-bottom a {
 .fs18 {
   font-size: 18px !important;
 }
+.fs24 {
+  font-size: 24px !important;
+}
 .fs28 {
   font-size: 28px !important;
 }
@@ -152,6 +155,9 @@ body.darkBG .navbar-fixed-bottom a {
 }
 .w80 {
   width: 80px;
+}
+.w142 {
+  width: 142px;
 }
 .vam {
   vertical-align: middle;

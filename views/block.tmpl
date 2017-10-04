@@ -104,12 +104,6 @@
                         <td class="mono">{{.Size | formatBytes}}</td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">{{if gt (.RawTx | len)  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
-                        <td class="lh1rem">
-                           {{.RawTx | len}}
-                        </td>
-                    </tr>
-                    <tr>
                         <td class="text-right pr-2 lh1rem p03rem0"><a href="#votes">VOTES</a></td>
                         <td class="lh1rem">
                             {{.Voters}}
@@ -127,6 +121,12 @@
                         <td class="text-right pr-2 lh1rem p03rem0">{{if gt .Revocations  0 }}<a href="#revocations">REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
                         <td class="lh1rem">
                             {{.Revocations}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem p03rem0">{{if gt (.RawTx | len)  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
+                        <td class="lh1rem">
+                            {{.RawTx | len}}
                         </td>
                     </tr>
                     <tr>
