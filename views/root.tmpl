@@ -143,11 +143,16 @@
             newRow.id = String(b.height);
 
             var height = newRow.insertCell();
+            if (height.classList) {
+                height.classList.add('fs18');
+            } else {
+                height.addClass('fs18');
+            }
             var heightlink = document.createElement("A");
 
             heightlink.href = "/explorer/block/"+String(b.height);
             height.appendChild(heightlink);
-            heightlink.innerHTML = b.height.toLocaleString();
+            heightlink.innerHTML = b.height;
 
             var votes = newRow.insertCell();
             votes.innerHTML = b.votes;
@@ -166,7 +171,7 @@
 
             var age = newRow.insertCell();
             age.className = "age";
-            age.innerHTML = timeSince(b.time);
+            age.innerHTML = humanize.timeSince(b.time);
 
             var h_age = newRow.insertCell();
             h_age.className = "hidden";
@@ -296,7 +301,7 @@
                                                 aria-valuemin="0"
                                                 aria-valuemax="100"
                                             >
-                                            <span id="blocksdiff" style="color:#383b41" class="nowrap"><span id="window_block_index" >block {{.StakeSummary.IdxBlockInWindow}}</span> of 144</span>
+                                            <span id="blocksdiff" style="color:#383b41" class="nowrap pl-1"><span id="window_block_index" >block {{.StakeSummary.IdxBlockInWindow}}</span> of 144</span>
                                             </div>
                                         </div>
                                     </div>
@@ -362,7 +367,7 @@
                     <tbody>
                         {{range .InitialData}}
                         <tr id="{{.Height}}">
-                            <td><a href="/explorer/block/{{.Height}}" class="height">{{.Height}}</a></td>
+                            <td><a href="/explorer/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
                             <td>{{len .Tx}}</td>
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>
