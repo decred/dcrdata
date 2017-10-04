@@ -308,27 +308,27 @@
                             <td class="mono lh1rem p03rem0"><span id="difficulty">{{printf "%.2f" (index $.InitialData 1).Difficulty}}</span></td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1">BLOCK REWARD</td>
+                            <td class="text-right pr-2 lh1rem pt-1">BLOCK REWARD</td>
                             <td>
                                 <div class="mono lh1rem p03rem0"><span id="bsubsidy_total">{{.BlockSummary.NextBlockSubsidy.Total}}</span></div>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1">DEV REWARD</td>
+                            <td class="text-right pr-2 lh1rem">DEV REWARD</td>
                             <td>
-                                <div class="mono lh1rem p03rem0"><span id="bsubsidy_dev">{{.BlockSummary.NextBlockSubsidy.Developer}}</span></div>
+                                <div class="mono lh1rem"><span id="bsubsidy_dev">{{.BlockSummary.NextBlockSubsidy.Developer}}</span></div>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1">POS REWARD</td>
+                            <td class="text-right pr-2 lh1rem">POS REWARD</td>
                             <td>
-                                <div class="mono lh1rem p03rem0"><span id="bsubsidy_pos">{{.BlockSummary.NextBlockSubsidy.PoS}}</span></div>
+                                <div class="mono lh1rem"><span id="bsubsidy_pos">{{.BlockSummary.NextBlockSubsidy.PoS}}</span> / ticket</div>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1">POW REWARD</td>
+                            <td class="text-right pr-2 lh1rem">POW REWARD</td>
                             <td>
-                                <div class="mono lh1rem p03rem0"><span id="bsubsidy_pow">{{.BlockSummary.NextBlockSubsidy.PoW}}</span></div>
+                                <div class="mono lh1rem"><span id="bsubsidy_pow">{{.BlockSummary.NextBlockSubsidy.PoW}}</span></div>
                             </td>
                         </tr>
                     </table>
