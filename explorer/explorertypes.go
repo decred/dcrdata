@@ -59,9 +59,17 @@ type TxInfo struct {
 
 // VoteInfo models data about a SSGen transaction (vote)
 type VoteInfo struct {
-	Version uint32                  `json:"vote_version"`
-	Bits    uint16                  `json:"vote_bits"`
-	Choices []*txhelpers.VoteChoice `json:"vote_choices"`
+	Validation BlockValidation         `json:"block_validation"`
+	Version    uint32                  `json:"vote_version"`
+	Bits       uint16                  `json:"vote_bits"`
+	Choices    []*txhelpers.VoteChoice `json:"vote_choices"`
+}
+
+// BlockValidation models data about a vote's decision on a block
+type BlockValidation struct {
+	Hash     string `json:"hash"`
+	Height   int64  `json:"height"`
+	Validity bool   `json:"validity"`
 }
 
 // Vin models basic data about a tx input for display

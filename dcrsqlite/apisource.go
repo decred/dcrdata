@@ -686,12 +686,17 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	tx.FormattedTotal = humanize.Commaf(total)
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 	if ok, _ := stake.IsSSGen(msgTx); ok {
-		_, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
+		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", tx.TxID)
 			return tx
 		}
 		tx.VoteInfo = &explorer.VoteInfo{
+			Validation: explorer.BlockValidation{
+				Hash:     validation.Hash.String(),
+				Height:   validation.Height,
+				Validity: validation.Validity,
+			},
 			Version: version,
 			Bits:    bits,
 			Choices: choices,
