@@ -221,13 +221,14 @@
 
         {{if .Revocations}}
         <div class="row">
-            <span class="achor" id="revs"></span>
+            <span class="achor" id="revocations"></span>
             <div class="col-md-12">
                 <h4><span>Revocations</span></h4>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transaction ID</th>
                         <th class="text-right">Total DCR</th>
+                        <th class="text-right">Fee</th>
                         <th>Size</th>
                     </thead>
                     <tbody>
@@ -239,6 +240,7 @@
                                 </span>
                             </td>
                             <td class="dcr mono fs15 text-right">{{ .FormattedTotal}}</td>
+                            <td class="mono fs15 text-right">{{.Fee}}</td>
                             <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>
                         {{end}}

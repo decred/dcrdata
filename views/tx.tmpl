@@ -97,12 +97,12 @@
                     {{range .Vin}}
                     <tr>
                         <td>
-                            {{if .CoinBase}}
-                                Coinbase: {{ .CoinBase }}
-                            {{else if $vin.Stakebase}}
-                                Stakebase: {{ $vin.Stakebase }}
+                            {{if .Coinbase}}
+                                Coinbase: {{ .Coinbase }}
+                            {{else if .Stakebase}}
+                                Stakebase: {{ .Stakebase }}
                             {{else}}
-                                <a href="/explorer/tx/{{.TxID}}"><span class="break-word">{{.TxID}}:{{.Vout}}</span></a>
+                                <a href="/explorer/tx/{{.Txid}}"><span class="break-word">{{.Txid}}:{{.Vout}}</span></a>
                             {{end}}
                         </td>
                         <td><div>
@@ -115,15 +115,15 @@
                             {{end}}
                         </div></td>
                         <td>
-                        {{if or $vin.CoinBase $vin.Stakebase}}
+                        {{if or .Coinbase .Stakebase}}
                             created
-                        {{else if eq $vin.BlockHeight 0}}
+                        {{else if eq .BlockHeight 0}}
                             pending
                         {{else}}
                             <a class="mono fs13" href="/explorer/block/{{.BlockHeight}}">{{.BlockHeight}}</a></td>
                         {{end}}
                         </td>
-                        <td class="dcr mono fs13 text-right">{{if lt .Amount 0.0}} N/A {{else}} {{.FormattedAmount}} {{end}}</td>
+                        <td class="dcr mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{.FormattedAmount}} {{end}}</td>
                     </tr>
                     {{end}}
                 </tbody>

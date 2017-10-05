@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -320,8 +319,6 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 		return nil, ""
 	}
 
-	txhex := txraw.Hex
-
 	// TxShort
 	tx.Size = int32(len(txraw.Hex) / 2)
 	tx.TxID = txraw.Txid
@@ -360,7 +357,7 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 	tx.Block.Time = txraw.Time
 	tx.Block.BlockTime = txraw.Blocktime
 
-	return tx, txhex
+	return tx, txraw.Hex
 }
 
 // GetVoteInfo attempts to decode the vote bits of a SSGen transaction. If the
@@ -651,24 +648,36 @@ func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes
 }
 
 func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.BlockBasic {
-	block := new(explorer.BlockBasic)
-	block.Height = data.Height
-	block.Size = data.Size
-	block.Voters = data.Voters
-	block.Transactions = len(data.RawTx)
-	block.FreshStake = data.FreshStake
-	block.BlockTime = data.Time
-	block.FormattedBytes = humanize.Bytes(uint64(block.Size))
-	t := time.Unix(block.BlockTime, 0)
-	block.FormattedTime = t.Format("1/_2/06 15:04:05")
-	block.FormattedHeight = humanize.Comma(block.Height)
+	block := &explorer.BlockBasic{
+		Height:          data.Height,
+		Size:            data.Size,
+		Voters:          data.Voters,
+		Transactions:    len(data.RawTx),
+		FreshStake:      data.FreshStake,
+		BlockTime:       data.Time,
+		FormattedBytes:  humanize.Bytes(uint64(data.Size)),
+		FormattedTime:   time.Unix(data.Time, 0).Format("1/_2/06 15:04:05"),
+		FormattedHeight: humanize.Comma(data.Height),
+	}
+
+	// Count the number of revocations
+	for i := range data.RawSTx {
+		msgTx := txhelpers.MsgTxFromHex(data.RawSTx[i].Hex)
+		if msgTx == nil {
+			log.Errorf("Unknown transaction %s", data.RawSTx[i].Txid)
+			continue
+		}
+		if isRev, _ := stake.IsSSRtx(msgTx); isRev {
+			block.Revocations++
+		}
+	}
 	return block
 }
 
 func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *explorer.TxBasic {
 	tx := new(explorer.TxBasic)
 	tx.TxID = data.Txid
-	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex)))
+	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	var total float64
 	for _, v := range data.Vout {
 		total = total + v.Value
@@ -694,7 +703,7 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult) *explorer.AddressTx {
 	tx := new(explorer.AddressTx)
 	tx.TxID = data.Txid
-	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex)))
+	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	var total float64
 	for _, v := range data.Vout {
 		total = total + v.Value
@@ -708,9 +717,12 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult) *explorer.
 }
 
 func (db *wiredDB) GetExploreBlocks(start int, end int) []*explorer.BlockBasic {
+	if start < end {
+		return nil
+	}
 	summaries := make([]*explorer.BlockBasic, 0, start-end)
 	for i := start; i > end; i-- {
-		data := db.GetBlockVerbose(i, false)
+		data := db.GetBlockVerbose(i, true)
 		block := makeExplorerBlockBasic(data)
 		summaries = append(summaries, block)
 	}
@@ -723,28 +735,26 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		log.Error("Unable to get block for block hash " + hash)
 	}
 
-	// Explorer Block Basic
-	blockBasic := makeExplorerBlockBasic(data)
-
+	// Explorer Block Info
 	block := &explorer.BlockInfo{
-		BlockBasic: blockBasic,
+		BlockBasic:    makeExplorerBlockBasic(data),
+		Hash:          data.Hash,
+		Version:       data.Version,
+		Confirmations: data.Confirmations,
+		StakeRoot:     data.StakeRoot,
+		MerkleRoot:    data.MerkleRoot,
+		Nonce:         data.Nonce,
+		VoteBits:      data.VoteBits,
+		FinalState:    data.FinalState,
+		PoolSize:      data.PoolSize,
+		Bits:          data.Bits,
+		SBits:         data.SBits,
+		Difficulty:    data.Difficulty,
+		ExtraData:     data.ExtraData,
+		StakeVersion:  data.StakeVersion,
+		PreviousHash:  data.PreviousHash,
+		NextHash:      data.NextHash,
 	}
-	block.Hash = data.Hash
-	block.Version = data.Version
-	block.Confirmations = data.Confirmations
-	block.StakeRoot = data.StakeRoot
-	block.MerkleRoot = data.MerkleRoot
-	block.Nonce = data.Nonce
-	block.VoteBits = data.VoteBits
-	block.FinalState = data.FinalState
-	block.PoolSize = data.PoolSize
-	block.Bits = data.Bits
-	block.SBits = data.SBits
-	block.Difficulty = data.Difficulty
-	block.ExtraData = data.ExtraData
-	block.StakeVersion = data.StakeVersion
-	block.PreviousHash = data.PreviousHash
-	block.NextHash = data.NextHash
 
 	votes := make([]*explorer.TxBasic, 0, block.Voters)
 	revocations := make([]*explorer.TxBasic, 0, block.Revocations)
@@ -808,8 +818,10 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		}
 		return
 	}
-	block.TotalSent = getTotalSent(block.Tx) + getTotalSent(block.Revs) + getTotalSent(block.Tickets)
-	block.MiningFee = getTotalFee(block.Tx) + getTotalFee(block.Revs) + getTotalFee(block.Tickets)
+	block.TotalSent = getTotalSent(block.Tx) + getTotalSent(block.Revs) +
+		getTotalSent(block.Tickets) + getTotalSent(block.Votes)
+	block.MiningFee = getTotalFee(block.Tx) + getTotalFee(block.Revs) +
+		getTotalFee(block.Tickets)
 
 	return block
 }
@@ -845,7 +857,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	inputs := make([]explorer.Vin, 0, len(txraw.Vin))
 	for i, vin := range txraw.Vin {
 		var addresses []string
-		if !(tx.Vin[i].IsCoinBase() || (tx.Vin[i].IsStakeBase() && i==0)) {
+		if !(vin.IsCoinBase() || (vin.IsStakeBase() && i == 0)) {
 			addrs, err := txhelpers.OutPointAddresses(&msgTx.TxIn[i].PreviousOutPoint, db.client, db.params)
 			if err != nil {
 				log.Warnf("Failed to get outpoint address from txid: %v", err)
@@ -854,13 +866,15 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 			addresses = addrs
 		}
 		inputs = append(inputs, explorer.Vin{
-			TxID:            vin.Txid,
-			CoinBase:        vin.Coinbase,
-			StakeBase:       vin.Stakebase,
+			Vin: &dcrjson.Vin{
+				Txid:        vin.Txid,
+				Coinbase:    vin.Coinbase,
+				Stakebase:   vin.Stakebase,
+				Vout:        vin.Vout,
+				AmountIn:    vin.AmountIn,
+				BlockHeight: vin.BlockHeight,
+			},
 			Addresses:       addresses,
-			Vout:            vin.Vout,
-			Amount:          vin.AmountIn,
-			BlockHeight:     vin.BlockHeight,
 			FormattedAmount: humanize.Commaf(vin.AmountIn),
 		})
 	}
