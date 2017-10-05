@@ -32,7 +32,7 @@ const (
 // ExplorerDataSource implements an interface for collecting data for the explorer pages
 type explorerDataSource interface {
 	GetExplorerBlock(hash string) *BlockInfo
-	GetExploreBlocks(start int, end int) []*BlockBasic
+	GetExplorerBlocks(start int, end int) []*BlockBasic
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
@@ -60,8 +60,13 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 	if err != nil || rows > maxExplorerRows || rows < minExplorerRows || height-rows < 0 {
 		rows = minExplorerRows
 	}
+	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
+	if summaries == nil {
+		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		return
+	}
 
-	summaries := exp.blockData.GetExploreBlocks(height, height-rows)
 	str, err := templateExecToString(exp.templates[rootTemplateIndex], "explorer", struct {
 		Data      []*BlockBasic
 		BestBlock int
