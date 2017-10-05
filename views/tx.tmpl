@@ -164,7 +164,8 @@
     <div class="row mb-3">
         <div class="col-md-12">
             <h4>Vote Info</h4>
-            <p>Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span></p>
+            <p>Last Block Valid: <span class="mono"><strong>{{.Validation.Validity}}</strong></span><br>
+            Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span></p>
             <table class="table striped">
                 <thead>
                     <th class="text-right">Issue ID</th>
