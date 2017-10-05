@@ -716,14 +716,17 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult) *explorer.
 	return tx
 }
 
-func (db *wiredDB) GetExploreBlocks(start int, end int) []*explorer.BlockBasic {
+func (db *wiredDB) GetExplorerBlocks(start int, end int) []*explorer.BlockBasic {
 	if start < end {
 		return nil
 	}
 	summaries := make([]*explorer.BlockBasic, 0, start-end)
 	for i := start; i > end; i-- {
 		data := db.GetBlockVerbose(i, true)
-		block := makeExplorerBlockBasic(data)
+		block := new(explorer.BlockBasic)
+		if data != nil {
+			block = makeExplorerBlockBasic(data)
+		}
 		summaries = append(summaries, block)
 	}
 	return summaries
@@ -733,6 +736,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	data := db.GetBlockVerboseByHash(hash, true)
 	if data == nil {
 		log.Error("Unable to get block for block hash " + hash)
+		return nil
 	}
 
 	// Explorer Block Info
