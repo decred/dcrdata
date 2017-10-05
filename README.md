@@ -241,30 +241,33 @@ The following instructions assume a Unix-like shell (e.g. bash).
 
 * Verify Go installation:
 
-        go env GOROOT GOPATH
+      go env GOROOT GOPATH
 
 * Ensure `$GOPATH/bin` is on your `$PATH`
-* Install glide
+* Install `dep`, the dependency management tool
 
-        go get -u -v github.com/Masterminds/glide
+      go get -u -v github.com/golang/dep/cmd/dep
 
-* Clone dcrdata repo
+* Clone the dcrdata repository
 
-        git clone https://github.com/dcrdata/dcrdata $GOPATH/src/github.com/dcrdata/dcrdata
+      git clone https://github.com/dcrdata/dcrdata $GOPATH/src/github.com/dcrdata/dcrdata
 
-* Glide install, and build executable
+* dep ensure, and build executable
 
-        cd $GOPATH/src/github.com/dcrdata/dcrdata
-        glide install
-        go build # or go install $(glide nv)
+      cd $GOPATH/src/github.com/dcrdata/dcrdata
+      dep ensure
+      # build dcrdata executable in workspace:
+      go build
+      # or to install dcrdata and other tools into $GOPATH/bin:
+      go install . ./cmd/...
 
 The sqlite driver uses cgo, which requires gcc to compile the C sources. On
 Windows this is easily handled with MSYS2 ([download](http://www.msys2.org/) and
 install MinGW-w64 gcc packages).
 
 If you receive other build errors, it may be due to "vendor" directories left by
-glide builds of dependencies such as dcrwallet.  You may safely delete vendor
-folders.
+dep builds of dependencies such as dcrwallet. You may safely delete vendor
+folders and run `dep ensure` again.
 
 ## Updating
 
@@ -272,10 +275,10 @@ First, update the repository (assuming you have `master` checked out):
 
     cd $GOPATH/src/github.com/dcrdata/dcrdata
     git pull origin master
-    glide install
+    dep ensure
     go build
 
-Look carefully for errors with `git pull`, and reset changed files if necessary.
+Look carefully for errors with `git pull`, and reset locally modified files if necessary.
 
 ## Getting Started
 
