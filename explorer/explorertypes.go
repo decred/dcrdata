@@ -5,6 +5,7 @@ package explorer
 
 import (
 	"github.com/dcrdata/dcrdata/txhelpers"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrutil"
 )
 
@@ -15,7 +16,7 @@ type BlockBasic struct {
 	Voters          uint16
 	Transactions    int
 	FreshStake      uint8
-	Revocations     uint8
+	Revocations     uint32
 	BlockTime       int64
 	FormattedTime   string
 	FormattedBytes  string
@@ -65,12 +66,8 @@ type VoteInfo struct {
 
 // Vin models basic data about a tx input for display
 type Vin struct {
-	TxID            string
-	CoinBase        string
+	*dcrjson.Vin
 	Addresses       []string
-	Vout            uint32
-	Amount          float64
-	BlockHeight     uint32
 	FormattedAmount string
 }
 
