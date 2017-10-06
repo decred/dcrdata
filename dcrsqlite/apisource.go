@@ -649,14 +649,14 @@ func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes
 
 func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.BlockBasic {
 	block := &explorer.BlockBasic{
-		Height:          data.Height,
-		Size:            data.Size,
-		Voters:          data.Voters,
-		Transactions:    len(data.RawTx),
-		FreshStake:      data.FreshStake,
-		BlockTime:       data.Time,
-		FormattedBytes:  humanize.Bytes(uint64(data.Size)),
-		FormattedTime:   time.Unix(data.Time, 0).Format("1/_2/06 15:04:05"),
+		Height:         data.Height,
+		Size:           data.Size,
+		Voters:         data.Voters,
+		Transactions:   len(data.RawTx),
+		FreshStake:     data.FreshStake,
+		BlockTime:      data.Time,
+		FormattedBytes: humanize.Bytes(uint64(data.Size)),
+		FormattedTime:  time.Unix(data.Time, 0).Format("1/_2/06 15:04:05"),
 	}
 
 	// Count the number of revocations

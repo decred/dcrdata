@@ -11,15 +11,15 @@ import (
 
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
-	Height          int64
-	Size            int32
-	Voters          uint16
-	Transactions    int
-	FreshStake      uint8
-	Revocations     uint32
-	BlockTime       int64
-	FormattedTime   string
-	FormattedBytes  string
+	Height         int64
+	Size           int32
+	Voters         uint16
+	Transactions   int
+	FreshStake     uint8
+	Revocations    uint32
+	BlockTime      int64
+	FormattedTime  string
+	FormattedBytes string
 }
 
 // TxBasic models data for transactions on the block page
