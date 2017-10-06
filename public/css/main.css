@@ -251,6 +251,10 @@ body.darkBG .navbar-fixed-bottom a {
   font-family: 'inconsolata-v15-latin-regular';
   font-size: 14px;
 }
+.table .address {
+  max-width: 127px;
+  display: inline-block;
+}
 
 /*content*/
 .dcr-total .dcr {
