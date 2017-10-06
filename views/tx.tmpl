@@ -96,19 +96,19 @@
                 <tbody>
                     {{range .Vin}}
                     <tr>
-                        <td>
+                        <td class="break-word">
                             {{if .Coinbase}}
                                 Coinbase: {{ .Coinbase }}
                             {{else if .Stakebase}}
                                 Stakebase: {{ .Stakebase }}
                             {{else}}
-                                <a href="/explorer/tx/{{.Txid}}"><span class="break-word">{{.Txid}}:{{.Vout}}</span></a>
+                                <a href="/explorer/tx/{{.Txid}}">{{.Txid}}:{{.Vout}}</a>
                             {{end}}
                         </td>
-                        <td><div>
+                        <td><div class="break-word address">
                             {{if gt (len .Addresses) 0}}
                                 {{range .Addresses}}
-                                    <a class="break-word" href="/explorer/address/{{.}}">{{.}}</a><br>
+                                    <a href="/explorer/address/{{.}}">{{.}}</a><br>
                                 {{end}}
                             {{else}}
                                 N/A
@@ -141,9 +141,9 @@
                     {{range .Vout}}
                     {{ if ne .Amount 0.0}}
                     <tr>
-                        <td>
+                        <td class="break-word">
                             {{range .Addresses}}
-                                <a class="break-word mono" href="/explorer/address/{{.}}">{{.}}</a><br>
+                                <a class="mono address" href="/explorer/address/{{.}}">{{.}}</a><br>
                             {{end}}
                         </td>
                         <td>
