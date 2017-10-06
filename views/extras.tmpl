@@ -19,12 +19,14 @@
     <meta name="msapplication-TileColor" content="#2973ff">
     <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png">
     <meta name="msapplication-config" content="/images/favicon/browserconfig.xml">
+    <meta name="turbolinks-cache-control" content="no-cache">    
     <title>{{.}}</title>
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
     <script src="/js/messagesocket.js"></script>
     <script src="/js/humanize.js"></script>
+    <script src="/js/turbolinks.js"></script>
     <!-- <script src="/js/Chart.min.js"></script> -->
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -64,7 +66,7 @@
         </div>
     </div>
 </div>
-<script>
+<script data-turbolinks-eval="false">
     document.getElementById('search').onkeypress = function(e){
         if (!e) e = window.event;
         var keyCode = e.keyCode || e.which;
@@ -116,14 +118,14 @@
 
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
-        <a class="nav-item" href="www.dcrdata.org">dcrdata.org</a>
+        <a class="nav-item" href="www.dcrdata.org" data-turbolinks="false">dcrdata.org</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
-        <a class="nav-item" href="/api/status" title="API Status" target="_blank">Status</a>
+        <a class="nav-item" href="/api/status" title="API Status" target="_blank" data-turbolinks="false">Status</a>
         <span class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
     </div>
 </footer>
-<script>
+<script data-turbolinks-eval="false">
         var ages = document.getElementsByClassName("age");
         var hidden_ages = document.querySelectorAll(".hidden.timestamp");
         for (var i = 0; i < ages.length; i++) {
@@ -142,6 +144,7 @@
                 ages[i].innerText = humanize.timeSince(new Date(parseInt(hidden_ages[i].innerText)));
             }
         }
+        document.addEventListener("turbolinks:load", updateTime)
         setInterval(updateTime, 10000);
 </script>
 {{end}}
