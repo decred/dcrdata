@@ -120,7 +120,7 @@
                         {{else if eq .BlockHeight 0}}
                             pending
                         {{else}}
-                            <a class="mono fs13" href="/explorer/block/{{.BlockHeight}}">{{.BlockHeight}}</a></td>
+                            <a href="/explorer/block/{{.BlockHeight}}">{{.BlockHeight}}</a></td>
                         {{end}}
                         </td>
                         <td class="dcr mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{.FormattedAmount}} {{end}}</td>

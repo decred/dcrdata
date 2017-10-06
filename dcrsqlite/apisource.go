@@ -657,7 +657,6 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.Block
 		BlockTime:       data.Time,
 		FormattedBytes:  humanize.Bytes(uint64(data.Size)),
 		FormattedTime:   time.Unix(data.Time, 0).Format("1/_2/06 15:04:05"),
-		FormattedHeight: humanize.Comma(data.Height),
 	}
 
 	// Count the number of revocations

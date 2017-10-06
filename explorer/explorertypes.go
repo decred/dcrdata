@@ -20,7 +20,6 @@ type BlockBasic struct {
 	BlockTime       int64
 	FormattedTime   string
 	FormattedBytes  string
-	FormattedHeight string
 }
 
 // TxBasic models data for transactions on the block page
