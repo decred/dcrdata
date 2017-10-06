@@ -44,7 +44,7 @@
                     <tbody>
                     {{range .Data}}
                         <tr id="{{ .Height }}">
-                            <td><a href="/explorer/block/{{.Height}}" class="fs18">{{ .Height }}</a></td>
+                            <td><a href="/explorer/block/{{.Height}}" class="fs18 height">{{ .Height }}</a></td>
                             <td>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>
