@@ -23,7 +23,7 @@
                 <table>
                     <tr class="h2rem">
                         <td class="pr-2 lh1rem vam text-right xs-w117">TOTAL SENT</td>
-                        <td class="fs28 mono"><span class="dcr mr-1">{{.TotalSent}}</span><span class="fs18 vam">DCR</span></td>
+                        <td class="fs28 mono"><span class="mr-1">{{template "fancyDCR" (fancyDCR .TotalSent)}}</span><span class="fs18 vam">DCR</span></td>
                     </tr>
                 </table>
             </div>
@@ -132,7 +132,7 @@
                     <tr>
                         <td class="text-right pr-2 lh1rem p03rem0">TICKET PRICE</td>
                         <td class="lh1rem">
-                            {{.SBits}}
+                            {{template "fancyDCR" (fancyDCR .SBits)}}
                         </td>
                     </tr>
                     <tr>
@@ -181,7 +181,7 @@
                             {{else}}
                                 -
                             {{end}}</td>
-                            <td class="dcr mono fs15 text-right">{{.FormattedTotal}}</td>
+                            <td class="mono fs15 text-right">{{template "fancyDCR" (fancyDCR .Total)}}</td>
                             <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>
                         {{end}}
@@ -209,7 +209,7 @@
                                     <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
                                 </span>
                             </td>
-                            <td class="text-right dcr mono fs15">{{ .FormattedTotal}}</td>
+                            <td class="text-right dcr mono fs15">{{template "fancyDCR" (fancyDCR .Total)}}</td>
                             <td class="mono fs15 text-right">{{.Fee}}</td>
                             <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>
@@ -239,7 +239,7 @@
                                     <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
                                 </span>
                             </td>
-                            <td class="dcr mono fs15 text-right">{{ .FormattedTotal}}</td>
+                            <td class="mono fs15 text-right">{{template "fancyDCR" (fancyDCR .Total)}}</td>
                             <td class="mono fs15 text-right">{{.Fee}}</td>
                             <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>
@@ -269,7 +269,7 @@
                                     <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
                                 </span>
                             </td>
-                            <td class="dcr mono fs15 text-right">{{.FormattedTotal}}</td>
+                            <td class="mono fs15 text-right">{{template "fancyDCR" (fancyDCR .Total)}}</td>
                             <td class="mono fs15 text-right">{{.Fee}}</td>
                             <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>

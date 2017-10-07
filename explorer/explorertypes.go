@@ -25,23 +25,22 @@ type BlockBasic struct {
 
 // TxBasic models data for transactions on the block page
 type TxBasic struct {
-	TxID           string
-	FormattedSize  string
-	FormattedTotal string
-	Total          float64
-	Fee            dcrutil.Amount
-	FeeRate        dcrutil.Amount
-	VoteInfo       *VoteInfo
+	TxID          string
+	FormattedSize string
+	Total         float64
+	Fee           dcrutil.Amount
+	FeeRate       dcrutil.Amount
+	VoteInfo      *VoteInfo
 }
 
 //AddressTx models data for transactions on the address page
 type AddressTx struct {
-	TxID           string
-	FormattedSize  string
-	FormattedTotal string
-	Confirmations  uint64
-	Time           int64
-	FormattedTime  string
+	TxID          string
+	FormattedSize string
+	Total         float64
+	Confirmations uint64
+	Time          int64
+	FormattedTime string
 }
 
 // TxInfo models data needed for display on the tx page

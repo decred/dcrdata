@@ -683,7 +683,6 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 		total = total + v.Value
 	}
 	tx.Total = total
-	tx.FormattedTotal = humanize.Commaf(total)
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 	if ok, _ := stake.IsSSGen(msgTx); ok {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
@@ -713,7 +712,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult) *explorer.
 	for _, v := range data.Vout {
 		total = total + v.Value
 	}
-	tx.FormattedTotal = humanize.Commaf(total)
+	tx.Total = total
 	tx.Time = data.Time
 	t := time.Unix(tx.Time, 0)
 	tx.FormattedTime = t.Format("1/_2/06 15:04:05")

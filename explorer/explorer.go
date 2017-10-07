@@ -4,6 +4,7 @@
 package explorer
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -292,6 +293,20 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
+		},
+		"fancyDCR": func(v float64) []string {
+			roundedV := fmt.Sprintf("%.8f", v)
+			trailingZeroes := ""
+			for i := range roundedV {
+				if roundedV[len(roundedV)-1-i] != 48 {
+					break
+				}
+				trailingZeroes += "0"
+			}
+			sliceIndex := len(roundedV) - len(trailingZeroes)
+			roundedV = roundedV[0:sliceIndex]
+			result := append(make([]string, 0, 2), roundedV, trailingZeroes)
+			return result
 		},
 	}
 

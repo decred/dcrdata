@@ -45,7 +45,7 @@
             <table>
                 <tr class="h2rem">
                     <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL SENT</td>
-                    <td class="fs28 mono nowrap"><span class="dcr mr-1">{{ .FormattedTotal}}</span><span class="fs18 vam">DCR</span></td>
+                    <td class="fs28 mono nowrap"><span class="mr-1">{{template "fancyDCR" (fancyDCR .Total)}}</span><span class="fs18 vam">DCR</span></td>
                 </tr>
                 <tr>
                     <td class="text-right pr-2">TIME</td>
@@ -123,7 +123,8 @@
                             <a class="mono fs13" href="/explorer/block/{{.BlockHeight}}">{{.BlockHeight}}</a></td>
                         {{end}}
                         </td>
-                        <td class="dcr mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{.FormattedAmount}} {{end}}</td>
+                        <td class="mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{template "fancyDCR" (fancyDCR .AmountIn)}} {{end}}</td>
+
                     </tr>
                     {{end}}
                 </tbody>
@@ -149,8 +150,8 @@
                         <td>
 				            {{.Type}}
                         </td>
-                        <td class="dcr text-right">
-                            {{.FormattedAmount}}
+                        <td class="text-right">
+                            {{template "fancyDCR" (fancyDCR .Amount)}}
                         </td>
                     </tr>
                     {{end}}
