@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+	"strings"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/go-chi/chi"
@@ -296,16 +297,10 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 		},
 		"fancyDCR": func(v float64) []string {
 			roundedV := fmt.Sprintf("%.8f", v)
-			trailingZeroes := ""
-			for i := range roundedV {
-				if roundedV[len(roundedV)-1-i] != 48 {
-					break
-				}
-				trailingZeroes += "0"
-			}
-			sliceIndex := len(roundedV) - len(trailingZeroes)
-			roundedV = roundedV[0:sliceIndex]
-			result := append(make([]string, 0, 2), roundedV, trailingZeroes)
+			oldLength := len(roundedV)
+			roundedV = strings.TrimRight(roundedV, "0")
+			trailingZeros := strings.Repeat("0", oldLength - len(roundedV))
+			result := append(make([]string, 0, 2), roundedV, trailingZeros)
 			return result
 		},
 	}
