@@ -12,8 +12,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/go-chi/chi"
@@ -299,7 +299,7 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 			roundedV := fmt.Sprintf("%.8f", v)
 			oldLength := len(roundedV)
 			roundedV = strings.TrimRight(roundedV, "0")
-			trailingZeros := strings.Repeat("0", oldLength - len(roundedV))
+			trailingZeros := strings.Repeat("0", oldLength-len(roundedV))
 			result := append(make([]string, 0, 2), roundedV, trailingZeros)
 			return result
 		},
