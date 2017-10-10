@@ -610,3 +610,16 @@ func TxFeeRate(msgTx *wire.MsgTx) (dcrutil.Amount, dcrutil.Amount) {
 	}
 	return dcrutil.Amount(amtIn - amtOut), dcrutil.Amount(1000 * (amtIn - amtOut) / int64(msgTx.SerializeSize()))
 }
+
+// TotalVout computes the total value of a slice of dcrjson.Vout
+func TotalVout(vouts []dcrjson.Vout) dcrutil.Amount {
+	var total dcrutil.Amount
+	for _, v := range vouts {
+		a, err := dcrutil.NewAmount(v.Value)
+		if err != nil {
+			continue
+		}
+		total += a
+	}
+	return total
+}

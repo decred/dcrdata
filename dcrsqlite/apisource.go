@@ -577,14 +577,10 @@ func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Addr
 	}
 	tx := make([]*apitypes.AddressTxShort, 0, len(txs))
 	for i := range txs {
-		var value float64
-		for j := range txs[i].Vout {
-			value += txs[i].Vout[j].Value
-		}
 		tx = append(tx, &apitypes.AddressTxShort{
 			TxID:          txs[i].Txid,
 			Time:          txs[i].Time,
-			Value:         value,
+			Value:         txhelpers.TotalVout(txs[i].Vout).ToCoin(),
 			Confirmations: int64(txs[i].Confirmations),
 			Size:          int32(len(txs[i].Hex) / 2),
 		})
@@ -677,11 +673,7 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	tx := new(explorer.TxBasic)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
-	var total float64
-	for _, v := range data.Vout {
-		total = total + v.Value
-	}
-	tx.Total = total
+	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 	if ok, _ := stake.IsSSGen(msgTx); ok {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
@@ -707,11 +699,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult) *explorer.
 	tx := new(explorer.AddressTx)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
-	var total float64
-	for _, v := range data.Vout {
-		total = total + v.Value
-	}
-	tx.Total = total
+	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
 	tx.Time = data.Time
 	t := time.Unix(tx.Time, 0)
 	tx.FormattedTime = t.Format("1/_2/06 15:04:05")
@@ -819,14 +807,18 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		}
 		return
 	}
-	getTotalSent := func(txs []*explorer.TxBasic) (total float64) {
+	getTotalSent := func(txs []*explorer.TxBasic) (total dcrutil.Amount) {
 		for _, tx := range txs {
-			total += tx.Total
+			amt, err := dcrutil.NewAmount(tx.Total)
+			if err != nil {
+				continue
+			}
+			total += amt
 		}
 		return
 	}
-	block.TotalSent = getTotalSent(block.Tx) + getTotalSent(block.Revs) +
-		getTotalSent(block.Tickets) + getTotalSent(block.Votes)
+	block.TotalSent = (getTotalSent(block.Tx) + getTotalSent(block.Revs) +
+		getTotalSent(block.Tickets) + getTotalSent(block.Votes)).ToCoin()
 	block.MiningFee = getTotalFee(block.Tx) + getTotalFee(block.Revs) +
 		getTotalFee(block.Tickets)
 
