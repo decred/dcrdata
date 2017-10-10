@@ -332,3 +332,56 @@ body.darkBG .navbar-fixed-bottom a {
     width: 117px;
   }
 }
+
+/*socket connection*/
+/* Notice: Portions of the connection indicator style come from html5rocks.com */
+@-webkit-keyframes glowGreen {
+  from {
+      -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+  }
+  50% {
+      -webkit-box-shadow: rgba(0, 255, 0, 1) 0 0 10px;
+  }
+  to {
+      -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+  }
+}
+@-webkit-keyframes glowRed {
+  from {
+      -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+  }
+  50% {
+      -webkit-box-shadow: rgba(255, 0, 0, 1) 0 0 10px;
+  }
+  to {
+      -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+  }
+}
+#connection {
+  top: -1px;
+  font: 12px sans-serif;
+  font-weight: bold;
+  vertical-align: middle;
+  color: silver;
+}
+#connection div {
+  background-color: orange;
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  border-radius: 10px;
+  margin-left: 5px;
+  -webkit-animation-duration: 2s;
+  -webkit-animation-iteration-count: infinite;
+  -webkit-animation-timing-function: linear;
+}
+#connection.connected div {
+  background-color: #63df1e;
+  -webkit-box-shadow: rgba(0, 255, 0, 0.5) 0px 0px 5px;
+  -webkit-animation-name: glowGreen;
+}
+#connection.disconnected div {
+  background-color: red;
+  -webkit-box-shadow: rgba(255, 0, 0, 0.5) 0px 0px 5px;
+  -webkit-animation-name: glowRed;
+}

@@ -27,6 +27,7 @@
     <script src="/js/messagesocket.js"></script>
     <script src="/js/humanize.js"></script>
     <script src="/js/turbolinks.js"></script>
+    <script src="/js/zepto.js"></script>
     <!-- <script src="/js/Chart.min.js"></script> -->
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -115,7 +116,6 @@
 {{end}}
 
 {{define "footer"}}
-
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
         <a class="nav-item" href="www.dcrdata.org" data-turbolinks="false">dcrdata.org</a>
@@ -126,26 +126,24 @@
     </div>
 </footer>
 <script data-turbolinks-eval="false">
-        var ages = document.getElementsByClassName("age");
-        var hidden_ages = document.querySelectorAll(".hidden.timestamp");
-        for (var i = 0; i < ages.length; i++) {
-            var age_time = new Date(parseInt(hidden_ages[i].innerText));
-            if (hidden_ages[i].innerText == "0") {
-                continue;
+    var ages, hiddenAges;
+    function findTimeElements() {
+        ages = $(".age");
+        hiddenAges = $(".hidden.timestamp");
+    }
+    function updateAges() {
+        $.each(ages, function(i, age) {
+            if (hiddenAges[i].innerText !== "0") {
+                var ageTime = new Date(parseInt(hiddenAges[i].innerText));
+                $(age).text(humanize.timeSince(ageTime))
             }
-            ages[i].innerText = humanize.timeSince(age_time);
-        }
-        function updateTime() {
-            hidden_ages = document.querySelectorAll(".hidden.timestamp");
-            for (var i = 0; i < ages.length; i++) {
-                if (hidden_ages[i].innerText == "0") {
-                    continue;
-                }
-                ages[i].innerText = humanize.timeSince(new Date(parseInt(hidden_ages[i].innerText)));
-            }
-        }
-        document.addEventListener("turbolinks:load", updateTime)
-        setInterval(updateTime, 10000);
+        })
+    }
+    document.addEventListener("turbolinks:load", function(){
+        findTimeElements()
+        updateAges()
+    })
+    setInterval(updateAges, 10000);
 </script>
 {{end}}
 
