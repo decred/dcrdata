@@ -5,10 +5,7 @@
 {{ template "html-head" "Dcrdata Web"}}
 
 <body>
-    <script type="text/javascript">
-        var subsidyToString = function(x, y = 1) {
-            return (x / 100000000 / y) + " DCR"
-        }
+    <script type="text/javascript"  data-turbolinks-eval="false">
 	    var loc = window.location;
         var uri = 'ws:';
         if (loc.protocol === 'https:') {
@@ -70,13 +67,14 @@
                  '<td>' + b.formatted_time + '</td>' +
             '</tr>'
             $(newRow).insertBefore(expTableRows.first())
-            $("#bsubsidy_dev").html(subsidyToString(b.next_block_subsidy.developer))
-            $("#bsubsidy_pos").html(subsidyToString(b.next_block_subsidy.pos, 5))
+            $("#bsubsidy_dev").html(humanize.subsidyToString(b.next_block_subsidy.developer))
+            $("#bsubsidy_pos").html(humanize.subsidyToString(b.next_block_subsidy.pos, 5) + " / ticket")
             $("#bsubsidy_pow").html(b.next_block_subsidy.pow)
             $("#bsubsidy_total").html(b.next_block_subsidy.total)
             $("#coin_supply").html(b.coin_supply)
             $('#blocksdiff').html(b.sdiff.toFixed(4))
             $('#window_block_index').html(newblock.stake.window_block_index)
+            $("#pos-window-progess-bar").css({ width: (newblock.stake.window_block_index/144)*100 + "%" })
         };
 
         ws.registerEvtHandler("newblock", updateBlockData);
@@ -97,11 +95,6 @@
             }
             el.html(msg + '<div></div>')
         }
-
-        // function closeConnection() {
-        //     ws.close();
-        //     updateConnectionStatus('Disconnected', false);
-        // }
     </script>
 
     {{ template "navbar" }}
@@ -138,6 +131,7 @@
                                         <div class="progress" style="max-width: 330px">
                                             <div
                                                 class="progress-bar"
+                                                id="pos-window-progess-bar"
                                                 role="progressbar"
                                                 style="width: {{ticketWindowProgress .StakeSummary.IdxBlockInWindow}}%; background: #2ed8a3;"
                                                 aria-valuenow="{{.StakeSummary.IdxBlockInWindow}}"
@@ -238,16 +232,16 @@
 </body>
 <script>
     var bsdev = document.getElementById("bsubsidy_dev");
-    bsdev.innerHTML = subsidyToString(bsdev.innerHTML);
+    bsdev.innerHTML = humanize.subsidyToString(bsdev.innerHTML);
 
     var bspos = document.getElementById("bsubsidy_pos");
-    bspos.innerHTML = subsidyToString(bspos.innerHTML, 5);
+    bspos.innerHTML = humanize.subsidyToString(bspos.innerHTML, 5);
 
     var bspow = document.getElementById("bsubsidy_pow");
-    bspow.innerHTML = subsidyToString(bspow.innerHTML);
+    bspow.innerHTML = humanize.subsidyToString(bspow.innerHTML);
 
     var bstotal = document.getElementById("bsubsidy_total");
-    bstotal.innerHTML = subsidyToString(bstotal.innerHTML);
+    bstotal.innerHTML = humanize.subsidyToString(bstotal.innerHTML);
 </script>
 </html>
 {{end}}
