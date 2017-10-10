@@ -76,42 +76,48 @@
             return false;
         }
     }
-    var sunToggle = document.getElementById("sun-toggle")
-    var darkBGCookieName = 'dcrdataDarkBG';
     function setCookie(cname, cvalue, exMins) {
         var d = new Date();
         d.setTime(d.getTime() + (exMins*60*1000));
         var expires = "expires="+d.toUTCString();
         document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
     }
+    var sunToggle = document.getElementById("sun-toggle")
+    var darkBGCookieName = 'dcrdataDarkBG';
     function darkEnabled() {
         return document.cookie.includes(darkBGCookieName)
     }
     if (darkEnabled()) {
-        toggleToDarkClasses()
+        toggleToDarkClasses(document.body)
     } else {
-        toggleToLightClasses()
+        toggleToLightClasses(document.body)
     }
-    function toggleToDarkClasses(argument) {
-        sunToggle.classList.remove('dcricon-sun-fill')
-        sunToggle.classList.add('dcricon-sun-stroke')
-        document.body.classList.add('darkBG')
+    function toggleToDarkClasses(body) {
+        $(sunToggle).removeClass('dcricon-sun-fill')
+        $(sunToggle).addClass('dcricon-sun-stroke')
+        $(body).addClass('darkBG')
     }
-    function toggleToLightClasses(argument) {
-        document.body.classList.remove('darkBG');
-        sunToggle.classList.remove('dcricon-sun-stroke')
-        sunToggle.classList.add('dcricon-sun-fill')
+    function toggleToLightClasses(body) {
+        $(body).removeClass('darkBG');
+        $(sunToggle).removeClass('dcricon-sun-stroke')
+        $(sunToggle).addClass('dcricon-sun-fill')
     }
     function toggleSun() {
         if (darkEnabled()) {
             setCookie(darkBGCookieName, '', 0)
-            toggleToLightClasses()
+            toggleToLightClasses(document.body)
         } else {
             setCookie(darkBGCookieName, 1, 525600)
-            toggleToDarkClasses()
+            toggleToDarkClasses(document.body)
         }
     }
-
+    document.addEventListener("turbolinks:before-render", function(event) {
+        if (darkEnabled()) {
+            toggleToDarkClasses(event.data.newBody)
+        } else {
+            toggleToLightClasses(event.data.newBody)
+        }
+    })
 </script>
 {{end}}
 
