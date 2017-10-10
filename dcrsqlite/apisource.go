@@ -880,12 +880,17 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.Vin = inputs
 
 	outputs := make([]explorer.Vout, 0, len(txraw.Vout))
-	for _, vout := range txraw.Vout {
+	for i, vout := range txraw.Vout {
+		txout, err := db.client.GetTxOut(txhash, uint32(i), true)
+		if err != nil {
+			log.Warnf("Failed to determine if tx out is spent for ouput %d of tx %s", i, txid)
+		}
 		outputs = append(outputs, explorer.Vout{
 			Addresses:       vout.ScriptPubKey.Addresses,
 			Amount:          vout.Value,
 			FormattedAmount: humanize.Commaf(vout.Value),
 			Type:            vout.ScriptPubKey.Type,
+			Spent:           txout == nil,
 		})
 	}
 	tx.Vout = outputs

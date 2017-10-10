@@ -137,6 +137,7 @@
                     <th>Address</th>
                     <th class="text-center">Type</th>
                     <th class="text-center">DCR</th>
+                    <th class="text-center">Spent</th>
                 </thead>
                 <tbody>
                     {{range .Vout}}
@@ -153,6 +154,7 @@
                         <td class="text-right">
                             {{template "fancyDCR" (fancyDCR .Amount)}}
                         </td>
+                        <td>{{.Spent}}</td>
                     </tr>
                     {{end}}
                     {{end}}
