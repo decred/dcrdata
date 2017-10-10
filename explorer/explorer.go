@@ -4,6 +4,7 @@
 package explorer
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -292,6 +294,14 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
+		},
+		"fancyDCR": func(v float64) []string {
+			roundedV := fmt.Sprintf("%.8f", v)
+			oldLength := len(roundedV)
+			roundedV = strings.TrimRight(roundedV, "0")
+			trailingZeros := strings.Repeat("0", oldLength-len(roundedV))
+			result := append(make([]string, 0, 2), roundedV, trailingZeros)
+			return result
 		},
 	}
 
