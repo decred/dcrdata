@@ -84,6 +84,7 @@ type Vout struct {
 	Amount          float64
 	FormattedAmount string
 	Type            string
+	Spent           bool
 }
 
 // BlockInfo models data for display on the block page
