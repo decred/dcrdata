@@ -193,7 +193,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	}
 	extrainfo := &apitypes.BlockExplorerExtraInfo{
 		TxLen:            txLen,
-		CoinSupply:       coinSupply.String(),
+		CoinSupply:       int64(coinSupply),
 		NextBlockSubsidy: nbSubsidy,
 	}
 	return blockdata, feeInfoBlock, blockHeaderResults, extrainfo, err

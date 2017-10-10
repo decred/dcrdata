@@ -296,12 +296,25 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 			return t
 		},
 		"fancyDCR": func(v float64) []string {
-			roundedV := fmt.Sprintf("%.8f", v)
-			oldLength := len(roundedV)
-			roundedV = strings.TrimRight(roundedV, "0")
-			trailingZeros := strings.Repeat("0", oldLength-len(roundedV))
-			result := append(make([]string, 0, 2), roundedV, trailingZeros)
+			clipped := fmt.Sprintf("%.8f", v)
+			oldLength := len(clipped)
+			clipped = strings.TrimRight(clipped, "0")
+			trailingZeros := strings.Repeat("0", oldLength-len(clipped))
+			result := append(make([]string, 0, 2), clipped, trailingZeros)
 			return result
+		},
+		"amountAsFloatParts": func(v int64) []string {
+			amt := strconv.FormatInt(v, 10)
+			if len(amt) <= 8 {
+				dec := strings.TrimRight(amt, "0")
+				trailingZeros := strings.Repeat("0", len(amt)-len(dec))
+				leadingZeros := strings.Repeat("0", 8-len(amt))
+				return []string{"0", leadingZeros + dec, trailingZeros}
+			}
+			integer := amt[:len(amt)-8]
+			dec := strings.TrimRight(amt[len(amt)-8:], "0")
+			zeros := strings.Repeat("0", 8-len(dec))
+			return []string{integer, dec, zeros}
 		},
 	}
 
