@@ -24,8 +24,8 @@
                 <p>Transactions:   {{$Transactions}}</p>
                 <p>Current Balance: {{$CurrentBalance}}</p>
                 <p>Unconfirmed: {{$Unconfirmed}}</p>
-                {{if eq $Transactions 2000}}
-                    Currently only the first 2000 transactions are being used.
+                {{if eq $Transactions 500}}
+                    Currently only the first 500 transactions are being used.
                 {{end}}
                 <h5>Transactions</h5>
                 <table class="table table-mono-cells table-sm striped">
