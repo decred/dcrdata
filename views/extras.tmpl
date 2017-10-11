@@ -146,5 +146,5 @@
 </script>
 {{end}}
 
-{{define "fancyDCR"}}{{ index . 0 }}<span class="trailing-zeroes">{{ index . 1 }}</span>{{end}}
-{{define "fancyFloatParts"}}{{ index . 0 }}.<span class="decimal">{{ index . 1 }}<span class="trailing-zeroes">{{ index . 2 }}</span></span>{{end}}
+{{define "floatAndZeroSuffix"}}{{ index . 0 }}<span class="trailing-zeroes">{{ index . 1 }}</span>{{end}}
+{{define "floatPartsAndZeroSuffix"}}{{ index . 0 }}.<span class="decimal">{{ index . 1 }}<span class="trailing-zeroes">{{ index . 2 }}</span></span>{{end}}

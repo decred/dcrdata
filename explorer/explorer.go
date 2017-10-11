@@ -295,7 +295,7 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 			t, _ := time.Now().Zone()
 			return t
 		},
-		"fancyDCR": func(v float64) []string {
+		"float64SplitZeroSuffix": func(v float64) []string {
 			clipped := fmt.Sprintf("%.8f", v)
 			oldLength := len(clipped)
 			clipped = strings.TrimRight(clipped, "0")
