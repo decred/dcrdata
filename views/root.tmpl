@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 
-{{ template "html-head" "Dcrdata Web"}}
+{{ template "html-head" "Decred Block Explorer by dcrdata.org"}}
 
 <body>
         <style>
@@ -271,7 +271,9 @@
                     <table class="mb-3 col">
                         <tr class="h2rem">
                             <td class="text-right pr-2 p03rem0 sm-w151 w142 lh1rem">TOTAL SUPPLY</td>
-                            <td class="fs24 mono lh1rem"><span class="dcr">{{.BlockSummary.CoinSupply}}</span></td>
+                            <td class="fs24 mono lh1rem">
+                                {{template "floatPartsAndZeroSuffix" (amountAsFloatParts .BlockSummary.CoinSupply)}}<span class="pl-1">DCR</span>
+                            </td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET PRICE</td>

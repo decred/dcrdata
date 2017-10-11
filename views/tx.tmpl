@@ -45,7 +45,7 @@
             <table>
                 <tr class="h2rem">
                     <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL SENT</td>
-                    <td class="fs28 mono nowrap"><span class="mr-1">{{template "fancyDCR" (fancyDCR .Total)}}</span><span class="fs18 vam">DCR</span></td>
+                    <td class="fs28 mono nowrap"><span class="mr-1">{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .Total)}}</span><span class="fs18 vam">DCR</span></td>
                 </tr>
                 <tr>
                     <td class="text-right pr-2">TIME</td>
@@ -123,7 +123,7 @@
                             <a href="/explorer/block/{{.BlockHeight}}">{{.BlockHeight}}</a>
                         {{end}}
                         </td>
-                        <td class="mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{template "fancyDCR" (fancyDCR .AmountIn)}} {{end}}</td>
+                        <td class="mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{template "floatAndZeroSuffix" (float64SplitZeroSuffix .AmountIn)}} {{end}}</td>
 
                     </tr>
                     {{end}}
@@ -152,7 +152,7 @@
 				            {{.Type}}
                         </td>
                         <td class="text-right">
-                            {{template "fancyDCR" (fancyDCR .Amount)}}
+                            {{template "floatAndZeroSuffix" (float64SplitZeroSuffix .Amount)}}
                         </td>
                         <td>{{.Spent}}</td>
                     </tr>
