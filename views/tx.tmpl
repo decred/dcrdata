@@ -156,12 +156,15 @@
                     <th class="text-center">Spent</th>
                 </thead>
                 <tbody>
-                    {{range .Vout}}
-                    {{ if ne .Amount 0.0}}
+                    {{range .Vout}} 
                     <tr>
                         <td class="break-word">
-                            {{range .Addresses}}
-                                <a class="mono address" href="/explorer/address/{{.}}">{{.}}</a><br>
+                            {{if ne .Amount 0.0}}
+                                {{range .Addresses}}
+                                    <a class="mono address" href="/explorer/address/{{.}}">{{.}}</a><br>
+                                {{end}}
+                            {{else}}
+                                    <a class="mono address">{{.OP_RETURN}}</a>
                             {{end}}
                         </td>
                         <td>
@@ -172,7 +175,6 @@
                         </td>
                         <td>{{.Spent}}</td>
                     </tr>
-                    {{end}}
                     {{end}}
                 </tbody>
             </table>

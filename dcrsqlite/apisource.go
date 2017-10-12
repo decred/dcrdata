@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -886,10 +887,15 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		if err != nil {
 			log.Warnf("Failed to determine if tx out is spent for ouput %d of tx %s", i, txid)
 		}
+		var opReturn string
+		if strings.Contains(vout.ScriptPubKey.Asm, "OP_RETURN") {
+			opReturn = vout.ScriptPubKey.Asm
+		}
 		outputs = append(outputs, explorer.Vout{
 			Addresses:       vout.ScriptPubKey.Addresses,
 			Amount:          vout.Value,
 			FormattedAmount: humanize.Commaf(vout.Value),
+			OP_RETURN:       opReturn,
 			Type:            vout.ScriptPubKey.Type,
 			Spent:           txout == nil,
 		})
