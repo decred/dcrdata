@@ -278,7 +278,7 @@ type BlockExplorerBasic struct {
 type BlockExplorerExtraInfo struct {
 	TxLen            int                            `json:"tx"`
 	FormattedTime    string                         `json:"formatted_time"`
-	CoinSupply       string                         `json:"coin_supply"`
+	CoinSupply       int64                          `json:"coin_supply"`
 	NextBlockSubsidy *dcrjson.GetBlockSubsidyResult `json:"next_block_subsidy"`
 }
 

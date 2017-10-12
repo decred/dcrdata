@@ -93,6 +93,19 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 			p := (float64(i) / 144) * 100
 			return p
 		},
+		"amountAsFloatParts": func(v int64) []string {
+			amt := strconv.FormatInt(v, 10)
+			if len(amt) <= 8 {
+				dec := strings.TrimRight(amt, "0")
+				trailingZeros := strings.Repeat("0", len(amt)-len(dec))
+				leadingZeros := strings.Repeat("0", 8-len(amt))
+				return []string{"0", leadingZeros + dec, trailingZeros}
+			}
+			integer := amt[:len(amt)-8]
+			dec := strings.TrimRight(amt[len(amt)-8:], "0")
+			zeros := strings.Repeat("0", 8-len(dec))
+			return []string{integer, dec, zeros}
+		},
 	}
 	tmpl, err := template.New("home").Funcs(helpers).ParseFiles(fp, efp)
 	if err != nil {
