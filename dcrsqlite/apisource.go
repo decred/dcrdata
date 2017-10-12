@@ -880,7 +880,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	}
 	tx.Vin = inputs
 	tx.TicketMature = db.GetBestBlockHeight() >= (int64(db.params.TicketMaturity) + tx.BlockHeight)
-	tx.VoteFundsLocked = tx.Confirmations < 256
+	tx.VoteFundsLocked = tx.Confirmations < int64(db.params.CoinbaseMaturity)
 	outputs := make([]explorer.Vout, 0, len(txraw.Vout))
 	for i, vout := range txraw.Vout {
 		txout, err := db.client.GetTxOut(txhash, uint32(i), true)
