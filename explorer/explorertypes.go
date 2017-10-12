@@ -45,15 +45,16 @@ type AddressTx struct {
 // TxInfo models data needed for display on the tx page
 type TxInfo struct {
 	*TxBasic
-	Type          string
-	Vin           []Vin
-	Vout          []Vout
-	BlockHeight   int64
-	BlockIndex    uint32
-	Confirmations int64
-	Time          int64
-	FormattedTime string
-	TicketMature  bool
+	Type            string
+	Vin             []Vin
+	Vout            []Vout
+	BlockHeight     int64
+	BlockIndex      uint32
+	Confirmations   int64
+	Time            int64
+	FormattedTime   string
+	TicketMature    bool
+	VoteFundsLocked bool
 }
 
 // VoteInfo models data about a SSGen transaction (vote)

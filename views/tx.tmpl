@@ -46,6 +46,14 @@
                     </td>
                 </tr>
                 {{end}}
+                {{if eq .Type "Vote"}}
+                <tr>
+                    <td class="text-right pr-2 h1rem p03rem0">Funds locked?</td>
+                    <td>
+                        {{.VoteFundsLocked}}
+                    </td>
+                </tr>
+                {{end}}
             </table>
         </div>
         <div class="col-md-4 col-sm-6 d-flex">
