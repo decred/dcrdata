@@ -8,6 +8,9 @@ var humanize = (function() {
     return Math.round(value * multiplier) / multiplier
   }
   return {
+    subsidyToString:  function(x, y = 1) {
+      return (x / 100000000 / y) + " DCR"
+    },
     bytes: function(s) { // from go-humanize
       var sizes = ["B", "kB", "MB", "GB", "TB", "PB", "EB"]
       if (s < 10) {

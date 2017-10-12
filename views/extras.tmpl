@@ -19,12 +19,15 @@
     <meta name="msapplication-TileColor" content="#2973ff">
     <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png">
     <meta name="msapplication-config" content="/images/favicon/browserconfig.xml">
+    <meta name="turbolinks-cache-control" content="no-cache">    
     <title>{{.}}</title>
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
     <script src="/js/messagesocket.js"></script>
     <script src="/js/humanize.js"></script>
+    <script src="/js/turbolinks.js"></script>
+    <script src="/js/zepto.js"></script>
     <!-- <script src="/js/Chart.min.js"></script> -->
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -64,7 +67,7 @@
         </div>
     </div>
 </div>
-<script>
+<script data-turbolinks-eval="false">
     document.getElementById('search').onkeypress = function(e){
         if (!e) e = window.event;
         var keyCode = e.keyCode || e.which;
@@ -73,76 +76,80 @@
             return false;
         }
     }
-    var sunToggle = document.getElementById("sun-toggle")
-    var darkBGCookieName = 'dcrdataDarkBG';
     function setCookie(cname, cvalue, exMins) {
         var d = new Date();
         d.setTime(d.getTime() + (exMins*60*1000));
         var expires = "expires="+d.toUTCString();
         document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
     }
+    var sunToggle = document.getElementById("sun-toggle")
+    var darkBGCookieName = 'dcrdataDarkBG';
     function darkEnabled() {
         return document.cookie.includes(darkBGCookieName)
     }
     if (darkEnabled()) {
-        toggleToDarkClasses()
+        toggleToDarkClasses(document.body)
     } else {
-        toggleToLightClasses()
+        toggleToLightClasses(document.body)
     }
-    function toggleToDarkClasses(argument) {
-        sunToggle.classList.remove('dcricon-sun-fill')
-        sunToggle.classList.add('dcricon-sun-stroke')
-        document.body.classList.add('darkBG')
+    function toggleToDarkClasses(body) {
+        $(sunToggle).removeClass('dcricon-sun-fill')
+        $(sunToggle).addClass('dcricon-sun-stroke')
+        $(body).addClass('darkBG')
     }
-    function toggleToLightClasses(argument) {
-        document.body.classList.remove('darkBG');
-        sunToggle.classList.remove('dcricon-sun-stroke')
-        sunToggle.classList.add('dcricon-sun-fill')
+    function toggleToLightClasses(body) {
+        $(body).removeClass('darkBG');
+        $(sunToggle).removeClass('dcricon-sun-stroke')
+        $(sunToggle).addClass('dcricon-sun-fill')
     }
     function toggleSun() {
         if (darkEnabled()) {
             setCookie(darkBGCookieName, '', 0)
-            toggleToLightClasses()
+            toggleToLightClasses(document.body)
         } else {
             setCookie(darkBGCookieName, 1, 525600)
-            toggleToDarkClasses()
+            toggleToDarkClasses(document.body)
         }
     }
-
+    document.addEventListener("turbolinks:before-render", function(event) {
+        if (darkEnabled()) {
+            toggleToDarkClasses(event.data.newBody)
+        } else {
+            toggleToLightClasses(event.data.newBody)
+        }
+    })
 </script>
 {{end}}
 
 {{define "footer"}}
-
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
-        <a class="nav-item" href="www.dcrdata.org">dcrdata.org</a>
+        <a class="nav-item" href="www.dcrdata.org" data-turbolinks="false">dcrdata.org</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
-        <a class="nav-item" href="/api/status" title="API Status" target="_blank">Status</a>
+        <a class="nav-item" href="/api/status" title="API Status" target="_blank" data-turbolinks="false">Status</a>
         <span class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
     </div>
 </footer>
-<script>
-        var ages = document.getElementsByClassName("age");
-        var hidden_ages = document.querySelectorAll(".hidden.timestamp");
-        for (var i = 0; i < ages.length; i++) {
-            var age_time = new Date(parseInt(hidden_ages[i].innerText));
-            if (hidden_ages[i].innerText == "0") {
-                continue;
+<script data-turbolinks-eval="false">
+    var ages, hiddenAges;
+    function findTimeElements() {
+        ages = $(".age");
+        hiddenAges = $(".hidden.timestamp");
+    }
+    function updateAges() {
+        $.each(ages, function(i, age) {
+            if (hiddenAges[i].innerText !== "0") {
+                var ageTime = new Date(parseInt(hiddenAges[i].innerText));
+                $(age).text(humanize.timeSince(ageTime))
             }
-            ages[i].innerText = humanize.timeSince(age_time);
-        }
-        function updateTime() {
-            hidden_ages = document.querySelectorAll(".hidden.timestamp");
-            for (var i = 0; i < ages.length; i++) {
-                if (hidden_ages[i].innerText == "0") {
-                    continue;
-                }
-                ages[i].innerText = humanize.timeSince(new Date(parseInt(hidden_ages[i].innerText)));
-            }
-        }
-        setInterval(updateTime, 10000);
+        })
+    }
+    document.addEventListener("turbolinks:load", function(){
+        findTimeElements()
+        updateAges()
+    })
+    setInterval(updateAges, 10000);
 </script>
 {{end}}
 

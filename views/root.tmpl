@@ -5,89 +5,7 @@
 {{ template "html-head" "Decred Block Explorer by dcrdata.org"}}
 
 <body>
-        <style>
-                .wrapper {
-                    width: 60%;
-                    min-width: 360px;
-                }
-                .navbar-default .navbar-nav > .open > a, .navbar-default .navbar-nav > .open > a:hover, .navbar-default .navbar-nav > .open > a:focus {
-                    background: black;
-                }
-                    /* Notice: Portions of the connection indicator style come from html5rocks.com */
-                    @-webkit-keyframes glowGreen {
-                        from {
-                            -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
-                        }
-                        50% {
-                            -webkit-box-shadow: rgba(0, 255, 0, 1) 0 0 10px;
-                        }
-                        to {
-                            -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
-                        }
-                    }
-                    @-webkit-keyframes glowRed {
-                        from {
-                            -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
-                        }
-                        50% {
-                            -webkit-box-shadow: rgba(255, 0, 0, 1) 0 0 10px;
-                        }
-                        to {
-                            -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
-                        }
-                    }
-                    #connection {
-                        top: -1px;
-                        font: 12px sans-serif;
-                        font-weight: bold;
-                        vertical-align: middle;
-                        color: silver;
-                    }
-                    #connection div {
-                        background-color: orange;
-                        width: 10px;
-                        height: 10px;
-                        display: inline-block;
-                        border-radius: 10px;
-                        margin-left: 5px;
-                        -webkit-animation-duration: 2s;
-                        -webkit-animation-iteration-count: infinite;
-                        -webkit-animation-timing-function: linear;
-                    }
-                    #connection.connected div {
-                        background-color: #63df1e;
-                        -webkit-box-shadow: rgba(0, 255, 0, 0.5) 0px 0px 5px;
-                        -webkit-animation-name: glowGreen;
-                    }
-                    #connection.disconnected div {
-                        background-color: red;
-                        -webkit-box-shadow: rgba(255, 0, 0, 0.5) 0px 0px 5px;
-                        -webkit-animation-name: glowRed;
-                    }
-            </style>
-    <script type="text/javascript">
-        if (!window.DOMTokenList) {
-            Element.prototype.containsClass = function(name) {
-                return new RegExp("(?:^|\\s+)" + name + "(?:\\s+|$)").test(this.className);
-            };
-            Element.prototype.addClass = function(name) {
-                if (!this.containsClass(name)) {
-                var c = this.className;
-                this.className = c ? [c, name].join(' ') : name;
-                }
-            };
-            Element.prototype.removeClass = function(name) {
-                if (this.containsClass(name)) {
-                var c = this.className;
-                this.className = c.replace(
-                    new RegExp("(?:^|\\s+)" + name + "(?:\\s+|$)", "g"), "");
-                }
-            };
-        }
-
-        var subsidyToString = function(x, y = 1) {
-            return (x / 100000000 / y) + " DCR"
-        }
+    <script type="text/javascript"  data-turbolinks-eval="false">
 	    var loc = window.location;
         var uri = 'ws:';
         if (loc.protocol === 'https:') {
@@ -123,9 +41,7 @@
             var m = JSON.parse(event);
 
             //mempool fee info
-            var number = document.getElementById('mempoolfeeinfo_number');
-            number.innerHTML = String(m.number);
-
+            $('#mempoolfeeinfo_number').html(m.number)
         };
 
         ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
@@ -136,84 +52,29 @@
 
             // block summary data
             var b = newblock.block;
-            var expTable = document.getElementById('explorertable');
-            expTable.deleteRow(6);
-
-            var newRow = expTable.insertRow(1);
-            newRow.id = String(b.height);
-
-            var height = newRow.insertCell();
-            if (height.classList) {
-                height.classList.add('fs18');
-            } else {
-                height.addClass('fs18');
-            }
-            var heightlink = document.createElement("A");
-
-            heightlink.href = "/explorer/block/"+String(b.height);
-            height.appendChild(heightlink);
-            heightlink.innerHTML = b.height;
-
-            var votes = newRow.insertCell();
-            votes.innerHTML = b.votes;
-
-            var tickets = newRow.insertCell();
-            tickets.innerHTML = b.tickets;
-
-            var tx = newRow.insertCell();
-            tx.innerHTML = b.tx;
-
-            var revocations = newRow.insertCell();
-            revocations.innerHTML = b.revocations;
-
-            var size = newRow.insertCell();
-            size.innerHTML = humanize.bytes(b.size);
-
-            var age = newRow.insertCell();
-            age.className = "age";
-            age.innerHTML = humanize.timeSince(b.time);
-
-            var h_age = newRow.insertCell();
-            h_age.className = "hidden";
-            h_age.innerHTML = b.time;
-
-            var blocksubsidy = b.next_block_subsidy;
-
-            var bsdev = document.getElementById("bsubsidy_dev");
-            bsdev.innerHTML = subsidyToString(blocksubsidy.developer);
-
-            var bspos = document.getElementById("bsubsidy_pos");
-            bspos.innerHTML = subsidyToString(blocksubsidy.pos, 5);
-
-            var bspow = document.getElementById("bsubsidy_pow");
-            bspow.innerHTML = subsidyToString(blocksubsidy.pow);
-
-            var bstotal = document.getElementById("bsubsidy_total");
-            bstotal.innerHTML = subsidyToString(blocksubsidy.total);
-
-            var coin_supply = b.coin_supply;
-
-            var csupply = document.getElementById("coin_supply");
-            csupply.innerHTML = coin_supply;
-
-            var time = newRow.insertCell();
-            time.innerHTML = b.formatted_time;
-
-            var sdiff = document.getElementById('blocksdiff');
-            sdiff.innerHTML = b.sdiff.toFixed(4);
-
-            // stake
-            var s = newblock.stake;
-
-            // var sdiffcurrent = document.getElementById('blocksdiff');
-            // sdiffcurrent.innerHTML = String(s.stakediff.current);
-            // var sdiffnext = document.getElementById('blocksdiffnext');
-            // sdiffnext.innerHTML = String(s.next);
-
-            var window_block_index = document.getElementById('window_block_index');
-            window_block_index.innerHTML = String(s.window_block_index);
-
-
+            var expTableRows = $('#explorertable tbody tr');
+            if (!expTableRows) return
+            expTableRows.last().remove()
+            var newRow = '<tr id="' + b.height + '">' +
+                 '<td><a href="/explorer/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
+                 '<td>' + b.tx + '</td>' +
+                 '<td>' + b.votes + '</td>' +
+                 '<td>' + b.tickets + '</td>' +
+                 '<td>' + b.revocations + '</td>' +
+                 '<td>' + humanize.bytes(b.size) + '</td>' +
+                 '<td class="age">' + humanize.timeSince(b.time) + '</td>' +
+                 '<td class="hidden timestamp">' + b.time + '</td>' +
+                 '<td>' + b.formatted_time + '</td>' +
+            '</tr>'
+            $(newRow).insertBefore(expTableRows.first())
+            $("#bsubsidy_dev").html(humanize.subsidyToString(b.next_block_subsidy.developer))
+            $("#bsubsidy_pos").html(humanize.subsidyToString(b.next_block_subsidy.pos, 5) + " / ticket")
+            $("#bsubsidy_pow").html(b.next_block_subsidy.pow)
+            $("#bsubsidy_total").html(b.next_block_subsidy.total)
+            $("#coin_supply").html(b.coin_supply)
+            $('#blocksdiff').html(b.sdiff.toFixed(4))
+            $('#window_block_index').html(newblock.stake.window_block_index)
+            $("#pos-window-progess-bar").css({ width: (newblock.stake.window_block_index/144)*100 + "%" })
         };
 
         ws.registerEvtHandler("newblock", updateBlockData);
@@ -223,36 +84,17 @@
         }, 1000);
 
 	    function updateConnectionStatus(msg, connected) {
-            var el = document.getElementById('connection');
-            if (el.classList) {
-                el.classList.remove('hidden');
-            } else {
-                el.removeClass('hidden');
-            }
+            var el = $('#connection');
+            el.removeClass('hidden')
             if (connected) {
-                if (el.classList) {
-                    el.classList.add('connected');
-                    el.classList.remove('disconnected');
-                } else {
-                    el.addClass('connected');
-                    el.removeClass('disconnected');
-                }
+                el.addClass('connected')
+                el.removeClass('disconnected')
             } else {
-                if (el.classList) {
-                    el.classList.remove('connected');
-                    el.classList.add('disconnected');
-                } else {
-                    el.removeClass('connected');
-                    el.addClass('disconnected');
-                }
+                el.removeClass('connected');
+                el.addClass('disconnected');
             }
-            el.innerHTML = msg + '<div></div>';
+            el.html(msg + '<div></div>')
         }
-
-        // function closeConnection() {
-        //     ws.close();
-        //     updateConnectionStatus('Disconnected', false);
-        // }
     </script>
 
     {{ template "navbar" }}
@@ -291,11 +133,12 @@
                                         <div class="progress" style="max-width: 330px">
                                             <div
                                                 class="progress-bar"
+                                                id="pos-window-progess-bar"
                                                 role="progressbar"
                                                 style="width: {{ticketWindowProgress .StakeSummary.IdxBlockInWindow}}%; background: #2ed8a3;"
-                                                aria-valuenow="25"
+                                                aria-valuenow="{{.StakeSummary.IdxBlockInWindow}}"
                                                 aria-valuemin="0"
-                                                aria-valuemax="100"
+                                                aria-valuemax="144"
                                             >
                                             <span id="blocksdiff" style="color:#383b41" class="nowrap pl-1"><span id="window_block_index" >block {{.StakeSummary.IdxBlockInWindow}}</span> of 144</span>
                                             </div>
@@ -391,16 +234,16 @@
 </body>
 <script>
     var bsdev = document.getElementById("bsubsidy_dev");
-    bsdev.innerHTML = subsidyToString(bsdev.innerHTML);
+    bsdev.innerHTML = humanize.subsidyToString(bsdev.innerHTML);
 
     var bspos = document.getElementById("bsubsidy_pos");
-    bspos.innerHTML = subsidyToString(bspos.innerHTML, 5);
+    bspos.innerHTML = humanize.subsidyToString(bspos.innerHTML, 5);
 
     var bspow = document.getElementById("bsubsidy_pow");
-    bspow.innerHTML = subsidyToString(bspow.innerHTML);
+    bspow.innerHTML = humanize.subsidyToString(bspow.innerHTML);
 
     var bstotal = document.getElementById("bsubsidy_total");
-    bstotal.innerHTML = subsidyToString(bstotal.innerHTML);
+    bstotal.innerHTML = humanize.subsidyToString(bstotal.innerHTML);
 </script>
 </html>
 {{end}}
