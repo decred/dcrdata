@@ -53,6 +53,7 @@ type TxInfo struct {
 	Confirmations int64
 	Time          int64
 	FormattedTime string
+	TicketMature  bool
 }
 
 // VoteInfo models data about a SSGen transaction (vote)

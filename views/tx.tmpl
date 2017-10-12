@@ -38,6 +38,14 @@
                         {{.Type}}
                     </td>
                 </tr>
+                {{if eq .Type "Ticket"}}
+                <tr>
+                    <td class="text-right pr-2 h1rem p03rem0">Mature</td>
+                    <td>
+                        {{.TicketMature}}
+                    </td>
+                </tr>
+                {{end}}
             </table>
         </div>
         <div class="col-md-4 col-sm-6 d-flex">
