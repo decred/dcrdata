@@ -22,10 +22,9 @@ var humanize = (function() {
       var precision = (val < 10) ? 1 : 0
       return round(val,precision) + " " + suffix
     },
-    timeSince: function(date) {
-      var seconds = Math.floor(((new Date().getTime()/1000) - date))
+    timeSince: function(unixTime) {
+      var seconds = Math.floor(((new Date().getTime()/1000) - unixTime))
       var interval = Math.floor(seconds / 31536000);
-
       if (interval >= 1) {
         var extra = Math.floor((seconds - interval * 31536000) / 2592000)
         var result = interval + "y"

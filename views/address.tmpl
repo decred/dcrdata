@@ -35,13 +35,12 @@
                                     {{.FormattedTime}}
                                 {{end}}
                             </td>
-                            <td class="age">{{if eq .Time 0}}
+                            <td>{{if eq .Time 0}}
                                 N/A
                             {{else}}
-                                {{.Time}}
+                                <span data-age="{{.Time}}"></span>
                             {{end}}
                             </td>
-                            <td class="hidden timestamp">{{.Time}}</td>
                             <td>{{.Confirmations}}</td>
                             <td>{{.FormattedSize}}</td>
                         </tr>

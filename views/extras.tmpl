@@ -124,7 +124,6 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
-        <a class="nav-item" href="www.dcrdata.org" data-turbolinks="false">dcrdata.org</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
         <a class="nav-item" href="/api/status" title="API Status" target="_blank" data-turbolinks="false">Status</a>
@@ -133,20 +132,21 @@
 </footer>
 <script data-turbolinks-eval="false">
     var ages, hiddenAges;
-    function findTimeElements() {
-        ages = $(".age");
-        hiddenAges = $(".hidden.timestamp");
+    function setTimeElements() {
+        ages = $('[data-age]');
     }
     function updateAges() {
         $.each(ages, function(i, age) {
-            if (hiddenAges[i].innerText !== "0") {
-                var ageTime = new Date(parseInt(hiddenAges[i].innerText));
-                $(age).text(humanize.timeSince(ageTime))
+            var unixTime = $(age).data('age');
+            if (unixTime > 0) {
+                $(age).text(
+                    humanize.timeSince($(age).data('age'))
+                )
             }
         })
     }
     document.addEventListener("turbolinks:load", function(){
-        findTimeElements()
+        setTimeElements()
         updateAges()
     })
     setInterval(updateAges, 10000);
