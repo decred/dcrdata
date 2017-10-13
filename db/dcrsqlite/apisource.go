@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dcrdata/dcrdata/db/dbtypes"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/explorer"
 	"github.com/dcrdata/dcrdata/mempool"
@@ -94,14 +95,29 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
 	return db.resyncDB(quit)
 }
 
-func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) error {
+// SyncDBAsync is like SyncDBWithPoolValue except it also takes a result channel
+// where the caller should wait to receive the result. As such, this method
+// should be called as a gorouine.
+func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
+	quit chan struct{}) {
+	// hack around the old waitgroup input
+	var wg sync.WaitGroup
+	wg.Add(1)
+	height, err := db.SyncDBWithPoolValue(&wg, quit)
+	res <- dbtypes.SyncResult{
+		Height: height,
+		Error:  err,
+	}
+}
+
+func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) (int64, error) {
 	defer wg.Done()
 	var err error
 	if err = db.Ping(); err != nil {
-		return err
+		return int64(db.GetHeight()), err
 	}
 	if err = db.client.Ping(); err != nil {
-		return err
+		return int64(db.GetHeight()), err
 	}
 
 	return db.resyncDBWithPoolValue(quit)

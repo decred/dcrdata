@@ -50,8 +50,8 @@ const (
 		vout_db_ids INT8[]
 	);`
 
-	SelectTxByHash       = `SELECT id, block_hash FROM transactions WHERE tx_hash = $1;`
-	SelectTxsByBlockHash = `SELECT id, tx_hash FROM transactions WHERE block_hash = $1;`
+	SelectTxByHash       = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1;`
+	SelectTxsByBlockHash = `SELECT id, tx_hash, block_index FROM transactions WHERE block_hash = $1;`
 
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX uix_tx_block_in
 		ON transactions(block_hash, block_index, tree)

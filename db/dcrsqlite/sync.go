@@ -129,11 +129,11 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 	return nil
 }
 
-func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
+func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 	// Get chain servers's best block
 	_, height, err := db.client.GetBestBlock()
 	if err != nil {
-		return fmt.Errorf("GetBestBlock failed: %v", err)
+		return -1, fmt.Errorf("GetBestBlock failed: %v", err)
 	}
 
 	// Time this function
@@ -149,7 +149,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 
 	// Create a new database to store the accepted stake node data into.
 	if db.sDB == nil || db.sDB.BestNode == nil {
-		return fmt.Errorf("Cannot resync without the stake DB")
+		return -1, fmt.Errorf("Cannot resync without the stake DB")
 	}
 	bestNodeHeight := int64(db.sDB.Height())
 
@@ -175,7 +175,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			// }); err != nil {
 			// 	return err
 			// }
-			return fmt.Errorf("delete stake db (ffldb_stake) and try again")
+			return -1, fmt.Errorf("delete stake db (ffldb_stake) and try again")
 		}
 		log.Infof("Rewinding stake node from %d to %d", bestNodeHeight, startHeight)
 		// rewind best node in ticket db
@@ -184,11 +184,11 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 			select {
 			case <-quit:
 				log.Infof("Rewind cancelled at height %d.", bestNodeHeight)
-				return nil
+				return startHeight, nil
 			default:
 			}
 			if err = db.sDB.DisconnectBlock(); err != nil {
-				return err
+				return startHeight, err
 			}
 			bestNodeHeight = int64(db.sDB.Height())
 			log.Infof("Stake db now at height %d.", bestNodeHeight)
@@ -208,7 +208,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		if minBlocksToCheck < 0 {
 			log.Warn("Chain server behind DBs!")
 		}
-		return nil
+		return startHeight, nil
 	}
 
 	// Start at next block we don't have in every DB
@@ -222,13 +222,13 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		select {
 		case <-quit:
 			log.Infof("Rescan cancelled at height %d.", i)
-			return nil
+			return i - 1, nil
 		default:
 		}
 
 		block, blockhash, err := db.getBlock(i)
 		if err != nil {
-			return fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
+			return i - 1, fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
 		}
 
 		if i > bestNodeHeight {
@@ -236,7 +236,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", i, db.sDB.Height()))
 			}
 			if err = db.sDB.ConnectBlock(block); err != nil {
-				return err
+				return i - 1, err
 			}
 		}
 
@@ -281,14 +281,14 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 
 		if i > bestBlockHeight {
 			if err = db.StoreBlockSummary(&blockSummary); err != nil {
-				return fmt.Errorf("Unable to store block summary in database: %v", err)
+				return i - 1, fmt.Errorf("Unable to store block summary in database: %v", err)
 			}
 		}
 
 		if i <= bestStakeHeight {
 			// update height, the end condition for the loop
 			if _, height, err = db.client.GetBestBlock(); err != nil {
-				return fmt.Errorf("GetBestBlock failed: %v", err)
+				return i - 1, fmt.Errorf("GetBestBlock failed: %v", err)
 			}
 			continue
 		}
@@ -299,7 +299,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		// Ticket fee info
 		fib := txhelpers.FeeRateInfoBlock(block)
 		if fib == nil {
-			return fmt.Errorf("FeeRateInfoBlock failed")
+			return i - 1, fmt.Errorf("FeeRateInfoBlock failed")
 		}
 		si.Feeinfo = *fib
 
@@ -312,18 +312,18 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		si.PoolInfo = blockSummary.PoolInfo
 
 		if err = db.StoreStakeInfoExtended(&si); err != nil {
-			return fmt.Errorf("Unable to store stake info in database: %v", err)
+			return i - 1, fmt.Errorf("Unable to store stake info in database: %v", err)
 		}
 
 		// update height, the end condition for the loop
 		if _, height, err = db.client.GetBestBlock(); err != nil {
-			return fmt.Errorf("GetBestBlock failed: %v", err)
+			return i, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 	}
 
 	log.Infof("Rescan finished successfully at height %d.", height)
 
-	return nil
+	return height, nil
 }
 
 func (db *wiredDB) getBlock(ind int64) (*dcrutil.Block, *chainhash.Hash, error) {

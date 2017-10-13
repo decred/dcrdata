@@ -11,6 +11,7 @@ import (
 	"github.com/btcsuite/btclog"
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/decred/dcrd/wire"
 	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 
@@ -180,7 +181,7 @@ type DBDataSaver struct {
 }
 
 // Store satisfies the blockdata.BlockDataSaver interface
-func (db *DBDataSaver) Store(data *blockdata.BlockData) error {
+func (db *DBDataSaver) Store(data *blockdata.BlockData, _ *wire.MsgBlock) error {
 	summary := data.ToBlockSummary()
 	err := db.DB.StoreBlockSummary(&summary)
 	if err != nil {

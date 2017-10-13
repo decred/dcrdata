@@ -14,6 +14,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 )
@@ -113,7 +114,7 @@ func NewCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Params,
 // CollectAPITypes uses CollectBlockInfo to collect block data, then organizes
 // it into the BlockDataBasic and StakeInfoExtended and dcrdataapi types.
 func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBasic, *apitypes.StakeInfoExtended) {
-	blockDataBasic, feeInfoBlock, _, _, err := t.CollectBlockInfo(hash)
+	blockDataBasic, feeInfoBlock, _, _, _, err := t.CollectBlockInfo(hash)
 	if err != nil {
 		return nil, nil
 	}
@@ -136,10 +137,11 @@ func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBa
 // the block data required by Collect() that is specific to the block with the
 // given hash.
 func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
-	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult, *apitypes.BlockExplorerExtraInfo, error) {
+	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult,
+	*apitypes.BlockExplorerExtraInfo, *wire.MsgBlock, error) {
 	msgBlock, err := t.dcrdChainSvr.GetBlock(hash)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	height := msgBlock.Header.Height
 	block := dcrutil.NewBlock(msgBlock)
@@ -178,7 +180,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 
 	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(hash)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 
 	// Output
@@ -196,11 +198,11 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 		CoinSupply:       int64(coinSupply),
 		NextBlockSubsidy: nbSubsidy,
 	}
-	return blockdata, feeInfoBlock, blockHeaderResults, extrainfo, err
+	return blockdata, feeInfoBlock, blockHeaderResults, extrainfo, msgBlock, err
 }
 
 // CollectHash collects chain data at the block with the specified hash.
-func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, error) {
+func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBlock, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -212,9 +214,9 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, error) {
 	}(time.Now())
 
 	// Info specific to the block hash
-	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, err := t.CollectBlockInfo(hash)
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, msgBlock, err := t.CollectBlockInfo(hash)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Number of peer connection to chain server
@@ -238,11 +240,11 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, error) {
 		IdxBlockInWindow: int(height%winSize) + 1,
 	}
 
-	return blockdata, err
+	return blockdata, msgBlock, err
 }
 
 // Collect collects chain data at the current best block.
-func (t *Collector) Collect() (*BlockData, error) {
+func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -271,13 +273,13 @@ func (t *Collector) Collect() (*BlockData, error) {
 	case bbs = <-toch:
 	case <-time.After(time.Second * 10):
 		log.Errorf("Timeout waiting for dcrd.")
-		return nil, errors.New("Timeout")
+		return nil, nil, errors.New("Timeout")
 	}
 
 	// Stake difficulty
 	stakeDiff, err := t.dcrdChainSvr.GetStakeDifficulty()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// estimatestakediff
@@ -288,9 +290,9 @@ func (t *Collector) Collect() (*BlockData, error) {
 	}
 
 	// Info specific to the block hash
-	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, err := t.CollectBlockInfo(bbs.hash)
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, msgBlock, err := t.CollectBlockInfo(bbs.hash)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Number of peer connection to chain server
@@ -314,5 +316,5 @@ func (t *Collector) Collect() (*BlockData, error) {
 		IdxBlockInWindow: int(height%winSize) + 1,
 	}
 
-	return blockdata, err
+	return blockdata, msgBlock, err
 }

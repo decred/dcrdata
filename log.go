@@ -11,6 +11,7 @@ import (
 
 	"github.com/btcsuite/btclog"
 	"github.com/dcrdata/dcrdata/blockdata"
+	"github.com/dcrdata/dcrdata/db/dcrpg"
 	"github.com/dcrdata/dcrdata/db/dcrsqlite"
 	"github.com/dcrdata/dcrdata/explorer"
 	"github.com/dcrdata/dcrdata/mempool"
@@ -48,19 +49,21 @@ var (
 	// application shutdown.
 	logRotator *rotator.Rotator
 
-	sqliteLog    = backendLog.Logger("DSQL")
-	stakedbLog   = backendLog.Logger("SKDB")
-	blockdataLog = backendLog.Logger("BLKD")
-	clientLog    = backendLog.Logger("RPCC")
-	mempoolLog   = backendLog.Logger("MEMP")
-	expLog       = backendLog.Logger("EXPR")
-	apiLog       = backendLog.Logger("JAPI")
-	log          = backendLog.Logger("DATD")
+	sqliteLog     = backendLog.Logger("SQLT")
+	postgresqlLog = backendLog.Logger("PSQL")
+	stakedbLog    = backendLog.Logger("SKDB")
+	blockdataLog  = backendLog.Logger("BLKD")
+	clientLog     = backendLog.Logger("RPCC")
+	mempoolLog    = backendLog.Logger("MEMP")
+	expLog        = backendLog.Logger("EXPR")
+	apiLog        = backendLog.Logger("JAPI")
+	log           = backendLog.Logger("DATD")
 )
 
 // Initialize package-global logger variables.
 func init() {
 	dcrsqlite.UseLogger(sqliteLog)
+	dcrpg.UseLogger(postgresqlLog)
 	stakedb.UseLogger(stakedbLog)
 	blockdata.UseLogger(blockdataLog)
 	rpcclient.UseLogger(clientLog)
@@ -71,7 +74,8 @@ func init() {
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]btclog.Logger{
-	"DSQL": sqliteLog,
+	"SQLT": sqliteLog,
+	"PSQL": postgresqlLog,
 	"SKDB": stakedbLog,
 	"BLKD": blockdataLog,
 	"RPCC": clientLog,

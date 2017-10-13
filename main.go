@@ -4,15 +4,20 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime/pprof"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/dcrdata/dcrdata/blockdata"
+	"github.com/dcrdata/dcrdata/db/dbtypes"
+	"github.com/dcrdata/dcrdata/db/dcrpg"
 	"github.com/dcrdata/dcrdata/db/dcrsqlite"
 	"github.com/dcrdata/dcrdata/explorer"
 	"github.com/dcrdata/dcrdata/mempool"
@@ -26,12 +31,12 @@ import (
 
 // mainCore does all the work. Deferred functions do not run after os.Exit(),
 // so main wraps this function, which returns a code.
-func mainCore() int {
+func mainCore() error {
 	// Parse the configuration file, and setup logger.
 	cfg, err := loadConfig()
 	if err != nil {
 		fmt.Printf("Failed to load dcrdata config: %s\n", err.Error())
-		return 1
+		return err
 	}
 	defer func() {
 		if logRotator != nil {
@@ -39,12 +44,33 @@ func mainCore() int {
 		}
 	}()
 
+	// PostgreSQL
+	pgHost, pgPort := cfg.PGHostPort, ""
+	if !strings.HasPrefix(pgHost, "/") {
+		pgHost, pgPort, err = net.SplitHostPort(cfg.PGHostPort)
+		if err != nil {
+			return fmt.Errorf("SplitHostPort failed: %v", err)
+		}
+	}
+
+	dbi := dcrpg.DBInfo{pgHost, pgPort, cfg.PGUser, cfg.PGPass, cfg.PGDBName}
+	db, err := dcrpg.NewChainDB(&dbi, activeChain)
+	if db != nil {
+		defer db.Close()
+	}
+	if err != nil {
+		return err
+	}
+
+	if err = db.SetupTables(); err != nil {
+		return err
+	}
+
 	if cfg.CPUProfile != "" {
 		var f *os.File
 		f, err = os.Create(cfg.CPUProfile)
 		if err != nil {
-			log.Critical(err)
-			return -1
+			return err
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
@@ -72,8 +98,7 @@ func mainCore() int {
 	ntfnHandlers, collectionQueue := makeNodeNtfnHandlers(cfg)
 	dcrdClient, nodeVer, err := connectNodeRPC(cfg, ntfnHandlers)
 	if err != nil || dcrdClient == nil {
-		log.Errorf("Connection to dcrd failed: %v", err)
-		return 4
+		return fmt.Errorf("Connection to dcrd failed: %v", err)
 	}
 
 	defer func() {
@@ -92,8 +117,7 @@ func mainCore() int {
 	// Display connected network
 	curnet, err := dcrdClient.GetCurrentNet()
 	if err != nil {
-		log.Errorf("Unable to get current network from dcrd: %v", err)
-		return 5
+		return fmt.Errorf("Unable to get current network from dcrd: %v", err)
 	}
 	log.Infof("Connected to dcrd (JSON-RPC API v%s) on %v",
 		nodeVer.String(), curnet.String())
@@ -109,8 +133,7 @@ func mainCore() int {
 		ntfnChans.updateStatusDBHeight, dcrdClient, activeChain)
 	defer cleanupDB()
 	if err != nil {
-		log.Errorf("Unable to initialize SQLite database: %v", err)
-		return 16
+		return fmt.Errorf("Unable to initialize SQLite database: %v", err)
 	}
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer sqliteDB.Close()
@@ -131,35 +154,70 @@ func mainCore() int {
 		close(quit)
 	}()
 
-	// Resync db
-	var waitSync sync.WaitGroup
-	waitSync.Add(1)
-	// start as goroutine to let chain monitor start, but the sync will keep up
-	// with current height, it is not likely to matter.
-	if err = sqliteDB.SyncDBWithPoolValue(&waitSync, quit); err != nil {
-		log.Error("Resync failed: ", err)
-		return 15
-	}
+	newPGIndexes := false
 
-	// wait for resync before serving or collecting
-	waitSync.Wait()
+	// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
+	// info DB (sqlite). They don't communicate, so we'll just ensure they exit
+	// with the same best block height by calling them repeatedly in a loop.
+	var sqliteHeight, pgHeight int64
+	sqliteSyncRes := make(chan dbtypes.SyncResult)
+	pgSyncRes := make(chan dbtypes.SyncResult)
+	for {
+		// Launch the sync functions for both DBs
+		go sqliteDB.SyncDBAsync(sqliteSyncRes, quit)
+		go db.SyncChainDBAsync(pgSyncRes, dcrdClient, quit, newPGIndexes)
 
-	select {
-	case <-quit:
-		return 20
-	default:
+		// Wait for the results
+		sqliteRes := <-sqliteSyncRes
+		sqliteHeight = sqliteRes.Height
+		log.Infof("SQLite sync ended at height %d", sqliteHeight)
+		pgRes := <-pgSyncRes
+		pgHeight = pgRes.Height
+		log.Infof("PostgreSQL sync ended at height %d", pgHeight)
+
+		// See if there was a SIGINT (CTRL+C)
+		select {
+		case <-quit:
+			log.Info("Quit signal received during DB sync.")
+			return nil
+		default:
+		}
+
+		// Check for errors and combine if necessary
+		if sqliteRes.Error != nil {
+			if pgRes.Error != nil {
+				log.Error("dcrsqlite.SyncDBAsync AND dcrpg.SyncChainDBAsync "+
+					"failed at heights %d and %d, respectively.",
+					sqliteRes.Height, pgRes.Height)
+				errCombined := fmt.Sprintln(sqliteRes.Error, ", ", pgRes.Error)
+				return errors.New(errCombined)
+			}
+			log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteRes.Height)
+			return sqliteRes.Error
+		} else if pgRes.Error != nil {
+			log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", pgRes.Height)
+			return pgRes.Error
+		}
+
+		// Break loop to continue starting dcrdata.
+		if pgHeight == sqliteHeight {
+			break
+		}
+		log.Infof("Restarting sync with PostgreSQL at %d, SQLite at %d.",
+			pgHeight, sqliteHeight)
 	}
 
 	// Block data collector
 	collector := blockdata.NewCollector(dcrdClient, activeChain, sqliteDB.GetStakeDB())
 	if collector == nil {
-		log.Errorf("Failed to create block data collector")
-		return 9
+		return fmt.Errorf("Failed to create block data collector")
 	}
 
 	// Build a slice of each required saver type for each data source
 	var blockDataSavers []blockdata.BlockDataSaver
 	var mempoolSavers []mempool.MempoolDataSaver
+
+	blockDataSavers = append(blockDataSavers, db)
 
 	// For example, dumping all mempool fees with a custom saver
 	if cfg.DumpAllMPTix {
@@ -174,8 +232,7 @@ func mainCore() int {
 	// Web template data. WebUI implements BlockDataSaver interface
 	webUI := NewWebUI(&sqliteDB)
 	if webUI == nil {
-		log.Info("Failed to start WebUI. Missing HTML resources?")
-		return 17
+		return fmt.Errorf("Failed to start WebUI. Missing HTML resources?")
 	}
 	defer webUI.StopWebsocketHub()
 	webUI.UseSIGToReloadTemplates()
@@ -183,16 +240,14 @@ func mainCore() int {
 	mempoolSavers = append(mempoolSavers, webUI)
 
 	// Initial data summary for web ui
-	blockData, err := collector.Collect()
+	blockData, _, err := collector.Collect()
 	if err != nil {
-		log.Errorf("Block data collection for initial summary failed: %v",
+		return fmt.Errorf("Block data collection for initial summary failed: %v",
 			err.Error())
-		return 10
 	}
 
-	if err = webUI.Store(blockData); err != nil {
-		log.Errorf("Failed to store initial block data: %v", err.Error())
-		return 11
+	if err = webUI.Store(blockData, nil); err != nil {
+		return fmt.Errorf("Failed to store initial block data: %v", err.Error())
 	}
 
 	// WaitGroup for the monitor goroutines
@@ -240,15 +295,13 @@ func mainCore() int {
 	if cfg.MonitorMempool {
 		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
 		if mpoolCollector == nil {
-			log.Error("Failed to create mempool data collector")
-			return 13
+			return fmt.Errorf("Failed to create mempool data collector")
 		}
 
 		mpData, err := mpoolCollector.Collect()
 		if err != nil {
-			log.Errorf("Mempool info collection failed while gathering initial"+
+			return fmt.Errorf("Mempool info collection failed while gathering initial"+
 				"data: %v", err.Error())
-			return 14
 		}
 
 		// Store initial MP data
@@ -256,9 +309,8 @@ func mainCore() int {
 
 		// Store initial MP data to webUI
 		if err = webUI.StoreMPData(mpData, time.Now()); err != nil {
-			log.Errorf("Failed to store initial mempool data: %v",
+			return fmt.Errorf("Failed to store initial mempool data: %v",
 				err.Error())
-			return 19
 		}
 
 		// Setup monitor
@@ -281,15 +333,14 @@ func mainCore() int {
 
 	select {
 	case <-quit:
-		return 20
+		return nil
 	default:
 	}
 
 	// Register for notifications now that the monitors are listening
 	cerr := registerNodeNtfnHandlers(dcrdClient)
 	if cerr != nil {
-		log.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
-		return 6
+		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
 	}
 
 	// Start web API
@@ -326,11 +377,15 @@ func mainCore() int {
 	// Wait for notification handlers to quit
 	wg.Wait()
 
-	return 0
+	return nil
 }
 
 func main() {
-	os.Exit(mainCore())
+	if err := mainCore(); err != nil {
+		log.Error(err)
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
 
 func connectNodeRPC(cfg *config, ntfnHandlers *rpcclient.NotificationHandlers) (*rpcclient.Client, semver.Semver, error) {

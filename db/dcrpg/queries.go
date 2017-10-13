@@ -21,7 +21,11 @@ func RetrieveFundingTxsByTx(db *sql.DB, txHash string) ([]uint64, []*dbtypes.Tx,
 	if err != nil {
 		return ids, txs, err
 	}
-	defer rows.Close()
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
 
 	for rows.Next() {
 		var id uint64
@@ -44,14 +48,18 @@ func RetrieveSpendingTxByTxOut(db *sql.DB, txHash string, voutIndex uint32) (id 
 	return
 }
 
-func RetrieveSpendingTxsByFundingTx(db *sql.DB, funding_txid string) ([]uint64, []string, error) {
+func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) ([]uint64, []string, error) {
 	var ids []uint64
 	var txs []string
-	rows, err := db.Query(internal.SelectSpendingTxsByPrevTx, funding_txid)
+	rows, err := db.Query(internal.SelectSpendingTxsByPrevTx, fundingTxID)
 	if err != nil {
 		return ids, txs, err
 	}
-	defer rows.Close()
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
 
 	for rows.Next() {
 		var id uint64
@@ -68,33 +76,40 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, funding_txid string) ([]uint64, 
 	return ids, txs, err
 }
 
-func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, err error) {
-	err = db.QueryRow(internal.SelectTxByHash, txHash).Scan(&id, &blockHash)
+func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, err error) {
+	err = db.QueryRow(internal.SelectTxByHash, txHash).Scan(&id, &blockHash, &blockInd)
 	return
 }
 
-func RetrieveTxsByBlockHash(db *sql.DB, block_hash string) ([]uint64, []string, error) {
+func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) ([]uint64, []string, []uint32, error) {
 	var ids []uint64
 	var txs []string
-	rows, err := db.Query(internal.SelectTxsByBlockHash, block_hash)
+	var blockInds []uint32
+	rows, err := db.Query(internal.SelectTxsByBlockHash, blockHash)
 	if err != nil {
-		return ids, txs, err
+		return ids, txs, blockInds, err
 	}
-	defer rows.Close()
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
 
 	for rows.Next() {
 		var id uint64
 		var tx string
-		err = rows.Scan(&id, &tx)
+		var bind uint32
+		err = rows.Scan(&id, &tx, &bind)
 		if err != nil {
 			break
 		}
 
 		ids = append(ids, id)
 		txs = append(txs, tx)
+		blockInds = append(blockInds, bind)
 	}
 
-	return ids, txs, err
+	return ids, txs, blockInds, err
 }
 
 func RetrieveSpendingTx(db *sql.DB, outpoint string) (uint64, *dbtypes.Tx, error) {
@@ -106,14 +121,18 @@ func RetrieveSpendingTx(db *sql.DB, outpoint string) (uint64, *dbtypes.Tx, error
 	return id, &tx, err
 }
 
-func RetrieveSpendingTxs(db *sql.DB, funding_txid string) ([]uint64, []*dbtypes.Tx, error) {
+func RetrieveSpendingTxs(db *sql.DB, fundingTxID string) ([]uint64, []*dbtypes.Tx, error) {
 	var ids []uint64
 	var txs []*dbtypes.Tx
-	rows, err := db.Query(internal.SelectTxsByPrevOutTx, funding_txid)
+	rows, err := db.Query(internal.SelectTxsByPrevOutTx, fundingTxID)
 	if err != nil {
 		return ids, txs, err
 	}
-	defer rows.Close()
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
 
 	for rows.Next() {
 		var id uint64
@@ -163,7 +182,11 @@ func RetrieveVoutValues(db *sql.DB, txDbID uint64) (values []uint64, err error) 
 	if err != nil {
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
 
 	for rows.Next() {
 		var v uint64
@@ -212,8 +235,9 @@ func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty) (id uint64, err error) {
 func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
-		dbtx.Rollback()
-		return nil, fmt.Errorf("Unable to begin database transaction: %v", err)
+		return nil,
+			fmt.Errorf("unable to begin database transaction: %v + %v (rollback)",
+				err, dbtx.Rollback())
 	}
 
 	ids := make([]uint64, 0, len(dbVins))
@@ -226,14 +250,15 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error)
 			if err == sql.ErrNoRows {
 				continue
 			}
-			dbtx.Rollback()
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
 			return nil, err
 		}
 		ids = append(ids, id)
 	}
 
-	dbtx.Commit()
-	return ids, nil
+	return ids, dbtx.Commit()
 }
 
 func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool) (uint64, error) {
@@ -250,8 +275,9 @@ func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool) (uint64, error) 
 func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
-		dbtx.Rollback()
-		return nil, fmt.Errorf("Unable to begin database transaction: %v", err)
+		return nil,
+			fmt.Errorf("unable to begin database transaction: %v + %v (rollback)",
+				err, dbtx.Rollback())
 	}
 
 	// if _, err = dbtx.Exec("SET LOCAL synchronous_commit TO OFF;"); err != nil {
@@ -272,14 +298,15 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, e
 			if err == sql.ErrNoRows {
 				continue
 			}
-			dbtx.Rollback()
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
 			return nil, err
 		}
 		ids = append(ids, id)
 	}
 
-	dbtx.Commit()
-	return ids, nil
+	return ids, dbtx.Commit()
 }
 
 func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {

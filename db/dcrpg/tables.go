@@ -26,7 +26,11 @@ func TableExists(db *sql.DB, tableName string) (bool, error) {
 	rows, err := db.Query(`select relname from pg_class where relname = $1`,
 		tableName)
 	if err == nil {
-		defer rows.Close()
+		defer func() {
+			if e := rows.Close(); e != nil {
+				log.Errorf("Close of Query failed: %v", e)
+			}
+		}()
 		return rows.Next(), nil
 	}
 	return false, err
@@ -34,23 +38,20 @@ func TableExists(db *sql.DB, tableName string) (bool, error) {
 
 func DropTables(db *sql.DB) {
 	for tableName := range createTableStatements {
-		fmt.Printf("DROPPING the \"%s\" table.\n", tableName)
+		log.Infof("DROPPING the \"%s\" table.", tableName)
 		if err := dropTable(db, tableName); err != nil {
-			fmt.Println(err)
+			log.Errorf("DROP TABLE %s failed.", tableName)
 		}
 	}
 
 	_, err := db.Exec(`DROP TYPE IF EXISTS vin;`)
 	if err != nil {
-		fmt.Println(err)
+		log.Errorf("DROP TYPE vin failed.")
 	}
 }
 
 func dropTable(db *sql.DB, tableName string) error {
 	_, err := db.Exec(fmt.Sprintf(`DROP TABLE IF EXISTS %s;`, tableName))
-	if err != nil {
-		fmt.Println(err)
-	}
 	return err
 }
 
@@ -62,9 +63,9 @@ func CreateTypes(db *sql.DB) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Does the \"%s\" type exist? %v\n", typeName, exists)
+
 		if !exists {
-			fmt.Printf("Creating the \"%s\" type.\n", typeName)
+			log.Infof("Creating the \"%s\" type.", typeName)
 			_, err = db.Exec(createCommand)
 			if err != nil {
 				return err
@@ -74,6 +75,8 @@ func CreateTypes(db *sql.DB) error {
 			if err != nil {
 				return err
 			}
+		} else {
+			log.Debugf("Type \"%s\" exist.", typeName)
 		}
 	}
 	return err
@@ -83,7 +86,11 @@ func TypeExists(db *sql.DB, tableName string) (bool, error) {
 	rows, err := db.Query(`select typname from pg_type where typname = $1`,
 		tableName)
 	if err == nil {
-		defer rows.Close()
+		defer func() {
+			if e := rows.Close(); e != nil {
+				log.Errorf("Close of Query failed: %v", e)
+			}
+		}()
 		return rows.Next(), nil
 	}
 	return false, err
@@ -97,9 +104,9 @@ func CreateTables(db *sql.DB) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Does the \"%s\" table exist? %v\n", tableName, exists)
+
 		if !exists {
-			fmt.Printf("Creating the \"%s\" table.\n", tableName)
+			log.Infof("Creating the \"%s\" table.", tableName)
 			_, err = db.Exec(createCommand)
 			if err != nil {
 				return err
@@ -109,6 +116,8 @@ func CreateTables(db *sql.DB) error {
 			if err != nil {
 				return err
 			}
+		} else {
+			log.Debugf("Table \"%s\" exist.", tableName)
 		}
 	}
 	return err
@@ -121,11 +130,14 @@ func TableVersions(db *sql.DB) map[string]int32 {
 		var s string
 		v := int(-1)
 		if Result != nil {
-			Result.Scan(&s)
+			err := Result.Scan(&s)
+			if err != nil {
+				log.Errorf("Scan of QueryRow failed: %v", err)
+				continue
+			}
 			re := regexp.MustCompile(`^v(\d+)$`)
 			subs := re.FindStringSubmatch(s)
 			if len(subs) > 1 {
-				var err error
 				v, err = strconv.Atoi(subs[1])
 				if err != nil {
 					fmt.Println(err)

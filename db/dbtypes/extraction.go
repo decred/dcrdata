@@ -70,6 +70,7 @@ func processTransactions(txs []*wire.MsgTx, blockHash chainhash.Hash,
 
 		// Vouts and their db IDs
 		dbTxVouts[txIndex] = make([]*Vout, 0, len(tx.TxOut))
+		dbTx.Vouts = make([]*Vout, 0, len(tx.TxOut))
 		for io, txout := range tx.TxOut {
 			vout := Vout{
 				TxHash:       dbTx.TxID,
@@ -92,6 +93,7 @@ func processTransactions(txs []*wire.MsgTx, blockHash chainhash.Hash,
 			vout.ScriptPubKeyData.Type = scriptClass.String()
 			vout.ScriptPubKeyData.Addresses = addys
 			dbTxVouts[txIndex] = append(dbTxVouts[txIndex], &vout)
+			dbTx.Vouts = append(dbTx.Vouts, &vout)
 		}
 
 		//dbTx.VoutDbIds = make([]uint64, len(dbTxVouts[txIndex]))

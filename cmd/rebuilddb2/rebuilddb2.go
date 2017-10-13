@@ -12,11 +12,8 @@ import (
 	"time"
 
 	"github.com/btcsuite/btclog"
-	"github.com/davecgh/go-spew/spew"
-	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/db/dcrpg"
 	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrrpcclient"
 )
 
@@ -86,7 +83,8 @@ func mainCore() error {
 		}
 	}
 
-	db, err := dcrpg.Connect(host, port, cfg.DBUser, cfg.DBPass, cfg.DBName)
+	dbi := dcrpg.DBInfo{host, port, cfg.DBUser, cfg.DBPass, cfg.DBName}
+	db, err := dcrpg.NewChainDB(&dbi, activeChain)
 	if db != nil {
 		defer db.Close()
 	}
@@ -95,21 +93,12 @@ func mainCore() error {
 	}
 
 	if cfg.DropDBTables {
-		dcrpg.DropTables(db)
+		db.DropTables()
 		return nil
 	}
 
-	if err = dcrpg.CreateTypes(db); err != nil {
+	if err = db.SetupTables(); err != nil {
 		return err
-	}
-
-	if err = dcrpg.CreateTables(db); err != nil {
-		return err
-	}
-
-	vers := dcrpg.TableVersions(db)
-	for tab, ver := range vers {
-		fmt.Printf("Table %s: v%d\n", tab, ver)
 	}
 
 	// Ctrl-C to shut down.
@@ -160,9 +149,7 @@ func mainCore() error {
 	speedReport := func() { o.Do(speedReporter) }
 	defer speedReport()
 
-	lastBlockDbID := int64(-1)
-
-	bestHeight, _, _, err := dcrpg.RetrieveBestBlockHeight(db)
+	bestHeight, err := db.Height()
 	lastBlock := int64(bestHeight)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -177,31 +164,15 @@ func mainCore() error {
 	// Remove indexes/constraints before bulk import
 	blocksToSync := height - lastBlock
 	reindexing := blocksToSync > height/2
-	dupChecks := true
 	if reindexing || cfg.ResumeInitSync {
 		log.Info("Large bulk load: Removing indexes and disabling duplicate checks.")
-		dupChecks = false
-		if err = dcrpg.DeindexBlockTableOnHash(db); err != nil {
-			log.Warnln(err)
+		err = db.DeindexAll()
+		if err != nil && !strings.Contains(err.Error(), "does not exist") {
+			return err
 		}
-		if err = dcrpg.DeindexTransactionTableOnHashes(db); err != nil {
-			log.Warnln(err)
-		}
-		if err = dcrpg.DeindexTransactionTableOnBlockIn(db); err != nil {
-			log.Warnln(err)
-		}
-		if err = dcrpg.DeindexVinTableOnVins(db); err != nil {
-			log.Warnln(err)
-		}
-		if err = dcrpg.DeindexVinTableOnPrevOuts(db); err != nil {
-			log.Warnln(err)
-		}
-		if err = dcrpg.DeindexVoutTableOnTxHashIdx(db); err != nil {
-			log.Warnln(err)
-		}
-		if err = dcrpg.DeindexVoutTableOnTxHash(db); err != nil {
-			log.Warnln(err)
-		}
+		db.EnableDuplicateCheckOnInsert(false)
+	} else {
+		db.EnableDuplicateCheckOnInsert(true)
 	}
 
 	startHeight := lastBlock + 1
@@ -242,134 +213,19 @@ func mainCore() error {
 		if err != nil {
 			return fmt.Errorf("GetBlock failed (%s): %v", blockHash, err)
 		}
-		msgBlock := block.MsgBlock()
 
-		dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, activeChain)
-
-		// Extract transactions and their vouts. Insert vouts into their pg table,
-		// returning their PK IDs, which are stored in the corresponding transaction
-		// data struct. Insert each transaction once they are updated with their
-		// vouts' IDs, returning the transaction PK ID, which are stored in the
-		// containing block data struct.
-
-		var wg sync.WaitGroup
-		var regOK, stakeOK bool
-		// regular transactions
-		wg.Add(1)
-		go func() (err error) {
-			defer wg.Done()
-			dbTransactions, dbTxVouts := dbtypes.ExtractBlockTransactions(msgBlock,
-				wire.TxTreeRegular, activeChain)
-
-			dbBlock.TxDbIDs = make([]uint64, len(dbTransactions))
-			for it, dbtx := range dbTransactions {
-				dbtx.VoutDbIds, err = dcrpg.InsertVouts(db, dbTxVouts[it], dupChecks)
-				if err != nil && err != sql.ErrNoRows {
-					log.Errorln("InsertVouts:", err)
-					return err
-				}
-				if err == sql.ErrNoRows || len(dbTxVouts[it]) != len(dbtx.VoutDbIds) {
-					log.Warnf("Incomplete Vout insert.")
-					continue
-				}
-				totalVouts += int64(len(dbtx.VoutDbIds))
-
-				dbtx.VinDbIds, err = dcrpg.InsertVins(db, dbtx.Vins)
-				if err != nil && err != sql.ErrNoRows {
-					log.Errorln("InsertVins:", err)
-					return err
-				}
-				totalVins += int64(len(dbtx.VinDbIds))
-
-				// Store the tx PK ID in the block
-				dbtx.Vouts = dbTxVouts[it]
-				dbBlock.TxDbIDs[it], err = dcrpg.InsertTx(db, dbtx, dupChecks)
-				if err != nil && err != sql.ErrNoRows {
-					log.Errorln("InsertTx:", err)
-					return err
-				}
-			}
-			regOK = true
-			return
-		}()
-
-		// stake transactions
-		wg.Add(1)
-		go func() (err error) {
-			defer wg.Done()
-			dbSTransactions, dbSTxVouts := dbtypes.ExtractBlockTransactions(msgBlock,
-				wire.TxTreeStake, activeChain)
-
-			dbBlock.STxDbIDs = make([]uint64, len(dbSTransactions))
-			for it, dbtx := range dbSTransactions {
-				dbtx.VoutDbIds, err = dcrpg.InsertVouts(db, dbSTxVouts[it], dupChecks)
-				if err != nil && err != sql.ErrNoRows {
-					log.Errorln("InsertVouts:", err)
-					return err
-				}
-				if err == sql.ErrNoRows || len(dbSTxVouts[it]) != len(dbtx.VoutDbIds) {
-					log.Warnf("Incomplete Vout insert.")
-					continue
-				}
-				totalVouts += int64(len(dbtx.VoutDbIds))
-
-				dbtx.VinDbIds, err = dcrpg.InsertVins(db, dbtx.Vins)
-				if err != nil && err != sql.ErrNoRows {
-					log.Errorln("InsertVins:", err)
-					return err
-				}
-				totalVins += int64(len(dbtx.VinDbIds))
-
-				// Store the tx PK ID in the block
-				dbtx.Vouts = dbSTxVouts[it]
-				dbBlock.STxDbIDs[it], err = dcrpg.InsertTx(db, dbtx, dupChecks)
-				if err != nil && err != sql.ErrNoRows {
-					log.Errorln("InsertTx:", err)
-					return err
-				}
-			}
-			stakeOK = true
-			return
-		}()
-
-		wg.Wait()
-
-		totalTxs += int64(dbBlock.NumRegTx + dbBlock.NumStakeTx)
-		totalRTxs += int64(dbBlock.NumRegTx)
-		totalSTxs += int64(dbBlock.NumStakeTx)
-
-		if !stakeOK || !regOK {
-			return fmt.Errorf("Tx/Vin/Vout insertion failed (R/S): %v/%v",
-				!stakeOK, !regOK)
+		var numVins, numVouts int64
+		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock()); err != nil {
+			return fmt.Errorf("StoreBlock failed: %v", err)
 		}
+		totalVins += numVins
+		totalVouts += numVouts
 
-		// Store the block now that it has all it's transaction PK IDs
-		blockDbID, err := dcrpg.InsertBlock(db, dbBlock, dupChecks)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				lastBlockDbID = -1
-				continue
-			}
-			log.Errorln("InsertBlock:", err)
-			return err
-		}
-
-		err = dcrpg.InsertBlockPrevNext(db, blockDbID, dbBlock.Hash,
-			dbBlock.PreviousHash, "")
-		if err != nil && err != sql.ErrNoRows {
-			log.Error("InsertBlockPrevNext:", err)
-			return err
-		}
-
-		// Update last block in db with this block's hash as it's next
-		if lastBlockDbID > 0 {
-			err = dcrpg.UpdateBlockNext(db, uint64(lastBlockDbID), dbBlock.Hash)
-			if err != nil {
-				log.Errorln("UpdateBlockNext:", err)
-				return err
-			}
-		}
-		lastBlockDbID = int64(blockDbID)
+		numSTx := int64(len(block.STransactions()))
+		numRTx := int64(len(block.Transactions()))
+		totalTxs += numRTx + numSTx
+		totalRTxs += numRTx
+		totalSTxs += numSTx
 
 		// update height, the end condition for the loop
 		if _, height, err = client.GetBestBlock(); err != nil {
@@ -380,77 +236,13 @@ func mainCore() error {
 	speedReport()
 
 	if reindexing || cfg.ResumeInitSync {
-		log.Infof("Indexing blocks table...")
-		if err = dcrpg.IndexBlockTableOnHash(db); err != nil {
-			return err
-		}
-		log.Infof("Indexing transactions table on tx/block hashes...")
-		if err = dcrpg.IndexTransactionTableOnHashes(db); err != nil {
-			return err
-		}
-		log.Infof("Indexing transactions table on block id/indx...")
-		if err = dcrpg.IndexTransactionTableOnBlockIn(db); err != nil {
-			return err
-		}
-		log.Infof("Indexing vins table on txin...")
-		if err = dcrpg.IndexVinTableOnVins(db); err != nil {
-			return err
-		}
-		log.Infof("Indexing vins table on prevouts...")
-		if err = dcrpg.IndexVinTableOnPrevOuts(db); err != nil {
-			return err
-		}
-		log.Infof("Indexing vouts table on tx hash and index...")
-		if err = dcrpg.IndexVoutTableOnTxHashIdx(db); err != nil {
-			return err
-		}
-		log.Infof("Indexing vouts table on tx hash...")
-		if err = dcrpg.IndexVoutTableOnTxHash(db); err != nil {
-			return err
+		if err = db.IndexAll(); err != nil {
+			return fmt.Errorf("IndexAll failed: %v", err)
 		}
 	}
 
 	log.Infof("Rebuild finished: %d blocks, %d transactions, %d ins, %d outs",
 		height, totalTxs, totalVins, totalVouts)
-
-	testTx := "fa9acf7a4b1e9a52df1795f3e1c295613c9df44f5562de66595acc33b3831118"
-
-	spendingTxsDbIDs, spendingTxs, err := dcrpg.RetrieveSpendingTxsByFundingTx(
-		db, testTx)
-	if err != nil {
-		return err
-	}
-	spew.Dump(spendingTxsDbIDs, spendingTxs)
-
-	spendingTxDbID, spendingTx, err := dcrpg.RetrieveSpendingTxByTxOut(db,
-		testTx, uint32(1))
-	if err != nil {
-		return err
-	}
-	spew.Dump(spendingTxDbID, spendingTx)
-
-	txDbID, testBlockHash, err := dcrpg.RetrieveTxByHash(db, testTx)
-	if err != nil {
-		return err
-	}
-	spew.Dump(txDbID)
-
-	txDbIDs, testTxIDs, err := dcrpg.RetrieveTxsByBlockHash(db, testBlockHash)
-	if err != nil {
-		return err
-	}
-	spew.Dump(txDbIDs, testTxIDs)
-
-	vout1value, err := dcrpg.RetrieveVoutValue(db, txDbID, 6)
-	if err != nil {
-		return fmt.Errorf("RetrieveVoutValue: %v", err)
-	}
-	spew.Dump(vout1value)
-	vout1values, err := dcrpg.RetrieveVoutValues(db, txDbID)
-	if err != nil {
-		return fmt.Errorf("RetrieveVoutValues: %v", err)
-	}
-	spew.Dump(vout1values, vout1value == vout1values[6])
 
 	return nil
 }

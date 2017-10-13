@@ -6,6 +6,13 @@ import (
 	"fmt"
 )
 
+// SyncResult is the result of a database sync operation, containing the height
+// of the last block and an arror value.
+type SyncResult struct {
+	Height int64
+	Error  error
+}
+
 // JSONB is used to implement the sql.Scanner and driver.Valuer interfaces
 // requried for the type to make a postgresql compatible JSONB type.
 type JSONB map[string]interface{}
