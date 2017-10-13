@@ -53,8 +53,7 @@
                         {{if eq .Time 0}}
                             N/A
                         {{else}}
-                            <span class="hidden timestamp">{{.Time}}</span>
-                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span class="age">{{.Time}}</span> ago)</span>
+                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-age="{{.Time}}"></span> ago)</span>
                         {{end}}
                     </td>
                 </tr>

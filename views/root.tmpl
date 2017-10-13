@@ -62,8 +62,7 @@
                  '<td>' + b.tickets + '</td>' +
                  '<td>' + b.revocations + '</td>' +
                  '<td>' + humanize.bytes(b.size) + '</td>' +
-                 '<td class="age">' + humanize.timeSince(b.time) + '</td>' +
-                 '<td class="hidden timestamp">' + b.time + '</td>' +
+                 '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
                  '<td>' + b.formatted_time + '</td>' +
             '</tr>'
             $(newRow).insertBefore(expTableRows.first())
@@ -75,6 +74,7 @@
             $('#blocksdiff').html(b.sdiff.toFixed(4))
             $('#window_block_index').html(newblock.stake.window_block_index)
             $("#pos-window-progess-bar").css({ width: (newblock.stake.window_block_index/144)*100 + "%" })
+            setTimeElements()
         };
 
         ws.registerEvtHandler("newblock", updateBlockData);
@@ -212,8 +212,7 @@
                             <td>{{.FreshStake}}</td>
                             <td>{{.Revocations}}</td>
                             <td>{{formatBytes .Size}}</td>
-                            <td class="age">{{.Time}}</td>
-                            <td class="hidden timestamp">{{.Time}}</td>
+                            <td data-age="{{.Time}}"></td>
                             <td>{{getTime .Time}}</td>
                         </tr>
                     {{end}}

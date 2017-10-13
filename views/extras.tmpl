@@ -133,20 +133,21 @@
 </footer>
 <script data-turbolinks-eval="false">
     var ages, hiddenAges;
-    function findTimeElements() {
-        ages = $(".age");
-        hiddenAges = $(".hidden.timestamp");
+    function setTimeElements() {
+        ages = $('[data-age]');
     }
     function updateAges() {
         $.each(ages, function(i, age) {
-            if (hiddenAges[i].innerText !== "0") {
-                var ageTime = new Date(parseInt(hiddenAges[i].innerText));
-                $(age).text(humanize.timeSince(ageTime))
+            var unixTime = $(age).data('age');
+            if (unixTime > 0) {
+                $(age).text(
+                    humanize.timeSince($(age).data('age'))
+                )
             }
         })
     }
     document.addEventListener("turbolinks:load", function(){
-        findTimeElements()
+        setTimeElements()
         updateAges()
     })
     setInterval(updateAges, 10000);

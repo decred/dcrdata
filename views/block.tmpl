@@ -94,9 +94,8 @@
                 <table class="">
                     <tr>
                         <td class="text-right lh1rem pr-2">TIME</td>
-                        <td class="lh1rem" style="min-width: 178px ">
-                            <span class="hidden timestamp">{{.BlockTime}}</span>
-                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span class="age">{{.BlockTime}}</span> ago)</span>
+                        <td class="lh1rem" style="min-width: 178px;">
+                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-age="{{.BlockTime}}"></span> ago)</span>
                         </td>
                     </tr>
                     <tr>
