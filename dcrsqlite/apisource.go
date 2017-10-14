@@ -934,8 +934,44 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 		addressTxs = append(addressTxs, makeExplorerAddressTx(tx))
 	}
 
+	NumberOfTx := len(txs)
+	NoOfUnconfirmed := 0
+	SumOfUnspentOutput := 0.0
+	totalreceived := 0.0
+	for i := 0; i < len(txs); i++ {
+		if txs[i].Confirmations == 0 {
+			NoOfUnconfirmed++
+		}
+		txhash, err := chainhash.NewHashFromStr(txs[i].Txid)
+		if err != nil {
+			log.Errorf("Invalid transaction hash %s", txs[i].Txid)
+			return nil
+		}
+		var x = uint32(i)
+		UnspentOutput, err := db.client.GetTxOut(txhash, x, true)
+		if err != nil {
+			log.Errorf("GetTxOut failed for Transaction %s", txs[i].Txid)
+			return nil
+		}
+		if UnspentOutput != nil {
+			for _, v := range txs[i].Vout {
+				if address == v.ScriptPubKey.Addresses[0] {
+					SumOfUnspentOutput += v.Value
+				}
+			}
+		}
+		for _, y := range txs[i].Vout {
+			if address == y.ScriptPubKey.Addresses[0] {
+				totalreceived += y.Value
+			}
+		}
+	}
 	return &explorer.AddressInfo{
-		Address:      address,
-		Transactions: addressTxs,
+		Address:          address,
+		Transactions:     addressTxs,
+		NoOfTransactions: NumberOfTx,
+		TotalUnconfirmed: NoOfUnconfirmed,
+		CurrentBalance:   SumOfUnspentOutput,
+		TotalReceived:    totalreceived,
 	}
 }

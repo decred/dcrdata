@@ -12,21 +12,16 @@
 
                 <h4>Address</h4>
                 <p class="mono">{{.Address}}</p>
-
-                {{$Transactions := len .Transactions}}
-                {{$Unconfirmed := 0}}
-                {{$CurrentBalance := 0}}
-                {{range .Transactions}}
-                    {{if eq .Time 0}}
-                        {{$Unconfirmed +1}}
+                <p>
+                    {{if eq .NoOfTransactions 500}}
+                        Currently only the first 500 transactions are being shown below.
+                    {{else}}
+                        Transactions: {{.NoOfTransactions}}
                     {{end}}
-                {{end}}
-                <p>Transactions:   {{$Transactions}}</p>
-                <p>Current Balance: {{$CurrentBalance}}</p>
-                <p>Unconfirmed: {{$Unconfirmed}}</p>
-                {{if eq $Transactions 500}}
-                    Currently only the first 500 transactions are being used.
-                {{end}}
+                </p>
+                <p>Total Received {{.TotalReceived}} DCR</p>
+                <p>Current Balance: {{.CurrentBalance}} DCR</p>
+                <p>Unconfirmed: {{.TotalUnconfirmed}}</p>
                 <h5>Transactions</h5>
                 <table class="table table-mono-cells table-sm striped">
                     <thead>

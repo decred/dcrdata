@@ -118,6 +118,10 @@ type BlockInfo struct {
 
 // AddressInfo models data for display on the address page
 type AddressInfo struct {
-	Address      string
-	Transactions []*AddressTx
+	Address          string
+	Transactions     []*AddressTx
+	NoOfTransactions int
+	TotalUnconfirmed int
+	CurrentBalance   float64
+	TotalReceived    float64
 }
