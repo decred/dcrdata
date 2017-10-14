@@ -38,17 +38,17 @@
                         {{.Type}}
                     </td>
                 </tr>
-                {{if eq .Type "Ticket"}}
+                {{if .Mature}}
                 <tr>
                     <td class="text-right pr-2 h1rem p03rem0">Mature</td>
                     <td>
-                        {{.TicketMature}}
+                        {{.Mature}}
                     </td>
                 </tr>
                 {{end}}
-                {{if eq .Type "Vote"}}
+                {{if .VoteFundsLocked}}
                 <tr>
-                    <td class="text-right pr-2 h1rem p03rem0">Funds locked?</td>
+                    <td class="text-right pr-2 h1rem p03rem0">LOCKED</td>
                     <td>
                         {{.VoteFundsLocked}}
                     </td>
