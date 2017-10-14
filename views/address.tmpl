@@ -16,9 +16,9 @@
                     {{if eq .NoOfTransactions .AddressRow}}
                         Currently only the first {{.AddressRow}} transactions are being shown below.
                     {{else}}
-                    <p>Transactions: {{.NoOfTransactions}}</p>
-                    <p>Received: {{.Received}} DCR</p>
-                    <p>Unconfirmed: {{.TotalUnconfirmed}}</p>
+                        <p>Transactions: {{.NoOfTransactions}}</p>
+                        <p>Unconfirmed: {{.TotalUnconfirmed}}</p>
+                        <p>Received: {{.Received}} DCR</p>
                     {{end}}
                 </p>
                 <p>Unspent: N/A</p>
