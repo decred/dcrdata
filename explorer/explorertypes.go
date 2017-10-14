@@ -122,6 +122,6 @@ type AddressInfo struct {
 	Transactions     []*AddressTx
 	NoOfTransactions int
 	TotalUnconfirmed int
-	CurrentBalance   float64
-	TotalReceived    float64
+	Received         float64
+	AddressRow       int
 }

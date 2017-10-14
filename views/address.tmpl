@@ -13,14 +13,14 @@
                 <h4>Address</h4>
                 <p class="mono">{{.Address}}</p>
                 <p>
-                    {{if eq .NoOfTransactions 500}}
-                        Currently only the first 500 transactions are being shown below.
+                    {{if eq .NoOfTransactions .AddressRow}}
+                        Currently only the first {{.AddressRow}} transactions are being shown below.
                     {{else}}
                         Transactions: {{.NoOfTransactions}}
                     {{end}}
                 </p>
-                <p>Total Received {{.TotalReceived}} DCR</p>
-                <p>Current Balance: {{.CurrentBalance}} DCR</p>
+                <p>Received: {{.Received}} DCR</p>
+                <p>Unspent: N/A</p>
                 <p>Unconfirmed: {{.TotalUnconfirmed}}</p>
                 <h5>Transactions</h5>
                 <table class="table table-mono-cells table-sm striped">
