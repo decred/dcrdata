@@ -937,13 +937,15 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 	NumberOfTx := len(txs)
 	NoOfUnconfirmed := 0
 	totalreceived := 0.0
-	for i := 0; i < len(txs); i++ {
-		if txs[i].Confirmations == 0 {
-			NoOfUnconfirmed++
-		}
-		for _, y := range txs[i].Vout {
-			if address == y.ScriptPubKey.Addresses[0] {
-				totalreceived += y.Value
+	if NumberOfTx < explorer.AddressRows {
+		for i := 0; i < len(txs); i++ {
+			if txs[i].Confirmations == 0 {
+				NoOfUnconfirmed++
+			}
+			for _, y := range txs[i].Vout {
+				if address == y.ScriptPubKey.Addresses[0] {
+					totalreceived += y.Value
+				}
 			}
 		}
 	}
