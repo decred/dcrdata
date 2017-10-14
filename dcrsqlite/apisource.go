@@ -944,7 +944,8 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 			}
 			for _, y := range txs[i].Vout {
 				if address == y.ScriptPubKey.Addresses[0] {
-					totalreceived += dcrutil.Amount(y.Value)
+					t, _ := dcrutil.NewAmount(y.Value)
+					totalreceived += t
 				}
 			}
 		}

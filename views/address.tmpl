@@ -16,10 +16,10 @@
                     {{if eq .NoOfTransactions .AddressRow}}
                         Currently only the first {{.AddressRow}} transactions are being shown below.
                     {{else}}
-                        <p>Transactions: {{.NoOfTransactions}}</p>
-                        <p>Unconfirmed: {{.TotalUnconfirmed}}</p>
-                        <p>Received: {{.Received}}</p>
-                        <p>Unspent: N/A</p>
+                        Transactions: {{.NoOfTransactions}}</br>
+                        Unconfirmed: {{.TotalUnconfirmed}}</br>
+                        Received: {{.Received}}</br>
+                        Unspent: N/A</br>
                     {{end}}
                 </p>
                 <h5>Transactions</h5>
