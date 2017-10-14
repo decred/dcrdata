@@ -122,6 +122,6 @@ type AddressInfo struct {
 	Transactions     []*AddressTx
 	NoOfTransactions int
 	TotalUnconfirmed int
-	Received         float64
+	Received         dcrutil.Amount
 	AddressRow       int
 }
