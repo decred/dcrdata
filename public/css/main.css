@@ -122,6 +122,9 @@ body.darkBG .navbar-fixed-bottom a {
 .fs13 {
   font-size: 13px !important;
 }
+.fs14 {
+  font-size: 14px !important;
+}
 .fs15 {
   font-size: 15px !important;
 }
@@ -270,6 +273,13 @@ body.darkBG .navbar-fixed-bottom a {
   letter-spacing: 1px;
   font-weight: bold;
   font-size: 13px;
+}
+
+/* Typography    */
+.fs14-decimal .dot,
+.fs14-decimal .decimal,
+.fs14-decimal .unit {
+    font-size: 14px
 }
 
 .hash {

@@ -47,11 +47,11 @@
         ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
 
         var updateBlockData = function (event) {
-            console.log("Received newblock message", event);
-            var newblock = JSON.parse(event);
+            console.log("Received newBlock message", event);
+            var newBlock = JSON.parse(event);
 
             // block summary data
-            var b = newblock.block;
+            var b = newBlock.block;
             var expTableRows = $('#explorertable tbody tr');
             if (!expTableRows) return
             expTableRows.last().remove()
@@ -66,14 +66,14 @@
                  '<td>' + b.formatted_time + '</td>' +
             '</tr>'
             $(newRow).insertBefore(expTableRows.first())
-            $("#bsubsidy_dev").html(humanize.subsidyToString(b.next_block_subsidy.developer))
-            $("#bsubsidy_pos").html(humanize.subsidyToString(b.next_block_subsidy.pos, 5) + " / ticket")
-            $("#bsubsidy_pow").html(b.next_block_subsidy.pow)
-            $("#bsubsidy_total").html(b.next_block_subsidy.total)
-            $("#coin_supply").html(b.coin_supply)
-            $('#blocksdiff').html(b.sdiff.toFixed(4))
-            $('#window_block_index').html(newblock.stake.window_block_index)
-            $("#pos-window-progess-bar").css({ width: (newblock.stake.window_block_index/144)*100 + "%" })
+            $("#bsubsidy_total").html(humanize.decimalParts(b.next_block_subsidy.total/100000000, false, 8))
+            $("#bsubsidy_pow").html(humanize.decimalParts(b.next_block_subsidy.pow/100000000, false, 8))
+            $("#bsubsidy_pos").html(humanize.decimalParts((b.next_block_subsidy.pos/500000000), false, 8))
+            $("#bsubsidy_dev").html(humanize.decimalParts(b.next_block_subsidy.developer/100000000, false, 8))
+            $("#coin_supply").html(humanize.decimalParts(b.coin_supply/100000000, true, 8))
+            $("#blocksdiff").html(humanize.decimalParts(b.sdiff, false, 8))
+            $("#window_block_index").html(newBlock.stake.window_block_index)
+            $("#pos-window-progess-bar").css({ width: (newBlock.stake.window_block_index/144)*100 + "%" })
             setTimeElements()
         };
 
@@ -112,14 +112,14 @@
                 <div>
                     <table class="mb-3 col">
                         <tr class="h2rem">
-                            <td class="text-right pr-2 p03rem0 sm-w151 w142 lh1rem">TOTAL SUPPLY</td>
-                            <td class="fs24 mono lh1rem">
-                                {{template "floatPartsAndZeroSuffix" (amountAsFloatParts .BlockSummary.CoinSupply)}}<span class="pl-1">DCR</span>
+                            <td class="text-right pr-2 p03rem0 w142 lh1rem">TOTAL<br> SUPPLY</td>
+                            <td class="fs24 mono lh1rem fs14-decimal">
+                                <span id="coin_supply">{{template "decimalParts" (amountAsDecimalParts .BlockSummary.CoinSupply true)}}</span><span class="pl-1 unit">DCR</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET PRICE</td>
-                            <td class="mono vam fs24"><span class="dcr"><span id="blocksdiff" ><strong>{{.BlockSummary.StakeDiff}}</strong></span></span><span class="pl-1">DCR</span></td>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET<br> PRICE</td>
+                            <td class="mono vam fs24 fs14-decimal"><span id="blocksdiff">{{template "decimalParts" (float64AsDecimalParts .BlockSummary.StakeDiff false)}}</span><span class="pl-1 unit">DCR</span></td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKETS IN MEMPOOL</td>
@@ -140,7 +140,7 @@
                                                 aria-valuemin="0"
                                                 aria-valuemax="144"
                                             >
-                                            <span id="blocksdiff" style="color:#383b41" class="nowrap pl-1"><span id="window_block_index" >block {{.StakeSummary.IdxBlockInWindow}}</span> of 144</span>
+                                            <span id="blocksdiff" style="color:#383b41" class="nowrap pl-1">block <span id="window_block_index" >{{.StakeSummary.IdxBlockInWindow}}</span> of 144</span>
                                             </div>
                                         </div>
                                     </div>
@@ -149,30 +149,34 @@
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">PROOF OF WORK DIFFICULTY</td>
-                            <td class="mono lh1rem p03rem0"><span id="difficulty">{{printf "%.2f" (index $.InitialData 1).Difficulty}}</span></td>
+                            <td class="mono lh1rem p03rem0"><span id="difficulty" class="fs24 fs14-decimal">
+                                {{template "decimalParts" (float64AsDecimalParts (index $.InitialData 1).Difficulty true)}}
+                            </span></td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1">BLOCK REWARD</td>
                             <td>
-                                <div class="mono lh1rem p03rem0"><span id="bsubsidy_total">{{.BlockSummary.NextBlockSubsidy.Total}}</span></div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 lh1rem">DEV REWARD</td>
-                            <td>
-                                <div class="mono lh1rem"><span id="bsubsidy_dev">{{.BlockSummary.NextBlockSubsidy.Developer}}</span></div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 lh1rem">POS REWARD</td>
-                            <td>
-                                <div class="mono lh1rem"><span id="bsubsidy_pos">{{.BlockSummary.NextBlockSubsidy.PoS}}</span> / ticket</div>
+                                <div class="mono lh1rem p03rem0 fs14-decimal fs24">
+                                    <span id="bsubsidy_total">{{template "decimalParts" (amountAsDecimalParts .BlockSummary.NextBlockSubsidy.Total true)}}</span><span class="unit"> DCR</span>
+                                </div>
                             </td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem">POW REWARD</td>
                             <td>
-                                <div class="mono lh1rem"><span id="bsubsidy_pow">{{.BlockSummary.NextBlockSubsidy.PoW}}</span></div>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_pow">{{template "decimalParts" (amountAsDecimalParts .BlockSummary.NextBlockSubsidy.PoW true)}}</span><span class="unit"> DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem">POS REWARD</td>
+                            <td>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_pos">{{template "decimalParts" (amountAsDecimalParts ( divide .BlockSummary.NextBlockSubsidy.PoS 5) true)}}</span><span class="unit"> DCR</span><span class="fs14"> / ticket</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem">DEV REWARD</td>
+                            <td>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_dev">{{template "decimalParts" (amountAsDecimalParts .BlockSummary.NextBlockSubsidy.Developer true)}}</span><span class="unit"> DCR</span>
                             </td>
                         </tr>
                     </table>
@@ -231,18 +235,5 @@
     {{ template "footer"}}
 
 </body>
-<script>
-    var bsdev = document.getElementById("bsubsidy_dev");
-    bsdev.innerHTML = humanize.subsidyToString(bsdev.innerHTML);
-
-    var bspos = document.getElementById("bsubsidy_pos");
-    bspos.innerHTML = humanize.subsidyToString(bspos.innerHTML, 5);
-
-    var bspow = document.getElementById("bsubsidy_pow");
-    bspow.innerHTML = humanize.subsidyToString(bspow.innerHTML);
-
-    var bstotal = document.getElementById("bsubsidy_total");
-    bstotal.innerHTML = humanize.subsidyToString(bstotal.innerHTML);
-</script>
 </html>
 {{end}}

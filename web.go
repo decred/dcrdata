@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"fmt"
 
 	"golang.org/x/net/websocket"
 
@@ -73,6 +74,10 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 	efp := filepath.Join("views", "extras.tmpl")
 	errorfp := filepath.Join("views", "error.tmpl")
 	helpers := template.FuncMap{
+		"divide": func(n int64, d int64) int64 {
+			val := n/d
+			return val
+		},
 		"int64Comma": func(v int64) string {
 			t := humanize.Comma(v)
 			return t
@@ -93,7 +98,21 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 			p := (float64(i) / 144) * 100
 			return p
 		},
-		"amountAsFloatParts": func(v int64) []string {
+		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
+			clipped := fmt.Sprintf("%.8f", v)
+			oldLength := len(clipped)
+			clipped = strings.TrimRight(clipped, "0")
+			trailingZeros := strings.Repeat("0", oldLength-len(clipped))
+			valueChunks := strings.Split(clipped, ".")
+			integer := valueChunks[0]
+			if (useCommas) {
+				integerAsInt64, _ := strconv.ParseInt(integer, 10 ,64)
+				integer = humanize.Comma(integerAsInt64)
+			}
+			dec := valueChunks[1]
+			return []string{integer, dec, trailingZeros}
+		},
+		"amountAsDecimalParts": func(v int64, useCommas bool) []string {
 			amt := strconv.FormatInt(v, 10)
 			if len(amt) <= 8 {
 				dec := strings.TrimRight(amt, "0")
@@ -102,6 +121,10 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 				return []string{"0", leadingZeros + dec, trailingZeros}
 			}
 			integer := amt[:len(amt)-8]
+			if (useCommas) {
+				integerAsInt64, _ := strconv.ParseInt(integer, 10 ,64)
+				integer = humanize.Comma(integerAsInt64)
+			}
 			dec := strings.TrimRight(amt[len(amt)-8:], "0")
 			zeros := strings.Repeat("0", 8-len(dec))
 			return []string{integer, dec, zeros}
