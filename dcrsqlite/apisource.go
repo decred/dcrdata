@@ -696,7 +696,7 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	return tx
 }
 
-func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult) *explorer.AddressTx {
+func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address string) *explorer.AddressTx {
 	tx := new(explorer.AddressTx)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
@@ -705,6 +705,18 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult) *explorer.
 	t := time.Unix(tx.Time, 0)
 	tx.FormattedTime = t.Format("1/_2/06 15:04:05")
 	tx.Confirmations = data.Confirmations
+	for i := 0; i < len(data.Vin); i++ {
+		if data.Vin[i].PrevOut.Addresses[0] == address {
+			t, _ := dcrutil.NewAmount(*data.Vin[i].AmountIn)
+			tx.SentTotal += t
+		}
+	}
+	for i := 0; i < len(data.Vout); i++ {
+		if data.Vout[i].ScriptPubKey.Addresses[0] == address {
+			t, _ := dcrutil.NewAmount(data.Vout[i].Value)
+			tx.RecievedTotal += t
+		}
+	}
 	return tx
 }
 
@@ -931,7 +943,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
 	for _, tx := range txs {
-		addressTxs = append(addressTxs, makeExplorerAddressTx(tx))
+		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address))
 	}
 
 	NumberOfTx := len(txs)

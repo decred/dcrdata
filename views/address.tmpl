@@ -26,7 +26,9 @@
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
-                        <th class="text-right">Total DCR</th>
+                        <th class="text-right">Received DCR</th>
+                        <th>Sent DCR</th>
+                        <th>Total DCR</th>
                         <th>Time</th>
                         <th>Age</th>
                         <th>Confirmations</th>
@@ -37,6 +39,9 @@
                         <tr>
                             <td><a href="../tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
                             <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
+                            <td class="text-right">{{.RecievedTotal}}</td>
+                            <td>{{.SentTotal}}</td>
+                            <td class="text-right">{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .Total)}}</td>
                             <td>
                                 {{if eq .Time 0}}
                                     Unconfirmed
