@@ -177,7 +177,7 @@ comma-separated value (CSV) file.
 API.  This facilitates authoring of robust golang clients of the API.
 
 `package rpcutils` includes helper functions for interacting with a
-`dcrrpcclient.Client`.
+`rpcclient.Client`.
 
 `package stakedb` defines the `StakeDatabase` and `ChainMonitor` types for
 efficiently tracking live tickets, with the primary purpose of computing ticket

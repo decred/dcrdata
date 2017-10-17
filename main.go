@@ -53,7 +53,13 @@ func mainCore() error {
 		}
 	}
 
-	dbi := dcrpg.DBInfo{pgHost, pgPort, cfg.PGUser, cfg.PGPass, cfg.PGDBName}
+	dbi := dcrpg.DBInfo{
+		Host:   pgHost,
+		Port:   pgPort,
+		User:   cfg.PGUser,
+		Pass:   cfg.PGPass,
+		DBName: cfg.PGDBName,
+	}
 	db, err := dcrpg.NewChainDB(&dbi, activeChain)
 	if db != nil {
 		defer db.Close()

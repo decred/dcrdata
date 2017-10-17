@@ -9,7 +9,7 @@ import (
 
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 // should be called as a goroutine or it will hang on send if the channel is
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
-	client *dcrrpcclient.Client, quit chan struct{}, newIndexes bool) {
+	client *rpcclient.Client, quit chan struct{}, newIndexes bool) {
 	height, err := db.SyncChainDB(client, quit, newIndexes)
 	res <- dbtypes.SyncResult{
 		Height: height,
@@ -33,7 +33,7 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // RPC client. The table indexes may be force-dropped and recreated by setting
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
-func (db *ChainDB) SyncChainDB(client *dcrrpcclient.Client, quit chan struct{}, newIndexes bool) (int64, error) {
+func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{}, newIndexes bool) (int64, error) {
 	// Get chain servers's best block
 	_, nodeHeight, err := client.GetBestBlock()
 	if err != nil {

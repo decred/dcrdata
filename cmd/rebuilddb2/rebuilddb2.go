@@ -14,7 +14,7 @@ import (
 	"github.com/btcsuite/btclog"
 	"github.com/dcrdata/dcrdata/db/dcrpg"
 	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 var (
@@ -35,7 +35,7 @@ func init() {
 	}
 	backendLog = btclog.NewBackend(log.Writer())
 	rpcclientLogger = backendLog.Logger("RPC")
-	dcrrpcclient.UseLogger(rpcclientLogger)
+	rpcclient.UseLogger(rpcclientLogger)
 	sqliteLogger = backendLog.Logger("DSQL")
 	dcrpg.UseLogger(rpcclientLogger)
 }
@@ -83,7 +83,13 @@ func mainCore() error {
 		}
 	}
 
-	dbi := dcrpg.DBInfo{host, port, cfg.DBUser, cfg.DBPass, cfg.DBName}
+	dbi := dcrpg.DBInfo{
+		Host:   host,
+		Port:   port,
+		User:   cfg.DBUser,
+		Pass:   cfg.DBPass,
+		DBName: cfg.DBName,
+	}
 	db, err := dcrpg.NewChainDB(&dbi, activeChain)
 	if db != nil {
 		defer db.Close()
