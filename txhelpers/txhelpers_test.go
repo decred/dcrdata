@@ -12,8 +12,8 @@ import (
 	"github.com/dcrdata/dcrdata/semver"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 type TxGetter struct {
@@ -153,7 +153,7 @@ func TxToWriter(tx *dcrutil.Tx, w io.Writer) error {
 
 // ConnectNodeRPC attempts to create a new websocket connection to a dcrd node,
 // with the given credentials and optional notification handlers.
-func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclient.Client, semver.Semver, error) {
+func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*rpcclient.Client, semver.Semver, error) {
 	var dcrdCerts []byte
 	var err error
 	var nodeVer semver.Semver
@@ -165,7 +165,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclie
 
 	}
 
-	connCfgDaemon := &dcrrpcclient.ConnConfig{
+	connCfgDaemon := &rpcclient.ConnConfig{
 		Host:         host,
 		Endpoint:     "ws", // websocket
 		User:         user,
@@ -174,7 +174,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclie
 		DisableTLS:   disableTLS,
 	}
 
-	dcrdClient, err := dcrrpcclient.New(connCfgDaemon, nil)
+	dcrdClient, err := rpcclient.New(connCfgDaemon, nil)
 	if err != nil {
 		return nil, nodeVer, fmt.Errorf("Failed to start dcrd RPC client: %s", err.Error())
 	}

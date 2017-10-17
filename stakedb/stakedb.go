@@ -17,9 +17,9 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/database"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
 )
 
 // PoolInfoCache contains a map of block hashes to ticket pool info data at that
@@ -57,7 +57,7 @@ func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
 // StakeDatabase models data for the stake database
 type StakeDatabase struct {
 	params          *chaincfg.Params
-	NodeClient      *dcrrpcclient.Client
+	NodeClient      *rpcclient.Client
 	nodeMtx         sync.RWMutex
 	StakeDB         database.DB
 	BestNode        *stake.Node
@@ -77,7 +77,7 @@ const (
 
 // NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
 // ffldb-backed stake database, and loads all live tickets into a cache.
-func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*StakeDatabase, error) {
+func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params) (*StakeDatabase, error) {
 	sDB := &StakeDatabase{
 		params:          params,
 		NodeClient:      client,
@@ -104,7 +104,7 @@ func NewStakeDatabase(client *dcrrpcclient.Client, params *chaincfg.Params) (*St
 		log.Info("Pre-populating live ticket cache...")
 
 		type promiseGetRawTransaction struct {
-			result dcrrpcclient.FutureGetRawTransactionResult
+			result rpcclient.FutureGetRawTransactionResult
 			ticket *chainhash.Hash
 		}
 		promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(liveTickets))

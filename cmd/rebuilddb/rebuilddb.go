@@ -10,7 +10,7 @@ import (
 	"github.com/btcsuite/btclog"
 	"github.com/dcrdata/dcrdata/dcrsqlite"
 	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 var (
@@ -27,7 +27,7 @@ func init() {
 	}
 	backendLog = btclog.NewBackend(log.Writer())
 	rpcclientLogger = backendLog.Logger("RPC")
-	dcrrpcclient.UseLogger(rpcclientLogger)
+	rpcclient.UseLogger(rpcclientLogger)
 	sqliteLogger = backendLog.Logger("DSQL")
 	dcrsqlite.UseLogger(rpcclientLogger)
 }

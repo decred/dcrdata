@@ -63,39 +63,33 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/decred/dcrd"
-  packages = ["blockchain","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","database/ffldb","database/internal/treap","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","txscript","wire"]
-  revision = "1eef90fb732d0b7eaa87757fc0123af99836abd2"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/decred/dcrrpcclient"
+  name = "github.com/decred/base58"
   packages = ["."]
-  revision = "efe7aaf4a0f0616b75e3f3ad8fa494572ff96760"
+  revision = "b3520e187fa8ebe65eb74245408cf4b83e6a65d3"
 
 [[projects]]
   branch = "master"
-  name = "github.com/decred/dcrutil"
-  packages = [".","base58","hdkeychain"]
-  revision = "ddbde93f65ab0692e54ed8a5ad325fa2e8af4daa"
+  name = "github.com/decred/dcrd"
+  packages = ["blockchain","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","database/ffldb","database/internal/treap","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","dcrutil","hdkeychain","rpcclient","txscript","wire"]
+  revision = "d27429061b49d400d06505911a1379b8a8246671"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrwallet"
   packages = ["apperrors","internal/zero","netparams","snacl","wallet/udb","walletdb"]
-  revision = "d4f4a9abffb96821f5066b72333b7710b3942edd"
+  revision = "2df4002bce8c540907c9a3e2980fc3e5deeba8f6"
 
 [[projects]]
   branch = "master"
   name = "github.com/dustin/go-humanize"
   packages = ["."]
-  revision = "79e699ccd02f240a1f1fbbdcee7e64c1c12e41aa"
+  revision = "77ed807830b4df581417e7f89eb81d4872832b72"
 
 [[projects]]
   name = "github.com/go-chi/chi"
   packages = [".","middleware"]
-  revision = "04ec7fc4179604b2390947258f9143eaae23b596"
-  version = "v3.2.1"
+  revision = "f7c66f685bcab06bcce78ac212c5f3553c063d19"
+  version = "v3.3.0"
 
 [[projects]]
   name = "github.com/go-chi/docgen"
@@ -153,17 +147,17 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context","websocket"]
-  revision = "a04bdaca5b32abe1c069418fb7088ae607de5bd0"
+  revision = "1087133bc4af3073e18add999345c6ae75918503"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "314a259e304ff91bd6985da2a7149bbf91237993"
+  revision = "8dbc5d05d6edcc104950cc299a1ce6641235bc86"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d6fdc275face19089facee6ea06b0f2ab05bad9cf80db34338979063f3f5f970"
+  inputs-digest = "825e2c752e35a0c4ffc7d7f60695053e5f860ea449188efdb538340a1dfbf87a"
   solver-name = "gps-cdcl"
   solver-version = 1

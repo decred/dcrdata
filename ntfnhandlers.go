@@ -13,13 +13,13 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
-func registerNodeNtfnHandlers(dcrdClient *dcrrpcclient.Client) *ContextualError {
+func registerNodeNtfnHandlers(dcrdClient *rpcclient.Client) *ContextualError {
 	var err error
 	// Register for block connection and chain reorg notifications.
 	if err = dcrdClient.NotifyBlocks(); err != nil {
@@ -40,7 +40,7 @@ func registerNodeNtfnHandlers(dcrdClient *dcrrpcclient.Client) *ContextualError 
 	}
 
 	// For OnNewTickets
-	//  Commented since there is a bug in dcrrpcclient/notify.go
+	//  Commented since there is a bug in rpcclient/notify.go
 	// dcrdClient.NotifyNewTickets()
 
 	if err = dcrdClient.NotifyWinningTickets(); err != nil {
@@ -129,10 +129,10 @@ func (q *collectionQueue) ProcessBlocks() {
 // }
 
 // Define notification handlers
-func makeNodeNtfnHandlers(cfg *config) (*dcrrpcclient.NotificationHandlers, *collectionQueue) {
+func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collectionQueue) {
 	blockQueue := NewCollectionQueue()
 	go blockQueue.ProcessBlocks()
-	return &dcrrpcclient.NotificationHandlers{
+	return &rpcclient.NotificationHandlers{
 		OnBlockConnected: func(blockHeaderSerialized []byte, transactions [][]byte) {
 			blockHeader := new(wire.BlockHeader)
 			err := blockHeader.FromBytes(blockHeaderSerialized)

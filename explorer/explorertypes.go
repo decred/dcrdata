@@ -6,7 +6,7 @@ package explorer
 import (
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 // BlockBasic models data for the explorer's explorer page
