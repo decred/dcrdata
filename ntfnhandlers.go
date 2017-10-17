@@ -13,9 +13,9 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 

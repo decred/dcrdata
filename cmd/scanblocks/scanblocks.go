@@ -14,8 +14,8 @@ import (
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 var host = flag.String("host", "127.0.0.1:9109", "node RPC host:port")
