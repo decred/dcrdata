@@ -19,7 +19,8 @@
                         Transactions: {{.NoOfTransactions}}</br>
                         Unconfirmed: {{.TotalUnconfirmed}}</br>
                         Received: {{.Received}}</br>
-                        Unspent: N/A</br>
+                        Sent: {{.TotalSent}}</br>
+                        Unspent: {{.UnSpent}}</br>
                     {{end}}
                 </p>
                 <h5>Transactions</h5>
@@ -38,10 +39,27 @@
                         {{range .Transactions}}
                         <tr>
                             <td><a href="../tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
+<<<<<<< HEAD
                             <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
+=======
+<<<<<<< HEAD
+>>>>>>> adding more to summary
                             <td class="text-right">{{.RecievedTotal}}</td>
                             <td>{{.SentTotal}}</td>
                             <td class="text-right">{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .Total)}}</td>
+=======
+                            {{if ne .RecievedTotal 0}}
+                                <td class="text-right">{{.RecievedTotal}}</td>
+                            {{else}}
+                                <td></td>
+                            {{end}}
+                            {{if ne .SentTotal 0}}
+                                <td>{{.SentTotal}}</td>
+                            {{else}}
+                                <td></td>
+                            {{end}}
+                            <td>{{template "fancyDCR" (fancyDCR .Total)}}</td>
+>>>>>>> adding more to summary
                             <td>
                                 {{if eq .Time 0}}
                                     Unconfirmed

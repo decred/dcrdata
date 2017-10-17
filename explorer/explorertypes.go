@@ -126,4 +126,6 @@ type AddressInfo struct {
 	TotalUnconfirmed int
 	Received         dcrutil.Amount
 	AddressRow       int
+	TotalSent        dcrutil.Amount
+	UnSpent          dcrutil.Amount
 }

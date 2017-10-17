@@ -948,7 +948,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 
 	NumberOfTx := len(txs)
 	NoOfUnconfirmed := 0
-	var totalreceived dcrutil.Amount
+	var totalreceived, totalsent dcrutil.Amount
 	if NumberOfTx < explorer.AddressRows {
 		for i := 0; i < len(txs); i++ {
 			if txs[i].Confirmations == 0 {
@@ -960,8 +960,15 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 					totalreceived += t
 				}
 			}
+			for _, u := range txs[i].Vin {
+				if address == u.PrevOut.Addresses[0] {
+					t, _ := dcrutil.NewAmount(*u.AmountIn)
+					totalsent += t
+				}
+			}
 		}
 	}
+	unspentfunds := totalreceived - totalsent
 	return &explorer.AddressInfo{
 		Address:          address,
 		Transactions:     addressTxs,
@@ -969,5 +976,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 		TotalUnconfirmed: NoOfUnconfirmed,
 		Received:         totalreceived,
 		AddressRow:       explorer.AddressRows,
+		TotalSent:        totalsent,
+		UnSpent:          unspentfunds,
 	}
 }
