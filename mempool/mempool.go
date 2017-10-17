@@ -19,8 +19,8 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 // NewTx models data for a new transaction
@@ -110,7 +110,7 @@ func (tix ByAbsoluteFee) Less(i, j int) bool {
 // mechanism used by main. The newTxChan contains a chain hash for the
 // transaction from the notificiation, or a zero value hash indicating it was
 // from a Ticker or manually triggered.
-func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
+func (p *mempoolMonitor) TxHandler(client *rpcclient.Client) {
 	defer p.wg.Done()
 	for {
 		select {
@@ -302,12 +302,12 @@ func (m *MempoolData) GetNumTickets() uint32 {
 
 type mempoolDataCollector struct {
 	mtx          sync.Mutex
-	dcrdChainSvr *dcrrpcclient.Client
+	dcrdChainSvr *rpcclient.Client
 	activeChain  *chaincfg.Params
 }
 
 // NewMempoolDataCollector creates a new mempoolDataCollector.
-func NewMempoolDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params) *mempoolDataCollector {
+func NewMempoolDataCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Params) *mempoolDataCollector {
 	return &mempoolDataCollector{
 		mtx:          sync.Mutex{},
 		dcrdChainSvr: dcrdChainSvr,

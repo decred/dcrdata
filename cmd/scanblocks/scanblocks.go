@@ -14,8 +14,8 @@ import (
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 var host = flag.String("host", "127.0.0.1:9109", "node RPC host:port")
@@ -153,7 +153,7 @@ func init() {
 
 	backendLog = btclog.NewBackend(log.Writer())
 	rpcclientLogger = backendLog.Logger("RPC")
-	dcrrpcclient.UseLogger(rpcclientLogger)
+	rpcclient.UseLogger(rpcclientLogger)
 	rpcutils.UseLogger(rpcclientLogger)
 }
 

@@ -16,8 +16,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 var requiredChainServerAPI = semver.NewSemver(3, 0, 0)
@@ -25,7 +25,7 @@ var requiredChainServerAPI = semver.NewSemver(3, 0, 0)
 // ConnectNodeRPC attempts to create a new websocket connection to a dcrd node,
 // with the given credentials and optional notification handlers.
 func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
-	ntfnHandlers ...*dcrrpcclient.NotificationHandlers) (*dcrrpcclient.Client, semver.Semver, error) {
+	ntfnHandlers ...*rpcclient.NotificationHandlers) (*rpcclient.Client, semver.Semver, error) {
 	var dcrdCerts []byte
 	var err error
 	var nodeVer semver.Semver
@@ -44,7 +44,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 			host, user)
 	}
 
-	connCfgDaemon := &dcrrpcclient.ConnConfig{
+	connCfgDaemon := &rpcclient.ConnConfig{
 		Host:         host,
 		Endpoint:     "ws", // websocket
 		User:         user,
@@ -53,14 +53,14 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 		DisableTLS:   disableTLS,
 	}
 
-	var ntfnHdlrs *dcrrpcclient.NotificationHandlers
+	var ntfnHdlrs *rpcclient.NotificationHandlers
 	if len(ntfnHandlers) > 0 {
 		if len(ntfnHandlers) > 1 {
 			return nil, nodeVer, fmt.Errorf("invalid notification handler argument")
 		}
 		ntfnHdlrs = ntfnHandlers[0]
 	}
-	dcrdClient, err := dcrrpcclient.New(connCfgDaemon, ntfnHdlrs)
+	dcrdClient, err := rpcclient.New(connCfgDaemon, ntfnHdlrs)
 	if err != nil {
 		return nil, nodeVer, fmt.Errorf("Failed to start dcrd RPC client: %s", err.Error())
 	}
@@ -128,7 +128,7 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 
 // GetBlockHeaderVerbose creates a *dcrjson.GetBlockHeaderVerboseResult for the
 // block index specified by idx via an RPC connection to a chain server.
-func GetBlockHeaderVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
+func GetBlockHeaderVerbose(client *rpcclient.Client, params *chaincfg.Params,
 	idx int64) *dcrjson.GetBlockHeaderVerboseResult {
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
@@ -147,7 +147,7 @@ func GetBlockHeaderVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
 
 // GetBlockVerbose creates a *dcrjson.GetBlockVerboseResult for the block index
 // specified by idx via an RPC connection to a chain server.
-func GetBlockVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
+func GetBlockVerbose(client *rpcclient.Client, params *chaincfg.Params,
 	idx int64, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
@@ -166,7 +166,7 @@ func GetBlockVerbose(client *dcrrpcclient.Client, params *chaincfg.Params,
 
 // GetBlockVerboseByHash creates a *dcrjson.GetBlockVerboseResult for the
 // specified block hash via an RPC connection to a chain server.
-func GetBlockVerboseByHash(client *dcrrpcclient.Client, params *chaincfg.Params,
+func GetBlockVerboseByHash(client *rpcclient.Client, params *chaincfg.Params,
 	hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	blockhash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
@@ -185,7 +185,7 @@ func GetBlockVerboseByHash(client *dcrrpcclient.Client, params *chaincfg.Params,
 
 // GetStakeDiffEstimates combines the results of EstimateStakeDiff and
 // GetStakeDifficulty into a *apitypes.StakeDiff.
-func GetStakeDiffEstimates(client *dcrrpcclient.Client) *apitypes.StakeDiff {
+func GetStakeDiffEstimates(client *rpcclient.Client) *apitypes.StakeDiff {
 	stakeDiff, err := client.GetStakeDifficulty()
 	if err != nil {
 		return nil
@@ -205,7 +205,7 @@ func GetStakeDiffEstimates(client *dcrrpcclient.Client) *apitypes.StakeDiff {
 }
 
 // GetBlock gets a block at the given height from a chain server.
-func GetBlock(ind int64, client *dcrrpcclient.Client) (*dcrutil.Block, *chainhash.Hash, error) {
+func GetBlock(ind int64, client *rpcclient.Client) (*dcrutil.Block, *chainhash.Hash, error) {
 	blockhash, err := client.GetBlockHash(ind)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetBlockHash(%d) failed: %v", ind, err)

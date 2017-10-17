@@ -16,7 +16,7 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/stakedb"
-	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrd/rpcclient"
 	"github.com/jrick/logrotate/rotator"
 )
 
@@ -63,7 +63,7 @@ func init() {
 	dcrsqlite.UseLogger(sqliteLog)
 	stakedb.UseLogger(stakedbLog)
 	blockdata.UseLogger(blockdataLog)
-	dcrrpcclient.UseLogger(clientLog)
+	rpcclient.UseLogger(clientLog)
 	rpcutils.UseLogger(clientLog)
 	mempool.UseLogger(mempoolLog)
 	explorer.UseLogger(expLog)

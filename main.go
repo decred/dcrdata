@@ -20,7 +20,7 @@ import (
 	"github.com/dcrdata/dcrdata/semver"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrd/rpcclient"
 	"github.com/go-chi/chi"
 )
 
@@ -333,7 +333,7 @@ func main() {
 	os.Exit(mainCore())
 }
 
-func connectNodeRPC(cfg *config, ntfnHandlers *dcrrpcclient.NotificationHandlers) (*dcrrpcclient.Client, semver.Semver, error) {
+func connectNodeRPC(cfg *config, ntfnHandlers *rpcclient.NotificationHandlers) (*rpcclient.Client, semver.Semver, error) {
 	return rpcutils.ConnectNodeRPC(cfg.DcrdServ, cfg.DcrdUser, cfg.DcrdPass,
 		cfg.DcrdCert, cfg.DisableDaemonTLS, ntfnHandlers)
 }

@@ -10,7 +10,7 @@ import (
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 // APIDataSource implements an interface for collecting data for the api
@@ -56,7 +56,7 @@ type APIDataSource interface {
 
 // dcrdata application context used by all route handlers
 type appContext struct {
-	nodeClient *dcrrpcclient.Client
+	nodeClient *rpcclient.Client
 	BlockData  APIDataSource
 	Status     apitypes.Status
 	statusMtx  sync.RWMutex
@@ -64,7 +64,7 @@ type appContext struct {
 }
 
 // Constructor for appContext
-func newContext(client *dcrrpcclient.Client, blockData APIDataSource, JSONIndent string) *appContext {
+func newContext(client *rpcclient.Client, blockData APIDataSource, JSONIndent string) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 	return &appContext{

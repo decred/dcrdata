@@ -14,8 +14,8 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
 )
 
 // BlockData contains all the data collected by a Collector and stored
@@ -94,13 +94,13 @@ func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 // Collector models a structure for the source of the blockdata
 type Collector struct {
 	mtx          sync.Mutex
-	dcrdChainSvr *dcrrpcclient.Client
+	dcrdChainSvr *rpcclient.Client
 	netParams    *chaincfg.Params
 	stakeDB      *stakedb.StakeDatabase
 }
 
 // NewCollector creates a new Collector.
-func NewCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params,
+func NewCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Params,
 	stakeDB *stakedb.StakeDatabase) *Collector {
 	return &Collector{
 		mtx:          sync.Mutex{},

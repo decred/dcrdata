@@ -23,8 +23,8 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/dustin/go-humanize"
 )
 
@@ -33,12 +33,12 @@ import (
 type wiredDB struct {
 	*DBDataSaver
 	MPC    *mempool.MempoolDataCache
-	client *dcrrpcclient.Client
+	client *rpcclient.Client
 	params *chaincfg.Params
 	sDB    *stakedb.StakeDatabase
 }
 
-func newWiredDB(DB *DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
+func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
 	wDB := wiredDB{
 		DBDataSaver: &DBDataSaver{DB, statusC},
 		MPC:         new(mempool.MempoolDataCache),
@@ -59,13 +59,13 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincf
 // NewWiredDB creates a new wiredDB from a *sql.DB, a node client, network
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
-func NewWiredDB(db *sql.DB, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
+func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
 	return newWiredDB(NewDB(db), statusC, cl, p)
 }
 
 // InitWiredDB creates a new wiredDB from a file containing the data for a
 // sql.DB. The other parameters are same as those for NewWiredDB.
-func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *dcrrpcclient.Client, p *chaincfg.Params) (wiredDB, func() error, error) {
+func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) (wiredDB, func() error, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
 		return wiredDB{}, func() error { return nil }, err

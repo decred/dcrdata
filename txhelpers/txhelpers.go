@@ -19,11 +19,11 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
 )
 
-// RawTransactionGetter is an interface satisfied by dcrrpcclient.Client, and
-// required by functions that would otherwise require a dcrrpcclient.Client just
+// RawTransactionGetter is an interface satisfied by rpcclient.Client, and
+// required by functions that would otherwise require a rpcclient.Client just
 // for GetRawTransaction.
 type RawTransactionGetter interface {
 	GetRawTransaction(txHash *chainhash.Hash) (*dcrutil.Tx, error)

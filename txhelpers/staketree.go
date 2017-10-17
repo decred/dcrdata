@@ -9,8 +9,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/database"
 	_ "github.com/decred/dcrd/database/ffldb"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 
 // BuildStakeTree returns a database with a stake tree
 func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
-	nodeClient *dcrrpcclient.Client, poolRequiredHeight int64, DBName ...string) (database.DB, []int64, error) {
+	nodeClient *rpcclient.Client, poolRequiredHeight int64, DBName ...string) (database.DB, []int64, error) {
 
 	if blocks[0] == nil || blocks[0].Height() != 0 {
 		return nil, nil, fmt.Errorf("Must start at height 0")
