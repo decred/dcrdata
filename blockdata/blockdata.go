@@ -166,7 +166,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	}
 
 	// Fee info
-	feeInfoBlock := txhelpers.FeeRateInfoBlock(block, t.dcrdChainSvr)
+	feeInfoBlock := txhelpers.FeeRateInfoBlock(block)
 	if feeInfoBlock == nil {
 		log.Error("FeeInfoBlock failed")
 	}

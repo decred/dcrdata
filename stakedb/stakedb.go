@@ -216,7 +216,7 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 		if wasCached {
 			db.ForgetBlock(maturingHeight)
 		}
-		maturingTickets = txhelpers.TicketsInBlock(maturingBlock)
+		maturingTickets, _ = txhelpers.TicketsInBlock(maturingBlock)
 	}
 
 	db.blkMtx.Lock()
@@ -408,14 +408,14 @@ func (db *StakeDatabase) PoolInfoBest() (apitypes.TicketPoolInfo, uint32) {
 	for _, hash := range liveTickets {
 		val, ok := db.liveTicketCache[hash]
 		if !ok {
-			txid, err := db.NodeClient.GetRawTransaction(&hash)
+			tx, err := db.NodeClient.GetRawTransaction(&hash)
 			if err != nil {
 				log.Errorf("Unable to get transaction %v: %v\n", hash, err)
 				continue
 			}
 			// This isn't quite right for pool tickets where the small
 			// pool fees are included in vout[0], but it's close.
-			val = txid.MsgTx().TxOut[0].Value
+			val = tx.MsgTx().TxOut[0].Value
 			db.liveTicketCache[hash] = val
 		}
 		poolValue += val
