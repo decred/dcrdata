@@ -11,6 +11,7 @@ import (
 	_ "github.com/decred/dcrd/database/ffldb"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/wire"
 )
 
 const (
@@ -80,14 +81,14 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 				for _, hash := range liveTickets {
 					val, ok := liveTicketMap[hash]
 					if !ok {
-						txid, err := nodeClient.GetRawTransaction(&hash)
+						tx, err := nodeClient.GetRawTransaction(&hash)
 						if err != nil {
 							fmt.Printf("Unable to get transaction %v: %v\n", hash, err)
 							continue
 						}
 						// This isn't quite right for pool tickets where the small
 						// pool fees are included in vout[0], but it's close.
-						val = txid.MsgTx().TxOut[0].Value
+						val = tx.MsgTx().TxOut[0].Value
 						liveTicketMap[hash] = val
 					}
 					amt += val
@@ -102,7 +103,7 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 			var ticketsToAdd []chainhash.Hash
 			if i >= netParams.StakeEnabledHeight {
 				matureHeight := (i - int64(netParams.TicketMaturity))
-				ticketsToAdd = TicketsInBlock(blocks[matureHeight])
+				ticketsToAdd, _ = TicketsInBlock(blocks[matureHeight])
 			}
 
 			spentTickets := TicketsSpentInBlock(block)
@@ -137,16 +138,33 @@ func BuildStakeTree(blocks map[int64]*dcrutil.Block, netParams *chaincfg.Params,
 /// kang
 
 // TicketsInBlock finds all the new tickets in the block.
-func TicketsInBlock(bl *dcrutil.Block) []chainhash.Hash {
+func TicketsInBlock(bl *dcrutil.Block) ([]chainhash.Hash, []*wire.MsgTx) {
 	tickets := make([]chainhash.Hash, 0)
+	ticketsMsgTx := make([]*wire.MsgTx, 0)
 	for _, stx := range bl.STransactions() {
 		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSStx {
 			h := stx.Hash()
 			tickets = append(tickets, *h)
+			ticketsMsgTx = append(ticketsMsgTx, stx.MsgTx())
 		}
 	}
 
-	return tickets
+	return tickets, ticketsMsgTx
+}
+
+// TicketTxnsInBlock finds all the new tickets in the block.
+func TicketTxnsInBlock(bl *dcrutil.Block) ([]chainhash.Hash, []*dcrutil.Tx) {
+	tickets := make([]chainhash.Hash, 0)
+	ticketTxns := make([]*dcrutil.Tx, 0)
+	for _, stx := range bl.STransactions() {
+		if stake.DetermineTxType(stx.MsgTx()) == stake.TxTypeSStx {
+			h := stx.Hash()
+			tickets = append(tickets, *h)
+			ticketTxns = append(ticketTxns, stx)
+		}
+	}
+
+	return tickets, ticketTxns
 }
 
 // TicketsSpentInBlock finds all the tickets spent in the block.

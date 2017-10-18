@@ -87,15 +87,9 @@ func LoadTestBlockAndSSTX(t *testing.T) (*dcrutil.Block, []*dcrutil.Tx) {
 }
 
 func TestFeeRateInfoBlock(t *testing.T) {
-	block, allTxRead := LoadTestBlockAndSSTX(t)
+	block, _ := LoadTestBlockAndSSTX(t)
 
-	txGetter := new(TxGetter)
-	txGetter.txLookup = make(map[chainhash.Hash]*dcrutil.Tx)
-	for _, tx := range allTxRead {
-		txGetter.txLookup[*tx.Hash()] = tx
-	}
-
-	fib := FeeRateInfoBlock(block, txGetter)
+	fib := FeeRateInfoBlock(block)
 	t.Log(*fib)
 
 	fibExpected := dcrjson.FeeInfoBlock{
@@ -114,15 +108,9 @@ func TestFeeRateInfoBlock(t *testing.T) {
 }
 
 func TestFeeInfoBlock(t *testing.T) {
-	block, allTxRead := LoadTestBlockAndSSTX(t)
+	block, _ := LoadTestBlockAndSSTX(t)
 
-	txGetter := new(TxGetter)
-	txGetter.txLookup = make(map[chainhash.Hash]*dcrutil.Tx)
-	for _, tx := range allTxRead {
-		txGetter.txLookup[*tx.Hash()] = tx
-	}
-
-	fib := FeeInfoBlock(block, txGetter)
+	fib := FeeInfoBlock(block)
 	t.Log(*fib)
 
 	fibExpected := dcrjson.FeeInfoBlock{

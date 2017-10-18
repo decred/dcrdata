@@ -100,7 +100,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 		si := apitypes.StakeInfoExtended{}
 
 		// Ticket fee info
-		fib := txhelpers.FeeRateInfoBlock(block, db.client)
+		fib := txhelpers.FeeRateInfoBlock(block)
 		if fib == nil {
 			return fmt.Errorf("FeeRateInfoBlock failed")
 		}
@@ -297,7 +297,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) error {
 		si := apitypes.StakeInfoExtended{}
 
 		// Ticket fee info
-		fib := txhelpers.FeeRateInfoBlock(block, db.client)
+		fib := txhelpers.FeeRateInfoBlock(block)
 		if fib == nil {
 			return fmt.Errorf("FeeRateInfoBlock failed")
 		}

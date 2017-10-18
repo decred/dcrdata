@@ -287,17 +287,9 @@ func GetDifficultyRatio(bits uint32, params *chaincfg.Params) float64 {
 }
 
 // SSTXInBlock gets a slice containing all of the SSTX mined in a block
-func SSTXInBlock(block *dcrutil.Block, c RawTransactionGetter) []*dcrutil.Tx {
-	newSStx := TicketsInBlock(block)
-	allSSTx := make([]*dcrutil.Tx, len(newSStx))
-	for it := range newSStx {
-		var err error
-		allSSTx[it], err = c.GetRawTransaction(&newSStx[it])
-		if err != nil {
-			fmt.Printf("Unable to get sstx details: %v", err)
-		}
-	}
-	return allSSTx
+func SSTXInBlock(block *dcrutil.Block) []*dcrutil.Tx {
+	_, txns := TicketTxnsInBlock(block)
+	return txns
 }
 
 // SSGenVoteBlockValid determines if a vote transaction is voting yes or no to a
@@ -433,30 +425,18 @@ func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation,
 }
 
 // FeeInfoBlock computes ticket fee statistics for the tickets included in the
-// specified block.  The RPC client is used to fetch raw transaction details
-// need to compute the fee for each sstx.
-func FeeInfoBlock(block *dcrutil.Block, c RawTransactionGetter) *dcrjson.FeeInfoBlock {
+// specified block.
+func FeeInfoBlock(block *dcrutil.Block) *dcrjson.FeeInfoBlock {
 	feeInfo := new(dcrjson.FeeInfoBlock)
-	newSStx := TicketsInBlock(block)
+	_, sstxMsgTxns := TicketsInBlock(block)
 
 	feeInfo.Height = uint32(block.Height())
-	feeInfo.Number = uint32(len(newSStx))
+	feeInfo.Number = uint32(len(sstxMsgTxns))
 
 	var minFee, maxFee, meanFee float64
 	minFee = math.MaxFloat64
 	fees := make([]float64, feeInfo.Number)
-	for it := range newSStx {
-		//var rawTx *dcrutil.Tx
-		// rawTx, err := c.GetRawTransactionVerbose(&newSStx[it])
-		// if err != nil {
-		// 	log.Errorf("Unable to get sstx details: %v", err)
-		// }
-		// rawTx.Vin[iv].AmountIn
-		rawTx, err := c.GetRawTransaction(&newSStx[it])
-		if err != nil {
-			fmt.Printf("Unable to get sstx details: %v", err)
-		}
-		msgTx := rawTx.MsgTx()
+	for it, msgTx := range sstxMsgTxns {
 		var amtIn int64
 		for iv := range msgTx.TxIn {
 			amtIn += msgTx.TxIn[iv].ValueIn
@@ -498,26 +478,18 @@ func FeeInfoBlock(block *dcrutil.Block, c RawTransactionGetter) *dcrjson.FeeInfo
 }
 
 // FeeRateInfoBlock computes ticket fee rate statistics for the tickets included
-// in the specified block.  The RPC client is used to fetch raw transaction
-// details need to compute the fee rate for each sstx.
-func FeeRateInfoBlock(block *dcrutil.Block, c RawTransactionGetter) *dcrjson.FeeInfoBlock {
+// in the specified block.
+func FeeRateInfoBlock(block *dcrutil.Block) *dcrjson.FeeInfoBlock {
 	feeInfo := new(dcrjson.FeeInfoBlock)
-	newSStx := TicketsInBlock(block)
+	_, sstxMsgTxns := TicketsInBlock(block)
 
 	feeInfo.Height = uint32(block.Height())
-	feeInfo.Number = uint32(len(newSStx))
+	feeInfo.Number = uint32(len(sstxMsgTxns))
 
-	//var minFee, maxFee dcrutil.Amount
-	//minFee = dcrutil.MaxAmount
 	var minFee, maxFee, meanFee float64
 	minFee = math.MaxFloat64
 	feesRates := make([]float64, feeInfo.Number)
-	for it := range newSStx {
-		rawTx, err := c.GetRawTransaction(&newSStx[it])
-		if err != nil {
-			fmt.Printf("Unable to get sstx details: %v", err)
-		}
-		msgTx := rawTx.MsgTx()
+	for it, msgTx := range sstxMsgTxns {
 		var amtIn, amtOut int64
 		for iv := range msgTx.TxIn {
 			amtIn += msgTx.TxIn[iv].ValueIn
