@@ -22,6 +22,13 @@ const (
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	client *rpcclient.Client, quit chan struct{}, newIndexes bool) {
+	if db == nil {
+		res <- dbtypes.SyncResult{
+			Height: -1,
+			Error:  fmt.Errorf("ChainDB (psql) disabled"),
+		}
+		return
+	}
 	height, err := db.SyncChainDB(client, quit, newIndexes)
 	res <- dbtypes.SyncResult{
 		Height: height,
@@ -152,8 +159,8 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{}, new
 		}
 	}
 
-	log.Infof("Rebuild finished: %d blocks, %d transactions, %d ins, %d outs",
-		nodeHeight, totalTxs, totalVins, totalVouts)
+	log.Infof("Rebuild finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
+		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)
 
 	return nodeHeight, nil
 }

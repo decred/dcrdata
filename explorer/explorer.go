@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -52,6 +53,7 @@ type explorerUI struct {
 	Mux             *chi.Mux
 	blockData       explorerDataSource
 	explorerSource  explorerDataSourceAlt
+	liteMode        bool
 	templates       []*template.Template
 	templateFiles   map[string]string
 	templateHelpers template.FuncMap
@@ -129,22 +131,24 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
-	// For each output of this transaction, look up any spending transactions,
-	// and the index of the spending transaction input.
-	spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
-	if err != nil {
-		log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
-		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
-		return
-	}
-	for i, vout := range voutInds {
-		if int(vout) >= len(tx.SpendingTxns) {
-			log.Errorf("Invalid spending transaction data (%s:%d)", hash, vout)
-			continue
+	if !exp.liteMode {
+		// For each output of this transaction, look up any spending transactions,
+		// and the index of the spending transaction input.
+		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
+		if err != nil {
+			log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
+			http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+			return
 		}
-		tx.SpendingTxns[vout] = TxInID{
-			Hash:  spendingTxHashes[i],
-			Index: spendingTxVinInds[i],
+		for i, vout := range voutInds {
+			if int(vout) >= len(tx.SpendingTxns) {
+				log.Errorf("Invalid spending transaction data (%s:%d)", hash, vout)
+				continue
+			}
+			tx.SpendingTxns[vout] = TxInID{
+				Hash:  spendingTxHashes[i],
+				Index: spendingTxVinInds[i],
+			}
 		}
 	}
 	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", tx)
@@ -306,6 +310,11 @@ func New(dataSource explorerDataSource, primaryDataSource explorerDataSourceAlt,
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
 	exp.explorerSource = primaryDataSource
+	// explorerDataSourceAlt is an interface that could have a value of pointer
+	// type, and if either is nil this means lite mode.
+	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
+		exp.liteMode = true
+	}
 
 	if useRealIP {
 		exp.Mux.Use(middleware.RealIP)

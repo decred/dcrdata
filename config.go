@@ -52,10 +52,10 @@ var (
 
 	defaultDBFileName = "dcrdata.sqlt.db"
 
-	defaultPGHostPort = "127.0.0.1:5432"
-	defaultPGUser     = "dcrdata"
-	defaultPGPass     = ""
-	defaultPGDBName   = "dcrdata"
+	defaultPGHost   = "127.0.0.1:5432"
+	defaultPGUser   = "dcrdata"
+	defaultPGPass   = ""
+	defaultPGDBName = "dcrdata"
 )
 
 type config struct {
@@ -88,10 +88,11 @@ type config struct {
 	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
 
-	PGDBName   string `long:"pgdbname" description:"PostgreSQL DB name."`
-	PGUser     string `long:"pguser" description:"PostgreSQL DB user."`
-	PGPass     string `long:"pgpass" description:"PostgreSQL DB password."`
-	PGHostPort string `long:"pghostport" description:"PostgreSQL server host:port."`
+	LiteMode bool   `short:"l" long:"lite" description:"Run in \"lite\" mode, using only SQLite."`
+	PGDBName string `long:"pgdbname" description:"PostgreSQL DB name."`
+	PGUser   string `long:"pguser" description:"PostgreSQL DB user."`
+	PGPass   string `long:"pgpass" description:"PostgreSQL DB password."`
+	PGHost   string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)."`
 
 	//WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
 	//WatchOutpoints []string `short:"o" long:"watchout" description:"Watched outpoint (sending). One per line."`
@@ -130,7 +131,7 @@ var (
 		PGDBName:           defaultPGDBName,
 		PGUser:             defaultPGUser,
 		PGPass:             defaultPGPass,
-		PGHostPort:         defaultPGHostPort,
+		PGHost:             defaultPGHost,
 	}
 )
 

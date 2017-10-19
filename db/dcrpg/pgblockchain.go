@@ -118,6 +118,9 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 }
 
 func (pgb *ChainDB) Store(_ *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+	if pgb == nil {
+		return nil
+	}
 	_, _, err := pgb.StoreBlock(msgBlock)
 	return err
 }

@@ -45,31 +45,34 @@ func mainCore() error {
 	}()
 
 	// PostgreSQL
-	pgHost, pgPort := cfg.PGHostPort, ""
-	if !strings.HasPrefix(pgHost, "/") {
-		pgHost, pgPort, err = net.SplitHostPort(cfg.PGHostPort)
-		if err != nil {
-			return fmt.Errorf("SplitHostPort failed: %v", err)
+	usePG := !cfg.LiteMode
+	var db *dcrpg.ChainDB
+	if usePG {
+		pgHost, pgPort := cfg.PGHost, ""
+		if !strings.HasPrefix(pgHost, "/") {
+			pgHost, pgPort, err = net.SplitHostPort(cfg.PGHost)
+			if err != nil {
+				return fmt.Errorf("SplitHostPort failed: %v", err)
+			}
 		}
-	}
+		dbi := dcrpg.DBInfo{
+			Host:   pgHost,
+			Port:   pgPort,
+			User:   cfg.PGUser,
+			Pass:   cfg.PGPass,
+			DBName: cfg.PGDBName,
+		}
+		db, err = dcrpg.NewChainDB(&dbi, activeChain)
+		if db != nil {
+			defer db.Close()
+		}
+		if err != nil {
+			return err
+		}
 
-	dbi := dcrpg.DBInfo{
-		Host:   pgHost,
-		Port:   pgPort,
-		User:   cfg.PGUser,
-		Pass:   cfg.PGPass,
-		DBName: cfg.PGDBName,
-	}
-	db, err := dcrpg.NewChainDB(&dbi, activeChain)
-	if db != nil {
-		defer db.Close()
-	}
-	if err != nil {
-		return err
-	}
-
-	if err = db.SetupTables(); err != nil {
-		return err
+		if err = db.SetupTables(); err != nil {
+			return err
+		}
 	}
 
 	if cfg.CPUProfile != "" {
@@ -87,6 +90,12 @@ func mainCore() error {
 
 	//log.Debugf("Output folder: %v", cfg.OutFolder)
 	log.Debugf("Log folder: %v", cfg.LogDir)
+
+	if usePG {
+		log.Info(`Running in full-functionality mode with PostgreSQL backend enabled.`)
+	} else {
+		log.Info(`Running in "Lite" mode with only SQLite backend and limited functionality.`)
+	}
 
 	// // Create data output folder if it does not already exist
 	// if err = os.MkdirAll(cfg.OutFolder, 0750); err != nil {
@@ -177,9 +186,12 @@ func mainCore() error {
 		sqliteRes := <-sqliteSyncRes
 		sqliteHeight = sqliteRes.Height
 		log.Infof("SQLite sync ended at height %d", sqliteHeight)
+
 		pgRes := <-pgSyncRes
 		pgHeight = pgRes.Height
-		log.Infof("PostgreSQL sync ended at height %d", pgHeight)
+		if usePG {
+			log.Infof("PostgreSQL sync ended at height %d", pgHeight)
+		}
 
 		// See if there was a SIGINT (CTRL+C)
 		select {
@@ -191,7 +203,7 @@ func mainCore() error {
 
 		// Check for errors and combine if necessary
 		if sqliteRes.Error != nil {
-			if pgRes.Error != nil {
+			if usePG && pgRes.Error != nil {
 				log.Error("dcrsqlite.SyncDBAsync AND dcrpg.SyncChainDBAsync "+
 					"failed at heights %d and %d, respectively.",
 					sqliteRes.Height, pgRes.Height)
@@ -200,13 +212,13 @@ func mainCore() error {
 			}
 			log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteRes.Height)
 			return sqliteRes.Error
-		} else if pgRes.Error != nil {
+		} else if usePG && pgRes.Error != nil {
 			log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", pgRes.Height)
 			return pgRes.Error
 		}
 
 		// Break loop to continue starting dcrdata.
-		if pgHeight == sqliteHeight {
+		if !usePG || pgHeight == sqliteHeight {
 			break
 		}
 		log.Infof("Restarting sync with PostgreSQL at %d, SQLite at %d.",
