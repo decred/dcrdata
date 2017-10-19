@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/dcrdata/dcrdata/db/dbtypes"
+	"github.com/lib/pq"
 )
 
 const (
 	insertVoutRow0 = `INSERT INTO vouts (tx_hash, tx_index, tx_tree, value, 
 		version, pkscript, script_req_sigs, script_type, script_addresses)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, %s) `
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
 	insertVoutRow        = insertVoutRow0 + `RETURNING id;`
 	insertVoutRowChecked = insertVoutRow
 	//insertVoutRowChecked  = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
@@ -87,9 +88,12 @@ const (
 
 	SelectVoutByID = `SELECT * FROM vouts WHERE id=$1;`
 
-	// TODO: Why can't this be unique?
+	RetrieveVoutValue      = `SELECT value FROM vouts WHERE tx_hash=$1 and tx_index=$2`
+	RetrieveVoutValues     = `SELECT value, tx_index, tx_tree FROM vouts WHERE tx_hash=$1`
+	RetrieveTreeVoutValues = `SELECT value, tx_index FROM vouts WHERE tx_hash=$1 and tx_tree=$2`
+
 	IndexVoutTableOnTxHashIdx = `CREATE INDEX uix_vout_txhash_ind
-		ON vouts(tx_hash, tx_index);`
+		ON vouts(tx_hash, tx_index, tx_tree);`
 	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
 
 	IndexVoutTableOnTxHash = `CREATE INDEX uix_vout_txhash
@@ -97,19 +101,27 @@ const (
 	DeindexVoutTableOnTxHash = `DROP INDEX uix_vout_txhash;`
 )
 
-func makeVoutInsertStatement(scriptAddresses []string, checked bool) string {
-	addrs := makeARRAYOfTEXT(scriptAddresses)
-	var insert string
-	if checked {
-		insert = insertVoutRowChecked
-	} else {
-		insert = insertVoutRow
-	}
-	return fmt.Sprintf(insert, addrs)
+var (
+	voutCopyStmt = pq.CopyIn("vouts",
+		"tx_hash", "tx_index", "tx_tree", "value", "version",
+		"pkscript", "script_req_sigs", " script_type", "script_addresses")
+	vinCopyStmt = pq.CopyIn("vins",
+		"tx_hash", "tx_index", "prev_tx_hash", "prev_tx_index")
+)
+
+func MakeVoutCopyInStatement() string {
+	return voutCopyStmt
 }
 
-func MakeVoutInsertStatement(vout *dbtypes.Vout, checked bool) string {
-	return makeVoutInsertStatement(vout.ScriptPubKeyData.Addresses, checked)
+func MakeVinCopyInStatement() string {
+	return vinCopyStmt
+}
+
+func MakeVoutInsertStatement(checked bool) string {
+	if checked {
+		return insertVoutRowChecked
+	}
+	return insertVoutRow
 }
 
 func makeARRAYOfVouts(vouts []*dbtypes.Vout) string {

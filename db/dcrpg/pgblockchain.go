@@ -82,38 +82,38 @@ func (pgb *ChainDB) SpendingTransaction(fundingTxID string, fundingTxVout uint32
 	return spendingTx, err
 }
 
-func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, error) {
-	_, blockTransactions, blockInds, err := RetrieveTxsByBlockHash(pgb.db, blockHash)
-	return blockTransactions, blockInds, err
+func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, []int8, error) {
+	_, blockTransactions, blockInds, trees, err := RetrieveTxsByBlockHash(pgb.db, blockHash)
+	return blockTransactions, blockInds, trees, err
 }
 
 func (pgb *ChainDB) VoutValue(txID string, vout uint32) (uint64, error) {
-	txDbID, _, _, err := RetrieveTxByHash(pgb.db, txID)
-	if err != nil {
-		return 0, fmt.Errorf("RetrieveTxByHash: %v", err)
-	}
-	voutValue, err := RetrieveVoutValue(pgb.db, txDbID, vout)
+	// txDbID, _, _, err := RetrieveTxByHash(pgb.db, txID)
+	// if err != nil {
+	// 	return 0, fmt.Errorf("RetrieveTxByHash: %v", err)
+	// }
+	voutValue, err := RetrieveVoutValue(pgb.db, txID, vout)
 	if err != nil {
 		return 0, fmt.Errorf("RetrieveVoutValue: %v", err)
 	}
 	return voutValue, nil
 }
 
-func (pgb *ChainDB) VoutValues(txID string) ([]uint64, error) {
-	txDbID, _, _, err := RetrieveTxByHash(pgb.db, txID)
+func (pgb *ChainDB) VoutValues(txID string) ([]uint64, []uint32, []int8, error) {
+	// txDbID, _, _, err := RetrieveTxByHash(pgb.db, txID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("RetrieveTxByHash: %v", err)
+	// }
+	voutValues, txInds, txTrees, err := RetrieveVoutValues(pgb.db, txID)
 	if err != nil {
-		return nil, fmt.Errorf("RetrieveTxByHash: %v", err)
+		return nil, nil, nil, fmt.Errorf("RetrieveVoutValues: %v", err)
 	}
-	voutValues, err := RetrieveVoutValues(pgb.db, txDbID)
-	if err != nil {
-		return nil, fmt.Errorf("RetrieveVoutValues: %v", err)
-	}
-	return voutValues, nil
+	return voutValues, txInds, txTrees, nil
 }
 
-func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, error) {
-	_, blockHash, blockInd, err := RetrieveTxByHash(pgb.db, txID)
-	return blockHash, blockInd, err
+func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) {
+	_, blockHash, blockInd, tree, err := RetrieveTxByHash(pgb.db, txID)
+	return blockHash, blockInd, tree, err
 }
 
 func (pgb *ChainDB) Store(_ *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
@@ -268,12 +268,11 @@ func (r *storeTxnsResult) Error() string {
 
 func (pgb *ChainDB) storeTxns(msgBlock *wire.MsgBlock, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64) storeTxnsResult {
-	dbTransactions, dbTxVouts := dbtypes.ExtractBlockTransactions(msgBlock,
+	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(msgBlock,
 		txTree, chainParams)
 
 	var txRes storeTxnsResult
 
-	*TxDbIDs = make([]uint64, len(dbTransactions))
 	var err error
 	for it, dbtx := range dbTransactions {
 		dbtx.VoutDbIds, err = InsertVouts(pgb.db, dbTxVouts[it], pgb.dupChecks)
@@ -287,22 +286,22 @@ func (pgb *ChainDB) storeTxns(msgBlock *wire.MsgBlock, txTree int8,
 			log.Warnf("Incomplete Vout insert.")
 		}
 
-		dbtx.VinDbIds, err = InsertVins(pgb.db, dbtx.Vins)
+		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it])
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVins:", err)
 			txRes.err = err
 			return txRes
 		}
 		txRes.numVins += int64(len(dbtx.VinDbIds))
-
-		// Store the tx PK ID in the block
-		//dbtx.Vouts = dbTxVouts[it]
-		(*TxDbIDs)[it], err = InsertTx(pgb.db, dbtx, pgb.dupChecks)
-		if err != nil && err != sql.ErrNoRows {
-			log.Error("InsertTx:", err)
-			txRes.err = err
-			return txRes
-		}
 	}
+
+	// Get the tx PK IDs for the block
+	*TxDbIDs, err = InsertTxns(pgb.db, dbTransactions, pgb.dupChecks)
+	if err != nil && err != sql.ErrNoRows {
+		log.Error("InsertTxns:", err)
+		txRes.err = err
+		return txRes
+	}
+
 	return txRes
 }

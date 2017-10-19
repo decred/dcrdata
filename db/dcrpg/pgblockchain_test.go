@@ -9,6 +9,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/wire"
 )
 
 var (
@@ -20,7 +21,7 @@ func openDB() (func() error, error) {
 		Host:   "localhost",
 		Port:   "5432",
 		User:   "dcrdata",
-		Pass:   "",
+		Pass:   "dcrdata",
 		DBName: "dcrdata",
 	}
 	var err error
@@ -61,7 +62,8 @@ func TestStuff(t *testing.T) {
 
 	testBlockHash := "000000000000022173bcd0e354bb3b68f33af459cb68b8dd1f2831172c499c0b"
 	numBlockTx := 10
-	testTxBlockInd := 5
+	testTxBlockInd := uint32(1)
+	testTxBlockTree := wire.TxTreeRegular
 
 	// Test number of spent outputs / spending transactions
 	spendingTxns, err := db.SpendingTransactions(testTx)
@@ -88,18 +90,23 @@ func TestStuff(t *testing.T) {
 	}
 
 	// Block containing the transaction
-	blockHash, blockInd, err := db.TransactionBlock(testTx)
+	blockHash, blockInd, txTree, err := db.TransactionBlock(testTx)
 	if err != nil {
 		t.Fatal("TransactionBlock", err)
 	}
-	t.Log(blockHash, blockInd)
+	t.Log(blockHash, blockInd, txTree)
 	if testBlockHash != blockHash {
-		t.Fatalf("Incorrect block hash. Got %s, wanted %s.",
-			blockHash, testBlockHash)
+		t.Fatalf("Incorrect block hash. Got %s, wanted %s.", blockHash, testBlockHash)
+	}
+	if testTxBlockInd != blockInd {
+		t.Fatalf("Incorrect tx block index. Got %d, wanted %d.", blockInd, testTxBlockInd)
+	}
+	if testTxBlockTree != txTree {
+		t.Fatalf("Incorrect tx tree. Got %d, wanted %d.", txTree, testTxBlockTree)
 	}
 
 	// List block transactions
-	blockTransactions, blockVoutInds, err := db.BlockTransactions(blockHash)
+	blockTransactions, blockTreeOutInds, blockTxTrees, err := db.BlockTransactions(blockHash)
 	if err != nil {
 		t.Error("BlockTransactions", err)
 	}
@@ -109,17 +116,17 @@ func TestStuff(t *testing.T) {
 			len(blockTransactions), numBlockTx)
 	}
 
-	var blockTxInd int
-	t.Log(spew.Sdump(blockVoutInds), spew.Sdump(blockTransactions))
-	for i, voutInd := range blockVoutInds {
-		t.Log(i, voutInd)
-		if int(voutInd) == testTxBlockInd {
-			blockTxInd = i
-			t.Log(i, voutInd, blockTransactions[i])
+	var blockTxListInd int
+	t.Log(spew.Sdump(blockTreeOutInds), spew.Sdump(blockTransactions))
+	for i, txOutInd := range blockTreeOutInds {
+		t.Log(i, txOutInd)
+		if txOutInd == testTxBlockInd && blockTxTrees[i] == testTxBlockTree {
+			blockTxListInd = i
+			t.Log(i, txOutInd, blockTransactions[i])
 		}
 	}
 
-	if blockTransactions[blockTxInd] != testTx {
+	if blockTransactions[blockTxListInd] != testTx {
 		t.Fatalf("Transaction not found in block at index %d. Got %s, wanted %s.",
 			testTxBlockInd, blockTransactions[testTxBlockInd], testTx)
 	}
@@ -130,11 +137,11 @@ func TestStuff(t *testing.T) {
 	}
 	t.Log(spew.Sdump(testTx, voutInd, voutValue))
 
-	voutValues, err := db.VoutValues(testTx)
+	voutValues, txInds, txTrees, err := db.VoutValues(testTx)
 	if err != nil {
 		t.Fatalf("VoutValues: %v", err)
 	}
-	t.Log(spew.Sdump(testTx, voutValues))
+	t.Log(spew.Sdump(testTx, voutValues, txInds, txTrees))
 
 	if voutValue != voutValues[int(voutInd)] {
 		t.Errorf("%d (voutValue) != %d (voutValues[ind])",

@@ -6,6 +6,7 @@ import (
 
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/db/dcrpg/internal"
+	"github.com/lib/pq"
 )
 
 func RetrieveFundingTxByTxIn(db *sql.DB, txHash string, vinIndex uint32) (id uint64, tx string, err error) {
@@ -76,18 +77,25 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) ([]uint64, [
 	return ids, txs, err
 }
 
-func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, err error) {
-	err = db.QueryRow(internal.SelectTxByHash, txHash).Scan(&id, &blockHash, &blockInd)
+func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, tree int8, err error) {
+	err = db.QueryRow(internal.SelectTxByHash, txHash).Scan(&id, &blockHash, &blockInd, &tree)
 	return
 }
 
-func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) ([]uint64, []string, []uint32, error) {
-	var ids []uint64
-	var txs []string
-	var blockInds []uint32
+func RetrieveRegularTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, err error) {
+	err = db.QueryRow(internal.SelectRegularTxByHash, txHash).Scan(&id, &blockHash, &blockInd)
+	return
+}
+
+func RetrieveStakeTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, err error) {
+	err = db.QueryRow(internal.SelectStakeTxByHash, txHash).Scan(&id, &blockHash, &blockInd)
+	return
+}
+
+func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string, blockInds []uint32, trees []int8, err error) {
 	rows, err := db.Query(internal.SelectTxsByBlockHash, blockHash)
 	if err != nil {
-		return ids, txs, blockInds, err
+		return
 	}
 	defer func() {
 		if e := rows.Close(); e != nil {
@@ -99,7 +107,8 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) ([]uint64, []string, [
 		var id uint64
 		var tx string
 		var bind uint32
-		err = rows.Scan(&id, &tx, &bind)
+		var tree int8
+		err = rows.Scan(&id, &tx, &bind, &tree)
 		if err != nil {
 			break
 		}
@@ -107,49 +116,50 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) ([]uint64, []string, [
 		ids = append(ids, id)
 		txs = append(txs, tx)
 		blockInds = append(blockInds, bind)
+		trees = append(trees, tree)
 	}
 
-	return ids, txs, blockInds, err
+	return
 }
 
-func RetrieveSpendingTx(db *sql.DB, outpoint string) (uint64, *dbtypes.Tx, error) {
-	var id uint64
-	var tx dbtypes.Tx
-	err := db.QueryRow(internal.SelectTxByPrevOut, outpoint).Scan(&id, &tx.BlockHash,
-		&tx.BlockIndex, &tx.TxID, &tx.Version, &tx.Locktime, &tx.Expiry,
-		&tx.NumVin, &tx.Vins, &tx.NumVout, &tx.VoutDbIds)
-	return id, &tx, err
-}
+// func RetrieveSpendingTx(db *sql.DB, outpoint string) (uint64, *dbtypes.Tx, error) {
+// 	var id uint64
+// 	var tx dbtypes.Tx
+// 	err := db.QueryRow(internal.SelectTxByPrevOut, outpoint).Scan(&id, &tx.BlockHash,
+// 		&tx.BlockIndex, &tx.TxID, &tx.Version, &tx.Locktime, &tx.Expiry,
+// 		&tx.NumVin, &tx.Vins, &tx.NumVout, &tx.VoutDbIds)
+// 	return id, &tx, err
+// }
 
-func RetrieveSpendingTxs(db *sql.DB, fundingTxID string) ([]uint64, []*dbtypes.Tx, error) {
-	var ids []uint64
-	var txs []*dbtypes.Tx
-	rows, err := db.Query(internal.SelectTxsByPrevOutTx, fundingTxID)
-	if err != nil {
-		return ids, txs, err
-	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+// func RetrieveSpendingTxs(db *sql.DB, fundingTxID string) ([]uint64, []*dbtypes.Tx, error) {
+// 	var ids []uint64
+// 	var txs []*dbtypes.Tx
+// 	rows, err := db.Query(internal.SelectTxsByPrevOutTx, fundingTxID)
+// 	if err != nil {
+// 		return ids, txs, err
+// 	}
+// 	defer func() {
+// 		if e := rows.Close(); e != nil {
+// 			log.Errorf("Close of Query failed: %v", e)
+// 		}
+// 	}()
 
-	for rows.Next() {
-		var id uint64
-		var tx dbtypes.Tx
-		err = rows.Scan(&id, &tx.BlockHash,
-			&tx.BlockIndex, &tx.TxID, &tx.Version, &tx.Locktime, &tx.Expiry,
-			&tx.NumVin, &tx.Vins, &tx.NumVout, &tx.VoutDbIds)
-		if err != nil {
-			break
-		}
+// 	for rows.Next() {
+// 		var id uint64
+// 		var tx dbtypes.Tx
+// 		err = rows.Scan(&id, &tx.BlockHash,
+// 			&tx.BlockIndex, &tx.TxID, &tx.Version, &tx.Locktime, &tx.Expiry,
+// 			&tx.NumVin, &tx.Vins, &tx.NumVout, &tx.VoutDbIds)
+// 		if err != nil {
+// 			break
+// 		}
 
-		ids = append(ids, id)
-		txs = append(txs, &tx)
-	}
+// 		ids = append(ids, id)
+// 		txs = append(txs, &tx)
+// 	}
 
-	return ids, txs, err
-}
+// 	return ids, txs, err
+// }
 
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, checked bool) (uint64, error) {
 	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
@@ -171,14 +181,14 @@ func RetrieveBestBlockHeight(db *sql.DB) (height uint64, hash string, id uint64,
 	return
 }
 
-func RetrieveVoutValue(db *sql.DB, txDbID uint64, voutIndex uint32) (value uint64, err error) {
-	err = db.QueryRow(internal.RetrieveVoutValue, txDbID, voutIndex+1).Scan(&value)
+func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint64, err error) {
+	err = db.QueryRow(internal.RetrieveVoutValue, txHash, voutIndex).Scan(&value)
 	return
 }
 
-func RetrieveVoutValues(db *sql.DB, txDbID uint64) (values []uint64, err error) {
+func RetrieveVoutValues(db *sql.DB, txHash string) (values []uint64, txInds []uint32, txTrees []int8, err error) {
 	var rows *sql.Rows
-	rows, err = db.Query(internal.RetrieveVoutValues, txDbID)
+	rows, err = db.Query(internal.RetrieveVoutValues, txHash)
 	if err != nil {
 		return
 	}
@@ -190,12 +200,16 @@ func RetrieveVoutValues(db *sql.DB, txDbID uint64) (values []uint64, err error) 
 
 	for rows.Next() {
 		var v uint64
-		err = rows.Scan(&v)
+		var ind uint32
+		var tree int8
+		err = rows.Scan(&v, &ind, &tree)
 		if err != nil {
 			break
 		}
 
 		values = append(values, v)
+		txInds = append(txInds, ind)
+		txTrees = append(txTrees, tree)
 	}
 
 	return
@@ -240,16 +254,28 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error)
 				err, dbtx.Rollback())
 	}
 
+	stmt, err := dbtx.Prepare(internal.InsertVinRow)
+	if err != nil {
+		log.Errorf("Vin INSERT prepare: %v", err)
+		dbtx.Rollback()
+		return nil, err
+	}
+
 	ids := make([]uint64, 0, len(dbVins))
 	for _, vin := range dbVins {
 		var id uint64
-		err := db.QueryRow(internal.InsertVinRow,
-			vin.TxID, vin.TxIndex,
+		err = stmt.QueryRow(vin.TxID, vin.TxIndex,
 			vin.PrevTxHash, vin.PrevTxIndex).Scan(&id)
+		if err != nil {
+			log.Errorf("INSERT exec failed: %v", err)
+			continue
+		}
+		// err = db.QueryRow("SELECT currval(pg_get_serial_sequence('vins', 'id'));").Scan(&id) // currval('vins_id_seq')
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
 			}
+			stmt.Close()
 			if errRoll := dbtx.Rollback(); errRoll != nil {
 				log.Errorf("Rollback failed: %v", errRoll)
 			}
@@ -258,17 +284,20 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error)
 		ids = append(ids, id)
 	}
 
+	stmt.Close()
+
 	return ids, dbtx.Commit()
 }
 
 func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool) (uint64, error) {
-	insertStatement := internal.MakeVoutInsertStatement(dbVout, checked)
+	insertStatement := internal.MakeVoutInsertStatement(checked)
 	var id uint64
 	err := db.QueryRow(insertStatement,
-		dbVout.TxHash, dbVout.TxIndex, dbVout.TxIndex,
+		dbVout.TxHash, dbVout.TxIndex, dbVout.TxTree,
 		dbVout.Value, dbVout.Version,
 		dbVout.ScriptPubKey, dbVout.ScriptPubKeyData.ReqSigs,
-		dbVout.ScriptPubKeyData.Type).Scan(&id)
+		dbVout.ScriptPubKeyData.Type,
+		pq.Array(dbVout.ScriptPubKeyData.Addresses)).Scan(&id)
 	return id, err
 }
 
@@ -280,24 +309,26 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, e
 				err, dbtx.Rollback())
 	}
 
-	// if _, err = dbtx.Exec("SET LOCAL synchronous_commit TO OFF;"); err != nil {
-	// 	dbtx.Rollback()
-	// 	return nil, err
-	// }
+	stmt, err := dbtx.Prepare(internal.MakeVoutInsertStatement(checked))
+	if err != nil {
+		log.Errorf("Vout INSERT prepare: %v", err)
+		dbtx.Rollback()
+		return nil, err
+	}
 
 	ids := make([]uint64, 0, len(dbVouts))
 	for _, vout := range dbVouts {
-		insertStatement := internal.MakeVoutInsertStatement(vout, checked)
 		var id uint64
-		err := db.QueryRow(insertStatement,
-			vout.TxHash, vout.TxIndex, vout.TxIndex,
-			vout.Value, vout.Version,
+		err := stmt.QueryRow(
+			vout.TxHash, vout.TxIndex, vout.TxTree, vout.Value, vout.Version,
 			vout.ScriptPubKey, vout.ScriptPubKeyData.ReqSigs,
-			vout.ScriptPubKeyData.Type).Scan(&id)
+			vout.ScriptPubKeyData.Type,
+			pq.Array(vout.ScriptPubKeyData.Addresses)).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
 			}
+			stmt.Close()
 			if errRoll := dbtx.Rollback(); errRoll != nil {
 				log.Errorf("Rollback failed: %v", errRoll)
 			}
@@ -306,15 +337,59 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, e
 		ids = append(ids, id)
 	}
 
+	stmt.Close()
+
 	return ids, dbtx.Commit()
 }
 
 func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {
-	insertStatement := internal.MakeTxInsertStatement(dbTx, checked)
+	insertStatement := internal.MakeTxInsertStatement(checked)
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbTx.BlockHash, dbTx.BlockIndex, dbTx.Tree, dbTx.TxID,
 		dbTx.Version, dbTx.Locktime, dbTx.Expiry,
-		dbTx.NumVin, dbTx.Vins, dbTx.NumVout).Scan(&id)
+		dbTx.NumVin, dbTx.Vins, dbtypes.UInt64Array(dbTx.VinDbIds),
+		dbTx.NumVout, pq.Array(dbTx.Vouts), dbtypes.UInt64Array(dbTx.VoutDbIds)).Scan(&id)
 	return id, err
+}
+
+func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error) {
+	dbtx, err := db.Begin()
+	if err != nil {
+		return nil,
+			fmt.Errorf("unable to begin database transaction: %v + %v (rollback)",
+				err, dbtx.Rollback())
+	}
+
+	stmt, err := dbtx.Prepare(internal.MakeTxInsertStatement(checked))
+	if err != nil {
+		log.Errorf("Vout INSERT prepare: %v", err)
+		dbtx.Rollback()
+		return nil, err
+	}
+
+	ids := make([]uint64, 0, len(dbTxns))
+	for _, tx := range dbTxns {
+		var id uint64
+		err := stmt.QueryRow(
+			tx.BlockHash, tx.BlockIndex, tx.Tree, tx.TxID,
+			tx.Version, tx.Locktime, tx.Expiry,
+			tx.NumVin, tx.Vins, dbtypes.UInt64Array(tx.VinDbIds),
+			tx.NumVout, pq.Array(tx.Vouts), dbtypes.UInt64Array(tx.VoutDbIds)).Scan(&id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			stmt.Close()
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	stmt.Close()
+
+	return ids, dbtx.Commit()
 }

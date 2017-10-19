@@ -388,7 +388,9 @@ func mainCore() error {
 
 func main() {
 	if err := mainCore(); err != nil {
-		log.Error(err)
+		if logRotator != nil {
+			log.Error(err)
+		}
 		os.Exit(1)
 	}
 	os.Exit(0)
