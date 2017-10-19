@@ -1,6 +1,8 @@
 package dbtypes
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/dcrdata/dcrdata/txhelpers"
@@ -85,8 +87,8 @@ func processTransactions(txs []*wire.MsgTx, blockHash chainhash.Hash,
 			}
 			scriptClass, scriptAddrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
 				vout.Version, vout.ScriptPubKey, chainParams)
-			if err != nil {
-				fmt.Println(len(vout.ScriptPubKey), err)
+			if err != nil && !bytes.Equal(vout.ScriptPubKey, chainParams.OrganizationPkScript) {
+				fmt.Println(len(vout.ScriptPubKey), err, hex.EncodeToString(vout.ScriptPubKey))
 			}
 			addys := make([]string, 0, len(scriptAddrs))
 			for ia := range scriptAddrs {

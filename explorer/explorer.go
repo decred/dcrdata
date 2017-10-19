@@ -43,9 +43,15 @@ type explorerDataSource interface {
 	GetHeight() int
 }
 
+type explorerDataSourceAlt interface {
+	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, error)
+	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
+}
+
 type explorerUI struct {
 	Mux             *chi.Mux
 	blockData       explorerDataSource
+	explorerSource  explorerDataSourceAlt
 	templates       []*template.Template
 	templateFiles   map[string]string
 	templateHelpers template.FuncMap
@@ -122,6 +128,24 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("Unable to get transaction %s", hash)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
+	}
+	// For each output of this transaction, look up any spending transactions,
+	// and the index of the spending transaction input.
+	spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
+	if err != nil {
+		log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		return
+	}
+	for i, vout := range voutInds {
+		if int(vout) >= len(tx.SpendingTxns) {
+			log.Errorf("Invalid spending transaction data (%s:%d)", hash, vout)
+			continue
+		}
+		tx.SpendingTxns[vout] = TxInID{
+			Hash:  spendingTxHashes[i],
+			Index: spendingTxVinInds[i],
+		}
 	}
 	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", tx)
 	if err != nil {
@@ -276,12 +300,14 @@ func (exp *explorerUI) reloadTemplatesSig(sig os.Signal) {
 }
 
 // New returns an initialized instance of explorerUI
-func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
+func New(dataSource explorerDataSource, primaryDataSource explorerDataSourceAlt,
+	useRealIP bool) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
+	exp.explorerSource = primaryDataSource
 
-	if userRealIP {
+	if useRealIP {
 		exp.Mux.Use(middleware.RealIP)
 	}
 

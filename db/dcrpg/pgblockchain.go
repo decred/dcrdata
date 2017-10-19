@@ -72,14 +72,15 @@ func (pgb *ChainDB) Height() (uint64, error) {
 	return bestHeight, err
 }
 
-func (pgb *ChainDB) SpendingTransactions(fundingTxID string) ([]string, error) {
-	_, spendingTxns, err := RetrieveSpendingTxsByFundingTx(pgb.db, fundingTxID)
-	return spendingTxns, err
+func (pgb *ChainDB) SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error) {
+	_, spendingTxns, vinInds, voutInds, err := RetrieveSpendingTxsByFundingTx(pgb.db, fundingTxID)
+	return spendingTxns, vinInds, voutInds, err
 }
 
-func (pgb *ChainDB) SpendingTransaction(fundingTxID string, fundingTxVout uint32) (string, error) {
-	_, spendingTx, err := RetrieveSpendingTxByTxOut(pgb.db, fundingTxID, fundingTxVout)
-	return spendingTx, err
+func (pgb *ChainDB) SpendingTransaction(fundingTxID string,
+	fundingTxVout uint32) (string, uint32, error) {
+	_, spendingTx, vinInd, err := RetrieveSpendingTxByTxOut(pgb.db, fundingTxID, fundingTxVout)
+	return spendingTx, vinInd, err
 }
 
 func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, []int8, error) {

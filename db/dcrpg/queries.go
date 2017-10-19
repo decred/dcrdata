@@ -43,18 +43,18 @@ func RetrieveFundingTxsByTx(db *sql.DB, txHash string) ([]uint64, []*dbtypes.Tx,
 	return ids, txs, err
 }
 
-func RetrieveSpendingTxByTxOut(db *sql.DB, txHash string, voutIndex uint32) (id uint64, tx string, err error) {
+func RetrieveSpendingTxByTxOut(db *sql.DB, txHash string,
+	voutIndex uint32) (id uint64, tx string, vin uint32, err error) {
 	err = db.QueryRow(internal.SelectSpendingTxByPrevOut, txHash, voutIndex).Scan(
-		&id, &tx)
+		&id, &tx, &vin)
 	return
 }
 
-func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) ([]uint64, []string, error) {
-	var ids []uint64
-	var txs []string
+func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uint64,
+	txns []string, vinInds []uint32, voutInds []uint32, err error) {
 	rows, err := db.Query(internal.SelectSpendingTxsByPrevTx, fundingTxID)
 	if err != nil {
-		return ids, txs, err
+		return
 	}
 	defer func() {
 		if e := rows.Close(); e != nil {
@@ -65,16 +65,19 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) ([]uint64, [
 	for rows.Next() {
 		var id uint64
 		var tx string
-		err = rows.Scan(&id, &tx)
+		var vin, vout uint32
+		err = rows.Scan(&id, &tx, &vin, &vout)
 		if err != nil {
 			break
 		}
 
-		ids = append(ids, id)
-		txs = append(txs, tx)
+		dbIDs = append(dbIDs, id)
+		txns = append(txns, tx)
+		vinInds = append(vinInds, vin)
+		voutInds = append(voutInds, vout)
 	}
 
-	return ids, txs, err
+	return
 }
 
 func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, tree int8, err error) {

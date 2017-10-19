@@ -972,6 +972,10 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		})
 	}
 	tx.Vout = outputs
+
+	// Initialize the spending transaction slice for safety
+	tx.SpendingTxns = make([]explorer.TxInID, len(outputs))
+
 	return tx
 }
 

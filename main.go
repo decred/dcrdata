@@ -360,7 +360,7 @@ func mainCore() error {
 	apiMux := newAPIRouter(app, cfg.UseRealIP)
 
 	// Start the explorer system
-	explore := explorer.New(&sqliteDB, cfg.UseRealIP)
+	explore := explorer.New(&sqliteDB, db, cfg.UseRealIP)
 	explore.UseSIGToReloadTemplates()
 
 	webMux := chi.NewRouter()
