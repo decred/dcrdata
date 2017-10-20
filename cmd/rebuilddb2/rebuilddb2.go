@@ -138,7 +138,7 @@ func mainCore() error {
 
 	var totalTxs, totalRTxs, totalSTxs, totalVins, totalVouts int64
 	var lastTxs, lastVins, lastVouts int64
-	tickTime := 5 * time.Second
+	tickTime := 10 * time.Second
 	ticker := time.NewTicker(tickTime)
 	startTime := time.Now()
 	o := sync.Once{}
@@ -199,7 +199,7 @@ func mainCore() error {
 				if endRangeBlock > height {
 					endRangeBlock = height
 				}
-				log.Infof("Scanning blocks %d to %d...", ib, endRangeBlock)
+				log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
 			}
 		}
 		select {
@@ -221,7 +221,8 @@ func mainCore() error {
 		}
 
 		var numVins, numVouts int64
-		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock()); err != nil {
+		numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), !cfg.UpdateAddrSpendInfo)
+		if err != nil {
 			return fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins
@@ -245,12 +246,28 @@ func mainCore() error {
 		if err = db.IndexAll(); err != nil {
 			return fmt.Errorf("IndexAll failed: %v", err)
 		}
+		if !cfg.UpdateAddrSpendInfo {
+			err = db.IndexAddressTable()
+		}
 	}
 
-	log.Infof("Rebuild finished: %d blocks, %d transactions, %d ins, %d outs",
-		height, totalTxs, totalVins, totalVouts)
+	if cfg.UpdateAddrSpendInfo {
+		db.DeindexAddressTable()
+		log.Infof("Populating spending tx info in address table...")
+		numAddresses, err := db.UpdateSpendingInfoInAllAddresses()
+		if err != nil {
+			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
+		}
+		log.Infof("Updated %d rows of address table", numAddresses)
+		if err = db.IndexAddressTable(); err != nil {
+			log.Errorf("IndexAddressTable FAILED: %v", err)
+		}
+	}
 
-	return nil
+	log.Infof("Rebuild finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
+		height, height-startHeight+1, totalTxs, totalVins, totalVouts)
+
+	return err
 }
 
 func main() {

@@ -169,7 +169,7 @@ func mainCore() error {
 		close(quit)
 	}()
 
-	newPGIndexes := false
+	newPGIndexes, updateAllAddresses := false, false
 
 	// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
 	// info DB (sqlite). They don't communicate, so we'll just ensure they exit
@@ -180,7 +180,7 @@ func mainCore() error {
 	for {
 		// Launch the sync functions for both DBs
 		go sqliteDB.SyncDBAsync(sqliteSyncRes, quit)
-		go db.SyncChainDBAsync(pgSyncRes, dcrdClient, quit, newPGIndexes)
+		go db.SyncChainDBAsync(pgSyncRes, dcrdClient, quit, newPGIndexes, updateAllAddresses)
 
 		// Wait for the results
 		sqliteRes := <-sqliteSyncRes

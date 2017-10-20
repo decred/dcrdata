@@ -21,7 +21,7 @@ const (
 // should be called as a goroutine or it will hang on send if the channel is
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
-	client *rpcclient.Client, quit chan struct{}, newIndexes bool) {
+	client *rpcclient.Client, quit chan struct{}, updateAllAddresses, newIndexes bool) {
 	if db == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
@@ -29,7 +29,7 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		}
 		return
 	}
-	height, err := db.SyncChainDB(client, quit, newIndexes)
+	height, err := db.SyncChainDB(client, quit, newIndexes, updateAllAddresses)
 	res <- dbtypes.SyncResult{
 		Height: height,
 		Error:  err,
@@ -40,7 +40,8 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // RPC client. The table indexes may be force-dropped and recreated by setting
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
-func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{}, newIndexes bool) (int64, error) {
+func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
+	updateAllAddresses, newIndexes bool) (int64, error) {
 	// Get chain servers's best block
 	_, nodeHeight, err := client.GetBestBlock()
 	if err != nil {
@@ -50,7 +51,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{}, new
 	// Total and rate statistics
 	var totalTxs, totalRTxs, totalSTxs, totalVins, totalVouts int64
 	var lastTxs, lastVins, lastVouts int64
-	tickTime := 5 * time.Second
+	tickTime := 20 * time.Second
 	ticker := time.NewTicker(tickTime)
 	startTime := time.Now()
 	o := sync.Once{}
@@ -111,7 +112,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{}, new
 				if endRangeBlock > nodeHeight {
 					endRangeBlock = nodeHeight
 				}
-				log.Infof("Scanning blocks %d to %d...", ib, endRangeBlock)
+				log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
 			}
 		}
 		select {
@@ -133,7 +134,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{}, new
 		}
 
 		var numVins, numVouts int64
-		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock()); err != nil {
+		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), !updateAllAddresses); err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins
@@ -157,10 +158,26 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{}, new
 		if err = db.IndexAll(); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
+		if !updateAllAddresses {
+			err = db.IndexAddressTable()
+		}
 	}
 
-	log.Infof("Rebuild finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
+	if updateAllAddresses {
+		db.DeindexAddressTable()
+		log.Infof("Populating spending tx info in address table...")
+		numAddresses, err := db.UpdateSpendingInfoInAllAddresses()
+		if err != nil {
+			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
+		}
+		log.Infof("Updated %d rows of address table", numAddresses)
+		if err = db.IndexAddressTable(); err != nil {
+			log.Errorf("IndexAddressTable FAILED: %v", err)
+		}
+	}
+
+	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
 		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)
 
-	return nodeHeight, nil
+	return nodeHeight, err
 }

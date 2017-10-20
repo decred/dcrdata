@@ -45,7 +45,7 @@ type explorerDataSource interface {
 }
 
 type explorerDataSourceAlt interface {
-	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, error)
+	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 }
 

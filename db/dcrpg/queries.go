@@ -1,6 +1,10 @@
+// Copyright (c) 2017, The dcrdata developers
+// See LICENSE for details.
+
 package dcrpg
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 
@@ -9,9 +13,285 @@ import (
 	"github.com/lib/pq"
 )
 
+func RetrieveVoutIDByOutpoint(db *sql.DB, txHash string, voutIndex uint32) (id uint64, err error) {
+	err = db.QueryRow(internal.SelectVoutIDByOutpoint, txHash, voutIndex).Scan(&id)
+	return
+}
+
+func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, error) {
+	// get funding details for vin and set them in the address table
+	dbtx, err := db.Begin()
+	if err != nil {
+		return nil, 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+	}
+
+	var vinGetStmt *sql.Stmt
+	vinGetStmt, err = dbtx.Prepare(internal.SelectAllVinInfoByID)
+	if err != nil {
+		log.Errorf("Vin SELECT prepare failed: %v", err)
+		dbtx.Rollback()
+		return nil, 0, err
+	}
+
+	var addrSetStmt *sql.Stmt
+	addrSetStmt, err = dbtx.Prepare(internal.SetAddressSpendingForOutpoint)
+	if err != nil {
+		log.Errorf("address row UPDATE prepare failed: %v", err)
+		vinGetStmt.Close()
+		dbtx.Rollback()
+		return nil, 0, err
+	}
+
+	addressRowsUpdated := make([]int64, len(vinDbIDs))
+
+	for iv, vinDbID := range vinDbIDs {
+		// Get the funding tx outpoint (vins table) for the vin DB ID
+		var prevOutHash, txHash string
+		var prevOutVoutInd, txVinInd uint32
+		var prevOutTree, txTree int8
+		var id uint64
+		err = vinGetStmt.QueryRow(vinDbID).Scan(&id,
+			&txHash, &txVinInd, &txTree,
+			&prevOutHash, &prevOutVoutInd, &prevOutTree)
+		if err != nil {
+			vinGetStmt.Close()
+			addrSetStmt.Close()
+			return addressRowsUpdated, 0, fmt.Errorf(`SetSpendingForVinDbIDs: `+
+				`%v + %v (rollback)`, err, dbtx.Rollback())
+		}
+
+		// skip coinbase inputs
+		if bytes.Equal(zeroHashStringBytes, []byte(prevOutHash)) {
+			continue
+		}
+
+		// Set the spending tx info (addresses table) for the vin DB ID
+		var res sql.Result
+		res, err = addrSetStmt.Exec(prevOutHash, prevOutVoutInd,
+			0, txHash, txVinInd, vinDbID)
+		if err != nil || res == nil {
+			vinGetStmt.Close()
+			addrSetStmt.Close()
+			return addressRowsUpdated, 0, fmt.Errorf(`SetSpendingForVinDbIDs: `+
+				`%v + %v (rollback)`, err, dbtx.Rollback())
+		}
+
+		addressRowsUpdated[iv], err = res.RowsAffected()
+		if err != nil {
+			vinGetStmt.Close()
+			addrSetStmt.Close()
+			return addressRowsUpdated, 0, fmt.Errorf(`RowsAffected: `+
+				`%v + %v (rollback)`, err, dbtx.Rollback())
+		}
+	}
+
+	vinGetStmt.Close()
+	addrSetStmt.Close()
+
+	var totalUpdated int64
+	for _, n := range addressRowsUpdated {
+		totalUpdated += n
+	}
+
+	return addressRowsUpdated, totalUpdated, dbtx.Commit()
+}
+
+func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
+	// get funding details for vin and set them in the address table
+	dbtx, err := db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+	}
+
+	// Get the funding tx outpoint (vins table) for the vin DB ID
+	var prevOutHash, txHash string
+	var prevOutVoutInd, txVinInd uint32
+	var prevOutTree, txTree int8
+	var id uint64
+	err = dbtx.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
+		Scan(&id, &txHash, &txVinInd, &txTree,
+			&prevOutHash, &prevOutVoutInd, &prevOutTree)
+	if err != nil {
+		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
+			`(rollback)`, err, dbtx.Rollback())
+	}
+
+	// skip coinbase inputs
+	if bytes.Equal(zeroHashStringBytes, []byte(prevOutHash)) {
+		return 0, dbtx.Rollback()
+	}
+
+	// Set the spending tx info (addresses table) for the vin DB ID
+	var res sql.Result
+	res, err = dbtx.Exec(internal.SetAddressSpendingForOutpoint,
+		prevOutHash, prevOutVoutInd,
+		0, txHash, txVinInd, vinDbID)
+	if err != nil || res == nil {
+		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
+			`(rollback)`, err, dbtx.Rollback())
+	}
+
+	var N int64
+	N, err = res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
+			err, dbtx.Rollback())
+	}
+
+	return N, dbtx.Commit()
+}
+
+func SetSpendingForFundingOP(db *sql.DB,
+	fundingTxHash string, fundingTxVoutIndex uint32,
+	spendingTxDbID uint64, spendingTxHash string, spendingTxVinIndex uint32,
+	vinDbID uint64) (int64, error) {
+	res, err := db.Exec(internal.SetAddressSpendingForOutpoint,
+		fundingTxHash, fundingTxVoutIndex,
+		spendingTxDbID, spendingTxHash, spendingTxVinIndex, vinDbID)
+	if err != nil || res == nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// SetSpendingByVinID is for when you got a new spending tx (vin entry) and you
+// need to get the funding (previous output) tx info, and then update the
+// corresponding row in the addresses table with the spending tx info.
+func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
+	spendingTxHash string, spendingTxVinIndex uint32) (int64, error) {
+	// get funding details for vin and set them in the address table
+	dbtx, err := db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+	}
+
+	// Get the funding tx outpoint (vins table) for the vin DB ID
+	var fundingTxHash string
+	var fundingTxVoutIndex uint32
+	var tree int8
+	err = dbtx.QueryRow(internal.SelectFundingOutpointByVinID, vinDbID).
+		Scan(&fundingTxHash, &fundingTxVoutIndex, &tree)
+	if err != nil {
+		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
+			`(rollback)`, err, dbtx.Rollback())
+	}
+
+	// skip coinbase inputs
+	if bytes.Equal(zeroHashStringBytes, []byte(fundingTxHash)) {
+		return 0, dbtx.Rollback()
+	}
+
+	// Set the spending tx info (addresses table) for the vin DB ID
+	var res sql.Result
+	res, err = dbtx.Exec(internal.SetAddressSpendingForOutpoint,
+		fundingTxHash, fundingTxVoutIndex,
+		spendingTxDbID, spendingTxHash, spendingTxVinIndex, vinDbID)
+	if err != nil || res == nil {
+		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
+			`(rollback)`, err, dbtx.Rollback())
+	}
+
+	var N int64
+	N, err = res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
+			err, dbtx.Rollback())
+	}
+
+	return N, dbtx.Commit()
+}
+
+func SetSpendingForAddressDbID(db *sql.DB, addrDbID uint64, spendingTxDbID uint64,
+	spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64) error {
+	_, err := db.Exec(internal.SetAddressSpendingForID, addrDbID, spendingTxDbID,
+		spendingTxHash, spendingTxVinIndex, vinDbID)
+	return err
+}
+
+func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
+	voutIndex uint32) ([]uint64, []string, error) {
+	var ids []uint64
+	var addresses []string
+	rows, err := db.Query(internal.SelectAddressIDsByFundingOutpoint, txHash, voutIndex)
+	if err != nil {
+		return ids, addresses, err
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var id uint64
+		var addr string
+		err = rows.Scan(&id, &addr)
+		if err != nil {
+			break
+		}
+
+		ids = append(ids, id)
+		addresses = append(addresses, addr)
+	}
+
+	return ids, addresses, err
+}
+
+func RetrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
+	rows, err := db.Query(internal.SelectVinIDsALL)
+	if err != nil {
+		return
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var id uint64
+		err = rows.Scan(&id)
+		if err != nil {
+			break
+		}
+
+		vinDbIDs = append(vinDbIDs, id)
+	}
+
+	return
+}
+
+func RetrieveSpendingTxByVinID(db *sql.DB, vinDbID uint64) (tx string,
+	voutIndex uint32, tree int8, err error) {
+	err = db.QueryRow(internal.SelectSpendingTxByVinID, vinDbID).Scan(&tx, &voutIndex, &tree)
+	return
+}
+
+func RetrieveFundingOutpointByTxIn(db *sql.DB, txHash string,
+	vinIndex uint32) (id uint64, tx string, index uint32, tree int8, err error) {
+	err = db.QueryRow(internal.SelectFundingOutpointByTxIn, txHash, vinIndex).
+		Scan(&id, &tx, &index, &tree)
+	return
+}
+
+func RetrieveFundingOutpointByVinID(db *sql.DB, vinDbID uint64) (tx string, index uint32, tree int8, err error) {
+	err = db.QueryRow(internal.SelectFundingOutpointByVinID, vinDbID).
+		Scan(&tx, &index, &tree)
+	return
+}
+
+func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVoutInd uint32,
+	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, err error) {
+	var id uint64
+	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
+		Scan(&id, &txHash, &txVinInd, &txTree,
+			&prevOutHash, &prevOutVoutInd, &prevOutTree)
+	return
+}
+
 func RetrieveFundingTxByTxIn(db *sql.DB, txHash string, vinIndex uint32) (id uint64, tx string, err error) {
-	err = db.QueryRow(internal.SelectFundingTxByTxIn, txHash, vinIndex).Scan(
-		&id, &tx)
+	err = db.QueryRow(internal.SelectFundingTxByTxIn, txHash, vinIndex).
+		Scan(&id, &tx)
 	return
 }
 
@@ -44,9 +324,9 @@ func RetrieveFundingTxsByTx(db *sql.DB, txHash string) ([]uint64, []*dbtypes.Tx,
 }
 
 func RetrieveSpendingTxByTxOut(db *sql.DB, txHash string,
-	voutIndex uint32) (id uint64, tx string, vin uint32, err error) {
-	err = db.QueryRow(internal.SelectSpendingTxByPrevOut, txHash, voutIndex).Scan(
-		&id, &tx, &vin)
+	voutIndex uint32) (id uint64, tx string, vin uint32, tree int8, err error) {
+	err = db.QueryRow(internal.SelectSpendingTxByPrevOut,
+		txHash, voutIndex).Scan(&id, &tx, &vin, &tree)
 	return
 }
 
@@ -244,17 +524,15 @@ func UpdateBlockNext(db *sql.DB, block_db_id uint64, next string) error {
 
 func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty) (id uint64, err error) {
 	err = db.QueryRow(internal.InsertVinRow,
-		dbVin.TxID, dbVin.TxIndex,
-		dbVin.PrevTxHash, dbVin.PrevTxIndex).Scan(&id)
+		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
+		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree).Scan(&id)
 	return
 }
 
 func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
-		return nil,
-			fmt.Errorf("unable to begin database transaction: %v + %v (rollback)",
-				err, dbtx.Rollback())
+		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
 	stmt, err := dbtx.Prepare(internal.InsertVinRow)
@@ -264,14 +542,19 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error)
 		return nil, err
 	}
 
+	// TODO/Question: Should we skip inserting coinbase txns, which have same PrevTxHash?
+
 	ids := make([]uint64, 0, len(dbVins))
 	for _, vin := range dbVins {
 		var id uint64
-		err = stmt.QueryRow(vin.TxID, vin.TxIndex,
-			vin.PrevTxHash, vin.PrevTxIndex).Scan(&id)
+		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
+			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree).Scan(&id)
 		if err != nil {
-			log.Errorf("INSERT exec failed: %v", err)
-			continue
+			stmt.Close()
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
+			return ids, fmt.Errorf("InsertVins INSERT exec failed: %v", err)
 		}
 		// err = db.QueryRow("SELECT currval(pg_get_serial_sequence('vins', 'id'));").Scan(&id) // currval('vins_id_seq')
 		if err != nil {
@@ -304,19 +587,18 @@ func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool) (uint64, error) 
 	return id, err
 }
 
-func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, error) {
+func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, []dbtypes.AddressRow, error) {
+	addressRows := make([]dbtypes.AddressRow, 0, len(dbVouts)*2)
 	dbtx, err := db.Begin()
 	if err != nil {
-		return nil,
-			fmt.Errorf("unable to begin database transaction: %v + %v (rollback)",
-				err, dbtx.Rollback())
+		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
 	stmt, err := dbtx.Prepare(internal.MakeVoutInsertStatement(checked))
 	if err != nil {
 		log.Errorf("Vout INSERT prepare: %v", err)
 		dbtx.Rollback()
-		return nil, err
+		return nil, nil, err
 	}
 
 	ids := make([]uint64, 0, len(dbVouts))
@@ -327,6 +609,66 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, e
 			vout.ScriptPubKey, vout.ScriptPubKeyData.ReqSigs,
 			vout.ScriptPubKeyData.Type,
 			pq.Array(vout.ScriptPubKeyData.Addresses)).Scan(&id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			stmt.Close()
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
+			return nil, nil, err
+		}
+		for _, addr := range vout.ScriptPubKeyData.Addresses {
+			addressRows = append(addressRows, dbtypes.AddressRow{
+				Address:            addr,
+				FundingTxHash:      vout.TxHash,
+				FundingTxVoutIndex: vout.TxIndex,
+				VoutDbID:           id,
+				Value:              vout.Value,
+			})
+		}
+		ids = append(ids, id)
+	}
+
+	stmt.Close()
+
+	return ids, addressRows, dbtx.Commit()
+}
+
+func InsertAddressOut(db *sql.DB, dbA *dbtypes.AddressRow) (uint64, error) {
+	var id uint64
+	err := db.QueryRow(internal.InsertAddressRow, dbA.Address, dbA.FundingTxDbID,
+		dbA.FundingTxHash, dbA.FundingTxVoutIndex, dbA.VoutDbID, dbA.Value).Scan(&id)
+	return id, err
+}
+
+func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow) ([]uint64, error) {
+	// Create the address table if it does not exist
+	tableName := "addresses"
+	if haveTable, _ := TableExists(db, tableName); !haveTable {
+		if err := CreateTable(db, tableName); err != nil {
+			log.Errorf("Failed to create table %s: %v", tableName, err)
+		}
+	}
+
+	dbtx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
+	}
+
+	stmt, err := dbtx.Prepare(internal.InsertAddressRow)
+	if err != nil {
+		log.Errorf("AddressRow INSERT prepare: %v", err)
+		dbtx.Rollback()
+		return nil, err
+	}
+
+	ids := make([]uint64, 0, len(dbAs))
+	for _, dbA := range dbAs {
+		var id uint64
+		err := stmt.QueryRow(dbA.Address, dbA.FundingTxDbID, dbA.FundingTxHash,
+			dbA.FundingTxVoutIndex, dbA.VoutDbID, dbA.Value).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
@@ -359,9 +701,7 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {
 func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
-		return nil,
-			fmt.Errorf("unable to begin database transaction: %v + %v (rollback)",
-				err, dbtx.Rollback())
+		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
 	stmt, err := dbtx.Prepare(internal.MakeTxInsertStatement(checked))
