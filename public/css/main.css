@@ -286,11 +286,6 @@ body.darkBG .navbar-fixed-bottom a {
 .fs18-decimal .unit {
     font-size: 18px
 }
-.vam-decimal .dot,
-.vam-decimal .decimal,
-.vam-decimal .unit {
-    vertical-align: middle
-}
 
 .hash {
   font-size: 14px;
