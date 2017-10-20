@@ -49,12 +49,12 @@
                             <td class="text-right">{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .Total)}}</td>
 =======
                             {{if ne .RecievedTotal 0}}
-                                <td class="text-right">{{.RecievedTotal}}</td>
+                                <td class="text-right">{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .RecievedTotal)}}</td>
                             {{else}}
                                 <td></td>
                             {{end}}
                             {{if ne .SentTotal 0}}
-                                <td>{{.SentTotal}}</td>
+                                <td>{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .SentTotal)}}</td>
                             {{else}}
                                 <td></td>
                             {{end}}

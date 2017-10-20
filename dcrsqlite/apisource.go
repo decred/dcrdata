@@ -708,13 +708,13 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	for i := 0; i < len(data.Vin); i++ {
 		if data.Vin[i].PrevOut.Addresses[0] == address {
 			t, _ := dcrutil.NewAmount(*data.Vin[i].AmountIn)
-			tx.SentTotal += t
+			tx.SentTotal += int(t)
 		}
 	}
 	for i := 0; i < len(data.Vout); i++ {
 		if data.Vout[i].ScriptPubKey.Addresses[0] == address {
 			t, _ := dcrutil.NewAmount(data.Vout[i].Value)
-			tx.RecievedTotal += t
+			tx.RecievedTotal += int(t)
 		}
 	}
 	return tx
