@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -16,7 +17,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"fmt"
 
 	"golang.org/x/net/websocket"
 
@@ -75,7 +75,7 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 	errorfp := filepath.Join("views", "error.tmpl")
 	helpers := template.FuncMap{
 		"divide": func(n int64, d int64) int64 {
-			val := n/d
+			val := n / d
 			return val
 		},
 		"int64Comma": func(v int64) string {
@@ -105,8 +105,8 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 			trailingZeros := strings.Repeat("0", oldLength-len(clipped))
 			valueChunks := strings.Split(clipped, ".")
 			integer := valueChunks[0]
-			if (useCommas) {
-				integerAsInt64, _ := strconv.ParseInt(integer, 10 ,64)
+			if useCommas {
+				integerAsInt64, _ := strconv.ParseInt(integer, 10, 64)
 				integer = humanize.Comma(integerAsInt64)
 			}
 			dec := valueChunks[1]
@@ -121,8 +121,8 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 				return []string{"0", leadingZeros + dec, trailingZeros}
 			}
 			integer := amt[:len(amt)-8]
-			if (useCommas) {
-				integerAsInt64, _ := strconv.ParseInt(integer, 10 ,64)
+			if useCommas {
+				integerAsInt64, _ := strconv.ParseInt(integer, 10, 64)
 				integer = humanize.Comma(integerAsInt64)
 			}
 			dec := strings.TrimRight(amt[len(amt)-8:], "0")

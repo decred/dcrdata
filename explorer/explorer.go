@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	humanize "github.com/dustin/go-humanize"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
@@ -303,8 +303,8 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 			trailingZeros := strings.Repeat("0", oldLength-len(clipped))
 			valueChunks := strings.Split(clipped, ".")
 			integer := valueChunks[0]
-			if (useCommas) {
-				integerAsInt64, _ := strconv.ParseInt(integer, 10 ,64)
+			if useCommas {
+				integerAsInt64, _ := strconv.ParseInt(integer, 10, 64)
 				integer = humanize.Comma(integerAsInt64)
 			}
 			dec := valueChunks[1]
@@ -319,8 +319,8 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 				return []string{"0", leadingZeros + dec, trailingZeros}
 			}
 			integer := amt[:len(amt)-8]
-			if (useCommas) {
-				integerAsInt64, _ := strconv.ParseInt(integer, 10 ,64)
+			if useCommas {
+				integerAsInt64, _ := strconv.ParseInt(integer, 10, 64)
 				integer = humanize.Comma(integerAsInt64)
 			}
 			dec := strings.TrimRight(amt[len(amt)-8:], "0")
