@@ -40,8 +40,8 @@ type AddressTx struct {
 	Confirmations uint64
 	Time          int64
 	FormattedTime string
-	RecievedTotal int
-	SentTotal     int
+	RecievedTotal float64
+	SentTotal     float64
 }
 
 // TxInfo models data needed for display on the tx page
