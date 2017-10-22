@@ -22,7 +22,7 @@
             <div class="col-md-5 col-sm-6 d-flex">
                 <table>
                     <tr class="h2rem">
-                        <td class="pr-2 lh1rem vam text-right xs-w117">TOTAL SENT</td>
+                        <td class="pr-2 lh1rem vam text-right xs-w117 w120">TOTAL SENT</td>
                         <td class="fs28 mono fs18-decimal d-flex align-items-center">{{template "decimalParts" (float64AsDecimalParts .TotalSent false)}}<span class="unit">DCR</span></td>
                     </tr>
                 </table>
@@ -93,23 +93,23 @@
             <div class="col-md-5 col-sm-6 d-flex">
                 <table class="">
                     <tr>
-                        <td class="text-right lh1rem pr-2">TIME</td>
+                        <td class="text-right lh1rem pr-2 xs-w117">TIME</td>
                         <td class="lh1rem" style="min-width: 178px;">
                             ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-age="{{.BlockTime}}"></span> ago)</span>
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem">SIZE</td>
+                        <td class="text-right pr-2 lh1rem xs-w117">SIZE</td>
                         <td class="mono">{{.FormattedBytes}}</td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0"><a href="#votes">VOTES</a></td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117"><a href="#votes">VOTES</a></td>
                         <td class="lh1rem">
                             {{.Voters}}
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">
                             {{if gt .FreshStake  0 }}<a href="#tickets">TICKETS</a>{{else}}TICKETS{{end}}
                         </td>
                         <td class="lh1rem">
@@ -117,29 +117,29 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">{{if gt .Revocations  0 }}<a href="#revocations">REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Revocations  0 }}<a href="#revocations">REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
                         <td class="lh1rem">
                             {{.Revocations}}
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">{{if gt .Transactions  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Transactions  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
                         <td class="lh1rem">
                             {{.Transactions}}
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0">TICKET PRICE</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">TICKET PRICE</td>
                         <td class="lh1rem">
                             {{template "decimalParts" (float64AsDecimalParts .SBits false)}}
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem nowrap p03rem0 p03rem0">POOL SIZE</td>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0 p03rem0 xs-w91">POOL SIZE</td>
                         <td class="lh1rem">{{.PoolSize}}</td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem nowrap p03rem0">POW DIFFICULTY</td>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0 xs-w91">POW DIFFICULTY</td>
                         <td class="lh1rem">
                             {{.Difficulty}}
                         </td>
