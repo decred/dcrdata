@@ -106,7 +106,14 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 			valueChunks := strings.Split(clipped, ".")
 			integer := valueChunks[0]
 			if useCommas {
-				integerAsInt64, _ := strconv.ParseInt(integer, 10, 64)
+				integerAsInt64, err := strconv.ParseInt(integer, 10, 64)
+				if err != nil {
+					log.Errorf("float64AsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
+					integer = "ERROR"
+					dec := "VALUE"
+					zeros := ""
+					return []string{integer, dec, zeros}
+				}
 				integer = humanize.Comma(integerAsInt64)
 			}
 			dec := valueChunks[1]
@@ -122,7 +129,14 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 			}
 			integer := amt[:len(amt)-8]
 			if useCommas {
-				integerAsInt64, _ := strconv.ParseInt(integer, 10, 64)
+				integerAsInt64, err := strconv.ParseInt(integer, 10, 64)
+				if err != nil {
+					log.Errorf("amountAsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
+					integer = "ERROR"
+					dec := "VALUE"
+					zeros := ""
+					return []string{integer, dec, zeros}
+				}
 				integer = humanize.Comma(integerAsInt64)
 			}
 			dec := strings.TrimRight(amt[len(amt)-8:], "0")
