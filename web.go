@@ -105,18 +105,24 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 			trailingZeros := strings.Repeat("0", oldLength-len(clipped))
 			valueChunks := strings.Split(clipped, ".")
 			integer := valueChunks[0]
+			var dec string
+			if len(valueChunks) == 2 {
+				dec = valueChunks[1]
+			} else {
+				dec = ""
+				log.Errorf("float64AsDecimalParts has no decimal value. Input: %v", v)
+			}
 			if useCommas {
 				integerAsInt64, err := strconv.ParseInt(integer, 10, 64)
 				if err != nil {
 					log.Errorf("float64AsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
 					integer = "ERROR"
-					dec := "VALUE"
+					dec = "VALUE"
 					zeros := ""
 					return []string{integer, dec, zeros}
 				}
 				integer = humanize.Comma(integerAsInt64)
 			}
-			dec := valueChunks[1]
 			return []string{integer, dec, trailingZeros}
 		},
 		"amountAsDecimalParts": func(v int64, useCommas bool) []string {
