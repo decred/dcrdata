@@ -62,7 +62,7 @@
                             {{else}}
                                 <td></td>
                             {{end}}
-                            <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
+                            <td class="text-right">{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .Total)}}</td>
                             <td>
                                 {{if eq .Time 0}}
                                     Unconfirmed
