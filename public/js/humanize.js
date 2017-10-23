@@ -27,11 +27,11 @@ var humanize = (function() {
       }
       var decimalVals = decimal.slice(0,decimal.length - numTrailingZeros)
       var trailingZeros = (numTrailingZeros == 0) ? "" : decimal.slice(-(numTrailingZeros))
-      return "<span class='int'>"+int+"</span>"+
+      return $.parseHTML("<span class='int'>"+int+"</span>"+
              "<span class='dot'>.</span>"+
              "<span class='decimal'>"+decimalVals+
                 "<span class='trailing-zeroes'>"+trailingZeros+"</span>"+
-              "</span>"
+              "</span>")
     },
     subsidyToString:  function(x, y = 1) {
       return (x / 100000000 / y) + " DCR"

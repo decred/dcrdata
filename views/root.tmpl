@@ -41,7 +41,7 @@
             var m = JSON.parse(event);
 
             //mempool fee info
-            $('#mempoolfeeinfo_number').html(m.number)
+            $('#mempoolfeeinfo_number').text(m.number)
         };
 
         ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
@@ -72,7 +72,7 @@
             $("#bsubsidy_dev").html(humanize.decimalParts(b.next_block_subsidy.developer/100000000, false, 8))
             $("#coin_supply").html(humanize.decimalParts(b.coin_supply/100000000, true, 8))
             $("#blocksdiff").html(humanize.decimalParts(b.sdiff, false, 8))
-            $("#window_block_index").html(newBlock.stake.window_block_index)
+            $("#window_block_index").text(newBlock.stake.window_block_index)
             $("#pos-window-progess-bar").css({ width: (newBlock.stake.window_block_index/144)*100 + "%" })
             setTimeElements()
         };
