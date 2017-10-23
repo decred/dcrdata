@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -878,17 +879,35 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		})
 	}
 	tx.Vin = inputs
-
+	if tx.Type == "Vote" || tx.Type == "Ticket" || tx.Vin[0].IsCoinBase() {
+		if db.GetBestBlockHeight() >= (int64(db.params.TicketMaturity) + tx.BlockHeight) {
+			tx.Mature = "True"
+		} else {
+			tx.Mature = "False"
+		}
+	}
+	if tx.Type == "Vote" {
+		if tx.Confirmations < int64(db.params.CoinbaseMaturity) {
+			tx.VoteFundsLocked = "True"
+		} else {
+			tx.VoteFundsLocked = "False"
+		}
+	}
 	outputs := make([]explorer.Vout, 0, len(txraw.Vout))
 	for i, vout := range txraw.Vout {
 		txout, err := db.client.GetTxOut(txhash, uint32(i), true)
 		if err != nil {
 			log.Warnf("Failed to determine if tx out is spent for ouput %d of tx %s", i, txid)
 		}
+		var opReturn string
+		if strings.Contains(vout.ScriptPubKey.Asm, "OP_RETURN") {
+			opReturn = vout.ScriptPubKey.Asm
+		}
 		outputs = append(outputs, explorer.Vout{
 			Addresses:       vout.ScriptPubKey.Addresses,
 			Amount:          vout.Value,
 			FormattedAmount: humanize.Commaf(vout.Value),
+			OP_RETURN:       opReturn,
 			Type:            vout.ScriptPubKey.Type,
 			Spent:           txout == nil,
 		})
