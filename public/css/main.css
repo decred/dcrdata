@@ -122,6 +122,9 @@ body.darkBG .navbar-fixed-bottom a {
 .fs13 {
   font-size: 13px !important;
 }
+.fs14 {
+  font-size: 14px !important;
+}
 .fs15 {
   font-size: 15px !important;
 }
@@ -155,6 +158,9 @@ body.darkBG .navbar-fixed-bottom a {
 }
 .w80 {
   width: 80px;
+}
+.w120 {
+  width: 120px;
 }
 .w142 {
   width: 142px;
@@ -270,6 +276,18 @@ body.darkBG .navbar-fixed-bottom a {
   letter-spacing: 1px;
   font-weight: bold;
   font-size: 13px;
+}
+
+/* Typography    */
+.fs14-decimal .dot,
+.fs14-decimal .decimal,
+.fs14-decimal .unit {
+    font-size: 14px
+}
+.fs18-decimal .dot,
+.fs18-decimal .decimal,
+.fs18-decimal .unit {
+    font-size: 18px
 }
 
 .hash {
