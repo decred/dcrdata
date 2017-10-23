@@ -13,10 +13,10 @@
                 <h4>Address</h4>
                 <p class="mono">{{.Address}}</p>
                 <p>
-                    {{if eq .NoOfTransactions .AddressRow}}
-                        Currently only the first {{.AddressRow}} transactions are being shown below.
+                    {{if eq .NumTransactions .AddressRow}}
+                        Currently only the {{.AddressRow}} most recent transactions are shown below.
                     {{else}}
-                        Transactions: {{.NoOfTransactions}}</br>
+                        Transactions: {{.NumTransactions}}</br>
                         Unconfirmed: {{.TotalUnconfirmed}}</br>
                         Received: {{.Received}}</br>
                         Sent: {{.TotalSent}}</br>

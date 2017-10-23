@@ -122,7 +122,7 @@ type BlockInfo struct {
 type AddressInfo struct {
 	Address          string
 	Transactions     []*AddressTx
-	NoOfTransactions int
+	NumTransactions  int
 	TotalUnconfirmed int
 	Received         dcrutil.Amount
 	AddressRow       int

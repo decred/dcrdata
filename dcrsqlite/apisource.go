@@ -705,14 +705,19 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	t := time.Unix(tx.Time, 0)
 	tx.FormattedTime = t.Format("1/_2/06 15:04:05")
 	tx.Confirmations = data.Confirmations
-	for i := 0; i < len(data.Vin); i++ {
-		if data.Vin[i].PrevOut.Addresses[0] == address {
-			tx.SentTotal += *data.Vin[i].AmountIn
+
+	for i := range data.Vin {
+		if data.Vin[i].PrevOut.Addresses != nil {
+			if data.Vin[i].PrevOut.Addresses[0] == address {
+				tx.SentTotal += *data.Vin[i].AmountIn
+			}
 		}
 	}
-	for i := 0; i < len(data.Vout); i++ {
-		if data.Vout[i].ScriptPubKey.Addresses[0] == address {
-			tx.RecievedTotal += data.Vout[i].Value
+	for i := range data.Vout {
+		if data.Vout[i].ScriptPubKey.Addresses != nil {
+			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
+				tx.RecievedTotal += data.Vout[i].Value
+			}
 		}
 	}
 	return tx
@@ -948,17 +953,17 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 	NoOfUnconfirmed := 0
 	var totalreceived, totalsent dcrutil.Amount
 	if NumberOfTx < explorer.AddressRows {
-		for i := 0; i < len(txs); i++ {
-			if txs[i].Confirmations == 0 {
+		for _, tx := range txs {
+			if tx.Confirmations == 0 {
 				NoOfUnconfirmed++
 			}
-			for _, y := range txs[i].Vout {
+			for _, y := range tx.Vout {
 				if address == y.ScriptPubKey.Addresses[0] {
 					t, _ := dcrutil.NewAmount(y.Value)
 					totalreceived += t
 				}
 			}
-			for _, u := range txs[i].Vin {
+			for _, u := range tx.Vin {
 				if address == u.PrevOut.Addresses[0] {
 					t, _ := dcrutil.NewAmount(*u.AmountIn)
 					totalsent += t
@@ -970,7 +975,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 	return &explorer.AddressInfo{
 		Address:          address,
 		Transactions:     addressTxs,
-		NoOfTransactions: NumberOfTx,
+		NumTransactions:  NumberOfTx,
 		TotalUnconfirmed: NoOfUnconfirmed,
 		Received:         totalreceived,
 		AddressRow:       explorer.AddressRows,
