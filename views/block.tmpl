@@ -141,7 +141,7 @@
                     <tr>
                         <td class="text-right pr-2 lh1rem nowrap p03rem0 xs-w91">POW DIFFICULTY</td>
                         <td class="lh1rem">
-                            {{.Difficulty}}
+                            {{template "decimalParts" (float64AsDecimalParts .Difficulty true)}}
                         </td>
                     </tr>
                 </table>
