@@ -258,8 +258,13 @@ body.darkBG .navbar-fixed-bottom a {
   font-size: 14px;
 }
 .table .address {
-  max-width: 127px;
-  display: inline-block;
+  max-width: 123px;
+}
+.table .outpoint {
+  max-width: 222px;
+}
+.table-fixed {
+  table-layout: fixed;
 }
 
 /*content*/
@@ -337,6 +342,10 @@ body.darkBG .navbar-fixed-bottom a {
   .table {
     margin-bottom: 0;
     width: 100%;
+  }
+  .sm-fullwidth {
+    width: 100%;
+    max-width: 100% !important;
   }
   .sm-w151 {
     width: 151px;
