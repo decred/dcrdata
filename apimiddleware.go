@@ -28,6 +28,7 @@ const (
 	ctxTxInOutIndex
 	ctxSearch
 	ctxN
+	ctxStakeVersionLatest
 )
 
 // CacheControl creates a new middleware to set the HTTP response header with
@@ -109,6 +110,20 @@ func NPathCtx(next http.Handler) http.Handler {
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxN, N)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (c *appContext) StakeVersionLatestCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ver := -1
+		if c.BlockData != nil {
+			stkVers, err := c.BlockData.GetStakeVersionsLatest()
+			if err == nil && stkVers != nil {
+				ver = int(stkVers.StakeVersion)
+			}
+		}
+		ctx := context.WithValue(r.Context(), ctxStakeVersionLatest, ver)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
