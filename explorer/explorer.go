@@ -6,6 +6,8 @@
 package explorer
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -16,14 +18,17 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
+	"golang.org/x/net/websocket"
 )
 
 const (
@@ -69,6 +74,9 @@ type explorerUI struct {
 	templates       []*template.Template
 	templateFiles   map[string]string
 	templateHelpers template.FuncMap
+	wsHub           *WebsocketHub
+	NewBlockDataMtx sync.RWMutex
+	NewBlockData    BlockBasic
 }
 
 func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +114,80 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
+}
+
+func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
+	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
+		// Create channel to signal updated data availability
+		updateSig := make(hubSpoke)
+		// register websocket client with our signal channel
+		exp.wsHub.RegisterClient(&updateSig)
+		// unregister (and close signal channel) before return
+		defer exp.wsHub.UnregisterClient(&updateSig)
+
+		// Ticker for a regular ping
+		ticker := time.NewTicker(pingInterval)
+		defer ticker.Stop()
+
+		go func() {
+			for range ticker.C {
+				exp.wsHub.HubRelay <- sigPingAndUserCount
+			}
+		}()
+
+	loop:
+		for {
+			// Wait for signal from the hub to update
+			select {
+			case sig, ok := <-updateSig:
+				// Check if the update channel was closed. Either the websocket
+				// hub will do it after unregistering the client, or forcibly in
+				// response to (http.CloseNotifier).CloseNotify() and only then if
+				// the hub has somehow lost track of the client.
+				if !ok {
+					//ws.WriteClose(1)
+					exp.wsHub.UnregisterClient(&updateSig)
+					break loop
+				}
+
+				if _, ok = eventIDs[sig]; !ok {
+					break loop
+				}
+
+				log.Tracef("signaling client: %p", &updateSig)
+				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+
+				// Write block data to websocket client
+				exp.NewBlockDataMtx.RLock()
+				webData := WebSocketMessage{
+					EventId: eventIDs[sig],
+				}
+				buff := new(bytes.Buffer)
+				enc := json.NewEncoder(buff)
+				switch sig {
+				case sigNewBlock:
+					enc.Encode(exp.NewBlockData)
+					webData.Messsage = buff.String()
+				case sigPingAndUserCount:
+					// ping and send user count
+					webData.Messsage = strconv.Itoa(exp.wsHub.NumClients())
+				}
+
+				err := websocket.JSON.Send(ws, webData)
+				exp.NewBlockDataMtx.RUnlock()
+				if err != nil {
+					log.Debugf("Failed to encode WebSocketMessage %v: %v", sig, err)
+					// If the send failed, the client is probably gone, so close
+					// the connection and quit.
+					return
+				}
+			case <-exp.wsHub.quitWSHandler:
+				break loop
+			}
+		}
+	})
+
+	wsHandler.ServeHTTP(w, r)
 }
 
 func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
@@ -370,6 +452,12 @@ func (exp *explorerUI) reloadTemplatesSig(sig os.Signal) {
 	}()
 }
 
+// StopWebsocketHub stops the websocket hub
+func (exp *explorerUI) StopWebsocketHub() {
+	log.Info("Stopping websocket hub.")
+	exp.wsHub.Stop()
+}
+
 // New returns an initialized instance of explorerUI
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
 	useRealIP bool) *explorerUI {
@@ -505,7 +593,36 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	exp.addRoutes()
 
+	wsh := NewWebsocketHub()
+	go wsh.run()
+
+	exp.wsHub = wsh
+
 	return exp
+}
+
+func (exp *explorerUI) Store(blockData *blockdata.BlockData) error {
+	exp.NewBlockDataMtx.Lock()
+	bData := blockData.ToBlockExplorerSummary()
+	newBlockData := BlockBasic{
+		Height:         int64(bData.Height),
+		Voters:         bData.Voters,
+		FreshStake:     bData.FreshStake,
+		Size:           int32(bData.Size),
+		Transactions:   bData.TxLen,
+		BlockTime:      bData.Time,
+		FormattedTime:  bData.FormattedTime,
+		FormattedBytes: humanize.Bytes(uint64(bData.Size)),
+		Revocations:    uint32(bData.Revocations),
+	}
+	exp.NewBlockData = newBlockData
+	exp.NewBlockDataMtx.Unlock()
+
+	exp.wsHub.HubRelay <- sigNewBlock
+
+	log.Debugf("Got new block %d", newBlockData.Height)
+
+	return nil
 }
 
 func (exp *explorerUI) addRoutes() {
@@ -515,6 +632,7 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Use(corsMW.Handler)
 
 	exp.Mux.Get("/", exp.root)
+	exp.Mux.Get("/ws", exp.rootWebsocket)
 
 	exp.Mux.Route("/block", func(r chi.Router) {
 		r.Route("/{blockhash}", func(rd chi.Router) {
