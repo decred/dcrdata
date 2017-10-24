@@ -318,16 +318,19 @@ func mainCore() error {
 
 		mpData, err := mpoolCollector.Collect()
 		if err != nil {
-			return fmt.Errorf("Mempool info collection failed while gathering initial"+
-				"data: %v", err.Error())
+			return fmt.Errorf("Mempool info collection failed while gathering"+
+				" initial data: %v", err.Error())
 		}
 
 		// Store initial MP data
-		sqliteDB.MPC.StoreMPData(mpData, time.Now())
+		if err = sqliteDB.MPC.StoreMPData(mpData, time.Now()); err != nil {
+			return fmt.Errorf("Failed to store initial mempool data (wiredDB): %v",
+				err.Error())
+		}
 
 		// Store initial MP data to webUI
 		if err = webUI.StoreMPData(mpData, time.Now()); err != nil {
-			return fmt.Errorf("Failed to store initial mempool data: %v",
+			return fmt.Errorf("Failed to store initial mempool data (WebUI): %v",
 				err.Error())
 		}
 
@@ -390,7 +393,10 @@ func mainCore() error {
 	webMux.NotFound(webUI.ErrorPage)
 	webMux.Mount("/api", apiMux.Mux)
 	webMux.Mount("/explorer", explore.Mux)
-	listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux)
+	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
+		log.Criticalf("listenAndServeProto: %v", err)
+		close(quit)
+	}
 
 	// Wait for notification handlers to quit
 	wg.Wait()
@@ -413,10 +419,26 @@ func connectNodeRPC(cfg *config, ntfnHandlers *rpcclient.NotificationHandlers) (
 		cfg.DcrdCert, cfg.DisableDaemonTLS, ntfnHandlers)
 }
 
-func listenAndServeProto(listen, proto string, mux http.Handler) {
-	apiLog.Infof("Now serving on %s://%v/", proto, listen)
+func listenAndServeProto(listen, proto string, mux http.Handler) error {
+	// Try to bind web server
+	errChan := make(chan error)
 	if proto == "https" {
-		go http.ListenAndServeTLS(listen, "dcrdata.cert", "dcrdata.key", mux)
+		go func() {
+			errChan <- http.ListenAndServeTLS(listen, "dcrdata.cert", "dcrdata.key", mux)
+		}()
+	} else {
+		go func() {
+			errChan <- http.ListenAndServe(listen, mux)
+		}()
 	}
-	go http.ListenAndServe(listen, mux)
+
+	// Briefly wait for an error and then return
+	t := time.NewTimer(3 * time.Second)
+	select {
+	case err := <-errChan:
+		return fmt.Errorf("Failed to bind web server: %v", err)
+	case <-t.C:
+		apiLog.Infof("Now serving on %s://%v/", proto, listen)
+		return nil
+	}
 }
