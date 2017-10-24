@@ -13,17 +13,22 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 ../dcrdata              The dcrdata daemon.
 ├── blockdata           Package blockdata.
 ├── cmd
-│   ├── rebuilddb       rebuilddb utility.
+│   ├── rebuilddb       rebuilddb utility, for SQLite backend.
+│   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend.
 │   └── scanblocks      scanblocks utility.
 ├── dcrdataapi          Package dcrdataapi for golang API clients.
-├── dcrsqlite           Package dcrsqlite providing SQLite backend.
-├── public              Public resources for web UI (css, js, etc.).
+├── db
+│   ├── dbtypes         Package dbtypes with common data types.
+│   ├── dcrpg           Package dcrpg providing PostgreSQL backend.
+│   └── dcrsqlite       Package dcrsqlite providing SQLite backend.
+├── public              Public resources for block explorer (css, js, etc.).
+├── explorer            Package explorer, powering the block explorer.
 ├── mempool             Package mempool.
 ├── rpcutils            Package rpcutils.
 ├── semver              Package semver.
 ├── stakedb             Package stakedb, for tracking tickets.
 ├── txhelpers           Package txhelpers.
-└── views               HTML templates for web UI.
+└── views               HTML templates for block explorer.
 ```
 
 ## dcrdata daemon
@@ -31,18 +36,34 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 The root of the repository is the `main` package for the dcrdata app, which has
 several components including:
 
+1. Block explorer (web interface).
 1. Blockchain monitoring and data collection.
 1. Mempool monitoring and reporting.
 1. Data storage in durable database (sqlite presently).
 1. RESTful JSON API over HTTP(S).
-1. Basic web interface.
+
+### Block Explorer
+
+After dcrdata syncs with the blockchain server via RPC, by default it will begin
+listening for HTTP connections on `http://127.0.0.1:7777/`. This means it starts
+a web server listening on IPv4 localhost, port 7777. Both the interface and port
+are configurable. The block explorer and the JSON API are both provided by the
+server on this port. See [JSON REST API](#json-rest-api) for details.
+
+Note that while dcrdata can be started with HTTPS support, it is recommended to
+employ a reverse proxy such as nginx. See sample-nginx.conf for an example nginx
+configuration.
+
+A new database backend using PostgreSQL was introduced in v0.9.0 that provides
+expanded functionality. However, initial population of the database takes
+additional time and tens of gigabytes of disk storage space. To disable the
+PostgreSQL backend (and the expanded functionality), dcrdata may be started with
+the `--lite` (`-l` for short) command line flag.
 
 ### JSON REST API
 
-The API serves JSON data over HTTP(S).  After dcrdata syncs with the blockchain
-server, by default it will begin listening on `http://0.0.0.0:7777/`.  This
-means it starts a web server listening on all network interfaces on port 7777.
-**All API endpoints are currently prefixed with `/api`** (e.g.
+The API serves JSON data over HTTP(S). **All
+API endpoints are currently prefixed with `/api`** (e.g.
 `http://localhost:7777/api/stake`), but this may be configurable in the future.
 
 #### Endpoint List
@@ -142,11 +163,6 @@ All JSON endpoints accept the URL query `indent=[true|false]`.  For example,
 for indentation may be specified with the `indentjson` string configuration
 option.
 
-### Web Interface
-
-In addition to the API that is accessible via paths beginning with `/api`, an
-HTML interface is served on the root path (`/`).
-
 ## Important Note About Mempool
 
 Although there is mempool data collection and serving, it is **very important**
@@ -164,6 +180,13 @@ rebuilddb is a CLI app that performs a full blockchain scan that fills past
 block data into a SQLite database. This functionality is included in the startup
 of the dcrdata daemon, but may be called alone with rebuilddb.
 
+### rebuilddb2
+
+`rebuilddb2` is a CLI app used for maintenance of dcrdata's `dcrpg` database
+(a.k.a. DB v2) that uses PostgreSQL to store a nearly complete record of the
+Decred blockchain data. See the [README.md](./cmd/rebuilddb2/README.md) for
+`rebuilddb2` for important usage information.
+
 ### scanblocks
 
 scanblocks is a CLI app to scan the blockchain and save data into a JSON file.
@@ -176,6 +199,11 @@ comma-separated value (CSV) file.
 `package dcrdataapi` defines the data types, with json tags, used by the JSON
 API.  This facilitates authoring of robust golang clients of the API.
 
+`package dbtypes` defines the data types used by the DB backends to model the
+block, transaction, and related blockchain data structures. Functions for
+converting from standard Decred data types (e.g. `wire.MsgBlock`) are also
+provided.
+
 `package rpcutils` includes helper functions for interacting with a
 `rpcclient.Client`.
 
@@ -185,7 +213,7 @@ pool value quickly.  It uses the `database.DB` type from
 `github.com/decred/dcrd/database` with an ffldb storage backend from
 `github.com/decred/dcrd/database/ffldb`.  It also makes use of the `stake.Node`
 type from `github.com/decred/dcrd/blockchain/stake`.  The `ChainMonitor` type
-handles connecting new blocks and chain reorganiation in response to notifications
+handles connecting new blocks and chain reorganization in response to notifications
 from dcrd.
 
 `package txhelpers` includes helper functions for working with the common types
@@ -193,8 +221,9 @@ from dcrd.
 
 ## Internal-use packages
 
-Packages `blockdata` and `dcrsqlite` are currently designed only for internal use
-by other dcrdata packages, but they may be of general value in the future.
+Packages `blockdata` and `dcrsqlite` are currently designed only for internal
+use internal use by other dcrdata packages, but they may be of general value in
+the future.
 
 `blockdata` defines:
 
@@ -205,6 +234,14 @@ by other dcrdata packages, but they may be of general value in the future.
   that are called by the chain monitor when a new block is detected.
 * The `BlockDataSaver` interface required by `chainMonitor` for storage of
   collected data.
+
+`dcrpg` defines:
+
+* The `ChainDB` type, which is the primary exported type from `dcrpg`, providing
+  an interface for a PostgreSQL database.
+* A large set of lower-level functions to perform a range of queries given a
+  `*sql.DB` instance and various parameters.
+* The internal package contains the raw SQL statements.
 
 `dcrsqlite` defines:
 
@@ -229,7 +266,7 @@ See the GitHub issue tracker and the [project milestones](https://github.com/dcr
 ## Requirements
 
 * [Go](http://golang.org) 1.8.3 or newer.
-* Running `dcrd` (>=0.6.1) synchronized to the current best block on the network.
+* Running `dcrd` (>=1.1.0) synchronized to the current best block on the network.
 
 ## Installation
 
@@ -278,7 +315,8 @@ First, update the repository (assuming you have `master` checked out):
     dep ensure
     go build
 
-Look carefully for errors with `git pull`, and reset locally modified files if necessary.
+Look carefully for errors with `git pull`, and reset locally modified files
+if necessary.
 
 ## Getting Started
 
@@ -290,7 +328,9 @@ cp ./sample-dcrdata.conf ./dcrdata.conf
 
 Then edit dcrdata.conf with your dcrd RPC settings.
 
-Finally, launch the daemon and allow the databases to sync.  This takes about an hour on the first time. On subsequent launches, only new blocks need to be scanned.
+Finally, launch the daemon and allow the databases to sync.  This takes about
+an hour on the first time. On subsequent launches, only new blocks need to be
+scanned.
 
 ```bash
 ./dcrdata
@@ -306,7 +346,8 @@ Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it
 1. Commit and push to your repo.
 1. Create a [pull request](https://github.com/dcrdata/dcrdata/compare).
 
-Note that all dcrdata.org community and team members are expected to adhere to the code of conduct, described in the CODE_OF_CONDUCT file.
+Note that all dcrdata.org community and team members are expected to adhere to
+the code of conduct, described in the CODE_OF_CONDUCT file.
 
 ## License
 
