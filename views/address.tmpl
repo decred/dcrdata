@@ -39,30 +39,17 @@
                         {{range .Transactions}}
                         <tr>
                             <td><a href="../tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
-<<<<<<< HEAD
-<<<<<<< HEAD
-                            <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
-=======
-<<<<<<< HEAD
->>>>>>> adding more to summary
-                            <td class="text-right">{{.RecievedTotal}}</td>
-                            <td>{{.SentTotal}}</td>
-                            <td class="text-right">{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .Total)}}</td>
-=======
-                            {{if ne .RecievedTotal 0}}
-=======
                             {{if ne .RecievedTotal 0.0}}
->>>>>>> Removing suffix DCR
-                                <td class="text-right">{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .RecievedTotal)}}</td>
+                                <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .RecievedTotal false)}}</td>
                             {{else}}
                                 <td></td>
                             {{end}}
                             {{if ne .SentTotal 0.0}}
-                                <td>{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .SentTotal)}}</td>
+                                <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
                             {{else}}
                                 <td></td>
                             {{end}}
-                            <td class="text-right">{{template "floatAndZeroSuffix" (float64SplitZeroSuffix .Total)}}</td>
+                            <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
                             <td>
                                 {{if eq .Time 0}}
                                     Unconfirmed
@@ -70,7 +57,8 @@
                                     {{.FormattedTime}}
                                 {{end}}
                             </td>
-                            <td>{{if eq .Time 0}}
+                            <td>
+                            {{if eq .Time 0}}
                                 N/A
                             {{else}}
                                 <span data-age="{{.Time}}"></span>
