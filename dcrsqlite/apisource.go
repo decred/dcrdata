@@ -966,7 +966,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 				}
 			}
 			for _, u := range tx.Vin {
-				if len(u.PrevOut.Addresses) != 0 {
+				if u.PrevOut != nil && len(u.PrevOut.Addresses) != 0 {
 					if address == u.PrevOut.Addresses[0] {
 						t, _ := dcrutil.NewAmount(*u.AmountIn)
 						totalsent += t
