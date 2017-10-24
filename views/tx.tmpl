@@ -121,17 +121,18 @@
     <div class="row">
         <div class="col-md-7 mb-3">
             <h4>Input</h4>
-            <table class="table table-sm striped">
+            <table class="table table-sm table-fixed striped">
                 <thead>
                     <th>Previous Outpoint</th>
                     <th>Addresses</th>
-                    <th class="text-center">Block</th>
-                    <th class="text-center">DCR</th>
+                    <th class="text-center" width="60">Block</th>
+                    <th class="text-center" width="100">DCR</th>
                 </thead>
                 <tbody>
                     {{range .Vin}}
                     <tr>
-                        <td class="break-word">
+                        <td class="break-word mono fs13">
+                            <div class="outpoint">
                             {{if .Coinbase}}
                                 Coinbase: {{ .Coinbase }}
                             {{else if .Stakebase}}
@@ -139,11 +140,12 @@
                             {{else}}
                                 <a href="/explorer/tx/{{.Txid}}">{{.Txid}}:{{.Vout}}</a>
                             {{end}}
+                            </div>
                         </td>
-                        <td><div class="break-word address">
+                        <td><div class="break-word address mono fs13">
                             {{if gt (len .Addresses) 0}}
                                 {{range .Addresses}}
-                                    <a href="/explorer/address/{{.}}">{{.}}</a><br>
+                                    <div><a href="/explorer/address/{{.}}">{{.}}</a></div>
                                 {{end}}
                             {{else}}
                                 N/A
@@ -159,7 +161,6 @@
                         {{end}}
                         </td>
                         <td class="mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{template "decimalParts" (float64AsDecimalParts .AmountIn false)}} {{end}}</td>
-
                     </tr>
                     {{end}}
                 </tbody>
@@ -167,32 +168,32 @@
         </div>
         <div class="col-md-5 mb-3">
             <h4>Output</h4>
-            <table class="table table-sm striped">
+            <table class="table table-sm table-fixed striped">
                 <thead>
                     <th>Address</th>
-                    <th class="text-center">Type</th>
-                    <th class="text-center">DCR</th>
-                    <th class="text-center">Spent</th>
+                    <th class="text-left">Type</th>
+                    <th class="text-left" width="50">Spent</th>
+                    <th class="text-right" width="100">DCR</th>
                 </thead>
                 <tbody>
-                    {{range .Vout}} 
+                    {{range .Vout}}
                     <tr>
-                        <td class="break-word">
+                        <td class="break-word mono fs13">
                             {{if ne .Amount 0.0}}
                                 {{range .Addresses}}
-                                    <a class="mono address" href="/explorer/address/{{.}}">{{.}}</a><br>
+                                    <div class="address sm-fullwidth"><a href="/explorer/address/{{.}}">{{.}}</a></div>
                                 {{end}}
                             {{else}}
-                                    <a class="mono address">{{.OP_RETURN}}</a>
+                                <a class="address">{{.OP_RETURN}}</a>
                             {{end}}
                         </td>
-                        <td>
-				            {{.Type}}
+                        <td class="fs13 break-word">
+                            {{.Type}}
                         </td>
-                        <td class="text-right">
+                        <td class="text-left fs13">{{.Spent}}</td>
+                        <td class="text-right mono fs13">
                             {{template "decimalParts" (float64AsDecimalParts .Amount false)}}
                         </td>
-                        <td>{{.Spent}}</td>
                     </tr>
                     {{end}}
                 </tbody>
