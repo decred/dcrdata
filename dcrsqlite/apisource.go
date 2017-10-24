@@ -958,15 +958,19 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 				NoOfUnconfirmed++
 			}
 			for _, y := range tx.Vout {
-				if address == y.ScriptPubKey.Addresses[0] {
-					t, _ := dcrutil.NewAmount(y.Value)
-					totalreceived += t
+				if len(y.ScriptPubKey.Addresses) != 0 {
+					if address == y.ScriptPubKey.Addresses[0] {
+						t, _ := dcrutil.NewAmount(y.Value)
+						totalreceived += t
+					}
 				}
 			}
 			for _, u := range tx.Vin {
-				if address == u.PrevOut.Addresses[0] {
-					t, _ := dcrutil.NewAmount(*u.AmountIn)
-					totalsent += t
+				if len(u.PrevOut.Addresses) != 0 {
+					if address == u.PrevOut.Addresses[0] {
+						t, _ := dcrutil.NewAmount(*u.AmountIn)
+						totalsent += t
+					}
 				}
 			}
 		}

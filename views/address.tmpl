@@ -12,27 +12,43 @@
 
                 <h4>Address</h4>
                 <p class="mono">{{.Address}}</p>
-                <p>
+                <table class="table-centered-1rem">
                     {{if eq .NumTransactions .AddressRow}}
-                        Currently only the {{.AddressRow}} most recent transactions are shown below.
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">Currently only the {{.AddressRow}} most recent transactions are shown below.</td>
+                        </tr>
                     {{else}}
-                        Transactions: {{.NumTransactions}}</br>
-                        Unconfirmed: {{.TotalUnconfirmed}}</br>
-                        Received: {{.Received}}</br>
-                        Sent: {{.TotalSent}}</br>
-                        Unspent: {{.UnSpent}}</br>
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">TRANSACTIONS</td>
+                            <td>{{.NumTransactions}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">UNCONFIRMED</td>
+                            <td>{{.TotalUnconfirmed}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">RECEIVED</td>
+                            <td>{{.Received}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">SENT</td>
+                            <td>{{.TotalSent}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">UNSPENT</td>
+                            <td>{{.UnSpent}}</td>
+                        </tr>
                     {{end}}
-                </p>
+                </table>
                 <h5>Transactions</h5>
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
-                        <th class="text-right">Received DCR</th>
-                        <th>Sent DCR</th>
-                        <th>Total DCR</th>
+                        <th class="text-right">Credit DCR</th>
+                        <th>Debit DCR</th>
                         <th>Time</th>
                         <th>Age</th>
-                        <th>Confirmations</th>
+                        <th>Confirms</th>
                         <th>Size</th>
                     </thead>
                     <tbody>
@@ -45,11 +61,14 @@
                                 <td></td>
                             {{end}}
                             {{if ne .SentTotal 0.0}}
-                                <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
+                                {{if lt 0.0 .SentTotal}}
+                                    <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
+                                {{else}}
+                                    <td>N/A</td>
+                                {{end}}
                             {{else}}
                                 <td></td>
                             {{end}}
-                            <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
                             <td>
                                 {{if eq .Time 0}}
                                     Unconfirmed
