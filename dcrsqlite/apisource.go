@@ -361,6 +361,33 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 	return tx, txraw.Hex
 }
 
+// GetVoteVersionInfo requests stake version info from the dcrd RPC server
+func (db *wiredDB) GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error) {
+	return db.client.GetVoteInfo(ver)
+}
+
+// GetStakeVersions requests the output of the getstakeversions RPC, which gets
+// stake version information and individual vote version information starting at the
+// given block and for count-1 blocks prior.
+func (db *wiredDB) GetStakeVersions(txHash string, count int32) (*dcrjson.GetStakeVersionsResult, error) {
+	return db.client.GetStakeVersions(txHash, count)
+}
+
+// GetStakeVersionsLatest requests the output of the getstakeversions RPC for
+// just the current best block.
+func (db *wiredDB) GetStakeVersionsLatest() (*dcrjson.StakeVersions, error) {
+	txHash, err := db.GetBestBlockHash()
+	if err != nil {
+		return nil, err
+	}
+	stkVers, err := db.GetStakeVersions(txHash, 1)
+	if err != nil || stkVers == nil || len(stkVers.StakeVersions) == 0 {
+		return nil, err
+	}
+	stkVer := stkVers.StakeVersions[0]
+	return &stkVer, nil
+}
+
 // GetVoteInfo attempts to decode the vote bits of a SSGen transaction. If the
 // transaction is not a valid SSGen, the VoteInfo output will be nil. Depending
 // on the stake version with which dcrdata is compiled with (chaincfg.Params),

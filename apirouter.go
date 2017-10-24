@@ -96,6 +96,10 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 	})
 
 	mux.Route("/stake", func(r chi.Router) {
+		r.Route("/vote", func(rd chi.Router) {
+			rd.Use(app.StakeVersionLatestCtx)
+			rd.Get("/info", app.getVoteInfo)
+		})
 		r.Route("/pool", func(rd chi.Router) {
 			rd.With(app.BlockIndexLatestCtx).Get("/", app.getTicketPoolInfo)
 			rd.With(BlockIndexPathCtx).Get("/b/{idx}", app.getTicketPoolInfo)

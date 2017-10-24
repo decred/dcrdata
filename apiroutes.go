@@ -26,6 +26,9 @@ type APIDataSource interface {
 	GetRawTransaction(txid string) *apitypes.Tx
 	GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string)
 	GetVoteInfo(txid string) (*apitypes.VoteInfo, error)
+	GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error)
+	GetStakeVersions(txHash string, count int32) (*dcrjson.GetStakeVersionsResult, error)
+	GetStakeVersionsLatest() (*dcrjson.StakeVersions, error)
 	GetAllTxIn(txid string) []*apitypes.TxIn
 	GetAllTxOut(txid string) []*apitypes.TxOut
 	GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions
@@ -262,6 +265,15 @@ func getStatusCtx(r *http.Request) *apitypes.Status {
 	return status
 }
 
+func getLatestVoteVersionCtx(r *http.Request) int {
+	ver, ok := r.Context().Value(ctxStakeVersionLatest).(int)
+	if !ok {
+		apiLog.Error("latest stake version not set")
+		return -1
+	}
+	return ver
+}
+
 func (c *appContext) writeJSONHandlerFunc(thing interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, thing, c.JSONIndent)
@@ -283,6 +295,24 @@ func (c *appContext) getIndentQuery(r *http.Request) (indent string) {
 		indent = c.JSONIndent
 	}
 	return
+}
+
+func getVoteVersionQuery(r *http.Request) (int32, string, error) {
+	verLatest := int64(getLatestVoteVersionCtx(r))
+	voteVersion := r.URL.Query().Get("version")
+	if voteVersion == "" {
+		return int32(verLatest), voteVersion, nil
+	}
+
+	ver, err := strconv.ParseInt(voteVersion, 10, 0)
+	if err != nil {
+		return -1, voteVersion, err
+	}
+	if ver > verLatest {
+		ver = verLatest
+	}
+
+	return int32(ver), voteVersion, nil
 }
 
 func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
@@ -412,6 +442,22 @@ func (c *appContext) getBlockVerbose(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, blockVerbose, c.getIndentQuery(r))
+}
+
+func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
+	ver, verStr, err := getVoteVersionQuery(r)
+	if err != nil || ver < 0 {
+		apiLog.Errorf("Unable to get vote info for stake version %s", verStr)
+		http.Error(w, "Unable to get vote info for stake version "+verStr, 422)
+		return
+	}
+	voteVersionInfo, err := c.BlockData.GetVoteVersionInfo(uint32(ver))
+	if err != nil || voteVersionInfo == nil {
+		apiLog.Errorf("Unable to get vote version %d info: %v", ver, err)
+		http.Error(w, "Unable to get vote info for stake version "+verStr, 422)
+		return
+	}
+	writeJSON(w, voteVersionInfo, c.getIndentQuery(r))
 }
 
 func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
