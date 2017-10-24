@@ -210,7 +210,7 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 }
 
 // AddressPathCtx returns a http.HandlerFunc that embeds the value at the url part
-// {address} into the request context
+// {address} into the request context.
 func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")

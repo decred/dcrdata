@@ -17,7 +17,7 @@ const (
 	defaultConfigFilename = "rebuilddb2.conf"
 	defaultLogLevel       = "info"
 	defaultLogDirname     = "logs"
-	defaultLogFilename    = "rebuilddb2.log"
+	//defaultLogFilename    = "rebuilddb2.log"
 )
 
 var curDir, _ = os.Getwd()
@@ -84,7 +84,7 @@ var (
 	}
 )
 
-// cleanAndExpandPath expands environement variables and leading ~ in the
+// cleanAndExpandPath expands environment variables and leading ~ in the
 // passed path, cleans the result, and returns it.
 func cleanAndExpandPath(path string) string {
 	// Expand initial ~ to OS specific home directory.
@@ -205,8 +205,8 @@ func loadConfig() (*config, error) {
 
 	// Append the network type to the log directory so it is "namespaced"
 	// per network.
-	cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
-	cfg.LogDir = filepath.Join(cfg.LogDir, activeNet.Name)
+	// cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
+	// cfg.LogDir = filepath.Join(cfg.LogDir, activeNet.Name)
 
 	// Special show command to list supported subsystems and exit.
 	// if cfg.DebugLevel == "show" {
@@ -231,54 +231,3 @@ func loadConfig() (*config, error) {
 
 	return &cfg, nil
 }
-
-// const (
-//     defaultDBTableName = "dcrdata"
-//     defaultDBUserName = "dcrdata"
-//     defaultDBPass = "dcrpassword"
-//     defaultDBFileName = "dcrdata.sqlt.dat"
-//     defaultDBHostPort = "127.0.0.1:3660"
-// )
-
-// type configuration struct {
-//     DaemonHostPort string `json:"dcrdhost"`
-//     DaemonUser string `json:"dcrduser"`
-//     DaemonPass string `json:"dcrdpass"`
-// 	DBHostPort     string `json:"dbhost"`
-//     DBUser     string `json:"dbuser"`
-//     DBPass     string `json:"dbpass"`
-//     DBFileName string `json:"dbfile"`
-//     DBTableName     string `json:"dbtablename"`
-// }
-
-// func loadConfig(configFile string) (*configuration, error) {
-// 	// Open configuration file
-// 	file, err := os.Open(configFile)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer file.Close()
-
-// 	// parse json config file
-// 	conf := &configuration{}
-// 	if err = json.NewDecoder(file).Decode(conf); err != nil {
-// 		return nil, err
-// 	}
-
-//     // For file-backed db (sqlite)
-//     if conf.DBFileName == "" {
-// 		conf.DBFileName = defaultDBFileName
-// 	}
-
-//     // For daemon backed db
-//     // if conf.DBHostPort == "" {
-// 	// 	conf.DBHostPort = defaultDBHostPort
-// 	// }
-// 	// _, _, err = net.SplitHostPort(conf.DBHostPort)
-// 	// if err != nil {
-// 	// 	fmt.Printf("Unable to parse host:port - %v", err)
-// 	// 	return nil, err
-// 	// }
-
-// 	return conf, nil
-// }

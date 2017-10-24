@@ -1,3 +1,6 @@
+// Copyright (c) 2017, The dcrdata developers
+// See LICENSE for details.
+
 package dcrpg
 
 import (
@@ -164,7 +167,8 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 	}
 
 	if updateAllAddresses {
-		db.DeindexAddressTable()
+		// Remove existing indexes not on funding txns
+		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
 		log.Infof("Populating spending tx info in address table...")
 		numAddresses, err := db.UpdateSpendingInfoInAllAddresses()
 		if err != nil {

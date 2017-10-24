@@ -17,12 +17,13 @@ var logFILE *os.File
 //var log = logrus.New()
 var log *logrus.Logger
 
-const logFile = "rebuilddb.log"
+const logFile = "rebuilddb2.log"
 
 // InitLogger starts the logger
 func InitLogger() error {
 	logFilePath, _ := filepath.Abs(logFile)
-	logFILE, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND,
+	var err error
+	logFILE, err = os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND,
 		0664)
 	if err != nil {
 		return fmt.Errorf("Error opening log file: %v", err)

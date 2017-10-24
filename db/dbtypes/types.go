@@ -59,6 +59,8 @@ func (p *VinTxPropertyARRAY) Scan(src interface{}) error {
 	return nil
 }
 
+// VinTxPropertyARRAY is a slice of VinTxProperty sturcts that implements
+// sql.Scanner and driver.Valuer.
 type VinTxPropertyARRAY []VinTxProperty
 
 // func VinTxPropertyToJSONB(vin *VinTxProperty) (JSONB, error) {
@@ -66,14 +68,11 @@ type VinTxPropertyARRAY []VinTxProperty
 // 	vinJSON, err := json.Marshal(vin)
 // 	if err != nil {
 // 		return vinJSONB, err
-
 // 	}
-
 // 	var vinInterface interface{}
 // 	err = json.Unmarshal(vinJSON, &vinInterface)
 // 	if err != nil {
 // 		return vinJSONB, err
-
 // 	}
 // 	vinJSONB = vinInterface.(map[string]interface{})
 // 	return vinJSONB, nil
@@ -174,6 +173,7 @@ type ScriptPubKeyData struct {
 	Addresses []string `json:"addresses"`
 }
 
+// VinTxProperty models a transaction input with previous outpoint information.
 type VinTxProperty struct {
 	PrevOut     string `json:"prevout"`
 	PrevTxHash  string `json:"prevtxhash"`
@@ -189,6 +189,7 @@ type VinTxProperty struct {
 	ScriptHex   []byte `json:"scripthex"`
 }
 
+// Vin models a transaction input.
 type Vin struct {
 	//txDbID      int64
 	Coinbase    string  `json:"coinbase"`
@@ -209,6 +210,7 @@ type ScriptSig struct {
 	Hex string `json:"hex"`
 }
 
+// Tx models a Decred transaction. It is stored in a Block.
 type Tx struct {
 	//blockDbID  int64
 	BlockHash  string             `json:"block_hash"`
@@ -228,6 +230,7 @@ type Tx struct {
 	// vout will have a tx_dbid
 }
 
+// Block models a Decred block.
 type Block struct {
 	Hash         string `json:"hash"`
 	Size         uint32 `json:"size"`

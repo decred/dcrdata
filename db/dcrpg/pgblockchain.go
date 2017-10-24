@@ -20,6 +20,8 @@ var (
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
 
+// ChainDB provides an interface for storing and manipulating extracted
+// blockchain data in a PostgreSQL database.
 type ChainDB struct {
 	db          *sql.DB
 	chainParams *chaincfg.Params
@@ -27,10 +29,13 @@ type ChainDB struct {
 	lastBlock   map[chainhash.Hash]uint64
 }
 
+// DBInfo holds the PostgreSQL database connection information.
 type DBInfo struct {
 	Host, Port, User, Pass, DBName string
 }
 
+// NewChainDB constructs a ChainDB for the given connection and Decred network
+// parameters. By default, duplicate row checks on insertion are enabled.
 func NewChainDB(dbi *DBInfo, params *chaincfg.Params) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
@@ -45,14 +50,19 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params) (*ChainDB, error) {
 	}, nil
 }
 
+// Close closes the underlying sql.DB connection to the database.
 func (pgb *ChainDB) Close() error {
 	return pgb.db.Close()
 }
 
+// EnableDuplicateCheckOnInsert specifies whether SQL insertions should check
+// for row conflicts (duplicates), and avoid adding or updating.
 func (pdb *ChainDB) EnableDuplicateCheckOnInsert(dupCheck bool) {
 	pdb.dupChecks = dupCheck
 }
 
+// SetupTables creates the required tables and type, and prints table versions
+// stored in the table comments when debug level logging is enabled.
 func (pdb *ChainDB) SetupTables() error {
 	if err := CreateTypes(pdb.db); err != nil {
 		return err
@@ -69,31 +79,43 @@ func (pdb *ChainDB) SetupTables() error {
 	return nil
 }
 
+// DropTables drops (deletes) all of the known dcrdata tables.
 func (pgb *ChainDB) DropTables() {
 	DropTables(pgb.db)
 }
 
+// Height queries the DB for the best block height.
 func (pgb *ChainDB) Height() (uint64, error) {
 	bestHeight, _, _, err := RetrieveBestBlockHeight(pgb.db)
 	return bestHeight, err
 }
 
+// SpendingTransactions retrieves all transactions spending outpoints from the
+// specified funding transaction. The spending transaction hashes, the spending
+// tx input indexes, and the corresponding funding tx output indexes, and an
+// error value are returned.
 func (pgb *ChainDB) SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error) {
 	_, spendingTxns, vinInds, voutInds, err := RetrieveSpendingTxsByFundingTx(pgb.db, fundingTxID)
 	return spendingTxns, vinInds, voutInds, err
 }
 
+// SpendingTransaction returns the transaction that spends the specified
+// transaction outpoint, if it is spent. The spending transaction hash, input
+// index, tx tree, and an error value are returned.
 func (pgb *ChainDB) SpendingTransaction(fundingTxID string,
 	fundingTxVout uint32) (string, uint32, int8, error) {
 	_, spendingTx, vinInd, tree, err := RetrieveSpendingTxByTxOut(pgb.db, fundingTxID, fundingTxVout)
 	return spendingTx, vinInd, tree, err
 }
 
+// BlockTransactions retrieves all transactions in the specified block, their
+// indexes in the block, their tree, and an error value.
 func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, []int8, error) {
 	_, blockTransactions, blockInds, trees, err := RetrieveTxsByBlockHash(pgb.db, blockHash)
 	return blockTransactions, blockInds, trees, err
 }
 
+// VoutValue retrieves the value of the specified transaction outpoint in atoms.
 func (pgb *ChainDB) VoutValue(txID string, vout uint32) (uint64, error) {
 	// txDbID, _, _, err := RetrieveTxByHash(pgb.db, txID)
 	// if err != nil {
@@ -106,6 +128,9 @@ func (pgb *ChainDB) VoutValue(txID string, vout uint32) (uint64, error) {
 	return voutValue, nil
 }
 
+// VoutValue retrieves the values of each outpoint of the specified transaction.
+// The corresponding indexes in the block and tx trees of the outpoints, and an
+// error value are also returned.
 func (pgb *ChainDB) VoutValues(txID string) ([]uint64, []uint32, []int8, error) {
 	// txDbID, _, _, err := RetrieveTxByHash(pgb.db, txID)
 	// if err != nil {
@@ -118,6 +143,9 @@ func (pgb *ChainDB) VoutValues(txID string) ([]uint64, []uint32, []int8, error) 
 	return voutValues, txInds, txTrees, nil
 }
 
+// TransactionBlock retrieves the hash of the block containing the specified
+// transaction. The index of the transaction within the block, the transaction
+// index, and an error value are also returned.
 func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) {
 	_, blockHash, blockInd, tree, err := RetrieveTxByHash(pgb.db, txID)
 	return blockHash, blockInd, tree, err
@@ -208,14 +236,8 @@ func (pgb *ChainDB) IndexAll() error {
 	if err := IndexVoutTableOnTxHash(pgb.db); err != nil {
 		return err
 	}
-	// log.Infof("Indexing addresses table on address...")
-	// if err := IndexAddressTableOnAddress(pgb.db); err != nil {
-	// 	return err
-	// }
-	// log.Infof("Indexing addresses table on vout Db ID...")
-	// if err := IndexAddressTableOnVoutID(pgb.db); err != nil {
-	// 	return err
-	// }
+	// Not indexing the address table on vout ID or address here. See
+	// IndexAddressTable to create those indexes.
 	log.Infof("Indexing addresses table on funding tx hash...")
 	return IndexAddressTableOnTxHash(pgb.db)
 }
@@ -246,7 +268,8 @@ func (pgb *ChainDB) DeindexAddressTable() error {
 	return errAny
 }
 
-// StoreBlock processes the input wire.MsgBlock, and saves to the data tables
+// StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
+// The number of vins, and vouts stored are also returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock,
 	updateAddressesSpendingInfo bool) (numVins int64, numVouts int64, err error) {
 	// Convert the wire.MsgBlock to a dbtypes.Block
@@ -322,6 +345,8 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock,
 	return
 }
 
+// storeTxnsResult is the type of object sent back from the goroutines wrapping
+// storeTxns in StoreBlock.
 type storeTxnsResult struct {
 	numVins, numVouts, numAddresses int64
 	err                             error
@@ -469,8 +494,13 @@ func (pgb *ChainDB) storeTxns(msgBlock *wire.MsgBlock, txTree int8,
 	return txRes
 }
 
-// UpdateSpendingInfoInAllAddresses rebuilds the spending transaction info
-// columns of the address table.
+// UpdateSpendingInfoInAllAddresses completely rebuilds the spending transaction
+// info columns of the address table. This is intended to be use after syncing
+// all other tables and creating their indexes, particularly the indexes on the
+// vins table, and the addresses table index on the funding tx columns. This can
+// be used instead of using updateAddressesSpendingInfo=true with storeTxns,
+// which will update these addresses table columns too, but much more slowly for
+// a number of reasons (that are well worth investigating BTW!).
 func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 	// Get the full list of vinDbIDs
 	allVinDbIDs, err := RetrieveAllVinDbIDs(pgb.db)

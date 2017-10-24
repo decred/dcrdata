@@ -1,3 +1,6 @@
+// Copyright (c) 2017, The dcrdata developers
+// See LICENSE for details.
+
 package dcrpg
 
 import (
@@ -124,7 +127,7 @@ func CreateTables(db *sql.DB) error {
 	return err
 }
 
-// Create one of the known tables by name
+// CreateTable creates one of the known tables by name
 func CreateTable(db *sql.DB, tableName string) error {
 	var err error
 	createCommand, tableNameFound := createTableStatements[tableName]

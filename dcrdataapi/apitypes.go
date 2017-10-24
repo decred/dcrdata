@@ -35,8 +35,8 @@ type Tx struct {
 
 // TxShort models info about transaction TxID
 type TxShort struct {
-	Size     int32         `json:"size"`
 	TxID     string        `json:"txid"`
+	Size     int32         `json:"size"`
 	Version  int32         `json:"version"`
 	Locktime uint32        `json:"locktime"`
 	Expiry   uint32        `json:"expiry"`
@@ -268,8 +268,8 @@ type BlockExplorerBasic struct {
 	Size        uint32  `json:"size"`
 	Voters      uint16  `json:"votes"`
 	FreshStake  uint8   `json:"tickets"`
-	StakeDiff   float64 `json:"sdiff"`
 	Revocations uint8   `json:"revocations"`
+	StakeDiff   float64 `json:"sdiff"`
 	Time        int64   `json:"time"`
 	BlockExplorerExtraInfo
 }

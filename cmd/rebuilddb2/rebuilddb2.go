@@ -252,7 +252,8 @@ func mainCore() error {
 	}
 
 	if cfg.UpdateAddrSpendInfo {
-		db.DeindexAddressTable()
+		// Remove existing indexes not on funding txns
+		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
 		log.Infof("Populating spending tx info in address table...")
 		numAddresses, err := db.UpdateSpendingInfoInAllAddresses()
 		if err != nil {

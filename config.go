@@ -76,7 +76,7 @@ type config struct {
 	UseRealIP          bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order."`
 	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes."`
 
-	// Comamnd execution
+	// Command execution
 	//CmdName string `short:"c" long:"cmdname" description:"Command name to run. Must be on %PATH%."`
 	//CmdArgs string `short:"a" long:"cmdargs" description:"Comma-separated list of arguments for command to run. The specifier %n is substituted for block height at execution, and %h is substituted for block hash."`
 
@@ -135,7 +135,7 @@ var (
 	}
 )
 
-// cleanAndExpandPath expands environement variables and leading ~ in the
+// cleanAndExpandPath expands environment variables and leading ~ in the
 // passed path, cleans the result, and returns it.
 func cleanAndExpandPath(path string) string {
 	// Expand initial ~ to OS specific home directory.
@@ -324,7 +324,7 @@ func loadConfig() (*config, error) {
 		cfg.DcrdServ = defaultHost + ":" + activeNet.JSONRPCClientPort
 	}
 
-	// Put comma-separated comamnd line aguments into slice of strings
+	// Put comma-separated command line arguments into slice of strings
 	//cfg.CmdArgs = strings.Split(cfg.CmdArgs[0], ",")
 
 	// // Output folder

@@ -16,7 +16,7 @@ import (
 const (
 	rescanLogBlockChunk = 250
 	// dbType is the database backend type to use
-	dbType = "ffldb"
+	// dbType = "ffldb"
 	// DefaultStakeDbName is the default database name
 	DefaultStakeDbName = "ffldb_stake"
 )

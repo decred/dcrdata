@@ -337,8 +337,8 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 	}
 
 	// TxShort
-	tx.Size = int32(len(txraw.Hex) / 2)
 	tx.TxID = txraw.Txid
+	tx.Size = int32(len(txraw.Hex) / 2)
 	tx.Version = txraw.Version
 	tx.Locktime = txraw.LockTime
 	tx.Expiry = txraw.Expiry

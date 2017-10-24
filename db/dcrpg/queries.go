@@ -29,7 +29,8 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 	vinGetStmt, err = dbtx.Prepare(internal.SelectAllVinInfoByID)
 	if err != nil {
 		log.Errorf("Vin SELECT prepare failed: %v", err)
-		dbtx.Rollback()
+		// Already up a creek. Just return error from Prepare.
+		_ = dbtx.Rollback()
 		return nil, 0, err
 	}
 
@@ -37,9 +38,17 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 	addrSetStmt, err = dbtx.Prepare(internal.SetAddressSpendingForOutpoint)
 	if err != nil {
 		log.Errorf("address row UPDATE prepare failed: %v", err)
-		vinGetStmt.Close()
-		dbtx.Rollback()
+		// Already up a creek. Just return error from Prepare.
+		_ = vinGetStmt.Close()
+		_ = dbtx.Rollback()
 		return nil, 0, err
+	}
+
+	bail := func() error {
+		// Already up a creek. Just return error from Prepare.
+		_ = vinGetStmt.Close()
+		_ = addrSetStmt.Close()
+		return dbtx.Rollback()
 	}
 
 	addressRowsUpdated := make([]int64, len(vinDbIDs))
@@ -54,10 +63,8 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 			&txHash, &txVinInd, &txTree,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree)
 		if err != nil {
-			vinGetStmt.Close()
-			addrSetStmt.Close()
 			return addressRowsUpdated, 0, fmt.Errorf(`SetSpendingForVinDbIDs: `+
-				`%v + %v (rollback)`, err, dbtx.Rollback())
+				`%v + %v (rollback)`, err, bail())
 		}
 
 		// skip coinbase inputs
@@ -70,23 +77,20 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		res, err = addrSetStmt.Exec(prevOutHash, prevOutVoutInd,
 			0, txHash, txVinInd, vinDbID)
 		if err != nil || res == nil {
-			vinGetStmt.Close()
-			addrSetStmt.Close()
 			return addressRowsUpdated, 0, fmt.Errorf(`SetSpendingForVinDbIDs: `+
-				`%v + %v (rollback)`, err, dbtx.Rollback())
+				`%v + %v (rollback)`, err, bail())
 		}
 
 		addressRowsUpdated[iv], err = res.RowsAffected()
 		if err != nil {
-			vinGetStmt.Close()
-			addrSetStmt.Close()
 			return addressRowsUpdated, 0, fmt.Errorf(`RowsAffected: `+
-				`%v + %v (rollback)`, err, dbtx.Rollback())
+				`%v + %v (rollback)`, err, bail())
 		}
 	}
 
-	vinGetStmt.Close()
-	addrSetStmt.Close()
+	// Close prepared statements. Ignore errors as we'll Commit regardless.
+	_ = vinGetStmt.Close()
+	_ = addrSetStmt.Close()
 
 	var totalUpdated int64
 	for _, n := range addressRowsUpdated {
@@ -405,45 +409,6 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	return
 }
 
-// func RetrieveSpendingTx(db *sql.DB, outpoint string) (uint64, *dbtypes.Tx, error) {
-// 	var id uint64
-// 	var tx dbtypes.Tx
-// 	err := db.QueryRow(internal.SelectTxByPrevOut, outpoint).Scan(&id, &tx.BlockHash,
-// 		&tx.BlockIndex, &tx.TxID, &tx.Version, &tx.Locktime, &tx.Expiry,
-// 		&tx.NumVin, &tx.Vins, &tx.NumVout, &tx.VoutDbIds)
-// 	return id, &tx, err
-// }
-
-// func RetrieveSpendingTxs(db *sql.DB, fundingTxID string) ([]uint64, []*dbtypes.Tx, error) {
-// 	var ids []uint64
-// 	var txs []*dbtypes.Tx
-// 	rows, err := db.Query(internal.SelectTxsByPrevOutTx, fundingTxID)
-// 	if err != nil {
-// 		return ids, txs, err
-// 	}
-// 	defer func() {
-// 		if e := rows.Close(); e != nil {
-// 			log.Errorf("Close of Query failed: %v", e)
-// 		}
-// 	}()
-
-// 	for rows.Next() {
-// 		var id uint64
-// 		var tx dbtypes.Tx
-// 		err = rows.Scan(&id, &tx.BlockHash,
-// 			&tx.BlockIndex, &tx.TxID, &tx.Version, &tx.Locktime, &tx.Expiry,
-// 			&tx.NumVin, &tx.Vins, &tx.NumVout, &tx.VoutDbIds)
-// 		if err != nil {
-// 			break
-// 		}
-
-// 		ids = append(ids, id)
-// 		txs = append(txs, &tx)
-// 	}
-
-// 	return ids, txs, err
-// }
-
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, checked bool) (uint64, error) {
 	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
 	var id uint64
@@ -538,7 +503,7 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error)
 	stmt, err := dbtx.Prepare(internal.InsertVinRow)
 	if err != nil {
 		log.Errorf("Vin INSERT prepare: %v", err)
-		dbtx.Rollback()
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
 
@@ -550,27 +515,17 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error)
 		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
 			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree).Scan(&id)
 		if err != nil {
-			stmt.Close()
+			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
 				log.Errorf("Rollback failed: %v", errRoll)
 			}
 			return ids, fmt.Errorf("InsertVins INSERT exec failed: %v", err)
 		}
-		// err = db.QueryRow("SELECT currval(pg_get_serial_sequence('vins', 'id'));").Scan(&id) // currval('vins_id_seq')
-		if err != nil {
-			if err == sql.ErrNoRows {
-				continue
-			}
-			stmt.Close()
-			if errRoll := dbtx.Rollback(); errRoll != nil {
-				log.Errorf("Rollback failed: %v", errRoll)
-			}
-			return nil, err
-		}
 		ids = append(ids, id)
 	}
 
-	stmt.Close()
+	// Close prepared statement. Ignore errors as we'll Commit regardless.
+	_ = stmt.Close()
 
 	return ids, dbtx.Commit()
 }
@@ -597,7 +552,7 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 	stmt, err := dbtx.Prepare(internal.MakeVoutInsertStatement(checked))
 	if err != nil {
 		log.Errorf("Vout INSERT prepare: %v", err)
-		dbtx.Rollback()
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, nil, err
 	}
 
@@ -613,7 +568,7 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 			if err == sql.ErrNoRows {
 				continue
 			}
-			stmt.Close()
+			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
 				log.Errorf("Rollback failed: %v", errRoll)
 			}
@@ -631,7 +586,8 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 		ids = append(ids, id)
 	}
 
-	stmt.Close()
+	// Close prepared statement. Ignore errors as we'll Commit regardless.
+	_ = stmt.Close()
 
 	return ids, addressRows, dbtx.Commit()
 }
@@ -660,7 +616,7 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow) ([]uint64, error)
 	stmt, err := dbtx.Prepare(internal.InsertAddressRow)
 	if err != nil {
 		log.Errorf("AddressRow INSERT prepare: %v", err)
-		dbtx.Rollback()
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
 
@@ -673,7 +629,7 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow) ([]uint64, error)
 			if err == sql.ErrNoRows {
 				continue
 			}
-			stmt.Close()
+			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
 				log.Errorf("Rollback failed: %v", errRoll)
 			}
@@ -682,7 +638,8 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow) ([]uint64, error)
 		ids = append(ids, id)
 	}
 
-	stmt.Close()
+	// Close prepared statement. Ignore errors as we'll Commit regardless.
+	_ = stmt.Close()
 
 	return ids, dbtx.Commit()
 }
@@ -707,7 +664,7 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error
 	stmt, err := dbtx.Prepare(internal.MakeTxInsertStatement(checked))
 	if err != nil {
 		log.Errorf("Vout INSERT prepare: %v", err)
-		dbtx.Rollback()
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
 
@@ -723,7 +680,7 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error
 			if err == sql.ErrNoRows {
 				continue
 			}
-			stmt.Close()
+			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
 				log.Errorf("Rollback failed: %v", errRoll)
 			}
@@ -732,7 +689,8 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error
 		ids = append(ids, id)
 	}
 
-	stmt.Close()
+	// Close prepared statement. Ignore errors as we'll Commit regardless.
+	_ = stmt.Close()
 
 	return ids, dbtx.Commit()
 }

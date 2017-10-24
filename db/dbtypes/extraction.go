@@ -12,6 +12,9 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
+// ExtractBlockTransactions extracts transaction information from a
+// wire.MsgBlock and returns the processed information in slices of the dbtypes
+// Tx, Vout, and VinTxPropertyARRAY.
 func ExtractBlockTransactions(msgBlock *wire.MsgBlock, txTree int8,
 	chainParams *chaincfg.Params) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
 	var dbTxs []*Tx
