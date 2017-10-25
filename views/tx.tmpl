@@ -23,10 +23,10 @@
                 <span class="break-word fs15 w80">{{.TxID}}</span>
                 <a class="fs13 nowrap" href="/api/tx/{{.TxID}}?indent=true" data-turbolinks="false">view raw</a>
             </div>
-            <table class="table-centered-1rem">
+            <table class="table table-centered-1rem">
                 {{if gt .BlockHeight 0}}
                     <tr>
-                        <td class="text-right pr-2 h1rem p03rem0 xs-w91">INCLUDED IN BLOCK</td>
+                        <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">INCLUDED IN BLOCK</td>
                         <td>
                              <a href="/explorer/block/{{.BlockHeight}}" class="fs18">{{.BlockHeight}}</a>
                         </td>
@@ -38,11 +38,29 @@
                         {{.Type}}
                     </td>
                 </tr>
-                {{if .Mature}}
+                {{if eq .Mature "True"}}
+                    <td class="text-right pr-2 h1rem p03rem0">MATURE</td><td>{{.Mature}}</td>
+                {{end}}
+                {{if eq .Mature "False"}}
                 <tr>
-                    <td class="text-right pr-2 h1rem p03rem0">MATURE</td>
+                    <td class="text-right pr-2 h1rem p03rem0">MATURITY</td>
                     <td>
-                        {{.Mature}}
+                        <div class="row">
+                            <div class="col-11 col-lg-8 col-sm-12">
+                                <div class="progress" style="max-width: 330px">
+                                    <div
+                                        class="progress-bar"
+                                        role="progressbar"
+                                        style="width: {{percentage (subtract .Confirmations 1) 256}}%; background: #2ed8a3;"
+                                        aria-valuenow="{{.Confirmations}}"
+                                        aria-valuemin="0"
+                                        aria-valuemax="256"
+                                    >
+                                        <span style="color:#383b41" class="nowrap pl-1 pr-1">Immature, spendable in {{ if eq .Confirmations 256 }}next block{{else}}{{subtract 257 .Confirmations}} blocks{{end}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </td>
                 </tr>
                 {{end}}
