@@ -734,7 +734,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	tx.Confirmations = data.Confirmations
 
 	for i := range data.Vin {
-		if len(data.Vin[i].PrevOut.Addresses) > 0 {
+		if data.Vin[i].PrevOut != nil && len(data.Vin[i].PrevOut.Addresses) > 0 {
 			if data.Vin[i].PrevOut.Addresses[0] == address {
 				tx.SentTotal += *data.Vin[i].AmountIn
 			}
