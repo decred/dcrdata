@@ -696,7 +696,7 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	return tx
 }
 
-func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult) *explorer.AddressTx {
+func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address string) *explorer.AddressTx {
 	tx := new(explorer.AddressTx)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
@@ -705,6 +705,21 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult) *explorer.
 	t := time.Unix(tx.Time, 0)
 	tx.FormattedTime = t.Format("1/_2/06 15:04:05")
 	tx.Confirmations = data.Confirmations
+
+	for i := range data.Vin {
+		if len(data.Vin[i].PrevOut.Addresses) > 0 {
+			if data.Vin[i].PrevOut.Addresses[0] == address {
+				tx.SentTotal += *data.Vin[i].AmountIn
+			}
+		}
+	}
+	for i := range data.Vout {
+		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
+			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
+				tx.RecievedTotal += data.Vout[i].Value
+			}
+		}
+	}
 	return tx
 }
 
@@ -931,11 +946,44 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
 	for _, tx := range txs {
-		addressTxs = append(addressTxs, makeExplorerAddressTx(tx))
+		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address))
 	}
 
+	NumberOfTx := len(txs)
+	NoOfUnconfirmed := 0
+	var totalreceived, totalsent dcrutil.Amount
+	if NumberOfTx < explorer.AddressRows {
+		for _, tx := range txs {
+			if tx.Confirmations == 0 {
+				NoOfUnconfirmed++
+			}
+			for _, y := range tx.Vout {
+				if len(y.ScriptPubKey.Addresses) != 0 {
+					if address == y.ScriptPubKey.Addresses[0] {
+						t, _ := dcrutil.NewAmount(y.Value)
+						totalreceived += t
+					}
+				}
+			}
+			for _, u := range tx.Vin {
+				if u.PrevOut != nil && len(u.PrevOut.Addresses) != 0 {
+					if address == u.PrevOut.Addresses[0] {
+						t, _ := dcrutil.NewAmount(*u.AmountIn)
+						totalsent += t
+					}
+				}
+			}
+		}
+	}
+	unspentfunds := totalreceived - totalsent
 	return &explorer.AddressInfo{
-		Address:      address,
-		Transactions: addressTxs,
+		Address:          address,
+		Transactions:     addressTxs,
+		NumTransactions:  NumberOfTx,
+		TotalUnconfirmed: NoOfUnconfirmed,
+		Received:         totalreceived,
+		AddressRow:       explorer.AddressRows,
+		TotalSent:        totalsent,
+		UnSpent:          unspentfunds,
 	}
 }

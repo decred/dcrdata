@@ -40,6 +40,8 @@ type AddressTx struct {
 	Confirmations uint64
 	Time          int64
 	FormattedTime string
+	RecievedTotal float64
+	SentTotal     float64
 }
 
 // TxInfo models data needed for display on the tx page
@@ -118,6 +120,12 @@ type BlockInfo struct {
 
 // AddressInfo models data for display on the address page
 type AddressInfo struct {
-	Address      string
-	Transactions []*AddressTx
+	Address          string
+	Transactions     []*AddressTx
+	NumTransactions  int
+	TotalUnconfirmed int
+	Received         dcrutil.Amount
+	AddressRow       int
+	TotalSent        dcrutil.Amount
+	UnSpent          dcrutil.Amount
 }

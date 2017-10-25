@@ -12,22 +12,63 @@
 
                 <h4>Address</h4>
                 <p class="mono">{{.Address}}</p>
-
+                <table class="table-centered-1rem">
+                    {{if eq .NumTransactions .AddressRow}}
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">Currently only the {{.AddressRow}} most recent transactions are shown below.</td>
+                        </tr>
+                    {{else}}
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">TRANSACTIONS</td>
+                            <td>{{.NumTransactions}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">UNCONFIRMED</td>
+                            <td>{{.TotalUnconfirmed}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">RECEIVED</td>
+                            <td>{{.Received}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">SENT</td>
+                            <td>{{.TotalSent}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">UNSPENT</td>
+                            <td>{{.UnSpent}}</td>
+                        </tr>
+                    {{end}}
+                </table>
                 <h5>Transactions</h5>
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
-                        <th class="text-right">Total DCR</th>
+                        <th class="text-right">Credit DCR</th>
+                        <th>Debit DCR</th>
                         <th>Time</th>
                         <th>Age</th>
-                        <th>Confirmations</th>
+                        <th>Confirms</th>
                         <th>Size</th>
                     </thead>
                     <tbody>
                         {{range .Transactions}}
                         <tr>
                             <td><a href="../tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
-                            <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
+                            {{if ne .RecievedTotal 0.0}}
+                                <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .RecievedTotal false)}}</td>
+                            {{else}}
+                                <td></td>
+                            {{end}}
+                            {{if ne .SentTotal 0.0}}
+                                {{if lt 0.0 .SentTotal}}
+                                    <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
+                                {{else}}
+                                    <td>N/A</td>
+                                {{end}}
+                            {{else}}
+                                <td></td>
+                            {{end}}
                             <td>
                                 {{if eq .Time 0}}
                                     Unconfirmed
@@ -35,7 +76,8 @@
                                     {{.FormattedTime}}
                                 {{end}}
                             </td>
-                            <td>{{if eq .Time 0}}
+                            <td>
+                            {{if eq .Time 0}}
                                 N/A
                             {{else}}
                                 <span data-age="{{.Time}}"></span>

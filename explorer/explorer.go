@@ -29,7 +29,7 @@ const (
 	addressTemplateIndex
 	maxExplorerRows = 2000
 	minExplorerRows = 20
-	addressRows     = 500
+	AddressRows     = 500
 )
 
 // ExplorerDataSource implements an interface for collecting data for the explorer pages
@@ -141,7 +141,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 		return
 	}
-	data := exp.blockData.GetExplorerAddress(address, addressRows)
+	data := exp.blockData.GetExplorerAddress(address, AddressRows)
 	if data == nil {
 		log.Errorf("Unable to get address %s", address)
 		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
