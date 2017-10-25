@@ -117,6 +117,53 @@
             toggleToLightClasses(event.data.newBody)
         }
     })
+    function updateConnectionStatus(msg, connected) {
+            var el = $('#connection');
+            el.removeClass('hidden')
+            if (connected) {
+                el.addClass('connected')
+                el.removeClass('disconnected')
+            } else {
+                el.removeClass('connected');
+                el.addClass('disconnected');
+            }
+            el.html(msg + '<div></div>')
+        }
+    function createwebsocket() {
+        var loc = window.location;
+        var uri = 'ws:';
+        if (loc.protocol === 'https:') {
+            uri = 'wss:';
+        }
+        uri += '//' + loc.host;
+        if (loc.pathname === "/") {
+            uri += loc.pathname + 'ws';
+        } else {
+            uri += loc.pathname + '/ws';
+        }
+        var ws = new MessageSocket(uri);
+
+        ws.registerEvtHandler("open", function() {
+            console.log('Connected')
+            updateConnectionStatus('Connected', true);
+        });
+
+        ws.registerEvtHandler("close", function() {
+            console.log('Disconnected')
+            updateConnectionStatus('Disconnected', false);
+        });
+
+        ws.registerEvtHandler("error", function(evt) {
+            console.log("WebSocket error:", evt);
+            updateConnectionStatus('Disconnected', false);
+        });
+
+        ws.registerEvtHandler("ping", function(evt) {
+            console.debug("ping. users online: ", evt)
+            ws.send("pong", "copy")
+        });
+        return ws
+    }
 </script>
 {{end}}
 

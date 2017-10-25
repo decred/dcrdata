@@ -4,14 +4,24 @@
 {{template "html-head" printf "Decred Transaction %.20s..." .TxID}}
 <body>
 {{template "navbar"}}
+<script type="text/javascript">
+    var ws = createwebsocket()
+    
+    var updateBlockData = function (event) {
+        console.log("Received newblock message", event);
+        var confirms = $(".confirmations")
+        confirms.text(parseInt(confirms.text())+1)
+    };
 
+    ws.registerEvtHandler("newblock", updateBlockData);
+</script>
 <div class="container">
 
     <div class="row justify-content-between">
         <div class="col-md-8 col-sm-6">
             <h4 class="mb-2">
                 Transaction
-                <span class="fs15">
+                <span class="fs15 confirmations">
                 {{if eq .Confirmations 0}}
                     <strong>( unconfirmed )</strong>
                 {{else}}
