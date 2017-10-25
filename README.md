@@ -5,7 +5,7 @@
 [![Latest tag](https://img.shields.io/github/tag/dcrdata/dcrdata.svg)](https://github.com/dcrdata/dcrdata/tags)
 [![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
 
-The dcrdata repository is a collection of golang packages and apps for [Decred](https://www.decred.org/) datacollection, storage, and presentation.
+The dcrdata repository is a collection of golang packages and apps for [Decred](https://www.decred.org/) data collection, storage, and presentation.
 
 ## Repository overview
 
@@ -23,7 +23,7 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 ├── semver              Package semver.
 ├── stakedb             Package stakedb, for tracking tickets.
 ├── txhelpers           Package txhelpers.
-└── views               HTML temlates for web UI.
+└── views               HTML templates for web UI.
 ```
 
 ## dcrdata daemon
@@ -193,7 +193,7 @@ from dcrd.
 
 ## Internal-use packages
 
-Packages `blockdata` and `dcrsqlite` are currenly designed only for internal use
+Packages `blockdata` and `dcrsqlite` are currently designed only for internal use
 by other dcrdata packages, but they may be of general value in the future.
 
 `blockdata` defines:
