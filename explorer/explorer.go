@@ -292,9 +292,21 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
 	exp.templateFiles["address"] = filepath.Join("views", "address.tmpl")
 	exp.templateHelpers = template.FuncMap{
+		"add": func(a int64, b int64) int64 {
+			val := a + b
+			return val
+		},
+		"subtract": func(a int64, b int64) int64 {
+			val := a - b
+			return val
+		},
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
+		},
+		"percentage": func(a int64, b int64) float64 {
+			p := (float64(a) / float64(b)) * 100
+			return p
 		},
 		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
 			clipped := fmt.Sprintf("%.8f", v)
