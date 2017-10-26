@@ -6,7 +6,7 @@
 
 <body>
     {{ template "navbar" }}
-    
+
     <script type="text/javascript"  data-turbolinks-eval="false">
 	    var ws = createwebsocket()
 
@@ -39,7 +39,8 @@
                  '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
                  '<td>' + b.formatted_time + '</td>' +
             '</tr>'
-            $(newRow).insertBefore(expTableRows.first())
+            var newRowHtml = $.parseHTML(newRow)
+            $(newRowHtml).insertBefore(expTableRows.first())
             $("#bsubsidy_total").html(humanize.decimalParts(b.next_block_subsidy.total/100000000, false, 8))
             $("#bsubsidy_pow").html(humanize.decimalParts(b.next_block_subsidy.pow/100000000, false, 8))
             $("#bsubsidy_pos").html(humanize.decimalParts((b.next_block_subsidy.pos/500000000), false, 8))

@@ -31,7 +31,8 @@
                  '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
                  '<td>' + b.formatted_time + '</td>' +
             '</tr>'
-            $(newRow).insertBefore(expTableRows.first())
+            var newRowHtml = $.parseHTML(newRow)
+            $(newRowHtml).insertBefore(expTableRows.first())
             setTimeElements()
         };
 
