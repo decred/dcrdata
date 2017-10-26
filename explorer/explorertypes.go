@@ -57,6 +57,7 @@ type TxInfo struct {
 	FormattedTime   string
 	Mature          string
 	VoteFundsLocked string
+	TicketMaturity  int64
 }
 
 // VoteInfo models data about a SSGen transaction (vote)

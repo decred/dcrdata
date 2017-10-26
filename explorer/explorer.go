@@ -292,6 +292,10 @@ func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
 	exp.templateFiles["address"] = filepath.Join("views", "address.tmpl")
 	exp.templateHelpers = template.FuncMap{
+		"add": func(a int64, b int64) int64 {
+			val := a + b
+			return val
+		},
 		"subtract": func(a int64, b int64) int64 {
 			val := a - b
 			return val
