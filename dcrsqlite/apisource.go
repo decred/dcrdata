@@ -940,7 +940,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	for i, vout := range txraw.Vout {
 		txout, err := db.client.GetTxOut(txhash, uint32(i), true)
 		if err != nil {
-			log.Warnf("Failed to determine if tx out is spent for ouput %d of tx %s", i, txid)
+			log.Warnf("Failed to determine if tx out is spent for output %d of tx %s", i, txid)
 		}
 		var opReturn string
 		if strings.Contains(vout.ScriptPubKey.Asm, "OP_RETURN") {

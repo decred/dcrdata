@@ -99,7 +99,7 @@ func IncludesTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 // would logically be TxMined. Both regular and stake transactions are checked.
 // The RPC client is used to get the PreviousOutPoint for each TxIn of each
 // transaction in the block, from which the address is obtained from the
-// PkScript of that output. chaincfg Params is requried to decode the script.
+// PkScript of that output. chaincfg Params is required to decode the script.
 func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 	c RawTransactionGetter, params *chaincfg.Params) map[string][]*dcrutil.Tx {
 	addrMap := make(map[string][]*dcrutil.Tx)
@@ -184,7 +184,7 @@ func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 	return addrMap
 }
 
-// OutPointAddresses gets the addresses payed to by a transaction output.
+// OutPointAddresses gets the addresses paid to by a transaction output.
 func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
 	params *chaincfg.Params) ([]string, error) {
 	// The addresses are encoded in the pkScript, so we need to get the
@@ -396,7 +396,7 @@ func SSGenVoteChoices(tx *wire.MsgTx, params *chaincfg.Params) (BlockValidation,
 		return validBlock, 0, 0, nil, err
 	}
 
-	// Determine the ssgen's vote version and get the relevent consensus
+	// Determine the ssgen's vote version and get the relevant consensus
 	// deployments containing the vote items targeted.
 	voteVersion := stake.SSGenVersion(tx)
 	deployments := params.Deployments[voteVersion]
