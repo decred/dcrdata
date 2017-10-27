@@ -82,7 +82,7 @@ type Vin struct {
 	FormattedAmount string
 }
 
-// Vout models basic data about a tx ouput for display
+// Vout models basic data about a tx output for display
 type Vout struct {
 	Addresses       []string
 	Amount          float64

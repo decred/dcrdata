@@ -196,7 +196,7 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData) error {
 	return db.DB.StoreStakeInfoExtended(&stakeInfoExtended)
 }
 
-// StoreBlockSummary attemps to stores the block data in the database and
+// StoreBlockSummary attempts to stores the block data in the database and
 // returns an error on failure
 func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	stmt, err := db.Prepare(db.insertBlockSQL)
@@ -335,7 +335,7 @@ func (db *DB) RetrievePoolInfoByHash(hash string) (*apitypes.TicketPoolInfo, err
 	return tpi, err
 }
 
-// RetrievePoolValAndSizeRange retuns an array each of the pool values and sizes
+// RetrievePoolValAndSizeRange returns an array each of the pool values and sizes
 // for block range ind0 to ind1
 func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float64, error) {
 	N := ind1 - ind0 + 1

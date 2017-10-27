@@ -327,7 +327,7 @@ type MempoolTicketFees struct {
 	FeeRates []float64 `json:"top_fees"`
 }
 
-// TicketDetails models details about ticket Hash recieved at height Height
+// TicketDetails models details about ticket Hash received at height Height
 type TicketDetails struct {
 	Hash    string  `json:"hash"`
 	Fee     float64 `json:"abs_fee"`
