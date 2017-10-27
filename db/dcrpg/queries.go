@@ -13,6 +13,11 @@ import (
 	"github.com/lib/pq"
 )
 
+func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, err error) {
+	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&pkScript)
+	return
+}
+
 func RetrieveVoutIDByOutpoint(db *sql.DB, txHash string, voutIndex uint32) (id uint64, err error) {
 	err = db.QueryRow(internal.SelectVoutIDByOutpoint, txHash, voutIndex).Scan(&id)
 	return
@@ -212,6 +217,52 @@ func SetSpendingForAddressDbID(db *sql.DB, addrDbID uint64, spendingTxDbID uint6
 	return err
 }
 
+func RetrieveAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
+	rows, err := db.Query(internal.SelectAddressAllByAddress, address)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	var ids []uint64
+	var addressRows []*dbtypes.AddressRow
+
+	for rows.Next() {
+		var id uint64
+		var addr dbtypes.AddressRow
+		var spendingTxHash sql.NullString
+		var spendingTxDbID, spendingTxVinIndex, vinDbID sql.NullInt64
+		err = rows.Scan(&id, &addr.Address, &addr.FundingTxDbID, &addr.FundingTxHash,
+			&addr.FundingTxVoutIndex, &addr.VoutDbID, &addr.Value,
+			&spendingTxDbID, &spendingTxHash, &spendingTxVinIndex, &vinDbID)
+		if err != nil {
+			break
+		}
+
+		if spendingTxDbID.Valid {
+			addr.SpendingTxDbID = uint64(spendingTxDbID.Int64)
+		}
+		if spendingTxHash.Valid {
+			addr.SpendingTxHash = spendingTxHash.String
+		}
+		if spendingTxVinIndex.Valid {
+			addr.SpendingTxVinIndex = uint32(spendingTxVinIndex.Int64)
+		}
+		if vinDbID.Valid {
+			addr.VinDbID = uint64(vinDbID.Int64)
+		}
+
+		ids = append(ids, id)
+		addressRows = append(addressRows, &addr)
+	}
+
+	return ids, addressRows, err
+}
+
 func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 	voutIndex uint32) ([]uint64, []string, error) {
 	var ids []uint64
@@ -364,6 +415,32 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 	return
 }
 
+func RetrieveDbTxByHash(db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx, err error) {
+	dbTx = new(dbtypes.Tx)
+	vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
+	voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
+	err = db.QueryRow(internal.SelectFullTxByHash, txHash).Scan(&id,
+		&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
+		&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
+		&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
+		&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs)
+	return
+}
+
+func RetrieveFullTxByHash(db *sql.DB, txHash string) (id uint64,
+	blockHash string, blockHeight int64, blockTime int64, time int64,
+	txType int16, version int32, tree int8, blockInd uint32,
+	lockTime, expiry int32, size uint32, spent, sent, fees int64,
+	numVin int32, vinDbIDs []int64, numVout int32, voutDbIDs []int64,
+	err error) {
+	var hash string
+	err = db.QueryRow(internal.SelectFullTxByHash, txHash).Scan(&id, &blockHash,
+		&blockHeight, &blockTime, &time, &txType, &version, &tree,
+		&hash, &blockInd, &lockTime, &expiry, &size, &spent, &sent, &fees,
+		&numVin, &vinDbIDs, &numVout, &voutDbIDs)
+	return
+}
+
 func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, tree int8, err error) {
 	err = db.QueryRow(internal.SelectTxByHash, txHash).Scan(&id, &blockHash, &blockInd, &tree)
 	return
@@ -409,11 +486,11 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	return
 }
 
-func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, checked bool) (uint64, error) {
+func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, checked bool) (uint64, error) {
 	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
 	var id uint64
 	err := db.QueryRow(insertStatement,
-		dbBlock.Hash, dbBlock.Height, dbBlock.Size, dbBlock.Version,
+		dbBlock.Hash, dbBlock.Height, dbBlock.Size, isValid, dbBlock.Version,
 		dbBlock.MerkleRoot, dbBlock.StakeRoot,
 		dbBlock.NumTx, dbBlock.NumRegTx, dbBlock.NumStakeTx,
 		dbBlock.Time, dbBlock.Nonce, dbBlock.VoteBits,
@@ -594,8 +671,9 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 
 func InsertAddressOut(db *sql.DB, dbA *dbtypes.AddressRow) (uint64, error) {
 	var id uint64
-	err := db.QueryRow(internal.InsertAddressRow, dbA.Address, dbA.FundingTxDbID,
-		dbA.FundingTxHash, dbA.FundingTxVoutIndex, dbA.VoutDbID, dbA.Value).Scan(&id)
+	err := db.QueryRow(internal.InsertAddressRow, dbA.Address,
+		dbA.FundingTxDbID, dbA.FundingTxHash, dbA.FundingTxVoutIndex,
+		dbA.VoutDbID, dbA.Value).Scan(&id)
 	return id, err
 }
 
@@ -648,8 +726,9 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {
 	insertStatement := internal.MakeTxInsertStatement(checked)
 	var id uint64
 	err := db.QueryRow(insertStatement,
-		dbTx.BlockHash, dbTx.BlockIndex, dbTx.Tree, dbTx.TxID,
-		dbTx.Version, dbTx.Locktime, dbTx.Expiry,
+		dbTx.BlockHash, dbTx.BlockHeight, dbTx.BlockTime, dbTx.Time,
+		dbTx.TxType, dbTx.Version, dbTx.Tree, dbTx.TxID, dbTx.BlockIndex,
+		dbTx.Locktime, dbTx.Expiry, dbTx.Size, dbTx.Spent, dbTx.Sent, dbTx.Fees,
 		dbTx.NumVin, dbTx.Vins, dbtypes.UInt64Array(dbTx.VinDbIds),
 		dbTx.NumVout, pq.Array(dbTx.Vouts), dbtypes.UInt64Array(dbTx.VoutDbIds)).Scan(&id)
 	return id, err
@@ -672,8 +751,9 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error
 	for _, tx := range dbTxns {
 		var id uint64
 		err := stmt.QueryRow(
-			tx.BlockHash, tx.BlockIndex, tx.Tree, tx.TxID,
-			tx.Version, tx.Locktime, tx.Expiry,
+			tx.BlockHash, tx.BlockHeight, tx.BlockTime, tx.Time,
+			tx.TxType, tx.Version, tx.Tree, tx.TxID, tx.BlockIndex,
+			tx.Locktime, tx.Expiry, tx.Size, tx.Spent, tx.Sent, tx.Fees,
 			tx.NumVin, tx.Vins, dbtypes.UInt64Array(tx.VinDbIds),
 			tx.NumVout, pq.Array(tx.Vouts), dbtypes.UInt64Array(tx.VoutDbIds)).Scan(&id)
 		if err != nil {

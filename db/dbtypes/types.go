@@ -30,7 +30,7 @@ func (p VinTxPropertyARRAY) Value() (driver.Value, error) {
 func (p *VinTxPropertyARRAY) Scan(src interface{}) error {
 	source, ok := src.([]byte)
 	if !ok {
-		return fmt.Errorf("Scan type assertion .([]byte) failed.")
+		return fmt.Errorf("scan type assertion .([]byte) failed")
 	}
 
 	var i interface{}
@@ -42,14 +42,14 @@ func (p *VinTxPropertyARRAY) Scan(src interface{}) error {
 	// Set this JSONB
 	is, ok := i.([]interface{})
 	if !ok {
-		return fmt.Errorf("Type assertion .([]interface{}) failed.")
+		return fmt.Errorf("type assertion .([]interface{}) failed")
 	}
 	numVin := len(is)
 	ba := make(VinTxPropertyARRAY, numVin)
 	for ii := range is {
 		VinTxPropertyMapIface, ok := is[ii].(map[string]interface{})
 		if !ok {
-			return fmt.Errorf("Type assertion .(map[string]interface) failed.")
+			return fmt.Errorf("type assertion .(map[string]interface) failed")
 		}
 		b, _ := json.Marshal(VinTxPropertyMapIface)
 		json.Unmarshal(b, &ba[ii])
@@ -213,19 +213,27 @@ type ScriptSig struct {
 // Tx models a Decred transaction. It is stored in a Block.
 type Tx struct {
 	//blockDbID  int64
-	BlockHash  string             `json:"block_hash"`
-	BlockIndex uint32             `json:"block_index"`
-	Tree       int8               `json:"tree"`
-	TxID       string             `json:"txid"`
-	Version    uint16             `json:"version"`
-	Locktime   uint32             `json:"locktime"`
-	Expiry     uint32             `json:"expiry"`
-	NumVin     uint32             `json:"numvin"`
-	Vins       VinTxPropertyARRAY `json:"vins"`
-	VinDbIds   []uint64           `json:"vindbids"`
-	NumVout    uint32             `json:"numvout"`
-	Vouts      []*Vout            `json:"vouts"`
-	VoutDbIds  []uint64           `json:"voutdbids"`
+	BlockHash   string             `json:"block_hash"`
+	BlockHeight int64              `json:"block_height"`
+	BlockTime   int64              `json:"block_time"`
+	Time        int64              `json:"time"`
+	TxType      int16              `json:"tx_type"`
+	Version     uint16             `json:"version"`
+	Tree        int8               `json:"tree"`
+	TxID        string             `json:"txid"`
+	BlockIndex  uint32             `json:"block_index"`
+	Locktime    uint32             `json:"locktime"`
+	Expiry      uint32             `json:"expiry"`
+	Size        uint32             `json:"size"`
+	Spent       int64              `json:"spent"`
+	Sent        int64              `json:"sent"`
+	Fees        int64              `json:"fees"`
+	NumVin      uint32             `json:"numvin"`
+	Vins        VinTxPropertyARRAY `json:"vins"`
+	VinDbIds    []uint64           `json:"vindbids"`
+	NumVout     uint32             `json:"numvout"`
+	Vouts       []*Vout            `json:"vouts"`
+	VoutDbIds   []uint64           `json:"voutdbids"`
 	// NOTE: VoutDbIds may not be needed if there is a vout table since each
 	// vout will have a tx_dbid
 }
@@ -259,5 +267,4 @@ type Block struct {
 	ExtraData    []byte  `json:"extradata"`
 	StakeVersion uint32  `json:"stakeversion"`
 	PreviousHash string  `json:"previousblockhash"`
-	//NextHash     string   `json:"nextblockhash"`
 }

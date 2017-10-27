@@ -3,13 +3,17 @@ package internal
 const (
 	// Insert
 	insertTxRow0 = `INSERT INTO transactions (
-		block_hash, block_index, tree, tx_hash, version,
-		lock_time, expiry, num_vin, vins, vin_db_ids,
+		block_hash, block_height, block_time, time,
+		tx_type, version, tree, tx_hash, block_index, 
+		lock_time, expiry, size, spent, sent, fees, 
+		num_vin, vins, vin_db_ids,
 		num_vout, vouts, vout_db_ids)
 	VALUES (
-		$1, $2, $3, $4, $5,
-		$6, $7, $8, $9, $10,
-		$11, $12, $13) `
+		$1, $2, $3, $4, 
+		$5, $6, $7, $8, $9,
+		$10, $11, $12, $13, $14, $15,
+		$16, $17, $18,
+		$19, $20, $21) `
 	insertTxRow        = insertTxRow0 + `RETURNING id;`
 	insertTxRowChecked = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTxRow        = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -30,12 +34,20 @@ const (
 		id SERIAL8 PRIMARY KEY,
 		/*block_db_id INT4,*/
 		block_hash TEXT,
-		block_index INT4,
+		block_height INT8,
+		block_time INT8,
+		time INT8,
+		tx_type INT4,
+		version INT4,
 		tree INT2,
 		tx_hash TEXT,
-		version INT4,
+		block_index INT4,
 		lock_time INT4,
 		expiry INT4,
+		size INT4,
+		spent INT8,
+		sent INT8,
+		fees INT8,
 		num_vin INT4,
 		vins JSONB,
 		vin_db_ids INT8[],
@@ -46,6 +58,11 @@ const (
 
 	SelectTxByHash       = `SELECT id, block_hash, block_index, tree FROM transactions WHERE tx_hash = $1;`
 	SelectTxsByBlockHash = `SELECT id, tx_hash, block_index, tree FROM transactions WHERE block_hash = $1;`
+
+	SelectFullTxByHash = `SELECT id, block_hash, block_height, block_time, 
+		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry, 
+		size, spent, sent, fees, num_vin, vin_db_ids, num_vout, vout_db_ids 
+		FROM transactions WHERE tx_hash = $1;`
 
 	SelectRegularTxByHash = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=0;`
 	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`

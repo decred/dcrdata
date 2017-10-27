@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/dcrdata/dcrdata/txhelpers"
+	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 )
@@ -17,43 +17,66 @@ import (
 // Tx, Vout, and VinTxPropertyARRAY.
 func ExtractBlockTransactions(msgBlock *wire.MsgBlock, txTree int8,
 	chainParams *chaincfg.Params) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
-	var dbTxs []*Tx
-	var dbTxVouts [][]*Vout
-	var dbTxVins []VinTxPropertyARRAY
-	switch txTree {
-	case wire.TxTreeRegular:
-		dbTxs, dbTxVouts, dbTxVins = processTransactions(msgBlock.Transactions,
-			msgBlock.BlockHash(), chainParams)
-	case wire.TxTreeStake:
-		dbTxs, dbTxVouts, dbTxVins = processTransactions(msgBlock.STransactions,
-			msgBlock.BlockHash(), chainParams)
-	default:
+	dbTxs, dbTxVouts, dbTxVins := processTransactions(msgBlock, txTree,
+		chainParams)
+	if txTree != wire.TxTreeRegular && txTree != wire.TxTreeStake {
 		fmt.Printf("Invalid transaction tree: %v", txTree)
 	}
 	return dbTxs, dbTxVouts, dbTxVins
 }
 
-func processTransactions(txs []*wire.MsgTx, blockHash chainhash.Hash,
+func processTransactions(msgBlock *wire.MsgBlock, tree int8,
 	chainParams *chaincfg.Params) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
+
+	var txs []*wire.MsgTx
+	switch tree {
+	case wire.TxTreeRegular:
+		txs = msgBlock.Transactions
+	case wire.TxTreeStake:
+		txs = msgBlock.STransactions
+	default:
+		return nil, nil, nil
+	}
+
+	blockHeight := msgBlock.Header.Height
+	blockHash := msgBlock.BlockHash()
+	blockTime := msgBlock.Header.Timestamp.Unix()
+
 	dbTransactions := make([]*Tx, 0, len(txs))
 	dbTxVouts := make([][]*Vout, len(txs))
 	dbTxVins := make([]VinTxPropertyARRAY, len(txs))
 
 	for txIndex, tx := range txs {
-		var tree int8
-		if txhelpers.IsStakeTx(tx) {
-			tree = wire.TxTreeStake
+		if txhelpers.IsStakeTx(tx) && tree != wire.TxTreeStake {
+			// You are doing it wrong
+			return nil, nil, nil
 		}
+		var spent, sent int64
+		for _, txin := range tx.TxIn {
+			spent += txin.ValueIn
+		}
+		for _, txout := range tx.TxOut {
+			sent += txout.Value
+		}
+		fees := spent - sent
 		dbTx := &Tx{
-			BlockHash:  blockHash.String(),
-			BlockIndex: uint32(txIndex),
-			Tree:       tree,
-			TxID:       tx.TxHash().String(),
-			Version:    tx.Version,
-			Locktime:   tx.LockTime,
-			Expiry:     tx.Expiry,
-			NumVin:     uint32(len(tx.TxIn)),
-			NumVout:    uint32(len(tx.TxOut)),
+			BlockHash:   blockHash.String(),
+			BlockHeight: int64(blockHeight),
+			BlockTime:   blockTime,
+			Time:        blockTime, // TODO, receive time?
+			TxType:      int16(stake.DetermineTxType(tx)),
+			Version:     tx.Version,
+			Tree:        tree,
+			TxID:        tx.TxHash().String(),
+			BlockIndex:  uint32(txIndex),
+			Locktime:    tx.LockTime,
+			Expiry:      tx.Expiry,
+			Size:        uint32(tx.SerializeSize()),
+			Spent:       spent,
+			Sent:        sent,
+			Fees:        fees,
+			NumVin:      uint32(len(tx.TxIn)),
+			NumVout:     uint32(len(tx.TxOut)),
 		}
 
 		//dbTx.Vins = make([]VinTxProperty, 0, dbTx.NumVin)

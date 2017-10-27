@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
@@ -47,6 +48,8 @@ type explorerDataSource interface {
 type explorerDataSourceAlt interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
+	AddressHistory(address string) ([]*dbtypes.AddressRow, error)
+	FillAddressTransactions(addrInfo *AddressInfo) error
 }
 
 type explorerUI struct {
@@ -169,13 +172,38 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 		return
 	}
-	data := exp.blockData.GetExplorerAddress(address, AddressRows)
-	if data == nil {
-		log.Errorf("Unable to get address %s", address)
-		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
-		return
+
+	var addrData *AddressInfo
+	if exp.liteMode {
+		addrData = exp.blockData.GetExplorerAddress(address, AddressRows)
+		if addrData == nil {
+			log.Errorf("Unable to get address %s", address)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+	} else {
+		// Get addresses table rows for the address
+		addrHist, err := exp.explorerSource.AddressHistory(address)
+		if err != nil {
+			log.Errorf("Unable to get address %s history: %v", address, err)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+
+		// Generate AddressInfo template from the address table rows
+		addrData = ReduceAddressHistory(addrHist)
+		// still need []*AddressTx filled out and NumUnconfirmed
+
+		// Query database for transaction details
+		err = exp.explorerSource.FillAddressTransactions(addrData)
+		if err != nil {
+			log.Errorf("Unable to fill address %s transactions: %v", address, err)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
 	}
-	str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", data)
+	str, err := templateExecToString(exp.templates[addressTemplateIndex],
+		"address", addrData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)

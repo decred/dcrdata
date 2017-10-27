@@ -155,7 +155,7 @@ func mainCore() error {
 	speedReport := func() { o.Do(speedReporter) }
 	defer speedReport()
 
-	bestHeight, err := db.Height()
+	bestHeight, err := db.HeightDB()
 	lastBlock := int64(bestHeight)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -221,7 +221,7 @@ func mainCore() error {
 		}
 
 		var numVins, numVouts int64
-		numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), !cfg.UpdateAddrSpendInfo)
+		numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), true, !cfg.UpdateAddrSpendInfo)
 		if err != nil {
 			return fmt.Errorf("StoreBlock failed: %v", err)
 		}

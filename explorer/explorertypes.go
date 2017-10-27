@@ -4,6 +4,7 @@
 package explorer
 
 import (
+	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -136,4 +137,56 @@ type AddressInfo struct {
 	AddressRow       int
 	TotalSent        dcrutil.Amount
 	UnSpent          dcrutil.Amount
+}
+
+// ReduceAddressHistory generates a template AddressInfo from a slice of
+// dbtypes.AddressRow. All fields except TotalUnconfirmed and Transactions are
+// set completely. Transactions is partially set, with each transaction having
+// only the TxID and ReceivedTotal set. The rest of the data should be filled in
+// by other means, such as RPC calls or database queries.
+func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
+	if len(addrHist) == 0 {
+		return nil
+	}
+
+	var received, sent int64
+	var numTransactions int64
+	var transactions []*AddressTx
+	for _, addrOut := range addrHist {
+		numTransactions++
+		coin := dcrutil.Amount(addrOut.Value).ToCoin()
+
+		// Funding transaction
+		received += int64(addrOut.Value)
+		tx := AddressTx{
+			TxID:          addrOut.FundingTxHash,
+			RecievedTotal: coin,
+		}
+		transactions = append(transactions, &tx)
+
+		// Is the outpoint spent?
+		if addrOut.SpendingTxHash == "" {
+			continue
+		}
+
+		// Spending transaction
+		numTransactions++
+		sent += int64(addrOut.Value)
+
+		spendingTx := AddressTx{
+			TxID:      addrOut.SpendingTxHash,
+			SentTotal: coin,
+		}
+		transactions = append(transactions, &spendingTx)
+	}
+
+	return &AddressInfo{
+		Address:         addrHist[0].Address,
+		Transactions:    transactions,
+		NumTransactions: int(numTransactions),
+		Received:        dcrutil.Amount(received),
+		AddressRow:      99999,
+		TotalSent:       dcrutil.Amount(sent),
+		UnSpent:         dcrutil.Amount(received - sent),
+	}
 }

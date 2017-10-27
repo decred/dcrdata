@@ -9,16 +9,16 @@ import (
 const (
 	// Block insert
 	insertBlockRow0 = `INSERT INTO blocks (
-		hash, height, size, version, merkle_root, stake_root,
+		hash, height, size, is_valid, version, merkle_root, stake_root,
 		numtx, num_rtx, tx, txDbIDs, num_stx, stx, stxDbIDs,
 		time, nonce, vote_bits, final_state, voters,
 		fresh_stake, revocations, pool_size, bits, sbits, 
 		difficulty, extra_data, stake_version, previous_hash)
-	VALUES ($1, $2, $3, $4, $5, $6, 
-		$7, $8, %s, %s, $9, %s, %s,
-		$10, $11, $12, $13, $14, 
-		$15, $16, $17, $18, $19, 
-		$20, $21, $22, $23) `
+	VALUES ($1, $2, $3, $4, $5, $6, $7,
+		$8, $9, %s, %s, $10, %s, %s,
+		$11, $12, $13, $14, $15, 
+		$16, $17, $18, $19, $20,
+		$21, $22, $23, $24) `
 	insertBlockRow         = insertBlockRow0 + `RETURNING id;`
 	insertBlockRowChecked  = insertBlockRow0 + `ON CONFLICT (hash) DO NOTHING RETURNING id;`
 	insertBlockRowReturnId = `WITH ins AS (` +
@@ -38,6 +38,7 @@ const (
 		hash TEXT NOT NULL, -- UNIQUE
 		height INT4,
 		size INT4,
+		is_valid BOOLEAN,
 		version INT4,
 		merkle_root TEXT,
 		stake_root TEXT,

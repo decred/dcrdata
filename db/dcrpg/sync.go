@@ -71,7 +71,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 	speedReport := func() { o.Do(speedReporter) }
 	defer speedReport()
 
-	startingHeight, err := db.Height()
+	startingHeight, err := db.HeightDB()
 	lastBlock := int64(startingHeight)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -137,7 +137,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		}
 
 		var numVins, numVouts int64
-		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), !updateAllAddresses); err != nil {
+		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), true, !updateAllAddresses); err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins

@@ -90,6 +90,7 @@ const (
 	 WHERE  tx_hash = $1 AND tx_index = $2 AND tx_tree = $3
 	 LIMIT  1;`
 
+	SelectPkScriptByID     = `SELECT pkscript FROM vouts WHERE id=$1;`
 	SelectVoutIDByOutpoint = `SELECT id FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	SelectVoutByID         = `SELECT * FROM vouts WHERE id=$1;`
 
