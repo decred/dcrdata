@@ -10,6 +10,9 @@
     var updateBlockData = function (event) {
         console.log("Received newblock message", event);
         var confirms = $(".confirmations")
+        if (isNaN(confirms.text())) {
+            confirms.text("0")
+        }
         confirms.text(parseInt(confirms.text())+1)
     };
 
@@ -21,11 +24,11 @@
         <div class="col-md-8 col-sm-6">
             <h4 class="mb-2">
                 Transaction
-                <span class="fs15 confirmations">
+                <span class="fs15">
                 {{if eq .Confirmations 0}}
-                    <strong>( unconfirmed )</strong>
+                    <strong class="confirmations">( unconfirmed )</strong>
                 {{else}}
-                    ({{.Confirmations}} confirmations)
+                    (<span class="confirmations">{{.Confirmations}}</span> confirmations )
                 {{end}}
                 </span>
             </h4>

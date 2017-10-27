@@ -19,7 +19,8 @@
             // block summary data
             var b = newblock;
             var expTableRows = $('#explorertable tbody tr');
-            if (!expTableRows) return
+            var currentHeight = parseInt($('#explorertable tbody tr td').first().text());
+            if (!expTableRows || (b.height - currentHeight != 1)) return
             //expTableRows.last().remove()
             var newRow = '<tr id="' + b.height + '">' +
                  '<td><a href="/explorer/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
