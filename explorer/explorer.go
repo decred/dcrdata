@@ -1,6 +1,8 @@
-// Package explorer handles the explorer subsystem for displaying the explorer pages
+// Package explorer handles the block explorer subsystem for generating the
+// explorer pages.
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
+
 package explorer
 
 import (
@@ -29,33 +31,40 @@ const (
 	blockTemplateIndex
 	txTemplateIndex
 	addressTemplateIndex
-	maxExplorerRows = 2000
-	minExplorerRows = 20
-	AddressRows     = 500
 )
 
-// ExplorerDataSource implements an interface for collecting data for the explorer pages
-type explorerDataSource interface {
+const (
+	maxExplorerRows          = 2000
+	minExplorerRows          = 20
+	defaultAddressRows int64 = 200
+	maxAddressRows     int64 = 1000
+)
+
+// explorerDataSourceLite implements an interface for collecting data for the
+// explorer pages
+type explorerDataSourceLite interface {
 	GetExplorerBlock(hash string) *BlockInfo
 	GetExplorerBlocks(start int, end int) []*BlockBasic
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
-	GetExplorerAddress(address string, count int) *AddressInfo
+	GetExplorerAddress(address string, count, offset int64) *AddressInfo
 	GetHeight() int
 }
 
-type explorerDataSourceAlt interface {
+// explorerDataSource implements extra data retrieval functions that require a
+// faster solution than RPC.
+type explorerDataSource interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
-	AddressHistory(address string) ([]*dbtypes.AddressRow, error)
+	AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, error)
 	FillAddressTransactions(addrInfo *AddressInfo) error
 }
 
 type explorerUI struct {
 	Mux             *chi.Mux
-	blockData       explorerDataSource
-	explorerSource  explorerDataSourceAlt
+	blockData       explorerDataSourceLite
+	explorerSource  explorerDataSource
 	liteMode        bool
 	templates       []*template.Template
 	templateFiles   map[string]string
@@ -166,6 +175,8 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
+	// Get the address URL parameter, which should be set in the request context
+	// by the addressPathCtx middleware.
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
 		log.Trace("address not set")
@@ -173,9 +184,27 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Number of outputs for the address to query the database for. The URL
+	// query parameter "n" is used to specify the limit (e.g. "?n=20").
+	limitN, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
+	if err != nil || limitN < 0 {
+		limitN = defaultAddressRows
+	} else if limitN > maxAddressRows {
+		log.Warnf("addressPage: requested up to %d address rows, "+
+			"limiting to %d", limitN, maxAddressRows)
+		limitN = maxAddressRows
+	}
+
+	// Number of outputs to skip (OFFSET in database query). For UX reasons, the
+	// "start" URL query parameter is used.
+	offsetAddrOuts, err := strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
+	if err != nil || offsetAddrOuts < 0 {
+		offsetAddrOuts = 0
+	}
+
 	var addrData *AddressInfo
 	if exp.liteMode {
-		addrData = exp.blockData.GetExplorerAddress(address, AddressRows)
+		addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 		if addrData == nil {
 			log.Errorf("Unable to get address %s", address)
 			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
@@ -183,14 +212,14 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Get addresses table rows for the address
-		addrHist, err := exp.explorerSource.AddressHistory(address)
+		addrHist, err := exp.explorerSource.AddressHistory(address, limitN, offsetAddrOuts)
 		if err != nil {
 			log.Errorf("Unable to get address %s history: %v", address, err)
 			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 			return
 		}
 
-		// Generate AddressInfo template from the address table rows
+		// Generate AddressInfo skeleton from the address table rows
 		addrData = ReduceAddressHistory(addrHist)
 		// still need []*AddressTx filled out and NumUnconfirmed
 
@@ -229,7 +258,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	// is a block index and then redirect to the block page if it is
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
 	if err == nil {
-		_, err := exp.blockData.GetBlockHash(idx)
+		_, err = exp.blockData.GetBlockHash(idx)
 		if err == nil {
 			http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
 			return
@@ -238,14 +267,14 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 
 	// Call GetExplorerAddress to see if the value is an address hash and
 	// then redirect to the address page if it is
-	address := exp.blockData.GetExplorerAddress(searchStr, 1)
+	address := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
 		http.Redirect(w, r, "/explorer/address/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
 
 	// Check if the value is a valid hash
-	if _, err := chainhash.NewHashFromStr(searchStr); err != nil {
+	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
 		http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
 		return
 	}
@@ -332,13 +361,13 @@ func (exp *explorerUI) reloadTemplatesSig(sig os.Signal) {
 }
 
 // New returns an initialized instance of explorerUI
-func New(dataSource explorerDataSource, primaryDataSource explorerDataSourceAlt,
+func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
 	useRealIP bool) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
 	exp.explorerSource = primaryDataSource
-	// explorerDataSourceAlt is an interface that could have a value of pointer
+	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
 		exp.liteMode = true

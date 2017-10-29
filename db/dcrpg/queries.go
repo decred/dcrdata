@@ -217,7 +217,7 @@ func SetSpendingForAddressDbID(db *sql.DB, addrDbID uint64, spendingTxDbID uint6
 	return err
 }
 
-func RetrieveAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
+func RetrieveAllAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.Query(internal.SelectAddressAllByAddress, address)
 	if err != nil {
 		return nil, nil, err
@@ -228,9 +228,24 @@ func RetrieveAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.Addre
 		}
 	}()
 
-	var ids []uint64
-	var addressRows []*dbtypes.AddressRow
+	return scanAddressQueryRows(rows)
+}
 
+func RetrieveAddressTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+	rows, err := db.Query(internal.SelectAddressLimitNByAddress, address, N, offset)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	return scanAddressQueryRows(rows)
+}
+
+func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.AddressRow, err error) {
 	for rows.Next() {
 		var id uint64
 		var addr dbtypes.AddressRow
@@ -240,7 +255,7 @@ func RetrieveAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.Addre
 			&addr.FundingTxVoutIndex, &addr.VoutDbID, &addr.Value,
 			&spendingTxDbID, &spendingTxHash, &spendingTxVinIndex, &vinDbID)
 		if err != nil {
-			break
+			return
 		}
 
 		if spendingTxDbID.Valid {
@@ -259,8 +274,7 @@ func RetrieveAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.Addre
 		ids = append(ids, id)
 		addressRows = append(addressRows, &addr)
 	}
-
-	return ids, addressRows, err
+	return
 }
 
 func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,

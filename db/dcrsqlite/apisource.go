@@ -979,14 +979,15 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	return tx
 }
 
-func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.AddressInfo {
+func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *explorer.AddressInfo {
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", address, err)
 		return nil
 	}
 
-	txs, err := db.client.SearchRawTransactionsVerbose(addr, 0, count, true, true, nil)
+	txs, err := db.client.SearchRawTransactionsVerbose(addr,
+		int(offset), int(count), true, true, nil)
 	if err != nil {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return nil
@@ -997,41 +998,39 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address))
 	}
 
-	NumberOfTx := len(txs)
 	NoOfUnconfirmed := 0
 	var totalreceived, totalsent dcrutil.Amount
-	if NumberOfTx < explorer.AddressRows {
-		for _, tx := range txs {
-			if tx.Confirmations == 0 {
-				NoOfUnconfirmed++
-			}
-			for _, y := range tx.Vout {
-				if len(y.ScriptPubKey.Addresses) != 0 {
-					if address == y.ScriptPubKey.Addresses[0] {
-						t, _ := dcrutil.NewAmount(y.Value)
-						totalreceived += t
-					}
+
+	for _, tx := range txs {
+		if tx.Confirmations == 0 {
+			NoOfUnconfirmed++
+		}
+		for _, y := range tx.Vout {
+			if len(y.ScriptPubKey.Addresses) != 0 {
+				if address == y.ScriptPubKey.Addresses[0] {
+					t, _ := dcrutil.NewAmount(y.Value)
+					totalreceived += t
 				}
 			}
-			for _, u := range tx.Vin {
-				if u.PrevOut != nil && len(u.PrevOut.Addresses) != 0 {
-					if address == u.PrevOut.Addresses[0] {
-						t, _ := dcrutil.NewAmount(*u.AmountIn)
-						totalsent += t
-					}
+		}
+		for _, u := range tx.Vin {
+			if u.PrevOut != nil && len(u.PrevOut.Addresses) != 0 {
+				if address == u.PrevOut.Addresses[0] {
+					t, _ := dcrutil.NewAmount(*u.AmountIn)
+					totalsent += t
 				}
 			}
 		}
 	}
-	unspentfunds := totalreceived - totalsent
+
 	return &explorer.AddressInfo{
 		Address:          address,
 		Transactions:     addressTxs,
-		NumTransactions:  NumberOfTx,
+		NumTransactions:  len(txs),
 		TotalUnconfirmed: NoOfUnconfirmed,
 		Received:         totalreceived,
-		AddressRow:       explorer.AddressRows,
+		AddressRow:       int(count),
 		TotalSent:        totalsent,
-		UnSpent:          unspentfunds,
+		UnSpent:          totalreceived - totalsent,
 	}
 }

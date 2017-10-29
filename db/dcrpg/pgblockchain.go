@@ -163,8 +163,8 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 
 // AddressHistory queries the database for all rows of the addresses table for
 // the given address.
-func (pgb *ChainDB) AddressHistory(address string) ([]*dbtypes.AddressRow, error) {
-	_, addressRows, err := RetrieveAddressTxns(pgb.db, address)
+func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
+	_, addressRows, err := RetrieveAddressTxns(pgb.db, address, N, offset)
 	return addressRows, err
 }
 
