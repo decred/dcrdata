@@ -33,6 +33,8 @@ const (
 	WHERE  hash = $1
 	LIMIT  1;`
 
+	UpdateLastBlockValid = `UPDATE blocks SET is_valid = $2 WHERE id = $1;`
+
 	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (  
 		id SERIAL PRIMARY KEY,
 		hash TEXT NOT NULL, -- UNIQUE
@@ -72,6 +74,7 @@ const (
 	RetrieveBestBlock       = `SELECT * FROM blocks ORDER BY height DESC LIMIT 0, 1;`
 	RetrieveBestBlockHeight = `SELECT id, hash, height FROM blocks ORDER BY height DESC LIMIT 1;`
 
+	// block_chain, with primary key that is not a SERIAL
 	CreateBlockPrevNextTable = `CREATE TABLE IF NOT EXISTS block_chain (
 		block_db_id INT8 PRIMARY KEY,
 		prev_hash TEXT NOT NULL,
@@ -79,6 +82,7 @@ const (
 		next_hash TEXT
 	);`
 
+	// Insert includes the primary key, which should be from the blocks table
 	InsertBlockPrevNext = `INSERT INTO block_chain (
 		block_db_id, prev_hash, this_hash, next_hash)
 	VALUES ($1, $2, $3, $4)

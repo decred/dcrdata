@@ -515,6 +515,21 @@ func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, checked bool) (uin
 	return id, err
 }
 
+func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
+	res, err := db.Exec(internal.UpdateLastBlockValid, blockDbID, isValid)
+	if err != nil {
+		return err
+	}
+	numRows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if numRows != 1 {
+		return fmt.Errorf("UpdateLastBlock failed to update exactly 1 row (%d)", numRows)
+	}
+	return nil
+}
+
 func RetrieveBestBlockHeight(db *sql.DB) (height uint64, hash string, id uint64, err error) {
 	err = db.QueryRow(internal.RetrieveBestBlockHeight).Scan(&id, &hash, &height)
 	return
@@ -554,17 +569,17 @@ func RetrieveVoutValues(db *sql.DB, txHash string) (values []uint64, txInds []ui
 	return
 }
 
-func InsertBlockPrevNext(db *sql.DB, block_db_id uint64,
+func InsertBlockPrevNext(db *sql.DB, blockDbID uint64,
 	hash, prev, next string) error {
-	rows, err := db.Query(internal.InsertBlockPrevNext, block_db_id, prev, hash, next)
+	rows, err := db.Query(internal.InsertBlockPrevNext, blockDbID, prev, hash, next)
 	if err == nil {
 		return rows.Close()
 	}
 	return err
 }
 
-func UpdateBlockNext(db *sql.DB, block_db_id uint64, next string) error {
-	res, err := db.Exec(internal.UpdateBlockNext, block_db_id, next)
+func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
+	res, err := db.Exec(internal.UpdateBlockNext, blockDbID, next)
 	if err != nil {
 		return err
 	}

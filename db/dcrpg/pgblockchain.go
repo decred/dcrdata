@@ -385,9 +385,20 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid,
 		return
 	}
 
-	// Update last block in db with this block's hash as it's next
-	lastBlockDbID, ok := pgb.lastBlock[msgBlock.Header.PrevBlock]
+	// Update last block in db with this block's hash as it's next. Also update
+	// isValid flag in last block if votes in this block invalidated it.
+	lastBlockHash := msgBlock.Header.PrevBlock
+	lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
 	if ok {
+		lastIsValid := dbBlock.VoteBits&1 != 0
+		if !lastIsValid {
+			log.Infof("Setting last block %s as INVALID", lastBlockHash)
+			err = UpdateLastBlock(pgb.db, lastBlockDbID, lastIsValid)
+			if err != nil {
+				log.Error("UpdateLastBlock:", err)
+				return
+			}
+		}
 		err = UpdateBlockNext(pgb.db, lastBlockDbID, dbBlock.Hash)
 		if err != nil {
 			log.Error("UpdateBlockNext:", err)

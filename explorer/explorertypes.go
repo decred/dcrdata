@@ -14,8 +14,9 @@ import (
 type BlockBasic struct {
 	Height         int64
 	Size           int32
+	Valid          bool
 	Voters         uint16
-	Transactions   int
+	Transactions   uint32
 	FreshStake     uint8
 	Revocations    uint32
 	BlockTime      int64
