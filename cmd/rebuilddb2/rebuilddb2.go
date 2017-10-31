@@ -170,7 +170,7 @@ func mainCore() error {
 	// Remove indexes/constraints before bulk import
 	blocksToSync := height - lastBlock
 	reindexing := blocksToSync > height/2
-	if reindexing || cfg.ResumeInitSync {
+	if reindexing || cfg.ForceReindex {
 		log.Info("Large bulk load: Removing indexes and disabling duplicate checks.")
 		err = db.DeindexAll()
 		if err != nil && !strings.Contains(err.Error(), "does not exist") {
@@ -242,7 +242,7 @@ func mainCore() error {
 
 	speedReport()
 
-	if reindexing || cfg.ResumeInitSync {
+	if reindexing || cfg.ForceReindex {
 		if err = db.IndexAll(); err != nil {
 			return fmt.Errorf("IndexAll failed: %v", err)
 		}
