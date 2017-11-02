@@ -4,6 +4,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net"
@@ -177,7 +178,10 @@ func mainCore() error {
 	var newPGIndexes, updateAllAddresses bool
 	heightDB, err := db.HeightDB()
 	if err != nil {
-		return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
+		if err != sql.ErrNoRows {
+			return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
+		}
+		heightDB = 0
 	}
 	blocksBehind := height - int64(heightDB)
 	if blocksBehind < 0 {
