@@ -132,29 +132,30 @@ type BlockInfo struct {
 type AddressInfo struct {
 	Address          string
 	Transactions     []*AddressTx
-	NumTransactions  int
-	TotalUnconfirmed int
-	Received         dcrutil.Amount
-	AddressRow       int
+	NumFundingTxns   int64
+	NumSpendingTxns  int64
+	KnownFundingTxns int64
+	NumUnconfirmed   int64
+	TotalReceived    dcrutil.Amount
 	TotalSent        dcrutil.Amount
-	UnSpent          dcrutil.Amount
+	Unspent          dcrutil.Amount
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
-// dbtypes.AddressRow. All fields except TotalUnconfirmed and Transactions are
-// set completely. Transactions is partially set, with each transaction having
-// only the TxID and ReceivedTotal set. The rest of the data should be filled in
-// by other means, such as RPC calls or database queries.
+// dbtypes.AddressRow. All fields except NumUnconfirmed and Transactions are set
+// completely. Transactions is partially set, with each transaction having only
+// the TxID and ReceivedTotal set. The rest of the data should be filled in by
+// other means, such as RPC calls or database queries.
 func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 	if len(addrHist) == 0 {
 		return nil
 	}
 
 	var received, sent int64
-	var numTransactions int64
+	var numFundingTxns, numSpendingTxns int64
 	var transactions []*AddressTx
 	for _, addrOut := range addrHist {
-		numTransactions++
+		numFundingTxns++
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
 
 		// Funding transaction
@@ -171,7 +172,7 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		}
 
 		// Spending transaction
-		numTransactions++
+		numSpendingTxns++
 		sent += int64(addrOut.Value)
 
 		spendingTx := AddressTx{
@@ -184,10 +185,10 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 	return &AddressInfo{
 		Address:         addrHist[0].Address,
 		Transactions:    transactions,
-		NumTransactions: int(numTransactions),
-		Received:        dcrutil.Amount(received),
-		AddressRow:      99999,
+		NumFundingTxns:  numFundingTxns,
+		NumSpendingTxns: numSpendingTxns,
+		TotalReceived:   dcrutil.Amount(received),
 		TotalSent:       dcrutil.Amount(sent),
-		UnSpent:         dcrutil.Amount(received - sent),
+		Unspent:         dcrutil.Amount(received - sent),
 	}
 }

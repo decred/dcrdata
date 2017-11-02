@@ -217,6 +217,11 @@ func SetSpendingForAddressDbID(db *sql.DB, addrDbID uint64, spendingTxDbID uint6
 	return err
 }
 
+func RetrieveAddressRecvCount(db *sql.DB, address string) (count int64, err error) {
+	err = db.QueryRow(internal.SelectAddressRecvCount, address).Scan(&count)
+	return
+}
+
 func RetrieveAllAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.Query(internal.SelectAddressAllByAddress, address)
 	if err != nil {

@@ -13,22 +13,27 @@
                 <h4>Address</h4>
                 <p class="mono">{{.Address}}</p>
                 <table class="table-centered-1rem">
-                    {{if eq .NumTransactions .AddressRow}}
+                    {{if lt .NumFundingTxns .KnownFundingTxns}}
                         <tr>
-                            <td class="text-right pr-2 h1rem p03rem0">Currently only the {{.AddressRow}} most recent transactions are shown below.</td>
+                            <td class="text-right pr-2 h1rem p03rem0">Only the {{.NumFundingTxns}} most recent of {{.KnownFundingTxns}} funding transactions are tabulated below.</td>
                         </tr>
                     {{else}}
+                        {{if not .KnownFundingTxns)}}
+                        <tr>
+                            <td class="text-right pr-2 h1rem p03rem0">The {{.NumFundingTxns}} most recent transactions are tabulated below.</td>
+                        </tr>
+                        {{end}}
                         <tr>
                             <td class="text-right pr-2 h1rem p03rem0">TRANSACTIONS</td>
-                            <td>{{.NumTransactions}}</td>
+                            <td>{{add .NumFundingTxns .NumSpendingTxns}}</td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 h1rem p03rem0">UNCONFIRMED</td>
-                            <td>{{.TotalUnconfirmed}}</td>
+                            <td>{{.NumUnconfirmed}}</td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 h1rem p03rem0">RECEIVED</td>
-                            <td>{{.Received}}</td>
+                            <td>{{.TotalReceived}}</td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 h1rem p03rem0">SENT</td>
@@ -36,7 +41,7 @@
                         </tr>
                         <tr>
                             <td class="text-right pr-2 h1rem p03rem0">UNSPENT</td>
-                            <td>{{.UnSpent}}</td>
+                            <td>{{.Unspent}}</td>
                         </tr>
                     {{end}}
                 </table>

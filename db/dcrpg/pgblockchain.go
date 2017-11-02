@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/dcrdata/dcrdata/blockdata"
@@ -27,11 +28,25 @@ var (
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
-	db          *sql.DB
-	chainParams *chaincfg.Params
-	dupChecks   bool
-	bestBlock   int64
-	lastBlock   map[chainhash.Hash]uint64
+	db            *sql.DB
+	chainParams   *chaincfg.Params
+	dupChecks     bool
+	bestBlock     int64
+	lastBlock     map[chainhash.Hash]uint64
+	addressCounts *addressCounter
+}
+
+type addressCounter struct {
+	sync.Mutex
+	validHeight int64
+	counts      map[string]int64
+}
+
+func makeAddressCounter() *addressCounter {
+	return &addressCounter{
+		validHeight: 0,
+		counts:      make(map[string]int64),
+	}
 }
 
 // DBInfo holds the PostgreSQL database connection information.
@@ -48,10 +63,11 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params) (*ChainDB, error) {
 		return nil, err
 	}
 	return &ChainDB{
-		db:          db,
-		chainParams: params,
-		dupChecks:   true,
-		lastBlock:   make(map[chainhash.Hash]uint64),
+		db:            db,
+		chainParams:   params,
+		dupChecks:     true,
+		lastBlock:     make(map[chainhash.Hash]uint64),
+		addressCounts: makeAddressCounter(),
 	}, nil
 }
 
@@ -163,9 +179,45 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 
 // AddressHistory queries the database for all rows of the addresses table for
 // the given address.
-func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, error) {
+func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, int64, error) {
+	pgb.addressCounts.Lock()
+	defer pgb.addressCounts.Unlock()
+	// See if address count cache includes a fresh count for this address.
+	var total int64
+	var fresh bool
+	if pgb.addressCounts.validHeight == pgb.bestBlock {
+		total, fresh = pgb.addressCounts.counts[address]
+	} else {
+		// StoreBlock should do this, but the idea is to clear the old cached
+		// results when a new block is encountered.
+		log.Warnf("Address receive counter stale, at block %d when best is %d.",
+			pgb.addressCounts.validHeight, pgb.bestBlock)
+		pgb.addressCounts.counts = make(map[string]int64)
+		pgb.addressCounts.validHeight = pgb.bestBlock
+	}
+
 	_, addressRows, err := RetrieveAddressTxns(pgb.db, address, N, offset)
-	return addressRows, err
+	if err != nil {
+		return nil, total, err
+	}
+
+	// If the address receive count was not cached, store it in the cache if it
+	// is worth storing (when the length of the short list returned above is no
+	// less than the query limit).
+	if !fresh {
+		total = int64(len(addressRows))
+		if total >= N {
+			total, err = RetrieveAddressRecvCount(pgb.db, address)
+			if err != nil {
+				return nil, 0, err
+			}
+			log.Debugf("Caching address receive count for address %s: "+
+				"count = %d at block %d.", address, total, pgb.bestBlock)
+			pgb.addressCounts.counts[address] = total
+		}
+	}
+
+	return addressRows, total, err
 }
 
 // FillAddressTransactions is used to fill out the transaction details in an
@@ -197,7 +249,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 		txn.FormattedTime = time.Unix(dbTx.BlockTime, 0).Format("1/_2/06 15:04:05")
 	}
 
-	addrInfo.TotalUnconfirmed = int(numUnconfirmed)
+	addrInfo.NumUnconfirmed = numUnconfirmed
 
 	return nil
 }
@@ -405,6 +457,11 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid,
 			return
 		}
 	}
+
+	pgb.addressCounts.Lock()
+	pgb.addressCounts.validHeight = int64(msgBlock.Header.Height)
+	pgb.addressCounts.counts = map[string]int64{}
+	pgb.addressCounts.Unlock()
 
 	return
 }
