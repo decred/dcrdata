@@ -169,7 +169,31 @@ func mainCore() error {
 		close(quit)
 	}()
 
-	newPGIndexes, updateAllAddresses := false, false
+	_, height, err := dcrdClient.GetBestBlock()
+	if err != nil {
+		return fmt.Errorf("Unable to get block from node: %v", err)
+	}
+
+	var newPGIndexes, updateAllAddresses bool
+	heightDB, err := db.HeightDB()
+	if err != nil {
+		return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
+	}
+	blocksBehind := height - int64(heightDB)
+	if blocksBehind < 0 {
+		return fmt.Errorf("Node is still syncing. Node height = %d, "+
+			"DB height = %d", height, heightDB)
+	}
+	if blocksBehind > 500 {
+		log.Infof("Setting PSQL sync to rebuild address table after large "+
+			"import (%d blocks).", blocksBehind)
+		updateAllAddresses = true
+		if blocksBehind > 4000 {
+			log.Infof("Setting PSQL sync to drop indexes prior to bulk data "+
+				"import (%d blocks).", blocksBehind)
+			newPGIndexes = true
+		}
+	}
 
 	// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
 	// info DB (sqlite). They don't communicate, so we'll just ensure they exit
@@ -180,7 +204,8 @@ func mainCore() error {
 	for {
 		// Launch the sync functions for both DBs
 		go sqliteDB.SyncDBAsync(sqliteSyncRes, quit)
-		go db.SyncChainDBAsync(pgSyncRes, dcrdClient, quit, newPGIndexes, updateAllAddresses)
+		go db.SyncChainDBAsync(pgSyncRes, dcrdClient, quit,
+			newPGIndexes, updateAllAddresses)
 
 		// Wait for the results
 		sqliteRes := <-sqliteSyncRes
