@@ -5,17 +5,6 @@
 <body>
 
     {{template "navbar"}}
-    <script type="text/javascript">
-        var ws = createwebsocket()
-        
-        var updateBlockData = function (event) {
-            console.log("Received newblock message", event);
-            var confirms = $(".confirmations")
-            confirms.text(parseInt(confirms.text())+1)
-        };
-
-        ws.registerEvtHandler("newblock", updateBlockData);
-    </script>
     <div class="container">
 
         <div class="row justify-content-between">

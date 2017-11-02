@@ -118,18 +118,17 @@
         }
     })
     function updateConnectionStatus(msg, connected) {
-            var el = $('#connection');
-            el.removeClass('hidden')
-            if (connected) {
-                el.addClass('connected')
-                el.removeClass('disconnected')
-            } else {
-                el.removeClass('connected');
-                el.addClass('disconnected');
-            }
-            el.html(msg + '<div></div>')
+        var el = $('#connection');
+        el.removeClass('hidden')
+        if (connected) {
+            el.addClass('connected')
+            el.removeClass('disconnected')
+        } else {
+            el.removeClass('connected');
+            el.addClass('disconnected');
         }
-    function createwebsocket() {
+        el.html(msg + '<div></div>')
+    }
         var loc = window.location;
         var uri = 'ws:';
         if (loc.protocol === 'https:') {
@@ -162,8 +161,53 @@
             console.debug("ping. users online: ", evt)
             ws.send("pong", "copy")
         });
-        return ws
-    }
+
+        var updateBlockData = function (event) {
+            console.log("Received newblock message", event);
+            var newblock = JSON.parse(event);
+            var confirms = $(".confirmations")
+            $.each(confirms, function(i, v) {
+                $(v).text(
+                    parseInt($(v).text()) + 1
+                )
+            })
+            // block summary data
+            var b = newblock;
+            var expTableRows = $('#explorertable tbody tr');
+            var currentHeight = parseInt($('#explorertable tbody tr td').first().text());
+            if (expTableRows && (b.height - currentHeight == 1)){
+                expTableRows.last().remove()
+                var newRow = '<tr id="' + b.height + '">' +
+                    '<td><a href="/explorer/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
+                    '<td>' + b.tx + '</td>' +
+                    '<td>' + b.votes + '</td>' +
+                    '<td>' + b.tickets + '</td>' +
+                    '<td>' + b.revocations + '</td>' +
+                    '<td>' + humanize.bytes(b.size) + '</td>' +
+                    '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
+                    '<td>' + b.formatted_time + '</td>' +
+                '</tr>'
+                var newRowHtml = $.parseHTML(newRow)
+                $(newRowHtml).insertBefore(expTableRows.first())
+                setTimeElements()
+            }
+            if ($("#bsubsidy_total").text() !== "") {
+                $("#bsubsidy_total").html(humanize.decimalParts(b.next_block_subsidy.total/100000000, false, 8))
+                $("#bsubsidy_pow").html(humanize.decimalParts(b.next_block_subsidy.pow/100000000, false, 8))
+                $("#bsubsidy_pos").html(humanize.decimalParts((b.next_block_subsidy.pos/500000000), false, 8))
+                $("#bsubsidy_dev").html(humanize.decimalParts(b.next_block_subsidy.developer/100000000, false, 8))
+                $("#coin_supply").html(humanize.decimalParts(b.coin_supply/100000000, true, 8))
+                $("#blocksdiff").html(humanize.decimalParts(b.sdiff, false, 8))
+                $("#window_block_index").text(newBlock.stake.window_block_index)
+                $("#pos-window-progess-bar").css({ width: (newBlock.stake.window_block_index/144)*100 + "%" })
+            }
+        };
+
+        ws.registerEvtHandler("newblock", updateBlockData);
+    
+    setInterval(function () {
+        ws.send("ping", 'Hi. I am a client!');
+    }, 1000);
 </script>
 {{end}}
 
@@ -173,7 +217,7 @@
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
         <a class="nav-item" href="/api/status" title="API Status" target="_blank" data-turbolinks="false">Status</a>
-        <span class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
+        <span data-turbolinks-permanent class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
     </div>
 </footer>
 <script data-turbolinks-eval="false">

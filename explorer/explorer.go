@@ -211,77 +211,6 @@ func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-func (exp *explorerUI) confirmationsWebsocket(w http.ResponseWriter, r *http.Request) {
-	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
-		// Create channel to signal updated data availability
-		updateSig := make(hubSpoke)
-		// register websocket client with our signal channel
-		exp.wsHub.RegisterClient(&updateSig)
-		// unregister (and close signal channel) before return
-		defer exp.wsHub.UnregisterClient(&updateSig)
-
-		// Ticker for a regular ping
-		ticker := time.NewTicker(pingInterval)
-		defer ticker.Stop()
-
-		go func() {
-			for range ticker.C {
-				exp.wsHub.HubRelay <- sigPingAndUserCount
-			}
-		}()
-
-	loop:
-		for {
-			// Wait for signal from the hub to update
-			select {
-			case sig, ok := <-updateSig:
-				// Check if the update channel was closed. Either the websocket
-				// hub will do it after unregistering the client, or forcibly in
-				// response to (http.CloseNotifier).CloseNotify() and only then if
-				// the hub has somehow lost track of the client.
-				if !ok {
-					//ws.WriteClose(1)
-					exp.wsHub.UnregisterClient(&updateSig)
-					break loop
-				}
-
-				if _, ok = eventIDs[sig]; !ok {
-					break loop
-				}
-
-				log.Tracef("signaling client: %p", &updateSig)
-				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-
-				// Write new block to websocket client
-				exp.NewBlockDataMtx.RLock()
-				webData := WebSocketMessage{
-					EventId: eventIDs[sig],
-				}
-				switch sig {
-				case sigNewBlock:
-					webData.Messsage = strconv.FormatInt(exp.NewBlockData.Height, 10)
-				case sigPingAndUserCount:
-					// ping and send user count
-					webData.Messsage = strconv.Itoa(exp.wsHub.NumClients())
-				}
-
-				err := websocket.JSON.Send(ws, webData)
-				exp.NewBlockDataMtx.RUnlock()
-				if err != nil {
-					log.Debugf("Failed to encode WebSocketMessage %v: %v", sig, err)
-					// If the send failed, the client is probably gone, so close
-					// the connection and quit.
-					return
-				}
-			case <-exp.wsHub.quitWSHandler:
-				break loop
-			}
-		}
-	})
-
-	wsHandler.ServeHTTP(w, r)
-}
-
 func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 	// attempt to get tx hash string from URL path
 	hash, ok := r.Context().Value(ctxTxHash).(string)
@@ -709,7 +638,7 @@ func (exp *explorerUI) addRoutes() {
 		r.Route("/{blockhash}", func(rd chi.Router) {
 			rd.Use(exp.blockHashPathOrIndexCtx)
 			rd.Get("/", exp.blockPage)
-			rd.Get("/ws", exp.confirmationsWebsocket)
+			rd.Get("/ws", exp.rootWebsocket)
 		})
 	})
 
@@ -717,14 +646,14 @@ func (exp *explorerUI) addRoutes() {
 		r.Route("/{txid}", func(rd chi.Router) {
 			rd.Use(transactionHashCtx)
 			rd.Get("/", exp.txPage)
-			rd.Get("/ws", exp.confirmationsWebsocket)
+			rd.Get("/ws", exp.rootWebsocket)
 		})
 	})
 	exp.Mux.Route("/address", func(r chi.Router) {
 		r.Route("/{address}", func(rd chi.Router) {
 			rd.Use(addressPathCtx)
 			rd.Get("/", exp.addressPage)
-			rd.Get("/ws", exp.confirmationsWebsocket)
+			rd.Get("/ws", exp.rootWebsocket)
 		})
 	})
 
