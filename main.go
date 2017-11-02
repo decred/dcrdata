@@ -252,6 +252,7 @@ func mainCore() error {
 		}
 		log.Infof("Restarting sync with PostgreSQL at %d, SQLite at %d.",
 			pgHeight, sqliteHeight)
+		updateAllAddresses, newPGIndexes = false, false
 	}
 
 	// Block data collector
