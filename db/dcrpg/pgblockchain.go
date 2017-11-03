@@ -219,6 +219,9 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.
 	// less than the query limit).
 	if !fresh {
 		addrInfo := explorer.ReduceAddressHistory(addressRows)
+		if addrInfo == nil {
+			return addressRows, nil, fmt.Errorf("ReduceAddressHistory failed")
+		}
 
 		if addrInfo.NumFundingTxns < N {
 			balanceInfo = explorer.AddressBalance{
