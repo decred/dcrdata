@@ -285,7 +285,18 @@ func RetrieveAllAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.Ad
 }
 
 func RetrieveAddressTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
-	rows, err := db.Query(internal.SelectAddressLimitNByAddress, address, N, offset)
+	return retrieveAddressTxns(db, address, N, offset,
+		internal.SelectAddressLimitNByAddressSubQry)
+}
+
+func RetrieveAddressTxnsAlt(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+	return retrieveAddressTxns(db, address, N, offset,
+		internal.SelectAddressLimitNByAddress)
+}
+
+func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
+	statment string) ([]uint64, []*dbtypes.AddressRow, error) {
+	rows, err := db.Query(statment, address, N, offset)
 	if err != nil {
 		return nil, nil, err
 	}

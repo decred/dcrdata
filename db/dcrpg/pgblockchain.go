@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -30,6 +31,7 @@ var (
 type ChainDB struct {
 	db            *sql.DB
 	chainParams   *chaincfg.Params
+	devAddress    string
 	dupChecks     bool
 	bestBlock     int64
 	lastBlock     map[chainhash.Hash]uint64
@@ -66,9 +68,15 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params) (*ChainDB, error) {
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
+	_, devSubsidyAddress, _, err := txscript.ExtractPkScriptAddrs(
+		params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
+	if err != nil || len(devSubsidyAddress) != 1 {
+		return nil, fmt.Errorf("Failed to decode dev subsidy address: %v", err)
+	}
 	return &ChainDB{
 		db:            db,
 		chainParams:   params,
+		devAddress:    devSubsidyAddress[0].String(),
 		dupChecks:     true,
 		bestBlock:     int64(bestHeight),
 		lastBlock:     make(map[chainhash.Hash]uint64),
@@ -83,22 +91,22 @@ func (pgb *ChainDB) Close() error {
 
 // EnableDuplicateCheckOnInsert specifies whether SQL insertions should check
 // for row conflicts (duplicates), and avoid adding or updating.
-func (pdb *ChainDB) EnableDuplicateCheckOnInsert(dupCheck bool) {
-	pdb.dupChecks = dupCheck
+func (pgb *ChainDB) EnableDuplicateCheckOnInsert(dupCheck bool) {
+	pgb.dupChecks = dupCheck
 }
 
 // SetupTables creates the required tables and type, and prints table versions
 // stored in the table comments when debug level logging is enabled.
-func (pdb *ChainDB) SetupTables() error {
-	if err := CreateTypes(pdb.db); err != nil {
+func (pgb *ChainDB) SetupTables() error {
+	if err := CreateTypes(pgb.db); err != nil {
 		return err
 	}
 
-	if err := CreateTables(pdb.db); err != nil {
+	if err := CreateTables(pgb.db); err != nil {
 		return err
 	}
 
-	vers := TableVersions(pdb.db)
+	vers := TableVersions(pgb.db)
 	for tab, ver := range vers {
 		log.Debugf("Table %s: v%d", tab, ver)
 	}
@@ -159,9 +167,9 @@ func (pgb *ChainDB) VoutValue(txID string, vout uint32) (uint64, error) {
 	return voutValue, nil
 }
 
-// VoutValue retrieves the values of each outpoint of the specified transaction.
-// The corresponding indexes in the block and tx trees of the outpoints, and an
-// error value are also returned.
+// VoutValues retrieves the values of each outpoint of the specified
+// transaction. The corresponding indexes in the block and tx trees of the
+// outpoints, and an error value are also returned.
 func (pgb *ChainDB) VoutValues(txID string) ([]uint64, []uint32, []int8, error) {
 	// txDbID, _, _, err := RetrieveTxByHash(pgb.db, txID)
 	// if err != nil {
@@ -209,7 +217,14 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.
 		pgb.addressCounts.validHeight = bestBlock
 	}
 
-	_, addressRows, err := RetrieveAddressTxns(pgb.db, address, N, offset)
+	// The organization address occurs very frequently, so use the regular (non
+	// sub-query) select as it is much more efficient.
+	var addressRows []*dbtypes.AddressRow
+	if address == pgb.devAddress {
+		_, addressRows, err = RetrieveAddressTxnsAlt(pgb.db, address, N, offset)
+	} else {
+		_, addressRows, err = RetrieveAddressTxns(pgb.db, address, N, offset)
+	}
 	if err != nil {
 		return nil, &balanceInfo, err
 	}
