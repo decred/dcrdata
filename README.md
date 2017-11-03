@@ -320,17 +320,30 @@ if necessary.
 
 ## Getting Started
 
-Create configuration file.
+### Create configuration file
+
+Begin with the sample configuration file:
 
 ```bash
-cp ./sample-dcrdata.conf ./dcrdata.conf
+cp sample-dcrdata.conf dcrdata.conf
 ```
 
 Then edit dcrdata.conf with your dcrd RPC settings.
 
-Finally, launch the daemon and allow the databases to sync.  This takes about
-an hour on the first time. On subsequent launches, only new blocks need to be
-scanned.
+### Indexing the Blockchain
+
+If dcrdata has not previously been run with the PostgreSQL database backend, it is necessary to perform a bulk import of blockchain data and generate table indexes.
+
+- Create the dcrdata user and database in PostgreSQL (tables will be created automatically).
+- Set your PostgreSQL credentials and host in both `./cmd/rebuilddb2/rebuilddb2.conf` and `./dcrdata.conf`.
+- Run `rebuilddb2 -u` to bulk import and index.
+- In case of errors, or schema changes, the tables may be dropped with `rebuilddb2 -D`.
+
+### Starting dcrdata
+
+Finally, launch the dcrdata daemon and allow the databases to sync new blocks.
+The SQLite database sync takes about an hour the first time. On subsequent
+launches, only new blocks are scanned.
 
 ```bash
 ./dcrdata
