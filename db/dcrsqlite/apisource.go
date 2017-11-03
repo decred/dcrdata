@@ -697,7 +697,7 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.Block
 		FreshStake:     data.FreshStake,
 		BlockTime:      data.Time,
 		FormattedBytes: humanize.Bytes(uint64(data.Size)),
-		FormattedTime:  time.Unix(data.Time, 0).Format("1/_2/06 15:04:05"),
+		FormattedTime:  time.Unix(data.Time, 0).Format("1/2/06 15:04:05"),
 	}
 
 	// Count the number of revocations
@@ -747,7 +747,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
 	tx.Time = data.Time
 	t := time.Unix(tx.Time, 0)
-	tx.FormattedTime = t.Format("1/_2/06 15:04:05")
+	tx.FormattedTime = t.Format("1/2/06 15:04:05")
 	tx.Confirmations = data.Confirmations
 
 	for i := range data.Vin {
@@ -911,7 +911,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.Confirmations = txraw.Confirmations
 	tx.Time = txraw.Time
 	t := time.Unix(tx.Time, 0)
-	tx.FormattedTime = t.Format("1/_2/06 15:04:05")
+	tx.FormattedTime = t.Format("1/2/06 15:04:05")
 
 	inputs := make([]explorer.Vin, 0, len(txraw.Vin))
 	for i, vin := range txraw.Vin {
