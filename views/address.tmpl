@@ -18,7 +18,7 @@
                             <td class="text-right pr-2 h1rem p03rem0">Only the {{.NumFundingTxns}} most recent of {{.KnownFundingTxns}} funding transactions are tabulated below.</td>
                         </tr>
                     {{else}}
-                        {{if not .KnownFundingTxns)}}
+                        {{if not .KnownFundingTxns}}
                         <tr>
                             <td class="text-right pr-2 h1rem p03rem0">The {{.NumFundingTxns}} most recent transactions are tabulated below.</td>
                         </tr>
