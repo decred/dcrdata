@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	defaultConfigFilename = "rebuilddb.conf"
+	defaultConfigFilename = "rebuilddb2.conf"
 	defaultLogLevel       = "info"
 	defaultLogDirname     = "logs"
-	defaultLogFilename    = "rebuilddb.log"
+	//defaultLogFilename    = "rebuilddb2.log"
 )
 
 var curDir, _ = os.Getwd()
@@ -32,11 +32,10 @@ var (
 	defaultLogDir            = filepath.Join(curDir, defaultLogDirname)
 	defaultHost              = "localhost"
 
-	defaultDBHostPort  = "127.0.0.1:3600"
-	defaultDBUser      = "dcrdata"
-	defaultDBPass      = "bananas"
-	defaultDBTableName = "dcrdata"
-	defaultDBFileName  = "dcrdata.sqlt.db"
+	defaultDBHostPort = "127.0.0.1:5432"
+	defaultDBUser     = "dcrdata"
+	defaultDBPass     = ""
+	defaultDBName     = "dcrdata"
 )
 
 type config struct {
@@ -51,11 +50,12 @@ type config struct {
 	CPUProfile  string `long:"cpuprofile" description:"File for CPU profiling."`
 
 	// DB
-	DBFileName string `long:"dbfile" description:"DB file name"`
-	DBHostPort string `long:"dbhost" description:"DB host"`
-	DBUser     string `long:"dbuser" description:"DB user"`
-	DBPass     string `long:"dbpass" description:"DB pass"`
-	DBTable    string `long:"dbtable" description:"DB table name"`
+	DBHostPort          string `long:"dbhost" description:"DB host"`
+	DBUser              string `long:"dbuser" description:"DB user"`
+	DBPass              string `long:"dbpass" description:"DB pass"`
+	DBName              string `long:"dbname" description:"DB name"`
+	DropDBTables        bool   `short:"D" long:"droptables" description:"Drop/delete DB tables."`
+	UpdateAddrSpendInfo bool   `short:"u" long:"updateaddrspends" description:"Update the spending transaction info in ALL rows of the addresses table."`
 
 	// RPC client options
 	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name"`
@@ -64,6 +64,7 @@ type config struct {
 	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file"`
 	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
 
+	ForceReindex bool `long:"reindex" short:"R" description:"Drop indexes prior to sync and recreate after sync, with insertion conflict checks disabled in absense of constraints."`
 	// TODO
 	//AccountName   string `long:"accountname" description:"Account name (other than default or imported) for which balances should be listed."`
 	//TicketAddress string `long:"ticketaddress" description:"Address to which you have given voting rights"`
@@ -75,11 +76,10 @@ var (
 		DebugLevel: defaultLogLevel,
 		ConfigFile: defaultConfigFile,
 		LogDir:     defaultLogDir,
-		DBFileName: defaultDBFileName,
 		DBHostPort: defaultDBHostPort,
 		DBUser:     defaultDBUser,
 		DBPass:     defaultDBPass,
-		DBTable:    defaultDBTableName,
+		DBName:     defaultDBName,
 		DcrdCert:   defaultDaemonRPCCertFile,
 	}
 )
@@ -205,8 +205,8 @@ func loadConfig() (*config, error) {
 
 	// Append the network type to the log directory so it is "namespaced"
 	// per network.
-	cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
-	cfg.LogDir = filepath.Join(cfg.LogDir, activeNet.Name)
+	// cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
+	// cfg.LogDir = filepath.Join(cfg.LogDir, activeNet.Name)
 
 	// Special show command to list supported subsystems and exit.
 	// if cfg.DebugLevel == "show" {
@@ -231,54 +231,3 @@ func loadConfig() (*config, error) {
 
 	return &cfg, nil
 }
-
-// const (
-//     defaultDBTableName = "dcrdata"
-//     defaultDBUserName = "dcrdata"
-//     defaultDBPass = "dcrpassword"
-//     defaultDBFileName = "dcrdata.sqlt.dat"
-//     defaultDBHostPort = "127.0.0.1:3660"
-// )
-
-// type configuration struct {
-//     DaemonHostPort string `json:"dcrdhost"`
-//     DaemonUser string `json:"dcrduser"`
-//     DaemonPass string `json:"dcrdpass"`
-// 	DBHostPort     string `json:"dbhost"`
-//     DBUser     string `json:"dbuser"`
-//     DBPass     string `json:"dbpass"`
-//     DBFileName string `json:"dbfile"`
-//     DBTableName     string `json:"dbtablename"`
-// }
-
-// func loadConfig(configFile string) (*configuration, error) {
-// 	// Open configuration file
-// 	file, err := os.Open(configFile)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer file.Close()
-
-// 	// parse json config file
-// 	conf := &configuration{}
-// 	if err = json.NewDecoder(file).Decode(conf); err != nil {
-// 		return nil, err
-// 	}
-
-//     // For file-backed db (sqlite)
-//     if conf.DBFileName == "" {
-// 		conf.DBFileName = defaultDBFileName
-// 	}
-
-//     // For daemon backed db
-//     // if conf.DBHostPort == "" {
-// 	// 	conf.DBHostPort = defaultDBHostPort
-// 	// }
-// 	// _, _, err = net.SplitHostPort(conf.DBHostPort)
-// 	// if err != nil {
-// 	// 	fmt.Printf("Unable to parse host:port - %v", err)
-// 	// 	return nil, err
-// 	// }
-
-// 	return conf, nil
-// }

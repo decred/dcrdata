@@ -13,33 +13,43 @@
                 <h4>Address</h4>
                 <p class="mono">{{.Address}}</p>
                 <table class="table-centered-1rem">
-                    {{if eq .NumTransactions .AddressRow}}
-                        <tr>
-                            <td class="text-right pr-2 h1rem p03rem0">Currently only the {{.AddressRow}} most recent transactions are shown below.</td>
-                        </tr>
-                    {{else}}
-                        <tr>
-                            <td class="text-right pr-2 h1rem p03rem0">TRANSACTIONS</td>
-                            <td>{{.NumTransactions}}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 h1rem p03rem0">UNCONFIRMED</td>
-                            <td>{{.TotalUnconfirmed}}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 h1rem p03rem0">RECEIVED</td>
-                            <td>{{.Received}}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 h1rem p03rem0">SENT</td>
-                            <td>{{.TotalSent}}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 h1rem p03rem0">UNSPENT</td>
-                            <td>{{.UnSpent}}</td>
-                        </tr>
+                    {{if .Balance}}
+                    {{if not .KnownFundingTxns}}
+                    <tr>
+                        <td class="text-right pr-2 h1rem p03rem0">The {{.NumFundingTxns}} most recent transactions are tabulated below.</td>
+                    </tr>
+                    {{end}}
+                    <tr>
+                        <td class="text-right pr-2 h1rem p03rem0">TRANSACTIONS</td>
+                        <td>{{add .Balance.NumSpent .Balance.NumUnspent}}</td>
+                    </tr>
+                    <!-- <tr>
+                        <td class="text-right pr-2 h1rem p03rem0">UNCONFIRMED</td>
+                        <td>{{.NumUnconfirmed}}</td>
+                    </tr> -->
+                    <tr>
+                        <td class="text-right pr-2 h1rem p03rem0">RECEIVED</td>
+                        <td>{{with $received := add .Balance.TotalSpent .Balance.TotalUnspent}}
+                            {{template "decimalParts" (amountAsDecimalParts $received true)}}<span class="unit"> DCR</span>
+                            {{end}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 h1rem p03rem0">SPENT</td>
+                        <td>{{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="unit"> DCR</span></td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 h1rem p03rem0">UNSPENT</td>
+                        <td>{{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="unit"> DCR</span></td>
+                    </tr>
                     {{end}}
                 </table>
+                <br>
+                <p>
+                {{if lt .NumFundingTxns .KnownFundingTxns}}
+                {{.NumFundingTxns}} of {{.KnownFundingTxns}} funding transactions are tabulated below.
+                {{end}}
+                </p>
                 <h5>Transactions</h5>
                 <table class="table table-mono-cells table-sm striped">
                     <thead>

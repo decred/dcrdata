@@ -385,6 +385,14 @@ type VoteChoice struct {
 	Choice *chaincfg.Choice `json:"choice"`
 }
 
+func VoteVersion(pkScript []byte) uint32 {
+	if len(pkScript) < 8 {
+		return stake.VoteConsensusVersionAbsent
+	}
+
+	return binary.LittleEndian.Uint32(pkScript[4:8])
+}
+
 // SSGenVoteChoices gets a ssgen's vote choices (block validity and any
 // agendas). The vote's stake version, to which the vote choices correspond, and
 // vote bits are also returned. Note that []*VoteChoice may be an empty slice if
@@ -554,6 +562,20 @@ func DetermineTxTypeString(msgTx *wire.MsgTx) string {
 		return "Revocation"
 	default:
 		return "Regular"
+	}
+}
+
+// IsStakeTx indicates if the input MsgTx is a stake transaction.
+func IsStakeTx(msgTx *wire.MsgTx) bool {
+	switch stake.DetermineTxType(msgTx) {
+	case stake.TxTypeSSGen:
+		fallthrough
+	case stake.TxTypeSStx:
+		fallthrough
+	case stake.TxTypeSSRtx:
+		return true
+	default:
+		return false
 	}
 }
 

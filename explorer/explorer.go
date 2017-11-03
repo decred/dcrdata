@@ -1,6 +1,8 @@
-// Package explorer handles the explorer subsystem for displaying the explorer pages
+// Package explorer handles the block explorer subsystem for generating the
+// explorer pages.
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
+
 package explorer
 
 import (
@@ -11,10 +13,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
@@ -27,25 +31,41 @@ const (
 	blockTemplateIndex
 	txTemplateIndex
 	addressTemplateIndex
-	maxExplorerRows = 2000
-	minExplorerRows = 20
-	AddressRows     = 500
 )
 
-// ExplorerDataSource implements an interface for collecting data for the explorer pages
-type explorerDataSource interface {
+const (
+	maxExplorerRows          = 2000
+	minExplorerRows          = 20
+	defaultAddressRows int64 = 200
+	maxAddressRows     int64 = 1000
+)
+
+// explorerDataSourceLite implements an interface for collecting data for the
+// explorer pages
+type explorerDataSourceLite interface {
 	GetExplorerBlock(hash string) *BlockInfo
 	GetExplorerBlocks(start int, end int) []*BlockBasic
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
-	GetExplorerAddress(address string, count int) *AddressInfo
+	GetExplorerAddress(address string, count, offset int64) *AddressInfo
 	GetHeight() int
+}
+
+// explorerDataSource implements extra data retrieval functions that require a
+// faster solution than RPC.
+type explorerDataSource interface {
+	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
+	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
+	AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *AddressBalance, error)
+	FillAddressTransactions(addrInfo *AddressInfo) error
 }
 
 type explorerUI struct {
 	Mux             *chi.Mux
-	blockData       explorerDataSource
+	blockData       explorerDataSourceLite
+	explorerSource  explorerDataSource
+	liteMode        bool
 	templates       []*template.Template
 	templateFiles   map[string]string
 	templateHelpers template.FuncMap
@@ -123,6 +143,26 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
 		return
 	}
+	if !exp.liteMode {
+		// For each output of this transaction, look up any spending transactions,
+		// and the index of the spending transaction input.
+		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
+		if err != nil {
+			log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
+			http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+			return
+		}
+		for i, vout := range voutInds {
+			if int(vout) >= len(tx.SpendingTxns) {
+				log.Errorf("Invalid spending transaction data (%s:%d)", hash, vout)
+				continue
+			}
+			tx.SpendingTxns[vout] = TxInID{
+				Hash:  spendingTxHashes[i],
+				Index: spendingTxVinInds[i],
+			}
+		}
+	}
 	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", tx)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -135,19 +175,73 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
+	// Get the address URL parameter, which should be set in the request context
+	// by the addressPathCtx middleware.
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
 		log.Trace("address not set")
 		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
 		return
 	}
-	data := exp.blockData.GetExplorerAddress(address, AddressRows)
-	if data == nil {
-		log.Errorf("Unable to get address %s", address)
-		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
-		return
+
+	// Number of outputs for the address to query the database for. The URL
+	// query parameter "n" is used to specify the limit (e.g. "?n=20").
+	limitN, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
+	if err != nil || limitN < 0 {
+		limitN = defaultAddressRows
+	} else if limitN > maxAddressRows {
+		log.Warnf("addressPage: requested up to %d address rows, "+
+			"limiting to %d", limitN, maxAddressRows)
+		limitN = maxAddressRows
 	}
-	str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", data)
+
+	// Number of outputs to skip (OFFSET in database query). For UX reasons, the
+	// "start" URL query parameter is used.
+	offsetAddrOuts, err := strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
+	if err != nil || offsetAddrOuts < 0 {
+		offsetAddrOuts = 0
+	}
+
+	var addrData *AddressInfo
+	if exp.liteMode {
+		addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		if addrData == nil {
+			log.Errorf("Unable to get address %s", address)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+	} else {
+		// Get addresses table rows for the address
+		addrHist, balance, errH := exp.explorerSource.AddressHistory(
+			address, limitN, offsetAddrOuts)
+		if errH != nil {
+			log.Errorf("Unable to get address %s history: %v", address, errH)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+
+		// Generate AddressInfo skeleton from the address table rows
+		addrData = ReduceAddressHistory(addrHist)
+		if addrData == nil {
+			log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
+		addrData.Balance = balance
+		// still need []*AddressTx filled out and NumUnconfirmed
+
+		// Query database for transaction details
+		err = exp.explorerSource.FillAddressTransactions(addrData)
+		if err != nil {
+			log.Errorf("Unable to fill address %s transactions: %v", address, err)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+	}
+	str, err := templateExecToString(exp.templates[addressTemplateIndex],
+		"address", addrData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
@@ -173,7 +267,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	// is a block index and then redirect to the block page if it is
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
 	if err == nil {
-		_, err := exp.blockData.GetBlockHash(idx)
+		_, err = exp.blockData.GetBlockHash(idx)
 		if err == nil {
 			http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
 			return
@@ -182,14 +276,14 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 
 	// Call GetExplorerAddress to see if the value is an address hash and
 	// then redirect to the address page if it is
-	address := exp.blockData.GetExplorerAddress(searchStr, 1)
+	address := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
 		http.Redirect(w, r, "/explorer/address/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
 
 	// Check if the value is a valid hash
-	if _, err := chainhash.NewHashFromStr(searchStr); err != nil {
+	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
 		http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
 		return
 	}
@@ -276,12 +370,19 @@ func (exp *explorerUI) reloadTemplatesSig(sig os.Signal) {
 }
 
 // New returns an initialized instance of explorerUI
-func New(dataSource explorerDataSource, userRealIP bool) *explorerUI {
+func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
+	useRealIP bool) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
+	exp.explorerSource = primaryDataSource
+	// explorerDataSource is an interface that could have a value of pointer
+	// type, and if either is nil this means lite mode.
+	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
+		exp.liteMode = true
+	}
 
-	if userRealIP {
+	if useRealIP {
 		exp.Mux.Use(middleware.RealIP)
 	}
 

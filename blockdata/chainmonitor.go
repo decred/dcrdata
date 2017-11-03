@@ -160,14 +160,14 @@ out:
 			// relevant for the best block.
 			if chainHeight != height {
 				log.Infof("Behind on our collection...")
-				blockData, err = p.collector.CollectHash(hash)
+				blockData, _, err = p.collector.CollectHash(hash)
 				if err != nil {
 					log.Errorf("blockdata.CollectHash(hash) failed: %v", err.Error())
 					release()
 					break keepon
 				}
 			} else {
-				blockData, err = p.collector.Collect()
+				blockData, _, err = p.collector.Collect()
 				if err != nil {
 					log.Errorf("blockdata.Collect() failed: %v", err.Error())
 					release()
@@ -183,7 +183,7 @@ out:
 			for _, s := range savers {
 				if s != nil {
 					// save data to wherever the saver wants to put it
-					s.Store(blockData)
+					s.Store(blockData, msgBlock)
 				}
 			}
 

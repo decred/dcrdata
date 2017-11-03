@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dcrdata/dcrdata/db/dbtypes"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/explorer"
 	"github.com/dcrdata/dcrdata/mempool"
@@ -94,14 +95,29 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
 	return db.resyncDB(quit)
 }
 
-func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) error {
+// SyncDBAsync is like SyncDBWithPoolValue except it also takes a result channel
+// where the caller should wait to receive the result. As such, this method
+// should be called as a gorouine.
+func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
+	quit chan struct{}) {
+	// hack around the old waitgroup input
+	var wg sync.WaitGroup
+	wg.Add(1)
+	height, err := db.SyncDBWithPoolValue(&wg, quit)
+	res <- dbtypes.SyncResult{
+		Height: height,
+		Error:  err,
+	}
+}
+
+func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) (int64, error) {
 	defer wg.Done()
 	var err error
 	if err = db.Ping(); err != nil {
-		return err
+		return int64(db.GetHeight()), err
 	}
 	if err = db.client.Ping(); err != nil {
-		return err
+		return int64(db.GetHeight()), err
 	}
 
 	return db.resyncDBWithPoolValue(quit)
@@ -321,8 +337,8 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 	}
 
 	// TxShort
-	tx.Size = int32(len(txraw.Hex) / 2)
 	tx.TxID = txraw.Txid
+	tx.Size = int32(len(txraw.Hex) / 2)
 	tx.Version = txraw.Version
 	tx.Locktime = txraw.LockTime
 	tx.Expiry = txraw.Expiry
@@ -675,12 +691,13 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.Block
 	block := &explorer.BlockBasic{
 		Height:         data.Height,
 		Size:           data.Size,
+		Valid:          true, // we do not know this, TODO with DB v2
 		Voters:         data.Voters,
-		Transactions:   len(data.RawTx),
+		Transactions:   uint32(len(data.RawTx)),
 		FreshStake:     data.FreshStake,
 		BlockTime:      data.Time,
 		FormattedBytes: humanize.Bytes(uint64(data.Size)),
-		FormattedTime:  time.Unix(data.Time, 0).Format("1/_2/06 15:04:05"),
+		FormattedTime:  time.Unix(data.Time, 0).Format("1/2/06 15:04:05"),
 	}
 
 	// Count the number of revocations
@@ -730,7 +747,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
 	tx.Time = data.Time
 	t := time.Unix(tx.Time, 0)
-	tx.FormattedTime = t.Format("1/_2/06 15:04:05")
+	tx.FormattedTime = t.Format("1/2/06 15:04:05")
 	tx.Confirmations = data.Confirmations
 
 	for i := range data.Vin {
@@ -894,7 +911,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.Confirmations = txraw.Confirmations
 	tx.Time = txraw.Time
 	t := time.Unix(tx.Time, 0)
-	tx.FormattedTime = t.Format("1/_2/06 15:04:05")
+	tx.FormattedTime = t.Format("1/2/06 15:04:05")
 
 	inputs := make([]explorer.Vin, 0, len(txraw.Vin))
 	for i, vin := range txraw.Vin {
@@ -956,17 +973,22 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		})
 	}
 	tx.Vout = outputs
+
+	// Initialize the spending transaction slice for safety
+	tx.SpendingTxns = make([]explorer.TxInID, len(outputs))
+
 	return tx
 }
 
-func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.AddressInfo {
+func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *explorer.AddressInfo {
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", address, err)
 		return nil
 	}
 
-	txs, err := db.client.SearchRawTransactionsVerbose(addr, 0, count, true, true, nil)
+	txs, err := db.client.SearchRawTransactionsVerbose(addr,
+		int(offset), int(count), true, true, nil)
 	if err != nil {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return nil
@@ -977,41 +999,43 @@ func (db *wiredDB) GetExplorerAddress(address string, count int) *explorer.Addre
 		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address))
 	}
 
-	NumberOfTx := len(txs)
-	NoOfUnconfirmed := 0
+	var numUnconfirmed, numReceiving, numSpending int64
 	var totalreceived, totalsent dcrutil.Amount
-	if NumberOfTx < explorer.AddressRows {
-		for _, tx := range txs {
-			if tx.Confirmations == 0 {
-				NoOfUnconfirmed++
-			}
-			for _, y := range tx.Vout {
-				if len(y.ScriptPubKey.Addresses) != 0 {
-					if address == y.ScriptPubKey.Addresses[0] {
-						t, _ := dcrutil.NewAmount(y.Value)
-						totalreceived += t
-					}
+
+	for _, tx := range txs {
+		if tx.Confirmations == 0 {
+			numUnconfirmed++
+		}
+		for _, y := range tx.Vout {
+			if len(y.ScriptPubKey.Addresses) != 0 {
+				if address == y.ScriptPubKey.Addresses[0] {
+					t, _ := dcrutil.NewAmount(y.Value)
+					totalreceived += t
+					numReceiving++
 				}
 			}
-			for _, u := range tx.Vin {
-				if u.PrevOut != nil && len(u.PrevOut.Addresses) != 0 {
-					if address == u.PrevOut.Addresses[0] {
-						t, _ := dcrutil.NewAmount(*u.AmountIn)
-						totalsent += t
-					}
+		}
+		for _, u := range tx.Vin {
+			if u.PrevOut != nil && len(u.PrevOut.Addresses) != 0 {
+				if address == u.PrevOut.Addresses[0] {
+					t, _ := dcrutil.NewAmount(*u.AmountIn)
+					totalsent += t
+					numSpending++
 				}
 			}
 		}
 	}
-	unspentfunds := totalreceived - totalsent
+
 	return &explorer.AddressInfo{
-		Address:          address,
-		Transactions:     addressTxs,
-		NumTransactions:  NumberOfTx,
-		TotalUnconfirmed: NoOfUnconfirmed,
-		Received:         totalreceived,
-		AddressRow:       explorer.AddressRows,
-		TotalSent:        totalsent,
-		UnSpent:          unspentfunds,
+		Address:         address,
+		Limit:           count,
+		Offset:          offset,
+		Transactions:    addressTxs,
+		NumFundingTxns:  numReceiving,
+		NumSpendingTxns: numSpending,
+		NumUnconfirmed:  numUnconfirmed,
+		TotalReceived:   totalreceived,
+		TotalSent:       totalsent,
+		Unspent:         totalreceived - totalsent,
 	}
 }

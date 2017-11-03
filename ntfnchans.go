@@ -5,7 +5,7 @@ package main
 
 import (
 	"github.com/dcrdata/dcrdata/blockdata"
-	"github.com/dcrdata/dcrdata/dcrsqlite"
+	"github.com/dcrdata/dcrdata/db/dcrsqlite"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/dcrdata/dcrdata/txhelpers"

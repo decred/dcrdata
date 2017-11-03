@@ -343,7 +343,8 @@ func (db *StakeDatabase) Open() error {
 	var err error
 	db.StakeDB, err = database.Open(dbType, dbName, db.params.Net)
 	if err != nil {
-		if strings.HasPrefix(err.Error(), "resource temporarily unavailable") {
+		if strings.Contains(err.Error(), "resource temporarily unavailable") ||
+			strings.Contains(err.Error(), "is being used by another process") {
 			return fmt.Errorf("Stake DB already opened. dcrdata running?")
 		}
 		log.Infof("Unable to open stake DB (%v). Removing and creating new.", err)

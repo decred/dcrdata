@@ -39,7 +39,6 @@ var (
 	defaultConfigFile        = filepath.Join(curDir, defaultConfigFilename)
 	defaultLogDir            = filepath.Join(curDir, defaultLogDirname)
 	defaultHost              = "localhost"
-	//defaultEmailSubject      = "dcrdataapi transaction notification"
 
 	defaultAPIProto           = "http"
 	defaultAPIListen          = "127.0.0.1:7777"
@@ -52,6 +51,11 @@ var (
 	defaultMPTriggerTickets   = 1
 
 	defaultDBFileName = "dcrdata.sqlt.db"
+
+	defaultPGHost   = "127.0.0.1:5432"
+	defaultPGUser   = "dcrdata"
+	defaultPGPass   = ""
+	defaultPGDBName = "dcrdata"
 )
 
 type config struct {
@@ -72,7 +76,7 @@ type config struct {
 	UseRealIP          bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order."`
 	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes."`
 
-	// Comamnd execution
+	// Command execution
 	//CmdName string `short:"c" long:"cmdname" description:"Command name to run. Must be on %PATH%."`
 	//CmdArgs string `short:"a" long:"cmdargs" description:"Comma-separated list of arguments for command to run. The specifier %n is substituted for block height at execution, and %h is substituted for block hash."`
 
@@ -83,6 +87,12 @@ type config struct {
 	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report."`
 	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
+
+	LiteMode bool   `short:"l" long:"lite" description:"Run in \"lite\" mode, using only SQLite."`
+	PGDBName string `long:"pgdbname" description:"PostgreSQL DB name."`
+	PGUser   string `long:"pguser" description:"PostgreSQL DB user."`
+	PGPass   string `long:"pgpass" description:"PostgreSQL DB password."`
+	PGHost   string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)."`
 
 	//WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
 	//WatchOutpoints []string `short:"o" long:"watchout" description:"Watched outpoint (sending). One per line."`
@@ -118,11 +128,14 @@ var (
 		MempoolMaxInterval: defaultMempoolMaxInterval,
 		MPTriggerTickets:   defaultMPTriggerTickets,
 		DBFileName:         defaultDBFileName,
-		//EmailSubject:       defaultEmailSubject,
+		PGDBName:           defaultPGDBName,
+		PGUser:             defaultPGUser,
+		PGPass:             defaultPGPass,
+		PGHost:             defaultPGHost,
 	}
 )
 
-// cleanAndExpandPath expands environement variables and leading ~ in the
+// cleanAndExpandPath expands environment variables and leading ~ in the
 // passed path, cleans the result, and returns it.
 func cleanAndExpandPath(path string) string {
 	// Expand initial ~ to OS specific home directory.
@@ -311,7 +324,7 @@ func loadConfig() (*config, error) {
 		cfg.DcrdServ = defaultHost + ":" + activeNet.JSONRPCClientPort
 	}
 
-	// Put comma-separated comamnd line aguments into slice of strings
+	// Put comma-separated command line arguments into slice of strings
 	//cfg.CmdArgs = strings.Split(cfg.CmdArgs[0], ",")
 
 	// // Output folder

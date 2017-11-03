@@ -25,6 +25,7 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 )
@@ -92,7 +93,7 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 		},
 		"getTime": func(btime int64) string {
 			t := time.Unix(btime, 0)
-			return t.Format("1/_2/06 15:04:05")
+			return t.Format("1/2/06 15:04:05")
 		},
 		"ticketWindowProgress": func(i int) float64 {
 			p := (float64(i) / 144) * 100
@@ -216,7 +217,7 @@ func (td *WebUI) reloadTemplatesSig(sig os.Signal) {
 // Store extracts the block and stake data from the input BlockData and stores
 // it in the HTML template data. Store also signals the WebsocketHub of the
 // updated data.
-func (td *WebUI) Store(blockData *blockdata.BlockData) error {
+func (td *WebUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
 	td.templateDataMtx.Lock()
 	td.TemplateData.BlockSummary = blockData.ToBlockExplorerSummary()
 	td.TemplateData.StakeSummary = blockData.ToStakeInfoExtendedEstimates()

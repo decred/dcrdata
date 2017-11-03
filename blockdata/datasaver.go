@@ -14,11 +14,13 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/decred/dcrd/wire"
 )
 
 // BlockDataSaver is an interface for saving/storing BlockData
 type BlockDataSaver interface {
-	Store(data *BlockData) error
+	Store(*BlockData, *wire.MsgBlock) error
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,7 +110,7 @@ func NewBlockDataToJSONFiles(folder string, fileBase string,
 }
 
 // Store writes BlockData to stdout in JSON format
-func (s *BlockDataToJSONStdOut) Store(data *BlockData) error {
+func (s *BlockDataToJSONStdOut) Store(data *BlockData, _ *wire.MsgBlock) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
@@ -129,7 +131,7 @@ func (s *BlockDataToJSONStdOut) Store(data *BlockData) error {
 }
 
 // Store writes BlockData to stdout as plain text summary
-func (s *BlockDataToSummaryStdOut) Store(data *BlockData) error {
+func (s *BlockDataToSummaryStdOut) Store(data *BlockData, _ *wire.MsgBlock) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
@@ -162,7 +164,7 @@ func (s *BlockDataToSummaryStdOut) Store(data *BlockData) error {
 
 // Store writes BlockData to a file in JSON format
 // The file name is nameBase+height+".json".
-func (s *BlockDataToJSONFiles) Store(data *BlockData) error {
+func (s *BlockDataToJSONFiles) Store(data *BlockData, _ *wire.MsgBlock) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
