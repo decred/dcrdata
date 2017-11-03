@@ -131,6 +131,8 @@ type BlockInfo struct {
 // AddressInfo models data for display on the address page
 type AddressInfo struct {
 	Address          string
+	Limit            int64
+	Offset           int64
 	Transactions     []*AddressTx
 	NumFundingTxns   int64
 	NumSpendingTxns  int64
@@ -139,6 +141,17 @@ type AddressInfo struct {
 	TotalReceived    dcrutil.Amount
 	TotalSent        dcrutil.Amount
 	Unspent          dcrutil.Amount
+	Balance          *AddressBalance
+}
+
+// AddressBalance represents the number and value of spent and unspent outputs
+// for an address.
+type AddressBalance struct {
+	Address      string
+	NumSpent     int64
+	NumUnspent   int64
+	TotalSpent   int64
+	TotalUnspent int64
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of

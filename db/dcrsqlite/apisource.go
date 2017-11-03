@@ -1028,6 +1028,8 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 
 	return &explorer.AddressInfo{
 		Address:         address,
+		Limit:           count,
+		Offset:          offset,
 		Transactions:    addressTxs,
 		NumFundingTxns:  numReceiving,
 		NumSpendingTxns: numSpending,

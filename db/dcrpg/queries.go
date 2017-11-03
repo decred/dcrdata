@@ -222,6 +222,54 @@ func RetrieveAddressRecvCount(db *sql.DB, address string) (count int64, err erro
 	return
 }
 
+func RetrieveAddressUnspent(db *sql.DB, address string) (count, totalAmount int64, err error) {
+	err = db.QueryRow(internal.SelectAddressUnspentCountAndValue, address).
+		Scan(&count, &totalAmount)
+	return
+}
+
+func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64, err error) {
+	err = db.QueryRow(internal.SelectAddressSpentCountAndValue, address).
+		Scan(&count, &totalAmount)
+	return
+}
+
+func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspent,
+	totalSpent, totalUnspent int64, err error) {
+	dbtx, err := db.Begin()
+	if err != nil {
+		err = fmt.Errorf("unable to begin database transaction: %v", err)
+		return
+	}
+
+	var nu, tu sql.NullInt64
+	err = dbtx.QueryRow(internal.SelectAddressUnspentCountAndValue, address).
+		Scan(&nu, &tu)
+	if err != nil && err != sql.ErrNoRows {
+		if errRoll := dbtx.Rollback(); errRoll != nil {
+			log.Errorf("Rollback failed: %v", errRoll)
+		}
+		err = fmt.Errorf("unable to QueryRow for unspent amount: %v", err)
+		return
+	}
+	numUnspent, totalUnspent = nu.Int64, tu.Int64
+
+	var ns, ts sql.NullInt64
+	err = dbtx.QueryRow(internal.SelectAddressSpentCountAndValue, address).
+		Scan(&ns, &ts)
+	if err != nil && err != sql.ErrNoRows {
+		if errRoll := dbtx.Rollback(); errRoll != nil {
+			log.Errorf("Rollback failed: %v", errRoll)
+		}
+		err = fmt.Errorf("unable to QueryRow for spent amount: %v", err)
+		return
+	}
+	numSpent, totalSpent = ns.Int64, ts.Int64
+
+	err = dbtx.Rollback()
+	return
+}
+
 func RetrieveAllAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.Query(internal.SelectAddressAllByAddress, address)
 	if err != nil {

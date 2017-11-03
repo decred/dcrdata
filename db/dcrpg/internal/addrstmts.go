@@ -45,6 +45,8 @@ const (
 
 	SelectAddressAllByAddress         = `SELECT * FROM addresses WHERE address=$1 order by id desc;`
 	SelectAddressRecvCount            = `SELECT COUNT(*) FROM addresses WHERE address=$1;`
+	SelectAddressUnspentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses WHERE address=$1 and spending_tx_row_id IS NULL;`
+	SelectAddressSpentCountAndValue   = `SELECT COUNT(*), SUM(value) FROM addresses WHERE address=$1 and spending_tx_row_id IS NOT NULL;`
 	SelectAddressLimitNByAddress      = `SELECT * FROM addresses WHERE address=$1 order by id desc limit $2 offset $3;`
 	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses
 		WHERE funding_tx_hash=$1 and funding_tx_vout_index=$2;`

@@ -57,7 +57,7 @@ type explorerDataSourceLite interface {
 type explorerDataSource interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
-	AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, int64, error)
+	AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *AddressBalance, error)
 	FillAddressTransactions(addrInfo *AddressInfo) error
 }
 
@@ -212,7 +212,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Get addresses table rows for the address
-		addrHist, totalFundingTxns, errH := exp.explorerSource.AddressHistory(
+		addrHist, balance, errH := exp.explorerSource.AddressHistory(
 			address, limitN, offsetAddrOuts)
 		if errH != nil {
 			log.Errorf("Unable to get address %s history: %v", address, errH)
@@ -222,7 +222,9 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 
 		// Generate AddressInfo skeleton from the address table rows
 		addrData = ReduceAddressHistory(addrHist)
-		addrData.KnownFundingTxns = totalFundingTxns
+		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
+		addrData.Balance = balance
 		// still need []*AddressTx filled out and NumUnconfirmed
 
 		// Query database for transaction details
