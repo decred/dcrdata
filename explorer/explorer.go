@@ -222,6 +222,11 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 
 		// Generate AddressInfo skeleton from the address table rows
 		addrData = ReduceAddressHistory(addrHist)
+		if addrData == nil {
+			log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
 		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.Balance = balance
