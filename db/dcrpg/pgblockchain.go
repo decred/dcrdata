@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,8 +65,11 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params) (*ChainDB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Attempt to get DB best block height from tables, but if the tables are
+	// empty or not yet created, it is not an error.
 	bestHeight, _, _, err := RetrieveBestBlockHeight(db)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !(err == sql.ErrNoRows ||
+		strings.HasSuffix(err.Error(), "does not exist")) {
 		return nil, err
 	}
 	_, devSubsidyAddress, _, err := txscript.ExtractPkScriptAddrs(
