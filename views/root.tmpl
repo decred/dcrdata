@@ -20,7 +20,7 @@
 
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
-            var newblock = JSON.parse(event);
+            var newBlock = JSON.parse(event);
             var confirms = $(".confirmations")
             $.each(confirms, function(i, v) {
                 $(v).text(
@@ -28,7 +28,7 @@
                 )
             })
             // block summary data
-            var b = newblock;
+            var b = newBlock.block;
             var expTableRows = $('#explorertable tbody tr');
             var currentHeight = parseInt($('#explorertable tbody tr td').first().text());
             if (expTableRows && (b.height - currentHeight == 1)){
