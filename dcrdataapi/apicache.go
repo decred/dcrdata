@@ -526,28 +526,28 @@ func (pq *BlockPriorityQueue) UpdateBlock(b *CachedBlock, summary *BlockDataBasi
 	}
 }
 
-func (bpq *BlockPriorityQueue) lastAccessTime() time.Time {
-	bpq.RLock()
-	defer bpq.RUnlock()
-	return bpq.lastAccess
+func (pq *BlockPriorityQueue) lastAccessTime() time.Time {
+	pq.RLock()
+	defer pq.RUnlock()
+	return pq.lastAccess
 }
 
-func (bpq *BlockPriorityQueue) setAccessTime(t time.Time) {
-	bpq.Lock()
-	defer bpq.Unlock()
-	bpq.lastAccess = t
+func (pq *BlockPriorityQueue) setAccessTime(t time.Time) {
+	pq.Lock()
+	defer pq.Unlock()
+	pq.lastAccess = t
 }
 
-func (bpq *BlockPriorityQueue) doesNeedReheap() bool {
-	bpq.RLock()
-	defer bpq.RUnlock()
-	return bpq.needsReheap
+func (pq *BlockPriorityQueue) doesNeedReheap() bool {
+	pq.RLock()
+	defer pq.RUnlock()
+	return pq.needsReheap
 }
 
-func (bpq *BlockPriorityQueue) setNeedsReheap(needReheap bool) {
-	bpq.Lock()
-	defer bpq.Unlock()
-	bpq.needsReheap = needReheap
+func (pq *BlockPriorityQueue) setNeedsReheap(needReheap bool) {
+	pq.Lock()
+	defer pq.Unlock()
+	pq.needsReheap = needReheap
 }
 
 // min/max blockheight may be updated as follows, Given:

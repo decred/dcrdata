@@ -17,7 +17,7 @@ type SyncResult struct {
 }
 
 // JSONB is used to implement the sql.Scanner and driver.Valuer interfaces
-// requried for the type to make a postgresql compatible JSONB type.
+// required for the type to make a postgresql compatible JSONB type.
 type JSONB map[string]interface{}
 
 // Value satisfies driver.Valuer

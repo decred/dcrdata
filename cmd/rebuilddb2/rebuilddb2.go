@@ -136,7 +136,7 @@ func mainCore() error {
 	// }
 	//prev_hash := genesisHash.String()
 
-	var totalTxs, totalRTxs, totalSTxs, totalVins, totalVouts int64
+	var totalTxs, totalVins, totalVouts int64
 	var lastTxs, lastVins, lastVouts int64
 	tickTime := 10 * time.Second
 	ticker := time.NewTicker(tickTime)
@@ -231,8 +231,8 @@ func mainCore() error {
 		numSTx := int64(len(block.STransactions()))
 		numRTx := int64(len(block.Transactions()))
 		totalTxs += numRTx + numSTx
-		totalRTxs += numRTx
-		totalSTxs += numSTx
+		// totalRTxs += numRTx
+		// totalSTxs += numSTx
 
 		// update height, the end condition for the loop
 		if _, height, err = client.GetBestBlock(); err != nil {

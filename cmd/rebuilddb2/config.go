@@ -64,7 +64,7 @@ type config struct {
 	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file"`
 	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
 
-	ForceReindex bool `long:"reindex" short:"R" description:"Drop indexes prior to sync and recreate after sync, with insertion conflict checks disabled in absense of constraints."`
+	ForceReindex bool `long:"reindex" short:"R" description:"Drop indexes prior to sync and recreate after sync, with insertion conflict checks disabled in absence of constraints."`
 	// TODO
 	//AccountName   string `long:"accountname" description:"Account name (other than default or imported) for which balances should be listed."`
 	//TicketAddress string `long:"ticketaddress" description:"Address to which you have given voting rights"`

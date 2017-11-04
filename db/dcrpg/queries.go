@@ -295,8 +295,8 @@ func RetrieveAddressTxnsAlt(db *sql.DB, address string, N, offset int64) ([]uint
 }
 
 func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
-	statment string) ([]uint64, []*dbtypes.AddressRow, error) {
-	rows, err := db.Query(statment, address, N, offset)
+	statement string) ([]uint64, []*dbtypes.AddressRow, error) {
+	rows, err := db.Query(statement, address, N, offset)
 	if err != nil {
 		return nil, nil, err
 	}

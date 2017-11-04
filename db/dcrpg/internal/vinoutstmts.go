@@ -10,6 +10,7 @@ import (
 
 const (
 	// vins
+
 	CreateVinTable = `CREATE TABLE IF NOT EXISTS vins (
 		id SERIAL8 PRIMARY KEY,
 		tx_hash TEXT,
@@ -59,6 +60,7 @@ const (
 	);`
 
 	// vouts
+
 	CreateVoutTable = `CREATE TABLE IF NOT EXISTS vouts (
 		id SERIAL8 PRIMARY KEY,
 		tx_hash TEXT,
