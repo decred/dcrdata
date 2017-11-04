@@ -52,7 +52,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 	}
 
 	// Total and rate statistics
-	var totalTxs, totalRTxs, totalSTxs, totalVins, totalVouts int64
+	var totalTxs, totalVins, totalVouts int64
 	var lastTxs, lastVins, lastVouts int64
 	tickTime := 20 * time.Second
 	ticker := time.NewTicker(tickTime)
@@ -146,8 +146,8 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		numSTx := int64(len(block.STransactions()))
 		numRTx := int64(len(block.Transactions()))
 		totalTxs += numRTx + numSTx
-		totalRTxs += numRTx
-		totalSTxs += numSTx
+		// totalRTxs += numRTx
+		// totalSTxs += numSTx
 
 		// update height, the end condition for the loop
 		if _, nodeHeight, err = client.GetBestBlock(); err != nil {

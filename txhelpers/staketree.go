@@ -8,7 +8,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/database"
-	_ "github.com/decred/dcrd/database/ffldb"
+	_ "github.com/decred/dcrd/database/ffldb" // init the ffldb driver
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"

@@ -262,7 +262,8 @@ type BlockDataBasic struct {
 	PoolInfo TicketPoolInfo `json:"ticket_pool"`
 }
 
-// BlockExplorerBasic models primary information about block at height Height for the block explorer
+// BlockExplorerBasic models primary information about block at height Height
+// for the block explorer.
 type BlockExplorerBasic struct {
 	Height      uint32  `json:"height"`
 	Size        uint32  `json:"size"`
@@ -274,7 +275,8 @@ type BlockExplorerBasic struct {
 	BlockExplorerExtraInfo
 }
 
-//
+// BlockExplorerExtraInfo contains supplemental block metadata used by the
+// explorer.
 type BlockExplorerExtraInfo struct {
 	TxLen            int                            `json:"tx"`
 	FormattedTime    string                         `json:"formatted_time"`
