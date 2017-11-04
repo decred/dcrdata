@@ -4,6 +4,16 @@
 {{template "html-head" printf "Decred Transaction %.20s..." .TxID}}
 <body>
 {{template "navbar"}}
+<script type="text/javascript">
+    ws.registerEvtHandler("newblock", function (event) {
+        console.log("tx Received newblock message", event);
+        var confirms = $(".confirmations")
+        if (isNaN(confirms.text())) {
+            confirms.text("0")
+        }
+        confirms.text(parseInt(confirms.text())+1)
+    });
+</script>
 <div class="container">
 
     <div class="row justify-content-between">

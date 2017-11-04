@@ -7,7 +7,8 @@
 <body>
     {{ template "navbar" }}
 
-    <script type="text/javascript"  data-turbolinks-eval="false">
+    <script type="text/javascript">
+
         var updateMempool = function (event) {
             console.log("Received mempoolsstxfeeinfo message", event);
             var m = JSON.parse(event);
@@ -15,8 +16,49 @@
             //mempool fee info
             $('#mempoolfeeinfo_number').text(m.number)
         };
-
         ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
+
+        var updateBlockData = function (event) {
+            console.log("Received newblock message", event);
+            var newblock = JSON.parse(event);
+            var confirms = $(".confirmations")
+            $.each(confirms, function(i, v) {
+                $(v).text(
+                    parseInt($(v).text()) + 1
+                )
+            })
+            // block summary data
+            var b = newblock;
+            var expTableRows = $('#explorertable tbody tr');
+            var currentHeight = parseInt($('#explorertable tbody tr td').first().text());
+            if (expTableRows && (b.height - currentHeight == 1)){
+                expTableRows.last().remove()
+                var newRow = '<tr id="' + b.height + '">' +
+                    '<td><a href="/explorer/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
+                    '<td>' + b.tx + '</td>' +
+                    '<td>' + b.votes + '</td>' +
+                    '<td>' + b.tickets + '</td>' +
+                    '<td>' + b.revocations + '</td>' +
+                    '<td>' + humanize.bytes(b.size) + '</td>' +
+                    '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
+                    '<td>' + b.formatted_time + '</td>' +
+                '</tr>'
+                var newRowHtml = $.parseHTML(newRow)
+                $(newRowHtml).insertBefore(expTableRows.first())
+                setTimeElements()
+            }
+            if ($("#bsubsidy_total").text() !== "") {
+                $("#bsubsidy_total").html(humanize.decimalParts(b.next_block_subsidy.total/100000000, false, 8))
+                $("#bsubsidy_pow").html(humanize.decimalParts(b.next_block_subsidy.pow/100000000, false, 8))
+                $("#bsubsidy_pos").html(humanize.decimalParts((b.next_block_subsidy.pos/500000000), false, 8))
+                $("#bsubsidy_dev").html(humanize.decimalParts(b.next_block_subsidy.developer/100000000, false, 8))
+                $("#coin_supply").html(humanize.decimalParts(b.coin_supply/100000000, true, 8))
+                $("#blocksdiff").html(humanize.decimalParts(b.sdiff, false, 8))
+                $("#window_block_index").text(newBlock.stake.window_block_index)
+                $("#pos-window-progess-bar").css({ width: (newBlock.stake.window_block_index/144)*100 + "%" })
+            }
+        };
+        ws.registerEvtHandler("newblock", updateBlockData);
     </script>
 
     <div class="container">
@@ -28,7 +70,6 @@
                 <h3 class="mt-2">Chain State</h3>
 
                 {{with .Data}}
-
                 <div>
                     <table class="mb-3 col">
                         <tr class="h2rem">
@@ -69,9 +110,11 @@
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">PROOF OF WORK DIFFICULTY</td>
-                            <td class="mono lh1rem p03rem0"><span id="difficulty" class="fs24 fs14-decimal">
-                                {{template "decimalParts" (float64AsDecimalParts (index $.InitialData 1).Difficulty true)}}
-                            </span></td>
+                            <td class="mono lh1rem p03rem0">
+                                <span id="difficulty" class="fs24 fs14-decimal">
+                                    {{template "decimalParts" (float64AsDecimalParts (index $.InitialData 1).Difficulty true)}}
+                                </span>
+                            </td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1">BLOCK REWARD</td>
@@ -139,7 +182,7 @@
                             <td data-age="{{.Time}}"></td>
                             <td>{{getTime .Time}}</td>
                         </tr>
-                    {{end}}
+                        {{end}}
                     </tbody>
                 </table>
                 <div class="mb-3"><a href="/explorer"><small>More blocks...</small></a></div>

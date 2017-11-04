@@ -19,7 +19,7 @@
     <meta name="msapplication-TileColor" content="#2973ff">
     <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png">
     <meta name="msapplication-config" content="/images/favicon/browserconfig.xml">
-    <meta name="turbolinks-cache-control" content="no-cache">    
+    <meta name="turbolinks-cache-control" content="no-cache">
     <title>{{.}}</title>
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
@@ -117,6 +117,8 @@
             toggleToLightClasses(event.data.newBody)
         }
     })
+
+
     function updateConnectionStatus(msg, connected) {
         var el = $('#connection');
         el.removeClass('hidden')
@@ -129,19 +131,20 @@
         }
         el.html(msg + '<div></div>')
     }
-        var loc = window.location;
-        var uri = 'ws:';
-        if (loc.protocol === 'https:') {
-            uri = 'wss:';
-        }
-        uri += '//' + loc.host;
-        if (loc.pathname === "/") {
-            uri += loc.pathname + 'ws';
-        } else {
-            uri += loc.pathname + '/ws';
-        }
-        var ws = new MessageSocket(uri);
 
+
+
+    function getSocketURI(loc) {
+        var protocol = (loc.protocol === 'https:') ? 'wss' : 'ws'
+        var route = (loc.pathname === "/") ? "/ws" : loc.pathname + '/ws'
+        return protocol + "://" + loc.host + route
+    }
+
+    var ws; // websocket global
+    function createWebSocket(loc) {
+        var uri = getSocketURI(loc)
+        ws = new MessageSocket(uri);
+        console.log("createdWebSocket", uri, ws)
         ws.registerEvtHandler("open", function() {
             console.log('Connected')
             updateConnectionStatus('Connected', true);
@@ -158,56 +161,29 @@
         });
 
         ws.registerEvtHandler("ping", function(evt) {
-            console.debug("ping. users online: ", evt)
+            console.log("ping. users online: ", evt)
             ws.send("pong", "copy")
         });
+    }
+    function manageWebSocket(loc) {
+        var pathRoot = loc.pathname.split('/')[1];
+        var socketPathRoot = ws.ws.url.split(loc.host)[1].split("/")[1]
+        if (pathRoot == socketPathRoot) {
+            return
+        }
+        // reconnect to correct socket url
+        console.log("roots mismatch, reconnecting", pathRoot, socketPathRoot)
+        ws.close()
+        createWebSocket(loc)
+    }
+</script>
 
-        var updateBlockData = function (event) {
-            console.log("Received newblock message", event);
-            var newblock = JSON.parse(event);
-            var confirms = $(".confirmations")
-            $.each(confirms, function(i, v) {
-                $(v).text(
-                    parseInt($(v).text()) + 1
-                )
-            })
-            // block summary data
-            var b = newblock;
-            var expTableRows = $('#explorertable tbody tr');
-            var currentHeight = parseInt($('#explorertable tbody tr td').first().text());
-            if (expTableRows && (b.height - currentHeight == 1)){
-                expTableRows.last().remove()
-                var newRow = '<tr id="' + b.height + '">' +
-                    '<td><a href="/explorer/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
-                    '<td>' + b.tx + '</td>' +
-                    '<td>' + b.votes + '</td>' +
-                    '<td>' + b.tickets + '</td>' +
-                    '<td>' + b.revocations + '</td>' +
-                    '<td>' + humanize.bytes(b.size) + '</td>' +
-                    '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
-                    '<td>' + b.formatted_time + '</td>' +
-                '</tr>'
-                var newRowHtml = $.parseHTML(newRow)
-                $(newRowHtml).insertBefore(expTableRows.first())
-                setTimeElements()
-            }
-            if ($("#bsubsidy_total").text() !== "") {
-                $("#bsubsidy_total").html(humanize.decimalParts(b.next_block_subsidy.total/100000000, false, 8))
-                $("#bsubsidy_pow").html(humanize.decimalParts(b.next_block_subsidy.pow/100000000, false, 8))
-                $("#bsubsidy_pos").html(humanize.decimalParts((b.next_block_subsidy.pos/500000000), false, 8))
-                $("#bsubsidy_dev").html(humanize.decimalParts(b.next_block_subsidy.developer/100000000, false, 8))
-                $("#coin_supply").html(humanize.decimalParts(b.coin_supply/100000000, true, 8))
-                $("#blocksdiff").html(humanize.decimalParts(b.sdiff, false, 8))
-                $("#window_block_index").text(newBlock.stake.window_block_index)
-                $("#pos-window-progess-bar").css({ width: (newBlock.stake.window_block_index/144)*100 + "%" })
-            }
-        };
-
-        ws.registerEvtHandler("newblock", updateBlockData);
-    
-    setInterval(function () {
-        ws.send("ping", 'Hi. I am a client!');
-    }, 1000);
+<script>
+    if (!ws) {
+        createWebSocket(window.location)
+    } else {
+        manageWebSocket(window.location)
+    }
 </script>
 {{end}}
 
