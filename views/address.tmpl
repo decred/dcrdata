@@ -12,7 +12,7 @@
 
                 <h4>Address</h4>
                 <p class="mono">{{.Address}}</p>
-                <table class="table-centered-1rem">
+                <table class="table-centered-1rem mb-3">
                     {{if .Balance}}
                     {{if not .KnownFundingTxns}}
                     <tr>
@@ -44,13 +44,35 @@
                     </tr>
                     {{end}}
                 </table>
-                <br>
-                <p>
-                {{if lt .NumFundingTxns .KnownFundingTxns}}
-                {{.NumFundingTxns}} of {{.KnownFundingTxns}} funding transactions are tabulated below.
-                {{end}}
-                </p>
-                <h5>Transactions</h5>
+
+                <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
+                    <h5 class="mr-auto mb-0">Transactions</h5>
+                    {{if lt .NumFundingTxns .KnownFundingTxns}}
+                    <div div class="d-flex flex-wrap-reverse align-items-center justify-content-end ">
+                        <span class="fs12 nowrap text-right">{{int64Comma .Offset}} &mdash; {{int64Comma (add .Offset .NumFundingTxns)}} of {{int64Comma .KnownFundingTxns}} funding transactions.</span>
+                        <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-1">
+                            <ul class="pagination mb-0 pagination-sm">
+                                <li class="page-item {{ if lt .Offset .Limit}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{subtract .Offset .Limit}}"
+                                        id="prev"
+                                    >Previous</a>
+                                </li>
+                                <li class="page-item {{if lt (subtract .KnownFundingTxns .Offset) (add .Limit 1)}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}"
+                                        id="next">
+                                        Next
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                    {{end}}
+                </div>
+
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -99,6 +121,7 @@
                         {{end}}
                     </tbody>
                 </table>
+
             </div>
         </div>
     </div>

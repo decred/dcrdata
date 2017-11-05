@@ -83,7 +83,8 @@ body.darkBG {
   background: #3B3F45;
   color: #fdfdfd;
 }
-body.darkBG a {
+body.darkBG a,
+body.darkBG a:hover {
   color: #94ffca;
 }
 body.darkBG .table thead th {
@@ -96,6 +97,14 @@ body.darkBG .navbar-fixed-bottom {
 body.darkBG .top-nav a,
 body.darkBG .navbar-fixed-bottom a {
   color: #fff;
+}
+body.darkBG .page-link {
+  background-color: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(221, 221, 221, 0);
+}
+body.darkBG .page-item.disabled .page-link {
+  border-color: transparent;
+  background-color: #565656;
 }
 
 /*utils*/
@@ -211,6 +220,12 @@ body.darkBG .navbar-fixed-bottom a {
   color: silver;
   padding: 0 6px;
   position: relative;
+}
+
+/*pagination*/
+.
+#pagesize {
+  flex: 0 60px;
 }
 
 /*table*/
