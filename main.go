@@ -188,11 +188,11 @@ func mainCore() error {
 		return fmt.Errorf("Node is still syncing. Node height = %d, "+
 			"DB height = %d", height, heightDB)
 	}
-	if blocksBehind > 500 {
+	if blocksBehind > 7500 {
 		log.Infof("Setting PSQL sync to rebuild address table after large "+
 			"import (%d blocks).", blocksBehind)
 		updateAllAddresses = true
-		if blocksBehind > 4000 {
+		if blocksBehind > 40000 {
 			log.Infof("Setting PSQL sync to drop indexes prior to bulk data "+
 				"import (%d blocks).", blocksBehind)
 			newPGIndexes = true
