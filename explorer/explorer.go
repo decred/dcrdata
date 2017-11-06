@@ -36,7 +36,7 @@ const (
 const (
 	maxExplorerRows          = 2000
 	minExplorerRows          = 20
-	defaultAddressRows int64 = 200
+	defaultAddressRows int64 = 20
 	maxAddressRows     int64 = 1000
 )
 
