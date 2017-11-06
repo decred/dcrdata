@@ -147,45 +147,52 @@
                 </table>
             </div>
         </div>
-
         <div class="row">
             <span class="anchor" id="votes"></span>
             <div class="col-md-12">
                 <h4><span>Votes</span></h4>
-                <table class="table table-sm striped">
-                    <thead>
-                        <th>Transactions ID</th>
-                        <th>Version</th>
-                        <th>Issue ID</th>
-                        <th>Choice ID</th>
-                        <th class="text-right">Total DCR</th>
-                        <th>Size</th>
-                    </thead>
-                    <tbody>
-                        {{range .Votes}}
+                {{if not .Votes}}
+                    <table class="table table-sm striped">
                         <tr>
-                            <td class="break-word">
-                                <span>
-                                    <a class="hash lh1rem" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
-                                </span>
-                            </td>
-                            <td class="mono fs15">{{.VoteInfo.Version}}</td>
-                            <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
-                                {{(index .VoteInfo.Choices 0).ID}}
-                            {{else}}
-                                -
-                            {{end}}</td>
-                            <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
-                                {{(index .VoteInfo.Choices 0).Choice.Id}}
-                            {{else}}
-                                -
-                            {{end}}</td>
-                            <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
-                            <td class="mono fs15">{{.FormattedSize}}</td>
+                            <td>No votes in this block.</td>
                         </tr>
-                        {{end}}
-                    </tbody>
-                </table>
+                    </table>
+                {{else}}
+                    <table class="table table-sm striped">
+                        <thead>
+                            <th>Transactions ID</th>
+                            <th>Version</th>
+                            <th>Issue ID</th>
+                            <th>Choice ID</th>
+                            <th class="text-right">Total DCR</th>
+                            <th>Size</th>
+                        </thead>
+                        <tbody>
+                            {{range .Votes}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash lh1rem" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15">{{.VoteInfo.Version}}</td>
+                                <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
+                                    {{(index .VoteInfo.Choices 0).ID}}
+                                {{else}}
+                                    -
+                                {{end}}</td>
+                                <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
+                                    {{(index .VoteInfo.Choices 0).Choice.Id}}
+                                {{else}}
+                                    -
+                                {{end}}</td>
+                                <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
+                                <td class="mono fs15">{{.FormattedSize}}</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                {{end}}
             </div>
         </div>
 
