@@ -52,7 +52,7 @@
                         <span class="fs12 nowrap text-right">{{int64Comma .Offset}} &mdash; {{int64Comma (add .Offset .NumFundingTxns)}} of {{int64Comma .KnownFundingTxns}} funding transactions.</span>
                         <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-1">
                             <ul class="pagination mb-0 pagination-sm">
-                                <li class="page-item {{ if eq .Offset 0}}disabled{{end}}">
+                                <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
                                     <a
                                         class="page-link"
                                         href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}"

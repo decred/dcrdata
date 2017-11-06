@@ -411,8 +411,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			return p
 		},
 		"int64Comma": func(v int64) string {
-			t := humanize.Comma(v)
-			return t
+			return humanize.Comma(v)
 		},
 		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
 			clipped := fmt.Sprintf("%.8f", v)
