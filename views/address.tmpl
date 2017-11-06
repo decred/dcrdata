@@ -52,10 +52,10 @@
                         <span class="fs12 nowrap text-right">{{int64Comma .Offset}} &mdash; {{int64Comma (add .Offset .NumFundingTxns)}} of {{int64Comma .KnownFundingTxns}} funding transactions.</span>
                         <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-1">
                             <ul class="pagination mb-0 pagination-sm">
-                                <li class="page-item {{ if lt .Offset .Limit}}disabled{{end}}">
+                                <li class="page-item {{ if eq .Offset 0}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="{{.Path}}?n={{.Limit}}&start={{subtract .Offset .Limit}}"
+                                        href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}"
                                         id="prev"
                                     >Previous</a>
                                 </li>
@@ -122,11 +122,47 @@
                     </tbody>
                 </table>
 
+                <div 
+                    id="pagesize-wrapper" 
+                    class="hidden d-flex align-items-center justify-content-end" 
+                >
+                    <label class="mb-0 mr-1" for="pagesize">Page size</label>
+                    <select 
+                        name="pagesize" 
+                        id="pagesize" 
+                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
+                        <option {{if eq .Limit 10}}selected{{end}} value="10">10</option>
+                        <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
+                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
+                    </select>
+                </div>      
+    
             </div>
         </div>
     </div>
 
     {{template "footer"}}
+    <script>
+        $("#pagesize-wrapper").removeClass("hidden")
+        var $pagesize = $("#pagesize")
+        var $prevWrapper = $("#prev").parent()
+        var limit = {{.Limit}}
+        var offset = {{.Offset}}
+        function pageLink(pageSize, start) {
+            return window.location.pathname + '?n='+ pageSize + "&start=" + start
+        }
+        $pagesize.change(function() {
+            var pageSize = parseInt($pagesize.val())
+            var prevStart = Math.max(offset - pageSize, 0)
+            if (prevStart > 0) {
+                if ($prevWrapper.hasClass("disabled")) {
+                    $prevWrapper.removeClass("disabled")
+                }
+            }
+            $("#prev").attr("href", pageLink(pageSize, prevStart))
+            $("#next").attr("href", pageLink(pageSize, offset + limit))
+        })
+    </script>
 
 </body>
 </html>
