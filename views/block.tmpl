@@ -87,6 +87,14 @@
                         <td class="text-right pr-2 lh1rem nowrap p03rem0">STAKE ROOT</td>
                         <td><span class="lh1rem hash break-word">{{.StakeRoot}}</span></td>
                     </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">COINBASE TRANSACTION</td>
+                        {{range .Tx}}
+                            {{if eq .FormattedSize "200 B"}}
+                                <td><span class="lh1rem hash break-word"><a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a></span></td>
+                            {{end}}
+                        {{end}}
+                    </tr>
                 </table>
             </div>
 
