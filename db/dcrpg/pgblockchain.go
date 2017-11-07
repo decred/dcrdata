@@ -72,15 +72,18 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params) (*ChainDB, error) {
 		strings.HasSuffix(err.Error(), "does not exist")) {
 		return nil, err
 	}
-	_, devSubsidyAddress, _, err := txscript.ExtractPkScriptAddrs(
+	_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
 		params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
-	if err != nil || len(devSubsidyAddress) != 1 {
-		return nil, fmt.Errorf("Failed to decode dev subsidy address: %v", err)
+	var devSubsidyAddress string
+	if err != nil || len(devSubsidyAddresses) != 1 {
+		log.Warnf("Failed to decode dev subsidy address: %v", err)
+	} else {
+		devSubsidyAddress = devSubsidyAddresses[0].String()
 	}
 	return &ChainDB{
 		db:            db,
 		chainParams:   params,
-		devAddress:    devSubsidyAddress[0].String(),
+		devAddress:    devSubsidyAddress,
 		dupChecks:     true,
 		bestBlock:     int64(bestHeight),
 		lastBlock:     make(map[chainhash.Hash]uint64),
