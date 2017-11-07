@@ -36,7 +36,7 @@ const (
 const (
 	maxExplorerRows          = 2000
 	minExplorerRows          = 20
-	defaultAddressRows int64 = 200
+	defaultAddressRows int64 = 20
 	maxAddressRows     int64 = 1000
 )
 
@@ -230,6 +230,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.Balance = balance
+		addrData.Path = r.URL.Path
 		// still need []*AddressTx filled out and NumUnconfirmed
 
 		// Query database for transaction details
@@ -408,6 +409,9 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		"percentage": func(a int64, b int64) float64 {
 			p := (float64(a) / float64(b)) * 100
 			return p
+		},
+		"int64Comma": func(v int64) string {
+			return humanize.Comma(v)
 		},
 		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
 			clipped := fmt.Sprintf("%.8f", v)

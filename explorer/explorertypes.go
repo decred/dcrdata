@@ -142,6 +142,7 @@ type AddressInfo struct {
 	TotalSent        dcrutil.Amount
 	Unspent          dcrutil.Amount
 	Balance          *AddressBalance
+	Path             string
 }
 
 // AddressBalance represents the number and value of spent and unspent outputs

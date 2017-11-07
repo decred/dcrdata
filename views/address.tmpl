@@ -12,7 +12,7 @@
 
                 <h4>Address</h4>
                 <p class="mono">{{.Address}}</p>
-                <table class="table-centered-1rem">
+                <table class="table-centered-1rem mb-3">
                     {{if .Balance}}
                     {{if not .KnownFundingTxns}}
                     <tr>
@@ -44,13 +44,35 @@
                     </tr>
                     {{end}}
                 </table>
-                <br>
-                <p>
-                {{if lt .NumFundingTxns .KnownFundingTxns}}
-                {{.NumFundingTxns}} of {{.KnownFundingTxns}} funding transactions are tabulated below.
-                {{end}}
-                </p>
-                <h5>Transactions</h5>
+
+                <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
+                    <h5 class="mr-auto mb-0">Transactions</h5>
+                    {{if lt .NumFundingTxns .KnownFundingTxns}}
+                    <div div class="d-flex flex-wrap-reverse align-items-center justify-content-end ">
+                        <span class="fs12 nowrap text-right">funding transactions {{int64Comma (add .Offset 1)}} &mdash; {{int64Comma (add .Offset .NumFundingTxns)}} of {{int64Comma .KnownFundingTxns}}</span>
+                        <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
+                            <ul class="pagination mb-0 pagination-sm">
+                                <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}"
+                                        id="prev"
+                                    >Previous</a>
+                                </li>
+                                <li class="page-item {{if lt (subtract .KnownFundingTxns .Offset) (add .Limit 1)}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}"
+                                        id="next">
+                                        Next
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                    {{end}}
+                </div>
+
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -99,11 +121,41 @@
                         {{end}}
                     </tbody>
                 </table>
+
+                {{if lt .NumFundingTxns .KnownFundingTxns}}
+                <div
+                    id="pagesize-wrapper"
+                    class="hidden d-flex align-items-center justify-content-end"
+                >
+                    <label class="mb-0 mr-1" for="pagesize">Page size</label>
+                    <select
+                        name="pagesize"
+                        id="pagesize"
+                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
+                        <option {{if eq .Limit 10}}selected{{end}} value="20">20</option>
+                        <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
+                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
+                    </select>
+                </div>
+                {{end}}
+
             </div>
         </div>
     </div>
 
     {{template "footer"}}
+    {{if lt .NumFundingTxns .KnownFundingTxns}}
+    <script>
+        $("#pagesize-wrapper").removeClass("hidden")
+        $("#pagesize").change(function(ev) {
+            Turbolinks.visit(
+                window.location.pathname
+                + '?n='+ parseInt($(ev.currentTarget).val())
+                + "&start=" + {{.Offset}}
+            )
+        })
+    </script>
+    {{end}}
 
 </body>
 </html>
