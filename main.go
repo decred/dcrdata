@@ -176,26 +176,28 @@ func mainCore() error {
 	}
 
 	var newPGIndexes, updateAllAddresses bool
-	heightDB, err := db.HeightDB()
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
+	if usePG {
+		heightDB, err := db.HeightDB()
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
+			}
+			heightDB = 0
 		}
-		heightDB = 0
-	}
-	blocksBehind := height - int64(heightDB)
-	if blocksBehind < 0 {
-		return fmt.Errorf("Node is still syncing. Node height = %d, "+
-			"DB height = %d", height, heightDB)
-	}
-	if blocksBehind > 7500 {
-		log.Infof("Setting PSQL sync to rebuild address table after large "+
-			"import (%d blocks).", blocksBehind)
-		updateAllAddresses = true
-		if blocksBehind > 40000 {
-			log.Infof("Setting PSQL sync to drop indexes prior to bulk data "+
+		blocksBehind := height - int64(heightDB)
+		if blocksBehind < 0 {
+			return fmt.Errorf("Node is still syncing. Node height = %d, "+
+				"DB height = %d", height, heightDB)
+		}
+		if blocksBehind > 7500 {
+			log.Infof("Setting PSQL sync to rebuild address table after large "+
 				"import (%d blocks).", blocksBehind)
-			newPGIndexes = true
+			updateAllAddresses = true
+			if blocksBehind > 40000 {
+				log.Infof("Setting PSQL sync to drop indexes prior to bulk data "+
+					"import (%d blocks).", blocksBehind)
+				newPGIndexes = true
+			}
 		}
 	}
 
