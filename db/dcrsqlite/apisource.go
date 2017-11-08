@@ -721,7 +721,7 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 	for _, i := range data.Vin {
-		if i.IsCoinBase() == true {
+		if i.IsCoinBase(){
 			tx.Coinbase = true
 		}
 	}
