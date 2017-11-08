@@ -158,7 +158,6 @@
                             <thead>
                                 <th>Transaction ID</th>
                                 <th class="text-right">Total DCR</th>
-                                <th class="text-right">Fee</th>
                                 <th>Size</th>
                             </thead>
                             <tbody>
@@ -169,7 +168,6 @@
                                         </span>
                                     </td>
                                     <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
-                                    <td class="mono fs15 text-right">{{.Fee}}</td>
                                     <td class="mono fs15">{{.FormattedSize}}</td>
                                 </tr>
                             </tbody>

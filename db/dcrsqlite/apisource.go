@@ -723,8 +723,6 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	for _, i := range data.Vin {
 		if i.IsCoinBase() == true {
 			tx.Coinbase = true
-		} else {
-			tx.Coinbase = false
 		}
 	}
 	if ok, _ := stake.IsSSGen(msgTx); ok {
