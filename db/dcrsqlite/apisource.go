@@ -720,6 +720,13 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
+	for _, i := range data.Vin {
+		if i.IsCoinBase() == true {
+			tx.Coinbase = true
+		} else {
+			tx.Coinbase = false
+		}
+	}
 	if ok, _ := stake.IsSSGen(msgTx); ok {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {

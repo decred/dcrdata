@@ -26,12 +26,13 @@ type BlockBasic struct {
 
 // TxBasic models data for transactions on the block page
 type TxBasic struct {
-	TxID          string
-	FormattedSize string
-	Total         float64
-	Fee           dcrutil.Amount
-	FeeRate       dcrutil.Amount
-	VoteInfo      *VoteInfo
+	TxID          	string
+	FormattedSize 	string
+	Total         	float64
+	Fee           	dcrutil.Amount
+	FeeRate       	dcrutil.Amount
+	VoteInfo      	*VoteInfo
+	Coinbase		bool
 }
 
 //AddressTx models data for transactions on the address page

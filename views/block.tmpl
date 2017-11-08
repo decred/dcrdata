@@ -87,14 +87,6 @@
                         <td class="text-right pr-2 lh1rem nowrap p03rem0">STAKE ROOT</td>
                         <td><span class="lh1rem hash break-word">{{.StakeRoot}}</span></td>
                     </tr>
-                    <tr>
-                        <td class="text-right pr-2 lh1rem nowrap p03rem0">COINBASE TRANSACTION</td>
-                        {{range .Tx}}
-                            {{if eq .FormattedSize "200 B"}}
-                                <td><span class="lh1rem hash break-word"><a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a></span></td>
-                            {{end}}
-                        {{end}}
-                    </tr>
                 </table>
             </div>
 
@@ -155,6 +147,38 @@
                 </table>
             </div>
         </div>
+
+        <div class="row">
+            <span class="anchor" id="coinbase"></span>
+            <div class="col-sm-12">
+                <h4><span>Coinbase</span></h4>
+                {{range .Tx}}
+                    {{if eq .Coinbase true}}
+                        <table class="table table-sm striped">
+                            <thead>
+                                <th>Transaction ID</th>
+                                <th class="text-right">Total DCR</th>
+                                <th class="text-right">Fee</th>
+                                <th>Size</th>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="break-word">
+                                        <span>
+                                            <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
+                                        </span>
+                                    </td>
+                                    <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
+                                    <td class="mono fs15 text-right">{{.Fee}}</td>
+                                    <td class="mono fs15">{{.FormattedSize}}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    {{end}}
+                {{end}}
+            </div>
+        </div>
+
         <div class="row">
             <span class="anchor" id="votes"></span>
             <div class="col-md-12">
