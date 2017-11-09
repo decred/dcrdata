@@ -186,7 +186,7 @@
                             <tr>
                                 <td>No votes in this block. 
                                     {{if lt .Height .StakeValidationHeight}}
-                                        (Voting began on block <a class="hash lh1rem" href="/explorer/block/{{.StakeValidationHeight}}">{{.StakeValidationHeight}}</a>.)
+                                        (Voting starts at block {{.StakeValidationHeight}}.)
                                     {{end}}
                                 </td>
                             </tr>
