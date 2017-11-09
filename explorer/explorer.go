@@ -166,7 +166,7 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				enc := json.NewEncoder(buff)
 				switch sig {
 				case sigNewBlock:
-					enc.Encode(exp.NewBlockData)
+					enc.Encode(WebsocketBlock{exp.NewBlockData})
 					webData.Messsage = buff.String()
 				case sigPingAndUserCount:
 					// ping and send user count
