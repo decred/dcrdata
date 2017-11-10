@@ -307,6 +307,7 @@
                     </thead>
                     <tbody>
                         {{range .Tx}}
+                        {{if eq .Coinbase false}}
                         <tr>
                             <td class="break-word">
                                 <span>
@@ -317,6 +318,7 @@
                             <td class="mono fs15 text-right">{{.Fee}}</td>
                             <td class="mono fs15">{{.FormattedSize}}</td>
                         </tr>
+                        {{end}}
                         {{end}}
                     </tbody>
                 </table>
