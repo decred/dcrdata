@@ -302,10 +302,15 @@ func mainCore() error {
 			err.Error())
 	}
 
-	if err = webUI.Store(blockData, nil); err != nil {
-		return fmt.Errorf("Failed to store initial block data: %v", err.Error())
+	if err = webUI.Store(blockData); err != nil {
+		log.Errorf("Failed to store initial block data for main page: %v", err.Error())
+		return 11
 	}
 
+	if err = explore.Store(blockData); err != nil {
+		log.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
+		return 11
+	}
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
 

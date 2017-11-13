@@ -1,6 +1,7 @@
 {{define "tx"}}
 <!DOCTYPE html>
 <html lang="en">
+{{with .Data}}
 {{template "html-head" printf "Decred Transaction %.20s..." .TxID}}
 <body>
 {{template "navbar"}}
@@ -10,7 +11,7 @@
         <div class="col-md-8 col-sm-6">
             <h4 class="mb-2">
                 Transaction
-                <span class="fs15">
+                <span class="fs15"><span data-confirmation-block-height="{{$.ConfirmHeight}}"></span>
                 {{if eq .Confirmations 0}}
                     <strong class="confirmations">( unconfirmed )</strong>
                 {{else}}
@@ -243,6 +244,7 @@
 {{template "footer"}}
 
 </body>
+{{end}}
 </html>
 {{end}}
 

@@ -1,9 +1,10 @@
 {{define "address"}}
 <!DOCTYPE html>
 <html lang="en">
+{{with .Data}}
 {{template "html-head" printf "Decred Address %s" .Address}}
 <body>
-
+    {{$heights := $.ConfirmHeight}}
     {{template "navbar"}}
     <div class="container">
         <div class="row">
@@ -83,8 +84,9 @@
                         <th>Size</th>
                     </thead>
                     <tbody>
-                        {{range .Transactions}}
+                        {{range $i, $v := .Transactions}}
                         <tr>
+                            {{with $v}}
                             <td><a href="../tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
                             {{if ne .RecievedTotal 0.0}}
                                 <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .RecievedTotal false)}}</td>
@@ -114,8 +116,10 @@
                                 <span data-age="{{.Time}}"></span>
                             {{end}}
                             </td>
+                            <span data-confirmation-block-height="{{index $heights $i}}"></span>
                             <td class="confirmations">{{.Confirmations}}</td>
                             <td>{{.FormattedSize}}</td>
+                            {{end}}
                         </tr>
                         {{end}}
                     </tbody>
@@ -157,5 +161,6 @@
     {{end}}
 
 </body>
+{{end}}
 </html>
 {{end}}

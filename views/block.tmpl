@@ -1,5 +1,6 @@
 {{define "block"}}
 <!DOCTYPE html>
+{{with .Data}}
 <html lang="en">
 {{template "html-head" printf "Decred Block %d" .Height}}
 <body>
@@ -9,6 +10,7 @@
         <div class="row justify-content-between">
             <div class="col-md-7 col-sm-6">
                 <h4 class="mb-2">
+                    <span data-confirmation-block-height="{{$.ConfirmHeight}}"></span>
                     Block #{{.Height}} {{ if gt .Confirmations 1 }}
                         <span class="op60 fs12">( <span class="confirmations">{{.Confirmations}}</span> confirmations)</span>
                     {{else}}
@@ -297,5 +299,6 @@
 {{template "footer"}}
 
 </body>
+{{end}}
 </html>
 {{ end }}

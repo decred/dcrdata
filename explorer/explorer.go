@@ -200,7 +200,14 @@ func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	str, err := templateExecToString(exp.templates[blockTemplateIndex], "block", data)
+	pageData := struct {
+		Data          *BlockInfo
+		ConfirmHeight int64
+	}{
+		data,
+		exp.NewBlockData.Height - data.Confirmations,
+	}
+	str, err := templateExecToString(exp.templates[blockTemplateIndex], "block", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
@@ -245,7 +252,16 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", tx)
+
+	pageData := struct {
+		Data          *TxInfo
+		ConfirmHeight int64
+	}{
+		tx,
+		exp.NewBlockData.Height - tx.Confirmations,
+	}
+
+	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
@@ -323,8 +339,20 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	str, err := templateExecToString(exp.templates[addressTemplateIndex],
-		"address", addrData)
+
+	confirmHeights := make([]int64, len(addrData.Transactions))
+	for i, v := range addrData.Transactions {
+		confirmHeights[i] = exp.NewBlockData.Height - int64(v.Confirmations)
+	}
+	pageData := struct {
+		Data          *AddressInfo
+		ConfirmHeight []int64
+	}{
+		addrData,
+		confirmHeights,
+	}
+
+	str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)

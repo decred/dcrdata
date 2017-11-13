@@ -167,19 +167,24 @@
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
-            var confirms = $(".confirmations")
+            var confirms = $(".confirmations");
+            var initialBlocks = $('[data-confirmation-block-height]');
+            var heights = []
+            $.each(initialBlocks, function(i, v) {
+                heights.push($(v).data("confirmation-block-height"))
+            })
             $.each(confirms, function(i, v) {
                 if (isNaN($(v).text())) {
                     $(v).text("0");
                 }
                 $(v).text(
-                    parseInt($(v).text()) + 1
+                    newBlock.block.height - heights[i]
                 )
             })
             // block summary data
             var b = newBlock.block;
             var expTableRows = $('#explorertable tbody tr');
-            //var currentHeight = parseInt($('#explorertable tbody tr td').first().text());
+            //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
             if (expTableRows){
                 expTableRows.last().remove()
                 var newRow = '<tr id="' + b.height + '">' +
