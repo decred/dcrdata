@@ -27,7 +27,7 @@
     <script src="/js/messagesocket.js"></script>
     <script src="/js/humanize.js"></script>
     <script src="/js/turbolinks.js"></script>
-    <script src="/js/jquery.min.js"></script>
+    <script src="/js/jquery.js"></script>
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
@@ -149,6 +149,11 @@
         updateAges()
     })
     setInterval(updateAges, 10000);
+</script>
+<script>
+    $('.scriptDataStar').on('click',function(){
+        $(this).next('.scriptData').slideToggle();
+    });
 </script>
 {{end}}
 
