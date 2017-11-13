@@ -282,6 +282,21 @@ body.darkBG .page-item.disabled .page-link {
   table-layout: fixed;
 }
 
+.addressAndScriptData {
+  overflow: hidden;
+}
+.scriptDataStar {
+  z-index: 1;
+  text-align: center;
+  color: coral;
+}
+.scriptData {
+  z-index: -1;
+  display: none;
+  border-top: 1px solid #ccc;
+  font-family: 'source-sans-pro-v9-latin-regular';
+}
+
 /*content*/
 .dcr-total .dcr {
   font-size: 28px;

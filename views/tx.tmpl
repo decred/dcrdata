@@ -178,13 +178,21 @@
                 <tbody>
                     {{range $i, $v := .Vout}}
                     <tr>
-                        <td class="break-word mono fs13">
-                            {{if ne .Amount 0.0}}
-                                {{range .Addresses}}
-                                    <div class="address sm-fullwidth"><a href="/explorer/address/{{.}}">{{.}}</a></div>
+                        <td class="break-word mono fs13 addressAndScriptData">
+                            {{range .Addresses}}
+                                <div class="address sm-fullwidth"><a href="/explorer/address/{{.}}">{{.}}</a></div>
+                            {{end}}
+                            {{if .OP_RETURN}}
+                                {{if .Addresses}}
+                                <div class="scriptDataStar">
+                                    toggle OP_RETURN
+                                </div>
+                                <div class="scriptData">
+                                {{else}}
+                                <div>
                                 {{end}}
-                            {{else}}
-                                <a class="address">{{.OP_RETURN}}</a>
+                                    <a >{{.OP_RETURN}}</a>
+                                </div>
                             {{end}}
                         </td>
                         <td class="fs13 break-word">
@@ -194,7 +202,11 @@
                             {{if $spending.Hash}}
                                 <a href="/explorer/tx/{{$spending.Hash}}">{{$v.Spent}}</a>
                             {{else}}
+                                {{if gt $v.Amount 0.0}}
                                 {{$v.Spent}}
+                                {{else}}
+                                n/a
+                                {{end}}
                             {{end}}
                             {{end}}
                         </td>
