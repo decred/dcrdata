@@ -24,6 +24,7 @@ import (
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -629,7 +630,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	return exp
 }
 
-func (exp *explorerUI) Store(blockData *blockdata.BlockData) error {
+func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
 	newBlockData := BlockBasic{

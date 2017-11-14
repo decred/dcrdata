@@ -290,7 +290,7 @@ func mainCore() error {
 	mempoolSavers = append(mempoolSavers, webUI)
 
 	// Start the explorer system
-	explore := explorer.New(&sqliteDB, cfg.UseRealIP)
+	explore := explorer.New(&sqliteDB, db, cfg.UseRealIP)
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
 	blockDataSavers = append(blockDataSavers, explore)
@@ -302,14 +302,12 @@ func mainCore() error {
 			err.Error())
 	}
 
-	if err = webUI.Store(blockData); err != nil {
-		log.Errorf("Failed to store initial block data for main page: %v", err.Error())
-		return 11
+	if err = webUI.Store(blockData, nil); err != nil {
+		return fmt.Errorf("Failed to store initial block data for main page: %v", err.Error())
 	}
 
-	if err = explore.Store(blockData); err != nil {
-		log.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
-		return 11
+	if err = explore.Store(blockData, nil); err != nil {
+		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
 	}
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup

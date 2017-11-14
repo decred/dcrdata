@@ -693,7 +693,7 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.Block
 		Size:           data.Size,
 		Valid:          true, // we do not know this, TODO with DB v2
 		Voters:         data.Voters,
-		Transactions:   uint32(len(data.RawTx)),
+		Transactions:   len(data.RawTx),
 		FreshStake:     data.FreshStake,
 		BlockTime:      data.Time,
 		FormattedBytes: humanize.Bytes(uint64(data.Size)),
