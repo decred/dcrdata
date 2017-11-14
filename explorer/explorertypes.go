@@ -32,6 +32,7 @@ type TxBasic struct {
 	Fee           dcrutil.Amount
 	FeeRate       dcrutil.Amount
 	VoteInfo      *VoteInfo
+	Coinbase      bool
 }
 
 //AddressTx models data for transactions on the address page
