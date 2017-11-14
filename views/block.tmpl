@@ -10,9 +10,8 @@
         <div class="row justify-content-between">
             <div class="col-md-7 col-sm-6">
                 <h4 class="mb-2">
-                    <span data-confirmation-block-height="{{$.ConfirmHeight}}"></span>
                     Block #{{.Height}} {{ if gt .Confirmations 1 }}
-                        <span class="op60 fs12">( <span class="confirmations">{{.Confirmations}}</span> confirmations)</span>
+                        <span class="op60 fs12">( <span data-confirmation-block-height="{{$.ConfirmHeight}}">{{.Confirmations}}</span> confirmations)</span>
                     {{else}}
                         <span class="op60 fs12">best block</span>
                     {{end}}

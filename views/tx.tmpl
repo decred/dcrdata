@@ -11,11 +11,11 @@
         <div class="col-md-8 col-sm-6">
             <h4 class="mb-2">
                 Transaction
-                <span class="fs15"><span data-confirmation-block-height="{{$.ConfirmHeight}}"></span>
+                <span class="fs15">
                 {{if eq .Confirmations 0}}
-                    <strong class="confirmations">( unconfirmed )</strong>
+                    <strong data-confirmation-block-height="{{$.ConfirmHeight}}">( unconfirmed )</strong>
                 {{else}}
-                    (<span class="confirmations">{{.Confirmations}}</span> confirmations )
+                    (<span data-confirmation-block-height="{{$.ConfirmHeight}}">{{.Confirmations}}</span> confirmations )
                 {{end}}
                 </span>
             </h4>

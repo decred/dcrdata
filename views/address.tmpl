@@ -116,8 +116,7 @@
                                 <span data-age="{{.Time}}"></span>
                             {{end}}
                             </td>
-                            <span data-confirmation-block-height="{{index $heights $i}}"></span>
-                            <td class="confirmations">{{.Confirmations}}</td>
+                            <td data-confirmation-block-height="{{index $heights $i}}">{{.Confirmations}}</td>
                             <td>{{.FormattedSize}}</td>
                             {{end}}
                         </tr>

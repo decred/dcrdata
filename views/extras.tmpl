@@ -167,18 +167,13 @@
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
-            var confirms = $(".confirmations");
-            var initialBlocks = $('[data-confirmation-block-height]');
-            var heights = []
-            $.each(initialBlocks, function(i, v) {
-                heights.push($(v).data("confirmation-block-height"))
-            })
+            var confirms = $('[data-confirmation-block-height]');
             $.each(confirms, function(i, v) {
                 if (isNaN($(v).text())) {
                     $(v).text("0");
                 }
                 $(v).text(
-                    newBlock.block.height - heights[i]
+                    newBlock.block.height - $(v).data('confirmation-block-height')
                 )
             })
             // block summary data
@@ -264,7 +259,7 @@
             var unixTime = $(age).data('age');
             if (unixTime > 0) {
                 $(age).text(
-                    humanize.timeSince($(age).data('age'))
+                    humanize.timeSince(unixTime)
                 )
             }
         })
