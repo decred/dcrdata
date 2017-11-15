@@ -183,9 +183,13 @@
                 <h4><span>Votes</span></h4>
                 {{if not .Votes}}
                     <table class="table table-sm striped">
-                        <tr>
-                            <td>No votes in this block.</td>
-                        </tr>
+                            <tr>
+                                <td>No votes in this block. 
+                                    {{if lt .Height .StakeValidationHeight}}
+                                        (Voting starts at block {{.StakeValidationHeight}}.)
+                                    {{end}}
+                                </td>
+                            </tr>
                     </table>
                 {{else}}
                     <table class="table table-sm striped">

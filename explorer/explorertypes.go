@@ -105,28 +105,29 @@ type Vout struct {
 // BlockInfo models data for display on the block page
 type BlockInfo struct {
 	*BlockBasic
-	Hash          string
-	Version       int32
-	Confirmations int64
-	StakeRoot     string
-	MerkleRoot    string
-	Tx            []*TxBasic
-	Tickets       []*TxBasic
-	Revs          []*TxBasic
-	Votes         []*TxBasic
-	Nonce         uint32
-	VoteBits      uint16
-	FinalState    string
-	PoolSize      uint32
-	Bits          string
-	SBits         float64
-	Difficulty    float64
-	ExtraData     string
-	StakeVersion  uint32
-	PreviousHash  string
-	NextHash      string
-	TotalSent     float64
-	MiningFee     dcrutil.Amount
+	Hash                  string
+	Version               int32
+	Confirmations         int64
+	StakeRoot             string
+	MerkleRoot            string
+	Tx                    []*TxBasic
+	Tickets               []*TxBasic
+	Revs                  []*TxBasic
+	Votes                 []*TxBasic
+	Nonce                 uint32
+	VoteBits              uint16
+	FinalState            string
+	PoolSize              uint32
+	Bits                  string
+	SBits                 float64
+	Difficulty            float64
+	ExtraData             string
+	StakeVersion          uint32
+	PreviousHash          string
+	NextHash              string
+	TotalSent             float64
+	MiningFee             dcrutil.Amount
+	StakeValidationHeight int64
 }
 
 // AddressInfo models data for display on the address page
