@@ -195,6 +195,7 @@
                         <thead>
                             <th>Transactions ID</th>
                             <th>Version</th>
+                            <th>Last Block Valid</th>
                             <th>Issue ID</th>
                             <th>Choice ID</th>
                             <th class="text-right">Total DCR</th>
@@ -209,6 +210,9 @@
                                     </span>
                                 </td>
                                 <td class="mono fs15">{{.VoteInfo.Version}}</td>
+                                {{with .VoteInfo}}
+                                    <td>{{.Validation.Validity}}</td>
+                                {{end}}
                                 <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
                                     {{(index .VoteInfo.Choices 0).ID}}
                                 {{else}}
