@@ -289,6 +289,12 @@ func mainCore() error {
 	blockDataSavers = append(blockDataSavers, webUI)
 	mempoolSavers = append(mempoolSavers, webUI)
 
+	// Start the explorer system
+	explore := explorer.New(&sqliteDB, db, cfg.UseRealIP)
+	explore.UseSIGToReloadTemplates()
+	defer explore.StopWebsocketHub()
+	blockDataSavers = append(blockDataSavers, explore)
+
 	// Initial data summary for web ui
 	blockData, _, err := collector.Collect()
 	if err != nil {
@@ -297,9 +303,12 @@ func mainCore() error {
 	}
 
 	if err = webUI.Store(blockData, nil); err != nil {
-		return fmt.Errorf("Failed to store initial block data: %v", err.Error())
+		return fmt.Errorf("Failed to store initial block data for main page: %v", err.Error())
 	}
 
+	if err = explore.Store(blockData, nil); err != nil {
+		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
+	}
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
 
@@ -307,7 +316,7 @@ func mainCore() error {
 	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 	// On reorg, only update web UI since dcrsqlite's own reorg handler will
 	// deal with patching up the block info database.
-	reorgBlockDataSavers := []blockdata.BlockDataSaver{webUI}
+	reorgBlockDataSavers := []blockdata.BlockDataSaver{webUI, explore}
 	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
 		reorgBlockDataSavers, quit, &wg, addrMap,
 		ntfnChans.connectChan, ntfnChans.recvTxBlockChan,
@@ -405,10 +414,6 @@ func mainCore() error {
 	ntfnChans.updateStatusDBHeight <- uint32(sqliteDB.GetHeight())
 
 	apiMux := newAPIRouter(app, cfg.UseRealIP)
-
-	// Start the explorer system
-	explore := explorer.New(&sqliteDB, db, cfg.UseRealIP)
-	explore.UseSIGToReloadTemplates()
 
 	webMux := chi.NewRouter()
 	webMux.Get("/", webUI.RootPage)

@@ -6,6 +6,8 @@
 package explorer
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -16,14 +18,18 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
+	"golang.org/x/net/websocket"
 )
 
 const (
@@ -69,6 +75,9 @@ type explorerUI struct {
 	templates       []*template.Template
 	templateFiles   map[string]string
 	templateHelpers template.FuncMap
+	wsHub           *WebsocketHub
+	NewBlockDataMtx sync.RWMutex
+	NewBlockData    BlockBasic
 }
 
 func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +117,80 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
+	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
+		// Create channel to signal updated data availability
+		updateSig := make(hubSpoke)
+		// register websocket client with our signal channel
+		exp.wsHub.RegisterClient(&updateSig)
+		// unregister (and close signal channel) before return
+		defer exp.wsHub.UnregisterClient(&updateSig)
+
+		// Ticker for a regular ping
+		ticker := time.NewTicker(pingInterval)
+		defer ticker.Stop()
+
+		go func() {
+			for range ticker.C {
+				exp.wsHub.HubRelay <- sigPingAndUserCount
+			}
+		}()
+
+	loop:
+		for {
+			// Wait for signal from the hub to update
+			select {
+			case sig, ok := <-updateSig:
+				// Check if the update channel was closed. Either the websocket
+				// hub will do it after unregistering the client, or forcibly in
+				// response to (http.CloseNotifier).CloseNotify() and only then if
+				// the hub has somehow lost track of the client.
+				if !ok {
+					//ws.WriteClose(1)
+					exp.wsHub.UnregisterClient(&updateSig)
+					break loop
+				}
+
+				if _, ok = eventIDs[sig]; !ok {
+					break loop
+				}
+
+				log.Tracef("signaling client: %p", &updateSig)
+				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+
+				// Write block data to websocket client
+				exp.NewBlockDataMtx.RLock()
+				webData := WebSocketMessage{
+					EventId: eventIDs[sig],
+				}
+				buff := new(bytes.Buffer)
+				enc := json.NewEncoder(buff)
+				switch sig {
+				case sigNewBlock:
+					enc.Encode(WebsocketBlock{exp.NewBlockData})
+					webData.Messsage = buff.String()
+				case sigPingAndUserCount:
+					// ping and send user count
+					webData.Messsage = strconv.Itoa(exp.wsHub.NumClients())
+				}
+
+				err := websocket.JSON.Send(ws, webData)
+				exp.NewBlockDataMtx.RUnlock()
+				if err != nil {
+					log.Debugf("Failed to encode WebSocketMessage %v: %v", sig, err)
+					// If the send failed, the client is probably gone, so close
+					// the connection and quit.
+					return
+				}
+			case <-exp.wsHub.quitWSHandler:
+				break loop
+			}
+		}
+	})
+
+	wsHandler.ServeHTTP(w, r)
+}
+
 func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 	hash := getBlockHashCtx(r)
 
@@ -118,7 +201,14 @@ func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	str, err := templateExecToString(exp.templates[blockTemplateIndex], "block", data)
+	pageData := struct {
+		Data          *BlockInfo
+		ConfirmHeight int64
+	}{
+		data,
+		exp.NewBlockData.Height - data.Confirmations,
+	}
+	str, err := templateExecToString(exp.templates[blockTemplateIndex], "block", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
@@ -163,7 +253,16 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", tx)
+
+	pageData := struct {
+		Data          *TxInfo
+		ConfirmHeight int64
+	}{
+		tx,
+		exp.NewBlockData.Height - tx.Confirmations,
+	}
+
+	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
@@ -241,8 +340,20 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	str, err := templateExecToString(exp.templates[addressTemplateIndex],
-		"address", addrData)
+
+	confirmHeights := make([]int64, len(addrData.Transactions))
+	for i, v := range addrData.Transactions {
+		confirmHeights[i] = exp.NewBlockData.Height - int64(v.Confirmations)
+	}
+	pageData := struct {
+		Data          *AddressInfo
+		ConfirmHeight []int64
+	}{
+		addrData,
+		confirmHeights,
+	}
+
+	str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
@@ -368,6 +479,12 @@ func (exp *explorerUI) reloadTemplatesSig(sig os.Signal) {
 			}
 		}
 	}()
+}
+
+// StopWebsocketHub stops the websocket hub
+func (exp *explorerUI) StopWebsocketHub() {
+	log.Info("Stopping websocket hub.")
+	exp.wsHub.Stop()
 }
 
 // New returns an initialized instance of explorerUI
@@ -505,7 +622,36 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	exp.addRoutes()
 
+	wsh := NewWebsocketHub()
+	go wsh.run()
+
+	exp.wsHub = wsh
+
 	return exp
+}
+
+func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
+	exp.NewBlockDataMtx.Lock()
+	bData := blockData.ToBlockExplorerSummary()
+	newBlockData := BlockBasic{
+		Height:         int64(bData.Height),
+		Voters:         bData.Voters,
+		FreshStake:     bData.FreshStake,
+		Size:           int32(bData.Size),
+		Transactions:   bData.TxLen,
+		BlockTime:      bData.Time,
+		FormattedTime:  bData.FormattedTime,
+		FormattedBytes: humanize.Bytes(uint64(bData.Size)),
+		Revocations:    uint32(bData.Revocations),
+	}
+	exp.NewBlockData = newBlockData
+	exp.NewBlockDataMtx.Unlock()
+
+	exp.wsHub.HubRelay <- sigNewBlock
+
+	log.Debugf("Got new block %d", newBlockData.Height)
+
+	return nil
 }
 
 func (exp *explorerUI) addRoutes() {
@@ -515,11 +661,13 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Use(corsMW.Handler)
 
 	exp.Mux.Get("/", exp.root)
+	exp.Mux.Get("/ws", exp.rootWebsocket)
 
 	exp.Mux.Route("/block", func(r chi.Router) {
 		r.Route("/{blockhash}", func(rd chi.Router) {
 			rd.Use(exp.blockHashPathOrIndexCtx)
 			rd.Get("/", exp.blockPage)
+			rd.Get("/ws", exp.rootWebsocket)
 		})
 	})
 
@@ -527,12 +675,14 @@ func (exp *explorerUI) addRoutes() {
 		r.Route("/{txid}", func(rd chi.Router) {
 			rd.Use(transactionHashCtx)
 			rd.Get("/", exp.txPage)
+			rd.Get("/ws", exp.rootWebsocket)
 		})
 	})
 	exp.Mux.Route("/address", func(r chi.Router) {
 		r.Route("/{address}", func(rd chi.Router) {
 			rd.Use(addressPathCtx)
 			rd.Get("/", exp.addressPage)
+			rd.Get("/ws", exp.rootWebsocket)
 		})
 	})
 

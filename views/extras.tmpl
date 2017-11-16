@@ -19,7 +19,7 @@
     <meta name="msapplication-TileColor" content="#2973ff">
     <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png">
     <meta name="msapplication-config" content="/images/favicon/browserconfig.xml">
-    <meta name="turbolinks-cache-control" content="no-cache">    
+    <meta name="turbolinks-cache-control" content="no-cache">
     <title>{{.}}</title>
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
@@ -117,6 +117,126 @@
             toggleToLightClasses(event.data.newBody)
         }
     })
+
+
+    function updateConnectionStatus(msg, connected) {
+        var el = $('#connection');
+        el.removeClass('hidden')
+        if (connected) {
+            el.addClass('connected')
+            el.removeClass('disconnected')
+        } else {
+            el.removeClass('connected');
+            el.addClass('disconnected');
+        }
+        el.html(msg + '<div></div>')
+    }
+
+
+
+    function getSocketURI(loc) {
+        var protocol = (loc.protocol === 'https:') ? 'wss' : 'ws'
+        var route = (loc.pathname === "/") ? "/ws" : loc.pathname + '/ws'
+        return protocol + "://" + loc.host + route
+    }
+
+    var ws; // websocket global
+    function createWebSocket(loc) {
+        var uri = getSocketURI(loc)
+        ws = new MessageSocket(uri);
+        console.log("createdWebSocket", uri, ws)
+        ws.registerEvtHandler("open", function() {
+            console.log('Connected')
+            updateConnectionStatus('Connected', true);
+        });
+
+        ws.registerEvtHandler("close", function() {
+            console.log('Disconnected')
+            updateConnectionStatus('Disconnected', false);
+        });
+
+        ws.registerEvtHandler("error", function(evt) {
+            console.log("WebSocket error:", evt);
+            updateConnectionStatus('Disconnected', false);
+        });
+
+        ws.registerEvtHandler("ping", function(evt) {
+            console.log("ping. users online: ", evt)
+            ws.send("pong", "copy")
+        });
+        var updateBlockData = function (event) {
+            console.log("Received newblock message", event);
+            var newBlock = JSON.parse(event);
+            var confirms = $('[data-confirmation-block-height]');
+            $.each(confirms, function(i, v) {
+                if (isNaN($(v).text())) {
+                    $(v).text("0");
+                }
+                $(v).text(
+                    newBlock.block.height - $(v).data('confirmation-block-height')
+                )
+            })
+            // block summary data
+            var b = newBlock.block;
+            var expTableRows = $('#explorertable tbody tr');
+            //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
+            if (expTableRows){
+                expTableRows.last().remove()
+                var newRow = '<tr id="' + b.height + '">' +
+                    '<td><a href="/explorer/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
+                    '<td>' + b.tx + '</td>' +
+                    '<td>' + b.votes + '</td>' +
+                    '<td>' + b.tickets + '</td>' +
+                    '<td>' + b.revocations + '</td>' +
+                    '<td>' + humanize.bytes(b.size) + '</td>' +
+                    '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
+                    '<td>' + b.formatted_time + '</td>' +
+                '</tr>'
+                var newRowHtml = $.parseHTML(newRow)
+                $(newRowHtml).insertBefore(expTableRows.first())
+                setTimeElements()
+            }
+            if ($("#bsubsidy_total").text() !== "") {
+                $("#bsubsidy_total").html(humanize.decimalParts(b.next_block_subsidy.total/100000000, false, 8))
+                $("#bsubsidy_pow").html(humanize.decimalParts(b.next_block_subsidy.pow/100000000, false, 8))
+                $("#bsubsidy_pos").html(humanize.decimalParts((b.next_block_subsidy.pos/500000000), false, 8))
+                $("#bsubsidy_dev").html(humanize.decimalParts(b.next_block_subsidy.developer/100000000, false, 8))
+                $("#coin_supply").html(humanize.decimalParts(b.coin_supply/100000000, true, 8))
+                $("#blocksdiff").html(humanize.decimalParts(b.sdiff, false, 8))
+                $("#window_block_index").text(newBlock.stake.window_block_index)
+                $("#pos-window-progess-bar").css({ width: (newBlock.stake.window_block_index/144)*100 + "%" })
+            }
+        };
+        ws.registerEvtHandler("newblock", updateBlockData);
+
+        var updateMempool = function (event) {
+            console.log("Received mempoolsstxfeeinfo message", event);
+            var m = JSON.parse(event);
+
+            //mempool fee info
+            $('#mempoolfeeinfo_number').text(m.number)
+        };
+        ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
+    }
+    function manageWebSocket(loc) {
+        var pathRoot = loc.pathname.split('/')[1];
+        var socketPathRoot = ws.ws.url.split(loc.host)[1].split("/")[1]
+        if (pathRoot == socketPathRoot) {
+            return
+        }
+        // reconnect to correct socket url
+        console.log("roots mismatch, reconnecting", pathRoot, socketPathRoot)
+        ws.close()
+        createWebSocket(loc)
+    }
+</script>
+
+<script>
+    if (!ws) {
+        createWebSocket(window.location)
+    } else {
+        manageWebSocket(window.location)
+    }
 </script>
 {{end}}
 
@@ -126,7 +246,7 @@
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
         <a class="nav-item" href="/api/status" title="API Status" target="_blank" data-turbolinks="false">Status</a>
-        <span class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
+        <span data-turbolinks-permanent class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
     </div>
 </footer>
 <script data-turbolinks-eval="false">
@@ -139,7 +259,7 @@
             var unixTime = $(age).data('age');
             if (unixTime > 0) {
                 $(age).text(
-                    humanize.timeSince($(age).data('age'))
+                    humanize.timeSince(unixTime)
                 )
             }
         })

@@ -18,15 +18,27 @@
 
 var MessageSocket = function(uri) {
   // create a new WebSocket connection
+  console.log("new MessageSocket", uri);
   var ws = new WebSocket(uri);
+
+  console.log("WS",ws);
+  this.ws = ws
 
   // register an event handler
   var handlers = {};
+  this.handlers = handlers;
   this.registerEvtHandler = function(eventID, handler) {
     handlers[eventID] = handlers[eventID] || [];
     handlers[eventID].push(handler);
     return this;
   };
+
+  this.close = function(reason) {
+    console.log("close, reason:", reason, handlers)
+    clearTimeout(pinger);
+    handlers = {};
+    ws.close()
+  }
 
   // send a message back to the server
   this.send = function(eventID, message) {
@@ -34,6 +46,7 @@ var MessageSocket = function(uri) {
       event: eventID,
       message: message
     });
+    console.log("send", payload)
     ws.send(payload);
     return this;
   };
@@ -46,6 +59,7 @@ var MessageSocket = function(uri) {
 
   // forward a message for the named event to the right handlers
   var forward = function(event, message) {
+
     // handlers registered for this event type
     var eventHandlers = handlers[event];
     if (typeof eventHandlers == "undefined") return;
@@ -66,4 +80,10 @@ var MessageSocket = function(uri) {
   ws.onerror = function(evt) {
     forward("error", evt);
   };
+
+  // Start ping pong
+  var pinger = setInterval(function () {
+    ws.send("ping", 'Hi. I am a client!');
+  }, 1000);
+
 };

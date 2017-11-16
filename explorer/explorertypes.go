@@ -12,15 +12,15 @@ import (
 
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
-	Height         int64
-	Size           int32
-	Valid          bool
-	Voters         uint16
-	Transactions   uint32
-	FreshStake     uint8
-	Revocations    uint32
-	BlockTime      int64
-	FormattedTime  string
+	Height         int64  `json:"height"`
+	Size           int32  `json:"size"`
+	Valid          bool   `json:"valid"`
+	Voters         uint16 `json:"votes"`
+	Transactions   int    `json:"tx"`
+	FreshStake     uint8  `json:"tickets"`
+	Revocations    uint32 `json:"revocations"`
+	BlockTime      int64  `json:"time"`
+	FormattedTime  string `json:"formatted_time"`
 	FormattedBytes string
 }
 
@@ -207,4 +207,9 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		TotalSent:       dcrutil.Amount(sent),
 		Unspent:         dcrutil.Amount(received - sent),
 	}
+}
+
+// WebsocketBlock wraps the new block info for use in the websocket
+type WebsocketBlock struct {
+	Block BlockBasic `json:"block"`
 }

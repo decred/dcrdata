@@ -1,10 +1,10 @@
 {{define "tx"}}
 <!DOCTYPE html>
 <html lang="en">
+{{with .Data}}
 {{template "html-head" printf "Decred Transaction %.20s..." .TxID}}
 <body>
 {{template "navbar"}}
-
 <div class="container">
 
     <div class="row justify-content-between">
@@ -13,9 +13,9 @@
                 Transaction
                 <span class="fs15">
                 {{if eq .Confirmations 0}}
-                    <strong>( unconfirmed )</strong>
+                    <strong data-confirmation-block-height="{{$.ConfirmHeight}}">( unconfirmed )</strong>
                 {{else}}
-                    ({{.Confirmations}} confirmations)
+                    (<span data-confirmation-block-height="{{$.ConfirmHeight}}">{{.Confirmations}}</span> confirmations )
                 {{end}}
                 </span>
             </h4>
@@ -198,7 +198,7 @@
                         <td class="fs13 break-word">
                             {{.Type}}
                         </td>
-                        <td class="text-left fs13">{{with $spending := (index $.SpendingTxns $i) }}
+                        <td class="text-left fs13">{{with $spending := (index $.Data.SpendingTxns $i) }}
                             {{if $spending.Hash}}
                                 <a href="/explorer/tx/{{$spending.Hash}}">{{$v.Spent}}</a>
                             {{else}}
@@ -256,6 +256,7 @@
 {{template "footer"}}
 
 </body>
+{{end}}
 </html>
 {{end}}
 
