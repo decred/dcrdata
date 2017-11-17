@@ -106,6 +106,9 @@ body.darkBG .page-item.disabled .page-link {
   border-color: transparent;
   background-color: #565656;
 }
+body.darkBG .json-block {
+  color: #fdfdfd;
+}
 
 /*utils*/
 .anchor {
@@ -324,7 +327,15 @@ body.darkBG .page-item.disabled .page-link {
 .fs18-decimal .unit {
     font-size: 18px
 }
-
+.sep {
+  position: relative;
+  top: 3px;
+  width: 1px;
+  height: 14px;
+  background: #848484;
+  display: inline-block;
+  margin: 0 3px 0 3px;
+}
 .hash {
   font-size: 14px;
   font-family: 'inconsolata-v15-latin-regular', monospace;
@@ -441,4 +452,9 @@ body.darkBG .page-item.disabled .page-link {
   background-color: red;
   -webkit-box-shadow: rgba(255, 0, 0, 0.5) 0px 0px 5px;
   -webkit-animation-name: glowRed;
+}
+
+.json-block {
+  background: rgba(128, 128, 128, 0.07);
+  padding: 1px 5px;
 }

@@ -49,6 +49,7 @@
             <div class="col" style="padding: 0 5px;">
                 <form class="navbar-form" role="search" id="search-form">
                     <div class="input-group">
+
                         <input
                             autofocus
                             type="text"
@@ -273,14 +274,6 @@
         updateAges()
     })
     setInterval(updateAges, 10000);
-    document.getElementById('rawtx').onkeypress = function(e){
-        if (!e) e = window.event;
-        var keyCode = e.keyCode || e.which;
-        if (keyCode == '13'){
-            ws.send("decodetx", this.value)
-            return false;
-        }
-    }
 </script>
 <script>
     $('.scriptDataStar').on('click',function(){
