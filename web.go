@@ -22,6 +22,7 @@ import (
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/dcrdata/dcrdata/explorer"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -48,10 +49,9 @@ func TemplateExecToString(t *template.Template, name string, data interface{}) (
 
 // WebTemplateData holds all of the data structures used to update the web page.
 type WebTemplateData struct {
-	BlockSummary   apitypes.BlockExplorerBasic
-	StakeSummary   apitypes.StakeInfoExtendedEstimates
-	MempoolFeeInfo apitypes.MempoolTicketFeeInfo
-	MempoolFees    apitypes.MempoolTicketFees
+	BlockSummary apitypes.BlockExplorerBasic
+	StakeSummary apitypes.StakeInfoExtendedEstimates
+	MempoolData  explorer.MempoolBasic
 }
 
 // WebUI models data for the web page and websocket
@@ -235,21 +235,12 @@ func (td *WebUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) err
 	td.MPC.RLock()
 	defer td.MPC.RUnlock()
 
-	_, fie := td.MPC.GetFeeInfoExtra()
-
 	td.templateDataMtx.Lock()
-	td.TemplateData.MempoolFeeInfo = *fie
 
-	// LowestMineable is the lowest fee of those in the top 20 (mainnet), but
-	// for the web interface, we want to interpret "lowest mineable" as the
-	// lowest fee the user needs to get a new ticket purchase mined right away.
-	if td.TemplateData.MempoolFeeInfo.Number < uint32(td.params.MaxFreshStakePerBlock) {
-		td.TemplateData.MempoolFeeInfo.LowestMineable = 0.001
-	}
+	mpd := &td.TemplateData.MempoolData
+	_, mpd.NumTickets = td.MPC.GetNumTickets()
+	mpd.NumTx, mpd.NumVotes = td.MPC.GetNumTxVotes()
 
-	mpf := &td.TemplateData.MempoolFees
-	mpf.Height, mpf.Time, _, mpf.FeeRates = td.MPC.GetFeeRates(25)
-	mpf.Length = uint32(len(mpf.FeeRates))
 	td.templateDataMtx.Unlock()
 
 	td.wsHub.HubRelay <- sigMempoolFeeInfoUpdate
@@ -379,7 +370,7 @@ func (td *WebUI) WSBlockUpdater(w http.ResponseWriter, r *http.Request) {
 					})
 					webData.Messsage = buff.String()
 				case sigMempoolFeeInfoUpdate:
-					enc.Encode(td.TemplateData.MempoolFeeInfo)
+					enc.Encode(td.TemplateData.MempoolData)
 					webData.Messsage = buff.String()
 				case sigPingAndUserCount:
 					// ping and send user count

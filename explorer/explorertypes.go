@@ -1,6 +1,5 @@
 // Copyright (c) 2017, The Dcrdata developers
 // See LICENSE for details.
-
 package explorer
 
 import (
@@ -212,4 +211,11 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 // WebsocketBlock wraps the new block info for use in the websocket
 type WebsocketBlock struct {
 	Block BlockBasic `json:"block"`
+}
+
+// MempoolBasic models basic data for updating the front page's mempool data
+type MempoolBasic struct {
+	NumTickets uint32 `json:"num_tickets"`
+	NumVotes   uint32 `json:"num_votes"`
+	NumTx      uint32 `json:"num_tx"`
 }

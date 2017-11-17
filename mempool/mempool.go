@@ -283,6 +283,8 @@ type Stakelimitfeeinfo struct {
 // MempoolData models info about ticket purchases in mempool
 type MempoolData struct {
 	Height            uint32
+	NumTx             uint32
+	NumVotes          uint32
 	NumTickets        uint32
 	NewTickets        uint32
 	Ticketfees        *dcrjson.TicketFeeInfoResult
@@ -334,6 +336,18 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 	// Get a map of ticket hashes to getrawmempool results
 	// mempoolTickets[ticketHashes[0].String()].Fee
 	mempoolTickets, err := c.GetRawMempoolVerbose(dcrjson.GRMTickets)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get slice of regular transactions
+	mempoolTx, err := c.GetRawMempool(dcrjson.GRMRegular)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get list of votes
+	mempoolVotes, err := c.GetRawMempool(dcrjson.GRMVotes)
 	if err != nil {
 		return nil, err
 	}
@@ -421,6 +435,8 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 
 	mpoolData := &MempoolData{
 		Height:            uint32(height),
+		NumTx:             uint32(len(mempoolTx)),
+		NumVotes:          uint32(len(mempoolVotes)),
 		NumTickets:        feeInfo.FeeInfoMempool.Number,
 		Ticketfees:        feeInfo,
 		MinableFees:       mineables,
