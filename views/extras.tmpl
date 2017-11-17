@@ -162,8 +162,12 @@
 
         ws.registerEvtHandler("ping", function(evt) {
             console.log("ping. users online: ", evt)
-            ws.send("pong", "copy")
+            //ws.send("pong", "copy")
         });
+        ws.registerEvtHandler("decodedtx", function(evt) {
+            console.log("Got message: ", evt)
+            $("#decoded_tx").text(evt);
+        })
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
@@ -269,6 +273,14 @@
         updateAges()
     })
     setInterval(updateAges, 10000);
+    document.getElementById('rawtx').onkeypress = function(e){
+        if (!e) e = window.event;
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == '13'){
+            ws.send("decodetx", this.value)
+            return false;
+        }
+    }
 </script>
 <script>
     $('.scriptDataStar').on('click',function(){

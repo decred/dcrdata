@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/dcrjson"
+
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -37,6 +39,7 @@ const (
 	blockTemplateIndex
 	txTemplateIndex
 	addressTemplateIndex
+	decodeTxTemplateIndex
 )
 
 const (
@@ -55,6 +58,7 @@ type explorerDataSourceLite interface {
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
 	GetExplorerAddress(address string, count, offset int64) *AddressInfo
+	DecodeRawTransaction(hex string) *dcrjson.TxRawResult
 	GetHeight() int
 }
 
@@ -135,9 +139,39 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				exp.wsHub.HubRelay <- sigPingAndUserCount
 			}
 		}()
-
+		go func() {
+			for {
+				msg := &WebSocketMessage{}
+				websocket.JSON.Receive(ws, &msg)
+				if msg.EventId == "decodetx" {
+					log.Debug("Recieved decodetx signal for hex", msg.Messsage)
+					tx := exp.blockData.DecodeRawTransaction(msg.Messsage)
+					if tx == nil {
+						log.Debugf("Could not decode raw tx")
+						continue
+					}
+					buff := new(bytes.Buffer)
+					enc := json.NewEncoder(buff)
+					enc.SetIndent("", "\t")
+					enc.Encode(tx)
+					webData := WebSocketMessage{
+						EventId:  "decodedtx",
+						Messsage: buff.String(),
+					}
+					err := websocket.JSON.Send(ws, webData)
+					if err != nil {
+						log.Debugf("Failed to encode WebSocketMessage decodedtx: %v", err)
+						// If the send failed, the client is probably gone, so close
+						// the connection and quit.
+						return
+					}
+					log.Debugf("Sent decoded tx")
+				}
+			}
+		}()
 	loop:
 		for {
+
 			// Wait for signal from the hub to update
 			select {
 			case sig, ok := <-updateSig:
@@ -364,6 +398,18 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+func (exp *explorerUI) decodeTxPage(w http.ResponseWriter, r *http.Request) {
+	str, err := templateExecToString(exp.templates[decodeTxTemplateIndex], "rawtx", nil)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
 // redirects to the appropriate page or displays an error
@@ -453,10 +499,19 @@ func (exp *explorerUI) reloadTemplates() error {
 		return err
 	}
 
+	decodeTxTemplate, err := template.New("rawTx").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["rawTx"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		return err
+	}
+
 	exp.templates[rootTemplateIndex] = explorerTemplate
 	exp.templates[blockTemplateIndex] = blockTemplate
 	exp.templates[txTemplateIndex] = txTemplate
 	exp.templates[addressTemplateIndex] = addressTemplate
+	exp.templates[decodeTxTemplateIndex] = decodeTxTemplate
 
 	return nil
 }
@@ -510,6 +565,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.templateFiles["tx"] = filepath.Join("views", "tx.tmpl")
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
 	exp.templateFiles["address"] = filepath.Join("views", "address.tmpl")
+	exp.templateFiles["rawtx"] = filepath.Join("views", "rawtx.tmpl")
 	exp.templateHelpers = template.FuncMap{
 		"add": func(a int64, b int64) int64 {
 			val := a + b
@@ -611,6 +667,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 	}
 	exp.templates = append(exp.templates, txTemplate)
+
 	addrTemplate, err := template.New("address").Funcs(exp.templateHelpers).ParseFiles(
 		exp.templateFiles["address"],
 		exp.templateFiles["extras"],
@@ -619,6 +676,15 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 	}
 	exp.templates = append(exp.templates, addrTemplate)
+
+	decodeTxTemplate, err := template.New("rawtx").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["rawtx"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		log.Errorf("Unable to create new html template: %v", err)
+	}
+	exp.templates = append(exp.templates, decodeTxTemplate)
 
 	exp.addRoutes()
 
@@ -684,6 +750,10 @@ func (exp *explorerUI) addRoutes() {
 			rd.Get("/", exp.addressPage)
 			rd.Get("/ws", exp.rootWebsocket)
 		})
+	})
+	exp.Mux.Route("/decodetx", func(r chi.Router) {
+		r.Get("/", exp.decodeTxPage)
+		r.Get("/ws", exp.rootWebsocket)
 	})
 
 	exp.Mux.With(searchPathCtx).Get("/search/{search}", exp.search)

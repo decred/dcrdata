@@ -321,6 +321,29 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	return tx
 }
 
+func (db *wiredDB) GetTransactionHex(txid string) *apitypes.TxRaw {
+	_, hex := db.getRawTransaction(txid)
+	return &apitypes.TxRaw{
+		TxID: txid,
+		Hex:  hex,
+	}
+}
+
+func (db *wiredDB) DecodeRawTransaction(hex string) *dcrjson.TxRawResult {
+	msgTx := txhelpers.MsgTxFromHex(hex)
+	bytes, err := msgTx.Bytes()
+	if err != nil {
+		log.Errorf("DecodeRawTransaction failed: %v", err)
+		return nil
+	}
+	tx, err := db.client.DecodeRawTransaction(bytes)
+	if err != nil {
+		log.Errorf("DecodeRawTransaction failed: %v", err)
+		return nil
+	}
+	return tx
+}
+
 func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 	tx := new(apitypes.Tx)
 

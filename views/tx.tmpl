@@ -21,7 +21,8 @@
             </h4>
             <div class="lh1rem mb-1">
                 <span class="break-word fs15 w80">{{.TxID}}</span>
-                <a class="fs13 nowrap" href="/api/tx/{{.TxID}}?indent=true" data-turbolinks="false">view raw</a>
+                <a class="fs13 nowrap" href="/api/tx/{{.TxID}}?indent=true" data-turbolinks="false">view decoded</a>
+                <a class="fs13 nowrap" href="/api/tx/{{.TxID}}/raw" data-turbolinks="false">view raw</a>
             </div>
             <table class="table table-centered-1rem">
                 {{if gt .BlockHeight 0}}

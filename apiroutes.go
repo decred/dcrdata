@@ -24,6 +24,7 @@ type APIDataSource interface {
 	GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetRawTransaction(txid string) *apitypes.Tx
+	GetTransactionHex(txid string) *apitypes.TxRaw
 	GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string)
 	GetVoteInfo(txid string) (*apitypes.VoteInfo, error)
 	GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error)
@@ -468,6 +469,23 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx := c.BlockData.GetRawTransaction(txid)
+	if tx == nil {
+		apiLog.Errorf("Unable to get transaction %s", txid)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, tx, c.getIndentQuery(r))
+}
+
+func (c *appContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
+	txid := getTxIDCtx(r)
+	if txid == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	tx := c.BlockData.GetTransactionHex(txid)
 	if tx == nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		http.Error(w, http.StatusText(422), 422)

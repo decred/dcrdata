@@ -1,0 +1,25 @@
+{{define "rawtx"}}
+<!DOCTYPE html>
+<html lang="en">
+    {{template "html-head" printf "Decred Transaction %.20s..." .TxID}}
+    <body>
+        {{template "navbar"}}
+        <div class="container">
+                <h4 class="mb-2">Decode a Decred transaction</h4>
+                <form>
+                    <input
+                    autofocus
+                    type="text"
+                    name="rawtx"
+                    id="rawtx"
+                    placeholder="Enter the transation hex here"
+                    />
+                </form>
+                <h4 class="mb-2">Decoded tx</h4>
+                <pre id="decoded_tx">
+                </pre>
+        </div>
+        {{template "footer"}}
+    </body>
+</html>
+{{end}}

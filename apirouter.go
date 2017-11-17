@@ -127,6 +127,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 				ri.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionInput)
 			})
 			rd.Get("/vinfo", app.getTxVoteInfo)
+			rd.Get("/raw", app.getTransactionHex)
 		})
 	})
 
