@@ -58,7 +58,7 @@ type explorerDataSourceLite interface {
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
 	GetExplorerAddress(address string, count, offset int64) *AddressInfo
-	DecodeRawTransaction(hex string) *dcrjson.TxRawResult
+	DecodeRawTransaction(txhex string) *dcrjson.TxRawResult
 	GetHeight() int
 }
 
@@ -146,18 +146,21 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				if msg.EventId == "decodetx" {
 					log.Debug("Recieved decodetx signal for hex", msg.Messsage)
 					tx := exp.blockData.DecodeRawTransaction(msg.Messsage)
-					if tx == nil {
-						log.Debugf("Could not decode raw tx")
-						continue
-					}
-					buff := new(bytes.Buffer)
-					enc := json.NewEncoder(buff)
-					enc.SetIndent("", "    ")
-					enc.Encode(tx)
 					webData := WebSocketMessage{
-						EventId:  "decodedtx",
-						Messsage: buff.String(),
+						EventId: "decodedtx",
 					}
+
+					if tx != nil {
+						buff := new(bytes.Buffer)
+						enc := json.NewEncoder(buff)
+						enc.SetIndent("", "    ")
+						enc.Encode(tx)
+						webData.Messsage = buff.String()
+					} else {
+						log.Debugf("Could not decode raw tx")
+						webData.Messsage = fmt.Sprintf("Error: Could not decode hex %s", msg.Messsage)
+					}
+
 					err := websocket.JSON.Send(ws, webData)
 					if err != nil {
 						log.Debugf("Failed to encode WebSocketMessage decodedtx: %v", err)
@@ -165,7 +168,6 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 						// the connection and quit.
 						return
 					}
-					log.Debugf("Sent decoded tx")
 				}
 			}
 		}()

@@ -33,13 +33,18 @@
                         if (!e) e = window.event;
                         var keyCode = e.keyCode || e.which;
                         if (keyCode == '13'){
-                            ws.send("decodetx", this.value)
+                            if (this.value !== "") {
+                                ws.send("decodetx", this.value);
+                            }
                             return false;
                         }
                     })
                     .focus()
                 $("#decoded_tx").on("click", function(){
-                    ws.send("decodetx", $("#rawtx").val())
+                    var msg = $("#rawtx").val();
+                    if (msg !== ""){
+                        ws.send("decodetx", msg);
+                    }
                 })
             }, 14)
         </script>
