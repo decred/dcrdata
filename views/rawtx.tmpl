@@ -7,18 +7,42 @@
         <div class="container">
                 <h4 class="mb-2">Decode a Decred transaction</h4>
                 <form>
-                    <input
-                    autofocus
-                    type="text"
-                    name="rawtx"
-                    id="rawtx"
-                    placeholder="Enter the transation hex here"
-                    />
+                    <textarea
+                        autofocus
+                        rows="6"
+                        class="col"
+                        name="rawtx"
+                        id="rawtx"
+                        placeholder="Enter the transation hex here"
+                    /></textarea>
                 </form>
                 <h4 class="mb-2">Decoded tx</h4>
-                <pre id="decoded_tx">
-                </pre>
+<pre
+    id="decoded_tx"
+    class="json-block mono"
+>
+
+    Press Enter or click here to decode
+
+</pre>
         </div>
+        <script>
+            setTimeout(function(){
+                $("#rawtx")
+                    .keypress( function(e){
+                        if (!e) e = window.event;
+                        var keyCode = e.keyCode || e.which;
+                        if (keyCode == '13'){
+                            ws.send("decodetx", this.value)
+                            return false;
+                        }
+                    })
+                    .focus()
+                $("#decoded_tx").on("click", function(){
+                    ws.send("decodetx", $("#rawtx").val())
+                })
+            }, 14)
+        </script>
         {{template "footer"}}
     </body>
 </html>

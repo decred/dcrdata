@@ -152,7 +152,7 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 					buff := new(bytes.Buffer)
 					enc := json.NewEncoder(buff)
-					enc.SetIndent("", "\t")
+					enc.SetIndent("", "    ")
 					enc.Encode(tx)
 					webData := WebSocketMessage{
 						EventId:  "decodedtx",
