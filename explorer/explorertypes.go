@@ -4,6 +4,7 @@ package explorer
 
 import (
 	"github.com/dcrdata/dcrdata/db/dbtypes"
+	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -218,4 +219,58 @@ type MempoolBasic struct {
 	NumTickets uint32 `json:"num_tickets"`
 	NumVotes   uint32 `json:"num_votes"`
 	NumTx      uint32 `json:"num_tx"`
+	NumRevs    uint32 `json:"num_revs"`
+}
+
+//MempoolTx models data for a transaction in mempool
+type MempoolTx struct {
+	Hash   string  `json:"hash"`
+	Size   int32   `json:"size"`
+	Fee    float64 `json:"fee"`
+	Time   int64   `json:"time"`
+	Height int64   `json:"height"`
+}
+
+// MempoolInfo models data about the current mempool
+type MempoolInfo struct {
+	*MempoolBasic
+	Height      uint32
+	Tickets     []*MempoolTx `json:"tickets"`
+	Votes       []*MempoolTx `json:"votes"`
+	Revocations []*MempoolTx `json:"revs"`
+	Regular     []*MempoolTx `json:"tx"`
+}
+
+// ToExplorerMempool returns mempool data for explorer and the front page
+func ToExplorerMempool(m *mempool.MempoolData) *MempoolInfo {
+	makeExplorerTxs := func(txs map[string]dcrjson.GetRawMempoolVerboseResult) []*MempoolTx {
+		tx := make([]*MempoolTx, 0, len(txs))
+		for hash, details := range txs {
+			tx = append(tx, &MempoolTx{
+				Hash:   hash,
+				Size:   details.Size,
+				Fee:    details.Fee,
+				Time:   details.Time,
+				Height: details.Height,
+			})
+		}
+		return tx
+	}
+	tx := makeExplorerTxs(m.Tx)
+	votes := makeExplorerTxs(m.Votes)
+	revs := makeExplorerTxs(m.Revs)
+	tickets := makeExplorerTxs(m.Tickets)
+	return &MempoolInfo{
+		MempoolBasic: &MempoolBasic{
+			NumRevs:    m.NumRevs,
+			NumVotes:   m.NumVotes,
+			NumTx:      m.NumTx,
+			NumTickets: m.NumTickets,
+		},
+		Height:      m.Height,
+		Tickets:     tickets,
+		Votes:       votes,
+		Revocations: revs,
+		Regular:     tx,
+	}
 }

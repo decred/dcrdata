@@ -19,7 +19,7 @@ type WebSocketMessage struct {
 // Event type field for an SSE event
 var eventIDs = map[hubSignal]string{
 	sigNewBlock:             "newblock",
-	sigMempoolFeeInfoUpdate: "mempoolsstxfeeinfo",
+	sigMempoolFeeInfoUpdate: "mempoolupdate",
 	sigPingAndUserCount:     "ping",
 }
 

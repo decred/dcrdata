@@ -1,0 +1,107 @@
+{{define "mempool"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" printf "Decred Mempool Monitor"}}
+<body>
+    {{template "navbar"}}
+    <div class="container">
+        <div class="row justify-content-between">
+            <div class="col-md-7 col-sm-6">
+                <h4 class="mb-2">
+                    Mempool At Height: <span id="mempool_height">{{.Height}}</span>
+                </h4>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-12">
+                <h4><span>Tickets (<span id="num_tickets">{{.NumTickets}}</span>)</span></h4>
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Hash</th>
+                        <th class="text-right">Time in Mempool</th>
+                        <th class="text-right">Fee</th>
+                        <th>Size</th>
+                        <th>Block Height</th>
+                    </thead>
+                    <tbody id="tickets">
+                            {{range .Tickets}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/explorer/tx/{{.Hash}}">{{.Hash}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15 text-right"><span class="op60 fs12 nowrap"><span data-age="{{.Time}}"></span> ago</span></td>
+                                <td class="mono fs15 text-right">{{.Fee}}</td>
+                                <td class="mono fs15">{{.Size}} kb</td>
+                                <td class="mono fs25">{{.Height}}</td>
+                            </tr>
+                            {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h4><span>Transactions (<span id="num_tx">{{.NumTx}}</span>)</span></h4>
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Hash</th>
+                        <th class="text-right">Time in Mempool</th>
+                        <th class="text-right">Fee</th>
+                        <th>Size</th>
+                        <th>Block Height</th>
+                    </thead>
+                    <tbody id="tx">
+                            {{range .Regular}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/explorer/tx/{{.Hash}}">{{.Hash}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15 text-right"><span class="op60 fs12 nowrap"><span data-age="{{.Time}}"></span> ago</span></td>
+                                <td class="mono fs15 text-right">{{.Fee}}</td>
+                                <td class="mono fs15">{{.Size}} kb</td>
+                                <td class="mono fs25">{{.Height}}</td>
+                            </tr>
+                            {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-sm-12">
+                <h4><span>Votes (<span id="num_votes">{{.NumVotes}}</span>)</span></h4>
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Hash</th>
+                        <th class="text-right">Time in Mempool</th>
+                        <th>Size</th>
+                        <th>Block Height</th>
+                    </thead>
+                    <tbody id="votes">
+                            {{range .Votes}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/explorer/tx/{{.Hash}}">{{.Hash}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15 text-right"><span class="op60 fs12 nowrap"><span data-age="{{.Time}}"></span> ago</span></td>
+                                <td class="mono fs15">{{.Size}} kb</td>
+                                <td class="mono fs25">{{.Height}}</td>
+                            </tr>
+                            {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+{{template "footer"}}
+</body>
+</html>
+{{ end }}

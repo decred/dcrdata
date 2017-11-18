@@ -284,8 +284,13 @@ type Stakelimitfeeinfo struct {
 type MempoolData struct {
 	Height            uint32
 	NumTx             uint32
+	NumRevs           uint32
 	NumVotes          uint32
 	NumTickets        uint32
+	Tx                map[string]dcrjson.GetRawMempoolVerboseResult
+	Revs              map[string]dcrjson.GetRawMempoolVerboseResult
+	Votes             map[string]dcrjson.GetRawMempoolVerboseResult
+	Tickets           map[string]dcrjson.GetRawMempoolVerboseResult
 	NewTickets        uint32
 	Ticketfees        *dcrjson.TicketFeeInfoResult
 	MinableFees       *MinableFeeInfo
@@ -340,14 +345,20 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 		return nil, err
 	}
 
-	// Get slice of regular transactions
-	mempoolTx, err := c.GetRawMempool(dcrjson.GRMRegular)
+	// Get map of regular transactions
+	mempoolTx, err := c.GetRawMempoolVerbose(dcrjson.GRMRegular)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get list of votes
-	mempoolVotes, err := c.GetRawMempool(dcrjson.GRMVotes)
+	// Get map of votes
+	mempoolVotes, err := c.GetRawMempoolVerbose(dcrjson.GRMVotes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get map of revs
+	mempoolRevs, err := c.GetRawMempoolVerbose(dcrjson.GRMRevocations)
 	if err != nil {
 		return nil, err
 	}
@@ -436,8 +447,13 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 	mpoolData := &MempoolData{
 		Height:            uint32(height),
 		NumTx:             uint32(len(mempoolTx)),
+		NumRevs:           uint32(len(mempoolRevs)),
 		NumVotes:          uint32(len(mempoolVotes)),
-		NumTickets:        feeInfo.FeeInfoMempool.Number,
+		NumTickets:        uint32(len(mempoolTickets)),
+		Tx:                mempoolTx,
+		Revs:              mempoolRevs,
+		Votes:             mempoolVotes,
+		Tickets:           mempoolTickets,
 		Ticketfees:        feeInfo,
 		MinableFees:       mineables,
 		AllTicketsDetails: allTicketsDetails,
