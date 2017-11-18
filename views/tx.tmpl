@@ -32,6 +32,16 @@
                         </td>
                     </tr>
                 {{end}}
+                {{if eq .Type "Vote"}}
+                    {{range .Vin}}
+                        {{if .Txid}}
+                            <tr>
+                                <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">TICKET SPENT</td>
+                                <td><a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></td>
+                            </tr>
+                        {{end}}
+                    {{end}}
+                {{end}}
                 <tr>
                     <td class="text-right pr-2 h1rem p03rem0">TYPE</td>
                     <td>
