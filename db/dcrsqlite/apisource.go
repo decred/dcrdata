@@ -321,12 +321,9 @@ func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	return tx
 }
 
-func (db *wiredDB) GetTransactionHex(txid string) *apitypes.TxRaw {
+func (db *wiredDB) GetTransactionHex(txid string) string {
 	_, hex := db.getRawTransaction(txid)
-	return &apitypes.TxRaw{
-		TxID: txid,
-		Hex:  hex,
-	}
+	return hex
 }
 
 func (db *wiredDB) DecodeRawTransaction(txhex string) *dcrjson.TxRawResult {
@@ -341,6 +338,35 @@ func (db *wiredDB) DecodeRawTransaction(txhex string) *dcrjson.TxRawResult {
 		return nil
 	}
 	return tx
+}
+
+func (db *wiredDB) SendRawTransaction(txhex string) string {
+	msg := txhelpers.MsgTxFromHex(txhex)
+	if msg == nil {
+		log.Errorf("SendRawTransaction failed: could not decode hex")
+		return ""
+	}
+	hash, err := db.client.SendRawTransaction(msg, true)
+	if err != nil {
+		log.Errorf("SendRawTransaction failed: %v", err)
+		return ""
+	}
+	return hash.String()
+}
+
+func (db *wiredDB) GetTrimmedTransaction(txid string) *apitypes.TrimmedTx {
+	tx, _ := db.getRawTransaction(txid)
+	if tx == nil {
+		return nil
+	}
+	return &apitypes.TrimmedTx{
+		TxID:     tx.TxID,
+		Version:  tx.Version,
+		Locktime: tx.Locktime,
+		Expiry:   tx.Expiry,
+		Vin:      tx.Vin,
+		Vout:     tx.Vout,
+	}
 }
 
 func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {

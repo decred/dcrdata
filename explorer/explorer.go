@@ -59,6 +59,7 @@ type explorerDataSourceLite interface {
 	GetExplorerTx(txid string) *TxInfo
 	GetExplorerAddress(address string, count, offset int64) *AddressInfo
 	DecodeRawTransaction(txhex string) *dcrjson.TxRawResult
+	SendRawTransaction(txhex string) string
 	GetHeight() int
 }
 
@@ -143,13 +144,12 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 			for {
 				msg := &WebSocketMessage{}
 				websocket.JSON.Receive(ws, &msg)
-				if msg.EventId == "decodetx" {
-					log.Debug("Recieved decodetx signal for hex", msg.Messsage)
+				var webData WebSocketMessage
+				switch msg.EventId {
+				case "decodetx":
+					webData.EventId = "decodedtx"
+					log.Debug("Recieved decodetx signal for hex: ", msg.Messsage)
 					tx := exp.blockData.DecodeRawTransaction(msg.Messsage)
-					webData := WebSocketMessage{
-						EventId: "decodedtx",
-					}
-
 					if tx != nil {
 						buff := new(bytes.Buffer)
 						enc := json.NewEncoder(buff)
@@ -160,7 +160,17 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 						log.Debugf("Could not decode raw tx")
 						webData.Messsage = fmt.Sprintf("Error: Could not decode hex %s", msg.Messsage)
 					}
-
+				case "sendtx":
+					webData.EventId = "senttx"
+					log.Debug("Recieved sendtx signal for hex: ", msg.Messsage)
+					txid := exp.blockData.SendRawTransaction(msg.Messsage)
+					if txid == "" {
+						webData.Messsage = fmt.Sprintf("Error: Could not send hex %s\nTry decoding it first to see if it's valid", msg.Messsage)
+					} else {
+						webData.Messsage = fmt.Sprintf("Transaction sent: %s", txid)
+					}
+				}
+				if webData.EventId != "" {
 					err := websocket.JSON.Send(ws, webData)
 					if err != nil {
 						log.Debugf("Failed to encode WebSocketMessage decodedtx: %v", err)

@@ -21,9 +21,9 @@
             </h4>
             <div class="lh1rem mb-1">
                 <span class="break-word fs15 w80 mr-1">{{.TxID}}</span>
-                <a class="fs13 nowrap" href="/api/tx/{{.TxID}}?indent=true" data-turbolinks="false">api</a>
+                <a class="fs13 nowrap" href="/api/tx/decoded/{{.TxID}}?indent=true" data-turbolinks="false">view decoded</a>
                 <span class="sep"></span>
-                <a class="fs13 nowrap" href="/api/tx/{{.TxID}}/raw" data-turbolinks="false">hex</a>
+                <a class="fs13 nowrap" href="/api/tx/hex/{{.TxID}}" data-turbolinks="false">view hex</a>
             </div>
             <table class="table table-centered-1rem">
                 {{if gt .BlockHeight 0}}

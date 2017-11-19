@@ -16,20 +16,25 @@
                         placeholder="Enter the transation hex here"
                     /></textarea>
                 </form>
-                <h4 class="mb-2">Decoded tx</h4>
-<pre
-    id="decoded_tx"
-    class="json-block mono"
->
+                <h4 class="mb-2" id="decode_header">Decoded tx</h4><button id="send_tx">Send Tx</button>
+            <pre
+                id="decoded_tx"
+                class="json-block mono"
+            >
 
-    Press Enter or click here to decode
+                Press Enter or click here to decode
 
-</pre>
+            </pre>
         </div>
         <script>
+            $("#send_tx").on("click", function() {
+                var msg = $("#rawtx").val();
+                    if (msg !== ""){
+                        ws.send("sendtx", msg);
+                    }
+            })
             setTimeout(function(){
-                $("#rawtx")
-                    .keypress( function(e){
+                $("#rawtx").keypress( function(e){
                         if (!e) e = window.event;
                         var keyCode = e.keyCode || e.which;
                         if (keyCode == '13'){

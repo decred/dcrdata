@@ -43,10 +43,15 @@ type TxShort struct {
 	Vout     []Vout        `json:"vout"`
 }
 
-// TxRaw warps the hex of a tx
-type TxRaw struct {
-	TxID string `json:"txid"`
-	Hex  string `json:"hex"`
+// TrimmedTx models data to resemble to result of the decoderawtransaction
+// call
+type TrimmedTx struct {
+	TxID     string        `json:"txid"`
+	Version  int32         `json:"version"`
+	Locktime uint32        `json:"locktime"`
+	Expiry   uint32        `json:"expiry"`
+	Vin      []dcrjson.Vin `json:"vin"`
+	Vout     []Vout        `json:"vout"`
 }
 
 // VoteInfo models data about a SSGen transaction (vote)
