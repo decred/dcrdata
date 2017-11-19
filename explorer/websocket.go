@@ -16,6 +16,7 @@ type WebSocketMessage struct {
 var eventIDs = map[hubSignal]string{
 	sigNewBlock:         "newblock",
 	sigPingAndUserCount: "ping",
+	sigMempoolUpdate:    "mempoolupdate",
 }
 
 // WebsocketHub and its event loop manage all websocket client connections.
@@ -39,6 +40,7 @@ const (
 	pingInterval             = 12 * time.Second
 	sigNewBlock    hubSignal = iota
 	sigPingAndUserCount
+	sigMempoolUpdate
 )
 
 // NewWebsocketHub creates a new WebsocketHub
@@ -120,6 +122,8 @@ func (wsh *WebsocketHub) run() {
 				log.Infof("Signaling new block to %d clients.", len(wsh.clients))
 			case sigPingAndUserCount:
 				log.Tracef("Signaling ping/user count to %d clients.", len(wsh.clients))
+			case sigMempoolUpdate:
+				log.Tracef("Signaling mempool upfate to %d clients.", len(wsh.clients))
 			default:
 				log.Errorf("Unknown hub signal: %v", hubSignal)
 				break events

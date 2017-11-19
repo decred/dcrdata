@@ -294,6 +294,7 @@ func mainCore() error {
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
 	blockDataSavers = append(blockDataSavers, explore)
+	mempoolSavers = append(mempoolSavers, explore)
 
 	// Initial data summary for web ui
 	blockData, _, err := collector.Collect()
@@ -372,6 +373,12 @@ func mainCore() error {
 		// Store initial MP data to webUI
 		if err = webUI.StoreMPData(mpData, time.Now()); err != nil {
 			return fmt.Errorf("Failed to store initial mempool data (WebUI): %v",
+				err.Error())
+		}
+
+		// Store initial MP data to explorer
+		if err = explore.StoreMPData(mpData, time.Now()); err != nil {
+			return fmt.Errorf("Failed to store initial mempool data (explorer): %v",
 				err.Error())
 		}
 

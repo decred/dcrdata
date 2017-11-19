@@ -17,6 +17,8 @@ type MempoolDataCache struct {
 	height                  uint32
 	timestamp               time.Time
 	numTickets              uint32
+	numTx                   uint32
+	numVotes                uint32
 	ticketFeeInfo           dcrjson.FeeInfoMempool
 	allFees                 []float64
 	allFeeRates             []float64
@@ -32,6 +34,8 @@ func (c *MempoolDataCache) StoreMPData(data *MempoolData, timestamp time.Time) e
 	c.height = data.Height
 	c.timestamp = timestamp
 	c.numTickets = data.NumTickets
+	c.numTx = data.NumTx
+	c.numVotes = data.NumVotes
 	c.ticketFeeInfo = data.Ticketfees.FeeInfoMempool
 	c.allFees = data.MinableFees.allFees
 	c.allFeeRates = data.MinableFees.allFeeRates
@@ -44,6 +48,13 @@ func (c *MempoolDataCache) StoreMPData(data *MempoolData, timestamp time.Time) e
 // GetHeight returns the mempool height
 func (c *MempoolDataCache) GetHeight() uint32 {
 	return c.height
+}
+
+// GetNumTxVotes returns the number of regular transactions and votes
+func (c *MempoolDataCache) GetNumTxVotes() (uint32, uint32) {
+	c.RLock()
+	defer c.RUnlock()
+	return c.numTx, c.numVotes
 }
 
 // GetNumTickets returns the mempool height and number of tickets

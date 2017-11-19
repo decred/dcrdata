@@ -178,9 +178,13 @@
             })
             // block summary data
             var b = newBlock.block;
+            var s = newBlock.stake;
+            if ($("#mempool_last_block").text() !== "") {
+                $("#mempool_last_block").data("age", b.time);
+            }
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
-            if (expTableRows){
+            if (expTableRows) {
                 expTableRows.last().remove()
                 var newRow = '<tr id="' + b.height + '">' +
                     '<td><a href="/explorer/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
@@ -194,7 +198,6 @@
                 '</tr>'
                 var newRowHtml = $.parseHTML(newRow)
                 $(newRowHtml).insertBefore(expTableRows.first())
-                setTimeElements()
             }
             if ($("#bsubsidy_total").text() !== "") {
                 $("#bsubsidy_total").html(humanize.decimalParts(b.next_block_subsidy.total/100000000, false, 8))
@@ -203,20 +206,58 @@
                 $("#bsubsidy_dev").html(humanize.decimalParts(b.next_block_subsidy.developer/100000000, false, 8))
                 $("#coin_supply").html(humanize.decimalParts(b.coin_supply/100000000, true, 8))
                 $("#blocksdiff").html(humanize.decimalParts(b.sdiff, false, 8))
+                $("#next_ticket_price").html(humanize.decimalParts(s.stakediff.estimates.expected, false, 8))
+                $("#avg_ticket_price").html(humanize.decimalParts(s.ticket_pool.valavg, false, 8))
                 $("#window_block_index").text(newBlock.stake.window_block_index)
                 $("#pos-window-progess-bar").css({ width: (newBlock.stake.window_block_index/144)*100 + "%" })
             }
+            setTimeElements()
         };
         ws.registerEvtHandler("newblock", updateBlockData);
 
         var updateMempool = function (event) {
-            console.log("Received mempoolsstxfeeinfo message", event);
+            console.log("Received mempoolupdate message", event);
             var m = JSON.parse(event);
 
             //mempool fee info
-            $('#mempoolfeeinfo_number').text(m.number)
+            $('#mempool_num_tickets').text(m.num_tickets);
+            $("#mempool_num_tx").text(m.num_tx);
+            $("#mempool_num_votes").text(m.num_votes);
+
+            if ($("#mempool_last_block").text() !== "") {
+                var tickets = "";
+                for (i = 0; i < m.tickets.length; ++i) {
+                    tickets = tickets + '<tr><td class="break-word"><span><a class="hash" href="/explorer/tx/'+ m.tickets[i].hash +'">'+ m.tickets[i].hash +
+                        '</a></span></td><td class="mono fs15 text-right"><span class="op60 fs12 nowrap"><span data-age="'+ m.tickets[i].time +'"></span> ago</span></td>' +
+                                '<td class="mono fs15 text-right">' + m.tickets[i].fee + '</td>' +
+                                '<td class="mono fs15">' + m.tickets[i].size + ' kb</td>'
+                }
+                var newtickets = $.parseHTML(tickets);
+                $("#tickets").html(newtickets);
+
+                var tx = "";
+                for (i = 0; i < m.tx.length; ++i) {
+                    tx = tx + '<tr><td class="break-word"><span><a class="hash" href="/explorer/tx/'+ m.tx[i].hash +'">'+ m.tx[i].hash +
+                        '</a></span></td><td class="mono fs15 text-right"><span class="op60 fs12 nowrap"><span data-age="'+ m.tx[i].time +'"></span> ago</span></td>' +
+                                '<td class="mono fs15 text-right">' + m.tx[i].fee + '</td>' +
+                                '<td class="mono fs15">' + m.tx[i].size + ' kb</td>'
+                }
+                var newtx = $.parseHTML(tx);
+                $("#tx").html(newtx);
+
+                var votes = "";
+                for (i = 0; i < m.votes.length; ++i) {
+                    votes = votes + '<tr><td class="break-word"><span><a class="hash" href="/explorer/tx/'+ m.votes[i].hash +'">'+ m.votes[i].hash +
+                        '</a></span></td><td class="mono fs15 text-right"><span class="op60 fs12 nowrap"><span data-age="'+ m.votes[i].time +'"></span> ago</span></td>' +
+                                '<td class="mono fs15">' + m.votes[i].size + ' kb</td>'
+                }
+                var newvotes = $.parseHTML(votes);
+                $("#votes").html(newvotes);
+
+                setTimeElements();
+            }
         };
-        ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
+        ws.registerEvtHandler("mempoolupdate", updateMempool);
     }
     function manageWebSocket(loc) {
         var pathRoot = loc.pathname.split('/')[1];

@@ -140,7 +140,6 @@ func (p *mempoolMonitor) TxHandler(client *rpcclient.Client) {
 			//s.Tree() == dcrutil.TxTreeRegular
 			// See dcrd/blockchain/stake/staketx.go for information about
 			// specifications for different transaction types.
-
 			switch txType {
 			case stake.TxTypeRegular:
 				// Regular Tx
@@ -283,7 +282,14 @@ type Stakelimitfeeinfo struct {
 // MempoolData models info about ticket purchases in mempool
 type MempoolData struct {
 	Height            uint32
+	NumTx             uint32
+	NumRevs           uint32
+	NumVotes          uint32
 	NumTickets        uint32
+	Tx                map[string]dcrjson.GetRawMempoolVerboseResult
+	Revs              map[string]dcrjson.GetRawMempoolVerboseResult
+	Votes             map[string]dcrjson.GetRawMempoolVerboseResult
+	Tickets           map[string]dcrjson.GetRawMempoolVerboseResult
 	NewTickets        uint32
 	Ticketfees        *dcrjson.TicketFeeInfoResult
 	MinableFees       *MinableFeeInfo
@@ -334,6 +340,24 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 	// Get a map of ticket hashes to getrawmempool results
 	// mempoolTickets[ticketHashes[0].String()].Fee
 	mempoolTickets, err := c.GetRawMempoolVerbose(dcrjson.GRMTickets)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get map of regular transactions
+	mempoolTx, err := c.GetRawMempoolVerbose(dcrjson.GRMRegular)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get map of votes
+	mempoolVotes, err := c.GetRawMempoolVerbose(dcrjson.GRMVotes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get map of revs
+	mempoolRevs, err := c.GetRawMempoolVerbose(dcrjson.GRMRevocations)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +445,14 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 
 	mpoolData := &MempoolData{
 		Height:            uint32(height),
-		NumTickets:        feeInfo.FeeInfoMempool.Number,
+		NumTx:             uint32(len(mempoolTx)),
+		NumRevs:           uint32(len(mempoolRevs)),
+		NumVotes:          uint32(len(mempoolVotes)),
+		NumTickets:        uint32(len(mempoolTickets)),
+		Tx:                mempoolTx,
+		Revs:              mempoolRevs,
+		Votes:             mempoolVotes,
+		Tickets:           mempoolTickets,
 		Ticketfees:        feeInfo,
 		MinableFees:       mineables,
 		AllTicketsDetails: allTicketsDetails,

@@ -23,6 +23,7 @@ import (
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/db/dbtypes"
+	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
@@ -37,6 +38,7 @@ const (
 	blockTemplateIndex
 	txTemplateIndex
 	addressTemplateIndex
+	mempoolTemplateIndex
 )
 
 const (
@@ -78,6 +80,8 @@ type explorerUI struct {
 	wsHub           *WebsocketHub
 	NewBlockDataMtx sync.RWMutex
 	NewBlockData    BlockBasic
+	Mempool         *MempoolInfo
+	MempoolMtx      sync.RWMutex
 }
 
 func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
@@ -160,6 +164,7 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				// Write block data to websocket client
 				exp.NewBlockDataMtx.RLock()
+				exp.MempoolMtx.RLock()
 				webData := WebSocketMessage{
 					EventId: eventIDs[sig],
 				}
@@ -169,6 +174,9 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				case sigNewBlock:
 					enc.Encode(WebsocketBlock{exp.NewBlockData})
 					webData.Messsage = buff.String()
+				case sigMempoolUpdate:
+					enc.Encode(exp.Mempool)
+					webData.Messsage = buff.String()
 				case sigPingAndUserCount:
 					// ping and send user count
 					webData.Messsage = strconv.Itoa(exp.wsHub.NumClients())
@@ -176,6 +184,7 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				err := websocket.JSON.Send(ws, webData)
 				exp.NewBlockDataMtx.RUnlock()
+				exp.MempoolMtx.RUnlock()
 				if err != nil {
 					log.Debugf("Failed to encode WebSocketMessage %v: %v", sig, err)
 					// If the send failed, the client is probably gone, so close
@@ -364,6 +373,29 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+func (exp *explorerUI) mempoolPage(w http.ResponseWriter, r *http.Request) {
+	exp.MempoolMtx.RLock()
+	exp.NewBlockDataMtx.RLock()
+	pageData := struct {
+		BlockTime int64
+		Mempool   *MempoolInfo
+	}{
+		exp.NewBlockData.BlockTime,
+		exp.Mempool,
+	}
+	str, err := templateExecToString(exp.templates[mempoolTemplateIndex], "mempool", pageData)
+	exp.MempoolMtx.RUnlock()
+	exp.NewBlockDataMtx.RUnlock()
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
 // redirects to the appropriate page or displays an error
@@ -453,10 +485,19 @@ func (exp *explorerUI) reloadTemplates() error {
 		return err
 	}
 
+	mempoolTemplate, err := template.New("mempool").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["mempool"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		return err
+	}
+
 	exp.templates[rootTemplateIndex] = explorerTemplate
 	exp.templates[blockTemplateIndex] = blockTemplate
 	exp.templates[txTemplateIndex] = txTemplate
 	exp.templates[addressTemplateIndex] = addressTemplate
+	exp.templates[mempoolTemplateIndex] = mempoolTemplate
 
 	return nil
 }
@@ -510,6 +551,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.templateFiles["tx"] = filepath.Join("views", "tx.tmpl")
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
 	exp.templateFiles["address"] = filepath.Join("views", "address.tmpl")
+	exp.templateFiles["mempool"] = filepath.Join("views", "mempool.tmpl")
 	exp.templateHelpers = template.FuncMap{
 		"add": func(a int64, b int64) int64 {
 			val := a + b
@@ -611,6 +653,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 	}
 	exp.templates = append(exp.templates, txTemplate)
+
 	addrTemplate, err := template.New("address").Funcs(exp.templateHelpers).ParseFiles(
 		exp.templateFiles["address"],
 		exp.templateFiles["extras"],
@@ -619,6 +662,15 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 	}
 	exp.templates = append(exp.templates, addrTemplate)
+
+	mempoolTemplate, err := template.New("mempool").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["mempool"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		log.Errorf("Unable to create new html template: %v", err)
+	}
+	exp.templates = append(exp.templates, mempoolTemplate)
 
 	exp.addRoutes()
 
@@ -653,7 +705,14 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 
 	return nil
 }
+func (exp *explorerUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) error {
+	exp.MempoolMtx.RLock()
+	exp.Mempool = ToExplorerMempool(data)
+	exp.MempoolMtx.RUnlock()
 
+	exp.wsHub.HubRelay <- sigMempoolUpdate
+	return nil
+}
 func (exp *explorerUI) addRoutes() {
 	exp.Mux.Use(middleware.Logger)
 	exp.Mux.Use(middleware.Recoverer)
@@ -684,6 +743,10 @@ func (exp *explorerUI) addRoutes() {
 			rd.Get("/", exp.addressPage)
 			rd.Get("/ws", exp.rootWebsocket)
 		})
+	})
+	exp.Mux.Route("/mempool", func(r chi.Router) {
+		r.Get("/", exp.mempoolPage)
+		r.Get("/ws", exp.rootWebsocket)
 	})
 
 	exp.Mux.With(searchPathCtx).Get("/search/{search}", exp.search)

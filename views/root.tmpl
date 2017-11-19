@@ -28,9 +28,14 @@
                             <td class="mono vam fs24 fs14-decimal font-weight-bold"><span id="blocksdiff">{{template "decimalParts" (float64AsDecimalParts .BlockSummary.StakeDiff false)}}</span><span class="pl-1 unit">DCR</span></td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKETS IN MEMPOOL</td>
-                            <td><span id="mempoolfeeinfo_number" class="mono fs24">{{.MempoolFeeInfo.Number}}</span></td>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">NEXT TICKET PRICE ESTIMATE</td>
+                            <td class="mono vam fs24 fs14-decimal font-weight-bold"><span id="next_ticket_price">{{template "decimalParts" (float64AsDecimalParts .StakeSummary.StakeDiff.Estimates.Expected false)}}</span><span class="pl-1 unit">DCR</span></td>
                         </tr>
+                        <tr>
+                                <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">AVERAGE TICKET PRICE IN MEMPOOL</td>
+                                <td class="mono vam fs24 fs14-decimal font-weight-bold"><span id="avg_ticket_price">{{template "decimalParts" (float64AsDecimalParts .StakeSummary.PoolInfo.ValAvg false)}}</span><span class="pl-1 unit">DCR</span></td>
+                            </tr>
+                        <tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET WINDOW PROGRESS</td>
                             <td>
@@ -89,6 +94,23 @@
                         </tr>
                     </table>
                 </div>
+
+                <h3 class="mt-2">Mempool <a class="fs13 nowrap" href="/explorer/mempool">details</a></h3>
+                <div>
+                    <table class="mb-3 col">
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKETS IN MEMPOOL</td>
+                            <td><span id="mempool_num_tickets" class="mono fs24">{{.MempoolData.NumTickets}}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TRANSACTIONS IN MEMPOOL</td>
+                            <td><span id="mempool_num_tx" class="mono fs24">{{.MempoolData.NumTx}}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">VOTES IN MEMPOOL</td>
+                            <td><span id="mempool_num_votes" class="mono fs24">{{.MempoolData.NumVotes}}</span></td>
+                        </tr>
+                    </table>
+                </div>
                 {{end}}
 
             </div>
@@ -134,6 +156,11 @@
 
             </div>
 
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                
+            </div>
         </div>
 
     </div>

@@ -1,10 +1,10 @@
 // Copyright (c) 2017, The Dcrdata developers
 // See LICENSE for details.
-
 package explorer
 
 import (
 	"github.com/dcrdata/dcrdata/db/dbtypes"
+	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -212,4 +212,61 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 // WebsocketBlock wraps the new block info for use in the websocket
 type WebsocketBlock struct {
 	Block BlockBasic `json:"block"`
+}
+
+// MempoolBasic models basic data for updating the front page's mempool data
+type MempoolBasic struct {
+	NumTickets uint32 `json:"num_tickets"`
+	NumVotes   uint32 `json:"num_votes"`
+	NumTx      uint32 `json:"num_tx"`
+	NumRevs    uint32 `json:"num_revs"`
+}
+
+//MempoolTx models data for a transaction in mempool
+type MempoolTx struct {
+	Hash string  `json:"hash"`
+	Size int32   `json:"size"`
+	Fee  float64 `json:"fee"`
+	Time int64   `json:"time"`
+}
+
+// MempoolInfo models data about the current mempool
+type MempoolInfo struct {
+	*MempoolBasic
+	Tickets     []*MempoolTx `json:"tickets"`
+	Votes       []*MempoolTx `json:"votes"`
+	Revocations []*MempoolTx `json:"revs"`
+	Regular     []*MempoolTx `json:"tx"`
+}
+
+// ToExplorerMempool returns mempool data for explorer and the front page
+func ToExplorerMempool(m *mempool.MempoolData) *MempoolInfo {
+	makeExplorerTxs := func(txs map[string]dcrjson.GetRawMempoolVerboseResult) []*MempoolTx {
+		tx := make([]*MempoolTx, 0, len(txs))
+		for hash, details := range txs {
+			tx = append(tx, &MempoolTx{
+				Hash: hash,
+				Size: details.Size,
+				Fee:  details.Fee,
+				Time: details.Time,
+			})
+		}
+		return tx
+	}
+	tx := makeExplorerTxs(m.Tx)
+	votes := makeExplorerTxs(m.Votes)
+	revs := makeExplorerTxs(m.Revs)
+	tickets := makeExplorerTxs(m.Tickets)
+	return &MempoolInfo{
+		MempoolBasic: &MempoolBasic{
+			NumRevs:    m.NumRevs,
+			NumVotes:   m.NumVotes,
+			NumTx:      m.NumTx,
+			NumTickets: m.NumTickets,
+		},
+		Tickets:     tickets,
+		Votes:       votes,
+		Revocations: revs,
+		Regular:     tx,
+	}
 }

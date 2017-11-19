@@ -1,0 +1,102 @@
+{{define "mempool"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" printf "Decred Mempool Monitor"}}
+<body>
+    {{template "navbar"}}
+    {{with .Mempool}}
+    <div class="container">
+        <div class="row justify-content-between">
+            <div class="col-md-7 col-sm-6">
+                <h4 class="mb-2">
+                    Time since last block: <span id="mempool_last_block" data-age="{{$.BlockTime}}"> ago</span>
+                </h4>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-12">
+                <h4><span>Tickets (<span id="mempool_num_tickets">{{.NumTickets}}</span>)</span></h4>
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Hash</th>
+                        <th class="text-right">Time in Mempool</th>
+                        <th class="text-right">Fee</th>
+                        <th>Size</th>
+                    </thead>
+                    <tbody id="tickets">
+                            {{range .Tickets}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/explorer/tx/{{.Hash}}">{{.Hash}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15 text-right"><span class="op60 fs12 nowrap"><span data-age="{{.Time}}"></span> ago</span></td>
+                                <td class="mono fs15 text-right">{{.Fee}}</td>
+                                <td class="mono fs15">{{.Size}} kb</td>
+                            </tr>
+                            {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h4><span>Transactions (<span id="mempool_num_tx">{{.NumTx}}</span>)</span></h4>
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Hash</th>
+                        <th class="text-right">Time in Mempool</th>
+                        <th class="text-right">Fee</th>
+                        <th>Size</th>
+                    </thead>
+                    <tbody id="tx">
+                            {{range .Regular}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/explorer/tx/{{.Hash}}">{{.Hash}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15 text-right"><span class="op60 fs12 nowrap"><span data-age="{{.Time}}"></span> ago</span></td>
+                                <td class="mono fs15 text-right">{{.Fee}}</td>
+                                <td class="mono fs15">{{.Size}} kb</td>
+                            </tr>
+                            {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-sm-12">
+                <h4><span>Votes (<span id="mempool_num_votes">{{.NumVotes}}</span>)</span></h4>
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Hash</th>
+                        <th class="text-right">Time in Mempool</th>
+                        <th>Size</th>
+                    </thead>
+                    <tbody id="votes">
+                            {{range .Votes}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/explorer/tx/{{.Hash}}">{{.Hash}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15 text-right"><span class="op60 fs12 nowrap"><span data-age="{{.Time}}"></span> ago</span></td>
+                                <td class="mono fs15">{{.Size}} kb</td>
+                            </tr>
+                            {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {{end}}
+{{template "footer"}}
+</body>
+</html>
+{{ end }}
