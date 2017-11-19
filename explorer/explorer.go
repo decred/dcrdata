@@ -375,8 +375,17 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 
 func (exp *explorerUI) mempoolPage(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolMtx.RLock()
-	str, err := templateExecToString(exp.templates[mempoolTemplateIndex], "mempool", exp.Mempool)
+	exp.NewBlockDataMtx.RLock()
+	pageData := struct {
+		BlockTime int64
+		Mempool   *MempoolInfo
+	}{
+		exp.NewBlockData.BlockTime,
+		exp.Mempool,
+	}
+	str, err := templateExecToString(exp.templates[mempoolTemplateIndex], "mempool", pageData)
 	exp.MempoolMtx.RUnlock()
+	exp.NewBlockDataMtx.RUnlock()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)

@@ -224,17 +224,15 @@ type MempoolBasic struct {
 
 //MempoolTx models data for a transaction in mempool
 type MempoolTx struct {
-	Hash   string  `json:"hash"`
-	Size   int32   `json:"size"`
-	Fee    float64 `json:"fee"`
-	Time   int64   `json:"time"`
-	Height int64   `json:"height"`
+	Hash string  `json:"hash"`
+	Size int32   `json:"size"`
+	Fee  float64 `json:"fee"`
+	Time int64   `json:"time"`
 }
 
 // MempoolInfo models data about the current mempool
 type MempoolInfo struct {
 	*MempoolBasic
-	Height      uint32
 	Tickets     []*MempoolTx `json:"tickets"`
 	Votes       []*MempoolTx `json:"votes"`
 	Revocations []*MempoolTx `json:"revs"`
@@ -247,11 +245,10 @@ func ToExplorerMempool(m *mempool.MempoolData) *MempoolInfo {
 		tx := make([]*MempoolTx, 0, len(txs))
 		for hash, details := range txs {
 			tx = append(tx, &MempoolTx{
-				Hash:   hash,
-				Size:   details.Size,
-				Fee:    details.Fee,
-				Time:   details.Time,
-				Height: details.Height,
+				Hash: hash,
+				Size: details.Size,
+				Fee:  details.Fee,
+				Time: details.Time,
 			})
 		}
 		return tx
@@ -267,7 +264,6 @@ func ToExplorerMempool(m *mempool.MempoolData) *MempoolInfo {
 			NumTx:      m.NumTx,
 			NumTickets: m.NumTickets,
 		},
-		Height:      m.Height,
 		Tickets:     tickets,
 		Votes:       votes,
 		Revocations: revs,

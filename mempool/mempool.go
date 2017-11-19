@@ -140,7 +140,6 @@ func (p *mempoolMonitor) TxHandler(client *rpcclient.Client) {
 			//s.Tree() == dcrutil.TxTreeRegular
 			// See dcrd/blockchain/stake/staketx.go for information about
 			// specifications for different transaction types.
-
 			switch txType {
 			case stake.TxTypeRegular:
 				// Regular Tx
