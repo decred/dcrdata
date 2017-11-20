@@ -21,11 +21,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/dcrjson"
-
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
@@ -58,7 +57,7 @@ type explorerDataSourceLite interface {
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
 	GetExplorerAddress(address string, count, offset int64) *AddressInfo
-	DecodeRawTransaction(txhex string) *dcrjson.TxRawResult
+	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int
 }
@@ -131,6 +130,9 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 		// unregister (and close signal channel) before return
 		defer exp.wsHub.UnregisterClient(&updateSig)
 
+		// set the max payload size to 1 MB
+		ws.MaxPayloadBytes = 1 << 20
+
 		// Ticker for a regular ping
 		ticker := time.NewTicker(pingInterval)
 		defer ticker.Stop()
@@ -148,21 +150,23 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				switch msg.EventId {
 				case "decodetx":
 					webData.EventId = "decodedtx"
-					log.Debug("Recieved decodetx signal for hex: ", msg.Messsage)
-					tx := exp.blockData.DecodeRawTransaction(msg.Messsage)
-					if tx != nil {
-						buff := new(bytes.Buffer)
-						enc := json.NewEncoder(buff)
-						enc.SetIndent("", "    ")
-						enc.Encode(tx)
-						webData.Messsage = buff.String()
+					log.Debug("Received decodetx signal for hex: ", msg.Messsage)
+					tx, err := exp.blockData.DecodeRawTransaction(msg.Messsage)
+					if err == nil {
+						message, err := json.MarshalIndent(tx, "", "    ")
+						if err != nil {
+							log.Warn("Invalid JSON message: ", err)
+							webData.Messsage = fmt.Sprintf("Error: Could not encode JSON message")
+							continue
+						}
+						webData.Messsage = string(message)
 					} else {
 						log.Debugf("Could not decode raw tx")
-						webData.Messsage = fmt.Sprintf("Error: Could not decode hex %s", msg.Messsage)
+						webData.Messsage = fmt.Sprintf("Error: %v", err)
 					}
 				case "sendtx":
 					webData.EventId = "senttx"
-					log.Debug("Recieved sendtx signal for hex: ", msg.Messsage)
+					log.Debug("Received sendtx signal for hex: ", msg.Messsage)
 					txid, err := exp.blockData.SendRawTransaction(msg.Messsage)
 					if err != nil {
 						webData.Messsage = fmt.Sprintf("Error: %v", err)
@@ -170,20 +174,20 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 						webData.Messsage = fmt.Sprintf("Transaction sent: %s", txid)
 					}
 				}
-				if webData.EventId != "" {
-					err := websocket.JSON.Send(ws, webData)
-					if err != nil {
-						log.Debugf("Failed to encode WebSocketMessage decodedtx: %v", err)
-						// If the send failed, the client is probably gone, so close
-						// the connection and quit.
-						return
-					}
+				if webData.EventId == "" {
+					continue
+				}
+				err := websocket.JSON.Send(ws, webData)
+				if err != nil {
+					log.Debugf("Failed to encode WebSocketMessage decodedtx: %v", err)
+					// If the send failed, the client is probably gone, so close
+					// the connection and quit.
+					return
 				}
 			}
 		}()
 	loop:
 		for {
-
 			// Wait for signal from the hub to update
 			select {
 			case sig, ok := <-updateSig:

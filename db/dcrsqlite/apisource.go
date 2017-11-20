@@ -327,18 +327,18 @@ func (db *wiredDB) GetTransactionHex(txid string) string {
 	return hex
 }
 
-func (db *wiredDB) DecodeRawTransaction(txhex string) *dcrjson.TxRawResult {
+func (db *wiredDB) DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error) {
 	bytes, err := hex.DecodeString(txhex)
 	if err != nil {
 		log.Errorf("DecodeRawTransaction failed: %v", err)
-		return nil
+		return nil, err
 	}
 	tx, err := db.client.DecodeRawTransaction(bytes)
 	if err != nil {
 		log.Errorf("DecodeRawTransaction failed: %v", err)
-		return nil
+		return nil, err
 	}
-	return tx
+	return tx, nil
 }
 
 func (db *wiredDB) SendRawTransaction(txhex string) (string, error) {
