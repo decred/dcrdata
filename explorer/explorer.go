@@ -59,7 +59,7 @@ type explorerDataSourceLite interface {
 	GetExplorerTx(txid string) *TxInfo
 	GetExplorerAddress(address string, count, offset int64) *AddressInfo
 	DecodeRawTransaction(txhex string) *dcrjson.TxRawResult
-	SendRawTransaction(txhex string) string
+	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int
 }
 
@@ -163,9 +163,9 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				case "sendtx":
 					webData.EventId = "senttx"
 					log.Debug("Recieved sendtx signal for hex: ", msg.Messsage)
-					txid := exp.blockData.SendRawTransaction(msg.Messsage)
-					if txid == "" {
-						webData.Messsage = fmt.Sprintf("Error: Could not send hex %s\nTry decoding it first to see if it's valid", msg.Messsage)
+					txid, err := exp.blockData.SendRawTransaction(msg.Messsage)
+					if err != nil {
+						webData.Messsage = fmt.Sprintf("Error: %v", err)
 					} else {
 						webData.Messsage = fmt.Sprintf("Transaction sent: %s", txid)
 					}

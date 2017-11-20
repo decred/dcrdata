@@ -6,6 +6,7 @@ package dcrsqlite
 import (
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -340,18 +341,18 @@ func (db *wiredDB) DecodeRawTransaction(txhex string) *dcrjson.TxRawResult {
 	return tx
 }
 
-func (db *wiredDB) SendRawTransaction(txhex string) string {
+func (db *wiredDB) SendRawTransaction(txhex string) (string, error) {
 	msg := txhelpers.MsgTxFromHex(txhex)
 	if msg == nil {
 		log.Errorf("SendRawTransaction failed: could not decode hex")
-		return ""
+		return "", errors.New("Could not decode hex")
 	}
 	hash, err := db.client.SendRawTransaction(msg, true)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: %v", err)
-		return ""
+		return "", err
 	}
-	return hash.String()
+	return hash.String(), err
 }
 
 func (db *wiredDB) GetTrimmedTransaction(txid string) *apitypes.TrimmedTx {
