@@ -5,52 +5,51 @@
     <body>
         {{template "navbar"}}
         <div class="container">
-                <h4 class="mb-2">Decode a Decred transaction</h4>
-                <form>
-                    <textarea
-                        autofocus
-                        rows="6"
-                        class="col"
-                        name="rawtx"
-                        id="rawtx"
-                        placeholder="Enter the transation hex here"
-                    /></textarea>
-                </form>
-                <h4 class="mb-2" id="decode_header">Decoded tx</h4><button id="send_tx">Send Tx</button>
+            <h4 class="mb-2">Decode a Decred transaction</h4>
+            <form>
+                <textarea
+                    autofocus
+                    rows="6"
+                    class="col"
+                    name="rawtx"
+                    id="rawtx"
+                    placeholder="Enter the transation hex here"
+                /></textarea>
+                <button id="decode_tx" class="button btn btn-primary mr-1">Decode Tx</button>
+                <button id="send_tx" class="button btn btn-success">Send Tx</button>
+            </form>
+            <h4 class="mb-2" id="decode_header">Decoded tx</h4>
             <pre
                 id="decoded_tx"
-                class="json-block mono"
+                class="json-block mono pt-3 pr-3 pb-3 pl-3"
             >
-
-                Press Enter or click here to decode
-
             </pre>
         </div>
         <script>
             $("#send_tx").on("click", function() {
                 var msg = $("#rawtx").val();
-                    if (msg !== ""){
-                        ws.send("sendtx", msg);
-                    }
+                if (msg !== ""){
+                    ws.send("sendtx", msg);
+                }
+            })
+            $("#decode_tx").on("click", function(){
+                var msg = $("#rawtx").val();
+                if (msg !== ""){
+                    ws.send("decodetx", msg);
+                }
             })
             setTimeout(function(){
                 $("#rawtx").keypress( function(e){
-                        if (!e) e = window.event;
-                        var keyCode = e.keyCode || e.which;
-                        if (keyCode == '13'){
-                            if (this.value !== "") {
-                                ws.send("decodetx", this.value);
-                            }
-                            return false;
+                    if (!e) e = window.event;
+                    var keyCode = e.keyCode || e.which;
+                    if (keyCode == '13'){
+                        if (this.value !== "") {
+                            ws.send("decodetx", this.value);
                         }
-                    })
-                    .focus()
-                $("#decoded_tx").on("click", function(){
-                    var msg = $("#rawtx").val();
-                    if (msg !== ""){
-                        ws.send("decodetx", msg);
+                        return false;
                     }
                 })
+                .focus()
             }, 14)
         </script>
         {{template "footer"}}
