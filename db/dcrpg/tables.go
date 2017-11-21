@@ -19,6 +19,8 @@ var createTableStatements = map[string]string{
 	"vouts":        internal.CreateVoutTable,
 	"block_chain":  internal.CreateBlockPrevNextTable,
 	"addresses":    internal.CreateAddressTable,
+	"tickets":      internal.CreateTicketsTable,
+	"votes":        internal.CreateVotesTable,
 }
 
 var createTypeStatements = map[string]string{
@@ -292,5 +294,59 @@ func IndexAddressTableOnTxHash(db *sql.DB) (err error) {
 
 func DeindexAddressTableOnTxHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexAddressTableOnFundingTx)
+	return
+}
+
+// Votes table indexes
+
+func IndexVotesTableOnHashes(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexVotesTableOnHashes)
+	return
+}
+
+func DeindexVotesTableOnHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexVotesTableOnHashes)
+	return
+}
+
+func IndexVotesTableOnCandidate(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexVotesTableOnCandidate)
+	return
+}
+
+func DeindexVotesTableOnCandidate(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexVotesTableOnCandidate)
+	return
+}
+
+func IndexVotesTableOnVoteVersion(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexVotesTableOnVoteVersion)
+	return
+}
+
+func DeindexVotesTableOnVoteVersion(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexVotesTableOnVoteVersion)
+	return
+}
+
+// Tickets table indexes
+
+func IndexTicketsTableOnHashes(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexTicketsTableOnHashes)
+	return
+}
+
+func DeindexTicketsTableOnHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexTicketsTableOnHashes)
+	return
+}
+
+func IndexTicketsTableOnTxDbID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexTicketsTableOnTxDbID)
+	return
+}
+
+func DeindexTicketsTableOnTxDbID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexTicketsTableOnTxDbID)
 	return
 }

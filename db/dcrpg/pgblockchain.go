@@ -577,6 +577,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *wire.MsgBlock, txTree int8,
 		return txRes
 	}
 
+	// TODO: insert tickets (w/o spending info), insert votes, update spending info of tickets given votes
+
 	// Store tx Db IDs as funding tx in AddressRows and rearrange
 	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)
 	for it, txDbID := range *TxDbIDs {
