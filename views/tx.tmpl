@@ -42,6 +42,18 @@
                         {{end}}
                     {{end}}
                 {{end}}
+                {{if eq .Type "Ticket"}}
+                    {{range $i, $v :=  .SpendingTxns}}
+                        {{if (index $.Data.Vout $i).Spent}}
+                            <tr>
+                                <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">SPENT IN</td>
+                                <td>
+                                    <a href="/explorer/tx/{{$v.Hash}}">{{$v.Hash}}</a>
+                                </td>
+                            </tr>
+                        {{end}}
+                    {{end}}
+                {{end}}
                 <tr>
                     <td class="text-right pr-2 h1rem p03rem0">TYPE</td>
                     <td>
