@@ -44,7 +44,7 @@
                 {{end}}
                 {{if eq .Type "Ticket"}}
                     {{range $i, $v :=  .SpendingTxns}}
-                        {{if (index $.Data.Vout $i).Spent}}
+                        {{if $v.Hash}}
                             <tr>
                                 <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">SPENT IN</td>
                                 <td>
