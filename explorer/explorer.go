@@ -130,8 +130,9 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 		// unregister (and close signal channel) before return
 		defer exp.wsHub.UnregisterClient(&updateSig)
 
+		requestLimit := 1 << 20
 		// set the max payload size to 1 MB
-		ws.MaxPayloadBytes = 1 << 20
+		ws.MaxPayloadBytes = requestLimit
 
 		// Ticker for a regular ping
 		ticker := time.NewTicker(pingInterval)
@@ -150,28 +151,38 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				switch msg.EventId {
 				case "decodetx":
 					webData.EventId = "decodedtx"
-					log.Debug("Received decodetx signal for hex: ", msg.Messsage)
-					tx, err := exp.blockData.DecodeRawTransaction(msg.Messsage)
+					if len(msg.Message) > requestLimit {
+						log.Debug("Request size over limit")
+						webData.Message = "Request too large"
+						break
+					}
+					log.Debugf("Received decodetx signal for hex: %.40s...", msg.Message)
+					tx, err := exp.blockData.DecodeRawTransaction(msg.Message)
 					if err == nil {
 						message, err := json.MarshalIndent(tx, "", "    ")
 						if err != nil {
 							log.Warn("Invalid JSON message: ", err)
-							webData.Messsage = fmt.Sprintf("Error: Could not encode JSON message")
-							continue
+							webData.Message = fmt.Sprintf("Error: Could not encode JSON message")
+							break
 						}
-						webData.Messsage = string(message)
+						webData.Message = string(message)
 					} else {
 						log.Debugf("Could not decode raw tx")
-						webData.Messsage = fmt.Sprintf("Error: %v", err)
+						webData.Message = fmt.Sprintf("Error: %v", err)
 					}
 				case "sendtx":
 					webData.EventId = "senttx"
-					log.Debug("Received sendtx signal for hex: ", msg.Messsage)
-					txid, err := exp.blockData.SendRawTransaction(msg.Messsage)
+					if len(msg.Message) > requestLimit {
+						log.Debugf("Request size over limit")
+						webData.Message = "Request too large"
+						break
+					}
+					log.Debugf("Received sendtx signal for hex: %.40s...", msg.Message)
+					txid, err := exp.blockData.SendRawTransaction(msg.Message)
 					if err != nil {
-						webData.Messsage = fmt.Sprintf("Error: %v", err)
+						webData.Message = fmt.Sprintf("Error: %v", err)
 					} else {
-						webData.Messsage = fmt.Sprintf("Transaction sent: %s", txid)
+						webData.Message = fmt.Sprintf("Transaction sent: %s", txid)
 					}
 				}
 				if webData.EventId == "" {
@@ -218,10 +229,10 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				switch sig {
 				case sigNewBlock:
 					enc.Encode(WebsocketBlock{exp.NewBlockData})
-					webData.Messsage = buff.String()
+					webData.Message = buff.String()
 				case sigPingAndUserCount:
 					// ping and send user count
-					webData.Messsage = strconv.Itoa(exp.wsHub.NumClients())
+					webData.Message = strconv.Itoa(exp.wsHub.NumClients())
 				}
 
 				err := websocket.JSON.Send(ws, webData)
