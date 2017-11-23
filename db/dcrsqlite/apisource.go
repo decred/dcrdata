@@ -6,6 +6,7 @@ package dcrsqlite
 import (
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -319,6 +320,54 @@ func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	tx, _ := db.getRawTransaction(txid)
 	return tx
+}
+
+func (db *wiredDB) GetTransactionHex(txid string) string {
+	_, hex := db.getRawTransaction(txid)
+	return hex
+}
+
+func (db *wiredDB) DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error) {
+	bytes, err := hex.DecodeString(txhex)
+	if err != nil {
+		log.Errorf("DecodeRawTransaction failed: %v", err)
+		return nil, err
+	}
+	tx, err := db.client.DecodeRawTransaction(bytes)
+	if err != nil {
+		log.Errorf("DecodeRawTransaction failed: %v", err)
+		return nil, err
+	}
+	return tx, nil
+}
+
+func (db *wiredDB) SendRawTransaction(txhex string) (string, error) {
+	msg := txhelpers.MsgTxFromHex(txhex)
+	if msg == nil {
+		log.Errorf("SendRawTransaction failed: could not decode hex")
+		return "", errors.New("Could not decode hex")
+	}
+	hash, err := db.client.SendRawTransaction(msg, true)
+	if err != nil {
+		log.Errorf("SendRawTransaction failed: %v", err)
+		return "", err
+	}
+	return hash.String(), err
+}
+
+func (db *wiredDB) GetTrimmedTransaction(txid string) *apitypes.TrimmedTx {
+	tx, _ := db.getRawTransaction(txid)
+	if tx == nil {
+		return nil
+	}
+	return &apitypes.TrimmedTx{
+		TxID:     tx.TxID,
+		Version:  tx.Version,
+		Locktime: tx.Locktime,
+		Expiry:   tx.Expiry,
+		Vin:      tx.Vin,
+		Vout:     tx.Vout,
+	}
 }
 
 func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {

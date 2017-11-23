@@ -6,7 +6,6 @@ package dcrdataapi
 import (
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrd/dcrutil"
 )
 
 // much of the time, dcrdata will be using the types in dcrjson, but others are
@@ -44,14 +43,15 @@ type TxShort struct {
 	Vout     []Vout        `json:"vout"`
 }
 
-// ExplorerTxData packs data for display on the explorer tx page
-type ExplorerTxData struct {
-	*Tx
-	VinAddrs [][]string
-	Type     string
-	Fee      dcrutil.Amount
-	FeeRate  dcrutil.Amount
-	*VoteInfo
+// TrimmedTx models data to resemble to result of the decoderawtransaction
+// call
+type TrimmedTx struct {
+	TxID     string        `json:"txid"`
+	Version  int32         `json:"version"`
+	Locktime uint32        `json:"locktime"`
+	Expiry   uint32        `json:"expiry"`
+	Vin      []dcrjson.Vin `json:"vin"`
+	Vout     []Vout        `json:"vout"`
 }
 
 // VoteInfo models data about a SSGen transaction (vote)

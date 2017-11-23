@@ -115,19 +115,23 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 	})
 
 	mux.Route("/tx", func(r chi.Router) {
-		r.Route("/{txid}", func(rd chi.Router) {
-			rd.Use(TransactionHashCtx)
-			rd.Get("/", app.getTransaction)
-			rd.Route("/out", func(ro chi.Router) {
-				ro.Get("/", app.getTransactionOutputs)
-				ro.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionOutput)
+		r.Route("/", func(rt chi.Router) {
+			rt.Route("/{txid}", func(rd chi.Router) {
+				rd.Use(TransactionHashCtx)
+				rd.Get("/", app.getTransaction)
+				rd.Route("/out", func(ro chi.Router) {
+					ro.Get("/", app.getTransactionOutputs)
+					ro.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionOutput)
+				})
+				rd.Route("/in", func(ri chi.Router) {
+					ri.Get("/", app.getTransactionInputs)
+					ri.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionInput)
+				})
+				rd.Get("/vinfo", app.getTxVoteInfo)
 			})
-			rd.Route("/in", func(ri chi.Router) {
-				ri.Get("/", app.getTransactionInputs)
-				ri.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionInput)
-			})
-			rd.Get("/vinfo", app.getTxVoteInfo)
 		})
+		r.With(TransactionHashCtx).Get("/hex/{txid}", app.getTransactionHex)
+		r.With(TransactionHashCtx).Get("/decoded/{txid}", app.getDecodedTx)
 	})
 
 	mux.Route("/address", func(r chi.Router) {

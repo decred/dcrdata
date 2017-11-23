@@ -49,6 +49,7 @@
             <div class="col" style="padding: 0 5px;">
                 <form class="navbar-form" role="search" id="search-form">
                     <div class="input-group">
+
                         <input
                             autofocus
                             type="text"
@@ -162,8 +163,18 @@
 
         ws.registerEvtHandler("ping", function(evt) {
             console.log("ping. users online: ", evt)
-            ws.send("pong", "copy")
+            //ws.send("pong", "copy")
         });
+        ws.registerEvtHandler("decodedtx", function(evt) {
+            console.log("Got message: ", evt);
+            $("#decode_header").text("Decoded tx");
+            $("#decoded_tx").text(evt);
+        })
+        ws.registerEvtHandler("senttx", function(evt) {
+            console.log("Got message: ", evt);
+            $("#decode_header").text("Sent tx");
+            $("#decoded_tx").text(evt);
+        })
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
@@ -245,6 +256,7 @@
     <div class="container wrapper text-center">
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
+        <a class="nav-item" href="/explorer/decodetx" title="Decode or send a raw transaction">Decode Tx</a>
         <a class="nav-item" href="/api/status" title="API Status" target="_blank" data-turbolinks="false">Status</a>
         <span data-turbolinks-permanent class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
     </div>

@@ -8,8 +8,8 @@ import (
 // WebSocketMessage represents the JSON object used to send and received typed
 // messages to the web client.
 type WebSocketMessage struct {
-	EventId  string `json:"event"`
-	Messsage string `json:"message"`
+	EventId string `json:"event"`
+	Message string `json:"message"`
 }
 
 // Event type field for an SSE event
