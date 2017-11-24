@@ -629,8 +629,27 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			p := (float64(a) / float64(b)) * 100
 			return p
 		},
-		"int64Comma": func(v int64) string {
-			return humanize.Comma(v)
+		"intComma": func(v interface{}) string {
+			var vi64 int64
+			switch vt := v.(type) {
+			case int64:
+				vi64 = vt
+			case int32:
+				vi64 = int64(vt)
+			case uint32:
+				vi64 = int64(vt)
+			case uint64:
+				vi64 = int64(vt)
+			case int:
+				vi64 = int64(vt)
+			case int16:
+				vi64 = int64(vt)
+			case uint16:
+				vi64 = int64(vt)
+			default:
+				return ""
+			}
+			return humanize.Comma(vi64)
 		},
 		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
 			clipped := fmt.Sprintf("%.8f", v)
