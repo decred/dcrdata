@@ -319,16 +319,16 @@ body.darkBG .json-block {
   font-size: 13px;
 }
 
-/* Typography    */
+/*Typography*/
 .fs14-decimal .dot,
 .fs14-decimal .decimal,
 .fs14-decimal .unit {
     font-size: 14px
 }
-.fs18-decimal .dot,
-.fs18-decimal .decimal,
-.fs18-decimal .unit {
-    font-size: 18px
+.fs16-decimal .dot,
+.fs16-decimal .decimal,
+.fs16-decimal .unit {
+    font-size: 16px
 }
 .sep {
   position: relative;
@@ -397,7 +397,7 @@ body.darkBG .json-block {
 }
 @media only screen and (max-width: 576px)  {
   .xs-w91 {
-    width: 91px;
+    width: 91px !important;
   }
   .xs-w117 {
     width: 117px;
