@@ -544,8 +544,8 @@ func (exp *explorerUI) reloadTemplates() error {
 		return err
 	}
 
-	decodeTxTemplate, err := template.New("rawTx").Funcs(exp.templateHelpers).ParseFiles(
-		exp.templateFiles["rawTx"],
+	decodeTxTemplate, err := template.New("rawtx").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["rawtx"],
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
