@@ -165,12 +165,12 @@
             console.log("ping. users online: ", evt)
             //ws.send("pong", "copy")
         });
-        ws.registerEvtHandler("decodedtx", function(evt) {
+        ws.registerEvtHandler("decodetxResp", function(evt) {
             console.log("Got message: ", evt);
             $("#decode_header").text("Decoded tx");
             $("#decoded_tx").text(evt);
         })
-        ws.registerEvtHandler("senttx", function(evt) {
+        ws.registerEvtHandler("sendtxResp", function(evt) {
             console.log("Got message: ", evt);
             $("#decode_header").text("Sent tx");
             $("#decoded_tx").text(evt);

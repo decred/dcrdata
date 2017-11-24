@@ -36,6 +36,7 @@ type hubSpoke chan hubSignal
 
 const (
 	wsWriteTimeout           = 10 * time.Second
+	wsReadTimeout            = 12 * time.Second
 	pingInterval             = 12 * time.Second
 	sigNewBlock    hubSignal = iota
 	sigPingAndUserCount
