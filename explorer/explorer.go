@@ -196,7 +196,8 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 						webData.Message = fmt.Sprintf("Transaction sent: %s", txid)
 					}
 				case "ping":
-					log.Tracef("We've been pinged: %v", msg.Message)
+					log.Tracef("We've been pinged: %.40s...", msg.Message)
+					continue
 				default:
 					log.Warnf("Unrecognized event ID: %v", msg.EventId)
 					continue
