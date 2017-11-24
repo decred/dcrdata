@@ -145,7 +145,7 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 
-		// Start listening for websocket messages from clinet with raw
+		// Start listening for websocket messages from client with raw
 		// transaction bytes (hex encoded) to decode or broadcast.
 		go func() {
 			for {
