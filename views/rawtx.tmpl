@@ -1,11 +1,11 @@
 {{define "rawtx"}}
 <!DOCTYPE html>
 <html lang="en">
-    {{template "html-head" printf "Decode Raw Recred Transaction"}}
+    {{template "html-head" printf "Decode Raw Decred Transaction"}}
     <body>
         {{template "navbar"}}
         <div class="container">
-            <h4 class="mb-2">Decode a Decred transaction</h4>
+            <h4 class="mb-2">Decred transaction to decode or broadcast</h4>
             <form>
                 <textarea
                     autofocus
@@ -13,12 +13,12 @@
                     class="col"
                     name="rawtx"
                     id="rawtx"
-                    placeholder="Enter the transation hex here"
+                    placeholder="Enter the full transation (hexadecimal encoded) here"
                 /></textarea>
-                <button type="button" id="decode_tx" class="button btn btn-primary mr-1">Decode Tx</button>
-                <button type="button" id="send_tx" class="button btn btn-success">Send Tx</button>
+                <button type="button" id="decode_tx" class="button btn btn-primary mr-1">Decode</button>
+                <button type="button" id="send_tx" class="button btn btn-success">Broadcast</button>
             </form>
-            <h4 class="mb-2" id="decode_header">Decoded tx</h4>
+            <h4 class="mb-2" id="decode_header">Decoded transaction</h4>
             <pre
                 id="decoded_tx"
                 class="json-block mono pt-3 pr-3 pb-3 pl-3"
@@ -27,12 +27,16 @@
         </div>
         <script>
             $("#send_tx").on("click", function() {
+                $("#decoded_tx").text('');
+                $('#decoded_tx').fadeTo(0, 0.3, function() { $(this).fadeTo(500, 1.0); });
                 var msg = $("#rawtx").val();
                 if (msg !== ""){
                     ws.send("sendtx", msg);
                 }
             })
             $("#decode_tx").on("click", function(){
+                $("#decoded_tx").text('');
+                $('#decoded_tx').fadeTo(100, 0.3, function() { $(this).fadeTo(500, 1.0); });
                 var msg = $("#rawtx").val();
                 if (msg !== ""){
                     ws.send("decodetx", msg);
@@ -43,6 +47,8 @@
                     if (!e) e = window.event;
                     var keyCode = e.keyCode || e.which;
                     if (keyCode == '13'){
+                        $("#decoded_tx").text('');
+                        $('#decoded_tx').fadeTo(100, 0.3, function() { $(this).fadeTo(500, 1.0); });
                         if (this.value !== "") {
                             ws.send("decodetx", this.value);
                         }

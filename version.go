@@ -10,8 +10,8 @@ type version struct {
 
 var ver = version{
 	Major: 1,
-	Minor: 0,
-	Patch: 1,
+	Minor: 1,
+	Patch: 0,
 	Label: ""}
 
 // CommitHash may be set on the build command line:

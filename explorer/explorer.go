@@ -138,19 +138,30 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 		ticker := time.NewTicker(pingInterval)
 		defer ticker.Stop()
 
+		// Periodically ping clients over websocket connection
 		go func() {
 			for range ticker.C {
 				exp.wsHub.HubRelay <- sigPingAndUserCount
 			}
 		}()
+
+		// Start listening for websocket messages from client with raw
+		// transaction bytes (hex encoded) to decode or broadcast.
 		go func() {
 			for {
+				// Wait to receive a message on the websocket
 				msg := &WebSocketMessage{}
-				websocket.JSON.Receive(ws, &msg)
+				ws.SetReadDeadline(time.Now().Add(wsReadTimeout))
+				if err := websocket.JSON.Receive(ws, &msg); err != nil {
+					log.Warnf("websocket client receive error: %v", err)
+					return
+				}
+
+				// handle received message according to event ID
 				var webData WebSocketMessage
 				switch msg.EventId {
 				case "decodetx":
-					webData.EventId = "decodedtx"
+					webData.EventId = msg.EventId + "Resp"
 					if len(msg.Message) > requestLimit {
 						log.Debug("Request size over limit")
 						webData.Message = "Request too large"
@@ -171,7 +182,7 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 						webData.Message = fmt.Sprintf("Error: %v", err)
 					}
 				case "sendtx":
-					webData.EventId = "senttx"
+					webData.EventId = msg.EventId + "Resp"
 					if len(msg.Message) > requestLimit {
 						log.Debugf("Request size over limit")
 						webData.Message = "Request too large"
@@ -184,19 +195,27 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 					} else {
 						webData.Message = fmt.Sprintf("Transaction sent: %s", txid)
 					}
-				}
-				if webData.EventId == "" {
+				case "ping":
+					log.Tracef("We've been pinged: %.40s...", msg.Message)
+					continue
+				default:
+					log.Warnf("Unrecognized event ID: %v", msg.EventId)
 					continue
 				}
-				err := websocket.JSON.Send(ws, webData)
-				if err != nil {
-					log.Debugf("Failed to encode WebSocketMessage decodedtx: %v", err)
+
+				// send the response back on the websocket
+				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+				if err := websocket.JSON.Send(ws, webData); err != nil {
+					log.Debugf("Failed to encode WebSocketMessage %s: %v",
+						webData.EventId, err)
 					// If the send failed, the client is probably gone, so close
 					// the connection and quit.
 					return
 				}
 			}
 		}()
+
+		// Ping and block update loop (send only)
 	loop:
 		for {
 			// Wait for signal from the hub to update
@@ -217,7 +236,6 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				}
 
 				log.Tracef("signaling client: %p", &updateSig)
-				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 
 				// Write block data to websocket client
 				exp.NewBlockDataMtx.RLock()
@@ -235,6 +253,7 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 					webData.Message = strconv.Itoa(exp.wsHub.NumClients())
 				}
 
+				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 				err := websocket.JSON.Send(ws, webData)
 				exp.NewBlockDataMtx.RUnlock()
 				if err != nil {
@@ -526,8 +545,8 @@ func (exp *explorerUI) reloadTemplates() error {
 		return err
 	}
 
-	decodeTxTemplate, err := template.New("rawTx").Funcs(exp.templateHelpers).ParseFiles(
-		exp.templateFiles["rawTx"],
+	decodeTxTemplate, err := template.New("rawtx").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["rawtx"],
 		exp.templateFiles["extras"],
 	)
 	if err != nil {

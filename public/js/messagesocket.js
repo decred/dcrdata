@@ -41,7 +41,7 @@ var MessageSocket = function(uri) {
   }
 
   // send a message back to the server
-  this.send = function(eventID, message) {
+  var send = function(eventID, message) {
     var payload = JSON.stringify({
       event: eventID,
       message: message
@@ -50,6 +50,7 @@ var MessageSocket = function(uri) {
     ws.send(payload);
     return this;
   };
+  this.send = send;
 
   // unmarshall message, and forward the message to registered handlers
   ws.onmessage = function(evt) {
@@ -83,7 +84,7 @@ var MessageSocket = function(uri) {
 
   // Start ping pong
   var pinger = setInterval(function () {
-    ws.send("ping", 'Hi. I am a client!');
-  }, 1000);
+    send("ping","sup");
+  }, 7000);
 
 };
