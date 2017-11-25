@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -612,6 +613,28 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
 	exp.templateFiles["address"] = filepath.Join("views", "address.tmpl")
 	exp.templateFiles["rawtx"] = filepath.Join("views", "rawtx.tmpl")
+
+	toInt64 := func(v interface{}) int64 {
+		switch vt := v.(type) {
+		case int64:
+			return vt
+		case int32:
+			return int64(vt)
+		case uint32:
+			return int64(vt)
+		case uint64:
+			return int64(vt)
+		case int:
+			return int64(vt)
+		case int16:
+			return int64(vt)
+		case uint16:
+			return int64(vt)
+		default:
+			return math.MinInt64
+		}
+	}
+
 	exp.templateHelpers = template.FuncMap{
 		"add": func(a int64, b int64) int64 {
 			val := a + b
@@ -629,27 +652,12 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			p := (float64(a) / float64(b)) * 100
 			return p
 		},
+		"int64": toInt64,
 		"intComma": func(v interface{}) string {
-			var vi64 int64
-			switch vt := v.(type) {
-			case int64:
-				vi64 = vt
-			case int32:
-				vi64 = int64(vt)
-			case uint32:
-				vi64 = int64(vt)
-			case uint64:
-				vi64 = int64(vt)
-			case int:
-				vi64 = int64(vt)
-			case int16:
-				vi64 = int64(vt)
-			case uint16:
-				vi64 = int64(vt)
-			default:
-				return ""
-			}
-			return humanize.Comma(vi64)
+			return humanize.Comma(toInt64(v))
+		},
+		"int64Comma": func(v int64) string {
+			return humanize.Comma(v)
 		},
 		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
 			clipped := fmt.Sprintf("%.8f", v)
