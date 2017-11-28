@@ -1,0 +1,162 @@
+package explorer
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
+	"golang.org/x/net/websocket"
+)
+
+func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
+	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
+		// Create channel to signal updated data availability
+		updateSig := make(hubSpoke)
+		// register websocket client with our signal channel
+		exp.wsHub.RegisterClient(&updateSig)
+		// unregister (and close signal channel) before return
+		defer exp.wsHub.UnregisterClient(&updateSig)
+
+		requestLimit := 1 << 20
+		// set the max payload size to 1 MB
+		ws.MaxPayloadBytes = requestLimit
+
+		// Ticker for a regular ping
+		ticker := time.NewTicker(pingInterval)
+		defer ticker.Stop()
+
+		// Periodically ping clients over websocket connection
+		go func() {
+			for range ticker.C {
+				exp.wsHub.HubRelay <- sigPingAndUserCount
+			}
+		}()
+
+		// Start listening for websocket messages from client with raw
+		// transaction bytes (hex encoded) to decode or broadcast.
+		go func() {
+			for {
+				// Wait to receive a message on the websocket
+				msg := &WebSocketMessage{}
+				ws.SetReadDeadline(time.Now().Add(wsReadTimeout))
+				if err := websocket.JSON.Receive(ws, &msg); err != nil {
+					log.Warnf("websocket client receive error: %v", err)
+					return
+				}
+
+				// handle received message according to event ID
+				var webData WebSocketMessage
+				switch msg.EventId {
+				case "decodetx":
+					webData.EventId = msg.EventId + "Resp"
+					if len(msg.Message) > requestLimit {
+						log.Debug("Request size over limit")
+						webData.Message = "Request too large"
+						break
+					}
+					log.Debugf("Received decodetx signal for hex: %.40s...", msg.Message)
+					tx, err := exp.blockData.DecodeRawTransaction(msg.Message)
+					if err == nil {
+						message, err := json.MarshalIndent(tx, "", "    ")
+						if err != nil {
+							log.Warn("Invalid JSON message: ", err)
+							webData.Message = fmt.Sprintf("Error: Could not encode JSON message")
+							break
+						}
+						webData.Message = string(message)
+					} else {
+						log.Debugf("Could not decode raw tx")
+						webData.Message = fmt.Sprintf("Error: %v", err)
+					}
+				case "sendtx":
+					webData.EventId = msg.EventId + "Resp"
+					if len(msg.Message) > requestLimit {
+						log.Debugf("Request size over limit")
+						webData.Message = "Request too large"
+						break
+					}
+					log.Debugf("Received sendtx signal for hex: %.40s...", msg.Message)
+					txid, err := exp.blockData.SendRawTransaction(msg.Message)
+					if err != nil {
+						webData.Message = fmt.Sprintf("Error: %v", err)
+					} else {
+						webData.Message = fmt.Sprintf("Transaction sent: %s", txid)
+					}
+				case "ping":
+					log.Tracef("We've been pinged: %.40s...", msg.Message)
+					continue
+				default:
+					log.Warnf("Unrecognized event ID: %v", msg.EventId)
+					continue
+				}
+
+				// send the response back on the websocket
+				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+				if err := websocket.JSON.Send(ws, webData); err != nil {
+					log.Debugf("Failed to encode WebSocketMessage %s: %v",
+						webData.EventId, err)
+					// If the send failed, the client is probably gone, so close
+					// the connection and quit.
+					return
+				}
+			}
+		}()
+
+		// Ping and block update loop (send only)
+	loop:
+		for {
+			// Wait for signal from the hub to update
+			select {
+			case sig, ok := <-updateSig:
+				// Check if the update channel was closed. Either the websocket
+				// hub will do it after unregistering the client, or forcibly in
+				// response to (http.CloseNotifier).CloseNotify() and only then if
+				// the hub has somehow lost track of the client.
+				if !ok {
+					//ws.WriteClose(1)
+					exp.wsHub.UnregisterClient(&updateSig)
+					break loop
+				}
+
+				if _, ok = eventIDs[sig]; !ok {
+					break loop
+				}
+
+				log.Tracef("signaling client: %p", &updateSig)
+
+				// Write block data to websocket client
+				exp.NewBlockDataMtx.RLock()
+				webData := WebSocketMessage{
+					EventId: eventIDs[sig],
+				}
+				buff := new(bytes.Buffer)
+				enc := json.NewEncoder(buff)
+				switch sig {
+				case sigNewBlock:
+					enc.Encode(WebsocketBlock{exp.NewBlockData})
+					webData.Message = buff.String()
+				case sigPingAndUserCount:
+					// ping and send user count
+					webData.Message = strconv.Itoa(exp.wsHub.NumClients())
+				}
+
+				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+				err := websocket.JSON.Send(ws, webData)
+				exp.NewBlockDataMtx.RUnlock()
+				if err != nil {
+					log.Debugf("Failed to encode WebSocketMessage %v: %v", sig, err)
+					// If the send failed, the client is probably gone, so close
+					// the connection and quit.
+					return
+				}
+			case <-exp.wsHub.quitWSHandler:
+				break loop
+			}
+		}
+	})
+
+	wsHandler.ServeHTTP(w, r)
+}

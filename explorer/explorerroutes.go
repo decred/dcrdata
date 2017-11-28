@@ -1,0 +1,287 @@
+package explorer
+
+import (
+	"io"
+	"net/http"
+	"strconv"
+
+	"github.com/decred/dcrd/chaincfg/chainhash"
+)
+
+func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
+	idx := exp.blockData.GetHeight()
+
+	height, err := strconv.Atoi(r.URL.Query().Get("height"))
+	if err != nil || height > idx {
+		height = idx
+	}
+
+	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
+	if err != nil || rows > maxExplorerRows || rows < minExplorerRows || height-rows < 0 {
+		rows = minExplorerRows
+	}
+	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
+	if summaries == nil {
+		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		return
+	}
+
+	str, err := templateExecToString(exp.templates[rootTemplateIndex], "explorer", struct {
+		Data      []*BlockBasic
+		BestBlock int
+	}{
+		summaries,
+		idx,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
+	hash := getBlockHashCtx(r)
+
+	data := exp.blockData.GetExplorerBlock(hash)
+	if data == nil {
+		log.Errorf("Unable to get block %s", hash)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		return
+	}
+
+	pageData := struct {
+		Data          *BlockInfo
+		ConfirmHeight int64
+	}{
+		data,
+		exp.NewBlockData.Height - data.Confirmations,
+	}
+	str, err := templateExecToString(exp.templates[blockTemplateIndex], "block", pageData)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
+	// attempt to get tx hash string from URL path
+	hash, ok := r.Context().Value(ctxTxHash).(string)
+	if !ok {
+		log.Trace("txid not set")
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		return
+	}
+	tx := exp.blockData.GetExplorerTx(hash)
+	if tx == nil {
+		log.Errorf("Unable to get transaction %s", hash)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		return
+	}
+	if !exp.liteMode {
+		// For each output of this transaction, look up any spending transactions,
+		// and the index of the spending transaction input.
+		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
+		if err != nil {
+			log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
+			http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+			return
+		}
+		for i, vout := range voutInds {
+			if int(vout) >= len(tx.SpendingTxns) {
+				log.Errorf("Invalid spending transaction data (%s:%d)", hash, vout)
+				continue
+			}
+			tx.SpendingTxns[vout] = TxInID{
+				Hash:  spendingTxHashes[i],
+				Index: spendingTxVinInds[i],
+			}
+		}
+	}
+
+	pageData := struct {
+		Data          *TxInfo
+		ConfirmHeight int64
+	}{
+		tx,
+		exp.NewBlockData.Height - tx.Confirmations,
+	}
+
+	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", pageData)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
+	// Get the address URL parameter, which should be set in the request context
+	// by the addressPathCtx middleware.
+	address, ok := r.Context().Value(ctxAddress).(string)
+	if !ok {
+		log.Trace("address not set")
+		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Number of outputs for the address to query the database for. The URL
+	// query parameter "n" is used to specify the limit (e.g. "?n=20").
+	limitN, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
+	if err != nil || limitN < 0 {
+		limitN = defaultAddressRows
+	} else if limitN > maxAddressRows {
+		log.Warnf("addressPage: requested up to %d address rows, "+
+			"limiting to %d", limitN, maxAddressRows)
+		limitN = maxAddressRows
+	}
+
+	// Number of outputs to skip (OFFSET in database query). For UX reasons, the
+	// "start" URL query parameter is used.
+	offsetAddrOuts, err := strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
+	if err != nil || offsetAddrOuts < 0 {
+		offsetAddrOuts = 0
+	}
+
+	var addrData *AddressInfo
+	if exp.liteMode {
+		addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		if addrData == nil {
+			log.Errorf("Unable to get address %s", address)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+	} else {
+		// Get addresses table rows for the address
+		addrHist, balance, errH := exp.explorerSource.AddressHistory(
+			address, limitN, offsetAddrOuts)
+		if errH != nil {
+			log.Errorf("Unable to get address %s history: %v", address, errH)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+
+		// Generate AddressInfo skeleton from the address table rows
+		addrData = ReduceAddressHistory(addrHist)
+		if addrData == nil {
+			log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
+		addrData.Balance = balance
+		addrData.Path = r.URL.Path
+		// still need []*AddressTx filled out and NumUnconfirmed
+
+		// Query database for transaction details
+		err = exp.explorerSource.FillAddressTransactions(addrData)
+		if err != nil {
+			log.Errorf("Unable to fill address %s transactions: %v", address, err)
+			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			return
+		}
+	}
+
+	confirmHeights := make([]int64, len(addrData.Transactions))
+	for i, v := range addrData.Transactions {
+		confirmHeights[i] = exp.NewBlockData.Height - int64(v.Confirmations)
+	}
+	pageData := struct {
+		Data          *AddressInfo
+		ConfirmHeight []int64
+	}{
+		addrData,
+		confirmHeights,
+	}
+
+	str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+func (exp *explorerUI) decodeTxPage(w http.ResponseWriter, r *http.Request) {
+	str, err := templateExecToString(exp.templates[decodeTxTemplateIndex], "rawtx", nil)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// search implements a primitive search algorithm by checking if the value in
+// question is a block index, block hash, address hash or transaction hash and
+// redirects to the appropriate page or displays an error
+func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
+	searchStr, ok := r.Context().Value(ctxSearch).(string)
+	if !ok {
+		log.Trace("search parameter missing")
+		http.Redirect(w, r, "/error/", http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Attempt to get a block hash by calling GetBlockHash to see if the value
+	// is a block index and then redirect to the block page if it is
+	idx, err := strconv.ParseInt(searchStr, 10, 0)
+	if err == nil {
+		_, err = exp.blockData.GetBlockHash(idx)
+		if err == nil {
+			http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
+			return
+		}
+	}
+
+	// Call GetExplorerAddress to see if the value is an address hash and
+	// then redirect to the address page if it is
+	address := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
+	if address != nil {
+		http.Redirect(w, r, "/explorer/address/"+searchStr, http.StatusPermanentRedirect)
+		return
+	}
+
+	// Check if the value is a valid hash
+	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
+		http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Attempt to get a block index by calling GetBlockHeight to see if the
+	// value is a block hash and then redirect to the block page if it is
+	_, err = exp.blockData.GetBlockHeight(searchStr)
+	if err == nil {
+		http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
+		return
+	}
+
+	// Call GetExplorerTx to see if the value is a transaction hash and then
+	// redirect to the tx page if it is
+	tx := exp.blockData.GetExplorerTx(searchStr)
+	if tx != nil {
+		http.Redirect(w, r, "/explorer/tx/"+searchStr, http.StatusPermanentRedirect)
+		return
+	}
+
+	// Display an error since searchStr is not a block index, block hash, address hash or transaction hash
+	http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
+}
