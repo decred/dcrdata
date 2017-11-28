@@ -17,7 +17,7 @@ const (
 	insertTxRow        = insertTxRow0 + `RETURNING id;`
 	insertTxRowChecked = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTxRow        = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET block_hash = $1, block_index = $2, tree = $3 RETURNING id;`
+		SET tx_hash = $8, block_hash = $1, RETURNING id;`
 	insertTxRowReturnId = `WITH ins AS (` +
 		insertTxRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE
@@ -26,8 +26,8 @@ const (
 		)
 	SELECT id FROM ins
 	UNION  ALL
-	SELECT id FROM blocks
-	WHERE  tx_hash = $3 AND block_hash = $1
+	SELECT id FROM transactions
+	WHERE  tx_hash = $8 AND block_hash = $1
 	LIMIT  1;`
 
 	CreateTransactionTable = `CREATE TABLE IF NOT EXISTS transactions (
