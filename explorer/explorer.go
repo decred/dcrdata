@@ -34,6 +34,7 @@ const (
 	txTemplateIndex
 	addressTemplateIndex
 	decodeTxTemplateIndex
+	errorTemplateIndex
 )
 
 const (
@@ -120,11 +121,20 @@ func (exp *explorerUI) reloadTemplates() error {
 		return err
 	}
 
+	errorTemplate, err := template.New("error").ParseFiles(
+		exp.templateFiles["error"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		return err
+	}
+
 	exp.templates[rootTemplateIndex] = explorerTemplate
 	exp.templates[blockTemplateIndex] = blockTemplate
 	exp.templates[txTemplateIndex] = txTemplate
 	exp.templates[addressTemplateIndex] = addressTemplate
 	exp.templates[decodeTxTemplateIndex] = decodeTxTemplate
+	exp.templates[errorTemplateIndex] = errorTemplate
 
 	return nil
 }
@@ -179,6 +189,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
 	exp.templateFiles["address"] = filepath.Join("views", "address.tmpl")
 	exp.templateFiles["rawtx"] = filepath.Join("views", "rawtx.tmpl")
+	exp.templateFiles["error"] = filepath.Join("views", "error.tmpl")
 
 	toInt64 := func(v interface{}) int64 {
 		switch vt := v.(type) {
@@ -324,6 +335,15 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 	}
 	exp.templates = append(exp.templates, decodeTxTemplate)
+
+	errorTemplate, err := template.New("error").ParseFiles(
+		exp.templateFiles["error"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		log.Errorf("Unable to create new html template: %v", err)
+	}
+	exp.templates = append(exp.templates, errorTemplate)
 
 	exp.addRoutes()
 

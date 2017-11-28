@@ -23,7 +23,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
-		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "could not find those blocks")
 		return
 	}
 
@@ -37,7 +37,7 @@ func (exp *explorerUI) root(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -51,7 +51,7 @@ func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 	data := exp.blockData.GetExplorerBlock(hash)
 	if data == nil {
 		log.Errorf("Unable to get block %s", hash)
-		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "could not find that block")
 		return
 	}
 
@@ -65,7 +65,7 @@ func (exp *explorerUI) blockPage(w http.ResponseWriter, r *http.Request) {
 	str, err := templateExecToString(exp.templates[blockTemplateIndex], "block", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -78,13 +78,13 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		log.Trace("txid not set")
-		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "there was no transaction requested")
 		return
 	}
 	tx := exp.blockData.GetExplorerTx(hash)
 	if tx == nil {
 		log.Errorf("Unable to get transaction %s", hash)
-		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "could not find that transaction")
 		return
 	}
 	if !exp.liteMode {
@@ -93,7 +93,7 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
 		if err != nil {
 			log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
-			http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+			exp.errorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things")
 			return
 		}
 		for i, vout := range voutInds {
@@ -119,7 +119,7 @@ func (exp *explorerUI) txPage(w http.ResponseWriter, r *http.Request) {
 	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		http.Redirect(w, r, "/error/"+hash, http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -133,7 +133,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
 		log.Trace("address not set")
-		http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "there seems to not be an address in this request")
 		return
 	}
 
@@ -160,7 +160,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 		if addrData == nil {
 			log.Errorf("Unable to get address %s", address)
-			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			exp.errorPage(w, "Something went wrong...", "could not find that address")
 			return
 		}
 	} else {
@@ -169,7 +169,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 			address, limitN, offsetAddrOuts)
 		if errH != nil {
 			log.Errorf("Unable to get address %s history: %v", address, errH)
-			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			exp.errorPage(w, "Something went wrong...", "could not find that address's history")
 			return
 		}
 
@@ -177,7 +177,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		addrData = ReduceAddressHistory(addrHist)
 		if addrData == nil {
 			log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
-			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			exp.errorPage(w, "Something went wrong...", "that address has no history")
 			return
 		}
 		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
@@ -190,7 +190,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 		err = exp.explorerSource.FillAddressTransactions(addrData)
 		if err != nil {
 			log.Errorf("Unable to fill address %s transactions: %v", address, err)
-			http.Redirect(w, r, "/error/"+address, http.StatusTemporaryRedirect)
+			exp.errorPage(w, "Something went wrong...", "could not find transactions for that address")
 			return
 		}
 	}
@@ -210,7 +210,7 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 	str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -222,7 +222,7 @@ func (exp *explorerUI) decodeTxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := templateExecToString(exp.templates[decodeTxTemplateIndex], "rawtx", nil)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		http.Redirect(w, r, "/error", http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -237,7 +237,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	searchStr, ok := r.Context().Value(ctxSearch).(string)
 	if !ok {
 		log.Trace("search parameter missing")
-		http.Redirect(w, r, "/error/", http.StatusTemporaryRedirect)
+		exp.errorPage(w, "Something went wrong...", "nothing to search")
 		return
 	}
 
@@ -283,5 +283,22 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Display an error since searchStr is not a block index, block hash, address hash or transaction hash
-	http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
+	exp.errorPage(w, "Could not find search item", searchStr+" could not be found as a block, transaction or address")
+}
+
+func (exp *explorerUI) errorPage(w http.ResponseWriter, code string, message string) {
+	str, err := templateExecToString(exp.templates[errorTemplateIndex], "error", struct {
+		ErrorCode   string
+		ErrorString string
+	}{
+		code,
+		message,
+	})
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		str = "Something went very wrong if you can see this, try refreshing"
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusNotFound)
+	io.WriteString(w, str)
 }
