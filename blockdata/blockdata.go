@@ -77,7 +77,7 @@ func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 }
 func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 	t := time.Unix(b.Header.Time, 0)
-	ftime := t.Format("2006-01-0215:04:05")
+	ftime := t.Format("2006-01-02 15:04:05")
 	extra := b.ExtraInfo
 	extra.FormattedTime = ftime
 	return apitypes.BlockExplorerBasic{
