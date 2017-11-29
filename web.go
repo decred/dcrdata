@@ -93,7 +93,7 @@ func NewWebUI(expSource APIDataSource) *WebUI {
 		},
 		"getTime": func(btime int64) string {
 			t := time.Unix(btime, 0)
-			return t.Format("1/2/06 15:04:05")
+			return t.Format("2006-01-0215:04:05")
 		},
 		"ticketWindowProgress": func(i int) float64 {
 			p := (float64(i) / 144) * 100

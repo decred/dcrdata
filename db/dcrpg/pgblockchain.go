@@ -307,7 +307,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 			numUnconfirmed++
 			txn.Confirmations = 0
 		}
-		txn.FormattedTime = time.Unix(dbTx.BlockTime, 0).Format("1/2/06 15:04:05")
+		txn.FormattedTime = time.Unix(dbTx.BlockTime, 0).Format("2006-01-0215:04:05")
 	}
 
 	addrInfo.NumUnconfirmed = numUnconfirmed
