@@ -19,12 +19,10 @@ const (
 	// Insert
 	insertTicketRow0 = `INSERT INTO tickets (
 		tx_hash, block_hash, block_height, purchase_tx_db_id,
-		stakesubmission_address, is_multisig, num_inputs,
-		spend_height, spend_tx_db_id)
+		stakesubmission_address, is_multisig, num_inputs)
 	VALUES (
 		$1, $2, $3,	$4,
-		$5, $6, $7,
-		$8, $9);`
+		$5, $6, $7);`
 	insertTicketRow        = insertTicketRow0 + `RETURNING id;`
 	insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTicketRow        = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -110,3 +108,17 @@ const (
 		ON votes(version);`
 	DeindexVotesTableOnVoteVersion = `DROP INDEX uix_votes_vote_version;`
 )
+
+func MakeTicketInsertStatement(checked bool) string {
+	if checked {
+		return insertTicketRowChecked
+	}
+	return insertTicketRow
+}
+
+func MakeVoteInsertStatement(checked bool) string {
+	if checked {
+		return insertVoteRowChecked
+	}
+	return insertVoteRow
+}

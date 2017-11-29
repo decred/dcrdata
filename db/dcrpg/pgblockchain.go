@@ -567,9 +567,13 @@ func (pgb *ChainDB) storeTxns(msgBlock *wire.MsgBlock, txTree int8,
 			return txRes
 		}
 		txRes.numVins += int64(len(dbtx.VinDbIds))
+
+		if txTree == wire.TxTreeStake {
+			dbtx.Vouts = dbTxVouts[it]
+		}
 	}
 
-	// Get the tx PK IDs for storage in the blocks table
+	// Get the tx PK IDs for storage in the blocks, tickets, and votes table
 	*TxDbIDs, err = InsertTxns(pgb.db, dbTransactions, pgb.dupChecks)
 	if err != nil && err != sql.ErrNoRows {
 		log.Error("InsertTxns:", err)
@@ -578,6 +582,23 @@ func (pgb *ChainDB) storeTxns(msgBlock *wire.MsgBlock, txTree int8,
 	}
 
 	// TODO: insert tickets (w/o spending info), insert votes, update spending info of tickets given votes
+	if txTree == wire.TxTreeStake {
+		// Tickets
+		_, err = InsertTickets(pgb.db, dbTransactions, *TxDbIDs, pgb.dupChecks)
+		if err != nil && err != sql.ErrNoRows {
+			log.Error("InsertTickets:", err)
+			txRes.err = err
+			return txRes
+		}
+
+		// Votes
+		_, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs, msgBlock, pgb.dupChecks)
+		if err != nil && err != sql.ErrNoRows {
+			log.Error("InsertVotes:", err)
+			txRes.err = err
+			return txRes
+		}
+	}
 
 	// Store tx Db IDs as funding tx in AddressRows and rearrange
 	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)

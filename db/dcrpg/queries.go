@@ -10,6 +10,10 @@ import (
 
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/db/dcrpg/internal"
+	"github.com/dcrdata/dcrdata/txhelpers"
+	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
 	"github.com/lib/pq"
 )
 
@@ -815,6 +819,129 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow) ([]uint64, error)
 	return ids, dbtx.Commit()
 }
 
+func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked bool) ([]uint64, error) {
+	dbtx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
+	}
+
+	stmt, err := dbtx.Prepare(internal.MakeTicketInsertStatement(checked))
+	if err != nil {
+		log.Errorf("Ticket INSERT prepare: %v", err)
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return nil, err
+	}
+
+	// Choose only SSTx
+	var ticketTx []*dbtypes.Tx
+	var ticketDbIDs []uint64
+	for i, tx := range dbTxns {
+		if tx.TxType == int16(stake.TxTypeSStx) {
+			ticketTx = append(ticketTx, tx)
+			ticketDbIDs = append(ticketDbIDs, txDbIDs[i])
+		}
+	}
+
+	// Insert each ticket
+	ids := make([]uint64, 0, len(ticketTx))
+	for i, tx := range ticketTx {
+		// Reference Vouts[0] to determine stakesubmission address and if multisig
+		var stakesubmissionAddress string
+		var isMultisig bool
+		if len(tx.Vouts) > 0 {
+			if len(tx.Vouts[0].ScriptPubKeyData.Addresses) > 0 {
+				stakesubmissionAddress = tx.Vouts[0].ScriptPubKeyData.Addresses[0]
+			}
+			// scriptSubClass, _, _, _ := txscript.ExtractPkScriptAddrs(
+			// 	tx.Vouts[0].Version, tx.Vouts[0].ScriptPubKey[1:], chainParams)
+			scriptSubClass, _ := txscript.GetStakeOutSubclass(tx.Vouts[0].ScriptPubKey)
+			isMultisig = scriptSubClass == txscript.MultiSigTy
+		}
+		var id uint64
+		err := stmt.QueryRow(
+			tx.TxID, tx.BlockHash, tx.BlockHeight, ticketDbIDs[i],
+			stakesubmissionAddress, isMultisig, tx.NumVin).Scan(&id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			_ = stmt.Close() // try, but we want the QueryRow error back
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	// Close prepared statement. Ignore errors as we'll Commit regardless.
+	_ = stmt.Close()
+
+	return ids, dbtx.Commit()
+
+}
+
+func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, msgBlock *wire.MsgBlock, checked bool) ([]uint64, error) {
+	dbtx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
+	}
+
+	stmt, err := dbtx.Prepare(internal.MakeVoteInsertStatement(checked))
+	if err != nil {
+		log.Errorf("Votes INSERT prepare: %v", err)
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return nil, err
+	}
+
+	msgTxs := msgBlock.STransactions
+	candidateBlockHash := msgBlock.Header.PrevBlock.String()
+
+	// Choose only SSGen
+	var voteTx []*dbtypes.Tx
+	var voteDbIDs []uint64
+	var voteMsgTxs []*wire.MsgTx
+	for i, tx := range dbTxns {
+		if tx.TxType == int16(stake.TxTypeSSGen) {
+			voteTx = append(voteTx, tx)
+			voteDbIDs = append(voteDbIDs, txDbIDs[i])
+			voteMsgTxs = append(voteMsgTxs, msgTxs[i])
+		}
+	}
+
+	// Insert each vote
+	ids := make([]uint64, 0, len(voteTx))
+	for i, tx := range voteTx {
+		voteVersion := stake.SSGenVersion(voteMsgTxs[i])
+		validBlock, voteBits, err := txhelpers.SSGenVoteBlockValid(voteMsgTxs[i])
+		if err != nil {
+			return nil, err
+		}
+
+		var id uint64
+		err = stmt.QueryRow(
+			tx.BlockHeight, false, tx.TxID, tx.BlockHash, candidateBlockHash,
+			voteVersion, voteBits, validBlock).Scan(&id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			_ = stmt.Close() // try, but we want the QueryRow error back
+			if errRoll := dbtx.Rollback(); errRoll != nil {
+				log.Errorf("Rollback failed: %v", errRoll)
+			}
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	// Close prepared statement. Ignore errors as we'll Commit regardless.
+	_ = stmt.Close()
+
+	return ids, dbtx.Commit()
+
+}
+
 func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {
 	insertStatement := internal.MakeTxInsertStatement(checked)
 	var id uint64
@@ -835,7 +962,7 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error
 
 	stmt, err := dbtx.Prepare(internal.MakeTxInsertStatement(checked))
 	if err != nil {
-		log.Errorf("Vout INSERT prepare: %v", err)
+		log.Errorf("Transaction INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
