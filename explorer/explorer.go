@@ -414,6 +414,4 @@ func (exp *explorerUI) addRoutes() {
 		r.Get("/", exp.decodeTxPage)
 		r.Get("/ws", exp.rootWebsocket)
 	})
-
-	exp.Mux.With(searchPathCtx).Get("/search/{search}", exp.search)
 }

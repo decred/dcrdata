@@ -233,12 +233,9 @@ func (exp *explorerUI) decodeTxPage(w http.ResponseWriter, r *http.Request) {
 // search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
 // redirects to the appropriate page or displays an error
-func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
-	searchStr, ok := r.Context().Value(ctxSearch).(string)
-	if !ok {
-		log.Trace("search parameter missing")
-		exp.errorPage(w, "Something went wrong...", "nothing to search")
-		return
+func (exp *explorerUI) search(searchStr string) string {
+	if searchStr == "" {
+		return ""
 	}
 
 	// Attempt to get a block hash by calling GetBlockHash to see if the value
@@ -247,8 +244,7 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		_, err = exp.blockData.GetBlockHash(idx)
 		if err == nil {
-			http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
-			return
+			return "/explorer/block/" + searchStr
 		}
 	}
 
@@ -256,34 +252,28 @@ func (exp *explorerUI) search(w http.ResponseWriter, r *http.Request) {
 	// then redirect to the address page if it is
 	address := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
-		http.Redirect(w, r, "/explorer/address/"+searchStr, http.StatusPermanentRedirect)
-		return
+		return "/explorer/address/" + searchStr
 	}
 
 	// Check if the value is a valid hash
 	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
-		http.Redirect(w, r, "/error/"+searchStr, http.StatusTemporaryRedirect)
-		return
+		return ""
 	}
 
 	// Attempt to get a block index by calling GetBlockHeight to see if the
 	// value is a block hash and then redirect to the block page if it is
 	_, err = exp.blockData.GetBlockHeight(searchStr)
 	if err == nil {
-		http.Redirect(w, r, "/explorer/block/"+searchStr, http.StatusPermanentRedirect)
-		return
+		return "/explorer/block/" + searchStr
 	}
 
 	// Call GetExplorerTx to see if the value is a transaction hash and then
 	// redirect to the tx page if it is
 	tx := exp.blockData.GetExplorerTx(searchStr)
 	if tx != nil {
-		http.Redirect(w, r, "/explorer/tx/"+searchStr, http.StatusPermanentRedirect)
-		return
+		return "/explorer/tx/" + searchStr
 	}
-
-	// Display an error since searchStr is not a block index, block hash, address hash or transaction hash
-	exp.errorPage(w, "Could not find search item", searchStr+" could not be found as a block, transaction or address")
+	return ""
 }
 
 func (exp *explorerUI) errorPage(w http.ResponseWriter, code string, message string) {
@@ -299,6 +289,6 @@ func (exp *explorerUI) errorPage(w http.ResponseWriter, code string, message str
 		str = "Something went very wrong if you can see this, try refreshing"
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusNotFound)
+	w.WriteHeader(http.StatusInternalServerError)
 	io.WriteString(w, str)
 }
