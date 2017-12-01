@@ -32,7 +32,7 @@
                         </td>
                     </tr>
                 {{end}}
-                {{if eq .Type "Vote"}}
+                {{if or (eq .Type "Vote") (eq .Type "Revocation")}}
                     {{range .Vin}}
                         {{if .Txid}}
                             <tr>
@@ -43,15 +43,13 @@
                     {{end}}
                 {{end}}
                 {{if eq .Type "Ticket"}}
-                    {{range $i, $v :=  .SpendingTxns}}
-                        {{if $v.Hash}}
-                            <tr>
-                                <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">SPENT IN</td>
-                                <td>
-                                    <a href="/explorer/tx/{{$v.Hash}}">{{$v.Hash}}</a>
-                                </td>
-                            </tr>
-                        {{end}}
+                    {{if (index .SpendingTxns 0).Hash}}
+                        <tr>
+                            <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">SPENT IN</td>
+                            <td>
+                                <a href="/explorer/tx/{{(index .SpendingTxns 0).Hash}}">{{(index .SpendingTxns 0).Hash}}</a>
+                            </td>
+                        </tr>
                     {{end}}
                 {{end}}
                 <tr>
