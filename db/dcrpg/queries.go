@@ -899,12 +899,10 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, msgBlock *w
 
 	// Choose only SSGen
 	var voteTx []*dbtypes.Tx
-	var voteDbIDs []uint64
 	var voteMsgTxs []*wire.MsgTx
 	for i, tx := range dbTxns {
 		if tx.TxType == int16(stake.TxTypeSSGen) {
 			voteTx = append(voteTx, tx)
-			voteDbIDs = append(voteDbIDs, txDbIDs[i])
 			voteMsgTxs = append(voteMsgTxs, msgTxs[i])
 		}
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/explorer"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
@@ -36,6 +37,7 @@ type ChainDB struct {
 	bestBlock     int64
 	lastBlock     map[chainhash.Hash]uint64
 	addressCounts *addressCounter
+	stakeDB       *stakedb.StakeDatabase
 }
 
 type addressCounter struct {
@@ -58,7 +60,7 @@ type DBInfo struct {
 
 // NewChainDB constructs a ChainDB for the given connection and Decred network
 // parameters. By default, duplicate row checks on insertion are enabled.
-func NewChainDB(dbi *DBInfo, params *chaincfg.Params) (*ChainDB, error) {
+func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeDatabase) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
 	if err != nil {
@@ -86,6 +88,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params) (*ChainDB, error) {
 		bestBlock:     int64(bestHeight),
 		lastBlock:     make(map[chainhash.Hash]uint64),
 		addressCounts: makeAddressCounter(),
+		stakeDB:       stakeDB,
 	}, nil
 }
 
@@ -314,11 +317,11 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 }
 
 // Store satisfies BlockDataSaver
-func (pgb *ChainDB) Store(_ *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	if pgb == nil {
 		return nil
 	}
-	_, _, err := pgb.StoreBlock(msgBlock, true, true)
+	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets, true, true)
 	return err
 }
 
@@ -432,8 +435,8 @@ func (pgb *ChainDB) DeindexAddressTable() error {
 
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
 // The number of vins, and vouts stored are also returned.
-func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, isValid,
-	updateAddressesSpendingInfo bool) (numVins int64, numVouts int64, err error) {
+func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
+	isValid, updateAddressesSpendingInfo bool) (numVins int64, numVouts int64, err error) {
 	// Convert the wire.MsgBlock to a dbtypes.Block
 	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams)
 

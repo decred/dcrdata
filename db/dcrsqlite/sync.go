@@ -270,12 +270,11 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 			if i != 0 {
 				log.Warnf("Unable to find block (%s) in pool info cache. Resync is malfunctioning!", blockhash.String())
 			}
-			ticketPoolInfo, sdbHeight := db.sDB.PoolInfoBest()
-			if int64(sdbHeight) != i {
+			tpi = db.sDB.PoolInfoBest()
+			if int64(tpi.Height) != i {
 				log.Errorf("Collected block height %d != stake db height %d. Pool info "+
-					"will not match the rest of this block's data.", height, i)
+					"will not match the rest of this block's data.", tpi.Height, i)
 			}
-			tpi = &ticketPoolInfo
 		}
 
 		header := block.MsgBlock().Header

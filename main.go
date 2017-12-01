@@ -45,37 +45,6 @@ func mainCore() error {
 		}
 	}()
 
-	// PostgreSQL
-	usePG := !cfg.LiteMode
-	var db *dcrpg.ChainDB
-	if usePG {
-		pgHost, pgPort := cfg.PGHost, ""
-		if !strings.HasPrefix(pgHost, "/") {
-			pgHost, pgPort, err = net.SplitHostPort(cfg.PGHost)
-			if err != nil {
-				return fmt.Errorf("SplitHostPort failed: %v", err)
-			}
-		}
-		dbi := dcrpg.DBInfo{
-			Host:   pgHost,
-			Port:   pgPort,
-			User:   cfg.PGUser,
-			Pass:   cfg.PGPass,
-			DBName: cfg.PGDBName,
-		}
-		db, err = dcrpg.NewChainDB(&dbi, activeChain)
-		if db != nil {
-			defer db.Close()
-		}
-		if err != nil {
-			return err
-		}
-
-		if err = db.SetupTables(); err != nil {
-			return err
-		}
-	}
-
 	if cfg.CPUProfile != "" {
 		var f *os.File
 		f, err = os.Create(cfg.CPUProfile)
@@ -92,18 +61,12 @@ func mainCore() error {
 	//log.Debugf("Output folder: %v", cfg.OutFolder)
 	log.Debugf("Log folder: %v", cfg.LogDir)
 
+	usePG := !cfg.LiteMode
 	if usePG {
 		log.Info(`Running in full-functionality mode with PostgreSQL backend enabled.`)
 	} else {
 		log.Info(`Running in "Lite" mode with only SQLite backend and limited functionality.`)
 	}
-
-	// // Create data output folder if it does not already exist
-	// if err = os.MkdirAll(cfg.OutFolder, 0750); err != nil {
-	// 	log.Errorf("Failed to create data output folder %s. Error: %s\n",
-	// 		cfg.OutFolder, err.Error())
-	// 	return 2
-	// }
 
 	// Connect to dcrd RPC server using websockets
 
@@ -154,6 +117,36 @@ func mainCore() error {
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer sqliteDB.Close()
 
+	// PostgreSQL
+	var db *dcrpg.ChainDB
+	if usePG {
+		pgHost, pgPort := cfg.PGHost, ""
+		if !strings.HasPrefix(pgHost, "/") {
+			pgHost, pgPort, err = net.SplitHostPort(cfg.PGHost)
+			if err != nil {
+				return fmt.Errorf("SplitHostPort failed: %v", err)
+			}
+		}
+		dbi := dcrpg.DBInfo{
+			Host:   pgHost,
+			Port:   pgPort,
+			User:   cfg.PGUser,
+			Pass:   cfg.PGPass,
+			DBName: cfg.PGDBName,
+		}
+		db, err = dcrpg.NewChainDB(&dbi, activeChain, sqliteDB.GetStakeDB())
+		if db != nil {
+			defer db.Close()
+		}
+		if err != nil {
+			return err
+		}
+
+		if err = db.SetupTables(); err != nil {
+			return err
+		}
+	}
+
 	// Ctrl-C to shut down.
 	// Nothing should be sent the quit channel.  It should only be closed.
 	quit := make(chan struct{})
@@ -176,8 +169,9 @@ func mainCore() error {
 	}
 
 	var newPGIndexes, updateAllAddresses bool
+	var heightDB uint64
 	if usePG {
-		heightDB, err := db.HeightDB()
+		heightDB, err = db.HeightDB()
 		if err != nil {
 			if err != sql.ErrNoRows {
 				return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
@@ -201,9 +195,17 @@ func mainCore() error {
 		}
 	}
 
+	if sqliteDB.GetStakeInfoHeight() > int64(heightDB) {
+		// charge stakedb pool info cache
+		if err = sqliteDB.ChargePoolInfoCache(int64(heightDB)); err != nil {
+			return fmt.Errorf("Failed to charge pool info cache: %v", err)
+		}
+	}
+
 	// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
-	// info DB (sqlite). They don't communicate, so we'll just ensure they exit
-	// with the same best block height by calling them repeatedly in a loop.
+	// info DB (sqlite). They don't communicate (aside from dcrpg waiting for
+	// stake DB), so we'll just ensure they exit with the same best block height
+	// by calling them repeatedly in a loop.
 	var sqliteHeight, pgHeight int64
 	sqliteSyncRes := make(chan dbtypes.SyncResult)
 	pgSyncRes := make(chan dbtypes.SyncResult)

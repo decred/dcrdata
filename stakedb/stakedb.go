@@ -317,10 +317,13 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 
 	// Get ticket pool info at current best (just connected in stakedb) block,
 	// and store it in the StakeDatabase's PoolInfoCache.
-	tpi, _ := db.PoolInfoBest()
-	db.poolInfo.Set(*block.Hash(), &tpi)
+	db.poolInfo.Set(*block.Hash(), db.PoolInfoBest())
 
 	return err
+}
+
+func (db *StakeDatabase) SetPoolInfo(blockHash chainhash.Hash, tpi *apitypes.TicketPoolInfo) {
+	db.poolInfo.Set(blockHash, tpi)
 }
 
 // DisconnectBlock attempts to disconnect the current best block from the stake
@@ -481,10 +484,11 @@ func (db *StakeDatabase) Close() error {
 // PoolInfoBest computes ticket pool value using the database and, if needed, the
 // node RPC client to fetch ticket values that are not cached. Returned are a
 // structure including ticket pool value, size, and average value.
-func (db *StakeDatabase) PoolInfoBest() (apitypes.TicketPoolInfo, uint32) {
+func (db *StakeDatabase) PoolInfoBest() *apitypes.TicketPoolInfo {
 	db.nodeMtx.RLock()
 	poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
+	winningTickets := db.BestNode.Winners()
 	height := db.BestNode.Height()
 	db.nodeMtx.RUnlock()
 
@@ -507,7 +511,7 @@ func (db *StakeDatabase) PoolInfoBest() (apitypes.TicketPoolInfo, uint32) {
 	}
 	db.liveTicketMtx.Unlock()
 
-	// header, _ := db.DBTipBlockHeader()
+	// header, _ := db.DBTipBlockPoolInfoBestHeader()
 	// if int(header.PoolSize) != len(liveTickets) {
 	// 	log.Infof("Header at %d, DB at %d.", header.Height, db.BestNode.Height())
 	// 	log.Warnf("Inconsistent pool sizes: %d, %d", header.PoolSize, len(liveTickets))
@@ -519,11 +523,18 @@ func (db *StakeDatabase) PoolInfoBest() (apitypes.TicketPoolInfo, uint32) {
 		valAvg = poolCoin / float64(poolSize)
 	}
 
-	return apitypes.TicketPoolInfo{
-		Size:   uint32(poolSize),
-		Value:  poolCoin,
-		ValAvg: valAvg,
-	}, height
+	winners := make([]string, 0, len(winningTickets))
+	for _, winner := range winningTickets {
+		winners = append(winners, winner.String())
+	}
+
+	return &apitypes.TicketPoolInfo{
+		Height:  height,
+		Size:    uint32(poolSize),
+		Value:   poolCoin,
+		ValAvg:  valAvg,
+		Winners: winners,
+	}
 }
 
 // PoolInfo attempts to fetch the ticket pool info for the specified block hash
