@@ -36,6 +36,26 @@
                         </td>
                     </tr>
                 {{end}}
+                {{if or (eq .Type "Vote") (eq .Type "Revocation")}}
+                    {{range .Vin}}
+                        {{if .Txid}}
+                            <tr>
+                                <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">TICKET SPENT</td>
+                                <td><a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></td>
+                            </tr>
+                        {{end}}
+                    {{end}}
+                {{end}}
+                {{if eq .Type "Ticket"}}
+                    {{if (index .SpendingTxns 0).Hash}}
+                        <tr>
+                            <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">SPENT IN</td>
+                            <td>
+                                <a href="/explorer/tx/{{(index .SpendingTxns 0).Hash}}">{{(index .SpendingTxns 0).Hash}}</a>
+                            </td>
+                        </tr>
+                    {{end}}
+                {{end}}
                 <tr>
                     <td class="text-right pr-2 h1rem p03rem0">TYPE</td>
                     <td>
