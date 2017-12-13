@@ -22,11 +22,11 @@ const (
 		stakesubmission_address, is_multisig, num_inputs)
 	VALUES (
 		$1, $2, $3,	$4,
-		$5, $6, $7);`
+		$5, $6, $7) `
 	insertTicketRow        = insertTicketRow0 + `RETURNING id;`
 	insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTicketRow        = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET tx_hash = $1, block_hash = $2, RETURNING id;`
+		SET tx_hash = $1, block_hash = $2 RETURNING id;`
 	insertTicketRowReturnId = `WITH ins AS (` +
 		insertTicketRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE
@@ -78,11 +78,11 @@ const (
 	VALUES (
 		$1, $2, $3,
 		$4, $5,
-		$6, $7, $8);`
+		$6, $7, $8) `
 	insertVoteRow        = insertVoteRow0 + `RETURNING id;`
 	insertVoteRowChecked = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertVoteRow        = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET tx_hash = $3, block_hash = $4, RETURNING id;`
+		SET tx_hash = $3, block_hash = $4 RETURNING id;`
 	insertVoteRowReturnId = `WITH ins AS (` +
 		insertVoteRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE

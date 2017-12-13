@@ -14,10 +14,10 @@ const (
 		$10, $11, $12, $13, $14, $15,
 		$16, $17, $18,
 		$19, $20, $21) `
-	insertTxRow        = insertTxRow0 + `RETURNING id;`
-	insertTxRowChecked = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
-	upsertTxRow        = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET tx_hash = $8, block_hash = $1, RETURNING id;`
+	insertTxRow = insertTxRow0 + `RETURNING id;`
+	//insertTxRowChecked = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
+	upsertTxRow = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
+		SET tx_hash = $8, block_hash = $1 RETURNING id;`
 	insertTxRowReturnId = `WITH ins AS (` +
 		insertTxRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE
@@ -110,7 +110,7 @@ const (
 
 func MakeTxInsertStatement(checked bool) string {
 	if checked {
-		return insertTxRowChecked
+		return upsertTxRow
 	}
 	return insertTxRow
 }

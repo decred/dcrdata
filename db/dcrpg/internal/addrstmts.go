@@ -4,9 +4,11 @@ const (
 	insertAddressRow0 = `INSERT INTO addresses (address, funding_tx_row_id,
 		funding_tx_hash, funding_tx_vout_index, vout_row_id, value)
 		VALUES ($1, $2, $3, $4, $5, $6) `
-	InsertAddressRow        = insertAddressRow0 + `RETURNING id;`
-	InsertAddressRowChecked = insertAddressRow0 +
-		`ON CONFLICT (address, vout_row_id) DO NOTHING RETURNING id;`
+	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
+	// InsertAddressRowChecked = insertAddressRow0 +
+	// 	`ON CONFLICT (address, vout_row_id) DO NOTHING RETURNING id;`
+	UpsertAddressRow = insertAddressRow0 + `ON CONFLICT (address, vout_row_id) DO UPDATE 
+		SET address = $1, vout_row_id = $5 RETURNING id;`
 	InsertAddressRowReturnID = `WITH inserting AS (` +
 		insertAddressRow0 +
 		`ON CONFLICT (address, vout_row_id) DO UPDATE
