@@ -368,6 +368,26 @@ func (pgb *ChainDB) DeindexAll() error {
 		log.Warn(err)
 		errAny = err
 	}
+	if err = DeindexVotesTableOnCandidate(pgb.db); err != nil {
+		log.Warn(err)
+		errAny = err
+	}
+	if err = DeindexVotesTableOnHash(pgb.db); err != nil {
+		log.Warn(err)
+		errAny = err
+	}
+	if err = DeindexVotesTableOnVoteVersion(pgb.db); err != nil {
+		log.Warn(err)
+		errAny = err
+	}
+	if err = DeindexTicketsTableOnHash(pgb.db); err != nil {
+		log.Warn(err)
+		errAny = err
+	}
+	if err = DeindexTicketsTableOnTxDbID(pgb.db); err != nil {
+		log.Warn(err)
+		errAny = err
+	}
 	return errAny
 }
 
@@ -399,6 +419,26 @@ func (pgb *ChainDB) IndexAll() error {
 	}
 	log.Infof("Indexing vouts table on tx hash...")
 	if err := IndexVoutTableOnTxHash(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing votes table on candidate block...")
+	if err := IndexVotesTableOnCandidate(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing votes table on vote hash...")
+	if err := IndexVotesTableOnHashes(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing votes table on vote version...")
+	if err := IndexVotesTableOnVoteVersion(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing tickets table on ticket hash...")
+	if err := IndexTicketsTableOnHashes(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing tickets table on transaction id/indx...")
+	if err := IndexTicketsTableOnTxDbID(pgb.db); err != nil {
 		return err
 	}
 	// Not indexing the address table on vout ID or address here. See
