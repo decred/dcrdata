@@ -77,13 +77,13 @@
   branch = "master"
   name = "github.com/decred/dcrd"
   packages = ["blockchain","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","database/ffldb","database/internal/treap","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","dcrutil","hdkeychain","rpcclient","txscript","wire"]
-  revision = "d27429061b49d400d06505911a1379b8a8246671"
+  revision = "008e80bf8668544de4200a08927e95e5926439a0"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrwallet"
   packages = ["apperrors","internal/zero","netparams","snacl","wallet/udb","walletdb"]
-  revision = "2df4002bce8c540907c9a3e2980fc3e5deeba8f6"
+  revision = "0027db2f7a9fcce036af661938ff5a35727547a9"
 
 [[projects]]
   branch = "master"
