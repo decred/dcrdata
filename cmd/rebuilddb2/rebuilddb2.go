@@ -275,7 +275,7 @@ func mainCore() error {
 
 		var numVins, numVouts int64
 		numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), winners,
-			true, !cfg.UpdateAddrSpendInfo)
+			true, cfg.AddrSpendInfoOnline)
 		if err != nil {
 			return fmt.Errorf("StoreBlock failed: %v", err)
 		}
@@ -300,12 +300,13 @@ func mainCore() error {
 		if err = db.IndexAll(); err != nil {
 			return fmt.Errorf("IndexAll failed: %v", err)
 		}
-		if !cfg.UpdateAddrSpendInfo {
+		// Only reindex address table here if we do not do it below
+		if cfg.AddrSpendInfoOnline {
 			err = db.IndexAddressTable()
 		}
 	}
 
-	if cfg.UpdateAddrSpendInfo {
+	if !cfg.AddrSpendInfoOnline {
 		// Remove existing indexes not on funding txns
 		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
 		log.Infof("Populating spending tx info in address table...")

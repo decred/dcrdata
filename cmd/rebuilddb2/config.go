@@ -55,7 +55,7 @@ type config struct {
 	DBPass              string `long:"dbpass" description:"DB pass"`
 	DBName              string `long:"dbname" description:"DB name"`
 	DropDBTables        bool   `short:"D" long:"droptables" description:"Drop/delete DB tables."`
-	UpdateAddrSpendInfo bool   `short:"u" long:"updateaddrspends" description:"Update the spending transaction info in ALL rows of the addresses table."`
+	AddrSpendInfoOnline bool   `short:"a" long:"addrspends-no-batch" description:"Continually update the address table spending transaction info during rebuild (instead of full table update at end).  SLOW if doing full rebuild!"`
 
 	// RPC client options
 	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name"`
