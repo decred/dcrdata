@@ -219,6 +219,11 @@ func mainCore() error {
 		sqliteRes := <-sqliteSyncRes
 		sqliteHeight = sqliteRes.Height
 		log.Infof("SQLite sync ended at height %d", sqliteHeight)
+		if sqliteRes.Error != nil {
+			log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteRes.Height)
+			close(quit)
+			return sqliteRes.Error
+		}
 
 		pgRes := <-pgSyncRes
 		pgHeight = pgRes.Height
@@ -235,17 +240,14 @@ func mainCore() error {
 		}
 
 		// Check for errors and combine if necessary
-		if sqliteRes.Error != nil {
-			if usePG && pgRes.Error != nil {
+		if usePG && pgRes.Error != nil {
+			if sqliteRes.Error != nil {
 				log.Error("dcrsqlite.SyncDBAsync AND dcrpg.SyncChainDBAsync "+
 					"failed at heights %d and %d, respectively.",
 					sqliteRes.Height, pgRes.Height)
 				errCombined := fmt.Sprintln(sqliteRes.Error, ", ", pgRes.Error)
 				return errors.New(errCombined)
 			}
-			log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteRes.Height)
-			return sqliteRes.Error
-		} else if usePG && pgRes.Error != nil {
 			log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", pgRes.Height)
 			return pgRes.Error
 		}
