@@ -973,7 +973,7 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error
 			tx.TxType, tx.Version, tx.Tree, tx.TxID, tx.BlockIndex,
 			tx.Locktime, tx.Expiry, tx.Size, tx.Spent, tx.Sent, tx.Fees,
 			tx.NumVin, tx.Vins, dbtypes.UInt64Array(tx.VinDbIds),
-			tx.NumVout, pq.Array(tx.Vouts), dbtypes.UInt64Array(tx.VoutDbIds)).Scan(&id)
+			tx.NumVout, pq.Array([]*dbtypes.Vout{}), dbtypes.UInt64Array(tx.VoutDbIds)).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue

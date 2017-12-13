@@ -79,13 +79,13 @@ const (
 
 // NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
 // ffldb-backed stake database, and loads all live tickets into a cache.
-func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params) (*StakeDatabase, error) {
+func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
+	dbNameOpt ...string) (*StakeDatabase, error) {
 	log.Infof("Loading ticket pool DB...")
 	poolDB, err := NewTicketPool("stakedb_ticket_pool.db")
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ticket pool DB: %v", err)
 	}
-
 	sDB := &StakeDatabase{
 		params:          params,
 		NodeClient:      client,
@@ -94,7 +94,13 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params) (*Stake
 		poolInfo:        NewPoolInfoCache(),
 		PoolDB:          poolDB,
 	}
-	if err := sDB.Open(); err != nil {
+
+	dbName := DefaultStakeDbName
+	if len(dbNameOpt) > 0 {
+		dbName = dbNameOpt[0]
+	}
+
+	if err := sDB.Open(dbName); err != nil {
 		return nil, err
 	}
 
@@ -399,12 +405,11 @@ func (db *StakeDatabase) DisconnectBlocks(count int64) error {
 
 // Open attempts to open an existing stake database, and will create a new one
 // if one does not exist.
-func (db *StakeDatabase) Open() error {
+func (db *StakeDatabase) Open(dbName string) error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
 
 	// Create a new database to store the accepted stake node data into.
-	dbName := DefaultStakeDbName
 	var isFreshDB bool
 	var err error
 	db.StakeDB, err = database.Open(dbType, dbName, db.params.Net)
@@ -466,6 +471,11 @@ func (db *StakeDatabase) Open() error {
 	}
 
 	return err
+}
+
+// Close closes the database.
+func (db *StakeDatabase) Close() error {
+	return db.StakeDB.Close()
 }
 
 // Close will close the ticket pool and stake databases.

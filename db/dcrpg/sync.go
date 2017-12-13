@@ -6,6 +6,7 @@ package dcrpg
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -139,13 +140,26 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 
 		var tpi *apitypes.TicketPoolInfo
 		for {
+			// check for quit signal
+			select {
+			case <-quit:
+				log.Infof("Rescan cancelled at height %d.", ib)
+				return ib - 1, nil
+			default:
+			}
+
 			var ok bool
 			if tpi, ok = db.stakeDB.PoolInfo(*blockHash); ok {
 				break
 			}
+			blocksBehind := ib - int64(db.stakeDB.Height())
+			if blocksBehind <= 0 {
+				return ib - 1, fmt.Errorf("stakeDB.PoolInfo failed.")
+			}
 			log.Infof("Waiting for stake DB to catch up. Query height %d, "+
 				"stake DB height %d.", ib, db.stakeDB.Height())
-			time.Sleep(500 * time.Millisecond)
+			waitSec := math.Max(5, math.Min(30.0, float64(blocksBehind)/500))
+			time.Sleep(time.Duration(waitSec) * time.Second)
 		}
 
 		var numVins, numVouts int64

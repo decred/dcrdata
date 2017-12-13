@@ -14,6 +14,7 @@ import (
 	"github.com/btcsuite/btclog"
 	"github.com/dcrdata/dcrdata/db/dcrpg"
 	"github.com/dcrdata/dcrdata/rpcutils"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/rpcclient"
 )
 
@@ -83,6 +84,13 @@ func mainCore() error {
 		}
 	}
 
+	stakeDB, err := stakedb.NewStakeDatabase(client, activeChain, "pg_rebuild_stakedb")
+	if err != nil {
+		return fmt.Errorf("Unable to create stake DB: %v", err)
+	}
+	defer stakeDB.Close()
+	stakeDBHeight := int64(stakeDB.Height())
+
 	dbi := dcrpg.DBInfo{
 		Host:   host,
 		Port:   port,
@@ -90,7 +98,7 @@ func mainCore() error {
 		Pass:   cfg.DBPass,
 		DBName: cfg.DBName,
 	}
-	db, err := dcrpg.NewChainDB(&dbi, activeChain)
+	db, err := dcrpg.NewChainDB(&dbi, activeChain, stakeDB)
 	if db != nil {
 		defer db.Close()
 	}
@@ -114,6 +122,19 @@ func mainCore() error {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
+	// Check current height of DB
+	bestHeight, err := db.HeightDB()
+	lastBlock := int64(bestHeight)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			lastBlock = -1
+			log.Info("blocks table is empty, starting fresh.")
+		} else {
+			log.Errorln("RetrieveBestBlockHeight:", err)
+			return err
+		}
+	}
+
 	// Start waiting for the interrupt signal
 	go func() {
 		<-c
@@ -123,18 +144,41 @@ func mainCore() error {
 		close(quit)
 	}()
 
-	// Get chain servers's best block
-	_, height, err := client.GetBestBlock()
-	if err != nil {
-		return fmt.Errorf("GetBestBlock failed: %v", err)
+	// Get stakedb at PG DB height
+	if stakeDBHeight > lastBlock+1 {
+		log.Infof("Rewinding stake db from %d to %d...", stakeDBHeight, lastBlock+1)
+	}
+	for stakeDBHeight > lastBlock+1 {
+		// check for quit signal
+		select {
+		case <-quit:
+			log.Infof("Rewind cancelled at height %d.", stakeDBHeight)
+			return nil
+		default:
+		}
+		if err = stakeDB.DisconnectBlock(); err != nil {
+			return err
+		}
+		stakeDBHeight = int64(stakeDB.Height())
 	}
 
-	// genesisHash, err := client.GetBlockHash(0)
-	// if err != nil {
-	// 	log.Error("GetBlockHash failed: ", err)
-	// 	return err
-	// }
-	//prev_hash := genesisHash.String()
+	if stakeDBHeight < lastBlock {
+		log.Infof("Advancing stake db from %d to %d...", stakeDBHeight, lastBlock)
+	}
+	for stakeDBHeight < lastBlock {
+		block, blockHash, err := rpcutils.GetBlock(stakeDBHeight+1, client)
+		if err != nil {
+			return fmt.Errorf("GetBlock failed (%s): %v", blockHash, err)
+		}
+
+		if err = stakeDB.ConnectBlock(block); err != nil {
+			return err
+		}
+		stakeDBHeight = int64(stakeDB.Height())
+		if stakeDBHeight%1000 == 0 {
+			log.Infof("Stake DB at height %d.", stakeDBHeight)
+		}
+	}
 
 	var totalTxs, totalVins, totalVouts int64
 	var lastTxs, lastVins, lastVouts int64
@@ -155,16 +199,10 @@ func mainCore() error {
 	speedReport := func() { o.Do(speedReporter) }
 	defer speedReport()
 
-	bestHeight, err := db.HeightDB()
-	lastBlock := int64(bestHeight)
+	// Get chain servers's best block
+	_, height, err := client.GetBestBlock()
 	if err != nil {
-		if err == sql.ErrNoRows {
-			lastBlock = -1
-			log.Info("blocks table is empty, starting fresh.")
-		} else {
-			log.Errorln("RetrieveBestBlockHeight:", err)
-			return err
-		}
+		return fmt.Errorf("GetBestBlock failed: %v", err)
 	}
 
 	// Remove indexes/constraints before bulk import
@@ -220,8 +258,24 @@ func mainCore() error {
 			return fmt.Errorf("GetBlock failed (%s): %v", blockHash, err)
 		}
 
+		// stake db always has genesis, so do not connect it
+		var winners []string
+		if ib > 0 {
+			if err = stakeDB.ConnectBlock(block); err != nil {
+				return fmt.Errorf("stakedb.ConnectBlock failed: %v", err)
+			}
+
+			tpi, found := stakeDB.PoolInfo(*blockHash)
+			if !found {
+				return fmt.Errorf("stakedb.PoolInfo failed to return info for: %v", blockHash)
+			}
+
+			winners = tpi.Winners
+		}
+
 		var numVins, numVouts int64
-		numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), true, !cfg.UpdateAddrSpendInfo)
+		numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), winners,
+			true, !cfg.UpdateAddrSpendInfo)
 		if err != nil {
 			return fmt.Errorf("StoreBlock failed: %v", err)
 		}

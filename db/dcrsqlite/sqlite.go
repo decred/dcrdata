@@ -224,10 +224,11 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	}
 	defer stmt.Close()
 
+	winners := strings.Join(bd.PoolInfo.Winners, ";")
+
 	res, err := stmt.Exec(&bd.Height, &bd.Size, &bd.Hash,
 		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
-		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
-		&bd.PoolInfo.Winners)
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg, &winners)
 	if err != nil {
 		return err
 	}
@@ -339,10 +340,12 @@ func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo
 
 	for rows.Next() {
 		var tpi apitypes.TicketPoolInfo
-		var hash string
-		if err = rows.Scan(&tpi.Height, &hash, &tpi.Size, &tpi.Value, &tpi.ValAvg, &tpi.Winners); err != nil {
+		var hash, winners string
+		if err = rows.Scan(&tpi.Height, &hash, &tpi.Size, &tpi.Value,
+			&tpi.ValAvg, &winners); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 		}
+		tpi.Winners = strings.Split(winners, ";")
 		tpis = append(tpis, tpi)
 		hashes = append(hashes, hash)
 	}
@@ -358,9 +361,10 @@ func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
 	tpi := &apitypes.TicketPoolInfo{
 		Height: uint32(ind),
 	}
-	var hash string
+	var hash, winners string
 	err := db.QueryRow(db.getPoolSQL, ind).Scan(&hash, &tpi.Size,
-		&tpi.Value, &tpi.ValAvg, &tpi.Winners)
+		&tpi.Value, &tpi.ValAvg, &winners)
+	tpi.Winners = strings.Split(winners, ";")
 	return tpi, err
 }
 
@@ -394,7 +398,10 @@ func (db *DB) RetrieveWinnersByHash(hash string) ([]string, uint32, error) {
 // RetrievePoolInfoByHash returns ticket pool info for blockhash hash
 func (db *DB) RetrievePoolInfoByHash(hash string) (*apitypes.TicketPoolInfo, error) {
 	tpi := new(apitypes.TicketPoolInfo)
-	err := db.QueryRow(db.getPoolByHashSQL, hash).Scan(&tpi.Height, &tpi.Size, &tpi.Value, &tpi.ValAvg, &tpi.Winners)
+	var winners string
+	err := db.QueryRow(db.getPoolByHashSQL, hash).Scan(&tpi.Height, &tpi.Size,
+		&tpi.Value, &tpi.ValAvg, &winners)
+	tpi.Winners = strings.Split(winners, ";")
 	return tpi, err
 }
 
