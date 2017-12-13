@@ -12,6 +12,7 @@ import (
 	"github.com/dcrdata/dcrdata/db/dcrpg/internal"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/lib/pq"
@@ -857,10 +858,15 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 			scriptSubClass, _ := txscript.GetStakeOutSubclass(tx.Vouts[0].ScriptPubKey)
 			isMultisig = scriptSubClass == txscript.MultiSigTy
 		}
+
+		price := dcrutil.Amount(tx.Vouts[0].Value).ToCoin()
+		fee := dcrutil.Amount(tx.Fees).ToCoin()
+		isSplit := len(tx.Vins) > 1
+
 		var id uint64
 		err := stmt.QueryRow(
 			tx.TxID, tx.BlockHash, tx.BlockHeight, ticketDbIDs[i],
-			stakesubmissionAddress, isMultisig, tx.NumVin).Scan(&id)
+			stakesubmissionAddress, isMultisig, isSplit, tx.NumVin, price, fee).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
@@ -881,23 +887,10 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 
 }
 
-func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, msgBlock *wire.MsgBlock, checked bool) ([]uint64, error) {
-	dbtx, err := db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
-	}
-
-	stmt, err := dbtx.Prepare(internal.MakeVoteInsertStatement(checked))
-	if err != nil {
-		log.Errorf("Votes INSERT prepare: %v", err)
-		_ = dbtx.Rollback() // try, but we want the Prepare error back
-		return nil, err
-	}
-
+func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64,
+	msgBlock *MsgBlockPG, checked bool) ([]uint64, []uint64, error) {
+	// Choose only SSGen txns
 	msgTxs := msgBlock.STransactions
-	candidateBlockHash := msgBlock.Header.PrevBlock.String()
-
-	// Choose only SSGen
 	var voteTx []*dbtypes.Tx
 	var voteMsgTxs []*wire.MsgTx
 	for i, tx := range dbTxns {
@@ -907,19 +900,54 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, msgBlock *w
 		}
 	}
 
+	if len(voteTx) == 0 {
+		return nil, nil, nil
+	}
+
+	// Start DB transaction and prepare vote insert statement
+	dbtx, err := db.Begin()
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
+	}
+
+	stmt, err := dbtx.Prepare(internal.MakeVoteInsertStatement(checked))
+	if err != nil {
+		log.Errorf("Votes INSERT prepare: %v", err)
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return nil, nil, err
+	}
+
 	// Insert each vote
+	candidateBlockHash := msgBlock.Header.PrevBlock.String()
 	ids := make([]uint64, 0, len(voteTx))
+	misses := make([]string, len(msgBlock.Validators))
+	copy(misses, msgBlock.Validators)
 	for i, tx := range voteTx {
-		voteVersion := stake.SSGenVersion(voteMsgTxs[i])
-		validBlock, voteBits, err := txhelpers.SSGenVoteBlockValid(voteMsgTxs[i])
+		msgTx := voteMsgTxs[i]
+		voteVersion := stake.SSGenVersion(msgTx)
+		validBlock, voteBits, err := txhelpers.SSGenVoteBlockValid(msgTx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+
+		stakeSubmissionAmount := dcrutil.Amount(msgTx.TxIn[1].ValueIn).ToCoin()
+		stakeSubmissionTxHash := msgTx.TxIn[1].PreviousOutPoint.Hash.String()
+		voteReward := dcrutil.Amount(msgTx.TxIn[0].ValueIn).ToCoin()
+
+		// delete spent ticket from missed list
+		for im := range misses {
+			if misses[im] == stakeSubmissionTxHash {
+				misses[im] = misses[len(misses)-1]
+				misses = misses[:len(misses)-1]
+				break
+			}
 		}
 
 		var id uint64
 		err = stmt.QueryRow(
-			tx.BlockHeight, false, tx.TxID, tx.BlockHash, candidateBlockHash,
-			voteVersion, voteBits, validBlock).Scan(&id)
+			tx.BlockHeight, tx.TxID, tx.BlockHash, candidateBlockHash,
+			voteVersion, voteBits, validBlock.Validity,
+			stakeSubmissionTxHash, stakeSubmissionAmount, voteReward).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
@@ -928,7 +956,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, msgBlock *w
 			if errRoll := dbtx.Rollback(); errRoll != nil {
 				log.Errorf("Rollback failed: %v", errRoll)
 			}
-			return nil, err
+			return nil, nil, err
 		}
 		ids = append(ids, id)
 	}
@@ -936,8 +964,46 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, msgBlock *w
 	// Close prepared statement. Ignore errors as we'll Commit regardless.
 	_ = stmt.Close()
 
-	return ids, dbtx.Commit()
+	if len(ids)+len(misses) != 5 {
+		fmt.Println(misses)
+		fmt.Println(voteTx)
+		_ = dbtx.Rollback()
+		panic(fmt.Sprintf("votes (%d) + misses (%d) != 5", len(ids), len(misses)))
+	}
 
+	// enter missed tickets
+	var idsMisses []uint64
+	if len(misses) > 0 {
+		stmtMissed, err := dbtx.Prepare(internal.MakeMissInsertStatement(checked))
+		if err != nil {
+			log.Errorf("Miss INSERT prepare: %v", err)
+			_ = dbtx.Rollback() // try, but we want the Prepare error back
+			return nil, nil, err
+		}
+
+		blockHash := msgBlock.BlockHash().String()
+		idsMisses = make([]uint64, 0, len(voteTx))
+		for i := range misses {
+			var id uint64
+			err = stmtMissed.QueryRow(
+				msgBlock.Header.Height, blockHash, candidateBlockHash,
+				misses[i]).Scan(&id)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					continue
+				}
+				_ = stmtMissed.Close() // try, but we want the QueryRow error back
+				if errRoll := dbtx.Rollback(); errRoll != nil {
+					log.Errorf("Rollback failed: %v", errRoll)
+				}
+				return nil, nil, err
+			}
+			idsMisses = append(idsMisses, id)
+		}
+		_ = stmtMissed.Close()
+	}
+
+	return ids, idsMisses, dbtx.Commit()
 }
 
 func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {

@@ -11,7 +11,10 @@ const (
 		purchase_tx_db_id INT8,
 		stakesubmission_address TEXT,
 		is_multisig BOOLEAN,
+		is_split BOOLEAN,
 		num_inputs INT2,
+		price FLOAT8,
+		fee FLOAT8,
 		spend_height INT4,
 		spend_tx_db_id INT8
 	);`
@@ -19,13 +22,15 @@ const (
 	// Insert
 	insertTicketRow0 = `INSERT INTO tickets (
 		tx_hash, block_hash, block_height, purchase_tx_db_id,
-		stakesubmission_address, is_multisig, num_inputs)
+		stakesubmission_address, is_multisig, is_split,
+		num_inputs, price, fee)
 	VALUES (
 		$1, $2, $3,	$4,
-		$5, $6, $7) `
-	insertTicketRow        = insertTicketRow0 + `RETURNING id;`
-	insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
-	upsertTicketRow        = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
+		$5, $6, $7,
+		$8, $9, $10) `
+	insertTicketRow = insertTicketRow0 + `RETURNING id;`
+	// insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
+	upsertTicketRow = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
 		SET tx_hash = $1, block_hash = $2 RETURNING id;`
 	insertTicketRowReturnId = `WITH ins AS (` +
 		insertTicketRow0 +
@@ -61,27 +66,31 @@ const (
 	CreateVotesTable = `CREATE TABLE IF NOT EXISTS votes (
 		id SERIAL PRIMARY KEY,
 		height INT4,
-		missed BOOLEAN,
 		tx_hash TEXT NOT NULL,
 		block_hash TEXT NOT NULL,
 		candidate_block_hash TEXT NOT NULL,
 		version INT2,
 		vote_bits INT2,
-		block_valid BOOLEAN
+		block_valid BOOLEAN,
+		ticket_hash TEXT,
+		ticket_price FLOAT8,
+		vote_reward FLOAT8
 	);`
 
 	// Insert
 	insertVoteRow0 = `INSERT INTO votes (
-		height, missed, tx_hash,
+		height, tx_hash,
 		block_hash, candidate_block_hash,
-		version, vote_bits, block_valid)
+		version, vote_bits, block_valid,
+		ticket_hash, ticket_price, vote_reward)
 	VALUES (
-		$1, $2, $3,
-		$4, $5,
-		$6, $7, $8) `
-	insertVoteRow        = insertVoteRow0 + `RETURNING id;`
-	insertVoteRowChecked = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
-	upsertVoteRow        = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
+		$1, $2,
+		$3, $4,
+		$5, $6, $7,
+		$8, $9, $10) `
+	insertVoteRow = insertVoteRow0 + `RETURNING id;`
+	// insertVoteRowChecked = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
+	upsertVoteRow = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
 		SET tx_hash = $3, block_hash = $4 RETURNING id;`
 	insertVoteRowReturnId = `WITH ins AS (` +
 		insertVoteRow0 +
@@ -107,18 +116,61 @@ const (
 	IndexVotesTableOnVoteVersion = `CREATE INDEX uix_votes_vote_version
 		ON votes(version);`
 	DeindexVotesTableOnVoteVersion = `DROP INDEX uix_votes_vote_version;`
+
+	// Misses
+
+	CreateMissesTable = `CREATE TABLE IF NOT EXISTS misses (
+		id SERIAL PRIMARY KEY,
+		height INT4,
+		block_hash TEXT NOT NULL,
+		candidate_block_hash TEXT NOT NULL,
+		ticket_hash TEXT NOT NULL
+	);`
+
+	// Insert
+	insertMissRow0 = `INSERT INTO misses (
+		height, block_hash, candidate_block_hash, ticket_hash)
+	VALUES (
+		$1, $2, $3, $4) `
+	insertMissRow = insertMissRow0 + `RETURNING id;`
+	// insertVoteRowChecked = insertMissRow0 + `ON CONFLICT (ticket_hash, block_hash) DO NOTHING RETURNING id;`
+	upsertMissRow = insertMissRow0 + `ON CONFLICT (ticket_hash, block_hash) DO UPDATE 
+		SET ticket_hash = $4, block_hash = $2 RETURNING id;`
+	insertMissRowReturnId = `WITH ins AS (` +
+		insertMissRow0 +
+		`ON CONFLICT (ticket_hash, block_hash) DO UPDATE
+		SET ticket_hash = NULL WHERE FALSE
+		RETURNING id
+		)
+	SELECT id FROM ins
+	UNION  ALL
+	SELECT id FROM misses
+	WHERE  ticket_hash = $4 AND block_hash = $2
+	LIMIT  1;`
+
+	// Index
+	IndexMissesTableOnHashes = `CREATE UNIQUE INDEX uix_misses_hashes_index
+		ON misses(ticket_hash, block_hash);`
+	DeindexMissesTableOnHashes = `DROP INDEX uix_misses_hashes_index;`
 )
 
 func MakeTicketInsertStatement(checked bool) string {
 	if checked {
-		return insertTicketRowChecked
+		return upsertTicketRow
 	}
 	return insertTicketRow
 }
 
 func MakeVoteInsertStatement(checked bool) string {
 	if checked {
-		return insertVoteRowChecked
+		return upsertVoteRow
 	}
 	return insertVoteRow
+}
+
+func MakeMissInsertStatement(checked bool) string {
+	if checked {
+		return upsertMissRow
+	}
+	return insertMissRow
 }

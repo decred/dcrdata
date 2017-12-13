@@ -97,7 +97,9 @@ func (db *wiredDB) NewStakeDBChainMonitor(quit chan struct{}, wg *sync.WaitGroup
 }
 
 func (db *wiredDB) ChargePoolInfoCache(startHeight int64) error {
-	//stakeDBHeight := db.sDB.Height()
+	if startHeight < 0 {
+		startHeight = 0
+	}
 	endHeight := db.GetStakeInfoHeight()
 	tpis, blockHashes, err := db.DB.RetrievePoolInfoRange(startHeight, endHeight)
 	if err != nil {

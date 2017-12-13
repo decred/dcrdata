@@ -195,9 +195,9 @@ func mainCore() error {
 		}
 	}
 
-	if sqliteDB.GetStakeInfoHeight() > int64(heightDB) {
-		// charge stakedb pool info cache
-		if err = sqliteDB.ChargePoolInfoCache(int64(heightDB)); err != nil {
+	if sqliteDB.GetStakeInfoHeight() >= int64(heightDB) {
+		// charge stakedb pool info cache, including previous
+		if err = sqliteDB.ChargePoolInfoCache(int64(heightDB) - 1); err != nil {
 			return fmt.Errorf("Failed to charge pool info cache: %v", err)
 		}
 	}

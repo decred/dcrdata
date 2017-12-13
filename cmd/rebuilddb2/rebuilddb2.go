@@ -145,10 +145,16 @@ func mainCore() error {
 	}()
 
 	// Get stakedb at PG DB height
-	if stakeDBHeight > lastBlock+1 {
-		log.Infof("Rewinding stake db from %d to %d...", stakeDBHeight, lastBlock+1)
+	var rewindTo int64
+	if lastBlock > 0 {
+		// Rewind one extra block to ensure previous winning tickets (validators
+		// for current block) get stored in the cache by advancing one block.
+		rewindTo = lastBlock - 1
 	}
-	for stakeDBHeight > lastBlock+1 {
+	if stakeDBHeight > rewindTo {
+		log.Infof("Rewinding stake db from %d to %d...", stakeDBHeight, rewindTo)
+	}
+	for stakeDBHeight > rewindTo {
 		// check for quit signal
 		select {
 		case <-quit:
@@ -162,7 +168,8 @@ func mainCore() error {
 		stakeDBHeight = int64(stakeDB.Height())
 	}
 
-	if stakeDBHeight < lastBlock {
+	// Advance to last block, but don't log if it's just one block to connect
+	if stakeDBHeight+1 < lastBlock {
 		log.Infof("Advancing stake db from %d to %d...", stakeDBHeight, lastBlock)
 	}
 	for stakeDBHeight < lastBlock {
@@ -271,6 +278,8 @@ func mainCore() error {
 			}
 
 			winners = tpi.Winners
+			// Last winners (validators) are in msgBlock.Header.PrevBlock, but
+			// StoreBlock gets them from the stakedb.
 		}
 
 		var numVins, numVouts int64

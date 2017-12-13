@@ -154,8 +154,8 @@ func (p *mempoolMonitor) TxHandler(client *rpcclient.Client) {
 				// txHeight = tx.MsgTx().TxIn[0].BlockHeight // uh, no
 			case stake.TxTypeSSGen:
 				// Vote
-				voteHash := &tx.MsgTx().TxIn[1].PreviousOutPoint.Hash
-				log.Tracef("Received vote %v for ticket %v", tx.Hash(), voteHash)
+				ticketHash := &tx.MsgTx().TxIn[1].PreviousOutPoint.Hash
+				log.Tracef("Received vote %v for ticket %v", tx.Hash(), ticketHash)
 				// TODO: Show subsidy for this vote (Vout[2] - Vin[1] ?)
 				continue
 			case stake.TxTypeSSRtx:

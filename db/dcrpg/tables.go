@@ -21,6 +21,7 @@ var createTableStatements = map[string]string{
 	"addresses":    internal.CreateAddressTable,
 	"tickets":      internal.CreateTicketsTable,
 	"votes":        internal.CreateVotesTable,
+	"misses":       internal.CreateMissesTable,
 }
 
 var createTypeStatements = map[string]string{
@@ -348,5 +349,17 @@ func IndexTicketsTableOnTxDbID(db *sql.DB) (err error) {
 
 func DeindexTicketsTableOnTxDbID(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexTicketsTableOnTxDbID)
+	return
+}
+
+// Missed votes table indexes
+
+func IndexMissesTableOnHashes(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexMissesTableOnHashes)
+	return
+}
+
+func DeindexMissesTableOnHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexMissesTableOnHashes)
 	return
 }

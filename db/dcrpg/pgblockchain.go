@@ -24,6 +24,7 @@ import (
 )
 
 var (
+	zeroHash            = chainhash.Hash{}
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
 
@@ -388,6 +389,10 @@ func (pgb *ChainDB) DeindexAll() error {
 		log.Warn(err)
 		errAny = err
 	}
+	if err = DeindexMissesTableOnHash(pgb.db); err != nil {
+		log.Warn(err)
+		errAny = err
+	}
 	return errAny
 }
 
@@ -441,6 +446,10 @@ func (pgb *ChainDB) IndexAll() error {
 	if err := IndexTicketsTableOnTxDbID(pgb.db); err != nil {
 		return err
 	}
+	log.Infof("Indexing misses table...")
+	if err := IndexMissesTableOnHashes(pgb.db); err != nil {
+		return err
+	}
 	// Not indexing the address table on vout ID or address here. See
 	// IndexAddressTable to create those indexes.
 	log.Infof("Indexing addresses table on funding tx hash...")
@@ -480,6 +489,25 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	// Convert the wire.MsgBlock to a dbtypes.Block
 	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams)
 
+	// Get the previous winners (stake DB pool info cache have this info)
+	prevBlockHash := msgBlock.Header.PrevBlock
+	var winners []string
+	if !bytes.Equal(zeroHash[:], prevBlockHash[:]) {
+		tpi, found := pgb.stakeDB.PoolInfo(prevBlockHash)
+		if !found {
+			err = fmt.Errorf("stakedb.PoolInfo failed for block %s", msgBlock.BlockHash())
+			return
+		}
+		winners = tpi.Winners
+	}
+
+	// Wrap the message block
+	MsgBlockPG := &MsgBlockPG{
+		MsgBlock:       msgBlock,
+		WinningTickets: winningTickets,
+		Validators:     winners,
+	}
+
 	// Extract transactions and their vouts, and insert vouts into their pg table,
 	// returning their DB PKs, which are stored in the corresponding transaction
 	// data struct. Insert each transaction once they are updated with their
@@ -489,14 +517,14 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	// regular transactions
 	resChanReg := make(chan storeTxnsResult)
 	go func() {
-		resChanReg <- pgb.storeTxns(msgBlock, wire.TxTreeRegular,
+		resChanReg <- pgb.storeTxns(MsgBlockPG, wire.TxTreeRegular,
 			pgb.chainParams, &dbBlock.TxDbIDs, updateAddressesSpendingInfo)
 	}()
 
 	// stake transactions
 	resChanStake := make(chan storeTxnsResult)
 	go func() {
-		resChanStake <- pgb.storeTxns(msgBlock, wire.TxTreeStake,
+		resChanStake <- pgb.storeTxns(MsgBlockPG, wire.TxTreeStake,
 			pgb.chainParams, &dbBlock.STxDbIDs, updateAddressesSpendingInfo)
 	}()
 
@@ -579,11 +607,17 @@ func (r *storeTxnsResult) Error() string {
 	return r.err.Error()
 }
 
-func (pgb *ChainDB) storeTxns(msgBlock *wire.MsgBlock, txTree int8,
+type MsgBlockPG struct {
+	*wire.MsgBlock
+	WinningTickets []string
+	Validators     []string
+}
+
+func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64,
 	updateAddressesSpendingInfo bool) storeTxnsResult {
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
-		msgBlock, txTree, chainParams)
+		msgBlock.MsgBlock, txTree, chainParams)
 
 	var txRes storeTxnsResult
 	dbAddressRows := make([][]dbtypes.AddressRow, len(dbTransactions))
@@ -635,7 +669,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *wire.MsgBlock, txTree int8,
 		}
 
 		// Votes
-		_, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs, msgBlock, pgb.dupChecks)
+		_, _, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs, msgBlock, pgb.dupChecks)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err

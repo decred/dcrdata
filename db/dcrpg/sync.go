@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/dcrdata/dcrdata/db/dbtypes"
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/decred/dcrd/rpcclient"
 )
@@ -138,7 +137,8 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 			return ib - 1, fmt.Errorf("GetBlock failed (%s): %v", blockHash, err)
 		}
 
-		var tpi *apitypes.TicketPoolInfo
+		var winners []string
+		//prevBlockHash := block.MsgBlock().Header.PrevBlock
 		for {
 			// check for quit signal
 			select {
@@ -148,8 +148,8 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 			default:
 			}
 
-			var ok bool
-			if tpi, ok = db.stakeDB.PoolInfo(*blockHash); ok {
+			if tpi, ok := db.stakeDB.PoolInfo(*blockHash); ok {
+				winners = tpi.Winners
 				break
 			}
 			blocksBehind := ib - int64(db.stakeDB.Height())
@@ -164,7 +164,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 
 		var numVins, numVouts int64
 		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock(),
-			tpi.Winners, true, !updateAllAddresses); err != nil {
+			winners, true, !updateAllAddresses); err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins
