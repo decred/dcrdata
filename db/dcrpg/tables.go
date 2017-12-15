@@ -246,20 +246,20 @@ func DeindexBlockTableOnHash(db *sql.DB) (err error) {
 
 // Vouts table indexes
 
-func IndexVoutTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexVoutTableOnTxHash)
-	return
-}
+// func IndexVoutTableOnTxHash(db *sql.DB) (err error) {
+// 	_, err = db.Exec(internal.IndexVoutTableOnTxHash)
+// 	return
+// }
 
 func IndexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexVoutTableOnTxHashIdx)
 	return
 }
 
-func DeindexVoutTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexVoutTableOnTxHash)
-	return
-}
+// func DeindexVoutTableOnTxHash(db *sql.DB) (err error) {
+// 	_, err = db.Exec(internal.DeindexVoutTableOnTxHash)
+// 	return
+// }
 
 func DeindexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexVoutTableOnTxHashIdx)

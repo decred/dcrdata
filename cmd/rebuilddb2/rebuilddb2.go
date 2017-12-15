@@ -306,6 +306,26 @@ func mainCore() error {
 	speedReport()
 
 	if reindexing || cfg.ForceReindex {
+		// Remove duplicate vins
+		log.Info("Finding and removing duplicate vins entries before indexing...")
+		var numVinsRemoved int64
+		if numVinsRemoved, err = db.DeleteDuplicateVins(); err != nil {
+			return fmt.Errorf("dcrpg.DeleteDuplicateVins failed: %v", err)
+		}
+		log.Infof("Removed %d duplicate vins entries.", numVinsRemoved)
+
+		// Remove duplicate vouts
+		log.Info("Finding and removing duplicate vouts entries before indexing...")
+		var numVoutsRemoved int64
+		if numVoutsRemoved, err = db.DeleteDuplicateVouts(); err != nil {
+			return fmt.Errorf("dcrpg.DeleteDuplicateVouts failed: %v", err)
+		}
+		log.Infof("Removed %d duplicate vouts entries.", numVoutsRemoved)
+
+		// TODO: remove entries from addresses table that reference removed
+		// vins/vouts.
+
+		// Create indexes
 		if err = db.IndexAll(); err != nil {
 			return fmt.Errorf("IndexAll failed: %v", err)
 		}
@@ -316,13 +336,14 @@ func mainCore() error {
 	}
 
 	if !cfg.AddrSpendInfoOnline {
-		// Remove existing indexes not on funding txns
+		// Remove indexes not on funding txns (remove on address table indexes)
 		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
 		log.Infof("Populating spending tx info in address table...")
 		numAddresses, err := db.UpdateSpendingInfoInAllAddresses()
 		if err != nil {
 			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
 		}
+		// Index address table
 		log.Infof("Updated %d rows of address table", numAddresses)
 		if err = db.IndexAddressTable(); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)

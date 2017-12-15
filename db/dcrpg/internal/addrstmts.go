@@ -55,7 +55,8 @@ const (
 	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses
 		WHERE funding_tx_hash=$1 and funding_tx_vout_index=$2;`
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses
-		WHERE address=$1 and vout_row_id=$2;`
+		WHERE address=$1 and vout_row_id=$2
+		ORDER BY id DESC;`
 
 	SetAddressSpendingForID = `UPDATE addresses SET spending_tx_row_id = $2, 
 		spending_tx_hash = $3, spending_tx_vin_index = $4, vin_row_id = $5 

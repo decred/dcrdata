@@ -326,6 +326,14 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
+func (pgb *ChainDB) DeleteDuplicateVins() (int64, error) {
+	return DeleteDuplicateVins(pgb.db)
+}
+
+func (pgb *ChainDB) DeleteDuplicateVouts() (int64, error) {
+	return DeleteDuplicateVouts(pgb.db)
+}
+
 // DeindexAll drops all of the indexes in all tables
 func (pgb *ChainDB) DeindexAll() error {
 	var err, errAny error
@@ -353,10 +361,10 @@ func (pgb *ChainDB) DeindexAll() error {
 		log.Warn(err)
 		errAny = err
 	}
-	if err = DeindexVoutTableOnTxHash(pgb.db); err != nil {
-		log.Warn(err)
-		errAny = err
-	}
+	// if err = DeindexVoutTableOnTxHash(pgb.db); err != nil {
+	// 	log.Warn(err)
+	// 	errAny = err
+	// }
 	if err = DeindexAddressTableOnAddress(pgb.db); err != nil {
 		log.Warn(err)
 		errAny = err
@@ -422,10 +430,10 @@ func (pgb *ChainDB) IndexAll() error {
 	if err := IndexVoutTableOnTxHashIdx(pgb.db); err != nil {
 		return err
 	}
-	log.Infof("Indexing vouts table on tx hash...")
-	if err := IndexVoutTableOnTxHash(pgb.db); err != nil {
-		return err
-	}
+	// log.Infof("Indexing vouts table on tx hash...")
+	// if err := IndexVoutTableOnTxHash(pgb.db); err != nil {
+	// 	return err
+	// }
 	log.Infof("Indexing votes table on candidate block...")
 	if err := IndexVotesTableOnCandidate(pgb.db); err != nil {
 		return err
@@ -692,7 +700,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	}
 
 	// Insert each new AddressRow, absent spending fields
-	_, err = InsertAddressOuts(pgb.db, dbAddressRowsFlat)
+	_, err = InsertAddressOuts(pgb.db, dbAddressRowsFlat, pgb.dupChecks)
 	if err != nil {
 		log.Error("InsertAddressOuts:", err)
 		txRes.err = err

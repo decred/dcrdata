@@ -215,6 +215,44 @@ func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
 	return N, dbtx.Commit()
 }
 
+// DeleteDuplicateVins deletes rows in vin with duplicate tx information,
+// leaving the one row with the lowest id.
+func DeleteDuplicateVins(db *sql.DB) (int64, error) {
+	res, err := db.Exec(internal.DeleteVinsDuplicateRows)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete duplicate vins: %v", err)
+	}
+	if res == nil {
+		return 0, nil
+	}
+
+	var N int64
+	N, err = res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf(`RowsAffected failed: %v`, err)
+	}
+	return N, err
+}
+
+// DeleteDuplicateVouts deletes rows in vouts with duplicate tx information,
+// leaving the one row with the lowest id.
+func DeleteDuplicateVouts(db *sql.DB) (int64, error) {
+	res, err := db.Exec(internal.DeleteVoutDuplicateRows)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete duplicate vouts: %v", err)
+	}
+	if res == nil {
+		return 0, nil
+	}
+
+	var N int64
+	N, err = res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf(`RowsAffected failed: %v`, err)
+	}
+	return N, err
+}
+
 func SetSpendingForAddressDbID(db *sql.DB, addrDbID uint64, spendingTxDbID uint64,
 	spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64) error {
 	_, err := db.Exec(internal.SetAddressSpendingForID, addrDbID, spendingTxDbID,
@@ -767,15 +805,19 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 	return ids, addressRows, dbtx.Commit()
 }
 
-func InsertAddressOut(db *sql.DB, dbA *dbtypes.AddressRow) (uint64, error) {
+func InsertAddressOut(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint64, error) {
+	sqlStmt := internal.InsertAddressRow
+	if dupCheck {
+		sqlStmt = internal.UpsertAddressRow
+	}
 	var id uint64
-	err := db.QueryRow(internal.InsertAddressRow, dbA.Address,
-		dbA.FundingTxDbID, dbA.FundingTxHash, dbA.FundingTxVoutIndex,
-		dbA.VoutDbID, dbA.Value).Scan(&id)
+	err := db.QueryRow(sqlStmt, dbA.Address, dbA.FundingTxDbID,
+		dbA.FundingTxHash, dbA.FundingTxVoutIndex, dbA.VoutDbID,
+		dbA.Value).Scan(&id)
 	return id, err
 }
 
-func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow) ([]uint64, error) {
+func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([]uint64, error) {
 	// Create the address table if it does not exist
 	tableName := "addresses"
 	if haveTable, _ := TableExists(db, tableName); !haveTable {
@@ -789,7 +831,12 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow) ([]uint64, error)
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	stmt, err := dbtx.Prepare(internal.InsertAddressRow)
+	sqlStmt := internal.InsertAddressRow
+	if dupCheck {
+		sqlStmt = internal.UpsertAddressRow
+	}
+
+	stmt, err := dbtx.Prepare(sqlStmt)
 	if err != nil {
 		log.Errorf("AddressRow INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back

@@ -46,7 +46,7 @@ const (
 	DeindexVinTableOnPrevOuts = `DROP INDEX uix_vin_prevout;`
 
 	SelectVinIDsALL = `SELECT id FROM vins;`
-	CountRow        = `SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname='vins';`
+	CountVinsRows   = `SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname='vins';`
 
 	SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
 	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins 
@@ -120,9 +120,9 @@ const (
 		ON vouts(tx_hash, tx_index, tx_tree);`
 	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
 
-	IndexVoutTableOnTxHash = `CREATE INDEX uix_vout_txhash
-		ON vouts(tx_hash);`
-	DeindexVoutTableOnTxHash = `DROP INDEX uix_vout_txhash;`
+	// IndexVoutTableOnTxHash = `CREATE INDEX uix_vout_txhash
+	// 	ON vouts(tx_hash);`
+	// DeindexVoutTableOnTxHash = `DROP INDEX uix_vout_txhash;`
 
 	CreateVoutType = `CREATE TYPE vout_t AS (
 		value INT8,
