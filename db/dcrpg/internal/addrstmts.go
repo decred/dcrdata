@@ -6,12 +6,12 @@ const (
 		VALUES ($1, $2, $3, $4, $5, $6) `
 	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
 	// InsertAddressRowChecked = insertAddressRow0 +
-	// 	`ON CONFLICT (address, vout_row_id) DO NOTHING RETURNING id;`
-	UpsertAddressRow = insertAddressRow0 + `ON CONFLICT (address, vout_row_id) DO UPDATE 
+	// 	`ON CONFLICT (vout_row_id, address) DO NOTHING RETURNING id;`
+	UpsertAddressRow = insertAddressRow0 + `ON CONFLICT (vout_row_id, address) DO UPDATE 
 		SET address = $1, vout_row_id = $5 RETURNING id;`
 	InsertAddressRowReturnID = `WITH inserting AS (` +
 		insertAddressRow0 +
-		`ON CONFLICT (address, vout_row_id) DO UPDATE
+		`ON CONFLICT (vout_row_id, address) DO UPDATE
 		SET address = NULL WHERE FALSE
 		RETURNING id
 		)
@@ -70,7 +70,7 @@ const (
 	DeindexAddressTableOnAddress = `DROP INDEX uix_addresses_address;`
 
 	IndexAddressTableOnVoutID = `CREATE UNIQUE INDEX uix_addresses_vout_id
-		ON addresses(vout_row_id);`
+		ON addresses(vout_row_id, address);`
 	DeindexAddressTableOnVoutID = `DROP INDEX uix_addresses_vout_id;`
 
 	IndexAddressTableOnFundingTx = `CREATE INDEX uix_addresses_funding_tx
