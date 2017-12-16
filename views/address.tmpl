@@ -11,6 +11,9 @@
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
                 <div class="mono">{{.Address}}</div>
+                <div style="width: 280px; text-align: center">
+                    <img src="data:image/png;base64,{{.QRCode}}">
+                </div>
                 <table class="table-centered-1rem">
                     {{if .Balance}}
                     {{if not .KnownFundingTxns}}

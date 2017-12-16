@@ -7,6 +7,7 @@ package explorer
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -31,6 +32,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
+	"github.com/skip2/go-qrcode"
 	"golang.org/x/net/websocket"
 )
 
@@ -426,6 +428,10 @@ func (exp *explorerUI) addressPage(w http.ResponseWriter, r *http.Request) {
 	for i, v := range addrData.Transactions {
 		confirmHeights[i] = exp.NewBlockData.Height - int64(v.Confirmations)
 	}
+
+	png, err := qrcode.Encode(addrData.Address, qrcode.Medium, 256)
+	addrData.QRCode = base64.StdEncoding.EncodeToString(png)
+
 	pageData := struct {
 		Data          *AddressInfo
 		ConfirmHeight []int64

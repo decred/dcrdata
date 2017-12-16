@@ -151,6 +151,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/skip2/go-qrcode"
+  packages = [".","bitset","reedsolomon"]
+  revision = "80895b4a9eff675bc0f8ea09f60106bca9ac44c8"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/crypto"
   packages = ["nacl/secretbox","pbkdf2","poly1305","ripemd160","salsa20/salsa","scrypt"]
   revision = "9419663f5a44be8b34ca85f08abc5fe1be11f8a3"
@@ -170,6 +176,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4c7eec3b639d27568fbb3e9f647cb6d0f9dc41c4118242735c46b00ba72b2108"
+  inputs-digest = "361d7f507023515525c1fce174aac94c6443cb6fa6bf9733c5c93659ebb12fe7"
   solver-name = "gps-cdcl"
   solver-version = 1
