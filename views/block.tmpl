@@ -38,14 +38,14 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/explorer/block/{{.PreviousHash}}">PREV BLOCK</a></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/block/{{.PreviousHash}}">PREV BLOCK</a></td>
                         <td>
-                            <span class="hash break-word lh1rem"  href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</span>
+                            <span class="hash break-word lh1rem"  href="/block/{{.PreviousHash}}">{{.PreviousHash}}</span>
                         </td>
                     </tr>
                     {{if .NextHash}}
                     <tr>
-                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/explorer/block/{{.NextHash}}">NEXT BLOCK</a></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/block/{{.NextHash}}">NEXT BLOCK</a></td>
                         <td>
                             <span class="hash break-word lh1rem">{{.NextHash}}</span>
                         </td>
@@ -163,7 +163,7 @@
                                 <tr>
                                     <td class="break-word">
                                         <span>
-                                            <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
+                                            <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
                                         </span>
                                     </td>
                                     <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
@@ -206,7 +206,7 @@
                             <tr>
                                 <td class="break-word">
                                     <span>
-                                        <a class="hash lh1rem" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
+                                        <a class="hash lh1rem" href="/tx/{{.TxID}}">{{.TxID}}</a>
                                     </span>
                                 </td>
                                 <td class="mono fs15">{{.VoteInfo.Version}}</td>
@@ -254,7 +254,7 @@
                             <tr>
                                 <td class="break-word">
                                     <span>
-                                        <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
+                                        <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
                                     </span>
                                 </td>
                                 <td class="text-right dcr mono fs15">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
@@ -285,7 +285,7 @@
                         <tr>
                             <td class="break-word">
                                 <span>
-                                    <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
+                                    <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
                                 </span>
                             </td>
                             <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
@@ -316,7 +316,7 @@
                         <tr>
                             <td class="break-word">
                                 <span>
-                                    <a class="hash" href="/explorer/tx/{{.TxID}}">{{.TxID}}</a>
+                                    <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
                                 </span>
                             </td>
                             <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>

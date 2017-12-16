@@ -32,7 +32,7 @@
                     <tr>
                         <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">INCLUDED IN BLOCK</td>
                         <td>
-                             <a href="/explorer/block/{{.BlockHeight}}" class="fs18">{{.BlockHeight}}</a>
+                             <a href="/block/{{.BlockHeight}}" class="fs18">{{.BlockHeight}}</a>
                         </td>
                     </tr>
                 {{end}}
@@ -162,14 +162,14 @@
                             {{else if .Stakebase}}
                                 Stakebase: {{ .Stakebase }}
                             {{else}}
-                                <a href="/explorer/tx/{{.Txid}}">{{.Txid}}:{{.Vout}}</a>
+                                <a href="/tx/{{.Txid}}">{{.Txid}}:{{.Vout}}</a>
                             {{end}}
                             </div>
                         </td>
                         <td><div class="break-word address mono fs13">
                             {{if gt (len .Addresses) 0}}
                                 {{range .Addresses}}
-                                    <div><a href="/explorer/address/{{.}}">{{.}}</a></div>
+                                    <div><a href="/address/{{.}}">{{.}}</a></div>
                                 {{end}}
                             {{else}}
                                 N/A
@@ -181,7 +181,7 @@
                         {{else if eq .BlockHeight 0}}
                             pending
                         {{else}}
-                            <a href="/explorer/block/{{.BlockHeight}}">{{.BlockHeight}}</a>
+                            <a href="/block/{{.BlockHeight}}">{{.BlockHeight}}</a>
                         {{end}}
                         </td>
                         <td class="mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{template "decimalParts" (float64AsDecimalParts .AmountIn false)}} {{end}}</td>
@@ -204,7 +204,7 @@
                     <tr>
                         <td class="break-word mono fs13 addressAndScriptData">
                             {{range .Addresses}}
-                                <div class="address sm-fullwidth"><a href="/explorer/address/{{.}}">{{.}}</a></div>
+                                <div class="address sm-fullwidth"><a href="/address/{{.}}">{{.}}</a></div>
                             {{end}}
                             {{if .OP_RETURN}}
                                 {{if .Addresses}}
@@ -224,7 +224,7 @@
                         </td>
                         <td class="text-left fs13">{{with $spending := (index $.Data.SpendingTxns $i) }}
                             {{if $spending.Hash}}
-                                <a href="/explorer/tx/{{$spending.Hash}}">{{$v.Spent}}</a>
+                                <a href="/tx/{{$spending.Hash}}">{{$v.Spent}}</a>
                             {{else}}
                                 {{if gt $v.Amount 0.0}}
                                 {{$v.Spent}}

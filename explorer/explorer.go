@@ -20,16 +20,17 @@ import (
 
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/db/dbtypes"
+	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/rs/cors"
 )
 
 const (
-	rootTemplateIndex int = iota
+	homeTemplateIndex int = iota
+	rootTemplateIndex
 	blockTemplateIndex
 	txTemplateIndex
 	addressTemplateIndex
@@ -78,9 +79,19 @@ type explorerUI struct {
 	wsHub           *WebsocketHub
 	NewBlockDataMtx sync.RWMutex
 	NewBlockData    BlockBasic
+	ExtraInfo       HomeInfo
+	MempoolData     MempoolInfo
 }
 
 func (exp *explorerUI) reloadTemplates() error {
+	homeTemplate, err := template.New("home").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["home"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		return err
+	}
+
 	explorerTemplate, err := template.New("explorer").Funcs(exp.templateHelpers).ParseFiles(
 		exp.templateFiles["explorer"],
 		exp.templateFiles["extras"],
@@ -129,6 +140,7 @@ func (exp *explorerUI) reloadTemplates() error {
 		return err
 	}
 
+	exp.templates[homeTemplateIndex] = homeTemplate
 	exp.templates[rootTemplateIndex] = explorerTemplate
 	exp.templates[blockTemplateIndex] = blockTemplate
 	exp.templates[txTemplateIndex] = txTemplate
@@ -183,6 +195,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	}
 
 	exp.templateFiles = make(map[string]string)
+	exp.templateFiles["home"] = filepath.Join("views", "home.tmpl")
 	exp.templateFiles["explorer"] = filepath.Join("views", "explorer.tmpl")
 	exp.templateFiles["block"] = filepath.Join("views", "block.tmpl")
 	exp.templateFiles["tx"] = filepath.Join("views", "tx.tmpl")
@@ -221,6 +234,10 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			val := a - b
 			return val
 		},
+		"divide": func(n int64, d int64) int64 {
+			val := n / d
+			return val
+		},
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
@@ -235,6 +252,10 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		},
 		"int64Comma": func(v int64) string {
 			return humanize.Comma(v)
+		},
+		"ticketWindowProgress": func(i int) float64 {
+			p := (float64(i) / 144) * 100
+			return p
 		},
 		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
 			clipped := fmt.Sprintf("%.8f", v)
@@ -291,6 +312,15 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	exp.templates = make([]*template.Template, 0, 4)
 
+	homeTemplate, err := template.New("home").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["home"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		log.Errorf("Unable to create new html template: %v", err)
+	}
+	exp.templates = append(exp.templates, homeTemplate)
+
 	explorerTemplate, err := template.New("explorer").Funcs(exp.templateHelpers).ParseFiles(
 		exp.templateFiles["explorer"],
 		exp.templateFiles["extras"],
@@ -345,7 +375,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	}
 	exp.templates = append(exp.templates, errorTemplate)
 
-	exp.addRoutes()
+	//exp.addRoutes()
 
 	wsh := NewWebsocketHub()
 	go wsh.run()
@@ -370,6 +400,18 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		Revocations:    uint32(bData.Revocations),
 	}
 	exp.NewBlockData = newBlockData
+	exp.ExtraInfo = HomeInfo{
+		CoinSupply:       blockData.ExtraInfo.CoinSupply,
+		StakeDiff:        blockData.CurrentStakeDiff.CurrentStakeDifficulty,
+		IdxBlockInWindow: blockData.IdxBlockInWindow,
+		Difficulty:       blockData.Header.Difficulty,
+		NBlockSubsidy: BlockSubsidy{
+			Dev:   blockData.ExtraInfo.NextBlockSubsidy.Developer,
+			PoS:   blockData.ExtraInfo.NextBlockSubsidy.PoS,
+			PoW:   blockData.ExtraInfo.NextBlockSubsidy.PoW,
+			Total: blockData.ExtraInfo.NextBlockSubsidy.Total,
+		},
+	}
 	exp.NewBlockDataMtx.Unlock()
 
 	exp.wsHub.HubRelay <- sigNewBlock
@@ -379,39 +421,51 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	return nil
 }
 
-func (exp *explorerUI) addRoutes() {
-	exp.Mux.Use(middleware.Logger)
-	exp.Mux.Use(middleware.Recoverer)
-	corsMW := cors.Default()
-	exp.Mux.Use(corsMW.Handler)
+func (exp *explorerUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) error {
+	exp.MempoolData.RLock()
+	exp.MempoolData.NumTickets = data.NumTickets
+	exp.MempoolData.RUnlock()
+	exp.wsHub.HubRelay <- sigMempoolUpdate
 
-	exp.Mux.Get("/", exp.root)
-	exp.Mux.Get("/ws", exp.rootWebsocket)
-
-	exp.Mux.Route("/block", func(r chi.Router) {
-		r.Route("/{blockhash}", func(rd chi.Router) {
-			rd.Use(exp.blockHashPathOrIndexCtx)
-			rd.Get("/", exp.blockPage)
-			rd.Get("/ws", exp.rootWebsocket)
-		})
-	})
-
-	exp.Mux.Route("/tx", func(r chi.Router) {
-		r.Route("/{txid}", func(rd chi.Router) {
-			rd.Use(transactionHashCtx)
-			rd.Get("/", exp.txPage)
-			rd.Get("/ws", exp.rootWebsocket)
-		})
-	})
-	exp.Mux.Route("/address", func(r chi.Router) {
-		r.Route("/{address}", func(rd chi.Router) {
-			rd.Use(addressPathCtx)
-			rd.Get("/", exp.addressPage)
-			rd.Get("/ws", exp.rootWebsocket)
-		})
-	})
-	exp.Mux.Route("/decodetx", func(r chi.Router) {
-		r.Get("/", exp.decodeTxPage)
-		r.Get("/ws", exp.rootWebsocket)
-	})
+	return nil
 }
+
+// func (exp *explorerUI) addRoutes() {
+// 	exp.Mux.Use(middleware.Logger)
+// 	exp.Mux.Use(middleware.Recoverer)
+// 	corsMW := cors.Default()
+// 	exp.Mux.Use(corsMW.Handler)
+
+// 	exp.Mux.Get("/", exp.root)
+// 	exp.Mux.Get("/ws", exp.rootWebsocket)
+
+// 	exp.Mux.Route("/block", func(r chi.Router) {
+// 		r.Route("/{blockhash}", func(rd chi.Router) {
+// 			rd.Use(exp.blockHashPathOrIndexCtx)
+// 			rd.Get("/", exp.blockPage)
+// 			rd.Get("/ws", exp.rootWebsocket)
+// 		})
+// 	})
+
+// 	exp.Mux.Route("/tx", func(r chi.Router) {
+// 		r.Route("/{txid}", func(rd chi.Router) {
+// 			rd.Use(transactionHashCtx)
+// 			rd.Get("/", exp.txPage)
+// 			rd.Get("/ws", exp.rootWebsocket)
+// 		})
+// 	})
+// 	exp.Mux.Route("/address", func(r chi.Router) {
+// 		r.Route("/{address}", func(rd chi.Router) {
+// 			rd.Use(addressPathCtx)
+// 			rd.Get("/", exp.addressPage)
+// 			rd.Get("/ws", exp.rootWebsocket)
+// 		})
+// 	})
+// 	exp.Mux.Route("/decodetx", func(r chi.Router) {
+// 		r.Get("/", exp.decodeTxPage)
+// 		r.Get("/ws", exp.rootWebsocket)
+// 	})
+
+// 	exp.Mux.Get("/home", exp.home)
+// 	exp.Mux.Get("/home/ws", exp.rootWebsocket)
+// }

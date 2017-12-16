@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
+func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
 		// Create channel to signal updated data availability
 		updateSig := make(hubSpoke)
@@ -133,6 +133,7 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				// Write block data to websocket client
 				exp.NewBlockDataMtx.RLock()
+				exp.MempoolData.RLock()
 				webData := WebSocketMessage{
 					EventId: eventIDs[sig],
 				}
@@ -140,7 +141,13 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 				enc := json.NewEncoder(buff)
 				switch sig {
 				case sigNewBlock:
-					enc.Encode(WebsocketBlock{exp.NewBlockData})
+					enc.Encode(WebsocketBlock{
+						Block: exp.NewBlockData,
+						Extra: exp.ExtraInfo,
+					})
+					webData.Message = buff.String()
+				case sigMempoolUpdate:
+					enc.Encode(exp.MempoolData)
 					webData.Message = buff.String()
 				case sigPingAndUserCount:
 					// ping and send user count
@@ -149,6 +156,7 @@ func (exp *explorerUI) rootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 				err := websocket.JSON.Send(ws, webData)
+				exp.MempoolData.RUnlock()
 				exp.NewBlockDataMtx.RUnlock()
 				if err != nil {
 					log.Debugf("Failed to encode WebSocketMessage %v: %v", sig, err)

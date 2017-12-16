@@ -5,6 +5,15 @@ import (
 	"time"
 )
 
+const (
+	wsWriteTimeout           = 10 * time.Second
+	wsReadTimeout            = 12 * time.Second
+	pingInterval             = 12 * time.Second
+	sigNewBlock    hubSignal = iota
+	sigMempoolUpdate
+	sigPingAndUserCount
+)
+
 // WebSocketMessage represents the JSON object used to send and received typed
 // messages to the web client.
 type WebSocketMessage struct {
@@ -15,6 +24,7 @@ type WebSocketMessage struct {
 // Event type field for an SSE event
 var eventIDs = map[hubSignal]string{
 	sigNewBlock:         "newblock",
+	sigMempoolUpdate:    "mempool",
 	sigPingAndUserCount: "ping",
 }
 
@@ -33,14 +43,6 @@ type WebsocketHub struct {
 
 type hubSignal int
 type hubSpoke chan hubSignal
-
-const (
-	wsWriteTimeout           = 10 * time.Second
-	wsReadTimeout            = 12 * time.Second
-	pingInterval             = 12 * time.Second
-	sigNewBlock    hubSignal = iota
-	sigPingAndUserCount
-)
 
 // NewWebsocketHub creates a new WebsocketHub
 func NewWebsocketHub() *WebsocketHub {
@@ -121,6 +123,8 @@ func (wsh *WebsocketHub) run() {
 				log.Infof("Signaling new block to %d clients.", len(wsh.clients))
 			case sigPingAndUserCount:
 				log.Tracef("Signaling ping/user count to %d clients.", len(wsh.clients))
+			case sigMempoolUpdate:
+				log.Infof("Signaling mempool update to %d clients.", len(wsh.clients))
 			default:
 				log.Errorf("Unknown hub signal: %v", hubSignal)
 				break events

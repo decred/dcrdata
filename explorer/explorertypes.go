@@ -4,6 +4,8 @@
 package explorer
 
 import (
+	"sync"
+
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
@@ -157,6 +159,29 @@ type AddressBalance struct {
 	TotalUnspent int64
 }
 
+// HomeInfo
+type HomeInfo struct {
+	CoinSupply       int64        `json:"coin_supply"`
+	StakeDiff        float64      `json:"sdiff"`
+	IdxBlockInWindow int          `json:"window_idx"`
+	Difficulty       float64      `json:"difficulty"`
+	NBlockSubsidy    BlockSubsidy `json:"subsidy"`
+}
+
+// BlockSubsidy
+type BlockSubsidy struct {
+	Total int64 `json:"total"`
+	PoW   int64 `json:"pow"`
+	PoS   int64 `json:"pos"`
+	Dev   int64 `json:"dev"`
+}
+
+// Mempool
+type MempoolInfo struct {
+	sync.RWMutex
+	NumTickets uint32 `json:"num_tickets"`
+}
+
 // ReduceAddressHistory generates a template AddressInfo from a slice of
 // dbtypes.AddressRow. All fields except NumUnconfirmed and Transactions are set
 // completely. Transactions is partially set, with each transaction having only
@@ -212,4 +237,5 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 // WebsocketBlock wraps the new block info for use in the websocket
 type WebsocketBlock struct {
 	Block BlockBasic `json:"block"`
+	Extra HomeInfo   `json:"extra"`
 }

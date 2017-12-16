@@ -99,7 +99,7 @@
                         {{range $i, $v := .Transactions}}
                         <tr>
                             {{with $v}}
-                            <td><a href="../tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
+                            <td><a href="/tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
                             {{if ne .RecievedTotal 0.0}}
                                 <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .RecievedTotal false)}}</td>
                             {{else}}

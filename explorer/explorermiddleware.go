@@ -32,7 +32,7 @@ func searchPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-func (exp *explorerUI) blockHashPathOrIndexCtx(next http.Handler) http.Handler {
+func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		height, err := strconv.ParseInt(chi.URLParam(r, "blockhash"), 10, 0)
 		var hash string
@@ -41,14 +41,14 @@ func (exp *explorerUI) blockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			height, err = exp.blockData.GetBlockHeight(hash)
 			if err != nil {
 				log.Errorf("GetBlockHeight(%s) failed: %v", hash, err)
-				exp.errorPage(w, "Something went wrong...", "could not find that block")
+				exp.ErrorPage(w, "Something went wrong...", "could not find that block")
 				return
 			}
 		} else {
 			hash, err = exp.blockData.GetBlockHash(height)
 			if err != nil {
 				log.Errorf("GetBlockHeight(%d) failed: %v", height, err)
-				exp.errorPage(w, "Something went wrong...", "could not find that block")
+				exp.ErrorPage(w, "Something went wrong...", "could not find that block")
 				return
 			}
 		}
@@ -87,7 +87,7 @@ func getTxIDCtx(r *http.Request) string {
 	return hash
 }
 
-func transactionHashCtx(next http.Handler) http.Handler {
+func TransactionHashCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		txid := chi.URLParam(r, "txid")
 		ctx := context.WithValue(r.Context(), ctxTxHash, txid)
@@ -106,7 +106,7 @@ func templateExecToString(t *template.Template, name string, data interface{}) (
 	return page.String(), err
 }
 
-func addressPathCtx(next http.Handler) http.Handler {
+func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
 		ctx := context.WithValue(r.Context(), ctxAddress, address)

@@ -279,31 +279,18 @@ func mainCore() error {
 	blockDataSavers = append(blockDataSavers, &sqliteDB)
 	mempoolSavers = append(mempoolSavers, sqliteDB.MPC)
 
-	// Web template data. WebUI implements BlockDataSaver interface
-	webUI := NewWebUI(&sqliteDB)
-	if webUI == nil {
-		return fmt.Errorf("Failed to start WebUI. Missing HTML resources?")
-	}
-	defer webUI.StopWebsocketHub()
-	webUI.UseSIGToReloadTemplates()
-	blockDataSavers = append(blockDataSavers, webUI)
-	mempoolSavers = append(mempoolSavers, webUI)
-
 	// Start the explorer system
 	explore := explorer.New(&sqliteDB, db, cfg.UseRealIP)
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
 	blockDataSavers = append(blockDataSavers, explore)
+	mempoolSavers = append(mempoolSavers, explore)
 
 	// Initial data summary for web ui
 	blockData, _, err := collector.Collect()
 	if err != nil {
 		return fmt.Errorf("Block data collection for initial summary failed: %v",
 			err.Error())
-	}
-
-	if err = webUI.Store(blockData, nil); err != nil {
-		return fmt.Errorf("Failed to store initial block data for main page: %v", err.Error())
 	}
 
 	if err = explore.Store(blockData, nil); err != nil {
@@ -316,7 +303,7 @@ func mainCore() error {
 	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 	// On reorg, only update web UI since dcrsqlite's own reorg handler will
 	// deal with patching up the block info database.
-	reorgBlockDataSavers := []blockdata.BlockDataSaver{webUI, explore}
+	reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
 	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
 		reorgBlockDataSavers, quit, &wg, addrMap,
 		ntfnChans.connectChan, ntfnChans.recvTxBlockChan,
@@ -369,9 +356,9 @@ func mainCore() error {
 				err.Error())
 		}
 
-		// Store initial MP data to webUI
-		if err = webUI.StoreMPData(mpData, time.Now()); err != nil {
-			return fmt.Errorf("Failed to store initial mempool data (WebUI): %v",
+		// Store initial MP data to explore
+		if err = explore.StoreMPData(mpData, time.Now()); err != nil {
+			return fmt.Errorf("Failed to store initial mempool data (explore): %v",
 				err.Error())
 		}
 
@@ -416,8 +403,8 @@ func mainCore() error {
 	apiMux := newAPIRouter(app, cfg.UseRealIP)
 
 	webMux := chi.NewRouter()
-	webMux.Get("/", webUI.RootPage)
-	webMux.Get("/ws", webUI.WSBlockUpdater)
+	webMux.Get("/", explore.Home)
+	webMux.Get("/ws", explore.RootWebsocket)
 	webMux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./public/images/favicon.ico")
 	})
@@ -426,10 +413,15 @@ func mainCore() error {
 	FileServer(webMux, "/css", http.Dir("./public/css"), cacheControlMaxAge)
 	FileServer(webMux, "/fonts", http.Dir("./public/fonts"), cacheControlMaxAge)
 	FileServer(webMux, "/images", http.Dir("./public/images"), cacheControlMaxAge)
-	webMux.With(SearchPathCtx).Get("/error/{search}", webUI.ErrorPage)
-	webMux.NotFound(webUI.ErrorPage)
+	webMux.NotFound(explore.NotFound)
 	webMux.Mount("/api", apiMux.Mux)
-	webMux.Mount("/explorer", explore.Mux)
+
+	webMux.Get("/blocks", explore.Blocks)
+	webMux.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
+	webMux.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)
+	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)
+	webMux.Get("/decodetx", explore.DecodeTxPage)
+
 	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
 		log.Criticalf("listenAndServeProto: %v", err)
 		close(quit)
