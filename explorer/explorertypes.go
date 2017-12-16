@@ -145,6 +145,7 @@ type AddressInfo struct {
 	Unspent          dcrutil.Amount
 	Balance          *AddressBalance
 	Path             string
+	QRCode           string
 }
 
 // AddressBalance represents the number and value of spent and unspent outputs
