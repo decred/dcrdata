@@ -170,6 +170,7 @@
                 window.location.href = evt;
             } else {
                 //Search Error
+                $("#search").css({ color: "red"})
             }
         })
         var updateBlockData = function (event) {
@@ -209,12 +210,12 @@
                 $("#difficulty").html(humanize.decimalParts(ex.difficulty/100000000, false, 8))
                 $("#bsubsidy_total").html(humanize.decimalParts(ex.subsidy.total/100000000, false, 8))
                 $("#bsubsidy_pow").html(humanize.decimalParts(ex.subsidy.pow/100000000, false, 8))
-                $("#bsubsidy_pos").html(humanize.decimalParts((ex.subsidy.pos/500000000), false, 8))
+                $("#bsubsidy_pos").html(humanize.decimalParts((ex.subsidy.pos/500000000), false, 8)) // 5 votes per block (usually)
                 $("#bsubsidy_dev").html(humanize.decimalParts(ex.subsidy.dev/100000000, false, 8))
                 $("#coin_supply").html(humanize.decimalParts(ex.coin_supply/100000000, true, 8))
                 $("#blocksdiff").html(humanize.decimalParts(ex.sdiff, false, 8))
                 $("#window_block_index").text(ex.window_idx)
-                $("#pos-window-progess-bar").css({ width: (ex.window_idx/144)*100 + "%" })
+                $("#pos-window-progess-bar").css({ width: (ex.window_idx/ex.params.window_size)*100 + "%" })
             }
         };
         ws.registerEvtHandler("newblock", updateBlockData);
@@ -261,7 +262,7 @@
     <div class="container wrapper text-center">
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
-        <a class="nav-item" href="//decodetx" title="Decode or send a raw transaction">Decode Tx</a>
+        <a class="nav-item" href="/decodetx" title="Decode or send a raw transaction">Decode Tx</a>
         <a class="nav-item" href="/api/status" title="API Status" target="_blank" data-turbolinks="false">Status</a>
         <span data-turbolinks-permanent class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
     </div>

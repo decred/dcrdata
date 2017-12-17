@@ -416,6 +416,7 @@ func mainCore() error {
 	webMux.NotFound(explore.NotFound)
 	webMux.Mount("/api", apiMux.Mux)
 
+	webMux.Mount("/explorer", explore.Mux)
 	webMux.Get("/blocks", explore.Blocks)
 	webMux.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
 	webMux.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)

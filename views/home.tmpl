@@ -44,9 +44,9 @@
                                                 style="width: {{ticketWindowProgress .IdxBlockInWindow}}%; background: #2ed8a3;"
                                                 aria-valuenow="{{.IdxBlockInWindow}}"
                                                 aria-valuemin="0"
-                                                aria-valuemax="144"
+                                                aria-valuemax="{{.Params.WindowSize}}"
                                             >
-                                            <span id="blocksdiff" style="color:#383b41" class="nowrap pl-1">block <span id="window_block_index" >{{.IdxBlockInWindow}}</span> of 144</span>
+                                            <span id="blocksdiff" style="color:#383b41" class="nowrap pl-1">block <span id="window_block_index" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}}</span>
                                             </div>
                                         </div>
                                     </div>

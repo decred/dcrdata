@@ -166,6 +166,7 @@ type HomeInfo struct {
 	IdxBlockInWindow int          `json:"window_idx"`
 	Difficulty       float64      `json:"difficulty"`
 	NBlockSubsidy    BlockSubsidy `json:"subsidy"`
+	Params           ChainParams  `json:"params"`
 }
 
 // BlockSubsidy
@@ -180,6 +181,11 @@ type BlockSubsidy struct {
 type MempoolInfo struct {
 	sync.RWMutex
 	NumTickets uint32 `json:"num_tickets"`
+}
+
+// ChainParams
+type ChainParams struct {
+	WindowSize int64 `json:"window_size"`
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
