@@ -448,16 +448,17 @@ func (exp *explorerUI) addRoutes() {
 
 	redirect := func(url string) func(http.ResponseWriter, *http.Request) {
 		return func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/"+url, http.StatusPermanentRedirect)
+			x := chi.URLParam(r, "x")
+			http.Redirect(w, r, "/"+url+"/"+x, http.StatusPermanentRedirect)
 		}
 	}
 	exp.Mux.Get("/", redirect("blocks"))
 
-	exp.Mux.Get("/block", redirect("block"))
+	exp.Mux.Get("/block/{x}", redirect("block"))
 
-	exp.Mux.Get("/tx", redirect("tx"))
+	exp.Mux.Get("/tx/{x}", redirect("tx"))
 
-	exp.Mux.Get("/address", redirect("address"))
+	exp.Mux.Get("/address/{x}", redirect("address"))
 
 	exp.Mux.Get("/decodetx", redirect("decodetx"))
 }
