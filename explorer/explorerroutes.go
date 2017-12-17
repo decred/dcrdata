@@ -11,6 +11,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
 
+// Home is the page handler for the "/" path
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	height := exp.blockData.GetHeight()
 
@@ -40,6 +41,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// Blocks is the page handler for the "/blocks" path
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	idx := exp.blockData.GetHeight()
 
@@ -77,6 +79,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// Block is the page handler for the "/block" path
 func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	hash := getBlockHashCtx(r)
 
@@ -105,6 +108,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// TxPage is the page handler for the "/tx" path
 func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// attempt to get tx hash string from URL path
 	hash, ok := r.Context().Value(ctxTxHash).(string)
@@ -159,6 +163,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// AddressPage is the page handler for the "/address" path
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// Get the address URL parameter, which should be set in the request context
 	// by the addressPathCtx middleware.
@@ -308,6 +313,7 @@ func (exp *explorerUI) search(searchStr string) string {
 	return ""
 }
 
+// ErrorPage provides a way to show error on the pages without redirecting
 func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message string, notFound bool) {
 	str, err := templateExecToString(exp.templates[errorTemplateIndex], "error", struct {
 		ErrorCode   string
@@ -329,6 +335,7 @@ func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message str
 	io.WriteString(w, str)
 }
 
+// NotFound wraps ErrorPage to display a 404 page
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 	exp.ErrorPage(w, "Not found", "Cannot find page: "+r.URL.Path, true)
 }

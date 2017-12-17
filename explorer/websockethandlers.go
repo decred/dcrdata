@@ -14,6 +14,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// RootWebsocket is the websocket handler for all pages
 func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
 		// Create channel to signal updated data availability

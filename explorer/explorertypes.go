@@ -159,7 +159,7 @@ type AddressBalance struct {
 	TotalUnspent int64
 }
 
-// HomeInfo
+// HomeInfo represents data used for the home page
 type HomeInfo struct {
 	CoinSupply       int64        `json:"coin_supply"`
 	StakeDiff        float64      `json:"sdiff"`
@@ -169,7 +169,7 @@ type HomeInfo struct {
 	Params           ChainParams  `json:"params"`
 }
 
-// BlockSubsidy
+// BlockSubsidy is an implementation of dcrjson.GetBlockSubsidyResult
 type BlockSubsidy struct {
 	Total int64 `json:"total"`
 	PoW   int64 `json:"pow"`
@@ -177,13 +177,14 @@ type BlockSubsidy struct {
 	Dev   int64 `json:"dev"`
 }
 
-// Mempool
+// MempoolInfo models data to update mempool info on the home page
 type MempoolInfo struct {
 	sync.RWMutex
 	NumTickets uint32 `json:"num_tickets"`
 }
 
-// ChainParams
+// ChainParams models simple data about the chain server's parameters used for some
+// info on the front page
 type ChainParams struct {
 	WindowSize int64 `json:"window_size"`
 }
