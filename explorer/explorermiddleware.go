@@ -42,14 +42,14 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			height, err = exp.blockData.GetBlockHeight(hash)
 			if err != nil {
 				log.Errorf("GetBlockHeight(%s) failed: %v", hash, err)
-				exp.ErrorPage(w, "Something went wrong...", "could not find that block")
+				exp.ErrorPage(w, "Something went wrong...", "could not find that block", true)
 				return
 			}
 		} else {
 			hash, err = exp.blockData.GetBlockHash(height)
 			if err != nil {
 				log.Errorf("GetBlockHeight(%d) failed: %v", height, err)
-				exp.ErrorPage(w, "Something went wrong...", "could not find that block")
+				exp.ErrorPage(w, "Something went wrong...", "could not find that block", true)
 				return
 			}
 		}
