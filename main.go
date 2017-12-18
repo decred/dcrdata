@@ -468,6 +468,7 @@ func listenAndServeProto(listen, proto string, mux http.Handler) error {
 	case err := <-errChan:
 		return fmt.Errorf("Failed to bind web server: %v", err)
 	case <-t.C:
+		expLog.Infof("Now serving on %s://%v/", proto, listen)
 		apiLog.Infof("Now serving on %s://%v/", proto, listen)
 		return nil
 	}

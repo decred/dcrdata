@@ -231,9 +231,10 @@
     }
     document.getElementById('search').onkeypress = function(e){
         if (!e) e = window.event;
+        this.style.color = "black";
         var keyCode = e.keyCode || e.which;
         if (keyCode == '13'){
-            ws.send("search",this.value)
+            ws.send("search",this.value);
             return false;
         }
     }
