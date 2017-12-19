@@ -23,16 +23,6 @@ const (
 	ctxAddress
 )
 
-// searchPathCtx returns a http.HandlerFunc that embeds the value at the url part
-// {search} into the request context
-func searchPathCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		str := chi.URLParam(r, "search")
-		ctx := context.WithValue(r.Context(), ctxSearch, str)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		height, err := strconv.ParseInt(chi.URLParam(r, "blockhash"), 10, 0)
@@ -88,6 +78,7 @@ func getTxIDCtx(r *http.Request) string {
 	return hash
 }
 
+// TransactionHashCtx embeds "txid" into the request context
 func TransactionHashCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		txid := chi.URLParam(r, "txid")
@@ -107,6 +98,7 @@ func templateExecToString(t *template.Template, name string, data interface{}) (
 	return page.String(), err
 }
 
+// AddressPathCtx embeds "address" into the request context
 func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")

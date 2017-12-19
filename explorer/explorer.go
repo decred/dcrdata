@@ -2,7 +2,6 @@
 // explorer pages.
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
-
 package explorer
 
 import (
@@ -84,7 +83,7 @@ type explorerUI struct {
 	NewBlockDataMtx sync.RWMutex
 	NewBlockData    BlockBasic
 	ExtraInfo       HomeInfo
-	MempoolData     MempoolInfo
+	MempoolData     *MempoolInfo
 	ChainParams     chaincfg.Params
 }
 
@@ -189,6 +188,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
 	exp.explorerSource = primaryDataSource
+	exp.MempoolData = new(MempoolInfo)
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {

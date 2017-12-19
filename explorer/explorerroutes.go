@@ -21,7 +21,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RLock()
 	str, err := templateExecToString(exp.templates[homeTemplateIndex], "home", struct {
 		Info    HomeInfo
-		Mempool MempoolInfo
+		Mempool *MempoolInfo
 		Blocks  []*BlockBasic
 	}{
 		exp.ExtraInfo,
