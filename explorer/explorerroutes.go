@@ -20,7 +20,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	exp.NewBlockDataMtx.Lock()
 	exp.MempoolData.RLock()
 	str, err := templateExecToString(exp.templates[homeTemplateIndex], "home", struct {
-		Info    HomeInfo
+		Info    *HomeInfo
 		Mempool *MempoolInfo
 		Blocks  []*BlockBasic
 	}{

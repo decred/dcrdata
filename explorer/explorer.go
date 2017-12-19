@@ -81,8 +81,8 @@ type explorerUI struct {
 	templateHelpers template.FuncMap
 	wsHub           *WebsocketHub
 	NewBlockDataMtx sync.RWMutex
-	NewBlockData    BlockBasic
-	ExtraInfo       HomeInfo
+	NewBlockData    *BlockBasic
+	ExtraInfo       *HomeInfo
 	MempoolData     *MempoolInfo
 	ChainParams     chaincfg.Params
 }
@@ -242,8 +242,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			return val
 		},
 		"divide": func(n int64, d int64) int64 {
-			val := n / d
-			return val
+			return n / d
 		},
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
@@ -261,8 +260,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			return humanize.Comma(v)
 		},
 		"ticketWindowProgress": func(i int) float64 {
-			p := (int64(i) / exp.ChainParams.StakeDiffWindowSize) * 100
-			return float64(p)
+			p := (float64(i) / float64(exp.ChainParams.StakeDiffWindowSize)) * 100
+			return p
 		},
 		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
 			clipped := fmt.Sprintf("%.8f", v)
@@ -395,7 +394,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
-	newBlockData := BlockBasic{
+	newBlockData := &BlockBasic{
 		Height:         int64(bData.Height),
 		Voters:         bData.Voters,
 		FreshStake:     bData.FreshStake,
@@ -407,7 +406,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		Revocations:    uint32(bData.Revocations),
 	}
 	exp.NewBlockData = newBlockData
-	exp.ExtraInfo = HomeInfo{
+	exp.ExtraInfo = &HomeInfo{
 		CoinSupply:       blockData.ExtraInfo.CoinSupply,
 		StakeDiff:        blockData.CurrentStakeDiff.CurrentStakeDifficulty,
 		IdxBlockInWindow: blockData.IdxBlockInWindow,
@@ -446,7 +445,7 @@ func (exp *explorerUI) addRoutes() {
 	corsMW := cors.Default()
 	exp.Mux.Use(corsMW.Handler)
 
-	redirect := func(url string) func(http.ResponseWriter, *http.Request) {
+	redirect := func(url string) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			x := chi.URLParam(r, "x")
 			http.Redirect(w, r, "/"+url+"/"+x, http.StatusPermanentRedirect)

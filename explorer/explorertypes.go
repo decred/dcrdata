@@ -243,6 +243,6 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 
 // WebsocketBlock wraps the new block info for use in the websocket
 type WebsocketBlock struct {
-	Block BlockBasic `json:"block"`
-	Extra HomeInfo   `json:"extra"`
+	Block *BlockBasic `json:"block"`
+	Extra *HomeInfo   `json:"extra"`
 }
