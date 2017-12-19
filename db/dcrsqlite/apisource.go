@@ -1049,7 +1049,18 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		int(offset), int(count), true, true, nil)
 	if err != nil {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
-		return nil
+		return &explorer.AddressInfo{
+			Address:         address,
+			Limit:           0,
+			Offset:          0,
+			Transactions:    nil,
+			NumFundingTxns:  0,
+			NumSpendingTxns: 0,
+			NumUnconfirmed:  0,
+			TotalReceived:   0,
+			TotalSent:       0,
+			Unspent:         0,
+		}
 	}
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))

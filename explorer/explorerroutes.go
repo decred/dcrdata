@@ -206,7 +206,29 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			address, limitN, offsetAddrOuts)
 		if errH != nil {
 			log.Errorf("Unable to get address %s history: %v", address, errH)
-			exp.ErrorPage(w, "Something went wrong...", "could not find that address's history", false)
+			addrData := exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+
+			if addrData == nil {
+				exp.ErrorPage(w, "Something went wrong...", "could not find that address", false)
+			}
+
+			pageData := struct {
+				Data          *AddressInfo
+				ConfirmHeight []int64
+			}{
+				addrData,
+				nil,
+			}
+
+			str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
+			if err != nil {
+				log.Errorf("Template execute failure: %v", err)
+				exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			io.WriteString(w, str)
 			return
 		}
 

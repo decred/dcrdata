@@ -48,6 +48,10 @@
                             {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="pl-1 unit">DCR</span>
                         </td>
                     </tr>
+                    {{else}}
+                    <td class="mono nowrap text-right">
+                        <span class="pl-1 unit">No Transactions are availabe in this address yet</span>
+                    </td>
                     {{end}}
                 </table>
             </div>
