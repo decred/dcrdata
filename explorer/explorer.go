@@ -448,7 +448,10 @@ func (exp *explorerUI) addRoutes() {
 	redirect := func(url string) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			x := chi.URLParam(r, "x")
-			http.Redirect(w, r, "/"+url+"/"+x, http.StatusPermanentRedirect)
+			if x != "" {
+				x = "/" + x
+			}
+			http.Redirect(w, r, "/"+url+x, http.StatusPermanentRedirect)
 		}
 	}
 	exp.Mux.Get("/", redirect("blocks"))

@@ -281,7 +281,7 @@ func (exp *explorerUI) search(searchStr string) string {
 	if err == nil {
 		_, err = exp.blockData.GetBlockHash(idx)
 		if err == nil {
-			return "/explorer/block/" + searchStr
+			return "/block/" + searchStr
 		}
 	}
 
@@ -289,7 +289,7 @@ func (exp *explorerUI) search(searchStr string) string {
 	// then redirect to the address page if it is
 	address := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
-		return "/explorer/address/" + searchStr
+		return "/address/" + searchStr
 	}
 
 	// Check if the value is a valid hash
@@ -301,14 +301,14 @@ func (exp *explorerUI) search(searchStr string) string {
 	// value is a block hash and then redirect to the block page if it is
 	_, err = exp.blockData.GetBlockHeight(searchStr)
 	if err == nil {
-		return "/explorer/block/" + searchStr
+		return "/block/" + searchStr
 	}
 
 	// Call GetExplorerTx to see if the value is a transaction hash and then
 	// redirect to the tx page if it is
 	tx := exp.blockData.GetExplorerTx(searchStr)
 	if tx != nil {
-		return "/explorer/tx/" + searchStr
+		return "/tx/" + searchStr
 	}
 	return ""
 }

@@ -41,7 +41,7 @@
                         {{if .Txid}}
                             <tr>
                                 <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">TICKET SPENT</td>
-                                <td><a href="/explorer/tx/{{.Txid}}">{{.Txid}}</a></td>
+                                <td><a href="/tx/{{.Txid}}">{{.Txid}}</a></td>
                             </tr>
                         {{end}}
                     {{end}}
@@ -51,7 +51,7 @@
                         <tr>
                             <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">SPENT IN</td>
                             <td>
-                                <a href="/explorer/tx/{{(index .SpendingTxns 0).Hash}}">{{(index .SpendingTxns 0).Hash}}</a>
+                                <a href="/tx/{{(index .SpendingTxns 0).Hash}}">{{(index .SpendingTxns 0).Hash}}</a>
                             </td>
                         </tr>
                     {{end}}
