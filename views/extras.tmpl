@@ -44,7 +44,7 @@
                 <div class="col-sm-auto" style="padding: 0 2px">
                     <a href="/" class="dcricon-decred no-underline"></a>
                 </div>
-                <div class="col-sm-auto"><a href="/explorer" title="Explorer">Explore</a></div>
+                <div class="col-sm-auto"><a href="/blocks" title="Explorer">Explore</a></div>
             </div>
             <div class="col" style="padding: 0 5px;">
                 <form class="navbar-form" role="search" id="search-form">
@@ -68,14 +68,6 @@
     </div>
 </div>
 <script data-turbolinks-eval="false">
-    document.getElementById('search').onkeypress = function(e){
-        if (!e) e = window.event;
-        var keyCode = e.keyCode || e.which;
-        if (keyCode == '13'){
-            window.location.href = "/explorer/search/" + this.value
-            return false;
-        }
-    }
     function setCookie(cname, cvalue, exMins) {
         var d = new Date();
         d.setTime(d.getTime() + (exMins*60*1000));
@@ -133,12 +125,9 @@
         el.html(msg + '<div></div>')
     }
 
-
-
     function getSocketURI(loc) {
         var protocol = (loc.protocol === 'https:') ? 'wss' : 'ws'
-        var route = (loc.pathname === "/") ? "/ws" : loc.pathname + '/ws'
-        return protocol + "://" + loc.host + route
+        return protocol + "://" + loc.host + '/ws'
     }
 
     var ws; // websocket global
@@ -175,6 +164,15 @@
             $("#decode_header").text("Sent tx");
             $("#decoded_tx").text(evt);
         })
+        ws.registerEvtHandler("searchResp", function(evt) {
+            console.log("Got message: ", evt);
+            if (evt !== "") {
+                window.location.href = evt;
+            } else {
+                //Search Error
+                $("#search").css({ color: "red"})
+            }
+        })
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
@@ -194,7 +192,7 @@
             if (expTableRows){
                 expTableRows.last().remove()
                 var newRow = '<tr id="' + b.height + '">' +
-                    '<td><a href="/explorer/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
+                    '<td><a href="/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
                     '<td>' + b.tx + '</td>' +
                     '<td>' + b.votes + '</td>' +
                     '<td>' + b.tickets + '</td>' +
@@ -207,46 +205,55 @@
                 $(newRowHtml).insertBefore(expTableRows.first())
                 setTimeElements()
             }
+            var ex = newBlock.extra
             if ($("#bsubsidy_total").text() !== "") {
-                $("#bsubsidy_total").html(humanize.decimalParts(b.next_block_subsidy.total/100000000, false, 8))
-                $("#bsubsidy_pow").html(humanize.decimalParts(b.next_block_subsidy.pow/100000000, false, 8))
-                $("#bsubsidy_pos").html(humanize.decimalParts((b.next_block_subsidy.pos/500000000), false, 8))
-                $("#bsubsidy_dev").html(humanize.decimalParts(b.next_block_subsidy.developer/100000000, false, 8))
-                $("#coin_supply").html(humanize.decimalParts(b.coin_supply/100000000, true, 8))
-                $("#blocksdiff").html(humanize.decimalParts(b.sdiff, false, 8))
-                $("#window_block_index").text(newBlock.stake.window_block_index)
-                $("#pos-window-progess-bar").css({ width: (newBlock.stake.window_block_index/144)*100 + "%" })
+                $("#difficulty").html(humanize.decimalParts(ex.difficulty/100000000, false, 8))
+                $("#bsubsidy_total").html(humanize.decimalParts(ex.subsidy.total/100000000, false, 8))
+                $("#bsubsidy_pow").html(humanize.decimalParts(ex.subsidy.pow/100000000, false, 8))
+                $("#bsubsidy_pos").html(humanize.decimalParts((ex.subsidy.pos/500000000), false, 8)) // 5 votes per block (usually)
+                $("#bsubsidy_dev").html(humanize.decimalParts(ex.subsidy.dev/100000000, false, 8))
+                $("#coin_supply").html(humanize.decimalParts(ex.coin_supply/100000000, true, 8))
+                $("#blocksdiff").html(humanize.decimalParts(ex.sdiff, false, 8))
+                $("#window_block_index").text(ex.window_idx)
+                $("#pos-window-progess-bar").css({ width: (ex.window_idx/ex.params.window_size)*100 + "%" })
             }
         };
         ws.registerEvtHandler("newblock", updateBlockData);
 
         var updateMempool = function (event) {
-            console.log("Received mempoolsstxfeeinfo message", event);
+            console.log("Received mempool message", event);
             var m = JSON.parse(event);
 
             //mempool fee info
-            $('#mempoolfeeinfo_number').text(m.number)
+            $('#mempoolfeeinfo_number').text(m.num_tickets)
         };
-        ws.registerEvtHandler("mempoolsstxfeeinfo", updateMempool);
+        ws.registerEvtHandler("mempool", updateMempool);
     }
-    function manageWebSocket(loc) {
-        var pathRoot = loc.pathname.split('/')[1];
-        var socketPathRoot = ws.ws.url.split(loc.host)[1].split("/")[1]
-        if (pathRoot == socketPathRoot) {
-            return
+    document.getElementById('search').onkeypress = function(e){
+        if (!e) e = window.event;
+        this.style.color = "black";
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == '13'){
+            ws.send("search",this.value);
+            return false;
         }
-        // reconnect to correct socket url
-        console.log("roots mismatch, reconnecting", pathRoot, socketPathRoot)
-        ws.close()
-        createWebSocket(loc)
     }
+    // function manageWebSocket(loc) {
+    //     var pathRoot = loc.pathname.split('/')[1];
+    //     var socketPathRoot = ws.ws.url.split(loc.host)[1].split("/")[1]
+    //     if (pathRoot == socketPathRoot) {
+    //         return
+    //     }
+    //     // reconnect to correct socket url
+    //     console.log("roots mismatch, reconnecting", pathRoot, socketPathRoot)
+    //     ws.close()
+    //     createWebSocket(loc)
+    // }
 </script>
 
 <script>
     if (!ws) {
         createWebSocket(window.location)
-    } else {
-        manageWebSocket(window.location)
     }
 </script>
 {{end}}
@@ -256,7 +263,7 @@
     <div class="container wrapper text-center">
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
         <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
-        <a class="nav-item" href="/explorer/decodetx" title="Decode or send a raw transaction">Decode Tx</a>
+        <a class="nav-item" href="/decodetx" title="Decode or send a raw transaction">Decode Tx</a>
         <a class="nav-item" href="/api/status" title="API Status" target="_blank" data-turbolinks="false">Status</a>
         <span data-turbolinks-permanent class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
     </div>

@@ -1,5 +1,6 @@
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
+
 package explorer
 
 import (
@@ -22,17 +23,7 @@ const (
 	ctxAddress
 )
 
-// searchPathCtx returns a http.HandlerFunc that embeds the value at the url part
-// {search} into the request context
-func searchPathCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		str := chi.URLParam(r, "search")
-		ctx := context.WithValue(r.Context(), ctxSearch, str)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-func (exp *explorerUI) blockHashPathOrIndexCtx(next http.Handler) http.Handler {
+func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		height, err := strconv.ParseInt(chi.URLParam(r, "blockhash"), 10, 0)
 		var hash string
@@ -41,14 +32,14 @@ func (exp *explorerUI) blockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			height, err = exp.blockData.GetBlockHeight(hash)
 			if err != nil {
 				log.Errorf("GetBlockHeight(%s) failed: %v", hash, err)
-				http.NotFound(w, r)
+				exp.ErrorPage(w, "Something went wrong...", "could not find that block", true)
 				return
 			}
 		} else {
 			hash, err = exp.blockData.GetBlockHash(height)
 			if err != nil {
 				log.Errorf("GetBlockHeight(%d) failed: %v", height, err)
-				http.NotFound(w, r)
+				exp.ErrorPage(w, "Something went wrong...", "could not find that block", true)
 				return
 			}
 		}
@@ -87,7 +78,8 @@ func getTxIDCtx(r *http.Request) string {
 	return hash
 }
 
-func transactionHashCtx(next http.Handler) http.Handler {
+// TransactionHashCtx embeds "txid" into the request context
+func TransactionHashCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		txid := chi.URLParam(r, "txid")
 		ctx := context.WithValue(r.Context(), ctxTxHash, txid)
@@ -106,7 +98,8 @@ func templateExecToString(t *template.Template, name string, data interface{}) (
 	return page.String(), err
 }
 
-func addressPathCtx(next http.Handler) http.Handler {
+// AddressPathCtx embeds "address" into the request context
+func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
 		ctx := context.WithValue(r.Context(), ctxAddress, address)

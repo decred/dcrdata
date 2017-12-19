@@ -141,6 +141,9 @@ func (db *wiredDB) GetBestBlockHash() (string, error) {
 	return hash, err
 }
 
+func (db *wiredDB) GetChainParams() *chaincfg.Params {
+	return db.params
+}
 func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
 	hash, err := db.RetrieveBlockHash(idx)
 	if err != nil {
