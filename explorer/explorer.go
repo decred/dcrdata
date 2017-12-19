@@ -59,7 +59,7 @@ type explorerDataSourceLite interface {
 	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int
-	GetChainParams() chaincfg.Params
+	GetChainParams() *chaincfg.Params
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -84,7 +84,7 @@ type explorerUI struct {
 	NewBlockData    *BlockBasic
 	ExtraInfo       *HomeInfo
 	MempoolData     *MempoolInfo
-	ChainParams     chaincfg.Params
+	ChainParams     *chaincfg.Params
 }
 
 func (exp *explorerUI) reloadTemplates() error {
