@@ -280,7 +280,7 @@ func mainCore() error {
 	mempoolSavers = append(mempoolSavers, sqliteDB.MPC)
 
 	// Start the explorer system
-	explore := explorer.New(&sqliteDB, db, cfg.UseRealIP)
+	explore := explorer.New(&sqliteDB, db, cfg.UseRealIP, ver.String())
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
 	blockDataSavers = append(blockDataSavers, explore)

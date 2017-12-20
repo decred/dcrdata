@@ -85,6 +85,7 @@ type explorerUI struct {
 	ExtraInfo       *HomeInfo
 	MempoolData     *MempoolInfo
 	ChainParams     *chaincfg.Params
+	Version         string
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -183,12 +184,13 @@ func (exp *explorerUI) StopWebsocketHub() {
 
 // New returns an initialized instance of explorerUI
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
-	useRealIP bool) *explorerUI {
+	useRealIP bool, appVersion string) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
 	exp.explorerSource = primaryDataSource
 	exp.MempoolData = new(MempoolInfo)
+	exp.Version = appVersion
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {

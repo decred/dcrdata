@@ -23,10 +23,12 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Info    *HomeInfo
 		Mempool *MempoolInfo
 		Blocks  []*BlockBasic
+		Version string
 	}{
 		exp.ExtraInfo,
 		exp.MempoolData,
 		blocks,
+		exp.Version,
 	})
 	exp.NewBlockDataMtx.Unlock()
 	exp.MempoolData.RUnlock()
@@ -64,9 +66,11 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	str, err := templateExecToString(exp.templates[rootTemplateIndex], "explorer", struct {
 		Data      []*BlockBasic
 		BestBlock int
+		Version   string
 	}{
 		summaries,
 		idx,
+		exp.Version,
 	})
 
 	if err != nil {
@@ -93,9 +97,11 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	pageData := struct {
 		Data          *BlockInfo
 		ConfirmHeight int64
+		Version       string
 	}{
 		data,
 		exp.NewBlockData.Height - data.Confirmations,
+		exp.Version,
 	}
 	str, err := templateExecToString(exp.templates[blockTemplateIndex], "block", pageData)
 	if err != nil {
@@ -147,9 +153,11 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	pageData := struct {
 		Data          *TxInfo
 		ConfirmHeight int64
+		Version       string
 	}{
 		tx,
 		exp.NewBlockData.Height - tx.Confirmations,
+		exp.Version,
 	}
 
 	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", pageData)
@@ -239,9 +247,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	pageData := struct {
 		Data          *AddressInfo
 		ConfirmHeight []int64
+		Version       string
 	}{
 		addrData,
 		confirmHeights,
+		exp.Version,
 	}
 
 	str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
@@ -256,7 +266,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
-	str, err := templateExecToString(exp.templates[decodeTxTemplateIndex], "rawtx", nil)
+	str, err := templateExecToString(exp.templates[decodeTxTemplateIndex], "rawtx", struct {
+		Version string
+	}{
+		exp.Version,
+	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
@@ -318,9 +332,11 @@ func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message str
 	str, err := templateExecToString(exp.templates[errorTemplateIndex], "error", struct {
 		ErrorCode   string
 		ErrorString string
+		Version     string
 	}{
 		code,
 		message,
+		exp.Version,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
