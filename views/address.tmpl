@@ -157,7 +157,6 @@
         </div>
     </div>
 
-    {{ template "footer" . }}
     {{if lt .NumFundingTxns .KnownFundingTxns}}
     <script>
         $("#pagesize-wrapper").removeClass("hidden")
@@ -170,8 +169,9 @@
         })
     </script>
     {{end}}
+    {{end}}
+    {{ template "footer" . }}
 
 </body>
-{{end}}
 </html>
 {{end}}
