@@ -226,8 +226,20 @@ body.darkBG .json-block {
   position: relative;
 }
 
+#watermark
+{
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  position:fixed;
+  opacity:0.016;
+  z-index:-99;
+  font-size: 480px;
+  font-family: 'arial';
+  color: gray;
+}
+
 /*pagination*/
-.
 #pagesize {
   flex: 0 60px;
 }
