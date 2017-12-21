@@ -208,7 +208,7 @@
             }
             var ex = newBlock.extra
             if ($("#bsubsidy_total").text() !== "") {
-                $("#difficulty").html(humanize.decimalParts(ex.difficulty/100000000, false, 8))
+                $("#difficulty").html(humanize.decimalParts(ex.difficulty, true, 8))
                 $("#bsubsidy_total").html(humanize.decimalParts(ex.subsidy.total/100000000, false, 8))
                 $("#bsubsidy_pow").html(humanize.decimalParts(ex.subsidy.pow/100000000, false, 8))
                 $("#bsubsidy_pos").html(humanize.decimalParts((ex.subsidy.pos/500000000), false, 8)) // 5 votes per block (usually)
