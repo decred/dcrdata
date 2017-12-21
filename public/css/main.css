@@ -202,7 +202,7 @@ body.darkBG .json-block {
   bottom: 0;
   width: 100%;
   color: silver;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 22px;
 }
 .top-nav a {
@@ -219,8 +219,6 @@ body.darkBG .json-block {
   position: fixed;
   bottom: 0;
   width: 100%;
-  font-size: 12px;
-  line-height: 22px;
 }
 .navbar-fixed-bottom .nav-item {
   color: silver;
@@ -228,8 +226,20 @@ body.darkBG .json-block {
   position: relative;
 }
 
+#watermark
+{
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  position:fixed;
+  opacity:0.016;
+  z-index:-99;
+  font-size: 480px;
+  font-family: 'arial';
+  color: gray;
+}
+
 /*pagination*/
-.
 #pagesize {
   flex: 0 60px;
 }

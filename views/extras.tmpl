@@ -67,6 +67,7 @@
         </div>
     </div>
 </div>
+<div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
     function setCookie(cname, cvalue, exMins) {
         var d = new Date();
@@ -261,11 +262,17 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
-        <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">GitHub</a>
-        <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">API</a>
-        <a class="nav-item" href="/decodetx" title="Decode or send a raw transaction">Decode Tx</a>
-        <a class="nav-item" href="/api/status" title="API Status" target="_blank" data-turbolinks="false">Status</a>
-        <span data-turbolinks-permanent class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
+        <div style="float: left">
+            <a class="nav-item" href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
+            <a class="nav-item" href="https://github.com/dcrdata/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON-API Docs</a>
+        </div>
+        <div style="text-align: left; margin:0 auto !important; display:inline-block">
+            <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">dcrdata v{{.Version}}</a>
+            <a class="nav-item" href="https://github.com/dcrdata/dcrdata/blob/master/LICENSE" target="_blank">© 2017 (ISC)</a>
+        </div>
+        <div style="float: right;">
+            <span data-turbolinks-permanent class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
+        </div>
     </div>
 </footer>
 <script data-turbolinks-eval="false">
