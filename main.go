@@ -429,7 +429,7 @@ func mainCore() error {
 	webMux.With(SearchPathCtx).Get("/error/{search}", webUI.ErrorPage)
 	webMux.NotFound(webUI.ErrorPage)
 	webMux.Mount("/api", apiMux.Mux)
-	webMux.Mount("/explorer", explore.Mux)
+	webMux.Mount("/", explore.Mux)
 	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
 		log.Criticalf("listenAndServeProto: %v", err)
 		close(quit)

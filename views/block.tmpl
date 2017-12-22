@@ -15,7 +15,7 @@
                     {{else}}
                         <span class="op60 fs12">best block</span>
                     {{end}}
-                    <a class="fs12" href="/api/block/{{.Height}}/verbose?indent=true" data-turbolinks="false">api</a>
+                    <a class="fs12" href="/api/block/{{.Height}}/verbose?indent=true" data-turbolinks="false">view decoded</a>
                 </h4>
             </div>
             <div class="col-md-5 col-sm-6 d-flex">
@@ -210,13 +210,13 @@
                                     </span>
                                 </td>
                                 <td class="mono fs15">{{.VoteInfo.Version}}</td>
-                                <td>{{.VoteInfo.Validation.Validity}}</td>
+                                <td class="validity">{{.VoteInfo.Validation.Validity}}</td>
                                 <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
                                     {{(index .VoteInfo.Choices 0).ID}}
                                 {{else}}
                                     -
                                 {{end}}</td>
-                                <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
+                                <td class="mono fs15 choice">{{if (len .VoteInfo.Choices) gt 0}}
                                     {{(index .VoteInfo.Choices 0).Choice.Id}}
                                 {{else}}
                                     -
@@ -332,6 +332,25 @@
 
     </div>
 </div>
+
+<script>
+
+
+var validity = document.getElementsByClassName( "validity" )
+for(i=0; i<validity.length; i++){
+    validity[i].innerHTML = validity[i].innerHTML.toUpperCase()
+}
+
+
+
+
+var choice = document.getElementsByClassName( "choice" )
+for(i=0; i<choice.length; i++){
+    choice[i].innerHTML = choice[i].innerHTML.toUpperCase()
+}
+</script>
+
+
 
 {{template "footer"}}
 

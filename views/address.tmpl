@@ -10,6 +10,7 @@
         <div class="row">
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
+                <h5>Development Subsidy<h5>
                 <div class="mono">{{.Address}}</div>
                 <table class="table-centered-1rem">
                     {{if .Balance}}
@@ -81,7 +82,7 @@
                         </nav>
                     </div>
                     {{else}}
-                    <span class="fs12 nowrap text-right">{{intComma .KnownFundingTxns}} funding transaction{{if gt 1 .KnownFundingTxns}}s{{end}}</span>
+                <span class="fs15 nowrap text-right">{{intComma .KnownFundingTxns}} funding transaction{{if gt 1 .KnownFundingTxns}}s{{end}}</span>
                     {{end}}
                 </div>
 
