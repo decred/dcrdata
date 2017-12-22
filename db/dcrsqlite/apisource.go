@@ -1047,11 +1047,14 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(count), true, true, nil)
-	if err != nil {
+	if err.Error() == "-32603: No Txns available" {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return &explorer.AddressInfo{
 			Address: address,
 		}
+	} else if err != nil {
+		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+		return nil
 	}
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))

@@ -49,9 +49,12 @@
                         </td>
                     </tr>
                     {{else}}
-                    <td class="mono nowrap text-right">
-                        <span class="pl-1 unit">No Transactions are availabe in this address yet</span>
-                    </td>
+                        <tr>
+                            <td class="text-right pt-2 pr-1">FRESH ADDRESS</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-1">This address has not been observed in any transactions.</td>
+                        </tr>
                     {{end}}
                 </table>
             </div>
