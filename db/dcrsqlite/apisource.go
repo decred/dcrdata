@@ -1049,6 +1049,11 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		int(offset), int(count), true, true, nil)
 	if err.Error() == "-32603: No Txns available" {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+
+		if !ValidateNetworkAddress(addr, db.params) {
+			log.Warnf("Address %s is not valid for this network", address)
+			return nil
+		}
 		return &explorer.AddressInfo{
 			Address: address,
 		}
@@ -1101,4 +1106,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		TotalSent:       totalsent,
 		Unspent:         totalreceived - totalsent,
 	}
+}
+func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
+	return address.IsForNet(p)
 }
