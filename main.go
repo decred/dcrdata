@@ -422,6 +422,7 @@ func mainCore() error {
 	webMux.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)
 	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)
 	webMux.Get("/decodetx", explore.DecodeTxPage)
+	webMux.Get("/search", explore.Search)
 
 	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
 		log.Criticalf("listenAndServeProto: %v", err)

@@ -284,9 +284,11 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 // search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
 // redirects to the appropriate page or displays an error
-func (exp *explorerUI) search(searchStr string) string {
+func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
+	searchStr := r.URL.Query().Get("search")
 	if searchStr == "" {
-		return ""
+		exp.ErrorPage(w, "search failed", "Nothing was searched for", true)
+		return
 	}
 
 	// Attempt to get a block hash by calling GetBlockHash to see if the value
@@ -295,36 +297,43 @@ func (exp *explorerUI) search(searchStr string) string {
 	if err == nil {
 		_, err = exp.blockData.GetBlockHash(idx)
 		if err == nil {
-			return "/block/" + searchStr
+			http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
+			return
 		}
+		exp.ErrorPage(w, "search failed", "Block "+searchStr+" has not yet been mined", true)
+		return
 	}
 
 	// Call GetExplorerAddress to see if the value is an address hash and
 	// then redirect to the address page if it is
 	address := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
-		return "/address/" + searchStr
+		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
+		return
 	}
 
 	// Check if the value is a valid hash
 	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
-		return ""
+		exp.ErrorPage(w, "search failed", "Couldn't find any address "+searchStr, true)
+		return
 	}
 
 	// Attempt to get a block index by calling GetBlockHeight to see if the
 	// value is a block hash and then redirect to the block page if it is
 	_, err = exp.blockData.GetBlockHeight(searchStr)
 	if err == nil {
-		return "/block/" + searchStr
+		http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
+		return
 	}
 
 	// Call GetExplorerTx to see if the value is a transaction hash and then
 	// redirect to the tx page if it is
 	tx := exp.blockData.GetExplorerTx(searchStr)
 	if tx != nil {
-		return "/tx/" + searchStr
+		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
+		return
 	}
-	return ""
+	exp.ErrorPage(w, "search failed", "Could not find any transaction or block "+searchStr, true)
 }
 
 // ErrorPage provides a way to show error on the pages without redirecting

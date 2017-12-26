@@ -47,9 +47,8 @@
                 <div class="col-sm-auto"><a href="/blocks" title="Explorer">Explore</a></div>
             </div>
             <div class="col" style="padding: 0 5px;">
-                <form class="navbar-form" role="search" id="search-form">
+                <form class="navbar-form" role="search" id="search-form" action="/search">
                     <div class="input-group">
-
                         <input
                             autofocus
                             type="text"
@@ -230,15 +229,15 @@
         };
         ws.registerEvtHandler("mempool", updateMempool);
     }
-    document.getElementById('search').onkeypress = function(e){
-        if (!e) e = window.event;
-        this.style.color = "black";
-        var keyCode = e.keyCode || e.which;
-        if (keyCode == '13'){
-            ws.send("search",this.value);
-            return false;
-        }
-    }
+    // document.getElementById('search').onkeypress = function(e){
+    //     if (!e) e = window.event;
+    //     this.style.color = "black";
+    //     var keyCode = e.keyCode || e.which;
+    //     if (keyCode == '13'){
+    //         ws.send("search",this.value);
+    //         return false;
+    //     }
+    // }
     // function manageWebSocket(loc) {
     //     var pathRoot = loc.pathname.split('/')[1];
     //     var socketPathRoot = ws.ws.url.split(loc.host)[1].split("/")[1]
