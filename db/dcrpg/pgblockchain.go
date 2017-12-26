@@ -624,15 +624,23 @@ type MsgBlockPG struct {
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64,
 	updateAddressesSpendingInfo bool) storeTxnsResult {
+	// For the given block, transaction tree, and network, extract the
+	// transactions, vins, and vouts.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
 		msgBlock.MsgBlock, txTree, chainParams)
 
+	// The return value, containing counts of inserted vins/vouts/txns, and an
+	// error value.
 	var txRes storeTxnsResult
+
+	// dbAddressRows contains the data added to the address table, arranged as
+	// [tx_i][addr_j], transactions paying to different numbers of addresses.
 	dbAddressRows := make([][]dbtypes.AddressRow, len(dbTransactions))
 	var totalAddressRows int
 
 	var err error
 	for it, dbtx := range dbTransactions {
+		// Insert vouts, and collect rows to add to address table
 		dbtx.VoutDbIds, dbAddressRows[it], err = InsertVouts(pgb.db, dbTxVouts[it], pgb.dupChecks)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVouts:", err)
@@ -645,6 +653,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			log.Warnf("Incomplete Vout insert.")
 		}
 
+		// Insert vins
 		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it])
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVins:", err)
@@ -653,6 +662,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 		txRes.numVins += int64(len(dbtx.VinDbIds))
 
+		// return the transactions vout slice if processing stake tree
 		if txTree == wire.TxTreeStake {
 			dbtx.Vouts = dbTxVouts[it]
 		}
@@ -666,7 +676,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		return txRes
 	}
 
-	// TODO: insert tickets (w/o spending info), insert votes, update spending info of tickets given votes
+	// If processing stake tree, insert tickets, votes, misses
 	if txTree == wire.TxTreeStake {
 		// Tickets
 		_, err = InsertTickets(pgb.db, dbTransactions, *TxDbIDs, pgb.dupChecks)
@@ -677,13 +687,15 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 
 		// Votes
-		_, _, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs, msgBlock, pgb.dupChecks)
+		_, _, err = InsertVotes(pgb.db, dbTransactions, msgBlock, pgb.dupChecks)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err
 			return txRes
 		}
 	}
+	// TODO: update spending info of tickets given votes (redundant with
+	// spending info in addresses table)
 
 	// Store tx Db IDs as funding tx in AddressRows and rearrange
 	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)

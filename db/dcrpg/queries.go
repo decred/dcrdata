@@ -867,6 +867,10 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 	return ids, dbtx.Commit()
 }
 
+// InsertTickets takes a slice of *dbtypes.Tx and corresponding DB row IDs for
+// transactions, extracts the tickets, and inserts the tickets into the
+// database. Outputs are a slice of DB row IDs of the inserted tickets, and an
+// error.
 func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -934,7 +938,18 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 
 }
 
-func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64,
+// InsertVotes takes a slice of *dbtypes.Tx, which must contain all the stake
+// transactions in a block, extracts the votes, and inserts the votes into the
+// database. The input MsgBlockPG contains each stake transaction's MsgTx in
+// STransactions, and they must be in the same order as the dbtypes.Tx slice.
+//
+// This function also identifies and stores missed votes using
+// msgBlock.Validators, which lists the ticket hashes called to vote on the
+// previous block (msgBlock.WinningTickets are the lottery winners to be mined
+// in the next block).
+//
+// Outputs are slices of DB row IDs for the votes and misses, and an error.
+func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx,
 	msgBlock *MsgBlockPG, checked bool) ([]uint64, []uint64, error) {
 	// Choose only SSGen txns
 	msgTxs := msgBlock.STransactions
@@ -944,6 +959,9 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64,
 		if tx.TxType == int16(stake.TxTypeSSGen) {
 			voteTx = append(voteTx, tx)
 			voteMsgTxs = append(voteMsgTxs, msgTxs[i])
+			if tx.TxID != msgTxs[i].TxHash().String() {
+				return nil, nil, fmt.Errorf("txid of dbtypes.Tx does not match that of msgTx")
+			}
 		}
 	}
 
@@ -964,7 +982,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64,
 		return nil, nil, err
 	}
 
-	// Insert each vote
+	// Insert each vote, and build list of missed votes equal to
+	// setdiff(Validators, votes).
 	candidateBlockHash := msgBlock.Header.PrevBlock.String()
 	ids := make([]uint64, 0, len(voteTx))
 	misses := make([]string, len(msgBlock.Validators))
@@ -1018,7 +1037,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64,
 		panic(fmt.Sprintf("votes (%d) + misses (%d) != 5", len(ids), len(misses)))
 	}
 
-	// enter missed tickets
+	// Store missed tickets
 	var idsMisses []uint64
 	if len(misses) > 0 {
 		stmtMissed, err := dbtx.Prepare(internal.MakeMissInsertStatement(checked))
