@@ -48,13 +48,6 @@
                             {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="pl-1 unit">DCR</span>
                         </td>
                     </tr>
-                    {{else}}
-                        <tr>
-                            <td class="text-right pt-2 pr-1">FRESH ADDRESS</td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-1">This address has not been observed in any transactions.</td>
-                        </tr>
                     {{end}}
                 </table>
             </div>
@@ -91,7 +84,7 @@
                     <span class="fs12 nowrap text-right">{{intComma .KnownFundingTxns}} funding transaction{{if gt 1 .KnownFundingTxns}}s{{end}}</span>
                     {{end}}
                 </div>
-
+                {{if .Balance}}
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
@@ -142,6 +135,15 @@
                         {{end}}
                     </tbody>
                 </table>
+                {{else}}
+                <table class="table table-mono-cells table-sm striped">
+                    <tr>
+                        <td>
+                            No transactions found for this address.
+                        </td>
+                    </tr>
+            </table>
+                {{end}}
 
                 {{if lt .NumFundingTxns .KnownFundingTxns}}
                 <div
