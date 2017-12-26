@@ -281,7 +281,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// search implements a primitive search algorithm by checking if the value in
+// Search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
 // redirects to the appropriate page or displays an error
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {

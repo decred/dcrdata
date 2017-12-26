@@ -164,15 +164,6 @@
             $("#decode_header").text("Sent tx");
             $("#decoded_tx").text(evt);
         })
-        ws.registerEvtHandler("searchResp", function(evt) {
-            console.log("Got message: ", evt);
-            if (evt !== "") {
-                window.location.href = evt;
-            } else {
-                //Search Error
-                $("#search").css({ color: "red"})
-            }
-        })
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
@@ -229,26 +220,6 @@
         };
         ws.registerEvtHandler("mempool", updateMempool);
     }
-    // document.getElementById('search').onkeypress = function(e){
-    //     if (!e) e = window.event;
-    //     this.style.color = "black";
-    //     var keyCode = e.keyCode || e.which;
-    //     if (keyCode == '13'){
-    //         ws.send("search",this.value);
-    //         return false;
-    //     }
-    // }
-    // function manageWebSocket(loc) {
-    //     var pathRoot = loc.pathname.split('/')[1];
-    //     var socketPathRoot = ws.ws.url.split(loc.host)[1].split("/")[1]
-    //     if (pathRoot == socketPathRoot) {
-    //         return
-    //     }
-    //     // reconnect to correct socket url
-    //     console.log("roots mismatch, reconnecting", pathRoot, socketPathRoot)
-    //     ws.close()
-    //     createWebSocket(loc)
-    // }
 </script>
 
 <script>
