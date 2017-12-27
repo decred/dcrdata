@@ -44,6 +44,12 @@ const (
 	WHERE  tx_hash = $1 AND block_hash = $2
 	LIMIT  1;`
 
+	SelectTicketsInBlock         = `SELECT * FROM tickets WHERE block_hash = $1;`
+	SelectTicketsTxDbIDsInBlock  = `SELECT purchase_tx_db_id FROM tickets WHERE block_hash = $1;`
+	SelectTicketsForAddress      = `SELECT * FROM tickets WHERE stakesubmission_address = $1;`
+	SelectTicketsForPriceAtLeast = `SELECT * FROM tickets WHERE price >= $1;`
+	SelectTicketsForPriceAtMost  = `SELECT * FROM tickets WHERE price <= $1;`
+
 	// Update
 	SetTicketSpendingInfoForHash = `UPDATE tickets
 		SET spend_height = $3, spend_tx_db_id = $4
