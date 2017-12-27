@@ -160,6 +160,11 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 				"stake DB height %d.", ib, db.stakeDB.Height())
 			waitSec := math.Max(5, math.Min(30.0, float64(blocksBehind)/500))
 			time.Sleep(time.Duration(waitSec) * time.Second)
+
+			if blocksBehind <= int64(db.stakeDB.Height()) {
+				log.Infof("Rescan halted waiting for stakedb to advance.")
+				return ib - 1, nil
+			}
 		}
 
 		var numVins, numVouts int64
