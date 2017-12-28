@@ -91,6 +91,13 @@ const (
 	// 	WHERE txs.id = $1;`
 	// RetrieveVoutValue = `SELECT vouts[$2].value FROM transactions WHERE id = $1;`
 
+	DeleteTxDuplicateRows = `DELETE FROM transactions
+	WHERE id IN (SELECT id FROM (
+			SELECT id, ROW_NUMBER()
+			OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
+			FROM transactions) t
+		WHERE t.rnum > 1);`
+
 	RetrieveVoutDbIDs = `SELECT unnest(vout_db_ids) FROM transactions WHERE id = $1;`
 	RetrieveVoutDbID  = `SELECT vout_db_ids[$2] FROM transactions WHERE id = $1;`
 )

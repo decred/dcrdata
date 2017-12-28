@@ -67,6 +67,13 @@ const (
 		ON tickets(purchase_tx_db_id);`
 	DeindexTicketsTableOnTxDbID = `DROP INDEX uix_ticket_ticket_db_id;`
 
+	DeleteTicketsDuplicateRows = `DELETE FROM tickets
+		WHERE id IN (SELECT id FROM (
+				SELECT id, ROW_NUMBER()
+				OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
+				FROM tickets) t
+			WHERE t.rnum > 1);`
+
 	// Votes
 
 	CreateVotesTable = `CREATE TABLE IF NOT EXISTS votes (
@@ -123,6 +130,13 @@ const (
 		ON votes(version);`
 	DeindexVotesTableOnVoteVersion = `DROP INDEX uix_votes_vote_version;`
 
+	DeleteVotesDuplicateRows = `DELETE FROM votes
+		WHERE id IN (SELECT id FROM (
+				SELECT id, ROW_NUMBER()
+				OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
+				FROM votes) t
+			WHERE t.rnum > 1);`
+
 	// Misses
 
 	CreateMissesTable = `CREATE TABLE IF NOT EXISTS misses (
@@ -158,6 +172,13 @@ const (
 	IndexMissesTableOnHashes = `CREATE UNIQUE INDEX uix_misses_hashes_index
 		ON misses(ticket_hash, block_hash);`
 	DeindexMissesTableOnHashes = `DROP INDEX uix_misses_hashes_index;`
+
+	DeleteMissesDuplicateRows = `DELETE FROM misses
+		WHERE id IN (SELECT id FROM (
+				SELECT id, ROW_NUMBER()
+				OVER (partition BY ticket_hash, block_hash ORDER BY id) AS rnum
+				FROM misses) t
+			WHERE t.rnum > 1);`
 )
 
 func MakeTicketInsertStatement(checked bool) string {

@@ -18,6 +18,16 @@ import (
 	"github.com/lib/pq"
 )
 
+func ExistsIndex(db *sql.DB, indexName string) (exists bool, err error) {
+	err = db.QueryRow(internal.IndexExists, indexName, "public").Scan(&exists)
+	return
+}
+
+func IsUniqueIndex(db *sql.DB, indexName string) (isUnique bool, err error) {
+	err = db.QueryRow(internal.IndexIsUnique, indexName, "public").Scan(&isUnique)
+	return
+}
+
 func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, err error) {
 	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&pkScript)
 	return
@@ -218,28 +228,79 @@ func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
 // DeleteDuplicateVins deletes rows in vin with duplicate tx information,
 // leaving the one row with the lowest id.
 func DeleteDuplicateVins(db *sql.DB) (int64, error) {
-	res, err := db.Exec(internal.DeleteVinsDuplicateRows)
-	if err != nil {
-		return 0, fmt.Errorf("failed to delete duplicate vins: %v", err)
-	}
-	if res == nil {
+	if isuniq, err := IsUniqueIndex(db, "uix_vin"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
 		return 0, nil
 	}
-
-	var N int64
-	N, err = res.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf(`RowsAffected failed: %v`, err)
-	}
-	return N, err
+	execErrPrefix := "failed to delete duplicate vins: "
+	return sqlExec(db, internal.DeleteVinsDuplicateRows, execErrPrefix)
 }
 
 // DeleteDuplicateVouts deletes rows in vouts with duplicate tx information,
 // leaving the one row with the lowest id.
 func DeleteDuplicateVouts(db *sql.DB) (int64, error) {
-	res, err := db.Exec(internal.DeleteVoutDuplicateRows)
+	if isuniq, err := IsUniqueIndex(db, "uix_vout_txhash_ind"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate vouts: "
+	return sqlExec(db, internal.DeleteVoutDuplicateRows, execErrPrefix)
+}
+
+// DeleteDuplicateTxns deletes rows in transactions with duplicate tx-block
+// hashes, leaving the one row with the lowest id.
+func DeleteDuplicateTxns(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, "uix_tx_hashes"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate transactions: "
+	return sqlExec(db, internal.DeleteTxDuplicateRows, execErrPrefix)
+}
+
+// DeleteDuplicateTickets deletes rows in tickets with duplicate tx-block
+// hashes, leaving the one row with the lowest id.
+func DeleteDuplicateTickets(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, "uix_ticket_hashes_index"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate tickets: "
+	return sqlExec(db, internal.DeleteTicketsDuplicateRows, execErrPrefix)
+}
+
+// DeleteDuplicateVotes deletes rows in votes with duplicate tx-block hashes,
+// leaving the one row with the lowest id.
+func DeleteDuplicateVotes(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, "uix_votes_hashes_index"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate votes: "
+	return sqlExec(db, internal.DeleteVotesDuplicateRows, execErrPrefix)
+}
+
+// DeleteDuplicateMisses deletes rows in misses with duplicate tx-block hashes,
+// leaving the one row with the lowest id.
+func DeleteDuplicateMisses(db *sql.DB) (int64, error) {
+	if isuniq, err := IsUniqueIndex(db, "uix_misses_hashes_index"); err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if isuniq {
+		return 0, nil
+	}
+	execErrPrefix := "failed to delete duplicate misses: "
+	return sqlExec(db, internal.DeleteMissesDuplicateRows, execErrPrefix)
+}
+
+func sqlExec(db *sql.DB, stmt, execErrPrefix string, args ...interface{}) (int64, error) {
+	res, err := db.Exec(stmt, args...)
 	if err != nil {
-		return 0, fmt.Errorf("failed to delete duplicate vouts: %v", err)
+		return 0, fmt.Errorf(execErrPrefix + err.Error())
 	}
 	if res == nil {
 		return 0, nil
@@ -248,7 +309,7 @@ func DeleteDuplicateVouts(db *sql.DB) (int64, error) {
 	var N int64
 	N, err = res.RowsAffected()
 	if err != nil {
-		return 0, fmt.Errorf(`RowsAffected failed: %v`, err)
+		return 0, fmt.Errorf(`error in RowsAffected: %v`, err)
 	}
 	return N, err
 }
@@ -622,12 +683,11 @@ func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, checked bool) (uin
 	return id, err
 }
 
+// UpdateLastBlock updates the is_valid column of the block specified by the row
+// id for the blocks table.
 func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
-	res, err := db.Exec(internal.UpdateLastBlockValid, blockDbID, isValid)
-	if err != nil {
-		return err
-	}
-	numRows, err := res.RowsAffected()
+	numRows, err := sqlExec(db, internal.UpdateLastBlockValid,
+		"failed to update last block validity: ", blockDbID, isValid)
 	if err != nil {
 		return err
 	}

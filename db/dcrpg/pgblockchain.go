@@ -334,6 +334,22 @@ func (pgb *ChainDB) DeleteDuplicateVouts() (int64, error) {
 	return DeleteDuplicateVouts(pgb.db)
 }
 
+func (pgb *ChainDB) DeleteDuplicateTxns() (int64, error) {
+	return DeleteDuplicateTxns(pgb.db)
+}
+
+func (pgb *ChainDB) DeleteDuplicateTickets() (int64, error) {
+	return DeleteDuplicateTickets(pgb.db)
+}
+
+func (pgb *ChainDB) DeleteDuplicateVotes() (int64, error) {
+	return DeleteDuplicateVotes(pgb.db)
+}
+
+func (pgb *ChainDB) DeleteDuplicateMisses() (int64, error) {
+	return DeleteDuplicateMisses(pgb.db)
+}
+
 // DeindexAll drops all of the indexes in all tables
 func (pgb *ChainDB) DeindexAll() error {
 	var err, errAny error
@@ -488,6 +504,18 @@ func (pgb *ChainDB) DeindexAddressTable() error {
 		errAny = err
 	}
 	return errAny
+}
+
+func (pgb *ChainDB) ExistsIndexVinOnVins() (bool, error) {
+	return ExistsIndex(pgb.db, "uix_vin")
+}
+
+func (pgb *ChainDB) ExistsIndexVoutOnTxHashIdx() (bool, error) {
+	return ExistsIndex(pgb.db, "uix_vout_txhash_ind")
+}
+
+func (pgb *ChainDB) ExistsIndexAddressesVoutIDAddress() (bool, error) {
+	return ExistsIndex(pgb.db, "uix_addresses_vout_id")
 }
 
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
@@ -809,9 +837,11 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 		return 0, err
 	}
 
+	updatesPerDBTx := 500
+
 	log.Infof("Updating spending tx info for %d addresses...", len(allVinDbIDs))
 	var numAddresses int64
-	for i := 0; i < len(allVinDbIDs); i += 1000 {
+	for i := 0; i < len(allVinDbIDs); i += updatesPerDBTx {
 		//for i, vinDbID := range allVinDbIDs {
 		if i%250000 == 0 {
 			endRange := i + 250000 - 1
@@ -829,7 +859,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 		}
 		numAddresses += numAddressRowsSet*/
 		var numAddressRowsSet int64
-		endChunk := i + 1000
+		endChunk := i + updatesPerDBTx
 		if endChunk > len(allVinDbIDs) {
 			endChunk = len(allVinDbIDs)
 		}

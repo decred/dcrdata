@@ -119,6 +119,7 @@ func mainCore() error {
 
 	// PostgreSQL
 	var db *dcrpg.ChainDB
+	var newPGIndexes, updateAllAddresses bool
 	if usePG {
 		pgHost, pgPort := cfg.PGHost, ""
 		if !strings.HasPrefix(pgHost, "/") {
@@ -145,6 +146,18 @@ func mainCore() error {
 		if err = db.SetupTables(); err != nil {
 			return err
 		}
+
+		var idxExists bool
+		idxExists, err = db.ExistsIndexVinOnVins()
+		if !idxExists || err != nil {
+			newPGIndexes = true
+			log.Infof("Indexes not found. Forcing new index creation.")
+		}
+
+		idxExists, err = db.ExistsIndexAddressesVoutIDAddress()
+		if !idxExists || err != nil {
+			updateAllAddresses = true
+		}
 	}
 
 	// Ctrl-C to shut down.
@@ -168,7 +181,6 @@ func mainCore() error {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
 
-	var newPGIndexes, updateAllAddresses bool
 	var heightDB uint64
 	if usePG {
 		heightDB, err = db.HeightDB()
