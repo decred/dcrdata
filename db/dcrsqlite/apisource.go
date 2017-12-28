@@ -1047,7 +1047,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(count), true, true, nil)
-	if err.Error() == "-32603: No Txns available" {
+	if err != nil && err.Error() == "-32603: No Txns available" {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 
 		if !ValidateNetworkAddress(addr, db.params) {
@@ -1094,17 +1094,26 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		}
 	}
 
+	balance := &explorer.AddressBalance{
+		Address:      address,
+		NumSpent:     numSpending,
+		NumUnspent:   int64(numReceiving),
+		TotalSpent:   int64(totalsent),
+		TotalUnspent: int64(totalreceived - totalsent),
+	}
 	return &explorer.AddressInfo{
-		Address:         address,
-		Limit:           count,
-		Offset:          offset,
-		Transactions:    addressTxs,
-		NumFundingTxns:  numReceiving,
-		NumSpendingTxns: numSpending,
-		NumUnconfirmed:  numUnconfirmed,
-		TotalReceived:   totalreceived,
-		TotalSent:       totalsent,
-		Unspent:         totalreceived - totalsent,
+		Address:          address,
+		Limit:            count,
+		Offset:           offset,
+		Transactions:     addressTxs,
+		NumFundingTxns:   numReceiving,
+		KnownFundingTxns: balance.NumSpent + balance.NumUnspent,
+		NumSpendingTxns:  numSpending,
+		NumUnconfirmed:   numUnconfirmed,
+		TotalReceived:    totalreceived,
+		TotalSent:        totalsent,
+		Unspent:          totalreceived - totalsent,
+		Balance:          balance,
 	}
 }
 func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {

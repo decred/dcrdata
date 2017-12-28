@@ -48,6 +48,25 @@
                             {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="pl-1 unit">DCR</span>
                         </td>
                     </tr>
+                    {{else}}
+                    <tr class="h2rem">
+                        <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
+                        <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
+                            <span class="pl-1 unit">0.000000000 DCR</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2">RECEIVED</td>
+                        <td class="mono nowrap text-right">
+                            <span class="pl-1 unit">0.000000000 DCR</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2">SPENT</td>
+                        <td class="mono nowrap text-right">
+                            <span class="pl-1 unit">0.000000000 DCR</span>
+                        </td>
+                    </tr>
                     {{end}}
                 </table>
             </div>
@@ -84,7 +103,7 @@
                     <span class="fs12 nowrap text-right">{{intComma .KnownFundingTxns}} funding transaction{{if gt 1 .KnownFundingTxns}}s{{end}}</span>
                     {{end}}
                 </div>
-                {{if .Balance}}
+                {{if .Transactions}}
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
                         <th>Transactions ID</th>
