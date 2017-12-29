@@ -1097,7 +1097,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 	balance := &explorer.AddressBalance{
 		Address:      address,
 		NumSpent:     numSpending,
-		NumUnspent:   int64(numReceiving),
+		NumUnspent:   numReceiving,
 		TotalSpent:   int64(totalsent),
 		TotalUnspent: int64(totalreceived - totalsent),
 	}
