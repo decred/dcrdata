@@ -284,7 +284,7 @@ func mainCore() error {
 
 		var numVins, numVouts int64
 		numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), winners,
-			true, cfg.AddrSpendInfoOnline)
+			true, cfg.AddrSpendInfoOnline, cfg.TicketSpendInfoOnline)
 		if err != nil {
 			return fmt.Errorf("StoreBlock failed: %v", err)
 		}
@@ -306,53 +306,9 @@ func mainCore() error {
 	speedReport()
 
 	if reindexing || cfg.ForceReindex {
-		// Remove duplicate vins
-		log.Info("Finding and removing duplicate vins entries before indexing...")
-		var numVinsRemoved int64
-		if numVinsRemoved, err = db.DeleteDuplicateVins(); err != nil {
-			return fmt.Errorf("dcrpg.DeleteDuplicateVins failed: %v", err)
+		if err = db.DeleteDuplicates(); err != nil {
+			return err
 		}
-		log.Infof("Removed %d duplicate vins entries.", numVinsRemoved)
-
-		// Remove duplicate vouts
-		log.Info("Finding and removing duplicate vouts entries before indexing...")
-		var numVoutsRemoved int64
-		if numVoutsRemoved, err = db.DeleteDuplicateVouts(); err != nil {
-			return fmt.Errorf("dcrpg.DeleteDuplicateVouts failed: %v", err)
-		}
-		log.Infof("Removed %d duplicate vouts entries.", numVoutsRemoved)
-
-		// TODO: remove entries from addresses table that reference removed
-		// vins/vouts.
-
-		// Remove duplicate transactions
-		log.Info("Finding and removing duplicate transactions entries before indexing...")
-		var numTxnsRemoved int64
-		if numTxnsRemoved, err = db.DeleteDuplicateTxns(); err != nil {
-			return fmt.Errorf("dcrpg.DeleteDuplicateTxns failed: %v", err)
-		}
-		log.Infof("Removed %d duplicate transactions entries.", numTxnsRemoved)
-
-		// Remove duplicate tickets
-		log.Info("Finding and removing duplicate tickets entries before indexing...")
-		if numTxnsRemoved, err = db.DeleteDuplicateTickets(); err != nil {
-			return fmt.Errorf("dcrpg.DeleteDuplicateTickets failed: %v", err)
-		}
-		log.Infof("Removed %d duplicate tickets entries.", numTxnsRemoved)
-
-		// Remove duplicate votes
-		log.Info("Finding and removing duplicate votes entries before indexing...")
-		if numTxnsRemoved, err = db.DeleteDuplicateVotes(); err != nil {
-			return fmt.Errorf("dcrpg.DeleteDuplicateVotes failed: %v", err)
-		}
-		log.Infof("Removed %d duplicate votes entries.", numTxnsRemoved)
-
-		// Remove duplicate misses
-		log.Info("Finding and removing duplicate misses entries before indexing...")
-		if numTxnsRemoved, err = db.DeleteDuplicateMisses(); err != nil {
-			return fmt.Errorf("dcrpg.DeleteDuplicateMisses failed: %v", err)
-		}
-		log.Infof("Removed %d duplicate misses entries.", numTxnsRemoved)
 
 		// Create indexes
 		if err = db.IndexAll(); err != nil {
@@ -361,6 +317,9 @@ func mainCore() error {
 		// Only reindex address table here if we do not do it below
 		if cfg.AddrSpendInfoOnline {
 			err = db.IndexAddressTable()
+		}
+		if cfg.TicketSpendInfoOnline {
+			err = db.IndexTicketsTable()
 		}
 	}
 
@@ -377,6 +336,22 @@ func mainCore() error {
 		log.Infof("Updated %d rows of address table", numAddresses)
 		if err = db.IndexAddressTable(); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
+		}
+	}
+
+	if !cfg.TicketSpendInfoOnline {
+		// Remove indexes not on funding txns (remove on address table indexes)
+		_ = db.DeindexTicketsTable() // ignore errors for non-existent indexes
+		db.EnableDuplicateCheckOnInsert(false)
+		log.Infof("Populating spending tx info in tickets table...")
+		numTicketsUpdated, err := db.UpdateSpendingInfoInAllTickets()
+		if err != nil {
+			log.Errorf("UpdateSpendingInfoInAllTickets FAILED: %v", err)
+		}
+		// Index tickets table
+		log.Infof("Updated %d rows of address table", numTicketsUpdated)
+		if err = db.IndexTicketsTable(); err != nil {
+			log.Errorf("IndexTicketsTable FAILED: %v", err)
 		}
 	}
 

@@ -50,12 +50,13 @@ type config struct {
 	CPUProfile  string `long:"cpuprofile" description:"File for CPU profiling."`
 
 	// DB
-	DBHostPort          string `long:"dbhost" description:"DB host"`
-	DBUser              string `long:"dbuser" description:"DB user"`
-	DBPass              string `long:"dbpass" description:"DB pass"`
-	DBName              string `long:"dbname" description:"DB name"`
-	DropDBTables        bool   `short:"D" long:"droptables" description:"Drop/delete DB tables."`
-	AddrSpendInfoOnline bool   `short:"a" long:"addrspends-no-batch" description:"Continually update the address table spending transaction info during rebuild (instead of full table update at end).  SLOW if doing full rebuild!"`
+	DBHostPort            string `long:"dbhost" description:"DB host"`
+	DBUser                string `long:"dbuser" description:"DB user"`
+	DBPass                string `long:"dbpass" description:"DB pass"`
+	DBName                string `long:"dbname" description:"DB name"`
+	DropDBTables          bool   `short:"D" long:"droptables" description:"Drop/delete DB tables."`
+	AddrSpendInfoOnline   bool   `short:"a" long:"addrspends-no-batch" description:"Continually update the address table spending transaction info during rebuild (instead of full table update at end).  SLOW if doing full rebuild!"`
+	TicketSpendInfoOnline bool   `short:"t" long:"ticketspends-no-batch" description:"Continually update the tickets table spending transaction info during rebuild (instead of full table update at end).  SLOW if doing full rebuild!"`
 
 	// RPC client options
 	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name"`

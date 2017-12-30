@@ -119,7 +119,7 @@ func mainCore() error {
 
 	// PostgreSQL
 	var db *dcrpg.ChainDB
-	var newPGIndexes, updateAllAddresses bool
+	var newPGIndexes, updateAllAddresses, updateAllVotes bool
 	if usePG {
 		pgHost, pgPort := cfg.PGHost, ""
 		if !strings.HasPrefix(pgHost, "/") {
@@ -198,7 +198,7 @@ func mainCore() error {
 		if blocksBehind > 7500 {
 			log.Infof("Setting PSQL sync to rebuild address table after large "+
 				"import (%d blocks).", blocksBehind)
-			updateAllAddresses = true
+			updateAllAddresses, updateAllVotes = true, true
 			if blocksBehind > 40000 {
 				log.Infof("Setting PSQL sync to drop indexes prior to bulk data "+
 					"import (%d blocks).", blocksBehind)
@@ -225,7 +225,7 @@ func mainCore() error {
 		// Launch the sync functions for both DBs
 		go sqliteDB.SyncDBAsync(sqliteSyncRes, quit)
 		go db.SyncChainDBAsync(pgSyncRes, dcrdClient, quit,
-			newPGIndexes, updateAllAddresses)
+			updateAllAddresses, updateAllVotes, newPGIndexes)
 
 		// Wait for the results
 		sqliteRes := <-sqliteSyncRes

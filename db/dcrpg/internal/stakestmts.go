@@ -15,6 +15,7 @@ const (
 		num_inputs INT2,
 		price FLOAT8,
 		fee FLOAT8,
+		spend_type INT2,
 		spend_height INT4,
 		spend_tx_db_id INT8
 	);`
@@ -23,11 +24,11 @@ const (
 	insertTicketRow0 = `INSERT INTO tickets (
 		tx_hash, block_hash, block_height, purchase_tx_db_id,
 		stakesubmission_address, is_multisig, is_split,
-		num_inputs, price, fee)
+		num_inputs, price, fee, spend_type)
 	VALUES (
 		$1, $2, $3,	$4,
 		$5, $6, $7,
-		$8, $9, $10) `
+		$8, $9, $10, $11) `
 	insertTicketRow = insertTicketRow0 + `RETURNING id;`
 	// insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTicketRow = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -49,13 +50,18 @@ const (
 	SelectTicketsForAddress      = `SELECT * FROM tickets WHERE stakesubmission_address = $1;`
 	SelectTicketsForPriceAtLeast = `SELECT * FROM tickets WHERE price >= $1;`
 	SelectTicketsForPriceAtMost  = `SELECT * FROM tickets WHERE price <= $1;`
+	SelectTicketIDHeightByHash   = `SELECT id, block_height FROM tickets WHERE tx_hash = $1;`
+	SelectTicketIDByHash         = `SELECT id FROM tickets WHERE tx_hash = $1;`
 
 	// Update
 	SetTicketSpendingInfoForHash = `UPDATE tickets
-		SET spend_height = $3, spend_tx_db_id = $4
+		SET spend_type = $5, spend_height = $3, spend_tx_db_id = $4
 		WHERE tx_hash = $1 and block_hash = $2;`
+	SetTicketSpendingInfoForTicketDbID = `UPDATE tickets
+		SET spend_type = $4, spend_height = $2, spend_tx_db_id = $3
+		WHERE id = $1;`
 	SetTicketSpendingInfoForTxDbID = `UPDATE tickets
-		SET spend_height = $2, spend_tx_db_id = $3
+		SET spend_type = $4, spend_height = $2, spend_tx_db_id = $3
 		WHERE purchase_tx_db_id = $1;`
 
 	// Index
@@ -116,6 +122,8 @@ const (
 	SELECT id FROM votes
 	WHERE  tx_hash = $3 AND block_hash = $4
 	LIMIT  1;`
+
+	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
 
 	// Index
 	IndexVotesTableOnHashes = `CREATE UNIQUE INDEX uix_votes_hashes_index
@@ -179,6 +187,8 @@ const (
 				OVER (partition BY ticket_hash, block_hash ORDER BY id) AS rnum
 				FROM misses) t
 			WHERE t.rnum > 1);`
+
+	// Revokes?
 )
 
 func MakeTicketInsertStatement(checked bool) string {

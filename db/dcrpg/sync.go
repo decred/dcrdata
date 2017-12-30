@@ -25,7 +25,8 @@ const (
 // should be called as a goroutine or it will hang on send if the channel is
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
-	client *rpcclient.Client, quit chan struct{}, updateAllAddresses, newIndexes bool) {
+	client *rpcclient.Client, quit chan struct{}, updateAllAddresses,
+	updateAllVotes, newIndexes bool) {
 	if db == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
@@ -33,7 +34,8 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		}
 		return
 	}
-	height, err := db.SyncChainDB(client, quit, newIndexes, updateAllAddresses)
+	height, err := db.SyncChainDB(client, quit, updateAllAddresses,
+		updateAllVotes, newIndexes)
 	res <- dbtypes.SyncResult{
 		Height: height,
 		Error:  err,
@@ -45,7 +47,7 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
 func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
-	updateAllAddresses, newIndexes bool) (int64, error) {
+	updateAllAddresses, updateAllVotes, newIndexes bool) (int64, error) {
 	// Get chain servers's best block
 	_, nodeHeight, err := client.GetBestBlock()
 	if err != nil {
@@ -169,7 +171,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 
 		var numVins, numVouts int64
 		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock(),
-			winners, true, !updateAllAddresses); err != nil {
+			winners, true, !updateAllAddresses, !updateAllVotes); err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins
@@ -190,24 +192,9 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 	speedReport()
 
 	if reindexing || newIndexes {
-		// Remove duplicate vins
-		log.Info("Finding and removing duplicate vins entries before indexing...")
-		var numVinsRemoved int64
-		if numVinsRemoved, err = db.DeleteDuplicateVins(); err != nil {
-			return 0, fmt.Errorf("dcrpg.DeleteDuplicateVins failed: %v", err)
+		if err = db.DeleteDuplicates(); err != nil {
+			return 0, err
 		}
-		log.Infof("Removed %d duplicate vins entries.", numVinsRemoved)
-
-		// Remove duplicate vouts
-		log.Info("Finding and removing duplicate vouts entries before indexing...")
-		var numVoutsRemoved int64
-		if numVoutsRemoved, err = db.DeleteDuplicateVouts(); err != nil {
-			return 0, fmt.Errorf("dcrpg.DeleteDuplicateVouts failed: %v", err)
-		}
-		log.Infof("Removed %d duplicate vouts entries.", numVoutsRemoved)
-
-		// TODO: remove entries from addresses table that reference removed
-		// vins/vouts.
 
 		// Create indexes
 		if err = db.IndexAll(); err != nil {
@@ -216,6 +203,9 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		// Only reindex address table here if we do not do it below
 		if !updateAllAddresses {
 			err = db.IndexAddressTable()
+		}
+		if !updateAllVotes {
+			err = db.IndexTicketsTable()
 		}
 	}
 
@@ -230,6 +220,22 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		log.Infof("Updated %d rows of address table", numAddresses)
 		if err = db.IndexAddressTable(); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
+		}
+	}
+
+	if updateAllVotes {
+		// Remove indexes not on funding txns (remove on tickets table indexes)
+		_ = db.DeindexTicketsTable() // ignore errors for non-existent indexes
+		db.EnableDuplicateCheckOnInsert(false)
+		log.Infof("Populating spending tx info in tickets table...")
+		numTicketsUpdated, err := db.UpdateSpendingInfoInAllTickets()
+		if err != nil {
+			log.Errorf("UpdateSpendingInfoInAllTickets FAILED: %v", err)
+		}
+		// Index tickets table
+		log.Infof("Updated %d rows of address table", numTicketsUpdated)
+		if err = db.IndexTicketsTable(); err != nil {
+			log.Errorf("IndexTicketsTable FAILED: %v", err)
 		}
 	}
 
