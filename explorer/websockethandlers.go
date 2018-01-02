@@ -89,10 +89,6 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					} else {
 						webData.Message = fmt.Sprintf("Transaction sent: %s", txid)
 					}
-				case "search":
-					webData.EventId = msg.EventId + "Resp"
-					log.Debugf("Received search request for: %s", msg.Message)
-					webData.Message = exp.search(msg.Message)
 				case "ping":
 					log.Tracef("We've been pinged: %.40s...", msg.Message)
 					continue
