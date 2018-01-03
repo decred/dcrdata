@@ -52,6 +52,7 @@ const (
 	SelectTicketsForPriceAtMost  = `SELECT * FROM tickets WHERE price <= $1;`
 	SelectTicketIDHeightByHash   = `SELECT id, block_height FROM tickets WHERE tx_hash = $1;`
 	SelectTicketIDByHash         = `SELECT id FROM tickets WHERE tx_hash = $1;`
+	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1;`
 
 	// Update
 	SetTicketSpendingInfoForHash = `UPDATE tickets
@@ -92,6 +93,7 @@ const (
 		vote_bits INT2,
 		block_valid BOOLEAN,
 		ticket_hash TEXT,
+		ticket_tx_db_id INT8,
 		ticket_price FLOAT8,
 		vote_reward FLOAT8
 	);`
@@ -101,12 +103,12 @@ const (
 		height, tx_hash,
 		block_hash, candidate_block_hash,
 		version, vote_bits, block_valid,
-		ticket_hash, ticket_price, vote_reward)
+		ticket_hash, ticket_tx_db_id, ticket_price, vote_reward)
 	VALUES (
 		$1, $2,
 		$3, $4,
 		$5, $6, $7,
-		$8, $9, $10) `
+		$8, $9, $10, $11) `
 	insertVoteRow = insertVoteRow0 + `RETURNING id;`
 	// insertVoteRowChecked = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertVoteRow = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -124,6 +126,7 @@ const (
 	LIMIT  1;`
 
 	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
+	SelectAllVoteDbIDsHeightsTicketDbIDs  = `SELECT id, height, ticket_tx_db_id FROM votes;`
 
 	// Index
 	IndexVotesTableOnHashes = `CREATE UNIQUE INDEX uix_votes_hashes_index

@@ -143,10 +143,6 @@ func mainCore() error {
 			return err
 		}
 
-		if err = db.SetupTables(); err != nil {
-			return err
-		}
-
 		var idxExists bool
 		idxExists, err = db.ExistsIndexVinOnVins()
 		if !idxExists || err != nil {

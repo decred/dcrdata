@@ -111,10 +111,6 @@ func mainCore() error {
 		return nil
 	}
 
-	if err = db.SetupTables(); err != nil {
-		return err
-	}
-
 	// Ctrl-C to shut down.
 	// Nothing should be sent the quit channel.  It should only be closed.
 	quit := make(chan struct{})

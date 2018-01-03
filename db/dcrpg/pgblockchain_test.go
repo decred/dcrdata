@@ -30,11 +30,7 @@ func openDB() (func() error, error) {
 	if db != nil {
 		cleanUp = db.Close
 	}
-	if err != nil {
-		return cleanUp, err
-	}
-
-	return cleanUp, db.SetupTables()
+	return cleanUp, err
 }
 
 func TestMain(m *testing.M) {

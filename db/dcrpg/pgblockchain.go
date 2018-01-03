@@ -31,14 +31,15 @@ var (
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
-	db            *sql.DB
-	chainParams   *chaincfg.Params
-	devAddress    string
-	dupChecks     bool
-	bestBlock     int64
-	lastBlock     map[chainhash.Hash]uint64
-	addressCounts *addressCounter
-	stakeDB       *stakedb.StakeDatabase
+	db                 *sql.DB
+	chainParams        *chaincfg.Params
+	devAddress         string
+	dupChecks          bool
+	bestBlock          int64
+	lastBlock          map[chainhash.Hash]uint64
+	addressCounts      *addressCounter
+	stakeDB            *stakedb.StakeDatabase
+	unspentTicketCache *TicketTxnIDGetter
 }
 
 type addressCounter struct {
@@ -51,6 +52,55 @@ func makeAddressCounter() *addressCounter {
 	return &addressCounter{
 		validHeight: 0,
 		balance:     make(map[string]explorer.AddressBalance),
+	}
+}
+
+type TicketTxnIDGetter struct {
+	sync.RWMutex
+	idCache map[string]uint64
+	db      *sql.DB
+}
+
+func (t *TicketTxnIDGetter) TxnDbID(txid string) (uint64, error) {
+	if t == nil {
+		panic("You're using an uninitialized TicketTxnIDGetter")
+	}
+	t.RLock()
+	dbID, ok := t.idCache[txid]
+	t.RUnlock()
+	if ok {
+		t.Lock()
+		delete(t.idCache, txid)
+		t.Unlock()
+		return dbID, nil
+	}
+	return RetrieveTicketIDByHash(t.db, txid)
+}
+
+func (t *TicketTxnIDGetter) Set(txid string, txDbID uint64) {
+	if t == nil {
+		return
+	}
+	t.Lock()
+	defer t.Unlock()
+	t.idCache[txid] = txDbID
+}
+
+func (t *TicketTxnIDGetter) SetN(txid []string, txDbID []uint64) {
+	if t == nil {
+		return
+	}
+	t.Lock()
+	defer t.Unlock()
+	for i := range txid {
+		t.idCache[txid[i]] = txDbID[i]
+	}
+}
+
+func NewTicketTxnIDGetter(db *sql.DB) *TicketTxnIDGetter {
+	return &TicketTxnIDGetter{
+		db:      db,
+		idCache: make(map[string]uint64),
 	}
 }
 
@@ -81,15 +131,31 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		log.Warnf("ChainDB.NewChainDB: %v", err)
 	}
 
+	if err = setupTables(db); err != nil {
+		return nil, err
+	}
+
+	log.Infof("Pre-loading unspent ticket info for InsertVote optimization.")
+	unspentTicketCache := NewTicketTxnIDGetter(db)
+	unspentTicketDbIDs, unspentTicketHashes, err := RetrieveUnspentTickets(db)
+	if err != nil && err != sql.ErrNoRows && !strings.HasSuffix(err.Error(), "does not exist") {
+		return nil, err
+	}
+	if len(unspentTicketDbIDs) != 0 {
+		log.Infof("Storing data for %d unspent tickes in cache.", len(unspentTicketDbIDs))
+		unspentTicketCache.SetN(unspentTicketHashes, unspentTicketDbIDs)
+	}
+
 	return &ChainDB{
-		db:            db,
-		chainParams:   params,
-		devAddress:    devSubsidyAddress,
-		dupChecks:     true,
-		bestBlock:     int64(bestHeight),
-		lastBlock:     make(map[chainhash.Hash]uint64),
-		addressCounts: makeAddressCounter(),
-		stakeDB:       stakeDB,
+		db:                 db,
+		chainParams:        params,
+		devAddress:         devSubsidyAddress,
+		dupChecks:          true,
+		bestBlock:          int64(bestHeight),
+		lastBlock:          make(map[chainhash.Hash]uint64),
+		addressCounts:      makeAddressCounter(),
+		stakeDB:            stakeDB,
+		unspentTicketCache: unspentTicketCache,
 	}, nil
 }
 
@@ -107,15 +173,19 @@ func (pgb *ChainDB) EnableDuplicateCheckOnInsert(dupCheck bool) {
 // SetupTables creates the required tables and type, and prints table versions
 // stored in the table comments when debug level logging is enabled.
 func (pgb *ChainDB) SetupTables() error {
-	if err := CreateTypes(pgb.db); err != nil {
+	return setupTables(pgb.db)
+}
+
+func setupTables(db *sql.DB) error {
+	if err := CreateTypes(db); err != nil {
 		return err
 	}
 
-	if err := CreateTables(pgb.db); err != nil {
+	if err := CreateTables(db); err != nil {
 		return err
 	}
 
-	vers := TableVersions(pgb.db)
+	vers := TableVersions(db)
 	for tab, ver := range vers {
 		log.Debugf("Table %s: v%d", tab, ver)
 	}
@@ -458,14 +528,6 @@ func (pgb *ChainDB) DeindexAll() error {
 		log.Warn(err)
 		errAny = err
 	}
-	if err = DeindexTicketsTableOnHash(pgb.db); err != nil {
-		log.Warn(err)
-		errAny = err
-	}
-	if err = DeindexTicketsTableOnTxDbID(pgb.db); err != nil {
-		log.Warn(err)
-		errAny = err
-	}
 	if err = DeindexMissesTableOnHash(pgb.db); err != nil {
 		log.Warn(err)
 		errAny = err
@@ -513,14 +575,6 @@ func (pgb *ChainDB) IndexAll() error {
 	}
 	log.Infof("Indexing votes table on vote version...")
 	if err := IndexVotesTableOnVoteVersion(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing tickets table on ticket hash...")
-	if err := IndexTicketsTableOnHashes(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing tickets table on transaction id/indx...")
-	if err := IndexTicketsTableOnTxDbID(pgb.db); err != nil {
 		return err
 	}
 	log.Infof("Indexing misses table...")
@@ -788,7 +842,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	// If processing stake tree, insert tickets, votes, misses
 	if txTree == wire.TxTreeStake {
 		// Tickets
-		_, err = InsertTickets(pgb.db, dbTransactions, *TxDbIDs, pgb.dupChecks)
+		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, *TxDbIDs, pgb.dupChecks)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertTickets:", err)
 			txRes.err = err
@@ -796,8 +850,19 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 
 		// Votes
-		voteDbIDs, _, spentTicketHashes, _, err := InsertVotes(pgb.db,
-			dbTransactions, msgBlock, pgb.dupChecks)
+
+		// Get transaction DB IDs for tickets being spent, if we are updating
+		// them as we go as opposed to batch mode at the end of a sync.
+		var unspentTicketCache *TicketTxnIDGetter
+		if updateTicketsSpendingInfo {
+			for it, tdbid := range newTicketDbIDs {
+				pgb.unspentTicketCache.Set(newTicketTx[it].TxID, tdbid)
+			}
+			unspentTicketCache = pgb.unspentTicketCache
+		}
+
+		voteDbIDs, _, spentTicketHashes, ticketDbIDs, _, err := InsertVotes(pgb.db,
+			dbTransactions, *TxDbIDs, unspentTicketCache, msgBlock, pgb.dupChecks)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err
@@ -807,19 +872,19 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		if updateTicketsSpendingInfo {
 			// To update spending info in tickets table, get the spent tickets' DB
 			// row IDs and block heights.
-			ticketDbIDs := make([]uint64, len(spentTicketHashes))
+			//ticketDbIDs := make([]uint64, len(spentTicketHashes))
 			blockHeights := make([]int64, len(spentTicketHashes))
 			spendTypes := make([]TicketSpendType, len(spentTicketHashes))
 			for iv := range spentTicketHashes {
 				spendTypes[iv] = TicketVoted
 				blockHeights[iv] = int64(msgBlock.Header.Height) /* voteDbTxns[iv].BlockHeight */
-				ticketDbIDs[iv], _, err =
-					RetrieveTicketIDHeightByHash(pgb.db, spentTicketHashes[iv])
-				if err != nil {
-					log.Error("RetrieveTxIDHeightByHash:", err)
-					txRes.err = err
-					return txRes
-				}
+				// ticketDbIDs[iv], _, err =
+				// 	RetrieveTicketIDHeightByHash(pgb.db, spentTicketHashes[iv])
+				// if err != nil {
+				// 	log.Error("RetrieveTxIDHeightByHash:", err)
+				// 	txRes.err = err
+				// 	return txRes
+				// }
 			}
 
 			// Update tickets table with spending info from new votes
@@ -1013,27 +1078,21 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 // and sets this spending info in the tickets table.
 func (pgb *ChainDB) UpdateSpendingInfoInAllTickets() (int64, error) {
 	// Get the full list of votes (DB IDs and heights), and spent ticket hashes
-	allVotesDbIDs, allVotesHeights, allSpentTicketHashes, err :=
-		RetrieveAllVotesDbIDsHeightsTicketHashes(pgb.db)
+	allVotesDbIDs, allVotesHeights, ticketDbIDs, err :=
+		RetrieveAllVotesDbIDsHeightsTicketDbIDs(pgb.db)
 	if err != nil {
-		log.Errorf("RetrieveAllVinDbIDs: %v", err)
+		log.Errorf("RetrieveAllVotesDbIDsHeightsTicketDbIDs: %v", err)
 		return 0, err
 	}
 
 	// To update spending info in tickets table, get the spent tickets' DB
 	// row IDs and block heights.
-	spendTypes := make([]TicketSpendType, len(allSpentTicketHashes))
-	for iv := range allSpentTicketHashes {
+	spendTypes := make([]TicketSpendType, len(ticketDbIDs))
+	for iv := range ticketDbIDs {
 		spendTypes[iv] = TicketVoted
 	}
 
-	var ticketDbIDs []uint64
-	ticketDbIDs, err = RetrieveTicketIDsByHashes(pgb.db, allSpentTicketHashes)
-	if err != nil {
-		return 0, fmt.Errorf("RetrieveTicketIDsByHashes: %v", err)
-	}
-
-	// Update tickets table with spending info from new votes\
+	// Update tickets table with spending info from new votes
 	var totalTicketsUpdated int64
 	totalTicketsUpdated, err = SetSpendingForTickets(pgb.db, ticketDbIDs,
 		allVotesDbIDs, allVotesHeights, spendTypes)
