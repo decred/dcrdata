@@ -417,6 +417,30 @@ func (pgb *ChainDB) DeleteDuplicates() error {
 	// TODO: remove entries from addresses table that reference removed
 	// vins/vouts.
 
+	return err
+}
+
+func (pgb *ChainDB) DeleteDuplicatesRecovery() error {
+	var err error
+	// Remove duplicate vins
+	log.Info("Finding and removing duplicate vins entries...")
+	var numVinsRemoved int64
+	if numVinsRemoved, err = pgb.DeleteDuplicateVins(); err != nil {
+		return fmt.Errorf("dcrpg.DeleteDuplicateVins failed: %v", err)
+	}
+	log.Infof("Removed %d duplicate vins entries.", numVinsRemoved)
+
+	// Remove duplicate vouts
+	log.Info("Finding and removing duplicate vouts entries before indexing...")
+	var numVoutsRemoved int64
+	if numVoutsRemoved, err = pgb.DeleteDuplicateVouts(); err != nil {
+		return fmt.Errorf("dcrpg.DeleteDuplicateVouts failed: %v", err)
+	}
+	log.Infof("Removed %d duplicate vouts entries.", numVoutsRemoved)
+
+	// TODO: remove entries from addresses table that reference removed
+	// vins/vouts.
+
 	// Remove duplicate transactions
 	log.Info("Finding and removing duplicate transactions entries before indexing...")
 	var numTxnsRemoved int64

@@ -50,13 +50,15 @@ type config struct {
 	CPUProfile  string `long:"cpuprofile" description:"File for CPU profiling."`
 
 	// DB
-	DBHostPort            string `long:"dbhost" description:"DB host"`
-	DBUser                string `long:"dbuser" description:"DB user"`
-	DBPass                string `long:"dbpass" description:"DB pass"`
-	DBName                string `long:"dbname" description:"DB name"`
-	DropDBTables          bool   `short:"D" long:"droptables" description:"Drop/delete DB tables."`
-	AddrSpendInfoOnline   bool   `short:"a" long:"addrspends-no-batch" description:"Continually update the address table spending transaction info during rebuild (instead of full table update at end).  SLOW if doing full rebuild!"`
-	TicketSpendInfoOnline bool   `short:"t" long:"ticketspends-no-batch" description:"Continually update the tickets table spending transaction info during rebuild (instead of full table update at end).  SLOW if doing full rebuild!"`
+	DBHostPort             string `long:"dbhost" description:"DB host"`
+	DBUser                 string `long:"dbuser" description:"DB user"`
+	DBPass                 string `long:"dbpass" description:"DB pass"`
+	DBName                 string `long:"dbname" description:"DB name"`
+	DuplicateEntryRecovery bool   `short:"r" long:"recoverfromdups" description:"Remove duplicate entries from all tables which would be prevented by the unique indexes. May be necessary to recover from an ill-timed crash."`
+	DropDBTables           bool   `short:"D" long:"droptables" description:"Drop/delete DB tables."`
+	ForceReindex           bool   `long:"reindex" short:"R" description:"Drop indexes prior to sync and recreate after sync, with insertion conflict checks disabled in absence of constraints."`
+	AddrSpendInfoOnline    bool   `short:"a" long:"addrspends-no-batch" description:"Continually update the address table spending transaction info during rebuild (instead of full table update at end).  SLOW if doing full rebuild!"`
+	TicketSpendInfoBatch   bool   `short:"T" long:"ticketspends-batch" description:"Batch update the tickets table spending transaction info after rebuild (instead of during the rebuild)."`
 
 	// RPC client options
 	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name"`
@@ -64,12 +66,6 @@ type config struct {
 	DcrdServ         string `long:"dcrdserv" description:"Hostname/IP and port of dcrd RPC server to connect to (default localhost:9109, testnet: localhost:19109, simnet: localhost:19556)"`
 	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file"`
 	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
-
-	ForceReindex bool `long:"reindex" short:"R" description:"Drop indexes prior to sync and recreate after sync, with insertion conflict checks disabled in absence of constraints."`
-	// TODO
-	//AccountName   string `long:"accountname" description:"Account name (other than default or imported) for which balances should be listed."`
-	//TicketAddress string `long:"ticketaddress" description:"Address to which you have given voting rights"`
-	//PoolAddress   string `long:"pooladdress" description:"Address to which you have given rights to pool fees"`
 }
 
 var (

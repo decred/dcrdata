@@ -194,7 +194,7 @@ func mainCore() error {
 		if blocksBehind > 7500 {
 			log.Infof("Setting PSQL sync to rebuild address table after large "+
 				"import (%d blocks).", blocksBehind)
-			updateAllAddresses, updateAllVotes = true, true
+			updateAllAddresses = true
 			if blocksBehind > 40000 {
 				log.Infof("Setting PSQL sync to drop indexes prior to bulk data "+
 					"import (%d blocks).", blocksBehind)

@@ -111,6 +111,10 @@ func mainCore() error {
 		return nil
 	}
 
+	if cfg.DuplicateEntryRecovery {
+		return db.DeleteDuplicatesRecovery()
+	}
+
 	// Ctrl-C to shut down.
 	// Nothing should be sent the quit channel.  It should only be closed.
 	quit := make(chan struct{})
@@ -280,7 +284,7 @@ func mainCore() error {
 
 		var numVins, numVouts int64
 		numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), winners,
-			true, cfg.AddrSpendInfoOnline, cfg.TicketSpendInfoOnline)
+			true, cfg.AddrSpendInfoOnline, !cfg.TicketSpendInfoBatch)
 		if err != nil {
 			return fmt.Errorf("StoreBlock failed: %v", err)
 		}
@@ -314,7 +318,7 @@ func mainCore() error {
 		if cfg.AddrSpendInfoOnline {
 			err = db.IndexAddressTable()
 		}
-		if cfg.TicketSpendInfoOnline {
+		if !cfg.TicketSpendInfoBatch {
 			err = db.IndexTicketsTable()
 		}
 	}
@@ -335,7 +339,7 @@ func mainCore() error {
 		}
 	}
 
-	if !cfg.TicketSpendInfoOnline {
+	if cfg.TicketSpendInfoBatch {
 		// Remove indexes not on funding txns (remove on address table indexes)
 		_ = db.DeindexTicketsTable() // ignore errors for non-existent indexes
 		db.EnableDuplicateCheckOnInsert(false)
