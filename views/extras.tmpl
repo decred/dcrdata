@@ -182,7 +182,7 @@
             
             // block summary data
             var b = newBlock.block;
-            desktopNotify(b);
+            desktopNotifyNewBlock(b);
 
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
@@ -243,7 +243,7 @@
             return false;
         }
 }
-    function desktopNotify (block) {
+    function desktopNotifyNewBlock (block) {
             function onShowNotification () {
                 console.log('block ntfn shown');
             }
@@ -264,7 +264,7 @@
                 console.warn('Permission has been denied by the user');
             }
             function doNotification () {
-                var myNotification = new Notify('New Decred Block Mined', {
+                var newBlockNtfn = new Notify('New Decred Block Mined', {
                     body: 'Decred block mined at height ' + block.height,
                     tag: 'blockheight',
                     image: '/images/favicon/android-chrome-192x192.png',
@@ -275,7 +275,7 @@
                     notifyError: onErrorNotification,
                     timeout: 10
                 });
-                myNotification.show();
+                newBlockNtfn.show();
             }
             if (!Notify.needsPermission) {
                 doNotification();
