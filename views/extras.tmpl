@@ -179,8 +179,11 @@
                     newBlock.block.height - $(v).data('confirmation-block-height')
                 )
             })
+            
             // block summary data
             var b = newBlock.block;
+            desktopNotify(b);
+
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
             if (expTableRows){
@@ -240,6 +243,44 @@
             return false;
         }
 }
+    function desktopNotify (block) {
+            function onShowNotification () {
+                console.log('block ntfn shown');
+            }
+            function onCloseNotification () {
+                console.log('block ntfn closed');
+            }
+            function onClickNotification () {
+                console.log('block ntfn clicked');
+            }
+            function onErrorNotification () {
+                console.error('Error showing notification. You may need to request permission.');
+            }
+            function onPermissionGranted () {
+                console.log('Permission has been granted by the user');
+                doNotification();
+            }
+            function onPermissionDenied () {
+                console.warn('Permission has been denied by the user');
+            }
+            function doNotification () {
+                var myNotification = new Notify('New Decred Block Mined', {
+                    body: 'Decred block mined at height ' + block.height,
+                    tag: 'blockheight',
+                    notifyShow: onShowNotification,
+                    notifyClose: onCloseNotification,
+                    notifyClick: onClickNotification,
+                    notifyError: onErrorNotification,
+                    timeout: 10
+                });
+                myNotification.show();
+            }
+            if (!Notify.needsPermission) {
+                doNotification();
+            } else if (Notify.isSupported()) {
+                Notify.requestPermission(onPermissionGranted, onPermissionDenied);
+            }
+        }
 </script>
 
 <script>
@@ -247,6 +288,8 @@
         createWebSocket(window.location)
     }
 </script>
+
+<script src="/js/notify.js"></script>
 {{end}}
 
 {{define "footer"}}
