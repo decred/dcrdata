@@ -72,6 +72,7 @@ type explorerDataSource interface {
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *AddressBalance, error)
 	FillAddressTransactions(addrInfo *AddressInfo) error
+	BlockMissedVotes(blockHash string) ([]string, error)
 }
 
 type explorerUI struct {

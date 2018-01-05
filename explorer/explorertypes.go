@@ -117,6 +117,7 @@ type BlockInfo struct {
 	Tickets               []*TxBasic
 	Revs                  []*TxBasic
 	Votes                 []*TxBasic
+	Misses                []string
 	Nonce                 uint32
 	VoteBits              uint16
 	FinalState            string

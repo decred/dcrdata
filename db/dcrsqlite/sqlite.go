@@ -6,6 +6,7 @@ package dcrsqlite
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -74,12 +75,12 @@ func NewDB(db *sql.DB) (*DB, error) {
 	}
 
 	// Ticket pool queries
-	d.getPoolSQL = fmt.Sprintf(`select hash, poolsize, poolval, poolavg, winners from %s where height = ?`,
-		TableNameSummaries)
-	d.getPoolByHashSQL = fmt.Sprintf(`select height, poolsize, poolval, poolavg, winners from %s where hash = ?`,
-		TableNameSummaries)
-	d.getPoolRangeSQL = fmt.Sprintf(`select height, hash, poolsize, poolval, poolavg, winners from %s where height between ? and ?`,
-		TableNameSummaries)
+	d.getPoolSQL = fmt.Sprintf(`select hash, poolsize, poolval, poolavg, winners, expires, expires_revoked`+
+		` from %s where height = ?`, TableNameSummaries)
+	d.getPoolByHashSQL = fmt.Sprintf(`select height, poolsize, poolval, poolavg, winners, expires, expires_revoked`+
+		` from %s where hash = ?`, TableNameSummaries)
+	d.getPoolRangeSQL = fmt.Sprintf(`select height, hash, poolsize, poolval, poolavg, winners, expires, expires_revoked `+
+		`from %s where height between ? and ?`, TableNameSummaries)
 	d.getWinnersSQL = fmt.Sprintf(`select hash, winners from %s where height = ?`,
 		TableNameSummaries)
 	d.getWinnersByHashSQL = fmt.Sprintf(`select height, winners from %s where hash = ?`,
@@ -97,8 +98,8 @@ func NewDB(db *sql.DB) (*DB, error) {
 		TableNameSummaries)
 	d.insertBlockSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
-            height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg, winners
-        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg, winners, expires, expires_revoked
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameSummaries)
 
 	d.getBlockSizeRangeSQL = fmt.Sprintf(`select size from %s where height between ? and ?`,
@@ -156,7 +157,9 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
             poolsize INTEGER,
             poolval FLOAT,
 			poolavg FLOAT,
-			winners TEXT
+			winners TEXT,
+			expires TEXT,
+			expires_revoked TEXT
         );
         `, TableNameSummaries)
 
@@ -225,10 +228,17 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	defer stmt.Close()
 
 	winners := strings.Join(bd.PoolInfo.Winners, ";")
+	expires := strings.Join(bd.PoolInfo.Expires, ";")
+	areRevoked := make([]string, len(bd.PoolInfo.ExpiresRevoked))
+	for i, r := range bd.PoolInfo.ExpiresRevoked {
+		areRevoked[i] = strconv.FormatBool(r)
+	}
+	expiresRevoked := strings.Join(areRevoked, ";")
 
 	res, err := stmt.Exec(&bd.Height, &bd.Size, &bd.Hash,
 		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
-		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg, &winners)
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
+		&winners, &expires, &expiresRevoked)
 	if err != nil {
 		return err
 	}
@@ -340,12 +350,17 @@ func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo
 
 	for rows.Next() {
 		var tpi apitypes.TicketPoolInfo
-		var hash, winners string
+		var hash, winners, expires, expiresRevoked string
 		if err = rows.Scan(&tpi.Height, &hash, &tpi.Size, &tpi.Value,
-			&tpi.ValAvg, &winners); err != nil {
+			&tpi.ValAvg, &winners, &expires, &expiresRevoked); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 		}
 		tpi.Winners = strings.Split(winners, ";")
+		tpi.Expires = strings.Split(expires, ";")
+		tpi.ExpiresRevoked, err = stringSliceToBoolSlice(strings.Split(expiresRevoked, ";"))
+		if err != nil {
+			return nil, nil, err
+		}
 		tpis = append(tpis, tpi)
 		hashes = append(hashes, hash)
 	}
@@ -361,10 +376,15 @@ func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
 	tpi := &apitypes.TicketPoolInfo{
 		Height: uint32(ind),
 	}
-	var hash, winners string
+	var hash, winners, expires, expiresRevoked string
 	err := db.QueryRow(db.getPoolSQL, ind).Scan(&hash, &tpi.Size,
-		&tpi.Value, &tpi.ValAvg, &winners)
+		&tpi.Value, &tpi.ValAvg, &winners, &expires, &expiresRevoked)
 	tpi.Winners = strings.Split(winners, ";")
+	tpi.Expires = strings.Split(expires, ";")
+	tpi.ExpiresRevoked, err = stringSliceToBoolSlice(strings.Split(expiresRevoked, ";"))
+	if err != nil {
+		return nil, err
+	}
 	return tpi, err
 }
 
@@ -516,18 +536,36 @@ func (db *DB) RetrieveSDiff(ind int64) (float64, error) {
 	return sdiff, err
 }
 
+func stringSliceToBoolSlice(ss []string) ([]bool, error) {
+	bs := make([]bool, len(ss))
+	for i := range ss {
+		var err error
+		bs[i], err = strconv.ParseBool(ss[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return bs, nil
+}
+
 // RetrieveLatestBlockSummary returns the block summary for the best block
 func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	bd := new(apitypes.BlockDataBasic)
 
-	var winners string
+	var winners, expires, expiresRevoked string
 	err := db.QueryRow(db.getLatestBlockSQL).Scan(&bd.Height, &bd.Size,
 		&bd.Hash, &bd.Difficulty, &bd.StakeDiff, &bd.Time,
-		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg, &winners)
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
+		&winners, &expires, &expiresRevoked)
 	if err != nil {
 		return nil, err
 	}
 	bd.PoolInfo.Winners = strings.Split(winners, ";")
+	bd.PoolInfo.Expires = strings.Split(expires, ";")
+	bd.PoolInfo.ExpiresRevoked, err = stringSliceToBoolSlice(strings.Split(expiresRevoked, ";"))
+	if err != nil {
+		return nil, err
+	}
 
 	return bd, nil
 }
@@ -564,15 +602,21 @@ func (db *DB) RetrieveBestBlockHeight() (int64, error) {
 func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic, error) {
 	bd := new(apitypes.BlockDataBasic)
 
-	var winners string
+	var winners, expires, expiresRevoked string
 	err := db.QueryRow(db.getBlockByHashSQL, hash).Scan(&bd.Height, &bd.Size, &bd.Hash,
 		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
-		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg, &winners)
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
+		&winners, &expires, &expiresRevoked)
 	if err != nil {
 		return nil, err
 	}
 
 	bd.PoolInfo.Winners = strings.Split(winners, ";")
+	bd.PoolInfo.Expires = strings.Split(expires, ";")
+	bd.PoolInfo.ExpiresRevoked, err = stringSliceToBoolSlice(strings.Split(expiresRevoked, ";"))
+	if err != nil {
+		return nil, err
+	}
 	return bd, nil
 }
 
@@ -583,14 +627,20 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 	// Three different ways
 
 	// 1. chained QueryRow/Scan only
-	var winners string
+	var winners, expires, expiresRevoked string
 	err := db.QueryRow(db.getBlockSQL, ind).Scan(&bd.Height, &bd.Size, &bd.Hash,
 		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
-		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg, &winners)
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
+		&winners, &expires, &expiresRevoked)
 	if err != nil {
 		return nil, err
 	}
 	bd.PoolInfo.Winners = strings.Split(winners, ";")
+	bd.PoolInfo.Expires = strings.Split(expires, ";")
+	bd.PoolInfo.ExpiresRevoked, err = stringSliceToBoolSlice(strings.Split(expiresRevoked, ";"))
+	if err != nil {
+		return nil, err
+	}
 
 	// 2. Prepare + chained QueryRow/Scan
 	// stmt, err := db.Prepare(getBlockSQL)

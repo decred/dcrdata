@@ -4,6 +4,7 @@
 package explorer
 
 import (
+	"database/sql"
 	"io"
 	"net/http"
 	"strconv"
@@ -103,6 +104,14 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	}
 	if count == len(data.Tx) {
 		data.TxAvailable = false
+	}
+
+	if !exp.liteMode {
+		var err error
+		data.Misses, err = exp.explorerSource.BlockMissedVotes(hash)
+		if err != nil && err != sql.ErrNoRows {
+			log.Warnf("Unable to retrieve missed votes for block %s: %v", hash, err)
+		}
 	}
 
 	pageData := struct {

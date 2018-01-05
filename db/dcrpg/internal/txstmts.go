@@ -1,5 +1,11 @@
 package internal
 
+import (
+	"fmt"
+
+	"github.com/decred/dcrd/blockchain/stake"
+)
+
 const (
 	// Insert
 	insertTxRow0 = `INSERT INTO transactions (
@@ -102,6 +108,10 @@ const (
 
 	RetrieveVoutDbIDs = `SELECT unnest(vout_db_ids) FROM transactions WHERE id = $1;`
 	RetrieveVoutDbID  = `SELECT vout_db_ids[$2] FROM transactions WHERE id = $1;`
+)
+
+var (
+	SelectAllRevokes = fmt.Sprintf(`SELECT id, tx_hash, block_height, vin_db_ids[0] FROM transactions WHERE tx_type = %d;`, stake.TxTypeSSRtx)
 )
 
 // func makeTxInsertStatement(voutDbIDs, vinDbIDs []uint64, vouts []*dbtypes.Vout, checked bool) string {

@@ -21,11 +21,30 @@ import (
 type TicketSpendType int16
 
 const (
-	TicketExpired TicketSpendType = iota - 1
-	TicketLive
-	TicketVoted
+	TicketUnspent TicketSpendType = iota
 	TicketRevoked
+	TicketVoted
 )
+
+const (
+	TicketLive TicketSpendType = iota
+	TicketExpired
+	TicketMissed
+)
+
+// Tickets have 6 states, 5 possible fates:
+// Live -...---> Voted
+//           \-> Missed (unspent) [--> Revoked]
+//            \--...--> Expired (unspent) [--> Revoked]
+
+// const (
+// 	TicketExpiredUnspent TicketSpendType = iota - 2 // Expired (unspent, not live)
+// 	TicketMissedUnspent                             // Missed, not revoked (unspent, not live)
+// 	TicketLive                                      // Live (unspent), including immature
+// 	TicketVoted                                     // Voted (spent by ssgen)
+// 	TicketMissedRevoked                             // Missed, revoked (spent by ssrtx)
+// 	TicketExpiredRevoked                            // Expired, revoked (spent by ssrtx)
+// )
 
 func ExistsIndex(db *sql.DB, indexName string) (exists bool, err error) {
 	err = db.QueryRow(internal.IndexExists, indexName, "public").Scan(&exists)
@@ -44,6 +63,58 @@ func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, err error) {
 
 func RetrieveVoutIDByOutpoint(db *sql.DB, txHash string, voutIndex uint32) (id uint64, err error) {
 	err = db.QueryRow(internal.SelectVoutIDByOutpoint, txHash, voutIndex).Scan(&id)
+	return
+}
+
+func RetrieveMissedVotesInBlock(db *sql.DB, blockHash string) (ticketHashes []string, err error) {
+	rows, err := db.Query(internal.SelectMissesInBlock, blockHash)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var hash string
+		err = rows.Scan(&hash)
+		if err != nil {
+			break
+		}
+
+		ticketHashes = append(ticketHashes, hash)
+	}
+	return
+}
+
+func RetrieveAllRevokesDbIDHashHeight(db *sql.DB) (ids []uint64,
+	hashes []string, heights []int64, vinDbIDs []uint64, err error) {
+	rows, err := db.Query(internal.SelectAllRevokes)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var id, vinDbID uint64
+		var height int64
+		var hash string
+		err = rows.Scan(&id, &hash, &height, &vinDbID)
+		if err != nil {
+			break
+		}
+
+		ids = append(ids, id)
+		heights = append(heights, height)
+		hashes = append(hashes, hash)
+		vinDbIDs = append(vinDbIDs, vinDbID)
+	}
 	return
 }
 
@@ -743,6 +814,11 @@ func RetrieveFundingTxByTxIn(db *sql.DB, txHash string, vinIndex uint32) (id uin
 	return
 }
 
+func RetrieveFundingTxByVinDbID(db *sql.DB, vinDbID uint64) (tx string, err error) {
+	err = db.QueryRow(internal.SelectFundingTxByVinID, vinDbID).Scan(&tx)
+	return
+}
+
 func RetrieveFundingTxsByTx(db *sql.DB, txHash string) ([]uint64, []*dbtypes.Tx, error) {
 	var ids []uint64
 	var txs []*dbtypes.Tx
@@ -1194,7 +1270,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 		err := stmt.QueryRow(
 			tx.TxID, tx.BlockHash, tx.BlockHeight, ticketDbIDs[i],
 			stakesubmissionAddress, isMultisig, isSplit, tx.NumVin,
-			price, fee, TicketLive).Scan(&id)
+			price, fee, TicketUnspent).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
@@ -1283,7 +1359,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 
 		var ticketTxDbID sql.NullInt64
 		if fTx != nil {
-			t, err := fTx.TxnDbID(stakeSubmissionTxHash)
+			t, err := fTx.TxnDbID(stakeSubmissionTxHash, true)
 			if err != nil {
 				_ = stmt.Close() // try, but we want the QueryRow error back
 				if errRoll := dbtx.Rollback(); errRoll != nil {

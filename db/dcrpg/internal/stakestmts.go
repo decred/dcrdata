@@ -179,6 +179,8 @@ const (
 	WHERE  ticket_hash = $4 AND block_hash = $2
 	LIMIT  1;`
 
+	SelectMissesInBlock = `SELECT ticket_hash FROM misses WHERE block_hash = $1;`
+
 	// Index
 	IndexMissesTableOnHashes = `CREATE UNIQUE INDEX uix_misses_hashes_index
 		ON misses(ticket_hash, block_hash);`
