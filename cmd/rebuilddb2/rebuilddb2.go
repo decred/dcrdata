@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -21,7 +23,7 @@ import (
 var (
 	backendLog      *btclog.Backend
 	rpcclientLogger btclog.Logger
-	sqliteLogger    btclog.Logger
+	pgLogger        btclog.Logger
 )
 
 const (
@@ -37,8 +39,8 @@ func init() {
 	backendLog = btclog.NewBackend(log.Writer())
 	rpcclientLogger = backendLog.Logger("RPC")
 	rpcclient.UseLogger(rpcclientLogger)
-	sqliteLogger = backendLog.Logger("DSQL")
-	dcrpg.UseLogger(rpcclientLogger)
+	pgLogger = backendLog.Logger("PSQL")
+	dcrpg.UseLogger(pgLogger)
 }
 
 func mainCore() error {
@@ -47,6 +49,12 @@ func mainCore() error {
 	if err != nil {
 		fmt.Printf("Failed to load dcrdata config: %s\n", err.Error())
 		return err
+	}
+
+	if cfg.HTTPProfile {
+		go func() {
+			log.Infoln(http.ListenAndServe("localhost:6060", nil))
+		}()
 	}
 
 	if cfg.CPUProfile != "" {
@@ -58,6 +66,21 @@ func mainCore() error {
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
+	}
+
+	if cfg.MemProfile != "" {
+		var f *os.File
+		f, err = os.Create(cfg.MemProfile)
+		if err != nil {
+			log.Fatal(err)
+			return err
+		}
+		timer := time.NewTimer(time.Second * 15)
+		go func() {
+			<-timer.C
+			pprof.WriteHeapProfile(f)
+			f.Close()
+		}()
 	}
 
 	// Connect to node RPC server

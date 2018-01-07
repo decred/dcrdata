@@ -47,7 +47,9 @@ type config struct {
 	DebugLevel  string `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
 	Quiet       bool   `short:"q" long:"quiet" description:"Easy way to set debuglevel to error"`
 	LogDir      string `long:"logdir" description:"Directory to log output"`
+	HTTPProfile bool   `long:"httpprof" short:"p" description:"Start HTTP profiler."`
 	CPUProfile  string `long:"cpuprofile" description:"File for CPU profiling."`
+	MemProfile  string `long:"memprofile" description:"File for mempry profiling."`
 
 	// DB
 	DBHostPort             string `long:"dbhost" description:"DB host"`
