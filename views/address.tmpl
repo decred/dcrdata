@@ -10,7 +10,11 @@
         <div class="row">
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
-                <div class="mono">{{.Address}}</div>
+                <div class="mono">
+                    {{.Address}}
+                    <a href="javascript:generateQRCode('{{.Address}}');" class="dcricon-qrcode jsonly no-underline" id="qrcode-init"></a>
+                </div>
+                <div id="address-qrcode" class="op0 opacity-transition"></div>
                 <table class="table-centered-1rem">
                     {{if .Balance}}
                     {{if not .KnownFundingTxns}}
@@ -167,6 +171,16 @@
                 + "&start=" + {{.Offset}}
             )
         })
+        function generateQRCode(address) {
+            var $qrcode = $("#address-qrcode")
+            $.getScript("/js/qrcode.min.js", function() {
+                new QRCode($qrcode[0], address);
+                $qrcode.css({margin: "40px 0"})
+                $('#qrcode-init').hide()
+                $qrcode.removeClass('op0')
+            })
+        }
+        $('.jsonly').show()
     </script>
     {{end}}
     {{end}}
