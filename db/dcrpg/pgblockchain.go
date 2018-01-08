@@ -708,7 +708,6 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 			return
 		}
 		winners = tpi.Winners
-		// can also access tpi.Expires
 	}
 
 	// Wrap the message block

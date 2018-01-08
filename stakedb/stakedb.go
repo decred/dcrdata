@@ -537,13 +537,8 @@ func (db *StakeDatabase) PoolInfoBest() *apitypes.TicketPoolInfo {
 	liveTickets := db.BestNode.LiveTickets()
 	winningTickets := db.BestNode.Winners()
 	height := db.BestNode.Height()
-	expiredTickets, expireRevoked := db.expires()
+	// expiredTickets, expireRevoked := db.expires()
 	db.nodeMtx.RUnlock()
-
-	expires := make([]string, len(expiredTickets))
-	for i := range expiredTickets {
-		expires[i] = expiredTickets[i].String()
-	}
 
 	db.liveTicketMtx.Lock()
 	var poolValue int64
@@ -582,13 +577,11 @@ func (db *StakeDatabase) PoolInfoBest() *apitypes.TicketPoolInfo {
 	}
 
 	return &apitypes.TicketPoolInfo{
-		Height:         height,
-		Size:           uint32(poolSize),
-		Value:          poolCoin,
-		ValAvg:         valAvg,
-		Winners:        winners,
-		Expires:        expires,
-		ExpiresRevoked: expireRevoked,
+		Height:  height,
+		Size:    uint32(poolSize),
+		Value:   poolCoin,
+		ValAvg:  valAvg,
+		Winners: winners,
 	}
 }
 

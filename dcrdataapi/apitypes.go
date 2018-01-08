@@ -236,13 +236,11 @@ type Status struct {
 
 // TicketPoolInfo models data about ticket pool
 type TicketPoolInfo struct {
-	Height         uint32   `json:"height"`
-	Size           uint32   `json:"size"`
-	Value          float64  `json:"value"`
-	ValAvg         float64  `json:"valavg"`
-	Winners        []string `json:"winners"`
-	Expires        []string `json:"expires"`
-	ExpiresRevoked []bool   `json:"expires_revoked"`
+	Height  uint32   `json:"height"`
+	Size    uint32   `json:"size"`
+	Value   float64  `json:"value"`
+	ValAvg  float64  `json:"valavg"`
+	Winners []string `json:"winners"`
 }
 
 // TicketPoolValsAndSizes models two arrays, one each for ticket values and
