@@ -556,6 +556,10 @@ func (pgb *ChainDB) DeindexAll() error {
 		log.Warn(err)
 		errAny = err
 	}
+	if err = pgb.DeindexTicketsTable(); err != nil {
+		log.Warn(err)
+		errAny = err
+	}
 	if err = DeindexVotesTableOnCandidate(pgb.db); err != nil {
 		log.Warn(err)
 		errAny = err
@@ -903,10 +907,16 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		// revokes), and the ticket DB row IDs themselves.
 		spendingTxDbIDs, spendTypes, spentTicketHashes, ticketDbIDs, err :=
 			pgb.CollectTicketSpendDBInfo(dbTransactions, *TxDbIDs, msgBlock.MsgBlock)
+		if err != nil {
+			log.Error("CollectTicketSpendDBInfo:", err)
+			txRes.err = err
+			return txRes
+		}
 
 		// Votes
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
-		_, _, _, _, _, err = InsertVotes(pgb.db,
+		var missesHashIDs map[string]uint64
+		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db,
 			dbTransactions, *TxDbIDs, unspentTicketCache, msgBlock, pgb.dupChecks)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
@@ -918,18 +928,78 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// To update spending info in tickets table, get the spent tickets' DB
 			// row IDs and block heights.
 			//ticketDbIDs := make([]uint64, len(spentTicketHashes))
+			revokes := make(map[string]uint64)
 			blockHeights := make([]int64, len(spentTicketHashes))
-			//spendTypes := make([]TicketSpendType, len(spentTicketHashes))
+			poolStatuses := make([]TicketPoolStatus, len(spentTicketHashes))
 			for iv := range spentTicketHashes {
-				//spendTypes[iv] = TicketVoted
 				blockHeights[iv] = int64(msgBlock.Header.Height) /* voteDbTxns[iv].BlockHeight */
+
+				switch spendTypes[iv] {
+				case TicketVoted:
+					poolStatuses[iv] = PoolStatusVoted
+				case TicketRevoked:
+					revokes[spentTicketHashes[iv]] = ticketDbIDs[iv]
+					// Revoke reason
+					h, err0 := chainhash.NewHashFromStr(spentTicketHashes[iv])
+					if err0 != nil {
+						log.Warnf("Invalid hash %v", spentTicketHashes[iv])
+					}
+					expired := pgb.stakeDB.BestNode.ExistsExpiredTicket(*h)
+					if !expired {
+						poolStatuses[iv] = PoolStatusMissed
+					} else {
+						poolStatuses[iv] = PoolStatusExpired
+					}
+				}
 			}
 
 			// Update tickets table with spending info from new votes
 			// _, err = SetSpendingForTickets(pgb.db, ticketDbIDs, voteDbIDs, blockHeights, spendTypes)
-			_, err = SetSpendingForTickets(pgb.db, ticketDbIDs, spendingTxDbIDs, blockHeights, spendTypes)
+			_, err = SetSpendingForTickets(pgb.db, ticketDbIDs, spendingTxDbIDs,
+				blockHeights, spendTypes, poolStatuses)
 			if err != nil {
 				log.Warn("SetSpendingForTickets:", err)
+			}
+
+			// Missed but not revoked
+			//var unspentMissedTicketDbIDs []uint64
+			var unspentMissedTicketHashes []string
+			var missStatuses []TicketPoolStatus
+			unspentMisses := make(map[string]struct{})
+			for miss := range missesHashIDs {
+				if _, ok := revokes[miss]; !ok {
+					// unrevoked miss
+					//unspentMissedTicketDbIDs = append(unspentMissedTicketDbIDs, missedTicketID)
+					unspentMissedTicketHashes = append(unspentMissedTicketHashes, miss)
+					unspentMisses[miss] = struct{}{}
+					missStatuses = append(missStatuses, PoolStatusMissed)
+				}
+			}
+
+			// Expired but not revoked
+			unspentExpiresAndMisses := pgb.stakeDB.BestNode.MissedByBlock()
+			unspentEnM := unspentMissedTicketHashes // var unspentEnM []string
+			for _, missHash := range unspentExpiresAndMisses {
+				// MissedByBlock includes tickets that missed votes or expired;
+				// we just want the expires, and not the revoked ones.
+				if pgb.stakeDB.BestNode.ExistsExpiredTicket(missHash) {
+					emHash := missHash.String()
+					// Next check should not be unnecessary. Make sure not in
+					// unspent misses from above and not just revoked.
+					_, justMissed := unspentMisses[emHash]
+					_, justRevoked := revokes[emHash]
+					if !justMissed && !justRevoked {
+						unspentEnM = append(unspentEnM, emHash)
+						missStatuses = append(missStatuses, PoolStatusExpired)
+					}
+				}
+			}
+
+			numUnrevokedMisses, err := SetPoolStatusForTicketsByHash(pgb.db, unspentEnM, missStatuses)
+			if err != nil {
+				log.Warn("SetPoolStatusForTickets", err)
+			} else {
+				log.Debugf("Noted %d unrevoked newly-missed tickets.", numUnrevokedMisses)
 			}
 		}
 	}
@@ -1183,11 +1253,12 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllTickets() (int64, error) {
 	for iv := range ticketDbIDs {
 		spendTypes[iv] = TicketVoted
 	}
+	poolStatuses := ticketpoolStatusSlice(PoolStatusVoted, len(ticketDbIDs))
 
 	// Update tickets table with spending info from new votes
 	var totalTicketsUpdated int64
 	totalTicketsUpdated, err = SetSpendingForTickets(pgb.db, ticketDbIDs,
-		allVotesDbIDs, allVotesHeights, spendTypes)
+		allVotesDbIDs, allVotesHeights, spendTypes, poolStatuses)
 	if err != nil {
 		log.Warn("SetSpendingForTickets:", err)
 	}
@@ -1215,6 +1286,14 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllTickets() (int64, error) {
 		return 0, err
 	}
 
+	poolStatuses = ticketpoolStatusSlice(PoolStatusMissed, len(revokedTicketHashes))
+	for ih := range revokedTicketHashes {
+		rh, _ := chainhash.NewHashFromStr(revokedTicketHashes[ih])
+		if pgb.stakeDB.BestNode.ExistsExpiredTicket(*rh) {
+			poolStatuses[ih] = PoolStatusExpired
+		}
+	}
+
 	// To update spending info in tickets table, get the spent tickets' DB
 	// row IDs and block heights.
 	spendTypes = make([]TicketSpendType, len(revokedTicketDbIDs))
@@ -1225,10 +1304,18 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllTickets() (int64, error) {
 	// Update tickets table with spending info from new votes
 	var revokedTicketsUpdated int64
 	revokedTicketsUpdated, err = SetSpendingForTickets(pgb.db, revokedTicketDbIDs,
-		revokeIDs, revokeHeights, spendTypes)
+		revokeIDs, revokeHeights, spendTypes, poolStatuses)
 	if err != nil {
 		log.Warn("SetSpendingForTickets:", err)
 	}
 
 	return totalTicketsUpdated + revokedTicketsUpdated, err
+}
+
+func ticketpoolStatusSlice(ss TicketPoolStatus, N int) []TicketPoolStatus {
+	S := make([]TicketPoolStatus, N)
+	for ip := range S {
+		S[ip] = ss
+	}
+	return S
 }

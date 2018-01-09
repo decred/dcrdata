@@ -26,10 +26,13 @@ const (
 	TicketVoted
 )
 
+type TicketPoolStatus int16
+
 const (
-	TicketLive TicketSpendType = iota
-	TicketExpired
-	TicketMissed
+	PoolStatusLive TicketPoolStatus = iota
+	PoolStatusVoted
+	PoolStatusExpired
+	PoolStatusMissed
 )
 
 // Tickets have 6 states, 5 possible fates:
@@ -243,8 +246,87 @@ func RetrieveTicketIDsByHashes(db *sql.DB, ticketHashes []string) (ids []uint64,
 	return ids, dbtx.Commit()
 }
 
+func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64,
+	poolStatuses []TicketPoolStatus) (int64, error) {
+	if len(ticketDbIDs) == 0 {
+		return 0, nil
+	}
+	dbtx, err := db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+	}
+
+	var stmt *sql.Stmt
+	stmt, err = dbtx.Prepare(internal.SetTicketPoolStatusForTicketDbID)
+	if err != nil {
+		// Already up a creek. Just return error from Prepare.
+		_ = dbtx.Rollback()
+		return 0, fmt.Errorf("tickets SELECT prepare failed: %v", err)
+	}
+
+	var totalTicketsUpdated int64
+	rowsAffected := make([]int64, len(ticketDbIDs))
+	for i, ticketDbID := range ticketDbIDs {
+		rowsAffected[i], err = sqlExecStmt(stmt, "failed to set ticket spending info: ",
+			ticketDbID, poolStatuses[i])
+		if err != nil {
+			_ = stmt.Close()
+			return 0, dbtx.Rollback()
+		}
+		totalTicketsUpdated += rowsAffected[i]
+		if rowsAffected[i] != 1 {
+			log.Warnf("Updated pool status for %d tickets, expecting just 1 (%d)!",
+				rowsAffected[i], ticketDbID)
+		}
+	}
+
+	_ = stmt.Close()
+
+	return totalTicketsUpdated, dbtx.Commit()
+}
+
+func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
+	poolStatuses []TicketPoolStatus) (int64, error) {
+	if len(tickets) == 0 {
+		return 0, nil
+	}
+	dbtx, err := db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
+	}
+
+	var stmt *sql.Stmt
+	stmt, err = dbtx.Prepare(internal.SetTicketPoolStatusForHash)
+	if err != nil {
+		// Already up a creek. Just return error from Prepare.
+		_ = dbtx.Rollback()
+		return 0, fmt.Errorf("tickets SELECT prepare failed: %v", err)
+	}
+
+	var totalTicketsUpdated int64
+	rowsAffected := make([]int64, len(tickets))
+	for i, ticket := range tickets {
+		rowsAffected[i], err = sqlExecStmt(stmt, "failed to set ticket pool status: ",
+			ticket, poolStatuses[i])
+		if err != nil {
+			_ = stmt.Close()
+			return 0, dbtx.Rollback()
+		}
+		totalTicketsUpdated += rowsAffected[i]
+		if rowsAffected[i] != 1 {
+			log.Warnf("Updated pool status for %d tickets, expecting just 1 (%d)!",
+				rowsAffected[i], ticket)
+		}
+	}
+
+	_ = stmt.Close()
+
+	return totalTicketsUpdated, dbtx.Commit()
+}
+
 func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
-	blockHeights []int64, spendTypes []TicketSpendType) (int64, error) {
+	blockHeights []int64, spendTypes []TicketSpendType,
+	poolStatuses []TicketPoolStatus) (int64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
 		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
@@ -262,7 +344,7 @@ func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
 	rowsAffected := make([]int64, len(ticketDbIDs))
 	for i, ticketDbID := range ticketDbIDs {
 		rowsAffected[i], err = sqlExecStmt(stmt, "failed to set ticket spending info: ",
-			ticketDbID, blockHeights[i], spendDbIDs[i], spendTypes[i])
+			ticketDbID, blockHeights[i], spendDbIDs[i], spendTypes[i], poolStatuses[i])
 		if err != nil {
 			_ = stmt.Close()
 			return 0, dbtx.Rollback()
@@ -280,7 +362,7 @@ func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
 }
 
 func setSpendingForTickets(dbtx *sql.Tx, ticketDbIDs, spendDbIDs []uint64,
-	blockHeights []int64, spendTypes []TicketSpendType) error {
+	blockHeights []int64, spendTypes []TicketSpendType, poolStatuses []TicketPoolStatus) error {
 	stmt, err := dbtx.Prepare(internal.SetTicketSpendingInfoForTicketDbID)
 	if err != nil {
 		return fmt.Errorf("tickets SELECT prepare failed: %v", err)
@@ -289,7 +371,7 @@ func setSpendingForTickets(dbtx *sql.Tx, ticketDbIDs, spendDbIDs []uint64,
 	rowsAffected := make([]int64, len(ticketDbIDs))
 	for i, ticketDbID := range ticketDbIDs {
 		rowsAffected[i], err = sqlExecStmt(stmt, "failed to set ticket spending info: ",
-			ticketDbID, blockHeights[i], spendDbIDs[i], spendTypes[i])
+			ticketDbID, blockHeights[i], spendDbIDs[i], spendTypes[i], poolStatuses[i])
 		if err != nil {
 			_ = stmt.Close()
 			return err
@@ -1270,7 +1352,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 		err := stmt.QueryRow(
 			tx.TxID, tx.BlockHash, tx.BlockHeight, ticketDbIDs[i],
 			stakesubmissionAddress, isMultisig, isSplit, tx.NumVin,
-			price, fee, TicketUnspent).Scan(&id)
+			price, fee, TicketUnspent, PoolStatusLive).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
@@ -1302,8 +1384,9 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 // in the next block).
 //
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
-func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *TicketTxnIDGetter,
-	msgBlock *MsgBlockPG, checked bool) ([]uint64, []*dbtypes.Tx, []string, []uint64, []uint64, error) {
+func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
+	fTx *TicketTxnIDGetter, msgBlock *MsgBlockPG, checked bool) ([]uint64,
+	[]*dbtypes.Tx, []string, []uint64, map[string]uint64, error) {
 	// Choose only SSGen txns
 	msgTxs := msgBlock.STransactions
 	var voteTxs []*dbtypes.Tx
@@ -1411,7 +1494,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	}
 
 	// Store missed tickets
-	var idsMisses []uint64
+	missHashMap := make(map[string]uint64)
 	if len(misses) > 0 {
 		stmtMissed, err := dbtx.Prepare(internal.MakeMissInsertStatement(checked))
 		if err != nil {
@@ -1421,7 +1504,6 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 		}
 
 		blockHash := msgBlock.BlockHash().String()
-		idsMisses = make([]uint64, 0, len(voteTxs))
 		for i := range misses {
 			var id uint64
 			err = stmtMissed.QueryRow(
@@ -1437,12 +1519,12 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 				}
 				return nil, nil, nil, nil, nil, err
 			}
-			idsMisses = append(idsMisses, id)
+			missHashMap[misses[i]] = id
 		}
 		_ = stmtMissed.Close()
 	}
 
-	return ids, voteTxs, spentTicketHashes, spentTicketDbIDs, idsMisses, dbtx.Commit()
+	return ids, voteTxs, spentTicketHashes, spentTicketDbIDs, missHashMap, dbtx.Commit()
 }
 
 func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {

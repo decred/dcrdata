@@ -16,6 +16,7 @@ const (
 		price FLOAT8,
 		fee FLOAT8,
 		spend_type INT2,
+		pool_status INT2,
 		spend_height INT4,
 		spend_tx_db_id INT8
 	);`
@@ -24,11 +25,11 @@ const (
 	insertTicketRow0 = `INSERT INTO tickets (
 		tx_hash, block_hash, block_height, purchase_tx_db_id,
 		stakesubmission_address, is_multisig, is_split,
-		num_inputs, price, fee, spend_type)
+		num_inputs, price, fee, spend_type, pool_status)
 	VALUES (
 		$1, $2, $3,	$4,
 		$5, $6, $7,
-		$8, $9, $10, $11) `
+		$8, $9, $10, $11, $12) `
 	insertTicketRow = insertTicketRow0 + `RETURNING id;`
 	// insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTicketRow = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -56,14 +57,16 @@ const (
 
 	// Update
 	SetTicketSpendingInfoForHash = `UPDATE tickets
-		SET spend_type = $5, spend_height = $3, spend_tx_db_id = $4
+		SET spend_type = $5, spend_height = $3, spend_tx_db_id = $4, pool_status = $6
 		WHERE tx_hash = $1 and block_hash = $2;`
 	SetTicketSpendingInfoForTicketDbID = `UPDATE tickets
-		SET spend_type = $4, spend_height = $2, spend_tx_db_id = $3
+		SET spend_type = $4, spend_height = $2, spend_tx_db_id = $3, pool_status = $5
 		WHERE id = $1;`
 	SetTicketSpendingInfoForTxDbID = `UPDATE tickets
-		SET spend_type = $4, spend_height = $2, spend_tx_db_id = $3
+		SET spend_type = $4, spend_height = $2, spend_tx_db_id = $3, pool_status = $5
 		WHERE purchase_tx_db_id = $1;`
+	SetTicketPoolStatusForTicketDbID = `UPDATE tickets SET pool_status = $2 WHERE id = $1;`
+	SetTicketPoolStatusForHash       = `UPDATE tickets SET pool_status = $2 WHERE tx_hash = $1;`
 
 	// Index
 	IndexTicketsTableOnHashes = `CREATE UNIQUE INDEX uix_ticket_hashes_index
