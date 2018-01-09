@@ -424,6 +424,12 @@ func mainCore() error {
 	webMux.Get("/decodetx", explore.DecodeTxPage)
 	webMux.Get("/search", explore.Search)
 
+	// HTTP profiler
+	if cfg.HTTPProfile {
+		http.Handle("/", http.RedirectHandler("/debug/pprof", http.StatusSeeOther))
+		webMux.Mount("/p", http.DefaultServeMux)
+	}
+
 	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
 		log.Criticalf("listenAndServeProto: %v", err)
 		close(quit)
