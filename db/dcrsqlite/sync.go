@@ -256,12 +256,16 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 		//winningTickets := db.sDB.BestNode.Winners()
 
 		if (i-1)%rescanLogBlockChunk == 0 && i-1 != startHeight || i == startHeight {
-			endRangeBlock := rescanLogBlockChunk * (1 + (i-1)/rescanLogBlockChunk)
-			if endRangeBlock > height {
-				endRangeBlock = height
+			if i == 0 {
+				log.Infof("Scanning genesis block.")
+			} else {
+				endRangeBlock := rescanLogBlockChunk * (1 + (i-1)/rescanLogBlockChunk)
+				if endRangeBlock > height {
+					endRangeBlock = height
+				}
+				log.Infof("Scanning blocks %d to %d (%d live)...",
+					i, endRangeBlock, numLive)
 			}
-			log.Infof("Scanning blocks %d to %d (%d live)...",
-				i, endRangeBlock, numLive)
 		}
 
 		var tpi *apitypes.TicketPoolInfo

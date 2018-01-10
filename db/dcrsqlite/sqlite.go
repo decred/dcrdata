@@ -101,7 +101,7 @@ func NewDB(db *sql.DB) (*DB, error) {
 	d.insertBlockSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
             height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg, winners
-        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameSummaries)
 
 	d.getBlockSizeRangeSQL = fmt.Sprintf(`select size from %s where height between ? and ?`,
