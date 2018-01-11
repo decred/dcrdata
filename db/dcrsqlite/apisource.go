@@ -20,8 +20,8 @@ import (
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
-	apitypes "github.com/decred/dcrdata/dcrdataapi"
 	"github.com/decred/dcrdata/explorer"
 	"github.com/decred/dcrdata/mempool"
 	"github.com/decred/dcrdata/rpcutils"
@@ -673,6 +673,16 @@ func (db *wiredDB) GetPoolByHash(hash string) ([]string, error) {
 	return hss, nil
 }
 
+// GetBlockSummaryTimeRange returns the blocks created within a specified time
+// range min, max time
+func (db *wiredDB) GetBlockSummaryTimeRange(min, max int64, limit int) []apitypes.BlockDataBasic {
+	blockSummary, err := db.RetrieveBlockSummaryByTimeRange(min, max, limit)
+	if err != nil {
+		log.Errorf("Unable to retrieve block summary using time %d: %v", min, err)
+	}
+	return blockSummary
+}
+
 func (db *wiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
 	ticketPoolInfo, err := db.RetrievePoolInfo(int64(idx))
 	if err != nil {
@@ -754,6 +764,36 @@ func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 		Tickets: []*apitypes.TicketDetails(details),
 	}
 	return &mpTicketDetails
+}
+
+// GetAddressTransactionsWithSkip returns an apitypes.Address Object with at most the
+// last count transactions the address was in
+func (db *wiredDB) GetAddressTransactionsWithSkip(addr string, count, skip int) *apitypes.Address {
+	address, err := dcrutil.DecodeAddress(addr)
+	if err != nil {
+		log.Infof("Invalid address %s: %v", addr, err)
+		return nil
+	}
+	txs, err := db.client.SearchRawTransactionsVerbose(address, skip, count, false, true, nil)
+	if err != nil {
+		log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
+		return nil
+	}
+	tx := make([]*apitypes.AddressTxShort, 0, len(txs))
+	for i := range txs {
+		tx = append(tx, &apitypes.AddressTxShort{
+			TxID:          txs[i].Txid,
+			Time:          txs[i].Time,
+			Value:         txhelpers.TotalVout(txs[i].Vout).ToCoin(),
+			Confirmations: int64(txs[i].Confirmations),
+			Size:          int32(len(txs[i].Hex) / 2),
+		})
+	}
+	return &apitypes.Address{
+		Address:      addr,
+		Transactions: tx,
+	}
+
 }
 
 // GetAddressTransactions returns an apitypes.Address Object with at most the
@@ -919,6 +959,28 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 			}
 		}
 	}
+	return tx
+}
+
+// insight api implementation
+func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address string) *apitypes.AddressTxnOutput {
+	tx := new(apitypes.AddressTxnOutput)
+	tx.Address = address
+	tx.TxnID = data.Txid
+	tx.Height = 0
+	tx.Confirmations = int64(data.Confirmations)
+
+	for i := range data.Vout {
+		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
+			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
+				tx.ScriptPubKey = data.Vout[i].ScriptPubKey.Hex
+				tx.Vout = data.Vout[i].N
+				tx.Atoms += data.Vout[i].Value
+			}
+		}
+	}
+
+	tx.Amount = tx.Atoms * 100000000
 	return tx
 }
 

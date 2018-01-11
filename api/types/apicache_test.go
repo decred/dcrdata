@@ -1,4 +1,4 @@
-package dcrdataapi
+package types
 
 import (
 	"container/heap"

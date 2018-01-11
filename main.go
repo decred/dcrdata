@@ -1,6 +1,3 @@
-// Copyright (c) 2017, Jonathan Chappelow
-// See LICENSE for details.
-
 package main
 
 import (
@@ -21,12 +18,16 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrdata/api"
+	"github.com/decred/dcrdata/api/insight"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/explorer"
 	"github.com/decred/dcrdata/mempool"
+	m "github.com/decred/dcrdata/middleware"
+	notify "github.com/decred/dcrdata/notification"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers"
@@ -72,10 +73,10 @@ func mainCore() error {
 	// Connect to dcrd RPC server using websockets
 
 	// Set up the notification handler to deliver blocks through a channel.
-	makeNtfnChans(cfg)
+	notify.MakeNtfnChans(cfg.MonitorMempool)
 
 	// Daemon client connection
-	ntfnHandlers, collectionQueue := makeNodeNtfnHandlers(cfg)
+	ntfnHandlers, collectionQueue := notify.MakeNodeNtfnHandlers()
 	dcrdClient, nodeVer, err := connectNodeRPC(cfg, ntfnHandlers)
 	if err != nil || dcrdClient == nil {
 		return fmt.Errorf("Connection to dcrd failed: %v", err)
@@ -83,7 +84,7 @@ func mainCore() error {
 
 	defer func() {
 		// Closing these channels should be unnecessary if quit was handled right
-		closeNtfnChans()
+		notify.CloseNtfnChans()
 
 		if dcrdClient != nil {
 			log.Infof("Closing connection to dcrd.")
@@ -106,7 +107,7 @@ func mainCore() error {
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
 	baseDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
-		ntfnChans.updateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir)
+		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir)
 	defer cleanupDB()
 	if err != nil {
 		return fmt.Errorf("Unable to initialize SQLite database: %v", err)
@@ -332,7 +333,7 @@ func mainCore() error {
 	log.Infof("All ready, at height %d.", baseDBHeight)
 
 	// Register for notifications from dcrd
-	cerr := registerNodeNtfnHandlers(dcrdClient)
+	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
 	if cerr != nil {
 		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
 	}
@@ -348,16 +349,16 @@ func mainCore() error {
 	reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
 	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
 		reorgBlockDataSavers, quit, &wg, addrMap,
-		ntfnChans.connectChan, ntfnChans.recvTxBlockChan,
-		ntfnChans.reorgChanBlockData)
+		notify.NtfnChans.ConnectChan, notify.NtfnChans.RecvTxBlockChan,
+		notify.NtfnChans.ReorgChanBlockData)
 
 	// Blockchain monitor for the stake DB
 	sdbChainMonitor := baseDB.NewStakeDBChainMonitor(quit, &wg,
-		ntfnChans.connectChanStakeDB, ntfnChans.reorgChanStakeDB)
+		notify.NtfnChans.ConnectChanStakeDB, notify.NtfnChans.ReorgChanStakeDB)
 
 	// Blockchain monitor for the wired sqlite DB
 	wiredDBChainMonitor := baseDB.NewChainMonitor(collector, quit, &wg,
-		ntfnChans.connectChanWiredDB, ntfnChans.reorgChanWiredDB)
+		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
 
 	// Setup the synchronous handler functions called by the collectionQueue via
 	// OnBlockConnected.
@@ -429,7 +430,7 @@ func mainCore() error {
 		maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
 
 		mpm := mempool.NewMempoolMonitor(mpoolCollector, mempoolSavers,
-			ntfnChans.newTxChan, quit, &wg, newTicketLimit, mini, maxi, mpi)
+			notify.NtfnChans.NewTxChan, quit, &wg, newTicketLimit, mini, maxi, mpi)
 		wg.Add(1)
 		go mpm.TxHandler(dcrdClient)
 	}
@@ -441,14 +442,14 @@ func mainCore() error {
 	}
 
 	// Start web API
-	app := newContext(dcrdClient, &baseDB, cfg.IndentJSON)
+	app := api.NewContext(dcrdClient, &baseDB, cfg.IndentJSON)
 	// Start notification hander to keep /status up-to-date
 	wg.Add(1)
 	go app.StatusNtfnHandler(&wg, quit)
 	// Initial setting of db_height. Subsequently, Store() will send this.
-	ntfnChans.updateStatusDBHeight <- uint32(baseDB.GetHeight())
+	notify.NtfnChans.UpdateStatusDBHeight <- uint32(baseDB.GetHeight())
 
-	apiMux := newAPIRouter(app, cfg.UseRealIP)
+	apiMux := api.NewAPIRouter(app, cfg.UseRealIP)
 
 	webMux := chi.NewRouter()
 	webMux.Get("/", explore.Home)
@@ -472,6 +473,13 @@ func mainCore() error {
 	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)
 	webMux.Get("/decodetx", explore.DecodeTxPage)
 	webMux.Get("/search", explore.Search)
+
+	if usePG {
+		chainDBRPC, _ := dcrpg.NewChainDBRPC(auxDB, dcrdClient)
+		insightApp := insight.NewInsightContext(dcrdClient, chainDBRPC, cfg.IndentJSON)
+		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
+		webMux.Mount("/insight-api", insightMux.Mux)
+	}
 
 	// HTTP profiler
 	if cfg.HTTPProfile {
@@ -596,7 +604,7 @@ func FileServer(r chi.Router, path string, root http.FileSystem, CacheControlMax
 	}
 	path += "*"
 
-	r.With(CacheControl(CacheControlMaxAge)).Get(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.With(m.CacheControl(CacheControlMaxAge)).Get(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fs.ServeHTTP(w, r)
 	}))
 }

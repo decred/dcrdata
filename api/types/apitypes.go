@@ -1,7 +1,7 @@
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
-package dcrdataapi
+package types
 
 import (
 	"github.com/decred/dcrd/dcrjson"
@@ -254,14 +254,15 @@ type TicketPoolValsAndSizes struct {
 
 // BlockDataBasic models primary information about block at height Height
 type BlockDataBasic struct {
-	Height     uint32  `json:"height"`
-	Size       uint32  `json:"size"`
-	Hash       string  `json:"hash"`
-	Difficulty float64 `json:"diff"`
-	StakeDiff  float64 `json:"sdiff"`
-	Time       int64   `json:"time"`
+	Height     uint32  `json:"height,omitemtpy"`
+	Size       uint32  `json:"size,omitemtpy"`
+	Hash       string  `json:"hash,omitemtpy"`
+	Difficulty float64 `json:"diff,omitemtpy"`
+	StakeDiff  float64 `json:"sdiff,omitemtpy"`
+	Time       int64   `json:"time,omitemtpy"`
+	NumTx      uint32  `json:"txlength,omitempty"`
 	//TicketPoolInfo
-	PoolInfo TicketPoolInfo `json:"ticket_pool"`
+	PoolInfo TicketPoolInfo `json:"ticket_pool,omitempty"`
 }
 
 // BlockExplorerBasic models primary information about block at height Height

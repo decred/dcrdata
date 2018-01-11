@@ -15,7 +15,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/dcrdataapi"
+	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers"
 )
@@ -230,4 +230,37 @@ func GetBlockByHash(blockhash *chainhash.Hash, client *rpcclient.Client) (*dcrut
 	block := dcrutil.NewBlock(msgBlock)
 
 	return block, nil
+}
+
+// GetTransactionVerboseByID get a transaction by transaction id
+func GetTransactionVerboseByID(client *rpcclient.Client, txid string) (*dcrjson.TxRawResult, error) {
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil, err
+	}
+
+	txraw, err := client.GetRawTransactionVerbose(txhash)
+	if err != nil {
+		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
+		return nil, err
+	}
+	return txraw, nil
+}
+
+// SearchRawTransaction fetch transactions the belong to an
+// address
+func SearchRawTransaction(client *rpcclient.Client, count int, address string) ([]*dcrjson.SearchRawTransactionsResult, error) {
+	addr, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		log.Infof("Invalid address %s: %v", address, err)
+		return nil, err
+	}
+	//change the 1000 000 number demo for now
+	txs, err := client.SearchRawTransactionsVerbose(addr, 0, count,
+		true, true, nil)
+	if err != nil {
+		log.Warnf("SearchRawTransaction failed for address %s: %v", addr, err)
+	}
+	return txs, nil
 }

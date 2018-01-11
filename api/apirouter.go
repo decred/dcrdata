@@ -1,9 +1,13 @@
-package main
+// Copyright (c) 2017, The dcrdata developers
+// See LICENSE for details.
+
+package api
 
 import (
 	"net/http"
 	"strings"
 
+	m "github.com/decred/dcrdata/middleware"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
@@ -16,7 +20,7 @@ type apiMux struct {
 // APIVersion is an integer value, incremented for breaking changes
 const APIVersion = 0
 
-func newAPIRouter(app *appContext, userRealIP bool) apiMux {
+func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 	// chi router
 	mux := chi.NewRouter()
 
@@ -65,7 +69,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		})
 
 		r.Route("/{idx}", func(rd chi.Router) {
-			rd.Use(BlockIndexPathCtx)
+			rd.Use(m.BlockIndexPathCtx)
 			rd.Get("/", app.getBlockSummary)
 			rd.Get("/header", app.getBlockHeader)
 			rd.Get("/hash", app.getBlockHash)
@@ -79,12 +83,12 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		})
 
 		r.Route("/range/{idx0}/{idx}", func(rd chi.Router) {
-			rd.Use(BlockIndex0PathCtx, BlockIndexPathCtx)
+			rd.Use(m.BlockIndex0PathCtx, m.BlockIndexPathCtx)
 			rd.Use(middleware.Compress(1))
 			rd.Get("/", app.getBlockRangeSummary)
 			rd.Get("/size", app.getBlockRangeSize)
 			rd.Route("/{step}", func(rs chi.Router) {
-				rs.Use(BlockStepPathCtx)
+				rs.Use(m.BlockStepPathCtx)
 				rs.Get("/", app.getBlockRangeSteppedSummary)
 				rs.Get("/size", app.getBlockRangeSteppedSize)
 			})
@@ -103,46 +107,46 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		r.Route("/pool", func(rd chi.Router) {
 			rd.With(app.BlockIndexLatestCtx).Get("/", app.getTicketPoolInfo)
 			rd.With(app.BlockIndexLatestCtx).Get("/full", app.getTicketPool)
-			rd.With(BlockIndexPathCtx).Get("/b/{idx}", app.getTicketPoolInfo)
-			rd.With(BlockIndexOrHashPathCtx).Get("/b/{idxorhash}/full", app.getTicketPool)
-			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/{idx0}/{idx}", app.getTicketPoolInfoRange)
+			rd.With(m.BlockIndexPathCtx).Get("/b/{idx}", app.getTicketPoolInfo)
+			rd.With(m.BlockIndexOrHashPathCtx).Get("/b/{idxorhash}/full", app.getTicketPool)
+			rd.With(m.BlockIndex0PathCtx, m.BlockIndexPathCtx).Get("/r/{idx0}/{idx}", app.getTicketPoolInfoRange)
 		})
 		r.Route("/diff", func(rd chi.Router) {
 			rd.Get("/", app.getStakeDiffSummary)
 			rd.Get("/current", app.getStakeDiffCurrent)
 			rd.Get("/estimates", app.getStakeDiffEstimates)
-			rd.With(BlockIndexPathCtx).Get("/b/{idx}", app.getStakeDiff)
-			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/{idx0}/{idx}", app.getStakeDiffRange)
+			rd.With(m.BlockIndexPathCtx).Get("/b/{idx}", app.getStakeDiff)
+			rd.With(m.BlockIndex0PathCtx, m.BlockIndexPathCtx).Get("/r/{idx0}/{idx}", app.getStakeDiffRange)
 		})
 	})
 
 	mux.Route("/tx", func(r chi.Router) {
 		r.Route("/", func(rt chi.Router) {
 			rt.Route("/{txid}", func(rd chi.Router) {
-				rd.Use(TransactionHashCtx)
+				rd.Use(m.TransactionHashCtx)
 				rd.Get("/", app.getTransaction)
 				rd.Route("/out", func(ro chi.Router) {
 					ro.Get("/", app.getTransactionOutputs)
-					ro.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionOutput)
+					ro.With(m.TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionOutput)
 				})
 				rd.Route("/in", func(ri chi.Router) {
 					ri.Get("/", app.getTransactionInputs)
-					ri.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionInput)
+					ri.With(m.TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionInput)
 				})
 				rd.Get("/vinfo", app.getTxVoteInfo)
 			})
 		})
-		r.With(TransactionHashCtx).Get("/hex/{txid}", app.getTransactionHex)
-		r.With(TransactionHashCtx).Get("/decoded/{txid}", app.getDecodedTx)
+		r.With(m.TransactionHashCtx).Get("/hex/{txid}", app.getTransactionHex)
+		r.With(m.TransactionHashCtx).Get("/decoded/{txid}", app.getDecodedTx)
 	})
 
 	mux.Route("/address", func(r chi.Router) {
 		r.Route("/{address}", func(rd chi.Router) {
-			rd.Use(AddressPathCtx)
+			rd.Use(m.AddressPathCtx)
 			rd.Get("/", app.getAddressTransactions)
 			rd.With((middleware.Compress(1))).Get("/raw", app.getAddressTransactionsRaw)
 			rd.Route("/count/{N}", func(ri chi.Router) {
-				ri.Use(NPathCtx)
+				ri.Use(m.NPathCtx)
 				ri.Get("/", app.getAddressTransactions)
 				ri.With((middleware.Compress(1))).Get("/raw", app.getAddressTransactionsRaw)
 			})
@@ -155,9 +159,9 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		r.Route("/sstx", func(rd chi.Router) {
 			rd.Get("/", app.getSSTxSummary)
 			rd.Get("/fees", app.getSSTxFees)
-			rd.With(NPathCtx).Get("/fees/{N}", app.getSSTxFees)
+			rd.With(m.NPathCtx).Get("/fees/{N}", app.getSSTxFees)
 			rd.Get("/details", app.getSSTxDetails)
-			rd.With(NPathCtx).Get("/details/{N}", app.getSSTxDetails)
+			rd.With(m.NPathCtx).Get("/details/{N}", app.getSSTxDetails)
 		})
 	})
 

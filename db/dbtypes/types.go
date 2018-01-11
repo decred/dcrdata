@@ -318,3 +318,13 @@ type Block struct {
 	StakeVersion uint32  `json:"stakeversion"`
 	PreviousHash string  `json:"previousblockhash"`
 }
+
+type BlockDataBasic struct {
+	Height     uint32  `json:"height,omitemtpy"`
+	Size       uint32  `json:"size,omitemtpy"`
+	Hash       string  `json:"hash,omitemtpy"`
+	Difficulty float64 `json:"diff,omitemtpy"`
+	StakeDiff  float64 `json:"sdiff,omitemtpy"`
+	Time       int64   `json:"time,omitemtpy"`
+	NumTx      uint32  `json:"txlength,omitempty"`
+}
