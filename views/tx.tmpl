@@ -46,22 +46,20 @@
                         {{end}}
                     {{end}}
                 {{end}}
-                {{if eq .Type "Ticket"}}
-                    {{if (index .SpendingTxns 0).Hash}}
-                        <tr>
-                            <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">SPENT IN</td>
-                            <td>
-                                <a href="/tx/{{(index .SpendingTxns 0).Hash}}">{{(index .SpendingTxns 0).Hash}}</a>
-                            </td>
-                        </tr>
-                    {{end}}
-                {{end}}
                 <tr>
                     <td class="text-right pr-2 h1rem p03rem0">TYPE</td>
                     <td>
                         {{.Type}}
                     </td>
                 </tr>
+                {{if eq .Type "Ticket"}}
+                <tr>
+                    <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">POOL STATUS</td>
+                    <td>
+                        {{if ne .TicketInfo.SpendStatus "voted"}} {{.TicketInfo.PoolStatus}}  / {{end}} {{if (index .SpendingTxns 0).Hash}}<a href="/tx/{{(index .SpendingTxns 0).Hash}}">{{.TicketInfo.SpendStatus}}</a>{{else}}{{.TicketInfo.SpendStatus}}{{end}}
+                    </td>
+                </tr>
+                {{end}}
                 {{if eq .Mature "True"}}
                     <td class="text-right pr-2 h1rem p03rem0">MATURE</td><td>{{.Mature}}</td>
                 {{end}}
@@ -75,13 +73,13 @@
                                     <div
                                         class="progress-bar"
                                         role="progressbar"
-                                        style="width: {{percentage (subtract .Confirmations 1) .TicketMaturity}}%; background: #2ed8a3;"
+                                        style="width: {{percentage (subtract .Confirmations 1) .TicketInfo.TicketMaturity}}%; background: #2ed8a3;"
                                         aria-valuenow="{{.Confirmations}}"
                                         aria-valuemin="0"
                                         aria-valuemax="256"
                                     >
                                         <span style="color:#383b41" class="nowrap pl-1 pr-1">
-                                            Immature, {{ if eq .Type "Ticket"}}eligible to vote{{else}}spendable{{end}} in {{ if eq .Confirmations .TicketMaturity }}next block{{else}}{{subtract (add .TicketMaturity 1) .Confirmations}} blocks{{end}}
+                                            Immature, {{ if eq .Type "Ticket"}}eligible to vote{{else}}spendable{{end}} in {{ if eq .Confirmations .TicketInfo.TicketMaturity }}next block{{else}}{{subtract (add .TicketInfo.TicketMaturity 1) .Confirmations}} blocks{{end}}
                                         </span>
                                     </div>
                                 </div>

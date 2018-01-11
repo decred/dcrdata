@@ -53,6 +53,7 @@ const (
 	SelectTicketsForPriceAtMost  = `SELECT * FROM tickets WHERE price <= $1;`
 	SelectTicketIDHeightByHash   = `SELECT id, block_height FROM tickets WHERE tx_hash = $1;`
 	SelectTicketIDByHash         = `SELECT id FROM tickets WHERE tx_hash = $1;`
+	SelectTicketStatusByHash     = `SELECT id, spend_type, pool_status FROM tickets WHERE tx_hash = $1;`
 	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1;`
 
 	// Update

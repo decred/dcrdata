@@ -1075,7 +1075,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 			tx.Mature = "True"
 		} else {
 			tx.Mature = "False"
-			tx.TicketMaturity = int64(db.params.TicketMaturity)
+			tx.TicketInfo.TicketMaturity = int64(db.params.TicketMaturity)
 		}
 	}
 	if tx.Type == "Vote" {

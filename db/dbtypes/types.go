@@ -9,6 +9,56 @@ import (
 	"github.com/dcrdata/dcrdata/db/dbtypes/internal"
 )
 
+// Tickets have 6 states, 5 possible fates:
+// Live -...---> Voted
+//           \-> Missed (unspent) [--> Revoked]
+//            \--...--> Expired (unspent) [--> Revoked]
+
+type TicketSpendType int16
+
+const (
+	TicketUnspent TicketSpendType = iota
+	TicketRevoked
+	TicketVoted
+)
+
+func (p TicketSpendType) String() string {
+	switch p {
+	case TicketUnspent:
+		return "unspent"
+	case TicketRevoked:
+		return "revoked"
+	case TicketVoted:
+		return "voted"
+	default:
+		return "unknown"
+	}
+}
+
+type TicketPoolStatus int16
+
+const (
+	PoolStatusLive TicketPoolStatus = iota
+	PoolStatusVoted
+	PoolStatusExpired
+	PoolStatusMissed
+)
+
+func (p TicketPoolStatus) String() string {
+	switch p {
+	case PoolStatusLive:
+		return "live"
+	case PoolStatusVoted:
+		return "voted"
+	case PoolStatusExpired:
+		return "expired"
+	case PoolStatusMissed:
+		return "missed"
+	default:
+		return "unknown"
+	}
+}
+
 // SyncResult is the result of a database sync operation, containing the height
 // of the last block and an arror value.
 type SyncResult struct {

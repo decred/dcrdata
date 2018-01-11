@@ -18,37 +18,6 @@ import (
 	"github.com/lib/pq"
 )
 
-type TicketSpendType int16
-
-const (
-	TicketUnspent TicketSpendType = iota
-	TicketRevoked
-	TicketVoted
-)
-
-type TicketPoolStatus int16
-
-const (
-	PoolStatusLive TicketPoolStatus = iota
-	PoolStatusVoted
-	PoolStatusExpired
-	PoolStatusMissed
-)
-
-// Tickets have 6 states, 5 possible fates:
-// Live -...---> Voted
-//           \-> Missed (unspent) [--> Revoked]
-//            \--...--> Expired (unspent) [--> Revoked]
-
-// const (
-// 	TicketExpiredUnspent TicketSpendType = iota - 2 // Expired (unspent, not live)
-// 	TicketMissedUnspent                             // Missed, not revoked (unspent, not live)
-// 	TicketLive                                      // Live (unspent), including immature
-// 	TicketVoted                                     // Voted (spent by ssgen)
-// 	TicketMissedRevoked                             // Missed, revoked (spent by ssrtx)
-// 	TicketExpiredRevoked                            // Expired, revoked (spent by ssrtx)
-// )
-
 func ExistsIndex(db *sql.DB, indexName string) (exists bool, err error) {
 	err = db.QueryRow(internal.IndexExists, indexName, "public").Scan(&exists)
 	return
@@ -212,6 +181,12 @@ func RetrieveTicketIDByHash(db *sql.DB, ticketHash string) (id uint64, err error
 	return
 }
 
+func RetrieveTicketStatusByHash(db *sql.DB, ticketHash string) (id uint64, spend_status dbtypes.TicketSpendType,
+	pool_status dbtypes.TicketPoolStatus, err error) {
+	err = db.QueryRow(internal.SelectTicketStatusByHash, ticketHash).Scan(&id, &spend_status, &pool_status)
+	return
+}
+
 func RetrieveTicketIDsByHashes(db *sql.DB, ticketHashes []string) (ids []uint64, err error) {
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -247,7 +222,7 @@ func RetrieveTicketIDsByHashes(db *sql.DB, ticketHashes []string) (ids []uint64,
 }
 
 func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64,
-	poolStatuses []TicketPoolStatus) (int64, error) {
+	poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
 	if len(ticketDbIDs) == 0 {
 		return 0, nil
 	}
@@ -286,7 +261,7 @@ func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64,
 }
 
 func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
-	poolStatuses []TicketPoolStatus) (int64, error) {
+	poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
 	if len(tickets) == 0 {
 		return 0, nil
 	}
@@ -325,8 +300,8 @@ func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
 }
 
 func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
-	blockHeights []int64, spendTypes []TicketSpendType,
-	poolStatuses []TicketPoolStatus) (int64, error) {
+	blockHeights []int64, spendTypes []dbtypes.TicketSpendType,
+	poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
 		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
@@ -362,7 +337,8 @@ func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
 }
 
 func setSpendingForTickets(dbtx *sql.Tx, ticketDbIDs, spendDbIDs []uint64,
-	blockHeights []int64, spendTypes []TicketSpendType, poolStatuses []TicketPoolStatus) error {
+	blockHeights []int64, spendTypes []dbtypes.TicketSpendType,
+	poolStatuses []dbtypes.TicketPoolStatus) error {
 	stmt, err := dbtx.Prepare(internal.SetTicketSpendingInfoForTicketDbID)
 	if err != nil {
 		return fmt.Errorf("tickets SELECT prepare failed: %v", err)
@@ -1352,7 +1328,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 		err := stmt.QueryRow(
 			tx.TxID, tx.BlockHash, tx.BlockHeight, ticketDbIDs[i],
 			stakesubmissionAddress, isMultisig, isSplit, tx.NumVin,
-			price, fee, TicketUnspent, PoolStatusLive).Scan(&id)
+			price, fee, dbtypes.TicketUnspent, dbtypes.PoolStatusLive).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue

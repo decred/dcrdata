@@ -63,7 +63,13 @@ type TxInfo struct {
 	FormattedTime   string
 	Mature          string
 	VoteFundsLocked string
-	TicketMaturity  int64
+	TicketInfo
+}
+
+type TicketInfo struct {
+	TicketMaturity int64
+	PoolStatus     string
+	SpendStatus    string
 }
 
 // TxInID models the identity of a spending transaction input

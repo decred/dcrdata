@@ -150,11 +150,15 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 			default:
 			}
 
+			// stakeDB is not locked between Height() and PoolInfo() so there is
+			// a data race. Get the height first to avoid resulting errors.
+			blocksBehind := ib - int64(db.stakeDB.Height())
+
 			if tpi, ok := db.stakeDB.PoolInfo(*blockHash); ok {
 				winners = tpi.Winners
 				break
 			}
-			blocksBehind := ib - int64(db.stakeDB.Height())
+
 			if blocksBehind <= 0 {
 				return ib - 1, fmt.Errorf("stakeDB.PoolInfo failed.")
 			}

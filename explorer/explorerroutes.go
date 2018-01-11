@@ -169,6 +169,19 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				Index: spendingTxVinInds[i],
 			}
 		}
+		if tx.Type == "Ticket" {
+			spendStatus, poolStatus, err := exp.explorerSource.PoolStatusForTicket(hash)
+			if err != nil {
+				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v", hash, err)
+			} else {
+				if tx.Mature == "False" {
+					tx.TicketInfo.PoolStatus = "immature"
+				} else {
+					tx.TicketInfo.PoolStatus = poolStatus.String()
+				}
+				tx.TicketInfo.SpendStatus = spendStatus.String()
+			}
+		}
 	}
 
 	pageData := struct {
