@@ -11,62 +11,74 @@
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
                 <div class="mono">{{.Address}}</div>
-                <table class="table-centered-1rem">
-                    {{if .Balance}}
-                    {{if not .KnownFundingTxns}}
-                    <tr>
-                        <td class="text-right pr-2 h1rem p03rem0">The {{.NumFundingTxns}} most recent transactions are tabulated below.</td>
-                    </tr>
-                    {{end}}
-                    <!-- <tr>
-                        <td class="text-right pr-2 h1rem p03rem0">UNCONFIRMED</td>
-                        <td>{{.NumUnconfirmed}}</td>
-                    </tr> -->
-                    {{end}}
-                </table>
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
                 <table>
-                    {{if .Balance}}
-                    <tr class="h2rem">
-                        <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
-                        <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
-                            {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="pl-1 unit">DCR</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2">RECEIVED</td>
-                        <td class="mono nowrap text-right">
-                            {{with $received := add .Balance.TotalSpent .Balance.TotalUnspent}}
-                            {{template "decimalParts" (amountAsDecimalParts $received true)}}<span class="pl-1 unit">DCR</span>
-                            {{end}}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2">SPENT</td>
-                        <td class="mono nowrap text-right">
-                            {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="pl-1 unit">DCR</span>
-                        </td>
-                    </tr>
+                    {{if .Fullmode}}
+                        {{if .Balance}}
+                        <tr class="h2rem">
+                            <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
+                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
+                                {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="pl-1 unit">DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2">RECEIVED</td>
+                            <td class="mono nowrap text-right">
+                                {{$received := add .Balance.TotalSpent .Balance.TotalUnspent}}
+                                {{template "decimalParts" (amountAsDecimalParts $received true)}}<span class="pl-1 unit">DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2">SPENT</td>
+                            <td class="mono nowrap text-right">
+                                {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="pl-1 unit">DCR</span>
+                            </td>
+                        </tr>
+                        {{else}}
+                        <tr class="h2rem">
+                            <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
+                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
+                                <span class="pl-1 unit">0.000000000 DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2">RECEIVED</td>
+                            <td class="mono nowrap text-right">
+                                <span class="pl-1 unit">0.000000000 DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2">SPENT</td>
+                            <td class="mono nowrap text-right">
+                                <span class="pl-1 unit">0.000000000 DCR</span>
+                            </td>
+                        </tr>
+                        {{end}}
                     {{else}}
-                    <tr class="h2rem">
-                        <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
+                    <tr>
+                        <td class="pr-2 lh1rem vam text-right xs-w91">TRANSACTIONS</td>
                         <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
-                            <span class="pl-1 unit">0.000000000 DCR</span>
+                            {{.NumTransactions}}
                         </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2">UNCONFIRMED</td>
+                        <td class="mono nowrap text-right">{{.NumUnconfirmed}}</td>
                     </tr>
                     <tr>
                         <td class="text-right pr-2">RECEIVED</td>
-                        <td class="mono nowrap text-right">
-                            <span class="pl-1 unit">0.000000000 DCR</span>
-                        </td>
+                        <td class="mono nowrap text-right">{{.TotalReceived}}</td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2">SPENT</td>
-                        <td class="mono nowrap text-right">
-                            <span class="pl-1 unit">0.000000000 DCR</span>
-                        </td>
+                        <td class="text-right pr-2">SENT</td>
+                        <td class="mono nowrap text-right">{{.TotalSent}}</td>
                     </tr>
+                    <tr>
+                        <td class="text-right pr-2">UNSPENT</td>
+                        <td class="mono nowrap text-right">{{.Unspent}}</td>
+                    </tr>
+                           
                     {{end}}
                 </table>
             </div>
@@ -147,7 +159,7 @@
                                 <span data-age="{{.Time}}"></span>
                             {{end}}
                             </td>
-                            <td data-confirmation-block-height="{{index $heights $i}}">{{.Confirmations}}</td>
+                            <td data-confirmation-block-height="{{index $.ConfirmHeight $i}}">{{.Confirmations}}</td>
                             <td>{{.FormattedSize}}</td>
                             {{end}}
                         </tr>

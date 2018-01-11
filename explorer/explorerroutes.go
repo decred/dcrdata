@@ -240,6 +240,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.Balance = balance
 		addrData.Path = r.URL.Path
+		addrData.Fullmode = true
 		// still need []*AddressTx filled out and NumUnconfirmed
 
 		// Query database for transaction details

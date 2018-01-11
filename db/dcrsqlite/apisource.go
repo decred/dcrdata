@@ -1093,6 +1093,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			}
 		}
 	}
+	numberOfTx := int64(len(txs))
 
 	balance := &explorer.AddressBalance{
 		Address:      address,
@@ -1107,7 +1108,8 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		Offset:           offset,
 		Transactions:     addressTxs,
 		NumFundingTxns:   numReceiving,
-		KnownFundingTxns: balance.NumSpent + balance.NumUnspent,
+		NumTransactions:  numberOfTx,
+		KnownFundingTxns: numberOfTx,
 		NumSpendingTxns:  numSpending,
 		NumUnconfirmed:   numUnconfirmed,
 		TotalReceived:    totalreceived,
