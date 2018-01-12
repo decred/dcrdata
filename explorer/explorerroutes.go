@@ -179,10 +179,10 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	limitN, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
 	if err != nil || limitN < 0 {
 		limitN = defaultAddressRows
-	} else if limitN > maxAddressRows {
+	} else if limitN > MaxAddressRows {
 		log.Warnf("addressPage: requested up to %d address rows, "+
-			"limiting to %d", limitN, maxAddressRows)
-		limitN = maxAddressRows
+			"limiting to %d", limitN, MaxAddressRows)
+		limitN = MaxAddressRows
 	}
 
 	// Number of outputs to skip (OFFSET in database query). For UX reasons, the

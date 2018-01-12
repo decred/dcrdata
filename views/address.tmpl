@@ -57,14 +57,10 @@
                         {{end}}
                     {{else}}
                     <tr>
-                        <td class="pr-2 lh1rem vam text-right xs-w91">TRANSACTIONS</td>
+                        <td class="pr-2 lh1rem vam text-right xs-w91">UNCONFIRMED</td>
                         <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
-                            {{.NumTransactions}}
+                            {{.NumUnconfirmed}}
                         </td>
-                    </tr>
-                    <tr>
-                        <td class="text-right pr-2">UNCONFIRMED</td>
-                        <td class="mono nowrap text-right">{{.NumUnconfirmed}}</td>
                     </tr>
                     <tr>
                         <td class="text-right pr-2">RECEIVED</td>
