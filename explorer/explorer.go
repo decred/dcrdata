@@ -69,6 +69,7 @@ type explorerDataSource interface {
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *AddressBalance, error)
 	FillAddressTransactions(addrInfo *AddressInfo) error
+	GetDevAddress() string
 }
 
 type explorerUI struct {
@@ -191,6 +192,9 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.explorerSource = primaryDataSource
 	exp.MempoolData = new(MempoolInfo)
 	exp.Version = appVersion
+	exp.ExtraInfo = &HomeInfo{
+		DevAddress: exp.explorerSource.GetDevAddress(),
+	}
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
@@ -263,6 +267,10 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		},
 		"ticketWindowProgress": func(i int) float64 {
 			p := (float64(i) / float64(exp.ChainParams.StakeDiffWindowSize)) * 100
+			return p
+		},
+		"rewardAdjustmentProgress": func(i int) float64 {
+			p := (float64(i) / float64(exp.ChainParams.SubsidyReductionInterval)) * 100
 			return p
 		},
 		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
@@ -408,11 +416,17 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		Revocations:    uint32(bData.Revocations),
 	}
 	exp.NewBlockData = newBlockData
+
+	_, devBalance, _ := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
+
 	exp.ExtraInfo = &HomeInfo{
-		CoinSupply:       blockData.ExtraInfo.CoinSupply,
-		StakeDiff:        blockData.CurrentStakeDiff.CurrentStakeDifficulty,
-		IdxBlockInWindow: blockData.IdxBlockInWindow,
-		Difficulty:       blockData.Header.Difficulty,
+		CoinSupply:        blockData.ExtraInfo.CoinSupply,
+		StakeDiff:         blockData.CurrentStakeDiff.CurrentStakeDifficulty,
+		IdxBlockInWindow:  blockData.IdxBlockInWindow,
+		IdxInRewardWindow: int(newBlockData.Height % exp.ChainParams.SubsidyReductionInterval),
+		DevAddress:        exp.ExtraInfo.DevAddress,
+		DevFund:           devBalance.TotalUnspent,
+		Difficulty:        blockData.Header.Difficulty,
 		NBlockSubsidy: BlockSubsidy{
 			Dev:   blockData.ExtraInfo.NextBlockSubsidy.Developer,
 			PoS:   blockData.ExtraInfo.NextBlockSubsidy.PoS,
@@ -420,7 +434,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 			Total: blockData.ExtraInfo.NextBlockSubsidy.Total,
 		},
 		Params: ChainParams{
-			WindowSize: exp.ChainParams.StakeDiffWindowSize,
+			WindowSize:       exp.ChainParams.StakeDiffWindowSize,
+			RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
 		},
 	}
 	exp.NewBlockDataMtx.Unlock()
@@ -435,6 +450,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 func (exp *explorerUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) error {
 	exp.MempoolData.RLock()
 	exp.MempoolData.NumTickets = data.NumTickets
+	exp.MempoolData.NumVotes = data.NumVotes
 	exp.MempoolData.RUnlock()
 	exp.wsHub.HubRelay <- sigMempoolUpdate
 

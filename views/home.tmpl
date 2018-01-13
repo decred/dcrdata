@@ -32,6 +32,10 @@
                             <td><span id="mempoolfeeinfo_number" class="mono fs24">{{$.Mempool.NumTickets}}</span></td>
                         </tr>
                         <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">VOTES IN MEMPOOL</td>
+                            <td><span id="mempool_vote_number" class="mono fs24">{{$.Mempool.NumVotes}}</span></td>
+                        </tr>
+                        <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET WINDOW PROGRESS</td>
                             <td>
                                 <div class="row">
@@ -47,6 +51,28 @@
                                                 aria-valuemax="{{.Params.WindowSize}}"
                                             >
                                             <span id="blocksdiff" style="color:#383b41" class="nowrap pl-1">block <span id="window_block_index" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">POW REWARD ADJUSTMENT PROGRESS</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-11 col-lg-8">
+                                        <div class="progress" style="max-width: 330px">
+                                            <div
+                                                class="progress-bar"
+                                                id="pow-window-progess-bar"
+                                                role="progressbar"
+                                                style="width: {{rewardAdjustmentProgress .IdxInRewardWindow}}%; background: #2ed8a3;"
+                                                aria-valuenow="{{.IdxInRewardWindow}}"
+                                                aria-valuemin="0"
+                                                aria-valuemax="{{.Params.RewardWindowSize}}"
+                                            >
+                                            <span id="powreward" style="color:#383b41" class="nowrap pl-1">block <span id="reward_block_index" >{{.IdxInRewardWindow}}</span> of {{.Params.RewardWindowSize}}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -85,6 +111,12 @@
                             <td class="text-right pr-2 lh1rem">DEV REWARD</td>
                             <td>
                                 <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_dev">{{template "decimalParts" (amountAsDecimalParts .NBlockSubsidy.Dev true)}}</span><span class="unit"> DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1"><a href="/address/{{.DevAddress}}">Developer Subsidy</a></td>
+                            <td>
+                                <span id="dev_fund" class="mono lh1rem fs14-decimal fs18">{{template "decimalParts" (amountAsDecimalParts .DevFund true)}}</span><span class="unit"> DCR</span>
                             </td>
                         </tr>
                     </table>

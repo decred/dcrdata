@@ -197,6 +197,11 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 	return blockHash, blockInd, tree, err
 }
 
+// GetDevAddress returns the developer subsidy address
+func (pgb *ChainDB) GetDevAddress() string {
+	return pgb.devAddress
+}
+
 // AddressHistory queries the database for all rows of the addresses table for
 // the given address.
 func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error) {

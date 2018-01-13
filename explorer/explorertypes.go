@@ -161,12 +161,15 @@ type AddressBalance struct {
 
 // HomeInfo represents data used for the home page
 type HomeInfo struct {
-	CoinSupply       int64        `json:"coin_supply"`
-	StakeDiff        float64      `json:"sdiff"`
-	IdxBlockInWindow int          `json:"window_idx"`
-	Difficulty       float64      `json:"difficulty"`
-	NBlockSubsidy    BlockSubsidy `json:"subsidy"`
-	Params           ChainParams  `json:"params"`
+	CoinSupply        int64        `json:"coin_supply"`
+	StakeDiff         float64      `json:"sdiff"`
+	IdxBlockInWindow  int          `json:"window_idx"`
+	IdxInRewardWindow int          `json:"reward_idx"`
+	Difficulty        float64      `json:"difficulty"`
+	DevFund           int64        `json:"dev_fund"`
+	DevAddress        string       `json:"dev_address"`
+	NBlockSubsidy     BlockSubsidy `json:"subsidy"`
+	Params            ChainParams  `json:"params"`
 }
 
 // BlockSubsidy is an implementation of dcrjson.GetBlockSubsidyResult
@@ -181,12 +184,14 @@ type BlockSubsidy struct {
 type MempoolInfo struct {
 	sync.RWMutex
 	NumTickets uint32 `json:"num_tickets"`
+	NumVotes   uint32 `json:"num_votes"`
 }
 
 // ChainParams models simple data about the chain server's parameters used for some
 // info on the front page
 type ChainParams struct {
-	WindowSize int64 `json:"window_size"`
+	WindowSize       int64 `json:"window_size"`
+	RewardWindowSize int64 `json:"reward_window_size"`
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
