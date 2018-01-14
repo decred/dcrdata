@@ -437,6 +437,11 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 			WindowSize:       exp.ChainParams.StakeDiffWindowSize,
 			RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
 		},
+		PoolInfo: TicketPoolInfo{
+			Size:   blockData.PoolInfo.Size,
+			Value:  blockData.PoolInfo.Value,
+			ValAvg: blockData.PoolInfo.ValAvg,
+		},
 	}
 	exp.NewBlockDataMtx.Unlock()
 

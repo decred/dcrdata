@@ -210,6 +210,8 @@
                 $("#pos-window-progess-bar").css({ width: (ex.window_idx/ex.params.window_size)*100 + "%" })
                 $("#reward_block_index").text(ex.reward_idx)
                 $("#pow-window-progess-bar").css({ width: (ex.reward_idx/ex.params.reward_window_size)*100 + "%" })
+                $("#pool_size").text(ex.pool_info.size)
+                $("#pool_value").html(humanize.decimalParts(ex.pool_info.value, true, 8))
             }
         };
         ws.registerEvtHandler("newblock", updateBlockData);

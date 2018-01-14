@@ -36,6 +36,18 @@
                             <td><span id="mempool_vote_number" class="mono fs24">{{$.Mempool.NumVotes}}</span></td>
                         </tr>
                         <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL SIZE</td>
+                            <td>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_size">{{.PoolInfo.Size}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL VALUE</td>
+                            <td>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_value">{{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value true)}}</span><span class="unit"> DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET WINDOW PROGRESS</td>
                             <td>
                                 <div class="row">
@@ -114,7 +126,7 @@
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1"><a href="/address/{{.DevAddress}}">Developer Subsidy</a></td>
+                            <td class="text-right pr-2 lh1rem"><a href="/address/{{.DevAddress}}">DEVELOPER SUBSIDY</a></td>
                             <td>
                                 <span id="dev_fund" class="mono lh1rem fs14-decimal fs18">{{template "decimalParts" (amountAsDecimalParts .DevFund true)}}</span><span class="unit"> DCR</span>
                             </td>
