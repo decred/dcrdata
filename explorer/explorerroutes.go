@@ -205,7 +205,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrHist, balance, errH := exp.explorerSource.AddressHistory(
 			address, limitN, offsetAddrOuts)
 		if errH != nil {
-			log.Infof("Unable to get address %s history: %v", address, errH)
+			log.Errorf("Unable to get address %s history: %v", address, errH)
 			addrData := exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 			if addrData == nil {
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", false)

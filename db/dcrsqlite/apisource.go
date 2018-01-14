@@ -1047,8 +1047,6 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 
 	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
-		int(offset), int(count), true, true, nil)
-	maxLimitOfTxs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(maxcount), true, true, nil)
 	if err != nil && err.Error() == "-32603: No Txns available" {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
@@ -1066,7 +1064,10 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 	}
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
-	for _, tx := range txs {
+	for i, tx := range txs {
+		if int64(i) == count {
+			break
+		}
 		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address))
 	}
 
@@ -1096,8 +1097,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			}
 		}
 	}
-	numberOfTx := int64(len(txs))
-	numberMaxOfTx := int64(len(maxLimitOfTxs))
+	numberMaxOfTx := int64(len(txs))
 
 	balance := &explorer.AddressBalance{
 		Address:      address,
@@ -1111,7 +1111,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		Limit:            count,
 		Offset:           offset,
 		Transactions:     addressTxs,
-		NumFundingTxns:   numberOfTx,
+		NumFundingTxns:   count,
 		KnownFundingTxns: numberMaxOfTx,
 		NumSpendingTxns:  numSpending,
 		NumUnconfirmed:   numUnconfirmed,
