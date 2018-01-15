@@ -168,6 +168,7 @@ type HomeInfo struct {
 	Difficulty        float64        `json:"difficulty"`
 	DevFund           int64          `json:"dev_fund"`
 	DevAddress        string         `json:"dev_address"`
+	TicketROI         float64        `json:"roi"`
 	NBlockSubsidy     BlockSubsidy   `json:"subsidy"`
 	Params            ChainParams    `json:"params"`
 	PoolInfo          TicketPoolInfo `json:"pool_info"`
@@ -193,6 +194,8 @@ type MempoolInfo struct {
 type ChainParams struct {
 	WindowSize       int64 `json:"window_size"`
 	RewardWindowSize int64 `json:"reward_window_size"`
+	TargetPoolSize   int64 `json:"target_pool_size"`
+	BlockTime        int64 `json:"target_block_time"`
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
@@ -254,7 +257,8 @@ type WebsocketBlock struct {
 }
 
 type TicketPoolInfo struct {
-	Size   uint32  `json:"size"`
-	Value  float64 `json:"value"`
-	ValAvg float64 `json:"valavg"`
+	Size       uint32  `json:"size"`
+	Value      float64 `json:"value"`
+	ValAvg     float64 `json:"valavg"`
+	Percentage float64 `json:"percent"`
 }
