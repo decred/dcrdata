@@ -1098,11 +1098,9 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		}
 	}
 	numberMaxOfTx := int64(len(txs))
-	var numFundingTxns int64
+	var numFundingTxns = count
 	if numberMaxOfTx < count {
 		numFundingTxns = numberMaxOfTx
-	} else {
-		numFundingTxns = count
 	}
 	balance := &explorer.AddressBalance{
 		Address:      address,

@@ -86,7 +86,13 @@
                     <h5 class="mr-auto mb-0">Transactions</h5>
                     {{if lt .NumFundingTxns .KnownFundingTxns}}
                     <div div class="d-flex flex-wrap-reverse align-items-center justify-content-end">
-                        <span class="fs12 nowrap text-right">funding transactions {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumFundingTxns)}} of {{intComma .KnownFundingTxns}}</span>
+                        <span class="fs12 nowrap text-right">funding transactions {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumFundingTxns)}} of {{intComma .KnownFundingTxns}}
+                            {{if lt .NumFundingTxns .KnownFundingTxns}}
+                            {{if not .Fullmode}}
+                            <sup>*</sup>
+                            {{end}}
+                            {{end}}
+                        </span>
                         <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
                             <ul class="pagination mb-0 pagination-sm">
                                 <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
@@ -173,11 +179,6 @@
                 {{end}}
 
                 {{if lt .NumFundingTxns .KnownFundingTxns}}
-                {{if not .Fullmode}}
-                <div>
-                    *1000 is the upper limit for total number of transactions shown
-                </div>
-                {{end}}
                 <div
                     id="pagesize-wrapper"
                     class="hidden d-flex align-items-center justify-content-end"
