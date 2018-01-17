@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/docgen"
 )
@@ -78,6 +79,25 @@ func BlockIndexPathCtx(next http.Handler) http.Handler {
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var ctx context.Context
+		pathIdxOrHashStr := chi.URLParam(r, "idxorhash")
+		if len(pathIdxOrHashStr) == 2*chainhash.HashSize {
+			ctx = context.WithValue(r.Context(), ctxBlockHash, pathIdxOrHashStr)
+		} else {
+			idx, err := strconv.Atoi(pathIdxOrHashStr)
+			if err != nil {
+				apiLog.Infof("No/invalid idx value (int64): %v", err)
+				http.NotFound(w, r)
+				return
+			}
+			ctx = context.WithValue(r.Context(), ctxBlockIndex, idx)
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

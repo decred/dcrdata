@@ -56,7 +56,7 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.P
 		log.Errorf("Unable to create stake DB: %v", err)
 		return wDB, func() error { return nil }
 	}
-	return wDB, wDB.sDB.StakeDB.Close
+	return wDB, wDB.sDB.Close
 }
 
 // NewWiredDB creates a new wiredDB from a *sql.DB, a node client, network
@@ -573,6 +573,37 @@ func (db *wiredDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
 		return nil, err
 	}
 	return blockSizes, nil
+}
+
+func (db *wiredDB) GetPool(idx int64) ([]string, error) {
+	hs, err := db.sDB.PoolDB.Pool(idx)
+	if err != nil {
+		log.Errorf("Unable to get ticket pool from stakedb: %v", err)
+		return nil, err
+	}
+	hss := make([]string, 0, len(hs))
+	for i := range hs {
+		hss = append(hss, hs[i].String())
+	}
+	return hss, nil
+}
+
+func (db *wiredDB) GetPoolByHash(hash string) ([]string, error) {
+	idx, err := db.GetBlockHeight(hash)
+	if err != nil {
+		log.Errorf("Unable to retrieve block height for hash %s: %v", hash, err)
+		return nil, err
+	}
+	hs, err := db.sDB.PoolDB.Pool(idx)
+	if err != nil {
+		log.Errorf("Unable to get ticket pool from stakedb: %v", err)
+		return nil, err
+	}
+	hss := make([]string, 0, len(hs))
+	for i := range hs {
+		hss = append(hss, hs[i].String())
+	}
+	return hss, nil
 }
 
 func (db *wiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {

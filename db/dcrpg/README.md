@@ -1,6 +1,6 @@
 # `package dcrpg`
 
-The `dcrpg` provides functions to manipulate PostgreSQL tables storing blocks, transactions, inputs, and outputs.
+The `dcrpg` package provides types and functions for manipulating PostgreSQL tables, and storing blocks, transactions, inputs, and outputs.
 
 ## Performance and Bulk Loading
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"sync"
 
@@ -49,6 +50,8 @@ type APIDataSource interface {
 	GetPoolInfo(idx int) *apitypes.TicketPoolInfo
 	GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo
 	GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo
+	GetPool(idx int64) ([]string, error)
+	GetPoolByHash(hash string) ([]string, error)
 	GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 	GetSDiff(idx int) float64
 	GetSDiffRange(idx0, idx1 int) []float64
@@ -921,6 +924,29 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 		}
 	}
 	fmt.Fprintf(w, "]")
+}
+
+func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
+	// getBlockHeightCtx falls back to try hash if height fails
+	idx := c.getBlockHeightCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	tp, err := c.BlockData.GetPool(idx)
+	if err != nil {
+		apiLog.Errorf("Unable to fetch ticket pool: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	sortPool := r.URL.Query().Get("sort")
+	if sortPool == "1" || sortPool == "true" {
+		sort.Strings(tp)
+	}
+
+	writeJSON(w, tp, c.getIndentQuery(r))
 }
 
 func (c *appContext) getTicketPoolInfo(w http.ResponseWriter, r *http.Request) {
