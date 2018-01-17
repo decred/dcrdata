@@ -1045,15 +1045,29 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		return nil
 	}
 
+	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
-		int(offset), int(count), true, true, nil)
-	if err != nil {
+		int(offset), int(maxcount), true, true, nil)
+	if err != nil && err.Error() == "-32603: No Txns available" {
+		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+
+		if !ValidateNetworkAddress(addr, db.params) {
+			log.Warnf("Address %s is not valid for this network", address)
+			return nil
+		}
+		return &explorer.AddressInfo{
+			Address: address,
+		}
+	} else if err != nil {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return nil
 	}
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
-	for _, tx := range txs {
+	for i, tx := range txs {
+		if int64(i) == count {
+			break
+		}
 		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address))
 	}
 
@@ -1083,17 +1097,33 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			}
 		}
 	}
-
-	return &explorer.AddressInfo{
-		Address:         address,
-		Limit:           count,
-		Offset:          offset,
-		Transactions:    addressTxs,
-		NumFundingTxns:  numReceiving,
-		NumSpendingTxns: numSpending,
-		NumUnconfirmed:  numUnconfirmed,
-		TotalReceived:   totalreceived,
-		TotalSent:       totalsent,
-		Unspent:         totalreceived - totalsent,
+	numberMaxOfTx := int64(len(txs))
+	var numFundingTxns = count
+	if numberMaxOfTx < count {
+		numFundingTxns = numberMaxOfTx
 	}
+	balance := &explorer.AddressBalance{
+		Address:      address,
+		NumSpent:     numSpending,
+		NumUnspent:   numReceiving,
+		TotalSpent:   int64(totalsent),
+		TotalUnspent: int64(totalreceived - totalsent),
+	}
+	return &explorer.AddressInfo{
+		Address:          address,
+		Limit:            count,
+		Offset:           offset,
+		Transactions:     addressTxs,
+		NumFundingTxns:   numFundingTxns,
+		KnownFundingTxns: numberMaxOfTx,
+		NumSpendingTxns:  numSpending,
+		NumUnconfirmed:   numUnconfirmed,
+		TotalReceived:    totalreceived,
+		TotalSent:        totalsent,
+		Unspent:          totalreceived - totalsent,
+		Balance:          balance,
+	}
+}
+func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
+	return address.IsForNet(p)
 }

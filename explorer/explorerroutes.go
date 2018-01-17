@@ -189,10 +189,10 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	limitN, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
 	if err != nil || limitN < 0 {
 		limitN = defaultAddressRows
-	} else if limitN > maxAddressRows {
+	} else if limitN > MaxAddressRows {
 		log.Warnf("addressPage: requested up to %d address rows, "+
-			"limiting to %d", limitN, maxAddressRows)
-		limitN = maxAddressRows
+			"limiting to %d", limitN, MaxAddressRows)
+		limitN = MaxAddressRows
 	}
 
 	// Number of outputs to skip (OFFSET in database query). For UX reasons, the
@@ -216,7 +216,26 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			address, limitN, offsetAddrOuts)
 		if errH != nil {
 			log.Errorf("Unable to get address %s history: %v", address, errH)
-			exp.ErrorPage(w, "Something went wrong...", "could not find that address's history", false)
+			addrData := exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+			if addrData == nil {
+				exp.ErrorPage(w, "Something went wrong...", "could not find that address", false)
+			}
+			pageData := struct {
+				Data          *AddressInfo
+				ConfirmHeight []int64
+			}{
+				addrData,
+				nil,
+			}
+			str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
+			if err != nil {
+				log.Errorf("Template execute failure: %v", err)
+				exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			io.WriteString(w, str)
 			return
 		}
 
@@ -231,6 +250,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.Balance = balance
 		addrData.Path = r.URL.Path
+		addrData.Fullmode = true
 		// still need []*AddressTx filled out and NumUnconfirmed
 
 		// Query database for transaction details
