@@ -10,6 +10,7 @@ import (
 	"github.com/btcsuite/btclog"
 	"github.com/dcrdata/dcrdata/db/dcrsqlite"
 	"github.com/dcrdata/dcrdata/rpcutils"
+	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/rpcclient"
 )
 
@@ -17,6 +18,7 @@ var (
 	backendLog      *btclog.Backend
 	rpcclientLogger btclog.Logger
 	sqliteLogger    btclog.Logger
+	stakedbLogger   btclog.Logger
 )
 
 func init() {
@@ -30,6 +32,8 @@ func init() {
 	rpcclient.UseLogger(rpcclientLogger)
 	sqliteLogger = backendLog.Logger("DSQL")
 	dcrsqlite.UseLogger(rpcclientLogger)
+	stakedbLogger = backendLog.Logger("SKDB")
+	stakedb.UseLogger(stakedbLogger)
 }
 
 func mainCore() int {

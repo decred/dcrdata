@@ -136,13 +136,25 @@ API endpoints are currently prefixed with `/api`** (e.g.
 | Ticket Pool | |
 | --- | --- |
 | Current pool info (size, total value, and average price) | `/stake/pool` |
+| Current ticket pool, in a JSON object with a `"tickets"` key holding an array of ticket hashes | `/stake/pool/full` |
 | Pool info for block `X` | `/stake/pool/b/X` |
-| Pool info for block range `[X,Y] (X <= Y)` | `/stake/pool/r/X/Y?arrays=[true\|false]` <sup>*</sup> |
+| Full ticket pool at block height _or_ hash `H` | `/stake/pool/b/H/full` |
+| Pool info for block range `[X,Y] (X <= Y)` | `/stake/pool/r/X/Y?arrays=[true\|false]`<sup>*</sup> |
+
+The full ticket pool endpoints accept the URL query `?sort=[true\|false]` for
+requesting the tickets array in lexicographical order.  If a sorted list or list
+with deterministic order is _not_ required, using `sort=false` will reduce
+server load and latency. However, be aware that the ticket order will be random,
+and will change each time the tickets are requested.
 
 <sup>*</sup>For the pool info block range endpoint that accepts the `arrays` url query,
 a value of `true` will put all pool values and pool sizes into separate arrays,
 rather than having a single array of pool info JSON objects.  This may make
 parsing more efficient for the client.
+
+| Vote and Agenda Info | |
+| --- | --- |
+| The current agenda and its status | `/stake/vote/info` |
 
 | Mempool | |
 | --- | --- |

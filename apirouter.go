@@ -102,7 +102,9 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		})
 		r.Route("/pool", func(rd chi.Router) {
 			rd.With(app.BlockIndexLatestCtx).Get("/", app.getTicketPoolInfo)
+			rd.With(app.BlockIndexLatestCtx).Get("/full", app.getTicketPool)
 			rd.With(BlockIndexPathCtx).Get("/b/{idx}", app.getTicketPoolInfo)
+			rd.With(BlockIndexOrHashPathCtx).Get("/b/{idxorhash}/full", app.getTicketPool)
 			rd.With(BlockIndex0PathCtx, BlockIndexPathCtx).Get("/r/{idx0}/{idx}", app.getTicketPoolInfoRange)
 		})
 		r.Route("/diff", func(rd chi.Router) {

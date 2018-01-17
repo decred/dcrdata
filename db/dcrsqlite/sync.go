@@ -191,7 +191,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 				return startHeight, err
 			}
 			bestNodeHeight = int64(db.sDB.Height())
-			log.Infof("Stake db now at height %d.", bestNodeHeight)
+			log.Tracef("Stake db now at height %d.", bestNodeHeight)
 		}
 		if bestNodeHeight != startHeight {
 			panic("rewind failed")
