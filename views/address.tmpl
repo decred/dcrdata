@@ -179,6 +179,11 @@
                 {{end}}
 
                 {{if lt .NumFundingTxns .KnownFundingTxns}}
+                {{if not .Fullmode}}
+                <div>
+                    *1000 is the upper limit for total number of transactions shown
+                </div>
+                {{end}}
                 <div
                     id="pagesize-wrapper"
                     class="hidden d-flex align-items-center justify-content-end"
