@@ -18,13 +18,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/dcrutil"
-
 	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
@@ -194,9 +194,6 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.explorerSource = primaryDataSource
 	exp.MempoolData = new(MempoolInfo)
 	exp.Version = appVersion
-	exp.ExtraInfo = &HomeInfo{
-		DevAddress: exp.explorerSource.GetDevAddress(),
-	}
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
@@ -207,8 +204,17 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.Mux.Use(middleware.RealIP)
 	}
 
-	exp.ChainParams = exp.blockData.GetChainParams()
-
+	params := exp.blockData.GetChainParams()
+	exp.ChainParams = params
+	_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
+		params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
+	if err != nil || len(devSubsidyAddresses) != 1 {
+		log.Warnf("Failed to decode dev subsidy address: %v", err)
+	} else {
+		exp.ExtraInfo = &HomeInfo{
+			DevAddress: devSubsidyAddresses[0].String(),
+		}
+	}
 	exp.templateFiles = make(map[string]string)
 	exp.templateFiles["home"] = filepath.Join("views", "home.tmpl")
 	exp.templateFiles["explorer"] = filepath.Join("views", "explorer.tmpl")
@@ -327,7 +333,9 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			return []string{integer, dec, zeros}
 		},
 		"duration": func(t int64) string {
-			return (time.Duration(t)).String()
+			//str := time.Duration(t).String()
+			//return strings.Replace(strings.Replace(strings.Replace(str, "h", "h ", 1), "m", "m ", 1), "s", "s ", 1)
+			return strings.Replace(humanize.Time(time.Now().Add(time.Duration(t))), " from now", "", 1)
 		},
 	}
 
@@ -424,7 +432,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	percentage := func(a float64, b float64) float64 {
 		return (a / b) * 100
 	}
-	_, devBalance, _ := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
 
 	exp.ExtraInfo = &HomeInfo{
 		CoinSupply:        blockData.ExtraInfo.CoinSupply,
@@ -432,7 +439,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		IdxBlockInWindow:  blockData.IdxBlockInWindow,
 		IdxInRewardWindow: int(newBlockData.Height % exp.ChainParams.SubsidyReductionInterval),
 		DevAddress:        exp.ExtraInfo.DevAddress,
-		DevFund:           devBalance.TotalUnspent,
 		Difficulty:        blockData.Header.Difficulty,
 		NBlockSubsidy: BlockSubsidy{
 			Dev:   blockData.ExtraInfo.NextBlockSubsidy.Developer,
@@ -449,9 +455,15 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 			Size:       blockData.PoolInfo.Size,
 			Value:      blockData.PoolInfo.Value,
 			ValAvg:     blockData.PoolInfo.ValAvg,
-			Percentage: percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply-devBalance.TotalUnspent).ToCoin()),
+			Percentage: percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()),
 		},
 		TicketROI: percentage(dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin(), blockData.CurrentStakeDiff.CurrentStakeDifficulty),
+	}
+
+	if !exp.liteMode {
+		_, devBalance, _ := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
+		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
+		exp.ExtraInfo.PoolInfo.Percentage = percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply-devBalance.TotalUnspent).ToCoin())
 	}
 	exp.NewBlockDataMtx.Unlock()
 

@@ -18,10 +18,17 @@
                 <div>
                     <table class="mb-3 col">
                         <tr class="h2rem">
+                            {{if .DevFund}}
                             <td class="text-right pr-2 p03rem0 w142 lh1rem">TOTAL AVAILABLE SUPPLY</td>
                             <td class="fs24 mono lh1rem fs14-decimal">
                                 <span id="coin_supply">{{template "decimalParts" (amountAsDecimalParts (subtract .CoinSupply .DevFund) true)}}</span><span class="pl-1 unit">DCR</span>
                             </td>
+                            {{else}}
+                            <td class="text-right pr-2 p03rem0 w142 lh1rem">TOTAL SUPPLY</td>
+                            <td class="fs24 mono lh1rem fs14-decimal">
+                                <span id="coin_supply">{{template "decimalParts" (amountAsDecimalParts .CoinSupply true)}}</span><span class="pl-1 unit">DCR</span>
+                            </td>
+                            {{end}}
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET WINDOW PROGRESS</td>
@@ -38,7 +45,7 @@
                                                 aria-valuemin="0"
                                                 aria-valuemax="{{.Params.WindowSize}}"
                                             >
-                                            <span id="blocksdiff" style="color:#383b41" class="nowrap pl-1">block <span id="window_block_index" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}} ({{duration (multiply (int64 .IdxBlockInWindow)  .Params.BlockTime)}})</span>
+                                            <span style="color:#383b41" class="nowrap pl-1">block <span id="window_block_index" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}} ({{duration (multiply (int64 .IdxBlockInWindow)  .Params.BlockTime)}})</span>
                                             </div>
                                         </div>
                                     </div>
@@ -70,7 +77,7 @@
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL VALUE</td>
                             <td>
-                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_value">{{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value true)}}</span><span class="unit"> DCR({{printf "%.2f" .PoolInfo.Percentage}})% of total supply</span>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_value">{{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value true)}}</span><span class="unit"> DCR ({{printf "%.2f" .PoolInfo.Percentage}}% of total {{if .DevFund}} available {{end}} supply)</span>
                             </td>
                         </tr>
                         <tr>
@@ -129,12 +136,14 @@
                                 </span>
                             </td>
                         </tr>
+                        {{if .DevFund}}
                         <tr>
                             <td class="text-right pr-2 lh1rem"><a href="/address/{{.DevAddress}}">DEVEVELOPMENT FUND</a></td>
                             <td>
                                 <span id="dev_fund" class="mono lh1rem fs14-decimal fs18">{{template "decimalParts" (amountAsDecimalParts .DevFund true)}}</span><span class="unit"> DCR</span>
                             </td>
                         </tr>
+                        {{end}}
                     </table>
                 </div>
                 {{end}}
