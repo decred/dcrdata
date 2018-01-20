@@ -56,24 +56,38 @@
                         </tr>
                         {{end}}
                     {{else}}
-                    <tr>
-                        <td class="pr-2 lh1rem vam text-right xs-w91">UNCONFIRMED</td>
-                        <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
-                            {{.NumUnconfirmed}}
-                        </td>
+                    <tr  class="h2rem">
+                        <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
+                        {{if eq .TotalReceived 0}}
+                        <td class="fs28 mono nowrap d-flex align-items-center justify-content-end">unavailable</td>
+                        {{else}}
+                        <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.Unspent}}</td>
+                        {{end}}
                     </tr>
                     <tr>
                         <td class="text-right pr-2">RECEIVED</td>
+                        {{if eq .TotalReceived 0}}
+                        <td class="mono nowrap text-right">unavailable</td>
+                        {{else}}
                         <td class="mono nowrap text-right">{{.TotalReceived}}</td>
+                        {{end}}
                     </tr>
                     <tr>
-                        <td class="text-right pr-2">SENT</td>
+                        <td class="text-right pr-2">SPENT</td>
+                        {{if eq .TotalReceived 0}}
+                        <td class="mono nowrap text-right">unavailable</td>
+                        {{else}}
                         <td class="mono nowrap text-right">{{.TotalSent}}</td>
+                        {{end}}
                     </tr>
+                    {{if ne .NumUnconfirmed 0}}
                     <tr>
-                        <td class="text-right pr-2">UNSPENT</td>
-                        <td class="mono nowrap text-right">{{.Unspent}}</td>
+                        <td class="text-right pr-2">UNCONFIRMED</td>
+                        <td class="mono nowrap text-right">
+                            {{.NumUnconfirmed}} transaction{{if gt .NumUnconfirmed 0}}s{{end}}
+                        </td>
                     </tr>
+                    {{end}}
                            
                     {{end}}
                 </table>
@@ -86,7 +100,7 @@
                     <h5 class="mr-auto mb-0">Transactions</h5>
                     {{if lt .NumFundingTxns .KnownFundingTxns}}
                     <div div class="d-flex flex-wrap-reverse align-items-center justify-content-end">
-                        <span class="fs12 nowrap text-right">funding transactions {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumFundingTxns)}} of {{intComma .KnownFundingTxns}}
+                        <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumFundingTxns)}} transactions of {{intComma .KnownFundingTxns}}
                             {{if lt .NumFundingTxns .KnownFundingTxns}}
                             {{if not .Fullmode}}
                             <sup>*</sup>
@@ -114,7 +128,7 @@
                         </nav>
                     </div>
                     {{else}}
-                    <span class="fs12 nowrap text-right">{{intComma .KnownFundingTxns}} funding transaction{{if gt 1 .KnownFundingTxns}}s{{end}}</span>
+                    <span class="fs12 nowrap text-right">{{intComma .KnownFundingTxns}} transaction{{if gt .KnownFundingTxns 1}}s{{end}}</span>
                     {{end}}
                 </div>
                 {{if .Transactions}}
@@ -136,6 +150,12 @@
                             {{if ne .RecievedTotal 0.0}}
                                 <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .RecievedTotal false)}}</td>
                             {{else}}
+<<<<<<< HEAD
+=======
+                                {{if eq .SentTotal 0.0}}
+                                <td class="text-right">sstxcommitment</td>
+                                {{else}}
+>>>>>>> 3cf58e0... requested changes
                                 <td></td>
                             {{end}}
                             {{if ne .SentTotal 0.0}}
@@ -181,7 +201,7 @@
                 {{if lt .NumFundingTxns .KnownFundingTxns}}
                 {{if not .Fullmode}}
                 <div>
-                    *1000 is the upper limit for total number of transactions shown
+                    *Limit of 1000 transactions shown in lite mode.
                 </div>
                 {{end}}
                 <div
