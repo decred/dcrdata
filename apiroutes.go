@@ -880,12 +880,16 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 		return
 	}
 
-	last := idx0 + step*((idx-idx0)/step)
+	// Compute the last block in the range
+	numSteps := (idx - idx0) / step
+	last := idx0 + step*numSteps
+	// Support reverse list (e.g. 10/0/5 counts down from 10 to 0 in steps of 5)
 	if idx0 > idx {
 		step = -step
-		// TODO: support reverse list for other endpoints
+		// TODO: support reverse in other endpoints
 	}
 
+	// Prepare JSON encode for streaming response
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	encoder := json.NewEncoder(w)
 	indent := c.getIndentQuery(r)
@@ -894,7 +898,10 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 	if indent != "" {
 		newline = "\n"
 	}
+
+	// Manually structure outer JSON array
 	fmt.Fprintf(w, "[%s%s", newline, prefix)
+	// Go through blocks in list, stop after last (i.e. on last+step)
 	for i := idx0; i != last+step; i += step {
 		summary := c.BlockData.GetSummary(i)
 		if summary == nil {
@@ -908,6 +915,7 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 			http.Error(w, http.StatusText(422), 422)
 			return
 		}
+		// After last block, do not print comma+newline+prefix
 		if i != last {
 			fmt.Fprintf(w, ",%s%s", newline, prefix)
 		}
