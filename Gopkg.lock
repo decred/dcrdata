@@ -210,6 +210,12 @@
   revision = "9520e82c474b0a04dd04f8a40959027271bab992"
 
 [[projects]]
+  name = "github.com/oleiade/lane"
+  packages = ["."]
+  revision = "28f7c3f09254f12b51e620fa4db136ba58804762"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/rs/cors"
   packages = ["."]
   revision = "eabcc6af4bbe5ad3a949d36450326a2b0b9894b8"
@@ -251,6 +257,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "836268df262b429d87f8bb52c809321058a4ba640a07658efd7194fbc1508c69"
+  inputs-digest = "4c7eec3b639d27568fbb3e9f647cb6d0f9dc41c4118242735c46b00ba72b2108"
   solver-name = "gps-cdcl"
   solver-version = 1
