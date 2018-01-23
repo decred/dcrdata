@@ -136,6 +136,7 @@ type BlockInfo struct {
 type AddressInfo struct {
 	Address          string
 	Limit            int64
+	MaxLimit         int64
 	Offset           int64
 	Transactions     []*AddressTx
 	NumFundingTxns   int64
