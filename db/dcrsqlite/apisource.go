@@ -75,7 +75,10 @@ func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client, p *c
 	}
 
 	wDB, cleanup := newWiredDB(db, statusC, cl, p)
-	return wDB, cleanup, nil
+	if wDB.sDB == nil {
+		err = fmt.Errorf("failed to create StakeDatabase")
+	}
+	return wDB, cleanup, err
 }
 
 func (db *wiredDB) NewStakeDBChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
