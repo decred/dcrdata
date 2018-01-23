@@ -81,12 +81,12 @@
                         {{end}}
                     </tr>
                     {{if ne .NumUnconfirmed 0}}
-                    <tr>
-                        <td class="text-right pr-2">UNCONFIRMED</td>
-                        <td class="mono nowrap text-right">
-                            {{.NumUnconfirmed}} transaction{{if gt .NumUnconfirmed 0}}s{{end}}
-                        </td>
-                    </tr>
+                        <tr>
+                            <td class="text-right pr-2">UNCONFIRMED</td>
+                            <td class="mono nowrap text-right">
+                                {{.NumUnconfirmed}} transaction{{if gt .NumUnconfirmed 0}}s{{end}}
+                            </td>
+                        </tr>
                     {{end}}
                            
                     {{end}}
@@ -154,6 +154,7 @@
                                 <td class="text-right">sstxcommitment</td>
                                 {{else}}
                                 <td></td>
+                                {{end}}
                             {{end}}
                             {{if ne .SentTotal 0.0}}
                                 {{if lt 0.0 .SentTotal}}
@@ -192,7 +193,7 @@
                             No transactions found for this address.
                         </td>
                     </tr>
-            </table>
+                </table>
                 {{end}}
 
                 {{if lt .NumFundingTxns .KnownFundingTxns}}
