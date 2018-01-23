@@ -150,12 +150,9 @@
                             {{if ne .RecievedTotal 0.0}}
                                 <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .RecievedTotal false)}}</td>
                             {{else}}
-<<<<<<< HEAD
-=======
                                 {{if eq .SentTotal 0.0}}
                                 <td class="text-right">sstxcommitment</td>
                                 {{else}}
->>>>>>> 3cf58e0... requested changes
                                 <td></td>
                             {{end}}
                             {{if ne .SentTotal 0.0}}
