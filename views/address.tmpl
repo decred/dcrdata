@@ -58,7 +58,7 @@
                     {{else}}
                     <tr  class="h2rem">
                         <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
-                        {{if eq .TotalReceived 0}}
+                        {{if gt .KnownFundingTxns 999}}
                         <td class="fs28 mono nowrap d-flex align-items-center justify-content-end">unavailable</td>
                         {{else}}
                         <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.Unspent}}</td>
@@ -66,7 +66,7 @@
                     </tr>
                     <tr>
                         <td class="text-right pr-2">RECEIVED</td>
-                        {{if eq .TotalReceived 0}}
+                        {{if gt .KnownFundingTxns 999}}
                         <td class="mono nowrap text-right">unavailable</td>
                         {{else}}
                         <td class="mono nowrap text-right">{{.TotalReceived}}</td>
@@ -74,7 +74,7 @@
                     </tr>
                     <tr>
                         <td class="text-right pr-2">SPENT</td>
-                        {{if eq .TotalReceived 0}}
+                        {{if gt .KnownFundingTxns 999}}
                         <td class="mono nowrap text-right">unavailable</td>
                         {{else}}
                         <td class="mono nowrap text-right">{{.TotalSent}}</td>
