@@ -156,12 +156,12 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params) (*Stake
 // unlike using db.BestNode.Height(), and checks that the stake database is
 // opened first.
 func (db *StakeDatabase) Height() uint32 {
+	db.nodeMtx.RLock()
+	defer db.nodeMtx.RUnlock()
 	if db == nil || db.BestNode == nil {
 		log.Error("Stake database not yet opened")
 		return 0
 	}
-	db.nodeMtx.RLock()
-	defer db.nodeMtx.RUnlock()
 	return db.BestNode.Height()
 }
 
