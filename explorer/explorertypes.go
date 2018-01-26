@@ -169,6 +169,7 @@ type HomeInfo struct {
 	DevFund           int64          `json:"dev_fund"`
 	DevAddress        string         `json:"dev_address"`
 	TicketROI         float64        `json:"roi"`
+	ROIPeriod         string         `json:"roi_period"`
 	NBlockSubsidy     BlockSubsidy   `json:"subsidy"`
 	Params            ChainParams    `json:"params"`
 	PoolInfo          TicketPoolInfo `json:"pool_info"`
@@ -257,8 +258,10 @@ type WebsocketBlock struct {
 }
 
 type TicketPoolInfo struct {
-	Size       uint32  `json:"size"`
-	Value      float64 `json:"value"`
-	ValAvg     float64 `json:"valavg"`
-	Percentage float64 `json:"percent"`
+	Size          uint32  `json:"size"`
+	Value         float64 `json:"value"`
+	ValAvg        float64 `json:"valavg"`
+	Percentage    float64 `json:"percent"`
+	Target        uint16  `json:"target"`
+	PercentTarget float64 `json:"percent_target"`
 }

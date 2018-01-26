@@ -332,10 +332,34 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			zeros := strings.Repeat("0", 8-len(dec))
 			return []string{integer, dec, zeros}
 		},
-		"duration": func(t int64) string {
-			//str := time.Duration(t).String()
-			//return strings.Replace(strings.Replace(strings.Replace(str, "h", "h ", 1), "m", "m ", 1), "s", "s ", 1)
-			return strings.Replace(humanize.Time(time.Now().Add(time.Duration(t))), " from now", "", 1)
+		"remaining": func(idx int, max int64, t int64) string {
+			x := (max - int64(idx)) * t
+			allsecs := int(time.Duration(x).Seconds())
+			str := ""
+			if allsecs > 604799 {
+				weeks := allsecs / 604800
+				allsecs %= 604800
+				str += fmt.Sprintf("%dw ", weeks)
+			}
+			if allsecs > 86399 {
+				days := allsecs / 86400
+				allsecs %= 86400
+				str += fmt.Sprintf("%dd ", days)
+			}
+			if allsecs > 3599 {
+				hours := allsecs / 3600
+				allsecs %= 3600
+				str += fmt.Sprintf("%dh ", hours)
+			}
+			if allsecs > 59 {
+				mins := allsecs / 60
+				allsecs %= 60
+				str += fmt.Sprintf("%dm ", mins)
+			}
+			if allsecs > 0 {
+				str += fmt.Sprintf("%ds ", allsecs)
+			}
+			return str + "remaining"
 		},
 	}
 
@@ -456,14 +480,19 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 			Value:      blockData.PoolInfo.Value,
 			ValAvg:     blockData.PoolInfo.ValAvg,
 			Percentage: percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()),
+			Target:     exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
+			PercentTarget: func() float64 {
+				target := int32(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
+				return float64((int32(blockData.PoolInfo.Size) - target)) / float64(target) * 100
+			}(),
 		},
-		TicketROI: percentage(dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin(), blockData.CurrentStakeDiff.CurrentStakeDifficulty),
+		TicketROI: percentage(dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin()/5, blockData.CurrentStakeDiff.CurrentStakeDifficulty),
+		ROIPeriod: fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*float64(exp.ChainParams.TicketPoolSize)/86400),
 	}
 
 	if !exp.liteMode {
 		_, devBalance, _ := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
 		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
-		exp.ExtraInfo.PoolInfo.Percentage = percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply-devBalance.TotalUnspent).ToCoin())
 	}
 	exp.NewBlockDataMtx.Unlock()
 
