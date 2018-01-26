@@ -31,7 +31,7 @@ type ChainMonitor struct {
 	DoneConnecting chan struct{}
 
 	// reorg handling
-	reorgLock    sync.Mutex
+	sync.Mutex
 	reorgData    *ReorgData
 	sideChain    []chainhash.Hash
 	reorganizing bool
@@ -73,11 +73,12 @@ out:
 	keepon:
 		select {
 		case hash, ok := <-p.blockChan:
-			release := func() {}
+			p.Lock()
+			release := func() { p.Unlock() }
 			select {
 			case <-p.ConnectingLock:
 				// send on unbuffered channel
-				release = func() { p.DoneConnecting <- struct{}{} }
+				release = func() { p.Unlock(); p.DoneConnecting <- struct{}{} }
 			default:
 			}
 
@@ -88,9 +89,7 @@ out:
 			}
 
 			// If reorganizing, the block will first go to a side chain
-			p.reorgLock.Lock()
 			reorg, reorgData := p.reorganizing, p.reorgData
-			p.reorgLock.Unlock()
 
 			if reorg {
 				p.sideChain = append(p.sideChain, *hash)
@@ -117,23 +116,22 @@ out:
 
 				// Reorg is complete
 				p.sideChain = nil
-				p.reorgLock.Lock()
 				p.reorganizing = false
-				p.reorgLock.Unlock()
-				release()
 				log.Infof("Reorganization to block %v (height %d) complete",
 					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
 			} else {
 				// Extend main chain
 				block, err := p.db.ConnectBlockHash(hash)
-				release()
 				if err != nil {
+					release()
 					log.Error(err)
 					break keepon
 				}
 
 				log.Infof("Connected block %d to stake DB.", block.Height())
 			}
+
+			release()
 
 		case _, ok := <-p.quit:
 			if !ok {
@@ -216,7 +214,9 @@ out:
 	keepon:
 		select {
 		case reorgData, ok := <-p.reorgChan:
+			p.Lock()
 			if !ok {
+				p.Unlock()
 				log.Warnf("Reorg channel closed.")
 				break out
 			}
@@ -224,18 +224,17 @@ out:
 			newHeight, oldHeight := reorgData.NewChainHeight, reorgData.OldChainHeight
 			newHash, oldHash := reorgData.NewChainHead, reorgData.OldChainHead
 
-			p.reorgLock.Lock()
 			if p.reorganizing {
-				p.reorgLock.Unlock()
 				log.Errorf("Reorg notified for chain tip %v (height %v), but already "+
 					"processing a reorg to block %v", newHash, newHeight,
 					p.reorgData.NewChainHead)
+				p.Unlock()
 				break keepon
 			}
 
 			p.reorganizing = true
 			p.reorgData = reorgData
-			p.reorgLock.Unlock()
+			p.Unlock()
 
 			log.Infof("Reorganize started. NEW head block %v at height %d.",
 				newHash, newHeight)

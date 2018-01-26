@@ -257,6 +257,8 @@ func (tp *TicketPool) advanceTo(height int64) error {
 // the cursor will stop just beyond the last element of the diffs slice. It will
 // not be possible to advance further, only retreat.
 func (tp *TicketPool) AdvanceToTip() error {
+	tp.Lock()
+	defer tp.Unlock()
 	return tp.advanceTo(tp.tip)
 }
 
