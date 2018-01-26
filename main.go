@@ -177,8 +177,8 @@ func mainCore() error {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
 
-	var heightDB uint64
 	if usePG {
+		var heightDB uint64
 		heightDB, err = db.HeightDB()
 		if err != nil {
 			if err != sql.ErrNoRows {
@@ -201,12 +201,20 @@ func mainCore() error {
 				newPGIndexes = true
 			}
 		}
-	}
 
-	if sqliteDB.GetStakeInfoHeight() >= int64(heightDB) {
-		// charge stakedb pool info cache, including previous
-		if err = sqliteDB.ChargePoolInfoCache(int64(heightDB) - 1); err != nil {
-			return fmt.Errorf("Failed to charge pool info cache: %v", err)
+		stakeInfoHeight, err := sqliteDB.GetStakeInfoHeight()
+		if err != nil {
+			return err
+		}
+		if stakeInfoHeight >= int64(heightDB) {
+			err = sqliteDB.GetStakeDB().SetPoolCacheCapacity(int(blocksBehind) + 2)
+			if err != nil {
+				return err
+			}
+			// charge stakedb pool info cache, including previous
+			if err = sqliteDB.ChargePoolInfoCache(int64(heightDB) - 1); err != nil {
+				return fmt.Errorf("Failed to charge pool info cache: %v", err)
+			}
 		}
 	}
 

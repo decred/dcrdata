@@ -65,6 +65,20 @@ func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
 	}
 }
 
+func (c *PoolInfoCache) SetCapacity(cap int) error {
+	c.Lock()
+	defer c.Unlock()
+	c.maxSize = cap
+	for c.expireQueue.Size() >= c.maxSize {
+		expireHash, ok := c.expireQueue.Dequeue().(chainhash.Hash)
+		if !ok {
+			return fmt.Errorf("failed to reduce pool cache capacity")
+		}
+		delete(c.poolInfo, expireHash)
+	}
+	return nil
+}
+
 // StakeDatabase models data for the stake database
 type StakeDatabase struct {
 	params          *chaincfg.Params
@@ -344,6 +358,10 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 
 func (db *StakeDatabase) SetPoolInfo(blockHash chainhash.Hash, tpi *apitypes.TicketPoolInfo) {
 	db.poolInfo.Set(blockHash, tpi)
+}
+
+func (db *StakeDatabase) SetPoolCacheCapacity(cap int) error {
+	return db.poolInfo.SetCapacity(cap)
 }
 
 // DisconnectBlock attempts to disconnect the current best block from the stake

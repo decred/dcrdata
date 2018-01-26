@@ -100,11 +100,16 @@ func (db *wiredDB) ChargePoolInfoCache(startHeight int64) error {
 	if startHeight < 0 {
 		startHeight = 0
 	}
-	endHeight := db.GetStakeInfoHeight()
+	endHeight, err := db.GetStakeInfoHeight()
+	if err != nil {
+		return err
+	}
 	tpis, blockHashes, err := db.DB.RetrievePoolInfoRange(startHeight, endHeight)
 	if err != nil {
 		return err
 	}
+	log.Debugf("Pre-loading pool info for %d blocks ([%d, %d]) into cache.",
+		len(tpis), startHeight, endHeight)
 	for i := range tpis {
 		hash, err := chainhash.NewHashFromStr(blockHashes[i])
 		if err != nil {
