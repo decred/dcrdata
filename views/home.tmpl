@@ -64,13 +64,13 @@
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL SIZE</td>
                             <td>
-                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_size">{{intComma .PoolInfo.Size}}</span> (<span>{{printf "%.2f" .PoolInfo.PercentTarget}}% </span> of target <span>{{intComma .PoolInfo.Target}}</span>)
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_size">{{intComma .PoolInfo.Size}}</span> (<span id="target_percent">{{printf "%.2f" .PoolInfo.PercentTarget}}</span>% of target <span>{{intComma .PoolInfo.Target}}</span>)
                             </td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL VALUE</td>
                             <td>
-                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_value">{{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value true)}}</span><span class="unit"> DCR<br>({{printf "%.2f" .PoolInfo.Percentage}}% of total {{if .DevFund}} available {{end}} supply)</span>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_value">{{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value true)}}</span><span class="unit"> DCR<br>(<span id="pool_size_percentage">{{printf "%.2f" .PoolInfo.Percentage}}</span>% of total supply)</span>
                             </td>
                         </tr>
                         <tr>
