@@ -263,27 +263,27 @@ type ScriptSig struct {
 // Tx models a Decred transaction. It is stored in a Block.
 type Tx struct {
 	//blockDbID  int64
-	BlockHash   string             `json:"block_hash"`
-	BlockHeight int64              `json:"block_height"`
-	BlockTime   int64              `json:"block_time"`
-	Time        int64              `json:"time"`
-	TxType      int16              `json:"tx_type"`
-	Version     uint16             `json:"version"`
-	Tree        int8               `json:"tree"`
-	TxID        string             `json:"txid"`
-	BlockIndex  uint32             `json:"block_index"`
-	Locktime    uint32             `json:"locktime"`
-	Expiry      uint32             `json:"expiry"`
-	Size        uint32             `json:"size"`
-	Spent       int64              `json:"spent"`
-	Sent        int64              `json:"sent"`
-	Fees        int64              `json:"fees"`
-	NumVin      uint32             `json:"numvin"`
-	Vins        VinTxPropertyARRAY `json:"vins"`
-	VinDbIds    []uint64           `json:"vindbids"`
-	NumVout     uint32             `json:"numvout"`
-	Vouts       []*Vout            `json:"vouts"`
-	VoutDbIds   []uint64           `json:"voutdbids"`
+	BlockHash   string `json:"block_hash"`
+	BlockHeight int64  `json:"block_height"`
+	BlockTime   int64  `json:"block_time"`
+	Time        int64  `json:"time"`
+	TxType      int16  `json:"tx_type"`
+	Version     uint16 `json:"version"`
+	Tree        int8   `json:"tree"`
+	TxID        string `json:"txid"`
+	BlockIndex  uint32 `json:"block_index"`
+	Locktime    uint32 `json:"locktime"`
+	Expiry      uint32 `json:"expiry"`
+	Size        uint32 `json:"size"`
+	Spent       int64  `json:"spent"`
+	Sent        int64  `json:"sent"`
+	Fees        int64  `json:"fees"`
+	NumVin      uint32 `json:"numvin"`
+	//Vins        VinTxPropertyARRAY `json:"vins"`
+	VinDbIds  []uint64 `json:"vindbids"`
+	NumVout   uint32   `json:"numvout"`
+	Vouts     []*Vout  `json:"vouts"`
+	VoutDbIds []uint64 `json:"voutdbids"`
 	// NOTE: VoutDbIds may not be needed if there is a vout table since each
 	// vout will have a tx_dbid
 }

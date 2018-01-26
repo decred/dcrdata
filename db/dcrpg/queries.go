@@ -1322,7 +1322,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 
 		price := dcrutil.Amount(tx.Vouts[0].Value).ToCoin()
 		fee := dcrutil.Amount(tx.Fees).ToCoin()
-		isSplit := len(tx.Vins) > 1
+		isSplit := tx.NumVin > 1
 
 		var id uint64
 		err := stmt.QueryRow(
@@ -1510,8 +1510,8 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {
 		dbTx.BlockHash, dbTx.BlockHeight, dbTx.BlockTime, dbTx.Time,
 		dbTx.TxType, dbTx.Version, dbTx.Tree, dbTx.TxID, dbTx.BlockIndex,
 		dbTx.Locktime, dbTx.Expiry, dbTx.Size, dbTx.Spent, dbTx.Sent, dbTx.Fees,
-		dbTx.NumVin, dbTx.Vins, dbtypes.UInt64Array(dbTx.VinDbIds),
-		dbTx.NumVout, pq.Array(dbTx.Vouts), dbtypes.UInt64Array(dbTx.VoutDbIds)).Scan(&id)
+		dbTx.NumVin, dbtypes.UInt64Array(dbTx.VinDbIds),
+		dbTx.NumVout, dbtypes.UInt64Array(dbTx.VoutDbIds)).Scan(&id)
 	return id, err
 }
 
@@ -1535,8 +1535,8 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error
 			tx.BlockHash, tx.BlockHeight, tx.BlockTime, tx.Time,
 			tx.TxType, tx.Version, tx.Tree, tx.TxID, tx.BlockIndex,
 			tx.Locktime, tx.Expiry, tx.Size, tx.Spent, tx.Sent, tx.Fees,
-			tx.NumVin, tx.Vins, dbtypes.UInt64Array(tx.VinDbIds),
-			tx.NumVout, pq.Array([]*dbtypes.Vout{}), dbtypes.UInt64Array(tx.VoutDbIds)).Scan(&id)
+			tx.NumVin, dbtypes.UInt64Array(tx.VinDbIds),
+			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds)).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue

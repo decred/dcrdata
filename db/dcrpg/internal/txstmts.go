@@ -12,14 +12,12 @@ const (
 		block_hash, block_height, block_time, time,
 		tx_type, version, tree, tx_hash, block_index, 
 		lock_time, expiry, size, spent, sent, fees, 
-		num_vin, vins, vin_db_ids,
-		num_vout, vouts, vout_db_ids)
+		num_vin, vin_db_ids, num_vout, vout_db_ids)
 	VALUES (
 		$1, $2, $3, $4, 
 		$5, $6, $7, $8, $9,
 		$10, $11, $12, $13, $14, $15,
-		$16, $17, $18,
-		$19, $20, $21) `
+		$16, $17, $18, $19) `
 	insertTxRow = insertTxRow0 + `RETURNING id;`
 	//insertTxRowChecked = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTxRow = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -55,10 +53,8 @@ const (
 		sent INT8,
 		fees INT8,
 		num_vin INT4,
-		vins JSONB,
 		vin_db_ids INT8[],
 		num_vout INT4,
-		vouts vout_t[],
 		vout_db_ids INT8[]
 	);`
 
