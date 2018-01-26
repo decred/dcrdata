@@ -143,6 +143,10 @@ func mainCore() error {
 			return err
 		}
 
+		if err = db.VersionCheck(); err != nil {
+			return err
+		}
+
 		var idxExists bool
 		idxExists, err = db.ExistsIndexVinOnVins()
 		if !idxExists || err != nil {

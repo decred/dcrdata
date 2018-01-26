@@ -29,6 +29,67 @@ var createTypeStatements = map[string]string{
 	"vout_t": internal.CreateVoutType,
 }
 
+// The tables are versioned as follows. The major version is the same for all
+// the tables. A bump of this version is used to signal that all tables should
+// be dropped and rebuilt. The minor versions may be different, and they are
+// used to indicate a change requiring a table upgrade, which would be handled
+// by dcrdata or rebuilddb2. The patch versions may also be different. They
+// indicate a change of a table's index or constraint, which may require
+// re-indexing and a duplicate scan/purge.
+const tableMajor = 2
+
+var requiredVersions = map[string]TableVersion{
+	"blocks":       NewTableVersion(tableMajor, 0, 0),
+	"transactions": NewTableVersion(tableMajor, 0, 0),
+	"vins":         NewTableVersion(tableMajor, 0, 0),
+	"vouts":        NewTableVersion(tableMajor, 0, 0),
+	"block_chain":  NewTableVersion(tableMajor, 0, 0),
+	"addresses":    NewTableVersion(tableMajor, 0, 0),
+	"tickets":      NewTableVersion(tableMajor, 0, 0),
+	"votes":        NewTableVersion(tableMajor, 0, 0),
+	"misses":       NewTableVersion(tableMajor, 0, 0),
+}
+
+// TableVersion models a table version by major.minor.patch
+type TableVersion struct {
+	major, minor, patch uint32
+}
+
+// TableVersionCompatible indicates if the table versions are compatible
+// (equal), and if not, what is the required action (rebuild, upgrade, or
+// reindex).
+func TableVersionCompatible(required, actual TableVersion) string {
+	switch {
+	case required.major != actual.major:
+		return "rebuild"
+	case required.minor != actual.minor:
+		return "upgrade"
+	case required.patch != actual.patch:
+		return "reindex"
+	default:
+		return "ok"
+	}
+}
+
+func (s TableVersion) String() string {
+	return fmt.Sprintf("%d.%d.%d", s.major, s.minor, s.patch)
+}
+
+// NewSemver returns a new Semver with the version major.minor.patch
+func NewTableVersion(major, minor, patch uint32) TableVersion {
+	return TableVersion{major, minor, patch}
+}
+
+type TableUpgrade struct {
+	TableName, UpgradeType  string
+	CurrentVer, RequiredVer TableVersion
+}
+
+func (s TableUpgrade) String() string {
+	return fmt.Sprintf("Table %s requires %s (%s -> %s).", s.TableName,
+		s.UpgradeType, s.CurrentVer, s.RequiredVer)
+}
+
 func TableExists(db *sql.DB, tableName string) (bool, error) {
 	rows, err := db.Query(`select relname from pg_class where relname = $1`,
 		tableName)
@@ -83,7 +144,7 @@ func CreateTypes(db *sql.DB) error {
 				return err
 			}
 		} else {
-			log.Debugf("Type \"%s\" exist.", typeName)
+			log.Tracef("Type \"%s\" exist.", typeName)
 		}
 	}
 	return err
@@ -112,19 +173,24 @@ func CreateTables(db *sql.DB) error {
 			return err
 		}
 
+		tableVersion, ok := requiredVersions[tableName]
+		if !ok {
+			return fmt.Errorf("no version assigned to table %s", tableName)
+		}
+
 		if !exists {
 			log.Infof("Creating the \"%s\" table.", tableName)
 			_, err = db.Exec(createCommand)
 			if err != nil {
 				return err
 			}
-			_, err = db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s
-				IS 'v1';`, tableName))
+			_, err = db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s IS 'v%s';`,
+				tableName, tableVersion))
 			if err != nil {
 				return err
 			}
 		} else {
-			log.Debugf("Table \"%s\" exist.", tableName)
+			log.Tracef("Table \"%s\" exist.", tableName)
 		}
 	}
 	return err
@@ -135,7 +201,11 @@ func CreateTable(db *sql.DB, tableName string) error {
 	var err error
 	createCommand, tableNameFound := createTableStatements[tableName]
 	if !tableNameFound {
-		log.Errorf("Unknown table name %v", tableName)
+		return fmt.Errorf("table name %s unknown", tableName)
+	}
+	tableVersion, ok := requiredVersions[tableName]
+	if !ok {
+		return fmt.Errorf("no version assigned to table %s", tableName)
 	}
 
 	var exists bool
@@ -150,40 +220,87 @@ func CreateTable(db *sql.DB, tableName string) error {
 		if err != nil {
 			return err
 		}
-		_, err = db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s
-			IS 'v1';`, tableName))
+		_, err = db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s IS 'v%s';`,
+			tableName, tableVersion))
 		if err != nil {
 			return err
 		}
 	} else {
-		log.Debugf("Table \"%s\" exist.", tableName)
+		log.Tracef("Table \"%s\" exist.", tableName)
 	}
 
 	return err
 }
 
-func TableVersions(db *sql.DB) map[string]int32 {
-	versions := map[string]int32{}
+func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
+	var tableUpgrades []TableUpgrade
+	for t := range createTableStatements {
+		var ok bool
+		var req, act TableVersion
+		if req, ok = requiredVersions[t]; !ok {
+			log.Errorf("required version unknown for table %s", t)
+			tableUpgrades = append(tableUpgrades, TableUpgrade{
+				TableName:   t,
+				UpgradeType: "unknown",
+			})
+			continue
+		}
+		if act, ok = versions[t]; !ok {
+			log.Errorf("current version unknown for table %s", t)
+			tableUpgrades = append(tableUpgrades, TableUpgrade{
+				TableName:   t,
+				UpgradeType: "rebuild",
+				RequiredVer: req,
+			})
+			continue
+		}
+		versionCompatibility := TableVersionCompatible(req, act)
+		if versionCompatibility != "ok" {
+			tableUpgrades = append(tableUpgrades, TableUpgrade{
+				TableName:   t,
+				UpgradeType: versionCompatibility,
+				CurrentVer:  act,
+				RequiredVer: req,
+			})
+		}
+	}
+	return tableUpgrades
+}
+
+func TableVersions(db *sql.DB) map[string]TableVersion {
+	versions := map[string]TableVersion{}
 	for tableName := range createTableStatements {
 		Result := db.QueryRow(`select obj_description($1::regclass);`, tableName)
 		var s string
-		v := int(-1)
+		var v, m, p int
 		if Result != nil {
 			err := Result.Scan(&s)
 			if err != nil {
 				log.Errorf("Scan of QueryRow failed: %v", err)
 				continue
 			}
-			re := regexp.MustCompile(`^v(\d+)$`)
+			re := regexp.MustCompile(`^v(\d+)\.?(\d?)\.?(\d?)$`)
 			subs := re.FindStringSubmatch(s)
 			if len(subs) > 1 {
 				v, err = strconv.Atoi(subs[1])
 				if err != nil {
 					fmt.Println(err)
 				}
+				if len(subs) > 2 && len(subs[2]) > 0 {
+					m, err = strconv.Atoi(subs[2])
+					if err != nil {
+						fmt.Println(err)
+					}
+					if len(subs) > 3 && len(subs[3]) > 0 {
+						p, err = strconv.Atoi(subs[3])
+						if err != nil {
+							fmt.Println(err)
+						}
+					}
+				}
 			}
 		}
-		versions[tableName] = int32(v)
+		versions[tableName] = NewTableVersion(uint32(v), uint32(m), uint32(p))
 	}
 	return versions
 }

@@ -505,11 +505,6 @@ func (db *StakeDatabase) Open(dbName string) error {
 	return err
 }
 
-// Close closes the database.
-func (db *StakeDatabase) Close() error {
-	return db.StakeDB.Close()
-}
-
 // Close will close the ticket pool and stake databases.
 func (db *StakeDatabase) Close() error {
 	err1 := db.PoolDB.Close()

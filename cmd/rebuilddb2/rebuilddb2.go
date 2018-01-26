@@ -134,6 +134,10 @@ func mainCore() error {
 		return nil
 	}
 
+	if err = db.VersionCheck(); err != nil {
+		log.Warnf("ATTENTION: %v", err)
+	}
+
 	if cfg.DuplicateEntryRecovery {
 		return db.DeleteDuplicatesRecovery()
 	}
