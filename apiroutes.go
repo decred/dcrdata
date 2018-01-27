@@ -842,8 +842,14 @@ func (c *appContext) getBlockRangeSummary(w http.ResponseWriter, r *http.Request
 	}
 	fmt.Fprintf(w, "[%s%s", newline, prefix)
 	for i := idx0; i <= idx; i++ {
+		summary := c.BlockData.GetSummary(i)
+		if summary == nil {
+			apiLog.Debugf("Unknown block %d", i)
+			http.Error(w, fmt.Sprintf("I don't know block %d", i), http.StatusNotFound)
+			return
+		}
 		// TODO: deal with the extra newline from Encode, if needed
-		if err := encoder.Encode(c.BlockData.GetSummary(i)); err != nil {
+		if err := encoder.Encode(summary); err != nil {
 			apiLog.Infof("JSON encode error: %v", err)
 			http.Error(w, http.StatusText(422), 422)
 			return
@@ -874,6 +880,16 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Compute the last block in the range
+	numSteps := (idx - idx0) / step
+	last := idx0 + step*numSteps
+	// Support reverse list (e.g. 10/0/5 counts down from 10 to 0 in steps of 5)
+	if idx0 > idx {
+		step = -step
+		// TODO: support reverse in other endpoints
+	}
+
+	// Prepare JSON encode for streaming response
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	encoder := json.NewEncoder(w)
 	indent := c.getIndentQuery(r)
@@ -882,15 +898,25 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 	if indent != "" {
 		newline = "\n"
 	}
+
+	// Manually structure outer JSON array
 	fmt.Fprintf(w, "[%s%s", newline, prefix)
-	for i := idx0; i <= idx; i += step {
+	// Go through blocks in list, stop after last (i.e. on last+step)
+	for i := idx0; i != last+step; i += step {
+		summary := c.BlockData.GetSummary(i)
+		if summary == nil {
+			apiLog.Debugf("Unknown block %d", i)
+			http.Error(w, fmt.Sprintf("I don't know block %d", i), http.StatusNotFound)
+			return
+		}
 		// TODO: deal with the extra newline from Encode, if needed
-		if err := encoder.Encode(c.BlockData.GetSummary(i)); err != nil {
+		if err := encoder.Encode(summary); err != nil {
 			apiLog.Infof("JSON encode error: %v", err)
 			http.Error(w, http.StatusText(422), 422)
 			return
 		}
-		if i != idx {
+		// After last block, do not print comma+newline+prefix
+		if i != last {
 			fmt.Fprintf(w, ",%s%s", newline, prefix)
 		}
 	}

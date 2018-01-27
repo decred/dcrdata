@@ -140,6 +140,7 @@ type AddressInfo struct {
 	Transactions     []*AddressTx
 	NumFundingTxns   int64
 	NumSpendingTxns  int64
+	NumTransactions  int64
 	KnownFundingTxns int64
 	NumUnconfirmed   int64
 	TotalReceived    dcrutil.Amount
@@ -147,6 +148,7 @@ type AddressInfo struct {
 	Unspent          dcrutil.Amount
 	Balance          *AddressBalance
 	Path             string
+	Fullmode         bool
 }
 
 // AddressBalance represents the number and value of spent and unspent outputs

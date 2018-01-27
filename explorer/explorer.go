@@ -44,7 +44,7 @@ const (
 	maxExplorerRows          = 2000
 	minExplorerRows          = 20
 	defaultAddressRows int64 = 20
-	maxAddressRows     int64 = 1000
+	MaxAddressRows     int64 = 1000
 )
 
 // explorerDataSourceLite implements an interface for collecting data for the
