@@ -231,6 +231,10 @@
                 + "&start=" + {{.Offset}}
             )
         })
+        
+    </script>
+    {{end}}
+    <script>
         function generateQRCode(address) {
             var $qrcode = $("#address-qrcode")
             $.getScript("/js/qrcode.min.js", function() {
@@ -242,7 +246,6 @@
         }
         $('.jsonly').show()
     </script>
-    {{end}}
     {{end}}
     {{ template "footer" . }}
 
