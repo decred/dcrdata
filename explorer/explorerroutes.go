@@ -250,6 +250,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.Balance = balance
 		addrData.Path = r.URL.Path
+		addrData.KnownTransactions = (balance.NumSpent * 2) + balance.NumUnspent
+		addrData.NumTransactions = int64(len(addrData.Transactions))
+		if addrData.NumTransactions > addrData.Limit {
+			addrData.NumTransactions = addrData.Limit
+		}
 		addrData.Fullmode = true
 		// still need []*AddressTx filled out and NumUnconfirmed
 
@@ -259,6 +264,10 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("Unable to fill address %s transactions: %v", address, err)
 			exp.ErrorPage(w, "Something went wrong...", "could not find transactions for that address", false)
 			return
+		}
+		addrData.NumUnconfirmed, err = exp.blockData.SearchRawTransactionsForUnconfirmedTransactions(address, addrData.Offset, MaxUnconfirmedPossible)
+		if err != nil {
+			log.Warnf("SearchRawTransactionsForUnconfirmedTransactions failed for address %s: %v", address, err)
 		}
 	}
 

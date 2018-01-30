@@ -14,70 +14,59 @@
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
                 <table>
-                    {{if .Fullmode}}
-                        {{if .Balance}}
-                        <tr class="h2rem">
-                            <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
-                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
-                                {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="pl-1 unit">DCR</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2">RECEIVED</td>
-                            <td class="mono nowrap text-right">
-                                {{$received := add .Balance.TotalSpent .Balance.TotalUnspent}}
-                                {{template "decimalParts" (amountAsDecimalParts $received true)}}<span class="pl-1 unit">DCR</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2">SPENT</td>
-                            <td class="mono nowrap text-right">
-                                {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="pl-1 unit">DCR</span>
-                            </td>
-                        </tr>
-                        {{else}}
-                        <tr class="h2rem">
-                            <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
-                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
-                                <span class="pl-1 unit">0.000000000 DCR</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2">RECEIVED</td>
-                            <td class="mono nowrap text-right">
-                                <span class="pl-1 unit">0.000000000 DCR</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2">SPENT</td>
-                            <td class="mono nowrap text-right">
-                                <span class="pl-1 unit">0.000000000 DCR</span>
-                            </td>
-                        </tr>
-                        {{end}}
-                    {{else}}
                     <tr  class="h2rem">
                         <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
-                        {{if eq .KnownFundingTxns .MaxLimit}}
-                        <td class="fs28 mono nowrap d-flex align-items-center justify-content-end">unavailable</td>
+                        {{if .Fullmode}}
+                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
+                                {{if .Balance}}
+                                    {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="pl-1 unit">DCR</span>
+                                {{else}}
+                                <span class="pl-1 unit">0.000000000 DCR</span>
+                                {{end}}
+                            </td>
                         {{else}}
-                        <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.Unspent}}</td>
+                            {{if ge .KnownTransactions .MaxLimit}}
+                            <td class="fs28 mono nowrap d-flex align-items-center justify-content-end">unavailable</td>
+                            {{else}}
+                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.Unspent}}</td>
+                            {{end}}
                         {{end}}
                     </tr>
                     <tr>
                         <td class="text-right pr-2">RECEIVED</td>
-                        {{if eq .KnownFundingTxns .MaxLimit}}
-                        <td class="mono nowrap text-right">unavailable</td>
+                        {{if .Fullmode}}
+                            <td class="mono nowrap text-right">
+                                {{if .Balance}}
+                                    {{$received := add .Balance.TotalSpent .Balance.TotalUnspent}}
+                                    {{template "decimalParts" (amountAsDecimalParts $received true)}}<span class="pl-1 unit">DCR</span>
+                                {{else}}
+                                <span class="pl-1 unit">0.000000000 DCR</span>
+                                {{end}}
+                            </td>
                         {{else}}
-                        <td class="mono nowrap text-right">{{.TotalReceived}}</td>
+                            {{if ge .KnownTransactions .MaxLimit}}
+                            <td class="mono nowrap text-right">unavailable</td>
+                            {{else}}
+                            <td class="mono nowrap text-right">{{.TotalReceived}}</td>
+                            {{end}}
                         {{end}}
                     </tr>
                     <tr>
                         <td class="text-right pr-2">SPENT</td>
-                        {{if eq .KnownFundingTxns .MaxLimit}}
-                        <td class="mono nowrap text-right">unavailable</td>
+                        {{if .Fullmode}}
+                            <td class="mono nowrap text-right">
+                                {{if .Balance}}
+                                    {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="pl-1 unit">DCR</span>
+                                {{else}}
+                                <span class="pl-1 unit">0.000000000 DCR</span>
+                                {{end}}
+                            </td>
                         {{else}}
-                        <td class="mono nowrap text-right">{{.TotalSent}}</td>
+                            {{if ge .KnownTransactions .MaxLimit}}
+                            <td class="mono nowrap text-right">unavailable</td>
+                            {{else}}
+                            <td class="mono nowrap text-right">{{.TotalSent}}</td>
+                            {{end}}
                         {{end}}
                     </tr>
                     {{if ne .NumUnconfirmed 0}}
@@ -88,8 +77,6 @@
                             </td>
                         </tr>
                     {{end}}
-                           
-                    {{end}}
                 </table>
             </div>
         </div>
@@ -98,14 +85,14 @@
             <div class="col">
                 <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
                     <h5 class="mr-auto mb-0">Transactions</h5>
-                    {{if lt .NumFundingTxns .KnownFundingTxns}}
+                    {{if lt .NumTransactions .KnownTransactions}}
                     <div div class="d-flex flex-wrap-reverse align-items-center justify-content-end">
-                        <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumFundingTxns)}} transactions of {{intComma .KnownFundingTxns}}
-                            {{if lt .NumFundingTxns .KnownFundingTxns}}
-                            {{if not .Fullmode}}
+                        {{if .Fullmode}}
+                        <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumFundingTxns)}} of {{intComma .KnownFundingTxns}} funding transactions
+                        {{else}}
+                        <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma .KnownTransactions}} transactions
                             <sup>*</sup>
-                            {{end}}
-                            {{end}}
+                        {{end}}
                         </span>
                         <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
                             <ul class="pagination mb-0 pagination-sm">
@@ -116,7 +103,7 @@
                                         id="prev"
                                     >Previous</a>
                                 </li>
-                                <li class="page-item {{if lt (subtract .KnownFundingTxns .Offset) (add .Limit 1)}}disabled{{end}}">
+                                <li class="page-item {{if lt (subtract .KnownTransactions .Offset) (add .Limit 1)}}disabled{{end}}">
                                     <a
                                         class="page-link"
                                         href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}"
@@ -128,7 +115,11 @@
                         </nav>
                     </div>
                     {{else}}
-                    <span class="fs12 nowrap text-right">{{intComma .KnownFundingTxns}} transaction{{if gt .KnownFundingTxns 1}}s{{end}}</span>
+                    {{if .Fullmode}}
+                    <span class="fs12 nowrap text-right">{{intComma .KnownFundingTxns}} funding transaction{{if gt .KnownFundingTxns 1}}s{{end}}</span>
+                    {{else}}
+                    <span class="fs12 nowrap text-right">{{intComma .KnownTransactions}} transaction{{if gt .KnownTransactions 1}}s{{end}}</span>
+                    {{end}}
                     {{end}}
                 </div>
                 {{if .Transactions}}
@@ -196,7 +187,7 @@
                 </table>
                 {{end}}
 
-                {{if lt .NumFundingTxns .KnownFundingTxns}}
+                {{if lt .NumTransactions .KnownTransactions}}
                 {{if not .Fullmode}}
                 <div>
                     *Limit of 1000 transactions shown in lite mode.
@@ -222,7 +213,7 @@
         </div>
     </div>
 
-    {{if lt .NumFundingTxns .KnownFundingTxns}}
+    {{if lt .NumTransactions .KnownTransactions}}
     <script>
         $("#pagesize-wrapper").removeClass("hidden")
         $("#pagesize").change(function(ev) {

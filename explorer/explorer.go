@@ -41,10 +41,11 @@ const (
 )
 
 const (
-	maxExplorerRows          = 2000
-	minExplorerRows          = 20
-	defaultAddressRows int64 = 20
-	MaxAddressRows     int64 = 1000
+	maxExplorerRows              = 2000
+	minExplorerRows              = 20
+	defaultAddressRows     int64 = 20
+	MaxAddressRows         int64 = 1000
+	MaxUnconfirmedPossible int64 = 1000
 )
 
 // explorerDataSourceLite implements an interface for collecting data for the
@@ -60,6 +61,7 @@ type explorerDataSourceLite interface {
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int
 	GetChainParams() *chaincfg.Params
+	SearchRawTransactionsForUnconfirmedTransactions(address string, offset int64, maxUnconfirmedPossible int64) (int64, error)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a

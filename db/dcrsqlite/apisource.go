@@ -1098,9 +1098,9 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		}
 	}
 	numberMaxOfTx := int64(len(txs))
-	var numFundingTxns = count
+	var numTxns = count
 	if numberMaxOfTx < count {
-		numFundingTxns = numberMaxOfTx
+		numTxns = numberMaxOfTx
 	}
 	balance := &explorer.AddressBalance{
 		Address:      address,
@@ -1110,21 +1110,43 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		TotalUnspent: int64(totalreceived - totalsent),
 	}
 	return &explorer.AddressInfo{
-		Address:          address,
-		Limit:            count,
-		MaxLimit:         maxcount,
-		Offset:           offset,
-		Transactions:     addressTxs,
-		NumFundingTxns:   numFundingTxns,
-		KnownFundingTxns: numberMaxOfTx,
-		NumSpendingTxns:  numSpending,
-		NumUnconfirmed:   numUnconfirmed,
-		TotalReceived:    totalreceived,
-		TotalSent:        totalsent,
-		Unspent:          totalreceived - totalsent,
-		Balance:          balance,
+		Address:           address,
+		Limit:             count,
+		MaxLimit:          maxcount,
+		Offset:            offset,
+		Transactions:      addressTxs,
+		NumTransactions:   numTxns,
+		KnownTransactions: numberMaxOfTx,
+		KnownFundingTxns:  numReceiving,
+		NumSpendingTxns:   numSpending,
+		NumUnconfirmed:    numUnconfirmed,
+		TotalReceived:     totalreceived,
+		TotalSent:         totalsent,
+		Unspent:           totalreceived - totalsent,
+		Balance:           balance,
 	}
 }
 func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
 	return address.IsForNet(p)
+}
+
+// SearchRawTransactionsForUnconfirmedTransactions returns the number of unconfirmed transactions,
+// given a maximum possible unconfirmed
+func (db *wiredDB) SearchRawTransactionsForUnconfirmedTransactions(address string, offset int64, maxUnconfirmedPossible int64) (numUnconfirmed int64, err error) {
+	addr, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		log.Infof("Invalid address %s: %v", address, err)
+		return 0, err
+	}
+	txs, err := db.client.SearchRawTransactionsVerbose(addr, int(offset), int(maxUnconfirmedPossible), true, true, nil)
+	if err != nil {
+		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+		return 0, err
+	}
+	for _, tx := range txs {
+		if tx.Confirmations == 0 {
+			numUnconfirmed++
+		}
+	}
+	return numUnconfirmed, nil
 }
