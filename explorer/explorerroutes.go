@@ -265,7 +265,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			exp.ErrorPage(w, "Something went wrong...", "could not find transactions for that address", false)
 			return
 		}
-		addrData.NumUnconfirmed, err = exp.blockData.SearchRawTransactionsForUnconfirmedTransactions(address, addrData.Offset, MaxUnconfirmedPossible)
+		addrData.NumUnconfirmed, err = exp.blockData.CountUnconfirmedTransactions(address, MaxUnconfirmedPossible)
 		if err != nil {
 			log.Warnf("SearchRawTransactionsForUnconfirmedTransactions failed for address %s: %v", address, err)
 		}

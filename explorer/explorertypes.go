@@ -139,12 +139,12 @@ type AddressInfo struct {
 	MaxLimit          int64
 	Offset            int64
 	Transactions      []*AddressTx
-	NumFundingTxns    int64
-	NumSpendingTxns   int64
-	NumTransactions   int64
-	KnownTransactions int64
-	KnownFundingTxns  int64
-	NumUnconfirmed    int64
+	NumFundingTxns    int64 // The number of transactions paying to the address
+	NumSpendingTxns   int64 // The number of transactions spending from the address
+	NumTransactions   int64 // The number of transactions in the address
+	KnownTransactions int64 // The number of transactions in the address unlimited
+	KnownFundingTxns  int64 // The number of transactions paying to the address unlimited
+	NumUnconfirmed    int64 // The number of unconfirmed transactions in the address
 	TotalReceived     dcrutil.Amount
 	TotalSent         dcrutil.Amount
 	Unspent           dcrutil.Amount

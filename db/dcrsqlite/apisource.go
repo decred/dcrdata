@@ -1126,27 +1126,28 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		Balance:           balance,
 	}
 }
+
 func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
 	return address.IsForNet(p)
 }
 
-// SearchRawTransactionsForUnconfirmedTransactions returns the number of unconfirmed transactions,
+// CountUnconfirmedTransactions returns the number of unconfirmed transactions involving the specified address,
 // given a maximum possible unconfirmed
-func (db *wiredDB) SearchRawTransactionsForUnconfirmedTransactions(address string, offset int64, maxUnconfirmedPossible int64) (numUnconfirmed int64, err error) {
+func (db *wiredDB) CountUnconfirmedTransactions(address string, maxUnconfirmedPossible int64) (numUnconfirmed int64, err error) {
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", address, err)
-		return 0, err
+		return
 	}
-	txs, err := db.client.SearchRawTransactionsVerbose(addr, int(offset), int(maxUnconfirmedPossible), true, true, nil)
+	txs, err := db.client.SearchRawTransactionsVerbose(addr, 0, int(maxUnconfirmedPossible), true, true, nil)
 	if err != nil {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
-		return 0, err
+		return
 	}
 	for _, tx := range txs {
 		if tx.Confirmations == 0 {
 			numUnconfirmed++
 		}
 	}
-	return numUnconfirmed, nil
+	return
 }

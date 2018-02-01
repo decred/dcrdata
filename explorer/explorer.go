@@ -61,7 +61,7 @@ type explorerDataSourceLite interface {
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int
 	GetChainParams() *chaincfg.Params
-	SearchRawTransactionsForUnconfirmedTransactions(address string, offset int64, maxUnconfirmedPossible int64) (int64, error)
+	CountUnconfirmedTransactions(address string, maxUnconfirmedPossible int64) (int64, error)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
