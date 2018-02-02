@@ -163,12 +163,18 @@ type AddressBalance struct {
 
 // HomeInfo represents data used for the home page
 type HomeInfo struct {
-	CoinSupply       int64        `json:"coin_supply"`
-	StakeDiff        float64      `json:"sdiff"`
-	IdxBlockInWindow int          `json:"window_idx"`
-	Difficulty       float64      `json:"difficulty"`
-	NBlockSubsidy    BlockSubsidy `json:"subsidy"`
-	Params           ChainParams  `json:"params"`
+	CoinSupply        int64          `json:"coin_supply"`
+	StakeDiff         float64        `json:"sdiff"`
+	IdxBlockInWindow  int            `json:"window_idx"`
+	IdxInRewardWindow int            `json:"reward_idx"`
+	Difficulty        float64        `json:"difficulty"`
+	DevFund           int64          `json:"dev_fund"`
+	DevAddress        string         `json:"dev_address"`
+	TicketROI         float64        `json:"roi"`
+	ROIPeriod         string         `json:"roi_period"`
+	NBlockSubsidy     BlockSubsidy   `json:"subsidy"`
+	Params            ChainParams    `json:"params"`
+	PoolInfo          TicketPoolInfo `json:"pool_info"`
 }
 
 // BlockSubsidy is an implementation of dcrjson.GetBlockSubsidyResult
@@ -183,12 +189,16 @@ type BlockSubsidy struct {
 type MempoolInfo struct {
 	sync.RWMutex
 	NumTickets uint32 `json:"num_tickets"`
+	NumVotes   uint32 `json:"num_votes"`
 }
 
 // ChainParams models simple data about the chain server's parameters used for some
 // info on the front page
 type ChainParams struct {
-	WindowSize int64 `json:"window_size"`
+	WindowSize       int64 `json:"window_size"`
+	RewardWindowSize int64 `json:"reward_window_size"`
+	TargetPoolSize   int64 `json:"target_pool_size"`
+	BlockTime        int64 `json:"target_block_time"`
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
@@ -247,4 +257,13 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 type WebsocketBlock struct {
 	Block *BlockBasic `json:"block"`
 	Extra *HomeInfo   `json:"extra"`
+}
+
+type TicketPoolInfo struct {
+	Size          uint32  `json:"size"`
+	Value         float64 `json:"value"`
+	ValAvg        float64 `json:"valavg"`
+	Percentage    float64 `json:"percent"`
+	Target        uint16  `json:"target"`
+	PercentTarget float64 `json:"percent_target"`
 }

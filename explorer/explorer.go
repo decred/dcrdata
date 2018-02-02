@@ -23,6 +23,8 @@ import (
 	"github.com/dcrdata/dcrdata/mempool"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
@@ -201,8 +203,17 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.Mux.Use(middleware.RealIP)
 	}
 
-	exp.ChainParams = exp.blockData.GetChainParams()
-
+	params := exp.blockData.GetChainParams()
+	exp.ChainParams = params
+	_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
+		params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
+	if err != nil || len(devSubsidyAddresses) != 1 {
+		log.Warnf("Failed to decode dev subsidy address: %v", err)
+	} else {
+		exp.ExtraInfo = &HomeInfo{
+			DevAddress: devSubsidyAddresses[0].String(),
+		}
+	}
 	exp.templateFiles = make(map[string]string)
 	exp.templateFiles["home"] = filepath.Join("views", "home.tmpl")
 	exp.templateFiles["explorer"] = filepath.Join("views", "explorer.tmpl")
@@ -236,23 +247,23 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	exp.templateHelpers = template.FuncMap{
 		"add": func(a int64, b int64) int64 {
-			val := a + b
-			return val
+			return a + b
 		},
 		"subtract": func(a int64, b int64) int64 {
-			val := a - b
-			return val
+			return a - b
 		},
 		"divide": func(n int64, d int64) int64 {
 			return n / d
+		},
+		"multiply": func(a int64, b int64) int64 {
+			return a * b
 		},
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
 		},
 		"percentage": func(a int64, b int64) float64 {
-			p := (float64(a) / float64(b)) * 100
-			return p
+			return (float64(a) / float64(b)) * 100
 		},
 		"int64": toInt64,
 		"intComma": func(v interface{}) string {
@@ -263,6 +274,10 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		},
 		"ticketWindowProgress": func(i int) float64 {
 			p := (float64(i) / float64(exp.ChainParams.StakeDiffWindowSize)) * 100
+			return p
+		},
+		"rewardAdjustmentProgress": func(i int) float64 {
+			p := (float64(i) / float64(exp.ChainParams.SubsidyReductionInterval)) * 100
 			return p
 		},
 		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
@@ -315,6 +330,35 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			dec := strings.TrimRight(amt[len(amt)-8:], "0")
 			zeros := strings.Repeat("0", 8-len(dec))
 			return []string{integer, dec, zeros}
+		},
+		"remaining": func(idx int, max int64, t int64) string {
+			x := (max - int64(idx)) * t
+			allsecs := int(time.Duration(x).Seconds())
+			str := ""
+			if allsecs > 604799 {
+				weeks := allsecs / 604800
+				allsecs %= 604800
+				str += fmt.Sprintf("%dw ", weeks)
+			}
+			if allsecs > 86399 {
+				days := allsecs / 86400
+				allsecs %= 86400
+				str += fmt.Sprintf("%dd ", days)
+			}
+			if allsecs > 3599 {
+				hours := allsecs / 3600
+				allsecs %= 3600
+				str += fmt.Sprintf("%dh ", hours)
+			}
+			if allsecs > 59 {
+				mins := allsecs / 60
+				allsecs %= 60
+				str += fmt.Sprintf("%dm ", mins)
+			}
+			if allsecs > 0 {
+				str += fmt.Sprintf("%ds ", allsecs)
+			}
+			return str + "remaining"
 		},
 	}
 
@@ -408,11 +452,17 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		Revocations:    uint32(bData.Revocations),
 	}
 	exp.NewBlockData = newBlockData
+	percentage := func(a float64, b float64) float64 {
+		return (a / b) * 100
+	}
+
 	exp.ExtraInfo = &HomeInfo{
-		CoinSupply:       blockData.ExtraInfo.CoinSupply,
-		StakeDiff:        blockData.CurrentStakeDiff.CurrentStakeDifficulty,
-		IdxBlockInWindow: blockData.IdxBlockInWindow,
-		Difficulty:       blockData.Header.Difficulty,
+		CoinSupply:        blockData.ExtraInfo.CoinSupply,
+		StakeDiff:         blockData.CurrentStakeDiff.CurrentStakeDifficulty,
+		IdxBlockInWindow:  blockData.IdxBlockInWindow,
+		IdxInRewardWindow: int(newBlockData.Height % exp.ChainParams.SubsidyReductionInterval),
+		DevAddress:        exp.ExtraInfo.DevAddress,
+		Difficulty:        blockData.Header.Difficulty,
 		NBlockSubsidy: BlockSubsidy{
 			Dev:   blockData.ExtraInfo.NextBlockSubsidy.Developer,
 			PoS:   blockData.ExtraInfo.NextBlockSubsidy.PoS,
@@ -420,8 +470,28 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 			Total: blockData.ExtraInfo.NextBlockSubsidy.Total,
 		},
 		Params: ChainParams{
-			WindowSize: exp.ChainParams.StakeDiffWindowSize,
+			WindowSize:       exp.ChainParams.StakeDiffWindowSize,
+			RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
+			BlockTime:        exp.ChainParams.TargetTimePerBlock.Nanoseconds(),
 		},
+		PoolInfo: TicketPoolInfo{
+			Size:       blockData.PoolInfo.Size,
+			Value:      blockData.PoolInfo.Value,
+			ValAvg:     blockData.PoolInfo.ValAvg,
+			Percentage: percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()),
+			Target:     exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
+			PercentTarget: func() float64 {
+				target := int32(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
+				return float64((int32(blockData.PoolInfo.Size) - target)) / float64(target) * 100
+			}(),
+		},
+		TicketROI: percentage(dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin()/5, blockData.CurrentStakeDiff.CurrentStakeDifficulty),
+		ROIPeriod: fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*float64(exp.ChainParams.TicketPoolSize)/86400),
+	}
+
+	if !exp.liteMode {
+		_, devBalance, _ := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
+		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
 	}
 	exp.NewBlockDataMtx.Unlock()
 
@@ -435,6 +505,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 func (exp *explorerUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) error {
 	exp.MempoolData.RLock()
 	exp.MempoolData.NumTickets = data.NumTickets
+	exp.MempoolData.NumVotes = data.NumVotes
 	exp.MempoolData.RUnlock()
 	exp.wsHub.HubRelay <- sigMempoolUpdate
 
