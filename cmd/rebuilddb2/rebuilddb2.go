@@ -200,6 +200,14 @@ func mainCore() error {
 		log.Infof("Advancing stake db from %d to %d...", stakeDBHeight, lastBlock)
 	}
 	for stakeDBHeight < lastBlock {
+		// check for quit signal
+		select {
+		case <-quit:
+			log.Infof("Rescan cancelled at height %d.", stakeDBHeight)
+			return nil
+		default:
+		}
+
 		block, blockHash, err := rpcutils.GetBlock(stakeDBHeight+1, client)
 		if err != nil {
 			return fmt.Errorf("GetBlock failed (%s): %v", blockHash, err)
