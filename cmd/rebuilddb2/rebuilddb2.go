@@ -24,6 +24,7 @@ var (
 	backendLog      *btclog.Backend
 	rpcclientLogger btclog.Logger
 	pgLogger        btclog.Logger
+	stakedbLogger   btclog.Logger
 )
 
 const (
@@ -41,6 +42,8 @@ func init() {
 	rpcclient.UseLogger(rpcclientLogger)
 	pgLogger = backendLog.Logger("PSQL")
 	dcrpg.UseLogger(pgLogger)
+	stakedbLogger = backendLog.Logger("SKDB")
+	stakedb.UseLogger(stakedbLogger)
 }
 
 func mainCore() error {
@@ -125,7 +128,7 @@ func mainCore() error {
 	if db != nil {
 		defer db.Close()
 	}
-	if err != nil {
+	if err != nil || db == nil {
 		return err
 	}
 
