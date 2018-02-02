@@ -20,6 +20,9 @@ import (
 
 func ExistsIndex(db *sql.DB, indexName string) (exists bool, err error) {
 	err = db.QueryRow(internal.IndexExists, indexName, "public").Scan(&exists)
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 	return
 }
 
@@ -551,36 +554,63 @@ func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
 // DeleteDuplicateVins deletes rows in vin with duplicate tx information,
 // leaving the one row with the lowest id.
 func DeleteDuplicateVins(db *sql.DB) (int64, error) {
+	execErrPrefix := "failed to delete duplicate vins: "
+
+	existsIdx, err := ExistsIndex(db, "uix_vin")
+	if err != nil {
+		return 0, err
+	} else if !existsIdx {
+		return sqlExec(db, internal.DeleteVinsDuplicateRows, execErrPrefix)
+	}
+
 	if isuniq, err := IsUniqueIndex(db, "uix_vin"); err != nil && err != sql.ErrNoRows {
 		return 0, err
 	} else if isuniq {
 		return 0, nil
 	}
-	execErrPrefix := "failed to delete duplicate vins: "
+
 	return sqlExec(db, internal.DeleteVinsDuplicateRows, execErrPrefix)
 }
 
 // DeleteDuplicateVouts deletes rows in vouts with duplicate tx information,
 // leaving the one row with the lowest id.
 func DeleteDuplicateVouts(db *sql.DB) (int64, error) {
+	execErrPrefix := "failed to delete duplicate vouts: "
+
+	existsIdx, err := ExistsIndex(db, "uix_vout_txhash_ind")
+	if err != nil {
+		return 0, err
+	} else if !existsIdx {
+		return sqlExec(db, internal.DeleteVoutDuplicateRows, execErrPrefix)
+	}
+
 	if isuniq, err := IsUniqueIndex(db, "uix_vout_txhash_ind"); err != nil && err != sql.ErrNoRows {
 		return 0, err
 	} else if isuniq {
 		return 0, nil
 	}
-	execErrPrefix := "failed to delete duplicate vouts: "
+
 	return sqlExec(db, internal.DeleteVoutDuplicateRows, execErrPrefix)
 }
 
 // DeleteDuplicateTxns deletes rows in transactions with duplicate tx-block
 // hashes, leaving the one row with the lowest id.
 func DeleteDuplicateTxns(db *sql.DB) (int64, error) {
+	execErrPrefix := "failed to delete duplicate transactions: "
+
+	existsIdx, err := ExistsIndex(db, "uix_tx_hashes")
+	if err != nil {
+		return 0, err
+	} else if !existsIdx {
+		return sqlExec(db, internal.DeleteTxDuplicateRows, execErrPrefix)
+	}
+
 	if isuniq, err := IsUniqueIndex(db, "uix_tx_hashes"); err != nil && err != sql.ErrNoRows {
 		return 0, err
 	} else if isuniq {
 		return 0, nil
 	}
-	execErrPrefix := "failed to delete duplicate transactions: "
+
 	return sqlExec(db, internal.DeleteTxDuplicateRows, execErrPrefix)
 }
 
