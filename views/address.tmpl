@@ -91,7 +91,9 @@
                         <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumFundingTxns)}} of {{intComma .KnownFundingTxns}} funding transactions
                         {{else}}
                         <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma .KnownTransactions}} transactions
+                            {{if ge .KnownTransactions .MaxLimit}}
                             <sup>*</sup>
+                            {{end}}
                         {{end}}
                         </span>
                         <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
@@ -187,7 +189,7 @@
                 </table>
                 {{end}}
 
-                {{if lt .NumTransactions .KnownTransactions}}
+                {{if ge .KnownTransactions .MaxLimit}}
                 {{if not .Fullmode}}
                 <div>
                     *Limit of 1000 transactions shown in lite mode.
