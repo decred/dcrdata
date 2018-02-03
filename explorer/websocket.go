@@ -137,7 +137,7 @@ func (wsh *WebsocketHub) run() {
 				select {
 				case *client <- hubSignal:
 				default:
-					go wsh.unregisterClient(client)
+					wsh.unregisterClient(client)
 				}
 			}
 		case c := <-wsh.Register:
