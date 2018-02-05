@@ -1085,7 +1085,9 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			if len(y.ScriptPubKey.Addresses) != 0 {
 				if address == y.ScriptPubKey.Addresses[0] {
 					t, _ := dcrutil.NewAmount(y.Value)
-					totalreceived += t
+					if t > 0 {
+						totalreceived += t
+					}
 					numReceiving++
 				}
 			}
@@ -1094,16 +1096,18 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			if u.PrevOut != nil && len(u.PrevOut.Addresses) != 0 {
 				if address == u.PrevOut.Addresses[0] {
 					t, _ := dcrutil.NewAmount(*u.AmountIn)
-					totalsent += t
+					if t > 0 {
+						totalsent += t
+					}
 					numSpending++
 				}
 			}
 		}
 	}
 	numberMaxOfTx := int64(len(txs))
-	var numFundingTxns = count
+	var numTxns = count
 	if numberMaxOfTx < count {
-		numFundingTxns = numberMaxOfTx
+		numTxns = numberMaxOfTx
 	}
 	balance := &explorer.AddressBalance{
 		Address:      address,
@@ -1113,20 +1117,44 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		TotalUnspent: int64(totalreceived - totalsent),
 	}
 	return &explorer.AddressInfo{
-		Address:          address,
-		Limit:            count,
-		Offset:           offset,
-		Transactions:     addressTxs,
-		NumFundingTxns:   numFundingTxns,
-		KnownFundingTxns: numberMaxOfTx,
-		NumSpendingTxns:  numSpending,
-		NumUnconfirmed:   numUnconfirmed,
-		TotalReceived:    totalreceived,
-		TotalSent:        totalsent,
-		Unspent:          totalreceived - totalsent,
-		Balance:          balance,
+		Address:           address,
+		Limit:             count,
+		MaxLimit:          maxcount,
+		Offset:            offset,
+		Transactions:      addressTxs,
+		NumTransactions:   numTxns,
+		KnownTransactions: numberMaxOfTx,
+		KnownFundingTxns:  numReceiving,
+		NumSpendingTxns:   numSpending,
+		NumUnconfirmed:    numUnconfirmed,
+		TotalReceived:     totalreceived,
+		TotalSent:         totalsent,
+		Unspent:           totalreceived - totalsent,
+		Balance:           balance,
 	}
 }
+
 func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
 	return address.IsForNet(p)
+}
+
+// CountUnconfirmedTransactions returns the number of unconfirmed transactions involving the specified address,
+// given a maximum possible unconfirmed
+func (db *wiredDB) CountUnconfirmedTransactions(address string, maxUnconfirmedPossible int64) (numUnconfirmed int64, err error) {
+	addr, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		log.Infof("Invalid address %s: %v", address, err)
+		return
+	}
+	txs, err := db.client.SearchRawTransactionsVerbose(addr, 0, int(maxUnconfirmedPossible), true, true, nil)
+	if err != nil {
+		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+		return
+	}
+	for _, tx := range txs {
+		if tx.Confirmations == 0 {
+			numUnconfirmed++
+		}
+	}
+	return
 }
