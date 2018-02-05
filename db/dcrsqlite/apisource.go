@@ -1082,7 +1082,9 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			if len(y.ScriptPubKey.Addresses) != 0 {
 				if address == y.ScriptPubKey.Addresses[0] {
 					t, _ := dcrutil.NewAmount(y.Value)
-					totalreceived += t
+					if t > 0 {
+						totalreceived += t
+					}
 					numReceiving++
 				}
 			}
@@ -1091,7 +1093,9 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			if u.PrevOut != nil && len(u.PrevOut.Addresses) != 0 {
 				if address == u.PrevOut.Addresses[0] {
 					t, _ := dcrutil.NewAmount(*u.AmountIn)
-					totalsent += t
+					if t > 0 {
+						totalsent += t
+					}
 					numSpending++
 				}
 			}
