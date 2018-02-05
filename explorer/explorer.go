@@ -24,7 +24,6 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
@@ -207,15 +206,17 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	params := exp.blockData.GetChainParams()
 	exp.ChainParams = params
-	_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
-		params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
-	if err != nil || len(devSubsidyAddresses) != 1 {
-		log.Warnf("Failed to decode dev subsidy address: %v", err)
-	} else {
-		exp.ExtraInfo = &HomeInfo{
-			DevAddress: devSubsidyAddresses[0].String(),
-		}
+
+	// Development subsidy address of the current network
+	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(params)
+	if err != nil {
+		log.Warnf("explorer.New: %v", err)
 	}
+	log.Debugf("Organization address: %s", devSubsidyAddress)
+	exp.ExtraInfo = &HomeInfo{
+		DevAddress: devSubsidyAddress,
+	}
+
 	exp.templateFiles = make(map[string]string)
 	exp.templateFiles["home"] = filepath.Join("views", "home.tmpl")
 	exp.templateFiles["explorer"] = filepath.Join("views", "explorer.tmpl")
@@ -431,10 +432,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	exp.addRoutes()
 
-	wsh := NewWebsocketHub()
-	go wsh.run()
-
-	exp.wsHub = wsh
+	exp.wsHub = NewWebsocketHub()
+	go exp.wsHub.run()
 
 	return exp
 }
@@ -492,9 +491,14 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	}
 
 	if !exp.liteMode {
-		_, devBalance, _ := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
-		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
+		_, devBalance, err := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
+		if err != nil && devBalance != nil {
+			exp.ExtraInfo.DevFund = devBalance.TotalUnspent
+		} else {
+			log.Warnf("explorerUI.Store: %v", err)
+		}
 	}
+
 	exp.NewBlockDataMtx.Unlock()
 
 	exp.wsHub.HubRelay <- sigNewBlock
