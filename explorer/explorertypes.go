@@ -134,21 +134,23 @@ type BlockInfo struct {
 
 // AddressInfo models data for display on the address page
 type AddressInfo struct {
-	Address          string
-	Limit            int64
-	Offset           int64
-	Transactions     []*AddressTx
-	NumFundingTxns   int64
-	NumSpendingTxns  int64
-	NumTransactions  int64
-	KnownFundingTxns int64
-	NumUnconfirmed   int64
-	TotalReceived    dcrutil.Amount
-	TotalSent        dcrutil.Amount
-	Unspent          dcrutil.Amount
-	Balance          *AddressBalance
-	Path             string
-	Fullmode         bool
+	Address           string
+	Limit             int64
+	MaxLimit          int64
+	Offset            int64
+	Transactions      []*AddressTx
+	NumFundingTxns    int64 // The number of transactions paying to the address
+	NumSpendingTxns   int64 // The number of transactions spending from the address
+	NumTransactions   int64 // The number of transactions in the address
+	KnownTransactions int64 // The number of transactions in the address unlimited
+	KnownFundingTxns  int64 // The number of transactions paying to the address unlimited
+	NumUnconfirmed    int64 // The number of unconfirmed transactions in the address
+	TotalReceived     dcrutil.Amount
+	TotalSent         dcrutil.Amount
+	Unspent           dcrutil.Amount
+	Balance           *AddressBalance
+	Path              string
+	Fullmode          bool
 }
 
 // AddressBalance represents the number and value of spent and unspent outputs
