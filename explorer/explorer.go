@@ -212,6 +212,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	if err != nil {
 		log.Warnf("explorer.New: %v", err)
 	}
+	log.Debugf("Organization address: %s", devSubsidyAddress)
 	exp.ExtraInfo = &HomeInfo{
 		DevAddress: devSubsidyAddress,
 	}
@@ -490,9 +491,14 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	}
 
 	if !exp.liteMode {
-		_, devBalance, _ := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
-		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
+		_, devBalance, err := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
+		if err != nil && devBalance != nil {
+			exp.ExtraInfo.DevFund = devBalance.TotalUnspent
+		} else {
+			log.Warnf("explorerUI.Store: %v", err)
+		}
 	}
+
 	exp.NewBlockDataMtx.Unlock()
 
 	exp.wsHub.HubRelay <- sigNewBlock
