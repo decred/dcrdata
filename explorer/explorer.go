@@ -207,15 +207,19 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	params := exp.blockData.GetChainParams()
 	exp.ChainParams = params
-	_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
-		params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
-	if err != nil || len(devSubsidyAddresses) != 1 {
-		log.Warnf("Failed to decode dev subsidy address: %v", err)
+	exp.ExtraInfo = new(HomeInfo)
+	if params.Name == "testnet2" {
+		exp.ExtraInfo.DevAddress = "TccTkqj8wFqrUemmHMRSx8SYEueQYLmuuFk"
 	} else {
-		exp.ExtraInfo = &HomeInfo{
-			DevAddress: devSubsidyAddresses[0].String(),
+		_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
+			params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
+		if err != nil || len(devSubsidyAddresses) != 1 {
+			log.Warnf("Failed to decode dev subsidy address: %v", err)
+		} else {
+			exp.ExtraInfo.DevAddress = devSubsidyAddresses[0].String()
 		}
 	}
+
 	exp.templateFiles = make(map[string]string)
 	exp.templateFiles["home"] = filepath.Join("views", "home.tmpl")
 	exp.templateFiles["explorer"] = filepath.Join("views", "explorer.tmpl")
