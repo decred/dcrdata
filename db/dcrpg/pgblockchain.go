@@ -18,7 +18,6 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -73,18 +72,10 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params) (*ChainDB, error) {
 		return nil, err
 	}
 
+	// Development subsidy address of the current network
 	var devSubsidyAddress string
-	if params.Name == "testnet2" {
-		devSubsidyAddress = "TccTkqj8wFqrUemmHMRSx8SYEueQYLmuuFk"
-	} else {
-		_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
-			params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
-		if err != nil || len(devSubsidyAddresses) != 1 {
-
-			log.Warnf("Failed to decode dev subsidy address: %v", err)
-		} else {
-			devSubsidyAddress = devSubsidyAddresses[0].String()
-		}
+	if devSubsidyAddress, err = dbtypes.DevSubsidyAddress(params); err != nil {
+		log.Warnf("ChainDB.NewChainDB: %v", err)
 	}
 
 	return &ChainDB{

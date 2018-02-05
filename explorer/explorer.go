@@ -24,7 +24,6 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
@@ -207,17 +206,14 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	params := exp.blockData.GetChainParams()
 	exp.ChainParams = params
-	exp.ExtraInfo = new(HomeInfo)
-	if params.Name == "testnet2" {
-		exp.ExtraInfo.DevAddress = "TccTkqj8wFqrUemmHMRSx8SYEueQYLmuuFk"
-	} else {
-		_, devSubsidyAddresses, _, err := txscript.ExtractPkScriptAddrs(
-			params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
-		if err != nil || len(devSubsidyAddresses) != 1 {
-			log.Warnf("Failed to decode dev subsidy address: %v", err)
-		} else {
-			exp.ExtraInfo.DevAddress = devSubsidyAddresses[0].String()
-		}
+
+	// Development subsidy address of the current network
+	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(params)
+	if err != nil {
+		log.Warnf("explorer.New: %v", err)
+	}
+	exp.ExtraInfo = &HomeInfo{
+		DevAddress: devSubsidyAddress,
 	}
 
 	exp.templateFiles = make(map[string]string)
@@ -435,10 +431,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	exp.addRoutes()
 
-	wsh := NewWebsocketHub()
-	go wsh.run()
-
-	exp.wsHub = wsh
+	exp.wsHub = NewWebsocketHub()
+	go exp.wsHub.run()
 
 	return exp
 }
