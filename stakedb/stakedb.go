@@ -402,6 +402,7 @@ func (db *StakeDatabase) Open() error {
 
 	// Create a new database to store the accepted stake node data into.
 	dbName := DefaultStakeDbName
+	var isFreshDB bool
 	var err error
 	db.StakeDB, err = database.Open(dbType, dbName, db.params.Net)
 	if err != nil {
@@ -409,13 +410,19 @@ func (db *StakeDatabase) Open() error {
 			strings.Contains(err.Error(), "is being used by another process") {
 			return fmt.Errorf("Stake DB already opened. dcrdata running?")
 		}
-		log.Infof("Unable to open stake DB (%v). Removing and creating new.", err)
-		_ = os.RemoveAll(dbName)
+		if strings.Contains(err.Error(), "does not exist") {
+			log.Info("Creating new stake DB.")
+		} else {
+			log.Infof("Unable to open stake DB (%v). Removing and creating new.", err)
+			_ = os.RemoveAll(dbName)
+		}
+
 		db.StakeDB, err = database.Create(dbType, dbName, db.params.Net)
 		if err != nil {
 			// do not return nil interface, but interface of nil DB
 			return fmt.Errorf("error creating db: %v", err)
 		}
+		isFreshDB = true
 	}
 
 	// Load the best block from stake db
@@ -442,13 +449,15 @@ func (db *StakeDatabase) Open() error {
 		return errLocal
 	})
 	if err != nil {
-		log.Errorf("Error reading from database (%v).  Reinitializing.", err)
+		if !isFreshDB {
+			log.Errorf("Error reading from database (%v).  Reinitializing.", err)
+		}
 		err = db.StakeDB.Update(func(dbTx database.Tx) error {
 			var errLocal error
 			db.BestNode, errLocal = stake.InitDatabaseState(dbTx, db.params)
 			return errLocal
 		})
-		log.Debug("Created new stake db.")
+		log.Debug("Initialized new stake db.")
 	} else {
 		log.Debug("Opened existing stake db.")
 	}
