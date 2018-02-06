@@ -341,6 +341,9 @@ body.darkBG .json-block {
   font-weight: bold;
   font-size: 13px;
 }
+#address-qrcode img {
+  width: 280px;
+}
 
 /*Typography*/
 .fs14-decimal .dot,
@@ -501,5 +504,5 @@ body.darkBG .json-block {
 
 /*animation*/
 .opacity-transition{
-  transition: opacity .3s ease-in-out;
+  transition: opacity .42s ease-in-out;
 }
