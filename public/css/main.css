@@ -135,6 +135,9 @@ body.darkBG .json-block {
   word-wrap: break-word;
   word-break: break-all;
 }
+.color-inherit {
+  color: inherit !important;
+}
 .fs11 {
   font-size: 11px !important;
 }
@@ -166,7 +169,7 @@ body.darkBG .json-block {
 .trailing-zeroes {
   opacity: .3
 }
-.op60 {
+.op70 {
   opacity: .7
 }
 .lh1rem {
@@ -192,6 +195,9 @@ body.darkBG .json-block {
 }
 .p03rem0 {
   padding: .3rem 0;
+}
+.p10 {
+  padding: 10px;
 }
 
 /*nav*/
@@ -495,6 +501,5 @@ body.darkBG .json-block {
 
 /*animation*/
 .opacity-transition{
-  transition-property: opacity;
-  transition-duration: .4s;
+  transition: opacity .3s ease-in-out;
 }

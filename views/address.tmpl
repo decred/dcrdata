@@ -11,10 +11,15 @@
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
                 <div class="mono">
-                    {{.Address}}
-                    <a href="javascript:generateQRCode('{{.Address}}');" class="dcricon-qrcode jsonly no-underline" id="qrcode-init"></a>
+                    {{.Address}}<a
+                        id="qrcode-init"
+                        href="javascript:showAddressQRCode('{{.Address}}');"
+                        class="dcricon-qrcode jsonly no-underline color-inherit p10"
+                    ></a>
                 </div>
-                <div id="address-qrcode" class="op0 opacity-transition"></div>
+                <div class="row">
+                    <a href="javascript:hideAddressQRCode();" id="address-qrcode" class="col opacity-transition d-block" style="opacity: 0"></a>
+                </div>
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
                 <table>
@@ -219,30 +224,42 @@
         </div>
     </div>
 
-    {{if lt .NumTransactions .KnownTransactions}}
     <script>
+        {{if lt .NumFundingTxns .KnownFundingTxns}}
         $("#pagesize-wrapper").removeClass("hidden")
         $("#pagesize").change(function(ev) {
             Turbolinks.visit(
                 window.location.pathname
-                + '?n='+ parseInt($(ev.currentTarget).val())
+                + "?n="+ parseInt($(ev.currentTarget).val())
                 + "&start=" + {{.Offset}}
             )
         })
-        
-    </script>
-    {{end}}
-    <script>
-        function generateQRCode(address) {
+        {{end}}
+
+        function showAddressQRCode() {
             var $qrcode = $("#address-qrcode")
-            $.getScript("/js/qrcode.min.js", function() {
-                new QRCode($qrcode[0], address);
-                $qrcode.css({margin: "40px 0"})
-                $('#qrcode-init').hide()
-                $qrcode.removeClass('op0')
-            })
+            $.getScript(
+                "/js/qrcode.min.js",
+                function() {
+                    new QRCode($qrcode[0], {{.Address}});
+                    $qrcode.css({
+                        margin: "24px 0",
+                        opacity: 1
+                    })
+                    $("#qrcode-init").hide()
+                }, { cache: true }
+            )
         }
-        $('.jsonly').show()
+
+        function hideAddressQRCode() {
+            $("#qrcode-init").show()
+            $("#address-qrcode").css({
+                margin: "0",
+                opacity: 0
+            })
+            .html("")
+        }
+        $(".jsonly").show()
     </script>
     {{end}}
     {{ template "footer" . }}
