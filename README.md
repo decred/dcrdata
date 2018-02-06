@@ -31,6 +31,107 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 └── views               HTML templates for block explorer.
 ```
 
+## Requirements
+
+* [Go](http://golang.org) 1.8.6 or newer.
+* Running `dcrd` (>=1.1.2) synchronized to the current best block on the network.
+
+## Installation
+
+### Build from Source
+
+The following instructions assume a Unix-like shell (e.g. bash).
+
+* [Install Go](http://golang.org/doc/install)
+
+* Verify Go installation:
+
+      go env GOROOT GOPATH
+
+* Ensure `$GOPATH/bin` is on your `$PATH`.
+* Install `dep`, the dependency management tool.
+
+      go get -u -v github.com/golang/dep/cmd/dep
+
+* Clone the dcrdata repository. It **must** be cloned into the following directory.
+
+      git clone https://github.com/dcrdata/dcrdata $GOPATH/src/github.com/dcrdata/dcrdata
+
+* Fetch dependencies, and build the `dcrdata` executable.
+
+      cd $GOPATH/src/github.com/dcrdata/dcrdata
+      dep ensure
+      # build dcrdata executable in workspace:
+      go build
+
+The sqlite driver uses cgo, which requires a C compiler (e.g. gcc) to compile the C sources. On
+Windows this is easily handled with MSYS2 ([download](http://www.msys2.org/) and
+install MinGW-w64 gcc packages).
+
+Tip: If you receive other build errors, it may be due to "vendor" directories
+left by dep builds of dependencies such as dcrwallet. You may safely delete
+vendor folders and run `dep ensure` again.
+
+### Runtime resources
+
+Presently the dcrdata executable, it's config file, logs, data files, and web
+interface resources are all in the same folder. An option to specify the
+application data folder will be added in the future.
+
+As with the config file, the "public" and "views" folders *must* be in the same
+folder as the `dcrdata` executable.
+
+## Updating
+
+First, update the repository (assuming you have `master` checked out):
+
+    cd $GOPATH/src/github.com/dcrdata/dcrdata
+    git pull origin master
+    dep ensure
+    go build
+
+Look carefully for errors with `git pull`, and reset locally modified files if
+necessary.
+
+## Getting Started
+
+### Create configuration file
+
+Begin with the sample configuration file:
+
+```bash
+cp sample-dcrdata.conf dcrdata.conf
+```
+
+Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata
+--help` for a list of all options and their default values.
+
+### Indexing the Blockchain
+
+If dcrdata has not previously been run with the PostgreSQL database backend, it
+is necessary to perform a bulk import of blockchain data and generate table
+indexes. This will be done automatically by dcrdata, but the PostgreSQL tables
+may also be generated with the `rebuilddb2` command line tool:
+
+- Create the dcrdata user and database in PostgreSQL (tables will be created automatically).
+- Set your PostgreSQL credentials and host in both `./cmd/rebuilddb2/rebuilddb2.conf` and `./dcrdata.conf`.
+- Run `rebuilddb2 -u` to bulk import and index.
+- In case of errors, or schema changes, the tables may be dropped with `rebuilddb2 -D`.
+
+### Starting dcrdata
+
+Launch the dcrdata daemon and allow the databases to process new blocks. Both
+SQLite and PostgreSQL synchronization require about an hour the first time
+dcrdata is run, but they will be done concurrently. On subsequent launches, only
+blocks new to dcrdata are scanned.
+
+```bash
+./dcrdata    # don't forget to configure dcrdata.conf in this folder
+```
+
+The "public" and "views" folders *must* be in the same folder as the `dcrdata`
+executable.
+
 ## dcrdata daemon
 
 The root of the repository is the `main` package for the dcrdata app, which has
@@ -274,92 +375,6 @@ of objects implementing the `MempoolDataSaver` interface.
 ## Plans
 
 See the GitHub issue tracker and the [project milestones](https://github.com/dcrdata/dcrdata/milestones).
-
-## Requirements
-
-* [Go](http://golang.org) 1.8.3 or newer.
-* Running `dcrd` (>=1.1.0) synchronized to the current best block on the network.
-
-## Installation
-
-### Build from Source
-
-The following instructions assume a Unix-like shell (e.g. bash).
-
-* [Install Go](http://golang.org/doc/install)
-
-* Verify Go installation:
-
-      go env GOROOT GOPATH
-
-* Ensure `$GOPATH/bin` is on your `$PATH`
-* Install `dep`, the dependency management tool
-
-      go get -u -v github.com/golang/dep/cmd/dep
-
-* Clone the dcrdata repository
-
-      git clone https://github.com/dcrdata/dcrdata $GOPATH/src/github.com/dcrdata/dcrdata
-
-* dep ensure, and build executable
-
-      cd $GOPATH/src/github.com/dcrdata/dcrdata
-      dep ensure
-      # build dcrdata executable in workspace:
-      go build
-      # or to install dcrdata and other tools into $GOPATH/bin:
-      go install . ./cmd/...
-
-The sqlite driver uses cgo, which requires gcc to compile the C sources. On
-Windows this is easily handled with MSYS2 ([download](http://www.msys2.org/) and
-install MinGW-w64 gcc packages).
-
-If you receive other build errors, it may be due to "vendor" directories left by
-dep builds of dependencies such as dcrwallet. You may safely delete vendor
-folders and run `dep ensure` again.
-
-## Updating
-
-First, update the repository (assuming you have `master` checked out):
-
-    cd $GOPATH/src/github.com/dcrdata/dcrdata
-    git pull origin master
-    dep ensure
-    go build
-
-Look carefully for errors with `git pull`, and reset locally modified files
-if necessary.
-
-## Getting Started
-
-### Create configuration file
-
-Begin with the sample configuration file:
-
-```bash
-cp sample-dcrdata.conf dcrdata.conf
-```
-
-Then edit dcrdata.conf with your dcrd RPC settings.
-
-### Indexing the Blockchain
-
-If dcrdata has not previously been run with the PostgreSQL database backend, it is necessary to perform a bulk import of blockchain data and generate table indexes.
-
-- Create the dcrdata user and database in PostgreSQL (tables will be created automatically).
-- Set your PostgreSQL credentials and host in both `./cmd/rebuilddb2/rebuilddb2.conf` and `./dcrdata.conf`.
-- Run `rebuilddb2 -u` to bulk import and index.
-- In case of errors, or schema changes, the tables may be dropped with `rebuilddb2 -D`.
-
-### Starting dcrdata
-
-Finally, launch the dcrdata daemon and allow the databases to sync new blocks.
-The SQLite database sync takes about an hour the first time. On subsequent
-launches, only new blocks are scanned.
-
-```bash
-./dcrdata
-```
 
 ## Contributing
 
