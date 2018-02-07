@@ -255,7 +255,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 		// TODO: winning tickets
 		//winningTickets := db.sDB.BestNode.Winners()
 
-		if (i-1)%rescanLogBlockChunk == 0 || i == startHeight {
+		if (i-1)%rescanLogBlockChunk == 0 && i-1 != startHeight || i == startHeight {
 			endRangeBlock := rescanLogBlockChunk * (1 + (i-1)/rescanLogBlockChunk)
 			if endRangeBlock > height {
 				endRangeBlock = height

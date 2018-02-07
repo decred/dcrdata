@@ -263,8 +263,9 @@ func (db *DB) GetBlockSummaryHeight() (int64, error) {
 		}
 		if err == sql.ErrNoRows {
 			log.Warn("Block summary DB is empty.")
+		} else {
+			db.dbSummaryHeight = height
 		}
-		db.dbSummaryHeight = height
 	}
 	return db.dbSummaryHeight, nil
 }

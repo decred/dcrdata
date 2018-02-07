@@ -420,7 +420,7 @@ func (db *StakeDatabase) Open() error {
 		db.StakeDB, err = database.Create(dbType, dbName, db.params.Net)
 		if err != nil {
 			// do not return nil interface, but interface of nil DB
-			return fmt.Errorf("error creating db: %v", err)
+			return fmt.Errorf("error creating database.DB: %v", err)
 		}
 		isFreshDB = true
 	}
