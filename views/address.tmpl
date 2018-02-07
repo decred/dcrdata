@@ -10,7 +10,16 @@
         <div class="row">
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
-                <div class="mono">{{.Address}}</div>
+                <div class="mono">
+                    {{.Address}}<a
+                        id="qrcode-init"
+                        href="javascript:showAddressQRCode('{{.Address}}');"
+                        class="dcricon-qrcode jsonly no-underline color-inherit p10"
+                    ></a>
+                </div>
+                <div class="row">
+                    <a href="javascript:hideAddressQRCode();" id="address-qrcode" class="col opacity-transition d-block" style="opacity: 0"></a>
+                </div>
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
                 <table>
@@ -215,18 +224,43 @@
         </div>
     </div>
 
-    {{if lt .NumTransactions .KnownTransactions}}
     <script>
+        {{if lt .NumFundingTxns .KnownFundingTxns}}
         $("#pagesize-wrapper").removeClass("hidden")
         $("#pagesize").change(function(ev) {
             Turbolinks.visit(
                 window.location.pathname
-                + '?n='+ parseInt($(ev.currentTarget).val())
+                + "?n="+ parseInt($(ev.currentTarget).val())
                 + "&start=" + {{.Offset}}
             )
         })
+        {{end}}
+
+        function showAddressQRCode() {
+            var $qrcode = $("#address-qrcode")
+            $.getScript(
+                "/js/qrcode.min.js",
+                function() {
+                    new QRCode($qrcode[0], {{.Address}});
+                    $qrcode.css({
+                        margin: "14px 0px 12px",
+                        opacity: 1
+                    })
+                    $("#qrcode-init").hide()
+                }
+            )
+        }
+
+        function hideAddressQRCode() {
+            $("#qrcode-init").show()
+            $("#address-qrcode").css({
+                margin: "0",
+                opacity: 0
+            })
+            .html("")
+        }
+        $(".jsonly").show()
     </script>
-    {{end}}
     {{end}}
     {{ template "footer" . }}
 

@@ -13,6 +13,7 @@ vendor/
 *.db
 *.db-journal
 rebuilddb.conf
+rebuilddb2.conf
 cmd/rebuilddb/rebuilddb
 cmd/scanblocks/scanblocks
 fullscan.json

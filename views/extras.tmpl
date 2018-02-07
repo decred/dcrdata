@@ -68,6 +68,9 @@
 </div>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
+    $.ajaxSetup({
+        cache: true
+    });
     function setCookie(cname, cvalue, exMins) {
         var d = new Date();
         d.setTime(d.getTime() + (exMins*60*1000));
