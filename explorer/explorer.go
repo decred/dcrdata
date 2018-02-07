@@ -492,7 +492,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 
 	if !exp.liteMode {
 		_, devBalance, err := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
-		if err != nil && devBalance != nil {
+		if err == nil && devBalance != nil {
 			exp.ExtraInfo.DevFund = devBalance.TotalUnspent
 		} else {
 			log.Warnf("explorerUI.Store: %v", err)
