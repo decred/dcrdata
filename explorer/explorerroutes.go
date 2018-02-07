@@ -93,6 +93,16 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		exp.ErrorPage(w, "Something went wrong...", "could not find that block", true)
 		return
 	}
+	var count int
+	data.TxAvailable = true
+	for _, i := range data.Tx {
+		if i.Coinbase == true {
+			count++
+		}
+	}
+	if count == len(data.Tx) {
+		data.TxAvailable = false
+	}
 
 	pageData := struct {
 		Data          *BlockInfo
