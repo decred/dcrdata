@@ -217,15 +217,19 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		if errH != nil {
 			log.Errorf("Unable to get address %s history: %v", address, errH)
 			addrData := exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+			confirmHeights := make([]int64, len(addrData.Transactions))
 			if addrData == nil {
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", false)
 			}
+			addrData.Fullmode = true
 			pageData := struct {
 				Data          *AddressInfo
 				ConfirmHeight []int64
+				Version       string
 			}{
 				addrData,
-				nil,
+				confirmHeights,
+				exp.Version,
 			}
 			str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
 			if err != nil {
@@ -270,6 +274,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			log.Warnf("SearchRawTransactionsForUnconfirmedTransactions failed for address %s: %v", address, err)
 		}
 	}
+
+	log.Info(addrData.KnownFundingTxns, addrData.MaxLimit)
 
 	confirmHeights := make([]int64, len(addrData.Transactions))
 	for i, v := range addrData.Transactions {
