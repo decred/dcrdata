@@ -93,10 +93,11 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		exp.ErrorPage(w, "Something went wrong...", "could not find that block", true)
 		return
 	}
+	// Checking if there exists any regular non-Coinbase transactions in the block.
 	var count int
 	data.TxAvailable = true
 	for _, i := range data.Tx {
-		if i.Coinbase == true {
+		if i.Coinbase {
 			count++
 		}
 	}
