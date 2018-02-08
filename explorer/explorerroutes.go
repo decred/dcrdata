@@ -16,7 +16,7 @@ import (
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	height := exp.blockData.GetHeight()
 
-	blocks := exp.blockData.GetExplorerBlocks(height, height-6)
+	blocks := exp.blockData.GetExplorerBlocks(height, height-5)
 
 	exp.NewBlockDataMtx.Lock()
 	exp.MempoolData.RLock()
@@ -131,6 +131,28 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("Turbolinks-Location", "/block/"+hash)
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// Mempool is the page handler for the "/mempool" path
+func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
+	exp.MempoolData.RLock()
+	str, err := templateExecToString(exp.templates[mempoolTemplateIndex], "mempool", struct {
+		Mempool *MempoolInfo
+		Version string
+	}{
+		exp.MempoolData,
+		exp.Version,
+	})
+	exp.MempoolData.RUnlock()
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }

@@ -536,16 +536,16 @@ func FeeRateInfoBlock(block *dcrutil.Block) *dcrjson.FeeInfoBlock {
 }
 
 // MsgTxFromHex returns a wire.MsgTx struct built from the transaction hex string
-func MsgTxFromHex(txhex string) *wire.MsgTx {
+func MsgTxFromHex(txhex string) (*wire.MsgTx, error) {
 	txBytes, err := hex.DecodeString(txhex)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	msgTx := wire.NewMsgTx()
 	if err = msgTx.FromBytes(txBytes); err != nil {
-		return nil
+		return nil, err
 	}
-	return msgTx
+	return msgTx, nil
 }
 
 // DetermineTxTypeString returns a string representing the transaction type given
@@ -601,6 +601,15 @@ func TxFeeRate(msgTx *wire.MsgTx) (dcrutil.Amount, dcrutil.Amount) {
 		amtOut += msgTx.TxOut[iv].Value
 	}
 	return dcrutil.Amount(amtIn - amtOut), dcrutil.Amount(1000 * (amtIn - amtOut) / int64(msgTx.SerializeSize()))
+}
+
+// TotalOutFromMsgTx computes the total value out of a MsgTx
+func TotalOutFromMsgTx(msgTx *wire.MsgTx) dcrutil.Amount {
+	var amtOut int64
+	for _, v := range msgTx.TxOut {
+		amtOut += v.Value
+	}
+	return dcrutil.Amount(amtOut)
 }
 
 // TotalVout computes the total value of a slice of dcrjson.Vout

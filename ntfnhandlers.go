@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dcrsqlite"
+	"github.com/decred/dcrdata/explorer"
 	"github.com/decred/dcrdata/mempool"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -27,16 +29,9 @@ func registerNodeNtfnHandlers(dcrdClient *rpcclient.Client) *ContextualError {
 			"registration failed", err)
 	}
 
-	// Register for stake difficulty change notifications.
-	// if err = dcrdClient.NotifyStakeDifficulty(); err != nil {
-	// 	return newContextualError("stake difficulty change "+
-	// 		"notification registration failed", err)
-	// }
-
 	// Register for tx accepted into mempool ntfns
-	if err = dcrdClient.NotifyNewTransactions(false); err != nil {
-		return newContextualError("new transaction "+
-			"notification registration failed", err)
+	if err = dcrdClient.NotifyNewTransactions(true); err != nil {
+		return newContextualError("new transaction verbose notification registration failed", err)
 	}
 
 	// For OnNewTickets
@@ -98,11 +93,18 @@ func (q *collectionQueue) ProcessBlocks() {
 
 		log.Debugf("Synchronous handlers of collectionQueue.ProcessBlocks() completed in %v", time.Since(start))
 
-		// Signal to mempool monitor that a block was mined
+		// Signal to mempool monitors that a block was mined
 		select {
 		case ntfnChans.newTxChan <- &mempool.NewTx{
 			Hash: nil,
 			T:    time.Now(),
+		}:
+		default:
+		}
+
+		select {
+		case ntfnChans.expNewTxChan <- &explorer.NewMempoolTx{
+			Hex: "",
 		}:
 		default:
 		}
@@ -181,15 +183,7 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 			default:
 			}
 		},
-		// Not too useful since this notifies on every block
-		// OnStakeDifficulty: func(hash *chainhash.Hash, height int64,
-		// 	stakeDiff int64) {
-		// 	select {
-		// 	case ntfnChans.stakeDiffChan <- stakeDiff:
-		// 	default:
-		// 	}
-		// },
-		// TODO
+
 		OnWinningTickets: func(blockHash *chainhash.Hash, blockHeight int64,
 			tickets []*chainhash.Hash) {
 			var txstr []string
@@ -221,12 +215,21 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 			default:
 			}
 		},
-		// OnTxAccepted is invoked when a transaction is accepted into the
-		// memory pool.  It will only be invoked if a preceding call to
-		// NotifyNewTransactions with the verbose flag set to false has been
-		// made to register for the notification and the function is non-nil.
-		OnTxAccepted: func(hash *chainhash.Hash, amount dcrutil.Amount) {
-			// Just send the tx hash and let the goroutine handle everything.
+
+		// OnTxAcceptedVerbose is invoked same as OnTxAccepted but is used here
+		// for the mempool monitors to avoid an extra call to dcrd for
+		// the tx details
+		OnTxAcceptedVerbose: func(txDetails *dcrjson.TxRawResult) {
+			select {
+			case ntfnChans.expNewTxChan <- &explorer.NewMempoolTx{
+				Time: time.Now().Unix(),
+				Hex:  txDetails.Hex,
+			}:
+			default:
+				log.Warn("expNewTxChan buffer full!")
+			}
+
+			hash, _ := chainhash.NewHashFromStr(txDetails.Txid)
 			select {
 			case ntfnChans.newTxChan <- &mempool.NewTx{
 				Hash: hash,
@@ -235,12 +238,6 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 			default:
 				log.Warn("newTxChan buffer full!")
 			}
-			//log.Trace("Transaction accepted to mempool: ", hash, amount)
 		},
-		// Note: dcrjson.TxRawResult is from getrawtransaction
-		//OnTxAcceptedVerbose: func(txDetails *dcrjson.TxRawResult) {
-		//txDetails.Hex
-		//log.Info("Transaction accepted to mempool: ", txDetails.Txid)
-		//},
 	}, blockQueue
 }

@@ -6,7 +6,6 @@ package dcrsqlite
 import (
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -409,10 +408,10 @@ func (db *wiredDB) DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, err
 }
 
 func (db *wiredDB) SendRawTransaction(txhex string) (string, error) {
-	msg := txhelpers.MsgTxFromHex(txhex)
-	if msg == nil {
-		log.Errorf("SendRawTransaction failed: could not decode hex")
-		return "", errors.New("Could not decode hex")
+	msg, err := txhelpers.MsgTxFromHex(txhex)
+	if err != nil {
+		log.Errorf("SendRawTransaction failed: could not decode tx")
+		return "", err
 	}
 	hash, err := db.client.SendRawTransaction(msg, true)
 	if err != nil {
@@ -853,8 +852,8 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.Block
 
 	// Count the number of revocations
 	for i := range data.RawSTx {
-		msgTx := txhelpers.MsgTxFromHex(data.RawSTx[i].Hex)
-		if msgTx == nil {
+		msgTx, err := txhelpers.MsgTxFromHex(data.RawSTx[i].Hex)
+		if err != nil {
 			log.Errorf("Unknown transaction %s", data.RawSTx[i].Txid)
 			continue
 		}
@@ -973,9 +972,9 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	tickets := make([]*explorer.TxBasic, 0, block.FreshStake)
 
 	for _, tx := range data.RawSTx {
-		msgTx := txhelpers.MsgTxFromHex(tx.Hex)
-		if msgTx == nil {
-			log.Errorf("Unknown transaction %s", tx.Txid)
+		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
+		if err != nil {
+			log.Errorf("Unknown transaction %s: %v", tx.Txid, err)
 			return nil
 		}
 		switch stake.DetermineTxType(msgTx) {
@@ -994,7 +993,11 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 
 	txs := make([]*explorer.TxBasic, 0, block.Transactions)
 	for _, tx := range data.RawTx {
-		exptx := makeExplorerTxBasic(tx, txhelpers.MsgTxFromHex(tx.Hex), db.params)
+		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
+		if err != nil {
+			continue
+		}
+		exptx := makeExplorerTxBasic(tx, msgTx, db.params)
 		for _, vin := range tx.Vin {
 			if vin.IsCoinBase() {
 				exptx.Fee, exptx.FeeRate = 0.0, 0.0
@@ -1053,9 +1056,9 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
 		return nil
 	}
-	msgTx := txhelpers.MsgTxFromHex(txraw.Hex)
-	if msgTx == nil {
-		log.Errorf("Cannot create MsgTx for tx %v", txhash)
+	msgTx, err := txhelpers.MsgTxFromHex(txraw.Hex)
+	if err != nil {
+		log.Errorf("Cannot create MsgTx for tx %v: %v", txhash, err)
 		return nil
 	}
 	txBasic := makeExplorerTxBasic(*txraw, msgTx, db.params)
@@ -1264,4 +1267,60 @@ func (db *wiredDB) CountUnconfirmedTransactions(address string, maxUnconfirmedPo
 		}
 	}
 	return
+}
+
+// GetMepool gets all transactions from the mempool for explorer
+// and adds the total out for all the txs and vote info for the votes
+func (db *wiredDB) GetMempool() []explorer.MempoolTx {
+	mempooltxs, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
+	if err != nil {
+		return nil
+	}
+
+	txs := make([]explorer.MempoolTx, 0, len(mempooltxs))
+
+	for hash, tx := range mempooltxs {
+		rawtx, hex := db.getRawTransaction(hash)
+		total := 0.0
+		if rawtx == nil {
+			continue
+		}
+		for _, v := range rawtx.Vout {
+			total += v.Value
+		}
+		msgTx, err := txhelpers.MsgTxFromHex(hex)
+		if err != nil {
+			continue
+		}
+		var voteInfo *explorer.VoteInfo
+
+		if ok := stake.IsSSGen(msgTx); ok {
+			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, db.params)
+			if err != nil {
+				log.Debugf("Cannot get vote choices for %s", hash)
+
+			} else {
+				voteInfo = &explorer.VoteInfo{
+					Validation: explorer.BlockValidation{
+						Hash:     validation.Hash.String(),
+						Height:   validation.Height,
+						Validity: validation.Validity,
+					},
+					Version: version,
+					Bits:    bits,
+					Choices: choices,
+				}
+			}
+		}
+		txs = append(txs, explorer.MempoolTx{
+			Hash:     hash,
+			Time:     tx.Time,
+			Size:     tx.Size,
+			TotalOut: total,
+			Type:     txhelpers.DetermineTxTypeString(msgTx),
+			VoteInfo: voteInfo,
+		})
+	}
+
+	return txs
 }
