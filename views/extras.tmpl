@@ -292,6 +292,10 @@
 </script>
 
 <script src="/js/notify.min.js"></script>
+<script>
+Notify.requestPermission(function(){console.log("Desktop notification permissions granted.")},
+    function(){console.log("Desktop notification permissions denied.")});
+</script>
 {{end}}
 
 {{define "footer"}}
