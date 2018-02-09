@@ -63,7 +63,7 @@ type DB struct {
 // NewDB creates a new DB instance with pre-generated sql statements from an
 // existing sql.DB. Use InitDB to create a new DB without having a sql.DB.
 // TODO: if this db exists, figure out best heights
-func NewDB(db *sql.DB) *DB {
+func NewDB(db *sql.DB) (*DB, error) {
 	d := DB{
 		DB:                db,
 		dbSummaryHeight:   -1,
@@ -115,10 +115,15 @@ func NewDB(db *sql.DB) *DB {
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, TableNameStakeInfo)
 
-	d.dbSummaryHeight = d.GetBlockSummaryHeight()
-	d.dbStakeInfoHeight = d.GetStakeInfoHeight()
+	var err error
+	if d.dbSummaryHeight, err = d.GetBlockSummaryHeight(); err != nil {
+		return nil, err
+	}
+	if d.dbStakeInfoHeight, err = d.GetStakeInfoHeight(); err != nil {
+		return nil, err
+	}
 
-	return &d
+	return &d, nil
 }
 
 // InitDB creates a new DB instance from a DBInfo containing the name of the
@@ -170,8 +175,10 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 		return nil, err
 	}
 
-	err = db.Ping()
-	return NewDB(db), err
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+	return NewDB(db)
 }
 
 // DBDataSaver models a DB with a channel to communicate new block height to the web interface
@@ -239,39 +246,48 @@ func (db *DB) GetBestBlockHash() string {
 
 // GetBestBlockHeight returns the height of the best block
 func (db *DB) GetBestBlockHeight() int64 {
-	return db.GetBlockSummaryHeight()
+	h, _ := db.GetBlockSummaryHeight()
+	return h
 }
 
 // GetBlockSummaryHeight returns the largest block height for which the database
 // can provide a block summary
-func (db *DB) GetBlockSummaryHeight() int64 {
+func (db *DB) GetBlockSummaryHeight() (int64, error) {
 	db.RLock()
 	defer db.RUnlock()
 	if db.dbSummaryHeight < 0 {
 		height, err := db.RetrieveBestBlockHeight()
-		if err != nil {
-			log.Errorf("RetrieveBestBlockHeight failed: %v", err)
-			return -1
+		// No rows returned is not considered an error
+		if err != nil && err != sql.ErrNoRows {
+			return -1, fmt.Errorf("RetrieveBestBlockHeight failed: %v", err)
 		}
-		db.dbSummaryHeight = height
+		if err == sql.ErrNoRows {
+			log.Warn("Block summary DB is empty.")
+		} else {
+			db.dbSummaryHeight = height
+		}
 	}
-	return db.dbSummaryHeight
+	return db.dbSummaryHeight, nil
 }
 
 // GetStakeInfoHeight returns the largest block height for which the database
 // can provide a stake info
-func (db *DB) GetStakeInfoHeight() int64 {
+func (db *DB) GetStakeInfoHeight() (int64, error) {
 	db.RLock()
 	defer db.RUnlock()
 	if db.dbStakeInfoHeight < 0 {
 		si, err := db.RetrieveLatestStakeInfoExtended()
-		if err != nil || si == nil {
-			log.Errorf("RetrieveLatestStakeInfoExtended failed: %v", err)
-			return -1
+		// No rows returned is not considered an error
+		if err != nil && err != sql.ErrNoRows {
+			return -1, fmt.Errorf("RetrieveLatestStakeInfoExtended failed: %v", err)
+		}
+		if err == sql.ErrNoRows {
+			log.Warn("Stake info DB is empty.")
+			return -1, nil
 		}
 		db.dbStakeInfoHeight = int64(si.Feeinfo.Height)
 	}
-	return db.dbStakeInfoHeight
+	return db.dbStakeInfoHeight, nil
 }
 
 // RetrievePoolInfoRange returns an array of apitypes.TicketPoolInfo for block

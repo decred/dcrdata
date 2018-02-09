@@ -29,8 +29,13 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 	}
 
 	// Get DB's best block (for block summary and stake info tables)
-	bestBlockHeight := db.GetBlockSummaryHeight()
-	bestStakeHeight := db.GetStakeInfoHeight()
+	var bestBlockHeight, bestStakeHeight int64
+	if bestBlockHeight, err = db.GetBlockSummaryHeight(); err != nil {
+		return fmt.Errorf("GetBlockSummaryHeight failed: %v", err)
+	}
+	if bestStakeHeight, err = db.GetStakeInfoHeight(); err != nil {
+		return fmt.Errorf("GetStakeInfoHeight failed: %v", err)
+	}
 
 	log.Info("Current best block (chain server): ", height)
 	log.Info("Current best block (summary DB):   ", bestBlockHeight)
@@ -144,8 +149,13 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 	}(time.Now(), &err)
 
 	// Get DB's best block (for block summary and stake info tables)
-	bestBlockHeight := db.GetBlockSummaryHeight()
-	bestStakeHeight := db.GetStakeInfoHeight()
+	var bestBlockHeight, bestStakeHeight int64
+	if bestBlockHeight, err = db.GetBlockSummaryHeight(); err != nil {
+		return -1, fmt.Errorf("GetBlockSummaryHeight failed: %v", err)
+	}
+	if bestStakeHeight, err = db.GetStakeInfoHeight(); err != nil {
+		return -1, fmt.Errorf("GetStakeInfoHeight failed: %v", err)
+	}
 
 	// Create a new database to store the accepted stake node data into.
 	if db.sDB == nil || db.sDB.BestNode == nil {
@@ -245,7 +255,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 		// TODO: winning tickets
 		//winningTickets := db.sDB.BestNode.Winners()
 
-		if (i-1)%rescanLogBlockChunk == 0 || i == startHeight {
+		if (i-1)%rescanLogBlockChunk == 0 && i-1 != startHeight || i == startHeight {
 			endRangeBlock := rescanLogBlockChunk * (1 + (i-1)/rescanLogBlockChunk)
 			if endRangeBlock > height {
 				endRangeBlock = height
@@ -257,7 +267,9 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 		var tpi *apitypes.TicketPoolInfo
 		var found bool
 		if tpi, found = db.sDB.PoolInfo(*blockhash); !found {
-			log.Warnf("Unable to find block (%s) in pool info cache. Resync is malfunctioning!", blockhash.String())
+			if i != 0 {
+				log.Warnf("Unable to find block (%s) in pool info cache. Resync is malfunctioning!", blockhash.String())
+			}
 			ticketPoolInfo, sdbHeight := db.sDB.PoolInfoBest()
 			if int64(sdbHeight) != i {
 				log.Errorf("Collected block height %d != stake db height %d. Pool info "+

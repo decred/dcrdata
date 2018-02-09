@@ -62,8 +62,18 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.P
 // NewWiredDB creates a new wiredDB from a *sql.DB, a node client, network
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
-func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
-	return newWiredDB(NewDB(db), statusC, cl, p)
+func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) (wiredDB, func() error, error) {
+	// Create the sqlite.DB
+	DB, err := NewDB(db)
+	if err != nil || DB == nil {
+		return wiredDB{}, func() error { return nil }, err
+	}
+	// Create the wiredDB
+	wDB, cleanup := newWiredDB(DB, statusC, cl, p)
+	if wDB.sDB == nil {
+		err = fmt.Errorf("failed to create StakeDatabase")
+	}
+	return wDB, cleanup, err
 }
 
 // InitWiredDB creates a new wiredDB from a file containing the data for a
@@ -546,7 +556,11 @@ func (db *wiredDB) GetSummaryByHash(hash string) *apitypes.BlockDataBasic {
 }
 
 func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
-	dbBlkHeight := db.GetBlockSummaryHeight()
+	dbBlkHeight, err := db.GetBlockSummaryHeight()
+	if err != nil {
+		log.Errorf("GetBlockSummaryHeight failed: %v", err)
+		return nil
+	}
 	blockSummary, err := db.RetrieveBlockSummary(dbBlkHeight)
 	if err != nil {
 		log.Errorf("Unable to retrieve block %d summary: %v", dbBlkHeight, err)
