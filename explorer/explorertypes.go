@@ -112,6 +112,7 @@ type BlockInfo struct {
 	Confirmations         int64
 	StakeRoot             string
 	MerkleRoot            string
+	TxAvailable           bool
 	Tx                    []*TxBasic
 	Tickets               []*TxBasic
 	Revs                  []*TxBasic
