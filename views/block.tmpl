@@ -303,30 +303,38 @@
             <span class="anchor" id="transactions"></span>
             <div class="col-sm-12">
                 <h4><span>Transactions</span></h4>
+                {{if not .TxAvailable}}
                 <table class="table table-sm striped">
-                    <thead>
-                        <th>Transaction ID</th>
-                        <th class="text-right">Total DCR</th>
-                        <th class="text-right">Fee</th>
-                        <th>Size</th>
-                    </thead>
-                    <tbody>
-                        {{range .Tx}}
-                        {{if eq .Coinbase false}}
-                        <tr>
-                            <td class="break-word">
-                                <span>
-                                    <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
-                                </span>
-                            </td>
-                            <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
-                            <td class="mono fs15 text-right">{{.Fee}}</td>
-                            <td class="mono fs15">{{.FormattedSize}}</td>
-                        </tr>
-                        {{end}}
-                        {{end}}
-                    </tbody>
+                    <tr>
+                        <td>No standard transactions mined this block.</td>
+                    </tr>
                 </table>
+                {{else}}
+                    <table class="table table-sm striped">
+                        <thead>
+                            <th>Transaction ID</th>
+                            <th class="text-right">Total DCR</th>
+                            <th class="text-right">Fee</th>
+                            <th>Size</th>
+                        </thead>
+                        <tbody>
+                            {{range .Tx}}
+                            {{if eq .Coinbase false}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
+                                <td class="mono fs15 text-right">{{.Fee}}</td>
+                                <td class="mono fs15">{{.FormattedSize}}</td>
+                            </tr>
+                            {{end}}
+                            {{end}}
+                        </tbody>
+                    </table>
+                {{end}}
             </div>
         </div>
 
