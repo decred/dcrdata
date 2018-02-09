@@ -179,8 +179,11 @@
                     newBlock.block.height - $(v).data('confirmation-block-height')
                 )
             })
+            
             // block summary data
             var b = newBlock.block;
+            desktopNotifyNewBlock(b);
+
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
             if (expTableRows){
@@ -240,12 +243,58 @@
             return false;
         }
 }
+    function desktopNotifyNewBlock (block) {
+            function onShowNotification () {
+                console.log('block ntfn shown');
+            }
+            function onCloseNotification () {
+                console.log('block ntfn closed');
+            }
+            function onClickNotification () {
+                console.log('block ntfn clicked');
+            }
+            function onErrorNotification () {
+                console.error('Error showing notification. You may need to request permission.');
+            }
+            function onPermissionGranted () {
+                console.log('Permission has been granted by the user');
+                doNotification();
+            }
+            function onPermissionDenied () {
+                console.warn('Permission has been denied by the user');
+            }
+            function doNotification () {
+                var newBlockNtfn = new Notify('New Decred Block Mined', {
+                    body: 'Decred block mined at height ' + block.height,
+                    tag: 'blockheight',
+                    image: '/images/dcrdata144x128.png',
+                    icon: '/images/dcrdata144x128.png',
+                    notifyShow: onShowNotification,
+                    notifyClose: onCloseNotification,
+                    notifyClick: onClickNotification,
+                    notifyError: onErrorNotification,
+                    timeout: 10
+                });
+                newBlockNtfn.show();
+            }
+            if (!Notify.needsPermission) {
+                doNotification();
+            } else if (Notify.isSupported()) {
+                Notify.requestPermission(onPermissionGranted, onPermissionDenied);
+            }
+        }
 </script>
 
 <script>
     if (!ws) {
         createWebSocket(window.location)
     }
+</script>
+
+<script src="/js/notify.min.js"></script>
+<script>
+Notify.requestPermission(function(){console.log("Desktop notification permissions granted.")},
+    function(){console.log("Desktop notification permissions denied.")});
 </script>
 {{end}}
 
@@ -258,10 +307,10 @@
         </div>
         <div style="text-align: left; margin:0 auto !important; display:inline-block">
             <a class="nav-item" href="https://github.com/dcrdata/dcrdata" title="dcrdata on GitHub" target="_blank">dcrdata v{{.Version}}</a>
-            <a class="nav-item" href="https://github.com/dcrdata/dcrdata/blob/master/LICENSE" target="_blank">© 2017 (ISC)</a>
+            <a class="nav-item" href="https://github.com/dcrdata/dcrdata/blob/master/LICENSE" target="_blank">© 2017-2018 The dcrdata developers (ISC)</a>
         </div>
         <div style="float: right;">
-            <span data-turbolinks-permanent class="nav-item hidden" id="connection">Connecting to WebSocket...<div></div></span>
+            <span data-turbolinks-permanent class="nav-item hidden" id="connection" title="While connected, you will receive live page updates and desktop notifications.">Connecting to WebSocket...<div></div></span>
         </div>
     </div>
 </footer>
