@@ -25,7 +25,7 @@
                                 {{end}}
                             </td>
                         {{else}}
-                            {{if ge .KnownTransactions .MaxLimit}}
+                            {{if ge .KnownTransactions .MaxTxLimit}}
                             <td class="fs28 mono nowrap d-flex align-items-center justify-content-end">unavailable</td>
                             {{else}}
                             <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.Unspent}}</td>
@@ -44,7 +44,7 @@
                                 {{end}}
                             </td>
                         {{else}}
-                            {{if ge .KnownTransactions .MaxLimit}}
+                            {{if ge .KnownTransactions .MaxTxLimit}}
                             <td class="mono nowrap text-right">unavailable</td>
                             {{else}}
                             <td class="mono nowrap text-right">{{.TotalReceived}}</td>
@@ -62,7 +62,7 @@
                                 {{end}}
                             </td>
                         {{else}}
-                            {{if ge .KnownTransactions .MaxLimit}}
+                            {{if ge .KnownTransactions .MaxTxLimit}}
                             <td class="mono nowrap text-right">unavailable</td>
                             {{else}}
                             <td class="mono nowrap text-right">{{.TotalSent}}</td>
@@ -91,7 +91,7 @@
                         <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumFundingTxns)}} of {{intComma .KnownFundingTxns}} funding transactions
                         {{else}}
                         <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma .KnownTransactions}} transactions
-                            {{if ge .KnownTransactions .MaxLimit}}
+                            {{if ge .KnownTransactions .MaxTxLimit}}
                             <sup>*</sup>
                             {{end}}
                         {{end}}
@@ -189,7 +189,7 @@
                 </table>
                 {{end}}
 
-                {{if ge .KnownTransactions .MaxLimit}}
+                {{if ge .KnownTransactions .MaxTxLimit}}
                 {{if not .Fullmode}}
                 <div>
                     *Limit of 1000 transactions shown in lite mode.

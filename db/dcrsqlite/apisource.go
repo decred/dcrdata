@@ -1059,7 +1059,8 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			return nil
 		}
 		return &explorer.AddressInfo{
-			Address: address,
+			Address:    address,
+			MaxTxLimit: maxcount,
 		}
 	} else if err != nil {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
@@ -1119,7 +1120,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 	return &explorer.AddressInfo{
 		Address:           address,
 		Limit:             count,
-		MaxLimit:          maxcount,
+		MaxTxLimit:        maxcount,
 		Offset:            offset,
 		Transactions:      addressTxs,
 		NumTransactions:   numTxns,
