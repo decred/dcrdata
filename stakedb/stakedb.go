@@ -320,7 +320,9 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 
 func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Hash,
 	revoked []chainhash.Hash, maturing []chainhash.Hash) error {
+	// hold BestNode and StakeDB locked
 	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
 
 	cleanLiveTicketCache := func() {
 		db.liveTicketMtx.Lock()
@@ -347,11 +349,13 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 		return err
 	}
 
-	db.nodeMtx.Unlock()
-
 	// Get ticket pool info at current best (just connected in stakedb) block,
 	// and store it in the StakeDatabase's PoolInfoCache.
-	db.poolInfo.Set(*block.Hash(), db.PoolInfoBest())
+	liveTickets := db.BestNode.LiveTickets()
+	winningTickets := db.BestNode.Winners()
+	height := db.BestNode.Height()
+	pib := db.calcPoolInfo(liveTickets, winningTickets, height)
+	db.poolInfo.Set(*block.Hash(), pib)
 
 	return err
 }
@@ -546,13 +550,18 @@ func (db *StakeDatabase) expires() ([]chainhash.Hash, []bool) {
 // structure including ticket pool value, size, and average value.
 func (db *StakeDatabase) PoolInfoBest() *apitypes.TicketPoolInfo {
 	db.nodeMtx.RLock()
-	poolSize := db.BestNode.PoolSize()
+	//poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
 	winningTickets := db.BestNode.Winners()
 	height := db.BestNode.Height()
 	// expiredTickets, expireRevoked := db.expires()
 	db.nodeMtx.RUnlock()
 
+	return db.calcPoolInfo(liveTickets, winningTickets, height)
+}
+
+func (db *StakeDatabase) calcPoolInfo(liveTickets, winningTickets []chainhash.Hash, height uint32) *apitypes.TicketPoolInfo {
+	poolSize := len(liveTickets)
 	db.liveTicketMtx.Lock()
 	var poolValue int64
 	for _, hash := range liveTickets {
@@ -571,12 +580,6 @@ func (db *StakeDatabase) PoolInfoBest() *apitypes.TicketPoolInfo {
 		poolValue += val
 	}
 	db.liveTicketMtx.Unlock()
-
-	// header, _ := db.DBTipBlockPoolInfoBestHeader()
-	// if int(header.PoolSize) != len(liveTickets) {
-	// 	log.Infof("Header at %d, DB at %d.", header.Height, db.BestNode.Height())
-	// 	log.Warnf("Inconsistent pool sizes: %d, %d", header.PoolSize, len(liveTickets))
-	// }
 
 	poolCoin := dcrutil.Amount(poolValue).ToCoin()
 	valAvg := 0.0

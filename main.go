@@ -190,6 +190,8 @@ func mainCore() error {
 			}
 			heightDB = 0
 		}
+
+		// How far behind the node is PG
 		blocksBehind := height - int64(heightDB)
 		if blocksBehind < 0 {
 			return fmt.Errorf("Node is still syncing. Node height = %d, "+
@@ -206,6 +208,9 @@ func mainCore() error {
 			}
 		}
 
+		// PG gets winning tickets out of sqliteDB's pool info cache, so it must
+		// be big enough to hold the needed blocks' info, and charged with the
+		// data from sqlite. The cache is updated on each block connect.
 		stakeInfoHeight, err := sqliteDB.GetStakeInfoHeight()
 		if err != nil {
 			return err
@@ -215,7 +220,8 @@ func mainCore() error {
 			if err != nil {
 				return err
 			}
-			// charge stakedb pool info cache, including previous
+			// Charge stakedb pool info cache, including previous PG block, up
+			// to best in sqlite.
 			if err = sqliteDB.ChargePoolInfoCache(int64(heightDB) - 1); err != nil {
 				return fmt.Errorf("Failed to charge pool info cache: %v", err)
 			}
@@ -240,7 +246,7 @@ func mainCore() error {
 		sqliteHeight = sqliteRes.Height
 		log.Infof("SQLite sync ended at height %d", sqliteHeight)
 		if sqliteRes.Error != nil {
-			log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteRes.Height)
+			log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteHeight)
 			close(quit)
 			return sqliteRes.Error
 		}
@@ -264,11 +270,11 @@ func mainCore() error {
 			if sqliteRes.Error != nil {
 				log.Error("dcrsqlite.SyncDBAsync AND dcrpg.SyncChainDBAsync "+
 					"failed at heights %d and %d, respectively.",
-					sqliteRes.Height, pgRes.Height)
+					sqliteHeight, pgHeight)
 				errCombined := fmt.Sprintln(sqliteRes.Error, ", ", pgRes.Error)
 				return errors.New(errCombined)
 			}
-			log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", pgRes.Height)
+			log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", pgHeight)
 			return pgRes.Error
 		}
 
