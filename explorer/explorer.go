@@ -491,12 +491,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	}
 
 	if !exp.liteMode {
-		_, devBalance, err := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
-		if err == nil && devBalance != nil {
-			exp.ExtraInfo.DevFund = devBalance.TotalUnspent
-		} else {
-			log.Warnf("explorerUI.Store: %v", err)
-		}
+		exp.ExtraInfo.DevFund = 0
+		go exp.updateDevFundBalance()
 	}
 
 	exp.NewBlockDataMtx.Unlock()
@@ -506,6 +502,18 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	log.Debugf("Got new block %d", newBlockData.Height)
 
 	return nil
+}
+
+func (exp *explorerUI) updateDevFundBalance() {
+	exp.NewBlockDataMtx.Lock()
+	defer exp.NewBlockDataMtx.Unlock()
+
+	_, devBalance, err := exp.explorerSource.AddressHistory(exp.ExtraInfo.DevAddress, 1, 0)
+	if err == nil && devBalance != nil {
+		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
+	} else {
+		log.Warnf("explorerUI.updateDevFundBalance failed: %v", err)
+	}
 }
 
 func (exp *explorerUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) error {
