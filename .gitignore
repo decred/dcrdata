@@ -12,6 +12,7 @@ vendor/
 *.orig
 *.db
 *.db-journal
+dcrdata.sqlt.db*
 rebuilddb.conf
 rebuilddb2.conf
 cmd/rebuilddb/rebuilddb

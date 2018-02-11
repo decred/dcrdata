@@ -6,6 +6,7 @@ package dcrpg
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +25,8 @@ const (
 // should be called as a goroutine or it will hang on send if the channel is
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
-	client *rpcclient.Client, quit chan struct{}, updateAllAddresses, newIndexes bool) {
+	client *rpcclient.Client, quit chan struct{}, updateAllAddresses,
+	updateAllVotes, newIndexes bool) {
 	if db == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
@@ -32,7 +34,8 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		}
 		return
 	}
-	height, err := db.SyncChainDB(client, quit, newIndexes, updateAllAddresses)
+	height, err := db.SyncChainDB(client, quit, updateAllAddresses,
+		updateAllVotes, newIndexes)
 	res <- dbtypes.SyncResult{
 		Height: height,
 		Error:  err,
@@ -44,7 +47,7 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
 func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
-	updateAllAddresses, newIndexes bool) (int64, error) {
+	updateAllAddresses, updateAllVotes, newIndexes bool) (int64, error) {
 	// Get chain servers's best block
 	_, nodeHeight, err := client.GetBestBlock()
 	if err != nil {
@@ -136,8 +139,43 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 			return ib - 1, fmt.Errorf("GetBlock failed (%s): %v", blockHash, err)
 		}
 
+		var winners []string
+		//prevBlockHash := block.MsgBlock().Header.PrevBlock
+		for {
+			// check for quit signal
+			select {
+			case <-quit:
+				log.Infof("Rescan cancelled at height %d.", ib)
+				return ib - 1, nil
+			default:
+			}
+
+			// stakeDB is not locked between Height() and PoolInfo() so there is
+			// a data race. Get the height first to avoid resulting errors.
+			blocksBehind := ib - int64(db.stakeDB.Height())
+
+			if tpi, ok := db.stakeDB.PoolInfo(*blockHash); ok {
+				winners = tpi.Winners
+				break
+			}
+
+			if blocksBehind <= 0 {
+				return ib - 1, fmt.Errorf("stakeDB.PoolInfo failed.")
+			}
+			log.Infof("Waiting for stake DB to catch up. Query height %d, "+
+				"stake DB height %d.", ib, db.stakeDB.Height())
+			waitSec := math.Max(5, math.Min(30.0, float64(blocksBehind)/500))
+			time.Sleep(time.Duration(waitSec) * time.Second)
+
+			if blocksBehind <= ib-int64(db.stakeDB.Height()) {
+				log.Infof("Rescan halted waiting for stakedb to advance.")
+				return ib - 1, nil
+			}
+		}
+
 		var numVins, numVouts int64
-		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), true, !updateAllAddresses); err != nil {
+		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock(),
+			winners, true, !updateAllAddresses, !updateAllVotes); err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins
@@ -158,11 +196,20 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 	speedReport()
 
 	if reindexing || newIndexes {
+		if err = db.DeleteDuplicates(); err != nil {
+			return 0, err
+		}
+
+		// Create indexes
 		if err = db.IndexAll(); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
+		// Only reindex address table here if we do not do it below
 		if !updateAllAddresses {
 			err = db.IndexAddressTable()
+		}
+		if !updateAllVotes {
+			err = db.IndexTicketsTable()
 		}
 	}
 
@@ -177,6 +224,22 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		log.Infof("Updated %d rows of address table", numAddresses)
 		if err = db.IndexAddressTable(); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
+		}
+	}
+
+	if updateAllVotes {
+		// Remove indexes not on funding txns (remove on tickets table indexes)
+		_ = db.DeindexTicketsTable() // ignore errors for non-existent indexes
+		db.EnableDuplicateCheckOnInsert(false)
+		log.Infof("Populating spending tx info in tickets table...")
+		numTicketsUpdated, err := db.UpdateSpendingInfoInAllTickets()
+		if err != nil {
+			log.Errorf("UpdateSpendingInfoInAllTickets FAILED: %v", err)
+		}
+		// Index tickets table
+		log.Infof("Updated %d rows of address table", numTicketsUpdated)
+		if err = db.IndexTicketsTable(); err != nil {
+			log.Errorf("IndexTicketsTable FAILED: %v", err)
 		}
 	}
 

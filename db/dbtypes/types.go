@@ -9,6 +9,56 @@ import (
 	"github.com/dcrdata/dcrdata/db/dbtypes/internal"
 )
 
+// Tickets have 6 states, 5 possible fates:
+// Live -...---> Voted
+//           \-> Missed (unspent) [--> Revoked]
+//            \--...--> Expired (unspent) [--> Revoked]
+
+type TicketSpendType int16
+
+const (
+	TicketUnspent TicketSpendType = iota
+	TicketRevoked
+	TicketVoted
+)
+
+func (p TicketSpendType) String() string {
+	switch p {
+	case TicketUnspent:
+		return "unspent"
+	case TicketRevoked:
+		return "revoked"
+	case TicketVoted:
+		return "voted"
+	default:
+		return "unknown"
+	}
+}
+
+type TicketPoolStatus int16
+
+const (
+	PoolStatusLive TicketPoolStatus = iota
+	PoolStatusVoted
+	PoolStatusExpired
+	PoolStatusMissed
+)
+
+func (p TicketPoolStatus) String() string {
+	switch p {
+	case PoolStatusLive:
+		return "live"
+	case PoolStatusVoted:
+		return "voted"
+	case PoolStatusExpired:
+		return "expired"
+	case PoolStatusMissed:
+		return "missed"
+	default:
+		return "unknown"
+	}
+}
+
 // SyncResult is the result of a database sync operation, containing the height
 // of the last block and an arror value.
 type SyncResult struct {
@@ -213,27 +263,27 @@ type ScriptSig struct {
 // Tx models a Decred transaction. It is stored in a Block.
 type Tx struct {
 	//blockDbID  int64
-	BlockHash   string             `json:"block_hash"`
-	BlockHeight int64              `json:"block_height"`
-	BlockTime   int64              `json:"block_time"`
-	Time        int64              `json:"time"`
-	TxType      int16              `json:"tx_type"`
-	Version     uint16             `json:"version"`
-	Tree        int8               `json:"tree"`
-	TxID        string             `json:"txid"`
-	BlockIndex  uint32             `json:"block_index"`
-	Locktime    uint32             `json:"locktime"`
-	Expiry      uint32             `json:"expiry"`
-	Size        uint32             `json:"size"`
-	Spent       int64              `json:"spent"`
-	Sent        int64              `json:"sent"`
-	Fees        int64              `json:"fees"`
-	NumVin      uint32             `json:"numvin"`
-	Vins        VinTxPropertyARRAY `json:"vins"`
-	VinDbIds    []uint64           `json:"vindbids"`
-	NumVout     uint32             `json:"numvout"`
-	Vouts       []*Vout            `json:"vouts"`
-	VoutDbIds   []uint64           `json:"voutdbids"`
+	BlockHash   string `json:"block_hash"`
+	BlockHeight int64  `json:"block_height"`
+	BlockTime   int64  `json:"block_time"`
+	Time        int64  `json:"time"`
+	TxType      int16  `json:"tx_type"`
+	Version     uint16 `json:"version"`
+	Tree        int8   `json:"tree"`
+	TxID        string `json:"txid"`
+	BlockIndex  uint32 `json:"block_index"`
+	Locktime    uint32 `json:"locktime"`
+	Expiry      uint32 `json:"expiry"`
+	Size        uint32 `json:"size"`
+	Spent       int64  `json:"spent"`
+	Sent        int64  `json:"sent"`
+	Fees        int64  `json:"fees"`
+	NumVin      uint32 `json:"numvin"`
+	//Vins        VinTxPropertyARRAY `json:"vins"`
+	VinDbIds  []uint64 `json:"vindbids"`
+	NumVout   uint32   `json:"numvout"`
+	Vouts     []*Vout  `json:"vouts"`
+	VoutDbIds []uint64 `json:"voutdbids"`
 	// NOTE: VoutDbIds may not be needed if there is a vout table since each
 	// vout will have a tx_dbid
 }

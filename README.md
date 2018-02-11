@@ -389,6 +389,8 @@ Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it
 Note that all dcrdata.org community and team members are expected to adhere to
 the code of conduct, described in the CODE_OF_CONDUCT file.
 
+Also, [come chat with us on Slack](https://join.slack.com/t/dcrdata/shared_invite/enQtMjQ2NzAzODk0MjQ3LTRkZGJjOWIyNDc0MjBmOThhN2YxMzZmZGRlYmVkZmNkNmQ3MGQyNzAxMzJjYzU1MzA2ZGIwYTIzMTUxMjM3ZDY)!
+
 ## License
 
 This project is licensed under the ISC License. See the [LICENSE](LICENSE) file for details.

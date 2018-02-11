@@ -256,12 +256,16 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 		//winningTickets := db.sDB.BestNode.Winners()
 
 		if (i-1)%rescanLogBlockChunk == 0 && i-1 != startHeight || i == startHeight {
-			endRangeBlock := rescanLogBlockChunk * (1 + (i-1)/rescanLogBlockChunk)
-			if endRangeBlock > height {
-				endRangeBlock = height
+			if i == 0 {
+				log.Infof("Scanning genesis block.")
+			} else {
+				endRangeBlock := rescanLogBlockChunk * (1 + (i-1)/rescanLogBlockChunk)
+				if endRangeBlock > height {
+					endRangeBlock = height
+				}
+				log.Infof("Scanning blocks %d to %d (%d live)...",
+					i, endRangeBlock, numLive)
 			}
-			log.Infof("Scanning blocks %d to %d (%d live)...",
-				i, endRangeBlock, numLive)
 		}
 
 		var tpi *apitypes.TicketPoolInfo
@@ -270,12 +274,11 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 			if i != 0 {
 				log.Warnf("Unable to find block (%s) in pool info cache. Resync is malfunctioning!", blockhash.String())
 			}
-			ticketPoolInfo, sdbHeight := db.sDB.PoolInfoBest()
-			if int64(sdbHeight) != i {
+			tpi = db.sDB.PoolInfoBest()
+			if int64(tpi.Height) != i {
 				log.Errorf("Collected block height %d != stake db height %d. Pool info "+
-					"will not match the rest of this block's data.", height, i)
+					"will not match the rest of this block's data.", tpi.Height, i)
 			}
-			tpi = &ticketPoolInfo
 		}
 
 		header := block.MsgBlock().Header

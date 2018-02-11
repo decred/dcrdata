@@ -19,8 +19,10 @@ const (
 		$11, $12, $13, $14, $15, 
 		$16, $17, $18, $19, $20,
 		$21, $22, $23, $24) `
-	insertBlockRow         = insertBlockRow0 + `RETURNING id;`
-	insertBlockRowChecked  = insertBlockRow0 + `ON CONFLICT (hash) DO NOTHING RETURNING id;`
+	insertBlockRow = insertBlockRow0 + `RETURNING id;`
+	// insertBlockRowChecked  = insertBlockRow0 + `ON CONFLICT (hash) DO NOTHING RETURNING id;`
+	upsertBlockRow = insertBlockRow0 + `ON CONFLICT (hash) DO UPDATE 
+		SET hash = $1 RETURNING id;`
 	insertBlockRowReturnId = `WITH ins AS (` +
 		insertBlockRow0 +
 		`ON CONFLICT (hash) DO UPDATE
@@ -103,7 +105,7 @@ func makeBlockInsertStatement(txDbIDs, stxDbIDs []uint64, rtxs, stxs []string, c
 	stxTEXTARRAY := makeARRAYOfTEXT(stxs)
 	var insert string
 	if checked {
-		insert = insertBlockRowChecked
+		insert = upsertBlockRow
 	} else {
 		insert = insertBlockRow
 	}

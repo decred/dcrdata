@@ -70,8 +70,41 @@ type explorerDataSourceLite interface {
 type explorerDataSource interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
+	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
 	AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *AddressBalance, error)
 	FillAddressTransactions(addrInfo *AddressInfo) error
+	BlockMissedVotes(blockHash string) ([]string, error)
+}
+
+// TicketStatusText generates the text to display on the explorer's transaction
+// page for the "POOL STATUS" field.
+func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) string {
+	switch p {
+	case dbtypes.PoolStatusLive:
+		return "In Live Ticket Pool"
+	case dbtypes.PoolStatusVoted:
+		return "Voted"
+	case dbtypes.PoolStatusExpired:
+		switch s {
+		case dbtypes.TicketUnspent:
+			return "Expired, Unrevoked"
+		case dbtypes.TicketRevoked:
+			return "Expired, Revoked"
+		default:
+			return "invalid ticket state"
+		}
+	case dbtypes.PoolStatusMissed:
+		switch s {
+		case dbtypes.TicketUnspent:
+			return "Missed, Unrevoked"
+		case dbtypes.TicketRevoked:
+			return "Missed, Reevoked"
+		default:
+			return "invalid ticket state"
+		}
+	default:
+		return "Immature"
+	}
 }
 
 type explorerUI struct {

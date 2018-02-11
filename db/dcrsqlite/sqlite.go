@@ -6,6 +6,8 @@ package dcrsqlite
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/btcsuite/btclog"
@@ -47,8 +49,9 @@ type DB struct {
 	sync.RWMutex
 	dbSummaryHeight                                     int64
 	dbStakeInfoHeight                                   int64
-	getPoolSQL, getPoolRangeSQL                         string
+	getPoolSQL, getPoolRangeSQL, getPoolValSizeRangeSQL string
 	getPoolByHashSQL                                    string
+	getWinnersByHashSQL, getWinnersSQL                  string
 	getSDiffSQL, getSDiffRangeSQL                       string
 	getLatestBlockSQL                                   string
 	getBlockSQL, insertBlockSQL                         string
@@ -58,6 +61,7 @@ type DB struct {
 	getBestBlockHashSQL, getBestBlockHeightSQL          string
 	getLatestStakeInfoExtendedSQL                       string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
+	getStakeInfoWinnersSQL                              string
 }
 
 // NewDB creates a new DB instance with pre-generated sql statements from an
@@ -71,11 +75,17 @@ func NewDB(db *sql.DB) (*DB, error) {
 	}
 
 	// Ticket pool queries
-	d.getPoolSQL = fmt.Sprintf(`select poolsize, poolval, poolavg from %s where height = ?`,
+	d.getPoolSQL = fmt.Sprintf(`select hash, poolsize, poolval, poolavg, winners`+
+		` from %s where height = ?`, TableNameSummaries)
+	d.getPoolByHashSQL = fmt.Sprintf(`select height, poolsize, poolval, poolavg, winners`+
+		` from %s where hash = ?`, TableNameSummaries)
+	d.getPoolRangeSQL = fmt.Sprintf(`select height, hash, poolsize, poolval, poolavg, winners `+
+		`from %s where height between ? and ?`, TableNameSummaries)
+	d.getPoolValSizeRangeSQL = fmt.Sprintf(`select poolsize, poolval `+
+		`from %s where height between ? and ?`, TableNameSummaries)
+	d.getWinnersSQL = fmt.Sprintf(`select hash, winners from %s where height = ?`,
 		TableNameSummaries)
-	d.getPoolByHashSQL = fmt.Sprintf(`select poolsize, poolval, poolavg from %s where hash = ?`,
-		TableNameSummaries)
-	d.getPoolRangeSQL = fmt.Sprintf(`select poolsize, poolval, poolavg from %s where height between ? and ?`,
+	d.getWinnersByHashSQL = fmt.Sprintf(`select height, winners from %s where hash = ?`,
 		TableNameSummaries)
 
 	d.getSDiffSQL = fmt.Sprintf(`select sdiff from %s where height = ?`,
@@ -90,8 +100,8 @@ func NewDB(db *sql.DB) (*DB, error) {
 		TableNameSummaries)
 	d.insertBlockSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
-            height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg
-        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
+            height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg, winners
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameSummaries)
 
 	d.getBlockSizeRangeSQL = fmt.Sprintf(`select size from %s where height between ? and ?`,
@@ -106,13 +116,15 @@ func NewDB(db *sql.DB) (*DB, error) {
 	// Stake info queries
 	d.getStakeInfoExtendedSQL = fmt.Sprintf(`select * from %s where height = ?`,
 		TableNameStakeInfo)
+	d.getStakeInfoWinnersSQL = fmt.Sprintf(`select winners from %s where height = ?`,
+		TableNameStakeInfo)
 	d.getLatestStakeInfoExtendedSQL = fmt.Sprintf(
 		`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameStakeInfo)
 	d.insertStakeInfoExtendedSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
             height, num_tickets, fee_min, fee_max, fee_mean, fee_med, fee_std,
-			sdiff, window_num, window_ind, pool_size, pool_val, pool_valavg
-        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			sdiff, window_num, window_ind, pool_size, pool_val, pool_valavg, winners
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, TableNameStakeInfo)
 
 	var err error
@@ -146,7 +158,8 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
             time INTEGER,
             poolsize INTEGER,
             poolval FLOAT,
-            poolavg FLOAT
+			poolavg FLOAT,
+			winners TEXT
         );
         `, TableNameSummaries)
 
@@ -165,7 +178,8 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
             fee_min FLOAT, fee_max FLOAT, fee_mean FLOAT,
 			fee_med FLOAT, fee_std FLOAT,
 			sdiff FLOAT, window_num INTEGER, window_ind INTEGER,
-            pool_size INTEGER, pool_val FLOAT, pool_valavg FLOAT
+			pool_size INTEGER, pool_val FLOAT, pool_valavg FLOAT,
+			winners TEXT
         );
         `, TableNameStakeInfo)
 
@@ -213,9 +227,12 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	}
 	defer stmt.Close()
 
+	winners := strings.Join(bd.PoolInfo.Winners, ";")
+
 	res, err := stmt.Exec(&bd.Height, &bd.Size, &bd.Hash,
 		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
-		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
+		&winners)
 	if err != nil {
 		return err
 	}
@@ -292,63 +309,103 @@ func (db *DB) GetStakeInfoHeight() (int64, error) {
 
 // RetrievePoolInfoRange returns an array of apitypes.TicketPoolInfo for block
 // range ind0 to ind1 and a non-nil error on success
-func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo, error) {
+func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo, []string, error) {
 	N := ind1 - ind0 + 1
 	if N == 0 {
-		return []apitypes.TicketPoolInfo{}, nil
+		return []apitypes.TicketPoolInfo{}, []string{}, nil
 	}
 	if N < 0 {
-		return nil, fmt.Errorf("Cannot retrieve pool info range (%d<%d)",
+		return nil, nil, fmt.Errorf("Cannot retrieve pool info range (%d<%d)",
 			ind1, ind0)
 	}
 	db.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
 		defer db.RUnlock()
-		return nil, fmt.Errorf("Cannot retrieve pool info range [%d,%d], have height %d",
+		return nil, nil, fmt.Errorf("Cannot retrieve pool info range [%d,%d], have height %d",
 			ind1, ind0, db.dbSummaryHeight)
 	}
 	db.RUnlock()
 
 	tpis := make([]apitypes.TicketPoolInfo, 0, N)
+	hashes := make([]string, 0, N)
 
 	stmt, err := db.Prepare(db.getPoolRangeSQL)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer stmt.Close()
 
 	rows, err := stmt.Query(ind0, ind1)
 	if err != nil {
 		log.Errorf("Query failed: %v", err)
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var tpi apitypes.TicketPoolInfo
-		if err = rows.Scan(&tpi.Size, &tpi.Value, &tpi.ValAvg); err != nil {
+		var hash, winners string
+		if err = rows.Scan(&tpi.Height, &hash, &tpi.Size, &tpi.Value,
+			&tpi.ValAvg, &winners); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 		}
+		tpi.Winners = strings.Split(winners, ";")
 		tpis = append(tpis, tpi)
+		hashes = append(hashes, hash)
 	}
 	if err = rows.Err(); err != nil {
 		log.Error(err)
 	}
 
-	return tpis, nil
+	return tpis, hashes, nil
 }
 
 // RetrievePoolInfo returns ticket pool info for block height ind
 func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
-	tpi := new(apitypes.TicketPoolInfo)
-	err := db.QueryRow(db.getPoolSQL, ind).Scan(&tpi.Size, &tpi.Value, &tpi.ValAvg)
+	tpi := &apitypes.TicketPoolInfo{
+		Height: uint32(ind),
+	}
+	var hash, winners string
+	err := db.QueryRow(db.getPoolSQL, ind).Scan(&hash, &tpi.Size,
+		&tpi.Value, &tpi.ValAvg, &winners)
+	tpi.Winners = strings.Split(winners, ";")
 	return tpi, err
+}
+
+// RetrieveWinners returns the winning ticket tx IDs drawn after connecting the
+// given block height (called to validate the block). The block hash
+// corresponding to the input block height is also returned.
+func (db *DB) RetrieveWinners(ind int64) ([]string, string, error) {
+	var hash, winners string
+	err := db.QueryRow(db.getWinnersSQL, ind).Scan(&hash, &winners)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return strings.Split(winners, ";"), hash, err
+}
+
+// RetrieveWinnersByHash returns the winning ticket tx IDs drawn after
+// connecting the block with the given hash. The block height corresponding to
+// the input block hash is also returned.
+func (db *DB) RetrieveWinnersByHash(hash string) ([]string, uint32, error) {
+	var winners string
+	var height uint32
+	err := db.QueryRow(db.getWinnersByHashSQL, hash).Scan(&height, &winners)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return strings.Split(winners, ";"), height, err
 }
 
 // RetrievePoolInfoByHash returns ticket pool info for blockhash hash
 func (db *DB) RetrievePoolInfoByHash(hash string) (*apitypes.TicketPoolInfo, error) {
 	tpi := new(apitypes.TicketPoolInfo)
-	err := db.QueryRow(db.getPoolByHashSQL, hash).Scan(&tpi.Size, &tpi.Value, &tpi.ValAvg)
+	var winners string
+	err := db.QueryRow(db.getPoolByHashSQL, hash).Scan(&tpi.Height, &tpi.Size,
+		&tpi.Value, &tpi.ValAvg, &winners)
+	tpi.Winners = strings.Split(winners, ";")
 	return tpi, err
 }
 
@@ -374,7 +431,7 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	poolvals := make([]float64, 0, N)
 	poolsizes := make([]float64, 0, N)
 
-	stmt, err := db.Prepare(db.getPoolRangeSQL)
+	stmt, err := db.Prepare(db.getPoolValSizeRangeSQL)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -388,8 +445,8 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	defer rows.Close()
 
 	for rows.Next() {
-		var pval, psize, pavg float64
-		if err = rows.Scan(&psize, &pval, &pavg); err != nil {
+		var pval, psize float64
+		if err = rows.Scan(&psize, &pval); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 		}
 		poolvals = append(poolvals, pval)
@@ -461,16 +518,31 @@ func (db *DB) RetrieveSDiff(ind int64) (float64, error) {
 	return sdiff, err
 }
 
+func stringSliceToBoolSlice(ss []string) ([]bool, error) {
+	bs := make([]bool, len(ss))
+	for i := range ss {
+		var err error
+		bs[i], err = strconv.ParseBool(ss[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return bs, nil
+}
+
 // RetrieveLatestBlockSummary returns the block summary for the best block
 func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	bd := new(apitypes.BlockDataBasic)
 
+	var winners string
 	err := db.QueryRow(db.getLatestBlockSQL).Scan(&bd.Height, &bd.Size,
 		&bd.Hash, &bd.Difficulty, &bd.StakeDiff, &bd.Time,
-		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
+		&winners)
 	if err != nil {
 		return nil, err
 	}
+	bd.PoolInfo.Winners = strings.Split(winners, ";")
 
 	return bd, nil
 }
@@ -507,12 +579,16 @@ func (db *DB) RetrieveBestBlockHeight() (int64, error) {
 func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic, error) {
 	bd := new(apitypes.BlockDataBasic)
 
+	var winners string
 	err := db.QueryRow(db.getBlockByHashSQL, hash).Scan(&bd.Height, &bd.Size, &bd.Hash,
 		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
-		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
+		&winners)
 	if err != nil {
 		return nil, err
 	}
+	bd.PoolInfo.Winners = strings.Split(winners, ";")
+
 	return bd, nil
 }
 
@@ -523,12 +599,15 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 	// Three different ways
 
 	// 1. chained QueryRow/Scan only
+	var winners string
 	err := db.QueryRow(db.getBlockSQL, ind).Scan(&bd.Height, &bd.Size, &bd.Hash,
 		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
-		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg)
+		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
+		&winners)
 	if err != nil {
 		return nil, err
 	}
+	bd.PoolInfo.Winners = strings.Split(winners, ";")
 
 	// 2. Prepare + chained QueryRow/Scan
 	// stmt, err := db.Prepare(getBlockSQL)
@@ -621,12 +700,14 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 	}
 	defer stmt.Close()
 
+	winners := strings.Join(si.PoolInfo.Winners, ";")
+
 	res, err := stmt.Exec(&si.Feeinfo.Height,
 		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
 		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
 		&si.StakeDiff, // no next or estimates
 		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
-		&si.PoolInfo.Value, &si.PoolInfo.ValAvg)
+		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
 	if err != nil {
 		return err
 	}
@@ -646,16 +727,19 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, error) {
 	si := new(apitypes.StakeInfoExtended)
 
+	var winners string
 	err := db.QueryRow(db.getLatestStakeInfoExtendedSQL).Scan(
 		&si.Feeinfo.Height, &si.Feeinfo.Number, &si.Feeinfo.Min,
 		&si.Feeinfo.Max, &si.Feeinfo.Mean,
 		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
 		&si.StakeDiff, // no next or estimates
 		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
-		&si.PoolInfo.Value, &si.PoolInfo.ValAvg)
+		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
 	if err != nil {
 		return nil, err
 	}
+
+	si.PoolInfo.Winners = strings.Split(winners, ";")
 
 	return si, nil
 }
@@ -664,18 +748,32 @@ func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, er
 func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error) {
 	si := new(apitypes.StakeInfoExtended)
 
+	var winners string
 	err := db.QueryRow(db.getStakeInfoExtendedSQL, ind).Scan(&si.Feeinfo.Height,
 		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
 		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
 		&si.StakeDiff, // no next or estimates
 		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
-		&si.PoolInfo.Value, &si.PoolInfo.ValAvg)
+		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
 	if err != nil {
 		return nil, err
 	}
 
+	si.PoolInfo.Winners = strings.Split(winners, ";")
+
 	return si, nil
 }
+
+// RetrieveWinners returns the winners for block ind
+// func (db *DB) RetrieveWinners(ind int64) ([]string, error) {
+// 	var winners string
+// 	err := db.QueryRow(db.getStakeInfoWinnersSQL, ind).Scan(&winners)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return strings.Split(winners, ";"), nil
+// }
 
 func logDBResult(res sql.Result) error {
 	if log.Level() > btclog.LevelTrace {

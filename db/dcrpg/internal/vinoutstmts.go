@@ -23,12 +23,21 @@ const (
 
 	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree)
 		VALUES ($1, $2, $3, $4, $5, $6) `
-	InsertVinRow        = InsertVinRow0 + `RETURNING id;`
-	InsertVinRowChecked = InsertVinRow0 +
-		`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
+	InsertVinRow = InsertVinRow0 + `RETURNING id;`
+	// InsertVinRowChecked = InsertVinRow0 +
+	// 	`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
+	UpsertVinRow = InsertVinRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE 
+		SET tx_hash = $1, tx_index = $2, tx_tree = $3 RETURNING id;`
 
-	IndexVinTableOnVins = `CREATE INDEX uix_vin
-		ON vins(tx_hash, tx_index)
+	DeleteVinsDuplicateRows = `DELETE FROM vins
+		WHERE id IN (SELECT id FROM (
+				SELECT id, ROW_NUMBER()
+				OVER (partition BY tx_hash, tx_index, tx_tree ORDER BY id) AS rnum
+				FROM vins) t
+			WHERE t.rnum > 1);`
+
+	IndexVinTableOnVins = `CREATE UNIQUE INDEX uix_vin
+		ON vins(tx_hash, tx_index, tx_tree)
 		;` // STORING (prev_tx_hash, prev_tx_index)
 	IndexVinTableOnPrevOuts = `CREATE INDEX uix_vin_prevout
 		ON vins(prev_tx_hash, prev_tx_index)
@@ -37,7 +46,7 @@ const (
 	DeindexVinTableOnPrevOuts = `DROP INDEX uix_vin_prevout;`
 
 	SelectVinIDsALL = `SELECT id FROM vins;`
-	CountRow        = `SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname='vins';`
+	CountVinsRows   = `SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname='vins';`
 
 	SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
 	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins 
@@ -47,6 +56,7 @@ const (
 	SelectFundingOutpointByTxIn = `SELECT id, prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins 
 		WHERE tx_hash=$1 AND tx_index=$2;`
 	SelectFundingOutpointByVinID = `SELECT prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins WHERE id=$1;`
+	SelectFundingTxByVinID       = `SELECT prev_tx_hash FROM vins WHERE id=$1;`
 	SelectSpendingTxByVinID      = `SELECT tx_hash, tx_index, tx_tree FROM vins WHERE id=$1;`
 	SelectAllVinInfoByID         = `SELECT * FROM vins WHERE id=$1;`
 
@@ -77,9 +87,10 @@ const (
 	insertVoutRow0 = `INSERT INTO vouts (tx_hash, tx_index, tx_tree, value, 
 		version, pkscript, script_req_sigs, script_type, script_addresses)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
-	insertVoutRow        = insertVoutRow0 + `RETURNING id;`
-	insertVoutRowChecked = insertVoutRow
+	insertVoutRow = insertVoutRow0 + `RETURNING id;`
 	//insertVoutRowChecked  = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
+	upsertVoutRow = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE 
+		SET tx_hash = $1, tx_index = $2, tx_tree = $3 RETURNING id;`
 	insertVoutRowReturnId = `WITH inserting AS (` +
 		insertVoutRow0 +
 		`ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
@@ -92,6 +103,13 @@ const (
 	 WHERE  tx_hash = $1 AND tx_index = $2 AND tx_tree = $3
 	 LIMIT  1;`
 
+	DeleteVoutDuplicateRows = `DELETE FROM vouts
+		WHERE id IN (SELECT id FROM (
+				SELECT id, ROW_NUMBER()
+				OVER (partition BY tx_hash, tx_index, tx_tree ORDER BY id) AS rnum
+				FROM vouts) t
+			WHERE t.rnum > 1);`
+
 	SelectPkScriptByID     = `SELECT pkscript FROM vouts WHERE id=$1;`
 	SelectVoutIDByOutpoint = `SELECT id FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	SelectVoutByID         = `SELECT * FROM vouts WHERE id=$1;`
@@ -99,13 +117,13 @@ const (
 	RetrieveVoutValue  = `SELECT value FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	RetrieveVoutValues = `SELECT value, tx_index, tx_tree FROM vouts WHERE tx_hash=$1;`
 
-	IndexVoutTableOnTxHashIdx = `CREATE INDEX uix_vout_txhash_ind
+	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX uix_vout_txhash_ind
 		ON vouts(tx_hash, tx_index, tx_tree);`
 	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
 
-	IndexVoutTableOnTxHash = `CREATE INDEX uix_vout_txhash
-		ON vouts(tx_hash);`
-	DeindexVoutTableOnTxHash = `DROP INDEX uix_vout_txhash;`
+	// IndexVoutTableOnTxHash = `CREATE INDEX uix_vout_txhash
+	// 	ON vouts(tx_hash);`
+	// DeindexVoutTableOnTxHash = `DROP INDEX uix_vout_txhash;`
 
 	CreateVoutType = `CREATE TYPE vout_t AS (
 		value INT8,
@@ -135,7 +153,7 @@ func MakeVinCopyInStatement() string {
 
 func MakeVoutInsertStatement(checked bool) string {
 	if checked {
-		return insertVoutRowChecked
+		return upsertVoutRow
 	}
 	return insertVoutRow
 }

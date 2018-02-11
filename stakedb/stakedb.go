@@ -21,20 +21,25 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
+	"github.com/oleiade/lane"
 )
 
 // PoolInfoCache contains a map of block hashes to ticket pool info data at that
 // block height.
 type PoolInfoCache struct {
 	sync.RWMutex
-	poolInfo map[chainhash.Hash]*apitypes.TicketPoolInfo
+	poolInfo    map[chainhash.Hash]*apitypes.TicketPoolInfo
+	expireQueue *lane.Queue
+	maxSize     int
 }
 
 // NewPoolInfoCache constructs a new PoolInfoCache, and is needed to initialize
 // the internal map.
-func NewPoolInfoCache() *PoolInfoCache {
+func NewPoolInfoCache(size int) *PoolInfoCache {
 	return &PoolInfoCache{
-		poolInfo: make(map[chainhash.Hash]*apitypes.TicketPoolInfo),
+		poolInfo:    make(map[chainhash.Hash]*apitypes.TicketPoolInfo),
+		expireQueue: lane.NewQueue(),
+		maxSize:     size,
 	}
 }
 
@@ -53,6 +58,25 @@ func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
 	c.Lock()
 	defer c.Unlock()
 	c.poolInfo[hash] = p
+	c.expireQueue.Enqueue(hash)
+	if c.expireQueue.Size() >= c.maxSize {
+		expireHash := c.expireQueue.Dequeue().(chainhash.Hash)
+		delete(c.poolInfo, expireHash)
+	}
+}
+
+func (c *PoolInfoCache) SetCapacity(cap int) error {
+	c.Lock()
+	defer c.Unlock()
+	c.maxSize = cap
+	for c.expireQueue.Size() >= c.maxSize {
+		expireHash, ok := c.expireQueue.Dequeue().(chainhash.Hash)
+		if !ok {
+			return fmt.Errorf("failed to reduce pool cache capacity")
+		}
+		delete(c.poolInfo, expireHash)
+	}
+	return nil
 }
 
 // StakeDatabase models data for the stake database
@@ -79,22 +103,32 @@ const (
 
 // NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
 // ffldb-backed stake database, and loads all live tickets into a cache.
-func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params) (*StakeDatabase, error) {
+func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
+	dbNameOpt ...string) (*StakeDatabase, error) {
 	log.Infof("Loading ticket pool DB...")
 	poolDB, err := NewTicketPool("stakedb_ticket_pool.db")
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ticket pool DB: %v", err)
 	}
-
 	sDB := &StakeDatabase{
 		params:          params,
 		NodeClient:      client,
 		blockCache:      make(map[int64]*dcrutil.Block),
 		liveTicketCache: make(map[chainhash.Hash]int64),
-		poolInfo:        NewPoolInfoCache(),
+		poolInfo:        NewPoolInfoCache(513),
 		PoolDB:          poolDB,
 	}
-	if err := sDB.Open(); err != nil {
+
+	// Put the genesis block in the pool info cache since stakedb starts with
+	// genesis. Hence it will never be connected, how TPI is usually cached.
+	sDB.poolInfo.Set(*params.GenesisHash, &apitypes.TicketPoolInfo{})
+
+	dbName := DefaultStakeDbName
+	if len(dbNameOpt) > 0 {
+		dbName = dbNameOpt[0]
+	}
+
+	if err := sDB.Open(dbName); err != nil {
 		return nil, err
 	}
 
@@ -286,7 +320,9 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 
 func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Hash,
 	revoked []chainhash.Hash, maturing []chainhash.Hash) error {
+	// hold BestNode and StakeDB locked
 	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
 
 	cleanLiveTicketCache := func() {
 		db.liveTicketMtx.Lock()
@@ -313,14 +349,23 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 		return err
 	}
 
-	db.nodeMtx.Unlock()
-
 	// Get ticket pool info at current best (just connected in stakedb) block,
 	// and store it in the StakeDatabase's PoolInfoCache.
-	tpi, _ := db.PoolInfoBest()
-	db.poolInfo.Set(*block.Hash(), &tpi)
+	liveTickets := db.BestNode.LiveTickets()
+	winningTickets := db.BestNode.Winners()
+	height := db.BestNode.Height()
+	pib := db.calcPoolInfo(liveTickets, winningTickets, height)
+	db.poolInfo.Set(*block.Hash(), pib)
 
 	return err
+}
+
+func (db *StakeDatabase) SetPoolInfo(blockHash chainhash.Hash, tpi *apitypes.TicketPoolInfo) {
+	db.poolInfo.Set(blockHash, tpi)
+}
+
+func (db *StakeDatabase) SetPoolCacheCapacity(cap int) error {
+	return db.poolInfo.SetCapacity(cap)
 }
 
 // DisconnectBlock attempts to disconnect the current best block from the stake
@@ -396,12 +441,11 @@ func (db *StakeDatabase) DisconnectBlocks(count int64) error {
 
 // Open attempts to open an existing stake database, and will create a new one
 // if one does not exist.
-func (db *StakeDatabase) Open() error {
+func (db *StakeDatabase) Open(dbName string) error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
 
 	// Create a new database to store the accepted stake node data into.
-	dbName := DefaultStakeDbName
 	var isFreshDB bool
 	var err error
 	db.StakeDB, err = database.Open(dbType, dbName, db.params.Net)
@@ -478,16 +522,46 @@ func (db *StakeDatabase) Close() error {
 	return fmt.Errorf("%v + %v", err1, err2)
 }
 
+func (db *StakeDatabase) expires() ([]chainhash.Hash, []bool) {
+	// revoked includes expired ticket and missed votes that were revoked
+	revoked := db.BestNode.RevokedTickets()
+	// unrevoked includes expired and missed that have not been revoked
+	unrevoked := db.BestNode.MissedTickets()
+
+	var expires []chainhash.Hash
+	var spent []bool
+	for _, tkt := range revoked {
+		if db.BestNode.ExistsExpiredTicket(*tkt) {
+			expires = append(expires, *tkt)
+			spent = append(spent, true)
+		}
+	}
+	for _, tkt := range unrevoked {
+		if db.BestNode.ExistsExpiredTicket(tkt) {
+			expires = append(expires, tkt)
+			spent = append(spent, false)
+		}
+	}
+	return expires, spent
+}
+
 // PoolInfoBest computes ticket pool value using the database and, if needed, the
 // node RPC client to fetch ticket values that are not cached. Returned are a
 // structure including ticket pool value, size, and average value.
-func (db *StakeDatabase) PoolInfoBest() (apitypes.TicketPoolInfo, uint32) {
+func (db *StakeDatabase) PoolInfoBest() *apitypes.TicketPoolInfo {
 	db.nodeMtx.RLock()
-	poolSize := db.BestNode.PoolSize()
+	//poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
+	winningTickets := db.BestNode.Winners()
 	height := db.BestNode.Height()
+	// expiredTickets, expireRevoked := db.expires()
 	db.nodeMtx.RUnlock()
 
+	return db.calcPoolInfo(liveTickets, winningTickets, height)
+}
+
+func (db *StakeDatabase) calcPoolInfo(liveTickets, winningTickets []chainhash.Hash, height uint32) *apitypes.TicketPoolInfo {
+	poolSize := len(liveTickets)
 	db.liveTicketMtx.Lock()
 	var poolValue int64
 	for _, hash := range liveTickets {
@@ -507,23 +581,24 @@ func (db *StakeDatabase) PoolInfoBest() (apitypes.TicketPoolInfo, uint32) {
 	}
 	db.liveTicketMtx.Unlock()
 
-	// header, _ := db.DBTipBlockHeader()
-	// if int(header.PoolSize) != len(liveTickets) {
-	// 	log.Infof("Header at %d, DB at %d.", header.Height, db.BestNode.Height())
-	// 	log.Warnf("Inconsistent pool sizes: %d, %d", header.PoolSize, len(liveTickets))
-	// }
-
 	poolCoin := dcrutil.Amount(poolValue).ToCoin()
 	valAvg := 0.0
 	if len(liveTickets) > 0 {
 		valAvg = poolCoin / float64(poolSize)
 	}
 
-	return apitypes.TicketPoolInfo{
-		Size:   uint32(poolSize),
-		Value:  poolCoin,
-		ValAvg: valAvg,
-	}, height
+	winners := make([]string, 0, len(winningTickets))
+	for _, winner := range winningTickets {
+		winners = append(winners, winner.String())
+	}
+
+	return &apitypes.TicketPoolInfo{
+		Height:  height,
+		Size:    uint32(poolSize),
+		Value:   poolCoin,
+		ValAvg:  valAvg,
+		Winners: winners,
+	}
 }
 
 // PoolInfo attempts to fetch the ticket pool info for the specified block hash

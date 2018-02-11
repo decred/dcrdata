@@ -31,6 +31,7 @@ type BlockData struct {
 	ExtraInfo        apitypes.BlockExplorerExtraInfo
 	PriceWindowNum   int
 	IdxBlockInWindow int
+	WinningTickets   []string
 }
 
 // ToStakeInfoExtended returns an apitypes.StakeInfoExtended object from the
@@ -159,12 +160,12 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	var found bool
 	if ticketPoolInfo, found = t.stakeDB.PoolInfo(*hash); !found {
 		log.Infof("Unable to find block (%s) in pool info cache, trying best block.", hash.String())
-		tpi, sdbHeight := t.stakeDB.PoolInfoBest()
-		if sdbHeight != height {
-			log.Warnf("Collected block height %d != stake db height %d. Pool info "+
-				"will not match the rest of this block's data.", height, sdbHeight)
+		ticketPoolInfo = t.stakeDB.PoolInfoBest()
+		if ticketPoolInfo.Height != height {
+			log.Warnf("Collected block height %d != stake db height %d. Pool "+
+				"info will not match the rest of this block's data.",
+				height, ticketPoolInfo.Height)
 		}
-		ticketPoolInfo = &tpi
 	}
 
 	// Fee info

@@ -4,12 +4,14 @@ const (
 	insertAddressRow0 = `INSERT INTO addresses (address, funding_tx_row_id,
 		funding_tx_hash, funding_tx_vout_index, vout_row_id, value)
 		VALUES ($1, $2, $3, $4, $5, $6) `
-	InsertAddressRow        = insertAddressRow0 + `RETURNING id;`
-	InsertAddressRowChecked = insertAddressRow0 +
-		`ON CONFLICT (address, vout_row_id) DO NOTHING RETURNING id;`
+	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
+	// InsertAddressRowChecked = insertAddressRow0 +
+	// 	`ON CONFLICT (vout_row_id, address) DO NOTHING RETURNING id;`
+	UpsertAddressRow = insertAddressRow0 + `ON CONFLICT (vout_row_id, address) DO UPDATE 
+		SET address = $1, vout_row_id = $5 RETURNING id;`
 	InsertAddressRowReturnID = `WITH inserting AS (` +
 		insertAddressRow0 +
-		`ON CONFLICT (address, vout_row_id) DO UPDATE
+		`ON CONFLICT (vout_row_id, address) DO UPDATE
 		SET address = NULL WHERE FALSE
 		RETURNING id
 		)
@@ -53,7 +55,8 @@ const (
 	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses
 		WHERE funding_tx_hash=$1 and funding_tx_vout_index=$2;`
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses
-		WHERE address=$1 and vout_row_id=$2;`
+		WHERE address=$1 and vout_row_id=$2
+		ORDER BY id DESC;`
 
 	SetAddressSpendingForID = `UPDATE addresses SET spending_tx_row_id = $2, 
 		spending_tx_hash = $3, spending_tx_vin_index = $4, vin_row_id = $5 
@@ -67,7 +70,7 @@ const (
 	DeindexAddressTableOnAddress = `DROP INDEX uix_addresses_address;`
 
 	IndexAddressTableOnVoutID = `CREATE UNIQUE INDEX uix_addresses_vout_id
-		ON addresses(vout_row_id);`
+		ON addresses(vout_row_id, address);`
 	DeindexAddressTableOnVoutID = `DROP INDEX uix_addresses_vout_id;`
 
 	IndexAddressTableOnFundingTx = `CREATE INDEX uix_addresses_funding_tx

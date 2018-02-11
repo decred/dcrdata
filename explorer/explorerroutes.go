@@ -4,6 +4,7 @@
 package explorer
 
 import (
+	"database/sql"
 	"io"
 	"net/http"
 	"strconv"
@@ -105,6 +106,14 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.TxAvailable = false
 	}
 
+	if !exp.liteMode {
+		var err error
+		data.Misses, err = exp.explorerSource.BlockMissedVotes(hash)
+		if err != nil && err != sql.ErrNoRows {
+			log.Warnf("Unable to retrieve missed votes for block %s: %v", hash, err)
+		}
+	}
+
 	pageData := struct {
 		Data          *BlockInfo
 		ConfirmHeight int64
@@ -158,6 +167,19 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			tx.SpendingTxns[vout] = TxInID{
 				Hash:  spendingTxHashes[i],
 				Index: spendingTxVinInds[i],
+			}
+		}
+		if tx.Type == "Ticket" {
+			spendStatus, poolStatus, err := exp.explorerSource.PoolStatusForTicket(hash)
+			if err != nil {
+				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v", hash, err)
+			} else {
+				if tx.Mature == "False" {
+					tx.TicketInfo.PoolStatus = "immature"
+				} else {
+					tx.TicketInfo.PoolStatus = poolStatus.String()
+				}
+				tx.TicketInfo.SpendStatus = spendStatus.String()
 			}
 		}
 	}

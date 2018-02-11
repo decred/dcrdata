@@ -96,6 +96,37 @@ func (db *wiredDB) NewStakeDBChainMonitor(quit chan struct{}, wg *sync.WaitGroup
 	return db.sDB.NewChainMonitor(quit, wg, blockChan, reorgChan)
 }
 
+func (db *wiredDB) ChargePoolInfoCache(startHeight int64) error {
+	if startHeight < 0 {
+		startHeight = 0
+	}
+	endHeight, err := db.GetStakeInfoHeight()
+	if err != nil {
+		return err
+	}
+	tpis, blockHashes, err := db.DB.RetrievePoolInfoRange(startHeight, endHeight)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Pre-loading pool info for %d blocks ([%d, %d]) into cache.",
+		len(tpis), startHeight, endHeight)
+	for i := range tpis {
+		hash, err := chainhash.NewHashFromStr(blockHashes[i])
+		if err != nil {
+			log.Warnf("Invalid block hash: %s", blockHashes[i])
+		}
+		db.sDB.SetPoolInfo(*hash, &tpis[i])
+	}
+	// for i := startHeight; i <= endHeight; i++ {
+	// 	winners, blockHash, err := db.DB.RetrieveWinners(i)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	db.sDB.SetPoolInfo(blockHash)
+	// }
+	return nil
+}
+
 func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
 	defer wg.Done()
 	var err error
@@ -642,7 +673,7 @@ func (db *wiredDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
 }
 
 func (db *wiredDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
-	ticketPoolInfos, err := db.RetrievePoolInfoRange(int64(idx0), int64(idx1))
+	ticketPoolInfos, _, err := db.RetrievePoolInfoRange(int64(idx0), int64(idx1))
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket pool info range: %v", err)
 		return nil
@@ -1049,7 +1080,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 			tx.Mature = "True"
 		} else {
 			tx.Mature = "False"
-			tx.TicketMaturity = int64(db.params.TicketMaturity)
+			tx.TicketInfo.TicketMaturity = int64(db.params.TicketMaturity)
 		}
 	}
 	if tx.Type == "Vote" {

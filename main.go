@@ -45,37 +45,6 @@ func mainCore() error {
 		}
 	}()
 
-	// PostgreSQL
-	usePG := !cfg.LiteMode
-	var db *dcrpg.ChainDB
-	if usePG {
-		pgHost, pgPort := cfg.PGHost, ""
-		if !strings.HasPrefix(pgHost, "/") {
-			pgHost, pgPort, err = net.SplitHostPort(cfg.PGHost)
-			if err != nil {
-				return fmt.Errorf("SplitHostPort failed: %v", err)
-			}
-		}
-		dbi := dcrpg.DBInfo{
-			Host:   pgHost,
-			Port:   pgPort,
-			User:   cfg.PGUser,
-			Pass:   cfg.PGPass,
-			DBName: cfg.PGDBName,
-		}
-		db, err = dcrpg.NewChainDB(&dbi, activeChain)
-		if db != nil {
-			defer db.Close()
-		}
-		if err != nil {
-			return err
-		}
-
-		if err = db.SetupTables(); err != nil {
-			return err
-		}
-	}
-
 	if cfg.CPUProfile != "" {
 		var f *os.File
 		f, err = os.Create(cfg.CPUProfile)
@@ -92,18 +61,12 @@ func mainCore() error {
 	//log.Debugf("Output folder: %v", cfg.OutFolder)
 	log.Debugf("Log folder: %v", cfg.LogDir)
 
+	usePG := !cfg.LiteMode
 	if usePG {
 		log.Info(`Running in full-functionality mode with PostgreSQL backend enabled.`)
 	} else {
 		log.Info(`Running in "Lite" mode with only SQLite backend and limited functionality.`)
 	}
-
-	// // Create data output folder if it does not already exist
-	// if err = os.MkdirAll(cfg.OutFolder, 0750); err != nil {
-	// 	log.Errorf("Failed to create data output folder %s. Error: %s\n",
-	// 		cfg.OutFolder, err.Error())
-	// 	return 2
-	// }
 
 	// Connect to dcrd RPC server using websockets
 
@@ -154,6 +117,49 @@ func mainCore() error {
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer sqliteDB.Close()
 
+	// PostgreSQL
+	var db *dcrpg.ChainDB
+	var newPGIndexes, updateAllAddresses, updateAllVotes bool
+	if usePG {
+		pgHost, pgPort := cfg.PGHost, ""
+		if !strings.HasPrefix(pgHost, "/") {
+			pgHost, pgPort, err = net.SplitHostPort(cfg.PGHost)
+			if err != nil {
+				return fmt.Errorf("SplitHostPort failed: %v", err)
+			}
+		}
+		dbi := dcrpg.DBInfo{
+			Host:   pgHost,
+			Port:   pgPort,
+			User:   cfg.PGUser,
+			Pass:   cfg.PGPass,
+			DBName: cfg.PGDBName,
+		}
+		db, err = dcrpg.NewChainDB(&dbi, activeChain, sqliteDB.GetStakeDB())
+		if db != nil {
+			defer db.Close()
+		}
+		if err != nil {
+			return err
+		}
+
+		if err = db.VersionCheck(); err != nil {
+			return err
+		}
+
+		var idxExists bool
+		idxExists, err = db.ExistsIndexVinOnVins()
+		if !idxExists || err != nil {
+			newPGIndexes = true
+			log.Infof("Indexes not found. Forcing new index creation.")
+		}
+
+		idxExists, err = db.ExistsIndexAddressesVoutIDAddress()
+		if !idxExists || err != nil {
+			updateAllAddresses = true
+		}
+	}
+
 	// Ctrl-C to shut down.
 	// Nothing should be sent the quit channel.  It should only be closed.
 	quit := make(chan struct{})
@@ -175,15 +181,17 @@ func mainCore() error {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
 
-	var newPGIndexes, updateAllAddresses bool
 	if usePG {
-		heightDB, err := db.HeightDB()
+		var heightDB uint64
+		heightDB, err = db.HeightDB()
 		if err != nil {
 			if err != sql.ErrNoRows {
 				return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
 			}
 			heightDB = 0
 		}
+
+		// How far behind the node is PG
 		blocksBehind := height - int64(heightDB)
 		if blocksBehind < 0 {
 			return fmt.Errorf("Node is still syncing. Node height = %d, "+
@@ -199,11 +207,31 @@ func mainCore() error {
 				newPGIndexes = true
 			}
 		}
+
+		// PG gets winning tickets out of sqliteDB's pool info cache, so it must
+		// be big enough to hold the needed blocks' info, and charged with the
+		// data from sqlite. The cache is updated on each block connect.
+		stakeInfoHeight, err := sqliteDB.GetStakeInfoHeight()
+		if err != nil {
+			return err
+		}
+		if stakeInfoHeight >= int64(heightDB) {
+			err = sqliteDB.GetStakeDB().SetPoolCacheCapacity(int(blocksBehind) + 2)
+			if err != nil {
+				return err
+			}
+			// Charge stakedb pool info cache, including previous PG block, up
+			// to best in sqlite.
+			if err = sqliteDB.ChargePoolInfoCache(int64(heightDB) - 1); err != nil {
+				return fmt.Errorf("Failed to charge pool info cache: %v", err)
+			}
+		}
 	}
 
 	// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
-	// info DB (sqlite). They don't communicate, so we'll just ensure they exit
-	// with the same best block height by calling them repeatedly in a loop.
+	// info DB (sqlite). They don't communicate (aside from dcrpg waiting for
+	// stake DB), so we'll just ensure they exit with the same best block height
+	// by calling them repeatedly in a loop.
 	var sqliteHeight, pgHeight int64
 	sqliteSyncRes := make(chan dbtypes.SyncResult)
 	pgSyncRes := make(chan dbtypes.SyncResult)
@@ -211,12 +239,17 @@ func mainCore() error {
 		// Launch the sync functions for both DBs
 		go sqliteDB.SyncDBAsync(sqliteSyncRes, quit)
 		go db.SyncChainDBAsync(pgSyncRes, dcrdClient, quit,
-			newPGIndexes, updateAllAddresses)
+			updateAllAddresses, updateAllVotes, newPGIndexes)
 
 		// Wait for the results
 		sqliteRes := <-sqliteSyncRes
 		sqliteHeight = sqliteRes.Height
 		log.Infof("SQLite sync ended at height %d", sqliteHeight)
+		if sqliteRes.Error != nil {
+			log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteHeight)
+			close(quit)
+			return sqliteRes.Error
+		}
 
 		pgRes := <-pgSyncRes
 		pgHeight = pgRes.Height
@@ -233,18 +266,15 @@ func mainCore() error {
 		}
 
 		// Check for errors and combine if necessary
-		if sqliteRes.Error != nil {
-			if usePG && pgRes.Error != nil {
+		if usePG && pgRes.Error != nil {
+			if sqliteRes.Error != nil {
 				log.Error("dcrsqlite.SyncDBAsync AND dcrpg.SyncChainDBAsync "+
 					"failed at heights %d and %d, respectively.",
-					sqliteRes.Height, pgRes.Height)
+					sqliteHeight, pgHeight)
 				errCombined := fmt.Sprintln(sqliteRes.Error, ", ", pgRes.Error)
 				return errors.New(errCombined)
 			}
-			log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteRes.Height)
-			return sqliteRes.Error
-		} else if usePG && pgRes.Error != nil {
-			log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", pgRes.Height)
+			log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", pgHeight)
 			return pgRes.Error
 		}
 
