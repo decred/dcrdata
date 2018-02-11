@@ -45,37 +45,6 @@ func mainCore() error {
 		}
 	}()
 
-	// PostgreSQL
-	usePG := cfg.FullMode
-	var db *dcrpg.ChainDB
-	if usePG {
-		pgHost, pgPort := cfg.PGHost, ""
-		if !strings.HasPrefix(pgHost, "/") {
-			pgHost, pgPort, err = net.SplitHostPort(cfg.PGHost)
-			if err != nil {
-				return fmt.Errorf("SplitHostPort failed: %v", err)
-			}
-		}
-		dbi := dcrpg.DBInfo{
-			Host:   pgHost,
-			Port:   pgPort,
-			User:   cfg.PGUser,
-			Pass:   cfg.PGPass,
-			DBName: cfg.PGDBName,
-		}
-		db, err = dcrpg.NewChainDB(&dbi, activeChain)
-		if db != nil {
-			defer db.Close()
-		}
-		if err != nil {
-			return err
-		}
-
-		if err = db.SetupTables(); err != nil {
-			return err
-		}
-	}
-
 	if cfg.CPUProfile != "" {
 		var f *os.File
 		f, err = os.Create(cfg.CPUProfile)
@@ -92,7 +61,8 @@ func mainCore() error {
 	//log.Debugf("Output folder: %v", cfg.OutFolder)
 	log.Debugf("Log folder: %v", cfg.LogDir)
 
-	usePG := !cfg.LiteMode
+	// PostgreSQL
+	usePG := cfg.FullMode
 	if usePG {
 		log.Info(`Running in full-functionality mode with PostgreSQL backend enabled.`)
 	} else {
