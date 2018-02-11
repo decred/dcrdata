@@ -249,7 +249,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			address, limitN, offsetAddrOuts)
 		if errH != nil {
 			log.Errorf("Unable to get address %s history: %v", address, errH)
-			addrData := exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+			addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+			if addrData == nil {
+				log.Errorf("Unable to get address %s", address)
+				exp.ErrorPage(w, "Something went wrong...", "could not find that address", true)
+				return
+			}
 			confirmHeights := make([]int64, len(addrData.Transactions))
 			if addrData == nil {
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", false)
