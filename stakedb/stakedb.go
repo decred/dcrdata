@@ -108,8 +108,8 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params) (*Stake
 	heightStakeDB, heightTicketPool := int64(sDB.Height()), sDB.PoolDB.Tip()
 	if heightStakeDB != heightTicketPool {
 		if heightStakeDB > heightTicketPool {
-			return nil, fmt.Errorf("StakeDB height (%d) and TicketPool (%d) height not equal."+
-				"Delete both and try again", sDB.Height(), sDB.PoolDB.Tip())
+			return nil, fmt.Errorf("StakeDB height (%d) and TicketPool (%d) height not equal. "+
+				"Delete both and try again.", sDB.Height(), sDB.PoolDB.Tip())
 		}
 
 		// Trim ticket pool DB back to the height of the stake DB
