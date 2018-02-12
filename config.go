@@ -89,7 +89,7 @@ type config struct {
 	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
 
-	LiteMode bool   `short:"l" long:"lite" description:"Run in \"lite\" mode, using only SQLite."`
+	FullMode bool   `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support"`
 	PGDBName string `long:"pgdbname" description:"PostgreSQL DB name."`
 	PGUser   string `long:"pguser" description:"PostgreSQL DB user."`
 	PGPass   string `long:"pgpass" description:"PostgreSQL DB password."`

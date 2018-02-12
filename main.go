@@ -61,7 +61,8 @@ func mainCore() error {
 	//log.Debugf("Output folder: %v", cfg.OutFolder)
 	log.Debugf("Log folder: %v", cfg.LogDir)
 
-	usePG := !cfg.LiteMode
+	// PostgreSQL
+	usePG := cfg.FullMode
 	if usePG {
 		log.Info(`Running in full-functionality mode with PostgreSQL backend enabled.`)
 	} else {
