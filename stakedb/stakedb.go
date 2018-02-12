@@ -94,7 +94,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params) (*Stake
 		poolInfo:        NewPoolInfoCache(),
 		PoolDB:          poolDB,
 	}
-	if err := sDB.Open(); err != nil {
+	if err = sDB.Open(); err != nil {
 		return nil, err
 	}
 
@@ -103,9 +103,23 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params) (*Stake
 		log.Errorf("Unable to get best block height: %v", err)
 	}
 
-	if int64(sDB.Height()) != sDB.PoolDB.Tip() {
-		return nil, fmt.Errorf("StakeDB height (%d) and TicketPool (%d) height not equal."+
-			"Delete both and try again", sDB.Height(), sDB.PoolDB.Tip())
+	// Check if stake DB and ticket pool DB are at the same height, and attempt
+	// to recover.
+	heightStakeDB, heightTicketPool := int64(sDB.Height()), sDB.PoolDB.Tip()
+	if heightStakeDB != heightTicketPool {
+		if heightStakeDB > heightTicketPool {
+			return nil, fmt.Errorf("StakeDB height (%d) and TicketPool (%d) height not equal."+
+				"Delete both and try again", sDB.Height(), sDB.PoolDB.Tip())
+		}
+
+		// Trim ticket pool DB back to the height of the stake DB
+		for heightTicketPool > heightStakeDB {
+			heightTicketPool = sDB.PoolDB.Trim()
+		}
+		if heightTicketPool != heightStakeDB {
+			return nil, fmt.Errorf("unable to trim pool DB to height %d, at %d",
+				heightStakeDB, heightTicketPool)
+		}
 	}
 
 	log.Infof("Advancing ticket pool DB to tip via diffs...")
@@ -113,7 +127,10 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params) (*Stake
 		return nil, fmt.Errorf("failed to advance ticket pool DB to tip: %v", err)
 	}
 
-	if int64(sDB.Height()) >= nodeHeight-int64(params.TicketPoolSize)/4 {
+	// Pre-populate the live ticket cache if stakedb is close enough to the
+	// network height that the live tickets returned by the node are likely to
+	// be required to advance the stakedb.
+	if heightStakeDB >= nodeHeight-int64(params.TicketPoolSize)/4 {
 
 		liveTickets, err := sDB.NodeClient.LiveTickets()
 		if err != nil {
