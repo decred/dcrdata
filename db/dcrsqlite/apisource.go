@@ -855,7 +855,7 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.Block
 			log.Errorf("Unknown transaction %s", data.RawSTx[i].Txid)
 			continue
 		}
-		if isRev, _ := stake.IsSSRtx(msgTx); isRev {
+		if stake.IsSSRtx(msgTx) {
 			block.Revocations++
 		}
 	}
@@ -873,7 +873,7 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 			tx.Coinbase = true
 		}
 	}
-	if ok, _ := stake.IsSSGen(msgTx); ok {
+	if stake.IsSSGen(msgTx) {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
 			log.Debugf("Cannot get vote choices for %s", tx.TxID)

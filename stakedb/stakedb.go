@@ -409,8 +409,12 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	}
 	defer cleanLiveTicketCache()
 
-	var err error
-	db.BestNode, err = db.BestNode.ConnectNode(block.MsgBlock().Header,
+	hB, err := block.BlockHeaderBytes()
+	if err != nil {
+		return fmt.Errorf("unable to serialize block header: %v", err)
+	}
+
+	db.BestNode, err = db.BestNode.ConnectNode(stake.CalcHash256PRNGIV(hB),
 		spent, revoked, maturing)
 	if err != nil {
 		return err
@@ -484,11 +488,16 @@ func (db *StakeDatabase) disconnectBlock() error {
 	log.Debugf("Disconnecting block %d.", childHeight)
 
 	// previous best node
+	hB, errx := parentBlock.BlockHeaderBytes()
+	if errx != nil {
+		return fmt.Errorf("unable to serialize block header: %v", errx)
+	}
+	parentIV := stake.CalcHash256PRNGIV(hB)
+
 	var parentStakeNode *stake.Node
 	err = db.StakeDB.View(func(dbTx database.Tx) error {
 		var errLocal error
-		parentStakeNode, errLocal = db.BestNode.DisconnectNode(
-			parentBlock.MsgBlock().Header, nil, nil, dbTx)
+		parentStakeNode, errLocal = db.BestNode.DisconnectNode(parentIV, nil, nil, dbTx)
 		return errLocal
 	})
 	if err != nil {
