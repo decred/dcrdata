@@ -212,18 +212,21 @@ func mainCore() error {
 		// PG gets winning tickets out of sqliteDB's pool info cache, so it must
 		// be big enough to hold the needed blocks' info, and charged with the
 		// data from sqlite. The cache is updated on each block connect.
+		tpcSize := int(blocksBehind) + 20
+		log.Debugf("Setting ticket pool cache capacity to %d blocks", tpcSize)
+		err = sqliteDB.GetStakeDB().SetPoolCacheCapacity(tpcSize)
+		if err != nil {
+			return err
+		}
+
 		stakeInfoHeight, err := sqliteDB.GetStakeInfoHeight()
 		if err != nil {
 			return err
 		}
 		if stakeInfoHeight >= int64(heightDB) {
-			err = sqliteDB.GetStakeDB().SetPoolCacheCapacity(int(blocksBehind) + 2)
-			if err != nil {
-				return err
-			}
 			// Charge stakedb pool info cache, including previous PG block, up
 			// to best in sqlite.
-			if err = sqliteDB.ChargePoolInfoCache(int64(heightDB) - 1); err != nil {
+			if err = sqliteDB.ChargePoolInfoCache(int64(heightDB) - 10); err != nil {
 				return fmt.Errorf("Failed to charge pool info cache: %v", err)
 			}
 		}

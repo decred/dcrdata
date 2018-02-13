@@ -297,8 +297,8 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	votedTickets := txhelpers.TicketsSpentInBlock(block)
 
 	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
 	bestNodeHeight := int64(db.BestNode.Height())
-	db.nodeMtx.Unlock()
 	if height <= bestNodeHeight {
 		return fmt.Errorf("cannot connect block height %d at height %d", height, bestNodeHeight)
 	}
@@ -337,9 +337,6 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 
 func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Hash,
 	revoked []chainhash.Hash, maturing []chainhash.Hash) error {
-	// hold BestNode and StakeDB locked
-	db.nodeMtx.Lock()
-	defer db.nodeMtx.Unlock()
 
 	cleanLiveTicketCache := func() {
 		db.liveTicketMtx.Lock()
@@ -528,6 +525,8 @@ func (db *StakeDatabase) Open(dbName string) error {
 
 // Close will close the ticket pool and stake databases.
 func (db *StakeDatabase) Close() error {
+	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
 	err1 := db.PoolDB.Close()
 	err2 := db.StakeDB.Close()
 	if err1 == nil {
@@ -627,6 +626,8 @@ func (db *StakeDatabase) PoolInfo(hash chainhash.Hash) (*apitypes.TicketPoolInfo
 
 // PoolSize returns the ticket pool size in the best node of the stake database
 func (db *StakeDatabase) PoolSize() int {
+	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
 	return db.BestNode.PoolSize()
 }
 

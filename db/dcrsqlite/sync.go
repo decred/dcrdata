@@ -250,7 +250,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 			}
 		}
 
-		numLive := db.sDB.BestNode.PoolSize()
+		numLive := db.sDB.PoolSize()
 		//liveTickets := db.sDB.BestNode.LiveTickets()
 		// TODO: winning tickets
 		//winningTickets := db.sDB.BestNode.Winners()

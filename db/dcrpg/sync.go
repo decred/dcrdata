@@ -152,7 +152,8 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 
 			// stakeDB is not locked between Height() and PoolInfo() so there is
 			// a data race. Get the height first to avoid resulting errors.
-			blocksBehind := ib - int64(db.stakeDB.Height())
+			heightStakeDB := int64(db.stakeDB.Height())
+			blocksBehind := ib - heightStakeDB
 
 			if tpi, ok := db.stakeDB.PoolInfo(*blockHash); ok {
 				winners = tpi.Winners
@@ -160,14 +161,17 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 			}
 
 			if blocksBehind <= 0 {
+				log.Errorf("Failed to find block at height %d in pool info cache (at %d)",
+					ib, heightStakeDB)
 				return ib - 1, fmt.Errorf("stakeDB.PoolInfo failed.")
 			}
 			log.Infof("Waiting for stake DB to catch up. Query height %d, "+
-				"stake DB height %d.", ib, db.stakeDB.Height())
+				"stake DB height %d.", ib, heightStakeDB)
 			waitSec := math.Max(5, math.Min(30.0, float64(blocksBehind)/500))
 			time.Sleep(time.Duration(waitSec) * time.Second)
 
-			if blocksBehind <= ib-int64(db.stakeDB.Height()) {
+			heightStakeDB = int64(db.stakeDB.Height())
+			if blocksBehind <= ib-heightStakeDB {
 				log.Infof("Rescan halted waiting for stakedb to advance.")
 				return ib - 1, nil
 			}
