@@ -222,6 +222,16 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	return sDB, nil
 }
 
+// LockStakeNode locks the StakeNode from functions that respect the mutex.
+func (db *StakeDatabase) LockStakeNode() {
+	db.nodeMtx.RLock()
+}
+
+// UnlockStakeNode unlocks the StakeNode for functions that respect the mutex.
+func (db *StakeDatabase) UnlockStakeNode() {
+	db.nodeMtx.RUnlock()
+}
+
 // Height gets the block height of the best stake node.  It is thread-safe,
 // unlike using db.BestNode.Height(), and checks that the stake database is
 // opened first.

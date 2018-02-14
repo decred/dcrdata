@@ -154,7 +154,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		return nil, err
 	}
 	if len(unspentTicketDbIDs) != 0 {
-		log.Infof("Storing data for %d unspent tickes in cache.", len(unspentTicketDbIDs))
+		log.Infof("Storing data for %d unspent tickets in cache.", len(unspentTicketDbIDs))
 		unspentTicketCache.SetN(unspentTicketHashes, unspentTicketDbIDs)
 	}
 
@@ -940,6 +940,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 
 		if updateTicketsSpendingInfo {
+			// Get a consistent view of the stake node at its present height
+			pgb.stakeDB.LockStakeNode()
+
 			// To update spending info in tickets table, get the spent tickets' DB
 			// row IDs and block heights.
 			//ticketDbIDs := make([]uint64, len(spentTicketHashes))
@@ -992,8 +995,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			}
 
 			// Expired but not revoked
+			unspentEnM := make([]string, len(unspentMissedTicketHashes))
+			copy(unspentEnM, unspentMissedTicketHashes)
 			unspentExpiresAndMisses := pgb.stakeDB.BestNode.MissedByBlock()
-			unspentEnM := unspentMissedTicketHashes // var unspentEnM []string
 			for _, missHash := range unspentExpiresAndMisses {
 				// MissedByBlock includes tickets that missed votes or expired;
 				// we just want the expires, and not the revoked ones.
@@ -1009,6 +1013,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 					}
 				}
 			}
+
+			// Release the stake node
+			pgb.stakeDB.UnlockStakeNode()
 
 			numUnrevokedMisses, err := SetPoolStatusForTicketsByHash(pgb.db, unspentEnM, missStatuses)
 			if err != nil {
@@ -1302,12 +1309,14 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllTickets() (int64, error) {
 	}
 
 	poolStatuses = ticketpoolStatusSlice(dbtypes.PoolStatusMissed, len(revokedTicketHashes))
+	pgb.stakeDB.LockStakeNode()
 	for ih := range revokedTicketHashes {
 		rh, _ := chainhash.NewHashFromStr(revokedTicketHashes[ih])
 		if pgb.stakeDB.BestNode.ExistsExpiredTicket(*rh) {
 			poolStatuses[ih] = dbtypes.PoolStatusExpired
 		}
 	}
+	pgb.stakeDB.UnlockStakeNode()
 
 	// To update spending info in tickets table, get the spent tickets' DB
 	// row IDs and block heights.
