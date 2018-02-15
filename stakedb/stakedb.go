@@ -92,6 +92,8 @@ type StakeDatabase struct {
 	liveTicketCache map[chainhash.Hash]int64
 	poolInfo        *PoolInfoCache
 	PoolDB          *TicketPool
+	waitMtx         sync.Mutex
+	heightWaiters   map[int64][]chan *chainhash.Hash
 }
 
 const (
@@ -117,6 +119,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 		liveTicketCache: make(map[chainhash.Hash]int64),
 		poolInfo:        NewPoolInfoCache(513),
 		PoolDB:          poolDB,
+		heightWaiters:   make(map[int64][]chan *chainhash.Hash),
 	}
 
 	// Put the genesis block in the pool info cache since stakedb starts with
@@ -232,6 +235,40 @@ func (db *StakeDatabase) UnlockStakeNode() {
 	db.nodeMtx.RUnlock()
 }
 
+func (db *StakeDatabase) WaitForHeight(height int64) chan *chainhash.Hash {
+	dbHeight := int64(db.Height())
+	waitChan := make(chan *chainhash.Hash, 1)
+	if dbHeight > height {
+		defer func() { waitChan <- nil }()
+		return waitChan
+	} else if dbHeight == height {
+		block, _ := db.block(height)
+		if block == nil {
+			panic("broken StakeDatabase")
+		}
+		defer db.signalWaiters(height, block.Hash())
+	}
+	db.waitMtx.Lock()
+	db.heightWaiters[height] = append(db.heightWaiters[height], waitChan)
+	db.waitMtx.Unlock()
+	return waitChan
+}
+
+func (db *StakeDatabase) signalWaiters(height int64, blockhash *chainhash.Hash) {
+	db.waitMtx.Lock()
+	defer db.waitMtx.Unlock()
+	waitChans := db.heightWaiters[height]
+	for _, c := range waitChans {
+		select {
+		case c <- blockhash:
+		default:
+			panic(fmt.Sprintf("unable to signal block with hash %v at height %d", blockhash, height))
+		}
+	}
+
+	delete(db.heightWaiters, height)
+}
+
 // Height gets the block height of the best stake node.  It is thread-safe,
 // unlike using db.BestNode.Height(), and checks that the stake database is
 // opened first.
@@ -300,7 +337,7 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	}
 
 	db.blkMtx.Lock()
-	db.blockCache[block.Height()] = block
+	db.blockCache[height] = block
 	db.blkMtx.Unlock()
 
 	revokedTickets := txhelpers.RevokedTicketsInBlock(block)
@@ -340,6 +377,8 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 		In:  maturingTickets,
 		Out: liveOut,
 	}
+
+	defer func() { go db.signalWaiters(height, block.Hash()) }()
 
 	// Append this ticket pool diff
 	return db.PoolDB.Append(poolDiff, bestNodeHeight+1)

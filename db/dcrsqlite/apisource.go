@@ -144,18 +144,19 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
 // where the caller should wait to receive the result. As such, this method
 // should be called as a gorouine.
 func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
-	quit chan struct{}) {
+	quit chan struct{}, blockGetter rpcutils.BlockGetter) {
 	// hack around the old waitgroup input
 	var wg sync.WaitGroup
 	wg.Add(1)
-	height, err := db.SyncDBWithPoolValue(&wg, quit)
+	height, err := db.SyncDBWithPoolValue(&wg, quit, blockGetter)
 	res <- dbtypes.SyncResult{
 		Height: height,
 		Error:  err,
 	}
 }
 
-func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) (int64, error) {
+func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{},
+	blockGetter rpcutils.BlockGetter) (int64, error) {
 	defer wg.Done()
 	var err error
 	if err = db.Ping(); err != nil {
@@ -165,7 +166,7 @@ func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{}) (
 		return int64(db.GetHeight()), err
 	}
 
-	return db.resyncDBWithPoolValue(quit)
+	return db.resyncDBWithPoolValue(quit, blockGetter)
 }
 
 func (db *wiredDB) GetStakeDB() *stakedb.StakeDatabase {

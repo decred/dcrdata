@@ -8,6 +8,7 @@ import (
 	"time"
 
 	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
+	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
@@ -75,7 +76,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 
 		block, blockhash, err := db.getBlock(i)
 		if err != nil {
-			return fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
+			return fmt.Errorf("getBlock failed (%s): %v", blockhash, err)
 		}
 
 		if i%rescanLogBlockChunk == 0 {
@@ -134,7 +135,11 @@ func (db *wiredDB) resyncDB(quit chan struct{}) error {
 	return nil
 }
 
-func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
+func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}, blockGetter rpcutils.BlockGetter) (int64, error) {
+	// Determine if we're in lite mode, when we are the "master" who sets the
+	// pace rather than waiting on other consumers to get done with the stakedb.
+	master := blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil
+
 	// Get chain servers's best block
 	_, height, err := db.client.GetBestBlock()
 	if err != nil {
@@ -236,9 +241,21 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 		default:
 		}
 
-		block, blockhash, err := db.getBlock(i)
-		if err != nil {
-			return i - 1, fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
+		var block *dcrutil.Block
+		var blockhash chainhash.Hash
+		if master {
+			var h *chainhash.Hash
+			block, h, err = db.getBlock(i)
+			if err != nil {
+				return i - 1, fmt.Errorf("getBlock failed (%d): %v", i, err)
+			}
+			blockhash = *h
+		} else {
+			blockhash = <-blockGetter.WaitForHeight(i)
+			block, err = blockGetter.Block(blockhash)
+			if err != nil {
+				return i - 1, fmt.Errorf("blockGetter.Block failed (%s): %v", blockhash, err)
+			}
 		}
 
 		if i > bestNodeHeight {
@@ -270,7 +287,7 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}) (int64, error) {
 
 		var tpi *apitypes.TicketPoolInfo
 		var found bool
-		if tpi, found = db.sDB.PoolInfo(*blockhash); !found {
+		if tpi, found = db.sDB.PoolInfo(blockhash); !found {
 			if i != 0 {
 				log.Warnf("Unable to find block (%s) in pool info cache. Resync is malfunctioning!", blockhash.String())
 			}

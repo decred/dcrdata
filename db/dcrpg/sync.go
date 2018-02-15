@@ -13,7 +13,6 @@ import (
 
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/decred/dcrd/rpcclient"
 )
 
 const (
@@ -25,7 +24,7 @@ const (
 // should be called as a goroutine or it will hang on send if the channel is
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
-	client *rpcclient.Client, quit chan struct{}, updateAllAddresses,
+	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
 	updateAllVotes, newIndexes bool) {
 	if db == nil {
 		res <- dbtypes.SyncResult{
@@ -46,10 +45,11 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // RPC client. The table indexes may be force-dropped and recreated by setting
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
-func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
+func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan struct{},
 	updateAllAddresses, updateAllVotes, newIndexes bool) (int64, error) {
 	// Get chain servers's best block
-	_, nodeHeight, err := client.GetBestBlock()
+	nodeHeight, err := client.NodeHeight()
+	//_, nodeHeight, err := client.GetBestBlock()
 	if err != nil {
 		return -1, fmt.Errorf("GetBestBlock failed: %v", err)
 	}
@@ -134,10 +134,18 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		default:
 		}
 
-		block, blockHash, err := rpcutils.GetBlock(ib, client)
+		block, err := client.UpdateToBlock(ib)
 		if err != nil {
-			return ib - 1, fmt.Errorf("GetBlock failed (%s): %v", blockHash, err)
+			return ib - 1, fmt.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
 		}
+
+		// Wait for our StakeDatabase to connect the block
+		blockHash := <-db.stakeDB.WaitForHeight(ib)
+		// If not master:
+		//blockHash := <-client.WaitForHeight(ib)
+		//block, err := client.Block(blockHash)
+		// direct:
+		//block, blockHash, err := rpcutils.GetBlock(ib, client)
 
 		var winners []string
 		//prevBlockHash := block.MsgBlock().Header.PrevBlock
@@ -192,7 +200,8 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		// totalSTxs += numSTx
 
 		// update height, the end condition for the loop
-		if _, nodeHeight, err = client.GetBestBlock(); err != nil {
+
+		if nodeHeight, err = client.NodeHeight(); err != nil {
 			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 	}

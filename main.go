@@ -239,10 +239,11 @@ func mainCore() error {
 	var sqliteHeight, pgHeight int64
 	sqliteSyncRes := make(chan dbtypes.SyncResult)
 	pgSyncRes := make(chan dbtypes.SyncResult)
+	smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 	for {
 		// Launch the sync functions for both DBs
-		go sqliteDB.SyncDBAsync(sqliteSyncRes, quit)
-		go db.SyncChainDBAsync(pgSyncRes, dcrdClient, quit,
+		go sqliteDB.SyncDBAsync(sqliteSyncRes, quit, smartClient)
+		go db.SyncChainDBAsync(pgSyncRes, smartClient, quit,
 			updateAllAddresses, updateAllVotes, newPGIndexes)
 
 		// Wait for the results
