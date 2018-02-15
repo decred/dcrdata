@@ -169,9 +169,11 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}, blockGetter rpcutil
 	bestNodeHeight := int64(db.sDB.Height())
 
 	log.Info("Current best block (chain server): ", height)
-	log.Info("Current best block (summary DB):   ", bestBlockHeight)
-	log.Info("Current best block (stakeinfo DB): ", bestStakeHeight)
-	log.Info("Current best block (ticketdb):     ", bestNodeHeight)
+	log.Info("Current best block (sqlite block DB):   ", bestBlockHeight)
+	if bestStakeHeight != bestBlockHeight {
+		log.Warn("Current best block (sqlite stake DB):   ", bestStakeHeight)
+	}
+	log.Info("Current best block (stakedb):     ", bestNodeHeight)
 
 	// Start with the older of summary or stake table heights
 	startHeight := bestStakeHeight

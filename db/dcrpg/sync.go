@@ -134,13 +134,18 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		default:
 		}
 
+		// Register for notification from stakedb when it connects this block.
+		waitChan := db.stakeDB.WaitForHeight(ib)
+
+		// Get the block, making it available to stakedb, which will signal on
+		// the above channel when it is done connecting it.
 		block, err := client.UpdateToBlock(ib)
 		if err != nil {
 			return ib - 1, fmt.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
 		}
 
 		// Wait for our StakeDatabase to connect the block
-		blockHash := <-db.stakeDB.WaitForHeight(ib)
+		blockHash := <-waitChan
 		// If not master:
 		//blockHash := <-client.WaitForHeight(ib)
 		//block, err := client.Block(blockHash)
