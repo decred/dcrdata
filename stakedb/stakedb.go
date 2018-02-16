@@ -246,7 +246,7 @@ func (db *StakeDatabase) WaitForHeight(height int64) chan *chainhash.Hash {
 		if block == nil {
 			panic("broken StakeDatabase")
 		}
-		defer db.signalWaiters(height, block.Hash())
+		defer func() { go db.signalWaiters(height, block.Hash()) }()
 	}
 	db.waitMtx.Lock()
 	db.heightWaiters[height] = append(db.heightWaiters[height], waitChan)

@@ -35,6 +35,7 @@ type BlockGate struct {
 	sync.RWMutex
 	client        *rpcclient.Client
 	height        int64
+	fetchToHeight int64
 	hashAtHeight  map[int64]chainhash.Hash
 	blockWithHash map[chainhash.Hash]*dcrutil.Block
 	heightWaiters map[int64][]chan chainhash.Hash
@@ -76,6 +77,8 @@ var _ BlockGetter = (*BlockGate)(nil)
 func NewBlockGate(client *rpcclient.Client, capacity int) *BlockGate {
 	return &BlockGate{
 		client:        client,
+		height:        -1,
+		fetchToHeight: -1,
 		hashAtHeight:  make(map[int64]chainhash.Hash),
 		blockWithHash: make(map[chainhash.Hash]*dcrutil.Block),
 		heightWaiters: make(map[int64][]chan chainhash.Hash),
@@ -84,6 +87,12 @@ func NewBlockGate(client *rpcclient.Client, capacity int) *BlockGate {
 			cap: capacity,
 		},
 	}
+}
+
+func (g *BlockGate) SetFetchToHeight(height int64) {
+	g.RLock()
+	defer g.RUnlock()
+	g.fetchToHeight = height
 }
 
 func (g *BlockGate) NodeHeight() (int64, error) {
@@ -153,7 +162,10 @@ func (g *BlockGate) UpdateToNextBlock() (*dcrutil.Block, error) {
 func (g *BlockGate) UpdateToBlock(height int64) (*dcrutil.Block, error) {
 	g.Lock()
 	defer g.Unlock()
+	return g.updateToBlock(height)
+}
 
+func (g *BlockGate) updateToBlock(height int64) (*dcrutil.Block, error) {
 	block, hash, err := GetBlock(height, g.client)
 	if err != nil {
 		return nil, fmt.Errorf("GetBlock (%d) failed: %v", height, err)
@@ -242,8 +254,15 @@ func (g *BlockGate) WaitForHeight(height int64) chan chainhash.Hash {
 	g.Lock()
 	defer g.Unlock()
 
+	if height < 0 {
+		return nil
+	}
+
 	waitChain := make(chan chainhash.Hash, 1)
 	g.heightWaiters[height] = append(g.heightWaiters[height], waitChain)
+	if height <= g.fetchToHeight {
+		g.updateToBlock(height)
+	}
 	return waitChain
 }
 
@@ -253,5 +272,8 @@ func (g *BlockGate) WaitForHash(hash chainhash.Hash) chan int64 {
 
 	waitChain := make(chan int64, 4)
 	g.hashWaiters[hash] = append(g.hashWaiters[hash], waitChain)
+	if hash == g.hashAtHeight[g.height] {
+		go g.signalHash(hash)
+	}
 	return waitChain
 }

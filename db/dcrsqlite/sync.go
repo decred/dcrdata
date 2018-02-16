@@ -22,120 +22,39 @@ const (
 	DefaultStakeDbName = "ffldb_stake"
 )
 
-func (db *wiredDB) resyncDB(quit chan struct{}) error {
-	// Get chain servers's best block
-	_, height, err := db.client.GetBestBlock()
-	if err != nil {
-		return fmt.Errorf("GetBestBlock failed: %v", err)
-	}
-
+func (db *wiredDB) DBHeights() (lowest int64, summaryHeight int64, stakeInfoHeight int64,
+	stakeDatabaseHeight int64, err error) {
 	// Get DB's best block (for block summary and stake info tables)
-	var bestBlockHeight, bestStakeHeight int64
-	if bestBlockHeight, err = db.GetBlockSummaryHeight(); err != nil {
-		return fmt.Errorf("GetBlockSummaryHeight failed: %v", err)
+	if summaryHeight, err = db.GetBlockSummaryHeight(); err != nil {
+		return 0, 0, 0, -1, fmt.Errorf("GetBlockSummaryHeight failed: %v", err)
 	}
-	if bestStakeHeight, err = db.GetStakeInfoHeight(); err != nil {
-		return fmt.Errorf("GetStakeInfoHeight failed: %v", err)
-	}
-
-	log.Info("Current best block (chain server): ", height)
-	log.Info("Current best block (summary DB):   ", bestBlockHeight)
-	log.Info("Current best block (stakeinfo DB): ", bestStakeHeight)
-
-	// Start with the older of summary or stake table heights
-	i := bestStakeHeight
-	if bestBlockHeight < bestStakeHeight {
-		i = bestBlockHeight
-	}
-	if i < -1 {
-		i = -1
+	if stakeInfoHeight, err = db.GetStakeInfoHeight(); err != nil {
+		return 0, 0, 0, -1, fmt.Errorf("GetStakeInfoHeight failed: %v", err)
 	}
 
-	// At least this many blocks to check (at least because another might come
-	// in during this process).
-	minBlocksToCheck := height - i
-	if minBlocksToCheck < 1 {
-		return nil
+	// Create a new database to store the accepted stake node data into.
+	if db.sDB == nil || db.sDB.BestNode == nil {
+		return 0, 0, 0, -1, fmt.Errorf("stake DB is missing")
+	}
+	stakeDatabaseHeight = int64(db.sDB.Height())
+
+	lowest = stakeInfoHeight
+	if summaryHeight < stakeInfoHeight {
+		lowest = summaryHeight
+	}
+	if stakeDatabaseHeight < lowest {
+		lowest = stakeDatabaseHeight
 	}
 
-	startHeight := i + 1
-	log.Infof("Resyncing from %v", startHeight)
-
-	winSize := uint32(db.params.StakeDiffWindowSize)
-
-	// Only save the block summaries we don't have in the DB yet
-	//blockSummaries := make([]apitypes.BlockDataBasic, 0, minBlocksToCheck+1)
-
-	for i = startHeight; i <= height; i++ {
-		// check for quit signal
-		select {
-		case <-quit:
-			return nil
-		default:
-		}
-
-		block, blockhash, err := db.getBlock(i)
-		if err != nil {
-			return fmt.Errorf("getBlock failed (%s): %v", blockhash, err)
-		}
-
-		if i%rescanLogBlockChunk == 0 {
-			log.Infof("Scanning blocks %d to %d...", i, i+rescanLogBlockChunk)
-		}
-
-		header := block.MsgBlock().Header
-		diffRatio := txhelpers.GetDifficultyRatio(header.Bits, db.params)
-
-		blockSummary := apitypes.BlockDataBasic{
-			Height:     header.Height,
-			Size:       header.Size,
-			Hash:       blockhash.String(),
-			Difficulty: diffRatio,
-			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
-			Time:       header.Timestamp.Unix(),
-			PoolInfo: apitypes.TicketPoolInfo{
-				Size: header.PoolSize,
-			},
-		}
-
-		if err = db.StoreBlockSummary(&blockSummary); err != nil {
-			return fmt.Errorf("Unable to store block summary in database: %v", err)
-		}
-
-		// Stake info
-		si := apitypes.StakeInfoExtended{}
-
-		// Ticket fee info
-		fib := txhelpers.FeeRateInfoBlock(block)
-		if fib == nil {
-			return fmt.Errorf("FeeRateInfoBlock failed")
-		}
-		si.Feeinfo = *fib
-
-		// Price window number and block index
-		si.PriceWindowNum = int(i) / int(winSize)
-		si.IdxBlockInWindow = int(i)%int(winSize) + 1
-
-		// Ticket pool info (just size in this function)
-		si.PoolInfo = blockSummary.PoolInfo
-
-		if err = db.StoreStakeInfoExtended(&si); err != nil {
-			return fmt.Errorf("Unable to store stake info in database: %v", err)
-		}
-
-		// update height
-		_, height, err = db.client.GetBestBlock()
-		if err != nil {
-			return fmt.Errorf("GetBestBlock failed: %v", err)
-		}
-	}
-
-	log.Info("Resync complete.")
-
-	return nil
+	return
 }
 
-func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}, blockGetter rpcutils.BlockGetter) (int64, error) {
+func (db *wiredDB) initWaitChan(waitChan chan chainhash.Hash) {
+	db.waitChan = waitChan
+}
+
+func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter,
+	fetchToHeight int64) (int64, error) {
 	// Determine if we're in lite mode, when we are the "master" who sets the
 	// pace rather than waiting on other consumers to get done with the stakedb.
 	master := blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil
@@ -153,86 +72,64 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}, blockGetter rpcutil
 		}
 	}(time.Now(), &err)
 
-	// Get DB's best block (for block summary and stake info tables)
-	var bestBlockHeight, bestStakeHeight int64
-	if bestBlockHeight, err = db.GetBlockSummaryHeight(); err != nil {
-		return -1, fmt.Errorf("GetBlockSummaryHeight failed: %v", err)
-	}
-	if bestStakeHeight, err = db.GetStakeInfoHeight(); err != nil {
-		return -1, fmt.Errorf("GetStakeInfoHeight failed: %v", err)
+	// Check and report heights of the DBs
+	startHeight, summaryHeight, stakeInfoHeight, stakeDBHeight, err := db.DBHeights()
+	if err != nil {
+		return -1, fmt.Errorf("DBHeights failed: %v", err)
 	}
 
-	// Create a new database to store the accepted stake node data into.
-	if db.sDB == nil || db.sDB.BestNode == nil {
-		return -1, fmt.Errorf("Cannot resync without the stake DB")
+	log.Info("Current best block (chain server):    ", height)
+	log.Info("Current best block (sqlite block DB): ", summaryHeight)
+	if stakeInfoHeight != summaryHeight {
+		log.Error("Current best block (sqlite stake DB): ", stakeInfoHeight)
+		return -1, fmt.Errorf("SQLite database (dcrdata.sqlt.db) is corrupted.")
 	}
-	bestNodeHeight := int64(db.sDB.Height())
+	log.Info("Current best block (stakedb):         ", stakeDBHeight)
 
-	log.Info("Current best block (chain server): ", height)
-	log.Info("Current best block (sqlite block DB):   ", bestBlockHeight)
-	if bestStakeHeight != bestBlockHeight {
-		log.Warn("Current best block (sqlite stake DB):   ", bestStakeHeight)
-	}
-	log.Info("Current best block (stakedb):     ", bestNodeHeight)
-
-	// Start with the older of summary or stake table heights
-	startHeight := bestStakeHeight
-	if bestBlockHeight < bestStakeHeight {
-		startHeight = bestBlockHeight
-	}
-	if bestNodeHeight < startHeight {
-		startHeight = bestNodeHeight
-	} else if bestNodeHeight > startHeight && bestNodeHeight > 0 {
-		if startHeight < 0 || bestNodeHeight > 2*startHeight {
-			// log.Debug("Creating new stake db.")
-			// if err = stakeDB.Update(func(dbTx database.Tx) error {
-			// 	var errLocal error
-			// 	bestNode, errLocal = stake.InitDatabaseState(dbTx, db.params)
-			// 	return errLocal
-			// }); err != nil {
-			// 	return err
-			// }
+	// Attempt to rewind stake database, if needed
+	if stakeDBHeight > startHeight && stakeDBHeight > 0 {
+		if startHeight < 0 || stakeDBHeight > 2*startHeight {
 			return -1, fmt.Errorf("delete stake db (ffldb_stake) and try again")
 		}
-		log.Infof("Rewinding stake node from %d to %d", bestNodeHeight, startHeight)
+		log.Infof("Rewinding stake node from %d to %d", stakeDBHeight, startHeight)
 		// rewind best node in ticket db
-		for bestNodeHeight > startHeight {
+		for stakeDBHeight > startHeight {
 			// check for quit signal
 			select {
 			case <-quit:
-				log.Infof("Rewind cancelled at height %d.", bestNodeHeight)
+				log.Infof("Rewind cancelled at height %d.", stakeDBHeight)
 				return startHeight, nil
 			default:
 			}
 			if err = db.sDB.DisconnectBlock(); err != nil {
 				return startHeight, err
 			}
-			bestNodeHeight = int64(db.sDB.Height())
-			log.Tracef("Stake db now at height %d.", bestNodeHeight)
+			stakeDBHeight = int64(db.sDB.Height())
+			log.Tracef("Stake db now at height %d.", stakeDBHeight)
 		}
-		if bestNodeHeight != startHeight {
+		if stakeDBHeight != startHeight {
 			panic("rewind failed")
 		}
 	}
 	if startHeight < -1 {
-		startHeight = -1
+		panic("invalid starting height")
 	}
 
-	// At least this many blocks to check (at least because another might come
-	// in during this process).
+	if fetchToHeight < stakeDBHeight && !master {
+		return startHeight, fmt.Errorf("fetchToHeight may not be less than stakedb height")
+	}
+
+	// At least this many blocks to check (another may come in before finishing)
 	minBlocksToCheck := height - startHeight
 	if minBlocksToCheck < 1 {
 		if minBlocksToCheck < 0 {
-			log.Warn("Chain server behind DBs!")
+			return startHeight, fmt.Errorf("chain server behind DBs")
 		}
 		return startHeight, nil
 	}
 
 	// Start at next block we don't have in every DB
 	startHeight++
-
-	// a ticket treap would be nice, but a map will do for a cache
-	//liveTicketCache := make(map[chainhash.Hash]int64)
 
 	for i := startHeight; i <= height; i++ {
 		// check for quit signal
@@ -243,9 +140,11 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}, blockGetter rpcutil
 		default:
 		}
 
+		// Either fetch the block or wait for a signal that it is ready
 		var block *dcrutil.Block
 		var blockhash chainhash.Hash
-		if master {
+		if master || i <= fetchToHeight {
+			// Not coordinating with blockGetter for this block
 			var h *chainhash.Hash
 			block, h, err = db.getBlock(i)
 			if err != nil {
@@ -253,14 +152,18 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}, blockGetter rpcutil
 			}
 			blockhash = *h
 		} else {
-			blockhash = <-blockGetter.WaitForHeight(i)
+			// Wait for this block to become available in the MasterBlockGetter
+			blockhash = <-db.waitChan
 			block, err = blockGetter.Block(blockhash)
 			if err != nil {
 				return i - 1, fmt.Errorf("blockGetter.Block failed (%s): %v", blockhash, err)
 			}
+			// Before connecting the block in the StakeDatabase, request
+			// notification for the next block.
+			db.waitChan = blockGetter.WaitForHeight(i + 1)
 		}
 
-		if i > bestNodeHeight {
+		if i > stakeDBHeight {
 			if i != int64(db.sDB.Height()+1) {
 				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", i, db.sDB.Height()))
 			}
@@ -313,13 +216,13 @@ func (db *wiredDB) resyncDBWithPoolValue(quit chan struct{}, blockGetter rpcutil
 			PoolInfo:   *tpi,
 		}
 
-		if i > bestBlockHeight {
+		if i > summaryHeight {
 			if err = db.StoreBlockSummary(&blockSummary); err != nil {
 				return i - 1, fmt.Errorf("Unable to store block summary in database: %v", err)
 			}
 		}
 
-		if i <= bestStakeHeight {
+		if i <= stakeInfoHeight {
 			// update height, the end condition for the loop
 			if _, height, err = db.client.GetBestBlock(); err != nil {
 				return i - 1, fmt.Errorf("GetBestBlock failed: %v", err)

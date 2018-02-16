@@ -35,10 +35,11 @@ import (
 // not stored in the DB, so the RPC client is used to get it on demand.
 type wiredDB struct {
 	*DBDataSaver
-	MPC    *mempool.MempoolDataCache
-	client *rpcclient.Client
-	params *chaincfg.Params
-	sDB    *stakedb.StakeDatabase
+	MPC      *mempool.MempoolDataCache
+	client   *rpcclient.Client
+	params   *chaincfg.Params
+	sDB      *stakedb.StakeDatabase
+	waitChan chan chainhash.Hash
 }
 
 func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
@@ -127,36 +128,23 @@ func (db *wiredDB) ChargePoolInfoCache(startHeight int64) error {
 	return nil
 }
 
-func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{}) error {
-	defer wg.Done()
-	var err error
-	if err = db.Ping(); err != nil {
-		return err
-	}
-	if err = db.client.Ping(); err != nil {
-		return err
-	}
-
-	return db.resyncDB(quit)
-}
-
-// SyncDBAsync is like SyncDBWithPoolValue except it also takes a result channel
-// where the caller should wait to receive the result. As such, this method
-// should be called as a gorouine.
+// SyncDBAsync is like SyncDB except it also takes a result channel where the
+// caller should wait to receive the result. As such, this method should be
+// called as a gorouine.
 func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
-	quit chan struct{}, blockGetter rpcutils.BlockGetter) {
+	quit chan struct{}, blockGetter rpcutils.BlockGetter, fetchToHeight int64) {
 	// hack around the old waitgroup input
 	var wg sync.WaitGroup
 	wg.Add(1)
-	height, err := db.SyncDBWithPoolValue(&wg, quit, blockGetter)
+	height, err := db.SyncDB(&wg, quit, blockGetter, fetchToHeight)
 	res <- dbtypes.SyncResult{
 		Height: height,
 		Error:  err,
 	}
 }
 
-func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{},
-	blockGetter rpcutils.BlockGetter) (int64, error) {
+func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{},
+	blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
 	defer wg.Done()
 	var err error
 	if err = db.Ping(); err != nil {
@@ -166,7 +154,11 @@ func (db *wiredDB) SyncDBWithPoolValue(wg *sync.WaitGroup, quit chan struct{},
 		return int64(db.GetHeight()), err
 	}
 
-	return db.resyncDBWithPoolValue(quit, blockGetter)
+	// Set the first height at which the smart client should wait for the block.
+	if !(blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil) {
+		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight + 1))
+	}
+	return db.resyncDB(quit, blockGetter, fetchToHeight)
 }
 
 func (db *wiredDB) GetStakeDB() *stakedb.StakeDatabase {

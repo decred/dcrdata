@@ -146,6 +146,10 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 
 		// Wait for our StakeDatabase to connect the block
 		blockHash := <-waitChan
+		if blockHash == nil {
+			log.Errorf("stakedb says that block %d has come and gone", ib)
+			return ib - 1, fmt.Errorf("stakedb says that block %d has come and gone", ib)
+		}
 		// If not master:
 		//blockHash := <-client.WaitForHeight(ib)
 		//block, err := client.Block(blockHash)
