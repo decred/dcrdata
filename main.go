@@ -103,10 +103,6 @@ func mainCore() error {
 	log.Infof("Connected to dcrd (JSON-RPC API v%s) on %v",
 		nodeVer.String(), curnet.String())
 
-	// Another (horrible) example of saving to a map in memory
-	// blockDataMapSaver := NewBlockDataToMemdb()
-	// blockDataSavers = append(blockDataSavers, blockDataMapSaver)
-
 	// Sqlite output
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	baseDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
@@ -186,26 +182,35 @@ func mainCore() error {
 	if usePG {
 		var heightDB uint64
 		heightDB, err = auxDB.HeightDB()
+		lastBlockPG := int64(heightDB)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
 			}
-			heightDB = 0
+			lastBlockPG = -1
 		}
 		// Allow stakedb to catch up to the auxDB, but after fetchToHeight,
 		// stakedb must receive block signals from auxDB.
-		fetchToHeight = int64(heightDB)
+		fetchToHeight = lastBlockPG + 1
 
-		// PG height and StakeDatabase height must be equal
-		stakedbHeight := baseDB.GetStakeDB().Height()
+		// PG height and StakeDatabase height must be equal. StakeDatabase will
+		// catch up automatically if it is behind, but we must manually rewind
+		// it here if it is ahead of PG.
+		stakedbHeight := int64(baseDB.GetStakeDB().Height())
 		if uint64(stakedbHeight) > heightDB {
-			// should rewind stakedb, but error for now
-			return fmt.Errorf("PG height (%d) > StakeDatabase height (%d)",
-				stakedbHeight, heightDB)
+			// rewind stakedb
+			log.Infof("Rewinding StakeDatabase from %d to %d.", stakedbHeight, lastBlockPG)
+			stakedbHeight, err = baseDB.RewindStakeDB(lastBlockPG, quit)
+			if err != nil {
+				return fmt.Errorf("RewindStakeDB failed: %v", err)
+			}
+			if stakedbHeight != lastBlockPG {
+				return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d", stakedbHeight, lastBlockPG)
+			}
 		}
 
 		// How far auxDB is behind the node
-		blocksBehind := height - int64(heightDB)
+		blocksBehind := height - lastBlockPG
 		if blocksBehind < 0 {
 			return fmt.Errorf("Node is still syncing. Node height = %d, "+
 				"DB height = %d", height, heightDB)
@@ -252,7 +257,7 @@ func mainCore() error {
 	var sqliteHeight, pgHeight int64
 	sqliteSyncRes := make(chan dbtypes.SyncResult)
 	pgSyncRes := make(chan dbtypes.SyncResult)
-	// synchronization between dbs via BlockGate
+	// Synchronization between DBs via rpcutils.BlockGate
 	smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 	//smartClient.SetFetchToHeight(fetchToHeight)
 	for {
@@ -260,7 +265,7 @@ func mainCore() error {
 
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them,
 		// but it has to get a notification channel first to receive them.
-		go baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchToHeight)
+		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchToHeight)
 
 		// Now that stakedb is catching up or waiting
 		go auxDB.SyncChainDBAsync(pgSyncRes, smartClient, quit,

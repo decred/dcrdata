@@ -53,6 +53,31 @@ func (db *wiredDB) initWaitChan(waitChan chan chainhash.Hash) {
 	db.waitChan = waitChan
 }
 
+func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHeight int64, err error) {
+	// rewind best node in ticket db
+	stakeDBHeight = int64(db.sDB.Height())
+	if toHeight < 0 {
+		toHeight = 0
+	}
+	log.Infof("Rewinding from %d to %d", stakeDBHeight, toHeight)
+	for stakeDBHeight > toHeight {
+		log.Infof("Rewinding from %d to %d", stakeDBHeight, toHeight)
+		// check for quit signal
+		select {
+		case <-quit:
+			log.Infof("Rewind cancelled at height %d.", stakeDBHeight)
+			return
+		default:
+		}
+		if err = db.sDB.DisconnectBlock(); err != nil {
+			return
+		}
+		stakeDBHeight = int64(db.sDB.Height())
+		log.Tracef("Stake db now at height %d.", stakeDBHeight)
+	}
+	return
+}
+
 func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter,
 	fetchToHeight int64) (int64, error) {
 	// Determine if we're in lite mode, when we are the "master" who sets the
@@ -77,6 +102,9 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	if err != nil {
 		return -1, fmt.Errorf("DBHeights failed: %v", err)
 	}
+	if startHeight < -1 {
+		panic("invalid starting height")
+	}
 
 	log.Info("Current best block (chain server):    ", height)
 	log.Info("Current best block (sqlite block DB): ", summaryHeight)
@@ -93,26 +121,10 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		}
 		log.Infof("Rewinding stake node from %d to %d", stakeDBHeight, startHeight)
 		// rewind best node in ticket db
-		for stakeDBHeight > startHeight {
-			// check for quit signal
-			select {
-			case <-quit:
-				log.Infof("Rewind cancelled at height %d.", stakeDBHeight)
-				return startHeight, nil
-			default:
-			}
-			if err = db.sDB.DisconnectBlock(); err != nil {
-				return startHeight, err
-			}
-			stakeDBHeight = int64(db.sDB.Height())
-			log.Tracef("Stake db now at height %d.", stakeDBHeight)
+		stakeDBHeight, err = db.RewindStakeDB(startHeight, quit)
+		if err != nil {
+			return startHeight, fmt.Errorf("RewindStakeDB failed: %v", err)
 		}
-		if stakeDBHeight != startHeight {
-			panic("rewind failed")
-		}
-	}
-	if startHeight < -1 {
-		panic("invalid starting height")
 	}
 
 	if fetchToHeight < stakeDBHeight && !master {
@@ -143,7 +155,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		// Either fetch the block or wait for a signal that it is ready
 		var block *dcrutil.Block
 		var blockhash chainhash.Hash
-		if master || i <= fetchToHeight {
+		if master || i < fetchToHeight {
 			// Not coordinating with blockGetter for this block
 			var h *chainhash.Hash
 			block, h, err = db.getBlock(i)
@@ -153,7 +165,12 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			blockhash = *h
 		} else {
 			// Wait for this block to become available in the MasterBlockGetter
-			blockhash = <-db.waitChan
+			select {
+			case blockhash = <-db.waitChan:
+			case <-quit:
+				log.Infof("Rescan cancelled at height %d.", i)
+				return i - 1, nil
+			}
 			block, err = blockGetter.Block(blockhash)
 			if err != nil {
 				return i - 1, fmt.Errorf("blockGetter.Block failed (%s): %v", blockhash, err)

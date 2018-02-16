@@ -13,6 +13,7 @@ import (
 
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/rpcutils"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 )
 
 const (
@@ -145,7 +146,13 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 
 		// Wait for our StakeDatabase to connect the block
-		blockHash := <-waitChan
+		var blockHash *chainhash.Hash
+		select {
+		case blockHash = <-waitChan:
+		case <-quit:
+			log.Infof("Rescan cancelled at height %d.", ib)
+			return ib - 1, nil
+		}
 		if blockHash == nil {
 			log.Errorf("stakedb says that block %d has come and gone", ib)
 			return ib - 1, fmt.Errorf("stakedb says that block %d has come and gone", ib)

@@ -105,6 +105,10 @@ func (db *wiredDB) ChargePoolInfoCache(startHeight int64) error {
 	if err != nil {
 		return err
 	}
+	if startHeight > endHeight {
+		log.Debug("No pool info to load into cache")
+		return nil
+	}
 	tpis, blockHashes, err := db.DB.RetrievePoolInfoRange(startHeight, endHeight)
 	if err != nil {
 		return err
@@ -128,35 +132,56 @@ func (db *wiredDB) ChargePoolInfoCache(startHeight int64) error {
 	return nil
 }
 
+// CheckConnectivity ensures the db and RPC client are working.
+func (db *wiredDB) CheckConnectivity() error {
+	var err error
+	if err = db.Ping(); err != nil {
+		return err
+	}
+	if err = db.client.Ping(); err != nil {
+		return err
+	}
+	return err
+}
+
 // SyncDBAsync is like SyncDB except it also takes a result channel where the
-// caller should wait to receive the result. As such, this method should be
-// called as a gorouine.
+// caller should wait to receive the result.
 func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 	quit chan struct{}, blockGetter rpcutils.BlockGetter, fetchToHeight int64) {
-	// hack around the old waitgroup input
-	var wg sync.WaitGroup
-	wg.Add(1)
-	height, err := db.SyncDB(&wg, quit, blockGetter, fetchToHeight)
-	res <- dbtypes.SyncResult{
-		Height: height,
-		Error:  err,
+	// Ensure the db is working
+	if err := db.CheckConnectivity(); err != nil {
+		res <- dbtypes.SyncResult{
+			Height: -1,
+			Error:  fmt.Errorf("CheckConnectivity failed: %v", err),
+		}
+		return
 	}
+	// Set the first height at which the smart client should wait for the block.
+	if !(blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil) {
+		log.Debugf("Setting block gate height to %d", fetchToHeight)
+		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight))
+	}
+	go func() {
+		height, err := db.resyncDB(quit, blockGetter, fetchToHeight)
+		res <- dbtypes.SyncResult{
+			Height: height,
+			Error:  err,
+		}
+	}()
 }
 
 func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{},
 	blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
+	// Ensure the db is working
 	defer wg.Done()
-	var err error
-	if err = db.Ping(); err != nil {
-		return int64(db.GetHeight()), err
-	}
-	if err = db.client.Ping(); err != nil {
-		return int64(db.GetHeight()), err
+	if err := db.CheckConnectivity(); err != nil {
+		return -1, fmt.Errorf("CheckConnectivity failed: %v", err)
 	}
 
 	// Set the first height at which the smart client should wait for the block.
 	if !(blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil) {
-		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight + 1))
+		log.Debugf("Setting block gate height to %d", fetchToHeight)
+		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight))
 	}
 	return db.resyncDB(quit, blockGetter, fetchToHeight)
 }
