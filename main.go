@@ -257,46 +257,49 @@ func mainCore() error {
 	var sqliteHeight, pgHeight int64
 	sqliteSyncRes := make(chan dbtypes.SyncResult)
 	pgSyncRes := make(chan dbtypes.SyncResult)
+
 	// Synchronization between DBs via rpcutils.BlockGate
 	smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
-	//smartClient.SetFetchToHeight(fetchToHeight)
-	for {
-		// Launch the sync functions for both DBs
 
-		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them,
-		// but it has to get a notification channel first to receive them.
-		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchToHeight)
+	// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them, but
+	// it has to get a notification channel first to receive them. The BlockGate
+	// will provide this for blocks after fetchToHeight.
+	baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchToHeight)
 
-		// Now that stakedb is catching up or waiting
-		go auxDB.SyncChainDBAsync(pgSyncRes, smartClient, quit,
-			updateAllAddresses, updateAllVotes, newPGIndexes)
+	// Now that stakedb is either catching up or waiting for a block, start the
+	// auxDB sync, which is the master block getter, retrieving and making
+	// available blocks to the baseDB. In return, baseDB maintains a
+	// StakeDatabase at the best block's height.
+	go auxDB.SyncChainDBAsync(pgSyncRes, smartClient, quit,
+		updateAllAddresses, updateAllVotes, newPGIndexes)
 
-		// Wait for the results
-		sqliteRes := <-sqliteSyncRes
-		sqliteHeight = sqliteRes.Height
-		log.Infof("SQLite sync ended at height %d", sqliteHeight)
-		if sqliteRes.Error != nil {
-			log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteHeight)
-			close(quit)
-			return sqliteRes.Error
-		}
+	// Wait for the results
+	sqliteRes := <-sqliteSyncRes
+	sqliteHeight = sqliteRes.Height
+	log.Infof("SQLite sync ended at height %d", sqliteHeight)
+	if sqliteRes.Error != nil {
+		log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", sqliteHeight)
+		close(quit)
+		return sqliteRes.Error
+	}
 
-		pgRes := <-pgSyncRes
-		pgHeight = pgRes.Height
-		if usePG {
-			log.Infof("PostgreSQL sync ended at height %d", pgHeight)
-		}
+	pgRes := <-pgSyncRes
+	pgHeight = pgRes.Height
+	if usePG {
+		log.Infof("PostgreSQL sync ended at height %d", pgHeight)
+	}
 
-		// See if there was a SIGINT (CTRL+C)
-		select {
-		case <-quit:
-			log.Info("Quit signal received during DB sync.")
-			return nil
-		default:
-		}
+	// See if there was a SIGINT (CTRL+C)
+	select {
+	case <-quit:
+		log.Info("Quit signal received during DB sync.")
+		return nil
+	default:
+	}
 
-		// Check for errors and combine if necessary
-		if usePG && pgRes.Error != nil {
+	if usePG {
+		// Check for errors and combine the messages if necessary
+		if pgRes.Error != nil {
 			if sqliteRes.Error != nil {
 				log.Error("dcrsqlite.SyncDBAsync AND dcrpg.SyncChainDBAsync "+
 					"failed at heights %d and %d, respectively.",
@@ -308,16 +311,14 @@ func mainCore() error {
 			return pgRes.Error
 		}
 
-		// Break loop to continue starting dcrdata.
-		if !usePG || pgHeight == sqliteHeight {
-			break
+		// Break loop to continue starting dcrdata
+		if pgHeight != sqliteHeight {
+			return fmt.Errorf("Failed to hit same sync height for PostgreSQL (%d) and SQLite (%d).",
+				pgHeight, sqliteHeight)
 		}
-		log.Infof("Restarting sync with PostgreSQL at %d, SQLite at %d.",
-			pgHeight, sqliteHeight)
-		updateAllAddresses, newPGIndexes = false, false
 	}
 
-	// Block data collector
+	// Block data collector. Needs a StakeDatabase too.
 	collector := blockdata.NewCollector(dcrdClient, activeChain, baseDB.GetStakeDB())
 	if collector == nil {
 		return fmt.Errorf("Failed to create block data collector")
