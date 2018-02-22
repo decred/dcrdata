@@ -92,8 +92,11 @@ type StakeDatabase struct {
 	liveTicketCache map[chainhash.Hash]int64
 	poolInfo        *PoolInfoCache
 	PoolDB          *TicketPool
-	waitMtx         sync.Mutex
-	heightWaiters   map[int64][]chan *chainhash.Hash
+
+	// clients may register for notification when new blocks are connected via
+	// WaitForHeight. The clients' channels are stored in heightWaiters.
+	waitMtx       sync.Mutex
+	heightWaiters map[int64][]chan *chainhash.Hash
 }
 
 const (
@@ -235,6 +238,8 @@ func (db *StakeDatabase) UnlockStakeNode() {
 	db.nodeMtx.RUnlock()
 }
 
+// WaitForHeight provides a notification channel to which the hash of the block
+// at the requested height will be sent when it becomes available.
 func (db *StakeDatabase) WaitForHeight(height int64) chan *chainhash.Hash {
 	dbHeight := int64(db.Height())
 	waitChan := make(chan *chainhash.Hash, 1)

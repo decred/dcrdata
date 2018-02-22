@@ -178,8 +178,11 @@ func mainCore() error {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
 
+	// When in lite mode, baseDB should get blocks without having to coordinate
+	// with auxDB. Setting fetchToHeight to a large number allows this.
 	var fetchToHeight = int64(math.MaxInt32)
 	if usePG {
+		// Get the last block added to the aux DB
 		var heightDB uint64
 		heightDB, err = auxDB.HeightDB()
 		lastBlockPG := int64(heightDB)
@@ -189,6 +192,7 @@ func mainCore() error {
 			}
 			lastBlockPG = -1
 		}
+
 		// Allow stakedb to catch up to the auxDB, but after fetchToHeight,
 		// stakedb must receive block signals from auxDB.
 		fetchToHeight = lastBlockPG + 1
@@ -205,7 +209,8 @@ func mainCore() error {
 				return fmt.Errorf("RewindStakeDB failed: %v", err)
 			}
 			if stakedbHeight != lastBlockPG {
-				return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d", stakedbHeight, lastBlockPG)
+				return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d",
+					stakedbHeight, lastBlockPG)
 			}
 		}
 
@@ -236,17 +241,8 @@ func mainCore() error {
 			return err
 		}
 
-		/*stakeInfoHeight, err := baseDB.GetStakeInfoHeight()
-		if err != nil {
-			return err
-		}
-		if stakeInfoHeight >= int64(heightDB) {
-			// Charge stakedb pool info cache, including previous PG block, up
-			// to best in sqlite.
-			if err = baseDB.ChargePoolInfoCache(int64(heightDB) - 10); err != nil {
-				return fmt.Errorf("Failed to charge pool info cache: %v", err)
-			}
-		}*/
+		// Charge stakedb pool info cache, including previous PG blocks, up to
+		// best in sqlite.
 		if err = baseDB.ChargePoolInfoCache(int64(heightDB) - 2); err != nil {
 			return fmt.Errorf("Failed to charge pool info cache: %v", err)
 		}

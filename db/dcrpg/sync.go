@@ -50,7 +50,6 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	updateAllAddresses, updateAllVotes, newIndexes bool) (int64, error) {
 	// Get chain servers's best block
 	nodeHeight, err := client.NodeHeight()
-	//_, nodeHeight, err := client.GetBestBlock()
 	if err != nil {
 		return -1, fmt.Errorf("GetBestBlock failed: %v", err)
 	}

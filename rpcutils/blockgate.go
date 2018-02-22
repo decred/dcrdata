@@ -23,6 +23,9 @@ type BlockGetter interface {
 	WaitForHash(chainhash.Hash) chan int64
 }
 
+// MasterBlockGetter builds on BlockGetter, adding functions that fetch blocks
+// directly from dcrd via RPC and subsequently update the internal block cache
+// with the retrieved block.
 type MasterBlockGetter interface {
 	BlockGetter
 	UpdateToBestBlock() (*dcrutil.Block, error)
@@ -74,6 +77,8 @@ func heightInQueue(q heightHashQueue, height int64) bool {
 // ensure BlockGate satisfies BlockGetter
 var _ BlockGetter = (*BlockGate)(nil)
 
+// NewBlockGate constructs a new BlockGate, wrapping an RPC client, with a
+// specified block cache capacity.
 func NewBlockGate(client *rpcclient.Client, capacity int) *BlockGate {
 	return &BlockGate{
 		client:        client,
@@ -89,23 +94,29 @@ func NewBlockGate(client *rpcclient.Client, capacity int) *BlockGate {
 	}
 }
 
+// SetFetchToHeight sets the height up to which WaitForHeight will trigger an
+// RPC to retrieve the block immediately. For the given height and up,
+// WaitForHeight will only return a notification channel.
 func (g *BlockGate) SetFetchToHeight(height int64) {
 	g.RLock()
 	defer g.RUnlock()
 	g.fetchToHeight = height
 }
 
+// NodeHeight gets the chain height from dcrd.
 func (g *BlockGate) NodeHeight() (int64, error) {
 	_, height, err := g.client.GetBestBlock()
 	return height, err
 }
 
+// BestBlockHeight gets the best block height in the block cache.
 func (g *BlockGate) BestBlockHeight() int64 {
 	g.RLock()
 	defer g.RUnlock()
 	return g.height
 }
 
+// BestBlockHash gets the hash and height of the best block in cache.
 func (g *BlockGate) BestBlockHash() (chainhash.Hash, int64, error) {
 	g.RLock()
 	defer g.RUnlock()
@@ -117,6 +128,7 @@ func (g *BlockGate) BestBlockHash() (chainhash.Hash, int64, error) {
 	return hash, g.height, err
 }
 
+// BestBlock gets the best block in cache.
 func (g *BlockGate) BestBlock() (*dcrutil.Block, error) {
 	g.RLock()
 	defer g.RUnlock()
@@ -132,6 +144,7 @@ func (g *BlockGate) BestBlock() (*dcrutil.Block, error) {
 	return block, err
 }
 
+// Block attempts to get the block with the specified hash from cache.
 func (g *BlockGate) Block(hash chainhash.Hash) (*dcrutil.Block, error) {
 	g.RLock()
 	defer g.RUnlock()
@@ -143,6 +156,7 @@ func (g *BlockGate) Block(hash chainhash.Hash) (*dcrutil.Block, error) {
 	return block, err
 }
 
+// UpdateToBestBlock gets the best block via RPC and updates the cache.
 func (g *BlockGate) UpdateToBestBlock() (*dcrutil.Block, error) {
 	_, height, err := g.client.GetBestBlock()
 	if err != nil {
@@ -152,6 +166,8 @@ func (g *BlockGate) UpdateToBestBlock() (*dcrutil.Block, error) {
 	return g.UpdateToBlock(height)
 }
 
+// UpdateToNextBlock gets the next block following the best in cache via RPC and
+// updates the cache.
 func (g *BlockGate) UpdateToNextBlock() (*dcrutil.Block, error) {
 	g.Lock()
 	height := g.height + 1
@@ -159,6 +175,8 @@ func (g *BlockGate) UpdateToNextBlock() (*dcrutil.Block, error) {
 	return g.UpdateToBlock(height)
 }
 
+// UpdateToBlock gets the block at the specified height on the main chain from
+// dcrd and stores it in cache.
 func (g *BlockGate) UpdateToBlock(height int64) (*dcrutil.Block, error) {
 	g.Lock()
 	defer g.Unlock()
@@ -175,10 +193,11 @@ func (g *BlockGate) updateToBlock(height int64) (*dcrutil.Block, error) {
 	g.hashAtHeight[height] = *hash
 	g.blockWithHash[*hash] = block
 
-	// Push the new block onto the expiration queue, and remove and old ones if
+	// Push the new block onto the expiration queue, and remove any old ones if
 	// above capacity.
 	g.rotateIn(height, *hash)
 
+	// defer as signal functions lock as well as UpdateToBlock
 	defer func() {
 		go g.signalHeight(height)
 		go g.signalHash(*hash)
@@ -250,6 +269,8 @@ func (g *BlockGate) signalHeight(height int64) {
 	delete(g.heightWaiters, height)
 }
 
+// WaitForHeight provides a notification channel for signaling to the caller
+// when the block at the specified height is available.
 func (g *BlockGate) WaitForHeight(height int64) chan chainhash.Hash {
 	g.Lock()
 	defer g.Unlock()
@@ -266,6 +287,8 @@ func (g *BlockGate) WaitForHeight(height int64) chan chainhash.Hash {
 	return waitChain
 }
 
+// WaitForHash provides a notification channel for signaling to the caller
+// when the block with the specified hash is available.
 func (g *BlockGate) WaitForHash(hash chainhash.Hash) chan int64 {
 	g.Lock()
 	defer g.Unlock()

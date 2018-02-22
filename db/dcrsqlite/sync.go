@@ -22,6 +22,9 @@ const (
 	DefaultStakeDbName = "ffldb_stake"
 )
 
+// DBHeights returns the best block heights of: SQLite database tables (block
+// summary and stake info tables), the stake database (ffldb_stake), and the
+// lowest of these. An error value is returned if any database is inaccessible.
 func (db *wiredDB) DBHeights() (lowest int64, summaryHeight int64, stakeInfoHeight int64,
 	stakeDatabaseHeight int64, err error) {
 	// Get DB's best block (for block summary and stake info tables)
@@ -53,6 +56,11 @@ func (db *wiredDB) initWaitChan(waitChan chan chainhash.Hash) {
 	db.waitChan = waitChan
 }
 
+// RewindStakeDB attempts to disconnect blocks from the stake database to reach
+// the specified height. A channel must be provided for signaling if the rewind
+// should abort. If the specified height is greater than the current stake DB
+// height, RewindStakeDB will exit without error, returning the current stake DB
+// height and a nil error.
 func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHeight int64, err error) {
 	// rewind best node in ticket db
 	stakeDBHeight = int64(db.sDB.Height())
