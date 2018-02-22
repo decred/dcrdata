@@ -483,8 +483,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 			Percentage: percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()),
 			Target:     exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
 			PercentTarget: func() float64 {
-				target := int32(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
-				return float64((int32(blockData.PoolInfo.Size) - target)) / float64(target) * 100
+				target := float64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
+				return float64(blockData.PoolInfo.Size) / target * 100
 			}(),
 		},
 		TicketROI: percentage(dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin()/5, blockData.CurrentStakeDiff.CurrentStakeDifficulty),
