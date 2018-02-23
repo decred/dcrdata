@@ -6,7 +6,6 @@ package dcrpg
 import (
 	"database/sql"
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 	"time"
@@ -162,60 +161,27 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// direct:
 		//block, blockHash, err := rpcutils.GetBlock(ib, client)
 
-		var winners []string
-		//prevBlockHash := block.MsgBlock().Header.PrevBlock
-		for {
-			// check for quit signal
-			select {
-			case <-quit:
-				log.Infof("Rescan cancelled at height %d.", ib)
-				return ib - 1, nil
-			default:
-			}
-
-			// stakeDB is not locked between Height() and PoolInfo() so there is
-			// a data race. Get the height first to avoid resulting errors.
-			heightStakeDB := int64(db.stakeDB.Height())
-			blocksBehind := ib - heightStakeDB
-
-			if tpi, ok := db.stakeDB.PoolInfo(*blockHash); ok {
-				winners = tpi.Winners
-				break
-			}
-
-			if blocksBehind <= 0 {
-				log.Errorf("Failed to find block at height %d in pool info cache (at %d)",
-					ib, heightStakeDB)
-				return ib - 1, fmt.Errorf("stakeDB.PoolInfo failed.")
-			}
-			log.Infof("Waiting for stake DB to catch up. Query height %d, "+
-				"stake DB height %d.", ib, heightStakeDB)
-			waitSec := math.Max(5, math.Min(30.0, float64(blocksBehind)/500))
-			time.Sleep(time.Duration(waitSec) * time.Second)
-
-			heightStakeDB = int64(db.stakeDB.Height())
-			if blocksBehind <= ib-heightStakeDB {
-				log.Infof("Rescan halted waiting for stakedb to advance.")
-				return ib - 1, nil
-			}
+		// Winning tickets from StakeDatabase, which just connected the block,
+		// as signaled via the waitChan.
+		tpi, ok := db.stakeDB.PoolInfo(*blockHash)
+		if !ok {
+			return ib - 1, fmt.Errorf("stakeDB.PoolInfo could not locate block %s", blockHash.String())
 		}
+		winners := tpi.Winners
 
-		var numVins, numVouts int64
-		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock(),
-			winners, true, !updateAllAddresses, !updateAllVotes); err != nil {
+		// Store data from this block in the database
+		numVins, numVouts, err := db.StoreBlock(block.MsgBlock(), winners, true,
+			!updateAllAddresses, !updateAllVotes)
+		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins
 		totalVouts += numVouts
 
-		numSTx := int64(len(block.STransactions()))
-		numRTx := int64(len(block.Transactions()))
-		totalTxs += numRTx + numSTx
-		// totalRTxs += numRTx
-		// totalSTxs += numSTx
+		// Total transactions is the sum of regular and stake transactions
+		totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
 
-		// update height, the end condition for the loop
-
+		// Update height, the end condition for the loop
 		if nodeHeight, err = client.NodeHeight(); err != nil {
 			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
@@ -224,6 +190,10 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	speedReport()
 
 	if reindexing || newIndexes {
+		// Duplicate transactions, vins, and vouts can end up in the tables when
+		// identical transactions are included in multiple blocks. This happens
+		// when a block is invalidated and the transactions are subsequently
+		// re-mined in another block. Remove these before indexing.
 		if err = db.DeleteDuplicates(); err != nil {
 			return 0, err
 		}
@@ -232,7 +202,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		if err = db.IndexAll(); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
-		// Only reindex address table here if we do not do it below
+		// Only reindex addresses and tickets tables here if not doing it below
 		if !updateAllAddresses {
 			err = db.IndexAddressTable()
 		}
@@ -241,6 +211,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 	}
 
+	// Batch update addresses table with spending info
 	if updateAllAddresses {
 		// Remove existing indexes not on funding txns
 		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
@@ -249,12 +220,14 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		if err != nil {
 			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
 		}
+		// Index addresses table
 		log.Infof("Updated %d rows of address table", numAddresses)
 		if err = db.IndexAddressTable(); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
 		}
 	}
 
+	// Batch update tickets table with spending info
 	if updateAllVotes {
 		// Remove indexes not on funding txns (remove on tickets table indexes)
 		_ = db.DeindexTicketsTable() // ignore errors for non-existent indexes
