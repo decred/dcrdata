@@ -83,6 +83,9 @@ func BlockIndexPathCtx(next http.Handler) http.Handler {
 	})
 }
 
+// BlockIndexOrHashPathCtx returns a http.HandlerFunc that embeds the value at
+// the url part {idxorhash} into the request context. The value may be a valid
+// hash (setting ctxBlockHash) or an index (setting ctxBlockIndex).
 func BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var ctx context.Context

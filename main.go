@@ -309,8 +309,8 @@ func mainCore() error {
 
 		// Break loop to continue starting dcrdata
 		if pgHeight != sqliteHeight {
-			return fmt.Errorf("Failed to hit same sync height for PostgreSQL (%d) and SQLite (%d).",
-				pgHeight, sqliteHeight)
+			return fmt.Errorf("failed to hit same sync height for PostgreSQL "+
+				"(%d) and SQLite (%d)", pgHeight, sqliteHeight)
 		}
 	}
 

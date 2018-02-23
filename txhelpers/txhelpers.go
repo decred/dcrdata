@@ -385,6 +385,7 @@ type VoteChoice struct {
 	Choice *chaincfg.Choice `json:"choice"`
 }
 
+// VoteVersion extracts the vote version from the input pubkey script.
 func VoteVersion(pkScript []byte) uint32 {
 	if len(pkScript) < 8 {
 		return stake.VoteConsensusVersionAbsent

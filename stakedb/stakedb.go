@@ -65,6 +65,9 @@ func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
 	}
 }
 
+// SetCapacity sets the cache capacity to the specified number of elements. If
+// the new capacity is smaller than the current cache size, elements are
+// automatically evicted until the desired size is reached.
 func (c *PoolInfoCache) SetCapacity(cap int) error {
 	c.Lock()
 	defer c.Unlock()
@@ -428,10 +431,14 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	return err
 }
 
+// SetPoolInfo stores the ticket pool info for the given hash in the pool info
+// cache.
 func (db *StakeDatabase) SetPoolInfo(blockHash chainhash.Hash, tpi *apitypes.TicketPoolInfo) {
 	db.poolInfo.Set(blockHash, tpi)
 }
 
+// SetPoolCacheCapacity sets the pool info cache capacity to the specified
+// number of elements.
 func (db *StakeDatabase) SetPoolCacheCapacity(cap int) error {
 	return db.poolInfo.SetCapacity(cap)
 }

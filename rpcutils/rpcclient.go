@@ -75,7 +75,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	dcrdVer := ver["dcrdjsonrpcapi"]
 	nodeVer = semver.NewSemver(dcrdVer.Major, dcrdVer.Minor, dcrdVer.Patch)
 
-	if !semver.SemverCompatible(requiredChainServerAPI, nodeVer) {
+	if !semver.Compatible(requiredChainServerAPI, nodeVer) {
 		return nil, nodeVer, fmt.Errorf("Node JSON-RPC server does not have "+
 			"a compatible API version. Advertises %v but require %v",
 			nodeVer, requiredChainServerAPI)

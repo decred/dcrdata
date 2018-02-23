@@ -50,7 +50,6 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.P
 		params:      p,
 	}
 
-	//err := wDB.openStakeDB()
 	var err error
 	wDB.sDB, err = stakedb.NewStakeDatabase(cl, p)
 	if err != nil {
