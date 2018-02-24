@@ -1078,7 +1078,14 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	if tx.Vin[0].IsCoinBase() {
 		tx.Type = "Coinbase"
 	}
-	if tx.Type == "Vote" || tx.Type == "Ticket" || tx.Vin[0].IsCoinBase() {
+	if tx.Type == "Coinbase" {
+		if tx.Confirmations < int64(db.params.CoinbaseMaturity) {
+			tx.Mature = "True"
+		} else {
+			tx.Mature = "False"
+		}
+	}
+	if tx.Type == "Vote" || tx.Type == "Ticket" {
 		if db.GetBestBlockHeight() >= (int64(db.params.TicketMaturity) + tx.BlockHeight) {
 			tx.Mature = "True"
 		} else {
