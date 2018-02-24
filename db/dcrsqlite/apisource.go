@@ -1080,9 +1080,9 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	}
 	if tx.Type == "Coinbase" {
 		if tx.Confirmations < int64(db.params.CoinbaseMaturity) {
-			tx.Mature = "True"
-		} else {
 			tx.Mature = "False"
+		} else {
+			tx.Mature = "True"
 		}
 	}
 	if tx.Type == "Vote" || tx.Type == "Ticket" {
