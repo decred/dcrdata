@@ -123,11 +123,11 @@ func (wsh *WebsocketHub) run() {
 		case hubSignal := <-wsh.HubRelay:
 			switch hubSignal {
 			case sigNewBlock:
-				log.Infof("Signaling new block to %d clients.", len(wsh.clients))
+				log.Infof("Signaling new block to %d websocket clients.", len(wsh.clients))
 			case sigPingAndUserCount:
-				log.Tracef("Signaling ping/user count to %d clients.", len(wsh.clients))
+				log.Tracef("Signaling ping/user count to %d websocket clients.", len(wsh.clients))
 			case sigMempoolUpdate:
-				log.Infof("Signaling mempool update to %d clients.", len(wsh.clients))
+				log.Infof("Signaling mempool update to %d websocket clients.", len(wsh.clients))
 			default:
 				log.Errorf("Unknown hub signal: %v", hubSignal)
 				break events

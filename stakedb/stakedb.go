@@ -105,16 +105,18 @@ type StakeDatabase struct {
 const (
 	// dbType is the database backend type to use
 	dbType = "ffldb"
-	// DefaultStakeDbName is the default database name
+	// DefaultStakeDbName is the default name of the stakedb database folder
 	DefaultStakeDbName = "ffldb_stake"
+	// DefaultTicketPoolDbName is the default name of the ticket pool database
+	DefaultTicketPoolDbName = "stakedb_ticket_pool.db"
 )
 
 // NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
 // ffldb-backed stake database, and loads all live tickets into a cache.
 func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	dbNameOpt ...string) (*StakeDatabase, error) {
-	log.Infof("Loading ticket pool DB...")
-	poolDB, err := NewTicketPool("stakedb_ticket_pool.db")
+	log.Infof("Loading ticket pool DB. This may take a minute...")
+	poolDB, err := NewTicketPool(DefaultTicketPoolDbName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ticket pool DB: %v", err)
 	}

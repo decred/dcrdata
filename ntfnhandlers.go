@@ -196,7 +196,7 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 			for _, t := range tickets {
 				txstr = append(txstr, t.String())
 			}
-			log.Debugf("Winning tickets: %v", strings.Join(txstr, ", "))
+			log.Tracef("Winning tickets: %v", strings.Join(txstr, ", "))
 		},
 		// maturing tickets. Thanks for fixing the tickets type bug, jolan!
 		OnNewTickets: func(hash *chainhash.Hash, height int64, stakeDiff int64,

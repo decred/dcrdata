@@ -533,7 +533,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 
 	exp.wsHub.HubRelay <- sigNewBlock
 
-	log.Debugf("Got new block %d", newBlockData.Height)
+	log.Debugf("Got new block %d for the explorer.", newBlockData.Height)
 
 	return nil
 }
