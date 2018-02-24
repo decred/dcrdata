@@ -39,6 +39,7 @@ var (
 	defaultConfigFile        = filepath.Join(curDir, defaultConfigFilename)
 	defaultLogDir            = filepath.Join(curDir, defaultLogDirname)
 	defaultHost              = "localhost"
+	defaultHTTPProfPath      = "/p"
 
 	defaultAPIProto           = "http"
 	defaultAPIListen          = "127.0.0.1:7777"
@@ -60,15 +61,16 @@ var (
 
 type config struct {
 	// General application behavior
-	ConfigFile  string `short:"C" long:"configfile" description:"Path to configuration file"`
-	ShowVersion bool   `short:"V" long:"version" description:"Display version information and exit"`
-	TestNet     bool   `long:"testnet" description:"Use the test network (default mainnet)"`
-	SimNet      bool   `long:"simnet" description:"Use the simulation test network (default mainnet)"`
-	DebugLevel  string `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
-	Quiet       bool   `short:"q" long:"quiet" description:"Easy way to set debuglevel to error"`
-	LogDir      string `long:"logdir" description:"Directory to log output"`
-	HTTPProfile bool   `long:"httpprof" short:"p" description:"Start HTTP profiler."`
-	CPUProfile  string `long:"cpuprofile" description:"File for CPU profiling."`
+	ConfigFile   string `short:"C" long:"configfile" description:"Path to configuration file"`
+	ShowVersion  bool   `short:"V" long:"version" description:"Display version information and exit"`
+	TestNet      bool   `long:"testnet" description:"Use the test network (default mainnet)"`
+	SimNet       bool   `long:"simnet" description:"Use the simulation test network (default mainnet)"`
+	DebugLevel   string `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
+	Quiet        bool   `short:"q" long:"quiet" description:"Easy way to set debuglevel to error"`
+	LogDir       string `long:"logdir" description:"Directory to log output"`
+	HTTPProfile  bool   `long:"httpprof" short:"p" description:"Start HTTP profiler."`
+	HTTPProfPath string `long:"httpprofprefix" description:"URL path prefix for the HTTP profiler."`
+	CPUProfile   string `long:"cpuprofile" description:"File for CPU profiling."`
 
 	// API
 	APIProto           string `long:"apiproto" description:"Protocol for API (http or https)"`
@@ -119,6 +121,7 @@ var (
 		DebugLevel:         defaultLogLevel,
 		ConfigFile:         defaultConfigFile,
 		LogDir:             defaultLogDir,
+		HTTPProfPath:       defaultHTTPProfPath,
 		APIProto:           defaultAPIProto,
 		APIListen:          defaultAPIListen,
 		IndentJSON:         defaultIndentJSON,
@@ -350,6 +353,11 @@ func loadConfig() (*config, error) {
 	if cfg.DebugLevel == "show" {
 		fmt.Println("Supported subsystems", supportedSubsystems())
 		os.Exit(0)
+	}
+
+	// Ensure HTTP profiler is mounted with a valid path prefix
+	if cfg.HTTPProfile && (cfg.HTTPProfPath == "/" || len(defaultHTTPProfPath) == 0) {
+		return loadConfigError(fmt.Errorf("httpprofprefix must not be \"\" or \"/\""))
 	}
 
 	// Initialize log rotation.  After log rotation has been initialized, the

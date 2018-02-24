@@ -10,6 +10,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -474,8 +475,11 @@ func mainCore() error {
 
 	// HTTP profiler
 	if cfg.HTTPProfile {
-		http.Handle("/", http.RedirectHandler("/debug/pprof", http.StatusSeeOther))
-		webMux.Mount("/p", http.DefaultServeMux)
+		profPath := cfg.HTTPProfPath
+		log.Warnf("Starting the HTTP profiler on path %s.", profPath)
+		// http pprof uses http.DefaultServeMux
+		http.Handle("/", http.RedirectHandler(profPath+"/debug/pprof/", http.StatusSeeOther))
+		webMux.Mount(profPath, http.StripPrefix(profPath, http.DefaultServeMux))
 	}
 
 	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
@@ -571,8 +575,8 @@ func listenAndServeProto(listen, proto string, mux http.Handler) error {
 	case err := <-errChan:
 		return fmt.Errorf("Failed to bind web server: %v", err)
 	case <-t.C:
-		expLog.Infof("Now serving on %s://%v/", proto, listen)
-		apiLog.Infof("Now serving on %s://%v/", proto, listen)
+		expLog.Infof("Now serving explorer on %s://%v/", proto, listen)
+		apiLog.Infof("Now serving API on %s://%v/", proto, listen)
 		return nil
 	}
 }
