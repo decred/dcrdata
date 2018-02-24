@@ -297,15 +297,12 @@ func SSTXInBlock(block *dcrutil.Block) []*dcrutil.Tx {
 // votes. The error return may be ignored if the input transaction is known to
 // be a valid ssgen (vote), otherwise it should be checked.
 func SSGenVoteBlockValid(msgTx *wire.MsgTx) (BlockValidation, uint16, error) {
-	if isVote, _ := stake.IsSSGen(msgTx); !isVote {
+	if !stake.IsSSGen(msgTx) {
 		return BlockValidation{}, 0, fmt.Errorf("not a vote transaction")
 	}
-	ssGenVoteBits := stake.SSGenVoteBits(msgTx)
 
-	blockHash, blockHeight, err := stake.SSGenBlockVotedOn(msgTx)
-	if err != nil {
-		return BlockValidation{}, 0, err
-	}
+	ssGenVoteBits := stake.SSGenVoteBits(msgTx)
+	blockHash, blockHeight := stake.SSGenBlockVotedOn(msgTx)
 	blockValid := BlockValidation{
 		Hash:     blockHash,
 		Height:   int64(blockHeight),
@@ -315,14 +312,14 @@ func SSGenVoteBlockValid(msgTx *wire.MsgTx) (BlockValidation, uint16, error) {
 }
 
 // VoteBitsInBlock returns a list of vote bits for the votes in a block
-func VoteBitsInBlock(block *dcrutil.Block) []blockchain.VoteVersionTuple {
-	var voteBits []blockchain.VoteVersionTuple
+func VoteBitsInBlock(block *dcrutil.Block) []stake.VoteVersionTuple {
+	var voteBits []stake.VoteVersionTuple
 	for _, stx := range block.MsgBlock().STransactions {
-		if isVote, _ := stake.IsSSGen(stx); !isVote {
+		if !stake.IsSSGen(stx) {
 			continue
 		}
 
-		voteBits = append(voteBits, blockchain.VoteVersionTuple{
+		voteBits = append(voteBits, stake.VoteVersionTuple{
 			Version: stake.SSGenVersion(stx),
 			Bits:    stake.SSGenVoteBits(stx),
 		})

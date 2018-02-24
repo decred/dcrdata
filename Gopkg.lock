@@ -106,7 +106,7 @@
   branch = "master"
   name = "github.com/decred/base58"
   packages = ["."]
-  revision = "b3520e187fa8ebe65eb74245408cf4b83e6a65d3"
+  revision = "229e657bc9be5d592855a910428907f851950ed5"
 
 [[projects]]
   branch = "master"
@@ -135,7 +135,7 @@
     "txscript",
     "wire"
   ]
-  revision = "008e80bf8668544de4200a08927e95e5926439a0"
+  revision = "ea1d3750ba6b7307793335846bbfe5264dd190d3"
 
 [[projects]]
   branch = "master"
@@ -148,13 +148,13 @@
     "wallet/udb",
     "walletdb"
   ]
-  revision = "0027db2f7a9fcce036af661938ff5a35727547a9"
+  revision = "ed371955e7f871721ed5660e30ca465f397f73a8"
 
 [[projects]]
   branch = "master"
   name = "github.com/dustin/go-humanize"
   packages = ["."]
-  revision = "77ed807830b4df581417e7f89eb81d4872832b72"
+  revision = "bb3d318650d48840a39aa21a027c6630e198e626"
 
 [[projects]]
   name = "github.com/go-chi/chi"
@@ -162,8 +162,8 @@
     ".",
     "middleware"
   ]
-  revision = "f7c66f685bcab06bcce78ac212c5f3553c063d19"
-  version = "v3.3.0"
+  revision = "e83ac2304db3c50cf03d96a2fcd39009d458bc35"
+  version = "v3.3.2"
 
 [[projects]]
   name = "github.com/go-chi/docgen"
@@ -184,7 +184,7 @@
     ".",
     "oid"
   ]
-  revision = "017e4c14d80628353eaee677a1aeffe47a10c0dc"
+  revision = "88edab0803230a3898347e77b474f8c1820a1f20"
 
 [[projects]]
   name = "github.com/mattn/go-colorable"
@@ -237,7 +237,7 @@
     "salsa20/salsa",
     "scrypt"
   ]
-  revision = "9419663f5a44be8b34ca85f08abc5fe1be11f8a3"
+  revision = "49796115aa4b964c318aad4f3084fdb41e9aa067"
 
 [[projects]]
   branch = "master"
@@ -246,13 +246,13 @@
     "context",
     "websocket"
   ]
-  revision = "1087133bc4af3073e18add999345c6ae75918503"
+  revision = "cbe0f9307d0156177f9dd5dc85da1a31abc5f2fb"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "8dbc5d05d6edcc104950cc299a1ce6641235bc86"
+  revision = "88d2dcc510266da9f7f8c7f34e1940716cab5f5c"
 
 [solve-meta]
   analyzer-name = "dep"

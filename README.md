@@ -33,7 +33,7 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 
 ## Requirements
 
-* [Go](http://golang.org) 1.8.6 or newer.
+* [Go](http://golang.org) 1.9.x or 1.10.x.
 * Running `dcrd` (>=1.1.2) synchronized to the current best block on the network.
 
 ## Installation
