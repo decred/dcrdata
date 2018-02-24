@@ -312,14 +312,14 @@ func SSGenVoteBlockValid(msgTx *wire.MsgTx) (BlockValidation, uint16, error) {
 }
 
 // VoteBitsInBlock returns a list of vote bits for the votes in a block
-func VoteBitsInBlock(block *dcrutil.Block) []blockchain.VoteVersionTuple {
-	var voteBits []blockchain.VoteVersionTuple
+func VoteBitsInBlock(block *dcrutil.Block) []stake.VoteVersionTuple {
+	var voteBits []stake.VoteVersionTuple
 	for _, stx := range block.MsgBlock().STransactions {
 		if !stake.IsSSGen(stx) {
 			continue
 		}
 
-		voteBits = append(voteBits, blockchain.VoteVersionTuple{
+		voteBits = append(voteBits, stake.VoteVersionTuple{
 			Version: stake.SSGenVersion(stx),
 			Bits:    stake.SSGenVoteBits(stx),
 		})

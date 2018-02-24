@@ -135,7 +135,7 @@
     "txscript",
     "wire"
   ]
-  revision = "952b20e216036c8d22946fe2624f526b1bbc0907"
+  revision = "ea1d3750ba6b7307793335846bbfe5264dd190d3"
 
 [[projects]]
   branch = "master"
@@ -148,7 +148,7 @@
     "wallet/udb",
     "walletdb"
   ]
-  revision = "f13b59ccf2116155e9cedbc43ed2f37d838ac2cf"
+  revision = "ed371955e7f871721ed5660e30ca465f397f73a8"
 
 [[projects]]
   branch = "master"
