@@ -75,11 +75,12 @@ func (s TableVersion) String() string {
 	return fmt.Sprintf("%d.%d.%d", s.major, s.minor, s.patch)
 }
 
-// NewSemver returns a new Semver with the version major.minor.patch
+// NewTableVersion returns a new TableVersion with the version major.minor.patch
 func NewTableVersion(major, minor, patch uint32) TableVersion {
 	return TableVersion{major, minor, patch}
 }
 
+// TableUpgrade is used to define a required upgrade for a table
 type TableUpgrade struct {
 	TableName, UpgradeType  string
 	CurrentVer, RequiredVer TableVersion

@@ -56,6 +56,7 @@ func makeAddressCounter() *addressCounter {
 	}
 }
 
+// TicketTxnIDGetter provides a cache for DB row IDs of tickets.
 type TicketTxnIDGetter struct {
 	sync.RWMutex
 	idCache map[string]uint64
@@ -94,7 +95,7 @@ func (t *TicketTxnIDGetter) Set(txid string, txDbID uint64) {
 	t.idCache[txid] = txDbID
 }
 
-// Set N stores several (transaction hash, DB row ID) pairs in the map.
+// SetN stores several (transaction hash, DB row ID) pairs in the map.
 func (t *TicketTxnIDGetter) SetN(txid []string, txDbID []uint64) {
 	if t == nil {
 		return
@@ -154,7 +155,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		return nil, err
 	}
 	if len(unspentTicketDbIDs) != 0 {
-		log.Infof("Storing data for %d unspent tickes in cache.", len(unspentTicketDbIDs))
+		log.Infof("Storing data for %d unspent tickets in cache.", len(unspentTicketDbIDs))
 		unspentTicketCache.SetN(unspentTicketHashes, unspentTicketDbIDs)
 	}
 
@@ -196,6 +197,9 @@ func setupTables(db *sql.DB) error {
 	return CreateTables(db)
 }
 
+// VersionCheck checks the current version of all known tables and notifies when
+// an upgrade is required. Since there is presently no automatic upgrade, an
+// error is returned when any table is not of the correct version.
 func (pgb *ChainDB) VersionCheck() error {
 	vers := TableVersions(pgb.db)
 	for tab, ver := range vers {
@@ -445,6 +449,14 @@ func (pgb *ChainDB) DeleteDuplicates() error {
 	}
 	log.Infof("Removed %d duplicate vouts entries.", numVoutsRemoved)
 
+	// Remove duplicate transactions
+	log.Info("Finding and removing duplicate transactions entries before indexing...")
+	var numTxnsRemoved int64
+	if numTxnsRemoved, err = pgb.DeleteDuplicateTxns(); err != nil {
+		return fmt.Errorf("dcrpg.DeleteDuplicateTxns failed: %v", err)
+	}
+	log.Infof("Removed %d duplicate transactions entries.", numTxnsRemoved)
+
 	// TODO: remove entries from addresses table that reference removed
 	// vins/vouts.
 
@@ -532,63 +544,63 @@ func (pgb *ChainDB) DeleteDuplicateMisses() (int64, error) {
 func (pgb *ChainDB) DeindexAll() error {
 	var err, errAny error
 	if err = DeindexBlockTableOnHash(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexTransactionTableOnHashes(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexTransactionTableOnBlockIn(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexVinTableOnVins(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexVinTableOnPrevOuts(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexVoutTableOnTxHashIdx(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	// if err = DeindexVoutTableOnTxHash(pgb.db); err != nil {
-	// 	log.Warn(err)
+	// 	warnUnlessNotExists(err)
 	// 	errAny = err
 	// }
 	if err = DeindexAddressTableOnAddress(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexAddressTableOnVoutID(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexAddressTableOnTxHash(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = pgb.DeindexTicketsTable(); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexVotesTableOnCandidate(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexVotesTableOnHash(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexVotesTableOnVoteVersion(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexMissesTableOnHash(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	return errAny
@@ -662,14 +674,20 @@ func (pgb *ChainDB) IndexTicketsTable() error {
 func (pgb *ChainDB) DeindexTicketsTable() error {
 	var errAny error
 	if err := DeindexTicketsTableOnHash(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err := DeindexTicketsTableOnTxDbID(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	return errAny
+}
+
+func warnUnlessNotExists(err error) {
+	if !strings.Contains(err.Error(), "does not exist") {
+		log.Warn(err)
+	}
 }
 
 // IndexAddressTable creates the indexes on the address table on the vout ID and
@@ -688,11 +706,11 @@ func (pgb *ChainDB) IndexAddressTable() error {
 func (pgb *ChainDB) DeindexAddressTable() error {
 	var errAny error
 	if err := DeindexAddressTableOnAddress(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err := DeindexAddressTableOnVoutID(pgb.db); err != nil {
-		log.Warn(err)
+		warnUnlessNotExists(err)
 		errAny = err
 	}
 	return errAny
@@ -837,6 +855,9 @@ func (r *storeTxnsResult) Error() string {
 	return r.err.Error()
 }
 
+// MsgBlockPG extends wire.MsgBlock with the winning tickets from the block,
+// WinningTickets, and the tickets from the previous block that may vote on this
+// block's validity, Validators.
 type MsgBlockPG struct {
 	*wire.MsgBlock
 	WinningTickets []string
@@ -940,6 +961,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 
 		if updateTicketsSpendingInfo {
+			// Get a consistent view of the stake node at its present height
+			pgb.stakeDB.LockStakeNode()
+
 			// To update spending info in tickets table, get the spent tickets' DB
 			// row IDs and block heights.
 			//ticketDbIDs := make([]uint64, len(spentTicketHashes))
@@ -992,8 +1016,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			}
 
 			// Expired but not revoked
+			unspentEnM := make([]string, len(unspentMissedTicketHashes))
+			copy(unspentEnM, unspentMissedTicketHashes)
 			unspentExpiresAndMisses := pgb.stakeDB.BestNode.MissedByBlock()
-			unspentEnM := unspentMissedTicketHashes // var unspentEnM []string
 			for _, missHash := range unspentExpiresAndMisses {
 				// MissedByBlock includes tickets that missed votes or expired;
 				// we just want the expires, and not the revoked ones.
@@ -1009,6 +1034,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 					}
 				}
 			}
+
+			// Release the stake node
+			pgb.stakeDB.UnlockStakeNode()
 
 			numUnrevokedMisses, err := SetPoolStatusForTicketsByHash(pgb.db, unspentEnM, missStatuses)
 			if err != nil {
@@ -1302,12 +1330,14 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllTickets() (int64, error) {
 	}
 
 	poolStatuses = ticketpoolStatusSlice(dbtypes.PoolStatusMissed, len(revokedTicketHashes))
+	pgb.stakeDB.LockStakeNode()
 	for ih := range revokedTicketHashes {
 		rh, _ := chainhash.NewHashFromStr(revokedTicketHashes[ih])
 		if pgb.stakeDB.BestNode.ExistsExpiredTicket(*rh) {
 			poolStatuses[ih] = dbtypes.PoolStatusExpired
 		}
 	}
+	pgb.stakeDB.UnlockStakeNode()
 
 	// To update spending info in tickets table, get the spent tickets' DB
 	// row IDs and block heights.

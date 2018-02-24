@@ -71,9 +71,9 @@ type collectionQueue struct {
 	syncHandlers []func(hash *chainhash.Hash)
 }
 
-// NewCollectionQueue creates a new collectionQueue with a queue channel large
+// newCollectionQueue creates a new collectionQueue with a queue channel large
 // enough for 10 million block pointers.
-func NewCollectionQueue() *collectionQueue {
+func newCollectionQueue() *collectionQueue {
 	return &collectionQueue{
 		q: make(chan *blockHashHeight, 1e7),
 	}
@@ -130,7 +130,7 @@ func (q *collectionQueue) ProcessBlocks() {
 
 // Define notification handlers
 func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collectionQueue) {
-	blockQueue := NewCollectionQueue()
+	blockQueue := newCollectionQueue()
 	go blockQueue.ProcessBlocks()
 	return &rpcclient.NotificationHandlers{
 		OnBlockConnected: func(blockHeaderSerialized []byte, transactions [][]byte) {
@@ -196,7 +196,7 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 			for _, t := range tickets {
 				txstr = append(txstr, t.String())
 			}
-			log.Debugf("Winning tickets: %v", strings.Join(txstr, ", "))
+			log.Tracef("Winning tickets: %v", strings.Join(txstr, ", "))
 		},
 		// maturing tickets. Thanks for fixing the tickets type bug, jolan!
 		OnNewTickets: func(hash *chainhash.Hash, height int64, stakeDiff int64,

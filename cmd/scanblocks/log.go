@@ -22,7 +22,8 @@ const logFile = "scanblocks.log"
 // InitLogger starts the logger
 func InitLogger() error {
 	logFilePath, _ := filepath.Abs(logFile)
-	logFILE, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND,
+	var err error
+	logFILE, err = os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND,
 		0664)
 	if err != nil {
 		return fmt.Errorf("Error opening log file: %v", err)

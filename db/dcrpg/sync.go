@@ -6,14 +6,13 @@ package dcrpg
 import (
 	"database/sql"
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/dcrdata/dcrdata/db/dbtypes"
 	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 )
 
 const (
@@ -25,7 +24,7 @@ const (
 // should be called as a goroutine or it will hang on send if the channel is
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
-	client *rpcclient.Client, quit chan struct{}, updateAllAddresses,
+	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
 	updateAllVotes, newIndexes bool) {
 	if db == nil {
 		res <- dbtypes.SyncResult{
@@ -46,10 +45,10 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // RPC client. The table indexes may be force-dropped and recreated by setting
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
-func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
+func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan struct{},
 	updateAllAddresses, updateAllVotes, newIndexes bool) (int64, error) {
 	// Get chain servers's best block
-	_, nodeHeight, err := client.GetBestBlock()
+	nodeHeight, err := client.NodeHeight()
 	if err != nil {
 		return -1, fmt.Errorf("GetBestBlock failed: %v", err)
 	}
@@ -134,61 +133,56 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		default:
 		}
 
-		block, blockHash, err := rpcutils.GetBlock(ib, client)
+		// Register for notification from stakedb when it connects this block.
+		waitChan := db.stakeDB.WaitForHeight(ib)
+
+		// Get the block, making it available to stakedb, which will signal on
+		// the above channel when it is done connecting it.
+		block, err := client.UpdateToBlock(ib)
 		if err != nil {
-			return ib - 1, fmt.Errorf("GetBlock failed (%s): %v", blockHash, err)
+			return ib - 1, fmt.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
 		}
 
-		var winners []string
-		//prevBlockHash := block.MsgBlock().Header.PrevBlock
-		for {
-			// check for quit signal
-			select {
-			case <-quit:
-				log.Infof("Rescan cancelled at height %d.", ib)
-				return ib - 1, nil
-			default:
-			}
-
-			// stakeDB is not locked between Height() and PoolInfo() so there is
-			// a data race. Get the height first to avoid resulting errors.
-			blocksBehind := ib - int64(db.stakeDB.Height())
-
-			if tpi, ok := db.stakeDB.PoolInfo(*blockHash); ok {
-				winners = tpi.Winners
-				break
-			}
-
-			if blocksBehind <= 0 {
-				return ib - 1, fmt.Errorf("stakeDB.PoolInfo failed.")
-			}
-			log.Infof("Waiting for stake DB to catch up. Query height %d, "+
-				"stake DB height %d.", ib, db.stakeDB.Height())
-			waitSec := math.Max(5, math.Min(30.0, float64(blocksBehind)/500))
-			time.Sleep(time.Duration(waitSec) * time.Second)
-
-			if blocksBehind <= ib-int64(db.stakeDB.Height()) {
-				log.Infof("Rescan halted waiting for stakedb to advance.")
-				return ib - 1, nil
-			}
+		// Wait for our StakeDatabase to connect the block
+		var blockHash *chainhash.Hash
+		select {
+		case blockHash = <-waitChan:
+		case <-quit:
+			log.Infof("Rescan cancelled at height %d.", ib)
+			return ib - 1, nil
 		}
+		if blockHash == nil {
+			log.Errorf("stakedb says that block %d has come and gone", ib)
+			return ib - 1, fmt.Errorf("stakedb says that block %d has come and gone", ib)
+		}
+		// If not master:
+		//blockHash := <-client.WaitForHeight(ib)
+		//block, err := client.Block(blockHash)
+		// direct:
+		//block, blockHash, err := rpcutils.GetBlock(ib, client)
 
-		var numVins, numVouts int64
-		if numVins, numVouts, err = db.StoreBlock(block.MsgBlock(),
-			winners, true, !updateAllAddresses, !updateAllVotes); err != nil {
+		// Winning tickets from StakeDatabase, which just connected the block,
+		// as signaled via the waitChan.
+		tpi, ok := db.stakeDB.PoolInfo(*blockHash)
+		if !ok {
+			return ib - 1, fmt.Errorf("stakeDB.PoolInfo could not locate block %s", blockHash.String())
+		}
+		winners := tpi.Winners
+
+		// Store data from this block in the database
+		numVins, numVouts, err := db.StoreBlock(block.MsgBlock(), winners, true,
+			!updateAllAddresses, !updateAllVotes)
+		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins
 		totalVouts += numVouts
 
-		numSTx := int64(len(block.STransactions()))
-		numRTx := int64(len(block.Transactions()))
-		totalTxs += numRTx + numSTx
-		// totalRTxs += numRTx
-		// totalSTxs += numSTx
+		// Total transactions is the sum of regular and stake transactions
+		totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
 
-		// update height, the end condition for the loop
-		if _, nodeHeight, err = client.GetBestBlock(); err != nil {
+		// Update height, the end condition for the loop
+		if nodeHeight, err = client.NodeHeight(); err != nil {
 			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 	}
@@ -196,6 +190,10 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 	speedReport()
 
 	if reindexing || newIndexes {
+		// Duplicate transactions, vins, and vouts can end up in the tables when
+		// identical transactions are included in multiple blocks. This happens
+		// when a block is invalidated and the transactions are subsequently
+		// re-mined in another block. Remove these before indexing.
 		if err = db.DeleteDuplicates(); err != nil {
 			return 0, err
 		}
@@ -204,7 +202,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		if err = db.IndexAll(); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
-		// Only reindex address table here if we do not do it below
+		// Only reindex addresses and tickets tables here if not doing it below
 		if !updateAllAddresses {
 			err = db.IndexAddressTable()
 		}
@@ -213,6 +211,7 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		}
 	}
 
+	// Batch update addresses table with spending info
 	if updateAllAddresses {
 		// Remove existing indexes not on funding txns
 		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
@@ -221,12 +220,14 @@ func (db *ChainDB) SyncChainDB(client *rpcclient.Client, quit chan struct{},
 		if err != nil {
 			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
 		}
+		// Index addresses table
 		log.Infof("Updated %d rows of address table", numAddresses)
 		if err = db.IndexAddressTable(); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
 		}
 	}
 
+	// Batch update tickets table with spending info
 	if updateAllVotes {
 		// Remove indexes not on funding txns (remove on tickets table indexes)
 		_ = db.DeindexTicketsTable() // ignore errors for non-existent indexes

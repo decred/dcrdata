@@ -107,7 +107,7 @@ func mainCore() int {
 	waitSync.Add(1)
 	//go sqliteDB.SyncDB(&waitSync, quit)
 	var height int64
-	height, err = sqliteDB.SyncDBWithPoolValue(&waitSync, quit)
+	height, err = sqliteDB.SyncDB(&waitSync, quit, nil, 0)
 	if err != nil {
 		log.Error(err)
 	}

@@ -75,7 +75,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	dcrdVer := ver["dcrdjsonrpcapi"]
 	nodeVer = semver.NewSemver(dcrdVer.Major, dcrdVer.Minor, dcrdVer.Patch)
 
-	if !semver.SemverCompatible(requiredChainServerAPI, nodeVer) {
+	if !semver.Compatible(requiredChainServerAPI, nodeVer) {
 		return nil, nodeVer, fmt.Errorf("Node JSON-RPC server does not have "+
 			"a compatible API version. Advertises %v but require %v",
 			nodeVer, requiredChainServerAPI)
@@ -219,4 +219,15 @@ func GetBlock(ind int64, client *rpcclient.Client) (*dcrutil.Block, *chainhash.H
 	block := dcrutil.NewBlock(msgBlock)
 
 	return block, blockhash, nil
+}
+
+// GetBlockByHash gets the block with the given hash from a chain server.
+func GetBlockByHash(blockhash *chainhash.Hash, client *rpcclient.Client) (*dcrutil.Block, error) {
+	msgBlock, err := client.GetBlock(blockhash)
+	if err != nil {
+		return nil, fmt.Errorf("GetBlock failed (%s): %v", blockhash, err)
+	}
+	block := dcrutil.NewBlock(msgBlock)
+
+	return block, nil
 }

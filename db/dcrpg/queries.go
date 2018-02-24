@@ -253,8 +253,8 @@ func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64,
 		}
 		totalTicketsUpdated += rowsAffected[i]
 		if rowsAffected[i] != 1 {
-			log.Warnf("Updated pool status for %d tickets, expecting just 1 (%d)!",
-				rowsAffected[i], ticketDbID)
+			log.Warnf("Updated pool status for %d tickets, expecting just 1 (%d, %v)!",
+				rowsAffected[i], ticketDbID, poolStatuses[i])
 		}
 	}
 
@@ -292,8 +292,8 @@ func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
 		}
 		totalTicketsUpdated += rowsAffected[i]
 		if rowsAffected[i] != 1 {
-			log.Warnf("Updated pool status for %d tickets, expecting just 1 (%d)!",
-				rowsAffected[i], ticket)
+			log.Warnf("Updated pool status for %d tickets, expecting just 1 (%s, %v)!",
+				rowsAffected[i], ticket, poolStatuses[i])
 		}
 	}
 

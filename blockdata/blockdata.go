@@ -76,6 +76,8 @@ func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 		PoolInfo:   b.PoolInfo,
 	}
 }
+
+// ToBlockExplorerSummary returns a BlockExplorerBasic
 func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 	t := time.Unix(b.Header.Time, 0)
 	ftime := t.Format("2006-01-02 15:04:05")

@@ -65,6 +65,9 @@ func (c *PoolInfoCache) Set(hash chainhash.Hash, p *apitypes.TicketPoolInfo) {
 	}
 }
 
+// SetCapacity sets the cache capacity to the specified number of elements. If
+// the new capacity is smaller than the current cache size, elements are
+// automatically evicted until the desired size is reached.
 func (c *PoolInfoCache) SetCapacity(cap int) error {
 	c.Lock()
 	defer c.Unlock()
@@ -92,21 +95,28 @@ type StakeDatabase struct {
 	liveTicketCache map[chainhash.Hash]int64
 	poolInfo        *PoolInfoCache
 	PoolDB          *TicketPool
+
+	// clients may register for notification when new blocks are connected via
+	// WaitForHeight. The clients' channels are stored in heightWaiters.
+	waitMtx       sync.Mutex
+	heightWaiters map[int64][]chan *chainhash.Hash
 }
 
 const (
 	// dbType is the database backend type to use
 	dbType = "ffldb"
-	// DefaultStakeDbName is the default database name
+	// DefaultStakeDbName is the default name of the stakedb database folder
 	DefaultStakeDbName = "ffldb_stake"
+	// DefaultTicketPoolDbName is the default name of the ticket pool database
+	DefaultTicketPoolDbName = "stakedb_ticket_pool.db"
 )
 
 // NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
 // ffldb-backed stake database, and loads all live tickets into a cache.
 func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	dbNameOpt ...string) (*StakeDatabase, error) {
-	log.Infof("Loading ticket pool DB...")
-	poolDB, err := NewTicketPool("stakedb_ticket_pool.db")
+	log.Infof("Loading ticket pool DB. This may take a minute...")
+	poolDB, err := NewTicketPool(DefaultTicketPoolDbName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ticket pool DB: %v", err)
 	}
@@ -117,6 +127,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 		liveTicketCache: make(map[chainhash.Hash]int64),
 		poolInfo:        NewPoolInfoCache(513),
 		PoolDB:          poolDB,
+		heightWaiters:   make(map[int64][]chan *chainhash.Hash),
 	}
 
 	// Put the genesis block in the pool info cache since stakedb starts with
@@ -222,6 +233,52 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	return sDB, nil
 }
 
+// LockStakeNode locks the StakeNode from functions that respect the mutex.
+func (db *StakeDatabase) LockStakeNode() {
+	db.nodeMtx.RLock()
+}
+
+// UnlockStakeNode unlocks the StakeNode for functions that respect the mutex.
+func (db *StakeDatabase) UnlockStakeNode() {
+	db.nodeMtx.RUnlock()
+}
+
+// WaitForHeight provides a notification channel to which the hash of the block
+// at the requested height will be sent when it becomes available.
+func (db *StakeDatabase) WaitForHeight(height int64) chan *chainhash.Hash {
+	dbHeight := int64(db.Height())
+	waitChan := make(chan *chainhash.Hash, 1)
+	if dbHeight > height {
+		defer func() { waitChan <- nil }()
+		return waitChan
+	} else if dbHeight == height {
+		block, _ := db.block(height)
+		if block == nil {
+			panic("broken StakeDatabase")
+		}
+		defer func() { go db.signalWaiters(height, block.Hash()) }()
+	}
+	db.waitMtx.Lock()
+	db.heightWaiters[height] = append(db.heightWaiters[height], waitChan)
+	db.waitMtx.Unlock()
+	return waitChan
+}
+
+func (db *StakeDatabase) signalWaiters(height int64, blockhash *chainhash.Hash) {
+	db.waitMtx.Lock()
+	defer db.waitMtx.Unlock()
+	waitChans := db.heightWaiters[height]
+	for _, c := range waitChans {
+		select {
+		case c <- blockhash:
+		default:
+			panic(fmt.Sprintf("unable to signal block with hash %v at height %d", blockhash, height))
+		}
+	}
+
+	delete(db.heightWaiters, height)
+}
+
 // Height gets the block height of the best stake node.  It is thread-safe,
 // unlike using db.BestNode.Height(), and checks that the stake database is
 // opened first.
@@ -290,15 +347,15 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 	}
 
 	db.blkMtx.Lock()
-	db.blockCache[block.Height()] = block
+	db.blockCache[height] = block
 	db.blkMtx.Unlock()
 
 	revokedTickets := txhelpers.RevokedTicketsInBlock(block)
 	votedTickets := txhelpers.TicketsSpentInBlock(block)
 
 	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
 	bestNodeHeight := int64(db.BestNode.Height())
-	db.nodeMtx.Unlock()
 	if height <= bestNodeHeight {
 		return fmt.Errorf("cannot connect block height %d at height %d", height, bestNodeHeight)
 	}
@@ -331,15 +388,14 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 		Out: liveOut,
 	}
 
+	defer func() { go db.signalWaiters(height, block.Hash()) }()
+
 	// Append this ticket pool diff
 	return db.PoolDB.Append(poolDiff, bestNodeHeight+1)
 }
 
 func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Hash,
 	revoked []chainhash.Hash, maturing []chainhash.Hash) error {
-	// hold BestNode and StakeDB locked
-	db.nodeMtx.Lock()
-	defer db.nodeMtx.Unlock()
 
 	cleanLiveTicketCache := func() {
 		db.liveTicketMtx.Lock()
@@ -377,10 +433,14 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	return err
 }
 
+// SetPoolInfo stores the ticket pool info for the given hash in the pool info
+// cache.
 func (db *StakeDatabase) SetPoolInfo(blockHash chainhash.Hash, tpi *apitypes.TicketPoolInfo) {
 	db.poolInfo.Set(blockHash, tpi)
 }
 
+// SetPoolCacheCapacity sets the pool info cache capacity to the specified
+// number of elements.
 func (db *StakeDatabase) SetPoolCacheCapacity(cap int) error {
 	return db.poolInfo.SetCapacity(cap)
 }
@@ -528,6 +588,8 @@ func (db *StakeDatabase) Open(dbName string) error {
 
 // Close will close the ticket pool and stake databases.
 func (db *StakeDatabase) Close() error {
+	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
 	err1 := db.PoolDB.Close()
 	err2 := db.StakeDB.Close()
 	if err1 == nil {
@@ -627,6 +689,8 @@ func (db *StakeDatabase) PoolInfo(hash chainhash.Hash) (*apitypes.TicketPoolInfo
 
 // PoolSize returns the ticket pool size in the best node of the stake database
 func (db *StakeDatabase) PoolSize() int {
+	db.nodeMtx.Lock()
+	defer db.nodeMtx.Unlock()
 	return db.BestNode.PoolSize()
 }
 
