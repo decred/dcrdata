@@ -473,7 +473,7 @@ func mainCore() error {
 	webMux.Get("/decodetx", explore.DecodeTxPage)
 	webMux.Get("/search", explore.Search)
 
-	// HTTP profilerwebMux
+	// HTTP profiler
 	if cfg.HTTPProfile {
 		profPath := cfg.HTTPProfPath
 		log.Warnf("Starting the HTTP profiler on path %s.", profPath)
