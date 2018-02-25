@@ -4,22 +4,12 @@
 [[projects]]
   branch = "master"
   name = "github.com/agl/ed25519"
-  packages = [
-    ".",
-    "edwards25519"
-  ]
+  packages = [".","edwards25519"]
   revision = "5312a61534124124185d41f09206b9fef1d88403"
 
 [[projects]]
   name = "github.com/asdine/storm"
-  packages = [
-    ".",
-    "codec",
-    "codec/json",
-    "index",
-    "internal",
-    "q"
-  ]
+  packages = [".","codec","codec/json","index","internal","q"]
   revision = "68fc73b635f890fe7ba2f3b15ce80c85b28a744f"
   version = "v2.0.2"
 
@@ -44,20 +34,7 @@
 [[projects]]
   branch = "master"
   name = "github.com/btcsuite/goleveldb"
-  packages = [
-    "leveldb",
-    "leveldb/cache",
-    "leveldb/comparer",
-    "leveldb/errors",
-    "leveldb/filter",
-    "leveldb/iterator",
-    "leveldb/journal",
-    "leveldb/memdb",
-    "leveldb/opt",
-    "leveldb/storage",
-    "leveldb/table",
-    "leveldb/util"
-  ]
+  packages = ["leveldb","leveldb/cache","leveldb/comparer","leveldb/errors","leveldb/filter","leveldb/iterator","leveldb/journal","leveldb/memdb","leveldb/opt","leveldb/storage","leveldb/table","leveldb/util"]
   revision = "7834afc9e8cd15233b6c3d97e12674a31ca24602"
 
 [[projects]]
@@ -105,43 +82,13 @@
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrd"
-  packages = [
-    "blockchain",
-    "blockchain/internal/dbnamespace",
-    "blockchain/internal/progresslog",
-    "blockchain/stake",
-    "blockchain/stake/internal/dbnamespace",
-    "blockchain/stake/internal/ticketdb",
-    "blockchain/stake/internal/tickettreap",
-    "chaincfg",
-    "chaincfg/chainec",
-    "chaincfg/chainhash",
-    "database",
-    "database/ffldb",
-    "database/internal/treap",
-    "dcrec/edwards",
-    "dcrec/secp256k1",
-    "dcrec/secp256k1/schnorr",
-    "dcrjson",
-    "dcrutil",
-    "hdkeychain",
-    "rpcclient",
-    "txscript",
-    "wire"
-  ]
+  packages = ["blockchain","blockchain/internal/dbnamespace","blockchain/internal/progresslog","blockchain/stake","blockchain/stake/internal/dbnamespace","blockchain/stake/internal/ticketdb","blockchain/stake/internal/tickettreap","chaincfg","chaincfg/chainec","chaincfg/chainhash","database","database/ffldb","database/internal/treap","dcrec/edwards","dcrec/secp256k1","dcrec/secp256k1/schnorr","dcrjson","dcrutil","hdkeychain","rpcclient","txscript","wire"]
   revision = "d19ad36d9b71ea8ac4aae005cb9a28a826071f3e"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrwallet"
-  packages = [
-    "apperrors",
-    "internal/zero",
-    "netparams",
-    "snacl",
-    "wallet/udb",
-    "walletdb"
-  ]
+  packages = ["apperrors","internal/zero","netparams","snacl","wallet/udb","walletdb"]
   revision = "a47b29d4b51906f396080761e13c9af07686b9c0"
 
 [[projects]]
@@ -152,10 +99,7 @@
 
 [[projects]]
   name = "github.com/go-chi/chi"
-  packages = [
-    ".",
-    "middleware"
-  ]
+  packages = [".","middleware"]
   revision = "e83ac2304db3c50cf03d96a2fcd39009d458bc35"
   version = "v3.3.2"
 
@@ -174,10 +118,7 @@
 [[projects]]
   branch = "master"
   name = "github.com/lib/pq"
-  packages = [
-    ".",
-    "oid"
-  ]
+  packages = [".","oid"]
   revision = "88edab0803230a3898347e77b474f8c1820a1f20"
 
 [[projects]]
@@ -231,15 +172,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = [
-    "nacl/secretbox",
-    "pbkdf2",
-    "poly1305",
-    "ripemd160",
-    "salsa20/salsa",
-    "scrypt",
-    "ssh/terminal"
-  ]
+  packages = ["nacl/secretbox","pbkdf2","poly1305","ripemd160","salsa20/salsa","scrypt","ssh/terminal"]
   revision = "beaf6a35706e5032ae4c3fcf342c663c069f44d2"
 
 [[projects]]
@@ -251,10 +184,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = [
-    "unix",
-    "windows"
-  ]
+  packages = ["unix","windows"]
   revision = "f6cff0780e542efa0c8e864dc8fa522808f6a598"
 
 [solve-meta]

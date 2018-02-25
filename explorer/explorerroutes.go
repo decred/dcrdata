@@ -202,6 +202,39 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					tx.TicketInfo.PoolStatus = poolStatus.String()
 				}
 				tx.TicketInfo.SpendStatus = spendStatus.String()
+				tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) * int64(exp.ChainParams.TicketsPerBlock)
+				tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
+				expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(exp.ChainParams.TicketExpiry)) / 24
+				maturityInDay := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.TicketInfo.TicketMaturity)) / 24
+				tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) - float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInDay
+				ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - tx.Confirmations
+				tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) / float64(exp.ChainParams.TicketExpiry)) * expirationInDays
+				if tx.TicketInfo.SpendStatus == "Voted" {
+					tx.TicketInfo.ShortConfirms = exp.blockData.TxHeight(tx.SpendingTxns[0].Hash) - tx.BlockHeight
+				} else if tx.Confirmations >= int64(exp.ChainParams.TicketExpiry) {
+					tx.TicketInfo.ShortConfirms = int64(exp.ChainParams.TicketExpiry)
+				} else {
+					tx.TicketInfo.ShortConfirms = tx.Confirmations
+				}
+				voteRounds := (tx.TicketInfo.ShortConfirms - tx.TicketMaturity)
+				tx.TicketInfo.BestLuck = tx.TicketInfo.TicketExpiry / int64(exp.ChainParams.TicketPoolSize)
+				tx.TicketInfo.AvgLuck = tx.TicketInfo.BestLuck - 1
+				tx.TicketInfo.VoteLuck = float64(tx.TicketInfo.BestLuck) - (float64(voteRounds) / float64(exp.ChainParams.TicketPoolSize))
+				if tx.TicketInfo.VoteLuck >= float64(tx.TicketInfo.BestLuck-(1/int64(exp.ChainParams.TicketPoolSize))) {
+					tx.TicketInfo.LuckStatus = "*Perfection*"
+				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.25) {
+					tx.TicketInfo.LuckStatus = "Very Lucky!"
+				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.75) {
+					tx.TicketInfo.LuckStatus = "Good Luck"
+				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 1.25) {
+					tx.TicketInfo.LuckStatus = "Normal"
+				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) * 0.50) {
+					tx.TicketInfo.LuckStatus = "Bad Luck"
+				} else if tx.TicketInfo.VoteLuck > 0 {
+					tx.TicketInfo.LuckStatus = "Horrible Luck!"
+				} else if tx.TicketInfo.VoteLuck == 0 {
+					tx.TicketInfo.LuckStatus = "No Luck"
+				}
 			}
 		}
 	}

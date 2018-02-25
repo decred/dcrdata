@@ -67,9 +67,18 @@ type TxInfo struct {
 }
 
 type TicketInfo struct {
-	TicketMaturity int64
-	PoolStatus     string
-	SpendStatus    string
+	TicketMaturity       int64
+	TimeTillMaturity     float64 // Time before a particular ticket reaches maturity
+	PoolStatus           string
+	SpendStatus          string
+	TicketPoolSize       int64   // Total number of ticket in the pool
+	TicketExpiry         int64   // Total number of blocks before a ticket expires
+	TicketExpiryDaysLeft float64 // Approximate days left before the given ticket expires
+	ShortConfirms        int64   // Total number of confirms up until the point the ticket votes or expires
+	BestLuck             int64   // Best possible Luck for voting
+	AvgLuck              int64   // Average Luck for voting
+	VoteLuck             float64 // Actual Luck for voting on a ticket
+	LuckStatus           string  // Short discription based on the VoteLuck
 }
 
 // TxInID models the identity of a spending transaction input
