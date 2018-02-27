@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/btcsuite/btclog"
-	"github.com/dcrdata/dcrdata/db/dcrpg"
-	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrdata/db/dcrpg"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/stakedb"
 )
 
 var (

@@ -4,13 +4,13 @@
 package main
 
 import (
-	"github.com/dcrdata/dcrdata/blockdata"
-	"github.com/dcrdata/dcrdata/db/dcrsqlite"
-	"github.com/dcrdata/dcrdata/mempool"
-	"github.com/dcrdata/dcrdata/stakedb"
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/dcrsqlite"
+	"github.com/decred/dcrdata/mempool"
+	"github.com/decred/dcrdata/stakedb"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 const (

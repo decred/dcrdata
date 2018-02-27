@@ -10,14 +10,14 @@ import (
 	"path/filepath"
 
 	"github.com/btcsuite/btclog"
-	"github.com/dcrdata/dcrdata/blockdata"
-	"github.com/dcrdata/dcrdata/db/dcrpg"
-	"github.com/dcrdata/dcrdata/db/dcrsqlite"
-	"github.com/dcrdata/dcrdata/explorer"
-	"github.com/dcrdata/dcrdata/mempool"
-	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/dcrdata/dcrdata/stakedb"
 	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/dcrpg"
+	"github.com/decred/dcrdata/db/dcrsqlite"
+	"github.com/decred/dcrdata/explorer"
+	"github.com/decred/dcrdata/mempool"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/stakedb"
 	"github.com/jrick/logrotate/rotator"
 )
 

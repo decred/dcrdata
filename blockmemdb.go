@@ -8,10 +8,10 @@ package main
 import (
 	"sync"
 
-	"github.com/dcrdata/dcrdata/blockdata"
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/blockdata"
+	apitypes "github.com/decred/dcrdata/dcrdataapi"
 )
 
 // BlockDataToMemdb models the block data and block data basic as maps
