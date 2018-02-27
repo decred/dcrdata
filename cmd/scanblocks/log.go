@@ -8,8 +8,8 @@ import (
 
 	"github.com/shiena/ansicolor"
 	// "github.com/mattn/go-colorable"
-	"github.com/Sirupsen/logrus"
 	prefix_fmt "github.com/chappjc/logrus-prefix"
+	"github.com/sirupsen/logrus"
 )
 
 var logFILE *os.File
