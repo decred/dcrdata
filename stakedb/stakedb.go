@@ -116,6 +116,11 @@ const (
 // ffldb-backed stake database, and loads all live tickets into a cache.
 func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	dbFolder string) (*StakeDatabase, error) {
+	// Create DB folder
+	err := os.MkdirAll(dbFolder, 0700)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create DB folder: %v", err)
+	}
 	log.Infof("Loading ticket pool DB. This may take a minute...")
 	ticketPoolDBPath := filepath.Join(dbFolder, DefaultTicketPoolDbName)
 	poolDB, err := NewTicketPool(ticketPoolDBPath)
