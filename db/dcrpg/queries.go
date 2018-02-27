@@ -8,8 +8,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/dcrdata/dcrdata/db/dbtypes"
-	"github.com/dcrdata/dcrdata/db/dcrpg/internal"
+	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/lib/pq"
 )
 

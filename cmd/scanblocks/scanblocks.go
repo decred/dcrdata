@@ -9,13 +9,13 @@ import (
 	"strconv"
 
 	"github.com/btcsuite/btclog"
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
-	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
+	apitypes "github.com/decred/dcrdata/dcrdataapi"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 var host = flag.String("host", "127.0.0.1:9109", "node RPC host:port")

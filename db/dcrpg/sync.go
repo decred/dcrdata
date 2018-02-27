@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dcrdata/dcrdata/db/dbtypes"
-	"github.com/dcrdata/dcrdata/rpcutils"
 	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/rpcutils"
 )
 
 const (

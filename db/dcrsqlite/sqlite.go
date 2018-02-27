@@ -9,9 +9,9 @@ import (
 	"sync"
 
 	"github.com/btcsuite/btclog"
-	"github.com/dcrdata/dcrdata/blockdata"
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/blockdata"
+	apitypes "github.com/decred/dcrdata/dcrdataapi"
 	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 

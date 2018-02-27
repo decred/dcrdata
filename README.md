@@ -1,8 +1,8 @@
 # dcrdata
 
-[![Build Status](https://img.shields.io/travis/dcrdata/dcrdata.svg)](https://travis-ci.org/dcrdata/dcrdata)
-[![GitHub release](https://img.shields.io/github/release/dcrdata/dcrdata.svg)](https://github.com/dcrdata/dcrdata/releases)
-[![Latest tag](https://img.shields.io/github/tag/dcrdata/dcrdata.svg)](https://github.com/dcrdata/dcrdata/tags)
+[![Build Status](https://img.shields.io/travis/decred/dcrdata.svg)](https://travis-ci.org/decred/dcrdata)
+[![GitHub release](https://img.shields.io/github/release/decred/dcrdata.svg)](https://github.com/decred/dcrdata/releases)
+[![Latest tag](https://img.shields.io/github/tag/decred/dcrdata.svg)](https://github.com/decred/dcrdata/tags)
 [![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
 
 The dcrdata repository is a collection of golang packages and apps for [Decred](https://www.decred.org/) data collection, storage, and presentation.
@@ -55,11 +55,11 @@ The following instructions assume a Unix-like shell (e.g. bash).
 
 * Clone the dcrdata repository. It **must** be cloned into the following directory.
 
-      git clone https://github.com/dcrdata/dcrdata $GOPATH/src/github.com/dcrdata/dcrdata
+      git clone https://github.com/decred/dcrdata $GOPATH/src/github.com/decred/dcrdata
 
 * Fetch dependencies, and build the `dcrdata` executable.
 
-      cd $GOPATH/src/github.com/dcrdata/dcrdata
+      cd $GOPATH/src/github.com/decred/dcrdata
       dep ensure
       # build dcrdata executable in workspace:
       go build
@@ -85,7 +85,7 @@ folder as the `dcrdata` executable.
 
 First, update the repository (assuming you have `master` checked out):
 
-    cd $GOPATH/src/github.com/dcrdata/dcrdata
+    cd $GOPATH/src/github.com/decred/dcrdata
     git pull origin master
     dep ensure
     go build
@@ -374,7 +374,7 @@ of objects implementing the `MempoolDataSaver` interface.
 
 ## Plans
 
-See the GitHub issue tracker and the [project milestones](https://github.com/dcrdata/dcrdata/milestones).
+See the GitHub issue tracker and the [project milestones](https://github.com/decred/dcrdata/milestones).
 
 ## Contributing
 
@@ -384,7 +384,7 @@ Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it
 1. Create a branch for your work (`git branch -b cool-stuff`).
 1. Code something great.
 1. Commit and push to your repo.
-1. Create a [pull request](https://github.com/dcrdata/dcrdata/compare).
+1. Create a [pull request](https://github.com/decred/dcrdata/compare).
 
 Note that all dcrdata.org community and team members are expected to adhere to
 the code of conduct, described in the CODE_OF_CONDUCT file.

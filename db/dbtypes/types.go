@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/dcrdata/dcrdata/db/dbtypes/internal"
+	"github.com/decred/dcrdata/db/dbtypes/internal"
 )
 
 // SyncResult is the result of a database sync operation, containing the height

@@ -11,9 +11,6 @@ import (
 	"strings"
 	"sync"
 
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
-	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -21,6 +18,9 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
+	apitypes "github.com/decred/dcrdata/dcrdataapi"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 // PoolInfoCache contains a map of block hashes to ticket pool info data at that

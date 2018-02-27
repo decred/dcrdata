@@ -12,13 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dcrdata/dcrdata/blockdata"
-	"github.com/dcrdata/dcrdata/db/dbtypes"
-	"github.com/dcrdata/dcrdata/explorer"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/explorer"
 	humanize "github.com/dustin/go-humanize"
 )
 

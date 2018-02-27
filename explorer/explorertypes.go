@@ -6,10 +6,10 @@ package explorer
 import (
 	"sync"
 
-	"github.com/dcrdata/dcrdata/db/dbtypes"
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 // BlockBasic models data for the explorer's explorer page
