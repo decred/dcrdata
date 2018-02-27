@@ -13,13 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dcrdata/dcrdata/db/dbtypes"
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
-	"github.com/dcrdata/dcrdata/explorer"
-	"github.com/dcrdata/dcrdata/mempool"
-	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/dcrdata/dcrdata/stakedb"
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -28,7 +21,13 @@ import (
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/dustin/go-humanize"
+	"github.com/decred/dcrdata/db/dbtypes"
+	apitypes "github.com/decred/dcrdata/dcrdataapi"
+	"github.com/decred/dcrdata/explorer"
+	"github.com/decred/dcrdata/mempool"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/stakedb"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 // wiredDB is intended to satisfy APIDataSource interface. The block header is

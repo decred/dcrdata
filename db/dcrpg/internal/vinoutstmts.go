@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/dcrdata/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/lib/pq"
 )
 

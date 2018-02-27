@@ -14,13 +14,13 @@ import (
 	"sync"
 	"time"
 
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
+	apitypes "github.com/decred/dcrdata/dcrdataapi"
 )
 
 // NewTx models data for a new transaction
