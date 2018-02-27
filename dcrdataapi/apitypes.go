@@ -4,8 +4,8 @@
 package dcrdataapi
 
 import (
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 // much of the time, dcrdata will be using the types in dcrjson, but others are

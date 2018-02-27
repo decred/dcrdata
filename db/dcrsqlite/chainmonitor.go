@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/dcrdata/dcrdata/blockdata"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrdata/blockdata"
 )
 
 // ReorgData contains the information from a reoranization notification

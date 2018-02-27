@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"sync"
 
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/rpcclient"
+	apitypes "github.com/decred/dcrdata/dcrdataapi"
 )
 
 // APIDataSource implements an interface for collecting data for the api

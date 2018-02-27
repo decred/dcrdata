@@ -38,7 +38,7 @@ Only submit a PR once the intended edits are either done or nearing completion. 
 
 ## Quick Start
 
-1. Fork the repository on GitHub.  Just click the little Fork button at https://github.com/dcrdata/dcrdata
+1. Fork the repository on GitHub.  Just click the little Fork button at https://github.com/decred/dcrdata
 2. Clone your newly forked dcrdata repository
 
 ```sh
@@ -81,7 +81,7 @@ git push -u origin my-great-stuff
 
 7. Create the pull request
 
-At the [main dcrdata repo page](https://github.com/dcrdata/dcrdata) (not your fork) you may find a button suggesting that you might want to create a PR from a branch you just pushed. "Compare & pull request" it will say on a big green button. Click it and it will start form to open a new pull request. Always:
+At the [main dcrdata repo page](https://github.com/decred/dcrdata) (not your fork) you may find a button suggesting that you might want to create a PR from a branch you just pushed. "Compare & pull request" it will say on a big green button. Click it and it will start form to open a new pull request. Always:
 
 - Type a detailed comment for the changes you are proposing.  Include motivation and a description of the code change.
 - Highlight any breaking changes.  This includes any syntax changes, added or removed struct fields, interface changes, file renames or deletions, etc.

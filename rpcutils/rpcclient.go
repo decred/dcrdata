@@ -9,15 +9,15 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
-	"github.com/dcrdata/dcrdata/semver"
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
+	apitypes "github.com/decred/dcrdata/dcrdataapi"
+	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 var requiredChainServerAPI = semver.NewSemver(3, 0, 0)
