@@ -61,9 +61,6 @@ func mainCore() error {
 	// Start with version info
 	log.Infof(appName+" version %s", ver.String())
 
-	//log.Debugf("Output folder: %v", cfg.OutFolder)
-	log.Debugf("Log folder: %v", cfg.LogDir)
-
 	// PostgreSQL
 	usePG := cfg.FullMode
 	if usePG {
@@ -275,6 +272,9 @@ func mainCore() error {
 
 	// Create the explorer system
 	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, ver.String())
+	if explore == nil {
+		return fmt.Errorf("failed to create new explorer (templates missing?)")
+	}
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
 	blockDataSavers = append(blockDataSavers, explore)

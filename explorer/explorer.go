@@ -215,6 +215,9 @@ func (exp *explorerUI) reloadTemplatesSig(sig os.Signal) {
 
 // StopWebsocketHub stops the websocket hub
 func (exp *explorerUI) StopWebsocketHub() {
+	if exp == nil {
+		return
+	}
 	log.Info("Stopping websocket hub.")
 	exp.wsHub.Stop()
 }
@@ -399,6 +402,11 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		},
 	}
 
+	noTemplateError := func(err error) *explorerUI {
+		log.Errorf("Unable to create new html template: %v", err)
+		return nil
+	}
+
 	exp.templates = make([]*template.Template, 0, 4)
 
 	homeTemplate, err := template.New("home").Funcs(exp.templateHelpers).ParseFiles(
@@ -406,7 +414,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		log.Errorf("Unable to create new html template: %v", err)
+		return noTemplateError(err)
 	}
 	exp.templates = append(exp.templates, homeTemplate)
 
@@ -415,7 +423,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		log.Errorf("Unable to create new html template: %v", err)
+		return noTemplateError(err)
 	}
 	exp.templates = append(exp.templates, explorerTemplate)
 
@@ -424,7 +432,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		log.Errorf("Unable to create new html template: %v", err)
+		return noTemplateError(err)
 	}
 	exp.templates = append(exp.templates, blockTemplate)
 
@@ -433,7 +441,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		log.Errorf("Unable to create new html template: %v", err)
+		return noTemplateError(err)
 	}
 	exp.templates = append(exp.templates, txTemplate)
 
@@ -442,7 +450,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		log.Errorf("Unable to create new html template: %v", err)
+		return noTemplateError(err)
 	}
 	exp.templates = append(exp.templates, addrTemplate)
 
@@ -451,7 +459,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		log.Errorf("Unable to create new html template: %v", err)
+		return noTemplateError(err)
 	}
 	exp.templates = append(exp.templates, decodeTxTemplate)
 
@@ -460,7 +468,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		exp.templateFiles["extras"],
 	)
 	if err != nil {
-		log.Errorf("Unable to create new html template: %v", err)
+		return noTemplateError(err)
 	}
 	exp.templates = append(exp.templates, errorTemplate)
 
