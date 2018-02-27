@@ -8,8 +8,8 @@ import (
 
 	"github.com/shiena/ansicolor"
 	// "github.com/mattn/go-colorable"
-	"github.com/Sirupsen/logrus"
 	prefix_fmt "github.com/chappjc/logrus-prefix"
+	"github.com/sirupsen/logrus"
 )
 
 var logFILE *os.File
@@ -31,7 +31,11 @@ func InitLogger() error {
 
 	logrus.SetOutput(io.MultiWriter(logFILE, os.Stdout))
 	logrus.SetLevel(logrus.DebugLevel)
-	logrus.SetFormatter(&prefix_fmt.TextFormatter{ForceColors: true})
+	logrus.SetFormatter(&prefix_fmt.TextFormatter{
+		ForceColors:     true,
+		ForceFormatting: true,
+		FullTimestamp:   true,
+	})
 	//logrus.SetOutput(ansicolor.NewAnsiColorWriter(os.Stdout))
 	//logrus.SetOutput(colorable.NewColorableStdout())
 
@@ -39,6 +43,8 @@ func InitLogger() error {
 	log.Level = logrus.DebugLevel
 	log.Formatter = &prefix_fmt.TextFormatter{
 		ForceColors:     true,
+		ForceFormatting: true,
+		FullTimestamp:   true,
 		TimestampFormat: "02 Jan 06 15:04:05.00 -0700",
 	}
 

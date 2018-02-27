@@ -2,12 +2,6 @@
 
 
 [[projects]]
-  name = "github.com/Sirupsen/logrus"
-  packages = ["."]
-  revision = "ba1b36c82c5e05c4f912a88eab0dcd91a171688f"
-  version = "v0.11.5"
-
-[[projects]]
   branch = "master"
   name = "github.com/agl/ed25519"
   packages = [
@@ -82,7 +76,7 @@
   branch = "master"
   name = "github.com/chappjc/logrus-prefix"
   packages = ["."]
-  revision = "94df605435ff3ac370e1ab342aa9f128d688d769"
+  revision = "3a1d64819adb569fb9952144dd90c0abe92e2822"
 
 [[projects]]
   name = "github.com/coreos/bbolt"
@@ -135,7 +129,7 @@
     "txscript",
     "wire"
   ]
-  revision = "15103088108d8a81b800e1a0066f010c9fb8b2ea"
+  revision = "d19ad36d9b71ea8ac4aae005cb9a28a826071f3e"
 
 [[projects]]
   branch = "master"
@@ -229,6 +223,12 @@
   revision = "a422bbe96644373c5753384a59d678f7d261ff10"
 
 [[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
+  version = "v1.0.4"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
@@ -237,7 +237,8 @@
     "poly1305",
     "ripemd160",
     "salsa20/salsa",
-    "scrypt"
+    "scrypt",
+    "ssh/terminal"
   ]
   revision = "beaf6a35706e5032ae4c3fcf342c663c069f44d2"
 
@@ -250,12 +251,15 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix"]
+  packages = [
+    "unix",
+    "windows"
+  ]
   revision = "f6cff0780e542efa0c8e864dc8fa522808f6a598"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "eeb17db2317ac995e28c517648c147a1788d6c588c1b676478d2d0929fd57c6d"
+  inputs-digest = "2bfe6c04715a8ce07c4c67aeaa959e5781c1fd325c9add797b1a3cf9cb5036ed"
   solver-name = "gps-cdcl"
   solver-version = 1
