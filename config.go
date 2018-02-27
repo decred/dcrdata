@@ -8,8 +8,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
-	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -17,30 +18,31 @@ import (
 	flags "github.com/btcsuite/go-flags"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrwallet/netparams"
 )
 
 const (
 	defaultConfigFilename = "dcrdata.conf"
+	defaultLogFilename    = "dcrdata.log"
+	defaultDataDirname    = "data"
 	defaultLogLevel       = "info"
 	defaultLogDirname     = "logs"
-	defaultLogFilename    = "dcrdata.log"
 )
 
-var curDir, _ = os.Getwd()
 var activeNet = &netparams.MainNetParams
 var activeChain = &chaincfg.MainNetParams
 
 var (
-	dcrdHomeDir = dcrutil.AppDataDir("dcrd", false)
-	//dcrdataapiHomeDir            = dcrutil.AppDataDir("dcrdataapi", false)
-	//defaultDaemonRPCKeyFile  = filepath.Join(dcrdHomeDir, "rpc.key")
+	defaultHomeDir           = dcrutil.AppDataDir("dcrdata", false)
+	defaultConfigFile        = filepath.Join(defaultHomeDir, defaultConfigFilename)
+	defaultLogDir            = filepath.Join(defaultHomeDir, defaultLogDirname)
+	defaultDataDir           = filepath.Join(defaultHomeDir, defaultDataDirname)
+	dcrdHomeDir              = dcrutil.AppDataDir("dcrd", false)
 	defaultDaemonRPCCertFile = filepath.Join(dcrdHomeDir, "rpc.cert")
-	defaultConfigFile        = filepath.Join(curDir, defaultConfigFilename)
-	defaultLogDir            = filepath.Join(curDir, defaultLogDirname)
-	defaultHost              = "localhost"
-	defaultHTTPProfPath      = "/p"
 
+	defaultHost               = "localhost"
+	defaultHTTPProfPath       = "/p"
 	defaultAPIProto           = "http"
 	defaultAPIListen          = "127.0.0.1:7777"
 	defaultIndentJSON         = "   "
@@ -61,13 +63,16 @@ var (
 
 type config struct {
 	// General application behavior
+	HomeDir      string `short:"A" long:"appdata" description:"Path to application home directory"`
 	ConfigFile   string `short:"C" long:"configfile" description:"Path to configuration file"`
+	DataDir      string `short:"b" long:"datadir" description:"Directory to store data"`
+	LogDir       string `long:"logdir" description:"Directory to log output."`
+	OutFolder    string `short:"f" long:"outfolder" description:"Folder for file outputs"`
 	ShowVersion  bool   `short:"V" long:"version" description:"Display version information and exit"`
 	TestNet      bool   `long:"testnet" description:"Use the test network (default mainnet)"`
 	SimNet       bool   `long:"simnet" description:"Use the simulation test network (default mainnet)"`
 	DebugLevel   string `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
 	Quiet        bool   `short:"q" long:"quiet" description:"Easy way to set debuglevel to error"`
-	LogDir       string `long:"logdir" description:"Directory to log output"`
 	HTTPProfile  bool   `long:"httpprof" short:"p" description:"Start HTTP profiler."`
 	HTTPProfPath string `long:"httpprofprefix" description:"URL path prefix for the HTTP profiler."`
 	CPUProfile   string `long:"cpuprofile" description:"File for CPU profiling."`
@@ -78,10 +83,6 @@ type config struct {
 	IndentJSON         string `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
 	UseRealIP          bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order."`
 	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes."`
-
-	// Command execution
-	//CmdName string `short:"c" long:"cmdname" description:"Command name to run. Must be on %PATH%."`
-	//CmdArgs string `short:"a" long:"cmdargs" description:"Comma-separated list of arguments for command to run. The specifier %n is substituted for block height at execution, and %h is substituted for block hash."`
 
 	// Data I/O
 	MonitorMempool     bool   `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added."`
@@ -97,16 +98,12 @@ type config struct {
 	PGPass   string `long:"pgpass" description:"PostgreSQL DB password."`
 	PGHost   string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)."`
 
-	//WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
-	//WatchOutpoints []string `short:"o" long:"watchout" description:"Watched outpoint (sending). One per line."`
-
+	// WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
 	// SMTPUser     string `long:"smtpuser" description:"SMTP user name"`
 	// SMTPPass     string `long:"smtppass" description:"SMTP password"`
 	// SMTPServer   string `long:"smtpserver" description:"SMTP host name"`
 	// EmailAddr    string `long:"emailaddr" description:"Destination email address for alerts"`
 	// EmailSubject string `long:"emailsubj" description:"Email subject. (default \"dcrdataapi transaction notification\")"`
-
-	OutFolder string `short:"f" long:"outfolder" description:"Folder for file outputs"`
 
 	// RPC client options
 	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name"`
@@ -118,9 +115,12 @@ type config struct {
 
 var (
 	defaultConfig = config{
-		DebugLevel:         defaultLogLevel,
-		ConfigFile:         defaultConfigFile,
+		HomeDir:            defaultHomeDir,
+		DataDir:            defaultDataDir,
 		LogDir:             defaultLogDir,
+		ConfigFile:         defaultConfigFile,
+		DBFileName:         defaultDBFileName,
+		DebugLevel:         defaultLogLevel,
 		HTTPProfPath:       defaultHTTPProfPath,
 		APIProto:           defaultAPIProto,
 		APIListen:          defaultAPIListen,
@@ -131,7 +131,6 @@ var (
 		MempoolMinInterval: defaultMempoolMinInterval,
 		MempoolMaxInterval: defaultMempoolMaxInterval,
 		MPTriggerTickets:   defaultMPTriggerTickets,
-		DBFileName:         defaultDBFileName,
 		PGDBName:           defaultPGDBName,
 		PGUser:             defaultPGUser,
 		PGPass:             defaultPGPass,
@@ -139,22 +138,53 @@ var (
 	}
 )
 
-// cleanAndExpandPath expands environment variables and leading ~ in the
-// passed path, cleans the result, and returns it.
+// cleanAndExpandPath expands environment variables and leading ~ in the passed
+// path, cleans the result, and returns it.
 func cleanAndExpandPath(path string) string {
-	// Expand initial ~ to OS specific home directory.
-	if strings.HasPrefix(path, "~") {
-		homeDir := filepath.Dir(dcrdHomeDir)
-		path = strings.Replace(path, "~", homeDir, 1)
+	// NOTE: The os.ExpandEnv doesn't work with Windows cmd.exe-style
+	// %VARIABLE%, but the variables can still be expanded via POSIX-style
+	// $VARIABLE.
+	path = os.ExpandEnv(path)
+
+	if !strings.HasPrefix(path, "~") {
+		return filepath.Clean(path)
 	}
 
-	// NOTE: The os.ExpandEnv doesn't work with Windows cmd.exe-style
-	// %VARIABLE%, but they variables can still be expanded via POSIX-style
-	// $VARIABLE.
-	// So, replace any %VAR% with ${VAR}
-	r := regexp.MustCompile(`%(?P<VAR>[^%/\\]*)%`)
-	path = r.ReplaceAllString(path, "$${${VAR}}")
-	return filepath.Clean(os.ExpandEnv(path))
+	// Expand initial ~ to the current user's home directory, or ~otheruser to
+	// otheruser's home directory.  On Windows, both forward and backward
+	// slashes can be used.
+	path = path[1:]
+
+	var pathSeparators string
+	if runtime.GOOS == "windows" {
+		pathSeparators = string(os.PathSeparator) + "/"
+	} else {
+		pathSeparators = string(os.PathSeparator)
+	}
+
+	userName := ""
+	if i := strings.IndexAny(path, pathSeparators); i != -1 {
+		userName = path[:i]
+		path = path[i:]
+	}
+
+	homeDir := ""
+	var u *user.User
+	var err error
+	if userName == "" {
+		u, err = user.Current()
+	} else {
+		u, err = user.Lookup(userName)
+	}
+	if err == nil {
+		homeDir = u.HomeDir
+	}
+	// Fallback to CWD if user lookup fails or user has no home directory.
+	if homeDir == "" {
+		homeDir = "."
+	}
+
+	return filepath.Join(homeDir, path)
 }
 
 // validLogLevel returns whether or not logLevel is a valid debug log level.
@@ -264,7 +294,8 @@ func loadConfig() (*config, error) {
 	appName := filepath.Base(os.Args[0])
 	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
 	if preCfg.ShowVersion {
-		fmt.Println(appName, "version", ver.String())
+		fmt.Printf("%s version %s (Go version %s)\n", appName,
+			ver.String(), runtime.Version())
 		os.Exit(0)
 	}
 
@@ -290,6 +321,25 @@ func loadConfig() (*config, error) {
 		return loadConfigError(err)
 	}
 
+	// Create the home directory if it doesn't already exist.
+	funcName := "loadConfig"
+	err = os.MkdirAll(cfg.HomeDir, 0700)
+	if err != nil {
+		// Show a nicer error message if it's because a symlink is linked to a
+		// directory that does not exist (probably because it's not mounted).
+		if e, ok := err.(*os.PathError); ok && os.IsExist(err) {
+			if link, lerr := os.Readlink(e.Path); lerr == nil {
+				str := "is symlink %s -> %s mounted?"
+				err = fmt.Errorf(str, e.Path, link)
+			}
+		}
+
+		str := "%s: failed to create home directory: %v"
+		err := fmt.Errorf(str, funcName, err)
+		fmt.Fprintln(os.Stderr, err)
+		return nil, err
+	}
+
 	// Warn about missing config file after the final command line parse
 	// succeeds.  This prevents the warning on help messages and invalid
 	// options.
@@ -298,8 +348,8 @@ func loadConfig() (*config, error) {
 		return loadConfigError(configFileError)
 	}
 
-	// Choose the active network params based on the selected network.
-	// Multiple networks can't be selected simultaneously.
+	// Choose the active network params based on the selected network. Multiple
+	// networks can't be selected simultaneously.
 	numNets := 0
 	activeNet = &netparams.MainNetParams
 	activeChain = &chaincfg.MainNetParams
@@ -314,40 +364,44 @@ func loadConfig() (*config, error) {
 		numNets++
 	}
 	if numNets > 1 {
-		str := "%s: The testnet and simnet params can't be used " +
-			"together -- choose one"
+		str := "%s: the testnet and simnet params can't be " +
+			"used together -- choose one of the three"
 		err := fmt.Errorf(str, "loadConfig")
 		fmt.Fprintln(os.Stderr, err)
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
 	}
 
-	// Set the host names and ports to the default if the
-	// user does not specify them.
+	// Append the network type to the data directory so it is "namespaced" per
+	// network.  In addition to the block database, there are other pieces of
+	// data that are saved to disk such as address manager state. All data is
+	// specific to a network, so namespacing the data directory means each
+	// individual piece of serialized data does not have to worry about changing
+	// names per network and such.
+	//
+	// Make list of old versions of testnet directories here since the network
+	// specific DataDir will be used after this.
+	cfg.DataDir = cleanAndExpandPath(cfg.DataDir)
+	cfg.DataDir = filepath.Join(cfg.DataDir, netName(activeNet))
+	logRotator = nil
+	// Append the network type to the log directory so it is "namespaced"
+	// per network in the same fashion as the data directory.
+	cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
+	cfg.LogDir = filepath.Join(cfg.LogDir, netName(activeNet))
+
+	// Initialize log rotation.  After log rotation has been initialized, the
+	// logger variables may be used.
+	initLogRotator(filepath.Join(cfg.LogDir, defaultLogFilename))
+
+	// Set the host names and ports to the default if the user does not specify
+	// them.
 	if cfg.DcrdServ == "" {
 		cfg.DcrdServ = defaultHost + ":" + activeNet.JSONRPCClientPort
 	}
 
-	// Put comma-separated command line arguments into slice of strings
-	//cfg.CmdArgs = strings.Split(cfg.CmdArgs[0], ",")
-
-	// // Output folder
+	// Output folder
 	cfg.OutFolder = cleanAndExpandPath(cfg.OutFolder)
 	cfg.OutFolder = filepath.Join(cfg.OutFolder, activeNet.Name)
-
-	// The HTTP server port can not be beyond a uint16's size in value.
-	// if cfg.HttpSvrPort > 0xffff {
-	// 	str := "%s: Invalid HTTP port number for HTTP server"
-	// 	err := fmt.Errorf(str, "loadConfig")
-	// 	fmt.Fprintln(os.Stderr, err)
-	// 	parser.WriteHelp(os.Stderr)
-	// 	return loadConfigError(err)
-	// }
-
-	// Append the network type to the log directory so it is "namespaced"
-	// per network.
-	cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
-	cfg.LogDir = filepath.Join(cfg.LogDir, activeNet.Name)
 
 	// Special show command to list supported subsystems and exit.
 	if cfg.DebugLevel == "show" {
@@ -355,19 +409,17 @@ func loadConfig() (*config, error) {
 		os.Exit(0)
 	}
 
-	// Ensure HTTP profiler is mounted with a valid path prefix
+	// Ensure HTTP profiler is mounted with a valid path prefix.
 	if cfg.HTTPProfile && (cfg.HTTPProfPath == "/" || len(defaultHTTPProfPath) == 0) {
 		return loadConfigError(fmt.Errorf("httpprofprefix must not be \"\" or \"/\""))
 	}
-
-	// Initialize log rotation.  After log rotation has been initialized, the
-	// logger variables may be used.
-	initLogRotator(filepath.Join(cfg.LogDir, defaultLogFilename))
 
 	// Parse, validate, and set debug log level(s).
 	if cfg.Quiet {
 		cfg.DebugLevel = "error"
 	}
+
+	// Parse, validate, and set debug log level(s).
 	if err := parseAndSetDebugLevels(cfg.DebugLevel); err != nil {
 		err = fmt.Errorf("%s: %v", "loadConfig", err.Error())
 		fmt.Fprintln(os.Stderr, err)
@@ -376,4 +428,22 @@ func loadConfig() (*config, error) {
 	}
 
 	return &cfg, nil
+}
+
+// netName returns the name used when referring to a decred network.  At the
+// time of writing, dcrd currently places blocks for testnet version 0 in the
+// data and log directory "testnet", which does not match the Name field of the
+// chaincfg parameters.  This function can be used to override this directory name
+// as "testnet2" when the passed active network matches wire.TestNet2.
+//
+// A proper upgrade to move the data and log directories for this network to
+// "testnet" is planned for the future, at which point this function can be
+// removed and the network parameter's name used instead.
+func netName(chainParams *netparams.Params) string {
+	switch chainParams.Net {
+	case wire.TestNet2:
+		return "testnet2"
+	default:
+		return chainParams.Name
+	}
 }
