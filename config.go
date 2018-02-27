@@ -1,5 +1,5 @@
+// Copyright (c) 2016-2018 The Decred developers
 // Copyright (c) 2017 Jonathan Chappelow
-// Copyright (c) 2016 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -268,11 +268,6 @@ func loadConfig() (*config, error) {
 	// Default config.
 	cfg := defaultConfig
 
-	// A config file in the current directory takes precedence.
-	if _, err := os.Stat(defaultConfigFilename); !os.IsNotExist(err) {
-		cfg.ConfigFile = defaultConfigFile
-	}
-
 	// Pre-parse the command line options to see if an alternative config
 	// file or the version flag was specified.
 	preCfg := cfg
@@ -301,15 +296,30 @@ func loadConfig() (*config, error) {
 
 	// Load additional config from file.
 	var configFileError error
+	// Config file name for logging.
+	configFile := "NONE (defaults)"
 	parser := flags.NewParser(&cfg, flags.Default)
-	err = flags.NewIniParser(parser).ParseFile(preCfg.ConfigFile)
-	if err != nil {
-		if _, ok := err.(*os.PathError); !ok {
+	if _, err := os.Stat(preCfg.ConfigFile); os.IsNotExist(err) {
+		// Non-default config file must exist
+		if defaultConfig.ConfigFile != preCfg.ConfigFile {
 			fmt.Fprintln(os.Stderr, err)
-			parser.WriteHelp(os.Stderr)
 			return loadConfigError(err)
 		}
-		configFileError = err
+		// Warn about missing default config file, but continue
+		fmt.Printf("Config file (%s) does not exist. Using defaults.\n",
+			preCfg.ConfigFile)
+	} else {
+		// The config file exists, so attempt to parse it.
+		err = flags.NewIniParser(parser).ParseFile(preCfg.ConfigFile)
+		if err != nil {
+			if _, ok := err.(*os.PathError); !ok {
+				fmt.Fprintln(os.Stderr, err)
+				parser.WriteHelp(os.Stderr)
+				return loadConfigError(err)
+			}
+			configFileError = err
+		}
+		configFile = preCfg.ConfigFile
 	}
 
 	// Parse command line options again to ensure they take precedence.
@@ -366,7 +376,7 @@ func loadConfig() (*config, error) {
 	if numNets > 1 {
 		str := "%s: the testnet and simnet params can't be " +
 			"used together -- choose one of the three"
-		err := fmt.Errorf(str, "loadConfig")
+		err := fmt.Errorf(str, funcName)
 		fmt.Fprintln(os.Stderr, err)
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
@@ -383,15 +393,24 @@ func loadConfig() (*config, error) {
 	// specific DataDir will be used after this.
 	cfg.DataDir = cleanAndExpandPath(cfg.DataDir)
 	cfg.DataDir = filepath.Join(cfg.DataDir, netName(activeNet))
+	// Create the data folder if it does not exist.
+	err = os.MkdirAll(cfg.DataDir, 0700)
+	if err != nil {
+		return nil, err
+	}
+
 	logRotator = nil
 	// Append the network type to the log directory so it is "namespaced"
 	// per network in the same fashion as the data directory.
 	cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
 	cfg.LogDir = filepath.Join(cfg.LogDir, netName(activeNet))
 
-	// Initialize log rotation.  After log rotation has been initialized, the
-	// logger variables may be used.
+	// Initialize log rotation. After log rotation has been initialized, the
+	// logger variables may be used. This creates the LogDir if needed.
 	initLogRotator(filepath.Join(cfg.LogDir, defaultLogFilename))
+
+	log.Infof("Log folder:  %s", cfg.LogDir)
+	log.Infof("Config file: %s", configFile)
 
 	// Set the host names and ports to the default if the user does not specify
 	// them.
@@ -421,7 +440,7 @@ func loadConfig() (*config, error) {
 
 	// Parse, validate, and set debug log level(s).
 	if err := parseAndSetDebugLevels(cfg.DebugLevel); err != nil {
-		err = fmt.Errorf("%s: %v", "loadConfig", err.Error())
+		err = fmt.Errorf("%s: %v", funcName, err.Error())
 		fmt.Fprintln(os.Stderr, err)
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
@@ -433,8 +452,8 @@ func loadConfig() (*config, error) {
 // netName returns the name used when referring to a decred network.  At the
 // time of writing, dcrd currently places blocks for testnet version 0 in the
 // data and log directory "testnet", which does not match the Name field of the
-// chaincfg parameters.  This function can be used to override this directory name
-// as "testnet2" when the passed active network matches wire.TestNet2.
+// chaincfg parameters.  This function can be used to override this directory
+// name as "testnet2" when the passed active network matches wire.TestNet2.
 //
 // A proper upgrade to move the data and log directories for this network to
 // "testnet" is planned for the future, at which point this function can be
