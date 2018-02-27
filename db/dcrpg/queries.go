@@ -8,13 +8,13 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/dcrdata/dcrdata/db/dbtypes"
-	"github.com/dcrdata/dcrdata/db/dcrpg/internal"
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dcrpg/internal"
+	"github.com/decred/dcrdata/txhelpers"
 	"github.com/lib/pq"
 )
 

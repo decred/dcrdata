@@ -135,7 +135,7 @@
     "txscript",
     "wire"
   ]
-  revision = "ea1d3750ba6b7307793335846bbfe5264dd190d3"
+  revision = "15103088108d8a81b800e1a0066f010c9fb8b2ea"
 
 [[projects]]
   branch = "master"
@@ -148,7 +148,7 @@
     "wallet/udb",
     "walletdb"
   ]
-  revision = "ed371955e7f871721ed5660e30ca465f397f73a8"
+  revision = "a47b29d4b51906f396080761e13c9af07686b9c0"
 
 [[projects]]
   branch = "master"
@@ -201,7 +201,8 @@
 [[projects]]
   name = "github.com/mattn/go-sqlite3"
   packages = ["."]
-  revision = "05548ff55570cdb9ac72ff4a25a3b5e77a6fb7e5"
+  revision = "6c771bb9887719704b210e87e934f08be014bdb1"
+  version = "v1.6.0"
 
 [[projects]]
   branch = "master"
@@ -218,7 +219,8 @@
 [[projects]]
   name = "github.com/rs/cors"
   packages = ["."]
-  revision = "eabcc6af4bbe5ad3a949d36450326a2b0b9894b8"
+  revision = "feef513b9575b32f84bafa580aad89b011259019"
+  version = "v1.3.0"
 
 [[projects]]
   branch = "master"
@@ -237,26 +239,23 @@
     "salsa20/salsa",
     "scrypt"
   ]
-  revision = "49796115aa4b964c318aad4f3084fdb41e9aa067"
+  revision = "beaf6a35706e5032ae4c3fcf342c663c069f44d2"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = [
-    "context",
-    "websocket"
-  ]
+  packages = ["websocket"]
   revision = "cbe0f9307d0156177f9dd5dc85da1a31abc5f2fb"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "88d2dcc510266da9f7f8c7f34e1940716cab5f5c"
+  revision = "f6cff0780e542efa0c8e864dc8fa522808f6a598"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "752ef1af27fee71e6a40332aaeed13bcda0400f30dd4ca65beaa1383559a80ea"
+  inputs-digest = "eeb17db2317ac995e28c517648c147a1788d6c588c1b676478d2d0929fd57c6d"
   solver-name = "gps-cdcl"
   solver-version = 1
