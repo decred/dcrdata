@@ -42,7 +42,8 @@ type wiredDB struct {
 	waitChan chan chainhash.Hash
 }
 
-func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) (wiredDB, func() error) {
+func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
+	p *chaincfg.Params, datadir string) (wiredDB, func() error) {
 	wDB := wiredDB{
 		DBDataSaver: &DBDataSaver{DB, statusC},
 		MPC:         new(mempool.MempoolDataCache),
@@ -51,7 +52,7 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.P
 	}
 
 	var err error
-	wDB.sDB, err = stakedb.NewStakeDatabase(cl, p)
+	wDB.sDB, err = stakedb.NewStakeDatabase(cl, p, datadir)
 	if err != nil {
 		log.Errorf("Unable to create stake DB: %v", err)
 		return wDB, func() error { return nil }
@@ -62,14 +63,15 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.P
 // NewWiredDB creates a new wiredDB from a *sql.DB, a node client, network
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
-func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) (wiredDB, func() error, error) {
+func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
+	p *chaincfg.Params, datadir string) (wiredDB, func() error, error) {
 	// Create the sqlite.DB
 	DB, err := NewDB(db)
 	if err != nil || DB == nil {
 		return wiredDB{}, func() error { return nil }, err
 	}
 	// Create the wiredDB
-	wDB, cleanup := newWiredDB(DB, statusC, cl, p)
+	wDB, cleanup := newWiredDB(DB, statusC, cl, p, datadir)
 	if wDB.sDB == nil {
 		err = fmt.Errorf("failed to create StakeDatabase")
 	}
@@ -78,13 +80,14 @@ func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client, p *chainc
 
 // InitWiredDB creates a new wiredDB from a file containing the data for a
 // sql.DB. The other parameters are same as those for NewWiredDB.
-func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client, p *chaincfg.Params) (wiredDB, func() error, error) {
+func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
+	p *chaincfg.Params, datadir string) (wiredDB, func() error, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
 		return wiredDB{}, func() error { return nil }, err
 	}
 
-	wDB, cleanup := newWiredDB(db, statusC, cl, p)
+	wDB, cleanup := newWiredDB(db, statusC, cl, p, datadir)
 	if wDB.sDB == nil {
 		err = fmt.Errorf("failed to create StakeDatabase")
 	}

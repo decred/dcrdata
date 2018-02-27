@@ -13,6 +13,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -105,9 +106,10 @@ func mainCore() error {
 		nodeVer.String(), curnet.String())
 
 	// Sqlite output
-	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
+	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
+	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
 	baseDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
-		ntfnChans.updateStatusDBHeight, dcrdClient, activeChain)
+		ntfnChans.updateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir)
 	defer cleanupDB()
 	if err != nil {
 		return fmt.Errorf("Unable to initialize SQLite database: %v", err)

@@ -110,7 +110,7 @@ func mainCore() error {
 		}
 	}
 
-	stakeDB, err := stakedb.NewStakeDatabase(client, activeChain, "pg_rebuild_stakedb")
+	stakeDB, err := stakedb.NewStakeDatabase(client, activeChain, "rebuild_data")
 	if err != nil {
 		return fmt.Errorf("Unable to create stake DB: %v", err)
 	}
