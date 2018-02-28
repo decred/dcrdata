@@ -48,7 +48,7 @@ testrepo () {
   fi
 
   # Check tests
-  env GORACE='halt_on_error=1' go test -race ./...
+  env GORACE='halt_on_error=1' go test -race $(go list ./... | grep -v vendor)
   if [ $? != 0 ]; then
     echo 'go tests failed'
     exit 1
