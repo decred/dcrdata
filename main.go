@@ -13,6 +13,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -60,9 +61,6 @@ func mainCore() error {
 	// Start with version info
 	log.Infof(appName+" version %s", ver.String())
 
-	//log.Debugf("Output folder: %v", cfg.OutFolder)
-	log.Debugf("Log folder: %v", cfg.LogDir)
-
 	// PostgreSQL
 	usePG := cfg.FullMode
 	if usePG {
@@ -105,9 +103,10 @@ func mainCore() error {
 		nodeVer.String(), curnet.String())
 
 	// Sqlite output
-	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
+	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
+	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
 	baseDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
-		ntfnChans.updateStatusDBHeight, dcrdClient, activeChain)
+		ntfnChans.updateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir)
 	defer cleanupDB()
 	if err != nil {
 		return fmt.Errorf("Unable to initialize SQLite database: %v", err)
@@ -273,6 +272,9 @@ func mainCore() error {
 
 	// Create the explorer system
 	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, ver.String())
+	if explore == nil {
+		return fmt.Errorf("failed to create new explorer (templates missing?)")
+	}
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
 	blockDataSavers = append(blockDataSavers, explore)

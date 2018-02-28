@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -106,17 +107,23 @@ const (
 	// dbType is the database backend type to use
 	dbType = "ffldb"
 	// DefaultStakeDbName is the default name of the stakedb database folder
-	DefaultStakeDbName = "ffldb_stake"
+	DefaultStakeDbName = "stakenodes"
 	// DefaultTicketPoolDbName is the default name of the ticket pool database
-	DefaultTicketPoolDbName = "stakedb_ticket_pool.db"
+	DefaultTicketPoolDbName = "ticket_pool.db"
 )
 
 // NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
 // ffldb-backed stake database, and loads all live tickets into a cache.
 func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
-	dbNameOpt ...string) (*StakeDatabase, error) {
+	dbFolder string) (*StakeDatabase, error) {
+	// Create DB folder
+	err := os.MkdirAll(dbFolder, 0700)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create DB folder: %v", err)
+	}
 	log.Infof("Loading ticket pool DB. This may take a minute...")
-	poolDB, err := NewTicketPool(DefaultTicketPoolDbName)
+	ticketPoolDBPath := filepath.Join(dbFolder, DefaultTicketPoolDbName)
+	poolDB, err := NewTicketPool(ticketPoolDBPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ticket pool DB: %v", err)
 	}
@@ -134,12 +141,8 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	// genesis. Hence it will never be connected, how TPI is usually cached.
 	sDB.poolInfo.Set(*params.GenesisHash, &apitypes.TicketPoolInfo{})
 
-	dbName := DefaultStakeDbName
-	if len(dbNameOpt) > 0 {
-		dbName = dbNameOpt[0]
-	}
-
-	if err = sDB.Open(dbName); err != nil {
+	stakeDBPath := filepath.Join(dbFolder, DefaultStakeDbName)
+	if err = sDB.Open(stakeDBPath); err != nil {
 		return nil, err
 	}
 
