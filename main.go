@@ -277,8 +277,9 @@ func mainCore() error {
 	}
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
+	defer explore.StopMempoolMonitor(ntfnChans.expNewTxChan)
+
 	blockDataSavers = append(blockDataSavers, explore)
-	mempoolSavers = append(mempoolSavers, explore)
 
 	// Sync up with the blockchain
 	getSyncd := func(updateAddys, updateVotes, newPGInds bool) (int64, int64, error) {
@@ -377,6 +378,8 @@ func mainCore() error {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
 	}
 
+	explore.StartMempoolMonitor(ntfnChans.expNewTxChan)
+
 	// blockdata collector
 	wg.Add(2)
 	go wsChainMonitor.BlockConnectedHandler()
@@ -410,12 +413,6 @@ func mainCore() error {
 		// Store initial MP data
 		if err = baseDB.MPC.StoreMPData(mpData, time.Now()); err != nil {
 			return fmt.Errorf("Failed to store initial mempool data (wiredDB): %v",
-				err.Error())
-		}
-
-		// Store initial MP data to explore
-		if err = explore.StoreMPData(mpData, time.Now()); err != nil {
-			return fmt.Errorf("Failed to store initial mempool data (explore): %v",
 				err.Error())
 		}
 
@@ -469,6 +466,7 @@ func mainCore() error {
 
 	webMux.Mount("/explorer", explore.Mux)
 	webMux.Get("/blocks", explore.Blocks)
+	webMux.Get("/mempool", explore.Mempool)
 	webMux.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
 	webMux.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)
 	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)

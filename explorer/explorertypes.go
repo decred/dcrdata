@@ -198,8 +198,26 @@ type BlockSubsidy struct {
 // MempoolInfo models data to update mempool info on the home page
 type MempoolInfo struct {
 	sync.RWMutex
-	NumTickets uint32 `json:"num_tickets"`
-	NumVotes   uint32 `json:"num_votes"`
+	MempoolShort
+	Transactions []MempoolTx `json:"tx"`
+	Tickets      []MempoolTx `json:"tickets"`
+	Votes        []MempoolTx `json:"votes"`
+	Revocations  []MempoolTx `json:"revs"`
+}
+
+// MempoolShort represents the mempool data sent as the mempool update
+type MempoolShort struct {
+	LastBlockHeight    int64       `json:"block_height"`
+	LastBlockTime      int64       `json:"block_time"`
+	TotalOut           float64     `json:"total"`
+	TotalSize          int32       `json:"size"`
+	NumTickets         int         `json:"num_tickets"`
+	NumVotes           int         `json:"num_votes"`
+	NumRegular         int         `json:"num_regular"`
+	NumRevokes         int         `json:"num_revokes"`
+	NumAll             int         `json:"num_all"`
+	LatestTransactions []MempoolTx `json:"latest"`
+	FormattedTotalSize string      `json:"formatted_size"`
 }
 
 // ChainParams models simple data about the chain server's parameters used for some
@@ -276,4 +294,20 @@ type TicketPoolInfo struct {
 	Percentage    float64 `json:"percent"`
 	Target        uint16  `json:"target"`
 	PercentTarget float64 `json:"percent_target"`
+}
+
+// MempoolTx models the tx basic data for the mempool page
+type MempoolTx struct {
+	Hash     string    `json:"hash"`
+	Time     int64     `json:"time"`
+	Size     int32     `json:"size"`
+	TotalOut float64   `json:"total"`
+	Type     string    `json:"Type"`
+	VoteInfo *VoteInfo `json:"vote_info"`
+}
+
+// NewMempoolTx models data sent from the notification handler
+type NewMempoolTx struct {
+	Time int64
+	Hex  string
 }

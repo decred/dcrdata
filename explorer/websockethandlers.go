@@ -18,7 +18,7 @@ import (
 func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
 		// Create channel to signal updated data availability
-		updateSig := make(hubSpoke)
+		updateSig := make(hubSpoke, 3)
 		// register websocket client with our signal channel
 		exp.wsHub.RegisterClient(&updateSig)
 		// unregister (and close signal channel) before return
@@ -48,6 +48,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				ws.SetReadDeadline(time.Now().Add(wsReadTimeout))
 				if err := websocket.JSON.Receive(ws, &msg); err != nil {
 					log.Warnf("websocket client receive error: %v", err)
+					exp.wsHub.UnregisterClient(&updateSig)
 					return
 				}
 
@@ -89,6 +90,19 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					} else {
 						webData.Message = fmt.Sprintf("Transaction sent: %s", txid)
 					}
+				case "getmempooltxs":
+					webData.EventId = msg.EventId + "Resp"
+
+					exp.MempoolData.Lock()
+					msg, err := json.Marshal(exp.MempoolData)
+					exp.MempoolData.Unlock()
+
+					if err != nil {
+						log.Warn("Invalid JSON message: ", err)
+						webData.Message = fmt.Sprintf("Error: Could not encode JSON message")
+						break
+					}
+					webData.Message = string(msg)
 				case "ping":
 					log.Tracef("We've been pinged: %.40s...", msg.Message)
 					continue
@@ -132,8 +146,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				log.Tracef("signaling client: %p", &updateSig)
 
 				// Write block data to websocket client
-				exp.NewBlockDataMtx.RLock()
-				exp.MempoolData.RLock()
+
 				webData := WebSocketMessage{
 					EventId: eventIDs[sig],
 				}
@@ -141,23 +154,30 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				enc := json.NewEncoder(buff)
 				switch sig {
 				case sigNewBlock:
+					exp.NewBlockDataMtx.Lock()
 					enc.Encode(WebsocketBlock{
 						Block: exp.NewBlockData,
 						Extra: exp.ExtraInfo,
 					})
+					exp.NewBlockDataMtx.Unlock()
 					webData.Message = buff.String()
 				case sigMempoolUpdate:
-					enc.Encode(exp.MempoolData)
+					exp.MempoolData.Lock()
+					enc.Encode(exp.MempoolData.MempoolShort)
+					exp.MempoolData.Unlock()
 					webData.Message = buff.String()
 				case sigPingAndUserCount:
 					// ping and send user count
 					webData.Message = strconv.Itoa(exp.wsHub.NumClients())
+				case sigNewTx:
+					tx := <-exp.wsHub.clients[&updateSig]
+					enc.Encode(tx)
+					webData.Message = buff.String()
 				}
 
 				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 				err := websocket.JSON.Send(ws, webData)
-				exp.MempoolData.RUnlock()
-				exp.NewBlockDataMtx.RUnlock()
+
 				if err != nil {
 					log.Debugf("Failed to encode WebSocketMessage %v: %v", sig, err)
 					// If the send failed, the client is probably gone, so close

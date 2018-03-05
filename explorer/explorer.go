@@ -25,7 +25,6 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/mempool"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -35,6 +34,7 @@ import (
 const (
 	homeTemplateIndex int = iota
 	rootTemplateIndex
+	mempoolTemplateIndex
 	blockTemplateIndex
 	txTemplateIndex
 	addressTemplateIndex
@@ -64,6 +64,7 @@ type explorerDataSourceLite interface {
 	GetHeight() int
 	GetChainParams() *chaincfg.Params
 	CountUnconfirmedTransactions(address string, maxUnconfirmedPossible int64) (int64, error)
+	GetMempool() []MempoolTx
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -142,6 +143,14 @@ func (exp *explorerUI) reloadTemplates() error {
 		return err
 	}
 
+	mempoolTemplate, err := template.New("mempool").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["mempool"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		return err
+	}
+
 	blockTemplate, err := template.New("block").Funcs(exp.templateHelpers).ParseFiles(
 		exp.templateFiles["block"],
 		exp.templateFiles["extras"],
@@ -184,6 +193,7 @@ func (exp *explorerUI) reloadTemplates() error {
 
 	exp.templates[homeTemplateIndex] = homeTemplate
 	exp.templates[rootTemplateIndex] = explorerTemplate
+	exp.templates[mempoolTemplateIndex] = mempoolTemplate
 	exp.templates[blockTemplateIndex] = blockTemplate
 	exp.templates[txTemplateIndex] = txTemplate
 	exp.templates[addressTemplateIndex] = addressTemplate
@@ -257,6 +267,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.templateFiles = make(map[string]string)
 	exp.templateFiles["home"] = filepath.Join("views", "home.tmpl")
 	exp.templateFiles["explorer"] = filepath.Join("views", "explorer.tmpl")
+	exp.templateFiles["mempool"] = filepath.Join("views", "mempool.tmpl")
 	exp.templateFiles["block"] = filepath.Join("views", "block.tmpl")
 	exp.templateFiles["tx"] = filepath.Join("views", "tx.tmpl")
 	exp.templateFiles["extras"] = filepath.Join("views", "extras.tmpl")
@@ -427,6 +438,15 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	}
 	exp.templates = append(exp.templates, explorerTemplate)
 
+	mempoolTemplate, err := template.New("mempool").Funcs(exp.templateHelpers).ParseFiles(
+		exp.templateFiles["mempool"],
+		exp.templateFiles["extras"],
+	)
+	if err != nil {
+		return noTemplateError(err)
+	}
+	exp.templates = append(exp.templates, mempoolTemplate)
+
 	blockTemplate, err := template.New("block").Funcs(exp.templateHelpers).ParseFiles(
 		exp.templateFiles["block"],
 		exp.templateFiles["extras"],
@@ -475,6 +495,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.addRoutes()
 
 	exp.wsHub = NewWebsocketHub()
+
 	go exp.wsHub.run()
 
 	return exp
@@ -558,16 +579,6 @@ func (exp *explorerUI) updateDevFundBalance() {
 	} else {
 		log.Warnf("explorerUI.updateDevFundBalance failed: %v", err)
 	}
-}
-
-func (exp *explorerUI) StoreMPData(data *mempool.MempoolData, timestamp time.Time) error {
-	exp.MempoolData.RLock()
-	exp.MempoolData.NumTickets = data.NumTickets
-	exp.MempoolData.NumVotes = data.NumVotes
-	exp.MempoolData.RUnlock()
-	exp.wsHub.HubRelay <- sigMempoolUpdate
-
-	return nil
 }
 
 func (exp *explorerUI) addRoutes() {

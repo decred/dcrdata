@@ -25,7 +25,7 @@
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKETS IN MEMPOOL</td>
-                            <td><span id="mempoolfeeinfo_number" class="mono fs24">{{$.Mempool.NumTickets}}</span></td>
+                            <td><span id="mempool_ticket_number" class="mono fs24">{{$.Mempool.NumTickets}}</span></td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">VOTES IN MEMPOOL</td>
@@ -144,6 +144,33 @@
             </div>
 
             <div class="col-md-6">
+
+                <h4 class="mb-3">Latest Transactions</h4>
+                <table class="table table-sm striped" id="mini-transactions">
+                    <thead>
+                        <th>Hash</th>
+                        <th>Type</th>
+                        <th>Total Sent</th>
+                        <th>Size</th>
+                        <th>Age</th>
+                    </thead>
+                    <tbody>
+                        {{range .Mempool.LatestTransactions}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/tx/{{.Hash}}">{{.Hash}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15">{{.Type}}</td>
+                                <td class="mono fs15">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</td>
+                                <td class="mono fs15">{{.Size}} B</td>
+                                <td class="mono fs15" data-age="{{.Time}}"></td>
+                            </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+                <div class="mb-3"><a href="/mempool"><small>More mempool...</small></a></div>
 
                 <h4 class="mb-3">Latest Blocks</h4>
                 <table class="table striped table-responsive full-width" id="explorertable">

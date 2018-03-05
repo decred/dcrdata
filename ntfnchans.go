@@ -8,6 +8,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dcrsqlite"
+	"github.com/decred/dcrdata/explorer"
 	"github.com/decred/dcrdata/mempool"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
@@ -20,6 +21,9 @@ const (
 	// newTxChanBuffer is the size of the new transaction channel buffer, for
 	// ANY transactions are added into mempool.
 	newTxChanBuffer = 48
+
+	// expNewTxChanBuffer is the size of the new transaction buffer for explorer
+	expNewTxChanBuffer = 70
 
 	reorgBuffer = 2
 
@@ -41,6 +45,7 @@ var ntfnChans struct {
 	spendTxBlockChan, recvTxBlockChan chan *txhelpers.BlockWatchedTx
 	relevantTxMempoolChan             chan *dcrutil.Tx
 	newTxChan                         chan *mempool.NewTx
+	expNewTxChan                      chan *explorer.NewMempoolTx
 }
 
 func makeNtfnChans(cfg *config) {
@@ -77,6 +82,9 @@ func makeNtfnChans(cfg *config) {
 	if cfg.MonitorMempool {
 		ntfnChans.newTxChan = make(chan *mempool.NewTx, newTxChanBuffer)
 	}
+
+	// New mempool tx chan for explorer
+	ntfnChans.expNewTxChan = make(chan *explorer.NewMempoolTx, expNewTxChanBuffer)
 }
 
 func closeNtfnChans() {
@@ -119,5 +127,8 @@ func closeNtfnChans() {
 	}
 	if ntfnChans.recvTxBlockChan != nil {
 		close(ntfnChans.recvTxBlockChan)
+	}
+	if ntfnChans.expNewTxChan != nil {
+		close(ntfnChans.expNewTxChan)
 	}
 }

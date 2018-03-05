@@ -153,6 +153,128 @@
             updateConnectionStatus('Disconnected', false);
         });
 
+        ws.registerEvtHandler("newtx", function(evt) {
+            console.log("New Transaction: ", evt);
+            var tx = JSON.parse(evt)
+            addTxRow = function(str) {
+                var rows = $('#' + str +' tbody tr')
+                var totalTxt = "" 
+                humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                    totalTxt += str.textContent
+                })
+                var newRow = '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
+                    tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
+                    '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
+                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+                var newRowHtml = $.parseHTML(newRow)
+                $(newRowHtml).insertBefore(rows.first())
+            }
+            switch (tx.Type) {
+                case "Ticket":
+                    $('#mempool_ticket_number').text(parseInt($('#mempool_ticket_number').text()) + 1)
+                    addTxRow('mempool_tickets')
+                    break
+                case "Vote":
+                    $('#mempool_vote_number').text(parseInt($('#mempool_vote_number').text()) + 1)
+                    var rows = $('#mempool_votes tbody tr')
+                    var totalTxt = "" 
+                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                        totalTxt += str.textContent
+                    })
+                    var newRow = '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
+                        tx.hash + '">' + tx.hash + '</a></span></td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
+                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
+                        '<td class="mono fs15">' + tx.size + ' B</td>' +
+                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+                    var newRowHtml = $.parseHTML(newRow)
+                    $(newRowHtml).insertBefore(rows.first())
+                    break
+                case "Regular":
+                    $('#mempool_regular_number').text(parseInt($('#mempool_regular_number').text()) + 1)
+                    addTxRow('mempool_transactions')
+                    break
+                case "Revoke":
+                    $('#mempool_revoke_number').text(parseInt($('#mempool_revoke_number').text()) + 1)
+                    addTxRow('mempool_revocations')
+                    break
+            }
+            
+            if (window.location.pathname == "/"){
+                var rows = $('#mini-transactions tbody tr')
+                var totalTxt = "" 
+                humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                    totalTxt += str.textContent
+                })
+                var newRow = '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
+                    tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    '<td class="mono fs15">' + tx.Type + '</td>' +
+                    '<td class="mono fs15">' + totalTxt +'</td>' +
+                    '<td class="mono fs15">' + tx.size + ' B</td>' +
+                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
+                var newRowHtml = $.parseHTML(newRow)
+                rows.last().remove()
+                $(newRowHtml).insertBefore(rows.first())
+            }
+            setTimeElements()
+        });
+
+        ws.registerEvtHandler("getmempooltxsResp", function(evt) {
+            console.log("Get Mempool: ", evt)
+            var newTable = ''
+            var makeNewTable =function (tx) {
+                    var totalTxt = "" 
+                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                        totalTxt += str.textContent
+                    })
+                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
+                    tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    '<td class="mono fs15 text-right">' + totalTxt +'</td>' +
+                    '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
+                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) + '</td>'
+                }
+            var m = JSON.parse(evt)
+
+            m.tickets.forEach(makeNewTable)
+            $('#mempool_tickets tbody').html($.parseHTML(newTable))
+
+            newTable = ''
+            m.tx.forEach(makeNewTable)
+            $('#mempool_transactions tbody').html($.parseHTML(newTable))
+
+            newTable = ''
+            m.votes.forEach(function (tx) {
+                var rows = $('#mempool_votes tbody tr')
+                    var totalTxt = "" 
+                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                        totalTxt += str.textContent
+                    })
+                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
+                        tx.hash + '">' + tx.hash + '</a></span></td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
+                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
+                        '<td class="mono fs15">' + tx.size + ' B</td>'  +
+                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+       
+            })
+            $('#mempool_votes tbody').html($.parseHTML(newTable))
+
+            if (m.num_revokes > 0) {
+                newTable = ''
+                m.votes.forEach(makeNewTable)
+                $('#mempool_revocations tbody').html($.parseHTML(newTable))
+            }
+
+            setTimeElements()
+        });     
+
         ws.registerEvtHandler("ping", function(evt) {
             console.log("ping. users online: ", evt)
             //ws.send("pong", "copy")
@@ -230,8 +352,36 @@
             var m = JSON.parse(event);
 
             //mempool info
-            $('#mempoolfeeinfo_number').text(m.num_tickets)
+            $('#mempool_ticket_number').text(m.num_tickets)
             $('#mempool_vote_number').text(m.num_votes)
+            $('#mempool_regular_number').text(m.num_regular)
+            $('#mempool_revoke_number').text(m.num_revokes)
+            if (window.location.pathname == "/mempool") {
+                $('#best_block').text(m.block_height)
+                $('#best_block').attr('href', '/block/'+m.block_height)
+                $('#best_block_time').data('age', m.block_time)
+                $('#mempool_size').text(m.formatted_size)
+                ws.send("getmempooltxs", "")
+            }
+
+            if (window.location.pathname == "/") {
+                var newTable = ""
+                m.latest.forEach(function (tx) {
+                    var totalTxt = "" 
+                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                        totalTxt += str.textContent
+                    })
+                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
+                    tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    '<td class="mono fs15">' + tx.Type + '</td>'+
+                    '<td class="mono fs15">' + totalTxt +'</td>' +
+                    '<td class="mono fs15">' + tx.size + ' B</td>' +
+                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>' 
+                })
+                $('#mini-transactions tbody').html(newTable)
+            }
+            setTimeElements()
+            updateAges()
         };
         ws.registerEvtHandler("mempool", updateMempool);
     }
@@ -304,6 +454,7 @@ Notify.requestPermission(function(){console.log("Desktop notification permission
         <div style="float: left">
             <a class="nav-item" href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
             <a class="nav-item" href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON-API Docs</a>
+            <a class="nav-item" href="/mempool" title="Decred mempool">Mempool</a>
         </div>
         <div style="text-align: left; margin:0 auto !important; display:inline-block">
             <a class="nav-item" href="https://github.com/decred/dcrdata" title="dcrdata on GitHub" target="_blank">dcrdata v{{.Version}}</a>
