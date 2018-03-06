@@ -65,6 +65,7 @@ type explorerDataSourceLite interface {
 	GetChainParams() *chaincfg.Params
 	CountUnconfirmedTransactions(address string, maxUnconfirmedPossible int64) (int64, error)
 	GetMempool() []MempoolTx
+	TxHeight(txid string) (height int64)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a

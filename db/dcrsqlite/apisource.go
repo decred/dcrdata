@@ -1324,3 +1324,19 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 
 	return txs
 }
+
+// TxHeight gives the block height of the transaction id specified
+func (db *wiredDB) TxHeight(txid string) (height int64) {
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return 0
+	}
+	txraw, err := db.client.GetRawTransactionVerbose(txhash)
+	if err != nil {
+		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
+		return 0
+	}
+	height = txraw.BlockHeight
+	return
+}

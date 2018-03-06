@@ -29,7 +29,7 @@ func (p TicketSpendType) String() string {
 	case TicketRevoked:
 		return "revoked"
 	case TicketVoted:
-		return "voted"
+		return "Voted"
 	default:
 		return "unknown"
 	}
@@ -49,7 +49,7 @@ func (p TicketPoolStatus) String() string {
 	case PoolStatusLive:
 		return "live"
 	case PoolStatusVoted:
-		return "voted"
+		return "Voted"
 	case PoolStatusExpired:
 		return "expired"
 	case PoolStatusMissed:
