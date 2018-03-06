@@ -36,6 +36,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 
 		// Ignore this tx if it was received before the last block
 		exp.NewBlockDataMtx.Lock()
+		lastBlock := exp.NewBlockData.Height
 		lastBlockTime := exp.NewBlockData.BlockTime
 		exp.NewBlockDataMtx.Unlock()
 
@@ -53,6 +54,9 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		var voteInfo *VoteInfo
 		if ok := stake.IsSSGen(msgTx); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, exp.ChainParams)
+			if validation.Height != lastBlock {
+				continue
+			}
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
 			} else {
@@ -147,11 +151,19 @@ func (exp *explorerUI) storeMempoolInfo() {
 	var totalOut float64
 	var totalSize int32
 
+	exp.NewBlockDataMtx.Lock()
+	lastBlock := exp.NewBlockData.Height
+	lastBlockTime := exp.NewBlockData.BlockTime
+	exp.NewBlockDataMtx.Unlock()
+
 	for _, tx := range memtxs {
 		switch tx.Type {
 		case "Ticket":
 			tickets = append(tickets, tx)
 		case "Vote":
+			if tx.VoteInfo.Validation.Height != lastBlock {
+				continue
+			}
 			votes = append(votes, tx)
 		case "Revocation":
 			revs = append(revs, tx)
@@ -161,11 +173,6 @@ func (exp *explorerUI) storeMempoolInfo() {
 		totalOut += tx.TotalOut
 		totalSize += tx.Size
 	}
-
-	exp.NewBlockDataMtx.Lock()
-	lastBlock := exp.NewBlockData.Height
-	lastBlockTime := exp.NewBlockData.BlockTime
-	exp.NewBlockDataMtx.Unlock()
 
 	exp.MempoolData.Lock()
 	defer exp.MempoolData.Unlock()
