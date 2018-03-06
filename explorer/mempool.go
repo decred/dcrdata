@@ -9,8 +9,7 @@ import (
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrdata/txhelpers"
-
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 )
 
 func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
