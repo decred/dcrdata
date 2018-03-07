@@ -16,7 +16,8 @@ import (
 func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 	exp.storeMempoolInfo()
 	exp.NewBlockDataMtx.Lock()
-	lastBlockHash, err := exp.blockData.GetBlockHash(exp.NewBlockData.Height)
+	lastBlock := exp.NewBlockData.Height
+	lastBlockHash, err := exp.blockData.GetBlockHash(lastBlock)
 	if err != nil {
 		log.Warnf("Could not get bloch hash for last block, mempool vote filter disabled")
 	}
@@ -39,9 +40,10 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		if ntx.Hex == "" {
 			exp.storeMempoolInfo()
 			exp.NewBlockDataMtx.Lock()
-			lastBlockHash, err = exp.blockData.GetBlockHash(exp.NewBlockData.Height)
+			lastBlock = exp.NewBlockData.Height
+			lastBlockHash, err = exp.blockData.GetBlockHash(lastBlock)
 			if err != nil {
-				log.Warnf("Could not get bloch hash for last block")
+				log.Warnf("Could not get block hash for last block")
 			}
 			lastBlockTime = exp.NewBlockData.BlockTime
 			exp.NewBlockDataMtx.Unlock()
@@ -65,7 +67,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		var voteInfo *VoteInfo
 		if ok := stake.IsSSGen(msgTx); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, exp.ChainParams)
-			if validation.Hash.String() != lastBlockHash && lastBlockHash != "" {
+			if !voteForLastBlock(lastBlockHash, validation.Hash.String(), lastBlock, validation.Height) {
 				continue
 			}
 			if err != nil {
@@ -174,7 +176,7 @@ func (exp *explorerUI) storeMempoolInfo() {
 	lastBlock := exp.NewBlockData.Height
 	lastBlockHash, err := exp.blockData.GetBlockHash(lastBlock)
 	if err != nil {
-		log.Warnf("Could not get bloch hash for last block, mempool vote filter disabled")
+		log.Warnf("Could not get block hash for last block, mempool vote filter disabled")
 	}
 	lastBlockTime := exp.NewBlockData.BlockTime
 	exp.NewBlockDataMtx.Unlock()
@@ -185,7 +187,7 @@ func (exp *explorerUI) storeMempoolInfo() {
 		case "Ticket":
 			tickets = append(tickets, tx)
 		case "Vote":
-			if lastBlockHash != "" && tx.VoteInfo.Validation.Hash != lastBlockHash {
+			if !voteForLastBlock(lastBlockHash, tx.VoteInfo.Validation.Hash, lastBlock, tx.VoteInfo.Validation.Height) {
 				continue
 			}
 			if idx, ok := txindexes[tx.VoteInfo.TicketSpent]; ok {
@@ -227,6 +229,17 @@ func (exp *explorerUI) storeMempoolInfo() {
 		FormattedTotalSize: humanize.Bytes(uint64(totalSize)),
 		TicketIndexes:      txindexes,
 	}
+}
+
+func voteForLastBlock(blockHash, validationHash string, blockHeight, validationHeight int64) bool {
+	// If the last block hash is empty then GetBlockHash(lastBlock) failed so check
+	// if the last block height and validation height are equal instead
+	if blockHash != "" && validationHash != blockHash {
+		return false
+	} else if blockHash == "" && validationHeight != blockHeight {
+		return false
+	}
+	return true
 }
 
 type byTime []MempoolTx
