@@ -290,6 +290,13 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		offsetAddrOuts = 0
 	}
 
+	// Transaction types to show.
+	txntype := r.URL.Query().Get("txntype")
+	if txntype == "" {
+		txntype = "all"
+	}
+	log.Debugf("Showing transaction types: %s", txntype)
+
 	var addrData *AddressInfo
 	if exp.liteMode {
 		addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
@@ -302,6 +309,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		// Get addresses table rows for the address
 		addrHist, balance, errH := exp.explorerSource.AddressHistory(
 			address, limitN, offsetAddrOuts)
+		// Fallback to RPC if DB query fails
 		if errH != nil {
 			log.Errorf("Unable to get address %s history: %v", address, errH)
 			addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)

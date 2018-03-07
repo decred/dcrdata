@@ -70,6 +70,15 @@ const (
 	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT * FROM addresses WHERE address=$1)
 		SELECT * FROM these order by id desc limit $2 offset $3;`
 
+	SelectAddressDebitsLimitNByAddress = `SELECT *
+		FROM addresses
+		WHERE address=$1 AND spending_tx_row_id IS NOT NULL
+		ORDER BY id DESC LIMIT $2 OFFSET $3;`
+	SelectAddressCreditsLimitNByAddress = `SELECT id, funding_tx_row_id, funding_tx_hash, funding_tx_vout_index, vout_row_id, value
+		FROM addresses
+		WHERE address=$1 AND spending_tx_row_id IS NULL
+		ORDER BY id DESC LIMIT $2 OFFSET $3;`
+
 	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses
 		WHERE funding_tx_hash=$1 and funding_tx_vout_index=$2;`
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses

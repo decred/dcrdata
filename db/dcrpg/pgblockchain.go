@@ -30,6 +30,14 @@ var (
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
 
+type AddrTxnType int
+
+const (
+	AddrTxnAll AddrTxnType = iota
+	AddrTxnCredit
+	AddrTxnDebit
+)
+
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
@@ -330,6 +338,30 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 	return blockHash, blockInd, tree, err
 }
 
+func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
+	txnType AddrTxnType) (addressRows []*dbtypes.AddressRow, err error) {
+	var addrFunc func(*sql.DB, string, int64, int64) ([]uint64, []*dbtypes.AddressRow, error)
+	switch txnType {
+	case AddrTxnAll:
+		// The organization address occurs very frequently, so use the regular
+		// (non sub-query) select as it is much more efficient.
+		if address == pgb.devAddress {
+			addrFunc = RetrieveAddressTxnsAlt
+		} else {
+			addrFunc = RetrieveAddressTxns
+		}
+	case AddrTxnCredit:
+		addrFunc = RetrieveAddressCreditTxns
+	case AddrTxnDebit:
+		addrFunc = RetrieveAddressDebitTxns
+	default:
+		return nil, fmt.Errorf("Unknown AddrTxnType %v", txnType)
+	}
+
+	_, addressRows, err = addrFunc(pgb.db, address, N, offset)
+	return
+}
+
 // AddressHistory queries the database for all rows of the addresses table for
 // the given address.
 func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error) {
@@ -357,17 +389,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.
 		pgb.addressCounts.validHeight = bestBlock
 	}
 
-	// The organization address occurs very frequently, so use the regular (non
-	// sub-query) select as it is much more efficient.
-	var addressRows []*dbtypes.AddressRow
-	if address == pgb.devAddress {
-		_, addressRows, err = RetrieveAddressTxnsAlt(pgb.db, address, N, offset)
-	} else {
-		_, addressRows, err = RetrieveAddressTxns(pgb.db, address, N, offset)
-	}
-	if err != nil {
-		return nil, &balanceInfo, err
-	}
+	addressRows, err := pgb.AddressTransactions(address, N, offset, AddrTxnAll)
 
 	// If the address receive count was not cached, store it in the cache if it
 	// is worth storing (when the length of the short list returned above is no

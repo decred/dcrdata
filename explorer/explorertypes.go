@@ -157,6 +157,7 @@ type AddressInfo struct {
 	Limit             int64
 	MaxTxLimit        int64
 	Offset            int64
+	TxnType           string
 	Transactions      []*AddressTx
 	NumFundingTxns    int64 // The number of transactions paying to the address
 	NumSpendingTxns   int64 // The number of transactions spending from the address

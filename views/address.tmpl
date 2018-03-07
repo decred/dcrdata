@@ -198,6 +198,20 @@
                 </table>
                 {{end}}
 
+                <div
+                    id="txntype-wrapper"
+                    class="d-flex align-items-center justify-content-end"
+                >
+                    <label class="mb-0 mr-1" for="txntype">Type</label>
+                    <select
+                        name="txntype"
+                        id="txntype"
+                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
+                        <option {{if eq .TxnType "all"}}selected{{end}} value="all">All</option>
+                        <option {{if eq .TxnType "credit"}}selected{{end}} value="credit">Credits</option>
+                        <option {{if eq .TxnType "debit"}}selected{{end}} value="debit">Debits</option>
+                    </select>
+                </div>
                 {{if ge .KnownTransactions .MaxTxLimit}}
                 {{if not .Fullmode}}
                 <div>
@@ -276,6 +290,15 @@
             )
         })
         {{end}}
+
+        $("#txntype").change(function(ev) {
+            Turbolinks.visit(
+                window.location.pathname
+                + "?txntype="+ $(ev.currentTarget).val()
+                + "?n="+ parseInt($("#pagesize").val())
+                + "&start=" + {{.Offset}}
+            )
+        })
 
         function showAddressQRCode() {
             var $qrcode = $("#address-qrcode")
