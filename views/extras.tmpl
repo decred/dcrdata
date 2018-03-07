@@ -182,8 +182,8 @@
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
-                    var newRow = '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                        tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    var newRow = '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
+                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
                         '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
                         '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
                         '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
@@ -253,8 +253,8 @@
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
-                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                        tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    newTable += '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
+                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
                         '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
                         '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
                         '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
