@@ -9,14 +9,18 @@ import (
 )
 
 const (
-	wsWriteTimeout     = 10 * time.Second
-	wsReadTimeout      = 12 * time.Second
-	pingInterval       = 12 * time.Second
+	wsWriteTimeout = 10 * time.Second
+	wsReadTimeout  = 12 * time.Second
+	pingInterval   = 12 * time.Second
+
 	tickerSigReset int = iota
 	tickerSigStop
-	bufferTickerInterval           = 5
-	newTxBufferSize                = 5
-	sigNewBlock          hubSignal = iota
+	bufferSend
+
+	bufferTickerInterval = 5
+	newTxBufferSize      = 5
+
+	sigNewBlock hubSignal = iota
 	sigMempoolUpdate
 	sigPingAndUserCount
 	sigNewTx
@@ -41,14 +45,15 @@ var eventIDs = map[hubSignal]string{
 // WebsocketHub is responsible for closing all connections registered with it.
 // If the event loop is running, calling (*WebsocketHub).Stop() will handle it.
 type WebsocketHub struct {
-	*sync.RWMutex
 	clients          map[*hubSpoke]*client
 	Register         chan *hubSpoke
 	Unregister       chan *hubSpoke
 	HubRelay         chan hubSignal
 	NewTxChan        chan *MempoolTx
 	newTxBuffer      []*MempoolTx
+	bufferMtx        *sync.Mutex
 	bufferTickerChan chan int
+	sendBufferChan   chan int
 	quitWSHandler    chan struct{}
 }
 
@@ -63,7 +68,6 @@ type hubSpoke chan hubSignal
 // NewWebsocketHub creates a new WebsocketHub
 func NewWebsocketHub() *WebsocketHub {
 	return &WebsocketHub{
-		RWMutex:          new(sync.RWMutex),
 		clients:          make(map[*hubSpoke]*client),
 		Register:         make(chan *hubSpoke),
 		Unregister:       make(chan *hubSpoke),
@@ -71,6 +75,8 @@ func NewWebsocketHub() *WebsocketHub {
 		NewTxChan:        make(chan *MempoolTx),
 		newTxBuffer:      make([]*MempoolTx, 0, newTxBufferSize),
 		bufferTickerChan: make(chan int),
+		bufferMtx:        new(sync.Mutex),
+		sendBufferChan:   make(chan int, 1),
 		quitWSHandler:    make(chan struct{}),
 	}
 }
@@ -126,12 +132,6 @@ func safeClose(cc hubSpoke) {
 func (wsh *WebsocketHub) Stop() {
 	// end the run() loop, allowing in progress operations to complete
 	wsh.quitWSHandler <- struct{}{}
-	// end the buffer interval send loop
-	wsh.bufferTickerChan <- tickerSigStop
-	// unregister all clients
-	for client := range wsh.clients {
-		wsh.unregisterClient(client)
-	}
 }
 
 func (wsh *WebsocketHub) run() {
@@ -153,12 +153,16 @@ func (wsh *WebsocketHub) run() {
 			case sigNewTx:
 				newtx = <-wsh.NewTxChan
 				log.Debugf("Received new tx %s", newtx.Hash)
-				wsh.addTxToBuffer(newtx)
+				if wsh.addTxToBuffer(newtx) {
+					wsh.bufferTickerChan <- tickerSigReset
+					wsh.sendBufferChan <- bufferSend
+				}
 			default:
 				log.Errorf("Unknown hub signal: %v", hubSignal)
 				break events
 			}
 			for client := range wsh.clients {
+				// Don't signal the client on new tx, another case handles that
 				if hubSignal == sigNewTx {
 					break
 				}
@@ -180,46 +184,49 @@ func (wsh *WebsocketHub) run() {
 				return
 			}
 			close(wsh.quitWSHandler)
+
+			// end the buffer interval send loop
+			wsh.bufferTickerChan <- tickerSigStop
+
+			// unregister all clients
+			for client := range wsh.clients {
+				wsh.unregisterClient(client)
+			}
 			return
+		case <-wsh.sendBufferChan:
+			wsh.bufferMtx.Lock()
+			if len(wsh.newTxBuffer) == 0 {
+				wsh.bufferMtx.Unlock()
+				continue
+			}
+			txs := make([]*MempoolTx, len(wsh.newTxBuffer))
+			copy(txs, wsh.newTxBuffer)
+			wsh.newTxBuffer = make([]*MempoolTx, 0, newTxBufferSize)
+			wsh.bufferMtx.Unlock()
+			log.Debugf("Signaling %d new tx to %d clients", len(txs), len(wsh.clients))
+			for signal, client := range wsh.clients {
+				client.Lock()
+				client.newTxs = txs
+				client.Unlock()
+				select {
+				case *signal <- sigNewTx:
+
+				default:
+					wsh.unregisterClient(signal)
+				}
+			}
 		}
 	}
 }
 
-// addTxToBuffer adds a tx to the buffer, then initiates a buffer send and resets
-// the send ticker if the buffer is full
-func (wsh *WebsocketHub) addTxToBuffer(tx *MempoolTx) {
-	wsh.RLock()
+// addTxToBuffer adds a tx to the buffer, then returns if the buffer is full
+func (wsh *WebsocketHub) addTxToBuffer(tx *MempoolTx) bool {
+	wsh.bufferMtx.Lock()
+	defer wsh.bufferMtx.Unlock()
+
 	wsh.newTxBuffer = append(wsh.newTxBuffer, tx)
-	wsh.RUnlock()
-	if len(wsh.newTxBuffer) == newTxBufferSize {
-		go wsh.sendNewTxs()
-		wsh.bufferTickerChan <- tickerSigReset
-	}
-}
 
-// sendNewTxs sends all txs in the buffer if any and clears the buffer
-func (wsh *WebsocketHub) sendNewTxs() {
-	wsh.RLock()
-	if len(wsh.newTxBuffer) == 0 {
-		wsh.RUnlock()
-		return
-	}
-	txs := make([]*MempoolTx, len(wsh.newTxBuffer))
-	copy(txs, wsh.newTxBuffer)
-	wsh.newTxBuffer = make([]*MempoolTx, 0, newTxBufferSize)
-	wsh.RUnlock()
-	log.Debugf("Signaling %d new tx to %d clients", len(txs), len(wsh.clients))
-	for signal, client := range wsh.clients {
-		client.RLock()
-		client.newTxs = txs
-		select {
-		case *signal <- sigNewTx:
-
-		default:
-			wsh.unregisterClient(signal)
-		}
-	}
-
+	return len(wsh.newTxBuffer) == newTxBufferSize
 }
 
 // periodicBufferSend initiates a buffer send every bufferTickerInterval seconds
@@ -228,12 +235,14 @@ func (wsh *WebsocketHub) periodicBufferSend() {
 	for {
 		select {
 		case <-ticker.C:
-			wsh.sendNewTxs()
+			wsh.sendBufferChan <- bufferSend
 		case sig := <-wsh.bufferTickerChan:
 			switch sig {
 			case tickerSigReset:
+				ticker.Stop()
 				ticker = time.NewTicker(bufferTickerInterval * time.Second)
 			case tickerSigStop:
+				close(wsh.bufferTickerChan)
 				return
 			}
 		}
