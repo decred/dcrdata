@@ -204,6 +204,7 @@
                     *Limit of 1000 transactions shown in lite mode.
                 </div>
                 {{end}}
+                {{end}}
                 {{if .Fullmode}}
                 {{if gt .KnownFundingTxns 20}}
                 <div
@@ -216,18 +217,16 @@
                         id="pagesize"
                         class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
                         <option {{if eq .Limit 10}}selected{{end}} value="20">20</option>
-                        {{if gt .KnownFundingTxns 20}}
                         {{if ge .KnownFundingTxns 100}}
                         <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
                         {{else}}
-                        <option {{if eq .Limit 100}}selected{{end}} value="100">{{.KnownFundingTxns}}</option>
-                        {{end}}
+                        <option {{if eq .Limit 100}}selected{{end}} value="100">All ({{.KnownFundingTxns}})</option>
                         {{end}}
                         {{if gt .KnownFundingTxns 100}}
                         {{if ge .KnownFundingTxns 1000}}
                         <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
                         {{else}}
-                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">{{.KnownFundingTxns}}</option>
+                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">All ({{.KnownFundingTxns}})</option>
                         {{end}}
                         {{end}}
                     </select>
@@ -245,23 +244,20 @@
                         id="pagesize"
                         class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
                         <option {{if eq .Limit 10}}selected{{end}} value="20">20</option>
-                        {{if gt .KnownTransactions 20}}
                         {{if ge .KnownTransactions 100}}
                         <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
                         {{else}}
-                        <option {{if eq .Limit 100}}selected{{end}} value="100">{{.KnownTransactions}}</option>
-                        {{end}}
+                        <option {{if eq .Limit 100}}selected{{end}} value="100">All ({{.KnownTransactions}})</option>
                         {{end}}
                         {{if gt .KnownTransactions 100}}
                         {{if ge .KnownTransactions 1000}}
                         <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
                         {{else}}
-                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">{{.KnownTransactions}}</option>
+                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">All ({{.KnownTransactions}})</option>
                         {{end}}
                         {{end}}
                     </select>
                 </div>
-                {{end}}
                 {{end}}
                 {{end}}
 
