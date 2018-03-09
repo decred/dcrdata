@@ -220,13 +220,13 @@
                         {{if ge .KnownFundingTxns 100}}
                         <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
                         {{else}}
-                        <option {{if eq .Limit 100}}selected{{end}} value="100">All ({{.KnownFundingTxns}})</option>
+                        <option {{if eq .Limit 100}}selected{{end}} value="{{.KnownFundingTxns}}">All ({{.KnownFundingTxns}})</option>
                         {{end}}
                         {{if gt .KnownFundingTxns 100}}
                         {{if ge .KnownFundingTxns 1000}}
                         <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
                         {{else}}
-                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">All ({{.KnownFundingTxns}})</option>
+                        <option {{if eq .Limit 1000}}selected{{end}} value="{{.KnownFundingTxns}}">All ({{.KnownFundingTxns}})</option>
                         {{end}}
                         {{end}}
                     </select>
@@ -247,13 +247,13 @@
                         {{if ge .KnownTransactions 100}}
                         <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
                         {{else}}
-                        <option {{if eq .Limit 100}}selected{{end}} value="100">All ({{.KnownTransactions}})</option>
+                        <option {{if eq .Limit 100}}selected{{end}} value="{{.KnownTransactions}}">All ({{.KnownTransactions}})</option>
                         {{end}}
                         {{if gt .KnownTransactions 100}}
                         {{if ge .KnownTransactions 1000}}
                         <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
                         {{else}}
-                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">All ({{.KnownTransactions}})</option>
+                        <option {{if eq .Limit 1000}}selected{{end}} value="{{.KnownTransactions}}">All ({{.KnownTransactions}})</option>
                         {{end}}
                         {{end}}
                     </select>
