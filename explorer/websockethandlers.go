@@ -47,8 +47,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				msg := &WebSocketMessage{}
 				ws.SetReadDeadline(time.Now().Add(wsReadTimeout))
 				if err := websocket.JSON.Receive(ws, &msg); err != nil {
-					log.Warnf("websocket client receive error: %v", err)
-					exp.wsHub.UnregisterClient(&updateSig)
+					if err.Error() != "EOF" {
+						log.Warnf("websocket client receive error: %v", err)
+					}
 					return
 				}
 
@@ -134,8 +135,6 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				// response to (http.CloseNotifier).CloseNotify() and only then if
 				// the hub has somehow lost track of the client.
 				if !ok {
-					//ws.WriteClose(1)
-					exp.wsHub.UnregisterClient(&updateSig)
 					break loop
 				}
 
