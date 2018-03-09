@@ -154,8 +154,9 @@
         });
 
         ws.registerEvtHandler("newtx", function(evt) {
-            console.log("New Transaction: ", evt);
-            var tx = JSON.parse(evt)
+            console.log("New Transactions: ", evt);
+            var txs = JSON.parse(evt)
+            txs.forEach(function(tx, idx) {
             addTxRow = function(str) {
                 var rows = $('#' + str +' tbody tr')
                 var totalTxt = "" 
@@ -220,6 +221,7 @@
                 rows.last().remove()
                 $(newRowHtml).insertBefore(rows.first())
             }
+        })
             setTimeElements()
         });
 

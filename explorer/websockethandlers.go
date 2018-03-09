@@ -170,8 +170,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					// ping and send user count
 					webData.Message = strconv.Itoa(exp.wsHub.NumClients())
 				case sigNewTx:
-					tx := <-exp.wsHub.clients[&updateSig]
-					enc.Encode(tx)
+					exp.wsHub.clients[&updateSig].Lock()
+					enc.Encode(exp.wsHub.clients[&updateSig].newTxs)
+					exp.wsHub.clients[&updateSig].Unlock()
 					webData.Message = buff.String()
 				}
 
