@@ -221,7 +221,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				tx.TicketInfo.AvgLuck = tx.TicketInfo.BestLuck - 1
 				tx.TicketInfo.VoteLuck = float64(tx.TicketInfo.BestLuck) - (float64(voteRounds) / float64(exp.ChainParams.TicketPoolSize))
 				if tx.TicketInfo.VoteLuck >= float64(tx.TicketInfo.BestLuck-(1/int64(exp.ChainParams.TicketPoolSize))) {
-					tx.TicketInfo.LuckStatus = "*Perfection*"
+					tx.TicketInfo.LuckStatus = "Perfection"
 				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.25) {
 					tx.TicketInfo.LuckStatus = "Very Lucky!"
 				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.75) {

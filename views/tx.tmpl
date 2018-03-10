@@ -89,7 +89,7 @@
                 </tr>
                 {{end}}
                 {{if eq .Type "Ticket"}}
-                {{if .TicketInfo.VoteLuck}}
+                {{if (and (.TicketInfo.VoteLuck) (eq .Mature "True"))}}
                 <tr>
                     <td class="text-right pr-2 h1rem p03rem0">LUCK</td>
                     <td>
