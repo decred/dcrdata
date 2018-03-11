@@ -110,27 +110,32 @@ Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata
 
 If dcrdata has not previously been run with the PostgreSQL database backend, it
 is necessary to perform a bulk import of blockchain data and generate table
-indexes. This will be done automatically by dcrdata, but the PostgreSQL tables
-may also be generated with the `rebuilddb2` command line tool:
+indexes. *This will be done automatically by `dcrdata`* on a fresh startup.
 
-- Create the dcrdata user and database in PostgreSQL (tables will be created automatically).
-- Set your PostgreSQL credentials and host in both `./cmd/rebuilddb2/rebuilddb2.conf` and `./dcrdata.conf`.
-- Run `rebuilddb2 -u` to bulk import and index.
-- In case of errors, or schema changes, the tables may be dropped with `rebuilddb2 -D`.
+Alternatively, the PostgreSQL tables may also be generated with the `rebuilddb2`
+command line tool:
+
+* Create the dcrdata user and database in PostgreSQL (tables will be created automatically).
+* Set your PostgreSQL credentials and host in both `./cmd/rebuilddb2/rebuilddb2.conf`,
+  and `dcrdata.conf` in the location specified by the `appdata` flag.
+* Run `./rebuilddb2` to bulk import data and index the tables.
+* In case of irrecoverable errors, such as detected schema changes without an
+  upgrade path, the tables and their indexes may be dropped with `rebuilddb2 -D`.
 
 ### Starting dcrdata
 
 Launch the dcrdata daemon and allow the databases to process new blocks. Both
 SQLite and PostgreSQL synchronization require about an hour the first time
-dcrdata is run, but they will be done concurrently. On subsequent launches, only
-blocks new to dcrdata are scanned.
+dcrdata is run, but they are done concurrently. On subsequent launches, only
+blocks new to dcrdata are processed.
 
 ```bash
-./dcrdata    # don't forget to configure dcrdata.conf in this folder
+./dcrdata    # don't forget to configure dcrdata.conf in the appdata folder!
 ```
 
-The "public" and "views" folders *must* be in the same folder as the `dcrdata`
-executable.
+Unlike dcrdata.conf, which must be placed in the `appdata` folder or explicitly
+set with `-C`, the "public" and "views" folders *must* be in the same folder as
+the `dcrdata` executable.
 
 ## dcrdata daemon
 
@@ -180,7 +185,6 @@ API endpoints are currently prefixed with `/api`** (e.g.
 | Transactions | `/block/best/tx` |
 | Transactions Count | `/block/best/tx/count` |
 | Verbose block result | `/block/best/verbose` |
-
 
 | Block X (block index) | |
 | --- | --- |
@@ -385,6 +389,14 @@ Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it
 1. Code something great.
 1. Commit and push to your repo.
 1. Create a [pull request](https://github.com/decred/dcrdata/compare).
+
+Before committing any changes to the Gopkg.lock file, you must update `dep` to
+the latest version via:
+
+    go get -u github.com/golang/dep/cmd/dep
+
+**To update `dep` from the network, it is important to use the `-u` flag as
+shown above.**
 
 Note that all dcrdata.org community and team members are expected to adhere to
 the code of conduct, described in the CODE_OF_CONDUCT file.
