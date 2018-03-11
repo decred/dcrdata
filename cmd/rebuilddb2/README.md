@@ -1,8 +1,11 @@
 # Command line app `rebuilddb2`
 
-The `rebuilddb2` app is used for maintenance of dcrdata's `dcrpg` database (a.k.a. DB v2) that uses PostgreSQL to store a nearly complete record of the Decred blockchain data.
+The `rebuilddb2` app is used for maintenance of dcrdata's `dcrpg` database that
+uses PostgreSQL to store a nearly complete record of the Decred blockchain data.
 
-**IMPORTANT**: When performing a bulk data import (e.g. full chain scan from genesis block), be sure to configure PostgreSQL appropriately.  Please see [postgresql-tuning.conf](../../db/dcrpg/postgresql-tuning.conf) for tips.
+**IMPORTANT**: When performing a bulk data import (e.g. full chain scan from
+genesis block), be sure to configure PostgreSQL appropriately.  Please see
+[postgresql-tuning.conf](../../db/dcrpg/postgresql-tuning.conf) for tips.
 
 ## Installation
 
@@ -31,32 +34,32 @@ Be able to build dcrdata (see [../../README.md](../../README.md#build-from-sourc
 
 ## Usage
 
-First edit rebuilddb2.conf, using sample-rebuilddb2.conf to start.  You will need to follow a typical PostgreSQL setup process, creating a new database/scheme and a new role that has permissions/owns that database.
+First edit rebuilddb2.conf, using sample-rebuilddb2.conf to start.  You will
+need to follow a typical PostgreSQL setup process, creating a new
+database/scheme and a new role that has permissions/owns that database.
 
 A fresh rebuild of the database is accomplished via:
 
 ```
 ./rebuilddb2 -D  # drop any existing tables
-./rebuilddb2 -u  # rebuild tables, and update (-u) address table from scratch
+./rebuilddb2     # rebuild tables from scratch
 ```
 
-Running without `-u` is only appropriate when the tables are behind the network's current best block by **at most** a few thousand blocks.  Otherwise, run with `-u` to recreate the address table in a more efficient batch process.
-
-Remember to update your PostgreSQL config (postgresql.conf) before *and after* bulk data imports. Namely, before normal dcrdata operation, ensure that `fsync=true` and other setting are adjusted for efficient queries.
-
-Use the `--help` flag for more information.
+Remember to update your PostgreSQL config (postgresql.conf) before *and after*
+bulk data imports. Namely, before normal dcrdata operation, ensure that
+`fsync=true` and other setting are adjusted for efficient queries.
 
 ## Details
 
 Rebuilding the dcrdata tables from scratch involves the following steps:
 
 * Connect to the PostgreSQL database using the settings in rebuilddb2.conf
-* Create tables: "blocks", "transactions", "vins", "vouts", and "addresses".
+* Create the tables (i.e. "blocks", "transactions", "vins", etc).
 * Starting from genesis block, process each block and store in tables.
-* If `-u` is not specified, a relatively expensive process is used to keep the spending transaction information up-to-date in the "addresses" table.
-* If `-u` is specified, updating this part of the "addresses" table is deferred until after all other tables are populated and indexes for faster queries.
+* Create indexes for each table.
+
+See `rebuilddb2 --help` for more information on how to tweak the operating mode.
 
 ## License
 
 See [LICENSE](../../LICENSE) at the base of the dcrdata repository.
-
