@@ -106,6 +106,12 @@ func mainCore() error {
 	log.Infof("Connected to dcrd (JSON-RPC API v%s) on %v",
 		nodeVer.String(), curnet.String())
 
+	if curnet != activeNet.Net {
+		log.Criticalf("Network of connected node, %s, does not match expected "+
+			"network, %s.", activeNet.Net, curnet)
+		return fmt.Errorf("expected network %s, got %s", activeNet.Net, curnet)
+	}
+
 	// Sqlite output
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
