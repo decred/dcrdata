@@ -278,7 +278,7 @@ func mainCore() error {
 	}
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
-	defer explore.StopMempoolMonitor(ntfnChans.expNewTxChan)
+	defer explore.StopMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
 	blockDataSavers = append(blockDataSavers, explore)
 
@@ -379,7 +379,7 @@ func mainCore() error {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
 	}
 
-	explore.StartMempoolMonitor(ntfnChans.expNewTxChan)
+	explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
 	// blockdata collector
 	wg.Add(2)
