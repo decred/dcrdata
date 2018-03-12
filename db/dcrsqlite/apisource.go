@@ -1306,9 +1306,10 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 						Height:   validation.Height,
 						Validity: validation.Validity,
 					},
-					Version: version,
-					Bits:    bits,
-					Choices: choices,
+					Version:     version,
+					Bits:        bits,
+					Choices:     choices,
+					TicketSpent: msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
 				}
 			}
 		}

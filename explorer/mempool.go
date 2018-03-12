@@ -14,7 +14,8 @@ import (
 )
 
 func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
-	exp.storeMempoolInfo()
+	lastBlockHash, _, lastBlockTime := exp.storeMempoolInfo()
+
 	for {
 		ntx, ok := <-txChan
 		if !ok {
@@ -29,15 +30,12 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 
 		// A tx with an empty hex is the new block signal
 		if ntx.Hex == "" {
-			exp.storeMempoolInfo()
+			lastBlockHash, _, lastBlockTime = exp.storeMempoolInfo()
 			exp.wsHub.HubRelay <- sigMempoolUpdate
 			continue
 		}
 
 		// Ignore this tx if it was received before the last block
-		exp.NewBlockDataMtx.Lock()
-		lastBlockTime := exp.NewBlockData.BlockTime
-		exp.NewBlockDataMtx.Unlock()
 
 		if ntx.Time < lastBlockTime {
 			continue
@@ -53,6 +51,9 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		var voteInfo *VoteInfo
 		if ok := stake.IsSSGen(msgTx); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, exp.ChainParams)
+			if !voteForLastBlock(lastBlockHash, validation.Hash.String()) {
+				continue
+			}
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
 			} else {
@@ -62,9 +63,10 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 						Height:   validation.Height,
 						Validity: validation.Validity,
 					},
-					Version: version,
-					Bits:    bits,
-					Choices: choices,
+					Version:     version,
+					Bits:        bits,
+					Choices:     choices,
+					TicketSpent: msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
 				}
 			}
 		}
@@ -85,6 +87,13 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			exp.MempoolData.Tickets = append([]MempoolTx{tx}, exp.MempoolData.Tickets...)
 			exp.MempoolData.NumTickets++
 		case "Vote":
+			if idx, ok := exp.MempoolData.TicketIndexes[tx.VoteInfo.TicketSpent]; ok {
+				tx.VoteInfo.MempoolTicketIndex = idx
+			} else {
+				idx := len(exp.MempoolData.TicketIndexes) + 1
+				exp.MempoolData.TicketIndexes[tx.VoteInfo.TicketSpent] = idx
+				tx.VoteInfo.MempoolTicketIndex = idx
+			}
 			exp.MempoolData.Votes = append([]MempoolTx{tx}, exp.MempoolData.Votes...)
 			exp.MempoolData.NumVotes++
 		case "Regular":
@@ -117,7 +126,7 @@ func (exp *explorerUI) StartMempoolMonitor(newTxChan chan *NewMempoolTx) {
 	go exp.mempoolMonitor(newTxChan)
 }
 
-func (exp *explorerUI) storeMempoolInfo() {
+func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
 
 	defer func(start time.Time) {
 		log.Debugf("storeMempoolInfo() completed in %v",
@@ -147,11 +156,24 @@ func (exp *explorerUI) storeMempoolInfo() {
 	var totalOut float64
 	var totalSize int32
 
+	lastBlockHash, lastBlock, lastBlockTime = exp.getLastBlock()
+
+	txindexes := make(map[string]int)
 	for _, tx := range memtxs {
 		switch tx.Type {
 		case "Ticket":
 			tickets = append(tickets, tx)
 		case "Vote":
+			if !voteForLastBlock(lastBlockHash, tx.VoteInfo.Validation.Hash) {
+				continue
+			}
+			if idx, ok := txindexes[tx.VoteInfo.TicketSpent]; ok {
+				tx.VoteInfo.MempoolTicketIndex = idx
+			} else {
+				idx := len(txindexes) + 1
+				txindexes[tx.VoteInfo.TicketSpent] = idx
+				tx.VoteInfo.MempoolTicketIndex = idx
+			}
 			votes = append(votes, tx)
 		case "Revocation":
 			revs = append(revs, tx)
@@ -161,11 +183,6 @@ func (exp *explorerUI) storeMempoolInfo() {
 		totalOut += tx.TotalOut
 		totalSize += tx.Size
 	}
-
-	exp.NewBlockDataMtx.Lock()
-	lastBlock := exp.NewBlockData.Height
-	lastBlockTime := exp.NewBlockData.BlockTime
-	exp.NewBlockDataMtx.Unlock()
 
 	exp.MempoolData.Lock()
 	defer exp.MempoolData.Unlock()
@@ -187,7 +204,30 @@ func (exp *explorerUI) storeMempoolInfo() {
 		NumRevokes:         len(revs),
 		LatestTransactions: latest,
 		FormattedTotalSize: humanize.Bytes(uint64(totalSize)),
+		TicketIndexes:      txindexes,
 	}
+	return
+}
+
+func voteForLastBlock(blockHash, validationHash string) bool {
+	if blockHash != "" && validationHash != blockHash {
+		return false
+	}
+	return true
+}
+
+// getLastBlock returns the last block hash, height and time
+func (exp *explorerUI) getLastBlock() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
+	exp.NewBlockDataMtx.RLock()
+	lastBlock = exp.NewBlockData.Height
+	lastBlockTime = exp.NewBlockData.BlockTime
+	exp.NewBlockDataMtx.RUnlock()
+	lastBlockHash, err := exp.blockData.GetBlockHash(lastBlock)
+	if err != nil {
+		log.Warnf("Could not get bloch hash for last block")
+	}
+
+	return
 }
 
 type byTime []MempoolTx

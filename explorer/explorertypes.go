@@ -80,10 +80,12 @@ type TxInID struct {
 
 // VoteInfo models data about a SSGen transaction (vote)
 type VoteInfo struct {
-	Validation BlockValidation         `json:"block_validation"`
-	Version    uint32                  `json:"vote_version"`
-	Bits       uint16                  `json:"vote_bits"`
-	Choices    []*txhelpers.VoteChoice `json:"vote_choices"`
+	Validation         BlockValidation         `json:"block_validation"`
+	Version            uint32                  `json:"vote_version"`
+	Bits               uint16                  `json:"vote_bits"`
+	Choices            []*txhelpers.VoteChoice `json:"vote_choices"`
+	TicketSpent        string                  `json:"ticket_spent"`
+	MempoolTicketIndex int                     `json:"mempool_ticket_index"`
 }
 
 // BlockValidation models data about a vote's decision on a block
@@ -207,17 +209,18 @@ type MempoolInfo struct {
 
 // MempoolShort represents the mempool data sent as the mempool update
 type MempoolShort struct {
-	LastBlockHeight    int64       `json:"block_height"`
-	LastBlockTime      int64       `json:"block_time"`
-	TotalOut           float64     `json:"total"`
-	TotalSize          int32       `json:"size"`
-	NumTickets         int         `json:"num_tickets"`
-	NumVotes           int         `json:"num_votes"`
-	NumRegular         int         `json:"num_regular"`
-	NumRevokes         int         `json:"num_revokes"`
-	NumAll             int         `json:"num_all"`
-	LatestTransactions []MempoolTx `json:"latest"`
-	FormattedTotalSize string      `json:"formatted_size"`
+	LastBlockHeight    int64          `json:"block_height"`
+	LastBlockTime      int64          `json:"block_time"`
+	TotalOut           float64        `json:"total"`
+	TotalSize          int32          `json:"size"`
+	NumTickets         int            `json:"num_tickets"`
+	NumVotes           int            `json:"num_votes"`
+	NumRegular         int            `json:"num_regular"`
+	NumRevokes         int            `json:"num_revokes"`
+	NumAll             int            `json:"num_all"`
+	LatestTransactions []MempoolTx    `json:"latest"`
+	FormattedTotalSize string         `json:"formatted_size"`
+	TicketIndexes      map[string]int `json:"ticket_indexes"`
 }
 
 // ChainParams models simple data about the chain server's parameters used for some
