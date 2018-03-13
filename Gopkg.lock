@@ -100,7 +100,7 @@
   branch = "master"
   name = "github.com/decred/base58"
   packages = ["."]
-  revision = "229e657bc9be5d592855a910428907f851950ed5"
+  revision = "56c501706f00d9e1cfacee19a27117e12da24734"
 
 [[projects]]
   branch = "master"
@@ -129,7 +129,7 @@
     "txscript",
     "wire"
   ]
-  revision = "d19ad36d9b71ea8ac4aae005cb9a28a826071f3e"
+  revision = "8deac318d025dfcba21cae6eb4a16bfbe9513d9d"
 
 [[projects]]
   branch = "master"
@@ -142,7 +142,7 @@
     "wallet/udb",
     "walletdb"
   ]
-  revision = "a47b29d4b51906f396080761e13c9af07686b9c0"
+  revision = "87b1f9a230dfa916a4501c2360e741081ca035a0"
 
 [[projects]]
   branch = "master"
@@ -240,13 +240,13 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "beaf6a35706e5032ae4c3fcf342c663c069f44d2"
+  revision = "c7dcf104e3a7a1417abc0230cb0d5240d764159d"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["websocket"]
-  revision = "cbe0f9307d0156177f9dd5dc85da1a31abc5f2fb"
+  revision = "d0aafc73d5cdc42264b0af071c261abac580695e"
 
 [[projects]]
   branch = "master"
@@ -255,7 +255,7 @@
     "unix",
     "windows"
   ]
-  revision = "f6cff0780e542efa0c8e864dc8fa522808f6a598"
+  revision = "7dca6fe1f43775aa6d1334576870ff63f978f539"
 
 [solve-meta]
   analyzer-name = "dep"
