@@ -12,7 +12,7 @@ type version struct {
 }
 
 var ver = version{
-	Major: 2,
+	Major: 1,
 	Minor: 0,
 	Patch: 0,
 	Label: ""}

@@ -183,7 +183,7 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 			default:
 			}
 		},
-		
+
 		OnWinningTickets: func(blockHash *chainhash.Hash, blockHeight int64,
 			tickets []*chainhash.Hash) {
 			var txstr []string

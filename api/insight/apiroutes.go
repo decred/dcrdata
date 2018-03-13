@@ -33,7 +33,7 @@ type insightApiContext struct {
 func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, JSONIndent string) *insightApiContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
-	version := semver.NewSemver(0, 0, 1)
+	version := semver.NewSemver(1, 0, 0)
 
 	newContext := insightApiContext{
 		nodeClient: client,
