@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrdata/db/dbtypes"
 )
 
 // Home is the page handler for the "/" path
@@ -295,7 +296,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	if txntype == "" {
 		txntype = "all"
 	}
-	log.Debugf("Showing transaction types: %s", txntype)
+	txnType := dbtypes.AddrTxnTypeFromStr(txntype)
+	if txnType == dbtypes.AddrTxnUnknown {
+		exp.ErrorPage(w, "Something went wrong...", "unknown txntype query value", false)
+		return
+	}
+	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
 
 	var addrData *AddressInfo
 	if exp.liteMode {
@@ -308,7 +314,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Get addresses table rows for the address
 		addrHist, balance, errH := exp.explorerSource.AddressHistory(
-			address, limitN, offsetAddrOuts)
+			address, limitN, offsetAddrOuts, txnType)
 		// Fallback to RPC if DB query fails
 		if errH != nil {
 			log.Errorf("Unable to get address %s history: %v", address, errH)
@@ -319,9 +325,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			confirmHeights := make([]int64, len(addrData.Transactions))
-			if addrData == nil {
-				exp.ErrorPage(w, "Something went wrong...", "could not find that address", false)
-			}
 			addrData.Fullmode = true
 			pageData := struct {
 				Data          *AddressInfo
@@ -347,9 +350,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		// Generate AddressInfo skeleton from the address table rows
 		addrData = ReduceAddressHistory(addrHist)
 		if addrData == nil {
-			log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
-			exp.ErrorPage(w, "Something went wrong...", "that address has no history", true)
-			return
+			if txnType != dbtypes.AddrTxnDebit && (balance.NumSpent+balance.NumUnspent) > 0 {
+				log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
+				exp.ErrorPage(w, "Something went wrong...", "that address has no history", true)
+				return
+			}
+			addrData = new(AddressInfo)
 		}
 		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
@@ -361,7 +367,17 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData.NumTransactions = addrData.Limit
 		}
 		addrData.Fullmode = true
-		// still need []*AddressTx filled out and NumUnconfirmed
+		// still need []*AddressTx filled out
+
+		switch txnType {
+		case dbtypes.AddrTxnAll:
+		case dbtypes.AddrTxnCredit:
+			addrData.Transactions = addrData.TxnsFunding
+		case dbtypes.AddrTxnDebit:
+			addrData.Transactions = addrData.TxnsSpending
+		default:
+			log.Warnf("Unknown address transaction type: %v", txnType)
+		}
 
 		// Query database for transaction details
 		err = exp.explorerSource.FillAddressTransactions(addrData)

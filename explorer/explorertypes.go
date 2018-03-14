@@ -159,6 +159,8 @@ type AddressInfo struct {
 	Offset            int64
 	TxnType           string
 	Transactions      []*AddressTx
+	TxnsFunding       []*AddressTx
+	TxnsSpending      []*AddressTx
 	NumFundingTxns    int64 // The number of transactions paying to the address
 	NumSpendingTxns   int64 // The number of transactions spending from the address
 	NumTransactions   int64 // The number of transactions in the address
@@ -253,19 +255,18 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 	}
 
 	var received, sent int64
-	var numFundingTxns, numSpendingTxns int64
-	var transactions []*AddressTx
+	var transactions, creditTxns, debitTxns []*AddressTx
 	for _, addrOut := range addrHist {
-		numFundingTxns++
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
 
 		// Funding transaction
 		received += int64(addrOut.Value)
-		tx := AddressTx{
+		fundingTx := AddressTx{
 			TxID:          addrOut.FundingTxHash,
 			RecievedTotal: coin,
 		}
-		transactions = append(transactions, &tx)
+		transactions = append(transactions, &fundingTx)
+		creditTxns = append(creditTxns, &fundingTx)
 
 		// Is the outpoint spent?
 		if addrOut.SpendingTxHash == "" {
@@ -273,21 +274,22 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		}
 
 		// Spending transaction
-		numSpendingTxns++
 		sent += int64(addrOut.Value)
-
 		spendingTx := AddressTx{
 			TxID:      addrOut.SpendingTxHash,
 			SentTotal: coin,
 		}
 		transactions = append(transactions, &spendingTx)
+		debitTxns = append(debitTxns, &spendingTx)
 	}
 
 	return &AddressInfo{
 		Address:         addrHist[0].Address,
 		Transactions:    transactions,
-		NumFundingTxns:  numFundingTxns,
-		NumSpendingTxns: numSpendingTxns,
+		TxnsFunding:     creditTxns,
+		TxnsSpending:    debitTxns,
+		NumFundingTxns:  int64(len(creditTxns)),
+		NumSpendingTxns: int64(len(debitTxns)),
 		TotalReceived:   dcrutil.Amount(received),
 		TotalSent:       dcrutil.Amount(sent),
 		Unspent:         dcrutil.Amount(received - sent),

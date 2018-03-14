@@ -132,7 +132,7 @@ func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 // GetAddressBalance returns a *explorer.AddressBalance for the specified
 // address, transaction count limit, and transaction number offset.
 func (pgb *ChainDB) GetAddressBalance(address string, N, offset int64) *explorer.AddressBalance {
-	_, balance, err := pgb.AddressHistory(address, N, offset)
+	_, balance, err := pgb.AddressHistoryAll(address, N, offset)
 	if err != nil {
 		return nil
 	}
@@ -143,7 +143,7 @@ func (pgb *ChainDB) GetAddressBalance(address string, N, offset int64) *explorer
 // (*apitypes.InsightAddressInfo), given a transaction count limit, and
 // transaction number offset.
 func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.InsightAddressInfo {
-	rows, balance, err := pgb.AddressHistory(address, N, offset)
+	rows, balance, err := pgb.AddressHistoryAll(address, N, offset)
 	if err != nil {
 		return nil
 	}

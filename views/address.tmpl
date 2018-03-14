@@ -295,7 +295,7 @@
             Turbolinks.visit(
                 window.location.pathname
                 + "?txntype="+ $(ev.currentTarget).val()
-                + "?n="+ parseInt($("#pagesize").val())
+                + "&n="+ parseInt($("#pagesize").val())
                 + "&start=" + {{.Offset}}
             )
         })
