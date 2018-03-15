@@ -1192,7 +1192,7 @@ func (db *wiredDB) CountUnconfirmedTransactions(address string, maxUnconfirmedPo
 		log.Infof("Invalid address %s: %v", address, err)
 		return
 	}
-	txs, err := db.client.SearchRawTransactionsVerbose(addr, 0, int(maxUnconfirmedPossible), true, true, nil)
+	txs, err := db.client.SearchRawTransactionsVerbose(addr, 0, int(maxUnconfirmedPossible), false, true, nil)
 	if err != nil {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return
