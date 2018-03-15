@@ -768,3 +768,7 @@ body.darkBG .keynav-target {
 .opacity-transition{
   transition: opacity .42s ease-in-out;
 }
+
+.old-vote {
+  background-color: pink;
+}
