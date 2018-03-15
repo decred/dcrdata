@@ -42,7 +42,7 @@ func newTemplates(folder string, defaults []string, helpers template.FuncMap) te
 	}
 }
 
-func (t templates) addTemplate(name string) error {
+func (t *templates) addTemplate(name string) error {
 	fileName := filepath.Join(t.folder, name+".tmpl")
 	files := append(t.defaults, fileName)
 	temp, err := template.New(name).Funcs(t.helpers).ParseFiles(files...)
@@ -55,7 +55,7 @@ func (t templates) addTemplate(name string) error {
 	return err
 }
 
-func (t templates) reloadTemplates() error {
+func (t *templates) reloadTemplates() error {
 	var errorStrings []string
 	for fileName := range t.templates {
 		err := t.addTemplate(fileName)
@@ -69,7 +69,7 @@ func (t templates) reloadTemplates() error {
 	return fmt.Errorf(strings.Join(errorStrings, " | "))
 }
 
-func (t templates) execTemplateToString(name string, data interface{}) (string, error) {
+func (t *templates) execTemplateToString(name string, data interface{}) (string, error) {
 	temp, ok := t.templates[name]
 	if !ok {
 		return "", fmt.Errorf("Template %s not know", name)
@@ -101,7 +101,7 @@ var toInt64 = func(v interface{}) int64 {
 	}
 }
 
-func makeTempHelpers(params *chaincfg.Params) template.FuncMap {
+func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	return template.FuncMap{
 		"add": func(a int64, b int64) int64 {
 			return a + b

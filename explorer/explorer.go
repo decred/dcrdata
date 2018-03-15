@@ -192,7 +192,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	tempDefaults := []string{"extras"}
 
-	exp.templates = newTemplates("views", tempDefaults, makeTempHelpers(exp.ChainParams))
+	exp.templates = newTemplates("views", tempDefaults, makeTemplateFuncMap(exp.ChainParams))
 
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {
