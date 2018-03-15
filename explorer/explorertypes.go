@@ -154,6 +154,7 @@ type VoteInfo struct {
 	Choices            []*txhelpers.VoteChoice `json:"vote_choices"`
 	TicketSpent        string                  `json:"ticket_spent"`
 	MempoolTicketIndex int                     `json:"mempool_ticket_index"`
+	ForLastBlock       bool                    `json:"last_block"`
 }
 
 // BlockValidation models data about a vote's decision on a block
@@ -332,18 +333,31 @@ type MempoolInfo struct {
 
 // MempoolShort represents the mempool data sent as the mempool update
 type MempoolShort struct {
-	LastBlockHeight    int64          `json:"block_height"`
-	LastBlockTime      int64          `json:"block_time"`
-	TotalOut           float64        `json:"total"`
-	TotalSize          int32          `json:"size"`
-	NumTickets         int            `json:"num_tickets"`
-	NumVotes           int            `json:"num_votes"`
-	NumRegular         int            `json:"num_regular"`
-	NumRevokes         int            `json:"num_revokes"`
-	NumAll             int            `json:"num_all"`
-	LatestTransactions []MempoolTx    `json:"latest"`
-	FormattedTotalSize string         `json:"formatted_size"`
-	TicketIndexes      map[string]int `json:"ticket_indexes"`
+	LastBlockHeight    int64                    `json:"block_height"`
+	LastBlockHash      string                   `json:"block_hash"`
+	LastBlockTime      int64                    `json:"block_time"`
+	TotalOut           float64                  `json:"total"`
+	TotalSize          int32                    `json:"size"`
+	NumTickets         int                      `json:"num_tickets"`
+	NumVotes           int                      `json:"num_votes"`
+	NumRegular         int                      `json:"num_regular"`
+	NumRevokes         int                      `json:"num_revokes"`
+	NumAll             int                      `json:"num_all"`
+	LatestTransactions []MempoolTx              `json:"latest"`
+	FormattedTotalSize string                   `json:"formatted_size"`
+	TicketIndexes      map[int64]map[string]int `json:"ticket_indexes"`
+	VotingInfo         VotingInfo               `json:"voting_info"`
+}
+
+// VotingInfo models data about the validity of the next block from mempool
+type VotingInfo struct {
+	Valids         uint16 `json:"choice_valid"`
+	Invalids       uint16 `json:"choice_invalid"`
+	TotalCollected uint16 `json:"total_votes_collected"`
+	TotalNeeded    uint16 `json:"total_votes_required"`
+	Required       uint16 `json:"total_choices_required"`
+	BlockValid     bool   `json:"block_valid"`
+	voted          map[string]bool
 }
 
 // ChainParams models simple data about the chain server's parameters used for some

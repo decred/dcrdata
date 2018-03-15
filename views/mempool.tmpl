@@ -14,7 +14,7 @@
                 <table>
                     <tr class="h2rem">
                         <td class="pr-2 lh1rem vam text-right xs-w117 w120">TOTAL SENT</td>
-                        <td class="fs28 mono fs16-decimal d-flex align-items-center">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}<span class="pl-1 unit">DCR</span></td>
+                        <td class="fs28 mono fs16-decimal d-flex align-items-center" data-target="mempool.totalOut" >{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}<span class="pl-1 unit">DCR</span></td>
                     </tr>
                 </table>
             </div>
@@ -25,7 +25,7 @@
                     <table class="">
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">LAST BLOCK</td>
-                            <td class="lh1rem"><a href="/block/{{.LastBlockHeight}}" data-target="mempool.bestBlock" data-keynav-priority>{{.LastBlockHeight}}</a> (<span data-target="main.age mempool.bestBlockTime" data-age="{{.LastBlockTime}}"></span> ago)</td>
+                            <td class="lh1rem"><a href="/block/{{.LastBlockHeight}}" data-target="mempool.bestBlock" data-hash="{{.LastBlockHash}}" data-keynav-priority>{{.LastBlockHeight}}</a> (<span data-target="mempool.bestBlockTime  main.age" data-age="{{.LastBlockTime}}"></span> ago)</td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">VOTES</td>
@@ -34,6 +34,13 @@
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKETS</td>
                             <td data-target="mempool.numTicket" class="lh1rem">{{.NumTickets}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem nowrap p03rem0">VOTE CHOICES</td>
+                            <td id="mempool_vote_choices" class="lh1rem"><span data-target="mempool.totalCollected">
+                            {{.VotingInfo.TotalCollected}}</span>/<span data-target="mempool.totalNeeded">{{.VotingInfo.TotalNeeded}}</span>
+                            <span id="mempool_block_validity" class="lh1rem {{if lt .VotingInfo.TotalCollected .VotingInfo.TotalNeeded}}hidden{{end}}">({{if .VotingInfo.BlockValid}}Valid{{else}}Invalid{{end}})</span>
+                            </td>
                         </tr>
                     </table>
                 </div>
@@ -61,37 +68,25 @@
                     <table class="table table-sm striped">
                         <thead>
                             <th>Transactions ID</th>
-                            <th>Version</th>
-                            <th>Last Block Valid</th>
-                            <th>Issue ID</th>
-                            <th>Choice ID</th>
-                            <th class="text-right">Total DCR</th>
-                            <th>Size</th>
-                            <th class="text-right">Time in Mempool</th>
+                            <th>Vote Block</th>
+                            <th>Vote Index</th>
+                            <th>Vote Version</th>
+                            <th>Vote Choice</th>
+                            <th>Total DCR</th>
+                            <th class="text-right">Size</th>
+                            <th class="text-right">Time</th>
                         </thead>
                         <tbody data-target="mempool.voteTransactions">
                             {{if gt .NumVotes 0}}
                             {{range .Votes}}
-                            <tr>
-                                <td class="break-word">
-                                    <span>
-                                        <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
-                                    </span>
-                                </td>
+                            <tr {{if not .VoteInfo.ForLastBlock}}class="old-vote"{{end}} data-blockhash="{{.VoteInfo.Validation.Hash}}" data-height="{{.VoteInfo.Validation.Height}}">
+                                <td class="break-word"><a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a></td>
+                                <td class="mono fs15"><a href="/block/{{.VoteInfo.Validation.Height}}">{{.VoteInfo.Validation.Height}}</a></td>
+                                <td class="mono fs15"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
                                 <td class="mono fs15">{{.VoteInfo.Version}}</td>
-                                <td>{{.VoteInfo.Validation.Validity}}</td>
-                                <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
-                                    {{(index .VoteInfo.Choices 0).ID}}
-                                {{else}}
-                                    -
-                                {{end}}</td>
-                                <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
-                                    {{(index .VoteInfo.Choices 0).Choice.Id}}
-                                {{else}}
-                                    -
-                                {{end}}</td>
+                                <td class="mono fs15">{{if .VoteInfo.Validation.Validity}}Valid{{else}}Invalid{{end}}</td>
                                 <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</td>
-                                <td class="mono fs15">{{.Size}} B</td>
+                                <td class="mono fs15 text-right">{{.Size}} B</td>
                                 <td class="mono fs15 text-right" data-target="main.age" data-age="{{.Time}}"></td>
                             </tr>
                             {{end}}

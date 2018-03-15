@@ -24,12 +24,12 @@
     }
 
     function voteTxTableRow(tx) {
-        return `<tr class="flash">
-            <td class="break-word"><span><a class="hash" title="(${tx.vote_info.mempool_ticket_index}) ${tx.vote_info.ticket_spent}" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
+        return `<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
+            <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
+            <td class="mono fs15"><span><a href="/block/${tx.vote_info.block_validation.height}">${tx.vote_info.block_validation.height}</a></span></td>
+            <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
             <td class="mono fs15">${tx.vote_info.vote_version}</td>
-            <td class="mono fs15">${tx.vote_info.block_validation.validity}</td>
-            <td class="mono fs15">${tx.vote_info.vote_choices[0].id}</td>
-            <td class="mono fs15">${tx.vote_info.vote_choices[0].choice.Id}</td>
+            <td class="mono fs15">${tx.vote_info.block_validation.validity?'Valid':'Invalid'}</td>
             <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8, true)}</td>
             <td class="mono fs15">${tx.size} B</td>
             <td class="mono fs15 text-right" data-target="main.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
@@ -59,6 +59,36 @@
         var rows = $(target).find('tr')
         var newRowHtml = $.parseHTML(rowFn(tx))
         $(newRowHtml).insertBefore(rows.first())
+    }
+
+    function filterVotesLastBlock(last_block) {
+        $('*[data-target="mempool.voteTransactions"] tr').each(function(i,el) {
+            var vote_validation_hash=$(this).data("blockhash");
+            if(vote_validation_hash!=last_block) {
+                $(this).closest("tr").addClass("old-vote");
+            }else{
+                $(this).closest("tr").removeClass("old-vote");  
+            }
+        })
+    };
+
+    function sortVotesTable() {
+        var $table = $('*[data-target="mempool.voteTransactions"] tr').parent();
+        var $rows =$('*[data-target="mempool.voteTransactions"] tr');
+        $rows.sort(function(a, b){
+            var heightA = parseInt($('td:nth-child(2)',a).text());
+            var heightB = parseInt($('td:nth-child(2)',b).text());
+            if(heightA == heightB) {
+                 var indexA = parseInt($('td:nth-child(3)',a).text());
+                 var indexB = parseInt($('td:nth-child(3)',b).text());
+                 return (indexA - indexB);
+            }else{
+                return (heightB - heightA);
+            }
+        });
+        $.each($rows, function(index, row){
+          $table.append(row);
+        });
     }
 
     app.register("homepageMempool", class extends Stimulus.Controller {
@@ -124,12 +154,17 @@
                 "ticketTransactions",
                 "revokeTransactions",
                 "regularTransactions",
+                "totalCollected",
+                "totalNeeded",
+                "totalOut",
             ]
         }
 
         connect() {
             ws.registerEvtHandler("newtx", (evt) => {
                 this.renderNewTxns(evt)
+                filterVotesLastBlock($(this.bestBlockTarget).data("hash"));
+                sortVotesTable();
                 keyNav(evt, false, true)
             })
             ws.registerEvtHandler("mempool", (evt) => {
@@ -138,8 +173,10 @@
             });
             ws.registerEvtHandler("getmempooltxsResp", (evt) => {
                 this.handleTxsResp(evt)
+                filterVotesLastBlock($(this.bestBlockTarget).data("hash"));
+                sortVotesTable();
                 keyNav(evt, false, true)
-            })
+            })    
         }
 
         disconnect() {
@@ -155,9 +192,17 @@
             $(this.numRegularTarget).text(m.num_regular)
             $(this.numRevokeTarget).text(m.num_revokes)
             $(this.bestBlockTarget).text(m.block_height)
-            $(this.bestBlockTimeTarget).attr('href', '/block/' + m.block_height)
+            $(this.bestBlockTarget).data("hash",m.block_hash)
+            $(this.bestBlockTarget).attr("data-hash",m.block_hash)
+            $(this.bestBlockTarget).attr('href', '/block/' + m.block_height)
             $(this.bestBlockTimeTarget).data('age', m.block_time)
+            $(this.bestBlockTimeTarget).attr('data-age', m.block_time)
             $(this.mempoolSizeTarget).text(m.formatted_size)
+            $(this.totalCollectedTarget).text(m.voting_info.total_votes_collected)
+            $(this.totalNeededTarget).text(m.voting_info.total_votes_required)
+            $(this.totalOutTarget).html(`${humanize.decimalParts(m.total, false, 8, true)}`);
+            $(this.mempoolSizeTarget).text(m.formatted_size);
+            filterVotesLastBlock(m.block_hash);
         }
 
         handleTxsResp(event) {
@@ -177,5 +222,4 @@
             })
         }
     })
-
 })()
