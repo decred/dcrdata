@@ -282,7 +282,8 @@ func mainCore() error {
 	blockDataSavers = append(blockDataSavers, explore)
 
 	// Sync up with the blockchain
-	getSyncd := func(updateAddys, updateVotes, newPGInds bool) (int64, int64, error) {
+	getSyncd := func(updateAddys, updateVotes, newPGInds bool,
+		fetchHeight int64) (int64, int64, error) {
 		// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
 		// info DB (sqlite). Results are returned over channels:
 		sqliteSyncRes := make(chan dbtypes.SyncResult)
@@ -293,8 +294,8 @@ func mainCore() error {
 
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them, but
 		// it has to get a notification channel first to receive them. The BlockGate
-		// will provide this for blocks after fetchToHeight.
-		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchToHeight)
+		// will provide this for blocks after fetchHeight.
+		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeight)
 
 		// Now that stakedb is either catching up or waiting for a block, start the
 		// auxDB sync, which is the master block getter, retrieving and making
@@ -306,7 +307,8 @@ func mainCore() error {
 		// Wait for the results
 		return waitForSync(sqliteSyncRes, pgSyncRes, usePG, quit)
 	}
-	baseDBHeight, _, err := getSyncd(updateAllAddresses, updateAllVotes, newPGIndexes)
+	baseDBHeight, auxDBHeight, err := getSyncd(updateAllAddresses,
+		updateAllVotes, newPGIndexes, fetchToHeight)
 	if err != nil {
 		return err
 	}
@@ -320,7 +322,9 @@ func mainCore() error {
 		return fmt.Errorf("unable to get block from node: %v", err)
 	}
 	for baseDBHeight < height {
-		baseDBHeight, _, err = getSyncd(updateAllAddresses, updateAllVotes, newPGIndexes)
+		fetchToHeight = auxDBHeight + 1
+		baseDBHeight, _, err = getSyncd(updateAllAddresses, updateAllVotes,
+			newPGIndexes, fetchToHeight)
 		if err != nil {
 			return err
 		}
