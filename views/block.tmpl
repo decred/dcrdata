@@ -193,12 +193,10 @@
                     <table class="table table-sm striped">
                         <thead>
                             <th>Transactions ID</th>
-                            <th>Version</th>
-                            <th>Last Block Valid</th>
-                            <th>Issue ID</th>
-                            <th>Choice ID</th>
+                            <th>Vote Version</th>
+                            <th>Vote Choice</th>
                             <th class="text-right">Total DCR</th>
-                            <th>Size</th>
+                            <th class="text-right">Size</th>
                         </thead>
                         <tbody>
                             {{range .Votes}}
@@ -209,19 +207,9 @@
                                     </span>
                                 </td>
                                 <td class="mono fs15">{{.VoteInfo.Version}}</td>
-                                <td>{{.VoteInfo.Validation.Validity}}</td>
-                                <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
-                                    {{(index .VoteInfo.Choices 0).ID}}
-                                {{else}}
-                                    -
-                                {{end}}</td>
-                                <td class="mono fs15">{{if (len .VoteInfo.Choices) gt 0}}
-                                    {{(index .VoteInfo.Choices 0).Choice.Id}}
-                                {{else}}
-                                    -
-                                {{end}}</td>
+                                <td>{{if .VoteInfo.Validation.Validity}}Valid{{else}}Invalid{{end}}</td>
                                 <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total false)}}</td>
-                                <td class="mono fs15">{{.FormattedSize}}</td>
+                                <td class="mono fs15 text-right">{{.FormattedSize}}</td>
                             </tr>
                             {{end}}
                         </tbody>

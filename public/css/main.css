@@ -919,3 +919,8 @@ body.darkBG .keynav-target {
     transform: rotate(360deg);
   }
 }
+
+.old-vote {
+  background-color: pink;
+}
+
