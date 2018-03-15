@@ -919,3 +919,11 @@ body.darkBG .keynav-target {
     transform: rotate(360deg);
   }
 }
+
+/*mempool Vote Table*/
+.old-vote {
+  background-color: #ff3d001f;
+}
+.upcoming-vote {
+  background: #0078ff1c;
+}

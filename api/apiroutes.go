@@ -489,7 +489,7 @@ func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Reque
 	for i := range txids {
 		tx := c.BlockData.GetTrimmedTransaction(txids[i])
 		if tx == nil {
-			apiLog.Errorf("Unable to get transaction %s", tx)
+			apiLog.Errorf("Unable to get transaction %v", tx)
 			http.Error(w, http.StatusText(422), 422)
 			return
 		}

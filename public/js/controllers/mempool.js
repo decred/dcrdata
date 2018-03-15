@@ -8,12 +8,6 @@
         }
     }
 
-    function emptyRow(txnType, colspan) {
-        return `<tr>
-            <td colspan="${colspan}">No ${txnType} in mempool</td>
-        </tr>`
-    }
-
     function txTableRow(tx) {
         return `<tr class="flash">
             <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a></span></td>
@@ -24,12 +18,13 @@
     }
 
     function voteTxTableRow(tx) {
-        return `<tr class="flash">
-            <td class="break-word"><span><a class="hash" title="(${tx.vote_info.mempool_ticket_index}) ${tx.vote_info.ticket_spent}" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
+        console.debug("new vote row: ", tx)
+        return `<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
+            <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
+            <td class="mono fs15"><span><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}</a></span></td>
+            <td class="mono fs15 last_block">${tx.vote_info.last_block?'True':'False'}</td>
+            <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
             <td class="mono fs15">${tx.vote_info.vote_version}</td>
-            <td class="mono fs15">${tx.vote_info.block_validation.validity}</td>
-            <td class="mono fs15">${tx.vote_info.vote_choices[0].id}</td>
-            <td class="mono fs15">${tx.vote_info.vote_choices[0].choice.Id}</td>
             <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8, true)}</td>
             <td class="mono fs15">${tx.size} B</td>
             <td class="mono fs15 text-right" data-target="main.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
@@ -109,7 +104,6 @@
         }
     })
 
-
     app.register("mempool", class extends Stimulus.Controller {
         static get targets() {
             return [
@@ -124,12 +118,17 @@
                 "ticketTransactions",
                 "revokeTransactions",
                 "regularTransactions",
+                "ticketsVoted",
+                "maxVotesPerBlock",
+                "totalOut",
             ]
         }
 
         connect() {
             ws.registerEvtHandler("newtx", (evt) => {
                 this.renderNewTxns(evt)
+                this.labelVotes();
+                this.sortVotesTable();
                 keyNav(evt, false, true)
             })
             ws.registerEvtHandler("mempool", (evt) => {
@@ -138,6 +137,8 @@
             });
             ws.registerEvtHandler("getmempooltxsResp", (evt) => {
                 this.handleTxsResp(evt)
+                this.labelVotes();
+                this.sortVotesTable();
                 keyNav(evt, false, true)
             })
         }
@@ -155,9 +156,17 @@
             $(this.numRegularTarget).text(m.num_regular)
             $(this.numRevokeTarget).text(m.num_revokes)
             $(this.bestBlockTarget).text(m.block_height)
-            $(this.bestBlockTimeTarget).attr('href', '/block/' + m.block_height)
+            $(this.bestBlockTarget).data("hash",m.block_hash)
+            $(this.bestBlockTarget).attr("data-hash",m.block_hash)
+            $(this.bestBlockTarget).attr('href', '/block/' + m.block_hash)
             $(this.bestBlockTimeTarget).data('age', m.block_time)
+            $(this.bestBlockTimeTarget).attr('data-age', m.block_time)
             $(this.mempoolSizeTarget).text(m.formatted_size)
+            $(this.ticketsVoted).text(m.voting_info.tickets_voted)
+            $(this.maxVotesPerBlock).text(m.voting_info.max_votes_per_block)
+            $(this.totalOutTarget).html(`${humanize.decimalParts(m.total, false, 8, true)}`);
+            $(this.mempoolSizeTarget).text(m.formatted_size);
+            this.labelVotes();
         }
 
         handleTxsResp(event) {
@@ -176,6 +185,42 @@
                 addTxRow(tx, this[tx.Type.toLowerCase() + "TransactionsTarget"], rowFn)
             })
         }
-    })
 
+        labelVotes() {
+            var bestBlockHash = $(this.bestBlockTarget).data("hash");
+            var bestBlockHeight = $(this.bestBlockTarget).text();
+            $(this.voteTransactionsTarget).children("tr").each(function(i,el) {
+                var voteValidationHash = $(this).data("blockhash");
+                var voteBlockHeight = $(this).data("height");
+                if (voteBlockHeight > bestBlockHeight) {
+                    $(this).closest("tr").addClass("upcoming-vote");
+                    $(this).closest("tr").removeClass("old-vote");
+                } else if (voteValidationHash != bestBlockHash) {
+                    $(this).closest("tr").addClass("old-vote");
+                    $(this).closest("tr").removeClass("upcoming-vote");
+                    $(this).find("td.last_block").text("False");
+                } else {
+                    $(this).closest("tr").removeClass("old-vote");
+                    $(this).closest("tr").removeClass("upcoming-vote");
+                    $(this).find("td.last_block").text("True");
+                }
+            })
+        };
+
+        sortVotesTable() {
+            var $rows = $(this.voteTransactionsTarget).children("tr");
+            $rows.sort(function(a, b){
+                var heightA = parseInt($('td:nth-child(2)',a).text());
+                var heightB = parseInt($('td:nth-child(2)',b).text());
+                if (heightA == heightB) {
+                     var indexA = parseInt($('td:nth-child(4)',a).text());
+                     var indexB = parseInt($('td:nth-child(4)',b).text());
+                     return (indexA - indexB);
+                } else {
+                    return (heightB - heightA);
+                }
+            });
+            $(this.voteTransactionsTarget).html($rows);
+        }
+    })
 })()
