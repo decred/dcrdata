@@ -57,9 +57,6 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		var voteInfo *VoteInfo
 		if ok := stake.IsSSGen(msgTx); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, exp.ChainParams)
-			if !voteForLastBlock(lastBlockHash, validation.Hash.String()) {
-				continue
-			}
 			if err != nil {
 				log.Debugf("Cannot get vote choices for %s", hash)
 			} else {
@@ -69,10 +66,11 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 						Height:   validation.Height,
 						Validity: validation.Validity,
 					},
-					Version:     version,
-					Bits:        bits,
-					Choices:     choices,
-					TicketSpent: msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
+					Version:      version,
+					Bits:         bits,
+					Choices:      choices,
+					TicketSpent:  msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
+					ForLastBlock: voteForLastBlock(lastBlockHash, validation.Hash.String()),
 				}
 			}
 		}
@@ -94,15 +92,20 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			exp.MempoolData.Tickets = append([]MempoolTx{tx}, exp.MempoolData.Tickets...)
 			exp.MempoolData.NumTickets++
 		case "Vote":
-			if idx, ok := exp.MempoolData.TicketIndexes[tx.VoteInfo.TicketSpent]; ok {
-				tx.VoteInfo.MempoolTicketIndex = idx
-			} else {
-				idx := len(exp.MempoolData.TicketIndexes) + 1
-				exp.MempoolData.TicketIndexes[tx.VoteInfo.TicketSpent] = idx
-				tx.VoteInfo.MempoolTicketIndex = idx
-			}
+			addVoteIndex(tx.VoteInfo, exp.MempoolData.TicketIndexes)
 			exp.MempoolData.Votes = append([]MempoolTx{tx}, exp.MempoolData.Votes...)
+			sort.Sort(byHeight(exp.MempoolData.Votes))
 			exp.MempoolData.NumVotes++
+			if tx.VoteInfo.ForLastBlock && !exp.MempoolData.VotingInfo.voted[tx.VoteInfo.TicketSpent] {
+				exp.MempoolData.VotingInfo.voted[tx.VoteInfo.TicketSpent] = true
+				exp.MempoolData.VotingInfo.TotalCollected++
+				if tx.VoteInfo.Validation.Validity {
+					exp.MempoolData.VotingInfo.Valids++
+				} else {
+					exp.MempoolData.VotingInfo.Invalids++
+				}
+				updateBlockValidity(&exp.MempoolData.VotingInfo)
+			}
 		case "Regular":
 			exp.MempoolData.Transactions = append([]MempoolTx{tx}, exp.MempoolData.Transactions...)
 			exp.MempoolData.NumRegular++
@@ -180,23 +183,30 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 
 	var totalOut float64
 	var totalSize int32
+	var votingInfo VotingInfo
 
-	// Categorize the transactions, and bin votes by ticket spent
-	txindexes := make(map[string]int)
+	lastBlockHash, lastBlock, lastBlockTime = exp.getLastBlock()
+
+	votingInfo.TotalNeeded = exp.ChainParams.TicketsPerBlock
+	votingInfo.Required = exp.ChainParams.StakeRewardProportion
+
+	votingInfo.voted = make(map[string]bool)
+
+	txindexes := make(map[int64]map[string]int)
 	for _, tx := range memtxs {
 		switch tx.Type {
 		case "Ticket":
 			tickets = append(tickets, tx)
 		case "Vote":
-			if !voteForLastBlock(lastBlockHash, tx.VoteInfo.Validation.Hash) {
-				continue
-			}
-			if idx, ok := txindexes[tx.VoteInfo.TicketSpent]; ok {
-				tx.VoteInfo.MempoolTicketIndex = idx
-			} else {
-				idx := len(txindexes) + 1
-				txindexes[tx.VoteInfo.TicketSpent] = idx
-				tx.VoteInfo.MempoolTicketIndex = idx
+			addVoteIndex(tx.VoteInfo, txindexes)
+			if tx.VoteInfo.ForLastBlock = voteForLastBlock(lastBlockHash, tx.VoteInfo.Validation.Hash); tx.VoteInfo.ForLastBlock && !votingInfo.voted[tx.VoteInfo.TicketSpent] {
+				votingInfo.voted[tx.VoteInfo.TicketSpent] = true
+				votingInfo.TotalCollected++
+				if tx.VoteInfo.Validation.Validity {
+					votingInfo.Valids++
+				} else {
+					votingInfo.Invalids++
+				}
 			}
 			votes = append(votes, tx)
 		case "Revocation":
@@ -207,10 +217,11 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 		totalOut += tx.TotalOut
 		totalSize += tx.Size
 	}
-
-	// Store the results in MempoolData for the web page
+	updateBlockValidity(&votingInfo)
 	exp.MempoolData.Lock()
 	defer exp.MempoolData.Unlock()
+
+	sort.Sort(byHeight(votes))
 
 	exp.MempoolData.Transactions = regular
 	exp.MempoolData.Tickets = tickets
@@ -230,12 +241,36 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 		LatestTransactions: latest,
 		FormattedTotalSize: humanize.Bytes(uint64(totalSize)),
 		TicketIndexes:      txindexes,
+		VotingInfo:         votingInfo,
 	}
 	return
 }
 
+// addVoteIndex sets v.MempoolTicketIndex to the corresponding map value if it exits in
+// txindexes and creates a new index map if it doesn't
+func addVoteIndex(v *VoteInfo, txindexes map[int64]map[string]int) {
+	if idxs, ok := txindexes[v.Validation.Height]; ok {
+		if idx, ok := idxs[v.TicketSpent]; ok {
+			v.MempoolTicketIndex = idx
+		} else {
+			idx := len(idxs) + 1
+			idxs[v.TicketSpent] = idx
+			v.MempoolTicketIndex = idx
+		}
+	} else {
+		idxs := make(map[string]int)
+		idxs[v.TicketSpent] = 1
+		txindexes[v.Validation.Height] = idxs
+		v.MempoolTicketIndex = 1
+	}
+}
+
 func voteForLastBlock(blockHash, validationHash string) bool {
 	return blockHash == validationHash && blockHash != ""
+}
+
+func updateBlockValidity(votingInfo *VotingInfo) {
+	votingInfo.BlockValid = votingInfo.Valids+votingInfo.Invalids >= votingInfo.TotalNeeded && votingInfo.Valids >= votingInfo.Required
 }
 
 // getLastBlock returns the last block hash, height and time
@@ -248,7 +283,7 @@ func (exp *explorerUI) getLastBlock() (lastBlockHash string, lastBlock int64, la
 	if err != nil {
 		log.Warnf("Could not get bloch hash for last block")
 	}
-
+	log.Debug("Last Block Hash: ", lastBlockHash)
 	return
 }
 
@@ -264,4 +299,21 @@ func (txs byTime) Len() int {
 
 func (txs byTime) Swap(i, j int) {
 	txs[i], txs[j] = txs[j], txs[i]
+}
+
+type byHeight []MempoolTx
+
+func (votes byHeight) Less(i, j int) bool {
+	if votes[i].VoteInfo.Validation.Height == votes[j].VoteInfo.Validation.Height {
+		return votes[i].VoteInfo.MempoolTicketIndex < votes[j].VoteInfo.MempoolTicketIndex
+	}
+	return votes[i].VoteInfo.Validation.Height > votes[j].VoteInfo.Validation.Height
+}
+
+func (votes byHeight) Len() int {
+	return len(votes)
+}
+
+func (votes byHeight) Swap(i, j int) {
+	votes[i], votes[j] = votes[j], votes[i]
 }
