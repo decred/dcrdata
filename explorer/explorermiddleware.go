@@ -4,9 +4,7 @@
 package explorer
 
 import (
-	"bytes"
 	"context"
-	"html/template"
 	"net/http"
 	"strconv"
 
@@ -85,17 +83,6 @@ func TransactionHashCtx(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), ctxTxHash, txid)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-// templateExecToString executes the input template with given name using the
-// supplied data, and writes the result into a string. If the template fails to
-// execute, a non-nil error will be returned. Check it before writing to the
-// client, otherwise you might as well execute directly into your response
-// writer instead of the internal buffer of this function.
-func templateExecToString(t *template.Template, name string, data interface{}) (string, error) {
-	var page bytes.Buffer
-	err := t.ExecuteTemplate(&page, name, data)
-	return page.String(), err
 }
 
 // AddressPathCtx embeds "address" into the request context

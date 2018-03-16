@@ -20,7 +20,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	exp.NewBlockDataMtx.Lock()
 	exp.MempoolData.RLock()
-	str, err := templateExecToString(exp.templates[homeTemplateIndex], "home", struct {
+	str, err := exp.templates.execTemplateToString("home", struct {
 		Info    *HomeInfo
 		Mempool *MempoolInfo
 		Blocks  []*BlockBasic
@@ -64,7 +64,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	str, err := templateExecToString(exp.templates[rootTemplateIndex], "explorer", struct {
+	str, err := exp.templates.execTemplateToString("explorer", struct {
 		Data      []*BlockBasic
 		BestBlock int
 		Version   string
@@ -123,7 +123,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		exp.NewBlockData.Height - data.Confirmations,
 		exp.Version,
 	}
-	str, err := templateExecToString(exp.templates[blockTemplateIndex], "block", pageData)
+	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
@@ -138,7 +138,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 // Mempool is the page handler for the "/mempool" path
 func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RLock()
-	str, err := templateExecToString(exp.templates[mempoolTemplateIndex], "mempool", struct {
+	str, err := exp.templates.execTemplateToString("mempool", struct {
 		Mempool *MempoolInfo
 		Version string
 	}{
@@ -249,7 +249,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		exp.Version,
 	}
 
-	str, err := templateExecToString(exp.templates[txTemplateIndex], "tx", pageData)
+	str, err := exp.templates.execTemplateToString("tx", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
@@ -324,7 +324,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				confirmHeights,
 				exp.Version,
 			}
-			str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
+			str, err := exp.templates.execTemplateToString("address", pageData)
 			if err != nil {
 				log.Errorf("Template execute failure: %v", err)
 				exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
@@ -382,7 +382,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		exp.Version,
 	}
 
-	str, err := templateExecToString(exp.templates[addressTemplateIndex], "address", pageData)
+	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
@@ -395,7 +395,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
-	str, err := templateExecToString(exp.templates[decodeTxTemplateIndex], "rawtx", struct {
+	str, err := exp.templates.execTemplateToString("rawtx", struct {
 		Version string
 	}{
 		exp.Version,
@@ -467,7 +467,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 // ErrorPage provides a way to show error on the pages without redirecting
 func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message string, notFound bool) {
-	str, err := templateExecToString(exp.templates[errorTemplateIndex], "error", struct {
+	str, err := exp.templates.execTemplateToString("error", struct {
 		ErrorCode   string
 		ErrorString string
 		Version     string
