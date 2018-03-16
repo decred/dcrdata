@@ -110,13 +110,7 @@ func mainCore() error {
 		}
 	}
 
-	stakeDB, err := stakedb.NewStakeDatabase(client, activeChain, "rebuild_data")
-	if err != nil {
-		return fmt.Errorf("Unable to create stake DB: %v", err)
-	}
-	defer stakeDB.Close()
-	stakeDBHeight := int64(stakeDB.Height())
-
+	// Configure PostgreSQL ChainDB
 	dbi := dcrpg.DBInfo{
 		Host:   host,
 		Port:   port,
@@ -124,7 +118,8 @@ func mainCore() error {
 		Pass:   cfg.DBPass,
 		DBName: cfg.DBName,
 	}
-	db, err := dcrpg.NewChainDB(&dbi, activeChain, stakeDB)
+	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
+	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil)
 	if db != nil {
 		defer db.Close()
 	}
@@ -136,6 +131,18 @@ func mainCore() error {
 		db.DropTables()
 		return nil
 	}
+
+	// Create/load stake database (which includes the separate ticket pool DB).
+	stakeDB, err := stakedb.NewStakeDatabase(client, activeChain, "rebuild_data")
+	if err != nil {
+		return fmt.Errorf("Unable to create stake DB: %v", err)
+	}
+	defer stakeDB.Close()
+	stakeDBHeight := int64(stakeDB.Height())
+
+	// Provide the stake database to the ChainDB for all of it's ticket tracking
+	// needs.
+	db.UseStakeDB(stakeDB)
 
 	if err = db.VersionCheck(); err != nil {
 		log.Warnf("ATTENTION: %v", err)

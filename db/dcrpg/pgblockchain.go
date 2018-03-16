@@ -177,6 +177,13 @@ func (pgb *ChainDB) Close() error {
 	return pgb.db.Close()
 }
 
+// UseStakeDB is used to assign a stakedb.StakeDatabase for ticket tracking.
+// This may be useful when it is necessary to construct a ChainDB prior to
+// creating or loading a StakeDatabase, such as when dropping tables.
+func (pgb *ChainDB) UseStakeDB(stakeDB *stakedb.StakeDatabase) {
+	pgb.stakeDB = stakeDB
+}
+
 // EnableDuplicateCheckOnInsert specifies whether SQL insertions should check
 // for row conflicts (duplicates), and avoid adding or updating.
 func (pgb *ChainDB) EnableDuplicateCheckOnInsert(dupCheck bool) {

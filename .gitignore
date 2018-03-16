@@ -16,6 +16,8 @@ dcrdata.sqlt.db*
 rebuilddb.conf
 rebuilddb2.conf
 cmd/rebuilddb/rebuilddb
+cmd/rebuilddb2/rebuilddb2
+rebuild_data/
 cmd/scanblocks/scanblocks
 fullscan.json
 *.swp
