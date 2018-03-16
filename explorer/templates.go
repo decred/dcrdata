@@ -69,6 +69,11 @@ func (t *templates) reloadTemplates() error {
 	return fmt.Errorf(strings.Join(errorStrings, " | "))
 }
 
+// execTemplateToString executes the associated input template using the
+// supplied data, and writes the result into a string. If the template fails to
+// execute or isn't found, a non-nil error will be returned. Check it before
+// writing to theclient, otherwise you might as well execute directly into
+// your response writer instead of the internal buffer of this function.
 func (t *templates) execTemplateToString(name string, data interface{}) (string, error) {
 	temp, ok := t.templates[name]
 	if !ok {

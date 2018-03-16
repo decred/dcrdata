@@ -26,17 +26,6 @@ import (
 )
 
 const (
-	homeTemplateIndex int = iota
-	rootTemplateIndex
-	mempoolTemplateIndex
-	blockTemplateIndex
-	txTemplateIndex
-	addressTemplateIndex
-	decodeTxTemplateIndex
-	errorTemplateIndex
-)
-
-const (
 	maxExplorerRows              = 2000
 	minExplorerRows              = 20
 	defaultAddressRows     int64 = 20
