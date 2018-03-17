@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes"
@@ -595,4 +596,26 @@ func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message str
 // NotFound wraps ErrorPage to display a 404 page
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 	exp.ErrorPage(w, "Not found", "Cannot find page: "+r.URL.Path, true)
+}
+
+// ChainParametersPage is the page handler for the "/ChainParameters" path
+func (exp *explorerUI) ChainParametersPage(w http.ResponseWriter, r *http.Request) {
+	var cp = exp.ChainParams
+
+	str, err := templateExecToString(exp.templates[chainParametersTemplateIndex], "chainParameters", struct {
+		Cp      *chaincfg.Params
+		Version string
+	}{
+		cp,
+		exp.Version,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
 }

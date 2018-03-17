@@ -1,0 +1,106 @@
+{{define "chainParameters"}}
+<!DOCTYPE html>
+<html lang="en">
+    {{ template "html-head" printf "Decred ChainParams"}}
+    <body>
+        {{template "navbar"}}
+        {{with .Cp}}
+        <div class="container">
+            <div class="row justify-content-between">
+                <div class="col-md-7 col-sm-6 d-flex">
+                    <h4 class="mb-2">Chain Parameters</h4>
+                </div>
+                <div class="col-md-5 col-sm-6 d-flex">
+                    <table>
+                        <tr class="h2rem">
+                            <td class="pr-2 lh1rem vam text-right xs-w117 w120">NETWORK</td>
+                            <td class="fs28 mono d-flex align-items-center">{{.Net}}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <table class="table table-mono-cells table-sm striped">
+                        <thead>
+                            <th>Parameter</th>
+                            <th>Value</th>
+                            <th>Description</th>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">DEFAULT PORT</td>
+                                <td class="lh1rem">{{.DefaultPort}}</td>
+                                <td class="lh1rem">Defines the default peer-to-peer port for the network</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">MAXIMUM TRANSACTION SIZE</td>
+                                <td class="lh1rem" >{{.MaxTxSize}} b</td>
+                                <td class="lh1rem">They are the maximum sizes of a block that can be generated on the network</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TARGET TIME SPAN</td>
+                                <td class="lh1rem" >{{.TargetTimespan}}</td>
+                                <td class="lh1rem">This is the desired amount of time that should elapse before the block difficulty requirement is examined</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TARGET TIME PER BLOCK</td>
+                                <td class="lh1rem">{{.TargetTimePerBlock}}</td>
+                                <td class="lh1rem">Is the desired amount of time to generate each block.</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">RETARGET ADJUSTMENT FACTOR</td>
+                                <td class="lh1rem" >{{.RetargetAdjustmentFactor}}</td>
+                                <td class="lh1rem">RetargetAdjustmentFactor is the adjustment factor used to limit the minimum and maximum amount of adjustment that can occur between difficulty retargets.</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">MAXIMUM BLOCK SIZES</td>
+                                <td class="lh1rem">{{.MaximumBlockSizes}} b</td>
+                                <td class="lh1rem">The maximum size a block can get to</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">COINBASE MATURITY</td>
+                                <td class="lh1rem">{{.CoinbaseMaturity}} blocks</td>
+                                <td class="lh1rem">The number of blocks required before newly mined</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">SStxChange MATURITY</td>
+                                <td class="lh1rem">{{.SStxChangeMaturity}}</td>
+                                <td class="lh1rem">Maturity for spending SStx change outputs</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET POOL SIZE</td>
+                                <td class="lh1rem">{{.TicketPoolSize}}</td>
+                                <td class="lh1rem">This denotes the number of possible buckets/number of different ticket numbers</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKETS PER BLOCK</td>
+                                <td class="lh1rem">{{.TicketsPerBlock}}</td>
+                                <td class="lh1rem">Average number of tickets per block for Decred PoS</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET MATURITY</td>
+                                <td class="lh1rem">{{.TicketMaturity}} blocks</td>
+                                <td class="lh1rem">Number of blocks for tickets to mature</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET EXPIRY</td>
+                                <td class="lh1rem">{{.TicketExpiry}} blocks</td>
+                                <td class="lh1rem">Number of blocks for tickets to expire after they have matured</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET POOL SIZE WEIGHT</td>
+                                <td class="lh1rem" >{{.TicketPoolSizeWeight}}</td>
+                                <td class="lh1rem">Is the multiplicative weight applied to the ticket pool size</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {{end}}
+        {{ template "footer" . }}
+    </body>
+</html>
+{{end}}
