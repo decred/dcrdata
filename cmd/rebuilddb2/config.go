@@ -1,3 +1,7 @@
+// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2017, The dcrdata developers
+// See LICENSE for details.
+
 package main
 
 import (
@@ -5,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	flags "github.com/btcsuite/go-flags"
@@ -135,12 +140,13 @@ func loadConfig() (*config, error) {
 	}
 
 	// Show the version and exit if the version flag was specified.
-	// appName := filepath.Base(os.Args[0])
-	// appName = strings.TrimSuffix(appName, filepath.Ext(appName))
-	// if preCfg.ShowVersion {
-	// 	fmt.Println(appName, "version", ver.String())
-	// 	os.Exit(0)
-	// }
+	appName := filepath.Base(os.Args[0])
+	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
+	if preCfg.ShowVersion {
+		fmt.Printf("%s version %s (Go version %s, %s-%s)\n", appName,
+			ver.String(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		os.Exit(0)
+	}
 
 	// Load additional config from file.
 	var configFileError error
