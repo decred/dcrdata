@@ -1,7 +1,7 @@
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
-package main
+package notification
 
 import (
 	"errors"

@@ -11,9 +11,10 @@ import (
 	"sync"
 
 	"github.com/btcsuite/btclog"
+
 	"github.com/decred/dcrd/wire"
+	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/blockdata"
-	apitypes "github.com/decred/dcrdata/dcrdataapi"
 	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 
@@ -47,21 +48,21 @@ const (
 type DB struct {
 	*sql.DB
 	sync.RWMutex
-	dbSummaryHeight                                     int64
-	dbStakeInfoHeight                                   int64
-	getPoolSQL, getPoolRangeSQL, getPoolValSizeRangeSQL string
-	getPoolByHashSQL                                    string
-	getWinnersByHashSQL, getWinnersSQL                  string
-	getSDiffSQL, getSDiffRangeSQL                       string
-	getLatestBlockSQL                                   string
-	getBlockSQL, insertBlockSQL                         string
-	getBlockByHashSQL                                   string
-	getBlockHashSQL, getBlockHeightSQL                  string
-	getBlockSizeRangeSQL                                string
-	getBestBlockHashSQL, getBestBlockHeightSQL          string
-	getLatestStakeInfoExtendedSQL                       string
-	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL string
-	getStakeInfoWinnersSQL                              string
+	dbSummaryHeight                                              int64
+	dbStakeInfoHeight                                            int64
+	getPoolSQL, getPoolRangeSQL, getPoolValSizeRangeSQL          string
+	getPoolByHashSQL                                             string
+	getWinnersByHashSQL, getWinnersSQL                           string
+	getSDiffSQL, getSDiffRangeSQL                                string
+	getLatestBlockSQL                                            string
+	getBlockSQL, insertBlockSQL                                  string
+	getBlockByHashSQL, getBlockByTimeRangeSQL, getBlockByTimeSQL string
+	getBlockHashSQL, getBlockHeightSQL                           string
+	getBlockSizeRangeSQL                                         string
+	getBestBlockHashSQL, getBestBlockHeightSQL                   string
+	getLatestStakeInfoExtendedSQL                                string
+	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL          string
+	getStakeInfoWinnersSQL                                       string
 }
 
 // NewDB creates a new DB instance with pre-generated sql statements from an
@@ -105,6 +106,10 @@ func NewDB(db *sql.DB) (*DB, error) {
 		`, TableNameSummaries)
 
 	d.getBlockSizeRangeSQL = fmt.Sprintf(`select size from %s where height between ? and ?`,
+		TableNameSummaries)
+	d.getBlockByTimeRangeSQL = fmt.Sprintf(`select * from %s where time between ? and ? ORDER BY time LIMIT ?`,
+		TableNameSummaries)
+	d.getBlockByTimeSQL = fmt.Sprintf(`select * from %s where time = ?`,
 		TableNameSummaries)
 
 	d.getBestBlockHashSQL = fmt.Sprintf(`select hash from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
@@ -509,6 +514,38 @@ func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 	}
 
 	return sdiffs, nil
+}
+
+func (db *DB) RetrieveBlockSummaryByTimeRange(minTime, maxTime int64, limit int) ([]apitypes.BlockDataBasic, error) {
+	blocks := make([]apitypes.BlockDataBasic, 0, limit)
+
+	stmt, err := db.Prepare(db.getBlockByTimeRangeSQL)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := stmt.Query(minTime, maxTime, limit)
+
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var bd apitypes.BlockDataBasic
+		if err = rows.Scan(&bd.Height, &bd.Size, &bd.Hash,
+			&bd.Difficulty, &bd.StakeDiff, &bd.Time,
+			&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg); err != nil {
+			log.Errorf("Unable to scan for block fields")
+		}
+		blocks = append(blocks, bd)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+	return blocks, nil
 }
 
 // RetrieveSDiff returns the stake difficulty for block ind

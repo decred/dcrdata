@@ -9,7 +9,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
-	apitypes "github.com/decred/dcrdata/dcrdataapi"
+	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/txhelpers"
 )

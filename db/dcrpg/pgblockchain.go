@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dbtypes"
@@ -41,6 +42,13 @@ type ChainDB struct {
 	addressCounts      *addressCounter
 	stakeDB            *stakedb.StakeDatabase
 	unspentTicketCache *TicketTxnIDGetter
+}
+
+// ChainDBRC provides an interface for storing and manipulating extracted
+// and includes the RPC Client blockchain data in a PostgreSQL database.
+type ChainDBRPC struct {
+	ChainDB *ChainDB
+	Client  *rpcclient.Client
 }
 
 type addressCounter struct {
@@ -169,6 +177,17 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		addressCounts:      makeAddressCounter(),
 		stakeDB:            stakeDB,
 		unspentTicketCache: unspentTicketCache,
+	}, nil
+}
+
+// NewChainDBRPC contains ChainDB and RPC client
+// parameters. By default, duplicate row checks on insertion are enabled.
+// also enables rpc client
+func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) {
+	// Connect to the PostgreSQL daemon and return the *sql.DB
+	return &ChainDBRPC{
+		chaindb,
+		cl,
 	}, nil
 }
 
@@ -369,8 +388,10 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.
 			}
 		} else {
 			var numSpent, numUnspent, totalSpent, totalUnspent int64
+
 			numSpent, numUnspent, totalSpent, totalUnspent, err =
 				RetrieveAddressSpentUnspent(pgb.db, address)
+
 			if err != nil {
 				return nil, nil, err
 			}

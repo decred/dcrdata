@@ -1,7 +1,7 @@
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
-package main
+package notification
 
 import (
 	"strings"
@@ -21,7 +21,7 @@ import (
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
-func registerNodeNtfnHandlers(dcrdClient *rpcclient.Client) *ContextualError {
+func RegisterNodeNtfnHandlers(dcrdClient *rpcclient.Client) *ContextualError {
 	var err error
 	// Register for block connection and chain reorg notifications.
 	if err = dcrdClient.NotifyBlocks(); err != nil {
@@ -68,7 +68,7 @@ type collectionQueue struct {
 
 // newCollectionQueue creates a new collectionQueue with a queue channel large
 // enough for 10 million block pointers.
-func newCollectionQueue() *collectionQueue {
+func NewCollectionQueue() *collectionQueue {
 	return &collectionQueue{
 		q: make(chan *blockHashHeight, 1e7),
 	}
@@ -95,7 +95,7 @@ func (q *collectionQueue) ProcessBlocks() {
 
 		// Signal to mempool monitors that a block was mined
 		select {
-		case ntfnChans.newTxChan <- &mempool.NewTx{
+		case NtfnChans.NewTxChan <- &mempool.NewTx{
 			Hash: nil,
 			T:    time.Now(),
 		}:
@@ -103,7 +103,7 @@ func (q *collectionQueue) ProcessBlocks() {
 		}
 
 		select {
-		case ntfnChans.expNewTxChan <- &explorer.NewMempoolTx{
+		case NtfnChans.ExpNewTxChan <- &explorer.NewMempoolTx{
 			Hex: "",
 		}:
 		default:
@@ -111,7 +111,7 @@ func (q *collectionQueue) ProcessBlocks() {
 
 		// API status update handler
 		select {
-		case ntfnChans.updateStatusNodeHeight <- uint32(height):
+		case NtfnChans.UpdateStatusNodeHeight <- uint32(height):
 		default:
 		}
 	}
@@ -131,8 +131,8 @@ func (q *collectionQueue) ProcessBlocks() {
 // }
 
 // Define notification handlers
-func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collectionQueue) {
-	blockQueue := newCollectionQueue()
+func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) {
+	blockQueue := NewCollectionQueue()
 	go blockQueue.ProcessBlocks()
 	return &rpcclient.NotificationHandlers{
 		OnBlockConnected: func(blockHeaderSerialized []byte, transactions [][]byte) {
@@ -154,7 +154,7 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 			newHash *chainhash.Hash, newHeight int32) {
 			// Send reorg data to dcrsqlite's monitor
 			select {
-			case ntfnChans.reorgChanWiredDB <- &dcrsqlite.ReorgData{
+			case NtfnChans.ReorgChanWiredDB <- &dcrsqlite.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
@@ -164,7 +164,7 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 			}
 			// Send reorg data to blockdata's monitor (so that it stops collecting)
 			select {
-			case ntfnChans.reorgChanBlockData <- &blockdata.ReorgData{
+			case NtfnChans.ReorgChanBlockData <- &blockdata.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
@@ -174,7 +174,7 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 			}
 			// Send reorg data to stakedb's monitor
 			select {
-			case ntfnChans.reorgChanStakeDB <- &stakedb.ReorgData{
+			case NtfnChans.ReorgChanStakeDB <- &stakedb.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
@@ -209,7 +209,7 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 			tx := dcrutil.NewTx(&rec.MsgTx)
 			txHash := rec.Hash
 			select {
-			case ntfnChans.relevantTxMempoolChan <- tx:
+			case NtfnChans.RelevantTxMempoolChan <- tx:
 				log.Debugf("Detected transaction %v in mempool containing registered address.",
 					txHash.String())
 			default:
@@ -221,7 +221,7 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 		// the tx details
 		OnTxAcceptedVerbose: func(txDetails *dcrjson.TxRawResult) {
 			select {
-			case ntfnChans.expNewTxChan <- &explorer.NewMempoolTx{
+			case NtfnChans.ExpNewTxChan <- &explorer.NewMempoolTx{
 				Time: time.Now().Unix(),
 				Hex:  txDetails.Hex,
 			}:
@@ -231,12 +231,12 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 
 			hash, _ := chainhash.NewHashFromStr(txDetails.Txid)
 			select {
-			case ntfnChans.newTxChan <- &mempool.NewTx{
+			case NtfnChans.NewTxChan <- &mempool.NewTx{
 				Hash: hash,
 				T:    time.Now(),
 			}:
 			default:
-				log.Warn("newTxChan buffer full!")
+				log.Warn("NewTxChan buffer full!")
 			}
 		},
 	}, blockQueue

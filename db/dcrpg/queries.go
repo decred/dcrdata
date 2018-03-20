@@ -12,6 +12,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/decred/dcrdata/txhelpers"
@@ -1046,6 +1047,79 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	}
 
 	return
+}
+
+func RetrieveBlockHash(db *sql.DB, idx int64) (hash string, err error) {
+	err = db.QueryRow(internal.SelectBlockHashByHeight, idx).Scan(&hash)
+	return
+}
+
+func RetrieveBlockHeight(db *sql.DB, hash string) (height int64, err error) {
+	err = db.QueryRow(internal.SelectBlockHeightByHash, hash).Scan(&height)
+	return
+}
+
+func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, currentBlockHeight int64) ([]apitypes.AddressTxnOutput, error) {
+	var outputs []apitypes.AddressTxnOutput
+
+	stmt, err := db.Prepare(internal.SelectAddressUnspentWithTxn)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	rows, err := stmt.Query(address)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var txnOutput apitypes.AddressTxnOutput
+		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
+			&txnOutput.Atoms, &txnOutput.Height, &txnOutput.BlockHash); err != nil {
+			fmt.Println(err)
+			log.Error(err)
+		}
+		txnOutput.Amount = txnOutput.Atoms * 100000000
+		txnOutput.Confirmations = currentBlockHeight - txnOutput.Height
+		outputs = append(outputs, txnOutput)
+	}
+
+	return outputs, nil
+}
+
+func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {
+	var blocks []dbtypes.BlockDataBasic
+
+	stmt, err := db.Prepare(internal.SelectBlockByTimeRangeSQL)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(minTime, " * ", maxTime, " * ", limit)
+	rows, err := stmt.Query(minTime, maxTime, limit)
+
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var dbBlock dbtypes.BlockDataBasic
+		if err = rows.Scan(&dbBlock.Hash, &dbBlock.Height, &dbBlock.Size, &dbBlock.Time, &dbBlock.NumTx); err != nil {
+			fmt.Println(err)
+			log.Errorf("Unable to scan for block fields")
+		}
+		blocks = append(blocks, dbBlock)
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+	return blocks, nil
 }
 
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, checked bool) (uint64, error) {

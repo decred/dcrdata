@@ -11,11 +11,14 @@ import (
 
 	"github.com/btcsuite/btclog"
 	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrdata/api"
+	"github.com/decred/dcrdata/api/insight"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/explorer"
 	"github.com/decred/dcrdata/mempool"
+	"github.com/decred/dcrdata/middleware"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/jrick/logrotate/rotator"
@@ -52,7 +55,7 @@ var (
 	sqliteLog     = backendLog.Logger("SQLT")
 	postgresqlLog = backendLog.Logger("PSQL")
 	stakedbLog    = backendLog.Logger("SKDB")
-	blockdataLog  = backendLog.Logger("BLKD")
+	BlockdataLog  = backendLog.Logger("BLKD")
 	clientLog     = backendLog.Logger("RPCC")
 	mempoolLog    = backendLog.Logger("MEMP")
 	expLog        = backendLog.Logger("EXPR")
@@ -65,11 +68,14 @@ func init() {
 	dcrsqlite.UseLogger(sqliteLog)
 	dcrpg.UseLogger(postgresqlLog)
 	stakedb.UseLogger(stakedbLog)
-	blockdata.UseLogger(blockdataLog)
+	blockdata.UseLogger(BlockdataLog)
 	rpcclient.UseLogger(clientLog)
 	rpcutils.UseLogger(clientLog)
 	mempool.UseLogger(mempoolLog)
 	explorer.UseLogger(expLog)
+	api.UseLogger(apiLog)
+	insight.UseLogger(apiLog)
+	middleware.UseLogger(apiLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
@@ -77,7 +83,7 @@ var subsystemLoggers = map[string]btclog.Logger{
 	"SQLT": sqliteLog,
 	"PSQL": postgresqlLog,
 	"SKDB": stakedbLog,
-	"BLKD": blockdataLog,
+	"BLKD": BlockdataLog,
 	"RPCC": clientLog,
 	"MEMP": mempoolLog,
 	"EXPR": expLog,
