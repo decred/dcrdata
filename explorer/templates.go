@@ -222,5 +222,20 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return str + "remaining"
 		},
+		"TimeDurationFormat": func(duration time.Duration) (formatedDuration string) {
+			durationhr := int(duration.Minutes() / 60)
+			durationmin := int(int(duration.Minutes()) % 60)
+			durationsec := int(int(duration.Seconds()) % 60)
+			if durationhr != 0 {
+				formatedDuration = strconv.Itoa(durationhr) + " hrs " + strconv.Itoa(durationmin) + " min " + strconv.Itoa(durationsec) + " sec"
+				return
+			} else if (durationhr == 0) && (durationmin != 0) {
+				formatedDuration = strconv.Itoa(durationmin) + " min " + strconv.Itoa(durationsec) + " sec"
+				return
+			} else {
+				formatedDuration = strconv.Itoa(durationsec) + " sec"
+			}
+			return
+		},
 	}
 }

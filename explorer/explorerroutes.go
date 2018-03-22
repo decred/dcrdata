@@ -624,7 +624,7 @@ func (exp *explorerUI) ChainParametersPage(w http.ResponseWriter, r *http.Reques
 	cp.GenesisBlockHeight = int64(exp.ChainParams.GenesisBlock.Header.Height)
 	cp.BlockOneHeight = 1
 
-	str, err := templateExecToString(exp.templates[chainParametersTemplateIndex], "chainParameters", struct {
+	str, err := exp.templates.execTemplateToString("chainParameters", struct {
 		Cp      ChainParams
 		Version string
 	}{
