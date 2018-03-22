@@ -38,7 +38,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.With(app.BlockHashPathAndIndexCtx).Get("/block/{blockhash}", app.getBlockSummary)
 	mux.With(m.BlockIndexPathCtx).Get("/block-index/{idx}", app.getBlockHash)
 	// TODO Missing implementation for rawblock
-	mux.With(m.BlockIndexPathCtx).Get("/rawblock/{idx}", app.getRawBlock)
+	mux.With(m.BlockIndexOrHashPathCtx).Get("/rawblock/{idx}", app.getRawBlock)
 
 	mux.With(m.RawTransactionCtx).Post("/tx/send", app.broadcastTransactionRaw)
 	mux.With(m.AddressPathCtx).Get("/addr/{address}/utxo", app.getAddressTxnOutput)

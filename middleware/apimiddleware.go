@@ -48,10 +48,7 @@ type DataSource interface {
 	GetBlockHash(idx int64) (string, error)
 }
 
-// GetBlockHeight accepts a block hash
-// returns block height
-type GetStakeVersionsLatest func() (*dcrjson.StakeVersions, error)
-type Status apitypes.Status
+type StakeVersionsLatest func() (*dcrjson.StakeVersions, error)
 
 // GetBlockStepCtx accepts http request
 // returns the blockstep index
@@ -260,8 +257,8 @@ func BlockIndexPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockIndexOrHashPathCtx returns a http.HandlerFunc that embeds the value at the url
-// part {idxorhash} into the request context
+// BlockIndexOrHashPathCtx returns a http.HandlerFunc that embeds the value at
+// the url part {idxorhash} into the request context.
 func BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var ctx context.Context
@@ -281,8 +278,8 @@ func BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockIndex0PathCtx returns a http.HandlerFunc that embeds the value at the url
-// part {idx0} into the request context
+// BlockIndex0PathCtx returns a http.HandlerFunc that embeds the value at the
+// url part {idx0} into the request context.
 func BlockIndex0PathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pathIdxStr := chi.URLParam(r, "idx0")
@@ -478,8 +475,9 @@ func BlockDateQueryCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockHashPathAndIndexCtx returns a http.HandlerFunc that embeds the value at the url
-// part {idx} into the request context and the block height
+// BlockHashPathAndIndexCtx embeds the value at the url part {idx} into the
+// request context and the block height
+// TODO: wtf
 func BlockHashPathAndIndexCtx(r *http.Request, source DataSource) context.Context {
 	hash := chi.URLParam(r, "blockhash")
 	height, err := source.GetBlockHeight(hash)
@@ -491,8 +489,8 @@ func BlockHashPathAndIndexCtx(r *http.Request, source DataSource) context.Contex
 	return ctx
 }
 
-// StatusInfoCtx returns a http.HandlerFunc that embeds the value at the url
-// part {idx} into the request context
+// StatusInfoCtx embeds the value at the url part {idx} into the request context
+// TODO: wtf
 func StatusInfoCtx(r *http.Request, source DataSource) context.Context {
 	idx := -1
 	if source.GetHeight() >= 0 {
@@ -507,9 +505,8 @@ func StatusInfoCtx(r *http.Request, source DataSource) context.Context {
 	return ctx
 }
 
-// BlockHashLatestCtx returns a http.HandlerFunc
-// embeds the current block height and block hash into the
-// request context
+// BlockHashLatestCtx embeds the current block height and hash into the request
+// context.
 func BlockHashLatestCtx(r *http.Request, source DataSource) context.Context {
 	var idx int
 	hash := ""
@@ -529,13 +526,11 @@ func BlockHashLatestCtx(r *http.Request, source DataSource) context.Context {
 	return ctx
 }
 
-// StakeVersionLatestCtx returns a http.HandlerFunc that embeds
-// latest stake version into the request context
-func StakeVersionLatestCtx(
-	r *http.Request,
-	getStakeVersionsLatest GetStakeVersionsLatest) context.Context {
+// StakeVersionLatestCtx returns a http.HandlerFunc that embeds latest stake
+// version into the request context.
+func StakeVersionLatestCtx(r *http.Request, stakeVerFun StakeVersionsLatest) context.Context {
 	ver := -1
-	stkVers, err := getStakeVersionsLatest()
+	stkVers, err := stakeVerFun()
 	if err == nil && stkVers != nil {
 		ver = int(stkVers.StakeVersion)
 	}
@@ -544,8 +539,7 @@ func StakeVersionLatestCtx(
 	return ctx
 }
 
-// BlockIndexLatestCtx returns a context
-// embeds the current block height into the request context
+// BlockIndexLatestCtx embeds the current block height into the request context.
 func BlockIndexLatestCtx(r *http.Request, source DataSource) context.Context {
 	idx := -1
 	if source.GetHeight() >= 0 {
@@ -555,16 +549,15 @@ func BlockIndexLatestCtx(r *http.Request, source DataSource) context.Context {
 	return ctx
 }
 
-// StatusCtx returns a context embeds the
-// api status into the request context
-func StatusCtx(r *http.Request, status Status) context.Context {
+// StatusCtx embeds the api status into the request context.
+func StatusCtx(r *http.Request, status apitypes.Status) context.Context {
 	// Set API status context
 	ctx := context.WithValue(r.Context(), ctxAPIStatus, status)
 	return ctx
 }
 
-// GetBlockHeightCtx returns the current block
-// height
+// GetBlockHeightCtx returns the block height for the block index or hash
+// specified on the URL path.
 func GetBlockHeightCtx(r *http.Request, source DataSource) int64 {
 	idxI, ok := r.Context().Value(ctxBlockIndex).(int)
 	idx := int64(idxI)
@@ -578,8 +571,8 @@ func GetBlockHeightCtx(r *http.Request, source DataSource) int64 {
 	return idx
 }
 
-// GetLatestVoteVersionCtx returns the stakeversionlatest
-// embedded into the request context
+// GetLatestVoteVersionCtx attempts to retrieve the latest stake version
+// embedded in the request context.
 func GetLatestVoteVersionCtx(r *http.Request) int {
 	ver, ok := r.Context().Value(ctxStakeVersionLatest).(int)
 	if !ok {
