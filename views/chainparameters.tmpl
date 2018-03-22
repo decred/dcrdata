@@ -30,54 +30,34 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="text-right pr-2 lh1rem nowrap p03rem0">DEFAULT PORT</td>
-                                <td class="lh1rem">{{.DefaultPort}}</td>
-                                <td class="lh1rem">Defines the default peer-to-peer port for the network</td>
-                            </tr>
-                            <tr>
                                 <td class="text-right pr-2 lh1rem nowrap p03rem0">MAXIMUM TRANSACTION SIZE</td>
                                 <td class="lh1rem" >{{.MaxTxSize}} b</td>
-                                <td class="lh1rem">They are the maximum sizes of a block that can be generated on the network</td>
+                                <td class="lh1rem">Size of largest allowable transaction</td>
                             </tr>
                             <tr>
-                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TARGET TIME SPAN</td>
-                                <td class="lh1rem" >{{.TargetTimespan}}</td>
-                                <td class="lh1rem">This is the desired amount of time that should elapse before the block difficulty requirement is examined</td>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">PoW RETARGET INTERVAL</td>
+                                <td class="lh1rem" >{{TimeDurationFormat .TargetTimespan}}</td>
+                                <td class="lh1rem">Amount of time that should elapse before the block difficulty requirement is examined</td>
                             </tr>
                             <tr>
                                 <td class="text-right pr-2 lh1rem nowrap p03rem0">TARGET TIME PER BLOCK</td>
                                 <td class="lh1rem">{{.TargetTimePerBlock}}</td>
-                                <td class="lh1rem">Is the desired amount of time to generate each block.</td>
+                                <td class="lh1rem">Amount of time to generate each block.</td>
                             </tr>
                             <tr>
-                                <td class="text-right pr-2 lh1rem nowrap p03rem0">RETARGET ADJUSTMENT FACTOR</td>
-                                <td class="lh1rem" >{{.RetargetAdjustmentFactor}}</td>
-                                <td class="lh1rem">RetargetAdjustmentFactor is the adjustment factor used to limit the minimum and maximum amount of adjustment that can occur between difficulty retargets.</td>
-                            </tr>
-                            <tr>
-                                <td class="text-right pr-2 lh1rem nowrap p03rem0">MAXIMUM BLOCK SIZES</td>
-                                <td class="lh1rem">{{.MaximumBlockSizes}} b</td>
-                                <td class="lh1rem">The maximum size a block can get to</td>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">MAXIMUM BLOCK SIZE</td>
+                                <td class="lh1rem">{{.MaximumBlockSize}} b</td>
+                                <td class="lh1rem">Size a block can get to</td>
                             </tr>
                             <tr>
                                 <td class="text-right pr-2 lh1rem nowrap p03rem0">COINBASE MATURITY</td>
                                 <td class="lh1rem">{{.CoinbaseMaturity}} blocks</td>
-                                <td class="lh1rem">The number of blocks required before newly mined</td>
+                                <td class="lh1rem">Number of blocks required before newly mined</td>
                             </tr>
                             <tr>
-                                <td class="text-right pr-2 lh1rem nowrap p03rem0">SStxChange MATURITY</td>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET PURCHASE CHANGE MATURITY</td>
                                 <td class="lh1rem">{{.SStxChangeMaturity}}</td>
                                 <td class="lh1rem">Maturity for spending SStx change outputs</td>
-                            </tr>
-                            <tr>
-                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET POOL SIZE</td>
-                                <td class="lh1rem">{{.TicketPoolSize}}</td>
-                                <td class="lh1rem">This denotes the number of possible buckets/number of different ticket numbers</td>
-                            </tr>
-                            <tr>
-                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKETS PER BLOCK</td>
-                                <td class="lh1rem">{{.TicketsPerBlock}}</td>
-                                <td class="lh1rem">Average number of tickets per block for Decred PoS</td>
                             </tr>
                             <tr>
                                 <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET MATURITY</td>
@@ -85,14 +65,49 @@
                                 <td class="lh1rem">Number of blocks for tickets to mature</td>
                             </tr>
                             <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET POOL SIZE</td>
+                                <td class="lh1rem">{{.TicketPoolSize}}</td>
+                                <td class="lh1rem">Number of possible number of different ticket numbers</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKETS PER BLOCK</td>
+                                <td class="lh1rem">{{.TicketsPerBlock}}</td>
+                                <td class="lh1rem">Average number of tickets per block for Decred PoS</td>
+                            </tr>
+                            <tr>
                                 <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET EXPIRY</td>
                                 <td class="lh1rem">{{.TicketExpiry}} blocks</td>
                                 <td class="lh1rem">Number of blocks for tickets to expire after they have matured</td>
                             </tr>
                             <tr>
-                                <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKET POOL SIZE WEIGHT</td>
-                                <td class="lh1rem" >{{.TicketPoolSizeWeight}}</td>
-                                <td class="lh1rem">Is the multiplicative weight applied to the ticket pool size</td>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">STAKE REWARD PROPORTION</td>
+                                <td class="lh1rem">{{.StakeRewardProportion}}</td>
+                                <td class="lh1rem">Comparative amount of the subsidy</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">HD COIN TYPE</td>
+                                <td class="lh1rem">{{.HDCoinType}}</td>
+                                <td class="lh1rem">BIP44 coin type used in the hierarchical deterministic path for address generation.</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">ORGANISATION Pk SCRIPT</td>
+                                <td class="lh1rem">{{.OrganizationPkScript}}</td>
+                                <td class="lh1rem">Output script for block taxes to be distributed to in every block's coinbase</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">DECODED ADDRESS</td>
+                                <td class="lh1rem"><a href="/address/{{.DecodedAddress}}">{{.DecodedAddress}}</a></td>
+                                <td class="lh1rem">Development subsidy address for network</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">GENESIS BLOCK</td>
+                                <td class="lh1rem"><a href="/block/{{.GenesisBlockHeight}}">{{.GenesisBlockHeight}}</a></td>
+                                <td class="lh1rem">First block of the chain</td>
+                            </tr>
+                            <tr>
+                                <td class="text-right pr-2 lh1rem nowrap p03rem0">BLOCK ONE</td>
+                                <td class="lh1rem"><a href="/block/{{.BlockOneHeight}}">{{.BlockOneHeight}}</a></td>
+                                <td class="lh1rem">Block height 1</td>
                             </tr>
                         </tbody>
                     </table>

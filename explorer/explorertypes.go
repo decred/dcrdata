@@ -7,6 +7,9 @@ package explorer
 import (
 	"fmt"
 	"sync"
+	"time"
+
+	"github.com/decred/dcrd/wire"
 
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -295,10 +298,27 @@ type MempoolShort struct {
 // ChainParams models simple data about the chain server's parameters used for some
 // info on the front page
 type ChainParams struct {
-	WindowSize       int64 `json:"window_size"`
-	RewardWindowSize int64 `json:"reward_window_size"`
-	TargetPoolSize   int64 `json:"target_pool_size"`
-	BlockTime        int64 `json:"target_block_time"`
+	WindowSize            int64 `json:"window_size"`
+	RewardWindowSize      int64 `json:"reward_window_size"`
+	TargetPoolSize        int64 `json:"target_pool_size"`
+	BlockTime             int64 `json:"target_block_time"`
+	Net                   wire.CurrencyNet
+	MaxTxSize             int64
+	TargetTimespan        time.Duration
+	TargetTimePerBlock    time.Duration
+	MaximumBlockSize      int64
+	CoinbaseMaturity      int64
+	SStxChangeMaturity    int64
+	TicketMaturity        int64
+	TicketPoolSize        int64
+	TicketsPerBlock       int64
+	TicketExpiry          int64
+	StakeRewardProportion int64
+	HDCoinType            int64
+	OrganizationPkScript  []byte
+	DecodedAddress        string
+	GenesisBlockHeight    int64
+	BlockOneHeight        int64
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of

@@ -10,7 +10,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrdata/db/dbtypes"
+
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes"
@@ -600,10 +601,31 @@ func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 
 // ChainParametersPage is the page handler for the "/ChainParameters" path
 func (exp *explorerUI) ChainParametersPage(w http.ResponseWriter, r *http.Request) {
-	var cp = exp.ChainParams
+	var cp ChainParams
+	cp.Net = exp.ChainParams.Net
+	cp.MaxTxSize = int64(exp.ChainParams.MaxTxSize)
+	cp.TargetTimespan = exp.ChainParams.TargetTimespan
+	cp.TargetTimePerBlock = exp.ChainParams.TargetTimePerBlock
+	cp.MaximumBlockSize = int64(exp.ChainParams.MaximumBlockSizes[0])
+	cp.CoinbaseMaturity = int64(exp.ChainParams.CoinbaseMaturity)
+	cp.SStxChangeMaturity = int64(exp.ChainParams.SStxChangeMaturity)
+	cp.TicketMaturity = int64(exp.ChainParams.TicketMaturity)
+	cp.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
+	cp.TicketsPerBlock = int64(exp.ChainParams.TicketsPerBlock)
+	cp.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
+	cp.StakeRewardProportion = int64(exp.ChainParams.StakeRewardProportion)
+	cp.HDCoinType = int64(exp.ChainParams.HDCoinType)
+	cp.OrganizationPkScript = exp.ChainParams.OrganizationPkScript
+	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(exp.ChainParams)
+	if err != nil {
+		log.Errorf("DevSubsidyAddress faild for ChainPrams %v", exp.ChainParams)
+	}
+	cp.DecodedAddress = devSubsidyAddress
+	cp.GenesisBlockHeight = int64(exp.ChainParams.GenesisBlock.Header.Height)
+	cp.BlockOneHeight = 1
 
 	str, err := templateExecToString(exp.templates[chainParametersTemplateIndex], "chainParameters", struct {
-		Cp      *chaincfg.Params
+		Cp      ChainParams
 		Version string
 	}{
 		cp,
