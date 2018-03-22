@@ -8,6 +8,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 
+	"github.com/decred/dcrdata/api/insight"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/explorer"
@@ -46,10 +47,11 @@ var NtfnChans struct {
 	RelevantTxMempoolChan             chan *dcrutil.Tx
 	NewTxChan                         chan *mempool.NewTx
 	ExpNewTxChan                      chan *explorer.NewMempoolTx
+	InsightNewTxChan                  chan *insight.NewTx
 }
 
 // MakeNtfnChans create notification channels based on config
-func MakeNtfnChans(monitorMempool bool) {
+func MakeNtfnChans(monitorMempool, postgresEnabled bool) {
 	// If we're monitoring for blocks OR collecting block data, these channels
 	// are necessary to handle new block notifications. Otherwise, leave them
 	// as nil so that both a send (below) blocks and a receive (in
@@ -86,6 +88,10 @@ func MakeNtfnChans(monitorMempool bool) {
 
 	// New mempool tx chan for explorer
 	NtfnChans.ExpNewTxChan = make(chan *explorer.NewMempoolTx, expNewTxChanBuffer)
+
+	if postgresEnabled {
+		NtfnChans.InsightNewTxChan = make(chan *insight.NewTx, expNewTxChanBuffer)
+	}
 }
 
 // CloseNtfnChans close all notification channels
@@ -133,5 +139,9 @@ func CloseNtfnChans() {
 
 	if NtfnChans.ExpNewTxChan != nil {
 		close(NtfnChans.ExpNewTxChan)
+	}
+
+	if NtfnChans.InsightNewTxChan != nil {
+		close(NtfnChans.InsightNewTxChan)
 	}
 }
