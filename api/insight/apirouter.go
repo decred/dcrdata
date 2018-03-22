@@ -1,10 +1,10 @@
-// Package insight handles the insight api
-//
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 //
 // This is tested against Insight API Implementation v5.3.04beta
 
+// Package insight handles the insight api
 package insight
 
 import (

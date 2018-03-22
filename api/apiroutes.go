@@ -1013,7 +1013,7 @@ func (c *appContext) getBlockHeightCtx(r *http.Request) int64 {
 }
 
 func (c *appContext) getBlockHashCtx(r *http.Request) string {
-	hash := m.GetBlockHashOnlyCtx(r)
+	hash := m.GetBlockHashCtx(r)
 	if hash == "" {
 		var err error
 		hash, err = c.BlockData.GetBlockHash(int64(m.GetBlockIndexCtx(r)))
