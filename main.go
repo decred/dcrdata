@@ -579,22 +579,28 @@ func connectNodeRPC(cfg *config, ntfnHandlers *rpcclient.NotificationHandlers) (
 
 func listenAndServeProto(listen, proto string, mux http.Handler) error {
 	// Try to bind web server
+	server := http.Server{
+		Addr:         listen,
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,  // slow requests may not keep connections opened
+		WriteTimeout: 60 * time.Second, // hung responses must die
+	}
 	errChan := make(chan error)
 	if proto == "https" {
 		go func() {
-			errChan <- http.ListenAndServeTLS(listen, "dcrdata.cert", "dcrdata.key", mux)
+			errChan <- server.ListenAndServeTLS("dcrdata.cert", "dcrdata.key")
 		}()
 	} else {
 		go func() {
-			errChan <- http.ListenAndServe(listen, mux)
+			errChan <- server.ListenAndServe()
 		}()
 	}
 
 	// Briefly wait for an error and then return
-	t := time.NewTimer(3 * time.Second)
+	t := time.NewTimer(2 * time.Second)
 	select {
 	case err := <-errChan:
-		return fmt.Errorf("Failed to bind web server: %v", err)
+		return fmt.Errorf("Failed to bind web server promptly: %v", err)
 	case <-t.C:
 		expLog.Infof("Now serving explorer on %s://%v/", proto, listen)
 		apiLog.Infof("Now serving API on %s://%v/", proto, listen)
