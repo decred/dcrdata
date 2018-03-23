@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -582,7 +583,7 @@ func listenAndServeProto(listen, proto string, mux http.Handler) error {
 	server := http.Server{
 		Addr:         listen,
 		Handler:      mux,
-		ReadTimeout:  5 * time.Second,  // slow requests may not keep connections opened
+		ReadTimeout:  5 * time.Second,  // slow requests should not hold connections opened
 		WriteTimeout: 60 * time.Second, // hung responses must die
 	}
 	errChan := make(chan error)
