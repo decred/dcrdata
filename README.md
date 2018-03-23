@@ -21,6 +21,7 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 │   ├── dbtypes         Package dbtypes with common data types.
 │   ├── dcrpg           Package dcrpg providing PostgreSQL backend.
 │   └── dcrsqlite       Package dcrsqlite providing SQLite backend.
+├── dev                 Shell scripts for maintenance and deployment.
 ├── public              Public resources for block explorer (css, js, etc.).
 ├── explorer            Package explorer, powering the block explorer.
 ├── mempool             Package mempool.
@@ -74,11 +75,9 @@ vendor folders and run `dep ensure` again.
 
 ### Runtime resources
 
-Presently the dcrdata executable, it's config file, logs, data files, and web
-interface resources are all in the same folder. An option to specify the
-application data folder will be added in the future.
+The config file, logs, and data files are stored in the application data folder, which may be specified via the `-A/--appdata` setting. However, the location of the config file may be set with `-C/--configfile`.
 
-As with the config file, the "public" and "views" folders *must* be in the same
+The "public" and "views" folders *must* be in the same
 folder as the `dcrdata` executable.
 
 ## Updating
@@ -103,8 +102,8 @@ Begin with the sample configuration file:
 cp sample-dcrdata.conf dcrdata.conf
 ```
 
-Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata
---help` for a list of all options and their default values.
+Then edit dcrdata.conf with your dcrd RPC settings. See the output of
+`dcrdata --help` for a list of all options and their default values.
 
 ### Indexing the Blockchain
 
@@ -160,17 +159,17 @@ Note that while dcrdata can be started with HTTPS support, it is recommended to
 employ a reverse proxy such as nginx. See sample-nginx.conf for an example nginx
 configuration.
 
-A new database backend using PostgreSQL was introduced in v0.9.0 that provides
-expanded functionality. However, initial population of the database takes
-additional time and tens of gigabytes of disk storage space. To disable the
-PostgreSQL backend (and the expanded functionality), dcrdata may be started with
-the `--lite` (`-l` for short) command line flag.
+A new auxillary database backend using PostgreSQL was introduced in v0.9.0 that
+provides expanded functionality. However, initial population of the database
+takes additional time and tens of gigabytes of disk storage space. Thus, dcrdata
+runs by default in a reduced functionality mode that does not require
+PostgreSQL. To enable the PostgreSQL backend (and the expanded functionality),
+dcrdata may be started with the `--pg` switch.
 
 ### JSON REST API
 
-The API serves JSON data over HTTP(S). **All
-API endpoints are currently prefixed with `/api`** (e.g.
-`http://localhost:7777/api/stake`), but this may be configurable in the future.
+The API serves JSON data over HTTP(S). **All API endpoints are currently
+prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 
 #### Endpoint List
 
@@ -283,8 +282,8 @@ option.
 ## Important Note About Mempool
 
 Although there is mempool data collection and serving, it is **very important**
-to keep in mind that the mempool in your node (dcrd) is not likely to be the
-same as other nodes' mempool.  Also, your mempool is cleared out when you
+to keep in mind that the mempool in your node (dcrd) is not likely to be exactly
+the same as other nodes' mempool.  Also, your mempool is cleared out when you
 shutdown dcrd.  So, if you have recently (e.g. after the start of the current
 ticket price window) started dcrd, your mempool _will_ be missing transactions
 that other nodes have.
@@ -293,7 +292,7 @@ that other nodes have.
 
 ### rebuilddb
 
-rebuilddb is a CLI app that performs a full blockchain scan that fills past
+`rebuilddb` is a CLI app that performs a full blockchain scan that fills past
 block data into a SQLite database. This functionality is included in the startup
 of the dcrdata daemon, but may be called alone with rebuilddb.
 
