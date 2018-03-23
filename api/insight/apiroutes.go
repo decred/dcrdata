@@ -372,14 +372,14 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 
 	minDate, err := time.Parse(layout, blockDate+" 00:00:00")
 	if err != nil {
-		apiLog.Errorf("Unable to retreive block summary using time %s: %v", blockDate, err)
+		apiLog.Errorf("Unable to retrieve block summary using time %s: %v", blockDate, err)
 		http.Error(w, "invalid date ", 422)
 		return
 	}
 
 	maxDate, err := time.Parse(layout, blockDate+" 23:59:59")
 	if err != nil {
-		apiLog.Errorf("Unable to retreive block summary using time %s: %v", blockDate, err)
+		apiLog.Errorf("Unable to retrieve block summary using time %s: %v", blockDate, err)
 		http.Error(w, "invalid date", 422)
 		return
 	}
@@ -389,7 +389,7 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 	blockSummary := c.BlockData.ChainDB.GetBlockSummaryTimeRange(minTime, maxTime, limit)
 
 	if blockSummary == nil {
-		http.Error(w, "error occured", 422)
+		http.Error(w, "error occurred", 422)
 		return
 	}
 
@@ -417,7 +417,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	addressInfo := c.BlockData.ChainDB.GetAddressInfo(address, int64(count), int64(offset))
 
 	if addressInfo == nil {
-		http.Error(w, "an error occured", 422)
+		http.Error(w, "an error occurred", 422)
 		return
 	}
 
