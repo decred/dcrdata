@@ -46,7 +46,7 @@
                 </div>
                 <div class="col-sm-auto"><a href="/blocks" title="Explorer">Explore</a></div>
             </div>
-            <div class="col" style="padding: 0 5px;">
+            <div class="col" style="padding: 0 5px; margin-right: 40px;">
                 <form class="navbar-form" role="search" id="search-form" action="/search">
                     <div class="input-group">
                         <input
@@ -60,11 +60,29 @@
                     </div>
                 </form>
             </div>
-            <div>
+            <!-- <div>
                 <a id="sun-toggle" href="javascript:toggleSun()" class="dcricon-sun-fill no-underline"></a>
-            </div>
+            </div> -->
         </div>
     </div>
+
+    <nav role="navigation" id="hamburger-menu">
+        <div id="menuToggle">
+            <input type="checkbox" />
+            <span></span>
+            <span></span>
+            <span></span>
+            <ul id="menu">
+                <a href="#"><li>Home</li></a>
+                <a href="#"><li>Mempool</li></a>
+                <a href="#"><li>Blocks</li></a>
+                <a href="#"><li>Decode/Broadcast Tx</li></a>
+                <a href="#"><li>JSON API Docs</li></a>
+                <a href="#"><li>Enable Night Mode</li></a>
+            </ul>
+        </div>
+    </nav>
+
 </div>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
@@ -450,11 +468,11 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
-        <div style="float: left">
+        <!-- <div style="float: left">
             <a class="nav-item" href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
             <a class="nav-item" href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON-API Docs</a>
             <a class="nav-item" href="/mempool" title="Decred mempool">Mempool</a>
-        </div>
+        </div> -->
         <div style="text-align: left; margin:0 auto !important; display:inline-block">
             <a class="nav-item" href="https://github.com/decred/dcrdata" title="dcrdata on GitHub" target="_blank">dcrdata v{{.Version}}</a>
             <a class="nav-item" href="https://github.com/decred/dcrdata/blob/master/LICENSE" target="_blank">© 2017-2018 The dcrdata developers (ISC)</a>

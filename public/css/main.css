@@ -256,6 +256,97 @@ body.darkBG .navbar-fixed-bottom .nav-item {
   background: transparent !important;
 }
 
+#hamburger-menu {
+  z-index: 10;
+  position: fixed;
+  width: 100%;
+  top: 0px;
+  right: 0px;
+  left: 0px;
+}
+#hamburger-menu a {
+  text-decoration: none;
+  color: #232323;
+  transition: color 0.3s ease;
+}
+#hamburger-menu a:hover {
+  color: #2e75ff;
+}
+#menuToggle {
+  display: block;
+  top: 7px;
+  right: 8px;
+  position: absolute;
+  z-index: 1;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#menuToggle input{
+  display: block;
+  width: 40px;
+  height: 36px;
+  position: absolute;
+  top: -6px;
+  left: -3px;
+  cursor: pointer;
+  opacity: 0;
+  padding: 0px;
+  z-index: 2;
+  -webkit-touch-callout: none;
+}
+#menuToggle span {
+  display: block;
+  width: 33px;
+  height: 4px;
+  margin-bottom: 5px;
+  position: relative;
+  background: #052f4b;
+  border-radius: 3px;
+  z-index: 1;
+  transform-origin: top right;
+  transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
+              background 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
+              opacity 0.55s ease;
+}
+#menuToggle span:first-child {
+  transform-origin: top right;
+}
+#menuToggle span:nth-last-child(2) {
+  transform-origin: bottom right;
+}
+#menuToggle input:checked ~ span {
+  opacity: 1;
+  transform: rotate(-45deg) translate(0px, -2px);
+  background: #232323;
+}
+#menuToggle input:checked ~ span:nth-last-child(3) {
+  opacity: 0;
+  transform: rotate(0deg) scale(0.2, 0.2);
+}
+#menuToggle input:checked ~ span:nth-last-child(2) {
+  transform: rotate(45deg) translate(1px, 2px);
+}
+#menu {
+  position: absolute;
+  width: 300px;
+  margin: -34px 0 0 -260px;
+  padding: 20px;
+  padding-top: 11px;
+  background: #ededed;
+  list-style-type: none;
+  -webkit-font-smoothing: antialiased;
+  transform-origin: 0% 0%;
+  transform: translate(100%, 0);
+  transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0);
+}
+#menu li {
+  padding: 10px 0;
+  font-size: 22px;
+}
+#menuToggle input:checked ~ ul {
+  transform: none;
+}
+
 @-webkit-keyframes autofill {
   to {
     background: transparent;
