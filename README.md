@@ -3,6 +3,7 @@
 [![Build Status](https://img.shields.io/travis/decred/dcrdata.svg)](https://travis-ci.org/decred/dcrdata)
 [![GitHub release](https://img.shields.io/github/release/decred/dcrdata.svg)](https://github.com/decred/dcrdata/releases)
 [![Latest tag](https://img.shields.io/github/tag/decred/dcrdata.svg)](https://github.com/decred/dcrdata/tags)
+[![Go Report Card](https://goreportcard.com/badge/github.com/decred/dcrdata)](https://goreportcard.com/report/github.com/decred/dcrdata)
 [![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
 
 The dcrdata repository is a collection of golang packages and apps for [Decred](https://www.decred.org/) data collection, storage, and presentation.
