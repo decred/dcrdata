@@ -328,11 +328,11 @@ body.darkBG .navbar-fixed-bottom .nav-item {
 }
 #menu {
   position: absolute;
-  width: 300px;
-  margin: -34px 0 0 -260px;
+  width: 273px;
+  margin: -34px 0 0 -231px;
   padding: 20px;
   padding-top: 11px;
-  background: #ededed;
+  background: #fff;
   list-style-type: none;
   -webkit-font-smoothing: antialiased;
   transform-origin: 0% 0%;
