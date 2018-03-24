@@ -324,6 +324,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", true)
 				return
 			}
+			addrData.TxnType = txnType.String()
 			confirmHeights := make([]int64, len(addrData.Transactions))
 			addrData.Fullmode = true
 			pageData := struct {
@@ -357,6 +358,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			}
 			addrData = new(AddressInfo)
 		}
+		addrData.TxnType = txnType.String()
 		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.Balance = balance
@@ -413,7 +415,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("Turbolinks-Location", "/address/"+address)
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }

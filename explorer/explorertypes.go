@@ -175,6 +175,14 @@ type AddressInfo struct {
 	Fullmode          bool
 }
 
+// TxnCount returns the number of transaction "rows" available.
+func (a *AddressInfo) TxnCount() int64 {
+	if a.Fullmode {
+		return a.KnownFundingTxns
+	}
+	return a.KnownTransactions
+}
+
 // AddressBalance represents the number and value of spent and unspent outputs
 // for an address.
 type AddressBalance struct {
