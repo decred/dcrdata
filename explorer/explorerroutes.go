@@ -601,28 +601,29 @@ func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 
 // ChainParametersPage is the page handler for the "/ChainParameters" path
 func (exp *explorerUI) ChainParametersPage(w http.ResponseWriter, r *http.Request) {
-	var cp ChainParams
-	cp.Net = exp.ChainParams.Net
-	cp.MaxTxSize = int64(exp.ChainParams.MaxTxSize)
-	cp.TargetTimespan = exp.ChainParams.TargetTimespan
-	cp.TargetTimePerBlock = exp.ChainParams.TargetTimePerBlock
-	cp.MaximumBlockSize = int64(exp.ChainParams.MaximumBlockSizes[0])
-	cp.CoinbaseMaturity = int64(exp.ChainParams.CoinbaseMaturity)
-	cp.SStxChangeMaturity = int64(exp.ChainParams.SStxChangeMaturity)
-	cp.TicketMaturity = int64(exp.ChainParams.TicketMaturity)
-	cp.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
-	cp.TicketsPerBlock = int64(exp.ChainParams.TicketsPerBlock)
-	cp.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
-	cp.StakeRewardProportion = int64(exp.ChainParams.StakeRewardProportion)
-	cp.HDCoinType = int64(exp.ChainParams.HDCoinType)
-	cp.OrganizationPkScript = exp.ChainParams.OrganizationPkScript
 	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(exp.ChainParams)
 	if err != nil {
 		log.Errorf("DevSubsidyAddress faild for ChainPrams %v", exp.ChainParams)
 	}
-	cp.DecodedAddress = devSubsidyAddress
-	cp.GenesisBlockHeight = int64(exp.ChainParams.GenesisBlock.Header.Height)
-	cp.BlockOneHeight = 1
+	cp := ChainParams{
+		Net:                   exp.ChainParams.Net,
+		MaxTxSize:             int64(exp.ChainParams.MaxTxSize),
+		TargetTimespan:        exp.ChainParams.TargetTimespan,
+		TargetTimePerBlock:    exp.ChainParams.TargetTimePerBlock,
+		MaximumBlockSize:      int64(exp.ChainParams.MaximumBlockSizes[0]),
+		CoinbaseMaturity:      int64(exp.ChainParams.CoinbaseMaturity),
+		SStxChangeMaturity:    int64(exp.ChainParams.SStxChangeMaturity),
+		TicketMaturity:        int64(exp.ChainParams.TicketMaturity),
+		TicketPoolSize:        int64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock),
+		TicketsPerBlock:       int64(exp.ChainParams.TicketsPerBlock),
+		TicketExpiry:          int64(exp.ChainParams.TicketExpiry),
+		StakeRewardProportion: int64(exp.ChainParams.StakeRewardProportion),
+		HDCoinType:            int64(exp.ChainParams.HDCoinType),
+		OrganizationPkScript:  exp.ChainParams.OrganizationPkScript,
+		DecodedAddress:        devSubsidyAddress,
+		GenesisBlockHeight:    int64(exp.ChainParams.GenesisBlock.Header.Height),
+		BlockOneHeight:        1,
+	}
 
 	str, err := exp.templates.execTemplateToString("chainParameters", struct {
 		Cp      ChainParams
