@@ -1,9 +1,12 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
 package insight
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -12,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/rpcclient"
 	apitypes "github.com/decred/dcrdata/api/types"
@@ -127,8 +131,36 @@ func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, blockOutput, c.getIndentQuery(r))
 }
 
+func (c *insightApiContext) getBlockChainHashCtx(r *http.Request) *chainhash.Hash {
+	hash, err := chainhash.NewHashFromStr(c.getBlockHashCtx(r))
+	if err != nil {
+		apiLog.Errorf("Failed to parse block hash: %v", err)
+		return nil
+	}
+	return hash
+}
+
 func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) {
-	writeText(w, "Implementation pending")
+	hash := c.getBlockChainHashCtx(r)
+	blockMsg, err := c.nodeClient.GetBlock(hash)
+	if err != nil {
+		apiLog.Errorf("Failed to retrieve block %s: %v", hash.String(), err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	var blockHex bytes.Buffer
+	if err = blockMsg.Serialize(&blockHex); err != nil {
+		apiLog.Errorf("Failed to serialize block: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	blockJSON := struct {
+		BlockHash string `json:"rawblock"`
+	}{
+		hex.EncodeToString(blockHex.Bytes()),
+	}
+	writeJSON(w, blockJSON, c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
@@ -340,14 +372,14 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 
 	minDate, err := time.Parse(layout, blockDate+" 00:00:00")
 	if err != nil {
-		apiLog.Errorf("Unable to retreive block summary using time %s: %v", blockDate, err)
+		apiLog.Errorf("Unable to retrieve block summary using time %s: %v", blockDate, err)
 		http.Error(w, "invalid date ", 422)
 		return
 	}
 
 	maxDate, err := time.Parse(layout, blockDate+" 23:59:59")
 	if err != nil {
-		apiLog.Errorf("Unable to retreive block summary using time %s: %v", blockDate, err)
+		apiLog.Errorf("Unable to retrieve block summary using time %s: %v", blockDate, err)
 		http.Error(w, "invalid date", 422)
 		return
 	}
@@ -357,7 +389,7 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 	blockSummary := c.BlockData.ChainDB.GetBlockSummaryTimeRange(minTime, maxTime, limit)
 
 	if blockSummary == nil {
-		http.Error(w, "error occured", 422)
+		http.Error(w, "error occurred", 422)
 		return
 	}
 
@@ -385,7 +417,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	addressInfo := c.BlockData.ChainDB.GetAddressInfo(address, int64(count), int64(offset))
 
 	if addressInfo == nil {
-		http.Error(w, "an error occured", 422)
+		http.Error(w, "an error occurred", 422)
 		return
 	}
 

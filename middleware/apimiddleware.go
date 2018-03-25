@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -48,13 +49,10 @@ type DataSource interface {
 	GetBlockHash(idx int64) (string, error)
 }
 
-// GetBlockHeight accepts a block hash
-// returns block height
-type GetStakeVersionsLatest func() (*dcrjson.StakeVersions, error)
-type Status apitypes.Status
+type StakeVersionsLatest func() (*dcrjson.StakeVersions, error)
 
-// GetBlockStepCtx accepts http request
-// returns the blockstep index
+// GetBlockStepCtx retrieves the ctxBlockStep data from the request context. If
+// not set, the return value is -1.
 func GetBlockStepCtx(r *http.Request) int {
 	step, ok := r.Context().Value(ctxBlockStep).(int)
 	if !ok {
@@ -64,8 +62,8 @@ func GetBlockStepCtx(r *http.Request) int {
 	return step
 }
 
-// GetBlockIndex0Ctx accepts http request returns
-// the block index0
+// GetBlockStepCtx retrieves the ctxBlockIndex0 data from the request context.
+// If not set, the return value is -1.
 func GetBlockIndex0Ctx(r *http.Request) int {
 	idx, ok := r.Context().Value(ctxBlockIndex0).(int)
 	if !ok {
@@ -75,8 +73,8 @@ func GetBlockIndex0Ctx(r *http.Request) int {
 	return idx
 }
 
-// GetTxIOIndexCtx accepts http request
-// returns transaction in and out index
+// GetTxIOIndexCtx retrieves the ctxTxInOutIndex data from the request context.
+// If not set, the return value is -1.
 func GetTxIOIndexCtx(r *http.Request) int {
 	index, ok := r.Context().Value(ctxTxInOutIndex).(int)
 	if !ok {
@@ -86,6 +84,8 @@ func GetTxIOIndexCtx(r *http.Request) int {
 	return index
 }
 
+// GetNCtx retrieves the ctxN data from the request context. If not set, the
+// return value is -1.
 func GetNCtx(r *http.Request) int {
 	N, ok := r.Context().Value(ctxN).(int)
 	if !ok {
@@ -95,8 +95,8 @@ func GetNCtx(r *http.Request) int {
 	return N
 }
 
-// GetRawHexTx accepts http request
-// returns the transaction hex
+// GetRawHexTx retrieves the ctxRawHexTx data from the request context. If not
+// set, the return value is an empty string.
 func GetRawHexTx(r *http.Request) string {
 	rawHexTx, ok := r.Context().Value(ctxRawHexTx).(string)
 	if !ok {
@@ -106,8 +106,8 @@ func GetRawHexTx(r *http.Request) string {
 	return rawHexTx
 }
 
-// GetTxIDCtx accepts http request
-// returns transaction hash
+// GetTxIDCtx retrieves the ctxTxHash data from the request context. If not set,
+// the return value is an empty string.
 func GetTxIDCtx(r *http.Request) string {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
@@ -117,8 +117,8 @@ func GetTxIDCtx(r *http.Request) string {
 	return hash
 }
 
-// GetBlockHashCtx accepts http request
-// returns block hash
+// GetBlockHashCtx retrieves the ctxBlockHash data from the request context. If
+// not set, the return value is an empty string.
 func GetBlockHashCtx(r *http.Request) string {
 	hash, ok := r.Context().Value(ctxBlockHash).(string)
 	if !ok {
@@ -127,8 +127,8 @@ func GetBlockHashCtx(r *http.Request) string {
 	return hash
 }
 
-// GetAddressCtx accepts http request
-// returns address
+// GetAddressCtx retrieves the ctxAddress data from the request context. If not
+// set, the return value is an empty string.
 func GetAddressCtx(r *http.Request) string {
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
@@ -138,8 +138,9 @@ func GetAddressCtx(r *http.Request) string {
 	return address
 }
 
-// GetCountCtx accepts http request
-// returns count embedded in http request
+// GetCountCtx retrieves the ctxCount data ("to") URL path element from the
+// request context. If not set, the return value is 20. TODO: rename this
+// function.
 func GetCountCtx(r *http.Request) int {
 	count, ok := r.Context().Value(ctxCount).(int)
 	if !ok {
@@ -149,8 +150,8 @@ func GetCountCtx(r *http.Request) int {
 	return count
 }
 
-// GetOffsetCtx accepts http request
-// returns offset embedded in http request
+// GetCountCtx retrieves the ctxOffset data ("from") from the request context.
+// If not set, the return value is 0. TODO: rename this function.
 func GetOffsetCtx(r *http.Request) int {
 	offset, ok := r.Context().Value(ctxOffset).(int)
 	if !ok {
@@ -160,8 +161,8 @@ func GetOffsetCtx(r *http.Request) int {
 	return offset
 }
 
-// GetStatusInfoCtx accepts http request
-// returns statusinfo embedded in http request
+// GetStatusInfoCtx retrieves the ctxGetStatus data ("q" POST form data) from
+// the request context. If not set, the return value is an empty string.
 func GetStatusInfoCtx(r *http.Request) string {
 	statusInfo, ok := r.Context().Value(ctxGetStatus).(string)
 	if !ok {
@@ -171,8 +172,8 @@ func GetStatusInfoCtx(r *http.Request) string {
 	return statusInfo
 }
 
-// GetLimitCtx accepts http request
-// returns limit embedded in http request
+// GetLimitCtx retrieves the ctxLimit data from the request context. If not set,
+// the return value is 1.
 func GetLimitCtx(r *http.Request) int {
 	limit, ok := r.Context().Value(ctxLimit).(string)
 	fmt.Println("limit ", limit)
@@ -188,26 +189,15 @@ func GetLimitCtx(r *http.Request) int {
 	return intValue
 }
 
-// GetBlockDateCtx accepts http request
-// returns blockDate embedded in http request
+// GetBlockDateCtx retrieves the ctxBlockDate data from the request context. If
+// not set, the return value is an empty string.
 func GetBlockDateCtx(r *http.Request) string {
 	blockDate, _ := r.Context().Value(ctxBlockDate).(string)
 	return blockDate
 }
 
-// GetBlockHashOnlyCtx accepts http request
-// returns block hash embedded in http request
-func GetBlockHashOnlyCtx(r *http.Request) string {
-	hash, ok := r.Context().Value(ctxBlockHash).(string)
-	if !ok {
-		apiLog.Trace("block hash not set")
-		return ""
-	}
-	return hash
-}
-
-// GetBlockIndexCtx accepts http request
-// returns block index embedded in http request
+// GetBlockIndexCtx retrieves the ctxBlockIndex data from the request context.
+// If not set, the return -1.
 func GetBlockIndexCtx(r *http.Request) int {
 	idx, ok := r.Context().Value(ctxBlockIndex).(int)
 	if !ok {
@@ -229,7 +219,7 @@ func CacheControl(maxAge int64) func(http.Handler) http.Handler {
 }
 
 // BlockStepPathCtx returns a http.HandlerFunc that embeds the value at the url
-// part {step} into the request context
+// part {step} into the request context.
 func BlockStepPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		stepIdxStr := chi.URLParam(r, "step")
@@ -245,7 +235,7 @@ func BlockStepPathCtx(next http.Handler) http.Handler {
 }
 
 // BlockIndexPathCtx returns a http.HandlerFunc that embeds the value at the url
-// part {idx} into the request context
+// part {idx} into the request context.
 func BlockIndexPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pathIdxStr := chi.URLParam(r, "idx")
@@ -260,8 +250,8 @@ func BlockIndexPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockIndexOrHashPathCtx returns a http.HandlerFunc that embeds the value at the url
-// part {idxorhash} into the request context
+// BlockIndexOrHashPathCtx returns a http.HandlerFunc that embeds the value at
+// the url part {idxorhash} into the request context.
 func BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var ctx context.Context
@@ -281,8 +271,8 @@ func BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockIndex0PathCtx returns a http.HandlerFunc that embeds the value at the url
-// part {idx0} into the request context
+// BlockIndex0PathCtx returns a http.HandlerFunc that embeds the value at the
+// url part {idx0} into the request context.
 func BlockIndex0PathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pathIdxStr := chi.URLParam(r, "idx0")
@@ -297,8 +287,8 @@ func BlockIndex0PathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// NPathCtx returns a http.HandlerFunc that embeds the value at the url
-// part {N} into the request context
+// NPathCtx returns a http.HandlerFunc that embeds the value at the url part {N}
+// into the request context.
 func NPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pathNStr := chi.URLParam(r, "N")
@@ -314,7 +304,7 @@ func NPathCtx(next http.Handler) http.Handler {
 }
 
 // BlockHashPathCtx returns a http.HandlerFunc that embeds the value at the url
-// part {blockhash} into the request context
+// part {blockhash} into the request context.
 func BlockHashPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hash := chi.URLParam(r, "blockhash")
@@ -323,8 +313,8 @@ func BlockHashPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// TransactionHashCtx returns a http.HandlerFunc that embeds the value at the url
-// part {txid} into the request context
+// TransactionHashCtx returns a http.HandlerFunc that embeds the value at the
+// url part {txid} into the request context.
 func TransactionHashCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		txid := chi.URLParam(r, "txid")
@@ -333,8 +323,8 @@ func TransactionHashCtx(next http.Handler) http.Handler {
 	})
 }
 
-// TransactionIOIndexCtx returns a http.HandlerFunc that embeds the value at the url
-// part {txinoutindex} into the request context
+// TransactionIOIndexCtx returns a http.HandlerFunc that embeds the value at the
+// url part {txinoutindex} into the request context
 func TransactionIOIndexCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idxStr := chi.URLParam(r, "txinoutindex")
@@ -349,8 +339,8 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
-// AddressPathCtx returns a http.HandlerFunc that embeds the value at the url part
-// {address} into the request context.
+// AddressPathCtx returns a http.HandlerFunc that embeds the value at the url
+// part {address} into the request context.
 func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
@@ -359,8 +349,8 @@ func AddressPathCtx(next http.Handler) http.Handler {
 	})
 }
 
-// apiDocs generates a middleware with a "docs" in the context containing a
-// map of the routers handlers, etc.
+// apiDocs generates a middleware with a "docs" in the context containing a map
+// of the routers handlers, etc.
 func apiDocs(mux *chi.Mux) func(next http.Handler) http.Handler {
 	var buf bytes.Buffer
 	json.Indent(&buf, []byte(docgen.JSONRoutesDoc(mux)), "", "\t")
@@ -391,8 +381,8 @@ func APIDirectory(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, docs)
 }
 
-// TransactionsCtx returns a http.Handlerfunc that embeds the {address, blockhash} value
-// in the request into the request context
+// TransactionsCtx returns a http.Handlerfunc that embeds the {address,
+// blockhash} value in the request into the request context.
 func TransactionsCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -410,8 +400,8 @@ func TransactionsCtx(next http.Handler) http.Handler {
 	})
 }
 
-// PaginationCtx returns a http.Handlerfunc that embeds the {to,from} value
-// in the request into the request context
+// PaginationCtx returns a http.Handlerfunc that embeds the {to,from} value in
+// the request into the request context.
 func PaginationCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		to, from := r.FormValue("to"), r.FormValue("from")
@@ -441,7 +431,7 @@ func PaginationCtx(next http.Handler) http.Handler {
 }
 
 // RawTransactionCtx returns a http.HandlerFunc that embeds the value at the url
-// part {rawtx} into the request context
+// part {rawtx} into the request context.
 func RawTransactionCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rawHexTx := r.PostFormValue("rawtx")
@@ -451,8 +441,8 @@ func RawTransactionCtx(next http.Handler) http.Handler {
 	})
 }
 
-// AddressPostCtx returns a http.HandlerFunc that embeds the {addrs} value in the post request
-// into the request context
+// AddressPostCtx returns a http.HandlerFunc that embeds the {addrs} value in
+// the post request into the request context.
 func AddressPostCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := r.PostFormValue("addrs")
@@ -461,8 +451,8 @@ func AddressPostCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockDateQueryCtx returns a http.Handlerfunc that embeds the {blockdate, limit} value
-// in the request into the request context
+// BlockDateQueryCtx returns a http.Handlerfunc that embeds the {blockdate,
+// limit} value in the request into the request context.
 func BlockDateQueryCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		blockDate := r.FormValue("blockDate")
@@ -478,8 +468,8 @@ func BlockDateQueryCtx(next http.Handler) http.Handler {
 	})
 }
 
-// BlockHashPathAndIndexCtx returns a http.HandlerFunc that embeds the value at the url
-// part {idx} into the request context and the block height
+// BlockHashPathAndIndexCtx embeds the value at the url part {blockhash}, and
+// the corresponding block index, into a request context.
 func BlockHashPathAndIndexCtx(r *http.Request, source DataSource) context.Context {
 	hash := chi.URLParam(r, "blockhash")
 	height, err := source.GetBlockHeight(hash)
@@ -487,12 +477,11 @@ func BlockHashPathAndIndexCtx(r *http.Request, source DataSource) context.Contex
 		apiLog.Errorf("Unable to GetBlockHeight(%d): %v", height, err)
 	}
 	ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
-	ctx = context.WithValue(ctx, ctxBlockIndex, height)
-	return ctx
+	return context.WithValue(ctx, ctxBlockIndex, height)
 }
 
-// StatusInfoCtx returns a http.HandlerFunc that embeds the value at the url
-// part {idx} into the request context
+// StatusInfoCtx embeds the best block index and the POST form data for
+// parameter "q" into a request context.
 func StatusInfoCtx(r *http.Request, source DataSource) context.Context {
 	idx := -1
 	if source.GetHeight() >= 0 {
@@ -501,76 +490,63 @@ func StatusInfoCtx(r *http.Request, source DataSource) context.Context {
 	ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
 
 	q := r.FormValue("q")
-
-	ctx = context.WithValue(ctx, ctxGetStatus, q)
-
-	return ctx
+	return context.WithValue(ctx, ctxGetStatus, q)
 }
 
-// BlockHashLatestCtx returns a http.HandlerFunc
-// embeds the current block height and block hash into the
-// request context
+// BlockHashLatestCtx embeds the current block height and hash into a request
+// context.
 func BlockHashLatestCtx(r *http.Request, source DataSource) context.Context {
-	var idx int
-	hash := ""
-
-	var err error
+	var hash string
 	// if hash, err = c.BlockData.GetBestBlockHash(int64(idx)); err != nil {
 	// 	apiLog.Errorf("Unable to GetBestBlockHash: %v", idx, err)
 	// }
-	if idx = source.GetHeight(); idx >= 0 {
+	idx := source.GetHeight()
+	if idx >= 0 {
+		var err error
 		if hash, err = source.GetBlockHash(int64(idx)); err != nil {
 			apiLog.Errorf("Unable to GetBlockHash(%d): %v", idx, err)
 		}
 	}
-	ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
-	ctx = context.WithValue(ctx, ctxBlockHash, hash)
 
-	return ctx
+	ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
+	return context.WithValue(ctx, ctxBlockHash, hash)
 }
 
-// StakeVersionLatestCtx returns a http.HandlerFunc that embeds
-// latest stake version into the request context
-func StakeVersionLatestCtx(
-	r *http.Request,
-	getStakeVersionsLatest GetStakeVersionsLatest) context.Context {
+// StakeVersionLatestCtx embeds the specified StakeVersionsLatest function into
+// a request context.
+func StakeVersionLatestCtx(r *http.Request, stakeVerFun StakeVersionsLatest) context.Context {
 	ver := -1
-	stkVers, err := getStakeVersionsLatest()
+	stkVers, err := stakeVerFun()
 	if err == nil && stkVers != nil {
 		ver = int(stkVers.StakeVersion)
 	}
 
-	ctx := context.WithValue(r.Context(), ctxStakeVersionLatest, ver)
-	return ctx
+	return context.WithValue(r.Context(), ctxStakeVersionLatest, ver)
 }
 
-// BlockIndexLatestCtx returns a context
-// embeds the current block height into the request context
+// BlockIndexLatestCtx embeds the current block height into a request context.
 func BlockIndexLatestCtx(r *http.Request, source DataSource) context.Context {
 	idx := -1
 	if source.GetHeight() >= 0 {
 		idx = source.GetHeight()
 	}
-	ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
-	return ctx
+
+	return context.WithValue(r.Context(), ctxBlockIndex, idx)
 }
 
-// StatusCtx returns a context embeds the
-// api status into the request context
-func StatusCtx(r *http.Request, status Status) context.Context {
-	// Set API status context
-	ctx := context.WithValue(r.Context(), ctxAPIStatus, status)
-	return ctx
+// StatusCtx embeds the specified apitypes.Status into a request context.
+func StatusCtx(r *http.Request, status apitypes.Status) context.Context {
+	return context.WithValue(r.Context(), ctxAPIStatus, status)
 }
 
-// GetBlockHeightCtx returns the current block
-// height
+// GetBlockHeightCtx returns the block height for the block index or hash
+// specified on the URL path.
 func GetBlockHeightCtx(r *http.Request, source DataSource) int64 {
 	idxI, ok := r.Context().Value(ctxBlockIndex).(int)
 	idx := int64(idxI)
 	if !ok || idx < 0 {
 		var err error
-		idx, err = source.GetBlockHeight(GetBlockHashOnlyCtx(r))
+		idx, err = source.GetBlockHeight(GetBlockHashCtx(r))
 		if err != nil {
 			apiLog.Errorf("Unable to GetBlockHeight: %v", err)
 		}
@@ -578,8 +554,8 @@ func GetBlockHeightCtx(r *http.Request, source DataSource) int64 {
 	return idx
 }
 
-// GetLatestVoteVersionCtx returns the stakeversionlatest
-// embedded into the request context
+// GetLatestVoteVersionCtx attempts to retrieve the latest stake version
+// embedded in the request context.
 func GetLatestVoteVersionCtx(r *http.Request) int {
 	ver, ok := r.Context().Value(ctxStakeVersionLatest).(int)
 	if !ok {

@@ -13,8 +13,8 @@ import (
 	"github.com/decred/dcrdata/txhelpers"
 )
 
-// GetRawTransaction is used to fetch transaction verbose using
-// transaction id
+// GetRawTransaction gets a dcrjson.TxRawResult for the specified transaction
+// hash.
 func (pgb *ChainDBRPC) GetRawTransaction(txid string) (*dcrjson.TxRawResult, error) {
 	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txid)
 	if err != nil {
@@ -24,7 +24,7 @@ func (pgb *ChainDBRPC) GetRawTransaction(txid string) (*dcrjson.TxRawResult, err
 	return txraw, nil
 }
 
-// GetBlockHeight returns a block height using the hash
+// GetBlockHeight returns the height of the block with the specified hash.
 func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 	height, err := RetrieveBlockHeight(pgb.db, hash)
 	if err != nil {
@@ -34,14 +34,14 @@ func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 	return height, nil
 }
 
-// GetHeight returns the current best block height
+// GetHeight returns the current best block height.
 func (pgb *ChainDB) GetHeight() int {
 	height, _, _, _ := RetrieveBestBlockHeight(pgb.db)
 	return int(height)
 }
 
-// SendRawTransaction returns the transaction id
-// accepts the transaction hex
+// SendRawTransaction attempts to decode the input serialized transaction,
+// passed as hex encoded string, and broadcast it, returning the tx hash.
 func (db *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
 	msg, err := txhelpers.MsgTxFromHex(txhex)
 	if err != nil {
@@ -56,15 +56,20 @@ func (db *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
 	return hash.String(), err
 }
 
-// InsightGetAddressTransactions returns transactions result
-func (pgb *ChainDBRPC) InsightGetAddressTransactions(addr string, count, skip int) []*dcrjson.SearchRawTransactionsResult {
+// InsightGetAddressTransactions performs a searchrawtransactions for the
+// specfied address, max number of transactions, and offset into the transaction
+// list. The search results are in reverse temporal order.
+// TODO: Does this really need all the prev vout extra data?
+func (pgb *ChainDBRPC) InsightGetAddressTransactions(addr string, count,
+	skip int) []*dcrjson.SearchRawTransactionsResult {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
+	prevVoutExtraData := true
 	txs, err := pgb.Client.SearchRawTransactionsVerbose(
-		address, skip, count, true, true, nil)
+		address, skip, count, prevVoutExtraData, true, nil)
 
 	if err != nil {
 		log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
@@ -73,8 +78,8 @@ func (pgb *ChainDBRPC) InsightGetAddressTransactions(addr string, count, skip in
 	return txs
 }
 
-// GetTransactionHex returns hex representation of
-// a transaction
+// GetTransactionHex returns the full serialized transaction for the specified
+// transaction hash as a hex encode string.
 func (pgb *ChainDBRPC) GetTransactionHex(txid string) string {
 	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txid)
 
@@ -86,17 +91,15 @@ func (pgb *ChainDBRPC) GetTransactionHex(txid string) string {
 	return txraw.Hex
 }
 
-// GetBlockVerboseByHash returns *dcrjson.GetBlockVerboseResult by the block hash
+// GetBlockVerboseByHash returns a *dcrjson.GetBlockVerboseResult for the
+// specified block hash, optionally with transaction details.
 func (pgb *ChainDBRPC) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerboseByHash(
-		pgb.Client,
-		pgb.ChainDB.chainParams,
-		hash,
-		verboseTx)
+	return rpcutils.GetBlockVerboseByHash(pgb.Client, pgb.ChainDB.chainParams,
+		hash, verboseTx)
 }
 
-// GetTransactionsForBlockByHash returns the transactions in a block by
-// the block hash
+// GetTransactionsForBlockByHash returns a *apitypes.BlockTransactions for the
+// block with the specified hash.
 func (pgb *ChainDBRPC) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
 	blockVerbose := rpcutils.GetBlockVerboseByHash(
 		pgb.Client, pgb.ChainDB.chainParams, hash, false)
@@ -116,8 +119,7 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	return blockTransactions
 }
 
-// GetBlockHash returns the block hash by
-// the block height
+// GetBlockHash returns the hash of the block at the specified height.
 func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 	hash, err := RetrieveBlockHash(pgb.db, idx)
 	if err != nil {
@@ -127,7 +129,8 @@ func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 	return hash, nil
 }
 
-// GetAddressBalance returns the balance of an address
+// GetAddressBalance returns a *explorer.AddressBalance for the specified
+// address, transaction count limit, and transaction number offset.
 func (pgb *ChainDB) GetAddressBalance(address string, N, offset int64) *explorer.AddressBalance {
 	_, balance, err := pgb.AddressHistory(address, N, offset)
 	if err != nil {
@@ -136,20 +139,21 @@ func (pgb *ChainDB) GetAddressBalance(address string, N, offset int64) *explorer
 	return balance
 }
 
-// GetAddressInfo returns the basic info for an address
+// GetAddressInfo returns the basic information for the specified address
+// (*apitypes.InsightAddressInfo), given a transaction count limit, and
+// transaction number offset.
 func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.InsightAddressInfo {
 	rows, balance, err := pgb.AddressHistory(address, N, offset)
 	if err != nil {
 		return nil
 	}
-	var transactionIdList []string
 
 	var totalReceived, totalSent, unSpent dcrutil.Amount
-
 	totalReceived, _ = dcrutil.NewAmount(float64(balance.TotalSpent + balance.TotalUnspent))
 	totalSent, _ = dcrutil.NewAmount(float64(balance.TotalSpent))
 	unSpent, _ = dcrutil.NewAmount(float64(balance.TotalUnspent))
 
+	var transactionIdList []string
 	for _, row := range rows {
 		fundingTxId := row.FundingTxHash
 		if fundingTxId != "" {
@@ -162,18 +166,17 @@ func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.In
 		}
 	}
 
-	addressInfo := &apitypes.InsightAddressInfo{
+	return &apitypes.InsightAddressInfo{
 		Address:        address,
 		TotalReceived:  totalReceived,
 		TransactionsID: transactionIdList,
 		TotalSent:      totalSent,
 		Unspent:        unSpent,
 	}
-	return addressInfo
 }
 
 // GetBlockSummaryTimeRange returns the blocks created within a specified time
-// range min, max time
+// range (min, max time), up to limit transactions.
 func (pgb *ChainDB) GetBlockSummaryTimeRange(min, max int64, limit int) []dbtypes.BlockDataBasic {
 	blockSummary, err := RetrieveBlockSummaryByTimeRange(pgb.db, min, max, limit)
 	if err != nil {
@@ -202,7 +205,8 @@ func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address stri
 	return tx
 }
 
-// GetAddressUTXO returns the unspent transaction output of an address
+// GetAddressUTXO returns the unspent transaction outputs (UTXOs) paying to the
+// specified address in a []apitypes.AddressTxnOutput.
 func (pgb *ChainDB) GetAddressUTXO(address string) []apitypes.AddressTxnOutput {
 	blockHeight, _, _, err := RetrieveBestBlockHeight(pgb.db)
 	if err != nil {
