@@ -802,11 +802,14 @@ func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Addr
 	return db.GetAddressTransactionsWithSkip(addr, count, 0)
 }
 
-// GetAddressTransactions returns an array of apitypes.AddressTxRaw objects
+// GetAddressTransactionsRaw returns an array of apitypes.AddressTxRaw objects
 // representing the raw result of SearchRawTransactionsverbose
 func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw {
 	return db.GetAddressTransactionsRawWithSkip(addr, count, 0)
 }
+
+// GetAddressTransactionsRawWithSkip returns an array of apitypes.AddressTxRaw objects
+// representing the raw result of SearchRawTransactionsverbose
 func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {

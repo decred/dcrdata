@@ -96,6 +96,8 @@ func GetNCtx(r *http.Request) int {
 	return N
 }
 
+// GetMCtx retrieves the ctxM data from the request context. If not set, the
+// return value is -1.
 func GetMCtx(r *http.Request) int {
 	M, ok := r.Context().Value(ctxM).(int)
 	if !ok {
@@ -316,17 +318,17 @@ func NPathCtx(next http.Handler) http.Handler {
 // MPathCtx returns a http.HandlerFunc that embeds the value at the url
 // part {M} into the request context
 func MPathCtx(next http.Handler) http.Handler {
-        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-                pathMStr := chi.URLParam(r, "M")
-                M, err := strconv.Atoi(pathMStr)
-                if err != nil {
-                        apiLog.Infof("No/invalid numeric value (uint64): %v", err)
-                        http.NotFound(w, r)
-                        return
-                }
-                ctx := context.WithValue(r.Context(), ctxM, M)
-                next.ServeHTTP(w, r.WithContext(ctx))
-        })
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pathMStr := chi.URLParam(r, "M")
+		M, err := strconv.Atoi(pathMStr)
+		if err != nil {
+			apiLog.Infof("No/invalid numeric value (uint64): %v", err)
+			http.NotFound(w, r)
+			return
+		}
+		ctx := context.WithValue(r.Context(), ctxM, M)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // BlockHashPathCtx returns a http.HandlerFunc that embeds the value at the url
