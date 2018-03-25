@@ -52,7 +52,7 @@
                         {{.Type}}
                     </td>
                 </tr>
-                {{if eq .Type "Ticket"}}
+                {{if and (eq .Type "Ticket") (gt .Confirmations 0)}}
                 <tr>
                     <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">POOL STATUS</td>
                     <td>
