@@ -28,17 +28,6 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 		// set the max payload size to 1 MB
 		ws.MaxPayloadBytes = requestLimit
 
-		// Ticker for a regular ping
-		ticker := time.NewTicker(pingInterval)
-		defer ticker.Stop()
-
-		// Periodically ping clients over websocket connection
-		go func() {
-			for range ticker.C {
-				exp.wsHub.HubRelay <- sigPingAndUserCount
-			}
-		}()
-
 		// Start listening for websocket messages from client with raw
 		// transaction bytes (hex encoded) to decode or broadcast.
 		go func() {
@@ -124,7 +113,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 
-		// Ping and block update loop (send only)
+		// Send loop (ping, new tx, block, etc. update loop)
 	loop:
 		for {
 			// Wait for signal from the hub to update

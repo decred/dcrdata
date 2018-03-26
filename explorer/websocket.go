@@ -11,7 +11,7 @@ import (
 const (
 	wsWriteTimeout = 10 * time.Second
 	wsReadTimeout  = 12 * time.Second
-	pingInterval   = 12 * time.Second
+	pingInterval   = 8 * time.Second
 
 	tickerSigReset int = iota
 	tickerSigStop
@@ -116,6 +116,32 @@ func (wsh *WebsocketHub) unregisterClient(c *hubSpoke) {
 	safeClose(*c)
 }
 
+// Periodically ping clients over websocket connection. Stop the ping loop by
+// closing the returned channel.
+func (wsh *WebsocketHub) pingClients() chan<- struct{} {
+	stopPing := make(chan struct{})
+
+	go func() {
+		// start the client ping ticker
+		ticker := time.NewTicker(pingInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				wsh.HubRelay <- sigPingAndUserCount
+			case _, ok := <-stopPing:
+				if !ok {
+					log.Errorf("Do not send on stopPing channel, only close it.")
+				}
+				return
+			}
+		}
+	}()
+
+	return stopPing
+}
+
 func safeClose(cc hubSpoke) {
 	select {
 	case _, ok := <-cc:
@@ -136,8 +162,14 @@ func (wsh *WebsocketHub) Stop() {
 
 func (wsh *WebsocketHub) run() {
 	log.Info("Starting WebsocketHub run loop.")
+
 	// start the buffer send ticker loop
 	go wsh.periodicBufferSend()
+
+	//  start the client ping ticker
+	stopPing := wsh.pingClients()
+	defer close(stopPing)
+
 	for {
 	events:
 		select {
@@ -169,7 +201,6 @@ func (wsh *WebsocketHub) run() {
 				// signal or unregister the client
 				select {
 				case *client <- hubSignal:
-
 				default:
 					wsh.unregisterClient(client)
 				}
@@ -210,7 +241,6 @@ func (wsh *WebsocketHub) run() {
 				client.Unlock()
 				select {
 				case *signal <- sigNewTx:
-
 				default:
 					wsh.unregisterClient(signal)
 				}
