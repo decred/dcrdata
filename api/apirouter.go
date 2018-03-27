@@ -149,6 +149,11 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 				ri.Use(m.NPathCtx)
 				ri.Get("/", app.getAddressTransactions)
 				ri.With((middleware.Compress(1))).Get("/raw", app.getAddressTransactionsRaw)
+				ri.Route("/skip/{M}", func(rj chi.Router) {
+					rj.Use(m.MPathCtx)
+					rj.Get("/", app.getAddressTransactions)
+					rj.With((middleware.Compress(1))).Get("/raw", app.getAddressTransactionsRaw)
+				})
 			})
 		})
 	})

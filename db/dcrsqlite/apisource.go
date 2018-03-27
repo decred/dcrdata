@@ -799,42 +799,24 @@ func (db *wiredDB) GetAddressTransactionsWithSkip(addr string, count, skip int) 
 // GetAddressTransactions returns an apitypes.Address Object with at most the
 // last count transactions the address was in
 func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Address {
-	address, err := dcrutil.DecodeAddress(addr)
-	if err != nil {
-		log.Infof("Invalid address %s: %v", addr, err)
-		return nil
-	}
-	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, false, true, nil)
-	if err != nil {
-		log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
-		return nil
-	}
-	tx := make([]*apitypes.AddressTxShort, 0, len(txs))
-	for i := range txs {
-		tx = append(tx, &apitypes.AddressTxShort{
-			TxID:          txs[i].Txid,
-			Time:          txs[i].Time,
-			Value:         txhelpers.TotalVout(txs[i].Vout).ToCoin(),
-			Confirmations: int64(txs[i].Confirmations),
-			Size:          int32(len(txs[i].Hex) / 2),
-		})
-	}
-	return &apitypes.Address{
-		Address:      addr,
-		Transactions: tx,
-	}
-
+	return db.GetAddressTransactionsWithSkip(addr, count, 0)
 }
 
-// GetAddressTransactions returns an array of apitypes.AddressTxRaw objects
+// GetAddressTransactionsRaw returns an array of apitypes.AddressTxRaw objects
 // representing the raw result of SearchRawTransactionsverbose
 func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw {
+	return db.GetAddressTransactionsRawWithSkip(addr, count, 0)
+}
+
+// GetAddressTransactionsRawWithSkip returns an array of apitypes.AddressTxRaw objects
+// representing the raw result of SearchRawTransactionsverbose
+func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
 		return nil
 	}
-	txs, err := db.client.SearchRawTransactionsVerbose(address, 0, count, true, true, nil)
+	txs, err := db.client.SearchRawTransactionsVerbose(address, skip, count, true, true, nil)
 	if err != nil {
 		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
 		return nil

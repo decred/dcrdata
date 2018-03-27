@@ -67,6 +67,8 @@ type APIDataSource interface {
 	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
 	GetAddressTransactions(addr string, count int) *apitypes.Address
 	GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw
+	GetAddressTransactionsWithSkip(addr string, count int, skip int) *apitypes.Address
+	GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw
 	SendRawTransaction(txhex string) (string, error)
 	GetExplorerAddress(address string, count, offset int64) *explorer.AddressInfo
 }
@@ -949,6 +951,7 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
 	count := m.GetNCtx(r)
+	skip := m.GetMCtx(r)
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -958,7 +961,10 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 	} else if count > 2000 {
 		count = 2000
 	}
-	txs := c.BlockData.GetAddressTransactions(address, count)
+	if skip <= 0 {
+		skip = 0
+	}
+	txs := c.BlockData.GetAddressTransactionsWithSkip(address, count, skip)
 	if txs == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -969,6 +975,7 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
 	count := m.GetNCtx(r)
+	skip := m.GetMCtx(r)
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
@@ -978,7 +985,10 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 	} else if count > 2000 {
 		count = 2000
 	}
-	txs := c.BlockData.GetAddressTransactionsRaw(address, count)
+	if skip <= 0 {
+		skip = 0
+	}
+	txs := c.BlockData.GetAddressTransactionsRawWithSkip(address, count, skip)
 	if txs == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
