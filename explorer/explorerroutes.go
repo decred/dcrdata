@@ -361,11 +361,13 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		// Generate AddressInfo skeleton from the address table rows
 		addrData = ReduceAddressHistory(addrHist)
 		if addrData == nil {
+			// Empty history is not expected for credit txnType with any txns.
 			if txnType != dbtypes.AddrTxnDebit && (balance.NumSpent+balance.NumUnspent) > 0 {
 				log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
 				exp.ErrorPage(w, "Something went wrong...", "that address has no history", true)
 				return
 			}
+			// No transactions
 			addrData = new(AddressInfo)
 		}
 

@@ -332,8 +332,8 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 
 // AddressTransactions retrieves a slice of *dbtypes.AddressRow for a given
 // address and transaction type (i.e. all, credit, or debit) from the DB. Only
-// the first N transactions starting from the offset element in the set of
-// transactions of in the transaction class.
+// the first N transactions starting from the offset element in the set of all
+// txnType transactions.
 func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	txnType dbtypes.AddrTxnType) (addressRows []*dbtypes.AddressRow, err error) {
 	var addrFunc func(*sql.DB, string, int64, int64) ([]uint64, []*dbtypes.AddressRow, error)
@@ -377,11 +377,9 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	}
 	bestBlock := int64(bb)
 
+	// See if address count cache includes a fresh count for this address.
 	totals := pgb.addressCounts
 	totals.Lock()
-	defer totals.Unlock()
-
-	// See if address count cache includes a fresh count for this address.
 	var balanceInfo explorer.AddressBalance
 	var fresh bool
 	if totals.validHeight == bestBlock {
@@ -394,6 +392,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		totals.balance = make(map[string]explorer.AddressBalance)
 		totals.validHeight = bestBlock
 	}
+	totals.Unlock()
 
 	// Retrieve relevant transactions
 	addressRows, err := pgb.AddressTransactions(address, N, offset, txnType)

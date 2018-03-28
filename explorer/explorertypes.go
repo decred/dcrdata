@@ -51,11 +51,16 @@ type AddressTx struct {
 	SentTotal     float64
 }
 
+// IOID formats an identification string for the transaction input (or output)
+// represented by the AddressTx.
 func (a *AddressTx) IOID() string {
+	// When AddressTx is used properly, at least one of ReceivedTotal or
+	// SentTotal should be zero.
 	if a.ReceivedTotal > a.SentTotal {
 		// an outpoint receiving funds
 		return fmt.Sprintf("%s:out[%d]", a.TxID, a.InOutID)
 	}
+	// a transaction input referencing an outpoint being spent
 	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
 }
 
@@ -76,6 +81,7 @@ type TxInfo struct {
 	TicketInfo
 }
 
+// TicketInfo is used to represent data shown for a sstx transaction.
 type TicketInfo struct {
 	TicketMaturity       int64
 	TimeTillMaturity     float64 // Time before a particular ticket reaches maturity
@@ -341,6 +347,7 @@ type WebsocketBlock struct {
 	Extra *HomeInfo   `json:"extra"`
 }
 
+// TicketPoolInfo describes the live ticket pool
 type TicketPoolInfo struct {
 	Size          uint32  `json:"size"`
 	Value         float64 `json:"value"`

@@ -47,11 +47,19 @@ const (
 	AddrTxnUnknown
 )
 
+// AddrTxnTypes is the canonical mapping from AddrTxnType to string.
+var AddrTxnTypes = map[AddrTxnType]string{
+	AddrTxnAll:     "all",
+	AddrTxnCredit:  "credit",
+	AddrTxnDebit:   "debit",
+	AddrTxnUnknown: "unknown",
+}
+
 func (a AddrTxnType) String() string {
 	return AddrTxnTypes[a]
 }
 
-// AddrTxnTypeFromStr
+// AddrTxnTypeFromStr attempts to decode a string into an AddrTxnType.
 func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 	txnType = strings.ToLower(txnType)
 	switch txnType {
@@ -69,14 +77,6 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 		return AddrTxnUnknown
 	}
 
-}
-
-// AddrTxnTypes is the canonical mapping from AddrTxnType to string.
-var AddrTxnTypes = map[AddrTxnType]string{
-	AddrTxnAll:     "all",
-	AddrTxnCredit:  "credit",
-	AddrTxnDebit:   "debit",
-	AddrTxnUnknown: "unknown",
 }
 
 type TicketPoolStatus int16
