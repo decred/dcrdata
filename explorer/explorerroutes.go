@@ -264,6 +264,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 // AddressPage is the page handler for the "/address" path
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
+	// AddressPageData is the data structure passed to the HTML template
+	type AddressPageData struct {
+		Data          *AddressInfo
+		ConfirmHeight []int64
+		Version       string
+	}
+
 	// Get the address URL parameter, which should be set in the request context
 	// by the addressPathCtx middleware.
 	address, ok := r.Context().Value(ctxAddress).(string)
@@ -303,6 +310,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
 
+	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
 	if exp.liteMode {
 		addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
@@ -325,16 +333,17 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			addrData.TxnType = txnType.String()
-			confirmHeights := make([]int64, len(addrData.Transactions))
 			addrData.Fullmode = true
-			pageData := struct {
-				Data          *AddressInfo
-				ConfirmHeight []int64
-				Version       string
-			}{
-				addrData,
-				confirmHeights,
-				exp.Version,
+
+			confirmHeights := make([]int64, len(addrData.Transactions))
+			for i, v := range addrData.Transactions {
+				confirmHeights[i] = exp.NewBlockData.Height - int64(v.Confirmations)
+			}
+
+			pageData := AddressPageData{
+				Data:          addrData,
+				ConfirmHeight: confirmHeights,
+				Version:       exp.Version,
 			}
 			str, err := exp.templates.execTemplateToString("address", pageData)
 			if err != nil {
@@ -342,6 +351,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
 				return
 			}
+
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, str)
@@ -358,19 +368,27 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			}
 			addrData = new(AddressInfo)
 		}
-		addrData.TxnType = txnType.String()
-		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
-		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
-		addrData.Balance = balance
+
+		// Set page parameters
 		addrData.Path = r.URL.Path
+		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+		addrData.TxnType = txnType.String()
+		addrData.Fullmode = true
+
+		// Balances and txn counts (partial unless in full mode)
+		addrData.Balance = balance
 		addrData.KnownTransactions = (balance.NumSpent * 2) + balance.NumUnspent
+		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
+		addrData.KnownSpendingTxns = balance.NumSpent
+
+		// Transactions on current page
 		addrData.NumTransactions = int64(len(addrData.Transactions))
 		if addrData.NumTransactions > addrData.Limit {
 			addrData.NumTransactions = addrData.Limit
 		}
-		addrData.Fullmode = true
-		// still need []*AddressTx filled out
 
+		// Transactions to fetch with FillAddressTransactions. This should be a
+		// noop if ReduceAddressHistory is working right.
 		switch txnType {
 		case dbtypes.AddrTxnAll:
 		case dbtypes.AddrTxnCredit:
@@ -398,16 +416,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	for i, v := range addrData.Transactions {
 		confirmHeights[i] = exp.NewBlockData.Height - int64(v.Confirmations)
 	}
-	pageData := struct {
-		Data          *AddressInfo
-		ConfirmHeight []int64
-		Version       string
-	}{
-		addrData,
-		confirmHeights,
-		exp.Version,
-	}
 
+	pageData := AddressPageData{
+		Data:          addrData,
+		ConfirmHeight: confirmHeights,
+		Version:       exp.Version,
+	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)

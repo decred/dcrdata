@@ -338,6 +338,9 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	txnType dbtypes.AddrTxnType) (addressRows []*dbtypes.AddressRow, err error) {
 	var addrFunc func(*sql.DB, string, int64, int64) ([]uint64, []*dbtypes.AddressRow, error)
 	switch txnType {
+	case dbtypes.AddrTxnCredit:
+		//addrFunc = RetrieveAddressCreditTxns
+		fallthrough // retrieved address rows may also have spends
 	case dbtypes.AddrTxnAll:
 		// The organization address occurs very frequently, so use the regular
 		// (non sub-query) select as it is much more efficient.
@@ -346,8 +349,6 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 		} else {
 			addrFunc = RetrieveAddressTxns
 		}
-	case dbtypes.AddrTxnCredit:
-		addrFunc = RetrieveAddressCreditTxns
 	case dbtypes.AddrTxnDebit:
 		addrFunc = RetrieveAddressDebitTxns
 	default:
@@ -407,7 +408,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	// the cache.
 	addrInfo := explorer.ReduceAddressHistory(addressRows)
 	if addrInfo == nil {
-		return addressRows, nil, fmt.Errorf("ReduceAddressHistory failed")
+		return addressRows, nil, fmt.Errorf("ReduceAddressHistory failed. len(addressRows) = %d", len(addressRows))
 	}
 
 	// N is a limit on NumFundingTxns, so this checks if we have them all.
@@ -417,8 +418,8 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 			Address:      address,
 			NumSpent:     addrInfo.NumSpendingTxns,
 			NumUnspent:   addrInfo.NumFundingTxns - addrInfo.NumSpendingTxns,
-			TotalSpent:   int64(addrInfo.TotalSent),
-			TotalUnspent: int64(addrInfo.Unspent),
+			TotalSpent:   int64(addrInfo.AmountSent),
+			TotalUnspent: int64(addrInfo.AmountUnspent),
 		}
 	} else {
 		var numSpent, numUnspent, totalSpent, totalUnspent int64

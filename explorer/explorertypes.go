@@ -4,6 +4,7 @@
 package explorer
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/decred/dcrd/dcrjson"
@@ -40,13 +41,22 @@ type TxBasic struct {
 //AddressTx models data for transactions on the address page
 type AddressTx struct {
 	TxID          string
+	InOutID       uint32
 	FormattedSize string
 	Total         float64
 	Confirmations uint64
 	Time          int64
 	FormattedTime string
-	RecievedTotal float64
+	ReceivedTotal float64
 	SentTotal     float64
+}
+
+func (a *AddressTx) IOID() string {
+	if a.ReceivedTotal > a.SentTotal {
+		// an outpoint receiving funds
+		return fmt.Sprintf("%s:out[%d]", a.TxID, a.InOutID)
+	}
+	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
 }
 
 // TxInfo models data needed for display on the tx page
@@ -153,34 +163,53 @@ type BlockInfo struct {
 
 // AddressInfo models data for display on the address page
 type AddressInfo struct {
-	Address           string
-	Limit             int64
-	MaxTxLimit        int64
-	Offset            int64
-	TxnType           string
-	Transactions      []*AddressTx
-	TxnsFunding       []*AddressTx
-	TxnsSpending      []*AddressTx
-	NumFundingTxns    int64 // The number of transactions paying to the address
-	NumSpendingTxns   int64 // The number of transactions spending from the address
-	NumTransactions   int64 // The number of transactions in the address
-	KnownTransactions int64 // The number of transactions in the address unlimited
-	KnownFundingTxns  int64 // The number of transactions paying to the address unlimited
-	NumUnconfirmed    int64 // The number of unconfirmed transactions in the address
-	TotalReceived     dcrutil.Amount
-	TotalSent         dcrutil.Amount
-	Unspent           dcrutil.Amount
-	Balance           *AddressBalance
-	Path              string
-	Fullmode          bool
+	// Address is the decred address on the current page
+	Address string
+
+	// Page parameters
+	MaxTxLimit    int64
+	Fullmode      bool
+	Path          string
+	Limit, Offset int64  // ?n=Limit&start=Offset
+	TxnType       string // ?txntype=TxnType
+
+	// NumUnconfirmed is the number of unconfirmed txns for the address
+	NumUnconfirmed int64
+
+	// Transactions on the current page
+	Transactions    []*AddressTx
+	TxnsFunding     []*AddressTx
+	TxnsSpending    []*AddressTx
+	NumTransactions int64 // The number of transactions in the address
+	NumFundingTxns  int64 // number paying to the address
+	NumSpendingTxns int64 // number spending outpoints associated with the address
+	AmountReceived  dcrutil.Amount
+	AmountSent      dcrutil.Amount
+	AmountUnspent   dcrutil.Amount
+
+	// Balance is used in full mode, describing all known transactions
+	Balance *AddressBalance
+
+	// KnownTransactions refers to the total transaction count in the DB when in
+	// full mode, the sum of funding (crediting) and spending (debiting) txns.
+	KnownTransactions int64
+	KnownFundingTxns  int64
+	KnownSpendingTxns int64
 }
 
 // TxnCount returns the number of transaction "rows" available.
 func (a *AddressInfo) TxnCount() int64 {
-	if a.Fullmode {
+	switch dbtypes.AddrTxnTypeFromStr(a.TxnType) {
+	case dbtypes.AddrTxnAll:
+		return a.KnownTransactions
+	case dbtypes.AddrTxnCredit:
 		return a.KnownFundingTxns
+	case dbtypes.AddrTxnDebit:
+		return a.KnownSpendingTxns
+	default:
+		log.Warnf("Unknown address transaction type: %v", a.TxnType)
+		return 0
 	}
-	return a.KnownTransactions
 }
 
 // AddressBalance represents the number and value of spent and unspent outputs
@@ -271,7 +300,8 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		received += int64(addrOut.Value)
 		fundingTx := AddressTx{
 			TxID:          addrOut.FundingTxHash,
-			RecievedTotal: coin,
+			InOutID:       addrOut.FundingTxVoutIndex,
+			ReceivedTotal: coin,
 		}
 		transactions = append(transactions, &fundingTx)
 		creditTxns = append(creditTxns, &fundingTx)
@@ -285,6 +315,7 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		sent += int64(addrOut.Value)
 		spendingTx := AddressTx{
 			TxID:      addrOut.SpendingTxHash,
+			InOutID:   addrOut.SpendingTxVinIndex,
 			SentTotal: coin,
 		}
 		transactions = append(transactions, &spendingTx)
@@ -298,9 +329,9 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		TxnsSpending:    debitTxns,
 		NumFundingTxns:  int64(len(creditTxns)),
 		NumSpendingTxns: int64(len(debitTxns)),
-		TotalReceived:   dcrutil.Amount(received),
-		TotalSent:       dcrutil.Amount(sent),
-		Unspent:         dcrutil.Amount(received - sent),
+		AmountReceived:  dcrutil.Amount(received),
+		AmountSent:      dcrutil.Amount(sent),
+		AmountUnspent:   dcrutil.Amount(received - sent),
 	}
 }
 
