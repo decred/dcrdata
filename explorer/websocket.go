@@ -46,7 +46,7 @@ var eventIDs = map[hubSignal]string{
 // If the event loop is running, calling (*WebsocketHub).Stop() will handle it.
 type WebsocketHub struct {
 	clients          map[*hubSpoke]*client
-	Register         chan *hubSpoke
+	Register         chan *clientHubSpoke
 	Unregister       chan *hubSpoke
 	HubRelay         chan hubSignal
 	NewTxChan        chan *MempoolTx
@@ -69,7 +69,7 @@ type hubSpoke chan hubSignal
 func NewWebsocketHub() *WebsocketHub {
 	return &WebsocketHub{
 		clients:          make(map[*hubSpoke]*client),
-		Register:         make(chan *hubSpoke),
+		Register:         make(chan *clientHubSpoke),
 		Unregister:       make(chan *hubSpoke),
 		HubRelay:         make(chan hubSignal),
 		NewTxChan:        make(chan *MempoolTx),
@@ -81,20 +81,28 @@ func NewWebsocketHub() *WebsocketHub {
 	}
 }
 
+type clientHubSpoke struct {
+	cl *client
+	c  *hubSpoke
+}
+
 // NumClients returns the number of clients connected to the websocket hub
 func (wsh *WebsocketHub) NumClients() int {
 	return len(wsh.clients)
 }
 
-// RegisterClient registers a websocket connection with the hub.
-func (wsh *WebsocketHub) RegisterClient(c *hubSpoke) {
+// RegisterClient registers a websocket connection with the hub, and returns a
+// pointer to the new client data object.
+func (wsh *WebsocketHub) RegisterClient(c *hubSpoke) *client {
 	log.Debug("Registering new websocket client")
-	wsh.Register <- c
+	cl := new(client)
+	wsh.Register <- &clientHubSpoke{cl, c}
+	return cl
 }
 
 // registerClient should only be called from the run loop
-func (wsh *WebsocketHub) registerClient(c *hubSpoke) {
-	wsh.clients[c] = new(client)
+func (wsh *WebsocketHub) registerClient(ch *clientHubSpoke) {
+	wsh.clients[ch.c] = ch.cl
 }
 
 // UnregisterClient unregisters the input websocket connection via the main
@@ -166,7 +174,7 @@ func (wsh *WebsocketHub) run() {
 	// start the buffer send ticker loop
 	go wsh.periodicBufferSend()
 
-	//  start the client ping ticker
+	// start the client ping ticker
 	stopPing := wsh.pingClients()
 	defer close(stopPing)
 
@@ -205,8 +213,8 @@ func (wsh *WebsocketHub) run() {
 					wsh.unregisterClient(client)
 				}
 			}
-		case c := <-wsh.Register:
-			wsh.registerClient(c)
+		case ch := <-wsh.Register:
+			wsh.registerClient(ch)
 		case c := <-wsh.Unregister:
 			wsh.unregisterClient(c)
 		case _, ok := <-wsh.quitWSHandler:
