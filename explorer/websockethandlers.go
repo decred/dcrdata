@@ -20,7 +20,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 		// Create channel to signal updated data availability
 		updateSig := make(hubSpoke, 3)
 		// register websocket client with our signal channel
-		exp.wsHub.RegisterClient(&updateSig)
+		clientData := exp.wsHub.RegisterClient(&updateSig)
 		// unregister (and close signal channel) before return
 		defer exp.wsHub.UnregisterClient(&updateSig)
 
@@ -158,9 +158,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					// ping and send user count
 					webData.Message = strconv.Itoa(exp.wsHub.NumClients())
 				case sigNewTx:
-					exp.wsHub.clients[&updateSig].Lock()
-					enc.Encode(exp.wsHub.clients[&updateSig].newTxs)
-					exp.wsHub.clients[&updateSig].Unlock()
+					clientData.RLock()
+					enc.Encode(clientData.newTxs)
+					clientData.RUnlock()
 					webData.Message = buff.String()
 				}
 
