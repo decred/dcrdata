@@ -260,7 +260,9 @@ body.darkBG #menu {
   color: #052f4b;
 }
 .top-nav .dcricon-decred {
-  font-size: 22px;
+  font-size: 25px;
+  top: 1px;
+  position: relative;
 }
 .top-search {
   height: 30px;
