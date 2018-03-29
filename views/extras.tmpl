@@ -44,9 +44,8 @@
                 <div class="col-sm-auto" style="padding: 0 2px">
                     <a href="/" class="dcricon-decred no-underline"></a>
                 </div>
-                <div class="col-sm-auto"><a href="/blocks" title="Explorer">Explore</a></div>
             </div>
-            <div class="col" style="padding: 0 5px;">
+            <div class="col pl-2">
                 <form class="navbar-form" role="search" id="search-form" action="/search">
                     <div class="input-group">
                         <input
@@ -60,14 +59,28 @@
                     </div>
                 </form>
             </div>
-            <div>
-                <a id="sun-toggle" href="javascript:toggleSun()" class="dcricon-sun-fill no-underline"></a>
-            </div>
+            <nav role="navigation" id="hamburger-menu" data-turbolinks-permanent>
+                <div id="menuToggle">
+                    <input type="checkbox" id="menuToggleCheckbox"/>
+                    <span class="patty"></span>
+                    <span class="patty"></span>
+                    <span class="patty short"></span>
+                    <ul id="menu">
+                        <a href="/" title="Home"><li>Home</li></a>
+                        <a href="/mempool" title="Decred mempool"><li>Mempool</li></a>
+                        <a href="/blocks" title="Decred blocks"><li>Blocks</li></a>
+                        <a href="/decodetx" title="Decode or send a raw transaction"><li>Decode/Broadcast Tx</li></a>
+                        <a href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank"><li>JSON API Docs</li></a>
+                        <a data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><li><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</li></a>
+                    </ul>
+                </div>
+            </nav>
         </div>
     </div>
 </div>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
+    $(".jsonly").show()
     $.ajaxSetup({
         cache: true
     });
@@ -77,7 +90,7 @@
         var expires = "expires="+d.toUTCString();
         document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
     }
-    var sunToggle = document.getElementById("sun-toggle")
+    var sunIcon = document.getElementById("sun-icon")
     var darkBGCookieName = 'dcrdataDarkBG';
     function darkEnabled() {
         return document.cookie.includes(darkBGCookieName)
@@ -88,14 +101,14 @@
         toggleToLightClasses(document.body)
     }
     function toggleToDarkClasses(body) {
-        $(sunToggle).removeClass('dcricon-sun-fill')
-        $(sunToggle).addClass('dcricon-sun-stroke')
+        $(sunIcon).removeClass('dcricon-sun-fill')
+        $(sunIcon).addClass('dcricon-sun-stroke')
         $(body).addClass('darkBG')
     }
     function toggleToLightClasses(body) {
         $(body).removeClass('darkBG');
-        $(sunToggle).removeClass('dcricon-sun-stroke')
-        $(sunToggle).addClass('dcricon-sun-fill')
+        $(sunIcon).removeClass('dcricon-sun-stroke')
+        $(sunIcon).addClass('dcricon-sun-fill')
     }
     function toggleSun() {
         if (darkEnabled()) {
@@ -113,8 +126,18 @@
             toggleToLightClasses(event.data.newBody)
         }
     })
-
-
+    $(document).click( function(e) {
+        if ($(e.target).id == "menuToggleCheckbox") {
+            return
+        }
+        if ($(e.target).parents("#hamburger-menu").size() > 0) {
+            return
+        }
+        closeMenu(e)
+    })
+    function closeMenu(e) {
+        $("#menuToggle input").prop('checked', false)
+    }
     function updateConnectionStatus(msg, connected) {
         var el = $('#connection');
         el.removeClass('hidden')
@@ -135,6 +158,20 @@
 
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function txRowHTMLFlexBox(tx) {
+        var totalTxt = ""
+        humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+            totalTxt += str.textContent
+        })
+        return `<div class="d-flex flex-table-row">
+            <a class="hash truncate-hash" style="flex: 1 1 auto" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a>
+            <span style="flex: 0 0 60px" class="mono text-right ml-1">${tx.Type}</span>
+            <span style="flex: 0 0 105px" class="mono text-right ml-1">${totalTxt}</span>
+            <span style="flex: 0 0 50px" class="mono text-right ml-1">${tx.size} B</span>
+            <span style="flex: 0 0 65px" class="mono text-right ml-1" data-age="${tx.time}">${humanize.timeSince(tx.time)}</span>
+        </div>`
     }
 
     var ws; // websocket global
@@ -168,7 +205,7 @@
             txs.forEach(function(tx, idx) {
             addTxRow = function(str) {
                 var rows = $('#' + str +' tbody tr')
-                var totalTxt = "" 
+                var totalTxt = ""
                 humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                     totalTxt += str.textContent
                 })
@@ -188,7 +225,7 @@
                 case "Vote":
                     $('#mempool_vote_number').text(parseInt($('#mempool_vote_number').text()) + 1)
                     var rows = $('#mempool_votes tbody tr')
-                    var totalTxt = "" 
+                    var totalTxt = ""
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
@@ -213,20 +250,10 @@
                     addTxRow('mempool_revocations')
                     break
             }
-            
+
             if (window.location.pathname == "/"){
-                var rows = $('#mini-transactions tbody tr')
-                var totalTxt = "" 
-                humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                    totalTxt += str.textContent
-                })
-                var newRow = '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                    tx.hash + '">' + tx.hash + '</a></span></td>' +
-                    '<td class="mono fs15">' + tx.Type + '</td>' +
-                    '<td class="mono fs15">' + totalTxt +'</td>' +
-                    '<td class="mono fs15">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
-                var newRowHtml = $.parseHTML(newRow)
+                var rows = $('#mini-transactions .flex-table-row')
+                var newRowHtml = $.parseHTML(txRowHTMLFlexBox(tx))
                 rows.last().remove()
                 $(newRowHtml).insertBefore(rows.first())
             }
@@ -238,7 +265,7 @@
             console.log("Get Mempool: ", evt)
             var newTable = ''
             var makeNewTable =function (tx) {
-                    var totalTxt = "" 
+                    var totalTxt = ""
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
@@ -260,7 +287,7 @@
             newTable = ''
             m.votes.forEach(function (tx) {
                 var rows = $('#mempool_votes tbody tr')
-                    var totalTxt = "" 
+                    var totalTxt = ""
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
@@ -273,7 +300,7 @@
                         '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
                         '<td class="mono fs15">' + tx.size + ' B</td>'  +
                         '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
-       
+
             })
             $('#mempool_votes tbody').html($.parseHTML(newTable))
 
@@ -284,7 +311,7 @@
             }
 
             setTimeElements()
-        });     
+        });
 
         ws.registerEvtHandler("ping", function(evt) {
             console.log("ping. users online: ", evt)
@@ -312,7 +339,7 @@
                     newBlock.block.height - $(v).data('confirmation-block-height')
                 )
             })
-            
+
             // block summary data
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
@@ -378,7 +405,7 @@
             if (window.location.pathname == "/") {
                 var newTable = ""
                 m.latest.forEach(function (tx) {
-                    var totalTxt = "" 
+                    var totalTxt = ""
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
@@ -387,7 +414,7 @@
                     '<td class="mono fs15">' + tx.Type + '</td>'+
                     '<td class="mono fs15">' + totalTxt +'</td>' +
                     '<td class="mono fs15">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>' 
+                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
                 })
                 $('#mini-transactions tbody').html(newTable)
             }
@@ -439,7 +466,7 @@
         });
         newBlockNtfn.show();
     }
-    
+
     function desktopNotifyNewBlock(block) {
         if (!Notify.needsPermission) {
             doNotification(block);
@@ -459,14 +486,10 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
-        <div style="float: left">
-            <a class="nav-item" href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
-            <a class="nav-item" href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON-API Docs</a>
-            <a class="nav-item" href="/mempool" title="Decred mempool">Mempool</a>
-        </div>
+
         <div style="text-align: left; margin:0 auto !important; display:inline-block">
             <a class="nav-item" href="https://github.com/decred/dcrdata" title="dcrdata on GitHub" target="_blank">dcrdata v{{.Version}}</a>
-            <a class="nav-item" href="https://github.com/decred/dcrdata/blob/master/LICENSE" target="_blank">© 2017-2018 The dcrdata developers (ISC)</a>
+            <a class="nav-item" href="https://github.com/decred/dcrdata/blob/master/LICENSE" target="_blank">© 2018 The Decred developers (ISC)</a>
         </div>
         <div style="float: right;">
             <span data-turbolinks-permanent class="nav-item" id="connection"
@@ -491,9 +514,10 @@
             }
         })
     }
-    document.addEventListener("turbolinks:load", function(){
+    document.addEventListener("turbolinks:load", function(e){
         setTimeElements()
         updateAges()
+        closeMenu(e)
     })
     setInterval(updateAges, 10000);
 </script>

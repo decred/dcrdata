@@ -27,7 +27,7 @@
                     <a class="fs13 nowrap" href="/api/tx/hex/{{.TxID}}" data-turbolinks="false">view hex</a>
                 </span>
             </div>
-            <table class="table table-centered-1rem">
+            <table class="table no-border table-centered-1rem">
                 {{if gt .BlockHeight 0}}
                     <tr>
                         <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">INCLUDED IN BLOCK</td>
@@ -73,12 +73,12 @@
                                         <div
                                             class="progress-bar"
                                             role="progressbar"
-                                            style="width: {{percentage (subtract .Confirmations 1) .TicketInfo.TicketMaturity}}%; background: #2ed8a3;"
+                                            style="width: {{percentage (subtract .Confirmations 1) .TicketInfo.TicketMaturity}}%;"
                                             aria-valuenow="{{.Confirmations}}"
                                             aria-valuemin="0"
                                             aria-valuemax="256"
                                         >
-	                                    <span style="color:#383b41" class="nowrap pl-1 pr-1">
+                                            <span class="nowrap pl-1 pr-1">
                                                 Immature, {{ if eq .Type "Ticket"}}eligible to vote{{else}}spendable{{end}} in {{ if eq .Confirmations .TicketInfo.TicketMaturity }}next block{{else}}{{subtract (add .TicketInfo.TicketMaturity 1) .Confirmations}} blocks ({{printf "%.1f" .TicketInfo.TimeTillMaturity}} days remaining){{end}}
                                             </span>
                                         </div>
@@ -161,12 +161,12 @@
                                                 <div
                                                     class="progress-bar"
                                                     role="progressbar"
-                                                    style="width: {{percentage (subtract .Confirmations 1) .TicketInfo.TicketExpiry}}%; background: #2ed8a3;"
+                                                    style="width: {{percentage (subtract .Confirmations 1) .TicketInfo.TicketExpiry}}%;"
                                                     aria-valuenow="{{.Confirmations}}"
                                                     aria-valuemin="0"
                                                     aria-valuemax="256"
                                                 >
-		                                    <span style="color:#383b41" class="nowrap pl-1 pr-1">
+                                                    <span class="nowrap pl-1 pr-1">
                                                         block {{.TicketInfo.TicketLiveBlocks}} of {{.TicketInfo.TicketExpiry}} ({{printf "%.1f" .TicketInfo.TicketExpiryDaysLeft}} days remaining)
                                                     </span>
                                                 </div>
