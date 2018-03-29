@@ -81,9 +81,6 @@ h4 {
 }
 
 /*dark theme*/
-#sun-toggle {
-  padding: 5px;
-}
 body.darkBG {
   background: #3B3F45;
   color: #fdfdfd;
@@ -128,8 +125,27 @@ body.darkBG .json-block {
 body.darkBG .top-search {
  color: #7fbdff;
 }
+body.darkBG .top-nav input:-webkit-autofill {
+  -webkit-animation-name: autofillDark;
+  -webkit-animation-fill-mode: both;
+}
 body.darkBG .navbar-fixed-bottom .nav-item {
   color: #dcdcdc;
+}
+body.darkBG #menuToggle .patty {
+  background: #fdfdfd;
+}
+body.darkBG #menuToggle input:checked ~ .patty {
+  background: #fbfbfb;
+}
+body.darkBG #hamburger-menu a {
+  color: #fbfbfb;
+}
+body.darkBG #hamburger-menu a:hover {
+  color: #94ffca;
+}
+body.darkBG #menu {
+  background:  #2a2a2a;
 }
 
 /*utils*/
@@ -274,7 +290,7 @@ body.darkBG .navbar-fixed-bottom .nav-item {
 }
 #menuToggle {
   display: block;
-  top: 7px;
+  top: 6px;
   right: 8px;
   position: absolute;
   z-index: 1;
@@ -294,7 +310,7 @@ body.darkBG .navbar-fixed-bottom .nav-item {
   z-index: 2;
   -webkit-touch-callout: none;
 }
-#menuToggle span {
+#menuToggle .patty {
   display: block;
   width: 33px;
   height: 4px;
@@ -308,13 +324,13 @@ body.darkBG .navbar-fixed-bottom .nav-item {
               background 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
               opacity 0.55s ease;
 }
-#menuToggle span:first-child {
+#menuToggle .patty :first-child {
   transform-origin: top right;
 }
-#menuToggle span:nth-last-child(2) {
+#menuToggle .patty :nth-last-child(2) {
   transform-origin: bottom right;
 }
-#menuToggle input:checked ~ span {
+#menuToggle input:checked ~ .patty  {
   opacity: 1;
   transform: rotate(-45deg) translate(0px, -2px);
   background: #232323;
@@ -323,8 +339,8 @@ body.darkBG .navbar-fixed-bottom .nav-item {
   opacity: 0;
   transform: rotate(0deg) scale(0.2, 0.2);
 }
-#menuToggle input:checked ~ span:nth-last-child(2) {
-  transform: rotate(45deg) translate(1px, 2px);
+#menuToggle input:checked ~ .patty:nth-last-child(2) {
+  transform: rotate(45deg) translate(3px, 2px);
 }
 #menu {
   position: absolute;
@@ -363,10 +379,7 @@ body.darkBG .navbar-fixed-bottom .nav-item {
       background: transparent;
   }
 }
-body.darkBG .top-nav input:-webkit-autofill {
-  -webkit-animation-name: autofillDark;
-  -webkit-animation-fill-mode: both;
-}
+
 
 .navbar-fixed-bottom {
   position: fixed;
