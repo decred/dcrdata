@@ -266,7 +266,7 @@ body.darkBG #menu {
 }
 .top-search {
   height: 30px;
-  margin: 2px 0 !important;
+  margin: 2px 20px 2px 0 !important;
   border-top: 0px;
   border-left: 0px;
   border-right: 0px;
