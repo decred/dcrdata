@@ -44,9 +44,8 @@
                 <div class="col-sm-auto" style="padding: 0 2px">
                     <a href="/" class="dcricon-decred no-underline"></a>
                 </div>
-                <div class="col-sm-auto"><a href="/blocks" title="Explorer">Explore</a></div>
             </div>
-            <div class="col" style="padding: 0 5px;">
+            <div class="col pl-2">
                 <form class="navbar-form" role="search" id="search-form" action="/search">
                     <div class="input-group">
                         <input
@@ -60,14 +59,30 @@
                     </div>
                 </form>
             </div>
-            <div>
-                <a id="sun-toggle" href="javascript:toggleSun()" class="dcricon-sun-fill no-underline"></a>
-            </div>
         </div>
     </div>
+
+    <nav role="navigation" id="hamburger-menu" data-turbolinks-permanent>
+        <div id="menuToggle">
+            <input type="checkbox" id="menuToggleCheckbox"/>
+            <span class="patty"></span>
+            <span class="patty"></span>
+            <span class="patty"></span>
+            <ul id="menu">
+                <a href="/" title="Home"><li>Home</li></a>
+                <a href="/mempool" title="Decred mempool"><li>Mempool</li></a>
+                <a href="/blocks" title="Decred blocks"><li>Blocks</li></a>
+                <a href="/decodetx" title="Decode or send a raw transaction"><li>Decode/Broadcast Tx</li></a>
+                <a href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank"><li>JSON API Docs</li></a>
+                <a data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><li><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</li></a>
+            </ul>
+        </div>
+    </nav>
+
 </div>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
+    $(".jsonly").show()
     $.ajaxSetup({
         cache: true
     });
@@ -77,7 +92,7 @@
         var expires = "expires="+d.toUTCString();
         document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
     }
-    var sunToggle = document.getElementById("sun-toggle")
+    var sunIcon = document.getElementById("sun-icon")
     var darkBGCookieName = 'dcrdataDarkBG';
     function darkEnabled() {
         return document.cookie.includes(darkBGCookieName)
@@ -88,14 +103,14 @@
         toggleToLightClasses(document.body)
     }
     function toggleToDarkClasses(body) {
-        $(sunToggle).removeClass('dcricon-sun-fill')
-        $(sunToggle).addClass('dcricon-sun-stroke')
+        $(sunIcon).removeClass('dcricon-sun-fill')
+        $(sunIcon).addClass('dcricon-sun-stroke')
         $(body).addClass('darkBG')
     }
     function toggleToLightClasses(body) {
         $(body).removeClass('darkBG');
-        $(sunToggle).removeClass('dcricon-sun-stroke')
-        $(sunToggle).addClass('dcricon-sun-fill')
+        $(sunIcon).removeClass('dcricon-sun-stroke')
+        $(sunIcon).addClass('dcricon-sun-fill')
     }
     function toggleSun() {
         if (darkEnabled()) {
@@ -113,7 +128,9 @@
             toggleToLightClasses(event.data.newBody)
         }
     })
-
+    document.addEventListener("turbolinks:load", function() {
+        $("#menuToggle input").prop('checked', false)
+    })
 
     function updateConnectionStatus(msg, connected) {
         var el = $('#connection');
@@ -450,11 +467,7 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
-        <div style="float: left">
-            <a class="nav-item" href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
-            <a class="nav-item" href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON-API Docs</a>
-            <a class="nav-item" href="/mempool" title="Decred mempool">Mempool</a>
-        </div>
+
         <div style="text-align: left; margin:0 auto !important; display:inline-block">
             <a class="nav-item" href="https://github.com/decred/dcrdata" title="dcrdata on GitHub" target="_blank">dcrdata v{{.Version}}</a>
             <a class="nav-item" href="https://github.com/decred/dcrdata/blob/master/LICENSE" target="_blank">© 2017-2018 The dcrdata developers (ISC)</a>
