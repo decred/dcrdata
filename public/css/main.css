@@ -353,7 +353,7 @@ body.darkBG #menu {
   -webkit-font-smoothing: antialiased;
   transform-origin: 0% 0%;
   transform: translate(100%, 0);
-  transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0);
+  transition: transform 0.33s cubic-bezier(0.77,0.2,0.05,1.0);
 }
 #menu li {
   padding: 10px 0;
@@ -372,7 +372,6 @@ body.darkBG #menu {
   -webkit-animation-name: autofill;
   -webkit-animation-fill-mode: both;
 }
-
 @-webkit-keyframes autofillDark {
   to {
       color: #7fbdff;
