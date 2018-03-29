@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -21,6 +22,8 @@ import (
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
+// RegisterNodeNtfnHandlers registers with dcrd to receive new block,
+// transaction and winning ticket notifications.
 func RegisterNodeNtfnHandlers(dcrdClient *rpcclient.Client) *ContextualError {
 	var err error
 	// Register for block connection and chain reorg notifications.
@@ -66,7 +69,7 @@ type collectionQueue struct {
 	syncHandlers []func(hash *chainhash.Hash)
 }
 
-// newCollectionQueue creates a new collectionQueue with a queue channel large
+// NewCollectionQueue creates a new collectionQueue with a queue channel large
 // enough for 10 million block pointers.
 func NewCollectionQueue() *collectionQueue {
 	return &collectionQueue{
@@ -78,6 +81,8 @@ func (q *collectionQueue) SetSynchronousHandlers(syncHandlers []func(hash *chain
 	q.syncHandlers = syncHandlers
 }
 
+// ProcessBlocks receives new *blockHashHeights, calls the synchronous handlers,
+// then signals to the monitors that a new block was mined.
 func (q *collectionQueue) ProcessBlocks() {
 	// process queued blocks one at a time
 	for bh := range q.q {
@@ -130,7 +135,7 @@ func (q *collectionQueue) ProcessBlocks() {
 // 	return b
 // }
 
-// Define notification handlers
+// MakeNodeNtfnHandlers defines the dcrd notification handlers
 func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) {
 	blockQueue := NewCollectionQueue()
 	go blockQueue.ProcessBlocks()

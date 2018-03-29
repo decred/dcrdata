@@ -1,4 +1,4 @@
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016, 2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -19,6 +19,7 @@ import (
 	"github.com/decred/dcrdata/explorer"
 	"github.com/decred/dcrdata/mempool"
 	"github.com/decred/dcrdata/middleware"
+	notify "github.com/decred/dcrdata/notification"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/jrick/logrotate/rotator"
@@ -52,6 +53,7 @@ var (
 	// application shutdown.
 	logRotator *rotator.Rotator
 
+	notifyLog     = backendLog.Logger("NTFN")
 	sqliteLog     = backendLog.Logger("SQLT")
 	postgresqlLog = backendLog.Logger("PSQL")
 	stakedbLog    = backendLog.Logger("SKDB")
@@ -76,10 +78,12 @@ func init() {
 	api.UseLogger(apiLog)
 	insight.UseLogger(apiLog)
 	middleware.UseLogger(apiLog)
+	notify.UseLogger(notifyLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]btclog.Logger{
+	"NTFN": notifyLog,
 	"SQLT": sqliteLog,
 	"PSQL": postgresqlLog,
 	"SKDB": stakedbLog,
