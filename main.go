@@ -538,7 +538,7 @@ func waitForSync(base chan dbtypes.SyncResult, aux chan dbtypes.SyncResult,
 	// See if there was a SIGINT (CTRL+C)
 	select {
 	case <-quit:
-		return baseDBHeight, auxDBHeight, fmt.Errorf("Quit signal received during DB sync.")
+		return baseDBHeight, auxDBHeight, fmt.Errorf("quit signal received during DB sync")
 	default:
 	}
 
