@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -94,7 +95,6 @@ func (wsh *WebsocketHub) NumClients() int {
 // RegisterClient registers a websocket connection with the hub, and returns a
 // pointer to the new client data object.
 func (wsh *WebsocketHub) RegisterClient(c *hubSpoke) *client {
-	log.Debug("Registering new websocket client")
 	cl := new(client)
 	wsh.Register <- &clientHubSpoke{cl, c}
 	return cl
@@ -103,6 +103,7 @@ func (wsh *WebsocketHub) RegisterClient(c *hubSpoke) *client {
 // registerClient should only be called from the run loop
 func (wsh *WebsocketHub) registerClient(ch *clientHubSpoke) {
 	wsh.clients[ch.c] = ch.cl
+	log.Debugf("Registered new websocket client (%d).", wsh.NumClients())
 }
 
 // UnregisterClient unregisters the input websocket connection via the main
