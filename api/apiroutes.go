@@ -314,10 +314,12 @@ func (c *appContext) getBlockTransactionsCount(w http.ResponseWriter, r *http.Re
 		apiLog.Errorf("Unable to get block %s transactions", hash)
 		return
 	}
-	writeJSON(w, &struct {
-		Tx  int `json:"tx"`
-		STx int `json:"stx"`
-	}{len(blockTransactions.Tx), len(blockTransactions.STx)}, c.getIndentQuery(r))
+
+	counts := &apitypes.BlockTransactionCounts{
+		Tx:  len(blockTransactions.Tx),
+		STx: len(blockTransactions.STx),
+	}
+	writeJSON(w, counts, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockHeader(w http.ResponseWriter, r *http.Request) {

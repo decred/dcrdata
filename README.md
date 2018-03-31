@@ -174,46 +174,46 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 
 #### Endpoint List
 
-| Best block | |
-| --- | --- |
-| Summary | `/block/best` |
-| Stake info |  `/block/best/pos` |
-| Header |  `/block/best/header` |
-| Hash |  `/block/best/hash` |
-| Height | `/block/best/height` |
-| Size | `/block/best/size` |
-| Transactions | `/block/best/tx` |
-| Transactions Count | `/block/best/tx/count` |
-| Verbose block result | `/block/best/verbose` |
+| Best block | Path | Type |
+| --- | --- | --- |
+| Summary | `/block/best` | types.BlockDataBasic |
+| Stake info |  `/block/best/pos` | types.StakeInfoExtended |
+| Header |  `/block/best/header` | dcrjson.GetBlockHeaderVerboseResult |
+| Hash |  `/block/best/hash` | string (plain text) |
+| Height | `/block/best/height` | string (plain text) |
+| Size | `/block/best/size` | string |
+| Transactions | `/block/best/tx` | types.BlockTransactions |
+| Transactions Count | `/block/best/tx/count` | types.BlockTransactionCounts |
+| Verbose block result | `/block/best/verbose` | dcrjson.GetBlockVerboseResult |
 
-| Block X (block index) | |
-| --- | --- |
-| Summary | `/block/X` |
-| Stake info |  `/block/X/pos` |
-| Header |  `/block/X/header` |
-| Hash |  `/block/X/hash` |
-| Size | `/block/X/size` |
-| Transactions | `/block/X/tx` |
-| Transactions Count | `/block/X/tx/count` |
-| Verbose block result | `/block/X/verbose` |
+| Block X (block index) | Path | Type |
+| --- | --- | --- |
+| Summary | `/block/X` |  |
+| Stake info |  `/block/X/pos` |  |
+| Header |  `/block/X/header` |  |
+| Hash |  `/block/X/hash` |  |
+| Size | `/block/X/size` |  |
+| Transactions | `/block/X/tx` |  |
+| Transactions Count | `/block/X/tx/count` |  |
+| Verbose block result | `/block/X/verbose` |  |
 
-| Block H (block hash) | |
-| --- | --- |
-| Summary | `/block/hash/H` |
-| Stake info |  `/block/hash/H/pos` |
-| Header |  `/block/hash/H/header` |
-| Height |  `/block/hash/H/height` |
-| Size | `/block/hash/H/size` |
-| Transactions | `/block/hash/H/tx` |
-| Transactions Count | `/block/hash/H/tx/count` |
-| Verbose block result | `/block/hash/H/verbose` |
+| Block H (block hash) | Path | Type |
+| --- | --- | --- |
+| Summary | `/block/hash/H` |  |
+| Stake info |  `/block/hash/H/pos` |  |
+| Header |  `/block/hash/H/header` |  |
+| Height |  `/block/hash/H/height` |  |
+| Size | `/block/hash/H/size` |  |
+| Transactions | `/block/hash/H/tx` |  |
+| Transactions Count | `/block/hash/H/tx/count` |  |
+| Verbose block result | `/block/hash/H/verbose` |  |
 
-| Block range (X < Y) | |
-| --- | --- |
-| Summary array for blocks on `[X,Y]` | `/block/range/X/Y` |
-| Summary array with block index step `S` | `/block/range/X/Y/S` |
-| Size (bytes) array | `/block/range/X/Y/size` |
-| Size array with step `S` | `/block/range/X/Y/S/size` |
+| Block range (X < Y) | Path | Type |
+| --- | --- | --- |
+| Summary array for blocks on `[X,Y]` | `/block/range/X/Y` |  |
+| Summary array with block index step `S` | `/block/range/X/Y/S` |  |
+| Size (bytes) array | `/block/range/X/Y/size` |  |
+| Size array with step `S` | `/block/range/X/Y/S/size` |  |
 
 | Transaction T (transaction id) | |
 | --- | --- |
