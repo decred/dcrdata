@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -9,10 +10,13 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/net/websocket"
 )
+
+var ErrWsClosed = "use of closed network connection"
 
 // RootWebsocket is the websocket handler for all pages
 func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
@@ -24,6 +28,16 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 		// unregister (and close signal channel) before return
 		defer exp.wsHub.UnregisterClient(&updateSig)
 
+		// close the websocket
+		closeWS := func() {
+			err := ws.Close()
+			// Do not log error if connection is just closed
+			if err != nil && !strings.Contains(err.Error(), ErrWsClosed) {
+				log.Errorf("Failed to close websocket: %v", err)
+			}
+		}
+		defer closeWS()
+
 		requestLimit := 1 << 20
 		// set the max payload size to 1 MB
 		ws.MaxPayloadBytes = requestLimit
@@ -31,6 +45,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 		// Start listening for websocket messages from client with raw
 		// transaction bytes (hex encoded) to decode or broadcast.
 		go func() {
+			defer closeWS()
 			for {
 				// Wait to receive a message on the websocket
 				msg := &WebSocketMessage{}
@@ -104,8 +119,11 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				// send the response back on the websocket
 				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 				if err := websocket.JSON.Send(ws, webData); err != nil {
-					log.Debugf("Failed to encode WebSocketMessage %s: %v",
-						webData.EventId, err)
+					// Do not log error if connection is just closed
+					if !strings.Contains(err.Error(), ErrWsClosed) {
+						log.Debugf("Failed to encode WebSocketMessage (reply) %s: %v",
+							webData.EventId, err)
+					}
 					// If the send failed, the client is probably gone, so close
 					// the connection and quit.
 					return
@@ -121,8 +139,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 			case sig, ok := <-updateSig:
 				// Check if the update channel was closed. Either the websocket
 				// hub will do it after unregistering the client, or forcibly in
-				// response to (http.CloseNotifier).CloseNotify() and only then if
-				// the hub has somehow lost track of the client.
+				// response to (http.CloseNotifier).CloseNotify() and only then
+				// if the hub has somehow lost track of the client.
 				if !ok {
 					break loop
 				}
@@ -165,10 +183,11 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				}
 
 				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				err := websocket.JSON.Send(ws, webData)
-
-				if err != nil {
-					log.Debugf("Failed to encode WebSocketMessage %v: %v", sig, err)
+				if err := websocket.JSON.Send(ws, webData); err != nil {
+					// Do not log error if connection is just closed
+					if !strings.Contains(err.Error(), ErrWsClosed) {
+						log.Debugf("Failed to encode WebSocketMessage (push) %v: %v", sig, err)
+					}
 					// If the send failed, the client is probably gone, so close
 					// the connection and quit.
 					return
