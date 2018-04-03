@@ -286,6 +286,13 @@ type BlockExplorerExtraInfo struct {
 	NextBlockSubsidy *dcrjson.GetBlockSubsidyResult `json:"next_block_subsidy"`
 }
 
+// BlockTransactionCounts contains the regular and stake transaction counts for
+// a block.
+type BlockTransactionCounts struct {
+	Tx  int `json:"tx"`
+	STx int `json:"stx"`
+}
+
 // StakeDiff represents data about the evaluated stake difficulty and estimates
 type StakeDiff struct {
 	dcrjson.GetStakeDifficultyResult
