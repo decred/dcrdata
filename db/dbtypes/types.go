@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/decred/dcrdata/db/dbtypes/internal"
 )
@@ -33,6 +34,49 @@ func (p TicketSpendType) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+// AddrTxnType enumerates the different transaction types as displayed by the
+// address page.
+type AddrTxnType int
+
+const (
+	AddrTxnAll AddrTxnType = iota
+	AddrTxnCredit
+	AddrTxnDebit
+	AddrTxnUnknown
+)
+
+// AddrTxnTypes is the canonical mapping from AddrTxnType to string.
+var AddrTxnTypes = map[AddrTxnType]string{
+	AddrTxnAll:     "all",
+	AddrTxnCredit:  "credit",
+	AddrTxnDebit:   "debit",
+	AddrTxnUnknown: "unknown",
+}
+
+func (a AddrTxnType) String() string {
+	return AddrTxnTypes[a]
+}
+
+// AddrTxnTypeFromStr attempts to decode a string into an AddrTxnType.
+func AddrTxnTypeFromStr(txnType string) AddrTxnType {
+	txnType = strings.ToLower(txnType)
+	switch txnType {
+	case "all":
+		return AddrTxnAll
+	case "credit":
+		fallthrough
+	case "credits":
+		return AddrTxnCredit
+	case "debit":
+		fallthrough
+	case "debits":
+		return AddrTxnDebit
+	default:
+		return AddrTxnUnknown
+	}
+
 }
 
 type TicketPoolStatus int16

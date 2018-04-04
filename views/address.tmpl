@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 {{with .Data}}
+{{$TxnCount := .TxnCount}}
 {{template "html-head" printf "Decred Address %s" .Address}}
 <body>
     {{$heights := $.ConfirmHeight}}
@@ -93,31 +94,28 @@
         <div class="row">
             <div class="col">
                 <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
-                    <h5 class="mr-auto mb-0">Transactions</h5>
+                    <h5 class="mr-auto mb-0">History</h5>
                     {{if lt .NumTransactions .KnownTransactions}}
                     <div div class="d-flex flex-wrap-reverse align-items-center justify-content-end">
-                        {{if .Fullmode}}
-                        <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumFundingTxns)}} of {{intComma .KnownFundingTxns}} funding transactions
-                        {{else}}
-                        <span class="fs12 nowrap text-right"> {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma .KnownTransactions}} transactions
-                            {{if ge .KnownTransactions .MaxTxLimit}}
+                        <span class="fs12 nowrap text-right">
+                            {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma $TxnCount}} transactions
+                            {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
                             <sup>*</sup>
                             {{end}}
-                        {{end}}
                         </span>
                         <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
                             <ul class="pagination mb-0 pagination-sm">
                                 <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}"
+                                        href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{.TxnType}}"
                                         id="prev"
                                     >Previous</a>
                                 </li>
                                 <li class="page-item {{if lt (subtract .KnownTransactions .Offset) (add .Limit 1)}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}"
+                                        href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{.TxnType}}"
                                         id="next">
                                         Next
                                     </a>
@@ -126,17 +124,13 @@
                         </nav>
                     </div>
                     {{else}}
-                    {{if .Fullmode}}
-                    <span class="fs12 nowrap text-right">{{intComma .KnownFundingTxns}} funding transaction{{if gt .KnownFundingTxns 1}}s{{end}}</span>
-                    {{else}}
-                    <span class="fs12 nowrap text-right">{{intComma .KnownTransactions}} transaction{{if gt .KnownTransactions 1}}s{{end}}</span>
-                    {{end}}
+                    <span class="fs12 nowrap text-right">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
                     {{end}}
                 </div>
                 {{if .Transactions}}
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
-                        <th>Transactions ID</th>
+                        <th>Input/Output ID</th>
                         <th class="text-right">Credit DCR</th>
                         <th>Debit DCR</th>
                         <th>Time</th>
@@ -148,9 +142,9 @@
                         {{range $i, $v := .Transactions}}
                         <tr>
                             {{with $v}}
-                            <td><a href="/tx/{{.TxID}}" class="hash">{{.TxID}}</a></td>
-                            {{if ne .RecievedTotal 0.0}}
-                                <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .RecievedTotal false)}}</td>
+                            <td><a href="/tx/{{.TxID}}" class="hash">{{.IOID}}</a></td>
+                            {{if ne .ReceivedTotal 0.0}}
+                                <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal false)}}</td>
                             {{else}}
                                 {{if eq .SentTotal 0.0}}
                                 <td class="text-right">sstxcommitment</td>
@@ -198,15 +192,27 @@
                 </table>
                 {{end}}
 
-                {{if ge .KnownTransactions .MaxTxLimit}}
-                {{if not .Fullmode}}
+                <div
+                    id="txntype-wrapper"
+                    class="d-flex align-items-center justify-content-end"
+                >
+                    <label class="mb-0 mr-1" for="txntype">Type</label>
+                    <select
+                        name="txntype"
+                        id="txntype"
+                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if not .Fullmode}}disabled{{end}}"
+                        {{if not .Fullmode}}disabled="disabled"{{end}}
+                    >
+                        <option {{if eq .TxnType "all"}}selected{{end}} value="all">All</option>
+                        <option {{if eq .TxnType "credit"}}selected{{end}} value="credit">Credits</option>
+                        <option {{if eq .TxnType "debit"}}selected{{end}} value="debit">Debits</option>
+                    </select>
+                </div>
+                {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
                 <div>
-                    *Limit of 1000 transactions shown in lite mode.
+                    *Limit of {{.MaxTxLimit}} transactions shown in lite mode.
                 </div>
                 {{end}}
-                {{end}}
-                {{if .Fullmode}}
-                {{if gt .KnownFundingTxns 20}}
                 <div
                     id="pagesize-wrapper"
                     class="hidden d-flex align-items-center justify-content-end"
@@ -215,52 +221,24 @@
                     <select
                         name="pagesize"
                         id="pagesize"
-                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
+                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
+                        {{if lt $TxnCount 20}}disabled="disabled"{{end}}
+                    >
                         <option {{if eq .Limit 10}}selected{{end}} value="20">20</option>
-                        {{if ge .KnownFundingTxns 100}}
+                        {{if ge $TxnCount 100}}
                         <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
                         {{else}}
-                        <option {{if eq .Limit .KnownFundingTxns}}selected{{end}} value="{{.KnownFundingTxns}}">All ({{.KnownFundingTxns}})</option>
+                        <option {{if eq .Limit $TxnCount}}selected{{end}} value="{{$TxnCount}}">All ({{$TxnCount}})</option>
                         {{end}}
-                        {{if gt .KnownFundingTxns 100}}
-                        {{if ge .KnownFundingTxns 1000}}
+                        {{if gt $TxnCount 100}}
+                        {{if ge $TxnCount 1000}}
                         <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
                         {{else}}
-                        <option {{if eq .Limit .KnownFundingTxns}}selected{{end}} value="{{.KnownFundingTxns}}">All ({{.KnownFundingTxns}})</option>
+                        <option {{if eq .Limit $TxnCount}}selected{{end}} value="{{$TxnCount}}">All ({{$TxnCount}})</option>
                         {{end}}
                         {{end}}
                     </select>
                 </div>
-                {{end}}
-                {{else}}
-                {{if gt .KnownTransactions 20}}
-                <div
-                    id="pagesize-wrapper"
-                    class="hidden d-flex align-items-center justify-content-end"
-                >
-                    <label class="mb-0 mr-1" for="pagesize">Page size</label>
-                    <select
-                        name="pagesize"
-                        id="pagesize"
-                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
-                        <option {{if eq .Limit 10}}selected{{end}} value="20">20</option>
-                        {{if ge .KnownTransactions 100}}
-                        <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
-                        {{else}}
-                        <option {{if eq .Limit .KnownTransactions}}selected{{end}} value="{{.KnownTransactions}}">All ({{.KnownTransactions}})</option>
-                        {{end}}
-                        {{if gt .KnownTransactions 100}}
-                        {{if ge .KnownTransactions 1000}}
-                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
-                        {{else}}
-                        <option {{if eq .Limit .KnownTransactions}}selected{{end}} value="{{.KnownTransactions}}">All ({{.KnownTransactions}})</option>
-                        {{end}}
-                        {{end}}
-                    </select>
-                </div>
-                {{end}}
-                {{end}}
-
             </div>
         </div>
     </div>
@@ -271,11 +249,21 @@
         $("#pagesize").change(function(ev) {
             Turbolinks.visit(
                 window.location.pathname
-                + "?n="+ parseInt($(ev.currentTarget).val())
+                + "?txntype="+ $("#txntype").val()
+                + "&n="+ parseInt($(ev.currentTarget).val())
                 + "&start=" + {{.Offset}}
             )
         })
         {{end}}
+
+        $("#txntype").change(function(ev) {
+            Turbolinks.visit(
+                window.location.pathname
+                + "?txntype="+ $(ev.currentTarget).val()
+                + "&n="+ parseInt($("#pagesize").val())
+                + "&start=" + {{.Offset}}
+            )
+        })
 
         function showAddressQRCode() {
             var $qrcode = $("#address-qrcode")

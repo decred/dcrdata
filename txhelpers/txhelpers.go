@@ -1,9 +1,14 @@
-// txhelpers.go contains helper functions for working with transactions and
+// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2017, The dcrdata developers
+// See LICENSE for details.
+
+// package txhelpers contains helper functions for working with transactions and
 // blocks (e.g. checking for a transaction in a block).
 
 package txhelpers
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -20,6 +25,11 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
+)
+
+var (
+	zeroHash            = chainhash.Hash{}
+	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
 
 // RawTransactionGetter is an interface satisfied by rpcclient.Client, and
@@ -108,6 +118,9 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 		for _, tx := range blockTxs {
 			for _, txIn := range tx.MsgTx().TxIn {
 				prevOut := &txIn.PreviousOutPoint
+				if bytes.Equal(zeroHash[:], prevOut.Hash[:]) {
+					continue
+				}
 				// For each TxIn, check the indicated vout index in the txid of the
 				// previous outpoint.
 				// txrr, err := c.GetRawTransactionVerbose(&prevOut.Hash)
@@ -575,6 +588,15 @@ func IsStakeTx(msgTx *wire.MsgTx) bool {
 	default:
 		return false
 	}
+}
+
+// TxTree returns for a wire.MsgTx either wire.TxTreeStake or wire.TxTreeRegular
+// depending on the type of transaction.
+func TxTree(msgTx *wire.MsgTx) int8 {
+	if IsStakeTx(msgTx) {
+		return wire.TxTreeStake
+	}
+	return wire.TxTreeRegular
 }
 
 // TxFee computes and returns the fee for a given tx

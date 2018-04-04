@@ -769,6 +769,11 @@ func RetrieveAddressTxnsAlt(db *sql.DB, address string, N, offset int64) ([]uint
 		internal.SelectAddressLimitNByAddress)
 }
 
+func RetrieveAddressDebitTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+	return retrieveAddressTxns(db, address, N, offset,
+		internal.SelectAddressDebitsLimitNByAddress)
+}
+
 func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
 	statement string) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.Query(statement, address, N, offset)
@@ -810,6 +815,33 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 			addr.VinDbID = uint64(vinDbID.Int64)
 		}
 
+		ids = append(ids, id)
+		addressRows = append(addressRows, &addr)
+	}
+	return
+}
+
+func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) (ids []uint64, addressRows []*dbtypes.AddressRow, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectAddressCreditsLimitNByAddress, address, N, offset)
+	if err != nil {
+		return
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var id uint64
+		var addr dbtypes.AddressRow
+		err = rows.Scan(&id, &addr.FundingTxDbID, &addr.FundingTxHash,
+			&addr.FundingTxVoutIndex, &addr.VoutDbID, &addr.Value)
+		if err != nil {
+			return
+		}
+		addr.Address = address
 		ids = append(ids, id)
 		addressRows = append(addressRows, &addr)
 	}
