@@ -41,12 +41,12 @@
                                                 class="progress-bar"
                                                 id="pos-window-progess-bar"
                                                 role="progressbar"
-                                                style="width: {{ticketWindowProgress .IdxBlockInWindow}}%; background: #2ed8a3;"
+                                                style="width: {{ticketWindowProgress .IdxBlockInWindow}}%;"
                                                 aria-valuenow="{{.IdxBlockInWindow}}"
                                                 aria-valuemin="0"
                                                 aria-valuemax="{{.Params.WindowSize}}"
                                             >
-                                            <span style="color:#383b41" class="nowrap pl-1">block <span id="window_block_index" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}} ({{remaining .IdxBlockInWindow .Params.WindowSize .Params.BlockTime}})</span>
+                                            <span class="nowrap pl-1">block <span id="window_block_index" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}} ({{remaining .IdxBlockInWindow .Params.WindowSize .Params.BlockTime}})</span>
                                             </div>
                                         </div>
                                     </div>
@@ -83,12 +83,12 @@
                                                 class="progress-bar"
                                                 id="pow-window-progess-bar"
                                                 role="progressbar"
-                                                style="width: {{rewardAdjustmentProgress .IdxInRewardWindow}}%; background: #2ed8a3;"
+                                                style="width: {{rewardAdjustmentProgress .IdxInRewardWindow}}%;"
                                                 aria-valuenow="{{.IdxInRewardWindow}}"
                                                 aria-valuemin="0"
                                                 aria-valuemax="{{.Params.RewardWindowSize}}"
                                             >
-                                            <span id="powreward" style="color:#383b41" class="nowrap pl-1">block <span id="reward_block_index" >{{.IdxInRewardWindow}}</span> of {{.Params.RewardWindowSize}} ({{remaining .IdxInRewardWindow .Params.RewardWindowSize .Params.BlockTime}})</span>
+                                            <span id="powreward" class="nowrap pl-1">block <span id="reward_block_index" >{{.IdxInRewardWindow}}</span> of {{.Params.RewardWindowSize}} ({{remaining .IdxInRewardWindow .Params.RewardWindowSize .Params.BlockTime}})</span>
                                             </div>
                                         </div>
                                     </div>
