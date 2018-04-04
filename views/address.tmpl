@@ -200,7 +200,9 @@
                     <select
                         name="txntype"
                         id="txntype"
-                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
+                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if not .Fullmode}}disabled{{end}}"
+                        {{if not .Fullmode}}disabled="disabled"{{end}}
+                    >
                         <option {{if eq .TxnType "all"}}selected{{end}} value="all">All</option>
                         <option {{if eq .TxnType "credit"}}selected{{end}} value="credit">Credits</option>
                         <option {{if eq .TxnType "debit"}}selected{{end}} value="debit">Debits</option>

@@ -206,6 +206,9 @@ type AddressInfo struct {
 
 // TxnCount returns the number of transaction "rows" available.
 func (a *AddressInfo) TxnCount() int64 {
+	if !a.Fullmode {
+		return a.KnownTransactions
+	}
 	switch dbtypes.AddrTxnTypeFromStr(a.TxnType) {
 	case dbtypes.AddrTxnAll:
 		return a.KnownTransactions

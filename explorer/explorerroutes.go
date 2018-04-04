@@ -333,7 +333,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", true)
 				return
 			}
-			addrData.TxnType = txnType.String()
 			addrData.Fullmode = true
 
 			confirmHeights := make([]int64, len(addrData.Transactions))
