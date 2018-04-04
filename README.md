@@ -122,6 +122,14 @@ command line tool:
 * In case of irrecoverable errors, such as detected schema changes without an
   upgrade path, the tables and their indexes may be dropped with `rebuilddb2 -D`.
 
+Note that dcrdata requires that [dcrd](https://docs.decred.org/getting-started/user-guides/dcrd-setup/) is running with optional indexes enabled.  By default these indexes are not turned on when dcrd is installed.
+
+In dcrd.conf set:
+```
+txindex=1
+addrindex=1
+```
+
 ### Starting dcrdata
 
 Launch the dcrdata daemon and allow the databases to process new blocks. Both
