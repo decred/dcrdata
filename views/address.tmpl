@@ -124,7 +124,7 @@
                         </nav>
                     </div>
                     {{else}}
-                    <span class="fs12 nowrap text-right">{{intComma $TxnCount}} transaction{{if gt .KnownTransactions 1}}s{{end}}</span>
+                    <span class="fs12 nowrap text-right">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
                     {{end}}
                 </div>
                 {{if .Transactions}}

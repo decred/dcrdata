@@ -391,6 +391,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 			totals.validHeight, bestBlock)
 		totals.balance = make(map[string]explorer.AddressBalance)
 		totals.validHeight = bestBlock
+		balanceInfo.Address = address
 	}
 	totals.Unlock()
 
@@ -463,7 +464,6 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 		if err != nil {
 			return err
 		}
-		txn.TxID = dbTx.TxID
 		txn.FormattedSize = humanize.Bytes(uint64(dbTx.Size))
 		txn.Total = dcrutil.Amount(dbTx.Sent).ToCoin()
 		txn.Time = dbTx.BlockTime

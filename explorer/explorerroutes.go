@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -367,8 +368,9 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				exp.ErrorPage(w, "Something went wrong...", "that address has no history", true)
 				return
 			}
-			// No transactions
+			// No mined transactions
 			addrData = new(AddressInfo)
+			addrData.Address = address
 		}
 
 		// Set page parameters
@@ -410,7 +412,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		}
 		addrData.NumUnconfirmed, err = exp.blockData.CountUnconfirmedTransactions(address, MaxUnconfirmedPossible)
 		if err != nil {
-			log.Warnf("SearchRawTransactionsForUnconfirmedTransactions failed for address %s: %v", address, err)
+			log.Warnf("CountUnconfirmedTransactions failed for address %s: %v", address, err)
 		}
 	}
 
