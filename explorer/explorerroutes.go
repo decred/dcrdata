@@ -11,7 +11,10 @@ import (
 	"strconv"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/txhelpers"
+	humanize "github.com/dustin/go-humanize"
 )
 
 // Home is the page handler for the "/" path
@@ -409,9 +412,60 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			exp.ErrorPage(w, "Something went wrong...", "could not find transactions for that address", false)
 			return
 		}
-		addrData.NumUnconfirmed, err = exp.blockData.CountUnconfirmedTransactions(address, MaxUnconfirmedPossible)
+
+		// Check for unconfirmed transactions
+		addressOuts, numUnconfirmed, err := exp.blockData.UnconfirmedTxnsForAddress(address)
 		if err != nil {
-			log.Warnf("CountUnconfirmedTransactions failed for address %s: %v", address, err)
+			log.Warnf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
+		}
+		addrData.NumUnconfirmed = numUnconfirmed
+		if addrData.UnconfirmedTxns == nil {
+			addrData.UnconfirmedTxns = new(AddressTransactions)
+		}
+		uctxn := addrData.UnconfirmedTxns
+
+		// Funding transactions (unconfirmed)
+		for _, f := range addressOuts.Outpoints {
+			fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+			if !ok {
+				log.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if fundingTx.Confirmed() {
+				log.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+			addrTx := &AddressTx{
+				TxID:          fundingTx.Hash().String(),
+				InOutID:       f.Index,
+				FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
+				Total:         txhelpers.TotalOutFromMsgTx(fundingTx.Tx).ToCoin(),
+				ReceivedTotal: dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
+			}
+			uctxn.Transactions = append(uctxn.Transactions, addrTx)
+			uctxn.TxnsFunding = append(uctxn.TxnsFunding, addrTx)
+		}
+
+		// Spending transactions (unconfirmed)
+		for _, f := range addressOuts.PrevOuts {
+			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+			if !ok {
+				log.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if spendingTx.Confirmed() {
+				log.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+			addrTx := &AddressTx{
+				TxID:          spendingTx.Hash().String(),
+				InOutID:       uint32(f.InputIndex),
+				FormattedSize: humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
+				Total:         txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
+				SentTotal:     dcrutil.Amount(spendingTx.Tx.TxIn[f.InputIndex].ValueIn).ToCoin(),
+			}
+			uctxn.Transactions = append(uctxn.Transactions, addrTx)
+			uctxn.TxnsSpending = append(uctxn.TxnsSpending, addrTx)
 		}
 	}
 

@@ -19,6 +19,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -26,11 +27,10 @@ import (
 )
 
 const (
-	maxExplorerRows              = 2000
-	minExplorerRows              = 20
-	defaultAddressRows     int64 = 20
-	MaxAddressRows         int64 = 1000
-	MaxUnconfirmedPossible int64 = 1000
+	maxExplorerRows          = 2000
+	minExplorerRows          = 20
+	defaultAddressRows int64 = 20
+	MaxAddressRows     int64 = 1000
 )
 
 // explorerDataSourceLite implements an interface for collecting data for the
@@ -46,7 +46,7 @@ type explorerDataSourceLite interface {
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int
 	GetChainParams() *chaincfg.Params
-	CountUnconfirmedTransactions(address string, maxUnconfirmedPossible int64) (int64, error)
+	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []MempoolTx
 	TxHeight(txid string) (height int64)
 }

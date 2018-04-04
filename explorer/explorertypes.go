@@ -168,6 +168,14 @@ type BlockInfo struct {
 	StakeValidationHeight int64
 }
 
+// AddressTransactions collects the transactions for an address as AddressTx
+// slices.
+type AddressTransactions struct {
+	Transactions []*AddressTx
+	TxnsFunding  []*AddressTx
+	TxnsSpending []*AddressTx
+}
+
 // AddressInfo models data for display on the address page
 type AddressInfo struct {
 	// Address is the decred address on the current page
@@ -182,6 +190,7 @@ type AddressInfo struct {
 
 	// NumUnconfirmed is the number of unconfirmed txns for the address
 	NumUnconfirmed int64
+	UnconfirmedTxns *AddressTransactions
 
 	// Transactions on the current page
 	Transactions    []*AddressTx
