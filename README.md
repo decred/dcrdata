@@ -119,7 +119,7 @@ command line tool:
 * Set your PostgreSQL credentials and host in both `./cmd/rebuilddb2/rebuilddb2.conf`,
   and `dcrdata.conf` in the location specified by the `appdata` flag.
 * Run `./rebuilddb2` to bulk import data and index the tables.
-* In case of irrecoverable errors, such as detegoocted schema changes without an
+* In case of irrecoverable errors, such as detected schema changes without an
   upgrade path, the tables and their indexes may be dropped with `rebuilddb2 -D`.
 
 Note that dcrdata requires that [dcrd](https://docs.decred.org/getting-started/user-guides/dcrd-setup/) is running with optional indexes enabled.  By default these indexes are not turned on when dcrd is installed.
