@@ -189,7 +189,7 @@ type AddressInfo struct {
 	TxnType       string // ?txntype=TxnType
 
 	// NumUnconfirmed is the number of unconfirmed txns for the address
-	NumUnconfirmed int64
+	NumUnconfirmed  int64
 	UnconfirmedTxns *AddressTransactions
 
 	// Transactions on the current page
