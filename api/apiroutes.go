@@ -78,6 +78,7 @@ type explorerDataSource interface {
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error)
 	FillAddressTransactions(addrInfo *explorer.AddressInfo) error
+	ChartBlocks() ([]*dbtypes.ChartBlock, error)
 }
 
 // dcrdata application context used by all route handlers
