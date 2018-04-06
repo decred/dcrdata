@@ -22,6 +22,7 @@ var createTableStatements = map[string]string{
 	"tickets":      internal.CreateTicketsTable,
 	"votes":        internal.CreateVotesTable,
 	"misses":       internal.CreateMissesTable,
+	"chartblocks":  internal.CreateChartBlockTable,
 }
 
 var createTypeStatements = map[string]string{
@@ -48,6 +49,7 @@ var requiredVersions = map[string]TableVersion{
 	"tickets":      NewTableVersion(tableMajor, 0, 0),
 	"votes":        NewTableVersion(tableMajor, 0, 0),
 	"misses":       NewTableVersion(tableMajor, 0, 0),
+	"chartblocks":  NewTableVersion(tableMajor, 0, 0),
 }
 
 // TableVersion models a table version by major.minor.patch
@@ -479,5 +481,19 @@ func IndexMissesTableOnHashes(db *sql.DB) (err error) {
 
 func DeindexMissesTableOnHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexMissesTableOnHashes)
+	return
+}
+
+// Chart blocks table indexes
+
+// IndexChartBlockTableOnTime creates the index on chartblocks table time column.
+func IndexChartBlockTableOnTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexChartBlockTableOnTime)
+	return
+}
+
+// DeindexChartBlockTableOnTime deletes the index on chartblocks table time column.
+func DeindexChartBlockTableOnTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexChartBlockTableOnTime)
 	return
 }

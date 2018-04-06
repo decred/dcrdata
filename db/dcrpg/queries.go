@@ -1691,3 +1691,29 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error
 
 	return ids, dbtx.Commit()
 }
+
+// InsertChartBlock saves block data for charts into DB.
+func InsertChartBlock(db *sql.DB, dbBlock *dbtypes.Block) error {
+	_, err := db.Exec(internal.InsertChartBlock, dbBlock.Height, dbBlock.SBits, dbBlock.Time)
+	return err
+}
+
+// RetrieveChartBlocks retrieves all chart data from DB.
+func RetrieveChartBlocks(db *sql.DB) (data []*dbtypes.ChartBlock, err error) {
+	rows, err := db.Query(internal.SelectAllChartBlocks)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	data = []*dbtypes.ChartBlock{}
+	for rows.Next() {
+		b := &dbtypes.ChartBlock{}
+		if err = rows.Scan(b); err != nil {
+			return
+		}
+		data = append(data, b)
+	}
+
+	return
+}

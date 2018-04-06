@@ -6,6 +6,7 @@ package explorer
 
 import (
 	"database/sql"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strconv"
@@ -535,4 +536,24 @@ func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message str
 // NotFound wraps ErrorPage to display a 404 page
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 	exp.ErrorPage(w, "Not found", "Cannot find page: "+r.URL.Path, true)
+}
+
+// ChartBlocks is the handler for charts.
+func (exp *explorerUI) ChartBlocks(w http.ResponseWriter, r *http.Request) {
+	cbs, err := exp.explorerSource.ChartBlocks()
+	if err != nil {
+		log.Errorf("Failed to retrieve chart data: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "failed to retrieve chart data", false)
+		return
+	}
+
+	b, err := json.Marshal(&cbs)
+	if err != nil {
+		log.Errorf("Failed to prepare response: %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
 }

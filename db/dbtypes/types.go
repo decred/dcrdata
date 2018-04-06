@@ -372,3 +372,10 @@ type BlockDataBasic struct {
 	Time       int64   `json:"time,omitemtpy"`
 	NumTx      uint32  `json:"txlength,omitempty"`
 }
+
+// ChartBlock models data for charts.
+type ChartBlock struct {
+	Height    int64   `db:"height" json:"height"`
+	SBits     float64 `db:"sbits" json:"sbits"`
+	BlockTime int64   `db:"time" json:"time"`
+}
