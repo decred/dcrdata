@@ -182,77 +182,79 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 
 #### Endpoint List
 
-| Best block | |
-| --- | --- |
-| Summary | `/block/best` |
-| Stake info |  `/block/best/pos` |
-| Header |  `/block/best/header` |
-| Hash |  `/block/best/hash` |
-| Height | `/block/best/height` |
-| Size | `/block/best/size` |
-| Transactions | `/block/best/tx` |
-| Transactions Count | `/block/best/tx/count` |
-| Verbose block result | `/block/best/verbose` |
+| Best block | Path | Type |
+| --- | --- | --- |
+| Summary | `/block/best` | `types.BlockDataBasic` |
+| Stake info |  `/block/best/pos` | `types.StakeInfoExtended` |
+| Header |  `/block/best/header` | `dcrjson.GetBlockHeaderVerboseResult` |
+| Hash |  `/block/best/hash` | `string` |
+| Height | `/block/best/height` | `int` |
+| Size | `/block/best/size` | `int32` |
+| Transactions | `/block/best/tx` | `types.BlockTransactions` |
+| Transactions Count | `/block/best/tx/count` | `types.BlockTransactionCounts` |
+| Verbose block result | `/block/best/verbose` | `dcrjson.GetBlockVerboseResult` |
 
-| Block X (block index) | |
-| --- | --- |
-| Summary | `/block/X` |
-| Stake info |  `/block/X/pos` |
-| Header |  `/block/X/header` |
-| Hash |  `/block/X/hash` |
-| Size | `/block/X/size` |
-| Transactions | `/block/X/tx` |
-| Transactions Count | `/block/X/tx/count` |
-| Verbose block result | `/block/X/verbose` |
+| Block X (block index) | Path | Type |
+| --- | --- | --- |
+| Summary | `/block/X` | `types.BlockDataBasic` |
+| Stake info |  `/block/X/pos` | `types.StakeInfoExtended` |
+| Header |  `/block/X/header` | `dcrjson.GetBlockHeaderVerboseResult` |
+| Hash |  `/block/X/hash` | `string` |
+| Size | `/block/X/size` | `int32` |
+| Transactions | `/block/X/tx` | `types.BlockTransactions` |
+| Transactions Count | `/block/X/tx/count` | `types.BlockTransactionCounts` |
+| Verbose block result | `/block/X/verbose` | `dcrjson.GetBlockVerboseResult` |
 
-| Block H (block hash) | |
-| --- | --- |
-| Summary | `/block/hash/H` |
-| Stake info |  `/block/hash/H/pos` |
-| Header |  `/block/hash/H/header` |
-| Height |  `/block/hash/H/height` |
-| Size | `/block/hash/H/size` |
-| Transactions | `/block/hash/H/tx` |
-| Transactions Count | `/block/hash/H/tx/count` |
-| Verbose block result | `/block/hash/H/verbose` |
+| Block H (block hash) | Path | Type |
+| --- | --- | --- |
+| Summary | `/block/hash/H` | `types.BlockDataBasic` |
+| Stake info |  `/block/hash/H/pos` | `types.StakeInfoExtended` |
+| Header |  `/block/hash/H/header` | `dcrjson.GetBlockHeaderVerboseResult` |
+| Height |  `/block/hash/H/height` | `int` |
+| Size | `/block/hash/H/size` | `int32` |
+| Transactions | `/block/hash/H/tx` | `types.BlockTransactions` |
+| Transactions Count | `/block/hash/H/tx/count` | `types.BlockTransactionCounts` |
+| Verbose block result | `/block/hash/H/verbose` | `dcrjson.GetBlockVerboseResult` |
 
-| Block range (X < Y) | |
-| --- | --- |
-| Summary array for blocks on `[X,Y]` | `/block/range/X/Y` |
-| Summary array with block index step `S` | `/block/range/X/Y/S` |
-| Size (bytes) array | `/block/range/X/Y/size` |
-| Size array with step `S` | `/block/range/X/Y/S/size` |
+| Block range (X < Y) | Path | Type |
+| --- | --- | --- |
+| Summary array for blocks on `[X,Y]` | `/block/range/X/Y` | `[]types.BlockDataBasic` |
+| Summary array with block index step `S` | `/block/range/X/Y/S` | `[]types.BlockDataBasic` |
+| Size (bytes) array | `/block/range/X/Y/size` | `[]int32` |
+| Size array with step `S` | `/block/range/X/Y/S/size` | `[]int32` |
 
-| Transaction T (transaction id) | |
-| --- | --- |
-| Transaction Details | `/tx/T` |
-| Inputs | `/tx/T/in` |
-| Details for input at index `X` | `/tx/T/in/X` |
-| Outputs | `/tx/T/out` |
-| Details for output at index `X` | `/tx/T/out/X` |
+| Transaction T (transaction id) | Path | Type |
+| --- | --- | --- |
+| Transaction Details | `/tx/T` | `types.Tx` |
+| Inputs | `/tx/T/in` | `[]types.TxIn` |
+| Details for input at index `X` | `/tx/T/in/X` | `types.TxIn` |
+| Outputs | `/tx/T/out` | `[]types.TxOut` |
+| Details for output at index `X` | `/tx/T/out/X` | `types.TxOut` |
 
-| Address A | |
-| --- | --- |
-| Summary of last 10 transactions | `/address/A` |
-| Verbose transaction result for last <br> 10 transactions | `/address/A/raw` |
-| Summary of last `N` transactions | `/address/A/count/N` |
-| Verbose transaction result for last <br> `N` transactions | `/address/A/count/N/raw` |
+| Address A | Path | Type |
+| --- | --- | --- |
+| Summary of last 10 transactions | `/address/A` | `types.Address` |
+| Verbose transaction result for last <br> 10 transactions | `/address/A/raw` | `types.AddressTxRaw` |
+| Summary of last `N` transactions | `/address/A/count/N` | `types.Address` |
+| Verbose transaction result for last <br> `N` transactions | `/address/A/count/N/raw` | `types.AddressTxRaw` |
+| Summary of last `N` transactions, skipping `M` | `/address/A/count/N/skip/M` | `types.Address` |
+| Verbose transaction result for last <br> `N` transactions, skipping `M` | `/address/A/count/N/skip/Mraw` | `types.AddressTxRaw` |
 
-| Stake Difficulty (Ticket Price) | |
-| --- | --- |
-| Current sdiff and estimates | `/stake/diff` |
-| Sdiff for block `X` | `/stake/diff/b/X` |
-| Sdiff for block range `[X,Y] (X <= Y)` | `/stake/diff/r/X/Y` |
-| Current sdiff separately | `/stake/diff/current` |
-| Estimates separately | `/stake/diff/estimates` |
+| Stake Difficulty (Ticket Price) | Path | Type |
+| --- | --- | --- |
+| Current sdiff and estimates | `/stake/diff` | `types.StakeDiff` |
+| Sdiff for block `X` | `/stake/diff/b/X` | `[]float64` |
+| Sdiff for block range `[X,Y] (X <= Y)` | `/stake/diff/r/X/Y` | `[]float64` |
+| Current sdiff separately | `/stake/diff/current` | `dcrjson.GetStakeDifficultyResult` |
+| Estimates separately | `/stake/diff/estimates` | `dcrjson.EstimateStakeDiffResult` |
 
-| Ticket Pool | |
-| --- | --- |
-| Current pool info (size, total value, and average price) | `/stake/pool` |
-| Current ticket pool, in a JSON object with a `"tickets"` key holding an array of ticket hashes | `/stake/pool/full` |
-| Pool info for block `X` | `/stake/pool/b/X` |
-| Full ticket pool at block height _or_ hash `H` | `/stake/pool/b/H/full` |
-| Pool info for block range `[X,Y] (X <= Y)` | `/stake/pool/r/X/Y?arrays=[true\|false]`<sup>*</sup> |
+| Ticket Pool | Path | Type |
+| --- | --- | --- |
+| Current pool info (size, total value, and average price) | `/stake/pool` | `types.TicketPoolInfo` |
+| Current ticket pool, in a JSON object with a `"tickets"` key holding an array of ticket hashes | `/stake/pool/full` | `[]string` |
+| Pool info for block `X` | `/stake/pool/b/X` | `types.TicketPoolInfo` |
+| Full ticket pool at block height _or_ hash `H` | `/stake/pool/b/H/full` | `[]string` |
+| Pool info for block range `[X,Y] (X <= Y)` | `/stake/pool/r/X/Y?arrays=[true\|false]`<sup>*</sup> | `[]apitypes.TicketPoolInfo` |
 
 The full ticket pool endpoints accept the URL query `?sort=[true\|false]` for
 requesting the tickets array in lexicographical order.  If a sorted list or list
@@ -265,23 +267,23 @@ a value of `true` will put all pool values and pool sizes into separate arrays,
 rather than having a single array of pool info JSON objects.  This may make
 parsing more efficient for the client.
 
-| Vote and Agenda Info | |
-| --- | --- |
-| The current agenda and its status | `/stake/vote/info` |
+| Vote and Agenda Info | Path | Type |
+| --- | --- | --- |
+| The current agenda and its status | `/stake/vote/info` | `dcrjson.GetVoteInfoResult` |
 
-| Mempool | |
-| --- | --- |
-| Ticket fee rate summary | `/mempool/sstx` |
-| Ticket fee rate list (all) | `/mempool/sstx/fees` |
-| Ticket fee rate list (N highest) | `/mempool/sstx/fees/N` |
-| Detailed ticket list (fee, hash, size, age, etc.) | `/mempool/sstx/details` 
-| Detailed ticket list (N highest fee rates) | `/mempool/sstx/details/N`|
+| Mempool | Path | Type |
+| --- | --- | --- |
+| Ticket fee rate summary | `/mempool/sstx` | `apitypes.MempoolTicketFeeInfo` |
+| Ticket fee rate list (all) | `/mempool/sstx/fees` | `apitypes.MempoolTicketFees` |
+| Ticket fee rate list (N highest) | `/mempool/sstx/fees/N` | `apitypes.MempoolTicketFees` |
+| Detailed ticket list (fee, hash, size, age, etc.) | `/mempool/sstx/details` | `apitypes.MempoolTicketDetails` |
+| Detailed ticket list (N highest fee rates) | `/mempool/sstx/details/N`| `apitypes.MempoolTicketDetails` |
 
-| Other | |
-| --- | --- |
-| Status | `/status` |
-| Endpoint list (always indented) | `/list` |
-| Directory | `/directory` |
+| Other | Path | Type |
+| --- | --- | --- |
+| Status | `/status` | `types.Status` |
+| Endpoint list (always indented) | `/list` | `[]string` |
+| Directory | `/directory` | `string` |
 
 All JSON endpoints accept the URL query `indent=[true|false]`.  For example,
 `/stake/diff?indent=true`. By default, indentation is off. The characters to use

@@ -937,7 +937,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	for i := range data.Vout {
 		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
 			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
-				tx.RecievedTotal += data.Vout[i].Value
+				tx.ReceivedTotal += data.Vout[i].Value
 			}
 		}
 	}
@@ -1258,9 +1258,9 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			}
 		}
 	}
-	numberMaxOfTx := int64(len(txs))
-	var numTxns = count
-	if numberMaxOfTx < count {
+
+	numTxns, numberMaxOfTx := count, int64(len(txs))
+	if numTxns > numberMaxOfTx {
 		numTxns = numberMaxOfTx
 	}
 	balance := &explorer.AddressBalance{
@@ -1272,19 +1272,21 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 	}
 	return &explorer.AddressInfo{
 		Address:           address,
-		Limit:             count,
 		MaxTxLimit:        maxcount,
+		Limit:             count,
 		Offset:            offset,
+		NumUnconfirmed:    numUnconfirmed,
 		Transactions:      addressTxs,
 		NumTransactions:   numTxns,
+		NumFundingTxns:    numReceiving,
+		NumSpendingTxns:   numSpending,
+		AmountReceived:    totalreceived,
+		AmountSent:        totalsent,
+		AmountUnspent:     totalreceived - totalsent,
+		Balance:           balance,
 		KnownTransactions: numberMaxOfTx,
 		KnownFundingTxns:  numReceiving,
-		NumSpendingTxns:   numSpending,
-		NumUnconfirmed:    numUnconfirmed,
-		TotalReceived:     totalreceived,
-		TotalSent:         totalsent,
-		Unspent:           totalreceived - totalsent,
-		Balance:           balance,
+		KnownSpendingTxns: numSpending,
 	}
 }
 

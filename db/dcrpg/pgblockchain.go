@@ -330,9 +330,46 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 	return blockHash, blockInd, tree, err
 }
 
-// AddressHistory queries the database for all rows of the addresses table for
-// the given address.
-func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error) {
+// AddressTransactions retrieves a slice of *dbtypes.AddressRow for a given
+// address and transaction type (i.e. all, credit, or debit) from the DB. Only
+// the first N transactions starting from the offset element in the set of all
+// txnType transactions.
+func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
+	txnType dbtypes.AddrTxnType) (addressRows []*dbtypes.AddressRow, err error) {
+	var addrFunc func(*sql.DB, string, int64, int64) ([]uint64, []*dbtypes.AddressRow, error)
+	switch txnType {
+	case dbtypes.AddrTxnCredit:
+		//addrFunc = RetrieveAddressCreditTxns
+		fallthrough // retrieved address rows may also have spends
+	case dbtypes.AddrTxnAll:
+		// The organization address occurs very frequently, so use the regular
+		// (non sub-query) select as it is much more efficient.
+		if address == pgb.devAddress {
+			addrFunc = RetrieveAddressTxnsAlt
+		} else {
+			addrFunc = RetrieveAddressTxns
+		}
+	case dbtypes.AddrTxnDebit:
+		addrFunc = RetrieveAddressDebitTxns
+	default:
+		return nil, fmt.Errorf("Unknown AddrTxnType %v", txnType)
+	}
+
+	_, addressRows, err = addrFunc(pgb.db, address, N, offset)
+	return
+}
+
+// AddressHistoryAll queries the database for all rows of the addresses table
+// for the given address.
+func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error) {
+	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
+}
+
+// AddressHistory queries the database for rows of the addresses table
+// containing values for a certain type of transaction (all, credits, or debits)
+// for the given address.
+func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
+	txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error) {
 
 	bb, err := pgb.HeightDB()
 	if err != nil {
@@ -340,80 +377,75 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64) ([]*dbtypes.
 	}
 	bestBlock := int64(bb)
 
-	pgb.addressCounts.Lock()
-	defer pgb.addressCounts.Unlock()
-
 	// See if address count cache includes a fresh count for this address.
+	totals := pgb.addressCounts
+	totals.Lock()
 	var balanceInfo explorer.AddressBalance
 	var fresh bool
-	if pgb.addressCounts.validHeight == bestBlock {
-		balanceInfo, fresh = pgb.addressCounts.balance[address]
+	if totals.validHeight == bestBlock {
+		balanceInfo, fresh = totals.balance[address]
 	} else {
 		// StoreBlock should do this, but the idea is to clear the old cached
 		// results when a new block is encountered.
 		log.Warnf("Address receive counter stale, at block %d when best is %d.",
-			pgb.addressCounts.validHeight, bestBlock)
-		pgb.addressCounts.balance = make(map[string]explorer.AddressBalance)
-		pgb.addressCounts.validHeight = bestBlock
+			totals.validHeight, bestBlock)
+		totals.balance = make(map[string]explorer.AddressBalance)
+		totals.validHeight = bestBlock
+		balanceInfo.Address = address
 	}
+	totals.Unlock()
 
-	// The organization address occurs very frequently, so use the regular (non
-	// sub-query) select as it is much more efficient.
-	var addressRows []*dbtypes.AddressRow
-	if address == pgb.devAddress {
-		_, addressRows, err = RetrieveAddressTxnsAlt(pgb.db, address, N, offset)
-	} else {
-		_, addressRows, err = RetrieveAddressTxns(pgb.db, address, N, offset)
-	}
+	// Retrieve relevant transactions
+	addressRows, err := pgb.AddressTransactions(address, N, offset, txnType)
 	if err != nil {
-		return nil, &balanceInfo, err
+		return nil, nil, err
+	}
+	if fresh {
+		return addressRows, &balanceInfo, nil
 	}
 
-	// If the address receive count was not cached, store it in the cache if it
-	// is worth storing (when the length of the short list returned above is no
-	// less than the query limit).
-	if !fresh {
-		addrInfo := explorer.ReduceAddressHistory(addressRows)
-		if addrInfo == nil {
-			return addressRows, nil, fmt.Errorf("ReduceAddressHistory failed")
-		}
-
-		if addrInfo.NumFundingTxns < N {
-			balanceInfo = explorer.AddressBalance{
-				Address:      address,
-				NumSpent:     addrInfo.NumSpendingTxns,
-				NumUnspent:   addrInfo.NumFundingTxns - addrInfo.NumSpendingTxns,
-				TotalSpent:   int64(addrInfo.TotalSent),
-				TotalUnspent: int64(addrInfo.Unspent),
-			}
-		} else {
-			var numSpent, numUnspent, totalSpent, totalUnspent int64
-
-			numSpent, numUnspent, totalSpent, totalUnspent, err =
-				RetrieveAddressSpentUnspent(pgb.db, address)
-
-			if err != nil {
-				return nil, nil, err
-			}
-			balanceInfo = explorer.AddressBalance{
-				Address:      address,
-				NumSpent:     numSpent,
-				NumUnspent:   numUnspent,
-				TotalSpent:   totalSpent,
-				TotalUnspent: totalUnspent,
-			}
-		}
-
-		log.Infof("%s: %d spent totalling %f DCR, %d unspent totalling %f DCR",
-			address, balanceInfo.NumSpent, dcrutil.Amount(balanceInfo.TotalSpent).ToCoin(),
-			balanceInfo.NumUnspent, dcrutil.Amount(balanceInfo.TotalUnspent).ToCoin())
-		log.Infof("Caching address receive count for address %s: "+
-			"count = %d at block %d.", address,
-			balanceInfo.NumSpent+balanceInfo.NumUnspent, bestBlock)
-		pgb.addressCounts.balance[address] = balanceInfo
+	// If the address receive count was not cached, compute it and store it in
+	// the cache.
+	addrInfo := explorer.ReduceAddressHistory(addressRows)
+	if addrInfo == nil {
+		return addressRows, nil, fmt.Errorf("ReduceAddressHistory failed. len(addressRows) = %d", len(addressRows))
 	}
 
-	return addressRows, &balanceInfo, err
+	// N is a limit on NumFundingTxns, so this checks if we have them all.
+	if addrInfo.NumFundingTxns < N && offset == 0 &&
+		(txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit) {
+		balanceInfo = explorer.AddressBalance{
+			Address:      address,
+			NumSpent:     addrInfo.NumSpendingTxns,
+			NumUnspent:   addrInfo.NumFundingTxns - addrInfo.NumSpendingTxns,
+			TotalSpent:   int64(addrInfo.AmountSent),
+			TotalUnspent: int64(addrInfo.AmountUnspent),
+		}
+	} else {
+		var numSpent, numUnspent, totalSpent, totalUnspent int64
+		numSpent, numUnspent, totalSpent, totalUnspent, err =
+			RetrieveAddressSpentUnspent(pgb.db, address)
+		if err != nil {
+			return nil, nil, err
+		}
+		balanceInfo = explorer.AddressBalance{
+			Address:      address,
+			NumSpent:     numSpent,
+			NumUnspent:   numUnspent,
+			TotalSpent:   totalSpent,
+			TotalUnspent: totalUnspent,
+		}
+	}
+
+	log.Infof("%s: %d spent totalling %f DCR, %d unspent totalling %f DCR",
+		address, balanceInfo.NumSpent, dcrutil.Amount(balanceInfo.TotalSpent).ToCoin(),
+		balanceInfo.NumUnspent, dcrutil.Amount(balanceInfo.TotalUnspent).ToCoin())
+	log.Infof("Caching address receive count for address %s: "+
+		"count = %d at block %d.", address,
+		balanceInfo.NumSpent+balanceInfo.NumUnspent, bestBlock)
+	totals.balance[address] = balanceInfo
+
+	return addressRows, &balanceInfo, nil
 }
 
 // FillAddressTransactions is used to fill out the transaction details in an
@@ -432,7 +464,6 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 		if err != nil {
 			return err
 		}
-		txn.TxID = dbTx.TxID
 		txn.FormattedSize = humanize.Bytes(uint64(dbTx.Size))
 		txn.Total = dcrutil.Amount(dbTx.Sent).ToCoin()
 		txn.Time = dbTx.BlockTime
