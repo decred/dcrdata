@@ -34,16 +34,14 @@ const (
 	CreateAddressTable = `CREATE TABLE IF NOT EXISTS addresses (
 		id SERIAL8 PRIMARY KEY,
 		address TEXT,
-		funding_tx_row_id INT8,
-		funding_tx_hash TEXT,
-		funding_tx_vout_index INT8,
-		vout_row_id INT8,
+		tx_hash TEXT,
+		in_out_row_id INT8,
 		value INT8,
-		spending_tx_row_id INT8,
-		spending_tx_hash TEXT,
-		spending_tx_vin_index INT4,
-		vin_row_id INT8
+		block_time INT8 NOT NULL,
+		is_funding BOOLEAN
 	);`
+
+	CreateAddressTableIndex = `CREATE INDEX block_time_index ON addresses (block_time);`
 
 	SelectAddressAllByAddress = `SELECT * FROM addresses WHERE address=$1 order by id desc;`
 	SelectAddressRecvCount    = `SELECT COUNT(*) FROM addresses WHERE address=$1;`

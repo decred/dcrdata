@@ -148,6 +148,16 @@ func CreateTypes(db *sql.DB) error {
 			log.Tracef("Type \"%s\" exist.", typeName)
 		}
 	}
+	if err != nil {
+		return err
+	}
+
+	return createTableIndex(db)
+}
+
+func createTableIndex(db *sql.DB) error {
+	log.Infof("Creating the Addresses Table index")
+	_, err := db.Exec(internal.CreateAddressTableIndex)
 	return err
 }
 
