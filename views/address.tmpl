@@ -8,6 +8,7 @@
     {{with .Data}}
     {{$heights := $.ConfirmHeight}}
     {{$TxnCount := .TxnCount}}
+    {{$txType := .TxnType}}
     <div class="container" data-controller="main">
         <div class="row">
             <div class="col-md-8 col-sm-6">
@@ -109,14 +110,14 @@
                                 <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{.TxnType}}"
+                                        href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{$txType}}"
                                         id="prev"
                                     >Previous</a>
                                 </li>
-                                <li class="page-item {{if lt (subtract .KnownTransactions .Offset) (add .Limit 1)}}disabled{{end}}">
+                                <li class="page-item {{if lt (subtract $TxnCount .Offset) (add .Limit 1)}}disabled{{end}}">
                                     <a
                                         class="page-link"
-                                        href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{.TxnType}}"
+                                        href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{$txType}}"
                                         id="next">
                                         Next
                                     </a>
@@ -132,7 +133,11 @@
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
                         <th>Input/Output ID</th>
-                        <th class="text-right">Credit DCR</th>
+                        {{if eq $txType "merged debit"}}
+                            <th># of Input(s)</th>
+                        {{else}}
+                            <th class="text-right">Credit DCR</th>
+                        {{end}}
                         <th>Debit DCR</th>
                         <th>Time</th>
                         <th>Age</th>
@@ -143,17 +148,21 @@
                         {{range $i, $v := .Transactions}}
                         <tr>
                             {{with $v}}
-                            <td><a href="/tx/{{.TxID}}" class="hash" data-keynav-priority>{{.IOID}}</a></td>
-                            {{if ne .ReceivedTotal 0.0}}
-                                <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal false)}}</td>
+                            <td><a href="/tx/{{.TxID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
+                            {{if eq $txType "merged debit"}}
+                                <td>{{.MergedTxnCount}}</td>
                             {{else}}
-                                {{if eq .SentTotal 0.0}}
-                                <td class="text-right">sstxcommitment</td>
+                                {{if ne .ReceivedTotal 0.0}}
+                                    <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal false)}}</td>
                                 {{else}}
-                                    {{if ne .MatchedTx ""}}
-                                      <td class="text-right"><a href="/tx/{{.MatchedTx}}" class="hash">source</a></td>
+                                    {{if eq .SentTotal 0.0}}
+                                    <td class="text-right">sstxcommitment</td>
                                     {{else}}
-                                      <td>N/A</td>
+                                        {{if ne .MatchedTx ""}}
+                                        <td class="text-right"><a href="/tx/{{.MatchedTx}}" class="hash">source</a></td>
+                                        {{else}}
+                                        <td>N/A</td>
+                                        {{end}}
                                     {{end}}
                                 {{end}}
                             {{end}}
@@ -166,6 +175,13 @@
                             {{else}}
                                 {{if ne .MatchedTx ""}}
                                     <td><a href="/tx/{{.MatchedTx}}" class="hash">spent</a></td>
+                                {{else}}
+                                    <td>unspent</td>
+                                {{end}}
+                            {{end}}
+                            {{if gt .MatchedTx 0}}
+                                {{if .IsFunding}}
+                                    <td><a href="/tx/AddrId/{{.MatchedTx}}" class="hash">Funded By</a></td>
                                 {{else}}
                                     <td>unspent</td>
                                 {{end}}
@@ -212,9 +228,10 @@
                         class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if not .Fullmode}}disabled{{end}}"
                         {{if not .Fullmode}}disabled="disabled"{{end}}
                     >
-                        <option {{if eq .TxnType "all"}}selected{{end}} value="all">All</option>
-                        <option {{if eq .TxnType "credit"}}selected{{end}} value="credit">Credits</option>
-                        <option {{if eq .TxnType "debit"}}selected{{end}} value="debit">Debits</option>
+                        <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
+                        <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
+                        <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
+                        <option {{if eq $txType "merged debit"}}selected{{end}} value="merged debit">Merged Debits</option>
                     </select>
                 </div>
                 {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
@@ -246,7 +263,7 @@
                 window.location.pathname
                 + "?txntype="+ $(ev.currentTarget).val()
                 + "&n="+ parseInt($("#pagesize").val())
-                + "&start=" + {{.Offset}}
+                + "&start=0"
             )
         })
 

@@ -746,7 +746,7 @@ func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64,
 }
 
 func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspent,
-	totalSpent, totalUnspent int64, err error) {
+	totalSpent, totalUnspent, totalMergedSpent int64, err error) {
 	dbtx, err := db.Begin()
 	if err != nil {
 		err = fmt.Errorf("unable to begin database transaction: %v", err)
@@ -776,6 +776,19 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 		return
 	}
 	numSpent, totalSpent = ns.Int64, ts.Int64
+
+	var nms sql.NullInt64
+	err = dbtx.QueryRow(internal.SelectAddressesMergedSpentCount, address).
+		Scan(&nms)
+	if err != nil && err != sql.ErrNoRows {
+		if errRoll := dbtx.Rollback(); errRoll != nil {
+			log.Errorf("Rollback failed: %v", errRoll)
+		}
+		err = fmt.Errorf("unable to QueryRow for merged spent count: %v", err)
+		return
+	}
+
+	totalMergedSpent = nms.Int64
 
 	err = dbtx.Rollback()
 	return
@@ -815,8 +828,13 @@ func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) ([]u
 		internal.SelectAddressCreditsLimitNByAddress)
 }
 
+func RetrieveAddressMergedDebitTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+	return retrieveAddressTxns(db, address, N, offset,
+		internal.SelectAddressMergedDebitView, 1)
+}
+
 func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
-	statement string) ([]uint64, []*dbtypes.AddressRow, error) {
+	statement string, partialData ...int) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.Query(statement, address, N, offset)
 	if err != nil {
 		return nil, nil, err
@@ -827,7 +845,25 @@ func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
 		}
 	}()
 
+	if len(partialData) > 0 {
+		return scanPartialAddressQueryRows(rows)
+	}
 	return scanAddressQueryRows(rows)
+}
+
+func scanPartialAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.AddressRow, err error) {
+	for rows.Next() {
+		var addr dbtypes.AddressRow
+		addr.IsFunding = false
+
+		err = rows.Scan(&addr.Address, &addr.TxHash, &addr.TxBlockTime,
+			&addr.Value, &addr.MergedDebitCount)
+		if err != nil {
+			return
+		}
+		addressRows = append(addressRows, &addr)
+	}
+	return
 }
 
 func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.AddressRow, err error) {

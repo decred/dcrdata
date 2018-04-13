@@ -65,7 +65,7 @@ func (pgb *ChainDB) InsightPgGetAddressTransactions(addr []string,
 
 // RetrieveAddressSpentUnspent retrieves balance information for a specific
 // address.
-func (pgb *ChainDB) RetrieveAddressSpentUnspent(address string) (int64, int64, int64, int64, error) {
+func (pgb *ChainDB) RetrieveAddressSpentUnspent(address string) (int64, int64, int64, int64, int64, error) {
 	return RetrieveAddressSpentUnspent(pgb.db, address)
 }
 

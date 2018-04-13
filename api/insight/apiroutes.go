@@ -874,7 +874,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 
 	// Get Confirmed Balances
 	var unconfirmedBalanceSat int64
-	_, _, totalSpent, totalUnspent, err := c.BlockData.ChainDB.RetrieveAddressSpentUnspent(address)
+	_, _, totalSpent, totalUnspent, _, err := c.BlockData.ChainDB.RetrieveAddressSpentUnspent(address)
 	if err != nil {
 		return
 	}
