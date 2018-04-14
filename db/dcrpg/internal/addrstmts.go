@@ -79,7 +79,7 @@ const (
 	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT * FROM addresses WHERE address=$1)
 		SELECT * FROM these order by block_time desc limit $2 offset $3;`
 
-	SelectAddressDebitsLimitNByAddress = `SELECT id, in_out_row_id, tx_hash, tx_vin_vout_index, block_time, tx_vin_vout_row_id, value
+	SelectAddressDebitsLimitNByAddress = `SELECT id, address, in_out_row_id, tx_hash, tx_vin_vout_index, block_time, tx_vin_vout_row_id, value
 	FROM addresses
 	WHERE address=$1 and is_funding = FALSE
 	ORDER BY block_time DESC LIMIT $2 OFFSET $3;`

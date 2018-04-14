@@ -1443,7 +1443,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		for iv := range dbAddressRows[it] {
 			// Transaction that pays to the address
 			dba := &dbAddressRows[it][iv]
-			dba.FundingTxDbID = txDbID
+			///\\\
+			dba.TxBlockTime = txDbID
 			// Funding tx hash, vout id, value, and address are already assigned
 			// by InsertVouts. Only the funding tx DB ID was needed.
 			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)

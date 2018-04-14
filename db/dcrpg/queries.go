@@ -795,25 +795,24 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 		var id uint64
 		var addr dbtypes.AddressRow
 		var spendingTxHash sql.NullString
-		var spendingTxDbID, spendingTxVinIndex, vinDbID sql.NullInt64
-		err = rows.Scan(&id, &addr.Address, &addr.FundingTxDbID, &addr.FundingTxHash,
-			&addr.FundingTxVoutIndex, &addr.VoutDbID, &addr.Value,
-			&spendingTxDbID, &spendingTxHash, &spendingTxVinIndex, &vinDbID)
+		var blockTime, spendingTxVinIndex, vinDbID sql.NullInt64
+		err = rows.Scan(&id, &addr.Address, &addr.InOutRowID, &spendingTxHash,
+			&spendingTxVinIndex, &blockTime, &vinDbID, &addr.Value)
 		if err != nil {
 			return
 		}
 
-		if spendingTxDbID.Valid {
-			addr.SpendingTxDbID = uint64(spendingTxDbID.Int64)
+		if blockTime.Valid {
+			addr.TxBlockTime = uint64(blockTime.Int64)
 		}
 		if spendingTxHash.Valid {
-			addr.SpendingTxHash = spendingTxHash.String
+			addr.TxHash = spendingTxHash.String
 		}
 		if spendingTxVinIndex.Valid {
-			addr.SpendingTxVinIndex = uint32(spendingTxVinIndex.Int64)
+			addr.TxVinVoutIndex = uint32(spendingTxVinIndex.Int64)
 		}
 		if vinDbID.Valid {
-			addr.VinDbID = uint64(vinDbID.Int64)
+			addr.VinVoutDbID = uint64(vinDbID.Int64)
 		}
 
 		ids = append(ids, id)
@@ -837,8 +836,8 @@ func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) (ids
 	for rows.Next() {
 		var id uint64
 		var addr dbtypes.AddressRow
-		err = rows.Scan(&id, &addr.FundingTxDbID, &addr.FundingTxHash,
-			&addr.FundingTxVoutIndex, &addr.VoutDbID, &addr.Value)
+		err = rows.Scan(&id, &addr.InOutRowID, &addr.TxHash,
+			&addr.TxVinVoutIndex, &addr.TxBlockTime, &addr.VinVoutDbID, &addr.Value)
 		if err != nil {
 			return
 		}
@@ -1416,11 +1415,11 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 		}
 		for _, addr := range vout.ScriptPubKeyData.Addresses {
 			addressRows = append(addressRows, dbtypes.AddressRow{
-				Address:            addr,
-				FundingTxHash:      vout.TxHash,
-				FundingTxVoutIndex: vout.TxIndex,
-				VoutDbID:           id,
-				Value:              vout.Value,
+				Address:        addr,
+				TxHash:         vout.TxHash,
+				TxVinVoutIndex: vout.TxIndex,
+				VinVoutDbID:    id,
+				Value:          vout.Value,
 			})
 		}
 		ids = append(ids, id)
@@ -1438,9 +1437,9 @@ func InsertAddressOut(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint6
 		sqlStmt = internal.UpsertAddressRow
 	}
 	var id uint64
-	err := db.QueryRow(sqlStmt, dbA.Address, dbA.FundingTxDbID,
-		dbA.FundingTxHash, dbA.FundingTxVoutIndex, dbA.VoutDbID,
-		dbA.Value).Scan(&id)
+	err := db.QueryRow(sqlStmt, dbA.Address, dbA.InOutRowID, dbA.TxHash,
+		dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
+		dbA.IsFunding).Scan(&id)
 	return id, err
 }
 
@@ -1473,8 +1472,9 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 	ids := make([]uint64, 0, len(dbAs))
 	for _, dbA := range dbAs {
 		var id uint64
-		err := stmt.QueryRow(dbA.Address, dbA.FundingTxDbID, dbA.FundingTxHash,
-			dbA.FundingTxVoutIndex, dbA.VoutDbID, dbA.Value).Scan(&id)
+		err := stmt.QueryRow(dbA.Address, dbA.InOutRowID, dbA.TxHash,
+			dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
+			dbA.IsFunding).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue

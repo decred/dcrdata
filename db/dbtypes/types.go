@@ -248,16 +248,14 @@ type Vout struct {
 // AddressRow represents a row in the addresses table
 type AddressRow struct {
 	// id int64
-	Address            string
-	FundingTxDbID      uint64
-	FundingTxHash      string
-	FundingTxVoutIndex uint32
-	VoutDbID           uint64
-	Value              uint64
-	SpendingTxDbID     uint64
-	SpendingTxHash     string
-	SpendingTxVinIndex uint32
-	VinDbID            uint64
+	Address        string
+	InOutRowID     uint64
+	IsFunding      bool
+	TxBlockTime    uint64
+	TxHash         string
+	TxVinVoutIndex uint32
+	Value          uint64
+	VinVoutDbID    uint64
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
