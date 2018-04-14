@@ -103,7 +103,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			exp.MempoolData.NumRevokes++
 		}
 
-		exp.MempoolData.LatestTransactions = append([]MempoolTx{tx}, exp.MempoolData.LatestTransactions[:len(exp.MempoolData.LatestTransactions)-1]...)
+		exp.MempoolData.LatestTransactions = append([]MempoolTx{tx}, exp.MempoolData.LatestTransactions...)
 
 		exp.MempoolData.NumAll++
 		exp.MempoolData.TotalOut += tx.TotalOut
