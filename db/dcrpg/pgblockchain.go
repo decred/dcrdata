@@ -1029,7 +1029,12 @@ func (pgb *ChainDB) IndexAll() error {
 	// Not indexing the address table on vout ID or address here. See
 	// IndexAddressTable to create those indexes.
 	log.Infof("Indexing addresses table on funding tx hash...")
-	return IndexAddressTableOnTxHash(pgb.db)
+	if err := IndexAddressTableOnTxHash(pgb.db); err != nil {
+		return err
+	}
+
+	log.Infof("Indexing addresses table on block time...")
+	return IndexBlockTimeOnTableAddress(pgb.db)
 }
 
 // IndexTicketsTable creates the indexes on the tickets table on ticket hash and
