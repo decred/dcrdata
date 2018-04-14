@@ -412,12 +412,7 @@ func DeindexAddressTableOnVoutID(db *sql.DB) (err error) {
 }
 
 func IndexAddressTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAddressTableOnFundingTx)
-	return
-}
-
-func DeindexAddressTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAddressTableOnFundingTx)
+	_, err = db.Exec(internal.IndexAddressTableOnTxHash)
 	return
 }
 

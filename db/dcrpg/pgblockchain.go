@@ -953,10 +953,6 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
-	if err = DeindexAddressTableOnTxHash(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
 	if err = pgb.DeindexTicketsTable(); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
@@ -1436,15 +1432,16 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 	}
 
-	// Store tx Db IDs as funding tx in AddressRows and rearrange
+	// Store tx Db block time as block time in AddressRows and rearrange.
+	// Also set is_funding to true since this are funding tx inputs
 	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)
-	for it, txDbID := range *TxDbIDs {
-		// Set the tx ID of the funding transactions
+	for it, tx := range dbTransactions {
+		// Set the tx BlockTime and IsFunding of the funding transactions
 		for iv := range dbAddressRows[it] {
 			// Transaction that pays to the address
 			dba := &dbAddressRows[it][iv]
-			///\\\
-			dba.TxBlockTime = txDbID
+			dba.TxBlockTime = uint64(tx.BlockTime)
+			dba.IsFunding = true
 			// Funding tx hash, vout id, value, and address are already assigned
 			// by InsertVouts. Only the funding tx DB ID was needed.
 			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
@@ -1452,9 +1449,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	}
 
 	// Insert each new AddressRow, absent spending fields
-	_, err = InsertAddressOuts(pgb.db, dbAddressRowsFlat, pgb.dupChecks)
+	_, err = InsertAddressRows(pgb.db, dbAddressRowsFlat, pgb.dupChecks)
 	if err != nil {
-		log.Error("InsertAddressOuts:", err)
+		log.Error("InsertAddressRows:", err)
 		txRes.err = err
 		return txRes
 	}
@@ -1464,7 +1461,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	}
 
 	// Check the new vins and update spending tx data in Addresses table
-	for it, txDbID := range *TxDbIDs {
+	for it, tx := range dbTransactions {
 		for iv := range dbTxVins[it] {
 			// Transaction that spends an outpoint paying to >=0 addresses
 			vin := &dbTxVins[it][iv]
@@ -1495,14 +1492,13 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 				continue
 			}
 
-			var numAddressRowsSet int64
-			numAddressRowsSet, err = SetSpendingForFundingOP(pgb.db,
-				vin.PrevTxHash, vin.PrevTxIndex, // funding
-				txDbID, vin.TxID, vin.TxIndex, vinDbID) // spending
+			numAddressRowSet, err := SetSpendingForFundingOP(pgb.db, vin.PrevTxHash, vin.TxID, vin.TxIndex,
+				uint64(tx.BlockTime), vinDbID, pgb.dupChecks)
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
 			}
-			txRes.numAddresses += numAddressRowsSet
+
+			txRes.numAddresses += numAddressRowSet
 
 			/* separate transactions
 			txHash, txIndex, _, err := RetrieveFundingOutpointByVinID(pgb.db, vinDbID)
@@ -1631,7 +1627,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db,
 			allVinDbIDs[i:endChunk])
 		if err != nil {
-			log.Errorf("SetSpendingForFundingOP: %v", err)
+			log.Errorf("SetSpendingForVinDbIDs: %v", err)
 			continue
 		}
 		numAddresses += numAddressRowsSet
