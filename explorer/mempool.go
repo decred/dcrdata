@@ -12,9 +12,15 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
+// NumLatestMempoolTxns is the maximum number of mempool transactions that will
+// be stored in MempoolData.LatestTransactions.
+const NumLatestMempoolTxns = 5
+
 func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
+	// Get the initial best block hash and time
 	lastBlockHash, _, lastBlockTime := exp.storeMempoolInfo()
 
+	// Process new transactions as they arrive
 	for {
 		ntx, ok := <-txChan
 		if !ok {
@@ -35,18 +41,19 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		}
 
 		// Ignore this tx if it was received before the last block
-
 		if ntx.Time < lastBlockTime {
 			continue
 		}
 
 		msgTx, err := txhelpers.MsgTxFromHex(ntx.Hex)
 		if err != nil {
+			log.Debugf("Failed to decode transaction: %v", err)
 			continue
 		}
 
 		hash := msgTx.TxHash().String()
 
+		// If this is a vote, decode vote bits
 		var voteInfo *VoteInfo
 		if ok := stake.IsSSGen(msgTx); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, exp.ChainParams)
@@ -79,8 +86,9 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			VoteInfo: voteInfo,
 		}
 
+		// Add the tx to the appropriate tx slice in MempoolData and update the
+		// count for the transaction type.
 		exp.MempoolData.Lock()
-		// Add the tx to the appropriate tx slice and update the count
 		switch tx.Type {
 		case "Ticket":
 			exp.MempoolData.Tickets = append([]MempoolTx{tx}, exp.MempoolData.Tickets...)
@@ -103,14 +111,25 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			exp.MempoolData.NumRevokes++
 		}
 
-		exp.MempoolData.LatestTransactions = append([]MempoolTx{tx}, exp.MempoolData.LatestTransactions...)
+		// Update latest transactions, popping the oldest transaction off the
+		// back if necessary to limit to NumLatestMempoolTxns.
+		numLatest := len(exp.MempoolData.LatestTransactions)
+		if numLatest >= NumLatestMempoolTxns {
+			exp.MempoolData.LatestTransactions = append([]MempoolTx{tx},
+				exp.MempoolData.LatestTransactions[:numLatest-1]...)
+		} else {
+			exp.MempoolData.LatestTransactions = append([]MempoolTx{tx},
+				exp.MempoolData.LatestTransactions...)
+		}
 
+		// Store totals
 		exp.MempoolData.NumAll++
 		exp.MempoolData.TotalOut += tx.TotalOut
 		exp.MempoolData.TotalSize += tx.Size
 		exp.MempoolData.FormattedTotalSize = humanize.Bytes(uint64(exp.MempoolData.TotalSize))
-
 		exp.MempoolData.Unlock()
+
+		// Broadcast the new transaction
 		exp.wsHub.HubRelay <- sigNewTx
 		exp.wsHub.NewTxChan <- &tx
 	}
@@ -133,16 +152,23 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 	}(time.Now())
 
 	memtxs := exp.blockData.GetMempool()
-
 	if memtxs == nil {
 		log.Error("Could not get mempool transactions")
 		return
 	}
-	sort.Sort(byTime(memtxs))
 
+	lastBlockHash, lastBlock, lastBlockTime = exp.getLastBlock()
+
+	// RPC succeeded, but mempool is empty
+	if len(memtxs) == 0 {
+		return
+	}
+
+	// Get the NumLatestMempoolTxns latest transactions in mempool
 	var latest []MempoolTx
-	if len(memtxs) > 5 {
-		latest = memtxs[:5]
+	sort.Sort(byTime(memtxs))
+	if len(memtxs) > NumLatestMempoolTxns {
+		latest = memtxs[:NumLatestMempoolTxns]
 	} else {
 		latest = memtxs
 	}
@@ -155,8 +181,7 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 	var totalOut float64
 	var totalSize int32
 
-	lastBlockHash, lastBlock, lastBlockTime = exp.getLastBlock()
-
+	// Categorize the transactions, and bin votes by ticket spent
 	txindexes := make(map[string]int)
 	for _, tx := range memtxs {
 		switch tx.Type {
@@ -183,6 +208,7 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 		totalSize += tx.Size
 	}
 
+	// Store the results in MempoolData for the web page
 	exp.MempoolData.Lock()
 	defer exp.MempoolData.Unlock()
 
@@ -209,10 +235,7 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 }
 
 func voteForLastBlock(blockHash, validationHash string) bool {
-	if blockHash != "" && validationHash != blockHash {
-		return false
-	}
-	return true
+	return blockHash == validationHash && blockHash != ""
 }
 
 // getLastBlock returns the last block hash, height and time

@@ -1315,11 +1315,14 @@ func (db *wiredDB) CountUnconfirmedTransactions(address string, maxUnconfirmedPo
 	return
 }
 
-// GetMepool gets all transactions from the mempool for explorer
-// and adds the total out for all the txs and vote info for the votes
+// GetMepool gets all transactions from the mempool for explorer and adds the
+// total out for all the txs and vote info for the votes. The returned slice
+// will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
+// slice is returned if there are no transactions in mempool.
 func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 	mempooltxs, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
 	if err != nil {
+		log.Errorf("GetRawMempoolVerbose failed: %v", err)
 		return nil
 	}
 
