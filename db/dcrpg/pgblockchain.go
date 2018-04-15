@@ -945,11 +945,19 @@ func (pgb *ChainDB) DeindexAll() error {
 	// 	warnUnlessNotExists(err)
 	// 	errAny = err
 	// }
+	if err = DeindexBlockTimeOnTableAddress(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
 	if err = DeindexAddressTableOnAddress(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
 	if err = DeindexAddressTableOnVoutID(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err = DeindexAddressTableOnTxHash(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
@@ -1432,7 +1440,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 	}
 
-	// Store tx Db block time as block time in AddressRows and rearrange.
+	// Store tx Db block time as block time in AddressRows and rearrange
 	// Also set is_funding to true since this are funding tx inputs
 	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)
 	for it, tx := range dbTransactions {
@@ -1441,9 +1449,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// Transaction that pays to the address
 			dba := &dbAddressRows[it][iv]
 			dba.TxBlockTime = uint64(tx.BlockTime)
-			dba.IsFunding = true
+			dba.IsFunding = !updateAddressesSpendingInfo
 			// Funding tx hash, vout id, value, and address are already assigned
-			// by InsertVouts. Only the funding tx DB ID was needed.
+			// by InsertVouts. Only the block time and is_funding was needed.
 			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
 		}
 	}
@@ -1492,13 +1500,13 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 				continue
 			}
 
-			numAddressRowSet, err := SetSpendingForFundingOP(pgb.db, vin.PrevTxHash, vin.TxID, vin.TxIndex,
+			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
+				vin.PrevTxHash, vin.TxID, vin.TxIndex,
 				uint64(tx.BlockTime), vinDbID, pgb.dupChecks)
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
 			}
-
-			txRes.numAddresses += numAddressRowSet
+			txRes.numAddresses += numAddressRowsSet
 
 			/* separate transactions
 			txHash, txIndex, _, err := RetrieveFundingOutpointByVinID(pgb.db, vinDbID)

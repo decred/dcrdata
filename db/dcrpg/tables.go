@@ -385,14 +385,18 @@ func DeindexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 }
 
 // Addresses table indexes
-
-func IndexAddressTableOnAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAddressTableOnAddress)
+func IndexBlockTimeOnTableAddress(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexBlockTimeOnTableAddress)
 	return
 }
 
-func IndexBlockTimeOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexBlockTimeOnTableAddress)
+func DeindexBlockTimeOnTableAddress(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexBlockTimeOnTableAddress)
+	return
+}
+
+func IndexAddressTableOnAddress(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexAddressTableOnAddress)
 	return
 }
 
@@ -413,6 +417,11 @@ func DeindexAddressTableOnVoutID(db *sql.DB) (err error) {
 
 func IndexAddressTableOnTxHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAddressTableOnTxHash)
+	return
+}
+
+func DeindexAddressTableOnTxHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexAddressTableOnTxHash)
 	return
 }
 
