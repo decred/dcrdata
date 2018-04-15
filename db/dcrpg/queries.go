@@ -491,7 +491,7 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 
 	// Updates the previous funding tx InOutRowID with the spending tx row id
 	res, err := db.Exec(internal.SetAddressFundingForInOutID,
-		fundingTxHash, spentTxRowID)
+		spentTxRowID, addr.InOutRowID)
 	if err != nil || res == nil {
 		return 0, err
 	}
@@ -506,8 +506,12 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string,
 	var inOutRowID, value, rowID, blockTime uint64
 
 	// select id, address and value from the matching funding tx
+	// A maximum of one row and a minimum of none are expected.
 	err := tx.QueryRow(internal.SelectAddressByTxHash, fundingTxHash).Scan(&inOutRowID, &addr, &value)
-	if err != nil {
+	switch err {
+	case sql.ErrNoRows, nil:
+		// If no row found or is nil continue
+	default:
 		return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
 	}
 
@@ -524,11 +528,13 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string,
 		return 0, fmt.Errorf("InsertAddressRow: %v", err)
 	}
 
-	// update the inOutRowID for the funding tx
-	res, err := tx.Exec(internal.SetAddressFundingForInOutID, fundingTxHash, rowID)
+	// update the in_out_row_id(rowID) for the funding tx output.
+	// inOutRowID here is the id of the funding tx.
+	res, err := tx.Exec(internal.SetAddressFundingForInOutID, rowID, inOutRowID)
 	if err != nil || res == nil {
 		return 0, fmt.Errorf("SetAddressFundingForInOutID: %v", err)
 	}
+
 	return res.RowsAffected()
 }
 

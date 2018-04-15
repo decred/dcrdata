@@ -12,14 +12,15 @@ const (
 		SET address = $1, tx_vin_vout_row_id = $5 RETURNING id;`
 	InsertAddressRowReturnID = `WITH inserting AS (` +
 		insertAddressRow0 +
-		`ON CONFLICT (tx_vin_vout_row_id, address) DO UPDATE
+		`ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE
 			SET address = NULL WHERE FALSE
 			RETURNING id
 		)
 		SELECT id FROM inserting
 		UNION  ALL
 		SELECT id FROM addresses
-		WHERE  address = $1 AND tx_vin_vout_row_id = $5
+		WHERE  address = $1, is_funding = true 
+		AND tx_vin_vout_row_id = $5
 		LIMIT  1;`
 
 	// SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
@@ -27,8 +28,7 @@ const (
 	// SelectFundingTxsByTx      = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`
 	// SelectFundingTxByTxIn     = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1 AND tx_index=$2;`
 
-	CreateAddressTable = `CREATE TABLE IF NOT EXISTS 
-	    addresses (
+	CreateAddressTable = `CREATE TABLE IF NOT EXISTS addresses (
 		id SERIAL8 PRIMARY KEY,
 		address TEXT,
 		tx_hash TEXT,
@@ -56,10 +56,10 @@ const (
 		address = ANY ($1) and funding_tx_hash=$2;`
 
 	SelectAddressUnspentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses 
-	    WHERE address=$1 and is_funding = FALSE;`
+	    WHERE address=$1, is_funding = FALSE and in_out_row_id = 0;`
 
 	SelectAddressSpentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses 
-	    WHERE address=$1 and is_funding = TRUE;`
+	    WHERE address=$1, is_funding = FALSE and in_out_row_id > 0;`
 
 	SelectAddressUnspentWithTxn = `SELECT
 									addresses.address,
@@ -85,7 +85,8 @@ const (
 	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT * FROM addresses WHERE address=$1)
         SELECT * FROM these order by block_time desc limit $2 offset $3;`
 
-	SelectAddressByTxHash = `select id, address, value from addresses where tx_hash=$1`
+	SelectAddressByTxHash = `select id, address, value from addresses 
+	   where tx_hash=$1 and is_funding = true`
 
 	SelectAddressDebitsLimitNByAddress = `SELECT id, address, in_out_row_id, tx_hash, 
 		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value
@@ -103,9 +104,10 @@ const (
         tx_vin_vout_index=$2 and is_funding = TRUE ORDER BY block_time DESC;`
 
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses WHERE address=$1 and 
-	    tx_vin_vout_row_id=$2 ORDER BY block_time DESC;`
+	    tx_vin_vout_row_id=$2 and is_funding = true ORDER BY block_time DESC;`
 
-	SetAddressFundingForInOutID = `UPDATE addresses SET in_out_row_id = $2 WHERE id=$1;`
+	SetAddressFundingForInOutID = `UPDATE addresses SET in_out_row_id=$1 
+	    WHERE id=$2 and is_funding = true;`
 
 	IndexBlockTimeOnTableAddress = `CREATE INDEX block_time_index ON addresses (block_time);`
 

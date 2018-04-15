@@ -378,8 +378,8 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	var addrFunc func(*sql.DB, string, int64, int64) ([]uint64, []*dbtypes.AddressRow, error)
 	switch txnType {
 	case dbtypes.AddrTxnCredit:
-		//addrFunc = RetrieveAddressCreditTxns
-		fallthrough // retrieved address rows may also have spends
+		addrFunc = RetrieveAddressCreditTxns
+		//fallthrough // retrieved address rows may also have spends
 	case dbtypes.AddrTxnAll:
 		// The organization address occurs very frequently, so use the regular
 		// (non sub-query) select as it is much more efficient.
@@ -1449,7 +1449,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// Transaction that pays to the address
 			dba := &dbAddressRows[it][iv]
 			dba.TxBlockTime = uint64(tx.BlockTime)
-			dba.IsFunding = !updateAddressesSpendingInfo
+			dba.IsFunding = true
 			// Funding tx hash, vout id, value, and address are already assigned
 			// by InsertVouts. Only the block time and is_funding was needed.
 			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
