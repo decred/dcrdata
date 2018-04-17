@@ -20,6 +20,7 @@ const (
 
 	bufferTickerInterval = 5
 	newTxBufferSize      = 5
+	clientSignalSize     = 5
 
 	sigNewBlock hubSignal = iota
 	sigMempoolUpdate
@@ -75,9 +76,9 @@ func NewWebsocketHub() *WebsocketHub {
 		HubRelay:         make(chan hubSignal),
 		NewTxChan:        make(chan *MempoolTx),
 		newTxBuffer:      make([]*MempoolTx, 0, newTxBufferSize),
-		bufferTickerChan: make(chan int),
+		bufferTickerChan: make(chan int, clientSignalSize),
 		bufferMtx:        new(sync.Mutex),
-		sendBufferChan:   make(chan int, 1),
+		sendBufferChan:   make(chan int, clientSignalSize),
 		quitWSHandler:    make(chan struct{}),
 	}
 }
@@ -194,10 +195,7 @@ func (wsh *WebsocketHub) run() {
 			case sigNewTx:
 				newtx = <-wsh.NewTxChan
 				log.Debugf("Received new tx %s", newtx.Hash)
-				if wsh.addTxToBuffer(newtx) {
-					wsh.bufferTickerChan <- tickerSigReset
-					wsh.sendBufferChan <- bufferSend
-				}
+				wsh.MaybeSendTxns(newtx)
 			default:
 				log.Errorf("Unknown hub signal: %v", hubSignal)
 				break events
@@ -258,6 +256,20 @@ func (wsh *WebsocketHub) run() {
 	}
 }
 
+// MaybeSendTxns adds a mempool transaction to the client broadcast buffer. If
+// the buffer is at capacity, a goroutine is launched to signal for the
+// transactions to be sent to the clients.
+func (wsh *WebsocketHub) MaybeSendTxns(tx *MempoolTx) {
+	if wsh.addTxToBuffer(tx) {
+		// This is called from the event loop, so these sends channel may not be
+		// blocking.
+		go func() {
+			wsh.bufferTickerChan <- tickerSigReset
+			wsh.sendBufferChan <- bufferSend
+		}()
+	}
+}
+
 // addTxToBuffer adds a tx to the buffer, then returns if the buffer is full
 func (wsh *WebsocketHub) addTxToBuffer(tx *MempoolTx) bool {
 	wsh.bufferMtx.Lock()
@@ -265,7 +277,7 @@ func (wsh *WebsocketHub) addTxToBuffer(tx *MempoolTx) bool {
 
 	wsh.newTxBuffer = append(wsh.newTxBuffer, tx)
 
-	return len(wsh.newTxBuffer) == newTxBufferSize
+	return len(wsh.newTxBuffer) >= newTxBufferSize
 }
 
 // periodicBufferSend initiates a buffer send every bufferTickerInterval seconds
