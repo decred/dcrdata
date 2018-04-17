@@ -336,7 +336,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", true)
 				return
 			}
-			addrData.Fullmode = true
+
+			// Set page parameters
+			addrData.Path = r.URL.Path
+			addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+			addrData.TxnType = txnType.String()
 
 			confirmHeights := make([]int64, len(addrData.Transactions))
 			for i, v := range addrData.Transactions {
@@ -374,11 +378,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData = new(AddressInfo)
 			addrData.Address = address
 		}
-
-		// Set page parameters
-		addrData.Path = r.URL.Path
-		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
-		addrData.TxnType = txnType.String()
 		addrData.Fullmode = true
 
 		// Balances and txn counts (partial unless in full mode)
@@ -468,6 +467,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			uctxn.TxnsSpending = append(uctxn.TxnsSpending, addrTx)
 		}
 	}
+
+	// Set page parameters
+	addrData.Path = r.URL.Path
+	addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+	addrData.TxnType = txnType.String()
 
 	confirmHeights := make([]int64, len(addrData.Transactions))
 	for i, v := range addrData.Transactions {
