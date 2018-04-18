@@ -43,6 +43,7 @@ type TxBasic struct {
 type AddressTx struct {
 	TxID          string
 	InOutID       uint32
+	Size          uint32
 	FormattedSize string
 	Total         float64
 	Confirmations uint64

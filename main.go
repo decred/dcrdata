@@ -456,7 +456,7 @@ func mainCore() error {
 	}
 
 	// Start web API
-	app := api.NewContext(dcrdClient, &baseDB, cfg.IndentJSON)
+	app := api.NewContext(dcrdClient, &baseDB, auxDB, cfg.IndentJSON)
 	// Start notification hander to keep /status up-to-date
 	wg.Add(1)
 	go app.StatusNtfnHandler(&wg, quit)

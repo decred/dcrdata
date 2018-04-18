@@ -59,6 +59,7 @@ type explorerDataSource interface {
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *AddressBalance, error)
+	DevBalance() (*AddressBalance, error)
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 }
@@ -252,7 +253,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	}
 
 	if !exp.liteMode {
-		exp.ExtraInfo.DevFund = 0
 		go exp.updateDevFundBalance()
 	}
 
@@ -279,8 +279,7 @@ func (exp *explorerUI) updateDevFundBalance() {
 	exp.NewBlockDataMtx.Lock()
 	defer exp.NewBlockDataMtx.Unlock()
 
-	_, devBalance, err := exp.explorerSource.AddressHistory(
-		exp.ExtraInfo.DevAddress, 1, 0, dbtypes.AddrTxnAll)
+	devBalance, err := exp.explorerSource.DevBalance()
 	if err == nil && devBalance != nil {
 		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
 	} else {
