@@ -155,15 +155,7 @@ func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.In
 
 	var transactionIdList []string
 	for _, row := range rows {
-		fundingTxId := row.FundingTxHash
-		if fundingTxId != "" {
-			transactionIdList = append(transactionIdList, fundingTxId)
-		}
-
-		spendingTxId := row.SpendingTxHash
-		if spendingTxId != "" {
-			transactionIdList = append(transactionIdList, spendingTxId)
-		}
+		transactionIdList = append(transactionIdList, row.TxHash)
 	}
 
 	return &apitypes.InsightAddressInfo{

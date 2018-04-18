@@ -18,11 +18,12 @@ const (
 		tx_tree INT2,
 		prev_tx_hash TEXT,
 		prev_tx_index INT8,
-		prev_tx_tree INT2
+		prev_tx_tree INT2,
+		tx_time INT8
 	);`
 
-	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree)
-		VALUES ($1, $2, $3, $4, $5, $6) `
+	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree, tx_time)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) `
 	InsertVinRow = InsertVinRow0 + `RETURNING id;`
 	// InsertVinRowChecked = InsertVinRow0 +
 	// 	`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`

@@ -41,10 +41,10 @@ const tableMajor = 2
 var requiredVersions = map[string]TableVersion{
 	"blocks":       NewTableVersion(tableMajor, 0, 0),
 	"transactions": NewTableVersion(tableMajor, 0, 0),
-	"vins":         NewTableVersion(tableMajor, 0, 0),
+	"vins":         NewTableVersion(tableMajor, 1, 0), //add times to vins table that will be used for bulk import
 	"vouts":        NewTableVersion(tableMajor, 0, 0),
 	"block_chain":  NewTableVersion(tableMajor, 0, 0),
-	"addresses":    NewTableVersion(tableMajor, 0, 0),
+	"addresses":    NewTableVersion(tableMajor, 1, 0), //add times to address table
 	"tickets":      NewTableVersion(tableMajor, 0, 0),
 	"votes":        NewTableVersion(tableMajor, 0, 0),
 	"misses":       NewTableVersion(tableMajor, 0, 0),

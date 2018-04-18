@@ -305,7 +305,7 @@ type ChainParams struct {
 // completely. Transactions is partially set, with each transaction having only
 // the TxID and ReceivedTotal set. The rest of the data should be filled in by
 // other means, such as RPC calls or database queries.
-func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
+func ReduceAddressHistory(addrHist []*dbtypes.AddressRow_new) *AddressInfo {
 	if len(addrHist) == 0 {
 		return nil
 	}
@@ -314,31 +314,25 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 	var transactions, creditTxns, debitTxns []*AddressTx
 	for _, addrOut := range addrHist {
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
-
-		// Funding transaction
-		received += int64(addrOut.Value)
-		fundingTx := AddressTx{
-			TxID:          addrOut.FundingTxHash,
-			InOutID:       addrOut.FundingTxVoutIndex,
-			ReceivedTotal: coin,
+		if addrOut.IsFunding {
+			// Funding transaction
+			received += int64(addrOut.Value)
+			fundingTx := AddressTx{
+				TxID:          addrOut.TxHash,
+				InOutID:       addrOut.InOutRowID,
+				ReceivedTotal: coin,
+			}
+			transactions = append(transactions, &fundingTx)
+		} else {
+			// Spending transaction
+			sent += int64(addrOut.Value)
+			spendingTx := AddressTx{
+				TxID:      addrOut.TxHash,
+				InOutID:   addrOut.InOutRowID,
+				SentTotal: coin,
+			}
+			transactions = append(transactions, &spendingTx)
 		}
-		transactions = append(transactions, &fundingTx)
-		creditTxns = append(creditTxns, &fundingTx)
-
-		// Is the outpoint spent?
-		if addrOut.SpendingTxHash == "" {
-			continue
-		}
-
-		// Spending transaction
-		sent += int64(addrOut.Value)
-		spendingTx := AddressTx{
-			TxID:      addrOut.SpendingTxHash,
-			InOutID:   addrOut.SpendingTxVinIndex,
-			SentTotal: coin,
-		}
-		transactions = append(transactions, &spendingTx)
-		debitTxns = append(debitTxns, &spendingTx)
 	}
 
 	return &AddressInfo{

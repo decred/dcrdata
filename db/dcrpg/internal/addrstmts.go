@@ -2,8 +2,8 @@ package internal
 
 const (
 	insertAddressRow0 = `INSERT INTO addresses (address, funding_tx_row_id,
-		funding_tx_hash, funding_tx_vout_index, vout_row_id, value)
-		VALUES ($1, $2, $3, $4, $5, $6) `
+		funding_tx_hash, funding_tx_vout_index, vout_row_id, value, funding_tx_time)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) `
 	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
 	// InsertAddressRowChecked = insertAddressRow0 +
 	// 	`ON CONFLICT (vout_row_id, address) DO NOTHING RETURNING id;`
@@ -42,8 +42,13 @@ const (
 		spending_tx_row_id INT8,
 		spending_tx_hash TEXT,
 		spending_tx_vin_index INT4,
-		vin_row_id INT8
+		vin_row_id INT8,
+		funding_tx_time INT8,
+		spending_tx_time INT8
 	);`
+
+	//to bring addresses table to version 2.1.0 perform following sql manually (this assumes all other tables are up to date and filled with data)
+	//UPDATE addresses as a1 SET spending_tx_time=transactions.time FROM addresses as a2 LEFT JOIN transactions ON transactions.tx_hash=a2.spending_tx_hash WHERE a2.spending_tx_hash IS NOT NULL;
 
 	SelectAddressAllByAddress = `SELECT * FROM addresses WHERE address=$1 order by id desc;`
 	SelectAddressRecvCount    = `SELECT COUNT(*) FROM addresses WHERE address=$1;`
@@ -70,10 +75,38 @@ const (
 	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT * FROM addresses WHERE address=$1)
 		SELECT * FROM these order by id desc limit $2 offset $3;`
 
-	// SelectAddressDebitsLimitNByAddress = `SELECT *
-	// 	FROM addresses
-	// 	WHERE address=$1 AND spending_tx_row_id IS NOT NULL
-	// 	ORDER BY id DESC LIMIT $2 OFFSET $3;`
+	SelectAddressFundingTxByAddressLO = `SELECT 
+										address, 
+										funding_tx_hash,
+										funding_tx_vout_index,  
+										value, 
+										funding_tx_time 
+									FROM addresses 
+									WHERE address=$1 
+									ORDER BY funding_tx_time DESC 
+									LIMIT $2 OFFSET $3;`
+
+	SelectAddressSpendingTxByAddressT = `SELECT 
+										address,
+										spending_tx_hash,
+										max(spending_tx_vin_index) as spending_tx_vin_index, 
+										sum(value) as value,
+										max(spending_tx_time) as spending_tx_time
+									FROM addresses
+									WHERE address=$1 AND spending_tx_time>=$2 
+									GROUP BY spending_tx_hash, address
+									ORDER BY spending_tx_time DESC;`
+	SelectAddressSpendingTxByAddressLO = `SELECT 
+										address,
+										spending_tx_hash, 
+										max(spending_tx_vin_index) as spending_tx_vin_index, 
+										sum(value) as value,
+										max(spending_tx_time) as spending_tx_time
+									FROM addresses
+									WHERE address=$1 AND spending_tx_time>=$2 
+									GROUP BY spending_tx_hash, address
+									ORDER BY spending_tx_time DESC 
+									LIMIT $2 OFFSET $3;`
 	SelectAddressDebitsLimitNByAddress = `WITH these as (SELECT * FROM addresses WHERE address=$1)
 		SELECT * FROM these WHERE spending_tx_row_id IS NOT NULL
 		ORDER BY id DESC LIMIT $2 OFFSET $3;`
@@ -92,7 +125,7 @@ const (
 		spending_tx_hash = $3, spending_tx_vin_index = $4, vin_row_id = $5 
 		WHERE id=$1;`
 	SetAddressSpendingForOutpoint = `UPDATE addresses SET spending_tx_row_id = $3, 
-		spending_tx_hash = $4, spending_tx_vin_index = $5, vin_row_id = $6 
+		spending_tx_hash = $4, spending_tx_vin_index = $5, vin_row_id = $6, spending_tx_time = $7 
 		WHERE funding_tx_hash=$1 and funding_tx_vout_index=$2;`
 
 	IndexAddressTableOnAddress = `CREATE INDEX uix_addresses_address

@@ -243,6 +243,7 @@ type Vout struct {
 	Version          uint16           `json:"version"`
 	ScriptPubKey     []byte           `json:"pkScriptHex"`
 	ScriptPubKeyData ScriptPubKeyData `json:"pkScript"`
+	TxTime           uint64           `json:"tx_time"`
 }
 
 // AddressRow represents a row in the addresses table
@@ -258,6 +259,19 @@ type AddressRow struct {
 	SpendingTxHash     string
 	SpendingTxVinIndex uint32
 	VinDbID            uint64
+	TxTime             uint64
+}
+
+type AddressRow_new struct {
+	// id int64
+	Address    string
+	TxHash     string
+	InOutRowID uint32
+	Value      uint64
+	TxTime     uint64
+	IsFunding  bool
+	//SpendingTxVinIndex uint32
+	//FundingTxVoutIndex uint32
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
@@ -281,6 +295,7 @@ type VinTxProperty struct {
 	BlockHeight uint32 `json:"blockheight"`
 	BlockIndex  uint32 `json:"blockindex"`
 	ScriptHex   []byte `json:"scripthex"`
+	TxTime      uint64 `json:"tx_time"`
 }
 
 // Vin models a transaction input.

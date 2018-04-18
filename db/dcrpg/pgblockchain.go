@@ -330,38 +330,9 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 	return blockHash, blockInd, tree, err
 }
 
-// AddressTransactions retrieves a slice of *dbtypes.AddressRow for a given
-// address and transaction type (i.e. all, credit, or debit) from the DB. Only
-// the first N transactions starting from the offset element in the set of all
-// txnType transactions.
-func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
-	txnType dbtypes.AddrTxnType) (addressRows []*dbtypes.AddressRow, err error) {
-	var addrFunc func(*sql.DB, string, int64, int64) ([]uint64, []*dbtypes.AddressRow, error)
-	switch txnType {
-	case dbtypes.AddrTxnCredit:
-		//addrFunc = RetrieveAddressCreditTxns
-		fallthrough // retrieved address rows may also have spends
-	case dbtypes.AddrTxnAll:
-		// The organization address occurs very frequently, so use the regular
-		// (non sub-query) select as it is much more efficient.
-		if address == pgb.devAddress {
-			addrFunc = RetrieveAddressTxnsAlt
-		} else {
-			addrFunc = RetrieveAddressTxns
-		}
-	case dbtypes.AddrTxnDebit:
-		addrFunc = RetrieveAddressDebitTxns
-	default:
-		return nil, fmt.Errorf("Unknown AddrTxnType %v", txnType)
-	}
-
-	_, addressRows, err = addrFunc(pgb.db, address, N, offset)
-	return
-}
-
 // AddressHistoryAll queries the database for all rows of the addresses table
 // for the given address.
-func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error) {
+func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtypes.AddressRow_new, *explorer.AddressBalance, error) {
 	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
 }
 
@@ -369,7 +340,7 @@ func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtyp
 // containing values for a certain type of transaction (all, credits, or debits)
 // for the given address.
 func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
-	txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error) {
+	txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow_new, *explorer.AddressBalance, error) {
 
 	bb, err := pgb.HeightDB()
 	if err != nil {
@@ -380,6 +351,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	// See if address count cache includes a fresh count for this address.
 	totals := pgb.addressCounts
 	totals.Lock()
+	var addressRows []*dbtypes.AddressRow_new
 	var balanceInfo explorer.AddressBalance
 	var fresh bool
 	if totals.validHeight == bestBlock {
@@ -396,7 +368,8 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	totals.Unlock()
 
 	// Retrieve relevant transactions
-	addressRows, err := pgb.AddressTransactions(address, N, offset, txnType)
+	addressRows, err = RetreiveAddressFundingSpendingTxns(pgb.db, address, N, offset, txnType)
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -411,31 +384,33 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		return addressRows, nil, fmt.Errorf("ReduceAddressHistory failed. len(addressRows) = %d", len(addressRows))
 	}
 
+	//Get total spent and unspent.  For small address transaction history another query is minimal load. and simplifies the logic
+
 	// N is a limit on NumFundingTxns, so this checks if we have them all.
-	if addrInfo.NumFundingTxns < N && offset == 0 &&
-		(txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit) {
-		balanceInfo = explorer.AddressBalance{
-			Address:      address,
-			NumSpent:     addrInfo.NumSpendingTxns,
-			NumUnspent:   addrInfo.NumFundingTxns - addrInfo.NumSpendingTxns,
-			TotalSpent:   int64(addrInfo.AmountSent),
-			TotalUnspent: int64(addrInfo.AmountUnspent),
-		}
-	} else {
-		var numSpent, numUnspent, totalSpent, totalUnspent int64
-		numSpent, numUnspent, totalSpent, totalUnspent, err =
-			RetrieveAddressSpentUnspent(pgb.db, address)
-		if err != nil {
-			return nil, nil, err
-		}
-		balanceInfo = explorer.AddressBalance{
-			Address:      address,
-			NumSpent:     numSpent,
-			NumUnspent:   numUnspent,
-			TotalSpent:   totalSpent,
-			TotalUnspent: totalUnspent,
-		}
+	// if addrInfo.NumFundingTxns < N && offset == 0 &&
+	// 	(txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit) {
+	// 	balanceInfo = explorer.AddressBalance{
+	// 		Address:      address,
+	// 		NumSpent:     addrInfo.NumSpendingTxns,
+	// 		NumUnspent:   addrInfo.NumFundingTxns - addrInfo.NumSpendingTxns,
+	// 		TotalSpent:   int64(addrInfo.AmountSent),
+	// 		TotalUnspent: int64(addrInfo.AmountUnspent),
+	// 	}
+	// } else {
+	var numSpent, numUnspent, totalSpent, totalUnspent int64
+	numSpent, numUnspent, totalSpent, totalUnspent, err =
+		RetrieveAddressSpentUnspent(pgb.db, address)
+	if err != nil {
+		return nil, nil, err
 	}
+	balanceInfo = explorer.AddressBalance{
+		Address:      address,
+		NumSpent:     numSpent,
+		NumUnspent:   numUnspent,
+		TotalSpent:   totalSpent,
+		TotalUnspent: totalUnspent,
+	}
+	// }
 
 	log.Infof("%s: %d spent totalling %f DCR, %d unspent totalling %f DCR",
 		address, balanceInfo.NumSpent, dcrutil.Amount(balanceInfo.TotalSpent).ToCoin(),
@@ -772,6 +747,7 @@ func (pgb *ChainDB) DeindexAddressTable() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
+
 	return errAny
 }
 
@@ -1167,7 +1143,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			var numAddressRowsSet int64
 			numAddressRowsSet, err = SetSpendingForFundingOP(pgb.db,
 				vin.PrevTxHash, vin.PrevTxIndex, // funding
-				txDbID, vin.TxID, vin.TxIndex, vinDbID) // spending
+				txDbID, vin.TxID, vin.TxIndex, vinDbID, vin.TxTime) // spending
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
 			}
