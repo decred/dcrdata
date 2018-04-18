@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -257,7 +258,15 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 
 	exp.NewBlockDataMtx.Unlock()
 
-	exp.wsHub.HubRelay <- sigNewBlock
+	// Signal to the websocket hub that a new block was received, but do not
+	// block Store(), and do not hang forever in a goroutine waiting to send.
+	go func() {
+		select {
+		case exp.wsHub.HubRelay <- sigNewBlock:
+		case <-time.After(time.Second * 10):
+			log.Errorf("sigNewBlock send failed: Timeout waiting for WebsocketHub.")
+		}
+	}()
 
 	log.Debugf("Got new block %d for the explorer.", newBlockData.Height)
 
