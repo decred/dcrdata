@@ -390,18 +390,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData.NumTransactions = addrData.Limit
 		}
 
-		// Transactions to fetch with FillAddressTransactions. This should be a
-		// noop if ReduceAddressHistory is working right.
-		switch txnType {
-		case dbtypes.AddrTxnAll:
-		case dbtypes.AddrTxnCredit:
-			addrData.Transactions = addrData.TxnsFunding
-		case dbtypes.AddrTxnDebit:
-			addrData.Transactions = addrData.TxnsSpending
-		default:
-			log.Warnf("Unknown address transaction type: %v", txnType)
-		}
-
 		// Query database for transaction details
 		err = exp.explorerSource.FillAddressTransactions(addrData)
 		if err != nil {

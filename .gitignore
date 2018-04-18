@@ -30,3 +30,4 @@ MANIFEST-*
 ffldb_stake*/
 *.pprof
 testnet/
+dcrdata.exe*

@@ -116,6 +116,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8,
 				BlockHeight: txin.BlockHeight,
 				BlockIndex:  txin.BlockIndex,
 				ScriptHex:   txin.SignatureScript,
+				TxTime:      uint64(blockTime),
 			})
 		}
 
@@ -132,6 +133,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8,
 				Value:        uint64(txout.Value),
 				Version:      txout.Version,
 				ScriptPubKey: txout.PkScript,
+				TxTime:       uint64(blockTime),
 			}
 			scriptClass, scriptAddrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
 				vout.Version, vout.ScriptPubKey, chainParams)
