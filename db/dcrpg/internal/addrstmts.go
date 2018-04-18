@@ -89,7 +89,7 @@ const (
 	SelectAddressSpendingTxByAddressT = `SELECT 
 										address,
 										spending_tx_hash,
-										max(spending_tx_row_id) as spending_tx_row_id, 
+										max(spending_tx_vin_index) as spending_tx_vin_index, 
 										sum(value) as value,
 										max(spending_tx_time) as spending_tx_time
 									FROM addresses
@@ -99,7 +99,7 @@ const (
 	SelectAddressSpendingTxByAddressLO = `SELECT 
 										address,
 										spending_tx_hash, 
-										max(spending_tx_row_id) as spending_tx_row_id, 
+										max(spending_tx_vin_index) as spending_tx_vin_index, 
 										sum(value) as value,
 										max(spending_tx_time) as spending_tx_time
 									FROM addresses

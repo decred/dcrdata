@@ -295,7 +295,7 @@ type VinTxProperty struct {
 	BlockHeight uint32 `json:"blockheight"`
 	BlockIndex  uint32 `json:"blockindex"`
 	ScriptHex   []byte `json:"scripthex"`
-	TxTime      uint64 `json:"tx_time`
+	TxTime      uint64 `json:"tx_time"`
 }
 
 // Vin models a transaction input.
