@@ -495,6 +495,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// DecodeTxPage handles the "decode/broadcast transaction" page. The actual
+// decoding or broadcasting is handled by the websocket hub.
 func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("rawtx", struct {
 		Version string

@@ -25,7 +25,7 @@ type BlockBasic struct {
 	Revocations    uint32 `json:"revocations"`
 	BlockTime      int64  `json:"time"`
 	FormattedTime  string `json:"formatted_time"`
-	FormattedBytes string
+	FormattedBytes string `json:"formatted_bytes"`
 }
 
 // TxBasic models data for transactions on the block page
@@ -39,7 +39,7 @@ type TxBasic struct {
 	Coinbase      bool
 }
 
-//AddressTx models data for transactions on the address page
+// AddressTx models data for transactions on the address page
 type AddressTx struct {
 	TxID          string
 	InOutID       uint32

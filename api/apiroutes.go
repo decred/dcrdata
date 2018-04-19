@@ -22,7 +22,8 @@ import (
 	notify "github.com/decred/dcrdata/notification"
 )
 
-// DataSourceLite implements an interface for collecting data for the api
+// DataSourceLite specifies an interface for collecting data from the built-in
+// databases (i.e. SQLite, storm, ffldb)
 type DataSourceLite interface {
 	GetHeight() int
 	GetBestBlockHash() (string, error)
@@ -68,12 +69,14 @@ type DataSourceLite interface {
 	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
 	GetAddressTransactions(addr string, count int) *apitypes.Address
 	GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw
-	GetAddressTransactionsWithSkip(addr string, count int, skip int) *apitypes.Address
-	GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw
+	GetAddressTransactionsWithSkip(addr string, count, skip int) *apitypes.Address
+	GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw
 	SendRawTransaction(txhex string) (string, error)
 	GetExplorerAddress(address string, count, offset int64) *explorer.AddressInfo
 }
 
+// DataSourceAux specifies an interface for advanced data collection using the
+// auxiliary DB (e.g. PostgreSQL).
 type DataSourceAux interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
@@ -100,10 +103,15 @@ func NewContext(client *rpcclient.Client, dataSource DataSourceLite, auxDataSour
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 
-	app := &appContext{
+	// explorerDataSource is an interface that could have a value of pointer
+	// type, and if either is nil this means lite mode.
+	liteMode := auxDataSource == nil || reflect.ValueOf(auxDataSource).IsNil()
+
+	return &appContext{
 		nodeClient:    client,
 		BlockData:     dataSource,
 		AuxDataSource: auxDataSource,
+		LiteMode:      liteMode,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -112,16 +120,10 @@ func NewContext(client *rpcclient.Client, dataSource DataSourceLite, auxDataSour
 		},
 		JSONIndent: JSONIndent,
 	}
-
-	// explorerDataSource is an interface that could have a value of pointer
-	// type, and if either is nil this means lite mode.
-	if auxDataSource == nil || reflect.ValueOf(auxDataSource).IsNil() {
-		app.LiteMode = true
-	}
-
-	return app
 }
 
+// StatusNtfnHandler keeps the appContext's Status up-to-date with changes in
+// node and DB status.
 func (c *appContext) StatusNtfnHandler(wg *sync.WaitGroup, quit chan struct{}) {
 	defer wg.Done()
 out:
@@ -136,6 +138,9 @@ out:
 
 			c.statusMtx.Lock()
 			c.Status.Height = height
+
+			// if DB height agrees with node height, then we're ready
+			c.Status.Ready = c.Status.Height == c.Status.DBHeight
 
 			var err error
 			c.Status.NodeConnections, err = c.nodeClient.GetConnectionCount()
@@ -163,17 +168,14 @@ out:
 				break keepon
 			}
 
-			bdHeight := c.BlockData.GetHeight()
 			c.statusMtx.Lock()
+			c.Status.DBHeight = height
+
+			bdHeight := c.BlockData.GetHeight()
 			if bdHeight >= 0 && summary.Height == uint32(bdHeight) &&
 				height == uint32(bdHeight) {
-				c.Status.DBHeight = height
 				// if DB height agrees with node height, then we're ready
-				if c.Status.Height == height {
-					c.Status.Ready = true
-				} else {
-					c.Status.Ready = false
-				}
+				c.Status.Ready = c.Status.Height == c.Status.DBHeight
 				c.statusMtx.Unlock()
 				break keepon
 			}
@@ -966,16 +968,16 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
-	count := int64(m.GetNCtx(r))
-	skip := int64(m.GetMCtx(r))
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+
+	count := int64(m.GetNCtx(r))
+	skip := int64(m.GetMCtx(r))
 	if count <= 0 {
 		count = 10
-	}
-	if c.LiteMode && count > 2000 {
+	} else if c.LiteMode && count > 2000 {
 		count = 2000
 	}
 	if skip <= 0 {

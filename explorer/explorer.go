@@ -53,7 +53,7 @@ type explorerDataSourceLite interface {
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
-// faster solution than RPC.
+// faster solution than RPC, or additional functionality.
 type explorerDataSource interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
@@ -283,7 +283,7 @@ func (exp *explorerUI) updateDevFundBalance() {
 	if err == nil && devBalance != nil {
 		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
 	} else {
-		log.Warnf("explorerUI.updateDevFundBalance failed: %v", err)
+		log.Errorf("explorerUI.updateDevFundBalance failed: %v", err)
 	}
 }
 
