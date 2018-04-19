@@ -38,7 +38,7 @@
                             {{if ge .KnownTransactions .MaxTxLimit}}
                             <td class="fs28 mono nowrap d-flex align-items-center justify-content-end">unavailable</td>
                             {{else}}
-                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.Unspent}}</td>
+                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.AmountUnspent.ToCoin}}</td>
                             {{end}}
                         {{end}}
                     </tr>
@@ -57,7 +57,7 @@
                             {{if ge .KnownTransactions .MaxTxLimit}}
                             <td class="mono nowrap text-right">unavailable</td>
                             {{else}}
-                            <td class="mono nowrap text-right">{{.TotalReceived}}</td>
+                            <td class="mono nowrap text-right">{{.AmountReceived.ToCoin}}</td>
                             {{end}}
                         {{end}}
                     </tr>
@@ -75,7 +75,7 @@
                             {{if ge .KnownTransactions .MaxTxLimit}}
                             <td class="mono nowrap text-right">unavailable</td>
                             {{else}}
-                            <td class="mono nowrap text-right">{{.TotalSent}}</td>
+                            <td class="mono nowrap text-right">{{.AmountSent.ToCoin}}</td>
                             {{end}}
                         {{end}}
                     </tr>
