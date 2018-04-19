@@ -93,7 +93,7 @@ func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) 
 
 // addressCounter provides a cache for address balances.
 type addressCounter struct {
-	sync.Mutex
+	sync.RWMutex
 	validHeight int64
 	balance     map[string]explorer.AddressBalance
 }
@@ -476,6 +476,55 @@ func (pgb *ChainDB) DevBalance() (*explorer.AddressBalance, error) {
 	return &balCopy, nil
 }
 
+// addressBalance attempts to retrieve the explorer.AddressBalance from cache,
+// and if cache is stale or missing data for the address, a DB query is used. A
+// successful DB query will freshen the cache.
+func (pgb *ChainDB) addressBalance(address string) (*explorer.AddressBalance, error) {
+	bb, err := pgb.HeightDB()
+	if err != nil {
+		return nil, err
+	}
+	bestBlock := int64(bb)
+
+	totals := pgb.addressCounts
+	totals.Lock()
+	defer totals.Unlock()
+
+	var balanceInfo explorer.AddressBalance
+	var fresh bool
+	if totals.validHeight == bestBlock {
+		balanceInfo, fresh = totals.balance[address]
+	} else {
+		// StoreBlock should do this, but the idea is to clear the old cached
+		// results when a new block is encountered.
+		log.Debugf("Address receive counter stale, at block %d when best is %d.",
+			totals.validHeight, bestBlock)
+		totals.balance = make(map[string]explorer.AddressBalance)
+		totals.validHeight = bestBlock
+		balanceInfo.Address = address
+	}
+
+	if !fresh {
+		var numSpent, numUnspent, totalSpent, totalUnspent int64
+		numSpent, numUnspent, totalSpent, totalUnspent, err =
+			RetrieveAddressSpentUnspent(pgb.db, address)
+		if err != nil {
+			return nil, err
+		}
+		balanceInfo = explorer.AddressBalance{
+			Address:      address,
+			NumSpent:     numSpent,
+			NumUnspent:   numUnspent,
+			TotalSpent:   totalSpent,
+			TotalUnspent: totalUnspent,
+		}
+
+		totals.balance[address] = balanceInfo
+	}
+
+	return &balanceInfo, nil
+}
+
 // AddressHistory queries the database for rows of the addresses table
 // containing values for a certain type of transaction (all, credits, or debits)
 // for the given address.
@@ -498,7 +547,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	} else {
 		// StoreBlock should do this, but the idea is to clear the old cached
 		// results when a new block is encountered.
-		log.Warnf("Address receive counter stale, at block %d when best is %d.",
+		log.Debugf("Address receive counter stale, at block %d when best is %d.",
 			totals.validHeight, bestBlock)
 		totals.balance = make(map[string]explorer.AddressBalance)
 		totals.validHeight = bestBlock
@@ -596,18 +645,24 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 // number of unspent transaction outputs and number spent.
 func (pgb *ChainDB) AddressTotals(address string) (*apitypes.AddressTotals, error) {
 	// Fetch address totals
-	numSpent, numUnspent, totalSpent, totalUnspent, err :=
-		RetrieveAddressSpentUnspent(pgb.db, address)
-	if err != nil {
+	var err error
+	var ab *explorer.AddressBalance
+	if address == pgb.devAddress {
+		ab, err = pgb.DevBalance()
+	} else {
+		ab, err = pgb.addressBalance(address)
+	}
+
+	if err != nil || ab == nil {
 		return nil, err
 	}
 
 	return &apitypes.AddressTotals{
 		Address:      address,
-		NumSpent:     numSpent,
-		NumUnspent:   numUnspent,
-		CoinsSpent:   dcrutil.Amount(totalSpent).ToCoin(),
-		CoinsUnspent: dcrutil.Amount(totalUnspent).ToCoin(),
+		NumSpent:     ab.NumSpent,
+		NumUnspent:   ab.NumUnspent,
+		CoinsSpent:   dcrutil.Amount(ab.TotalSpent).ToCoin(),
+		CoinsUnspent: dcrutil.Amount(ab.TotalUnspent).ToCoin(),
 	}, nil
 }
 

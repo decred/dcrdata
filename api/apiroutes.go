@@ -1045,10 +1045,10 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 		skip = 0
 	}
 
-	var txs []*apitypes.AddressTxRaw
+	//var txs []*apitypes.AddressTxRaw
 	// TODO: add postgresql powered method
 	//if c.LiteMode {
-	txs = c.BlockData.GetAddressTransactionsRawWithSkip(address, int(count), int(skip))
+	txs := c.BlockData.GetAddressTransactionsRawWithSkip(address, int(count), int(skip))
 	// } else {
 	// 	txs, err = c.AuxDataSource.AddressTransactionRawDetails(address, count, skip, dbtypes.AddrTxnAll)
 	// }
