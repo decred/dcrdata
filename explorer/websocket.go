@@ -194,7 +194,7 @@ func (wsh *WebsocketHub) run() {
 				log.Infof("Signaling mempool update to %d websocket clients.", len(wsh.clients))
 			case sigNewTx:
 				newtx = <-wsh.NewTxChan
-				log.Debugf("Received new tx %s", newtx.Hash)
+				log.Tracef("Received new tx %s", newtx.Hash)
 				wsh.MaybeSendTxns(newtx)
 			default:
 				log.Errorf("Unknown hub signal: %v", hubSignal)
