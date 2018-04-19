@@ -592,22 +592,38 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 	return nil
 }
 
-// AddressTransactionDetails returns an apitypes.Address with at most the last
-// count transactions of type txnType in which the address was involved,
-// starting after skip transactions.
-func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
-	txnType dbtypes.AddrTxnType) (*apitypes.Address, error) {
+// AddressTotals queries for the following totals: amount spent, amount unspent,
+// number of unspent transaction outputs and number spent.
+func (pgb *ChainDB) AddressTotals(address string) (*explorer.AddressBalance, error) {
+	// Fetch address totals
+	numSpent, numUnspent, totalSpent, totalUnspent, err :=
+		RetrieveAddressSpentUnspent(pgb.db, address)
+	if err != nil {
+		return nil, err
+	}
+
+	return &explorer.AddressBalance{
+		Address:      address,
+		NumSpent:     numSpent,
+		NumUnspent:   numUnspent,
+		TotalSpent:   totalSpent,
+		TotalUnspent: totalUnspent,
+	}, nil
+}
+
+func (pgb *ChainDB) addressInfo(addr string, count, skip int64,
+	txnType dbtypes.AddrTxnType) (*explorer.AddressInfo, *explorer.AddressBalance, error) {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Get rows from the addresses table for the address
 	addrHist, balance, errH := pgb.AddressHistory(addr, count, skip, txnType)
 	if errH != nil {
 		log.Errorf("Unable to get address %s history: %v", address, errH)
-		return nil, errH
+		return nil, nil, errH
 	}
 
 	// Generate AddressInfo skeleton from the address table rows
@@ -615,45 +631,51 @@ func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
 	if addrData == nil {
 		// Empty history is not expected for credit txnType with any txns.
 		if txnType != dbtypes.AddrTxnDebit && (balance.NumSpent+balance.NumUnspent) > 0 {
-			return nil, fmt.Errorf("empty address history (%s): n=%d&start=%d", address, count, skip)
+			return nil, nil, fmt.Errorf("empty address history (%s): n=%d&start=%d", address, count, skip)
 		}
 		// No mined transactions. Return Address with nil Transactions slice.
-		return &apitypes.Address{
-			Address:      addr,
-			Transactions: nil,
-		}, nil
+		return nil, balance, nil
+	}
+
+	// Transactions to fetch with FillAddressTransactions. This should be a
+	// noop if AddressHistory/ReduceAddressHistory are working right.
+	switch txnType {
+	case dbtypes.AddrTxnAll:
+	case dbtypes.AddrTxnCredit:
+		addrData.Transactions = addrData.TxnsFunding
+	case dbtypes.AddrTxnDebit:
+		addrData.Transactions = addrData.TxnsSpending
+	default:
+		// shouldn't happen because AddressHistory does this check
+		return nil, nil, fmt.Errorf("unknown address transaction type: %v", txnType)
 	}
 
 	// Query database for transaction details
 	err = pgb.FillAddressTransactions(addrData)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to fill address %s transactions: %v", address, err)
+		return nil, balance, fmt.Errorf("Unable to fill address %s transactions: %v", address, err)
 	}
-	// TODO: unconfirmed txns
-	// addrData.NumUnconfirmed, err = pgb.CountUnconfirmedTransactions(address, MaxUnconfirmedPossible)
-	// if err != nil {
-	// 	log.Warnf("CountUnconfirmedTransactions failed for address %s: %v", address, err)
-	// }
 
-	// Transactions to fetch with FillAddressTransactions. This should be a
-	// noop if AddressHistory/ReduceAddressHistory are working right.
-	var txs []*explorer.AddressTx
-	switch txnType {
-	case dbtypes.AddrTxnAll:
-		txs = addrData.Transactions
-	case dbtypes.AddrTxnCredit:
-		txs = addrData.TxnsFunding
-	case dbtypes.AddrTxnDebit:
-		txs = addrData.TxnsSpending
-	default:
-		// shouldn't happen because AddressHistory does this check
-		return nil, fmt.Errorf("unknown address transaction type: %v", txnType)
+	return addrData, balance, nil
+}
+
+// AddressTransactionDetails returns an apitypes.Address with at most the last
+// count transactions of type txnType in which the address was involved,
+// starting after skip transactions. This does NOT include unconfirmed
+// transactions.
+func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
+	txnType dbtypes.AddrTxnType) (*apitypes.Address, error) {
+	// Fetch address history for given transaction range and type
+	addrData, _, err := pgb.addressInfo(addr, count, skip, txnType)
+	if err != nil {
+		return nil, err
 	}
 
 	// Convert each explorer.AddressTx to apitypes.AddressTxShort
-	stxs := make([]*apitypes.AddressTxShort, 0, len(txs))
+	txs := addrData.Transactions
+	txsShort := make([]*apitypes.AddressTxShort, 0, len(txs))
 	for i := range txs {
-		stxs = append(stxs, &apitypes.AddressTxShort{
+		txsShort = append(txsShort, &apitypes.AddressTxShort{
 			TxID:          txs[i].TxID,
 			Time:          txs[i].Time,
 			Value:         txs[i].Total,
@@ -665,9 +687,38 @@ func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
 	// put a bow on it
 	return &apitypes.Address{
 		Address:      addr,
-		Transactions: stxs,
+		Transactions: txsShort,
 	}, nil
+}
 
+// TODO: finish
+func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
+	txnType dbtypes.AddrTxnType) ([]*apitypes.AddressTxRaw, error) {
+	addrData, _, err := pgb.addressInfo(addr, count, skip, txnType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert each explorer.AddressTx to apitypes.AddressTxRaw
+	txs := addrData.Transactions
+	txsRaw := make([]*apitypes.AddressTxRaw, 0, len(txs))
+	for i := range txs {
+		txsRaw = append(txsRaw, &apitypes.AddressTxRaw{
+			Size: int32(txs[i].Size),
+			TxID: txs[i].TxID,
+			// Version
+			// LockTime
+			// Vin
+			// Vout
+			//
+			Confirmations: int64(txs[i].Confirmations),
+			//BlockHash: txs[i].
+			Time: txs[i].Time,
+			//Blocktime:
+		})
+	}
+
+	return txsRaw, nil
 }
 
 // Store satisfies BlockDataSaver

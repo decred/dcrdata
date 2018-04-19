@@ -84,6 +84,7 @@ type DataSourceAux interface {
 	FillAddressTransactions(addrInfo *explorer.AddressInfo) error
 	AddressTransactionDetails(addr string, count, skip int64,
 		txnType dbtypes.AddrTxnType) (*apitypes.Address, error)
+	AddressTotals(address string) (*explorer.AddressBalance, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -966,6 +967,29 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, sdiffs, c.getIndentQuery(r))
 }
 
+func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
+	address := m.GetAddressCtx(r)
+	if address == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	if c.LiteMode {
+		// not available in lite mode
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	toals, err := c.AuxDataSource.AddressTotals(address)
+	if err != nil {
+		log.Warnf("failed to get address totals (%s): %v", address, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, toals, c.getIndentQuery(r))
+}
+
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
 	if address == "" {
@@ -979,6 +1003,8 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		count = 10
 	} else if c.LiteMode && count > 2000 {
 		count = 2000
+	} else if count > 8000 {
+		count = 8000
 	}
 	if skip <= 0 {
 		skip = 0
@@ -1001,25 +1027,36 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 
 func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
-	count := m.GetNCtx(r)
-	skip := m.GetMCtx(r)
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+
+	count := int64(m.GetNCtx(r))
+	skip := int64(m.GetMCtx(r))
 	if count <= 0 {
 		count = 10
-	} else if count > 2000 {
+	} else if c.LiteMode && count > 2000 {
 		count = 2000
+	} else if count > 8000 {
+		count = 8000
 	}
 	if skip <= 0 {
 		skip = 0
 	}
-	txs := c.BlockData.GetAddressTransactionsRawWithSkip(address, count, skip)
+
+	var txs []*apitypes.AddressTxRaw
+	// TODO: add postgresql powered method
+	//if c.LiteMode {
+	txs = c.BlockData.GetAddressTransactionsRawWithSkip(address, int(count), int(skip))
+	// } else {
+	// 	txs, err = c.AuxDataSource.AddressTransactionRawDetails(address, count, skip, dbtypes.AddrTxnAll)
+	// }
 	if txs == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+
 	writeJSON(w, txs, c.getIndentQuery(r))
 }
 

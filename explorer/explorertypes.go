@@ -235,11 +235,11 @@ func (a *AddressInfo) TxnCount() int64 {
 // AddressBalance represents the number and value of spent and unspent outputs
 // for an address.
 type AddressBalance struct {
-	Address      string
-	NumSpent     int64
-	NumUnspent   int64
-	TotalSpent   int64
-	TotalUnspent int64
+	Address      string `json:"address"`
+	NumSpent     int64  `json:"num_stxos"`
+	NumUnspent   int64  `json:"num_utxos"`
+	TotalSpent   int64  `json:"amount_spent"`
+	TotalUnspent int64  `json:"amount_unspent"`
 }
 
 // HomeInfo represents data used for the home page
