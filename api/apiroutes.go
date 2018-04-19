@@ -84,7 +84,7 @@ type DataSourceAux interface {
 	FillAddressTransactions(addrInfo *explorer.AddressInfo) error
 	AddressTransactionDetails(addr string, count, skip int64,
 		txnType dbtypes.AddrTxnType) (*apitypes.Address, error)
-	AddressTotals(address string) (*explorer.AddressBalance, error)
+	AddressTotals(address string) (*apitypes.AddressTotals, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -980,14 +980,14 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	toals, err := c.AuxDataSource.AddressTotals(address)
+	totals, err := c.AuxDataSource.AddressTotals(address)
 	if err != nil {
 		log.Warnf("failed to get address totals (%s): %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	writeJSON(w, toals, c.getIndentQuery(r))
+	writeJSON(w, totals, c.getIndentQuery(r))
 }
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {

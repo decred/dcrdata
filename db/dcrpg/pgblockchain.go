@@ -594,7 +594,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 
 // AddressTotals queries for the following totals: amount spent, amount unspent,
 // number of unspent transaction outputs and number spent.
-func (pgb *ChainDB) AddressTotals(address string) (*explorer.AddressBalance, error) {
+func (pgb *ChainDB) AddressTotals(address string) (*apitypes.AddressTotals, error) {
 	// Fetch address totals
 	numSpent, numUnspent, totalSpent, totalUnspent, err :=
 		RetrieveAddressSpentUnspent(pgb.db, address)
@@ -602,12 +602,12 @@ func (pgb *ChainDB) AddressTotals(address string) (*explorer.AddressBalance, err
 		return nil, err
 	}
 
-	return &explorer.AddressBalance{
+	return &apitypes.AddressTotals{
 		Address:      address,
 		NumSpent:     numSpent,
 		NumUnspent:   numUnspent,
-		TotalSpent:   totalSpent,
-		TotalUnspent: totalUnspent,
+		CoinsSpent:   dcrutil.Amount(totalSpent).ToCoin(),
+		CoinsUnspent: dcrutil.Amount(totalUnspent).ToCoin(),
 	}, nil
 }
 
