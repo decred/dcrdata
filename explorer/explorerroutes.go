@@ -386,12 +386,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.KnownSpendingTxns = balance.NumSpent
 
-		// Transactions on current page
-		addrData.NumTransactions = int64(len(addrData.Transactions))
-		if addrData.NumTransactions > addrData.Limit {
-			addrData.NumTransactions = addrData.Limit
-		}
-
 		// Transactions to fetch with FillAddressTransactions. This should be a
 		// noop if ReduceAddressHistory is working right.
 		switch txnType {
@@ -402,6 +396,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData.Transactions = addrData.TxnsSpending
 		default:
 			log.Warnf("Unknown address transaction type: %v", txnType)
+		}
+
+		// Transactions on current page
+		addrData.NumTransactions = int64(len(addrData.Transactions))
+		if addrData.NumTransactions > limitN {
+			addrData.NumTransactions = limitN
 		}
 
 		// Query database for transaction details
