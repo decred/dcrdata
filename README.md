@@ -374,7 +374,7 @@ the future.
 
 * A `sql.DB` wrapper type (`DB`) with the necessary SQLite queries for
   storage and retrieval of block and stake data.
-* The `wiredDB` type, intended to satisfy the `APIDataSource` interface used by
+* The `wiredDB` type, intended to satisfy the `DataSourceLite` interface used by
   the dcrdata app's API. The block header is not stored in the DB, so a RPC
   client is used by `wiredDB` to get it on demand. `wiredDB` also includes
   methods to resync the database file.

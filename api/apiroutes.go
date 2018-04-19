@@ -159,7 +159,7 @@ out:
 			}
 
 			if c.BlockData == nil {
-				panic("BlockData APIDataSource is nil")
+				panic("BlockData DataSourceLite is nil")
 			}
 
 			summary := c.BlockData.GetBestBlockSummary()
