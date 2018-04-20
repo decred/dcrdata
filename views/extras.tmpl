@@ -150,8 +150,17 @@
         return protocol + "://" + loc.host + '/ws'
     }
 
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     var ws; // websocket global
-    function createWebSocket(loc) {
+    async function createWebSocket(loc) {
+        // wait a bit to prevent websocket churn from drive by page loads
+        console.log('Waiting to create websocket');
+        $('#connection').removeClass('hidden');
+        await sleep(3000);
+        console.log('Starting websocket');
         var uri = getSocketURI(loc)
         ws = new MessageSocket(uri);
         console.log("createdWebSocket", uri, ws)
@@ -473,7 +482,7 @@
             <a class="nav-item" href="https://github.com/decred/dcrdata/blob/master/LICENSE" target="_blank">© 2017-2018 The dcrdata developers (ISC)</a>
         </div>
         <div style="float: right;">
-            <span data-turbolinks-permanent class="nav-item hidden" id="connection"
+            <span data-turbolinks-permanent class="nav-item" id="connection"
                 title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
                 >Connecting to WebSocket...<div></div>
             </span>
