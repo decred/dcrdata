@@ -7,6 +7,7 @@ package explorer
 import (
 	"database/sql"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -240,6 +241,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				} else if tx.TicketInfo.VoteLuck == 0 {
 					tx.TicketInfo.LuckStatus = "No Luck"
 				}
+				tx.TicketInfo.Probability = (1 - math.Pow((1-(float64(exp.ChainParams.TicketsPerBlock)/float64(exp.ExtraInfo.PoolInfo.Size))), (float64(exp.ChainParams.TicketExpiry)-float64(tx.Confirmations)-float64(exp.ChainParams.TicketMaturity)))) * 100
 			}
 		}
 	}

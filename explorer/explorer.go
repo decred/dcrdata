@@ -6,6 +6,7 @@ package explorer
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -248,7 +249,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 			}(),
 		},
 		TicketROI: percentage(dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin()/5, blockData.CurrentStakeDiff.CurrentStakeDifficulty),
-		ROIPeriod: fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*float64(exp.ChainParams.TicketPoolSize)/86400),
+		ROIPeriod: fmt.Sprintf("%.2f days", ((math.Log(0.5)/math.Log(1-(float64(exp.ChainParams.TicketsPerBlock)/float64(blockData.PoolInfo.Size))))+float64(exp.ChainParams.TicketMaturity)+float64(exp.ChainParams.CoinbaseMaturity))/(86400/exp.ChainParams.TargetTimePerBlock.Seconds())),
 	}
 
 	if !exp.liteMode {
