@@ -1,14 +1,14 @@
-package main
+package version
 
 import "fmt"
 
-type version struct {
+type Version struct {
 	Major, Minor, Patch int
 	Label               string
 	Nick                string
 }
 
-var ver = version{
+var Ver = Version{
 	Major: 2,
 	Minor: 0,
 	Patch: 0,
@@ -18,9 +18,9 @@ var ver = version{
 // go build -ldflags "-X main.CommitHash=`git rev-parse --short HEAD`"
 var CommitHash string
 
-const appName string = "dcrdata"
+const AppName string = "dcrdata"
 
-func (v *version) String() string {
+func (v *Version) String() string {
 	var hashStr string
 	if CommitHash != "" {
 		hashStr = "+" + CommitHash
