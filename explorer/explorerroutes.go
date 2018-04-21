@@ -135,7 +135,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("Turbolinks-Location", "/block/"+hash)
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
@@ -261,7 +261,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("Turbolinks-Location", "/tx/"+hash)
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
@@ -336,7 +336,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", true)
 				return
 			}
-			addrData.Fullmode = true
+
+			// Set page parameters
+			addrData.Path = r.URL.Path
+			addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+			addrData.TxnType = txnType.String()
 
 			confirmHeights := make([]int64, len(addrData.Transactions))
 			for i, v := range addrData.Transactions {
@@ -374,11 +378,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData = new(AddressInfo)
 			addrData.Address = address
 		}
-
-		// Set page parameters
-		addrData.Path = r.URL.Path
-		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
-		addrData.TxnType = txnType.String()
 		addrData.Fullmode = true
 
 		// Balances and txn counts (partial unless in full mode)
@@ -386,12 +385,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.KnownTransactions = (balance.NumSpent * 2) + balance.NumUnspent
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.KnownSpendingTxns = balance.NumSpent
-
-		// Transactions on current page
-		addrData.NumTransactions = int64(len(addrData.Transactions))
-		if addrData.NumTransactions > addrData.Limit {
-			addrData.NumTransactions = addrData.Limit
-		}
 
 		// Transactions to fetch with FillAddressTransactions. This should be a
 		// noop if ReduceAddressHistory is working right.
@@ -403,6 +396,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData.Transactions = addrData.TxnsSpending
 		default:
 			log.Warnf("Unknown address transaction type: %v", txnType)
+		}
+
+		// Transactions on current page
+		addrData.NumTransactions = int64(len(addrData.Transactions))
+		if addrData.NumTransactions > limitN {
+			addrData.NumTransactions = limitN
 		}
 
 		// Query database for transaction details
@@ -468,6 +467,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			uctxn.TxnsSpending = append(uctxn.TxnsSpending, addrTx)
 		}
 	}
+
+	// Set page parameters
+	addrData.Path = r.URL.Path
+	addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+	addrData.TxnType = txnType.String()
 
 	confirmHeights := make([]int64, len(addrData.Transactions))
 	for i, v := range addrData.Transactions {

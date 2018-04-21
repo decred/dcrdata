@@ -412,8 +412,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	}
 
 	// N is a limit on NumFundingTxns, so this checks if we have them all.
-	if addrInfo.NumFundingTxns < N && offset == 0 &&
-		(txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit) {
+	if addrInfo.NumFundingTxns < N && offset == 0 && txnType == dbtypes.AddrTxnAll {
 		balanceInfo = explorer.AddressBalance{
 			Address:      address,
 			NumSpent:     addrInfo.NumSpendingTxns,
