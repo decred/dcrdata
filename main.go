@@ -35,6 +35,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/version"
 	"github.com/go-chi/chi"
 )
 
@@ -64,7 +65,8 @@ func mainCore() error {
 	}
 
 	// Start with version info
-	log.Infof(appName+" version %s", ver.String())
+	ver := &version.Ver
+	log.Infof(version.AppName+" version %s", ver)
 
 	// PostgreSQL
 	usePG := cfg.FullMode

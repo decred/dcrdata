@@ -19,6 +19,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/version"
 	"github.com/decred/dcrwallet/netparams"
 )
 
@@ -290,7 +291,7 @@ func loadConfig() (*config, error) {
 	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
 	if preCfg.ShowVersion {
 		fmt.Printf("%s version %s (Go version %s)\n", appName,
-			ver.String(), runtime.Version())
+			version.Ver.String(), runtime.Version())
 		os.Exit(0)
 	}
 

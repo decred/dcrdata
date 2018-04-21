@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrdata/explorer"
 	m "github.com/decred/dcrdata/middleware"
 	notify "github.com/decred/dcrdata/notification"
+	appver "github.com/decred/dcrdata/version"
 )
 
 // DataSourceLite specifies an interface for collecting data from the built-in
@@ -117,7 +118,7 @@ func NewContext(client *rpcclient.Client, dataSource DataSourceLite, auxDataSour
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
 			APIVersion:      APIVersion,
-			DcrdataVersion:  ver.String(),
+			DcrdataVersion:  appver.Ver.String(),
 		},
 		JSONIndent: JSONIndent,
 	}
@@ -171,6 +172,7 @@ out:
 
 			c.statusMtx.Lock()
 			c.Status.DBHeight = height
+			c.Status.DBLastBlockTime = summary.Time
 
 			bdHeight := c.BlockData.GetHeight()
 			if bdHeight >= 0 && summary.Height == uint32(bdHeight) &&
