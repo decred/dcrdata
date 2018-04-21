@@ -171,6 +171,18 @@ type AddressTxShort struct {
 	Confirmations int64   `json:"confirmations"`
 }
 
+// AddressTotals represents the number and value of spent and unspent outputs
+// for an address.
+type AddressTotals struct {
+	Address      string  `json:"address"`
+	BlockHash    string  `json:"blockhash"`
+	BlockHeight  uint64  `json:"blockheight"`
+	NumSpent     int64   `json:"num_stxos"`
+	NumUnspent   int64   `json:"num_utxos"`
+	CoinsSpent   float64 `json:"dcr_spent"`
+	CoinsUnspent float64 `json:"dcr_unspent"`
+}
+
 // BlockDataWithTxType adds an array of TxRawWithTxType to
 // dcrjson.GetBlockVerboseResult to include the stake transaction type
 type BlockDataWithTxType struct {

@@ -31,7 +31,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
-// wiredDB is intended to satisfy APIDataSource interface. The block header is
+// wiredDB is intended to satisfy DataSourceLite interface. The block header is
 // not stored in the DB, so the RPC client is used to get it on demand.
 type wiredDB struct {
 	*DBDataSaver
