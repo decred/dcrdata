@@ -175,6 +175,8 @@ type AddressTxShort struct {
 // for an address.
 type AddressTotals struct {
 	Address      string  `json:"address"`
+	BlockHash    string  `json:"blockhash"`
+	BlockHeight  uint64  `json:"blockheight"`
 	NumSpent     int64   `json:"num_stxos"`
 	NumUnspent   int64   `json:"num_utxos"`
 	CoinsSpent   float64 `json:"dcr_spent"`

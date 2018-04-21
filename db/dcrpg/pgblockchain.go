@@ -657,8 +657,15 @@ func (pgb *ChainDB) AddressTotals(address string) (*apitypes.AddressTotals, erro
 		return nil, err
 	}
 
+	bestHeight, bestHash, _, err := RetrieveBestBlockHeight(pgb.db)
+	if err != nil {
+		return nil, err
+	}
+
 	return &apitypes.AddressTotals{
 		Address:      address,
+		BlockHeight:  bestHeight,
+		BlockHash:    bestHash,
 		NumSpent:     ab.NumSpent,
 		NumUnspent:   ab.NumUnspent,
 		CoinsSpent:   dcrutil.Amount(ab.TotalSpent).ToCoin(),
