@@ -240,6 +240,7 @@ type VinPrevOut struct {
 type Status struct {
 	Ready           bool   `json:"ready"`
 	DBHeight        uint32 `json:"db_height"`
+	DBLastBlockTime int64  `json:"db_block_time"`
 	Height          uint32 `json:"node_height"`
 	NodeConnections int64  `json:"node_connections"`
 	APIVersion      int    `json:"api_version"`
