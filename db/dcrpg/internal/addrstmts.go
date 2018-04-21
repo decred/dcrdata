@@ -42,24 +42,20 @@ const (
 
 	SelectAddressAllByAddress = `SELECT * FROM addresses WHERE address=$1 order by block_time desc;`
 	SelectAddressRecvCount    = `SELECT COUNT(*) FROM addresses WHERE address=$1;`
-	SelectAddressesAllTxn     = `WITH these as (SELECT funding_tx_hash as tx_hash, ftxd.time as tx_time, ftxd.block_height as height
-		from addresses left join transactions as ftxd on funding_tx_row_id=ftxd.id
-		where address = ANY($1)
-		UNION
-		SELECT DISTINCT spending_tx_hash as tx_hash, stxd.time as tx_time, stxd.block_height as height from addresses  
-		left join transactions as stxd on spending_tx_hash=stxd.tx_hash  
-		where address = ANY($1) and spending_tx_hash IS NOT NULL) select tx_hash, height from these order by tx_time desc;`
+	SelectAddressesAllTxn = `SELECT tx_hash, block_time as tx_time, ftxd.block_height as height 
+		from addresses left join transactions as ftxd on funding_tx_row_id=ftxd.id 
+		where address = $1 order by tx_time desc;`
 
-	SelectAddressesTxnByFundingTx = `SELECT funding_tx_vout_index, spending_tx_hash, spending_tx_vin_index, 
+	SelectAddressesTxnByFundingTx = `SELECT tx_vin_vout_index, tx_hash, tx_vin_vout_index, 
 		block_height FROM addresses LEFT JOIN 
-		transactions on transactions.tx_hash=spending_tx_hash WHERE 
-		address = ANY ($1) and funding_tx_hash=$2;`
+		transactions on transactions.tx_hash=tx_hash and is_funding = FALSE WHERE 
+		address = $1 and tx_hash=$2;`
 
 	SelectAddressUnspentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses 
-	    WHERE address=$1, is_funding = FALSE and in_out_row_id = 0;`
+	    WHERE address = $1 and is_funding = TRUE and in_out_row_id < 1;`
 
 	SelectAddressSpentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses 
-	    WHERE address=$1, is_funding = FALSE and in_out_row_id > 0;`
+	    WHERE address = $1 and is_funding = FALSE and in_out_row_id > 0;`
 
 	SelectAddressUnspentWithTxn = `SELECT
 									addresses.address,
@@ -79,25 +75,24 @@ const (
 									AND 
 									addresses.is_funding = FALSE order by addresses.block_time desc`
 
-	SelectAddressLimitNByAddress = `SELECT * FROM addresses WHERE address=$1 order 
-        by block_time desc limit $2 offset $3;`
+	columnNames = `id, address, in_out_row_id, tx_hash, tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
 
-	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT * FROM addresses WHERE address=$1)
+	SelectAddressLimitNByAddress = `SELECT ` + columnNames + ` FROM addresses
+	    WHERE address=$1 order by block_time desc limit $2 offset $3;`
+
+	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT ` + columnNames +
+		` FROM addresses WHERE address=$1)
         SELECT * FROM these order by block_time desc limit $2 offset $3;`
 
 	SelectAddressByTxHash = `select id, address, value from addresses 
 	   where tx_hash=$1 and is_funding = true`
 
-	SelectAddressDebitsLimitNByAddress = `SELECT id, address, in_out_row_id, tx_hash, 
-		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value
-		FROM addresses
-		WHERE address=$1 and is_funding = FALSE
+	SelectAddressDebitsLimitNByAddress = `SELECT ` + columnNames + `
+		FROM addresses WHERE address=$1 and is_funding = FALSE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressCreditsLimitNByAddress = `SELECT id, in_out_row_id, tx_hash, tx_vin_vout_index,
-		block_time, tx_vin_vout_row_id, value
-		FROM addresses
-		WHERE address=$1 and is_funding = TRUE
+	SelectAddressCreditsLimitNByAddress = `SELECT ` + columnNames + `
+		FROM addresses WHERE address=$1 and is_funding = TRUE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses WHERE tx_hash=$1, 

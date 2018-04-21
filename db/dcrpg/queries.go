@@ -791,6 +791,11 @@ func RetrieveAddressDebitTxns(db *sql.DB, address string, N, offset int64) ([]ui
 		internal.SelectAddressDebitsLimitNByAddress)
 }
 
+func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+	return retrieveAddressTxns(db, address, N, offset,
+		internal.SelectAddressCreditsLimitNByAddress)
+}
+
 func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
 	statement string) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.Query(statement, address, N, offset)
@@ -810,10 +815,10 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 	for rows.Next() {
 		var id uint64
 		var addr dbtypes.AddressRow
-		var spendingTxHash sql.NullString
-		var blockTime, spendingTxVinIndex, vinDbID sql.NullInt64
-		err = rows.Scan(&id, &addr.Address, &addr.InOutRowID, &spendingTxHash,
-			&spendingTxVinIndex, &blockTime, &vinDbID, &addr.Value)
+		var txHash sql.NullString
+		var blockTime, txVinIndex, vinDbID sql.NullInt64
+		err = rows.Scan(&id, &addr.Address, &addr.InOutRowID, &txHash,
+			&txVinIndex, &blockTime, &vinDbID, &addr.Value, &addr.IsFunding)
 		if err != nil {
 			return
 		}
@@ -821,11 +826,11 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 		if blockTime.Valid {
 			addr.TxBlockTime = uint64(blockTime.Int64)
 		}
-		if spendingTxHash.Valid {
-			addr.TxHash = spendingTxHash.String
+		if txHash.Valid {
+			addr.TxHash = txHash.String
 		}
-		if spendingTxVinIndex.Valid {
-			addr.TxVinVoutIndex = uint32(spendingTxVinIndex.Int64)
+		if txVinIndex.Valid {
+			addr.TxVinVoutIndex = uint32(txVinIndex.Int64)
 		}
 		if vinDbID.Valid {
 			addr.VinVoutDbID = uint64(vinDbID.Int64)

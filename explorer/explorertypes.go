@@ -53,6 +53,9 @@ type AddressTx struct {
 	FormattedTime string
 	ReceivedTotal float64
 	SentTotal     float64
+	IsFunding     bool
+	MatchedTx     uint64
+	BlockTime     uint64
 }
 
 // IOID formats an identification string for the transaction input (or output)
@@ -60,7 +63,7 @@ type AddressTx struct {
 func (a *AddressTx) IOID() string {
 	// When AddressTx is used properly, at least one of ReceivedTotal or
 	// SentTotal should be zero.
-	if a.ReceivedTotal > a.SentTotal {
+	if a.IsFunding {
 		// an outpoint receiving funds
 		return fmt.Sprintf("%s:out[%d]", a.TxID, a.InOutID)
 	}
@@ -330,9 +333,12 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 			// Funding transaction
 			received += int64(addrOut.Value)
 			fundingTx := AddressTx{
-				TxID:          addrOut.TxHash,
+				BlockTime:     addrOut.TxBlockTime,
 				InOutID:       addrOut.TxVinVoutIndex,
+				IsFunding:     true,
+				MatchedTx:     addrOut.InOutRowID,
 				ReceivedTotal: coin,
+				TxID:          addrOut.TxHash,
 			}
 			transactions = append(transactions, &fundingTx)
 			creditTxns = append(creditTxns, &fundingTx)
@@ -341,9 +347,12 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 			// Spending transaction
 			sent += int64(addrOut.Value)
 			spendingTx := AddressTx{
-				TxID:      addrOut.TxHash,
+				BlockTime: addrOut.TxBlockTime,
 				InOutID:   addrOut.TxVinVoutIndex,
+				IsFunding: false,
+				MatchedTx: addrOut.InOutRowID,
 				SentTotal: coin,
+				TxID:      addrOut.TxHash,
 			}
 			transactions = append(transactions, &spendingTx)
 			debitTxns = append(debitTxns, &spendingTx)

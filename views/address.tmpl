@@ -134,6 +134,7 @@
                         <th>Input/Output ID</th>
                         <th class="text-right">Credit DCR</th>
                         <th>Debit DCR</th>
+                        <th>Matched Tx</th>
                         <th>Time</th>
                         <th>Age</th>
                         <th>Confirms</th>
@@ -159,6 +160,15 @@
                                 {{else}}
                                     <td>N/A</td>
                                 {{end}}
+                            {{else}}
+                                <td></td>
+                            {{end}}
+                            {{if gt .MatchedTx 0}}
+                                {{if .IsFunding}}
+                                    <td><a href="/tx/{{.MatchedTx}}" class="hash">Funded By</a></td>
+                                {{else}}
+                                    <td><a href="/tx/{{.MatchedTx}}" class="hash">Creditor</a></td>
+                                 {{end}}
                             {{else}}
                                 <td></td>
                             {{end}}
