@@ -134,7 +134,6 @@
                         <th>Input/Output ID</th>
                         <th class="text-right">Credit DCR</th>
                         <th>Debit DCR</th>
-                        <th>Matched Tx</th>
                         <th>Time</th>
                         <th>Age</th>
                         <th>Confirms</th>
@@ -151,7 +150,11 @@
                                 {{if eq .SentTotal 0.0}}
                                 <td class="text-right">sstxcommitment</td>
                                 {{else}}
-                                <td></td>
+                                    {{if gt .MatchedTx 0}}
+                                      <td class="text-right"><a href="/tx/addressid/{{.MatchedTx}}" class="hash">source</a></td>
+                                    {{else}}
+                                      <td>N/A</td>
+                                    {{end}}
                                 {{end}}
                             {{end}}
                             {{if ne .SentTotal 0.0}}
@@ -161,16 +164,11 @@
                                     <td>N/A</td>
                                 {{end}}
                             {{else}}
-                                <td></td>
-                            {{end}}
-                            {{if gt .MatchedTx 0}}
-                                {{if .IsFunding}}
-                                    <td><a href="/tx/AddrId/{{.MatchedTx}}" class="hash">Funded By</a></td>
+                                {{if gt .MatchedTx 0}}
+                                    <td><a href="/tx/addressid/{{.MatchedTx}}" class="hash">spent</a></td>
                                 {{else}}
-                                    <td><a href="/tx/AddrId/{{.MatchedTx}}" class="hash">Creditor</a></td>
-                                 {{end}}
-                            {{else}}
-                                <td></td>
+                                    <td>unspent</td>
+                                {{end}}
                             {{end}}
                             <td>
                                 {{if eq .Time 0}}
