@@ -165,9 +165,9 @@
                             {{end}}
                             {{if gt .MatchedTx 0}}
                                 {{if .IsFunding}}
-                                    <td><a href="/tx/{{.MatchedTx}}" class="hash">Funded By</a></td>
+                                    <td><a href="/tx/AddrId/{{.MatchedTx}}" class="hash">Funded By</a></td>
                                 {{else}}
-                                    <td><a href="/tx/{{.MatchedTx}}" class="hash">Creditor</a></td>
+                                    <td><a href="/tx/AddrId/{{.MatchedTx}}" class="hash">Creditor</a></td>
                                  {{end}}
                             {{else}}
                                 <td></td>

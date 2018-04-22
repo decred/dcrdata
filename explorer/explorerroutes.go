@@ -194,6 +194,33 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// TxByAddressRowID is the handler for "/tx/id/{row_id}
+func (exp *explorerUI) TxByAddressRowID(w http.ResponseWriter, r *http.Request) {
+	// attempt to get address row id from URL path
+	strID, ok := r.Context().Value(ctxAddressID).(string)
+	if !ok {
+		log.Trace("Address row id is not set")
+		exp.ErrorPage(w, "Something went wrong...", "there was no address row ID requested", true)
+		return
+	}
+
+	id, err := strconv.Atoi(strID)
+	if err != nil {
+		log.Trace("Address row id found is not an integer")
+		exp.ErrorPage(w, "Something went wrong...", "invalid address row ID requested", true)
+		return
+	}
+
+	hash, err := exp.explorerSource.FetchTxByAddressRowID(uint64(id))
+	if err != nil {
+		log.Errorf("Unable to get transaction hash associated with %v addresses row id : %v", id, err)
+		exp.ErrorPage(w, "Something went wrong...", "could not find that transaction", true)
+		return
+	}
+
+	exp.txPage(w, hash)
+}
+
 // TxPage is the page handler for the "/tx" path
 func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// attempt to get tx hash string from URL path
@@ -203,6 +230,11 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		exp.ErrorPage(w, "Something went wrong...", "there was no transaction requested", true)
 		return
 	}
+
+	exp.txPage(w, hash)
+}
+
+func (exp *explorerUI) txPage(w http.ResponseWriter, hash string) {
 	tx := exp.blockData.GetExplorerTx(hash)
 	if tx == nil {
 		log.Errorf("Unable to get transaction %s", hash)

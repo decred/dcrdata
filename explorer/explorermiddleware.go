@@ -19,6 +19,7 @@ const (
 	ctxBlockHash
 	ctxTxHash
 	ctxAddress
+	ctxAddressID
 )
 
 func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
@@ -74,6 +75,15 @@ func getTxIDCtx(r *http.Request) string {
 		return ""
 	}
 	return hash
+}
+
+// AddressRowIDCtx embeds "id" into the request context
+func AddressRowIDCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		ctx := context.WithValue(r.Context(), ctxAddressID, id)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // TransactionHashCtx embeds "txid" into the request context

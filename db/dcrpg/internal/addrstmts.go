@@ -87,6 +87,8 @@ const (
 	SelectAddressByTxHash = `select id, address, value from addresses 
 	   where tx_hash=$1 and is_funding = true`
 
+	SelectAddressByRowID = `select tx_hash FROM addresses WHERE id = $1;`
+
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + columnNames + `
 		FROM addresses WHERE address=$1 and is_funding = FALSE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`

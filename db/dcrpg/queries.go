@@ -1465,6 +1465,12 @@ func RecieveAddressByTxHash(db *sql.DB, tx_hash string) (*dbtypes.AddressRow, er
 	return &data, err
 }
 
+// RecieveTxHashByRowID fetches the tx_hash associated with a given row id
+func RecieveTxHashByRowID(db *sql.DB, id uint64) (data string, err error) {
+	err = db.QueryRow(internal.SelectAddressByRowID, id).Scan(&data)
+	return
+}
+
 // InsertAddressRow can insert an inpoint and outpoint for the respective transaction.
 func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint64, error) {
 	sqlStmt := internal.InsertAddressRow
