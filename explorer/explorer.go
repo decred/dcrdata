@@ -271,13 +271,13 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		// ticket maturity (time from ticket purchase until its eligible to vote)
 		// and coinbase maturity (time after vote until funds distributed to
 		// ticket holder are avaliable to use)
-		ROIPeriod:  func() string {
+		ROIPeriod: func() string {
 			PosAvgTotalBlocks := float64(
-				exp.ChainParams.TicketPoolSize+
-				exp.ChainParams.TicketMaturity+
-				exp.ChainParams.CoinbaseMaturity)
-			return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)	
-		}(),	
+				exp.ChainParams.TicketPoolSize +
+					exp.ChainParams.TicketMaturity +
+					exp.ChainParams.CoinbaseMaturity)
+			return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
+		}(),
 	}
 
 	if !exp.liteMode {
