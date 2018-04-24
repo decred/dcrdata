@@ -404,6 +404,11 @@ func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtyp
 	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
 }
 
+// FetchTxByAddressRowID the tx_hash of a given address by its row id
+func (pgb *ChainDB) FetchTxByAddressRowID(id uint64) (string, error) {
+	return RetrieveTxHashByAddressesRowID(pgb.db, id)
+}
+
 // retrieveDevBalance retrieves a new DevFundBalance without regard to the cache
 func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
 	bb, hash, _, err := RetrieveBestBlockHeight(pgb.db)
@@ -1440,8 +1445,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 	}
 
-	// Store tx Db block time as block time in AddressRows and rearrange
-	// Also set is_funding to true since this are funding tx inputs
+	// Store tx block time in AddressRows, and set IsFunding
+	// to true since since this are funding tx inputs.
 	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)
 	for it, tx := range dbTransactions {
 		// Set the tx BlockTime and IsFunding of the funding transactions

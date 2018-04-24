@@ -85,7 +85,7 @@ const (
         SELECT * FROM these order by block_time desc limit $2 offset $3;`
 
 	SelectAddressByTxHash = `select id, address, value from addresses 
-	   where tx_hash=$1 and is_funding = true`
+	   where tx_hash=$1 and is_funding = true ORDER BY block_time ASC LIMIT 1;`
 
 	SelectAddressByRowID = `select tx_hash FROM addresses WHERE id = $1;`
 

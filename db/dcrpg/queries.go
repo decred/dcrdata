@@ -466,6 +466,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 }
 
 // SetSpendingForFundingOP inserts a new spending tx row
+// and updates any corresponding funding tx row
 func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	spendingTxHash string, spendingTxVinIndex uint32,
 	spendingTXBlockTime uint64, vinDbID uint64, dupChecks bool) (int64, error) {
@@ -1465,13 +1466,13 @@ func RecieveAddressByTxHash(db *sql.DB, tx_hash string) (*dbtypes.AddressRow, er
 	return &data, err
 }
 
-// RecieveTxHashByRowID fetches the tx_hash associated with a given row id
-func RecieveTxHashByRowID(db *sql.DB, id uint64) (data string, err error) {
+// RetrieveTxHashByAddressesRowID fetches the tx_hash associated with a given row id
+func RetrieveTxHashByAddressesRowID(db *sql.DB, id uint64) (data string, err error) {
 	err = db.QueryRow(internal.SelectAddressByRowID, id).Scan(&data)
 	return
 }
 
-// InsertAddressRow can insert an inpoint and outpoint for the respective transaction.
+// InsertAddressRow can insert an input and output for the respective transaction.
 func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint64, error) {
 	sqlStmt := internal.InsertAddressRow
 	if dupCheck {
@@ -1484,7 +1485,8 @@ func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint6
 	return id, err
 }
 
-// InsertAddressRows can insert for both inpoints and outpoints from the respective transactions
+// InsertAddressRows inserts multiple transaction inputs or outputs for certain
+// addresses ([]AddressRow). The row IDs of the inserted data are returned.
 func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([]uint64, error) {
 	// Create the address table if it does not exist
 	tableName := "addresses"

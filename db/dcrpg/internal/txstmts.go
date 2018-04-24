@@ -61,7 +61,7 @@ const (
 	SelectTxByHash       = `SELECT id, block_hash, block_index, tree FROM transactions WHERE tx_hash = $1;`
 	SelectTxsByBlockHash = `SELECT id, tx_hash, block_index, tree FROM transactions WHERE block_hash = $1;`
 
-	SelectTxBlockTimeByHash = `SELECT block_time FROM transactions where tx_hash = $1`
+	SelectTxBlockTimeByHash = `SELECT block_time FROM transactions where tx_hash = $1 ORDER BY block_time DESC LIMIT 1;`
 
 	SelectTxIDHeightByHash = `SELECT id, block_height FROM transactions WHERE tx_hash = $1;`
 

@@ -248,7 +248,9 @@ type Vout struct {
 // AddressRow represents a row in the addresses table
 type AddressRow struct {
 	// id int64
-	Address        string
+	Address string
+	// InOutRowID is the row ID that provides the relationship
+	// between spending tx inputs and funding tx outputs
 	InOutRowID     uint64
 	IsFunding      bool
 	TxBlockTime    uint64
