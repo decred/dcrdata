@@ -237,5 +237,17 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return
 		},
+		"covertByteArrayToString": func(arr []byte) (inString string) {
+			for _, i := range arr {
+				a := int(i)
+				inString += strconv.Itoa(a)
+				inString += " "
+			}
+			return
+		},
+		"uint16Mul": func(a uint16, b int) (result int) {
+			result = int(a) * b
+			return
+		},
 	}
 }

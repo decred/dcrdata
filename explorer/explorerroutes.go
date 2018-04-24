@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/decred/dcrdata/db/dbtypes"
-
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes"
@@ -599,37 +597,20 @@ func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 	exp.ErrorPage(w, "Not found", "Cannot find page: "+r.URL.Path, true)
 }
 
-// ChainParametersPage is the page handler for the "/ChainParameters" path
-func (exp *explorerUI) ChainParametersPage(w http.ResponseWriter, r *http.Request) {
-	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(exp.ChainParams)
-	if err != nil {
-		log.Errorf("DevSubsidyAddress faild for ChainPrams %v", exp.ChainParams)
-	}
-	cp := ChainParams{
-		Net:                   exp.ChainParams.Net,
-		MaxTxSize:             int64(exp.ChainParams.MaxTxSize),
-		TargetTimespan:        exp.ChainParams.TargetTimespan,
-		TargetTimePerBlock:    exp.ChainParams.TargetTimePerBlock,
-		MaximumBlockSize:      int64(exp.ChainParams.MaximumBlockSizes[0]),
-		CoinbaseMaturity:      int64(exp.ChainParams.CoinbaseMaturity),
-		SStxChangeMaturity:    int64(exp.ChainParams.SStxChangeMaturity),
-		TicketMaturity:        int64(exp.ChainParams.TicketMaturity),
-		TicketPoolSize:        int64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock),
-		TicketsPerBlock:       int64(exp.ChainParams.TicketsPerBlock),
-		TicketExpiry:          int64(exp.ChainParams.TicketExpiry),
-		StakeRewardProportion: int64(exp.ChainParams.StakeRewardProportion),
-		HDCoinType:            int64(exp.ChainParams.HDCoinType),
-		OrganizationPkScript:  exp.ChainParams.OrganizationPkScript,
-		DecodedAddress:        devSubsidyAddress,
-		GenesisBlockHeight:    int64(exp.ChainParams.GenesisBlock.Header.Height),
-		BlockOneHeight:        1,
+// ParametersPage is the page handler for the "/ChainParameters" path
+func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
+	cp := exp.ChainParams
+	addrPrefix := AddressPrefixes(cp)
+	ecp := ExtendedChainParams{
+		Params:        cp,
+		AddressPrefix: addrPrefix,
 	}
 
-	str, err := exp.templates.execTemplateToString("chainParameters", struct {
-		Cp      ChainParams
+	str, err := exp.templates.execTemplateToString("parameters", struct {
+		Cp      ExtendedChainParams
 		Version string
 	}{
-		cp,
+		ecp,
 		exp.Version,
 	})
 

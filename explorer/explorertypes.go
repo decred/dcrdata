@@ -7,9 +7,8 @@ package explorer
 import (
 	"fmt"
 	"sync"
-	"time"
 
-	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrd/chaincfg"
 
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -298,27 +297,10 @@ type MempoolShort struct {
 // ChainParams models simple data about the chain server's parameters used for some
 // info on the front page
 type ChainParams struct {
-	WindowSize            int64 `json:"window_size"`
-	RewardWindowSize      int64 `json:"reward_window_size"`
-	TargetPoolSize        int64 `json:"target_pool_size"`
-	BlockTime             int64 `json:"target_block_time"`
-	Net                   wire.CurrencyNet
-	MaxTxSize             int64
-	TargetTimespan        time.Duration
-	TargetTimePerBlock    time.Duration
-	MaximumBlockSize      int64
-	CoinbaseMaturity      int64
-	SStxChangeMaturity    int64
-	TicketMaturity        int64
-	TicketPoolSize        int64
-	TicketsPerBlock       int64
-	TicketExpiry          int64
-	StakeRewardProportion int64
-	HDCoinType            int64
-	OrganizationPkScript  []byte
-	DecodedAddress        string
-	GenesisBlockHeight    int64
-	BlockOneHeight        int64
+	WindowSize       int64 `json:"window_size"`
+	RewardWindowSize int64 `json:"reward_window_size"`
+	TargetPoolSize   int64 `json:"target_pool_size"`
+	BlockTime        int64 `json:"target_block_time"`
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
@@ -405,4 +387,75 @@ type MempoolTx struct {
 type NewMempoolTx struct {
 	Time int64
 	Hex  string
+}
+
+// ExtendedChainParams represents the data of ChainParams
+type ExtendedChainParams struct {
+	Params        *chaincfg.Params
+	AddressPrefix []AddrPrefix
+}
+
+// AddrPrefix represent the address name it's prefix and description
+type AddrPrefix struct {
+	Name        string
+	Prefix      string
+	Description string
+}
+
+// AddressPrefixes generates an array AddrPrefix by using chaincfg.Params
+func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
+	var Descriptions = []string{"First 2 letters of a P2PK address",
+		"First 2 letters of a P2PKH address",
+		"First 2 letters of an Edwards P2PKH address",
+		"First 2 letters of a secp256k1 Schnorr P2PKH address",
+		"First 2 letters of a P2SH address",
+		"First 2 letters of a WIF private key",
+		"BIP32 hierarchical deterministic extended key magics",
+		"BIP32 hierarchical deterministic extended key magics",
+	}
+
+	addrPrefix := make([]AddrPrefix, 0, len(Descriptions))
+
+	var Name = []string{"PubKeyAddrID",
+		"PubKeyHashAddrID",
+		"PKHEdwardsAddrID",
+		"PKHSchnorrAddrID",
+		"ScriptHashAddrID",
+		"PrivateKeyID",
+		"HDPrivateKeyID",
+		"HDPublicKeyID",
+	}
+	var MainnetPrefixes = []string{"Dk", "Ds", "De", "DS", "Dc", "Pm", "dprv", "dpub"}
+	var Testnet2Prefixes = []string{"Tk", "Ts", "Te", "TS", "Tc", "Pt", "tprv", "tpub"}
+	var SimnetPrefixes = []string{"Sk", "Ss", "Se", "SS", "Sc", "Ps", "sprv", "spub"}
+	name := params.Name
+	if name == "mainnet" {
+		for i, desc := range Descriptions {
+			addrPrefix = append(addrPrefix, AddrPrefix{
+				Name:        Name[i],
+				Description: desc,
+				Prefix:      MainnetPrefixes[i],
+			})
+		}
+		return addrPrefix
+	} else if name == "testnet2" {
+		for i, desc := range Descriptions {
+			addrPrefix = append(addrPrefix, AddrPrefix{
+				Name:        Name[i],
+				Description: desc,
+				Prefix:      Testnet2Prefixes[i],
+			})
+		}
+		return addrPrefix
+	} else if name == "simnet" {
+		for i, desc := range Descriptions {
+			addrPrefix = append(addrPrefix, AddrPrefix{
+				Name:        Name[i],
+				Description: desc,
+				Prefix:      SimnetPrefixes[i],
+			})
+		}
+		return addrPrefix
+	}
+	return addrPrefix
 }
