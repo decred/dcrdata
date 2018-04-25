@@ -6,6 +6,7 @@ package explorer
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -391,8 +392,9 @@ type NewMempoolTx struct {
 
 // ExtendedChainParams represents the data of ChainParams
 type ExtendedChainParams struct {
-	Params        *chaincfg.Params
-	AddressPrefix []AddrPrefix
+	Params               *chaincfg.Params
+	ActualTicketPoolSize int64
+	AddressPrefix        []AddrPrefix
 }
 
 // AddrPrefix represent the address name it's prefix and description
@@ -404,19 +406,16 @@ type AddrPrefix struct {
 
 // AddressPrefixes generates an array AddrPrefix by using chaincfg.Params
 func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
-	var Descriptions = []string{"First 2 letters of a P2PK address",
-		"First 2 letters of a P2PKH address",
-		"First 2 letters of an Edwards P2PKH address",
-		"First 2 letters of a secp256k1 Schnorr P2PKH address",
-		"First 2 letters of a P2SH address",
-		"First 2 letters of a WIF private key",
-		"BIP32 hierarchical deterministic extended key magics",
-		"BIP32 hierarchical deterministic extended key magics",
+	Descriptions := []string{"P2PK address",
+		"P2PKH address prefix",
+		"P2PKH address prefix",
+		"secp256k1 Schnorr P2PKH address prefix",
+		"P2SH address prefix",
+		"WIF private key prefix",
+		"HD extended private key prefix",
+		"HD extended public key prefix",
 	}
-
-	addrPrefix := make([]AddrPrefix, 0, len(Descriptions))
-
-	var Name = []string{"PubKeyAddrID",
+	Name := []string{"PubKeyAddrID",
 		"PubKeyHashAddrID",
 		"PKHEdwardsAddrID",
 		"PKHSchnorrAddrID",
@@ -426,36 +425,27 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 		"HDPublicKeyID",
 	}
 	var MainnetPrefixes = []string{"Dk", "Ds", "De", "DS", "Dc", "Pm", "dprv", "dpub"}
-	var Testnet2Prefixes = []string{"Tk", "Ts", "Te", "TS", "Tc", "Pt", "tprv", "tpub"}
+	var TestnetPrefixes = []string{"Tk", "Ts", "Te", "TS", "Tc", "Pt", "tprv", "tpub"}
 	var SimnetPrefixes = []string{"Sk", "Ss", "Se", "SS", "Sc", "Ps", "sprv", "spub"}
 	name := params.Name
+	var netPrefixes []string
 	if name == "mainnet" {
-		for i, desc := range Descriptions {
-			addrPrefix = append(addrPrefix, AddrPrefix{
-				Name:        Name[i],
-				Description: desc,
-				Prefix:      MainnetPrefixes[i],
-			})
-		}
-		return addrPrefix
-	} else if name == "testnet2" {
-		for i, desc := range Descriptions {
-			addrPrefix = append(addrPrefix, AddrPrefix{
-				Name:        Name[i],
-				Description: desc,
-				Prefix:      Testnet2Prefixes[i],
-			})
-		}
-		return addrPrefix
+		netPrefixes = MainnetPrefixes
+	} else if strings.HasPrefix(name, "testnet") {
+		netPrefixes = TestnetPrefixes
 	} else if name == "simnet" {
-		for i, desc := range Descriptions {
-			addrPrefix = append(addrPrefix, AddrPrefix{
-				Name:        Name[i],
-				Description: desc,
-				Prefix:      SimnetPrefixes[i],
-			})
-		}
-		return addrPrefix
+		netPrefixes = SimnetPrefixes
+	} else {
+		return nil
+	}
+
+	addrPrefix := make([]AddrPrefix, 0, len(Descriptions))
+	for i, desc := range Descriptions {
+		addrPrefix = append(addrPrefix, AddrPrefix{
+			Name:        Name[i],
+			Description: desc,
+			Prefix:      netPrefixes[i],
+		})
 	}
 	return addrPrefix
 }

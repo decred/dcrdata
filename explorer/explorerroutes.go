@@ -601,9 +601,11 @@ func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	cp := exp.ChainParams
 	addrPrefix := AddressPrefixes(cp)
+	actualTicketPoolSize := int64(cp.TicketPoolSize * cp.TicketsPerBlock)
 	ecp := ExtendedChainParams{
-		Params:        cp,
-		AddressPrefix: addrPrefix,
+		Params:               cp,
+		AddressPrefix:        addrPrefix,
+		ActualTicketPoolSize: actualTicketPoolSize,
 	}
 
 	str, err := exp.templates.execTemplateToString("parameters", struct {

@@ -30,6 +30,11 @@
                                 <td>First block of the chain</td>
                             </tr>
                             <tr>
+                                <td class="mono text-right pr-2 nowrap p03rem0"><a href="/block/1">PremineBlock</a></td>
+                                <td class="mono">1</td>
+                                <td>Premine Block of the chain</td>
+                            </tr>
+                            <tr>
                                 <td class="mono text-right pr-2 nowrap p03rem0">PowLimitBits</td>
                                 <td class="mono">{{.Params.PowLimitBits}} bits</td>
                                 <td>Highest allowed proof of work value for a block in compact form</td>
@@ -96,7 +101,7 @@
                         <tbody>
                             <tr>
                                 <td class="mono text-right pr-2 nowrap p03rem0">BaseSubsidy</td>
-                                <td class="mono">{{.Params.BaseSubsidy}} DCR</td>
+                                <td class="mono">{{template "decimalParts" (amountAsDecimalParts .Params.BaseSubsidy true)}} DCR</td>
                                 <td>Starting subsidy amount for mined blocks</td>
                             </tr>
                             <tr>
@@ -146,7 +151,7 @@
                             </tr>
                             <tr>
                                 <td class="mono text-right pr-2 nowrap p03rem0">TicketPoolSize</td>
-                                <td class="mono">{{.Params.TicketPoolSize}} actual</td>
+                                <td class="mono">{{.Params.TicketPoolSize}} ({{.ActualTicketPoolSize}} actual)</td>
                                 <td>Target size of ticket pool</td>
                             </tr>
                             <tr>
@@ -205,13 +210,13 @@
                                 <td>Maximum number of new tickets that may be submitted per block</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeEnabledHeight</td>
-                                <td class="mono"><a href="/block/{{.Params.StakeEnabledHeight}}">{{.Params.StakeEnabledHeight}}</a></td>
+                                <td class="mono text-right pr-2 nowrap p03rem0"><a href="/block/{{.Params.StakeEnabledHeight}}">StakeEnabledHeight</a></td>
+                                <td class="mono">{{.Params.StakeEnabledHeight}}</td>
                                 <td>Height in which the first ticket could possibly mature</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeValidationHeight</td>
-                                <td class="mono"><a href="/block/{{.Params.StakeValidationHeight}}">{{.Params.StakeValidationHeight}}</a></td>
+                                <td class="mono text-right pr-2 nowrap p03rem0"><a href="/block/{{.Params.StakeValidationHeight}}">StakeValidationHeight</a></td>
+                                <td class="mono">{{.Params.StakeValidationHeight}}</a></td>
                                 <td>Height at which votes (SSGen) are required to add a new block to the top of the blockchain</td>
                             </tr>
                             <tr>
@@ -274,11 +279,6 @@
                                 <td class="mono">{{.Params.BlockUpgradeNumToCheck}} blocks</td>
                                 <td>The number of nodes to check</td>
                             </tr>
-                            <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">NetworkAddressPrefix</td>
-                                <td class="mono">{{.Params.NetworkAddressPrefix}}</td>
-                                <td>First letter of the network for any given address encoded as a string</td>
-                            </tr>
                         </tbody>
                     </table>
                     <h4><span>Address parameters</span></h4>
@@ -289,6 +289,11 @@
                             <th width="60%">Description</th>
                         </thead>
                         <tbody>
+                            <tr>
+                                <td class="mono text-right pr-2 nowrap p03rem0">NetworkAddressPrefix</td>
+                                <td class="mono">{{.Params.NetworkAddressPrefix}}</td>
+                                <td>First letter of the network for any given address encoded as a string</td>
+                            </tr>
                             {{range $i, $v := .AddressPrefix}}
                             {{with $v}}
                             <tr>
