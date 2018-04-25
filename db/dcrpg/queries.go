@@ -470,29 +470,28 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	spendingTxHash string, spendingTxVinIndex uint32,
 	spendingTXBlockTime uint64, vinDbID uint64, dupChecks bool) (int64, error) {
-	var spentTxRowID uint64
-
-	addr, err := RecieveAddressByTxHash(db, fundingTxHash)
+	addr, outputRowID, err := RetrieveAddressByTxHash(db, fundingTxHash)
 	if err != nil {
-		log.Errorf("RecieveAddressByTxHash: %v", err)
+		log.Errorf("RetrieveAddressByTxHash: %v", err)
 	}
 
-	// address, InOutRowID and value from the funding tx are already set
+	// address and value from the funding tx are already set
 	addr.TxBlockTime = spendingTXBlockTime
 	addr.TxHash = spendingTxHash
+	addr.MatchingTxHash = fundingTxHash
 	addr.IsFunding = false
 	addr.TxVinVoutIndex = spendingTxVinIndex
 	addr.VinVoutDbID = vinDbID
 
 	// Insert the spending transaction
-	spentTxRowID, err = InsertAddressRow(db, addr, dupChecks)
+	_, err = InsertAddressRow(db, addr, dupChecks)
 	if err != nil {
 		log.Errorf("InsertAddressRow: %v", err)
 	}
 
-	// Updates the previous funding tx InOutRowID with the spending tx row id
-	res, err := db.Exec(internal.SetAddressFundingForInOutID,
-		spentTxRowID, addr.InOutRowID)
+	// Updates the previous funding tx matching tx hash value with the spending tx hash.
+	res, err := db.Exec(internal.SetAddressFundingForMatchingTxHash,
+		spendingTxHash, outputRowID)
 	if err != nil || res == nil {
 		return 0, err
 	}
@@ -504,11 +503,11 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string,
 	spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64) (int64, error) {
 	var addr string
-	var inOutRowID, value, rowID, blockTime uint64
+	var value, rowID, outputRowID, blockTime uint64
 
 	// select id, address and value from the matching funding tx
 	// A maximum of one row and a minimum of none are expected.
-	err := tx.QueryRow(internal.SelectAddressByTxHash, fundingTxHash).Scan(&inOutRowID, &addr, &value)
+	err := tx.QueryRow(internal.SelectAddressByTxHash, fundingTxHash).Scan(&outputRowID, &addr, &value)
 	switch err {
 	case sql.ErrNoRows, nil:
 		// If no row found or is nil continue
@@ -523,17 +522,17 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string,
 	}
 
 	// insert a new spending tx
-	err = tx.QueryRow(internal.InsertAddressRow, addr, inOutRowID, spendingTxHash,
+	err = tx.QueryRow(internal.InsertAddressRow, addr, fundingTxHash, spendingTxHash,
 		spendingTxVinIndex, vinDbID, value, blockTime, false).Scan(&rowID)
 	if err != nil {
 		return 0, fmt.Errorf("InsertAddressRow: %v", err)
 	}
 
-	// update the in_out_row_id(rowID) for the funding tx output.
-	// inOutRowID here is the id of the funding tx.
-	res, err := tx.Exec(internal.SetAddressFundingForInOutID, rowID, inOutRowID)
+	// update the matchingTxHash for the funding tx output.
+	// matchingTxHash here is the tx hash of the funding tx.
+	res, err := tx.Exec(internal.SetAddressFundingForMatchingTxHash, spendingTxHash, outputRowID)
 	if err != nil || res == nil {
-		return 0, fmt.Errorf("SetAddressFundingForInOutID: %v", err)
+		return 0, fmt.Errorf("SetAddressFundingForMatchingTxHash: %v", err)
 	}
 
 	return res.RowsAffected()
@@ -818,7 +817,7 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 		var addr dbtypes.AddressRow
 		var txHash sql.NullString
 		var blockTime, txVinIndex, vinDbID sql.NullInt64
-		err = rows.Scan(&id, &addr.Address, &addr.InOutRowID, &txHash,
+		err = rows.Scan(&id, &addr.Address, &addr.MatchingTxHash, &txHash,
 			&txVinIndex, &blockTime, &vinDbID, &addr.Value, &addr.IsFunding)
 		if err != nil {
 			return
@@ -1459,17 +1458,12 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 	return ids, addressRows, dbtx.Commit()
 }
 
-func RecieveAddressByTxHash(db *sql.DB, tx_hash string) (*dbtypes.AddressRow, error) {
+func RetrieveAddressByTxHash(db *sql.DB, tx_hash string) (*dbtypes.AddressRow, uint64, error) {
 	var data dbtypes.AddressRow
-	err := db.QueryRow(internal.SelectAddressByTxHash, tx_hash).Scan(&data.InOutRowID, &data.Address, &data.Value)
+	var rowID uint64
+	err := db.QueryRow(internal.SelectAddressByTxHash, tx_hash).Scan(&rowID, &data.Address, &data.Value)
 
-	return &data, err
-}
-
-// RetrieveTxHashByAddressesRowID fetches the tx_hash associated with a given row id
-func RetrieveTxHashByAddressesRowID(db *sql.DB, id uint64) (data string, err error) {
-	err = db.QueryRow(internal.SelectAddressByRowID, id).Scan(&data)
-	return
+	return &data, rowID, err
 }
 
 // InsertAddressRow can insert an input and output for the respective transaction.
@@ -1479,7 +1473,7 @@ func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint6
 		sqlStmt = internal.UpsertAddressRow
 	}
 	var id uint64
-	err := db.QueryRow(sqlStmt, dbA.Address, dbA.InOutRowID, dbA.TxHash,
+	err := db.QueryRow(sqlStmt, dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
 		dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
 		dbA.IsFunding).Scan(&id)
 	return id, err
@@ -1516,7 +1510,7 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 	ids := make([]uint64, 0, len(dbAs))
 	for _, dbA := range dbAs {
 		var id uint64
-		err := stmt.QueryRow(dbA.Address, dbA.InOutRowID, dbA.TxHash,
+		err := stmt.QueryRow(dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
 			dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
 			dbA.IsFunding).Scan(&id)
 		if err != nil {

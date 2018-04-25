@@ -249,9 +249,9 @@ type Vout struct {
 type AddressRow struct {
 	// id int64
 	Address string
-	// InOutRowID is the row ID that provides the relationship
+	// MatchingTxHash that provides the relationship
 	// between spending tx inputs and funding tx outputs
-	InOutRowID     uint64
+	MatchingTxHash string
 	IsFunding      bool
 	TxBlockTime    uint64
 	TxHash         string

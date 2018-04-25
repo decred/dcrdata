@@ -54,7 +54,7 @@ type AddressTx struct {
 	ReceivedTotal float64
 	SentTotal     float64
 	IsFunding     bool
-	MatchedTx     uint64
+	MatchedTx     string
 	BlockTime     uint64
 }
 
@@ -327,36 +327,33 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 	var transactions, creditTxns, debitTxns []*AddressTx
 	for _, addrOut := range addrHist {
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
+		tx := AddressTx{
+			BlockTime: addrOut.TxBlockTime,
+			InOutID:   addrOut.TxVinVoutIndex,
+			TxID:      addrOut.TxHash,
+		}
 
 		switch {
 		case addrOut.IsFunding:
 			// Funding transaction
 			received += int64(addrOut.Value)
-			fundingTx := AddressTx{
-				BlockTime:     addrOut.TxBlockTime,
-				InOutID:       addrOut.TxVinVoutIndex,
-				IsFunding:     true,
-				MatchedTx:     addrOut.InOutRowID,
-				ReceivedTotal: coin,
-				TxID:          addrOut.TxHash,
-			}
-			transactions = append(transactions, &fundingTx)
-			creditTxns = append(creditTxns, &fundingTx)
+
+			tx.IsFunding = true
+			tx.ReceivedTotal = coin
+
+			creditTxns = append(creditTxns, &tx)
 
 		default:
 			// Spending transaction
 			sent += int64(addrOut.Value)
-			spendingTx := AddressTx{
-				BlockTime: addrOut.TxBlockTime,
-				InOutID:   addrOut.TxVinVoutIndex,
-				IsFunding: false,
-				MatchedTx: addrOut.InOutRowID,
-				SentTotal: coin,
-				TxID:      addrOut.TxHash,
-			}
-			transactions = append(transactions, &spendingTx)
-			debitTxns = append(debitTxns, &spendingTx)
+
+			tx.IsFunding = false
+			tx.SentTotal = coin
+
+			debitTxns = append(debitTxns, &tx)
 		}
+
+		transactions = append(transactions, &tx)
 	}
 
 	return &AddressInfo{

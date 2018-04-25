@@ -150,8 +150,8 @@
                                 {{if eq .SentTotal 0.0}}
                                 <td class="text-right">sstxcommitment</td>
                                 {{else}}
-                                    {{if gt .MatchedTx 0}}
-                                      <td class="text-right"><a href="/tx/addressid/{{.MatchedTx}}" class="hash">source</a></td>
+                                    {{if ne .MatchedTx ""}}
+                                      <td class="text-right"><a href="/tx/{{.MatchedTx}}" class="hash">source</a></td>
                                     {{else}}
                                       <td>N/A</td>
                                     {{end}}
@@ -164,8 +164,8 @@
                                     <td>N/A</td>
                                 {{end}}
                             {{else}}
-                                {{if gt .MatchedTx 0}}
-                                    <td><a href="/tx/addressid/{{.MatchedTx}}" class="hash">spent</a></td>
+                                {{if ne .MatchedTx ""}}
+                                    <td><a href="/tx/{{.MatchedTx}}" class="hash">spent</a></td>
                                 {{else}}
                                     <td>unspent</td>
                                 {{end}}

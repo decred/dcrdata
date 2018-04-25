@@ -1,20 +1,19 @@
 package internal
 
 const (
-	insertAddressRow0 = `INSERT INTO addresses (address, in_out_row_id, tx_hash,
+	insertAddressRow0 = `INSERT INTO addresses (address, matching_tx_hash, tx_hash,
 		tx_vin_vout_index, tx_vin_vout_row_id, value, block_time, is_funding)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
 
 	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
-	// InsertAddressRowChecked = insertAddressRow0 +
-	// 	`ON CONFLICT (vout_row_id, address) DO NOTHING RETURNING id;`
+
 	UpsertAddressRow = insertAddressRow0 + `ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE 
 		SET address = $1, tx_vin_vout_row_id = $5 RETURNING id;`
 	InsertAddressRowReturnID = `WITH inserting AS (` +
 		insertAddressRow0 +
 		`ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE
-			SET address = NULL WHERE FALSE
-			RETURNING id
+		SET address = NULL WHERE FALSE
+		RETURNING id
 		)
 		SELECT id FROM inserting
 		UNION  ALL
@@ -32,7 +31,7 @@ const (
 		id SERIAL8 PRIMARY KEY,
 		address TEXT,
 		tx_hash TEXT,
-		in_out_row_id INT8,
+		matching_tx_hash TEXT,
 		value INT8,
 		block_time INT8 NOT NULL,
 		is_funding BOOLEAN,
@@ -52,10 +51,10 @@ const (
 		address = $1 and tx_hash=$2;`
 
 	SelectAddressUnspentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses 
-	    WHERE address = $1 and is_funding = TRUE and in_out_row_id < 1;`
+	    WHERE address = $1 and is_funding = TRUE and matching_tx_hash = '';`
 
 	SelectAddressSpentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses 
-	    WHERE address = $1 and is_funding = FALSE and in_out_row_id > 0;`
+	    WHERE address = $1 and is_funding = FALSE and matching_tx_hash != '';`
 
 	SelectAddressUnspentWithTxn = `SELECT
 									addresses.address,
@@ -75,7 +74,7 @@ const (
 									AND 
 									addresses.is_funding = FALSE order by addresses.block_time desc`
 
-	columnNames = `id, address, in_out_row_id, tx_hash, tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
+	columnNames = `id, address, matching_tx_hash, tx_hash, tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
 
 	SelectAddressLimitNByAddress = `SELECT ` + columnNames + ` FROM addresses
 	    WHERE address=$1 order by block_time desc limit $2 offset $3;`
@@ -85,9 +84,7 @@ const (
         SELECT * FROM these order by block_time desc limit $2 offset $3;`
 
 	SelectAddressByTxHash = `select id, address, value from addresses 
-	   where tx_hash=$1 and is_funding = true ORDER BY block_time ASC LIMIT 1;`
-
-	SelectAddressByRowID = `select tx_hash FROM addresses WHERE id = $1;`
+	   where tx_hash=$1 and is_funding = true ORDER BY block_time DESC LIMIT 1;`
 
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + columnNames + `
 		FROM addresses WHERE address=$1 and is_funding = FALSE
@@ -103,7 +100,7 @@ const (
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses WHERE address=$1 and 
 	    tx_vin_vout_row_id=$2 and is_funding = true ORDER BY block_time DESC;`
 
-	SetAddressFundingForInOutID = `UPDATE addresses SET in_out_row_id=$1 
+	SetAddressFundingForMatchingTxHash = `UPDATE addresses SET matching_tx_hash=$1 
 	    WHERE id=$2 and is_funding = true;`
 
 	IndexBlockTimeOnTableAddress = `CREATE INDEX block_time_index ON addresses (block_time);`

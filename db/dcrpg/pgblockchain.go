@@ -404,11 +404,6 @@ func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtyp
 	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
 }
 
-// FetchTxByAddressRowID the tx_hash of a given address by its row id
-func (pgb *ChainDB) FetchTxByAddressRowID(id uint64) (string, error) {
-	return RetrieveTxHashByAddressesRowID(pgb.db, id)
-}
-
 // retrieveDevBalance retrieves a new DevFundBalance without regard to the cache
 func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
 	bb, hash, _, err := RetrieveBestBlockHeight(pgb.db)
