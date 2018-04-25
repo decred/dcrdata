@@ -94,7 +94,7 @@
                             <td class="text-right pr-2 h1rem p03rem0">LUCK</td>
                             <td>
                                 {{printf "%.4f" .TicketInfo.VoteLuck}}
-                                {{if (or (lt .TicketInfo.TicketExpiry .TicketInfo.ShortConfirms) (ne .TicketInfo.SpendStatus "Voted"))}} possible, {{.TicketInfo.LuckStatus}} {{else}} final, {{.TicketInfo.LuckStatus}} {{end}}
+                                {{if (and (lt .TicketInfo.ShortConfirms .TicketInfo.TicketExpiry) (ne .TicketInfo.SpendStatus "Voted"))}} possible, {{.TicketInfo.LuckStatus}} {{else}} final, {{.TicketInfo.LuckStatus}} {{end}}
                                 (Best: {{.TicketInfo.BestLuck}} Avg: {{.TicketInfo.AvgLuck}})
                             </td>
                         </tr>

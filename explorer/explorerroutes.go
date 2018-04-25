@@ -221,7 +221,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				if tx.TicketInfo.SpendStatus == "Voted" {
 					// Blocks from eligible until voted (actual luck)
 					tx.TicketInfo.ShortConfirms = exp.blockData.TxHeight(tx.SpendingTxns[0].Hash) -
-						tx.BlockHeight - int64(exp.ChainParams.TicketMaturity)
+						tx.BlockHeight - int64(exp.ChainParams.TicketMaturity) - 1
 				} else if tx.Confirmations >= int64(exp.ChainParams.TicketExpiry+
 					uint32(exp.ChainParams.TicketMaturity)) { // Expired
 					// Blocks ticket was active before expiring (actual no luck)
@@ -236,7 +236,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					tx.TicketInfo.VoteLuck = 0
 				} else {
 					tx.TicketInfo.VoteLuck = float64(tx.TicketInfo.BestLuck) -
-						(float64(tx.TicketInfo.ShortConfirms-1) / float64(exp.ChainParams.TicketPoolSize))
+						(float64(tx.TicketInfo.ShortConfirms) / float64(exp.ChainParams.TicketPoolSize))
 				}
 				if tx.TicketInfo.VoteLuck >= float64(tx.TicketInfo.BestLuck-(1/int64(exp.ChainParams.TicketPoolSize))) {
 					tx.TicketInfo.LuckStatus = "Perfection"
