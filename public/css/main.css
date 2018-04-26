@@ -467,6 +467,20 @@ body.darkBG .progress {
   table-layout: fixed;
 }
 
+/*flexboxtable*/
+.flex-table .header {
+  padding: 0.36rem .5rem;
+  background: #fff !important;
+  border-bottom: 1px solid #e2e2e2;
+  font-size: 13px;
+  font-weight: 500;
+}
+.flex-table-row {
+  padding: .4rem;
+  font-size: 13px;
+  border-bottom: 1px solid #e4e4e4;
+}
+
 .addressAndScriptData {
   overflow: hidden;
 }
@@ -527,6 +541,12 @@ body.darkBG .progress {
   display: inline-block;
   word-wrap: break-word;
   transition: .133s transform;
+}
+.truncate-hash {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /*resemble voting.decred.org*/
