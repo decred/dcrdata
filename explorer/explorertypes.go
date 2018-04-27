@@ -331,6 +331,7 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 			BlockTime: addrOut.TxBlockTime,
 			InOutID:   addrOut.TxVinVoutIndex,
 			TxID:      addrOut.TxHash,
+			MatchedTx: addrOut.MatchingTxHash,
 		}
 
 		switch {

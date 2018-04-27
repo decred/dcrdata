@@ -949,6 +949,10 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
+	if err = DeindexMatchingTxHashOnTableAddress(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
 	if err = DeindexAddressTableOnAddress(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
@@ -1032,8 +1036,12 @@ func (pgb *ChainDB) IndexAll() error {
 	}
 	// Not indexing the address table on vout ID or address here. See
 	// IndexAddressTable to create those indexes.
-	log.Infof("Indexing addresses table on funding tx hash...")
+	log.Infof("Indexing addresses table on tx hash...")
 	if err := IndexAddressTableOnTxHash(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing addresses table on matching tx hash...")
+	if err := IndexMatchingTxHashOnTableAddress(pgb.db); err != nil {
 		return err
 	}
 

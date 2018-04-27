@@ -395,6 +395,16 @@ func DeindexBlockTimeOnTableAddress(db *sql.DB) (err error) {
 	return
 }
 
+func IndexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexMatchingTxHashOnTableAddress)
+	return
+}
+
+func DeindexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexMatchingTxHashOnTableAddress)
+	return
+}
+
 func IndexAddressTableOnAddress(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAddressTableOnAddress)
 	return

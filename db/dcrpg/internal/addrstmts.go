@@ -107,6 +107,10 @@ const (
 
 	DeindexBlockTimeOnTableAddress = `DROP INDEX block_time_index;`
 
+	IndexMatchingTxHashOnTableAddress = `CREATE INDEX matching_tx_hash_index ON addresses (matching_tx_hash);`
+
+	DeindexMatchingTxHashOnTableAddress = `DROP INDEX matching_tx_hash_index;`
+
 	IndexAddressTableOnAddress = `CREATE INDEX uix_addresses_address
 		ON addresses(address);`
 	DeindexAddressTableOnAddress = `DROP INDEX uix_addresses_address;`
