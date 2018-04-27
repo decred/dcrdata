@@ -93,6 +93,30 @@ First, update the repository (assuming you have `master` checked out):
 Look carefully for errors with `git pull`, and reset locally modified files if
 necessary.
 
+## Upgrading Instructions 
+
+*__Only necessary while upgrading from v1.3.2 or below.__*
+
+1. Drop the old dcrdata database and create a new empty dcrdata database.
+ ```sql
+ // drop the old database
+ DROP DATABASE dcrdata;
+
+// create a new database with the same user set in the dcrdata.conf e.g user dcrdata
+CREATE DATABASE dcrdata WITH OWNER dcrdata;
+
+// grant all permissions to user dcrdata
+GRANT ALL PRIVILEGES ON DATABASE dcrdata to dcrdata;
+ ```
+
+2. Delete the data folder in dcrdata folder where dcrdata.conf file is located
+  - Mac :  `~/Library/Application Support/Dcrdata/data`
+  - Linux :  `~/Dcrdata/data`
+  - Window :  `C:\Users\<your-username>\AppData\Local\Dcrdata\data` 
+  
+3. Restart the data migration again by running the dcrdata and dcrd binaries
+  - run the downloaded dcrd binary first then the generated dcrdata binary
+
 ## Getting Started
 
 ### Configure PostgreSQL (IMPORTANT)

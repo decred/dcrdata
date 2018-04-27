@@ -36,7 +36,7 @@ var createTypeStatements = map[string]string{
 // by dcrdata or rebuilddb2. The patch versions may also be different. They
 // indicate a change of a table's index or constraint, which may require
 // re-indexing and a duplicate scan/purge.
-const tableMajor = 2
+const tableMajor = 3
 
 var requiredVersions = map[string]TableVersion{
 	"blocks":       NewTableVersion(tableMajor, 0, 0),
