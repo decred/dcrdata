@@ -45,7 +45,7 @@
                     <a href="/" class="dcricon-decred no-underline"></a>
                 </div>
             </div>
-            <div class="col pl-2">
+            <div class="col">
                 <form class="navbar-form" role="search" id="search-form" action="/search">
                     <div class="input-group">
                         <input
@@ -59,27 +59,24 @@
                     </div>
                 </form>
             </div>
+            <nav class="col" role="navigation" id="hamburger-menu" data-turbolinks-permanent>
+                <div id="menuToggle">
+                    <input type="checkbox" id="menuToggleCheckbox"/>
+                    <span class="patty"></span>
+                    <span class="patty"></span>
+                    <span class="patty short"></span>
+                    <ul id="menu">
+                        <a href="/" title="Home"><li>Home</li></a>
+                        <a href="/mempool" title="Decred mempool"><li>Mempool</li></a>
+                        <a href="/blocks" title="Decred blocks"><li>Blocks</li></a>
+                        <a href="/decodetx" title="Decode or send a raw transaction"><li>Decode/Broadcast Tx</li></a>
+                        <a href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank"><li>JSON API Docs</li></a>
+                        <a data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><li><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</li></a>
+                    </ul>
+                </div>
+            </nav>
         </div>
     </div>
-
-    <nav role="navigation" id="hamburger-menu" data-turbolinks-permanent>
-        <div id="menuToggle">
-            <input type="checkbox" id="menuToggleCheckbox"/>
-            <span class="patty"></span>
-            <span class="patty"></span>
-            <span class="patty"></span>
-            <ul id="menu">
-                <a href="/" title="Home"><li>Home</li></a>
-                <a href="/mempool" title="Decred mempool"><li>Mempool</li></a>
-                <a href="/parameters" title="Chain Parameters"><li>Parameters</li></a>
-                <a href="/blocks" title="Decred blocks"><li>Blocks</li></a>
-                <a href="/decodetx" title="Decode or send a raw transaction"><li>Decode/Broadcast Tx</li></a>
-                <a href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank"><li>JSON API Docs</li></a>
-                <a data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><li><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</li></a>
-            </ul>
-        </div>
-    </nav>
-
 </div>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">

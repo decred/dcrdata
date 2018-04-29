@@ -146,6 +146,7 @@ body.darkBG #hamburger-menu a:hover {
 }
 body.darkBG #menu {
   background:  #2a2a2a;
+  box-shadow: 0px 0px 0px 1px #ffffff33;
 }
 body.darkBG .progress {
   background-color: #757575;
@@ -278,8 +279,8 @@ body.darkBG .progress {
 }
 
 #hamburger-menu {
+  flex: 0 40px;
   z-index: 10;
-  position: fixed;
   width: 100%;
   top: 0px;
   right: 0px;
@@ -295,9 +296,6 @@ body.darkBG .progress {
 }
 #menuToggle {
   display: block;
-  top: 6px;
-  right: 8px;
-  position: absolute;
   z-index: 1;
   -webkit-user-select: none;
   user-select: none;
@@ -307,8 +305,8 @@ body.darkBG .progress {
   width: 40px;
   height: 36px;
   position: absolute;
-  top: -6px;
-  left: -3px;
+  top: -8px;
+  left: 7px;
   cursor: pointer;
   opacity: 0;
   padding: 0px;
@@ -317,9 +315,10 @@ body.darkBG .progress {
 }
 #menuToggle .patty {
   display: block;
-  width: 33px;
-  height: 4px;
-  margin-bottom: 5px;
+  width: 20px;
+  height: 2px;
+  top: 2px;
+  margin-bottom: 4px;
   position: relative;
   background: #052f4b;
   border-radius: 3px;
@@ -327,7 +326,11 @@ body.darkBG .progress {
   transform-origin: top right;
   transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
               background 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
+              width .3s,
               opacity 0.55s ease;
+}
+#menuToggle .patty.short {
+  width: 14px;
 }
 #menuToggle .patty :first-child {
   transform-origin: top right;
@@ -337,28 +340,32 @@ body.darkBG .progress {
 }
 #menuToggle input:checked ~ .patty  {
   opacity: 1;
-  transform: rotate(-45deg) translate(0px, -2px);
   background: #232323;
+  transform: rotate(-45deg) translate(0px, -2px)  scale(1.1, 1.1);
+}
+#menuToggle input:checked ~ .patty.short {
+  width: 20px;
 }
 #menuToggle input:checked ~ span:nth-last-child(3) {
-  opacity: 0;
-  transform: rotate(0deg) scale(0.2, 0.2);
+  transform: rotate(0deg) scale(0, 0);
 }
 #menuToggle input:checked ~ .patty:nth-last-child(2) {
-  transform: rotate(45deg) translate(3px, 2px);
+  transform: rotate(45deg) translate(2px, 1px) scale(1.1, 1.1);
 }
+
 #menu {
   position: absolute;
   width: 273px;
-  margin: -34px 0 0 -231px;
+  margin: -34px 0 0 -243px;
   padding: 20px;
   padding-top: 11px;
   background: #fff;
   list-style-type: none;
   -webkit-font-smoothing: antialiased;
   transform-origin: 0% 0%;
-  transform: translate(100%, 0);
+  transform: translate(0, -100%);
   transition: transform 0.33s cubic-bezier(0.77,0.2,0.05,1.0);
+  box-shadow: 0px 0px 0px 1px #0000001a;
 }
 #menu li {
   padding: 10px 0;
