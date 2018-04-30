@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg"
-
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes"
