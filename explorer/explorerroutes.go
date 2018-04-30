@@ -597,7 +597,7 @@ func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 	exp.ErrorPage(w, "Not found", "Cannot find page: "+r.URL.Path, true)
 }
 
-// ParametersPage is the page handler for the "/ChainParameters" path
+// ParametersPage is the page handler for the "/parameters" path
 func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	cp := exp.ChainParams
 	addrPrefix := AddressPrefixes(cp)
