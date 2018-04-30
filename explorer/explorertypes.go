@@ -423,11 +423,11 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 		"HDPrivateKeyID",
 		"HDPublicKeyID",
 	}
-	
+
 	MainnetPrefixes := []string{"Dk", "Ds", "De", "DS", "Dc", "Pm", "dprv", "dpub"}
 	TestnetPrefixes := []string{"Tk", "Ts", "Te", "TS", "Tc", "Pt", "tprv", "tpub"}
 	SimnetPrefixes := []string{"Sk", "Ss", "Se", "SS", "Sc", "Ps", "sprv", "spub"}
-	
+
 	name := params.Name
 	var netPrefixes []string
 	if name == "mainnet" {
