@@ -596,3 +596,32 @@ func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message str
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 	exp.ErrorPage(w, "Not found", "Cannot find page: "+r.URL.Path, true)
 }
+
+// ParametersPage is the page handler for the "/parameters" path
+func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
+	cp := exp.ChainParams
+	addrPrefix := AddressPrefixes(cp)
+	actualTicketPoolSize := int64(cp.TicketPoolSize * cp.TicketsPerBlock)
+	ecp := ExtendedChainParams{
+		Params:               cp,
+		AddressPrefix:        addrPrefix,
+		ActualTicketPoolSize: actualTicketPoolSize,
+	}
+
+	str, err := exp.templates.execTemplateToString("parameters", struct {
+		Cp      ExtendedChainParams
+		Version string
+	}{
+		ecp,
+		exp.Version,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}

@@ -28,10 +28,11 @@ import (
 )
 
 const (
-	maxExplorerRows          = 2000
-	minExplorerRows          = 20
-	defaultAddressRows int64 = 20
-	MaxAddressRows     int64 = 1000
+	maxExplorerRows              = 2000
+	minExplorerRows              = 20
+	defaultAddressRows     int64 = 20
+	MaxAddressRows         int64 = 1000
+	MaxUnconfirmedPossible int64 = 1000
 )
 
 // explorerDataSourceLite implements an interface for collecting data for the
@@ -179,7 +180,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 		return nil
 	}
-	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address", "rawtx", "error"}
+	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address", "rawtx", "error", "parameters"}
 
 	tempDefaults := []string{"extras"}
 
