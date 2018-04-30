@@ -147,6 +147,9 @@ body.darkBG #hamburger-menu a:hover {
 body.darkBG #menu {
   background:  #2a2a2a;
 }
+body.darkBG .progress {
+  background-color: #757575;
+}
 
 /*utils*/
 .jsonly {
