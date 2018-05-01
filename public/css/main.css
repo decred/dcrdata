@@ -270,7 +270,7 @@ body.darkBG .progress {
 }
 .top-search {
   height: 30px;
-  margin: 2px !important;
+  margin: 2px 0 2px 2px !important;
   border-top: 0px;
   border-left: 0px;
   border-right: 0px;
@@ -299,14 +299,15 @@ body.darkBG .progress {
   z-index: 1;
   -webkit-user-select: none;
   user-select: none;
+  position: relative;
 }
 #menuToggle input{
   display: block;
-  width: 40px;
+  width: 50px;
   height: 36px;
   position: absolute;
   top: -8px;
-  left: 7px;
+  left: -14px;
   cursor: pointer;
   opacity: 0;
   padding: 0px;
