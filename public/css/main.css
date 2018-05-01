@@ -147,6 +147,9 @@ body.darkBG #hamburger-menu a:hover {
 body.darkBG #menu {
   background:  #2a2a2a;
 }
+body.darkBG .progress {
+  background-color: #757575;
+}
 
 /*utils*/
 .jsonly {
@@ -464,6 +467,20 @@ body.darkBG #menu {
   table-layout: fixed;
 }
 
+/*flexboxtable*/
+.flex-table .header {
+  padding: 0.36rem .5rem;
+  background: #fff !important;
+  border-bottom: 1px solid #e2e2e2;
+  font-size: 13px;
+  font-weight: 500;
+}
+.flex-table-row {
+  padding: .4rem;
+  font-size: 13px;
+  border-bottom: 1px solid #e4e4e4;
+}
+
 .addressAndScriptData {
   overflow: hidden;
 }
@@ -524,6 +541,12 @@ body.darkBG #menu {
   display: inline-block;
   word-wrap: break-word;
   transition: .133s transform;
+}
+.truncate-hash {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /*resemble voting.decred.org*/
@@ -640,7 +663,19 @@ body.darkBG #menu {
   padding: 1px 5px;
 }
 
+.progress-bar {
+  background: #41BF53;
+  color: #fff;
+  height: 20px;
+  line-height: 20px;
+  text-shadow: 1px 1px 0px #00000012;
+}
+
 /*bootstrap overrides*/
+.progress {
+  background-color: #c5c4c4;
+  border-radius: 2px;
+}
 .btn-primary {
   background-color: #2970ff;
   border-color: #2970ff;

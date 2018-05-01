@@ -39,6 +39,13 @@ type RawTransactionGetter interface {
 	GetRawTransaction(txHash *chainhash.Hash) (*dcrutil.Tx, error)
 }
 
+// VerboseTransactionGetter is an interface satisfied by rpcclient.Client, and
+// required by functions that would otherwise require a rpcclient.Client just
+// for GetRawTransactionVerbose.
+type VerboseTransactionGetter interface {
+	GetRawTransactionVerbose(txHash *chainhash.Hash) (*dcrjson.TxRawResult, error)
+}
+
 // BlockWatchedTx contains, for a certain block, the transactions for certain
 // watched addresses
 type BlockWatchedTx struct {
@@ -103,6 +110,154 @@ func IncludesTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 	return -1, -1
 }
 
+// PrevOut contains a transaction input's previous outpoint, the Hash of the
+// spending (following) transaction, and input index in the transaction.
+type PrevOut struct {
+	TxSpending       chainhash.Hash
+	InputIndex       int
+	PreviousOutpoint *wire.OutPoint
+}
+
+// TxWithBlockData contains a MsgTx and the block hash and height in which it
+// was mined.
+type TxWithBlockData struct {
+	Tx          *wire.MsgTx
+	BlockHeight int64
+	BlockHash   string
+}
+
+// Hash returns the chainhash.Hash of the transaction.
+func (t *TxWithBlockData) Hash() chainhash.Hash {
+	return t.Tx.TxHash()
+}
+
+// Confirmed indicates if the transaction is confirmed (mined).
+func (t *TxWithBlockData) Confirmed() bool {
+	return t.BlockHeight > 0 && len(t.BlockHash) <= chainhash.MaxHashStringSize
+}
+
+// AddressOutpoints collects spendable and spent transactions outpoints paying
+// to a certain address. The transactions referenced by the outpoints are stored
+// for quick access.
+type AddressOutpoints struct {
+	Address   string
+	Outpoints []*wire.OutPoint
+	PrevOuts  []PrevOut
+	TxnsStore map[chainhash.Hash]*TxWithBlockData
+}
+
+// NewAddressOutpoints creates a new AddressOutpoints, initializing the
+// transaction store/cache, and setting the address string.
+func NewAddressOutpoints(address string) *AddressOutpoints {
+	return &AddressOutpoints{
+		Address:   address,
+		TxnsStore: make(map[chainhash.Hash]*TxWithBlockData),
+	}
+}
+
+// Update appends the provided outpoints, and merges the transactions.
+func (a *AddressOutpoints) Update(Txns []*TxWithBlockData,
+	Outpoints []*wire.OutPoint, PrevOutpoint []PrevOut) {
+	// Relevant outpoints
+	a.Outpoints = append(a.Outpoints, Outpoints...)
+
+	// Previous outpoints (inputs)
+	a.PrevOuts = append(a.PrevOuts, PrevOutpoint...)
+
+	// Referenced transactions
+	for _, t := range Txns {
+		a.TxnsStore[t.Hash()] = t
+	}
+}
+
+// Merge concatenates the outpoints of two AddressOutpoints, and merges the
+// transactions.
+func (a *AddressOutpoints) Merge(ao *AddressOutpoints) {
+	// Relevant outpoints
+	a.Outpoints = append(a.Outpoints, ao.Outpoints...)
+
+	// Previous outpoints (inputs)
+	a.PrevOuts = append(a.PrevOuts, ao.PrevOuts...)
+
+	// Referenced transactions
+	for h, t := range ao.TxnsStore {
+		a.TxnsStore[h] = t
+	}
+}
+
+// TxInvolvesAddress checks the inputs and outputs of a transaction for
+// involvement of the given address.
+func TxInvolvesAddress(msgTx *wire.MsgTx, addr string, c VerboseTransactionGetter,
+	params *chaincfg.Params) (outpoints []*wire.OutPoint,
+	prevOuts []PrevOut, prevTxs []*TxWithBlockData) {
+	// The outpoints of this transaction paying to the address
+	outpoints = TxPaysToAddress(msgTx, addr, params)
+	// The inputs of this transaction funded by outpoints of previous
+	// transactions paying to the address.
+	prevOuts, prevTxs = TxConsumesOutpointWithAddress(msgTx, addr, c, params)
+	return
+}
+
+// TxConsumesOutpointWithAddress checks a transaction for inputs that spend an
+// outpoint paying to the given address. Returned are the identified input
+// indexes and the corresponding previous outpoints determined.
+func TxConsumesOutpointWithAddress(msgTx *wire.MsgTx, addr string,
+	c VerboseTransactionGetter, params *chaincfg.Params) (prevOuts []PrevOut, prevTxs []*TxWithBlockData) {
+	// For each TxIn of this transaction, inspect the previous outpoint.
+	for inIdx, txIn := range msgTx.TxIn {
+		// Previous outpoint for this TxIn
+		prevOut := &txIn.PreviousOutPoint
+		if bytes.Equal(zeroHash[:], prevOut.Hash[:]) {
+			continue
+		}
+		// GetRawTransactionVerbose provides the height and hash of the block in
+		// which the transaction is included, if it is confirmed.
+		prevTxRaw, err := c.GetRawTransactionVerbose(&prevOut.Hash)
+		if err != nil {
+			fmt.Printf("Unable to get raw transaction for %s\n", prevOut.Hash.String())
+			continue
+		}
+		prevTx, err := MsgTxFromHex(prevTxRaw.Hex)
+		if err != nil {
+			fmt.Printf("MsgTxFromHex failed: %s\n", err)
+			continue
+		}
+		txHash := prevTx.TxHash()
+
+		// prevOut.Index tells indicates which output
+		txOut := prevTx.TxOut[prevOut.Index]
+		// extract the addresses from this output's PkScript
+		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
+			txOut.Version, txOut.PkScript, params)
+		if err != nil {
+			fmt.Printf("ExtractPkScriptAddrs: %v\n", err.Error())
+			continue
+		}
+
+		// For each address that matches the address of interest, record this
+		// previous outpoint and the containing transactions.
+		for _, txAddr := range txAddrs {
+			addrstr := txAddr.EncodeAddress()
+			if addr == addrstr {
+				outpoint := wire.NewOutPoint(&txHash,
+					prevOut.Index, TxTree(prevTx))
+				prevOuts = append(prevOuts, PrevOut{
+					TxSpending:       msgTx.TxHash(),
+					InputIndex:       inIdx,
+					PreviousOutpoint: outpoint,
+				})
+				prevTxs = append(prevTxs, &TxWithBlockData{
+					Tx:          prevTx,
+					BlockHeight: prevTxRaw.BlockHeight,
+					BlockHash:   prevTxRaw.BlockHash,
+				})
+			}
+		}
+
+	}
+	return
+}
+
 // BlockConsumesOutpointWithAddresses checks the specified block to see if it
 // includes transactions that spend from outputs created using any of the
 // addresses in addrs. The TxAction for each address is not important, but it
@@ -157,6 +312,33 @@ func BlockConsumesOutpointWithAddresses(block *dcrutil.Block, addrs map[string]T
 	checkForOutpointAddr(block.STransactions())
 
 	return addrMap
+}
+
+// TxPaysToAddress returns a slice of outpoints of a transaction which pay to
+// specified address.
+func TxPaysToAddress(msgTx *wire.MsgTx, addr string,
+	params *chaincfg.Params) (outpoints []*wire.OutPoint) {
+	// Check the addresses associated with the PkScript of each TxOut
+	txTree := TxTree(msgTx)
+	hash := msgTx.TxHash()
+	for outIndex, txOut := range msgTx.TxOut {
+		_, txOutAddrs, _, err := txscript.ExtractPkScriptAddrs(txOut.Version,
+			txOut.PkScript, params)
+		if err != nil {
+			fmt.Printf("ExtractPkScriptAddrs: %v", err.Error())
+			continue
+		}
+
+		// Check if we are watching any address for this TxOut
+		for _, txAddr := range txOutAddrs {
+			addrstr := txAddr.EncodeAddress()
+			if addr == addrstr {
+				outpoints = append(outpoints, wire.NewOutPoint(&hash,
+					uint32(outIndex), txTree))
+			}
+		}
+	}
+	return
 }
 
 // BlockReceivesToAddresses checks a block for transactions paying to the

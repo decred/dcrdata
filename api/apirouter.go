@@ -17,9 +17,6 @@ type apiMux struct {
 	*chi.Mux
 }
 
-// APIVersion is an integer value, incremented for breaking changes
-const APIVersion = 0
-
 func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 	// chi router
 	mux := chi.NewRouter()
@@ -143,6 +140,7 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 	mux.Route("/address", func(r chi.Router) {
 		r.Route("/{address}", func(rd chi.Router) {
 			rd.Use(m.AddressPathCtx)
+			rd.Get("/totals", app.addressTotals)
 			rd.Get("/", app.getAddressTransactions)
 			rd.With((middleware.Compress(1))).Get("/raw", app.getAddressTransactionsRaw)
 			rd.Route("/count/{N}", func(ri chi.Router) {

@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -30,7 +31,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
-// wiredDB is intended to satisfy APIDataSource interface. The block header is
+// wiredDB is intended to satisfy DataSourceLite interface. The block header is
 // not stored in the DB, so the RPC client is used to get it on demand.
 type wiredDB struct {
 	*DBDataSaver
@@ -1294,32 +1295,61 @@ func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
 	return address.IsForNet(p)
 }
 
-// CountUnconfirmedTransactions returns the number of unconfirmed transactions involving the specified address,
-// given a maximum possible unconfirmed
-func (db *wiredDB) CountUnconfirmedTransactions(address string, maxUnconfirmedPossible int64) (numUnconfirmed int64, err error) {
-	addr, err := dcrutil.DecodeAddress(address)
-	if err != nil {
-		log.Infof("Invalid address %s: %v", address, err)
-		return
-	}
-	txs, err := db.client.SearchRawTransactionsVerbose(addr, 0, int(maxUnconfirmedPossible), false, true, nil)
-	if err != nil {
-		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
-		return
-	}
-	for _, tx := range txs {
-		if tx.Confirmations == 0 {
-			numUnconfirmed++
-		}
-	}
-	return
+// CountUnconfirmedTransactions returns the number of unconfirmed transactions
+// involving the specified address, given a maximum possible unconfirmed.
+func (db *wiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
+	_, numUnconfirmed, err := db.UnconfirmedTxnsForAddress(address)
+	return numUnconfirmed, err
 }
 
-// GetMepool gets all transactions from the mempool for explorer
-// and adds the total out for all the txs and vote info for the votes
+// UnconfirmedTxnsForAddress returns the chainhash.Hash of all transactions in
+// mempool that (1) pay to the given address, or (2) spend a previous outpoint
+// that payed to the address.
+func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
+	// Mempool transactions
+	var numUnconfirmed int64
+	mempoolTxns, err := db.client.GetRawMempool(dcrjson.GRMAll)
+	if err != nil {
+		log.Warnf("GetRawMempool failed for address %s: %v", address, err)
+		return nil, numUnconfirmed, err
+	}
+
+	// Check each transaction for involvement with provided address.
+	addressOutpoints := txhelpers.NewAddressOutpoints(address)
+	for _, tx := range mempoolTxns {
+		// Transaction details from dcrd
+		Tx, err1 := db.client.GetRawTransaction(tx)
+		if err1 != nil {
+			log.Warnf("Unable to GetRawTransactions(%s): %v", tx, err1)
+			err = err1
+			continue
+		}
+		// Scan transaction for inputs/outputs involving the address of interest
+		outpoints, prevouts, prevTxns := txhelpers.TxInvolvesAddress(Tx.MsgTx(),
+			address, db.client, db.params)
+		if len(outpoints) == 0 && len(prevouts) == 0 {
+			continue
+		}
+		// Add present transaction to previous outpoint txn slice
+		numUnconfirmed++
+		thisTxUnconfirmed := &txhelpers.TxWithBlockData{
+			Tx: Tx.MsgTx(),
+		}
+		prevTxns = append(prevTxns, thisTxUnconfirmed)
+		// Merge the I/Os and the transactions into results
+		addressOutpoints.Update(prevTxns, outpoints, prevouts)
+	}
+	return addressOutpoints, numUnconfirmed, err
+}
+
+// GetMepool gets all transactions from the mempool for explorer and adds the
+// total out for all the txs and vote info for the votes. The returned slice
+// will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
+// slice is returned if there are no transactions in mempool.
 func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 	mempooltxs, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
 	if err != nil {
+		log.Errorf("GetRawMempoolVerbose failed: %v", err)
 		return nil
 	}
 

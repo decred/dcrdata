@@ -5,6 +5,7 @@ package explorer
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"math"
@@ -221,6 +222,29 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 				str += fmt.Sprintf("%ds ", allsecs)
 			}
 			return str + "remaining"
+		},
+		"TimeDurationFormat": func(duration time.Duration) (formatedDuration string) {
+			durationhr := int(duration.Minutes() / 60)
+			durationmin := int(duration.Minutes()) % 60
+			durationsec := int(duration.Seconds()) % 60
+			if durationhr != 0 {
+				formatedDuration = strconv.Itoa(durationhr) + " hrs " + strconv.Itoa(durationmin) + " min " + strconv.Itoa(durationsec) + " sec"
+				return
+			} else if (durationhr == 0) && (durationmin != 0) {
+				formatedDuration = strconv.Itoa(durationmin) + " min " + strconv.Itoa(durationsec) + " sec"
+				return
+			} else {
+				formatedDuration = strconv.Itoa(durationsec) + " sec"
+			}
+			return
+		},
+		"covertByteArrayToString": func(arr []byte) (inString string) {
+			inString = hex.EncodeToString(arr)
+			return
+		},
+		"uint16Mul": func(a uint16, b int) (result int) {
+			result = int(a) * b
+			return
 		},
 	}
 }

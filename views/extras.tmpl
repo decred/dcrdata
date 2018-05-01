@@ -71,6 +71,7 @@
             <ul id="menu">
                 <a href="/" title="Home"><li>Home</li></a>
                 <a href="/mempool" title="Decred mempool"><li>Mempool</li></a>
+                <a href="/parameters" title="Chain Parameters"><li>Parameters</li></a>
                 <a href="/blocks" title="Decred blocks"><li>Blocks</li></a>
                 <a href="/decodetx" title="Decode or send a raw transaction"><li>Decode/Broadcast Tx</li></a>
                 <a href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank"><li>JSON API Docs</li></a>
@@ -150,8 +151,31 @@
         return protocol + "://" + loc.host + '/ws'
     }
 
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function txRowHTMLFlexBox(tx) {
+        var totalTxt = ""
+        humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+            totalTxt += str.textContent
+        })
+        return `<div class="d-flex flex-table-row">
+            <a class="hash truncate-hash" style="flex: 1 1 auto" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a>
+            <span style="flex: 0 0 60px" class="mono text-right ml-1">${tx.Type}</span>
+            <span style="flex: 0 0 105px" class="mono text-right ml-1">${totalTxt}</span>
+            <span style="flex: 0 0 50px" class="mono text-right ml-1">${tx.size} B</span>
+            <span style="flex: 0 0 65px" class="mono text-right ml-1" data-age="${tx.time}">${humanize.timeSince(tx.time)}</span>
+        </div>`
+    }
+
     var ws; // websocket global
-    function createWebSocket(loc) {
+    async function createWebSocket(loc) {
+        // wait a bit to prevent websocket churn from drive by page loads
+        console.log('Waiting to create websocket');
+        $('#connection').removeClass('hidden');
+        await sleep(3000);
+        console.log('Starting websocket');
         var uri = getSocketURI(loc)
         ws = new MessageSocket(uri);
         console.log("createdWebSocket", uri, ws)
@@ -223,18 +247,8 @@
             }
             
             if (window.location.pathname == "/"){
-                var rows = $('#mini-transactions tbody tr')
-                var totalTxt = "" 
-                humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                    totalTxt += str.textContent
-                })
-                var newRow = '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                    tx.hash + '">' + tx.hash + '</a></span></td>' +
-                    '<td class="mono fs15">' + tx.Type + '</td>' +
-                    '<td class="mono fs15">' + totalTxt +'</td>' +
-                    '<td class="mono fs15">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
-                var newRowHtml = $.parseHTML(newRow)
+                var rows = $('#mini-transactions .flex-table-row')
+                var newRowHtml = $.parseHTML(txRowHTMLFlexBox(tx))
                 rows.last().remove()
                 $(newRowHtml).insertBefore(rows.first())
             }
@@ -395,7 +409,7 @@
                     '<td class="mono fs15">' + tx.Type + '</td>'+
                     '<td class="mono fs15">' + totalTxt +'</td>' +
                     '<td class="mono fs15">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>' 
+                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
                 })
                 $('#mini-transactions tbody').html(newTable)
             }
@@ -467,13 +481,12 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
-
         <div style="text-align: left; margin:0 auto !important; display:inline-block">
             <a class="nav-item" href="https://github.com/decred/dcrdata" title="dcrdata on GitHub" target="_blank">dcrdata v{{.Version}}</a>
-            <a class="nav-item" href="https://github.com/decred/dcrdata/blob/master/LICENSE" target="_blank">© 2017-2018 The dcrdata developers (ISC)</a>
+            <a class="nav-item" href="https://github.com/decred/dcrdata/blob/master/LICENSE" target="_blank">© 2018 The Decred developers (ISC)</a>
         </div>
         <div style="float: right;">
-            <span data-turbolinks-permanent class="nav-item hidden" id="connection"
+            <span data-turbolinks-permanent class="nav-item" id="connection"
                 title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
                 >Connecting to WebSocket...<div></div>
             </span>

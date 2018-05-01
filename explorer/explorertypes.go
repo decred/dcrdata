@@ -6,8 +6,10 @@ package explorer
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes"
@@ -25,7 +27,7 @@ type BlockBasic struct {
 	Revocations    uint32 `json:"revocations"`
 	BlockTime      int64  `json:"time"`
 	FormattedTime  string `json:"formatted_time"`
-	FormattedBytes string
+	FormattedBytes string `json:"formatted_bytes"`
 }
 
 // TxBasic models data for transactions on the block page
@@ -39,10 +41,11 @@ type TxBasic struct {
 	Coinbase      bool
 }
 
-//AddressTx models data for transactions on the address page
+// AddressTx models data for transactions on the address page
 type AddressTx struct {
 	TxID          string
 	InOutID       uint32
+	Size          uint32
 	FormattedSize string
 	Total         float64
 	Confirmations uint64
@@ -168,6 +171,14 @@ type BlockInfo struct {
 	StakeValidationHeight int64
 }
 
+// AddressTransactions collects the transactions for an address as AddressTx
+// slices.
+type AddressTransactions struct {
+	Transactions []*AddressTx
+	TxnsFunding  []*AddressTx
+	TxnsSpending []*AddressTx
+}
+
 // AddressInfo models data for display on the address page
 type AddressInfo struct {
 	// Address is the decred address on the current page
@@ -181,7 +192,8 @@ type AddressInfo struct {
 	TxnType       string // ?txntype=TxnType
 
 	// NumUnconfirmed is the number of unconfirmed txns for the address
-	NumUnconfirmed int64
+	NumUnconfirmed  int64
+	UnconfirmedTxns *AddressTransactions
 
 	// Transactions on the current page
 	Transactions    []*AddressTx
@@ -225,11 +237,11 @@ func (a *AddressInfo) TxnCount() int64 {
 // AddressBalance represents the number and value of spent and unspent outputs
 // for an address.
 type AddressBalance struct {
-	Address      string
-	NumSpent     int64
-	NumUnspent   int64
-	TotalSpent   int64
-	TotalUnspent int64
+	Address      string `json:"address"`
+	NumSpent     int64  `json:"num_stxos"`
+	NumUnspent   int64  `json:"num_utxos"`
+	TotalSpent   int64  `json:"amount_spent"`
+	TotalUnspent int64  `json:"amount_unspent"`
 }
 
 // HomeInfo represents data used for the home page
@@ -375,4 +387,66 @@ type MempoolTx struct {
 type NewMempoolTx struct {
 	Time int64
 	Hex  string
+}
+
+// ExtendedChainParams represents the data of ChainParams
+type ExtendedChainParams struct {
+	Params               *chaincfg.Params
+	ActualTicketPoolSize int64
+	AddressPrefix        []AddrPrefix
+}
+
+// AddrPrefix represent the address name it's prefix and description
+type AddrPrefix struct {
+	Name        string
+	Prefix      string
+	Description string
+}
+
+// AddressPrefixes generates an array AddrPrefix by using chaincfg.Params
+func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
+	Descriptions := []string{"P2PK address",
+		"P2PKH address prefix",
+		"P2PKH address prefix",
+		"secp256k1 Schnorr P2PKH address prefix",
+		"P2SH address prefix",
+		"WIF private key prefix",
+		"HD extended private key prefix",
+		"HD extended public key prefix",
+	}
+	Name := []string{"PubKeyAddrID",
+		"PubKeyHashAddrID",
+		"PKHEdwardsAddrID",
+		"PKHSchnorrAddrID",
+		"ScriptHashAddrID",
+		"PrivateKeyID",
+		"HDPrivateKeyID",
+		"HDPublicKeyID",
+	}
+
+	MainnetPrefixes := []string{"Dk", "Ds", "De", "DS", "Dc", "Pm", "dprv", "dpub"}
+	TestnetPrefixes := []string{"Tk", "Ts", "Te", "TS", "Tc", "Pt", "tprv", "tpub"}
+	SimnetPrefixes := []string{"Sk", "Ss", "Se", "SS", "Sc", "Ps", "sprv", "spub"}
+
+	name := params.Name
+	var netPrefixes []string
+	if name == "mainnet" {
+		netPrefixes = MainnetPrefixes
+	} else if strings.HasPrefix(name, "testnet") {
+		netPrefixes = TestnetPrefixes
+	} else if name == "simnet" {
+		netPrefixes = SimnetPrefixes
+	} else {
+		return nil
+	}
+
+	addrPrefix := make([]AddrPrefix, 0, len(Descriptions))
+	for i, desc := range Descriptions {
+		addrPrefix = append(addrPrefix, AddrPrefix{
+			Name:        Name[i],
+			Description: desc,
+			Prefix:      netPrefixes[i],
+		})
+	}
+	return addrPrefix
 }

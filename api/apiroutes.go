@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -19,10 +20,12 @@ import (
 	"github.com/decred/dcrdata/explorer"
 	m "github.com/decred/dcrdata/middleware"
 	notify "github.com/decred/dcrdata/notification"
+	appver "github.com/decred/dcrdata/version"
 )
 
-// APIDataSource implements an interface for collecting data for the api
-type APIDataSource interface {
+// DataSourceLite specifies an interface for collecting data from the built-in
+// databases (i.e. SQLite, storm, ffldb)
+type DataSourceLite interface {
 	GetHeight() int
 	GetBestBlockHash() (string, error)
 	GetBlockHash(idx int64) (string, error)
@@ -67,48 +70,63 @@ type APIDataSource interface {
 	GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails
 	GetAddressTransactions(addr string, count int) *apitypes.Address
 	GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw
-	GetAddressTransactionsWithSkip(addr string, count int, skip int) *apitypes.Address
-	GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw
+	GetAddressTransactionsWithSkip(addr string, count, skip int) *apitypes.Address
+	GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw
 	SendRawTransaction(txhex string) (string, error)
 	GetExplorerAddress(address string, count, offset int64) *explorer.AddressInfo
 }
 
-type explorerDataSource interface {
+// DataSourceAux specifies an interface for advanced data collection using the
+// auxiliary DB (e.g. PostgreSQL).
+type DataSourceAux interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
-	AddressHistory(address string, N, offset int64) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error)
+	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error)
 	FillAddressTransactions(addrInfo *explorer.AddressInfo) error
 	ChartBlocks() ([]*dbtypes.ChartBlock, error)
+	AddressTransactionDetails(addr string, count, skip int64,
+		txnType dbtypes.AddrTxnType) (*apitypes.Address, error)
+	AddressTotals(address string) (*apitypes.AddressTotals, error)
 }
 
 // dcrdata application context used by all route handlers
 type appContext struct {
-	nodeClient     *rpcclient.Client
-	BlockData      APIDataSource
-	ExplorerSource explorerDataSource
-	Status         apitypes.Status
-	statusMtx      sync.RWMutex
-	JSONIndent     string
+	nodeClient    *rpcclient.Client
+	BlockData     DataSourceLite
+	AuxDataSource DataSourceAux
+	LiteMode      bool
+	Status        apitypes.Status
+	statusMtx     sync.RWMutex
+	JSONIndent    string
 }
 
-// Constructor for appContext
-func NewContext(client *rpcclient.Client, blockData APIDataSource, JSONIndent string) *appContext {
+// NewContext constructs a new appContext from the RPC client, primary and
+// auxiliary data sources, and JSON indentation string.
+func NewContext(client *rpcclient.Client, dataSource DataSourceLite, auxDataSource DataSourceAux, JSONIndent string) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 
+	// explorerDataSource is an interface that could have a value of pointer
+	// type, and if either is nil this means lite mode.
+	liteMode := auxDataSource == nil || reflect.ValueOf(auxDataSource).IsNil()
+
 	return &appContext{
-		nodeClient: client,
-		BlockData:  blockData,
+		nodeClient:    client,
+		BlockData:     dataSource,
+		AuxDataSource: auxDataSource,
+		LiteMode:      liteMode,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
 			APIVersion:      APIVersion,
-			DcrdataVersion:  ver.String(),
+			DcrdataVersion:  appver.Ver.String(),
 		},
 		JSONIndent: JSONIndent,
 	}
 }
 
+// StatusNtfnHandler keeps the appContext's Status up-to-date with changes in
+// node and DB status.
 func (c *appContext) StatusNtfnHandler(wg *sync.WaitGroup, quit chan struct{}) {
 	defer wg.Done()
 out:
@@ -123,6 +141,9 @@ out:
 
 			c.statusMtx.Lock()
 			c.Status.Height = height
+
+			// if DB height agrees with node height, then we're ready
+			c.Status.Ready = c.Status.Height == c.Status.DBHeight
 
 			var err error
 			c.Status.NodeConnections, err = c.nodeClient.GetConnectionCount()
@@ -141,7 +162,7 @@ out:
 			}
 
 			if c.BlockData == nil {
-				panic("BlockData APIDataSource is nil")
+				panic("BlockData DataSourceLite is nil")
 			}
 
 			summary := c.BlockData.GetBestBlockSummary()
@@ -150,17 +171,15 @@ out:
 				break keepon
 			}
 
-			bdHeight := c.BlockData.GetHeight()
 			c.statusMtx.Lock()
+			c.Status.DBHeight = height
+			c.Status.DBLastBlockTime = summary.Time
+
+			bdHeight := c.BlockData.GetHeight()
 			if bdHeight >= 0 && summary.Height == uint32(bdHeight) &&
 				height == uint32(bdHeight) {
-				c.Status.DBHeight = height
 				// if DB height agrees with node height, then we're ready
-				if c.Status.Height == height {
-					c.Status.Ready = true
-				} else {
-					c.Status.Ready = false
-				}
+				c.Status.Ready = c.Status.Height == c.Status.DBHeight
 				c.statusMtx.Unlock()
 				break keepon
 			}
@@ -951,24 +970,58 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, sdiffs, c.getIndentQuery(r))
 }
 
-func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
+func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
-	count := m.GetNCtx(r)
-	skip := m.GetMCtx(r)
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+
+	if c.LiteMode {
+		// not available in lite mode
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	totals, err := c.AuxDataSource.AddressTotals(address)
+	if err != nil {
+		log.Warnf("failed to get address totals (%s): %v", address, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, totals, c.getIndentQuery(r))
+}
+
+func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
+	address := m.GetAddressCtx(r)
+	if address == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	count := int64(m.GetNCtx(r))
+	skip := int64(m.GetMCtx(r))
 	if count <= 0 {
 		count = 10
-	} else if count > 2000 {
+	} else if c.LiteMode && count > 2000 {
 		count = 2000
+	} else if count > 8000 {
+		count = 8000
 	}
 	if skip <= 0 {
 		skip = 0
 	}
-	txs := c.BlockData.GetAddressTransactionsWithSkip(address, count, skip)
-	if txs == nil {
+
+	var err error
+	var txs *apitypes.Address
+	if c.LiteMode {
+		txs = c.BlockData.GetAddressTransactionsWithSkip(address, int(count), int(skip))
+	} else {
+		txs, err = c.AuxDataSource.AddressTransactionDetails(address, count, skip, dbtypes.AddrTxnAll)
+	}
+
+	if txs == nil || err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -977,25 +1030,36 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 
 func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
-	count := m.GetNCtx(r)
-	skip := m.GetMCtx(r)
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+
+	count := int64(m.GetNCtx(r))
+	skip := int64(m.GetMCtx(r))
 	if count <= 0 {
 		count = 10
-	} else if count > 2000 {
+	} else if c.LiteMode && count > 2000 {
 		count = 2000
+	} else if count > 8000 {
+		count = 8000
 	}
 	if skip <= 0 {
 		skip = 0
 	}
-	txs := c.BlockData.GetAddressTransactionsRawWithSkip(address, count, skip)
+
+	//var txs []*apitypes.AddressTxRaw
+	// TODO: add postgresql powered method
+	//if c.LiteMode {
+	txs := c.BlockData.GetAddressTransactionsRawWithSkip(address, int(count), int(skip))
+	// } else {
+	// 	txs, err = c.AuxDataSource.AddressTransactionRawDetails(address, count, skip, dbtypes.AddrTxnAll)
+	// }
 	if txs == nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
+
 	writeJSON(w, txs, c.getIndentQuery(r))
 }
 

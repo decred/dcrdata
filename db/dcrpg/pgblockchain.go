@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
+	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/explorer"
@@ -29,6 +31,36 @@ var (
 	zeroHash            = chainhash.Hash{}
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
+
+// DevFundBalance is a block-stamped wrapper for explorer.AddressBalance. It is
+// intended to be used for the project address.
+type DevFundBalance struct {
+	sync.RWMutex
+	*explorer.AddressBalance
+	Height int64
+	Hash   chainhash.Hash
+}
+
+// BlockHash is a thread-safe accessor for the block hash.
+func (d *DevFundBalance) BlockHash() chainhash.Hash {
+	d.RLock()
+	defer d.RUnlock()
+	return d.Hash
+}
+
+// BlockHeight is a thread-safe accessor for the block height.
+func (d *DevFundBalance) BlockHeight() int64 {
+	d.RLock()
+	defer d.RUnlock()
+	return d.Height
+}
+
+// Balance is a thread-safe accessor for the explorer.AddressBalance.
+func (d *DevFundBalance) Balance() *explorer.AddressBalance {
+	d.RLock()
+	defer d.RUnlock()
+	return d.AddressBalance
+}
 
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
@@ -42,17 +74,26 @@ type ChainDB struct {
 	addressCounts      *addressCounter
 	stakeDB            *stakedb.StakeDatabase
 	unspentTicketCache *TicketTxnIDGetter
+	DevFundBalance     *DevFundBalance
+	inBatchSync        bool
 }
 
-// ChainDBRC provides an interface for storing and manipulating extracted
-// and includes the RPC Client blockchain data in a PostgreSQL database.
+// ChainDBRPC provides an interface for storing and manipulating extracted and
+// includes the RPC Client blockchain data in a PostgreSQL database.
 type ChainDBRPC struct {
 	ChainDB *ChainDB
 	Client  *rpcclient.Client
 }
 
+// NewChainDBRPC contains ChainDB and RPC client parameters. By default,
+// duplicate row checks on insertion are enabled. also enables rpc client
+func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) {
+	return &ChainDBRPC{chaindb, cl}, nil
+}
+
+// addressCounter provides a cache for address balances.
 type addressCounter struct {
-	sync.Mutex
+	sync.RWMutex
 	validHeight int64
 	balance     map[string]explorer.AddressBalance
 }
@@ -177,17 +218,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		addressCounts:      makeAddressCounter(),
 		stakeDB:            stakeDB,
 		unspentTicketCache: unspentTicketCache,
-	}, nil
-}
-
-// NewChainDBRPC contains ChainDB and RPC client
-// parameters. By default, duplicate row checks on insertion are enabled.
-// also enables rpc client
-func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) {
-	// Connect to the PostgreSQL daemon and return the *sql.DB
-	return &ChainDBRPC{
-		chaindb,
-		cl,
+		DevFundBalance:     new(DevFundBalance),
 	}, nil
 }
 
@@ -249,6 +280,12 @@ func (pgb *ChainDB) DropTables() {
 func (pgb *ChainDB) HeightDB() (uint64, error) {
 	bestHeight, _, _, err := RetrieveBestBlockHeight(pgb.db)
 	return bestHeight, err
+}
+
+// HashDB queries the DB for the best block's hash.
+func (pgb *ChainDB) HashDB() (string, error) {
+	_, bestHash, _, err := RetrieveBestBlockHeight(pgb.db)
+	return bestHash, err
 }
 
 // Height uses the last stored height.
@@ -352,7 +389,7 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	case dbtypes.AddrTxnDebit:
 		addrFunc = RetrieveAddressDebitTxns
 	default:
-		return nil, fmt.Errorf("Unknown AddrTxnType %v", txnType)
+		return nil, fmt.Errorf("unknown AddrTxnType %v", txnType)
 	}
 
 	_, addressRows, err = addrFunc(pgb.db, address, N, offset)
@@ -363,6 +400,129 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 // for the given address.
 func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error) {
 	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
+}
+
+// retrieveDevBalance retrieves a new DevFundBalance without regard to the cache
+func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
+	bb, hash, _, err := RetrieveBestBlockHeight(pgb.db)
+	if err != nil {
+		return nil, err
+	}
+	blockHeight := int64(bb)
+	blockHash, err := chainhash.NewHashFromStr(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	_, devBalance, err := pgb.AddressHistoryAll(pgb.devAddress, 1, 0)
+	balance := &DevFundBalance{
+		AddressBalance: devBalance,
+		Height:         blockHeight,
+		Hash:           *blockHash,
+	}
+	return balance, err
+}
+
+// UpdateDevBalance forcibly updates the cached development/project fund balance
+// via DB queries. The bool output inidcates if the cached balance was updated
+// (if it was stale).
+func (pgb *ChainDB) UpdateDevBalance() (bool, error) {
+	pgb.DevFundBalance.Lock()
+	defer pgb.DevFundBalance.Unlock()
+	return pgb.updateDevBalance()
+}
+
+func (pgb *ChainDB) updateDevBalance() (bool, error) {
+	// Query for current balance.
+	balance, err := pgb.retrieveDevBalance()
+	if err != nil {
+		return false, err
+	}
+
+	// If cache is stale, update it's fields.
+	if balance.Hash != pgb.DevFundBalance.Hash || pgb.DevFundBalance.AddressBalance == nil {
+		pgb.DevFundBalance.AddressBalance = balance.AddressBalance
+		pgb.DevFundBalance.Height = balance.Height
+		pgb.DevFundBalance.Hash = balance.Hash
+		return true, nil
+	}
+
+	// Cache was not stale
+	return false, nil
+}
+
+// DevBalance returns the current development/project fund balance, updating the
+// cached balance if it is stale.
+func (pgb *ChainDB) DevBalance() (*explorer.AddressBalance, error) {
+	hash, err := pgb.HashDB()
+	if err != nil {
+		return nil, err
+	}
+
+	// Update cache if stale
+	if pgb.DevFundBalance.BlockHash().String() != hash || pgb.DevFundBalance.Balance() == nil {
+		if _, err = pgb.UpdateDevBalance(); err != nil {
+			return nil, err
+		}
+	}
+
+	bal := pgb.DevFundBalance.Balance()
+	if bal == nil {
+		return nil, fmt.Errorf("failed to update dev balance")
+	}
+
+	// return a copy of AddressBalance
+	balCopy := *bal
+	return &balCopy, nil
+}
+
+// addressBalance attempts to retrieve the explorer.AddressBalance from cache,
+// and if cache is stale or missing data for the address, a DB query is used. A
+// successful DB query will freshen the cache.
+func (pgb *ChainDB) addressBalance(address string) (*explorer.AddressBalance, error) {
+	bb, err := pgb.HeightDB()
+	if err != nil {
+		return nil, err
+	}
+	bestBlock := int64(bb)
+
+	totals := pgb.addressCounts
+	totals.Lock()
+	defer totals.Unlock()
+
+	var balanceInfo explorer.AddressBalance
+	var fresh bool
+	if totals.validHeight == bestBlock {
+		balanceInfo, fresh = totals.balance[address]
+	} else {
+		// StoreBlock should do this, but the idea is to clear the old cached
+		// results when a new block is encountered.
+		log.Debugf("Address receive counter stale, at block %d when best is %d.",
+			totals.validHeight, bestBlock)
+		totals.balance = make(map[string]explorer.AddressBalance)
+		totals.validHeight = bestBlock
+		balanceInfo.Address = address
+	}
+
+	if !fresh {
+		var numSpent, numUnspent, totalSpent, totalUnspent int64
+		numSpent, numUnspent, totalSpent, totalUnspent, err =
+			RetrieveAddressSpentUnspent(pgb.db, address)
+		if err != nil {
+			return nil, err
+		}
+		balanceInfo = explorer.AddressBalance{
+			Address:      address,
+			NumSpent:     numSpent,
+			NumUnspent:   numUnspent,
+			TotalSpent:   totalSpent,
+			TotalUnspent: totalUnspent,
+		}
+
+		totals.balance[address] = balanceInfo
+	}
+
+	return &balanceInfo, nil
 }
 
 // AddressHistory queries the database for rows of the addresses table
@@ -387,7 +547,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	} else {
 		// StoreBlock should do this, but the idea is to clear the old cached
 		// results when a new block is encountered.
-		log.Warnf("Address receive counter stale, at block %d when best is %d.",
+		log.Debugf("Address receive counter stale, at block %d when best is %d.",
 			totals.validHeight, bestBlock)
 		totals.balance = make(map[string]explorer.AddressBalance)
 		totals.validHeight = bestBlock
@@ -412,8 +572,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	}
 
 	// N is a limit on NumFundingTxns, so this checks if we have them all.
-	if addrInfo.NumFundingTxns < N && offset == 0 &&
-		(txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit) {
+	if addrInfo.NumFundingTxns < N && offset == 0 && txnType == dbtypes.AddrTxnAll {
 		balanceInfo = explorer.AddressBalance{
 			Address:      address,
 			NumSpent:     addrInfo.NumSpendingTxns,
@@ -464,6 +623,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 		if err != nil {
 			return err
 		}
+		txn.Size = dbTx.Size
 		txn.FormattedSize = humanize.Bytes(uint64(dbTx.Size))
 		txn.Total = dcrutil.Amount(dbTx.Sent).ToCoin()
 		txn.Time = dbTx.BlockTime
@@ -479,6 +639,148 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 	addrInfo.NumUnconfirmed = numUnconfirmed
 
 	return nil
+}
+
+// AddressTotals queries for the following totals: amount spent, amount unspent,
+// number of unspent transaction outputs and number spent.
+func (pgb *ChainDB) AddressTotals(address string) (*apitypes.AddressTotals, error) {
+	// Fetch address totals
+	var err error
+	var ab *explorer.AddressBalance
+	if address == pgb.devAddress {
+		ab, err = pgb.DevBalance()
+	} else {
+		ab, err = pgb.addressBalance(address)
+	}
+
+	if err != nil || ab == nil {
+		return nil, err
+	}
+
+	bestHeight, bestHash, _, err := RetrieveBestBlockHeight(pgb.db)
+	if err != nil {
+		return nil, err
+	}
+
+	return &apitypes.AddressTotals{
+		Address:      address,
+		BlockHeight:  bestHeight,
+		BlockHash:    bestHash,
+		NumSpent:     ab.NumSpent,
+		NumUnspent:   ab.NumUnspent,
+		CoinsSpent:   dcrutil.Amount(ab.TotalSpent).ToCoin(),
+		CoinsUnspent: dcrutil.Amount(ab.TotalUnspent).ToCoin(),
+	}, nil
+}
+
+func (pgb *ChainDB) addressInfo(addr string, count, skip int64,
+	txnType dbtypes.AddrTxnType) (*explorer.AddressInfo, *explorer.AddressBalance, error) {
+	address, err := dcrutil.DecodeAddress(addr)
+	if err != nil {
+		log.Infof("Invalid address %s: %v", addr, err)
+		return nil, nil, err
+	}
+
+	// Get rows from the addresses table for the address
+	addrHist, balance, errH := pgb.AddressHistory(addr, count, skip, txnType)
+	if errH != nil {
+		log.Errorf("Unable to get address %s history: %v", address, errH)
+		return nil, nil, errH
+	}
+
+	// Generate AddressInfo skeleton from the address table rows
+	addrData := explorer.ReduceAddressHistory(addrHist)
+	if addrData == nil {
+		// Empty history is not expected for credit txnType with any txns.
+		if txnType != dbtypes.AddrTxnDebit && (balance.NumSpent+balance.NumUnspent) > 0 {
+			return nil, nil, fmt.Errorf("empty address history (%s): n=%d&start=%d", address, count, skip)
+		}
+		// No mined transactions. Return Address with nil Transactions slice.
+		return nil, balance, nil
+	}
+
+	// Transactions to fetch with FillAddressTransactions. This should be a
+	// noop if AddressHistory/ReduceAddressHistory are working right.
+	switch txnType {
+	case dbtypes.AddrTxnAll:
+	case dbtypes.AddrTxnCredit:
+		addrData.Transactions = addrData.TxnsFunding
+	case dbtypes.AddrTxnDebit:
+		addrData.Transactions = addrData.TxnsSpending
+	default:
+		// shouldn't happen because AddressHistory does this check
+		return nil, nil, fmt.Errorf("unknown address transaction type: %v", txnType)
+	}
+
+	// Query database for transaction details
+	err = pgb.FillAddressTransactions(addrData)
+	if err != nil {
+		return nil, balance, fmt.Errorf("Unable to fill address %s transactions: %v", address, err)
+	}
+
+	return addrData, balance, nil
+}
+
+// AddressTransactionDetails returns an apitypes.Address with at most the last
+// count transactions of type txnType in which the address was involved,
+// starting after skip transactions. This does NOT include unconfirmed
+// transactions.
+func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
+	txnType dbtypes.AddrTxnType) (*apitypes.Address, error) {
+	// Fetch address history for given transaction range and type
+	addrData, _, err := pgb.addressInfo(addr, count, skip, txnType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert each explorer.AddressTx to apitypes.AddressTxShort
+	txs := addrData.Transactions
+	txsShort := make([]*apitypes.AddressTxShort, 0, len(txs))
+	for i := range txs {
+		txsShort = append(txsShort, &apitypes.AddressTxShort{
+			TxID:          txs[i].TxID,
+			Time:          txs[i].Time,
+			Value:         txs[i].Total,
+			Confirmations: int64(txs[i].Confirmations),
+			Size:          int32(txs[i].Size),
+		})
+	}
+
+	// put a bow on it
+	return &apitypes.Address{
+		Address:      addr,
+		Transactions: txsShort,
+	}, nil
+}
+
+// TODO: finish
+func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
+	txnType dbtypes.AddrTxnType) ([]*apitypes.AddressTxRaw, error) {
+	addrData, _, err := pgb.addressInfo(addr, count, skip, txnType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert each explorer.AddressTx to apitypes.AddressTxRaw
+	txs := addrData.Transactions
+	txsRaw := make([]*apitypes.AddressTxRaw, 0, len(txs))
+	for i := range txs {
+		txsRaw = append(txsRaw, &apitypes.AddressTxRaw{
+			Size: int32(txs[i].Size),
+			TxID: txs[i].TxID,
+			// Version
+			// LockTime
+			// Vin
+			// Vout
+			//
+			Confirmations: int64(txs[i].Confirmations),
+			//BlockHash: txs[i].
+			Time: txs[i].Time,
+			//Blocktime:
+		})
+	}
+
+	return txsRaw, nil
 }
 
 // Store satisfies BlockDataSaver
@@ -911,10 +1213,20 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		}
 	}
 
-	pgb.addressCounts.Lock()
-	pgb.addressCounts.validHeight = int64(msgBlock.Header.Height)
-	pgb.addressCounts.balance = map[string]explorer.AddressBalance{}
-	pgb.addressCounts.Unlock()
+	if !pgb.inBatchSync {
+		pgb.addressCounts.Lock()
+		pgb.addressCounts.validHeight = int64(msgBlock.Header.Height)
+		pgb.addressCounts.balance = map[string]explorer.AddressBalance{}
+		pgb.addressCounts.Unlock()
+
+		// Lazy update of DevFundBalance
+		go func() {
+			runtime.Gosched()
+			if _, err = pgb.UpdateDevBalance(); err != nil {
+				log.Errorf("Failed to update development fund balance: %v", err)
+			}
+		}()
+	}
 
 	return
 }

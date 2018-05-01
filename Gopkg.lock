@@ -133,6 +133,31 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/decred/dcrdata"
+  packages = [
+    "api",
+    "api/insight",
+    "api/types",
+    "blockdata",
+    "db/dbtypes",
+    "db/dbtypes/internal",
+    "db/dcrpg",
+    "db/dcrpg/internal",
+    "db/dcrsqlite",
+    "explorer",
+    "mempool",
+    "middleware",
+    "notification",
+    "rpcutils",
+    "semver",
+    "stakedb",
+    "txhelpers",
+    "version"
+  ]
+  revision = "e1c4f606aeab37e6171ee2677f701b89970c4c69"
+
+[[projects]]
+  branch = "master"
   name = "github.com/decred/dcrwallet"
   packages = [
     "apperrors",
@@ -260,6 +285,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2bfe6c04715a8ce07c4c67aeaa959e5781c1fd325c9add797b1a3cf9cb5036ed"
+  inputs-digest = "27710db38f3b670776c48bb7fa0c79f158be5889d5ba2c8f5f0e03e98598934b"
   solver-name = "gps-cdcl"
   solver-version = 1
