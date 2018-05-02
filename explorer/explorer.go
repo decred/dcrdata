@@ -364,14 +364,14 @@ func (exp *explorerUI) simulateAPR(
 	ActualTicketPrice float64) (APR float64, ReturnTable string) {
 
 	var AvgTicketBlocks = float64(exp.ChainParams.TicketExpiry) / float64(exp.ChainParams.TicketsPerBlock)
-	var BlocksPerDay float64 = 86400 / float64(exp.ChainParams.TargetTimePerBlock.Seconds())
+	var BlocksPerDay float64 = 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
 	var BlocksPerYear float64 = 365 * BlocksPerDay
 	var TicketsPurchased float64
 
 	StakeRewardAtBlock := func(blocknum float64) float64 {
 		// Option 1:  RPC Call
 		Subsidy := exp.blockData.GetBlockSubsidy(int64(blocknum), 1)
-		return float64(dcrutil.Amount(Subsidy.PoS).ToCoin())
+		return dcrutil.Amount(Subsidy.PoS).ToCoin()
 
 		// Option 2:  Calculation
 		// epoch := math.Floor(blocknum / float64(exp.ChainParams.SubsidyReductionInterval))
