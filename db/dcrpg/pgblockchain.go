@@ -1081,22 +1081,46 @@ func warnUnlessNotExists(err error) {
 	}
 }
 
-// IndexAddressTable creates the indexes on the address table on the vout ID and
-// address columns, separately.
+// IndexAddressTable creates the indexes on the address table on the vout ID,
+// block_time, matching_tx_hash, tx_hash and address columns, separately.
 func (pgb *ChainDB) IndexAddressTable() error {
 	log.Infof("Indexing addresses table on address...")
 	if err := IndexAddressTableOnAddress(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing addresses table on tx hash...")
+	if err := IndexAddressTableOnTxHash(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing addresses table on matching tx hash...")
+	if err := IndexMatchingTxHashOnTableAddress(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing addresses table on block time...")
+	if err := IndexBlockTimeOnTableAddress(pgb.db); err != nil {
 		return err
 	}
 	log.Infof("Indexing addresses table on vout Db ID...")
 	return IndexAddressTableOnVoutID(pgb.db)
 }
 
-// DeindexAddressTable drops the vin ID and address column indexes for the
-// address table.
+// DeindexAddressTable drops the vin ID, tx_hash, block_time, matching_tx_hash
+// and address column indexes for the address table.
 func (pgb *ChainDB) DeindexAddressTable() error {
 	var errAny error
 	if err := DeindexAddressTableOnAddress(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err := DeindexAddressTableOnTxHash(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err := DeindexMatchingTxHashOnTableAddress(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err := DeindexBlockTimeOnTableAddress(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
