@@ -6,6 +6,7 @@ package explorer
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -51,6 +52,7 @@ type explorerDataSourceLite interface {
 	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []MempoolTx
 	TxHeight(txid string) (height int64)
+	GetBlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -220,6 +222,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		return (a / b) * 100
 	}
 
+	stakePerc := blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
+	apr, _ := exp.simulateAPR(1000, false, stakePerc, dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(), float64(exp.NewBlockData.Height), blockData.CurrentStakeDiff.CurrentStakeDifficulty)
+
 	exp.ExtraInfo = &HomeInfo{
 		CoinSupply:        blockData.ExtraInfo.CoinSupply,
 		StakeDiff:         blockData.CurrentStakeDiff.CurrentStakeDifficulty,
@@ -242,7 +247,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 			Size:       blockData.PoolInfo.Size,
 			Value:      blockData.PoolInfo.Value,
 			ValAvg:     blockData.PoolInfo.ValAvg,
-			Percentage: percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()),
+			Percentage: stakePerc * 100,
 			Target:     exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
 			PercentTarget: func() float64 {
 				target := float64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
@@ -280,6 +285,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 					exp.ChainParams.CoinbaseMaturity)
 			return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
 		}(),
+		APR: apr,
 	}
 
 	if !exp.liteMode {
@@ -341,4 +347,116 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Get("/address/{x}", redirect("address"))
 
 	exp.Mux.Get("/decodetx", redirect("decodetx"))
+}
+
+// Simulate ticket purchase and re-investment over a full year for a given
+// starting amount of DCR and calculation parameters.  Generate a TEXT table of
+// the simulation results that can optionally be used for future expansion of
+// dcrdata functionality.
+func (exp *explorerUI) simulateAPR(
+	StartingDCRBalance float64,
+	IntegerTicketQty bool,
+	CurrentStakePercent float64,
+	ActualCoinbase float64,
+	CurrentBlockNum float64,
+	ActualTicketPrice float64) (APR float64, ReturnTable string) {
+
+	var AvgTicketBlocks = float64(exp.ChainParams.TicketExpiry) / float64(exp.ChainParams.TicketsPerBlock)
+	var BlocksPerDay float64 = 86400 / float64(exp.ChainParams.TargetTimePerBlock.Seconds())
+	var BlocksPerYear float64 = 365 * BlocksPerDay
+	var TicketsPurchased float64
+
+	StakeRewardAtBlock := func(blocknum float64) float64 {
+		// Option 1:  RPC Call
+		Subsidy := exp.blockData.GetBlockSubsidy(int64(blocknum), 1)
+		return float64(dcrutil.Amount(Subsidy.PoS).ToCoin())
+
+		// Option 2:  Calculation
+		// epoch := math.Floor(blocknum / float64(exp.ChainParams.SubsidyReductionInterval))
+		// RewardProportionPerVote := float64(exp.ChainParams.StakeRewardProportion) / (10 * float64(exp.ChainParams.TicketsPerBlock))
+		// return float64(RewardProportionPerVote) * dcrutil.Amount(exp.ChainParams.BaseSubsidy).ToCoin() *
+		// 	math.Pow(float64(exp.ChainParams.MulSubsidy)/float64(exp.ChainParams.DivSubsidy), epoch)
+	}
+
+	MaxCoinSupplyAtBlock := func(blocknum float64) float64 {
+		// 4th order poly best fit curve to Decred mainnet emissions plot.
+		// Curve fit was done with 0 Y intercept and Pre-Mine added after.
+
+		return (-9E-19*math.Pow(blocknum, 4) +
+			7E-12*math.Pow(blocknum, 3) -
+			2E-05*math.Pow(blocknum, 2) +
+			29.757*blocknum + 76963 +
+			1680000) // Premine 1.68M
+
+	}
+
+	var CoinAdjustmentFactor = ActualCoinbase / MaxCoinSupplyAtBlock(CurrentBlockNum)
+
+	TheoreticalTicketPrice := func(blocknum float64) float64 {
+		ProjectedCoinsCirculating := MaxCoinSupplyAtBlock(blocknum) * CoinAdjustmentFactor * CurrentStakePercent
+		TicketPoolSize := (AvgTicketBlocks + float64(exp.ChainParams.TicketMaturity) +
+			float64(exp.ChainParams.CoinbaseMaturity)) * float64(exp.ChainParams.TicketsPerBlock)
+		return ProjectedCoinsCirculating / TicketPoolSize
+
+	}
+	var TicketAdjustmentFactor = ActualTicketPrice / TheoreticalTicketPrice(CurrentBlockNum)
+
+	// Prepare for simulation
+	simblock := CurrentBlockNum
+	TicketPrice := ActualTicketPrice
+	DCRBalance := StartingDCRBalance
+
+	ReturnTable += fmt.Sprintf("\n\nBLOCKNUM        DCR  TICKETS TKT_PRICE TKT_REWRD  ACTION\n")
+	ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    INIT\n",
+		int64(simblock), DCRBalance, TicketsPurchased,
+		TicketPrice, StakeRewardAtBlock(simblock))
+
+	for simblock < (BlocksPerYear + CurrentBlockNum) {
+
+		// Simulate a Purchase on simblock
+		TicketPrice = TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor
+
+		if IntegerTicketQty {
+			// Use this to simulate integer qtys of tickets up to max funds
+			TicketsPurchased = math.Floor(DCRBalance / TicketPrice)
+		} else {
+			// Use this to simulate ALL funds used to buy tickets - even fractional tickets
+			// which is actually not possible
+			TicketsPurchased = (DCRBalance / TicketPrice)
+		}
+
+		DCRBalance -= (TicketPrice * TicketsPurchased)
+		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f     BUY\n",
+			int64(simblock), DCRBalance, TicketsPurchased,
+			TicketPrice, StakeRewardAtBlock(simblock))
+
+		// Move forward to average vote
+		simblock += (float64(exp.ChainParams.TicketMaturity) + AvgTicketBlocks)
+		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    VOTE\n",
+			int64(simblock), DCRBalance, TicketsPurchased,
+			(TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor), StakeRewardAtBlock(simblock))
+
+		// Simulate return of funds
+		DCRBalance += (TicketPrice * TicketsPurchased)
+
+		// Simulate reward
+		DCRBalance += (StakeRewardAtBlock(simblock) * TicketsPurchased)
+		TicketsPurchased = 0
+
+		// Move forward to coinbase maturity
+		simblock += float64(exp.ChainParams.CoinbaseMaturity)
+
+		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f  REWARD\n",
+			int64(simblock), DCRBalance, TicketsPurchased,
+			(TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor), StakeRewardAtBlock(simblock))
+
+		// Need to receive funds before we can use them again so add 1 block
+		simblock++
+	}
+
+	// Scale down to exactly 365 days
+	SimulationROI := ((DCRBalance - StartingDCRBalance) / StartingDCRBalance) * 100
+	APR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationROI
+	ReturnTable += fmt.Sprintf("APR over 365 Days is %.2f.\n", APR)
+	return
 }
