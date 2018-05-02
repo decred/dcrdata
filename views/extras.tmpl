@@ -59,27 +59,25 @@
                     </div>
                 </form>
             </div>
+            <nav role="navigation" id="hamburger-menu" data-turbolinks-permanent>
+                <div id="menuToggle">
+                    <input type="checkbox" id="menuToggleCheckbox"/>
+                    <span class="patty"></span>
+                    <span class="patty"></span>
+                    <span class="patty short"></span>
+                    <ul id="menu">
+                        <a href="/" title="Home"><li>Home</li></a>
+                        <a href="/mempool" title="Decred mempool"><li>Mempool</li></a>
+                        <a href="/parameters" title="Chain Parameters"><li>Parameters</li></a>
+                        <a href="/blocks" title="Decred blocks"><li>Blocks</li></a>
+                        <a href="/decodetx" title="Decode or send a raw transaction"><li>Decode/Broadcast Tx</li></a>
+                        <a href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank"><li>JSON API Docs</li></a>
+                        <a data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><li><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</li></a>
+                    </ul>
+                </div>
+            </nav>
         </div>
     </div>
-
-    <nav role="navigation" id="hamburger-menu" data-turbolinks-permanent>
-        <div id="menuToggle">
-            <input type="checkbox" id="menuToggleCheckbox"/>
-            <span class="patty"></span>
-            <span class="patty"></span>
-            <span class="patty"></span>
-            <ul id="menu">
-                <a href="/" title="Home"><li>Home</li></a>
-                <a href="/mempool" title="Decred mempool"><li>Mempool</li></a>
-                <a href="/parameters" title="Chain Parameters"><li>Parameters</li></a>
-                <a href="/blocks" title="Decred blocks"><li>Blocks</li></a>
-                <a href="/decodetx" title="Decode or send a raw transaction"><li>Decode/Broadcast Tx</li></a>
-                <a href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank"><li>JSON API Docs</li></a>
-                <a data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><li><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</li></a>
-            </ul>
-        </div>
-    </nav>
-
 </div>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
@@ -129,10 +127,18 @@
             toggleToLightClasses(event.data.newBody)
         }
     })
-    document.addEventListener("turbolinks:load", function() {
-        $("#menuToggle input").prop('checked', false)
+    $(document).click( function(e) {
+        if ($(e.target).id == "menuToggleCheckbox") {
+            return
+        }
+        if ($(e.target).parents("#hamburger-menu").size() > 0) {
+            return
+        }
+        closeMenu(e)
     })
-
+    function closeMenu(e) {
+        $("#menuToggle input").prop('checked', false)
+    }
     function updateConnectionStatus(msg, connected) {
         var el = $('#connection');
         el.removeClass('hidden')
@@ -200,7 +206,7 @@
             txs.forEach(function(tx, idx) {
             addTxRow = function(str) {
                 var rows = $('#' + str +' tbody tr')
-                var totalTxt = "" 
+                var totalTxt = ""
                 humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                     totalTxt += str.textContent
                 })
@@ -220,7 +226,7 @@
                 case "Vote":
                     $('#mempool_vote_number').text(parseInt($('#mempool_vote_number').text()) + 1)
                     var rows = $('#mempool_votes tbody tr')
-                    var totalTxt = "" 
+                    var totalTxt = ""
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
@@ -245,7 +251,7 @@
                     addTxRow('mempool_revocations')
                     break
             }
-            
+
             if (window.location.pathname == "/"){
                 var rows = $('#mini-transactions .flex-table-row')
                 var newRowHtml = $.parseHTML(txRowHTMLFlexBox(tx))
@@ -260,7 +266,7 @@
             console.log("Get Mempool: ", evt)
             var newTable = ''
             var makeNewTable =function (tx) {
-                    var totalTxt = "" 
+                    var totalTxt = ""
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
@@ -282,7 +288,7 @@
             newTable = ''
             m.votes.forEach(function (tx) {
                 var rows = $('#mempool_votes tbody tr')
-                    var totalTxt = "" 
+                    var totalTxt = ""
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
@@ -295,7 +301,7 @@
                         '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
                         '<td class="mono fs15">' + tx.size + ' B</td>'  +
                         '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
-       
+
             })
             $('#mempool_votes tbody').html($.parseHTML(newTable))
 
@@ -306,7 +312,7 @@
             }
 
             setTimeElements()
-        });     
+        });
 
         ws.registerEvtHandler("ping", function(evt) {
             console.log("ping. users online: ", evt)
@@ -334,7 +340,7 @@
                     newBlock.block.height - $(v).data('confirmation-block-height')
                 )
             })
-            
+
             // block summary data
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
@@ -400,7 +406,7 @@
             if (window.location.pathname == "/") {
                 var newTable = ""
                 m.latest.forEach(function (tx) {
-                    var totalTxt = "" 
+                    var totalTxt = ""
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
@@ -461,7 +467,7 @@
         });
         newBlockNtfn.show();
     }
-    
+
     function desktopNotifyNewBlock(block) {
         if (!Notify.needsPermission) {
             doNotification(block);
@@ -508,9 +514,10 @@
             }
         })
     }
-    document.addEventListener("turbolinks:load", function(){
+    document.addEventListener("turbolinks:load", function(e){
         setTimeElements()
         updateAges()
+        closeMenu(e)
     })
     setInterval(updateAges, 10000);
 </script>
