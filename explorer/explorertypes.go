@@ -71,17 +71,19 @@ func (a *AddressTx) IOID() string {
 // TxInfo models data needed for display on the tx page
 type TxInfo struct {
 	*TxBasic
-	SpendingTxns    []TxInID
-	Type            string
-	Vin             []Vin
-	Vout            []Vout
-	BlockHeight     int64
-	BlockIndex      uint32
-	Confirmations   int64
-	Time            int64
-	FormattedTime   string
-	Mature          string
-	VoteFundsLocked string
+	SpendingTxns     []TxInID
+	Type             string
+	Vin              []Vin
+	Vout             []Vout
+	BlockHeight      int64
+	BlockIndex       uint32
+	Confirmations    int64
+	Time             int64
+	FormattedTime    string
+	Mature           string
+	VoteFundsLocked  string
+	Maturity         int64   // Total number of blocks before mature
+	MaturityTimeTill float64 // Time in days until mature
 	TicketInfo
 }
 
@@ -94,11 +96,12 @@ type TicketInfo struct {
 	TicketPoolSize       int64   // Total number of ticket in the pool
 	TicketExpiry         int64   // Total number of blocks before a ticket expires
 	TicketExpiryDaysLeft float64 // Approximate days left before the given ticket expires
-	ShortConfirms        int64   // Total number of confirms up until the point the ticket votes or expires
+	TicketLiveBlocks     int64   // Total number of confirms after maturity and up until the point the ticket votes or expires
 	BestLuck             int64   // Best possible Luck for voting
 	AvgLuck              int64   // Average Luck for voting
 	VoteLuck             float64 // Actual Luck for voting on a ticket
 	LuckStatus           string  // Short discription based on the VoteLuck
+	Probability          float64 // Probability of success before ticket expires
 }
 
 // TxInID models the identity of a spending transaction input
