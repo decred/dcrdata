@@ -247,8 +247,37 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 				return float64(blockData.PoolInfo.Size) / target * 100
 			}(),
 		},
-		TicketROI: percentage(dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin()/5, blockData.CurrentStakeDiff.CurrentStakeDifficulty),
-		ROIPeriod: fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*float64(exp.ChainParams.TicketPoolSize)/86400),
+		TicketROI: func() float64 {
+			PosSubPerVote := dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin() / float64(exp.ChainParams.TicketsPerBlock)
+			return percentage(PosSubPerVote, blockData.CurrentStakeDiff.CurrentStakeDifficulty)
+		}(),
+
+		// If there are ticketpoolsize*TicketsPerBlock total tickets and
+		// TicketsPerBlock are drawn every block, and assuming random selection
+		// of tickets, then any one ticket will, on average, be selected to vote
+		// once every ticketpoolsize blocks
+
+		// Small deviations in reality are due to:
+		// 1.  Not all blocks have 5 votes.  On average each block in Decred
+		// currently has about 4.8 votes per block
+		// 2.  Total tickets in the pool varies slightly above and below
+		// ticketpoolsize*TicketsPerBlock depending on supply and demand
+
+		// Both minor deviations are not accounted for in the general ROI
+		// calculation below because the variance they cause would be would be
+		// extremely small.
+
+		// The actual ROI of a ticket needs to also take into consideration the
+		// ticket maturity (time from ticket purchase until its eligible to vote)
+		// and coinbase maturity (time after vote until funds distributed to
+		// ticket holder are avaliable to use)
+		ROIPeriod: func() string {
+			PosAvgTotalBlocks := float64(
+				exp.ChainParams.TicketPoolSize +
+					exp.ChainParams.TicketMaturity +
+					exp.ChainParams.CoinbaseMaturity)
+			return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
+		}(),
 	}
 
 	if !exp.liteMode {

@@ -1120,6 +1120,8 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		} else {
 			tx.Mature = "True"
 		}
+		tx.Maturity = int64(db.params.CoinbaseMaturity)
+
 	}
 	if tx.Type == "Vote" || tx.Type == "Ticket" {
 		if db.GetBestBlockHeight() >= (int64(db.params.TicketMaturity) + tx.BlockHeight) {
@@ -1135,7 +1137,12 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		} else {
 			tx.VoteFundsLocked = "False"
 		}
+		tx.Maturity = int64(db.params.CoinbaseMaturity) + 1 // Add one to reflect < instead of <=
 	}
+	CoinbaseMaturityInDay := (db.params.TargetTimePerBlock.Hours() * float64(db.params.CoinbaseMaturity)) / 24
+	tx.MaturityTimeTill = ((float64(db.params.CoinbaseMaturity) -
+		float64(tx.Confirmations)) / float64(db.params.CoinbaseMaturity)) * CoinbaseMaturityInDay
+
 	outputs := make([]explorer.Vout, 0, len(txraw.Vout))
 	for i, vout := range txraw.Vout {
 		txout, err := db.client.GetTxOut(txhash, uint32(i), true)
