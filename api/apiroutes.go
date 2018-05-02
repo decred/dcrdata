@@ -1063,6 +1063,18 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 	writeJSON(w, txs, c.getIndentQuery(r))
 }
 
+// ChartBlocks is the handler for charts.
+func (c *appContext) ChartBlocks(w http.ResponseWriter, r *http.Request) {
+	cbs, err := c.AuxDataSource.ChartBlocks()
+	if err != nil {
+		log.Errorf("failed to retrieve chart data: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, cbs, c.getIndentQuery(r))
+}
+
 func (c *appContext) StakeVersionLatestCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := m.StakeVersionLatestCtx(r, c.BlockData.GetStakeVersionsLatest)

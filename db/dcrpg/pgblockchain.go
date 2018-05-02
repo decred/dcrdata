@@ -1754,6 +1754,5 @@ func ticketpoolStatusSlice(ss dbtypes.TicketPoolStatus, N int) []dbtypes.TicketP
 
 // ChartBlocks returns block data for charts.
 func (pgb *ChainDB) ChartBlocks() ([]*dbtypes.ChartBlock, error) {
-	cbs, err := RetrieveChartBlocks(pgb.db)
-	return cbs, err
+	return RetrieveChartBlocks(pgb.db)
 }
