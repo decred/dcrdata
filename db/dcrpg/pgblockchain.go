@@ -268,7 +268,7 @@ func (pgb *ChainDB) VersionCheck() error {
 		for _, u := range tableUpgrades {
 			log.Warnf(u.String())
 		}
-		return fmt.Errorf("table maintenance required")
+		return fmt.Errorf("rebuild of PostgreSQL tables required (drop with rebuilddb2 -D)")
 	}
 	return nil
 }
