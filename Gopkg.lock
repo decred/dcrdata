@@ -133,31 +133,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/decred/dcrdata"
-  packages = [
-    "api",
-    "api/insight",
-    "api/types",
-    "blockdata",
-    "db/dbtypes",
-    "db/dbtypes/internal",
-    "db/dcrpg",
-    "db/dcrpg/internal",
-    "db/dcrsqlite",
-    "explorer",
-    "mempool",
-    "middleware",
-    "notification",
-    "rpcutils",
-    "semver",
-    "stakedb",
-    "txhelpers",
-    "version"
-  ]
-  revision = "e1c4f606aeab37e6171ee2677f701b89970c4c69"
-
-[[projects]]
-  branch = "master"
   name = "github.com/decred/dcrwallet"
   packages = [
     "apperrors",
