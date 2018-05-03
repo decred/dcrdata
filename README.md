@@ -95,6 +95,15 @@ necessary.
 
 ## Getting Started
 
+### Configure PostgreSQL (IMPORTANT)
+
+If you intend to run dcrdata in "full" mode (i.e. with the `--pg` switch), which
+uses a PostgreSQL database backend, it is crucial that you configure your
+PostgreSQL server for your hardware and the dcrdata workload.
+
+Read [postgresql-tuning.conf](./db/dcrpg/postgresql-tuning.conf) carefully for
+details on how to make the necessary changes to your system.
+
 ### Create configuration file
 
 Begin with the sample configuration file:
