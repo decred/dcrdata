@@ -238,12 +238,25 @@ func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.G
 	return rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, verboseTx)
 }
 
-func (db *wiredDB) GetCoinSupply() dcrutil.Amount {
+func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	coinSupply, err := db.client.GetCoinSupply()
 	if err != nil {
-		return dcrutil.Amount(-1)
+		log.Errorf("RPC failure (GetCoinSupply): %v", err)
+		return
 	}
-	return coinSupply
+
+	hash, height, err := db.client.GetBestBlock()
+	if err != nil {
+		log.Errorf("RPC failure (GetBestBlock): %v", err)
+		return
+	}
+
+	return &apitypes.CoinSupply{
+		Height:   height,
+		Hash:     hash.String(),
+		Mined:    int64(coinSupply),
+		Ultimate: txhelpers.UltimateSubsidy(db.params),
+	}
 }
 
 func (db *wiredDB) GetBlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult {
