@@ -92,9 +92,12 @@ body.darkBG a:hover {
 body.darkBG .table thead th {
   vertical-align: bottom;
 }
+body.darkBG .flex-table .header,
 body.darkBG .table thead tr {
   background: #2d2d2d !important;
 }
+body.darkBG .flex-table .flex-table-row,
+body.darkBG .flex-table .header,
 body.darkBG .table tr {
   border-bottom: 1px solid #2d2d2d;
 }
@@ -478,7 +481,7 @@ body.darkBG .progress {
 /*flexboxtable*/
 .flex-table .header {
   padding: 0.36rem .5rem;
-  background: #fff !important;
+  background: #fff;
   border-bottom: 1px solid #e2e2e2;
   font-size: 13px;
   font-weight: 500;
