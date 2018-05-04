@@ -521,6 +521,7 @@ func mainCore() error {
 	webMux.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)
 	webMux.Get("/decodetx", explore.DecodeTxPage)
 	webMux.Get("/search", explore.Search)
+	webMux.Get("/charts", explore.Charts)
 
 	if usePG {
 		chainDBRPC, _ := dcrpg.NewChainDBRPC(auxDB, dcrdClient)

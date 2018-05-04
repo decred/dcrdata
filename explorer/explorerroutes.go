@@ -32,6 +32,9 @@ func netName(chainParams *chaincfg.Params) string {
 	}
 }
 
+// CacheChartsData holds the prepopulated data that is used to draw the charts
+var CacheChartsData = make([][]dbtypes.ChartsData, 0)
+
 // Home is the page handler for the "/" path
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	height := exp.blockData.GetHeight()
@@ -590,6 +593,34 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
 		return
 	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// Charts handles the charts displays showing the various charts plotted.
+func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
+	if len(CacheChartsData) == 0 {
+		log.Errorf("Charts data missing : Queries are taking too long to run")
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("charts", struct {
+		Version string
+		NetName string
+		Data    [][]dbtypes.ChartsData
+	}{
+		exp.Version,
+		exp.NetName,
+		CacheChartsData,
+	})
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)

@@ -53,6 +53,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []MempoolTx
 	TxHeight(txid string) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
+	GetSqliteChartsData() ([][]dbtypes.ChartsData, error)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -66,6 +67,7 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
+	GetPgChartsData() ([][]dbtypes.ChartsData, error)
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction
@@ -196,7 +198,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 		return nil
 	}
-	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address", "rawtx", "error", "parameters", "agenda", "agendas"}
+	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
+		"rawtx", "error", "parameters", "agenda", "agendas", "charts"}
 
 	tempDefaults := []string{"extras"}
 
@@ -208,6 +211,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
+	exp.prePopulateChartsData()
+
 	exp.addRoutes()
 
 	exp.wsHub = NewWebsocketHub()
@@ -217,9 +222,35 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	return exp
 }
 
-func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
+// prePopulateChartsData should run in the background the first time the system is
+// initialized and consecutive times when a new block is added
+func (exp *explorerUI) prePopulateChartsData() {
+	log.Info("Pre-populating the charts data. This may take a minute...")
+	pgData, err := exp.explorerSource.GetPgChartsData()
+	if err != nil {
+		log.Errorf("Invalid PG data found: %v", err)
+	}
+
+	sqliteData, err := exp.blockData.GetSqliteChartsData()
+	if err != nil {
+		log.Errorf("Invalid SQLite data found: %v", err)
+	}
+
+	CacheChartsData = append(pgData, sqliteData...)
+
+	log.Info("Done Pre-populating the charts data")
+}
+
+func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
+
+	// Update the charts data after every five blocks
+	// or if no charts data doesn't exist yet
+	if bData.Height%5 == 0 || len(CacheChartsData) == 0 {
+		go exp.prePopulateChartsData()
+	}
+
 	newBlockData := &BlockBasic{
 		Height:         int64(bData.Height),
 		Voters:         bData.Voters,

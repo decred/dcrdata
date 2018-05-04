@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/decred/dcrdata/db/dbtypes"
 
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
@@ -63,6 +66,8 @@ type DB struct {
 	getLatestStakeInfoExtendedSQL                                string
 	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL          string
 	getStakeInfoWinnersSQL                                       string
+	getAllPoolValSize                                            string
+	getAllFeeInfoPerBlock                                        string
 }
 
 // NewDB creates a new DB instance with pre-generated sql statements from an
@@ -84,6 +89,8 @@ func NewDB(db *sql.DB) (*DB, error) {
 		`from %s where height between ? and ?`, TableNameSummaries)
 	d.getPoolValSizeRangeSQL = fmt.Sprintf(`select poolsize, poolval `+
 		`from %s where height between ? and ?`, TableNameSummaries)
+	d.getAllPoolValSize = fmt.Sprintf(`select distinct poolsize, poolval, time `+
+		`from %s order by time`, TableNameSummaries)
 	d.getWinnersSQL = fmt.Sprintf(`select hash, winners from %s where height = ?`,
 		TableNameSummaries)
 	d.getWinnersByHashSQL = fmt.Sprintf(`select height, winners from %s where hash = ?`,
@@ -130,7 +137,9 @@ func NewDB(db *sql.DB) (*DB, error) {
             height, num_tickets, fee_min, fee_max, fee_mean, fee_med, fee_std,
 			sdiff, window_num, window_ind, pool_size, pool_val, pool_valavg, winners
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, TableNameStakeInfo)
+		`, TableNameStakeInfo)
+
+	d.getAllFeeInfoPerBlock = fmt.Sprintf(`SELECT distinct height, fee_med FROM %s ORDER BY height;`, TableNameStakeInfo)
 
 	var err error
 	if d.dbSummaryHeight, err = d.GetBlockSummaryHeight(); err != nil {
@@ -482,6 +491,96 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	}
 
 	return poolvals, poolsizes, nil
+}
+
+// RetrieveAllPoolValAndSize returns all the pool values and sizes
+// stored since the first value was recorded up current height.
+func (db *DB) RetrieveAllPoolValAndSize() ([]dbtypes.ChartsData, error) {
+	db.RLock()
+	db.RUnlock()
+
+	chartsData := make([]dbtypes.ChartsData, 0)
+
+	stmt, err := db.Prepare(db.getAllPoolValSize)
+	if err != nil {
+		return chartsData, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return chartsData, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var pval, psize float64
+		var timestamp uint64
+		if err = rows.Scan(&psize, &pval, &timestamp); err != nil {
+			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
+		}
+		chartsData = append(chartsData, dbtypes.ChartsData{
+			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			SizeF:  psize,
+			ValueF: pval,
+		})
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	if len(chartsData) < 1 {
+		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(chartsData), 1)
+	}
+
+	return chartsData, nil
+}
+
+// RetrieveBlockFeeInfo fetches the block median fee chart data
+func (db *DB) RetrieveBlockFeeInfo() ([]dbtypes.ChartsData, error) {
+	db.RLock()
+	db.RUnlock()
+
+	chartsData := make([]dbtypes.ChartsData, 0)
+
+	stmt, err := db.Prepare(db.getAllFeeInfoPerBlock)
+	if err != nil {
+		return chartsData, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return chartsData, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var feeMed float64
+		var height uint64
+		if err = rows.Scan(&height, &feeMed); err != nil {
+			log.Errorf("Unable to scan for FeeInfoPerBlock fields: %v", err)
+		}
+		if height == 0 && feeMed == 0 {
+			continue
+		}
+
+		chartsData = append(chartsData, dbtypes.ChartsData{
+			Count: height,
+			SizeF: feeMed,
+		})
+	}
+	if err = rows.Err(); err != nil {
+		log.Error(err)
+	}
+
+	if len(chartsData) < 1 {
+		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(chartsData), 1)
+	}
+
+	return chartsData, nil
 }
 
 // RetrieveSDiffRange returns an array of stake difficulties for block range ind0 to

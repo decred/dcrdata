@@ -308,6 +308,17 @@ type AddressRow struct {
 	VinVoutDbID    uint64
 }
 
+// ChartsData defines the fields that will be store the
+// x , y and y2 values needed to plot the charts on the frontend.
+type ChartsData struct {
+	Time   string  `json:"Time,omitempty"`
+	Value  uint64  `json:"Value,omitempty"`
+	Size   uint64  `json:"Size,omitempty"`
+	Count  uint64  `json:"Count,omitempty"`
+	SizeF  float64 `json:"SizeF,omitempty"`
+	ValueF float64 `json:"ValueF,omitempty"`
+}
+
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKeyData struct {
 	ReqSigs   uint32   `json:"reqSigs"`
@@ -322,13 +333,15 @@ type VinTxProperty struct {
 	PrevTxIndex uint32 `json:"prevvoutidx"`
 	PrevTxTree  uint16 `json:"tree"`
 	Sequence    uint32 `json:"sequence"`
-	ValueIn     uint64 `json:"amountin"`
+	ValueIn     int64  `json:"amountin"`
 	TxID        string `json:"tx_hash"`
 	TxIndex     uint32 `json:"tx_index"`
 	TxTree      uint16 `json:"tx_tree"`
 	BlockHeight uint32 `json:"blockheight"`
 	BlockIndex  uint32 `json:"blockindex"`
 	ScriptHex   []byte `json:"scripthex"`
+	IsValid     bool   `json:"is_valid"`
+	Time        int64  `json:"time"`
 }
 
 // Vin models a transaction input.

@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -400,10 +401,12 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		var prevOutHash, txHash string
 		var prevOutVoutInd, txVinInd uint32
 		var prevOutTree, txTree int8
+		var valueIn, blockTime int64
+		var isValid bool
 		var id uint64
 		err = vinGetStmt.QueryRow(vinDbID).Scan(&id,
-			&txHash, &txVinInd, &txTree,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree)
+			&txHash, &txVinInd, &txTree, &isValid, &blockTime,
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`SelectAllVinInfoByID: `+
 				`%v + %v (rollback)`, err, bail())
@@ -442,10 +445,12 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	var prevOutHash, txHash string
 	var prevOutVoutInd, txVinInd uint32
 	var prevOutTree, txTree int8
+	var isValid bool
+	var valueIn, blockTime int64
 	var id uint64
 	err = dbtx.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree)
+		Scan(&id, &txHash, &txVinInd, &txTree, &isValid, &blockTime,
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	if err != nil {
 		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
 			`(rollback)`, err, dbtx.Rollback())
@@ -923,11 +928,12 @@ func RetrieveFundingOutpointByVinID(db *sql.DB, vinDbID uint64) (tx string, inde
 }
 
 func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVoutInd uint32,
-	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, err error) {
-	var id uint64
+	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
+	var id, blockTime uint64
+	var isValid bool
 	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree)
+		Scan(&id, &txHash, &txVinInd, &txTree, &isValid, &blockTime,
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	return
 }
 
@@ -1336,6 +1342,33 @@ func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
 	return nil
 }
 
+// UpdateLastVins updates the is_valid column of the block specified by the row
+// id for the blocks table.
+func UpdateLastVins(db *sql.DB, blockHash string, isValid bool) error {
+	_, txs, _, _, err := RetrieveTxsByBlockHash(db, blockHash)
+	if err != nil {
+		return err
+	}
+
+	var numRows = 0
+	for _, txHash := range txs {
+		n, err := sqlExec(db, internal.SetIsValidByTxHash,
+			"failed to update last vins tx validity: ", isValid, txHash)
+		if err != nil {
+			return err
+		}
+
+		numRows += int(n)
+	}
+	// Rows updated can be more than the total number of txs fetched because
+	// stakebase and coinbase txs are both updated on vins.
+	if numRows < len(txs) {
+		return fmt.Errorf(" failed to update at least %d row(s)", len(txs))
+	}
+
+	return nil
+}
+
 func RetrieveBestBlockHeight(db *sql.DB) (height uint64, hash string, id uint64, err error) {
 	err = db.QueryRow(internal.RetrieveBestBlockHeight).Scan(&id, &hash, &height)
 	return
@@ -1346,17 +1379,140 @@ func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint6
 	return
 }
 
+// closeRows initiated closing of the Rows after reading all the data
+func closeRows(rows *sql.Rows) {
+	if e := rows.Close(); e != nil {
+		log.Errorf("Close of Query failed: %v", e)
+	}
+}
+
+// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that are used
+// to display the ticket price variation on ticket price chart. This data is fetched at an interval
+// of 144 blocks.
+func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.ChartsData, err error) {
+	rows, err := db.Query(internal.SelectBlocksTicketsPrice)
+	if err != nil {
+		return
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var timestamp, price uint64
+		var difficulty float64
+		err = rows.Scan(&price, &timestamp, &difficulty)
+		if err != nil {
+			return
+		}
+
+		items = append(items, dbtypes.ChartsData{
+			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			ValueF: float64(price) / 100000000,
+			SizeF:  difficulty,
+		})
+	}
+
+	return
+}
+
+// RetrieveCoinSupply fetches the coin supply data
+func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
+	rows, err := db.Query(internal.SelectCoinSupply)
+	if err != nil {
+		return
+	}
+
+	defer closeRows(rows)
+
+	var sum float64
+	for rows.Next() {
+		var value, timestamp int64
+		err = rows.Scan(&timestamp, &value)
+		if err != nil {
+			return
+		}
+
+		if value < 0 {
+			value = 0
+		}
+
+		sum += float64(value) / 100000000
+		items = append(items, dbtypes.ChartsData{
+			Time:   time.Unix(timestamp, 0).Format("2006/01/02 15:04:05"),
+			ValueF: sum,
+		})
+	}
+
+	return
+}
+
+func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err error) {
+	rows, err := db.Query(internal.SelectBlocksBlockSize)
+	if err != nil {
+		return
+	}
+
+	defer closeRows(rows)
+
+	var oldTimestamp uint64
+	for rows.Next() {
+		var timestamp, blockSize, blocksCount, blockHeight uint64
+		err = rows.Scan(&timestamp, &blockSize, &blocksCount, &blockHeight)
+		if err != nil {
+			return
+		}
+
+		val := int64(oldTimestamp - timestamp)
+		if val < 0 {
+			val = val * -1
+		}
+		oldTimestamp = timestamp
+
+		items = append(items, dbtypes.ChartsData{
+			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Size:   blockSize,
+			Count:  blocksCount,
+			ValueF: float64(val),
+			Value:  blockHeight,
+		})
+	}
+
+	return
+}
+
+func RetrieveTxPerDay(db *sql.DB) (items []dbtypes.ChartsData, err error) {
+	rows, err := db.Query(internal.SelectTxsPerDay)
+	if err != nil {
+		return
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var dateVal string
+		var count uint64
+		err = rows.Scan(&dateVal, &count)
+		if err != nil {
+			return
+		}
+
+		items = append(items, dbtypes.ChartsData{
+			Time:  dateVal,
+			Count: count,
+		})
+	}
+
+	return
+}
+
 func RetrieveVoutValues(db *sql.DB, txHash string) (values []uint64, txInds []uint32, txTrees []int8, err error) {
 	var rows *sql.Rows
 	rows, err = db.Query(internal.RetrieveVoutValues, txHash)
 	if err != nil {
 		return
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var v uint64
@@ -1402,7 +1558,8 @@ func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
 func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64, err error) {
 	err = db.QueryRow(internal.MakeVinInsertStatement(checked),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
-		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree).Scan(&id)
+		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree,
+		dbVin.ValueIn, dbVin.IsValid, dbVin.Time).Scan(&id)
 	return
 }
 
@@ -1425,7 +1582,8 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool) ([]
 	for _, vin := range dbVins {
 		var id uint64
 		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
-			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree).Scan(&id)
+			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree,
+			vin.ValueIn, vin.IsValid, vin.Time).Scan(&id)
 		if err != nil {
 			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
