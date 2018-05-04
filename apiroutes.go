@@ -16,6 +16,7 @@ import (
 
 // APIDataSource implements an interface for collecting data for the api
 type APIDataSource interface {
+	CoinSupply() *apitypes.CoinSupply
 	GetHeight() int
 	GetBestBlockHash() (string, error)
 	GetBlockHash(idx int64) (string, error)
@@ -324,6 +325,17 @@ func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
 	c.statusMtx.RLock()
 	defer c.statusMtx.RUnlock()
 	writeJSON(w, c.Status, c.getIndentQuery(r))
+}
+
+func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
+	supply := c.BlockData.CoinSupply()
+	if supply == nil {
+		apiLog.Error("Unable to get coin supply.")
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, supply, c.getIndentQuery(r))
 }
 
 func (c *appContext) currentHeight(w http.ResponseWriter, r *http.Request) {

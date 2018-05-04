@@ -282,6 +282,7 @@ parsing more efficient for the client.
 | Other | Path | Type |
 | --- | --- | --- |
 | Status | `/status` | `types.Status` |
+| Coin Supply | `/supply` | `types.CoinSupply` |
 | Endpoint list (always indented) | `/list` | `[]string` |
 | Directory | `/directory` | `string` |
 
