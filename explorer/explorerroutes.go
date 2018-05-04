@@ -538,6 +538,31 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
+	data, err := exp.explorerSource.TicketPriceChartDetails()
+	if err != nil {
+		log.Errorf("Invalid ticket price data found: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("charts", struct {
+		Version string
+		Data    [][]uint64
+	}{
+		exp.Version,
+		data,
+	})
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // Search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
 // redirects to the appropriate page or displays an error

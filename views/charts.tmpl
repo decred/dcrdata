@@ -1,0 +1,27 @@
+{{define "charts"}}
+<!DOCTYPE html>
+<html lang="en">
+{{with .Data}}
+{{template "html-head ticket price chart"}}
+<body>
+
+    {{template "navbar"}}
+
+    <div class="container">
+    <p>Ticket Price Chart</p>
+    <div id="graphdiv" style="width:600px; height:300px;"></div>
+    </div>
+
+    {{ template "footer" . }}
+
+    <script>
+        new Dygraph(
+            document.getElementById("graphdiv"),
+            {{.Data}},
+            {
+                labels: [ "Time", "Price" ]
+            });
+    </script>
+</body>
+</html>
+{{end}}

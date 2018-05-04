@@ -1193,6 +1193,32 @@ func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint6
 	return
 }
 
+// RetrieveTicketPriceByTxHashTime fetches the ticket price and its timestamp that are used
+// to display the ticket price variation on ticket price chart.
+func RetrieveTicketPriceByTxHashTime(db *sql.DB) (items [][]uint64, err error) {
+	rows, err := db.Query(internal.SelectTicketPriceByTxHashTime)
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var time, price uint64
+		err = rows.Scan(&price, &time)
+		if err != nil {
+			return
+		}
+		items = append(items, []uint64{time, price})
+	}
+
+	return
+}
+
 func RetrieveVoutValues(db *sql.DB, txHash string) (values []uint64, txInds []uint32, txTrees []int8, err error) {
 	var rows *sql.Rows
 	rows, err = db.Query(internal.RetrieveVoutValues, txHash)
