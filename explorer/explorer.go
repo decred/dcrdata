@@ -226,6 +226,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		IdxBlockInWindow:  blockData.IdxBlockInWindow,
 		IdxInRewardWindow: int(newBlockData.Height % exp.ChainParams.SubsidyReductionInterval),
 		DevAddress:        exp.ExtraInfo.DevAddress,
+		DevFund:           exp.ExtraInfo.DevFund,
 		Difficulty:        blockData.Header.Difficulty,
 		NBlockSubsidy: BlockSubsidy{
 			Dev:   blockData.ExtraInfo.NextBlockSubsidy.Developer,
