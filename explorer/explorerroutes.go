@@ -130,7 +130,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("Turbolinks-Location", "/block/"+hash)
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
@@ -256,7 +256,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("Turbolinks-Location", "/tx/"+hash)
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
@@ -304,12 +304,17 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			address, limitN, offsetAddrOuts)
 		if errH != nil {
 			log.Errorf("Unable to get address %s history: %v", address, errH)
-			addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+			addrData = exp.blockData.GetExplorerAddress(address, 60, offsetAddrOuts)
 			if addrData == nil {
 				log.Errorf("Unable to get address %s", address)
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", true)
 				return
 			}
+
+			// Set page parameters
+			addrData.Path = r.URL.Path
+			addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+
 			confirmHeights := make([]int64, len(addrData.Transactions))
 			if addrData == nil {
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", false)
