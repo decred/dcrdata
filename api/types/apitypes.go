@@ -247,6 +247,14 @@ type Status struct {
 	DcrdataVersion  string `json:"dcrdata_version"`
 }
 
+// CoinSupply models the coin supply at a certain best block.
+type CoinSupply struct {
+	Height   int64  `json:"block_height"`
+	Hash     string `json:"block_hash"`
+	Mined    int64  `json:"supply_mined"`
+	Ultimate int64  `json:"supply_ultimate"`
+}
+
 // TicketPoolInfo models data about ticket pool
 type TicketPoolInfo struct {
 	Height  uint32   `json:"height"`
