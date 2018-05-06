@@ -792,6 +792,10 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
+func (pgb *ChainDB) TicketPriceChartDetails() ([]dbtypes.TicketPriceChart, error) {
+	return RetrieveTicketPriceByTxHashTime(pgb.db)
+}
+
 func (pgb *ChainDB) DeleteDuplicates() error {
 	var err error
 	// Remove duplicate vins

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/dcrutil"
@@ -1190,6 +1191,36 @@ func RetrieveBestBlockHeight(db *sql.DB) (height uint64, hash string, id uint64,
 
 func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint64, err error) {
 	err = db.QueryRow(internal.RetrieveVoutValue, txHash, voutIndex).Scan(&value)
+	return
+}
+
+// RetrieveTicketPriceByTxHashTime fetches the ticket price and its timestamp that are used
+// to display the ticket price variation on ticket price chart.
+func RetrieveTicketPriceByTxHashTime(db *sql.DB) (items []dbtypes.TicketPriceChart, err error) {
+	rows, err := db.Query(internal.SelectBlocksTicketPrice)
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var timestamp, price uint64
+		err = rows.Scan(&price, &timestamp)
+		if err != nil {
+			return
+		}
+
+		items = append(items, dbtypes.TicketPriceChart{
+			Time:  time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			SBits: price,
+		})
+	}
+
 	return
 }
 

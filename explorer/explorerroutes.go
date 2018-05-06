@@ -530,6 +530,31 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "the data for the requested chart is invalid", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
+	data, err := exp.explorerSource.TicketPriceChartDetails()
+	if err != nil {
+		log.Errorf("Invalid ticket price data found: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("charts", struct {
+		Version string
+		Data    []dbtypes.TicketPriceChart
+	}{
+		exp.Version,
+		data,
+	})
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
 		return
 	}

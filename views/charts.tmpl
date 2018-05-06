@@ -1,0 +1,40 @@
+{{define "charts"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" "Ticket Price Chart"}}
+<body>
+
+    {{template "navbar"}}
+    <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
+
+    <div class="container">
+    <div id="row" style="width:50%;"></div>
+    <div id="graphdiv" style="width:100%; height:400px; align-content: center;"></div>
+
+    {{ template "footer" . }}
+
+    <script>
+        var data = {{.Data}}
+        var tickets_price = "";
+
+        for (i =0; i < data.length; i++) {
+            item = data[i]
+            tickets_price = tickets_price.concat(item.Time,", ", item.SBits/100000000,"\n" )
+        }
+
+        new Dygraph(
+            document.getElementById("graphdiv"),
+            tickets_price,
+            {   
+                labels: [ "Date", "Price"], 
+                showRangeSelector: true,
+                ylabel: 'Price (Decred)',
+                legend: 'always',
+                title: 'Decred Ticket Price'
+            });
+    </script>
+
+</body>
+</html>
+{{end}}

@@ -260,6 +260,13 @@ type AddressRow struct {
 	VinDbID            uint64
 }
 
+// TicketPriceChart defines the fields that will be store the
+// x and y values needed to plot the ticket price chart.
+type TicketPriceChart struct {
+	Time  string
+	SBits uint64
+}
+
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKeyData struct {
 	ReqSigs   uint32   `json:"reqSigs"`
