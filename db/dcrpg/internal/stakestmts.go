@@ -56,11 +56,6 @@ const (
 	SelectTicketStatusByHash     = `SELECT id, spend_type, pool_status FROM tickets WHERE tx_hash = $1;`
 	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1;`
 
-	SelectTicketPriceByTxHashTime = `SELECT ticket.price, transaction.block_time
-	    FROM tickets ticket, transactions transaction
-		WHERE ticket.tx_hash = transaction.tx_hash
-		ORDER BY transaction.block_time`
-
 	// Update
 	SetTicketSpendingInfoForHash = `UPDATE tickets
 		SET spend_type = $5, spend_height = $3, spend_tx_db_id = $4, pool_status = $6

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/dcrutil"
@@ -1195,8 +1196,8 @@ func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint6
 
 // RetrieveTicketPriceByTxHashTime fetches the ticket price and its timestamp that are used
 // to display the ticket price variation on ticket price chart.
-func RetrieveTicketPriceByTxHashTime(db *sql.DB) (items [][]uint64, err error) {
-	rows, err := db.Query(internal.SelectTicketPriceByTxHashTime)
+func RetrieveTicketPriceByTxHashTime(db *sql.DB) (items []dbtypes.TicketPriceChart, err error) {
+	rows, err := db.Query(internal.SelectBlocksTicketPrice)
 	if err != nil {
 		return
 	}
@@ -1208,12 +1209,16 @@ func RetrieveTicketPriceByTxHashTime(db *sql.DB) (items [][]uint64, err error) {
 	}()
 
 	for rows.Next() {
-		var time, price uint64
-		err = rows.Scan(&price, &time)
+		var timestamp, price uint64
+		err = rows.Scan(&price, &timestamp)
 		if err != nil {
 			return
 		}
-		items = append(items, []uint64{time, price})
+
+		items = append(items, dbtypes.TicketPriceChart{
+			Time:  time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			SBits: price,
+		})
 	}
 
 	return

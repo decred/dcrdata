@@ -63,7 +63,7 @@ type explorerDataSource interface {
 	DevBalance() (*AddressBalance, error)
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
-	TicketPriceChartDetails() ([][]uint64, error)
+	TicketPriceChartDetails() ([]dbtypes.TicketPriceChart, error)
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction

@@ -530,7 +530,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		exp.ErrorPage(w, "Something went wrong...", "the data for the requested chart is invalid", false)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -548,7 +548,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("charts", struct {
 		Version string
-		Data    [][]uint64
+		Data    []dbtypes.TicketPriceChart
 	}{
 		exp.Version,
 		data,

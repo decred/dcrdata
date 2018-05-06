@@ -792,7 +792,7 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
-func (pgb *ChainDB) TicketPriceChartDetails() ([][]uint64, error) {
+func (pgb *ChainDB) TicketPriceChartDetails() ([]dbtypes.TicketPriceChart, error) {
 	return RetrieveTicketPriceByTxHashTime(pgb.db)
 }
 

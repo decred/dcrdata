@@ -490,7 +490,7 @@ func mainCore() error {
 	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)
 	webMux.Get("/decodetx", explore.DecodeTxPage)
 	webMux.Get("/search", explore.Search)
-	webMux.Get("/charts", explore.Search)
+	webMux.Get("/charts", explore.Charts)
 
 	if usePG {
 		chainDBRPC, _ := dcrpg.NewChainDBRPC(auxDB, dcrdClient)
