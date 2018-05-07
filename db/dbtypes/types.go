@@ -381,7 +381,7 @@ type ChartBlock struct {
 	BlockTime int64   `db:"time" json:"time"`
 }
 
-// TicketPrice front requested data
+// TicketPrice front charts requested data
 type TicketPrice struct {
 	Price    float64   `json:"price"`
 	DateTime time.Time `json:"date"`

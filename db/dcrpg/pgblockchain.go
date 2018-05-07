@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1753,39 +1752,6 @@ func ticketpoolStatusSlice(ss dbtypes.TicketPoolStatus, N int) []dbtypes.TicketP
 	return S
 }
 
-// ChartBlocks returns block data for charts.
-func (pgb *ChainDB) ChartBlocks() ([]*dbtypes.ChartBlock, error) {
-	return RetrieveChartBlocks(pgb.db)
-}
-
-func bitsToPrice(v float64, useCommas bool) []string {
-	clipped := fmt.Sprintf("%.8f", v)
-	oldLength := len(clipped)
-	clipped = strings.TrimRight(clipped, "0")
-	trailingZeros := strings.Repeat("0", oldLength-len(clipped))
-	valueChunks := strings.Split(clipped, ".")
-	integer := valueChunks[0]
-	var dec string
-	if len(valueChunks) == 2 {
-		dec = valueChunks[1]
-	} else {
-		dec = ""
-		log.Errorf("float64AsDecimalParts has no decimal value. Input: %v", v)
-	}
-	if useCommas {
-		integerAsInt64, err := strconv.ParseInt(integer, 10, 64)
-		if err != nil {
-			log.Errorf("float64AsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
-			integer = "ERROR"
-			dec = "VALUE"
-			zeros := ""
-			return []string{integer, dec, zeros}
-		}
-		integer = humanize.Comma(integerAsInt64)
-	}
-	return []string{integer, dec, trailingZeros}
-}
-
 // TicketPrices returns slice of ticket prices and dates
 func (pgb *ChainDB) TicketPrices() ([]*dbtypes.TicketPrice, error) {
 	var tps []*dbtypes.TicketPrice
@@ -1795,18 +1761,7 @@ func (pgb *ChainDB) TicketPrices() ([]*dbtypes.TicketPrice, error) {
 	}
 	for _, cb := range cbs {
 		tp := &dbtypes.TicketPrice{}
-
-		log.Info("after price func:", bitsToPrice(cb.SBits, false))
-		log.Info("before:", cb.SBits)
-
-		tp.Price, err = strconv.ParseFloat(bitsToPrice(cb.SBits, false)[0], 64)
-		if err != nil {
-			log.Info(err)
-		}
-
-		//datetime
-		log.Info("cb time:", cb.BlockTime)
-		log.Info("converted time:", time.Unix(cb.BlockTime, 0))
+		tp.Price = dcrutil.Amount(cb.SBits).ToCoin()
 
 		tp.DateTime = time.Unix(cb.BlockTime, 0).UTC()
 		tps = append(tps, tp)

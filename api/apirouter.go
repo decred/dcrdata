@@ -36,7 +36,6 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 	mux.HandleFunc("/status", app.status)
 
 	mux.Get("/ticket_price", app.TicketPrices)
-	mux.Get("/chartblock", app.ChartBlocks)
 
 	mux.Route("/block", func(r chi.Router) {
 		r.Route("/best", func(rd chi.Router) {
