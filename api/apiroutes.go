@@ -84,6 +84,7 @@ type DataSourceAux interface {
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error)
 	FillAddressTransactions(addrInfo *explorer.AddressInfo) error
 	ChartBlocks() ([]*dbtypes.ChartBlock, error)
+	TicketPrices() ([]*dbtypes.TicketPrice, error)
 	AddressTransactionDetails(addr string, count, skip int64,
 		txnType dbtypes.AddrTxnType) (*apitypes.Address, error)
 	AddressTotals(address string) (*apitypes.AddressTotals, error)
@@ -1066,6 +1067,18 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 // ChartBlocks is the handler for charts.
 func (c *appContext) ChartBlocks(w http.ResponseWriter, r *http.Request) {
 	cbs, err := c.AuxDataSource.ChartBlocks()
+	if err != nil {
+		log.Errorf("failed to retrieve chart data: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, cbs, c.getIndentQuery(r))
+}
+
+// TicketPrices is the handler for charts.
+func (c *appContext) TicketPrices(w http.ResponseWriter, r *http.Request) {
+	cbs, err := c.AuxDataSource.TicketPrices()
 	if err != nil {
 		log.Errorf("failed to retrieve chart data: %v", err)
 		http.Error(w, http.StatusText(422), 422)

@@ -1709,7 +1709,7 @@ func RetrieveChartBlocks(db *sql.DB) (data []*dbtypes.ChartBlock, err error) {
 	data = []*dbtypes.ChartBlock{}
 	for rows.Next() {
 		b := &dbtypes.ChartBlock{}
-		if err = rows.Scan(b); err != nil {
+		if err = rows.Scan(&b.Height, &b.SBits, &b.BlockTime); err != nil {
 			return
 		}
 		data = append(data, b)
