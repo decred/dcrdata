@@ -140,6 +140,7 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 	mux.Route("/address", func(r chi.Router) {
 		r.Route("/{address}", func(rd chi.Router) {
 			rd.Use(m.AddressPathCtx)
+			rd.Use(m.DenySpecificAddr)
 			rd.Get("/totals", app.addressTotals)
 			rd.Get("/", app.getAddressTransactions)
 			rd.With((middleware.Compress(1))).Get("/raw", app.getAddressTransactionsRaw)

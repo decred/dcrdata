@@ -144,10 +144,6 @@ func (pgb *ChainDB) GetAddressBalance(address string, N, offset int64) *explorer
 // transaction number offset.
 func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.InsightAddressInfo {
 
-	if address == "DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg" { // deny it! or dont waste your time to look for it
-		return &apitypes.InsightAddressInfo{}
-	}
-
 	rows, balance, err := pgb.AddressHistoryAll(address, N, offset)
 	if err != nil {
 		return nil
