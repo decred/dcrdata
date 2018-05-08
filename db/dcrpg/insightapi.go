@@ -24,6 +24,21 @@ func (pgb *ChainDBRPC) GetRawTransaction(txid string) (*dcrjson.TxRawResult, err
 	return txraw, nil
 }
 
+// GetRawTransactionNew Override old response gets a dcrjson.TxRawResult for the specified transaction
+// hash.
+func (pgb *ChainDBRPC) GetRawTransactionNew(txHash string) (apitypes.TxRawResultNew, error) {
+	txrawNew := apitypes.TxRawResultNew{}
+	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txHash)
+	if err != nil {
+		log.Errorf("GetRawTransactionVerbose failed for: %s", txHash)
+		return txrawNew, err
+	}
+
+	txrawNew = dbtypes.TxConverter(txraw)
+
+	return txrawNew, nil
+}
+
 // GetBlockHeight returns the height of the block with the specified hash.
 func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 	height, err := RetrieveBlockHeight(pgb.db, hash)
@@ -42,13 +57,13 @@ func (pgb *ChainDB) GetHeight() int {
 
 // SendRawTransaction attempts to decode the input serialized transaction,
 // passed as hex encoded string, and broadcast it, returning the tx hash.
-func (db *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
+func (pgb *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
 	msg, err := txhelpers.MsgTxFromHex(txhex)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: could not decode hex")
 		return "", err
 	}
-	hash, err := db.Client.SendRawTransaction(msg, true)
+	hash, err := pgb.Client.SendRawTransaction(msg, true)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: %v", err)
 		return "", err
@@ -219,4 +234,15 @@ func (pgb *ChainDB) GetAddressUTXO(address string) []apitypes.AddressTxnOutput {
 		return nil
 	}
 	return txnOutput
+}
+
+// GetAddressSpendByFunHash zen comment
+func (pgb *ChainDB) GetAddressSpendByFunHash(addresses []string, fundHash string) []*dbtypes.AddressRow {
+
+	AddrRow, err := RetrieveAddressTxnsByFundingTx(pgb.db, fundHash, addresses)
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+	return AddrRow
 }

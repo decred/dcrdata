@@ -1123,6 +1123,36 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	return outputs, nil
 }
 
+// RetrieveAddressTxnsByFundingTx zen comment
+func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []string) ([]*dbtypes.AddressRow, error) {
+
+	var params []interface{}
+	inCondition := ""
+	lastInd := 0
+	for ind, addr := range addresses {
+		params = append(params, addr)
+		if inCondition != "" {
+			inCondition += ", "
+		}
+		inCondition += fmt.Sprintf("$%v", ind+1)
+		lastInd = ind + 1
+	}
+
+	params = append(params, fundTxHash)
+
+	query := fmt.Sprintf(`SELECT * FROM addresses WHERE address in (%s) and funding_tx_hash=$%v;`, inCondition, lastInd+1)
+	log.Info("query:", query)
+
+	rows, err := db.Query(query, params...)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	_, addrs, err := scanAddressQueryRows(rows)
+	return addrs, err
+}
+
 func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {
 	var blocks []dbtypes.BlockDataBasic
 
@@ -1218,7 +1248,6 @@ func RetrieveVoutValues(db *sql.DB, txHash string) (values []uint64, txInds []ui
 		txInds = append(txInds, ind)
 		txTrees = append(txTrees, tree)
 	}
-
 	return
 }
 

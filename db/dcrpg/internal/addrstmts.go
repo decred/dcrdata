@@ -65,6 +65,8 @@ const (
 									AND 
 									addresses.spending_tx_row_id IS NULL`
 
+	SelectAddressByFundingHash = `SELECT * FROM addresses WHERE address in ($1) and funding_tx_hash=$2;`
+
 	SelectAddressLimitNByAddress = `SELECT * FROM addresses WHERE address=$1 order by id desc limit $2 offset $3;`
 
 	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT * FROM addresses WHERE address=$1)

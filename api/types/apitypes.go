@@ -89,18 +89,18 @@ type VoutMined struct {
 
 // Vout defines a transaction output
 type Vout struct {
-	Value               float64      `json:"value"`
-	N                   uint32       `json:"n"`
-	Version             uint16       `json:"version"`
-	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey"`
+	Value               float64      `json:"value" db:"value"`
+	N                   uint32       `json:"n" db:"tx_index"`
+	Version             uint16       `json:"version" db:"version"`
+	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey" db:"pkscript"`
 }
 
 // VoutHexScript models the hex script for a transaction output
 type VoutHexScript struct {
-	Value           float64 `json:"value"`
-	N               uint32  `json:"n"`
-	Version         uint16  `json:"version"`
-	ScriptPubKeyHex string  `json:"scriptPubKey"`
+	Value           float64 `json:"value" db:"value"`
+	N               uint32  `json:"n" db:"tx_index"`
+	Version         uint16  `json:"version" db:"version"`
+	ScriptPubKeyHex string  `json:"scriptPubKey" db:"pkscript"`
 }
 
 // ScriptPubKey is the result of decodescript(ScriptPubKeyHex)
@@ -171,6 +171,18 @@ type AddressTxShort struct {
 	Confirmations int64   `json:"confirmations"`
 }
 
+// AddressTotals represents the number and value of spent and unspent outputs
+// for an address.
+type AddressTotals struct {
+	Address      string  `json:"address"`
+	BlockHash    string  `json:"blockhash"`
+	BlockHeight  uint64  `json:"blockheight"`
+	NumSpent     int64   `json:"num_stxos"`
+	NumUnspent   int64   `json:"num_utxos"`
+	CoinsSpent   float64 `json:"dcr_spent"`
+	CoinsUnspent float64 `json:"dcr_unspent"`
+}
+
 // BlockDataWithTxType adds an array of TxRawWithTxType to
 // dcrjson.GetBlockVerboseResult to include the stake transaction type
 type BlockDataWithTxType struct {
@@ -195,8 +207,8 @@ type TxRawWithTxType struct {
 // ScriptSig models the signature script used to redeem the origin transaction
 // as a JSON object (non-coinbase txns only)
 type ScriptSig struct {
-	Asm string `json:"asm"`
-	Hex string `json:"hex"`
+	Asm string `json:"asm,omitempty"`
+	Hex string `json:"hex,omitempty"`
 }
 
 // PrevOut represents previous output for an input Vin.
@@ -228,6 +240,7 @@ type VinPrevOut struct {
 type Status struct {
 	Ready           bool   `json:"ready"`
 	DBHeight        uint32 `json:"db_height"`
+	DBLastBlockTime int64  `json:"db_block_time"`
 	Height          uint32 `json:"node_height"`
 	NodeConnections int64  `json:"node_connections"`
 	APIVersion      int    `json:"api_version"`
@@ -360,3 +373,75 @@ type MempoolTicketDetails struct {
 // TicketsDetails is an array of pointers of TicketDetails used in
 // MempoolTicketDetails
 type TicketsDetails []*TicketDetails
+
+// TxRawResultNew new tx raw model
+type TxRawResultNew struct {
+	Txid             string     `json:"txid"`
+	Version          int32      `json:"version"`
+	Locktime         uint32     `json:"locktime"`
+	Expiry           uint32     `json:"expiry"`
+	Vins             []*Vin     `json:"vin"`
+	Vout             []*VoutNew `json:"vout"`
+	Blockhash        string     `json:"blockhash"`
+	Blockheight      int64      `json:"blockheight"`
+	Confirmations    int64      `json:"confirmations"`
+	Time             int64      `json:"time"`
+	Blocktime        int64      `json:"blocktime"`
+	Ticketid         string     `json:"ticketid,omitempty"`
+	IsCoinBase       bool       `json:"isCoinBase,omitempty"` // Check's coinbase value in Vin if value exists and not empty
+	IsStakeGen       bool       `json:"isStakeGen,omitempty"`
+	IsStakeTx        bool       `json:"isStakeTx,omitempty"`
+	IsStakeRtx       bool       `json:"isStakeRtx,omitempty"`
+	VoterVersion     uint32     `json:"voterVersion"`
+	Agendas          []string   `json:"agendas,omitempty"`
+	ValueOut         float64    `json:"valueOut"`
+	Size             uint32     `json:"size"`
+	ValueIn          float64    `json:"valueIn"`
+	Fees             float64    `json:"fees"`
+	IncompleteInputs int64      `json:"incompleteInputs,omitempty"`
+}
+
+// Vin structure is parsing data to old API stucture type TODO
+type Vin struct {
+	Txid             string      `json:"txid,omitempty"`
+	Vout             uint32      `json:"vout"`
+	Tree             int8        `json:"tree"`
+	Sequence         uint32      `json:"sequence,omitempty"`
+	Amountin         float64     `json:"amountin,omitempty"`
+	Blockheight      uint32      `json:"blockheight"`
+	Blockindex       uint32      `json:"blockindex,omitempty"`
+	Coinbase         string      `json:"coinbase,omitempty"`
+	Stakebase        string      `json:"stakebase,omitempty"`
+	ScriptPubKey     *ScriptSig  `json:"scriptSig,omitempty"`
+	N                int         `json:"n"`
+	Addr             string      `json:"addr,omitempty"`
+	ValueSat         int64       `json:"valueSat,omitempty"` // int(Amountin * 1000)
+	Value            float64     `json:"value,omitempty"`    // Amountin
+	DoubleSpentTxID  interface{} `json:"doubleSpentTxID"`
+	IsConfirmed      bool        `json:"isConfirmed"`
+	Confirmations    int64       `json:"confirmations"`
+	UnconfirmedInput bool        `json:"unconfirmedInput"`
+}
+
+// VoutNew todo
+type VoutNew struct {
+	Value                 float64            `json:"value" db:"value"`
+	N                     uint32             `json:"n"`
+	Version               uint16             `json:"version"`
+	ScriptPubKeyValueByte []byte             `json:"scriptPubKeyByte,omitempty"`
+	ScriptPubKeyValue     ScriptPubKeyResult `json:"scriptPubKey"`
+	SpentTxID             string             `json:"spentTxId,omitempty"`
+	SpentIndex            uint32             `json:"spentIndex,omitempty"`
+	SpentTs               int                `json:"spentTs,omitempty"`
+	CommitAmt             float64            `json:"commitamt,omitempty"`
+}
+
+// ScriptPubKeyResult todo
+type ScriptPubKeyResult struct {
+	Asm       string   `json:"asm"`
+	Hex       string   `json:"hex,omitempty"`
+	ReqSigs   int32    `json:"reqSigs,omitempty"`
+	Type      string   `json:"type"`
+	Addresses []string `json:"addresses,omitempty"`
+	CommitAmt float64  `json:"commitamt,omitempty"`
+}

@@ -104,6 +104,13 @@ const (
 
 	RetrieveVoutDbIDs = `SELECT unnest(vout_db_ids) FROM transactions WHERE id = $1;`
 	RetrieveVoutDbID  = `SELECT vout_db_ids[$2] FROM transactions WHERE id = $1;`
+
+	TxRespGetTx    = `SELECT tx_hash, version, lock_time, expiry, block_hash, block_height, time, block_time, size, fees FROM transactions WHERE tx_hash=$1;`
+	TxRespGetVin   = `SELECT prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins WHERE tx_hash=$1;`
+	TxRespGetVinTx = `SELECT block_height, block_index FROM transactions WHERE tx_hash=$1;`
+
+	TxRespGetVout      = `SELECT value, tx_index, version, pkscript, script_req_sigs, script_type, script_addresses FROM vouts WHERE tx_hash=$1;`
+	TxRespGetAddresses = `SELECT spending_tx_hash, spending_tx_vin_index FROM addresses WHERE funding_tx_hash=$1;`
 )
 
 var (
