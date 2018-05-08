@@ -103,7 +103,7 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 			vin.IsConfirmed = true
 			vinsTx, err := c.BlockData.GetRawTransaction(vin.Txid)
 			if err != nil {
-				apiLog.Errorf("Try to get transaction by vin tx %s", vin.Txid)
+				apiLog.Errorf("Tried to get transaction by vin tx %s", vin.Txid)
 				http.Error(w, http.StatusText(422), 422)
 				return
 			}
@@ -140,15 +140,11 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	}
 
 	addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
-	apiLog.Info("len of db resp:", addrFull)
 	for _, dbaddr := range addrFull {
-		apiLog.Info("spending hash:", dbaddr.SpendingTxHash)
 		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
 		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
 		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentTs = 0 // todo
 	}
-
-	t2 := time.Now()
 
 	// create block hash
 	bHash, err := chainhash.NewHashFromStr(txNew.Blockhash)
@@ -187,7 +183,6 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 			break
 		}
 	}
-	apiLog.Info("took to make all fees and sizes:", time.Now().Sub(t2))
 
 	writeJSON(w, txNew, c.getIndentQuery(r))
 }

@@ -1141,7 +1141,6 @@ func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []s
 	params = append(params, fundTxHash)
 
 	query := fmt.Sprintf(`SELECT * FROM addresses WHERE address in (%s) and funding_tx_hash=$%v;`, inCondition, lastInd+1)
-	log.Info("query:", query)
 
 	rows, err := db.Query(query, params...)
 	if err != nil {
