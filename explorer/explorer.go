@@ -172,7 +172,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Warnf("explorer.New: %v", err)
 	}
 	log.Debugf("Organization address: %s", devSubsidyAddress)
-	
+
 	// Set default static values for ExtraInfo
 	exp.ExtraInfo = &HomeInfo{
 		DevAddress: devSubsidyAddress,
@@ -254,7 +254,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		PosSubPerVote := dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin() / float64(exp.ChainParams.TicketsPerBlock)
 		return percentage(PosSubPerVote, blockData.CurrentStakeDiff.CurrentStakeDifficulty)
 	}()
-	 	
+
 	// If there are ticketpoolsize*TicketsPerBlock total tickets and
 	// TicketsPerBlock are drawn every block, and assuming random selection
 	// of tickets, then any one ticket will, on average, be selected to vote
