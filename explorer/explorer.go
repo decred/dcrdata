@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -19,6 +20,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -46,18 +48,19 @@ type explorerDataSourceLite interface {
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int
 	GetChainParams() *chaincfg.Params
-	CountUnconfirmedTransactions(address string, maxUnconfirmedPossible int64) (int64, error)
+	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []MempoolTx
 	TxHeight(txid string) (height int64)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
-// faster solution than RPC.
+// faster solution than RPC, or additional functionality.
 type explorerDataSource interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *AddressBalance, error)
+	DevBalance() (*AddressBalance, error)
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 }
@@ -177,7 +180,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 		return nil
 	}
-	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address", "rawtx", "error"}
+	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address", "rawtx", "error", "parameters"}
 
 	tempDefaults := []string{"extras"}
 
@@ -246,18 +249,54 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 				return float64(blockData.PoolInfo.Size) / target * 100
 			}(),
 		},
-		TicketROI: percentage(dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin()/5, blockData.CurrentStakeDiff.CurrentStakeDifficulty),
-		ROIPeriod: fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*float64(exp.ChainParams.TicketPoolSize)/86400),
+		TicketROI: func() float64 {
+			PosSubPerVote := dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin() / float64(exp.ChainParams.TicketsPerBlock)
+			return percentage(PosSubPerVote, blockData.CurrentStakeDiff.CurrentStakeDifficulty)
+		}(),
+
+		// If there are ticketpoolsize*TicketsPerBlock total tickets and
+		// TicketsPerBlock are drawn every block, and assuming random selection
+		// of tickets, then any one ticket will, on average, be selected to vote
+		// once every ticketpoolsize blocks
+
+		// Small deviations in reality are due to:
+		// 1.  Not all blocks have 5 votes.  On average each block in Decred
+		// currently has about 4.8 votes per block
+		// 2.  Total tickets in the pool varies slightly above and below
+		// ticketpoolsize*TicketsPerBlock depending on supply and demand
+
+		// Both minor deviations are not accounted for in the general ROI
+		// calculation below because the variance they cause would be would be
+		// extremely small.
+
+		// The actual ROI of a ticket needs to also take into consideration the
+		// ticket maturity (time from ticket purchase until its eligible to vote)
+		// and coinbase maturity (time after vote until funds distributed to
+		// ticket holder are avaliable to use)
+		ROIPeriod: func() string {
+			PosAvgTotalBlocks := float64(
+				exp.ChainParams.TicketPoolSize +
+					exp.ChainParams.TicketMaturity +
+					exp.ChainParams.CoinbaseMaturity)
+			return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
+		}(),
 	}
 
 	if !exp.liteMode {
-		exp.ExtraInfo.DevFund = 0
 		go exp.updateDevFundBalance()
 	}
 
 	exp.NewBlockDataMtx.Unlock()
 
-	exp.wsHub.HubRelay <- sigNewBlock
+	// Signal to the websocket hub that a new block was received, but do not
+	// block Store(), and do not hang forever in a goroutine waiting to send.
+	go func() {
+		select {
+		case exp.wsHub.HubRelay <- sigNewBlock:
+		case <-time.After(time.Second * 10):
+			log.Errorf("sigNewBlock send failed: Timeout waiting for WebsocketHub.")
+		}
+	}()
 
 	log.Debugf("Got new block %d for the explorer.", newBlockData.Height)
 
@@ -270,12 +309,11 @@ func (exp *explorerUI) updateDevFundBalance() {
 	exp.NewBlockDataMtx.Lock()
 	defer exp.NewBlockDataMtx.Unlock()
 
-	_, devBalance, err := exp.explorerSource.AddressHistory(
-		exp.ExtraInfo.DevAddress, 1, 0, dbtypes.AddrTxnAll)
+	devBalance, err := exp.explorerSource.DevBalance()
 	if err == nil && devBalance != nil {
 		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
 	} else {
-		log.Warnf("explorerUI.updateDevFundBalance failed: %v", err)
+		log.Errorf("explorerUI.updateDevFundBalance failed: %v", err)
 	}
 }
 

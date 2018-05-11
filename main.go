@@ -35,6 +35,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/version"
 	"github.com/go-chi/chi"
 )
 
@@ -64,7 +65,8 @@ func mainCore() error {
 	}
 
 	// Start with version info
-	log.Infof(appName+" version %s", ver.String())
+	ver := &version.Ver
+	log.Infof(version.AppName+" version %s", ver)
 
 	// PostgreSQL
 	usePG := cfg.FullMode
@@ -456,7 +458,7 @@ func mainCore() error {
 	}
 
 	// Start web API
-	app := api.NewContext(dcrdClient, &baseDB, cfg.IndentJSON)
+	app := api.NewContext(dcrdClient, &baseDB, auxDB, cfg.IndentJSON)
 	// Start notification hander to keep /status up-to-date
 	wg.Add(1)
 	go app.StatusNtfnHandler(&wg, quit)
@@ -482,6 +484,7 @@ func mainCore() error {
 	webMux.Mount("/explorer", explore.Mux)
 	webMux.Get("/blocks", explore.Blocks)
 	webMux.Get("/mempool", explore.Mempool)
+	webMux.Get("/parameters", explore.ParametersPage)
 	webMux.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
 	webMux.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)
 	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)

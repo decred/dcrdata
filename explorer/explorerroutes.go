@@ -7,11 +7,15 @@ package explorer
 import (
 	"database/sql"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/txhelpers"
+	humanize "github.com/dustin/go-humanize"
 )
 
 // Home is the page handler for the "/" path
@@ -132,7 +136,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("Turbolinks-Location", "/block/"+hash)
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
@@ -204,24 +208,36 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					tx.TicketInfo.PoolStatus = poolStatus.String()
 				}
 				tx.TicketInfo.SpendStatus = spendStatus.String()
+				blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
 				tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) * int64(exp.ChainParams.TicketsPerBlock)
 				tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
 				expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(exp.ChainParams.TicketExpiry)) / 24
 				maturityInDay := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.TicketInfo.TicketMaturity)) / 24
-				tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) - float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInDay
-				ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - tx.Confirmations
-				tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) / float64(exp.ChainParams.TicketExpiry)) * expirationInDays
+				tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
+					float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInDay
+				ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
+				tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
+					float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 				if tx.TicketInfo.SpendStatus == "Voted" {
-					tx.TicketInfo.ShortConfirms = exp.blockData.TxHeight(tx.SpendingTxns[0].Hash) - tx.BlockHeight
-				} else if tx.Confirmations >= int64(exp.ChainParams.TicketExpiry) {
-					tx.TicketInfo.ShortConfirms = int64(exp.ChainParams.TicketExpiry)
-				} else {
-					tx.TicketInfo.ShortConfirms = tx.Confirmations
+					// Blocks from eligible until voted (actual luck)
+					tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(tx.SpendingTxns[0].Hash) -
+						tx.BlockHeight - int64(exp.ChainParams.TicketMaturity) - 1
+				} else if tx.Confirmations >= int64(exp.ChainParams.TicketExpiry+
+					uint32(exp.ChainParams.TicketMaturity)) { // Expired
+					// Blocks ticket was active before expiring (actual no luck)
+					tx.TicketInfo.TicketLiveBlocks = int64(exp.ChainParams.TicketExpiry)
+				} else { // Active
+					// Blocks ticket has been active and eligible to vote
+					tx.TicketInfo.TicketLiveBlocks = blocksLive
 				}
-				voteRounds := (tx.TicketInfo.ShortConfirms - tx.TicketMaturity)
 				tx.TicketInfo.BestLuck = tx.TicketInfo.TicketExpiry / int64(exp.ChainParams.TicketPoolSize)
 				tx.TicketInfo.AvgLuck = tx.TicketInfo.BestLuck - 1
-				tx.TicketInfo.VoteLuck = float64(tx.TicketInfo.BestLuck) - (float64(voteRounds) / float64(exp.ChainParams.TicketPoolSize))
+				if tx.TicketInfo.TicketLiveBlocks == int64(exp.ChainParams.TicketExpiry) {
+					tx.TicketInfo.VoteLuck = 0
+				} else {
+					tx.TicketInfo.VoteLuck = float64(tx.TicketInfo.BestLuck) -
+						(float64(tx.TicketInfo.TicketLiveBlocks) / float64(exp.ChainParams.TicketPoolSize))
+				}
 				if tx.TicketInfo.VoteLuck >= float64(tx.TicketInfo.BestLuck-(1/int64(exp.ChainParams.TicketPoolSize))) {
 					tx.TicketInfo.LuckStatus = "Perfection"
 				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.25) {
@@ -237,6 +253,18 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				} else if tx.TicketInfo.VoteLuck == 0 {
 					tx.TicketInfo.LuckStatus = "No Luck"
 				}
+
+				// Chance for a ticket to NOT be voted in a given time frame:
+				// C = (1 - P)^N
+				// Where: P is the probability of a vote in one block. (votes
+				// per block / current ticket pool size)
+				// N is the number of blocks before ticket expiry. (ticket
+				// expiry in blocks - (number of blocks since ticket purchase -
+				// ticket maturity))
+				// C is the probability (chance)
+				pVote := float64(exp.ChainParams.TicketsPerBlock) / float64(exp.ExtraInfo.PoolInfo.Size)
+				tx.TicketInfo.Probability = 100 * (math.Pow(1-pVote,
+					float64(exp.ChainParams.TicketExpiry)-float64(blocksLive)))
 			}
 		}
 	}
@@ -258,7 +286,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("Turbolinks-Location", "/tx/"+hash)
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
@@ -333,7 +361,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				exp.ErrorPage(w, "Something went wrong...", "could not find that address", true)
 				return
 			}
-			addrData.Fullmode = true
+
+			// Set page parameters
+			addrData.Path = r.URL.Path
+			addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+			addrData.TxnType = txnType.String()
 
 			confirmHeights := make([]int64, len(addrData.Transactions))
 			for i, v := range addrData.Transactions {
@@ -371,11 +403,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData = new(AddressInfo)
 			addrData.Address = address
 		}
-
-		// Set page parameters
-		addrData.Path = r.URL.Path
-		addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
-		addrData.TxnType = txnType.String()
 		addrData.Fullmode = true
 
 		// Balances and txn counts (partial unless in full mode)
@@ -383,12 +410,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.KnownTransactions = (balance.NumSpent * 2) + balance.NumUnspent
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.KnownSpendingTxns = balance.NumSpent
-
-		// Transactions on current page
-		addrData.NumTransactions = int64(len(addrData.Transactions))
-		if addrData.NumTransactions > addrData.Limit {
-			addrData.NumTransactions = addrData.Limit
-		}
 
 		// Transactions to fetch with FillAddressTransactions. This should be a
 		// noop if ReduceAddressHistory is working right.
@@ -402,6 +423,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			log.Warnf("Unknown address transaction type: %v", txnType)
 		}
 
+		// Transactions on current page
+		addrData.NumTransactions = int64(len(addrData.Transactions))
+		if addrData.NumTransactions > limitN {
+			addrData.NumTransactions = limitN
+		}
+
 		// Query database for transaction details
 		err = exp.explorerSource.FillAddressTransactions(addrData)
 		if err != nil {
@@ -409,11 +436,67 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			exp.ErrorPage(w, "Something went wrong...", "could not find transactions for that address", false)
 			return
 		}
-		addrData.NumUnconfirmed, err = exp.blockData.CountUnconfirmedTransactions(address, MaxUnconfirmedPossible)
+
+		// Check for unconfirmed transactions
+		addressOuts, numUnconfirmed, err := exp.blockData.UnconfirmedTxnsForAddress(address)
 		if err != nil {
-			log.Warnf("CountUnconfirmedTransactions failed for address %s: %v", address, err)
+			log.Warnf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
+		}
+		addrData.NumUnconfirmed = numUnconfirmed
+		if addrData.UnconfirmedTxns == nil {
+			addrData.UnconfirmedTxns = new(AddressTransactions)
+		}
+		uctxn := addrData.UnconfirmedTxns
+
+		// Funding transactions (unconfirmed)
+		for _, f := range addressOuts.Outpoints {
+			fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+			if !ok {
+				log.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if fundingTx.Confirmed() {
+				log.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+			addrTx := &AddressTx{
+				TxID:          fundingTx.Hash().String(),
+				InOutID:       f.Index,
+				FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
+				Total:         txhelpers.TotalOutFromMsgTx(fundingTx.Tx).ToCoin(),
+				ReceivedTotal: dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
+			}
+			uctxn.Transactions = append(uctxn.Transactions, addrTx)
+			uctxn.TxnsFunding = append(uctxn.TxnsFunding, addrTx)
+		}
+
+		// Spending transactions (unconfirmed)
+		for _, f := range addressOuts.PrevOuts {
+			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+			if !ok {
+				log.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if spendingTx.Confirmed() {
+				log.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+			addrTx := &AddressTx{
+				TxID:          spendingTx.Hash().String(),
+				InOutID:       uint32(f.InputIndex),
+				FormattedSize: humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
+				Total:         txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
+				SentTotal:     dcrutil.Amount(spendingTx.Tx.TxIn[f.InputIndex].ValueIn).ToCoin(),
+			}
+			uctxn.Transactions = append(uctxn.Transactions, addrTx)
+			uctxn.TxnsSpending = append(uctxn.TxnsSpending, addrTx)
 		}
 	}
+
+	// Set page parameters
+	addrData.Path = r.URL.Path
+	addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
+	addrData.TxnType = txnType.String()
 
 	confirmHeights := make([]int64, len(addrData.Transactions))
 	for i, v := range addrData.Transactions {
@@ -437,6 +520,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// DecodeTxPage handles the "decode/broadcast transaction" page. The actual
+// decoding or broadcasting is handled by the websocket hub.
 func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("rawtx", struct {
 		Version string
@@ -535,4 +620,33 @@ func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message str
 // NotFound wraps ErrorPage to display a 404 page
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 	exp.ErrorPage(w, "Not found", "Cannot find page: "+r.URL.Path, true)
+}
+
+// ParametersPage is the page handler for the "/parameters" path
+func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
+	cp := exp.ChainParams
+	addrPrefix := AddressPrefixes(cp)
+	actualTicketPoolSize := int64(cp.TicketPoolSize * cp.TicketsPerBlock)
+	ecp := ExtendedChainParams{
+		Params:               cp,
+		AddressPrefix:        addrPrefix,
+		ActualTicketPoolSize: actualTicketPoolSize,
+	}
+
+	str, err := exp.templates.execTemplateToString("parameters", struct {
+		Cp      ExtendedChainParams
+		Version string
+	}{
+		ecp,
+		exp.Version,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
 }

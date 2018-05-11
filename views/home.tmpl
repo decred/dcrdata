@@ -145,34 +145,35 @@
 
             <div class="col-md-6">
 
-                <h4 class="mb-3">Latest Transactions</h4>
-                <table class="table table-sm striped" id="mini-transactions">
-                    <thead>
-                        <th>Hash</th>
-                        <th>Type</th>
-                        <th>Total Sent</th>
-                        <th>Size</th>
-                        <th>Age</th>
-                    </thead>
-                    <tbody>
-                        {{range .Mempool.LatestTransactions}}
-                            <tr>
-                                <td class="break-word">
-                                    <span>
-                                        <a class="hash" href="/tx/{{.Hash}}">{{.Hash}}</a>
-                                    </span>
-                                </td>
-                                <td class="mono fs15">{{.Type}}</td>
-                                <td class="mono fs15">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</td>
-                                <td class="mono fs15">{{.Size}} B</td>
-                                <td class="mono fs15" data-age="{{.Time}}"></td>
-                            </tr>
-                        {{end}}
-                    </tbody>
-                </table>
-                <div class="mb-3"><a href="/mempool"><small>More mempool...</small></a></div>
+                <div class="d-flex align-items-center">
+                    <h4>Latest Transactions</h4> <a href="/mempool" class="pl-2"><small>see more ...</small></a>
+                </div>
 
-                <h4 class="mb-3">Latest Blocks</h4>
+                <div class="mb-3 flex-table">
+                    <div class="d-flex justify-content-end header">
+                        <span class="lh1rem mr-auto">Hash</span>
+                        <span style="flex: 0 0 65px" class="lh1rem text-right ml-1">Type</span>
+                        <span style="flex: 0 0 105px" class="lh1rem text-right ml-1">Total Sent</span>
+                        <span style="flex: 0 0 50px" class="lh1rem text-right ml-1">Size</span>
+                        <span style="flex: 0 0 62px" class="lh1rem text-right ml-1">Age</span>
+                    </div>
+                    <div id="mini-transactions" class="transactions md-height-rows rows">
+                    {{range .Mempool.LatestTransactions}}
+                        <div class="d-flex flex-table-row">
+                            <a class="hash truncate-hash" style="flex: 1 1 auto" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
+                            <span style="flex: 0 0 65px" class="mono text-right ml-1">{{.Type}}</span>
+                            <span style="flex: 0 0 105px" class="mono text-right ml-1">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</span>
+                            <span style="flex: 0 0 50px" class="mono text-right ml-1">{{.Size}} B</span>
+                            <span style="flex: 0 0 62px" class="mono text-right ml-1" data-age="{{.Time}}"></span>
+                        </div>
+                    {{end}}
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center">
+                    <h4>Latest Blocks</h4> <a href="/blocks" class="pl-2"><small>see more ...</small></a>
+                </div>
+
                 <table class="table striped table-responsive full-width" id="explorertable">
                     <thead>
                         <tr>
@@ -207,7 +208,6 @@
                         {{end}}
                     </tbody>
                 </table>
-                <div class="mb-3"><a href="/blocks"><small>More blocks...</small></a></div>
 
             </div>
 

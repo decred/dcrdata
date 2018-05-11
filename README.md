@@ -95,6 +95,15 @@ necessary.
 
 ## Getting Started
 
+### Configure PostgreSQL (IMPORTANT)
+
+If you intend to run dcrdata in "full" mode (i.e. with the `--pg` switch), which
+uses a PostgreSQL database backend, it is crucial that you configure your
+PostgreSQL server for your hardware and the dcrdata workload.
+
+Read [postgresql-tuning.conf](./db/dcrpg/postgresql-tuning.conf) carefully for
+details on how to make the necessary changes to your system.
+
 ### Create configuration file
 
 Begin with the sample configuration file:
@@ -282,6 +291,7 @@ parsing more efficient for the client.
 | Other | Path | Type |
 | --- | --- | --- |
 | Status | `/status` | `types.Status` |
+| Coin Supply | `/supply` | `types.CoinSupply` |
 | Endpoint list (always indented) | `/list` | `[]string` |
 | Directory | `/directory` | `string` |
 
@@ -374,7 +384,7 @@ the future.
 
 * A `sql.DB` wrapper type (`DB`) with the necessary SQLite queries for
   storage and retrieval of block and stake data.
-* The `wiredDB` type, intended to satisfy the `APIDataSource` interface used by
+* The `wiredDB` type, intended to satisfy the `DataSourceLite` interface used by
   the dcrdata app's API. The block header is not stored in the DB, so a RPC
   client is used by `wiredDB` to get it on demand. `wiredDB` also includes
   methods to resync the database file.

@@ -38,7 +38,7 @@
                             {{if ge .KnownTransactions .MaxTxLimit}}
                             <td class="fs28 mono nowrap d-flex align-items-center justify-content-end">unavailable</td>
                             {{else}}
-                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.Unspent}}</td>
+                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.AmountUnspent.ToCoin}}</td>
                             {{end}}
                         {{end}}
                     </tr>
@@ -57,7 +57,7 @@
                             {{if ge .KnownTransactions .MaxTxLimit}}
                             <td class="mono nowrap text-right">unavailable</td>
                             {{else}}
-                            <td class="mono nowrap text-right">{{.TotalReceived}}</td>
+                            <td class="mono nowrap text-right">{{.AmountReceived.ToCoin}}</td>
                             {{end}}
                         {{end}}
                     </tr>
@@ -75,7 +75,7 @@
                             {{if ge .KnownTransactions .MaxTxLimit}}
                             <td class="mono nowrap text-right">unavailable</td>
                             {{else}}
-                            <td class="mono nowrap text-right">{{.TotalSent}}</td>
+                            <td class="mono nowrap text-right">{{.AmountSent.ToCoin}}</td>
                             {{end}}
                         {{end}}
                     </tr>
@@ -95,7 +95,7 @@
             <div class="col">
                 <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
                     <h5 class="mr-auto mb-0">History</h5>
-                    {{if lt .NumTransactions .KnownTransactions}}
+                    {{if lt .NumTransactions $TxnCount}}
                     <div div class="d-flex flex-wrap-reverse align-items-center justify-content-end">
                         <span class="fs12 nowrap text-right">
                             {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma $TxnCount}} transactions

@@ -47,6 +47,10 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // example, closing the channel on SIGINT.
 func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan struct{},
 	updateAllAddresses, updateAllVotes, newIndexes bool) (int64, error) {
+	// Note that we are doing a batch blockchain sync
+	db.inBatchSync = true
+	defer func() { db.inBatchSync = false }()
+
 	// Get chain servers's best block
 	nodeHeight, err := client.NodeHeight()
 	if err != nil {
@@ -168,6 +172,12 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 			return ib - 1, fmt.Errorf("stakeDB.PoolInfo could not locate block %s", blockHash.String())
 		}
 		winners := tpi.Winners
+
+		// If this is likely to be the last call to StoreBlock, allow
+		// possibly-repetative code, such as the dev balance update.
+		if ib == nodeHeight {
+			db.inBatchSync = false
+		}
 
 		// Store data from this block in the database
 		numVins, numVouts, err := db.StoreBlock(block.MsgBlock(), winners, true,

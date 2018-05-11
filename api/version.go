@@ -5,6 +5,9 @@ package api
 
 import "fmt"
 
+// APIVersion is an integer value, incremented for breaking changes
+const APIVersion = 1
+
 type version struct {
 	Major, Minor, Patch int
 	Label               string
