@@ -3,6 +3,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/AndreasBriese/bbloom"
+  packages = ["."]
+  revision = "28f7e881ca57bc00e028f9ede9f0d9104cfeef5e"
+
+[[projects]]
+  branch = "master"
   name = "github.com/aead/siphash"
   packages = ["."]
   revision = "e404fcfc888570cadd1610538e2dbc89f66af814"
@@ -153,6 +159,25 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/dgraph-io/badger"
+  packages = [
+    ".",
+    "options",
+    "protos",
+    "skl",
+    "table",
+    "y"
+  ]
+  revision = "3ff1bfbb11c02c78c11269096669396c2d2cbbd3"
+  version = "v1.5.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/dgryski/go-farm"
+  packages = ["."]
+  revision = "2de33835d10275975374b37b2dcfd22c9020a1f5"
+
+[[projects]]
   name = "github.com/didip/tollbooth"
   packages = [
     ".",
@@ -189,6 +214,12 @@
   packages = ["."]
   revision = "ac43d9a63f3b58b1e82922411d2de365d896ee72"
   version = "v1.0.2"
+
+[[projects]]
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   name = "github.com/google/gops"
@@ -283,6 +314,12 @@
   version = "v2.1.0"
 
 [[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
   name = "github.com/rs/cors"
   packages = ["."]
   revision = "ca016a06a5753f8ba03029c0aa5e54afb1bf713f"
@@ -320,6 +357,8 @@
   name = "golang.org/x/net"
   packages = [
     "context",
+    "internal/timeseries",
+    "trace",
     "websocket"
   ]
   revision = "db08ff08e8622530d9ed3a0e8ac279f6d4c02196"
@@ -342,6 +381,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b37d8f364544946cf0bbec415993d542565aafc182dedfed17fb2d51183f0122"
+  inputs-digest = "b0d2e972ec426db76162229ab52c5ac0688d06aea98fedbd2c23603dee1e82ca"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -111,7 +111,7 @@ const (
 	// DefaultStakeDbName is the default name of the stakedb database folder
 	DefaultStakeDbName = "stakenodes"
 	// DefaultTicketPoolDbName is the default name of the ticket pool database
-	DefaultTicketPoolDbName = "ticket_pool.db"
+	DefaultTicketPoolDbName = "ticket_pool.bdgr"
 )
 
 // NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
