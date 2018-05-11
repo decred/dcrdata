@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -25,14 +26,12 @@ const (
 	// expNewTxChanBuffer is the size of the new transaction buffer for explorer
 	expNewTxChanBuffer = 70
 
-	reorgBuffer = 2
-
 	// relevantMempoolTxChanBuffer is the size of the new transaction channel
 	// buffer, for relevant transactions that are added into mempool.
 	//relevantMempoolTxChanBuffer = 2048
 )
 
-// Channels are package-level variables for simplicity
+// NtfnChans collects the chain server notification channels
 var ntfnChans struct {
 	connectChan                       chan *chainhash.Hash
 	reorgChanBlockData                chan *blockdata.ReorgData
@@ -63,9 +62,9 @@ func makeNtfnChans(cfg *config) {
 	ntfnChans.connectChanStakeDB = make(chan *chainhash.Hash)
 
 	// Reorg data channels
-	ntfnChans.reorgChanBlockData = make(chan *blockdata.ReorgData, reorgBuffer)
-	ntfnChans.reorgChanWiredDB = make(chan *dcrsqlite.ReorgData, reorgBuffer)
-	ntfnChans.reorgChanStakeDB = make(chan *stakedb.ReorgData, reorgBuffer)
+	ntfnChans.reorgChanBlockData = make(chan *blockdata.ReorgData)
+	ntfnChans.reorgChanWiredDB = make(chan *dcrsqlite.ReorgData)
+	ntfnChans.reorgChanStakeDB = make(chan *stakedb.ReorgData)
 
 	// To update app status
 	ntfnChans.updateStatusNodeHeight = make(chan uint32, blockConnChanBuffer)

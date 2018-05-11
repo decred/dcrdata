@@ -152,36 +152,49 @@ func makeNodeNtfnHandlers(cfg *config) (*rpcclient.NotificationHandlers, *collec
 		},
 		OnReorganization: func(oldHash *chainhash.Hash, oldHeight int32,
 			newHash *chainhash.Hash, newHeight int32) {
+			wg := new(sync.WaitGroup)
 			// Send reorg data to dcrsqlite's monitor
+			wg.Add(1)
 			select {
 			case ntfnChans.reorgChanWiredDB <- &dcrsqlite.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
 				NewChainHeight: newHeight,
+				WG:             wg,
 			}:
 			default:
+				wg.Done()
 			}
+
 			// Send reorg data to blockdata's monitor (so that it stops collecting)
+			wg.Add(1)
 			select {
 			case ntfnChans.reorgChanBlockData <- &blockdata.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
 				NewChainHeight: newHeight,
+				WG:             wg,
 			}:
 			default:
+				wg.Done()
 			}
+
 			// Send reorg data to stakedb's monitor
+			wg.Add(1)
 			select {
 			case ntfnChans.reorgChanStakeDB <- &stakedb.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
 				NewChainHeight: newHeight,
+				WG:             wg,
 			}:
 			default:
+				wg.Done()
 			}
+			wg.Wait()
 		},
 
 		OnWinningTickets: func(blockHash *chainhash.Hash, blockHeight int64,

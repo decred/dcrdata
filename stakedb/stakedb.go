@@ -1,4 +1,5 @@
-// Copyright (c) 2018, The dcrdata developers.
+// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018, The dcrdata developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -417,11 +418,15 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 		return fmt.Errorf("unable to serialize block header: %v", err)
 	}
 
-	db.BestNode, err = db.BestNode.ConnectNode(stake.CalcHash256PRNGIV(hB),
+	bestNode, err := db.BestNode.ConnectNode(stake.CalcHash256PRNGIV(hB),
 		spent, revoked, maturing)
 	if err != nil {
 		return err
 	}
+	if bestNode == nil {
+		return fmt.Errorf("failed to ConnectNode at BestNode")
+	}
+	db.BestNode = bestNode
 
 	if err = db.StakeDB.Update(func(dbTx database.Tx) error {
 		return stake.WriteConnectedBestNode(dbTx, db.BestNode, *block.Hash())
@@ -505,6 +510,9 @@ func (db *StakeDatabase) disconnectBlock() error {
 	})
 	if err != nil {
 		return err
+	}
+	if parentStakeNode == nil {
+		return fmt.Errorf("failed to DisconnectNode at BestNode")
 	}
 	db.BestNode = parentStakeNode
 
@@ -641,6 +649,11 @@ func (db *StakeDatabase) expires() ([]chainhash.Hash, []bool) {
 // structure including ticket pool value, size, and average value.
 func (db *StakeDatabase) PoolInfoBest() *apitypes.TicketPoolInfo {
 	db.nodeMtx.RLock()
+	if db.BestNode == nil {
+		db.nodeMtx.RUnlock()
+		log.Errorf("PoolInfoBest: BestNode is nil!")
+		return nil
+	}
 	//poolSize := db.BestNode.PoolSize()
 	liveTickets := db.BestNode.LiveTickets()
 	winningTickets := db.BestNode.Winners()
