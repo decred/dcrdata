@@ -255,7 +255,7 @@
                             {{else if .Stakebase}}
                                 Stakebase: {{ .Stakebase }}
                             {{else}}
-                                <a href="/tx/{{.Txid}}">{{.Txid}}:{{.Vout}}</a>
+                                <a data-keynav-priority href="/tx/{{.Txid}}">{{.Txid}}:{{.Vout}}</a>
                             {{end}}
                             </div>
                         </td>
@@ -297,7 +297,7 @@
                     <tr>
                         <td class="break-word mono fs13 addressAndScriptData">
                             {{range .Addresses}}
-                                <div class="address sm-fullwidth"><a href="/address/{{.}}">{{.}}</a></div>
+                                <div class="address sm-fullwidth"><a href="/address/{{.}}" data-keynav-priority>{{.}}</a></div>
                             {{end}}
                             {{if .OP_RETURN}}
                                 {{if .Addresses}}
@@ -308,7 +308,7 @@
                                 {{else}}
                                 <div>
                                 {{end}}
-                                    <a >{{.OP_RETURN}}</a>
+                                    <span>{{.OP_RETURN}}</span>
                                 </div>
                             {{end}}
                         </td>
