@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -73,7 +74,7 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 }
 
 func writeText(w http.ResponseWriter, str string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
@@ -259,19 +260,44 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
-	rawHexTx := m.GetRawHexTx(r)
+	// Allow parameters to be posted either as query or in the body as a JSON
+	rawHexTx := m.GetRawHexTx(r) // Check for a query post
+
 	if rawHexTx == "" {
-		http.Error(w, http.StatusText(422), 422)
-		return
+		// No query post.  Check for a Body JSON
+		// Read and close the JSON-RPC request body from the caller.
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			apiLog.Errorf("error reading JSON message: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		var req apitypes.InsightRawTx
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			apiLog.Errorf("Failed to parse request: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		// Successful extraction of Body JSON
+		rawHexTx = req.Rawtx
 	}
 
 	txid, err := c.BlockData.SendRawTransaction(rawHexTx)
 	if err != nil {
 		apiLog.Errorf("Unable to send transaction %s", rawHexTx)
-		http.Error(w, http.StatusText(422), 422)
+		// Write the raw error out for display
+		writeText(w, txid)
 		return
 	}
-	writeJSON(w, txid, c.getIndentQuery(r))
+
+	txidJSON := struct {
+		TxidHash string `json:"rawtx"`
+	}{
+		txid,
+	}
+	writeJSON(w, txidJSON, c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getAddressTxnOutput(w http.ResponseWriter, r *http.Request) {

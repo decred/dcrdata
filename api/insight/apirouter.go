@@ -38,7 +38,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.With(m.BlockDateQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
 	mux.With(app.BlockHashPathAndIndexCtx).Get("/block/{blockhash}", app.getBlockSummary)
 	mux.With(m.BlockIndexPathCtx).Get("/block-index/{idx}", app.getBlockHash)
-	mux.With(m.BlockIndexOrHashPathCtx).Get("/rawblock/{idx}", app.getRawBlock)
+	mux.With(m.BlockIndexOrHashPathCtx).Get("/rawblock/{idxorhash}", app.getRawBlock)
 
 	// Transaction endpoints
 	mux.With(m.RawTransactionCtx).Post("/tx/send", app.broadcastTransactionRaw)

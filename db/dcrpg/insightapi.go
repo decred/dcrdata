@@ -4,6 +4,8 @@
 package dcrpg
 
 import (
+	"fmt"
+
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/api/types"
@@ -66,7 +68,7 @@ func (pgb *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
 	hash, err := pgb.Client.SendRawTransaction(msg, true)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: %v", err)
-		return "", err
+		return fmt.Sprintf("%v", err), err
 	}
 	return hash.String(), err
 }
