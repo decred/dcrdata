@@ -83,10 +83,6 @@ const (
 		` FROM addresses WHERE address=$1)
         SELECT * FROM these order by block_time desc limit $2 offset $3;`
 
-	SelectAddressByTxHash = `SELECT id, address, value FROM addresses 
-	   WHERE tx_hash = $1 AND tx_vin_vout_index = $2 and is_funding = TRUE
-	   ORDER BY block_time DESC LIMIT 1;`
-
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + columnNames + `
 		FROM addresses WHERE address=$1 and is_funding = FALSE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
@@ -99,10 +95,10 @@ const (
         tx_vin_vout_index=$2 and is_funding = TRUE ORDER BY block_time DESC;`
 
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses WHERE address=$1 and 
-	    tx_vin_vout_row_id=$2 and is_funding = true ORDER BY block_time DESC;`
+	    tx_vin_vout_row_id=$2 and is_funding = true;`
 
 	SetAddressFundingForMatchingTxHash = `UPDATE addresses SET matching_tx_hash=$1 
-	    WHERE id=$2 and is_funding = true;`
+	    WHERE tx_hash=$2 and is_funding = true and tx_vin_vout_index=$3;`
 
 	IndexBlockTimeOnTableAddress   = `CREATE INDEX block_time_index ON addresses (block_time);`
 	DeindexBlockTimeOnTableAddress = `DROP INDEX block_time_index;`

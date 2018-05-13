@@ -1281,6 +1281,7 @@ type MsgBlockPG struct {
 	Validators     []string
 }
 
+// storeTxns stores the transactions of a given block
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64,
 	updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
@@ -1525,7 +1526,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			}
 
 			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
-				vin.PrevTxHash, vin.PrevTxIndex, vin.TxID, vin.TxIndex,
+				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree), vin.TxID, vin.TxIndex,
 				uint64(tx.BlockTime), vinDbID, pgb.dupChecks)
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
