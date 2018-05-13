@@ -68,8 +68,10 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", indent)
+	fmt.Printf("\n\n thing before json encode %+v\n\n", thing)
 	if err := encoder.Encode(thing); err != nil {
 		apiLog.Infof("JSON encode error: %v", err)
+		fmt.Printf("\n\nencode error\n\n")
 	}
 }
 
@@ -90,11 +92,11 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	txOld, err := c.BlockData.GetRawTransaction(txid)
 	if err != nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
-		http.Error(w, http.StatusText(422), 422)
+		writeText(w, "Not Found")
 		return
 	}
 
-	// convert stuct type to new sturct
+	// convert struct type to new struct
 	txNew := dbtypes.TxConverter(txOld)
 
 	// This block set addr value in tx vin
@@ -141,6 +143,7 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	}
 
 	addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
+
 	for _, dbaddr := range addrFull {
 		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
 		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash

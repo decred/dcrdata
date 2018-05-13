@@ -44,7 +44,10 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.With(m.RawTransactionCtx).Post("/tx/send", app.broadcastTransactionRaw)
 	mux.With(m.TransactionHashCtx).Get("/tx/{txid}", app.getTransaction)
 	mux.With(m.TransactionHashCtx).Get("/rawtx/{txid}", app.getTransactionHex)
-	mux.With(m.TransactionsCtx).Get("/txs", app.getTransactions)
+	mux.With(m.PaginationCtx, m.TransactionsCtx).Get("/txs", app.getTransactions)
+	// Allow the trailing slash to match.
+	// TODO:  there must be a better way to do this with chi-mux
+	mux.With(m.PaginationCtx, m.TransactionsCtx).Get("/txs/", app.getTransactions)
 
 	// Status
 	mux.With(app.StatusInfoCtx).Get("/status", app.getStatusInfo)

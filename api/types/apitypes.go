@@ -439,8 +439,8 @@ type VoutNew struct {
 	ScriptPubKeyValueByte []byte             `json:"scriptPubKeyByte,omitempty"`
 	ScriptPubKeyValue     ScriptPubKeyResult `json:"scriptPubKey"`
 	SpentTxID             string             `json:"spentTxId,omitempty"`
-	SpentIndex            uint32             `json:"spentIndex,omitempty"`
-	SpentTs               int                `json:"spentTs,omitempty"`
+	SpentIndex            uint32             `json:"spentIndex"`
+	SpentTs               int                `json:"spentTs"`
 	CommitAmt             float64            `json:"commitamt,omitempty"`
 }
 

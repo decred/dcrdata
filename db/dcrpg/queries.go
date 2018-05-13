@@ -6,6 +6,7 @@ package dcrpg
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/decred/dcrd/blockchain/stake"
@@ -1092,7 +1093,7 @@ func RetrieveBlockHeight(db *sql.DB, hash string) (height int64, err error) {
 }
 
 func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, currentBlockHeight int64) ([]apitypes.AddressTxnOutput, error) {
-	var outputs []apitypes.AddressTxnOutput
+	outputs := make([]apitypes.AddressTxnOutput, 0)
 
 	stmt, err := db.Prepare(internal.SelectAddressUnspentWithTxn)
 	if err != nil {
@@ -1109,14 +1110,19 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	defer rows.Close()
 
 	for rows.Next() {
+		var pkScript []byte
+		var blockHeight int64
+		var atoms uint64
 		var txnOutput apitypes.AddressTxnOutput
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
-			&txnOutput.Atoms, &txnOutput.Height, &txnOutput.BlockHash); err != nil {
+			&atoms, &blockHeight, &txnOutput.BlockTime, &txnOutput.Vout, &pkScript); err != nil {
 			fmt.Println(err)
 			log.Error(err)
 		}
-		txnOutput.Amount = txnOutput.Atoms * 100000000
-		txnOutput.Confirmations = currentBlockHeight - txnOutput.Height
+		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
+		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
+		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
+		txnOutput.ConfFrmCache = false
 		outputs = append(outputs, txnOutput)
 	}
 
