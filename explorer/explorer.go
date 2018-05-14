@@ -232,6 +232,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		return (a / b) * 100
 	}
 
+	stakePerc := blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
+
 	// Update all ExtraInfo with latest data
 	exp.ExtraInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
 	exp.ExtraInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
@@ -245,7 +247,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	exp.ExtraInfo.PoolInfo.Size = blockData.PoolInfo.Size
 	exp.ExtraInfo.PoolInfo.Value = blockData.PoolInfo.Value
 	exp.ExtraInfo.PoolInfo.ValAvg = blockData.PoolInfo.ValAvg
-	exp.ExtraInfo.PoolInfo.Percentage = blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
+	exp.ExtraInfo.PoolInfo.Percentage = stakePerc * 100
 
 	exp.ExtraInfo.PoolInfo.PercentTarget = func() float64 {
 		target := float64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
@@ -283,9 +285,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 				exp.ChainParams.CoinbaseMaturity)
 		return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
 	}()
-	apr, _ := exp.simulateAPR(1000, false, exp.ExtraInfo.PoolInfo.Percentage, 
-		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(), 
-		float64(exp.NewBlockData.Height), 
+	apr, _ := exp.simulateAPR(1000, false, stakePerc,
+		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(),
+		float64(exp.NewBlockData.Height),
 		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
 
 	exp.ExtraInfo.APR = apr
