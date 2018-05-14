@@ -224,8 +224,8 @@ func mainCore() error {
 		// it here if it is ahead of PG.
 		stakedbHeight := int64(baseDB.GetStakeDB().Height())
 		if uint64(stakedbHeight) > heightDB {
+			// rewind stakedb and log at intervals of 200
 			if stakedbHeight%200 == 0 {
-				// rewind stakedb
 				log.Infof("Rewinding StakeDatabase from %d to %d.", stakedbHeight, lastBlockPG)
 			}
 			stakedbHeight, err = baseDB.RewindStakeDB(lastBlockPG, quit)

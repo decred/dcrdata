@@ -110,7 +110,7 @@ const (
 				FROM vouts) t
 			WHERE t.rnum > 1);`
 
-	SelectAddressByTxHash = `SELECT address, value FROM vouts
+	SelectAddressByTxHash = `SELECT script_addresses, value FROM vouts
 		WHERE tx_hash = $1 AND tx_index = $2 and tx_tree = $3;`
 
 	SelectPkScriptByID     = `SELECT pkscript FROM vouts WHERE id=$1;`

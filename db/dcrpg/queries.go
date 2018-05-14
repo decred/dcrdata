@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/dcrutil"
@@ -478,8 +479,14 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
 	}
 
-	return insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex, fundingTxTree,
+	c, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex, fundingTxTree,
 		spendingTxHash, spendingTxVinIndex, vinDbID, dupChecks, spendingTXBlockTime)
+	if err != nil {
+		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
+			err, dbtx.Rollback())
+	}
+
+	return c, dbtx.Commit()
 }
 
 // insertSpendingTxByPrptStmt makes atomic transaction to insert the new spending tx
@@ -487,7 +494,7 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32,
 	vinDbID uint64, dupCheck bool, blockT ...uint64) (int64, error) {
-	var addr []string
+	var addr string
 	var value, rowID, blockTime uint64
 
 	// select id, address and value from the matching funding tx
@@ -501,6 +508,11 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 		return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
 	}
 
+	replacer := strings.NewReplacer("{", "}")
+	addr = replacer.Replace(addr)
+	newAddr := strings.Split(addr, ",")[0]
+
+	// Check if the block time was passed
 	if len(blockT) > 0 {
 		blockTime = blockT[0]
 	} else {
@@ -512,7 +524,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 	}
 
 	// insert a new spending tx
-	err = tx.QueryRow(internal.InsertAddressRow, addr[0], fundingTxHash, spendingTxHash,
+	err = tx.QueryRow(internal.InsertAddressRow, newAddr, fundingTxHash, spendingTxHash,
 		spendingTxVinIndex, vinDbID, value, blockTime, dupCheck).Scan(&rowID)
 	if err != nil {
 		return 0, fmt.Errorf("InsertAddressRow: %v", err)
@@ -1367,7 +1379,6 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error)
 	ids := make([]uint64, 0, len(dbVins))
 	for _, vin := range dbVins {
 		var id uint64
-
 		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
 			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree).Scan(&id)
 		if err != nil {
@@ -1446,16 +1457,6 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 	_ = stmt.Close()
 
 	return ids, addressRows, dbtx.Commit()
-}
-
-func RetrieveAddressByTxHash(db *sql.DB, tx_hash string,
-	tx_vout_index uint32, tx_tree int8) (*dbtypes.AddressRow, error) {
-	var data dbtypes.AddressRow
-	var addresses []string
-	err := db.QueryRow(internal.SelectAddressByTxHash,
-		tx_hash, tx_vout_index, tx_tree).Scan(&addresses, &data.Value)
-
-	return &data, err
 }
 
 // InsertAddressRow can insert an input and output for the respective transaction.

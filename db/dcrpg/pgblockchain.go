@@ -1637,8 +1637,8 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 	var numAddresses int64
 	for i := 0; i < len(allVinDbIDs); i += updatesPerDBTx {
 		//for i, vinDbID := range allVinDbIDs {
-		if i%50000 == 0 {
-			endRange := i + 50000 - 1
+		if i%100000 == 0 {
+			endRange := i + 100000 - 1
 			if endRange > len(allVinDbIDs) {
 				endRange = len(allVinDbIDs)
 			}
