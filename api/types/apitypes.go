@@ -4,6 +4,8 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrdata/txhelpers"
 )
@@ -373,3 +375,16 @@ type MempoolTicketDetails struct {
 // TicketsDetails is an array of pointers of TicketDetails used in
 // MempoolTicketDetails
 type TicketsDetails []*TicketDetails
+
+// DeniedAddress
+type DeniedAddress struct {
+	Addr   string `json:"address"`
+	ErrMsg string `json:"message"`
+}
+
+func (da *DeniedAddress) Init(addr string) {
+	da.Addr = addr
+	da.ErrMsg = fmt.Sprintf(`Request with %v was denied.
+		This is the sstxchange address for 0 value outputs in ticket purchases.
+		It's used all the time, but never has a balance`, addr)
+}

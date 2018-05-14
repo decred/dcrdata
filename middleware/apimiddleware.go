@@ -483,12 +483,12 @@ func AddressPostCtx(next http.Handler) http.Handler {
 func DenySpecificAddr(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := GetAddressCtx(r)
-		if address == "DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg" {
-			apiLog.Info("got match for addr deny condition")
-			msg := `Request with DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg was denied. This is the sstxchange address for 0 value outputs in ticket purchases. It's used all the time, but never has a balance`
+		da := apitypes.DeniedAddress{}
+		da.Init("DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg")
+		if address == da.Addr {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			encoder := json.NewEncoder(w)
-			if err := encoder.Encode(msg); err != nil {
+			if err := encoder.Encode(da); err != nil {
 				apiLog.Infof("JSON encode error: %v", err)
 			}
 			return
