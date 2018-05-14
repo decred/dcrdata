@@ -258,6 +258,7 @@ type HomeInfo struct {
 	DevAddress        string         `json:"dev_address"`
 	TicketROI         float64        `json:"roi"`
 	ROIPeriod         string         `json:"roi_period"`
+	APR               float64        `json:"APR"`
 	NBlockSubsidy     BlockSubsidy   `json:"subsidy"`
 	Params            ChainParams    `json:"params"`
 	PoolInfo          TicketPoolInfo `json:"pool_info"`
