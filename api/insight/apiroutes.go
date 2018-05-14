@@ -68,10 +68,8 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", indent)
-	fmt.Printf("\n\n thing before json encode %+v\n\n", thing)
 	if err := encoder.Encode(thing); err != nil {
 		apiLog.Infof("JSON encode error: %v", err)
-		fmt.Printf("\n\nencode error\n\n")
 	}
 }
 
@@ -92,7 +90,7 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	txOld, err := c.BlockData.GetRawTransaction(txid)
 	if err != nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
-		writeText(w, "Not Found")
+		writeText(w, "Not found")
 		return
 	}
 
@@ -357,15 +355,18 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 		}
 		txs := c.BlockData.InsightGetAddressTransactions(address, 20, 0)
 		if txs == nil {
-			http.Error(w, http.StatusText(422), 422)
-			return
+			txs = make([]*dcrjson.SearchRawTransactionsResult, 0)
+
 		}
 
 		txsOutput := struct {
-			Txs []*dcrjson.SearchRawTransactionsResult `json:"txs"`
+			PagesTotal int32                                  `json:"pagesTotal"`
+			Txs        []*dcrjson.SearchRawTransactionsResult `json:"txs"`
 		}{
+			1,
 			txs,
 		}
+
 		writeJSON(w, txsOutput, c.getIndentQuery(r))
 	}
 }
