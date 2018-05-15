@@ -28,10 +28,13 @@ type InsightAddressInfo struct {
 	NumSpendingTxns  int64          `json:"numSpendingTxns,omitempty"`
 	KnownFundingTxns int64          `json:"knownFundingTxns,omitempty"`
 	NumUnconfirmed   int64          `json:"numUnconfirmed,omitempty"`
-	TotalReceived    dcrutil.Amount `json:"totalReceived"`
-	TotalSent        dcrutil.Amount `json:"totalSent"`
-	Unspent          dcrutil.Amount `json:"balance"`
+	TotalReceived    float64        `json:"totalReceived"`
+	TotalSent        float64        `json:"totalSent"`
+	Unspent          float64        `json:"balance"`
 	Path             string         `json:"path,omitempty"`
+	TotalReceivedSat dcrutil.Amount `json:"totalReceivedSat"`
+	TotalSentSat     dcrutil.Amount `json:"totalSentSat"`
+	TxApperances     int            `json:"txApperances"`
 }
 
 // InsightRawTx contains the raw transaction string

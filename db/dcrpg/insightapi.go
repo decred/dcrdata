@@ -165,10 +165,15 @@ func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.In
 		return nil
 	}
 
-	var totalReceived, totalSent, unSpent dcrutil.Amount
-	totalReceived, _ = dcrutil.NewAmount(float64(balance.TotalSpent + balance.TotalUnspent))
-	totalSent, _ = dcrutil.NewAmount(float64(balance.TotalSpent))
-	unSpent, _ = dcrutil.NewAmount(float64(balance.TotalUnspent))
+	var totalReceived, totalSent, unSpent float64
+	var TotalReceivedSat, TotalSentSat dcrutil.Amount
+
+	totalReceived = dcrutil.Amount(balance.TotalSpent + balance.TotalUnspent).ToCoin()
+	totalSent = dcrutil.Amount(balance.TotalSpent).ToCoin()
+	unSpent = dcrutil.Amount(balance.TotalUnspent).ToCoin()
+
+	TotalReceivedSat, _ = dcrutil.NewAmount(totalReceived)
+	TotalSentSat, _ = dcrutil.NewAmount(totalSent)
 
 	var transactionIdList []string
 	for _, row := range rows {
@@ -184,11 +189,14 @@ func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.In
 	}
 
 	return &apitypes.InsightAddressInfo{
-		Address:        address,
-		TotalReceived:  totalReceived,
-		TransactionsID: transactionIdList,
-		TotalSent:      totalSent,
-		Unspent:        unSpent,
+		Address:          address,
+		TotalReceived:    totalReceived,
+		TransactionsID:   transactionIdList,
+		TotalSent:        totalSent,
+		Unspent:          unSpent,
+		TotalReceivedSat: TotalReceivedSat,
+		TotalSentSat:     TotalSentSat,
+		TxApperances:     len(transactionIdList),
 	}
 }
 
