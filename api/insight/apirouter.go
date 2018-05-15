@@ -33,6 +33,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
+	mux.Use(middleware.StripSlashes)
 
 	// Block endpoints
 	mux.With(m.BlockDateQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
@@ -45,9 +46,6 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.With(m.TransactionHashCtx).Get("/tx/{txid}", app.getTransaction)
 	mux.With(m.TransactionHashCtx).Get("/rawtx/{txid}", app.getTransactionHex)
 	mux.With(m.PaginationCtx, m.TransactionsCtx).Get("/txs", app.getTransactions)
-	// Allow the trailing slash to match.
-	// TODO:  there must be a better way to do this with chi-mux
-	mux.With(m.PaginationCtx, m.TransactionsCtx).Get("/txs/", app.getTransactions)
 
 	// Status
 	mux.With(app.StatusInfoCtx).Get("/status", app.getStatusInfo)
