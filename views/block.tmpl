@@ -38,21 +38,21 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/block/{{.PreviousHash}}">PREV BLOCK</a></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a data-keynav-priority href="/block/{{.PreviousHash}}">PREV BLOCK</a></td>
                         <td>
-                            <span class="hash break-word lh1rem"  href="/block/{{.PreviousHash}}">{{.PreviousHash}}</span>
+                            <span class="hash break-word lh1rem">{{.PreviousHash}}</span>
                         </td>
                     </tr>
                     {{if .NextHash}}
                     <tr>
-                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/block/{{.NextHash}}">NEXT BLOCK</a></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a data-keyboard-target-index-onload="1" href="/block/{{.NextHash}}">NEXT BLOCK</a></td>
                         <td>
                             <span class="hash break-word lh1rem">{{.NextHash}}</span>
                         </td>
                     </tr>
                     {{else}}
                     <tr>
-                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/mempool">NEXT BLOCK<a/></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/mempool">NEXT BLOCK</a></td>
                         <td>
                             <span class="lh1rem">mempool</span>
                         </td>
@@ -102,27 +102,27 @@
                         <td class="mono" title="{{intComma .Size}} Bytes">{{.FormattedBytes}}</td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117"><a href="#votes">VOTES</a></td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117"><a href="#votes" data-keynav-skip>VOTES</a></td>
                         <td class="lh1rem">
                             {{.Voters}}
                         </td>
                     </tr>
                     <tr>
                         <td class="text-right pr-2 lh1rem p03rem0 xs-w117">
-                            {{if gt .FreshStake  0 }}<a href="#tickets">TICKETS</a>{{else}}TICKETS{{end}}
+                            {{if gt .FreshStake  0 }}<a href="#tickets" data-keynav-skip>TICKETS</a>{{else}}TICKETS{{end}}
                         </td>
                         <td class="lh1rem">
                             {{.FreshStake}}
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Revocations  0 }}<a href="#revocations">REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Revocations  0 }}<a href="#revocations" data-keynav-skip>REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
                         <td class="lh1rem">
                             {{.Revocations}}
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Transactions  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Transactions  0 }}<a href="#transactions" data-keynav-skip>TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
                         <td class="lh1rem">
                             {{.Transactions}}
                         </td>

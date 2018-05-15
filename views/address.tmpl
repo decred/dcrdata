@@ -142,7 +142,7 @@
                         {{range $i, $v := .Transactions}}
                         <tr>
                             {{with $v}}
-                            <td><a href="/tx/{{.TxID}}" class="hash">{{.IOID}}</a></td>
+                            <td><a href="/tx/{{.TxID}}" class="hash" data-keynav-priority>{{.IOID}}</a></td>
                             {{if ne .ReceivedTotal 0.0}}
                                 <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal false)}}</td>
                             {{else}}

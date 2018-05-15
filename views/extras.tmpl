@@ -28,6 +28,7 @@
     <script src="/js/humanize.js"></script>
     <script src="/js/turbolinks.js"></script>
     <script src="/js/jquery.js"></script>
+    <script src="/js/mousetrap.min.js"></script>
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
@@ -49,7 +50,7 @@
                 <form class="navbar-form" role="search" id="search-form" action="/search">
                     <div class="input-group">
                         <input
-                            autofocus
+                            tabindex="0"
                             type="text"
                             name="search"
                             id="search"
@@ -65,15 +66,15 @@
                     <span class="patty"></span>
                     <span class="patty"></span>
                     <span class="patty short"></span>
-                    <ul id="menu">
-                        <a href="/" title="Home"><li>Home</li></a>
-                        <a href="/mempool" title="Decred mempool"><li>Mempool</li></a>
-                        <a href="/parameters" title="Chain Parameters"><li>Parameters</li></a>
-                        <a href="/blocks" title="Decred blocks"><li>Blocks</li></a>
-                        <a href="/decodetx" title="Decode or send a raw transaction"><li>Decode/Broadcast Tx</li></a>
-                        <a href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank"><li>JSON API Docs</li></a>
-                        <a data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><li><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</li></a>
-                    </ul>
+                    <div id="menu">
+                        <a data-keynav-skip href="/" title="Home">Home</a>
+                        <a data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
+                        <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
+                        <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
+                        <a data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
+                        <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>
+                        <a data-keynav-skip data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>
+                    </div>
                 </div>
             </nav>
         </div>
@@ -136,6 +137,11 @@
         }
         closeMenu(e)
     })
+
+
+    function toggleMenu(e) {
+        $("#menuToggle input").prop('checked', !$("#menuToggle input").prop('checked'))
+    }
     function closeMenu(e) {
         $("#menuToggle input").prop('checked', false)
     }
@@ -514,10 +520,90 @@
             }
         })
     }
+
+    // Keyboard Navigation
+    var targets;
+    var targetsLength;
+    var currentIndex = 0;
+    var jumpToIndexOnLoad;
+    $(".top-search").removeAttr("autofocus")
+    function clearTargets() {
+        $(".keynav-target").each((i,el) => {
+            $(el).removeClass("keynav-target")
+        })
+    }
+    function keyNav() {
+        if ($("#menuToggle input").prop('checked')) {
+            targets = $('#hamburger-menu a');
+            currentIndex = 0;
+        } else {
+            targets = $.merge($("a:not([data-keynav-skip])"),($('.top-search')));
+            if (jumpToIndexOnLoad > 0) {
+                currentIndex = jumpToIndexOnLoad;
+                jumpToIndexOnLoad = undefined;
+            } else {
+                var priorityLink = $("[data-keynav-priority]")[0]
+                var i = $.inArray(priorityLink, targets)
+                currentIndex = i > 0 ? i : 0;
+            }
+        }
+        targetsLength = targets.length;
+        clearTargets()
+        $(targets[currentIndex]).addClass("keynav-target")
+    }
+    Mousetrap.bind(['left','up'], function(e) {
+        clearTargets()
+        currentIndex--
+        if (currentIndex < 0) {
+            currentIndex = targetsLength-1
+        }
+        $(targets[currentIndex]).addClass("keynav-target")
+    });
+    Mousetrap.bind(['right','down'], function(e) {
+        clearTargets()
+        currentIndex++
+        if (currentIndex >= targetsLength) {
+            currentIndex = 0
+        }
+        $(targets[currentIndex]).addClass("keynav-target")
+    });
+    Mousetrap.bind('enter', function(e) {
+        var currentTarget = $(targets[currentIndex])
+        if (currentTarget.is( "input")) {
+            currentTarget.focus()
+            e.stopPropagation()
+            e.preventDefault()
+            return
+        }
+        var location = currentTarget.attr('href');
+        if (location !== undefined) {
+            keepIndexOnLoad = currentTarget.data("keyboard-target-index-onload")
+            if (keepIndexOnLoad) {
+                jumpToIndexOnLoad = currentIndex
+            }
+            currentTarget.addClass("activated")
+            setTimeout(function(){
+                Turbolinks.visit(location)
+
+            },3000)
+            return
+        }
+    });
+    Mousetrap.bind('=', function(e) {
+        toggleMenu(e)
+        keyNav()
+    });
+    Mousetrap.bind('esc', function(e) {
+        closeMenu(e)
+        $('top-search').blur()
+        keyNav()
+    });
+
     document.addEventListener("turbolinks:load", function(e){
         setTimeElements()
         updateAges()
         closeMenu(e)
+        keyNav(e)
     })
     setInterval(updateAges, 10000);
 </script>
