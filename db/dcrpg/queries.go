@@ -508,7 +508,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 		return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
 	}
 
-	replacer := strings.NewReplacer("{", "}")
+	replacer := strings.NewReplacer("{", "", "}", "")
 	addr = replacer.Replace(addr)
 	newAddr := strings.Split(addr, ",")[0]
 
