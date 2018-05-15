@@ -12,8 +12,8 @@ import (
 //
 type InsightAddress struct {
 	Address      string                                 `json:"address,omitempty"`
-	From         int                                    `json:"from,omitempty"`
-	To           int                                    `json:"to,omitempty"`
+	From         int                                    `json:"from"`
+	To           int                                    `json:"to"`
 	Transactions []*dcrjson.SearchRawTransactionsResult `json:"items,omitempty"`
 }
 
@@ -41,6 +41,16 @@ type InsightAddressInfo struct {
 // of a transaction
 type InsightRawTx struct {
 	Rawtx string `json:"rawtx"`
+}
+
+// InsightMultiAddrsTx models multi address post data structure
+type InsightMultiAddrsTx struct {
+	Addresses   string `json:"addrs"`
+	From        string `json:"from"`
+	To          string `json:"to"`
+	NoAsm       bool   `json:"noAsm"`
+	NoScriptSig bool   `json:"noScriptSig"`
+	NoSpent     bool   `json:"noSpent"`
 }
 
 // InsightPagination models basic pagination output

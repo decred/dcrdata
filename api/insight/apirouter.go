@@ -58,7 +58,8 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 			ra.Get("/utxo", app.getAddressesTxnOutput)
 		})
 		// POST methods
-		rd.With(m.PaginationCtx, m.AddressPostCtx).Post("/txs", app.getAddressesTxn)
+
+		rd.With(m.AddressPostCtx, m.PaginationCtx).Post("/txs", app.getAddressesTxn)
 		rd.With(m.AddressPostCtx).Post("/utxo", app.getAddressesTxnOutput)
 	})
 

@@ -372,10 +372,54 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
+
+	// Allow parameters to be posted either as query or in the body as a JSON
+	// if address is in query fields then look for offset/count in query fields as well
 	address := m.GetAddressCtx(r)
 	count := m.GetCountCtx(r)
 	offset := m.GetOffsetCtx(r)
+	if address == "" {
+		// No query post.  Check for a Body JSON
+		// Read and close the JSON-RPC request body from the caller.
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			apiLog.Errorf("error reading JSON message: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		var req apitypes.InsightMultiAddrsTx
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			apiLog.Errorf("Failed to parse request: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		// Successful extraction of Body JSON
+		address = req.Addresses
 
+		if req.To == "" {
+			req.To = "20"
+		}
+
+		if req.From == "" {
+			req.From = "0"
+		}
+
+		offset, err = strconv.Atoi(req.From)
+		if err != nil {
+			http.Error(w, "invalid from value", 422)
+			return
+		}
+		count, err = strconv.Atoi(req.To)
+		if err != nil {
+			http.Error(w, "invalid to value", 422)
+			return
+		}
+	}
+	fmt.Printf("\n\n address found: %v \n\n", address)
+	fmt.Printf("\n\n offset found: %v \n\n", offset)
+	fmt.Printf("\n\n count found: %v \n\n", count)
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
