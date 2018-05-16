@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	apitypes "github.com/decred/dcrdata/api/types"
@@ -483,8 +484,8 @@ func AddressPostCtx(next http.Handler) http.Handler {
 func DenySpecificAddr(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := GetAddressCtx(r)
-		da := apitypes.DeniedAddress{}
-		da.Init("DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg")
+		params := &chaincfg.MainNetParams
+		da := apitypes.NewZeroAddressDenial(params)
 		if address == da.Addr {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			encoder := json.NewEncoder(w)

@@ -6,7 +6,9 @@ package types
 import (
 	"fmt"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/txhelpers"
 )
 
@@ -376,15 +378,27 @@ type MempoolTicketDetails struct {
 // MempoolTicketDetails
 type TicketsDetails []*TicketDetails
 
-// DeniedAddress
+// DeniedAddress keeps denied address and reasoning of that denial
 type DeniedAddress struct {
 	Addr   string `json:"address"`
 	ErrMsg string `json:"message"`
 }
 
-func (da *DeniedAddress) Init(addr string) {
-	da.Addr = addr
-	da.ErrMsg = fmt.Sprintf(`Request with %v was denied.
-		This is the sstxchange address for 0 value outputs in ticket purchases.
-		It's used all the time, but never has a balance`, addr)
+// NewAddressDenial DeniedAddress constructor
+func NewAddressDenial(addr, reason string) *DeniedAddress {
+	msg := fmt.Sprintf("Request for address %s info denied. Reason: %s", addr, reason)
+	return &DeniedAddress{
+		Addr:   addr,
+		ErrMsg: msg,
+	}
+}
+
+// NewZeroAddressDenial helper that calls DeniedAddress constructor with zero address
+func NewZeroAddressDenial(params *chaincfg.Params) *DeniedAddress {
+	zeroed := [20]byte{}
+	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return NewAddressDenial(address.String(), "This is the zero value P2PKH address.")
 }
