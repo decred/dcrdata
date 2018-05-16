@@ -110,8 +110,8 @@ const (
 	dbType = "ffldb"
 	// DefaultStakeDbName is the default name of the stakedb database folder
 	DefaultStakeDbName = "stakenodes"
-	// DefaultTicketPoolDbName is the default name of the ticket pool database
-	DefaultTicketPoolDbName = "ticket_pool.bdgr"
+	// DefaultTicketPoolDbFolder is the default name of the ticket pool database
+	DefaultTicketPoolDbFolder = "ticket_pool.bdgr"
 )
 
 // NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
@@ -124,7 +124,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 		return nil, fmt.Errorf("unable to create DB folder: %v", err)
 	}
 	log.Infof("Loading ticket pool DB. This may take a minute...")
-	ticketPoolDBPath := filepath.Join(dbFolder, DefaultTicketPoolDbName)
+	ticketPoolDBPath := filepath.Join(dbFolder, DefaultTicketPoolDbFolder)
 	poolDB, err := NewTicketPool(ticketPoolDBPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ticket pool DB: %v", err)

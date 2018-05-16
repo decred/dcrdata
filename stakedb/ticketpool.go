@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
-	"path/filepath"
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -46,10 +45,9 @@ type PoolDiffDBItem struct {
 
 // NewTicketPool constructs a TicketPool by opening the persistent diff db,
 // loading all known diffs, initializing the TicketPool values.
-func NewTicketPool(dbFile string) (*TicketPool, error) {
+func NewTicketPool(dbFolder string) (*TicketPool, error) {
 	// Open ticket pool diffs database
 	opts := badger.DefaultOptions
-	dbFolder := filepath.Dir(dbFile)
 	opts.Dir = dbFolder
 	opts.ValueDir = dbFolder
 	db, err := badger.Open(opts)
@@ -165,8 +163,8 @@ func (tp *TicketPool) Trim() (int64, PoolDiff) {
 
 // storeDiff stores the input diff for the specified height in the on-disk DB.
 func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
-	var heightBytes []byte
-	binary.BigEndian.PutUint64(heightBytes, uint64(height))
+	var heightBytes [8]byte
+	binary.BigEndian.PutUint64(heightBytes[:], uint64(height))
 
 	var poolDiffBuffer bytes.Buffer
 	if err := gob.NewEncoder(&poolDiffBuffer).Encode(diff); err != nil {
@@ -174,18 +172,18 @@ func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
 	}
 
 	return tp.diffDB.Update(func(txn *badger.Txn) error {
-		return txn.Set(heightBytes, poolDiffBuffer.Bytes())
+		return txn.Set(heightBytes[:], poolDiffBuffer.Bytes())
 	})
 }
 
 // fetchDiff retrieves the diff at the specified height from the on-disk DB.
 func (tp *TicketPool) fetchDiff(height int64) (*PoolDiffDBItem, error) {
-	var heightBytes []byte
-	binary.BigEndian.PutUint64(heightBytes, uint64(height))
+	var heightBytes [8]byte
+	binary.BigEndian.PutUint64(heightBytes[:], uint64(height))
 
 	var diff *PoolDiffDBItem
 	err := tp.diffDB.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(heightBytes)
+		item, err := txn.Get(heightBytes[:])
 		if err != nil {
 			return fmt.Errorf("failed to find height %d in TicketPool", height)
 		}
