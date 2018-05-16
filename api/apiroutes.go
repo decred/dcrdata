@@ -84,6 +84,7 @@ type DataSourceAux interface {
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error)
 	FillAddressTransactions(addrInfo *explorer.AddressInfo) error
+	TicketPrices() ([]*dbtypes.TicketPrice, error)
 	AddressTransactionDetails(addr string, count, skip int64,
 		txnType dbtypes.AddrTxnType) (*apitypes.Address, error)
 	AddressTotals(address string) (*apitypes.AddressTotals, error)
@@ -1072,6 +1073,18 @@ func (c *appContext) getAddressTransactionsRaw(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, txs, c.getIndentQuery(r))
+}
+
+// TicketPrices is the handler for charts.
+func (c *appContext) TicketPrices(w http.ResponseWriter, r *http.Request) {
+	cbs, err := c.AuxDataSource.TicketPrices()
+	if err != nil {
+		log.Errorf("failed to retrieve ticket price data: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, cbs, c.getIndentQuery(r))
 }
 
 func (c *appContext) StakeVersionLatestCtx(next http.Handler) http.Handler {

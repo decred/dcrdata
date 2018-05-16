@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrdata/db/dbtypes/internal"
 )
@@ -371,4 +372,17 @@ type BlockDataBasic struct {
 	StakeDiff  float64 `json:"sdiff,omitemtpy"`
 	Time       int64   `json:"time,omitemtpy"`
 	NumTx      uint32  `json:"txlength,omitempty"`
+}
+
+// ChartBlock models data for charts.
+type ChartBlock struct {
+	Height    int64   `db:"height" json:"height"`
+	SBits     float64 `db:"sbits" json:"sbits"`
+	BlockTime int64   `db:"time" json:"time"`
+}
+
+// TicketPrice front charts requested data
+type TicketPrice struct {
+	Price    float64   `json:"price"`
+	DateTime time.Time `json:"date"`
 }

@@ -964,6 +964,10 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
+	if err = DeindexChartBlockTableOnTime(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
 	return errAny
 }
 
@@ -1011,6 +1015,10 @@ func (pgb *ChainDB) IndexAll() error {
 	}
 	log.Infof("Indexing misses table...")
 	if err := IndexMissesTableOnHashes(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing chartblocks table...")
+	if err := IndexChartBlockTableOnTime(pgb.db); err != nil {
 		return err
 	}
 	// Not indexing the address table on vout ID or address here. See
@@ -1166,6 +1174,14 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		return
 	}
 	pgb.lastBlock[msgBlock.BlockHash()] = blockDbID
+
+	// Store block data for charts.
+	if dbBlock.Height%144 == 0 {
+		err = InsertChartBlock(pgb.db, dbBlock)
+		if err != nil {
+			log.Error("InsertChartBlock:", err)
+		}
+	}
 
 	pgb.bestBlock = int64(dbBlock.Height)
 
@@ -1734,4 +1750,22 @@ func ticketpoolStatusSlice(ss dbtypes.TicketPoolStatus, N int) []dbtypes.TicketP
 		S[ip] = ss
 	}
 	return S
+}
+
+// TicketPrices returns slice of ticket prices and dates
+func (pgb *ChainDB) TicketPrices() ([]*dbtypes.TicketPrice, error) {
+	var tps []*dbtypes.TicketPrice
+	cbs, err := RetrieveChartBlocks(pgb.db)
+	if err != nil {
+		return nil, err
+	}
+	for _, cb := range cbs {
+		tp := &dbtypes.TicketPrice{}
+		tp.Price = dcrutil.Amount(cb.SBits).ToCoin()
+
+		tp.DateTime = time.Unix(cb.BlockTime, 0).UTC()
+		tps = append(tps, tp)
+	}
+
+	return tps, nil
 }
