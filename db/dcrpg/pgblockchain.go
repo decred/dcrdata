@@ -1527,7 +1527,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 
 			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree), vin.TxID, vin.TxIndex,
-				uint64(tx.BlockTime), vinDbID, pgb.dupChecks)
+				uint64(tx.BlockTime), vinDbID)
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
 			}

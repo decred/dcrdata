@@ -412,7 +412,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		}
 
 		// Set the spending tx info (addresses table) for the vin DB ID
-		res, err := insertSpendingTxByPrptStmt(dbtx, prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID, false)
+		res, err := insertSpendingTxByPrptStmt(dbtx, prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
 				`%v + %v (rollback)`, err, bail())
@@ -457,7 +457,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	}
 
 	// Insert the spending tx info (addresses table) for the vin DB ID
-	N, err := insertSpendingTxByPrptStmt(dbtx, prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID, false)
+	N, err := insertSpendingTxByPrptStmt(dbtx, prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -470,8 +470,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 // and updates any corresponding funding tx row
 func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
-	spendingTxVinIndex uint32, spendingTXBlockTime uint64, vinDbID uint64,
-	dupChecks bool) (int64, error) {
+	spendingTxVinIndex uint32, spendingTXBlockTime uint64, vinDbID uint64) (int64, error) {
 
 	// Only allow atomic transactions to happen
 	dbtx, err := db.Begin()
@@ -480,7 +479,7 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	}
 
 	c, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex, fundingTxTree,
-		spendingTxHash, spendingTxVinIndex, vinDbID, dupChecks, spendingTXBlockTime)
+		spendingTxHash, spendingTxVinIndex, vinDbID, spendingTXBlockTime)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -493,7 +492,7 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 // into the addresses table.
 func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32,
-	vinDbID uint64, dupCheck bool, blockT ...uint64) (int64, error) {
+	vinDbID uint64, blockT ...uint64) (int64, error) {
 	var addr string
 	var value, rowID, blockTime uint64
 
@@ -525,7 +524,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 
 	// insert a new spending tx
 	err = tx.QueryRow(internal.InsertAddressRow, newAddr, fundingTxHash, spendingTxHash,
-		spendingTxVinIndex, vinDbID, value, blockTime, dupCheck).Scan(&rowID)
+		spendingTxVinIndex, vinDbID, value, blockTime, false).Scan(&rowID)
 	if err != nil {
 		return 0, fmt.Errorf("InsertAddressRow: %v", err)
 	}
@@ -569,7 +568,7 @@ func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
 
 	// Insert the spending tx info (addresses table) for the vin DB ID
 	N, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex,
-		tree, spendingTxHash, spendingTxVinIndex, vinDbID, false)
+		tree, spendingTxHash, spendingTxVinIndex, vinDbID)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
