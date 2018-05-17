@@ -211,9 +211,15 @@ func TxConverter(tx *dcrjson.TxRawResult) apitypes.TxRawResultNew {
 		txNew.IsStakeGen = true
 	}
 
-	// Return true if coinbase value is not empty
+	// Return true if coinbase value is not empty, return 0 at some fields
 	if txNew.Vins != nil && len(txNew.Vins[0].Coinbase) > 0 {
 		txNew.IsCoinBase = true
+		txNew.IncompleteInputs = 0
+		txNew.ValueIn = 0
+		for _, v := range txNew.Vins {
+			v.Value = 0
+			v.ValueSat = 0
+		}
 	}
 
 	return txNew

@@ -122,7 +122,7 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 			vin.Confirmations = 0
 			vin.UnconfirmedInput = true
 			vin.IsConfirmed = false
-			txNew.IncompleteInputs++ // add 1 to incomplete inputs
+			//txNew.IncompleteInputs++ // add 1 to incomplete inputs
 		}
 	}
 

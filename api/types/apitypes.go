@@ -396,7 +396,7 @@ type TxRawResultNew struct {
 	Time             int64      `json:"time"`
 	Blocktime        int64      `json:"blocktime"`
 	Ticketid         string     `json:"ticketid,omitempty"`
-	IsCoinBase       bool       `json:"isCoinBase,omitempty"` // Check's coinbase value in Vin if value exists and not empty
+	IsCoinBase       bool       `json:"isCoinBase,omitempty"`
 	IsStakeGen       bool       `json:"isStakeGen,omitempty"`
 	IsStakeTx        bool       `json:"isStakeTx,omitempty"`
 	IsStakeRtx       bool       `json:"isStakeRtx,omitempty"`
@@ -423,8 +423,8 @@ type Vin struct {
 	ScriptPubKey     *ScriptSig  `json:"scriptSig,omitempty"`
 	N                int         `json:"n"`
 	Addr             string      `json:"addr,omitempty"`
-	ValueSat         int64       `json:"valueSat,omitempty"` // int(Amountin * 1000)
-	Value            float64     `json:"value,omitempty"`    // Amountin
+	ValueSat         int64       `json:"valueSat,omitempty"`
+	Value            float64     `json:"value,omitempty"`
 	DoubleSpentTxID  interface{} `json:"doubleSpentTxID"`
 	IsConfirmed      bool        `json:"isConfirmed"`
 	Confirmations    int64       `json:"confirmations"`
