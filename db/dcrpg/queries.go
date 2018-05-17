@@ -1122,7 +1122,6 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
 		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
 		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
-		txnOutput.ConfFrmCache = false
 		outputs = append(outputs, txnOutput)
 	}
 

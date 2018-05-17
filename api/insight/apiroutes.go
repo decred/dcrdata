@@ -27,18 +27,26 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrdata/txhelpers"
 )
+
+// DataSourceLite specifies an interface for collecting data from the built-in
+// databases (i.e. SQLite, storm, ffldb)
+type DataSourceLite interface {
+	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
+}
 
 type insightApiContext struct {
 	nodeClient *rpcclient.Client
 	BlockData  *dcrpg.ChainDBRPC
+	MemPool    DataSourceLite
 	Status     apitypes.Status
 	statusMtx  sync.RWMutex
 	JSONIndent string
 }
 
 // NewInsightContext Constructor for insightApiContext
-func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, JSONIndent string) *insightApiContext {
+func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, memPoolData DataSourceLite, JSONIndent string) *insightApiContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 	version := semver.NewSemver(1, 0, 0)
@@ -46,6 +54,7 @@ func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, JS
 	newContext := insightApiContext{
 		nodeClient: client,
 		BlockData:  blockData,
+		MemPool:    memPoolData,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -145,7 +154,7 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	for _, dbaddr := range addrFull {
 		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
 		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
-		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentTs = 0 // todo
+		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentHeight = 0 // TODO:  null if unspent, block height if spent
 	}
 
 	// create block hash
@@ -302,12 +311,66 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 }
 
 func (c *insightApiContext) getAddressTxnOutput(w http.ResponseWriter, r *http.Request) {
+	// Including unconfirmed utxo from mempool
 	address := m.GetAddressCtx(r)
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
-	txnOutputs := c.BlockData.ChainDB.GetAddressUTXO(address)
+
+	txnOutputs := make([]apitypes.AddressTxnOutput, 0)
+
+	addressOuts, _, _ := c.MemPool.UnconfirmedTxnsForAddress(address)
+	// These will get added to the utxo set
+	for _, f := range addressOuts.Outpoints {
+		fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+		if !ok {
+			apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+			continue
+		}
+		if fundingTx.Confirmed() {
+			apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+			continue
+		}
+
+		var txnOutput apitypes.AddressTxnOutput
+		txnOutput.Address = address
+		txnOutput.TxnID = fundingTx.Hash().String()
+		txnOutput.Vout = f.Index
+		txnOutput.ScriptPubKey = hex.EncodeToString(fundingTx.Tx.TxOut[f.Index].PkScript)
+		txnOutput.Amount = dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin()
+		txnOutput.Satoshis = fundingTx.Tx.TxOut[f.Index].Value
+		txnOutput.Confirmations = 0
+		txnOutput.BlockTime = fundingTx.MemPoolTime
+
+		fmt.Printf("\n\n\n add utxo %+v\n\n\n", txnOutput)
+		txnOutputs = append(txnOutputs, txnOutput)
+	}
+
+	txnOutputs = append(txnOutputs, c.BlockData.ChainDB.GetAddressUTXO(address)...)
+
+	// Search for items to remove from the utxo set
+	for _, f := range addressOuts.PrevOuts {
+		spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+		if !ok {
+			apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+			continue
+		}
+		if spendingTx.Confirmed() {
+			apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+			continue
+		}
+		fmt.Printf("\n\n\n Searching for %v : %v to remove from utxo list", f.PreviousOutpoint.Hash.String(), f.PreviousOutpoint.Index)
+		for g, utxo := range txnOutputs {
+			if utxo.TxnID == f.PreviousOutpoint.Hash.String() && utxo.Vout == f.PreviousOutpoint.Index {
+				// Found a utxo that is unconfirmed spent.  Remove from slice
+				fmt.Printf("\n\n\n remove utxo %+v\n\n\n", utxo)
+				txnOutputs = append(txnOutputs[:g], txnOutputs[g+1:]...)
+			}
+		}
+
+	}
+
 	writeJSON(w, txnOutputs, c.getIndentQuery(r))
 }
 
@@ -373,11 +436,13 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 
 func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
 
-	// Allow parameters to be posted either as query or in the body as a JSON
-	// if address is in query fields then look for offset/count in query fields as well
+	// Allow parameters to be posted either as query or in the body as a JSON if
+	// address is in query fields then look for from/to (offset/count) in query
+	// fields as well
 	address := m.GetAddressCtx(r)
 	count := m.GetCountCtx(r)
 	offset := m.GetOffsetCtx(r)
+
 	if address == "" {
 		// No query post.  Check for a Body JSON
 		// Read and close the JSON-RPC request body from the caller.
@@ -417,9 +482,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
-	fmt.Printf("\n\n address found: %v \n\n", address)
-	fmt.Printf("\n\n offset found: %v \n\n", offset)
-	fmt.Printf("\n\n count found: %v \n\n", count)
+
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return

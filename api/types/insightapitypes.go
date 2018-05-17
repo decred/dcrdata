@@ -72,6 +72,6 @@ type AddressTxnOutput struct {
 	BlockHash     string  `json:"block_hash,omitempty"`
 	Amount        float64 `json:"amount,omitempty"`
 	Atoms         float64 `json:"atoms,omitempty"`
+	Satoshis      int64   `json:"satoshis,omitempty"`
 	Confirmations int64   `json:"confirmations"`
-	ConfFrmCache  bool    `json:"confirmationsFromCache"`
 }
