@@ -79,6 +79,9 @@
                            <a data-keynav-skip href="https://mainnet.decred.org/" title="Home">Switch To Mainnet</a>
                         {{end}}
                         <a data-keynav-skip data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>                        
+                        <a data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
+                            <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;/&nbsp;&nbsp;)</span>
+                        </a>
                         <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>                        
                     </div>
                 </div>
@@ -532,12 +535,36 @@
     var targetsLength;
     var currentIndex = 0;
     var jumpToIndexOnLoad;
-    $(".top-search").removeAttr("autofocus")
+    var keyNavCookieName = 'dcrdataKeyNav';
+    function keyNavEnabled() {
+        return document.cookie.includes(keyNavCookieName)
+    }
     function clearTargets() {
         $(".keynav-target").each((i,el) => {
             $(el).removeClass("keynav-target")
         })
     }
+    function enableKeyNav() {
+        setCookie(keyNavCookieName, 1, 525600)
+        Mousetrap.unpause()
+        $("#keynav-toggle .text").text("Disable Hot Keys")
+        keyNav()
+    }
+
+    function disableKeyNav () {
+        setCookie(keyNavCookieName, '', 0)
+        clearTargets()
+        $("#keynav-toggle .text").text("Enable Hot Keys")
+        Mousetrap.pause()
+    }
+    function toggleKeyNav() {
+        if (keyNavEnabled()) {
+            disableKeyNav()
+        }  else {
+            enableKeyNav()
+        }
+    }
+
     function keyNav() {
         if ($("#menuToggle input").prop('checked')) {
             targets = $('#hamburger-menu a');
@@ -557,7 +584,8 @@
         clearTargets()
         $(targets[currentIndex]).addClass("keynav-target")
     }
-    Mousetrap.bind(['left','up'], function(e) {
+
+    Mousetrap.bind(['left'], function(e) {
         clearTargets()
         currentIndex--
         if (currentIndex < 0) {
@@ -565,7 +593,7 @@
         }
         $(targets[currentIndex]).addClass("keynav-target")
     });
-    Mousetrap.bind(['right','down'], function(e) {
+    Mousetrap.bind(['right'], function(e) {
         clearTargets()
         currentIndex++
         if (currentIndex >= targetsLength) {
@@ -581,6 +609,10 @@
             e.preventDefault()
             return
         }
+        if (currentTarget[0].id == 'keynav-toggle') {
+            toggleKeyNav()
+            return
+        }
         var location = currentTarget.attr('href');
         if (location !== undefined) {
             keepIndexOnLoad = currentTarget.data("keyboard-target-index-onload")
@@ -588,29 +620,46 @@
                 jumpToIndexOnLoad = currentIndex
             }
             currentTarget.addClass("activated")
-            setTimeout(function(){
-                Turbolinks.visit(location)
-
-            },3000)
+            Turbolinks.visit(location)
             return
         }
     });
-    Mousetrap.bind('=', function(e) {
+
+    Mousetrap.bind('esc', function(e) {
+        $('top-search').blur()
+    });
+
+    Mousetrap.bind('/', function(e) {
         toggleMenu(e)
         keyNav()
     });
-    Mousetrap.bind('esc', function(e) {
-        closeMenu(e)
-        $('top-search').blur()
-        keyNav()
+
+    Mousetrap.bind('q', function(e) {
+        clearTargets()
     });
 
+    $("#keynav-toggle .text").text(keyNavEnabled() ? "Disable Hot Keys":"Enable Hot Keys" )
     document.addEventListener("turbolinks:load", function(e){
         setTimeElements()
         updateAges()
         closeMenu(e)
-        keyNav(e)
+        if ( keyNavEnabled() ) {
+            $(".top-search").removeAttr("autofocus")
+            keyNav(e)
+        } else {
+            $(".top-search").focus()
+        }
     })
+
+    $("#keynav-toggle").on("click", function(e) {
+        if (e.offsetX == 0) {
+            // prevent duplicate click handling when turbolinks re-attaches handlers
+            // TODO find a more semantic way to deal with this
+            return
+        }
+        toggleKeyNav()
+    })
+
     setInterval(updateAges, 10000);
 </script>
 <script>
