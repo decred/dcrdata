@@ -135,7 +135,7 @@ type InsightVout struct {
 	ScriptPubKey InsightScriptPubKey `json:"scriptPubKey,omitempty"`
 	SpentTxID    string              `json:"spentTxId,omitempty"`
 	SpentIndex   uint32              `json:"spentIndex,omitempty"`
-	SpentHeight  int                 `json:"spentHeight,omitempty"`
+	SpentHeight  int64               `json:"spentHeight,omitempty"`
 }
 
 type InsightScriptPubKey struct {
