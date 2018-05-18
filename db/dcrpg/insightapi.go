@@ -248,7 +248,7 @@ func (pgb *ChainDB) GetAddressUTXO(address string) []apitypes.AddressTxnOutput {
 }
 
 // GetAddressSpendByFunHash zen comment
-func (pgb *ChainDB) GetAddressSpendByFunHash(addresses []string, fundHash string) []*dbtypes.AddressRow {
+func (pgb *ChainDB) GetAddressSpendByFunHash(addresses []string, fundHash string) []*apitypes.AddressSpendByFunHash {
 
 	AddrRow, err := RetrieveAddressTxnsByFundingTx(pgb.db, fundHash, addresses)
 	if err != nil {

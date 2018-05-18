@@ -80,3 +80,12 @@ type AddressTxnOutput struct {
 	Satoshis      int64   `json:"satoshis,omitempty"`
 	Confirmations int64   `json:"confirmations"`
 }
+
+// AddressSpendByFunHash models a return from
+// GetAddressSpendByFunHash
+type AddressSpendByFunHash struct {
+	FundingTxVoutIndex uint32
+	SpendingTxVinIndex uint32
+	SpendingTxHash     string
+	BlockHeight        int64
+}

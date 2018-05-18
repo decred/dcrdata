@@ -442,7 +442,7 @@ type VoutNew struct {
 	SpentIndex            uint32             `json:"spentIndex"`
 	SpentTs               int                `json:"spentTs,omitempty"`
 	CommitAmt             float64            `json:"commitamt,omitempty"`
-	SpentHeight           int                `json:"spendHeight,omitempty"`
+	SpentHeight           int64              `json:"spentHeight,omitempty"`
 }
 
 // ScriptPubKeyResult todo

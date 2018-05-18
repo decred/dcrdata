@@ -150,11 +150,11 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	}
 
 	addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
-
+	//apitypes.AddressSpendByFunHash
 	for _, dbaddr := range addrFull {
 		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
 		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
-		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentHeight = 0 // TODO:  null if unspent, block height if spent
+		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentHeight = dbaddr.BlockHeight
 	}
 
 	// create block hash
