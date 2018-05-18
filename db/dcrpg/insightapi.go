@@ -210,6 +210,7 @@ func (pgb *ChainDB) GetBlockSummaryTimeRange(min, max int64, limit int) []dbtype
 	return blockSummary
 }
 
+// TODO:  Unused function.  Depreciated?
 func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address string) *apitypes.AddressTxnOutput {
 	tx := new(apitypes.AddressTxnOutput)
 	tx.Address = address
@@ -221,12 +222,12 @@ func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address stri
 			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
 				tx.ScriptPubKey = data.Vout[i].ScriptPubKey.Hex
 				tx.Vout = data.Vout[i].N
-				tx.Atoms += data.Vout[i].Value
+				tx.Amount += data.Vout[i].Value
 			}
 		}
 	}
 
-	tx.Amount = tx.Atoms * 100000000
+	//tx.Amount = tx.Atoms * 100000000
 	return tx
 }
 

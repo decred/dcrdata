@@ -958,7 +958,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	return tx
 }
 
-// insight api implementation
+// TODO:  Unused function.  Depreciated?
 func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address string) *apitypes.AddressTxnOutput {
 	tx := new(apitypes.AddressTxnOutput)
 	tx.Address = address
@@ -971,12 +971,12 @@ func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address stri
 			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
 				tx.ScriptPubKey = data.Vout[i].ScriptPubKey.Hex
 				tx.Vout = data.Vout[i].N
-				tx.Atoms += data.Vout[i].Value
+				tx.Amount += data.Vout[i].Value
 			}
 		}
 	}
 
-	tx.Amount = tx.Atoms * 100000000
+	//tx.Amount = tx.Atoms * 100000000
 	return tx
 }
 
@@ -1342,11 +1342,11 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 		txhash, err := chainhash.NewHashFromStr(hash)
 		if err != nil {
 			log.Errorf("Invalid transaction hash %s", hash)
-			return addressOutpoints,0,err
+			return addressOutpoints, 0, err
 		}
 
 		Tx, err1 := db.client.GetRawTransaction(txhash)
-		
+
 		if err1 != nil {
 			log.Warnf("Unable to GetRawTransactions(%s): %v", tx, err1)
 			err = err1
@@ -1361,9 +1361,8 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 		// Add present transaction to previous outpoint txn slice
 		numUnconfirmed++
 		thisTxUnconfirmed := &txhelpers.TxWithBlockData{
-			Tx: Tx.MsgTx(),
+			Tx:          Tx.MsgTx(),
 			MemPoolTime: tx.Time,
-			
 		}
 		prevTxns = append(prevTxns, thisTxUnconfirmed)
 		// Merge the I/Os and the transactions into results

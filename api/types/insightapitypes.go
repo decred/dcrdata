@@ -43,6 +43,11 @@ type InsightRawTx struct {
 	Rawtx string `json:"rawtx"`
 }
 
+// InsightAddrTx models the multi address post data structure
+type InsightAddr struct {
+	Addrs string `json:"addrs"`
+}
+
 // InsightMultiAddrsTx models multi address post data structure
 type InsightMultiAddrsTx struct {
 	Addresses   string `json:"addrs"`
@@ -66,12 +71,12 @@ type AddressTxnOutput struct {
 	Address       string  `json:"address"`
 	TxnID         string  `json:"txid"`
 	Vout          uint32  `json:"vout"`
-	BlockTime     int64   `json:"ts"`
+	BlockTime     int64   `json:"ts,omitempty"`
 	ScriptPubKey  string  `json:"scriptPubKey"`
 	Height        int64   `json:"height,omitempty"`
 	BlockHash     string  `json:"block_hash,omitempty"`
 	Amount        float64 `json:"amount,omitempty"`
-	Atoms         float64 `json:"atoms,omitempty"`
+	Atoms         int64   `json:"atoms,omitempty"`
 	Satoshis      int64   `json:"satoshis,omitempty"`
 	Confirmations int64   `json:"confirmations"`
 }

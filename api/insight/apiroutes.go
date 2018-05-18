@@ -310,6 +310,7 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 	writeJSON(w, txidJSON, c.getIndentQuery(r))
 }
 
+// TODO:  This function is depreciated.  remove prior to PR completion
 func (c *insightApiContext) getAddressTxnOutput(w http.ResponseWriter, r *http.Request) {
 	// Including unconfirmed utxo from mempool
 	address := m.GetAddressCtx(r)
@@ -375,17 +376,99 @@ func (c *insightApiContext) getAddressTxnOutput(w http.ResponseWriter, r *http.R
 }
 
 func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
-	addresses := strings.Split(m.GetAddressCtx(r), ",")
+	var addresses []string
+	addrs := m.GetAddressCtx(r)
+	if addrs != "" {
+		if strings.Contains(addrs, ",") {
+			addresses = strings.Split(addrs, ",")
+		} else {
+			addresses = []string{addrs}
+		}
+	}
+	// Confirm we have at least one address and if not
+	// check the post body.
+	if len(addresses) == 0 {
+		// No query post.  Check for a Body JSON
+		// Read and close the JSON-RPC request body from the caller.
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			apiLog.Errorf("error reading JSON message: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		var req apitypes.InsightAddr
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			apiLog.Errorf("Failed to parse request: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		// Successful extraction of Body JSON
+		if strings.Contains(req.Addrs, ",") {
+			addresses = strings.Split(req.Addrs, ",")
+		} else {
+			addresses = []string{req.Addrs}
+		}
+	}
 
-	var txnOutputs []apitypes.AddressTxnOutput
+	txnOutputs := make([]apitypes.AddressTxnOutput, 0)
 
 	for _, address := range addresses {
 		if address == "" {
 			http.Error(w, http.StatusText(422), 422)
 			return
 		}
-		utxo := c.BlockData.ChainDB.GetAddressUTXO(address)
-		txnOutputs = append(txnOutputs, utxo...)
+		addressOuts, _, _ := c.MemPool.UnconfirmedTxnsForAddress(address)
+
+		// These will get added to the utxo set
+		for _, f := range addressOuts.Outpoints {
+			fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if fundingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+
+			var txnOutput apitypes.AddressTxnOutput
+			txnOutput.Address = address
+			txnOutput.TxnID = fundingTx.Hash().String()
+			txnOutput.Vout = f.Index
+			txnOutput.ScriptPubKey = hex.EncodeToString(fundingTx.Tx.TxOut[f.Index].PkScript)
+			txnOutput.Amount = dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin()
+			txnOutput.Satoshis = fundingTx.Tx.TxOut[f.Index].Value
+			txnOutput.Confirmations = 0
+			txnOutput.BlockTime = fundingTx.MemPoolTime
+
+			fmt.Printf("\n\n\n add utxo %+v\n\n\n", txnOutput)
+			txnOutputs = append(txnOutputs, txnOutput)
+		}
+
+		txnOutputs = append(txnOutputs, c.BlockData.ChainDB.GetAddressUTXO(address)...)
+
+		// Search for items to remove from the utxo set
+		for _, f := range addressOuts.PrevOuts {
+			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if spendingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+			fmt.Printf("\n\n\n Searching for %v : %v to remove from utxo list", f.PreviousOutpoint.Hash.String(), f.PreviousOutpoint.Index)
+			for g, utxo := range txnOutputs {
+				if utxo.TxnID == f.PreviousOutpoint.Hash.String() && utxo.Vout == f.PreviousOutpoint.Index {
+					// Found a utxo that is unconfirmed spent.  Remove from slice
+					fmt.Printf("\n\n\n remove utxo %+v\n\n\n", utxo)
+					txnOutputs = append(txnOutputs[:g], txnOutputs[g+1:]...)
+				}
+			}
+		}
 	}
 
 	writeJSON(w, txnOutputs, c.getIndentQuery(r))

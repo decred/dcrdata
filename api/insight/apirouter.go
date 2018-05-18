@@ -58,7 +58,6 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 			ra.Get("/utxo", app.getAddressesTxnOutput)
 		})
 		// POST methods
-
 		rd.With(m.AddressPostCtx, m.PaginationCtx).Post("/txs", app.getAddressesTxn)
 		rd.With(m.AddressPostCtx).Post("/utxo", app.getAddressesTxnOutput)
 	})
@@ -67,7 +66,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.Route("/addr/{address}", func(rd chi.Router) {
 		rd.Use(m.AddressPathCtx)
 		rd.With(m.PaginationCtx).Get("/", app.getAddressInfo)
-		rd.Get("/utxo", app.getAddressTxnOutput)
+		rd.Get("/utxo", app.getAddressesTxnOutput)
 		rd.Get("/balance", app.getAddressBalance)
 		rd.Get("/totalReceived", app.getAddressTotalReceived)
 		// TODO Missing unconfirmed balance implementation

@@ -1112,15 +1112,18 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	for rows.Next() {
 		var pkScript []byte
 		var blockHeight int64
-		var atoms uint64
+		var atoms int64
+		var blocktime uint64 // not required for insight-api spec
 		var txnOutput apitypes.AddressTxnOutput
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
-			&atoms, &blockHeight, &txnOutput.BlockTime, &txnOutput.Vout, &pkScript); err != nil {
+			&atoms, &blockHeight, &blocktime, &txnOutput.Vout, &pkScript); err != nil {
 			fmt.Println(err)
 			log.Error(err)
 		}
 		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
 		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
+		txnOutput.Satoshis = atoms
+		txnOutput.Height = blockHeight
 		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
 		outputs = append(outputs, txnOutput)
 	}
