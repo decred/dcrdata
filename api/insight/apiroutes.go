@@ -110,7 +110,7 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 			}
 			vin.Confirmations = vinsTx.Confirmations
 			for _, vinVout := range vinsTx.Vout {
-				if vinVout.Value == vin.Amountin {
+				if vinVout.Value == vin.Value {
 					if vinVout.ScriptPubKey.Addresses != nil {
 						if vinVout.ScriptPubKey.Addresses[0] != "" {
 							vin.Addr = vinVout.ScriptPubKey.Addresses[0]
@@ -129,8 +129,8 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	// set of unique addresses for db query
 	uniqAddrs := make(map[string]string)
 
-	for _, vout := range txNew.Vout {
-		for _, addr := range vout.ScriptPubKeyValue.Addresses {
+	for _, vout := range txNew.Vouts {
+		for _, addr := range vout.ScriptPubKey.Addresses {
 			uniqAddrs[addr] = txNew.Txid
 		}
 	}
@@ -143,9 +143,9 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
 
 	for _, dbaddr := range addrFull {
-		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
-		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
-		txNew.Vout[dbaddr.FundingTxVoutIndex].SpentTs = 0 // todo
+		txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
+		txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
+		//txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTs = 0 // todo
 	}
 
 	// create block hash
@@ -176,7 +176,8 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 		if dbtx.TxID == txid {
 			txNew.Size = dbtx.Size
 			txNew.Fees = dcrutil.Amount(dbtx.Fees).ToCoin()
-			if txNew.IsStakeGen || txNew.IsCoinBase {
+			//if txNew.IsStakeGen || txNew.IsCoinBase {
+			if txNew.IsCoinBase {
 				txNew.Fees = 0
 			}
 

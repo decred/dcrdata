@@ -65,3 +65,58 @@ type AddressTxnOutput struct {
 	Confirmations int64   `json:"confirmations"`
 	ConfFrmCache  bool    `json:"confirmationsFromCache"`
 }
+
+type InsightTx struct {
+	Txid          string         `json:"txid,omitempty"`
+	Version       int32          `json:"version,omitempty"`
+	Locktime      uint32         `json:"locktime"`
+	IsCoinBase    bool           `json:"isCoinBase,omitempty"`
+	Vins          []*InsightVin  `json:"vin,omitempty"`
+	Vouts         []*InsightVout `json:"vout,omitempty"`
+	Blockhash     string         `json:"blockhash,omitempty"`
+	Blockheight   int64          `json:"blockheight"`
+	Confirmations int64          `json:"confirmations"`
+	Time          int64          `json:"time,omitempty"`
+	Blocktime     int64          `json:"blocktime,omitempty"`
+	ValueOut      float64        `json:"valueOut,omitempty"`
+	Size          uint32         `json:"size,omitempty"`
+	ValueIn       float64        `json:"valueIn,omitempty"`
+	Fees          float64        `json:"fees,omitempty"`
+}
+
+type InsightVin struct {
+	Txid             string            `json:"txid,omitempty"`
+	Vout             uint32            `json:"vout,omitempty"`
+	Sequence         uint32            `json:"sequence,omitempty"`
+	N                int               `json:"n"`
+	ScriptSig        *InsightScriptSig `json:"scriptSig,omitempty"`
+	Addr             string            `json:"addr,omitempty"`
+	ValueSat         int64             `json:"valueSat,omitempty"`
+	Value            float64           `json:"value,omitempty"`
+	CoinBase         string            `json:"coinbase,omitempty"`
+	DoubleSpentTxID  interface{}       `json:"doubleSpentTxID,omitempty"`
+	IsConfirmed      interface{}       `json:"isConfirmed,omitempty"`
+	Confirmations    interface{}       `json:"confirmations,omitempty"`
+	UnconfirmedInput bool              `json:"unconfirmedInput,omitempty"`
+}
+
+type InsightScriptSig struct {
+	Hex string `json:"hex,omitempty"`
+	Asm string `json:"asm,omitempty"`
+}
+
+type InsightVout struct {
+	Value        float64             `json:"value,omitempty"`
+	N            uint32              `json:"n"`
+	ScriptPubKey InsightScriptPubKey `json:"scriptPubKey,omitempty"`
+	SpentTxID    string              `json:"spentTxId,omitempty"`
+	SpentIndex   uint32              `json:"spentIndex,omitempty"`
+	SpentHeight  int                 `json:"spentHeight,omitempty"`
+}
+
+type InsightScriptPubKey struct {
+	Hex       string   `json:"hex,omitempty"`
+	Asm       string   `json:"asm,omitempty"`
+	Addresses []string `json:"addresses,omitempty"`
+	Type      string   `json:"type,omitempty"`
+}

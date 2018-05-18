@@ -28,8 +28,8 @@ func (pgb *ChainDBRPC) GetRawTransaction(txid string) (*dcrjson.TxRawResult, err
 
 // GetRawTransactionNew Override old response gets a dcrjson.TxRawResult for the specified transaction
 // hash.
-func (pgb *ChainDBRPC) GetRawTransactionNew(txHash string) (apitypes.TxRawResultNew, error) {
-	txrawNew := apitypes.TxRawResultNew{}
+func (pgb *ChainDBRPC) GetRawTransactionNew(txHash string) (apitypes.InsightTx, error) {
+	txrawNew := apitypes.InsightTx{}
 	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txHash)
 	if err != nil {
 		log.Errorf("GetRawTransactionVerbose failed for: %s", txHash)
