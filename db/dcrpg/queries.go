@@ -1112,17 +1112,19 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	for rows.Next() {
 		var pkScript []byte
 		var blockHeight int64
-		var atoms uint64
+		var atoms int64
+		var blocktime uint64 // not required for insight-api spec
 		var txnOutput apitypes.AddressTxnOutput
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
-			&atoms, &blockHeight, &txnOutput.BlockTime, &txnOutput.Vout, &pkScript); err != nil {
+			&atoms, &blockHeight, &blocktime, &txnOutput.Vout, &pkScript); err != nil {
 			fmt.Println(err)
 			log.Error(err)
 		}
 		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
 		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
+		txnOutput.Satoshis = atoms
+		txnOutput.Height = blockHeight
 		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
-		txnOutput.ConfFrmCache = false
 		outputs = append(outputs, txnOutput)
 	}
 
@@ -1130,7 +1132,7 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 }
 
 // RetrieveAddressTxnsByFundingTx zen comment
-func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []string) ([]*dbtypes.AddressRow, error) {
+func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []string) (aSpendByFunHash []*apitypes.AddressSpendByFunHash, err error) {
 
 	var params []interface{}
 	inCondition := ""
@@ -1146,7 +1148,10 @@ func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []s
 
 	params = append(params, fundTxHash)
 
-	query := fmt.Sprintf(`SELECT * FROM addresses WHERE address in (%s) and funding_tx_hash=$%v;`, inCondition, lastInd+1)
+	query := fmt.Sprintf(`SELECT funding_tx_vout_index, spending_tx_hash, spending_tx_vin_index, 
+		block_height FROM addresses LEFT JOIN 
+		transactions on transactions.tx_hash=spending_tx_hash WHERE 
+		address in (%s) and funding_tx_hash=$%v;`, inCondition, lastInd+1)
 
 	rows, err := db.Query(query, params...)
 	if err != nil {
@@ -1154,8 +1159,24 @@ func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []s
 		return nil, err
 	}
 
-	_, addrs, err := scanAddressQueryRows(rows)
-	return addrs, err
+	for rows.Next() {
+		var addr apitypes.AddressSpendByFunHash
+		var spendingTxHash sql.NullString
+		var spendingTxVinIndex sql.NullInt64
+		err = rows.Scan(&addr.FundingTxVoutIndex, &spendingTxHash, &spendingTxVinIndex, &addr.BlockHeight)
+		if err != nil {
+			return
+		}
+
+		if spendingTxHash.Valid {
+			addr.SpendingTxHash = spendingTxHash.String
+		}
+		if spendingTxVinIndex.Valid {
+			addr.SpendingTxVinIndex = uint32(spendingTxVinIndex.Int64)
+		}
+		aSpendByFunHash = append(aSpendByFunHash, &addr)
+	}
+	return
 }
 
 func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {

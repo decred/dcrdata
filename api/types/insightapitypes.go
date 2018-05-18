@@ -12,8 +12,8 @@ import (
 //
 type InsightAddress struct {
 	Address      string                                 `json:"address,omitempty"`
-	From         int                                    `json:"from,omitempty"`
-	To           int                                    `json:"to,omitempty"`
+	From         int                                    `json:"from"`
+	To           int                                    `json:"to"`
 	Transactions []*dcrjson.SearchRawTransactionsResult `json:"items,omitempty"`
 }
 
@@ -43,6 +43,21 @@ type InsightRawTx struct {
 	Rawtx string `json:"rawtx"`
 }
 
+// InsightAddrTx models the multi address post data structure
+type InsightAddr struct {
+	Addrs string `json:"addrs"`
+}
+
+// InsightMultiAddrsTx models multi address post data structure
+type InsightMultiAddrsTx struct {
+	Addresses   string `json:"addrs"`
+	From        string `json:"from"`
+	To          string `json:"to"`
+	NoAsm       bool   `json:"noAsm"`
+	NoScriptSig bool   `json:"noScriptSig"`
+	NoSpent     bool   `json:"noSpent"`
+}
+
 // InsightPagination models basic pagination output
 // for a result
 type InsightPagination struct {
@@ -56,14 +71,23 @@ type AddressTxnOutput struct {
 	Address       string  `json:"address"`
 	TxnID         string  `json:"txid"`
 	Vout          uint32  `json:"vout"`
-	BlockTime     int64   `json:"ts"`
+	BlockTime     int64   `json:"ts,omitempty"`
 	ScriptPubKey  string  `json:"scriptPubKey"`
 	Height        int64   `json:"height,omitempty"`
 	BlockHash     string  `json:"block_hash,omitempty"`
 	Amount        float64 `json:"amount,omitempty"`
-	Atoms         float64 `json:"atoms,omitempty"`
+	Atoms         int64   `json:"atoms,omitempty"`
+	Satoshis      int64   `json:"satoshis,omitempty"`
 	Confirmations int64   `json:"confirmations"`
-	ConfFrmCache  bool    `json:"confirmationsFromCache"`
+}
+
+// AddressSpendByFunHash models a return from
+// GetAddressSpendByFunHash
+type AddressSpendByFunHash struct {
+	FundingTxVoutIndex uint32
+	SpendingTxVinIndex uint32
+	SpendingTxHash     string
+	BlockHeight        int64
 }
 
 type InsightTx struct {
