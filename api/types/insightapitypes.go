@@ -20,21 +20,21 @@ type InsightAddress struct {
 // InsightAddressInfo models basic information
 // about an address
 type InsightAddressInfo struct {
-	Address          string         `json:"addrStr,omitempty"`
+	Address          string         `json:"addrStr,omitempty"` //d
 	Limit            int64          `json:"limit,omitemtpy"`
 	Offset           int64          `json:"offset,omitempty"`
-	TransactionsID   []string       `json:"transactions,omitempty"`
+	TransactionsID   []string       `json:"transactions,omitempty"` //d
 	NumFundingTxns   int64          `json:"numFundingTxns,omitempty"`
 	NumSpendingTxns  int64          `json:"numSpendingTxns,omitempty"`
 	KnownFundingTxns int64          `json:"knownFundingTxns,omitempty"`
 	NumUnconfirmed   int64          `json:"numUnconfirmed,omitempty"`
-	TotalReceived    float64        `json:"totalReceived"`
-	TotalSent        float64        `json:"totalSent"`
-	Unspent          float64        `json:"balance"`
+	TotalReceived    float64        `json:"totalReceived"` //d
+	TotalSent        float64        `json:"totalSent"`     //d
+	Unspent          float64        `json:"balance"`       //d
 	Path             string         `json:"path,omitempty"`
-	TotalReceivedSat dcrutil.Amount `json:"totalReceivedSat"`
-	TotalSentSat     dcrutil.Amount `json:"totalSentSat"`
-	TxApperances     int            `json:"txApperances"`
+	TotalReceivedSat dcrutil.Amount `json:"totalReceivedSat"` //d
+	TotalSentSat     dcrutil.Amount `json:"totalSentSat"`     //d
+	TxApperances     int            `json:"txApperances"`     //d
 }
 
 // InsightRawTx contains the raw transaction string
@@ -76,7 +76,7 @@ type AddressTxnOutput struct {
 	Height        int64   `json:"height,omitempty"`
 	BlockHash     string  `json:"block_hash,omitempty"`
 	Amount        float64 `json:"amount,omitempty"`
-	Atoms         int64   `json:"atoms,omitempty"`
+	Atoms         int64   `json:"atoms,omitempty"` // Not Required per Insight spec
 	Satoshis      int64   `json:"satoshis,omitempty"`
 	Confirmations int64   `json:"confirmations"`
 }
@@ -117,11 +117,11 @@ type InsightVin struct {
 	Addr             string            `json:"addr,omitempty"`
 	ValueSat         int64             `json:"valueSat,omitempty"`
 	Value            float64           `json:"value,omitempty"`
-	CoinBase         string            `json:"coinbase,omitempty"`
-	DoubleSpentTxID  interface{}       `json:"doubleSpentTxID,omitempty"`
-	IsConfirmed      interface{}       `json:"isConfirmed,omitempty"`
-	Confirmations    interface{}       `json:"confirmations,omitempty"`
-	UnconfirmedInput bool              `json:"unconfirmedInput,omitempty"`
+	CoinBase         string            `json:"coinbase,omitempty"`         // Not Required per Insight spec
+	DoubleSpentTxID  interface{}       `json:"doubleSpentTxID,omitempty"`  // Not Required per Insight spec
+	IsConfirmed      interface{}       `json:"isConfirmed,omitempty"`      // Not Required per Insight spec
+	Confirmations    interface{}       `json:"confirmations,omitempty"`    // Not Required per Insight spec
+	UnconfirmedInput bool              `json:"unconfirmedInput,omitempty"` // Not Required per Insight spec
 }
 
 type InsightScriptSig struct {

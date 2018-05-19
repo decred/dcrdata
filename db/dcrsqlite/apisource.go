@@ -1358,6 +1358,11 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 		if len(outpoints) == 0 && len(prevouts) == 0 {
 			continue
 		}
+		// Update previous outpoint txn slice with mempool time
+		for f, _ := range prevTxns {
+			prevTxns[f].MemPoolTime=tx.Time
+		}
+
 		// Add present transaction to previous outpoint txn slice
 		numUnconfirmed++
 		thisTxUnconfirmed := &txhelpers.TxWithBlockData{

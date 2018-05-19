@@ -3,6 +3,57 @@
 
 package insight
 
+// Valid response Schema for test case [10] without any mempool transactions
+// http://127.0.0.1:7777/insight-api/addr/Dca7Vsv42RAJC6cEdw7dyhLER8QJCHiUYNL/utxo?noCache=1
+// Valid response Schema for test case [11] without any mempool transactions
+// http://127.0.0.1:7777/insight-api/addrs/Dca7Vsv42RAJC6cEdw7dyhLER8QJCHiUYNL,Dcgh6jmtEbgGjUUMBaNrRRUfn2Jp5rKL5Aj/utxo
+const ValidUtxoSchema = `{
+  "$id": "http://example.com/example.json",
+  "type": "array",
+  "definitions": {},
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "txid": {
+        "type": "string"
+      },
+      "vout": {
+        "type": "integer"
+      },
+      "scriptPubKey": {
+        "type": "string"
+      },
+      "height": {
+        "type": "integer"
+      },
+      "amount": {
+        "type": "number"
+      },
+      "satoshis": {
+        "type": "integer"
+      },
+      "confirmations": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "address",
+      "txid",
+      "vout",
+      "scriptPubKey",
+      "height",
+      "amount",
+      "satoshis",
+      "confirmations"
+    ]
+  }
+}`
+
 // Valid response Schema for test case [6] Tx
 // http://127.0.0.1:7777/insight-api/tx/2766fdf592de6c27c6049af24d8e03f64efd72e0f20aa362a78d97d4643c7cb0
 
