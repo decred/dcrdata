@@ -436,7 +436,7 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 
 	// Get ticket pool info at current best (just connected in stakedb) block,
 	// and store it in the StakeDatabase's PoolInfoCache.
-	liveTickets := db.BestNode.LiveTickets()
+	liveTickets := db.BestNode.LiveTickets() // TODO: use NewTickets() instead and merge with liveTicketCache
 	winningTickets := db.BestNode.Winners()
 	height := db.BestNode.Height()
 	pib := db.calcPoolInfo(liveTickets, winningTickets, height)

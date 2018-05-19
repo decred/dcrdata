@@ -166,10 +166,26 @@
   version = "v1.0.2"
 
 [[projects]]
+  name = "github.com/google/gops"
+  packages = [
+    "agent",
+    "internal",
+    "signal"
+  ]
+  revision = "0e2aa5d22efec1603f7ded7097c500e9a36a13b3"
+  version = "v0.3.3"
+
+[[projects]]
   branch = "master"
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kardianos/osext"
+  packages = ["."]
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
 
 [[projects]]
   branch = "master"
@@ -260,6 +276,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2bfe6c04715a8ce07c4c67aeaa959e5781c1fd325c9add797b1a3cf9cb5036ed"
+  inputs-digest = "fe5b947435570c0e28a50da66350ad16286a4680e2344bca270bb81cc707e5dd"
   solver-name = "gps-cdcl"
   solver-version = 1

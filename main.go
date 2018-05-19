@@ -37,6 +37,7 @@ import (
 	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/version"
 	"github.com/go-chi/chi"
+	"github.com/google/gops/agent"
 )
 
 // mainCore does all the work. Deferred functions do not run after os.Exit(),
@@ -62,6 +63,14 @@ func mainCore() error {
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
+	}
+
+	if cfg.UseGops {
+		// Start gops diagnostic agent, without shutdown cleanup
+		if err = agent.Listen(agent.Options{}); err != nil {
+			return err
+		}
+		defer agent.Close()
 	}
 
 	// Start with version info

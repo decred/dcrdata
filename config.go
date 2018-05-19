@@ -77,6 +77,7 @@ type config struct {
 	HTTPProfile  bool   `long:"httpprof" short:"p" description:"Start HTTP profiler."`
 	HTTPProfPath string `long:"httpprofprefix" description:"URL path prefix for the HTTP profiler."`
 	CPUProfile   string `long:"cpuprofile" description:"File for CPU profiling."`
+	UseGops      bool   `short:"g" long:"gops" description:"Run with gops diagnostics agent listening. See github.com/google/gops for more information."`
 
 	// API
 	APIProto           string `long:"apiproto" description:"Protocol for API (http or https)"`
