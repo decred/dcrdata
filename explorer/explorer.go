@@ -109,6 +109,7 @@ type explorerUI struct {
 	MempoolData     *MempoolInfo
 	ChainParams     *chaincfg.Params
 	Version         string
+	NetName         string
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -165,6 +166,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	params := exp.blockData.GetChainParams()
 	exp.ChainParams = params
+	exp.NetName = netName(exp.ChainParams)
 
 	// Development subsidy address of the current network
 	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(params)

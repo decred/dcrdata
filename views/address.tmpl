@@ -1,12 +1,13 @@
 {{define "address"}}
 <!DOCTYPE html>
 <html lang="en">
-{{with .Data}}
-{{$TxnCount := .TxnCount}}
-{{template "html-head" printf "Decred Address %s" .Address}}
+
+{{template "html-head" printf "Decred Address %s" .Data.Address}}
 <body>
+    {{template "navbar" . }}
+    {{with .Data}}
     {{$heights := $.ConfirmHeight}}
-    {{template "navbar"}}
+    {{$TxnCount := .TxnCount}}
     <div class="container">
         <div class="row">
             <div class="col-md-8 col-sm-6">

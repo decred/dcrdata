@@ -3,7 +3,7 @@
 <html lang="en">
     {{template "html-head" printf "Decode Raw Decred Transaction"}}
     <body>
-        {{template "navbar"}}
+        {{template "navbar" . }}
         <div class="container">
             <h4 class="mb-2">Decred transaction to decode or broadcast</h4>
             <form>

@@ -74,6 +74,11 @@
                         <a data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
                         <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>
                         <a data-keynav-skip data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>
+                        {{if eq .NetName "Mainnet"}}
+                           <a data-keynav-skip href="http://testnet.dcrdata.org/" title="Home">Switch To Testnet</a>
+                        {{else}}
+                           <a data-keynav-skip href="https://mainnet.decred.org/" title="Home">Switch To Mainnet</a>
+                        {{end}}
                     </div>
                 </div>
             </nav>

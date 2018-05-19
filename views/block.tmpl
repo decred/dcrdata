@@ -1,12 +1,11 @@
 {{define "block"}}
 <!DOCTYPE html>
-{{with .Data}}
 <html lang="en">
-{{template "html-head" printf "Decred Block %d" .Height}}
+{{template "html-head" printf "Decred Block %d" .Data.Height}}
 <body>
-    {{template "navbar"}}
+    {{ template "navbar" . }}
     <div class="container">
-
+    {{with .Data}}
         <div class="row justify-content-between">
             <div class="col-md-7 col-sm-6">
                 <h4 class="mb-2">
@@ -370,11 +369,11 @@
                     </table>
                 {{end}}
             </div>
-        </div>
-
+        </div> 
+    {{end}}
     </div>
 </div>
-{{end}}
+
 {{ template "footer" . }}
 </body>
 </html>

@@ -3,7 +3,7 @@
 <html lang="en">
     {{template "html-head" printf "Decred Mempool"}}
     <body>
-        {{template "navbar"}}
+        {{template "navbar" . }}
         {{with .Mempool}}
         <div class="container">
             <div class="row justify-content-between">
