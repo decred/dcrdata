@@ -85,9 +85,9 @@ type AddressTxnOutput struct {
 // GetAddressSpendByFunHash
 type AddressSpendByFunHash struct {
 	FundingTxVoutIndex uint32
-	SpendingTxVinIndex uint32
-	SpendingTxHash     string
-	BlockHeight        int64
+	SpendingTxVinIndex interface{}
+	SpendingTxHash     interface{}
+	BlockHeight        interface{}
 }
 
 type InsightTx struct {
@@ -133,9 +133,9 @@ type InsightVout struct {
 	Value        float64             `json:"value,omitempty"`
 	N            uint32              `json:"n"`
 	ScriptPubKey InsightScriptPubKey `json:"scriptPubKey,omitempty"`
-	SpentTxID    string              `json:"spentTxId,omitempty"`
-	SpentIndex   uint32              `json:"spentIndex,omitempty"`
-	SpentHeight  int64               `json:"spentHeight,omitempty"`
+	SpentTxID    interface{}         `json:"spentTxId"`   // Insight requires null if unspent and spending TxID if spent
+	SpentIndex   interface{}         `json:"spentIndex"`  // Insight requires null if unspent and Index if spent
+	SpentHeight  interface{}         `json:"spentHeight"` // Insight requires null if unspent and SpentHeight if spent
 }
 
 type InsightScriptPubKey struct {

@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/dcrutil"
@@ -1134,26 +1135,32 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 // RetrieveAddressTxnsByFundingTx zen comment
 func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []string) (aSpendByFunHash []*apitypes.AddressSpendByFunHash, err error) {
 
-	var params []interface{}
-	inCondition := ""
-	lastInd := 0
-	for ind, addr := range addresses {
-		params = append(params, addr)
-		if inCondition != "" {
-			inCondition += ", "
-		}
-		inCondition += fmt.Sprintf("$%v", ind+1)
-		lastInd = ind + 1
-	}
+	// var params []interface{}
+	// inCondition := ""
+	// lastInd := 0
+	// for ind, addr := range addresses {
+	// 	params = append(params, addr)
+	// 	if inCondition != "" {
+	// 		inCondition += ", "
+	// 	}
+	// 	inCondition += fmt.Sprintf("$%v", ind+1)
+	// 	lastInd = ind + 1
+	// }
 
-	params = append(params, fundTxHash)
+	// params = append(params, fundTxHash)
+
+	// query := fmt.Sprintf(`SELECT funding_tx_vout_index, spending_tx_hash, spending_tx_vin_index,
+	// 	block_height FROM addresses LEFT JOIN
+	// 	transactions on transactions.tx_hash=spending_tx_hash WHERE
+	// 	address in (%s) and funding_tx_hash=$%v;`, inCondition, lastInd+1)
 
 	query := fmt.Sprintf(`SELECT funding_tx_vout_index, spending_tx_hash, spending_tx_vin_index, 
 		block_height FROM addresses LEFT JOIN 
 		transactions on transactions.tx_hash=spending_tx_hash WHERE 
-		address in (%s) and funding_tx_hash=$%v;`, inCondition, lastInd+1)
+		address in ('%s') and funding_tx_hash='%v';`, strings.Join(addresses, "','"), fundTxHash)
 
-	rows, err := db.Query(query, params...)
+	//rows, err := db.Query(query, params...)
+	rows, err := db.Query(query)
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -1161,19 +1168,11 @@ func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []s
 
 	for rows.Next() {
 		var addr apitypes.AddressSpendByFunHash
-		var spendingTxHash sql.NullString
-		var spendingTxVinIndex sql.NullInt64
-		err = rows.Scan(&addr.FundingTxVoutIndex, &spendingTxHash, &spendingTxVinIndex, &addr.BlockHeight)
+		err = rows.Scan(&addr.FundingTxVoutIndex, &addr.SpendingTxHash, &addr.SpendingTxVinIndex, &addr.BlockHeight)
 		if err != nil {
 			return
 		}
 
-		if spendingTxHash.Valid {
-			addr.SpendingTxHash = spendingTxHash.String
-		}
-		if spendingTxVinIndex.Valid {
-			addr.SpendingTxVinIndex = uint32(spendingTxVinIndex.Int64)
-		}
 		aSpendByFunHash = append(aSpendByFunHash, &addr)
 	}
 	return

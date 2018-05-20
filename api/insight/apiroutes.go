@@ -150,17 +150,15 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	}
 
 	addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
-	//apitypes.AddressSpendByFunHash
 	for _, dbaddr := range addrFull {
 		txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
 		txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
 		txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentHeight = dbaddr.BlockHeight
 	}
-
 	// create block hash
 	bHash, err := chainhash.NewHashFromStr(txNew.Blockhash)
 	if err != nil {
-		apiLog.Errorf("Faild to gen block hash for Tx %s", txid)
+		apiLog.Errorf("Failed to gen block hash for Tx %s", txid)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
