@@ -621,6 +621,12 @@ a {
   animation-fill-mode: none;
   animation-iteration-count:infinite;
 }
+.keynav-target.pulsate {
+  animation-delay: .1s;
+  animation-duration: .32s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: 1;
+}
 body.darkBG .keynav-target {
    animation-name: greenHighlight;
 }

@@ -80,7 +80,7 @@
                         {{end}}
                         <a data-keynav-skip data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>                        
                         <a data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
-                            <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;/&nbsp;&nbsp;)</span>
+                            <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
                         </a>
                         <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>                        
                     </div>
@@ -541,7 +541,7 @@
     }
     function clearTargets() {
         $(".keynav-target").each((i,el) => {
-            $(el).removeClass("keynav-target")
+            $(el).removeClass("keynav-target").removeClass("pulsate")
         })
     }
     function enableKeyNav() {
@@ -565,7 +565,7 @@
         }
     }
 
-    function keyNav() {
+    function keyNav(event, pulsate) {
         if ($("#menuToggle input").prop('checked')) {
             targets = $('#hamburger-menu a');
             currentIndex = 0;
@@ -582,7 +582,10 @@
         }
         targetsLength = targets.length;
         clearTargets()
-        $(targets[currentIndex]).addClass("keynav-target")
+        $(targets[currentIndex]).addClass("keynav-target").focus().blur() // refocuses keyboard context
+        if (pulsate) {
+            $(targets[currentIndex]).addClass("pulsate")
+        }
     }
 
     Mousetrap.bind(['left'], function(e) {
@@ -629,9 +632,9 @@
         $('top-search').blur()
     });
 
-    Mousetrap.bind('/', function(e) {
+    Mousetrap.bind('=', function(e) {
         toggleMenu(e)
-        keyNav()
+        keyNav(e, true)
     });
 
     Mousetrap.bind('q', function(e) {
@@ -645,7 +648,7 @@
         closeMenu(e)
         if ( keyNavEnabled() ) {
             $(".top-search").removeAttr("autofocus")
-            keyNav(e)
+            keyNav(e, true)
         } else {
             $(".top-search").focus()
         }
@@ -659,6 +662,13 @@
         }
         toggleKeyNav()
     })
+
+    $("#menuToggle input").change(function(e) {
+        var menuIsOpen = $(e.currentTarget).prop("checked")
+        if ( keyNavEnabled()) {
+            keyNav(e, true)
+        }
+    });
 
     setInterval(updateAges, 10000);
 </script>
