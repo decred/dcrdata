@@ -66,7 +66,7 @@ func (c *insightApiContext) ZeroAddrDenier(next http.Handler) http.Handler {
 		} else if cn.String() == testnet.Net.String() {
 			da = apitypes.NewZeroAddressDenial(testnet)
 		} else if cn.String() == simnet.Net.String() {
-			da = apitypes.NewZeroAddressDenial(testnet)
+			da = apitypes.NewZeroAddressDenial(simnet)
 		}
 
 		apiLog.Info(da)
