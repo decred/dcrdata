@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/rpcclient"
 	apitypes "github.com/decred/dcrdata/api/types"
@@ -21,6 +22,7 @@ import (
 	m "github.com/decred/dcrdata/middleware"
 	notify "github.com/decred/dcrdata/notification"
 	appver "github.com/decred/dcrdata/version"
+	"github.com/go-chi/chi"
 )
 
 // DataSourceLite specifies an interface for collecting data from the built-in
@@ -1098,4 +1100,39 @@ func (c *appContext) getBlockHashCtx(r *http.Request) string {
 		}
 	}
 	return hash
+}
+
+// ZeroAddrDenier https://github.com/decred/dcrdata/issues/358
+func (c *appContext) ZeroAddrDenier(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		address := chi.URLParam(r, "address")
+		mainnet := &chaincfg.MainNetParams
+
+		fmt.Println("mainnet net:", mainnet.Net.String())
+		testnet := &chaincfg.TestNet2Params
+		simnet := &chaincfg.SimNetParams
+
+		cn, _ := c.nodeClient.GetCurrentNet()
+
+		da := &apitypes.DeniedAddress{}
+
+		if cn.String() == mainnet.Net.String() {
+			da = apitypes.NewZeroAddressDenial(mainnet)
+		} else if cn.String() == testnet.Net.String() {
+			da = apitypes.NewZeroAddressDenial(testnet)
+		} else if cn.String() == simnet.Net.String() {
+			da = apitypes.NewZeroAddressDenial(testnet)
+		}
+
+		if address == da.Addr {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			if err := encoder.Encode(da); err != nil {
+				apiLog.Infof("JSON encode error: %v", err)
+			}
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(r.Context()))
+	})
 }

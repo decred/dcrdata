@@ -5,9 +5,14 @@
 package insight
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/decred/dcrd/chaincfg"
+	apitypes "github.com/decred/dcrdata/api/types"
 	m "github.com/decred/dcrdata/middleware"
+	"github.com/go-chi/chi"
 )
 
 // BlockHashPathAndIndexCtx is a middleware that embeds the value at the url
@@ -39,4 +44,42 @@ func (c *insightApiContext) getBlockHashCtx(r *http.Request) string {
 		}
 	}
 	return hash
+}
+
+// ZeroAddrDenier https://github.com/decred/dcrdata/issues/358
+func (c *insightApiContext) ZeroAddrDenier(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		address := chi.URLParam(r, "address")
+
+		mainnet := &chaincfg.MainNetParams
+
+		fmt.Println("mainnet net:", mainnet.Net.String())
+		testnet := &chaincfg.TestNet2Params
+		simnet := &chaincfg.SimNetParams
+		cn, _ := c.nodeClient.GetCurrentNet()
+
+		da := &apitypes.DeniedAddress{}
+
+		if cn.String() == mainnet.Net.String() {
+			apiLog.Info("got mainnet net")
+			da = apitypes.NewZeroAddressDenial(mainnet)
+		} else if cn.String() == testnet.Net.String() {
+			da = apitypes.NewZeroAddressDenial(testnet)
+		} else if cn.String() == simnet.Net.String() {
+			da = apitypes.NewZeroAddressDenial(testnet)
+		}
+
+		apiLog.Info(da)
+
+		apiLog.Info("comparing addresses:", address, da.Addr)
+		if address == da.Addr {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			if err := encoder.Encode(da); err != nil {
+				apiLog.Infof("JSON encode error: %v", err)
+			}
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(r.Context()))
+	})
 }

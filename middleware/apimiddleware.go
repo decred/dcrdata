@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	apitypes "github.com/decred/dcrdata/api/types"
@@ -27,6 +26,7 @@ const (
 	ctxAPIDocs contextKey = iota
 	ctxAPIStatus
 	ctxAddress
+	ctxZeroAddr
 	ctxBlockIndex0
 	ctxBlockIndex
 	ctxBlockStep
@@ -477,24 +477,6 @@ func AddressPostCtx(next http.Handler) http.Handler {
 		address := r.PostFormValue("addrs")
 		ctx := context.WithValue(r.Context(), ctxAddress, address)
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-// DenySpecificAddr https://github.com/decred/dcrdata/issues/358
-func DenySpecificAddr(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		address := GetAddressCtx(r)
-		params := &chaincfg.MainNetParams
-		da := apitypes.NewZeroAddressDenial(params)
-		if address == da.Addr {
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			encoder := json.NewEncoder(w)
-			if err := encoder.Encode(da); err != nil {
-				apiLog.Infof("JSON encode error: %v", err)
-			}
-			return
-		}
-		next.ServeHTTP(w, r.WithContext(r.Context()))
 	})
 }
 
