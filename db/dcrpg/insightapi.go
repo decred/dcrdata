@@ -26,23 +26,6 @@ func (pgb *ChainDBRPC) GetRawTransaction(txid string) (*dcrjson.TxRawResult, err
 	return txraw, nil
 }
 
-// GetRawTransactionNew Override old response gets a dcrjson.TxRawResult for the specified transaction
-// hash.
-func (pgb *ChainDBRPC) GetRawTransactionNew(txHash string) (apitypes.InsightTx, error) {
-	txrawNew := apitypes.InsightTx{}
-	txraw, err := rpcutils.GetTransactionVerboseByID(pgb.Client, txHash)
-	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for: %s", txHash)
-		return txrawNew, err
-	}
-
-	txsRaw := []*dcrjson.TxRawResult{txraw}
-
-	txrawNew = dbtypes.TxConverter(txsRaw)[0]
-
-	return txrawNew, nil
-}
-
 // GetBlockHeight returns the height of the block with the specified hash.
 func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 	height, err := RetrieveBlockHeight(pgb.db, hash)

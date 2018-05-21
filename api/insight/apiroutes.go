@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -106,97 +104,14 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 	txsOld := []*dcrjson.TxRawResult{txOld}
 
 	// convert struct type to new struct
-	txNew := dbtypes.TxConverter(txsOld)[0]
+	txsNew, err := c.TxConverter(txsOld)
 
-	// This block set addr value in tx vin
-	for _, vin := range txNew.Vins {
-		if vin.Txid != "" {
-			vin.UnconfirmedInput = false
-			vin.IsConfirmed = true
-			vinsTx, err := c.BlockData.GetRawTransaction(vin.Txid)
-			if err != nil {
-				apiLog.Errorf("Tried to get transaction by vin tx %s", vin.Txid)
-				http.Error(w, http.StatusText(422), 422)
-				return
-			}
-			vin.Confirmations = vinsTx.Confirmations
-			for _, vinVout := range vinsTx.Vout {
-				if vinVout.Value == vin.Value {
-					if vinVout.ScriptPubKey.Addresses != nil {
-						if vinVout.ScriptPubKey.Addresses[0] != "" {
-							vin.Addr = vinVout.ScriptPubKey.Addresses[0]
-						}
-					}
-				}
-			}
-		} else {
-			vin.Confirmations = 0
-			vin.UnconfirmedInput = true
-			vin.IsConfirmed = false
-			//txNew.IncompleteInputs++ // add 1 to incomplete inputs
-		}
-	}
-
-	// set of unique addresses for db query
-	uniqAddrs := make(map[string]string)
-
-	for _, vout := range txNew.Vouts {
-		for _, addr := range vout.ScriptPubKey.Addresses {
-			uniqAddrs[addr] = txNew.Txid
-		}
-	}
-
-	addresses := []string{}
-	for addr := range uniqAddrs {
-		addresses = append(addresses, addr)
-	}
-
-	addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
-	for _, dbaddr := range addrFull {
-		txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
-		txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
-		txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentHeight = dbaddr.BlockHeight
-	}
-	// create block hash
-	bHash, err := chainhash.NewHashFromStr(txNew.Blockhash)
 	if err != nil {
-		apiLog.Errorf("Failed to gen block hash for Tx %s", txid)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	// get block
-	block, err := c.BlockData.Client.GetBlock(bHash)
-	if err != nil {
-		apiLog.Errorf("Unable to get block %s", bHash)
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	// stakeTree 0: Tx, 1: stakeTx
-	dbTransactions, _, _ := dbtypes.ExtractBlockTransactions(block, 0, &chaincfg.MainNetParams)
-
-	sdbTransactions, _, _ := dbtypes.ExtractBlockTransactions(block, 1, &chaincfg.MainNetParams)
-
-	// its cumbersome but easier than differentiate tx and stx at that point
-	dbTransactions = append(dbTransactions, sdbTransactions...)
-
-	for _, dbtx := range dbTransactions {
-		if dbtx.TxID == txid {
-			txNew.Size = dbtx.Size
-			txNew.Fees = dcrutil.Amount(dbtx.Fees).ToCoin()
-			//if txNew.IsStakeGen || txNew.IsCoinBase {
-			if txNew.IsCoinBase {
-				txNew.Fees = 0
-			}
-
-			txNew.ValueOut, _ = strconv.ParseFloat(fmt.Sprintf("%.8f", txNew.ValueOut), 64)
-
-			break
-		}
-	}
-
-	writeJSON(w, txNew, c.getIndentQuery(r))
+	writeJSON(w, txsNew[0], c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
