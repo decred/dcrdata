@@ -108,119 +108,87 @@ func MsgBlockToDBBlockWithoutParams(msgBlock *wire.MsgBlock) *Block {
 }
 
 // TxConverter converts dcrd-tx to insight tx
-func TxConverter(tx *dcrjson.TxRawResult) apitypes.InsightTx {
+func TxConverter(txs []*dcrjson.TxRawResult) []apitypes.InsightTx {
 
-	vInSum := float64(0)
-	vOutSum := float64(0)
+	newTxs := []apitypes.InsightTx{}
 
-	// Build new model. Based on the old api responses of
-	txNew := apitypes.InsightTx{}
-	txNew.Txid = tx.Txid
-	txNew.Version = tx.Version
-	txNew.Locktime = tx.LockTime
-	//txNew.Expiry = tx.Expiry
+	for _, tx := range txs {
 
-	// Vins fill
-	for vinID, vin := range tx.Vin {
-		vinEmpty := &apitypes.InsightVin{}
-		emptySS := &apitypes.InsightScriptSig{}
-		txNew.Vins = append(txNew.Vins, vinEmpty)
-		txNew.Vins[vinID].Txid = vin.Txid
-		txNew.Vins[vinID].Vout = vin.Vout
-		//txNew.Vins[vinID].Tree = vin.Tree
-		txNew.Vins[vinID].Sequence = vin.Sequence
-		//txNew.Vins[vinID].Amountin = vin.AmountIn
-		vInSum += vin.AmountIn
-		// txNew.Vins[vinID].Blockheight = vin.BlockHeight
-		// txNew.Vins[vinID].Blockindex = vin.BlockIndex
-		txNew.Vins[vinID].CoinBase = vin.Coinbase
-		//txNew.Vins[vinID].Stakebase = vin.Stakebase
-		// init ScriptPubKey
-		txNew.Vins[vinID].ScriptSig = emptySS
-		if vin.ScriptSig != nil {
-			txNew.Vins[vinID].ScriptSig.Asm = vin.ScriptSig.Asm
-			txNew.Vins[vinID].ScriptSig.Hex = vin.ScriptSig.Hex
+		vInSum := float64(0)
+		vOutSum := float64(0)
+
+		// Build new model. Based on the old api responses of
+		txNew := apitypes.InsightTx{}
+		txNew.Txid = tx.Txid
+		txNew.Version = tx.Version
+		txNew.Locktime = tx.LockTime
+		//txNew.Expiry = tx.Expiry
+
+		// Vins fill
+		for vinID, vin := range tx.Vin {
+			vinEmpty := &apitypes.InsightVin{}
+			emptySS := &apitypes.InsightScriptSig{}
+			txNew.Vins = append(txNew.Vins, vinEmpty)
+			txNew.Vins[vinID].Txid = vin.Txid
+			txNew.Vins[vinID].Vout = vin.Vout
+			//txNew.Vins[vinID].Tree = vin.Tree
+			txNew.Vins[vinID].Sequence = vin.Sequence
+			//txNew.Vins[vinID].Amountin = vin.AmountIn
+			vInSum += vin.AmountIn
+			// txNew.Vins[vinID].Blockheight = vin.BlockHeight
+			// txNew.Vins[vinID].Blockindex = vin.BlockIndex
+			txNew.Vins[vinID].CoinBase = vin.Coinbase
+			//txNew.Vins[vinID].Stakebase = vin.Stakebase
+			// init ScriptPubKey
+			txNew.Vins[vinID].ScriptSig = emptySS
+			if vin.ScriptSig != nil {
+				txNew.Vins[vinID].ScriptSig.Asm = vin.ScriptSig.Asm
+				txNew.Vins[vinID].ScriptSig.Hex = vin.ScriptSig.Hex
+			}
+			txNew.Vins[vinID].N = vinID
+			txNew.Vins[vinID].ValueSat = int64(vin.AmountIn * 100000000.0)
+			txNew.Vins[vinID].Value = vin.AmountIn
 		}
-		txNew.Vins[vinID].N = vinID
-		txNew.Vins[vinID].ValueSat = int64(vin.AmountIn * 100000000.0)
-		txNew.Vins[vinID].Value = vin.AmountIn
-	}
 
-	// Vout fill
-	for _, v := range tx.Vout {
-		voutEmpty := &apitypes.InsightVout{}
-		emptyPubKey := apitypes.InsightScriptPubKey{}
-		txNew.Vouts = append(txNew.Vouts, voutEmpty)
-		txNew.Vouts[v.N].Value = v.Value
-		vOutSum += v.Value
-		txNew.Vouts[v.N].N = v.N
-		//txNew.Vouts[v.N].Version = v.Version
-		// pk block
-		txNew.Vouts[v.N].ScriptPubKey = emptyPubKey
-		txNew.Vouts[v.N].ScriptPubKey.Asm = v.ScriptPubKey.Asm
-		txNew.Vouts[v.N].ScriptPubKey.Hex = v.ScriptPubKey.Hex
-		//txNew.Vouts[v.N].ScriptPubKey.ReqSigs = v.ScriptPubKey.ReqSigs
-		txNew.Vouts[v.N].ScriptPubKey.Type = v.ScriptPubKey.Type
-		txNew.Vouts[v.N].ScriptPubKey.Addresses = v.ScriptPubKey.Addresses
-	}
-
-	txNew.Blockhash = tx.BlockHash
-	txNew.Blockheight = tx.BlockHeight
-	txNew.Confirmations = tx.Confirmations
-	txNew.Time = tx.Time
-	txNew.Blocktime = tx.Blocktime
-
-	txNew.ValueOut = vOutSum // vout value sum plus fees
-	txNew.ValueIn = vInSum
-
-	//isStakeBase := false // is stakebase return true if value if stakeTree equal 1
-	//nextVinID := int(0) // helper
-	// Additional check for vouts
-	// for _, vout := range txNew.Vouts {
-	// 	// commitment
-	// 	if vout.ScriptPubKey.Type == "sstxcommitment" {
-	// 		//vout.ScriptPubKey.CommitAmt = txNew.Vins[nextVinID].Amountin
-	// 		nextVinID++
-	// 	}
-	// 	// // stake base will true if spk contains value stakegen
-	// 	// if vout.ScriptPubKey.Type == "stakegen" {
-	// 	// 	isStakeBase = true
-	// 	// 	for _, vin := range txNew.Vins {
-	// 	// 		if vin.Txid != "" {
-	// 	// 			txNew.Ticketid = vin.Txid
-	// 	// 		}
-	// 	// 	}
-	// 	// }
-
-	// 	// if vout.ScriptPubKeyValue.Type == "sstxchange" || vout.ScriptPubKeyValue.Type == "stakesubmission" || vout.ScriptPubKeyValue.Type == "commitamt" {
-	// 	// 	txNew.IsStakeTx = true
-	// 	// }
-
-	// 	// if vout.ScriptPubKeyValue.Type == "stakerevoke" {
-	// 	// 	txNew.IsStakeRtx = true
-	// 	// 	for _, vin := range txNew.Vins {
-	// 	// 		if vin.Txid != "" {
-	// 	// 			txNew.Ticketid = vin.Txid
-	// 	// 		}
-	// 	// 	}
-	// 	// }
-	// }
-
-	// // Return true if stakebase value is not empty or is stacke base true
-	// if (txNew.Vins != nil && len(txNew.Vins[0].Stakebase) > 0) || isStakeBase {
-	// 	txNew.IsStakeGen = true
-	// }
-
-	// Return true if coinbase value is not empty, return 0 at some fields
-	if txNew.Vins != nil && len(txNew.Vins[0].CoinBase) > 0 {
-		txNew.IsCoinBase = true
-		txNew.ValueIn = 0
-		for _, v := range txNew.Vins {
-			v.Value = 0
-			v.ValueSat = 0
-			//v.UnconfirmedInput = 0
+		// Vout fill
+		for _, v := range tx.Vout {
+			voutEmpty := &apitypes.InsightVout{}
+			emptyPubKey := apitypes.InsightScriptPubKey{}
+			txNew.Vouts = append(txNew.Vouts, voutEmpty)
+			txNew.Vouts[v.N].Value = v.Value
+			vOutSum += v.Value
+			txNew.Vouts[v.N].N = v.N
+			//txNew.Vouts[v.N].Version = v.Version
+			// pk block
+			txNew.Vouts[v.N].ScriptPubKey = emptyPubKey
+			txNew.Vouts[v.N].ScriptPubKey.Asm = v.ScriptPubKey.Asm
+			txNew.Vouts[v.N].ScriptPubKey.Hex = v.ScriptPubKey.Hex
+			//txNew.Vouts[v.N].ScriptPubKey.ReqSigs = v.ScriptPubKey.ReqSigs
+			txNew.Vouts[v.N].ScriptPubKey.Type = v.ScriptPubKey.Type
+			txNew.Vouts[v.N].ScriptPubKey.Addresses = v.ScriptPubKey.Addresses
 		}
-	}
-	return txNew
 
+		txNew.Blockhash = tx.BlockHash
+		txNew.Blockheight = tx.BlockHeight
+		txNew.Confirmations = tx.Confirmations
+		txNew.Time = tx.Time
+		txNew.Blocktime = tx.Blocktime
+
+		txNew.ValueOut = vOutSum // vout value sum plus fees
+		txNew.ValueIn = vInSum
+
+		// Return true if coinbase value is not empty, return 0 at some fields
+		if txNew.Vins != nil && len(txNew.Vins[0].CoinBase) > 0 {
+			txNew.IsCoinBase = true
+			txNew.ValueIn = 0
+			for _, v := range txNew.Vins {
+				v.Value = 0
+				v.ValueSat = 0
+				//v.UnconfirmedInput = 0
+			}
+		}
+		newTxs = append(newTxs, txNew)
+	}
+
+	return newTxs
 }

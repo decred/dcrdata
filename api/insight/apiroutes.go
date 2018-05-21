@@ -103,8 +103,10 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	txsOld := []*dcrjson.TxRawResult{txOld}
+
 	// convert struct type to new struct
-	txNew := dbtypes.TxConverter(txOld)
+	txNew := dbtypes.TxConverter(txsOld)[0]
 
 	// This block set addr value in tx vin
 	for _, vin := range txNew.Vins {

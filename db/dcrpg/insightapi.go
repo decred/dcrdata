@@ -36,7 +36,9 @@ func (pgb *ChainDBRPC) GetRawTransactionNew(txHash string) (apitypes.InsightTx, 
 		return txrawNew, err
 	}
 
-	txrawNew = dbtypes.TxConverter(txraw)
+	txsRaw := []*dcrjson.TxRawResult{txraw}
+
+	txrawNew = dbtypes.TxConverter(txsRaw)[0]
 
 	return txrawNew, nil
 }

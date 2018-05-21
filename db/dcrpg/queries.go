@@ -1135,31 +1135,11 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 // RetrieveAddressTxnsByFundingTx zen comment
 func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []string) (aSpendByFunHash []*apitypes.AddressSpendByFunHash, err error) {
 
-	// var params []interface{}
-	// inCondition := ""
-	// lastInd := 0
-	// for ind, addr := range addresses {
-	// 	params = append(params, addr)
-	// 	if inCondition != "" {
-	// 		inCondition += ", "
-	// 	}
-	// 	inCondition += fmt.Sprintf("$%v", ind+1)
-	// 	lastInd = ind + 1
-	// }
-
-	// params = append(params, fundTxHash)
-
-	// query := fmt.Sprintf(`SELECT funding_tx_vout_index, spending_tx_hash, spending_tx_vin_index,
-	// 	block_height FROM addresses LEFT JOIN
-	// 	transactions on transactions.tx_hash=spending_tx_hash WHERE
-	// 	address in (%s) and funding_tx_hash=$%v;`, inCondition, lastInd+1)
-
 	query := fmt.Sprintf(`SELECT funding_tx_vout_index, spending_tx_hash, spending_tx_vin_index, 
 		block_height FROM addresses LEFT JOIN 
 		transactions on transactions.tx_hash=spending_tx_hash WHERE 
 		address in ('%s') and funding_tx_hash='%v';`, strings.Join(addresses, "','"), fundTxHash)
 
-	//rows, err := db.Query(query, params...)
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Error(err)
