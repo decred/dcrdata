@@ -3,7 +3,7 @@
 <html lang="en">
     {{ template "html-head" printf "Decred ChainParams"}}
     <body>
-        {{template "navbar"}}
+        {{template "navbar" . }}
         {{with .Cp}}
         <div class="container">
             <div class="row justify-content-between">

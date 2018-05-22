@@ -1,12 +1,11 @@
 {{define "tx"}}
 <!DOCTYPE html>
 <html lang="en">
-{{with .Data}}
-{{template "html-head" printf "Decred Transaction %.20s..." .TxID}}
+{{template "html-head" printf "Decred Transaction %.20s..." .Data.TxID}}
 <body>
-{{template "navbar"}}
+{{template "navbar" . }}
 <div class="container">
-
+{{with .Data}}
     <div class="row justify-content-between">
         <div class="col-md-8 col-sm-6">
             <h4 class="mb-2">
@@ -368,8 +367,8 @@
     </div>
     {{end}}
     {{end}}
-</div>
 {{end}}
+</div>
 
 {{ template "footer" . }}
 

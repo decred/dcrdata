@@ -68,12 +68,18 @@
                     <span class="patty short"></span>
                     <div id="menu">
                         <a data-keynav-skip href="/" title="Home">Home</a>
+                        <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>                        
                         <a data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
-                        <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
-                        <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
+                        <a data-keynav-skip href="#" title="Charts">Charts</a>
+                        <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>                        
                         <a data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
-                        <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>
-                        <a data-keynav-skip data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>
+                        {{if eq .NetName "Mainnet"}}
+                           <a data-keynav-skip href="http://testnet.dcrdata.org/" title="Home">Switch To Testnet</a>
+                        {{else}}
+                           <a data-keynav-skip href="https://mainnet.decred.org/" title="Home">Switch To Mainnet</a>
+                        {{end}}
+                        <a data-keynav-skip data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>                        
+                        <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>                        
                     </div>
                 </div>
             </nav>
