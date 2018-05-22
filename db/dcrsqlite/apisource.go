@@ -1345,11 +1345,10 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 			return addressOutpoints, 0, err
 		}
 
-		Tx, err1 := db.client.GetRawTransaction(txhash)
+		Tx, err := db.client.GetRawTransaction(txhash)
 
-		if err1 != nil {
-			log.Warnf("Unable to GetRawTransactions(%s): %v", tx, err1)
-			err = err1
+		if err != nil {
+			log.Warnf("Unable to GetRawTransactions(%s): %v", tx, err)
 			continue
 		}
 		// Scan transaction for inputs/outputs involving the address of interest
@@ -1360,7 +1359,7 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 		}
 		// Update previous outpoint txn slice with mempool time
 		for f, _ := range prevTxns {
-			prevTxns[f].MemPoolTime=tx.Time
+			prevTxns[f].MemPoolTime = tx.Time
 		}
 
 		// Add present transaction to previous outpoint txn slice
