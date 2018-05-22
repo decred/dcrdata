@@ -109,19 +109,15 @@ type InsightTx struct {
 }
 
 type InsightVin struct {
-	Txid             string            `json:"txid,omitempty"`
-	Vout             uint32            `json:"vout,omitempty"`
-	Sequence         uint32            `json:"sequence,omitempty"`
-	N                int               `json:"n"`
-	ScriptSig        *InsightScriptSig `json:"scriptSig,omitempty"`
-	Addr             string            `json:"addr,omitempty"`
-	ValueSat         int64             `json:"valueSat,omitempty"`
-	Value            float64           `json:"value,omitempty"`
-	CoinBase         string            `json:"coinbase,omitempty"`         // Not Required per Insight spec
-	DoubleSpentTxID  interface{}       `json:"doubleSpentTxID,omitempty"`  // Not Required per Insight spec
-	IsConfirmed      interface{}       `json:"isConfirmed,omitempty"`      // Not Required per Insight spec
-	Confirmations    interface{}       `json:"confirmations,omitempty"`    // Not Required per Insight spec
-	UnconfirmedInput bool              `json:"unconfirmedInput,omitempty"` // Not Required per Insight spec
+	Txid      string            `json:"txid,omitempty"`
+	Vout      uint32            `json:"vout,omitempty"`
+	Sequence  uint32            `json:"sequence,omitempty"`
+	N         int               `json:"n"`
+	ScriptSig *InsightScriptSig `json:"scriptSig,omitempty"`
+	Addr      string            `json:"addr,omitempty"`
+	ValueSat  int64             `json:"valueSat,omitempty"`
+	Value     float64           `json:"value,omitempty"`
+	CoinBase  string            `json:"coinbase,omitempty"`
 }
 
 type InsightScriptSig struct {
@@ -133,9 +129,6 @@ type InsightVout struct {
 	Value        float64             `json:"value,omitempty"`
 	N            uint32              `json:"n"`
 	ScriptPubKey InsightScriptPubKey `json:"scriptPubKey,omitempty"`
-	SpentTxID    interface{}         `json:"spentTxId"`   // Insight requires null if unspent and spending TxID if spent
-	SpentIndex   interface{}         `json:"spentIndex"`  // Insight requires null if unspent and Index if spent
-	SpentHeight  interface{}         `json:"spentHeight"` // Insight requires null if unspent and SpentHeight if spent
 }
 
 type InsightScriptPubKey struct {

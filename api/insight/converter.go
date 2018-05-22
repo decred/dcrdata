@@ -31,7 +31,6 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 		txNew.Txid = tx.Txid
 		txNew.Version = tx.Version
 		txNew.Locktime = tx.LockTime
-		//txNew.Expiry = tx.Expiry
 
 		// Vins fill
 		for vinID, vin := range tx.Vin {
@@ -40,14 +39,9 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 			txNew.Vins = append(txNew.Vins, vinEmpty)
 			txNew.Vins[vinID].Txid = vin.Txid
 			txNew.Vins[vinID].Vout = vin.Vout
-			//txNew.Vins[vinID].Tree = vin.Tree
 			txNew.Vins[vinID].Sequence = vin.Sequence
-			//txNew.Vins[vinID].Amountin = vin.AmountIn
 			vInSum += vin.AmountIn
-			// txNew.Vins[vinID].Blockheight = vin.BlockHeight
-			// txNew.Vins[vinID].Blockindex = vin.BlockIndex
 			txNew.Vins[vinID].CoinBase = vin.Coinbase
-			//txNew.Vins[vinID].Stakebase = vin.Stakebase
 			// init ScriptPubKey
 			txNew.Vins[vinID].ScriptSig = emptySS
 			if vin.ScriptSig != nil {
@@ -67,12 +61,10 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 			txNew.Vouts[v.N].Value = v.Value
 			vOutSum += v.Value
 			txNew.Vouts[v.N].N = v.N
-			//txNew.Vouts[v.N].Version = v.Version
 			// pk block
 			txNew.Vouts[v.N].ScriptPubKey = emptyPubKey
 			txNew.Vouts[v.N].ScriptPubKey.Asm = v.ScriptPubKey.Asm
 			txNew.Vouts[v.N].ScriptPubKey.Hex = v.ScriptPubKey.Hex
-			//txNew.Vouts[v.N].ScriptPubKey.ReqSigs = v.ScriptPubKey.ReqSigs
 			txNew.Vouts[v.N].ScriptPubKey.Type = v.ScriptPubKey.Type
 			txNew.Vouts[v.N].ScriptPubKey.Addresses = v.ScriptPubKey.Addresses
 		}
@@ -93,21 +85,17 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 			for _, v := range txNew.Vins {
 				v.Value = 0
 				v.ValueSat = 0
-				//v.UnconfirmedInput = 0
 			}
 		}
 
 		// This block set addr value in tx vin
 		for _, vin := range txNew.Vins {
 			if vin.Txid != "" {
-				vin.UnconfirmedInput = false
-				vin.IsConfirmed = true
 				vinsTx, err := c.BlockData.GetRawTransaction(vin.Txid)
 				if err != nil {
 					apiLog.Errorf("Tried to get transaction by vin tx %s", vin.Txid)
 					return newTxs, err
 				}
-				vin.Confirmations = vinsTx.Confirmations
 				for _, vinVout := range vinsTx.Vout {
 					if vinVout.Value == vin.Value {
 						if vinVout.ScriptPubKey.Addresses != nil {
@@ -117,11 +105,6 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 						}
 					}
 				}
-			} else {
-				vin.Confirmations = 0
-				vin.UnconfirmedInput = true
-				vin.IsConfirmed = false
-				//txNew.IncompleteInputs++ // add 1 to incomplete inputs
 			}
 		}
 
@@ -134,17 +117,6 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 			}
 		}
 
-		addresses := []string{}
-		for addr := range uniqAddrs {
-			addresses = append(addresses, addr)
-		}
-
-		addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
-		for _, dbaddr := range addrFull {
-			txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
-			txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
-			txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentHeight = dbaddr.BlockHeight
-		}
 		// create block hash
 		bHash, err := chainhash.NewHashFromStr(txNew.Blockhash)
 		if err != nil {
@@ -164,26 +136,22 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 
 		sdbTransactions, _, _ := dbtypes.ExtractBlockTransactions(block, 1, &chaincfg.MainNetParams)
 
-		// its cumbersome but easier than differentiate tx and stx at that point
+		// bring tx and stx together
 		dbTransactions = append(dbTransactions, sdbTransactions...)
 
 		for _, dbtx := range dbTransactions {
 			if dbtx.TxID == txNew.Txid {
 				txNew.Size = dbtx.Size
 				txNew.Fees = dcrutil.Amount(dbtx.Fees).ToCoin()
-				//if txNew.IsStakeGen || txNew.IsCoinBase {
 				if txNew.IsCoinBase {
 					txNew.Fees = 0
 				}
-
 				txNew.ValueOut, _ = strconv.ParseFloat(fmt.Sprintf("%.8f", txNew.ValueOut), 64)
 
 				break
 			}
 		}
-
 		newTxs = append(newTxs, txNew)
 	}
-
 	return newTxs, nil
 }
