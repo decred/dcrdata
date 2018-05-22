@@ -172,7 +172,7 @@ func CheckForUpdates(client *rpcclient.Client) {
 		log.Errorf("Failed to open new DB: %v", err)
 	}
 	var voteVersion int64 = 4
-	for adb.CheckAvailabiltyOfVersionAgendas(voteVersion) != false {
+	for adb.CheckAvailabiltyOfVersionAgendas(voteVersion) {
 		fmt.Printf("Vote agendas exist in db for version: %v \n", voteVersion)
 		voteVersion++
 	}
