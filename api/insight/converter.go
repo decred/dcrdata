@@ -117,6 +117,18 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 			}
 		}
 
+		addresses := []string{}
+		for addr := range uniqAddrs {
+			addresses = append(addresses, addr)
+		}
+
+		addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
+		for _, dbaddr := range addrFull {
+			txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
+			txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
+			txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentHeight = dbaddr.BlockHeight
+		}
+
 		// create block hash
 		bHash, err := chainhash.NewHashFromStr(txNew.Blockhash)
 		if err != nil {

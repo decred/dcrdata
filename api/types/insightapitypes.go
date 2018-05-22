@@ -129,6 +129,9 @@ type InsightVout struct {
 	Value        float64             `json:"value,omitempty"`
 	N            uint32              `json:"n"`
 	ScriptPubKey InsightScriptPubKey `json:"scriptPubKey,omitempty"`
+	SpentTxID    interface{}         `json:"spentTxId"`   // Insight requires null if unspent and spending TxID if spent
+	SpentIndex   interface{}         `json:"spentIndex"`  // Insight requires null if unspent and Index if spent
+	SpentHeight  interface{}         `json:"spentHeight"` // Insight requires null if unspent and SpentHeight if spent
 }
 
 type InsightScriptPubKey struct {
