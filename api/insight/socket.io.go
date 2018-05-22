@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The decred developers
+// Copyright (c) 2018, The Decred developers
 // See LICENSE for details.
 
 package insight
@@ -106,10 +106,9 @@ func (soc *SocketServer) sendNewTx(newTxChan chan *NewTx) {
 		hash := msgTx.TxHash().String()
 		vouts := make(map[string]int64)
 		var total int64
-		isStake := txhelpers.IsStakeTx(msgTx)
 		for i, v := range msgTx.TxOut {
 			total += v.Value
-			if !isStake && len(ntx.Vouts[i].ScriptPubKey.Addresses) != 0 {
+			if len(ntx.Vouts[i].ScriptPubKey.Addresses) != 0 {
 				soc.addressesMtx.RLock()
 				for _, address := range ntx.Vouts[i].ScriptPubKey.Addresses {
 					if _, ok := soc.watchedAddresses[address]; ok {

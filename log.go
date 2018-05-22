@@ -93,6 +93,7 @@ var subsystemLoggers = map[string]btclog.Logger{
 	"MEMP": mempoolLog,
 	"EXPR": expLog,
 	"JAPI": apiLog,
+	"IAPI": iapiLog,
 	"DATD": log,
 }
 
