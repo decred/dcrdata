@@ -352,7 +352,7 @@
                 <tbody>
                     {{range .Choices}}
                     <tr>
-                        <td class="text-right"><span class="highlight-text">{{.ID}}</span></td>
+                        <td class="text-right"><span class="highlight-text"><a href="/agenda/{{.ID}}">{{.ID}}</a></span></td>
                         <td>{{.Description}}</td>
                         <td>
                             <span class="agenda-voting-overview-option-dot _{{.Choice.Id}}"></span>
