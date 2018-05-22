@@ -52,7 +52,7 @@ type explorerDataSourceLite interface {
 	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []MempoolTx
 	TxHeight(txid string) (height int64)
-	GetBlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
+	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -358,22 +358,24 @@ func (exp *explorerUI) addRoutes() {
 // starting amount of DCR and calculation parameters.  Generate a TEXT table of
 // the simulation results that can optionally be used for future expansion of
 // dcrdata functionality.
-func (exp *explorerUI) simulateAPR(
-	StartingDCRBalance float64,
-	IntegerTicketQty bool,
-	CurrentStakePercent float64,
-	ActualCoinbase float64,
-	CurrentBlockNum float64,
+func (exp *explorerUI) simulateAPR(StartingDCRBalance float64, IntegerTicketQty bool,
+	CurrentStakePercent float64, ActualCoinbase float64, CurrentBlockNum float64,
 	ActualTicketPrice float64) (APR float64, ReturnTable string) {
 
-	var AvgTicketBlocks = float64(exp.ChainParams.TicketExpiry) / float64(exp.ChainParams.TicketsPerBlock)
-	var BlocksPerDay float64 = 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
-	var BlocksPerYear float64 = 365 * BlocksPerDay
-	var TicketsPurchased float64
+	// The expected block (aka mean) of the probability distribution is given by:
+	//      sum(B * P(B)), B=1 to 40960
+	// Where B is the block number and P(B) is the probability of voting at
+	// block B.  For more information see:
+	// https://github.com/decred/dcrdata/issues/471#issuecomment-390063025
+
+	AvgTicketBlocks := float64(7860.92) // For Mainnet ChainParams
+	BlocksPerDay := 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
+	BlocksPerYear := 365 * BlocksPerDay
+	TicketsPurchased := float64(0)
 
 	StakeRewardAtBlock := func(blocknum float64) float64 {
 		// Option 1:  RPC Call
-		Subsidy := exp.blockData.GetBlockSubsidy(int64(blocknum), 1)
+		Subsidy := exp.blockData.BlockSubsidy(int64(blocknum), 1)
 		return dcrutil.Amount(Subsidy.PoS).ToCoin()
 
 		// Option 2:  Calculation
@@ -395,7 +397,7 @@ func (exp *explorerUI) simulateAPR(
 
 	}
 
-	var CoinAdjustmentFactor = ActualCoinbase / MaxCoinSupplyAtBlock(CurrentBlockNum)
+	CoinAdjustmentFactor := ActualCoinbase / MaxCoinSupplyAtBlock(CurrentBlockNum)
 
 	TheoreticalTicketPrice := func(blocknum float64) float64 {
 		ProjectedCoinsCirculating := MaxCoinSupplyAtBlock(blocknum) * CoinAdjustmentFactor * CurrentStakePercent
@@ -404,7 +406,7 @@ func (exp *explorerUI) simulateAPR(
 		return ProjectedCoinsCirculating / TicketPoolSize
 
 	}
-	var TicketAdjustmentFactor = ActualTicketPrice / TheoreticalTicketPrice(CurrentBlockNum)
+	TicketAdjustmentFactor := ActualTicketPrice / TheoreticalTicketPrice(CurrentBlockNum)
 
 	// Prepare for simulation
 	simblock := CurrentBlockNum
