@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -60,6 +61,7 @@ func (c *insightApiContext) getIndentQuery(r *http.Request) (indent string) {
 	return
 }
 
+// Insight API successful response for JSON return items.
 func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	encoder := json.NewEncoder(w)
@@ -70,8 +72,26 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 }
 
 func writeText(w http.ResponseWriter, str string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// Insight API error response for a BAD REQUEST.  This means the request was
+// malformed in some way or the request HASH, ADDRESS, BLOCK was not valid.
+func writeInsightError(w http.ResponseWriter, str string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusBadRequest)
+	io.WriteString(w, str)
+}
+
+// Insight API response for an item NOT FOUND.  This means the request was valid
+// but no records were found for the item in question.  For some endpoints
+// responding with an empty array [] is expected such as a transaction query for
+// addresses with no transactions.
+func writeInsightNotFound(w http.ResponseWriter, str string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
 	io.WriteString(w, str)
 }
 
@@ -164,19 +184,27 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
-	rawHexTx := m.GetRawHexTx(r)
-	if rawHexTx == "" {
-		http.Error(w, http.StatusText(422), 422)
+	//
+	rawHexTx, ok := c.GetRawHexTx(r) // Check for rawtx
+
+	if !ok {
+		// JSON extraction failed or rawtx blank.  Error message already returned.
 		return
 	}
 
 	txid, err := c.BlockData.SendRawTransaction(rawHexTx)
 	if err != nil {
 		apiLog.Errorf("Unable to send transaction %s", rawHexTx)
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightError(w, fmt.Sprintf("SendRawTransaction failed: %v", err))
 		return
 	}
-	writeJSON(w, txid, c.getIndentQuery(r))
+
+	txidJSON := struct {
+		TxidHash string `json:"rawtx"`
+	}{
+		txid,
+	}
+	writeJSON(w, txidJSON, c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getAddressTxnOutput(w http.ResponseWriter, r *http.Request) {
