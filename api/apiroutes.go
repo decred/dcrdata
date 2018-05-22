@@ -1103,36 +1103,23 @@ func (c *appContext) getBlockHashCtx(r *http.Request) string {
 }
 
 // ZeroAddrDenier https://github.com/decred/dcrdata/issues/358
-func (c *appContext) ZeroAddrDenier(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func (c *appContext) ZeroAddrDenier(params *chaincfg.Params) func(http.Handler) http.Handler {
+	deniedAddr := apitypes.NewZeroAddressDenial(params)
+	return func(next http.Handler) http.Handler {
 
-		address := chi.URLParam(r, "address")
-		mainnet := &chaincfg.MainNetParams
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		fmt.Println("mainnet net:", mainnet.Net.String())
-		testnet := &chaincfg.TestNet2Params
-		simnet := &chaincfg.SimNetParams
+			address := chi.URLParam(r, "address")
 
-		cn, _ := c.nodeClient.GetCurrentNet()
-
-		da := &apitypes.DeniedAddress{}
-
-		if cn.String() == mainnet.Net.String() {
-			da = apitypes.NewZeroAddressDenial(mainnet)
-		} else if cn.String() == testnet.Net.String() {
-			da = apitypes.NewZeroAddressDenial(testnet)
-		} else if cn.String() == simnet.Net.String() {
-			da = apitypes.NewZeroAddressDenial(simnet)
-		}
-
-		if address == da.Addr {
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			encoder := json.NewEncoder(w)
-			if err := encoder.Encode(da); err != nil {
-				apiLog.Infof("JSON encode error: %v", err)
+			if address == deniedAddr.Addr {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				encoder := json.NewEncoder(w)
+				if err := encoder.Encode(deniedAddr); err != nil {
+					apiLog.Infof("JSON encode error: %v", err)
+				}
+				return
 			}
-			return
-		}
-		next.ServeHTTP(w, r.WithContext(r.Context()))
-	})
+			next.ServeHTTP(w, r.WithContext(r.Context()))
+		})
+	}
 }
