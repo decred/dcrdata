@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/db/agendadb"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
@@ -689,6 +690,30 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 		ecp,
 		exp.Version,
 		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// AgendaPage is the page handler for the "/Agenga" path
+func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
+	// attempt to get agendaid string from URL path
+	agendaid := getAgendaIDCtx(r)
+	agendaInfo := GetAgendaInfo(agendaid)
+
+	str, err := exp.templates.execTemplateToString("agenda", struct {
+		Ai      *agendadb.AgendaTagged
+		Version string
+	}{
+		agendaInfo,
+		exp.Version,
 	})
 
 	if err != nil {
