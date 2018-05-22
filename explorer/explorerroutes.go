@@ -181,14 +181,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	if !exp.liteMode {
 		// For any coinbase transactions look up the total block fees to include as part of the inputs
 		if tx.Type == "Coinbase" {
-			blkHash, err := exp.blockData.GetBlockHash(tx.BlockHeight)
-			if err != nil {
-				log.Errorf("Unable to get block %v", tx.BlockHeight)
-				return
-			}
-			data := exp.blockData.GetExplorerBlock(blkHash)
+			data := exp.blockData.GetExplorerBlock(tx.BlockHash)
 			if data == nil {
-				log.Errorf("Unable to get block %s", blkHash)
+				log.Errorf("Unable to get block %s", tx.BlockHash)
 				return
 			}
 			tx.BlockMiningFee = int64(data.MiningFee)

@@ -1113,6 +1113,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.Type = txhelpers.DetermineTxTypeString(msgTx)
 	tx.BlockHeight = txraw.BlockHeight
 	tx.BlockIndex = txraw.BlockIndex
+	tx.BlockHash = txraw.BlockHash
 	tx.Confirmations = txraw.Confirmations
 	tx.Time = txraw.Time
 	t := time.Unix(tx.Time, 0)

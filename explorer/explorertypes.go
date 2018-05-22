@@ -77,6 +77,7 @@ type TxInfo struct {
 	Vout             []Vout
 	BlockHeight      int64
 	BlockIndex       uint32
+	BlockHash        string
 	BlockMiningFee   int64
 	Confirmations    int64
 	Time             int64
