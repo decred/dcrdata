@@ -399,17 +399,17 @@ func BlockReceivesToAddresses(block *dcrutil.Block, addrs map[string]TxAction,
 
 // OutPointAddresses gets the addresses paid to by a transaction output.
 func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
-	params *chaincfg.Params) ([]string, error) {
+	params *chaincfg.Params) ([]string, dcrutil.Amount, error) {
 	// The addresses are encoded in the pkScript, so we need to get the
 	// raw transaction, and the TxOut that contains the pkScript.
 	prevTx, err := c.GetRawTransaction(&outPoint.Hash)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get raw transaction for %s", outPoint.Hash.String())
+		return nil, 0, fmt.Errorf("unable to get raw transaction for %s", outPoint.Hash.String())
 	}
 
 	txOuts := prevTx.MsgTx().TxOut
 	if len(txOuts) <= int(outPoint.Index) {
-		return nil, fmt.Errorf("PrevOut index (%d) is beyond the TxOuts slice (length %d)",
+		return nil, 0, fmt.Errorf("PrevOut index (%d) is beyond the TxOuts slice (length %d)",
 			outPoint.Index, len(txOuts))
 	}
 
@@ -418,15 +418,15 @@ func OutPointAddresses(outPoint *wire.OutPoint, c RawTransactionGetter,
 	_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
 		txOut.Version, txOut.PkScript, params)
 	if err != nil {
-		return nil, fmt.Errorf("ExtractPkScriptAddrs: %v", err.Error())
+		return nil, 0, fmt.Errorf("ExtractPkScriptAddrs: %v", err.Error())
 	}
-
+	value := dcrutil.Amount(txOut.Value)
 	addresses := make([]string, 0, len(txAddrs))
 	for _, txAddr := range txAddrs {
 		addr := txAddr.EncodeAddress()
 		addresses = append(addresses, addr)
 	}
-	return addresses, nil
+	return addresses, value, nil
 }
 
 // OutPointAddressesFromString is the same as OutPointAddresses, but it takes
@@ -439,8 +439,8 @@ func OutPointAddressesFromString(txid string, index uint32, tree int8,
 	}
 
 	outPoint := wire.NewOutPoint(hash, index, tree)
-
-	return OutPointAddresses(outPoint, c, params)
+	outPointAddress, _, err := OutPointAddresses(outPoint, c, params)
+	return outPointAddress, err
 }
 
 // MedianAmount gets the median Amount from a slice of Amounts
