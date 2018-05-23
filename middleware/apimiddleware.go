@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	apitypes "github.com/decred/dcrdata/api/types"
@@ -478,6 +479,27 @@ func AddressPostCtx(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), ctxAddress, address)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// ZeroAddrDenier https://github.com/decred/dcrdata/issues/358
+func ZeroAddrDenier(params *chaincfg.Params) func(http.Handler) http.Handler {
+	deniedAddr := apitypes.NewZeroAddressDenial(params)
+	return func(next http.Handler) http.Handler {
+
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			address := chi.URLParam(r, "address")
+			if address == deniedAddr.Addr {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				encoder := json.NewEncoder(w)
+				if err := encoder.Encode(deniedAddr); err != nil {
+					apiLog.Infof("JSON encode error: %v", err)
+				}
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(r.Context()))
+		})
+	}
 }
 
 // BlockDateQueryCtx returns a http.Handlerfunc that embeds the {blockdate,

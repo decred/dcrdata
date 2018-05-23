@@ -8,6 +8,7 @@
 package insight
 
 import (
+	"github.com/decred/dcrd/chaincfg"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -64,7 +65,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	// Address endpoints
 	mux.Route("/addr/{address}", func(rd chi.Router) {
 		rd.Use(m.AddressPathCtx)
-		rd.Use(app.ZeroAddrDenier)
+		rd.Use(m.ZeroAddrDenier(&chaincfg.MainNetParams))
 		rd.With(m.PaginationCtx).Get("/", app.getAddressInfo)
 		rd.Get("/utxo", app.getAddressTxnOutput)
 		rd.Get("/balance", app.getAddressBalance)
