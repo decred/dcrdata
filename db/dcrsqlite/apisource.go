@@ -1358,7 +1358,7 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 			continue
 		}
 		// Update previous outpoint txn slice with mempool time
-		for f, _ := range prevTxns {
+		for f := range prevTxns {
 			prevTxns[f].MemPoolTime = tx.Time
 		}
 
