@@ -1196,13 +1196,23 @@ func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string,
 
 func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {
 	var blocks []dbtypes.BlockDataBasic
+	var stmt *sql.Stmt
+	var rows *sql.Rows
+	var err error
 
-	stmt, err := db.Prepare(internal.SelectBlockByTimeRangeSQL)
-	if err != nil {
-		return nil, err
+	if limit == 0 {
+		stmt, err = db.Prepare(internal.SelectBlockByTimeRangeSQLNoLimit)
+		if err != nil {
+			return nil, err
+		}
+		rows, err = stmt.Query(minTime, maxTime)
+	} else {
+		stmt, err = db.Prepare(internal.SelectBlockByTimeRangeSQL)
+		if err != nil {
+			return nil, err
+		}
+		rows, err = stmt.Query(minTime, maxTime, limit)
 	}
-	fmt.Println(minTime, " * ", maxTime, " * ", limit)
-	rows, err := stmt.Query(minTime, maxTime, limit)
 
 	if err != nil {
 		log.Error(err)

@@ -184,23 +184,6 @@ func GetStatusInfoCtx(r *http.Request) string {
 	return statusInfo
 }
 
-// GetLimitCtx retrieves the ctxLimit data from the request context. If not set,
-// the return value is 1.
-func GetLimitCtx(r *http.Request) int {
-	limit, ok := r.Context().Value(ctxLimit).(string)
-	fmt.Println("limit ", limit)
-	if !ok {
-		fmt.Println(ok)
-		apiLog.Trace("limit not set")
-		return 1
-	}
-	intValue, err := strconv.Atoi(limit)
-	if err != nil {
-		return 1
-	}
-	return intValue
-}
-
 // GetBlockDateCtx retrieves the ctxBlockDate data from the request context. If
 // not set, the return value is an empty string.
 func GetBlockDateCtx(r *http.Request) string {

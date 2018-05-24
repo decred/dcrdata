@@ -29,6 +29,8 @@ const (
 	ctxNoSpent
 	ctxBlockHash
 	ctxBlockIndex
+	ctxNoTxList
+	ctxLimit
 )
 
 // BlockHashPathAndIndexCtx is a middleware that embeds the value at the url
@@ -306,4 +308,43 @@ func (c *insightApiContext) GetInsightBlockHashCtx(r *http.Request) (string, boo
 		return "", false
 	}
 	return hash, true
+}
+
+// NoTxListCtx returns a http.Handlerfunc that embeds the {noTxList} value in
+// the request into the request context.
+func (c *insightApiContext) NoTxListCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		notxlist := r.FormValue("noTxList")
+		notxlistint, err := strconv.Atoi(notxlist)
+		if err != nil {
+			notxlistint = 0
+		}
+		ctx := context.WithValue(r.Context(), ctxNoTxList, notxlistint)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// GetLimitCtx retrieves the ctxLimit data from the request context. If not set,
+// the return value is 0 which is interpreted as no limit.
+func (c *insightApiContext) GetLimitCtx(r *http.Request) int {
+	limit, ok := r.Context().Value(ctxLimit).(string)
+	fmt.Println("limit ", limit)
+	if !ok {
+		return 0
+	}
+	intValue, err := strconv.Atoi(limit)
+	if err != nil {
+		return 0
+	}
+	return intValue
+}
+
+// GetNoTxListCtx retrieves the ctxNoTxList data ("noTxList") from the request context.
+// If not set, the return value is false.
+func (c *insightApiContext) GetNoTxListCtx(r *http.Request) int {
+	notxlist, ok := r.Context().Value(ctxNoTxList).(int)
+	if !ok {
+		return 0
+	}
+	return notxlist
 }

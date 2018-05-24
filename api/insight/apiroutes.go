@@ -143,11 +143,16 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
 	txid := m.GetTxIDCtx(r)
 	if txid == "" {
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightError(w, "TxId must not be empty")
 		return
 	}
 
 	txHex := c.BlockData.GetTransactionHex(txid)
+
+	if txHex == "" {
+		writeInsightNotFound(w, fmt.Sprintf("Unable to get transaction (%s)", txHex))
+		return
+	}
 
 	hexOutput := new(apitypes.InsightRawTx)
 	hexOutput.Rawtx = txHex
@@ -159,17 +164,33 @@ func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Reque
 	// attempt to get hash of block set by hash or (fallback) height set on path
 	hash := c.getBlockHashCtx(r)
 	if hash == "" {
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightNotFound(w, "Unable to get block")
+		return
+	}
+	blockDcrd := c.BlockData.GetBlockVerboseByHash(hash, false)
+	if blockDcrd == nil {
+		writeInsightNotFound(w, "Unable to get block")
 		return
 	}
 
-	blockSummary := c.BlockData.GetBlockVerboseByHash(hash, false)
+	blockSummary := []*dcrjson.GetBlockVerboseResult{blockDcrd}
+	blockInsight, err := c.BlockConverter(blockSummary)
+	if err != nil {
+		apiLog.Errorf("Unable to process block")
+		writeInsightError(w, "Unable to Process Block")
+		return
+	}
 
-	writeJSON(w, blockSummary, c.getIndentQuery(r))
+	writeJSON(w, blockInsight, c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
 	hash := c.getBlockHashCtx(r)
+
+	if hash == "" {
+		writeInsightNotFound(w, "Block Hash not found")
+		return
+	}
 
 	blockOutput := struct {
 		BlockHash string `json:"blockHash"`
@@ -608,39 +629,63 @@ func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request
 
 func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http.Request) {
 	blockDate := m.GetBlockDateCtx(r)
-	limit := m.GetLimitCtx(r)
-
+	limit := c.GetLimitCtx(r)
+	summaryOutput := apitypes.InsightBlocksSummaryResult{}
 	layout := "2006-01-02 15:04:05"
 
+	blockDateToday := time.Now().UTC().Format("2006-01-02")
+
+	if blockDate == "" {
+		blockDate = blockDateToday
+	}
+
+	if blockDateToday == blockDate {
+		summaryOutput.Pagination.IsToday = true
+	}
 	minDate, err := time.Parse(layout, blockDate+" 00:00:00")
 	if err != nil {
-		apiLog.Errorf("Unable to retrieve block summary using time %s: %v", blockDate, err)
-		http.Error(w, "invalid date ", 422)
+		writeInsightError(w, fmt.Sprintf("Unable to retrieve block summary using time %s: %v", blockDate, err))
 		return
 	}
 
 	maxDate, err := time.Parse(layout, blockDate+" 23:59:59")
 	if err != nil {
-		apiLog.Errorf("Unable to retrieve block summary using time %s: %v", blockDate, err)
-		http.Error(w, "invalid date", 422)
+		writeInsightError(w, fmt.Sprintf("Unable to retrieve block summary using time %s: %v", blockDate, err))
 		return
 	}
+	summaryOutput.Pagination.Next = minDate.AddDate(0, 0, 1).Format("2006-01-02")
+	summaryOutput.Pagination.Prev = minDate.AddDate(0, 0, -1).Format("2006-01-02")
+
+	summaryOutput.Pagination.Current = blockDate
 
 	minTime, maxTime := minDate.Unix(), maxDate.Unix()
+	summaryOutput.Pagination.CurrentTs = maxTime
+	summaryOutput.Pagination.MoreTs = maxTime
 
-	blockSummary := c.BlockData.ChainDB.GetBlockSummaryTimeRange(minTime, maxTime, limit)
+	blockSummary := c.BlockData.ChainDB.GetBlockSummaryTimeRange(minTime, maxTime, 0)
 
-	if blockSummary == nil {
-		http.Error(w, "error occurred", 422)
-		return
+	outputBlockSummary := []dbtypes.BlockDataBasic{}
+
+	// Generate the pagenation parameters more and moreTs and limit the result
+	if limit > 0 {
+		for i, block := range blockSummary {
+			if i >= limit {
+				summaryOutput.Pagination.More = true
+				break
+			}
+			outputBlockSummary = append(outputBlockSummary, block)
+			if block.Time < summaryOutput.Pagination.MoreTs {
+				summaryOutput.Pagination.MoreTs = block.Time
+			}
+		}
+		summaryOutput.Blocks = outputBlockSummary
+	} else {
+		summaryOutput.Blocks = blockSummary
+		summaryOutput.Pagination.More = false
+		summaryOutput.Pagination.MoreTs = minTime
 	}
 
-	summaryOutput := struct {
-		Blocks []dbtypes.BlockDataBasic `json:"blocks"`
-		Length int                      `json:"length"`
-	}{
-		blockSummary, limit,
-	}
+	summaryOutput.Length = len(summaryOutput.Blocks)
 
 	writeJSON(w, summaryOutput, c.getIndentQuery(r))
 
@@ -648,18 +693,59 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 
 func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
-	offset := m.GetOffsetCtx(r)
-	count := m.GetCountCtx(r)
-	count -= offset
+	
 
-	if count < 0 {
-		count = 20
+	_, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		writeInsightError(w, "Invalid Address")
+		return
 	}
 
-	addressInfo := c.BlockData.ChainDB.GetAddressInfo(address, int64(count), int64(offset))
-
+	from := c.GetFromCtx(r)
+	noTxList := c.GetNoTxListCtx(r)
+	to, ok := c.GetToCtx(r)
+	if !ok || to <= from {
+		to = from + 1000
+	}
+	
+	addressInfo := c.BlockData.ChainDB.GetAddressInfo(address, int64(to-from), int64(from), int64(noTxList))
 	if addressInfo == nil {
-		http.Error(w, "an error occurred", 422)
+		//Address appears to be empty.  Provide a shell response
+		addressInfo = &apitypes.InsightAddressInfo{
+			Address: address,
+		}
+
+	}
+	addressOuts, utxcount, _ := c.MemPool.UnconfirmedTxnsForAddress(address)
+	for _, f := range addressOuts.Outpoints {
+		fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+		if !ok {
+			apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+			continue
+		}
+		if fundingTx.Confirmed() {
+			apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+			continue
+		}
+		addressInfo.UnconfirmedBalance += dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin()
+		addressInfo.UnconfirmedBalanceSat += fundingTx.Tx.TxOut[f.Index].Value
+	}
+	for _, f := range addressOuts.PrevOuts {
+		spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+		if !ok {
+			apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+			continue
+		}
+		if spendingTx.Confirmed() {
+			apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+			continue
+		}
+		addressInfo.UnconfirmedBalance -= dcrutil.Amount(spendingTx.Tx.TxOut[f.PreviousOutpoint.Index].Value).ToCoin()
+		addressInfo.UnconfirmedBalanceSat -= spendingTx.Tx.TxOut[f.PreviousOutpoint.Index].Value
+	}
+	addressInfo.UnconfirmedTxAppearances = utxcount
+	if addressInfo == nil {
+		writeInsightNotFound(w, "Not found")
 		return
 	}
 

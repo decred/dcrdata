@@ -155,37 +155,43 @@ func (pgb *ChainDB) GetAddressBalance(address string, N, offset int64) *explorer
 // GetAddressInfo returns the basic information for the specified address
 // (*apitypes.InsightAddressInfo), given a transaction count limit, and
 // transaction number offset.
-func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.InsightAddressInfo {
+func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64, notxlist int64) *apitypes.InsightAddressInfo {
 	rows, balance, err := pgb.AddressHistoryAll(address, N, offset)
 	if err != nil {
 		return nil
 	}
+	var addressInfo apitypes.InsightAddressInfo
+	addressInfo.Address = address
+	addressInfo.TotalReceivedSat = balance.TotalSpent + balance.TotalUnspent
+	addressInfo.TotalSentSat = balance.TotalSpent
+	addressInfo.BalanceSat = balance.TotalUnspent
+	addressInfo.TotalReceived = dcrutil.Amount(addressInfo.TotalReceivedSat).ToCoin()
+	addressInfo.TotalSent = dcrutil.Amount(addressInfo.TotalSentSat).ToCoin()
+	addressInfo.Balance = dcrutil.Amount(addressInfo.BalanceSat).ToCoin()
 
-	var totalReceived, totalSent, unSpent dcrutil.Amount
-	totalReceived, _ = dcrutil.NewAmount(float64(balance.TotalSpent + balance.TotalUnspent))
-	totalSent, _ = dcrutil.NewAmount(float64(balance.TotalSpent))
-	unSpent, _ = dcrutil.NewAmount(float64(balance.TotalUnspent))
+	// Due to the way transactions are stored in Addresses table, each row can
+	// be just a funding Tx or both a funding Tx and a Spending Tx.  It is not
+	// possible to correctly count/offset into this list at present.  Once the
+	// new addresses PR goes through (#427 currently) we need to fix this to
+	// index properly.
+	if notxlist == 0 {
+		var transactionIdList []string
+		for _, row := range rows {
+			fundingTxId := row.FundingTxHash
+			if fundingTxId != "" {
+				transactionIdList = append(transactionIdList, fundingTxId)
+			}
 
-	var transactionIdList []string
-	for _, row := range rows {
-		fundingTxId := row.FundingTxHash
-		if fundingTxId != "" {
-			transactionIdList = append(transactionIdList, fundingTxId)
+			spendingTxId := row.SpendingTxHash
+			if spendingTxId != "" {
+				transactionIdList = append(transactionIdList, spendingTxId)
+			}
 		}
-
-		spendingTxId := row.SpendingTxHash
-		if spendingTxId != "" {
-			transactionIdList = append(transactionIdList, spendingTxId)
-		}
+		addressInfo.TransactionsID = transactionIdList
 	}
+	addressInfo.TxAppearances = (2 * balance.NumSpent) + balance.NumUnspent
 
-	return &apitypes.InsightAddressInfo{
-		Address:        address,
-		TotalReceived:  totalReceived,
-		TransactionsID: transactionIdList,
-		TotalSent:      totalSent,
-		Unspent:        unSpent,
-	}
+	return &addressInfo
 }
 
 // GetBlockSummaryTimeRange returns the blocks created within a specified time
