@@ -4,17 +4,17 @@
 package types
 
 import (
-	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 )
 
 // InsightAddress models an address transactions
 //
 type InsightAddress struct {
-	Address      string                                 `json:"address,omitempty"`
-	From         int                                    `json:"from"`
-	To           int                                    `json:"to"`
-	Transactions []*dcrjson.SearchRawTransactionsResult `json:"items,omitempty"`
+	Address string `json:"address,omitempty"`
+	From    int    `json:"from"`
+	To      int    `json:"to"`
+	//Transactions []*dcrjson.SearchRawTransactionsResult `json:"items,omitempty"`
+	Transactions []InsightTx `json:"items,omitempty"`
 }
 
 // InsightAddressInfo models basic information

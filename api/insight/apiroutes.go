@@ -435,14 +435,32 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 	addresses := strings.Split(address, ",")
 
 	addressOutput := new(apitypes.InsightAddress)
+	rawTxs := []*dcrjson.SearchRawTransactionsResult{}
+	txsOld := []*dcrjson.TxRawResult{}
 
 	addressOutput.From = offset
 	addressOutput.To = count
 
 	for _, addr := range addresses {
-		addressTxn := c.BlockData.InsightGetAddressTransactions(addr, count, offset)
-		addressOutput.Transactions = append(addressOutput.Transactions, addressTxn...)
+		rawTxs = append(rawTxs, c.BlockData.InsightGetAddressTransactions(addr, count, offset)...)
 	}
+
+	for _, rawTx := range rawTxs {
+		txOld, err := c.BlockData.GetRawTransaction(rawTx.Txid)
+		if err != nil {
+			apiLog.Errorf("Unable to get transaction %s", rawTx.Txid)
+		}
+		txsOld = append(txsOld, txOld)
+	}
+
+	// convert struct type to new struct
+	txsNew, err := c.TxConverter(txsOld)
+	if err != nil {
+		apiLog.Error("Unable to get transactions")
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	addressOutput.Transactions = append(addressOutput.Transactions, txsNew...)
 
 	writeJSON(w, addressOutput, c.getIndentQuery(r))
 }
