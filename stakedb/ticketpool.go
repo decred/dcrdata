@@ -1,4 +1,5 @@
-// Copyright (c) 2018, The dcrdata developers.
+// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018, The dcrdata developers
 // See LICENSE for details.
 
 package stakedb
@@ -95,9 +96,9 @@ func (tp *TicketPool) append(diff *PoolDiff) {
 }
 
 // trim is the non-thread-safe version of Trim.
-func (tp *TicketPool) trim() int64 {
+func (tp *TicketPool) trim() (int64, PoolDiff) {
 	if tp.tip == 0 || len(tp.diffs) == 0 {
-		return tp.tip
+		return tp.tip, PoolDiff{}
 	}
 	tp.tip--
 	newMaxCursor := tp.maxCursor()
@@ -106,13 +107,15 @@ func (tp *TicketPool) trim() int64 {
 			log.Errorf("retreatTo failed: %v", err)
 		}
 	}
+	// Trim AFTER retreating
+	undo := tp.diffs[len(tp.diffs)-1]
 	tp.diffs = tp.diffs[:len(tp.diffs)-1]
-	return tp.tip
+	return tp.tip, undo
 }
 
 // Trim removes the end diff and decrements the tip height. If the cursor would
 // fall beyond the end of the diffs, the removed diffs are applied in reverse.
-func (tp *TicketPool) Trim() int64 {
+func (tp *TicketPool) Trim() (int64, PoolDiff) {
 	tp.Lock()
 	defer tp.Unlock()
 	return tp.trim()
@@ -232,7 +235,8 @@ func (tp *TicketPool) advance() error {
 	tp.cursor++
 
 	if len(tp.pool) != expectedFinalSize {
-		return fmt.Errorf("pool size is %d, expected %d", len(tp.pool), expectedFinalSize)
+		return fmt.Errorf("pool size is %d, expected %d, at height %d",
+			len(tp.pool), expectedFinalSize, tp.cursor-1)
 	}
 
 	return nil
@@ -319,7 +323,11 @@ func (tp *TicketPool) applyDiff(in, out []chainhash.Hash) {
 	}
 	initsize = endsize
 	for i := range out {
+		ii := len(tp.pool)
 		delete(tp.pool, out[i])
+		if len(tp.pool) == ii {
+			log.Errorf("Failed to remove ticket %v from pool.", out[i])
+		}
 	}
 	endsize = len(tp.pool)
 	if endsize != initsize-len(out) {
