@@ -103,7 +103,7 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 
 	txsOld := []*dcrjson.TxRawResult{txOld}
 
-	// convert struct type to new struct
+	// convert to insight struct
 	txsNew, err := c.TxConverter(txsOld)
 
 	if err != nil {
@@ -386,6 +386,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 	address := m.GetAddressCtx(r)
 	count := m.GetCountCtx(r)
 	offset := m.GetOffsetCtx(r)
+	var req apitypes.InsightMultiAddrsTx
 
 	if address == "" {
 		// No query post.  Check for a Body JSON
@@ -397,7 +398,6 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 			http.Error(w, http.StatusText(422), 422)
 			return
 		}
-		var req apitypes.InsightMultiAddrsTx
 		err = json.Unmarshal(body, &req)
 		if err != nil {
 			apiLog.Errorf("Failed to parse request: %v", err)
@@ -432,14 +432,17 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	addresses := strings.Split(address, ",")
 
+	// init block
 	addressOutput := new(apitypes.InsightAddress)
 	rawTxs := []*dcrjson.SearchRawTransactionsResult{}
 	txsOld := []*dcrjson.TxRawResult{}
 
+
+	addresses := strings.Split(address, ",")
 	addressOutput.From = offset
 	addressOutput.To = count
+
 
 	for _, addr := range addresses {
 		rawTxs = append(rawTxs, c.BlockData.InsightGetAddressTransactions(addr, count, offset)...)
@@ -453,8 +456,8 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 		txsOld = append(txsOld, txOld)
 	}
 
-	// convert struct type to new struct
-	txsNew, err := c.TxConverter(txsOld)
+	// convert to insight struct
+	txsNew, err := c.TxConverterWithParams(txsOld, req)
 	if err != nil {
 		apiLog.Error("Unable to get transactions")
 		http.Error(w, http.StatusText(422), 422)

@@ -18,6 +18,12 @@ import (
 
 // TxConverter converts dcrd-tx to insight tx
 func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.InsightTx, error) {
+	addresses_data := apitypes.InsightMultiAddrsTx{}
+	return c.TxConverterWithParams(txs, addresses_data)
+}
+
+// TxConverterWithParams takes struct with filter params
+func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, mad apitypes.InsightMultiAddrsTx) ([]apitypes.InsightTx, error) {
 
 	newTxs := []apitypes.InsightTx{}
 
@@ -42,12 +48,16 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 			txNew.Vins[vinID].Sequence = vin.Sequence
 			vInSum += vin.AmountIn
 			txNew.Vins[vinID].CoinBase = vin.Coinbase
+
 			// init ScriptPubKey
-			txNew.Vins[vinID].ScriptSig = emptySS
-			if vin.ScriptSig != nil {
-				txNew.Vins[vinID].ScriptSig.Asm = vin.ScriptSig.Asm
-				txNew.Vins[vinID].ScriptSig.Hex = vin.ScriptSig.Hex
+			if !mad.NoScriptSig {
+				txNew.Vins[vinID].ScriptSig = emptySS
+				if vin.ScriptSig != nil {
+					txNew.Vins[vinID].ScriptSig.Asm = vin.ScriptSig.Asm
+					txNew.Vins[vinID].ScriptSig.Hex = vin.ScriptSig.Hex
+				}
 			}
+
 			txNew.Vins[vinID].N = vinID
 			txNew.Vins[vinID].ValueSat = int64(vin.AmountIn * 100000000.0)
 			txNew.Vins[vinID].Value = vin.AmountIn
@@ -63,7 +73,9 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 			txNew.Vouts[v.N].N = v.N
 			// pk block
 			txNew.Vouts[v.N].ScriptPubKey = emptyPubKey
-			txNew.Vouts[v.N].ScriptPubKey.Asm = v.ScriptPubKey.Asm
+			if !mad.NoAsm {
+				txNew.Vouts[v.N].ScriptPubKey.Asm = v.ScriptPubKey.Asm
+			}
 			txNew.Vouts[v.N].ScriptPubKey.Hex = v.ScriptPubKey.Hex
 			txNew.Vouts[v.N].ScriptPubKey.Type = v.ScriptPubKey.Type
 			txNew.Vouts[v.N].ScriptPubKey.Addresses = v.ScriptPubKey.Addresses
@@ -108,25 +120,28 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 			}
 		}
 
-		// set of unique addresses for db query
-		uniqAddrs := make(map[string]string)
+		if !mad.NoSpent {
 
-		for _, vout := range txNew.Vouts {
-			for _, addr := range vout.ScriptPubKey.Addresses {
-				uniqAddrs[addr] = txNew.Txid
+			// set of unique addresses for db query
+			uniqAddrs := make(map[string]string)
+
+			for _, vout := range txNew.Vouts {
+				for _, addr := range vout.ScriptPubKey.Addresses {
+					uniqAddrs[addr] = txNew.Txid
+				}
 			}
-		}
 
-		addresses := []string{}
-		for addr := range uniqAddrs {
-			addresses = append(addresses, addr)
-		}
+			addresses := []string{}
+			for addr := range uniqAddrs {
+				addresses = append(addresses, addr)
+			}
 
-		addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
-		for _, dbaddr := range addrFull {
-			txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
-			txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
-			txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentHeight = dbaddr.BlockHeight
+			addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
+			for _, dbaddr := range addrFull {
+				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
+				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
+				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentHeight = dbaddr.BlockHeight
+			}
 		}
 
 		// create block hash
