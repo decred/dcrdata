@@ -432,17 +432,14 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-
 	// init block
 	addressOutput := new(apitypes.InsightAddress)
 	rawTxs := []*dcrjson.SearchRawTransactionsResult{}
 	txsOld := []*dcrjson.TxRawResult{}
 
-
 	addresses := strings.Split(address, ",")
 	addressOutput.From = offset
 	addressOutput.To = count
-
 
 	for _, addr := range addresses {
 		rawTxs = append(rawTxs, c.BlockData.InsightGetAddressTransactions(addr, count, offset)...)
