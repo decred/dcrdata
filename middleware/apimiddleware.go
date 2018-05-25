@@ -499,7 +499,7 @@ func ZeroAddrDenier(next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(r.Context()))
-	})	
+	})
 }
 
 // BlockDateQueryCtx returns a http.Handlerfunc that embeds the {blockdate,
