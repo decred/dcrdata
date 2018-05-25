@@ -13,9 +13,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/docgen"
@@ -482,24 +482,24 @@ func AddressPostCtx(next http.Handler) http.Handler {
 }
 
 // ZeroAddrDenier https://github.com/decred/dcrdata/issues/358
-func ZeroAddrDenier(params *chaincfg.Params) func(http.Handler) http.Handler {
-	deniedAddr := apitypes.NewZeroAddressDenial(params)
-	return func(next http.Handler) http.Handler {
-
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-			address := chi.URLParam(r, "address")
-			if address == deniedAddr.Addr {
-				w.Header().Set("Content-Type", "application/json; charset=utf-8")
-				encoder := json.NewEncoder(w)
-				if err := encoder.Encode(deniedAddr); err != nil {
-					apiLog.Infof("JSON encode error: %v", err)
-				}
-				return
+func ZeroAddrDenier(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		address := chi.URLParam(r, "address")
+		dadrr, err := dcrutil.DecodeAddress(address)
+		if err != nil {
+			fmt.Println(err)
+		}
+		deniedAddr := apitypes.NewZeroAddressDenial(dadrr.Net())
+		if address == deniedAddr.Addr {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			if err := encoder.Encode(deniedAddr); err != nil {
+				apiLog.Infof("JSON encode error: %v", err)
 			}
-			next.ServeHTTP(w, r.WithContext(r.Context()))
-		})
-	}
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(r.Context()))
+	})	
 }
 
 // BlockDateQueryCtx returns a http.Handlerfunc that embeds the {blockdate,

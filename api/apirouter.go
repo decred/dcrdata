@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/decred/dcrd/chaincfg"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -141,7 +140,7 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 	mux.Route("/address", func(r chi.Router) {
 		r.Route("/{address}", func(rd chi.Router) {
 			rd.Use(m.AddressPathCtx)
-			rd.Use(m.ZeroAddrDenier(&chaincfg.MainNetParams))
+			rd.Use(m.ZeroAddrDenier)
 
 			rd.Get("/totals", app.addressTotals)
 			rd.Get("/", app.getAddressTransactions)
