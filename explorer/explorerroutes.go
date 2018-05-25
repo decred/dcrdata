@@ -66,6 +66,41 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// NextHome is the page handler for the "/nexthome" path
+func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
+	height := exp.blockData.GetHeight()
+
+	blocks := exp.blockData.GetExplorerBlocks(height, height-12)
+
+	exp.NewBlockDataMtx.Lock()
+	exp.MempoolData.RLock()
+
+	str, err := exp.templates.execTemplateToString("nexthome", struct {
+		Info    *HomeInfo
+		Mempool *MempoolInfo
+		Blocks  []*BlockBasic
+		Version string
+		NetName string
+	}{
+		exp.ExtraInfo,
+		exp.MempoolData,
+		blocks,
+		exp.Version,
+		exp.NetName,
+	})
+	exp.NewBlockDataMtx.Unlock()
+	exp.MempoolData.RUnlock()
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // Blocks is the page handler for the "/blocks" path
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	idx := exp.blockData.GetHeight()
