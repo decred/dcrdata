@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/decred/dcrd/dcrutil"
+
 	"github.com/decred/dcrd/chaincfg"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -107,6 +109,43 @@ var toInt64 = func(v interface{}) int64 {
 	}
 }
 
+// boldNumPlaces defines the number of decimal places to be write with same font as the whole
+// number value of the float
+func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces ...int) []string {
+	sigFig := math.Pow(10, float64(numPlaces))
+	formattedVal := math.Round(v*sigFig) / sigFig
+	clipped := fmt.Sprintf("%."+strconv.Itoa(numPlaces)+"f", formattedVal)
+	oldLength := len(clipped)
+	clipped = strings.TrimRight(clipped, "0")
+	trailingZeros := strings.Repeat("0", oldLength-len(clipped))
+	valueChunks := strings.Split(clipped, ".")
+	integer := valueChunks[0]
+
+	dec := ""
+	if len(valueChunks) > 1 {
+		dec = valueChunks[1]
+	}
+
+	if useCommas {
+		integer = humanize.Comma(int64(formattedVal))
+	}
+
+	if len(boldNumPlaces) == 0 {
+		return []string{integer, dec, trailingZeros}
+	}
+
+	places := boldNumPlaces[0]
+	if places > numPlaces {
+		return []string{integer, dec, trailingZeros}
+	}
+
+	if len(dec) < places {
+		places = len(dec)
+	}
+
+	return []string{integer, dec[:places], dec[places:], trailingZeros}
+}
+
 func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
@@ -145,57 +184,12 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			p := (float64(i) / float64(params.SubsidyReductionInterval)) * 100
 			return p
 		},
-		"float64AsDecimalParts": func(v float64, numPlaces int, useCommas bool) []string {
-			format := "%." + strconv.Itoa(numPlaces) + "f"
-			clipped := fmt.Sprintf(format, v)
-			oldLength := len(clipped)
-			clipped = strings.TrimRight(clipped, "0")
-			trailingZeros := strings.Repeat("0", oldLength-len(clipped))
-			valueChunks := strings.Split(clipped, ".")
-			integer := valueChunks[0]
-			var dec string
-			if len(valueChunks) == 2 {
-				dec = valueChunks[1]
-			} else {
-				dec = ""
-				log.Errorf("float64AsDecimalParts has no decimal value. Input: %v", v)
-			}
-			if useCommas {
-				integerAsInt64, err := strconv.ParseInt(integer, 10, 64)
-				if err != nil {
-					log.Errorf("float64AsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
-					integer = "ERROR"
-					dec = "VALUE"
-					zeros := ""
-					return []string{integer, dec, zeros}
-				}
-				integer = humanize.Comma(integerAsInt64)
-			}
-			return []string{integer, dec, trailingZeros}
-		},
+		"float64AsDecimalParts": float64Formatting,
 		"amountAsDecimalParts": func(v int64, useCommas bool) []string {
-			amt := strconv.FormatInt(v, 10)
-			if len(amt) <= 8 {
-				dec := strings.TrimRight(amt, "0")
-				trailingZeros := strings.Repeat("0", len(amt)-len(dec))
-				leadingZeros := strings.Repeat("0", 8-len(amt))
-				return []string{"0", leadingZeros + dec, trailingZeros}
-			}
-			integer := amt[:len(amt)-8]
-			if useCommas {
-				integerAsInt64, err := strconv.ParseInt(integer, 10, 64)
-				if err != nil {
-					log.Errorf("amountAsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
-					integer = "ERROR"
-					dec := "VALUE"
-					zeros := ""
-					return []string{integer, dec, zeros}
-				}
-				integer = humanize.Comma(integerAsInt64)
-			}
-			dec := strings.TrimRight(amt[len(amt)-8:], "0")
-			zeros := strings.Repeat("0", 8-len(dec))
-			return []string{integer, dec, zeros}
+			return float64Formatting(dcrutil.Amount(v).ToCoin(), 8, useCommas)
+		},
+		"toFloat64Amount": func(intAmount int64) float64 {
+			return dcrutil.Amount(intAmount).ToCoin()
 		},
 		"remaining": func(idx int, max, t int64) string {
 			x := (max - int64(idx)) * t

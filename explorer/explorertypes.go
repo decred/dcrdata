@@ -48,6 +48,9 @@ type BlockBasic struct {
 type TxBasic struct {
 	TxID          string
 	FormattedSize string
+	ByteSize      string
+	TxAmount      string
+	FeeRateSize   string
 	Total         float64
 	Fee           dcrutil.Amount
 	FeeRate       dcrutil.Amount
@@ -434,8 +437,9 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 
 // WebsocketBlock wraps the new block info for use in the websocket
 type WebsocketBlock struct {
-	Block *BlockBasic `json:"block"`
-	Extra *HomeInfo   `json:"extra"`
+	//Block     *BlockBasic `json:"block"`
+	FullBlock *BlockInfo `json:"full_block"`
+	Extra     *HomeInfo  `json:"extra"`
 }
 
 // TicketPoolInfo describes the live ticket pool
@@ -450,12 +454,15 @@ type TicketPoolInfo struct {
 
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
-	Hash     string    `json:"hash"`
-	Time     int64     `json:"time"`
-	Size     int32     `json:"size"`
-	TotalOut float64   `json:"total"`
-	Type     string    `json:"Type"`
-	VoteInfo *VoteInfo `json:"vote_info"`
+	Hash        string `json:"hash"`
+	Time        int64  `json:"time"`
+	Size        int32  `json:"size"`
+	FeeRateSize string
+	TxAmount    string
+	ByteSize    string
+	TotalOut    float64   `json:"total"`
+	Type        string    `json:"Type"`
+	VoteInfo    *VoteInfo `json:"vote_info"`
 }
 
 // NewMempoolTx models data sent from the notification handler

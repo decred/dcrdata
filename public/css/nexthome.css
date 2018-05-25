@@ -1,0 +1,471 @@
+@import url("https://fonts.googleapis.com/css?family=Inconsolata:400,700|Source+Sans+Pro:400,600");
+header {
+  height: 64px;
+  background-color: #ffffff;
+  height: 64px; }
+  header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 64px; }
+  header img {
+    width: 40px; }
+  header .right {
+    display: flex;
+    flex: 1;
+    justify-content: flex-end;
+    align-items: center; }
+    header .right * {
+      float: left; }
+    header .right .searchbox {
+      margin-right: 25px;
+      cursor: pointer; }
+      header .right .searchbox img {
+        height: 20px;
+        width: 20px;
+        margin: 2.5px;
+        margin-right: 10px; }
+      header .right .searchbox input {
+        height: 25px;
+        width: 250px;
+        font-family: "Source Sans Pro", sans-serif;
+        font-size: 12px;
+        border: none;
+        border-bottom: 1px solid #c3cad1;
+        transition: 0.2s ease-out; }
+      header .right .searchbox input.hide {
+        width: 0px !important; }
+    header .right .searchbox.full {
+      flex: 1;
+      margin-left: 5%; }
+      header .right .searchbox.full input {
+        width: 95%; }
+    header .right .switch {
+      font-size: 14px;
+      font-family: "Source Sans Pro", sans-serif;
+      margin-right: 25px;
+      cursor: pointer;
+      transition: 0.2s linear; }
+      header .right .switch span img {
+        width: 20px;
+        margin: 0px 5px;
+        transition: 0.1s linear; }
+    header .right .switch:hover {
+      opacity: 0.5; }
+      header .right .switch:hover span img {
+        transform: rotate(180deg); }
+    header .right .menu {
+      position: relative;
+      height: 19px;
+      width: 25px;
+      cursor: pointer; }
+      header .right .menu span {
+        position: absolute;
+        transition: 0.1s linear; }
+      header .right .menu span.one {
+        height: 3px;
+        width: 100%;
+        top: 0;
+        background: #17173C; }
+      header .right .menu span.two {
+        height: 3px;
+        width: 100%;
+        top: 8px;
+        background: #17173C; }
+      header .right .menu span.three {
+        height: 3px;
+        width: 60%;
+        bottom: 0px;
+        background: #17173C; }
+    header .right .menu:hover span.one {
+      width: 60%; }
+    header .right .menu:hover span.three {
+      width: 100%; }
+
+*:focus {
+  outline: none !important; }
+
+body {
+  background-color: #F4F6F6; }
+
+.decBlockchainWrapper {
+    padding: 60px 0px; }
+  .decBlockchainWrapper .col-lg-4.col-md-6 {
+    position: relative;
+    height: 100px;
+    margin-bottom: 20px; }
+  .decBlockchainWrapper .title {
+    font-family: "Source Sans Pro", sans-serif;
+    color: #2970FF;
+    font-size: 20px;
+    margin-bottom: 30px; }
+  .decBlockchainWrapper .decredblockWrap.fade {
+    opacity: 0.5; }
+  .decBlockchainWrapper .decredblockWrap .decredblock {
+    position: absolute;
+    height: 100px;
+    background: #8997A5;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: 0.2s ease-in-out;
+    width: 90%;
+    left: 5%;
+    right: 5%;
+    top: 0;
+    cursor: pointer; }
+    .decBlockchainWrapper .decredblockWrap .decredblock .palette {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      height: 100%;
+      transition: 0.2s linear; }
+    .decBlockchainWrapper .decredblockWrap .decredblock .palette.one {
+      background: #8FB5FF; }
+    .decBlockchainWrapper .decredblockWrap .decredblock .palette.two {
+      background: #6D9EFF; }
+    .decBlockchainWrapper .decredblockWrap .decredblock .palette.three {
+      background: #4B88FF; }
+    .decBlockchainWrapper .decredblockWrap .decredblock .palette.four {
+      background: #2971FF; }
+    .decBlockchainWrapper .decredblockWrap .decredblock .palette.five {
+      background: #075AFF; }
+    .decBlockchainWrapper .decredblockWrap .decredblock .info-block {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 35px;
+      background: white;
+      transition: 0.2s ease-in-out;
+      overflow: hidden; }
+      .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block {
+        margin-top: 35px; }
+        .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block button {
+          background: none;
+          border: 1px solid #c3cad1;
+          width: 80%;
+          margin-left: 10%;
+          padding: 6px;
+          font-family: "Source Sans Pro", sans-serif;
+          border-radius: 4px;
+          margin-top: 8px; }
+        .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block .data {
+          font-family: "Inconsolata", monospace;
+          font-size: 22px;
+          font-weight: bold;
+          display: flex;
+          flex-direction: row;
+          align-items: flex-end;
+          margin-left: 10px; }
+          .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block .data p {
+            margin: 0px; }
+          .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block .data {
+            font-size: 16px;
+            line-height: 29px;
+            margin-left: 6px; }
+        .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block .subdata {
+          font-family: "Source Sans Pro", sans-serif;
+          font-size: 12px;
+          margin-left: 12%; }
+      .decBlockchainWrapper .decredblockWrap .decredblock .info-block img {
+        float: left; }
+    .decBlockchainWrapper .decredblockWrap .decredblock span.color-code {
+      position: absolute;
+      font-family: "Source Sans Pro", sans-serif;
+      font-size: 12px;
+      color: #2970FF;
+      font-weight: bold;
+      line-height: 35px;
+      left: 10px; }
+    .decBlockchainWrapper .decredblockWrap .decredblock span.timespan {
+      position: absolute;
+      font-family: "Source Sans Pro", sans-serif;
+      font-size: 12px;
+      color: #17173C;
+      line-height: 35px;
+      font-weight: bold;
+      right: 10px; }
+  .decBlockchainWrapper .decredblockWrap.expanded {
+    opacity: 1 !important; }
+    .decBlockchainWrapper .decredblockWrap.expanded .decredblock {
+      height: 192px;
+      top: -46px;
+      width: 90%;
+      left: 5%;
+      right: 5%;
+      z-index: 99; }
+      .decBlockchainWrapper .decredblockWrap.expanded .decredblock .info-block {
+        height: 180px; }
+
+.networkStatsWrapper {
+    padding: 60px 0px; }
+  .networkStatsWrapper .title {
+    font-family: "Source Sans Pro", sans-serif;
+    color: #2970FF;
+    font-size: 20px;
+    margin-bottom: 30px; }
+  .networkStatsWrapper .statCard {
+    height:30%;
+    max-height: 200px;
+    background: white;
+    padding:15px 35px;
+    font-family: "Source Sans Pro", sans-serif;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    margin-right: 35px;}
+    .networkStatsWrapper .statCard img {
+      float: left; }
+    .networkStatsWrapper .statCard p.statcard-title {
+      font-family: "Source Sans Pro", sans-serif;
+      color: #17173C;
+      margin-bottom: 0px;
+      font-size: 14px; }
+    .networkStatsWrapper .statCard .heading {
+      color: #8997A5;
+      font-size: 12px; }
+    .networkStatsWrapper .statCard .data {
+      font-family: "Inconsolata", monospace;
+      font-size: 22px;
+      font-weight: bold;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-end; }
+      .networkStatsWrapper .statCard .data p {
+        margin: 0px; }
+      .networkStatsWrapper .statCard span {
+        line-height: 29px;}
+    .networkStatsWrapper .statCard .subdata {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-end;
+      font-weight: semibold;
+      color: #8997A5; }
+      .networkStatsWrapper .statCard .subdata p {
+        margin: 0px; }
+      .networkStatsWrapper .statCard .subdata span {
+        font-size: 12px;}
+
+.showmore {
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 55px;
+  cursor: pointer;
+  border-radius: 4px; }
+  .showmore p {
+    margin-bottom: 0px;
+    font-family: "Source Sans Pro", sans-serif;
+    color: #8997A5;
+    font-size: 14px; }
+
+.blockhchainWrapper {
+  padding: 60px 0px; }
+  .blockhchainWrapper .title {
+    font-family: "Source Sans Pro", sans-serif;
+    color: #2970FF;
+    font-size: 20px;
+    margin-bottom: 30px; }
+  .blockhchainWrapper table#blockchainTable {
+    width: 100%;
+    font-family: "Source Sans Pro", sans-serif; }
+    .blockhchainWrapper table#blockchainTable tr {
+      border-bottom: 1px solid #d1d7dc; }
+    .blockhchainWrapper table#blockchainTable tr.heading {
+      background: #ffffff;
+      color: #17173C;
+      height: 40px; }
+    .blockhchainWrapper table#blockchainTable tr.data {
+      font-family: "Inconsolata", monospace;
+      height: 50px;
+      cursor: pointer;
+      transition: 0.1s linear; }
+      .blockhchainWrapper table#blockchainTable tr.data td.blocks {
+        color: #2970FF; }
+      .blockhchainWrapper table#blockchainTable tr.data td.selector {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 50px;
+        height: 50px; }
+        .blockhchainWrapper table#blockchainTable tr.data td.selector span {
+          position: absolute;
+          background: none;
+          border: 2px solid #2970FF;
+          width: 20px;
+          height: 20px;
+          border-radius: 50px; }
+        .blockhchainWrapper table#blockchainTable tr.data td.selector span.clicked {
+          background: #2970FF; }
+    .blockhchainWrapper table#blockchainTable tr.data:hover {
+      background: #eeeeee; }
+
+footer {
+  background: white;
+  height: 50px;
+  position: fixed;
+  width: 100%;
+  bottom: 0;
+  font-family: "Source Sans Pro", sans-serif;
+  color: #8997A5;
+  font-size: 12px; }
+  footer .container {
+    display: flex;
+    flex-direction: row;
+    height: 50px;
+    align-items: center;
+    justify-content: space-between; }
+    footer .container p {
+      margin-bottom: 0px; }
+    footer .container .left * {
+      float: left; }
+    footer .container .right {
+      position: relative;
+      padding-right: 17px;
+      display: flex;
+      align-items: center; }
+      footer .container .right span {
+        position: absolute;
+        width: 15px;
+        height: 15px;
+        right: 0px;
+        border-radius: 25px; }
+      footer .container .right span.red {
+        background: red;
+        border: 3px solid #ffcccc; }
+      footer .container .right span.green {
+        background: #0ead8f;
+        border: 3px solid #91f6e3; }
+
+#mainContainer.stats {
+  padding: 60px 0px; }
+  #mainContainer.stats .title {
+    font-family: "Source Sans Pro", sans-serif;
+    color: #3D5873;
+    font-size: 30px;
+    margin-bottom: 30px; }
+  #mainContainer.stats .statCardWrap {
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 5px;
+    border: 1px solid #d1d7dc;
+    overflow: hidden;
+    margin-bottom: 25px;
+    height: 160px; }
+    #mainContainer.stats .statCardWrap .heading {
+      display: flex;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      font-family: "Source Sans Pro", sans-serif;
+      font-size: 14px;
+      font-weight: bold;
+      background: #E6EAED;
+      color: #8997A5;
+      padding: 7.5px;
+      text-transform: uppercase; }
+    #mainContainer.stats .statCardWrap .content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center; }
+      #mainContainer.stats .statCardWrap .content .data {
+        width: 80%;
+        padding: 25px 0px; }
+        #mainContainer.stats .statCardWrap .content .data .count {
+          font-family: "Source Sans Pro", sans-serif;
+          font-size: 35px;
+          font-weight: bold;
+          color: #3D5873; }
+          #mainContainer.stats .statCardWrap .content .data .count span.subcount {
+            font-size: 16px; }
+        #mainContainer.stats .statCardWrap .content .data a .footing {
+          font-size: 14px;
+          color: #2970FF; }
+        #mainContainer.stats .statCardWrap .content .data .footing {
+          font-size: 14px;
+          color: #C4CBD2;
+          font-family: "Source Sans Pro", sans-serif; }
+    #mainContainer.stats .statCardWrap .progress {
+      position: relative;
+      overflow: visible;
+      background: #d9faf3;
+      border-radius: 100px;
+      margin-bottom: 5px;
+      margin-top: 35px; }
+      #mainContainer.stats .statCardWrap .progress .progress-bar {
+        border-radius: 100px;
+        background: #1dd0aa; }
+        #mainContainer.stats .statCardWrap .progress .progress-bar .tool {
+          position: absolute;
+          font-family: "Source Sans Pro", sans-serif;
+          transform: translateX(-50%);
+          top: -35px;
+          color: #17a385;
+          background: #c2f7eb;
+          border-radius: 5px;
+          padding: 5px;
+          transition: .6s linear; }
+    .lh15rem {
+      line-height: 1.5rem !important;
+    }
+
+#mainContainer.stats.collaspe .statCardWrap {
+  margin-bottom: 0px;
+  height: 75px; }
+  #mainContainer.stats.collaspe .statCardWrap .heading {
+    justify-content: flex-start;
+    padding-left: 5%; }
+  #mainContainer.stats.collaspe .statCardWrap .content {
+    justify-content: flex-start;
+    text-align: left; }
+    #mainContainer.stats.collaspe .statCardWrap .content .data {
+      position: relative;
+      width: 100%;
+      padding: 25px 5%; }
+      #mainContainer.stats.collaspe .statCardWrap .content .data .progress {
+        border-radius: 2px;
+        margin-bottom: 0px;
+        background: #8997A5;
+        margin-top: 0px; }
+        #mainContainer.stats.collaspe .statCardWrap .content .data .progress .progress-bar {
+          border-radius: 2px;
+          background: #1dd0aa; }
+          #mainContainer.stats.collaspe .statCardWrap .content .data .progress .progress-bar .tool {
+            display: none; }
+      #mainContainer.stats.collaspe .statCardWrap .content .data .count {
+        font-family: "Source Sans Pro", sans-serif;
+        font-size: 16px;
+        font-weight: normal; }
+        #mainContainer.stats.collaspe .statCardWrap .content .data .count span.subcount {
+          font-size: 16px; }
+      #mainContainer.stats.collaspe .statCardWrap .content .data .footing {
+        display: none; }
+      #mainContainer.stats.collaspe .statCardWrap .content .data .progress + .footing {
+        display: block;
+        position: absolute;
+        color: #ffffff;
+        top: 24px;
+        left: calc(5% + 7px);
+        z-index: 99; }
+
+.networkStatsWrap,
+.blockRewardsWrapper,
+.proofofstakeWrapper {
+  padding-right: 50px; }
+
+@media (min-width: 1400px) {
+  .container {
+    max-width: 1280px !important; } }
+@media (min-width: 800px) {
+  header .right .searchbox input {
+    width: 200px; }
+  header .right .searchbox.full input {
+    flex: 1; } }
+@media (max-width: 600px) {
+  header .right .searchbox input {
+    width: 150px; } } 
+
+/*# sourceMappingURL=main.css.map */

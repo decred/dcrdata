@@ -553,6 +553,7 @@ func mainCore() error {
 
 	webMux := chi.NewRouter()
 	webMux.Get("/", explore.Home)
+	webMux.Get("/nexthome", explore.NextHome)
 	webMux.Get("/ws", explore.RootWebsocket)
 	webMux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./public/images/favicon.ico")

@@ -1,0 +1,282 @@
+{{define "nexthome"}}
+<!DOCTYPE html>
+<html lang="en">
+{{ template "html-head" "Decred Block Explorer by dcrdata.org"}}
+<body>
+    {{ template "navbar" . }}
+    <div id="mainContainer" class="container" data-controller="main">
+        <div class="row">
+            <div class="col-md-6 networkStatsWrapper font-weight-bold">
+                <h4 class="title" >{{.NetName}} Network Statistics</h4>
+                {{with .Info}}
+                <div class="statCard general">
+                    <div class="row">
+                        <div class="col-12">
+                            <span><img src="/images/general.png" alt="general"><p class="statcard-title">General</p></span>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="heading">Available Supply (of 21 mil)</div>
+                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
+                                <span class="subcount"></span>
+                                <span class="pl-1 unit lh15rem">DCR</span>
+                            </div>
+                            <div class="subdata">
+                                <p class="count red"></p>
+                                <span class="currencyName"></span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="heading">Dev Reward</div>
+                            <div id="bsubsidy_dev" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 2 true 2)}}
+                                <span class="subcount"></span>
+                                <span class="pl-1 unit lh15rem"> DCR</span>
+                            </div>
+                            <div class="subdata">
+                                <p class="count red"></p>
+                                <span class="currencyName"></span>
+                            </div>
+                        </div>
+                        {{if .DevFund}}
+                        <div class="col-sm-4">
+                            <div class="heading"><a href="/address/{{.DevAddress}}">Project Fund</a></div>
+                            <div id="dev_fund" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .DevFund) 0 true)}}
+                                <span class="subcount"></span>
+                                <span class="pl-1 unit lh15rem"> DCR</span>
+                            </div>
+                            <div class="subdata">
+                                <p class="count red"></p>
+                                <span class="currencyName"></span>
+                            </div>
+                        </div>
+                        {{end}}
+                    </div>
+                </div>
+
+                <div class="statCard general">
+                    <div class="row">
+                        <div class="col-12">
+                            <span><img src="/images/staking.png" alt="staking"><p class="statcard-title">Staking</p></span>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="heading">Total Locked DCR</div>
+                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
+                                <span class="subcount"></span>
+                                <span class="pl-1 unit lh15rem">DCR</span>
+                            </div>
+                            <div class="subdata">
+                                <span class="count" id="pool_size_percentage">({{printf "%.2f" .PoolInfo.Percentage}}% of total supply)</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="heading">PoS Reward</div>
+                            <div id="bsubsidy_pos" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (divide .NBlockSubsidy.PoS 5)) 2 true 2)}}
+                                <span class="subcount"></span>
+                                <span class="pl-1 unit lh15rem"> DCR</span><span class="fs14 pl-1 unit lh15rem">/ticket</span>
+                            </div>
+                            <div class="subdata">
+                                <span id="ticket_reward" class="count green mono lh1rem">(+{{printf "%.2f" .TicketReward}}% per ~{{.RewardPeriod}})</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="heading">Ticket Price</div>
+                            <div id="coin_supply" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                                {{template "decimalParts" (float64AsDecimalParts .StakeDiff 2 false 2)}}
+                                <span class="subcount"></span>
+                                <span class="pl-1 unit lh15rem">DCR</span>
+                            </div>
+                            <div class="subdata">
+                                <p class="count red"></p>
+                                <span class="currencyName"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="statCard general">
+                    <div class="row">
+                        <div class="col-12">
+                            <span><img src="/images/mining.png" alt="mining"><p class="statcard-title">Mining</p></span>
+                        </div>
+                        <div class="col-sm-5">
+                            <div class="heading">Difficulty</div>
+                            <div id="difficulty" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                                {{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}
+                                <span class="subcount"></span>
+                                <span class="pl-1 unit lh15rem">DCR</span>
+                            </div>
+                            <div class="subdata">
+                                <p class="count red"></p>
+                                <span class="currencyName"></span>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="heading">PoW Reward</div>
+                            <div id="bsubsidy_pow" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 2 true 2)}}
+                                <span class="subcount"></span>
+                                <span class="pl-1 unit lh15rem"> DCR</span>
+                            </div>
+                            <div class="subdata">
+                                <p class="count green"></p>
+                                <span class="currencyName"></span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="heading">Hashrate</div>
+                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 2 false 2)}}
+                                <span class="subcount"></span>
+                                <span class="pl-1 unit lh15rem">Thrash/s</span>
+                            </div>
+                            <div class="subdata">
+                                <span class="count">(+4.24% in 24h)</span>
+                                <span class="currencyName"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+
+            </div>
+
+            <div class="col-md-6 decBlockchainWrapper">
+                <h4 class="title">Decred Blockchain</h4>
+                <div class="row">
+                    {{with .Mempool}}
+                    <div class="col-lg-4 col-md-6 decredblockWrap">
+                        <div class="decredblock">
+                            <div class="palette one" style="width:10%; left:0%;"></div>
+                            <div class="palette two" style="width:20%; left:10%;"></div>
+                            <div class="palette three" style="width:30%; left:30%;"></div>
+                            <div class="palette four" style="width:20%; left:60%;"></div>
+                            <div class="palette five" style="width:20%; left:80%;"></div>
+                            <div class="info-block">
+                                <span class="color-code">Mempool</span>
+                                <span class="timespan"></span>
+                                <div class="expanded-block">
+                                    <div class="row">
+                                        <div class="col-12" style="margin-left:6%;">
+                                            <img src="/images/amount.png" alt="amount" style="margin-right:3%;">
+                                            <div class="data mono lh1rem fs14-decimal fs24">
+                                                {{template "decimalParts" (float64AsDecimalParts .TotalOut 2 false 2)}}
+                                                <span class="subcount"></span>
+                                                <span class="pl-1 unit lh15rem"> DCR</span>
+                                            </div>
+                                            <div class="subdata">sent in {{.NumRegular}} transactions</div>
+                                        </div>
+                                        <div class="col-5" style="margin-left:6%;">
+                                            <img src="/images/tickets.png" alt="tickets" style="margin: 10% 10%;">
+                                            <div class="data">
+                                                <p class="count">{{.NumVotes}}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <img src="/images/staking.png" alt="staking" style="margin: 10% 10%;">
+                                            <div class="data">
+                                                <p class="count">{{.NumTickets}}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <button><a class="no-underline" href="/mempool">Show Block</a></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+
+                    {{range .Blocks}}
+                    <div class="col-lg-4 col-md-6 decredblockWrap">
+                        <div class="decredblock">
+                            <div class="palette one" style="width:10%; left:0%;"></div>
+                            <div class="palette two" style="width:20%; left:10%;"></div>
+                            <div class="palette three" style="width:30%; left:30%;"></div>
+                            <div class="palette four" style="width:20%; left:60%;"></div>
+                            <div class="palette five" style="width:20%; left:80%;"></div>
+                            <div class="info-block">
+                                <span class="color-code">{{.Height}}</span>
+                                <span class="row timespan" style="right:1.5rem;">
+                                    <span data-target="main.age" data-age="{{.BlockTime}}"></span>
+                                    <span style="margin-left:.2rem;">ago</span>
+                                </span>
+                                <div class="expanded-block">
+                                    <div class="row">
+                                        <div class="col-12" style="margin-left:6%;">
+                                            <img src="/images/amount.png" alt="amount" style="margin-right:3%;">
+                                            <div class="data mono lh1rem fs14-decimal fs24">
+                                                {{template "decimalParts" (float64AsDecimalParts .TotalSent 2 false 2)}}
+                                                <span class="subcount"></span>
+                                                <span class="pl-1 unit lh15rem"> DCR</span>
+                                            </div>
+                                            <div class="subdata">sent in {{.Transactions}} transactions</div>
+                                        </div>
+                                        <div class="col-5" style="margin-left:6%;">
+                                            <img src="/images/tickets.png" alt="tickets" style="margin: 10% 10%;">
+                                            <div class="data">
+                                                <p class="count">{{.Voters}}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <img src="/images/staking.png" alt="staking" style="margin: 10% 10%;">
+                                            <div class="data">
+                                                <p class="count">{{len .Tickets}}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                           <button><a class="text-center no-underline" href="/block/{{.Height}}">Show Block</a></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+
+  		        </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    $(document).ready(function(){
+    var count = 0;
+    $(".decBlockchainWrapper .decredblockWrap").click(function(){
+        $(this).toggleClass("expanded");
+        count++;
+
+        if (count > 1) {
+            $(".decBlockchainWrapper .decredblockWrap").removeClass("expanded");
+            count = 0;
+        }
+        console.log(count);
+    });
+
+    $(".tableRowCheck").click(function(){
+        $(this).toggleClass("clicked");
+    });
+
+    $(".searchbox img").click(function(){
+        $(".searchbox input").toggleClass("hide");
+    });
+
+
+    $(".decredblockWrap").click(
+        function() {
+            if ($( ".decredblockWrap" ).hasClass( "expanded" )) {
+                $( ".decredblockWrap" ).siblings().addClass("fade");
+            } else {
+                $( ".decredblockWrap" ).siblings().removeClass("fade");
+            }
+        })
+    });
+    </script>
+
+    {{  template "footer" . }}
+</body>
+</html>
+{{end}}

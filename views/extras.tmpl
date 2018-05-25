@@ -24,6 +24,7 @@
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
     <link href="/css/charts.css" rel="stylesheet">
+     <link href="/css/nexthome.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
     <script src="/js/turbolinks.js"></script>
     <script src="/js/jquery.js"></script>
@@ -47,7 +48,7 @@
         <div class="d-flex align-items-center flex-wrap">
             <div class="d-flex align-items-center">
                 <div class="col-sm-auto" style="padding: 0 2px">
-                    <a href="/" class="dcricon-decred no-underline"></a>
+                    <a href="/" class="no-underline"><img src="/images/logo.png" alt="dcr icon"></a>
                 </div>
             </div>
             <div class="col pl-2">
@@ -184,6 +185,37 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    function txRowHTMLFlexBox(tx) {
+        var totalTxt = ""
+        humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+            totalTxt += str.textContent
+        })
+        return `<div class="d-flex flex-table-row">
+            <a class="hash truncate-hash" style="flex: 1 1 auto" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a>
+            <span style="flex: 0 0 60px" class="mono text-right ml-1">${tx.Type}</span>
+            <span style="flex: 0 0 105px" class="mono text-right ml-1">${totalTxt}</span>
+            <span style="flex: 0 0 50px" class="mono text-right ml-1">${tx.size} B</span>
+            <span style="flex: 0 0 65px" class="mono text-right ml-1" data-age="${tx.time}">${humanize.timeSince(tx.time)}</span>
+        </div>`
+    }
+
+    function MempoolBlockDisplay(tx) {
+        var newBlock = ""
+        if (tx.Type == "Vote") {
+            if (tx.vote_info.block_validation.validity == true) {
+                    newBlock += '<a class="btn btn-success" href="/tx/${tx.hash}" role="button"></a>'
+            } else {
+                    newBlock += '<a class="btn btn-danger" href="/tx/${tx.hash}" role="button"></a>'
+            }
+        } else if (tx.Type == "Ticket"){
+            newBlock += '<a class="btn btn-secondary ${tx.FeeRateSize}-ticket" href="/tx/${tx.hash}" role="button"></a>'
+        } else if (tx.Type == "Revocation"){
+            newBlock += '<a class="btn btn-warning ${tx.FeeRateSize}-rev" href="/tx/${tx.hash}" role="button"></a>'
+        } else {
+            newBlock += '<a class="btn btn-info ${tx.TxAmount}-amount-${tx.ByteSize}" href="/tx/${tx.hash}" role="button"></a>'
+        }
+    }
+
     var ws; // websocket global
     async function createWebSocket(loc) {
         // wait a bit to prevent websocket churn from drive by page loads
@@ -208,6 +240,142 @@
         ws.registerEvtHandler("error", function(evt) {
             console.log("WebSocket error:", evt);
             updateConnectionStatus('Disconnected', false);
+        });
+
+        ws.registerEvtHandler("newtx", function(evt) {
+            console.log("New Transactions: ", evt);
+            var txs = JSON.parse(evt)
+            txs.forEach(function(tx, idx) {
+            addTxRow = function(str) {
+                var rows = $('#' + str +' tbody tr')
+                var totalTxt = ""
+                humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                    totalTxt += str.textContent
+                })
+                var newRow = '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
+                    tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
+                    '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
+                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+                var newRowHtml = $.parseHTML(newRow)
+                $(newRowHtml).insertBefore(rows.first())
+            }
+            
+            switch (tx.Type) {
+                case "Ticket":
+                    $('#mempool_ticket_number').text(parseInt($('#mempool_ticket_number').text()) + 1)
+                    addTxRow('mempool_tickets')
+                    break
+                case "Vote":
+                    $('#mempool_vote_number').text(parseInt($('#mempool_vote_number').text()) + 1)
+                    var rows = $('#mempool_votes tbody tr')
+                    var totalTxt = ""
+                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                        totalTxt += str.textContent
+                    })
+                    var newRow = '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
+                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
+                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
+                        '<td class="mono fs15">' + tx.size + ' B</td>' +
+                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+                    var newRowHtml = $.parseHTML(newRow)
+                    $(newRowHtml).insertBefore(rows.first())
+                    break
+                case "Regular":
+                    $('#mempool_regular_number').text(parseInt($('#mempool_regular_number').text()) + 1)
+                    addTxRow('mempool_transactions')
+                    break
+                case "Revoke":
+                    $('#mempool_revoke_number').text(parseInt($('#mempool_revoke_number').text()) + 1)
+                    addTxRow('mempool_revocations')
+                    break
+            }
+
+            if (window.location.pathname == "/"){
+                var rows = $('#mini-transactions .flex-table-row')
+                var newRowHtml = $.parseHTML(txRowHTMLFlexBox(tx))
+                rows.last().remove()
+                $(newRowHtml).insertBefore(rows.first())
+            }
+
+            if (window.location.pathname == "/nexthome"){
+                var rows = $('#mempool .card-header')
+                var newBlock = ""
+                if (tx.Type == "Vote") {
+                    if (tx.vote_info.block_validation.validity == true) {
+                            newBlock += '<a class="btn btn-success" href="/tx/${tx.hash}" role="button"></a>'
+                    } else {
+                            newBlock += '<a class="btn btn-danger" href="/tx/${tx.hash}" role="button"></a>'
+                    }
+                } else if (tx.Type == "Ticket"){
+                    newBlock += '<a class="btn btn-secondary ${tx.FeeRateSize}-ticket" href="/tx/${tx.hash}" role="button"></a>'
+                } else if (tx.Type == "Revocation"){
+                    newBlock += '<a class="btn btn-warning ${tx.FeeRateSize}-rev" href="/tx/${tx.hash}" role="button"></a>'
+                } else {
+                    newBlock += '<a class="btn btn-info ${tx.TxAmount}-amount-${tx.ByteSize}" href="/tx/${tx.hash}" role="button"></a>'
+                }
+            }
+        })
+        var newRowHtml = $.parseHTML(newBlock)
+        rows.last().remove()
+        $(newRowHtml).insertBefore(rows.first())
+        setTimeElements()
+        });
+
+        ws.registerEvtHandler("getmempooltxsResp", function(evt) {
+            console.log("Get Mempool: ", evt)
+            var newTable = ''
+            var makeNewTable =function (tx) {
+                    var totalTxt = ""
+                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                        totalTxt += str.textContent
+                    })
+                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
+                    tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    '<td class="mono fs15 text-right">' + totalTxt +'</td>' +
+                    '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
+                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) + '</td>'
+                }
+            var m = JSON.parse(evt)
+
+            m.tickets.forEach(makeNewTable)
+            $('#mempool_tickets tbody').html($.parseHTML(newTable))
+
+            newTable = ''
+            m.tx.forEach(makeNewTable)
+            $('#mempool_transactions tbody').html($.parseHTML(newTable))
+
+            newTable = ''
+            m.votes.forEach(function (tx) {
+                var rows = $('#mempool_votes tbody tr')
+                    var totalTxt = ""
+                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                        totalTxt += str.textContent
+                    })
+                    newTable += '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
+                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
+                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
+                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
+                        '<td class="mono fs15">' + tx.size + ' B</td>'  +
+                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+
+            })
+            $('#mempool_votes tbody').html($.parseHTML(newTable))
+
+            if (m.num_revokes > 0) {
+                newTable = ''
+                m.votes.forEach(makeNewTable)
+                $('#mempool_revocations tbody').html($.parseHTML(newTable))
+            }
+
+            setTimeElements()
         });
 
         ws.registerEvtHandler("ping", function(evt) {
@@ -238,13 +406,13 @@
             })
 
             // block summary data
-            var b = newBlock.block;
-            desktopNotifyNewBlock(b);
+            var fullb = newBlock.full_block;
+            desktopNotifyNewBlock(fullb);
 
-            var expTableRows = $('#explorertable tbody tr');
-            //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
+            var expTableRows = $('#explorerblocks div div div');
             if (expTableRows){
                 expTableRows.last().remove()
+                
                 var newRow = '<tr id="' + b.height + '">' +
                     '<td><a href="/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
                     '<td>' + b.tx + '</td>' +
@@ -255,9 +423,51 @@
                     '<td data-target="main.age"  data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
                     '<td>' + b.formatted_time + '</td>' +
                 '</tr>'
+
+
+                var newRow = '<div class="card"><div class="card-header">'
+                if (fullb.Votes != null) {
+                    for (var i = 0; i < fullb.Votes.length; i++) {
+                        if (fullb.Votes[i].VoteInfo.block_validation.validity == true) {
+                            newRow += '<a class="btn btn-success" href="/tx/' + fullb.Votes[i].TxID + '" role="button"></a>'
+                        } else {
+                            newRow += '<a class="btn btn-danger" href="/tx/' + fullb.Votes[i].TxID + '" role="button"></a>'
+                        }
+                    }
+                }
+                if (fullb.Misses != null) {
+                    for (var i = 0; i < fullb.Misses.length; i++) {
+                        newRow += '<a class="btn btn-outline-dark" href="/tx/' + fullb.Misses[i] + '" role="button"></a>'
+                    }
+                }
+                newRow += '<div class="row"></div>'
+                if (fullb.Tickets != null) {
+                    for (var i = 0; i < fullb.Tickets.length; i++) {
+                        newRow += '<a class="btn btn-secondary ' + fullb.Tickets[i].FeeRateSize + '-ticket" href="/tx/' + fullb.Tickets[i].TxID + '" role="button"></a>'
+                    }
+                }
+                if (fullb.Revs != null) {
+                    for (var i = 0; i < fullb.Revs.length; i++) {
+                        newRow += '<a class="btn btn-warning ' + fullb.Revs[i].FeeRateSize + '-rev" href="/tx/' + fullb.Revs[i].TxID + '" role="button"></a>'
+                    }
+                }
+                newRow += '<div class="row"></div>'
+                if (fullb.Tx != null) {
+                    for (var i = 0; i < fullb.Tx.length; i++) {
+                        if (fullb.Tx.Coinbase != true) {
+                            newRow += '<a class="btn btn-info ' + fullb.Tx[i].TxAmount + '-amount-' + fullb.Tx[i].ByteSize + '" href="/tx/' + fullb.Tx[i].TxID + '" role="button"></a>'
+                        }
+                    }
+                }
+                newRow += '</div>' + '<div class="card-body text-center">'
+                            + '<a href="/block/' + fullb.height + '">#' + fullb.height + '</a>'
+                            + '<p data-age="' + fullb.time + '"></p>'
+                            + '</div></div>'
                 var newRowHtml = $.parseHTML(newRow)
                 $(newRowHtml).insertBefore(expTableRows.first())
             }
+            
+
             var ex = newBlock.extra
             if ($("#bsubsidy_total").text() !== "") {
                 $("#difficulty").html(humanize.decimalParts(ex.difficulty, true, 8))
@@ -280,7 +490,66 @@
             }
         };
         ws.registerEvtHandler("newblock", updateBlockData);
+
+        var updateMempool = function (event) {
+            console.log("Received mempool message", event);
+            var m = JSON.parse(event);
+            console.log(m);
+
+            //mempool info
+            $('#mempool_ticket_number').text(m.num_tickets)
+            $('#mempool_vote_number').text(m.num_votes)
+            $('#mempool_regular_number').text(m.num_regular)
+            $('#mempool_revoke_number').text(m.num_revokes)
+            if (window.location.pathname == "/mempool") {
+                $('#best_block').text(m.block_height)
+                $('#best_block').attr('href', '/block/'+m.block_height)
+                $('#best_block_time').data('age', m.block_time)
+                $('#mempool_size').text(m.formatted_size)
+                ws.send("getmempooltxs", "")
+            }
+
+            if (window.location.pathname == "/") {
+                var newTable = ""
+                m.latest.forEach(function (tx) {
+                    var totalTxt = ""
+                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
+                        totalTxt += str.textContent
+                    })
+                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
+                    tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    '<td class="mono fs15">' + tx.Type + '</td>'+
+                    '<td class="mono fs15">' + totalTxt +'</td>' +
+                    '<td class="mono fs15">' + tx.size + ' B</td>' +
+                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
+                })
+                $('#mini-transactions tbody').html(newTable)
+            }
+
+            if (window.location.pathname == "/nexthome") {
+                var newTable = ""
+                m.latest.forEach(function (tx) {
+                    if (tx.Type == "Vote") {
+                        if (tx.vote_info.block_validation.validity == true) {
+                                newTable += '<a class="btn btn-success" href="/tx/' + tx.hash + '" role="button"></a>'
+                        } else {
+                                newTable += '<a class="btn btn-danger" href="/tx/' + tx.hash + '" role="button"></a>'
+                        }
+                    } else if (tx.Type == "Ticket"){
+                            newTable += '<a class="btn btn-secondary ' + tx.FeeRateSize + '-ticket" href="/tx/' + tx.hash + '" role="button"></a>'
+                    } else if (tx.Type == "Revocation"){
+                            newTable += '<a class="btn btn-warning ' + tx.FeeRateSize + '-rev" href="/tx/' + tx.hash + '" role="button"></a>'
+                    } else {
+                            newTable += '<a class="btn btn-info ' + tx.TxAmount + '-amount-' + tx.ByteSize + '" href="/tx/' + tx.hash +'" role="button"></a>'
+                    }
+                })
+                $('#mempool').html(newTable)
+            }
+            updateAges()
+        };
+        ws.registerEvtHandler("mempool", updateMempool);
     }
+
     document.getElementById('search').onkeypress = function(e){
         if (!e) e = window.event;
         var keyCode = e.keyCode || e.which;
@@ -557,4 +826,18 @@ const app = Stimulus.Application.start()
 <script src="/js/controllers/ticketpool.js" data-turbolinks-eval="false"></script>
 {{end}}
 
-{{define "decimalParts"}}<span class="int">{{ index . 0 }}</span><span class="dot">.</span><span class="decimal">{{ index . 1 }}<span class="trailing-zeroes">{{ index . 2 }}</span></span>{{end}}
+{{define "decimalParts"}}
+    {{if eq (len .) 4}}
+        <span class="int">{{ index . 0 }}.{{ index . 1 }}</span>
+        <span class="decimal lh15rem">{{ index . 2 }}</span>
+        <span class="decimal lh15rem trailing-zeroes">{{ index . 3 }}</span>
+    {{else}}
+        <span class="int">{{ index . 0 }}</span>
+        {{if (gt (len (index . 1)) 0) | (gt (len (index . 2)) 0)}}
+            <span class="dot">.</span>
+            <span class="decimal">{{ index . 1 }}
+                <span class="trailing-zeroes">{{ index . 2 }}</span>
+            </span>
+        {{end}}
+    {{end}}
+{{end}}

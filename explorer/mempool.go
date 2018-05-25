@@ -349,10 +349,14 @@ func (v *BlockValidation) ForBlock(blockHash string) bool {
 // getLastBlock returns the last block hash, height and time
 func (exp *explorerUI) getLastBlock() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
 	exp.NewBlockDataMtx.RLock()
-	lastBlock = exp.NewBlockData.Height
-	lastBlockTime = exp.NewBlockData.BlockTime
-	lastBlockHash = exp.NewBlockData.Hash
+	lastBlock = exp.NewFullBlockData.Height
+	lastBlockTime = exp.NewFullBlockData.BlockTime
+	lastBlockHash, err := exp.blockData.GetBlockHash(lastBlock)
+	if err != nil {
+		log.Warnf("Could not get block hash for last block")
+	}
 	exp.NewBlockDataMtx.RUnlock()
+
 	return
 }
 

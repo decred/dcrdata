@@ -324,3 +324,15 @@ input ~ .checkmark {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+.d-val {
+    font-size: 10px;
+    font-weight: bold;
+    text-align: right;
+}
+.c-val {
+    background-color:#d4dfe4;
+}
+.img-val {
+    height:30px;
+    margin:2px;
+}
