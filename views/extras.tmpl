@@ -618,8 +618,8 @@
         }
         var location = currentTarget.attr('href');
         if (location !== undefined) {
-            keepIndexOnLoad = currentTarget.data("keyboard-target-index-onload")
-            if (keepIndexOnLoad) {
+            var preserveKeyNavIndex = currentTarget.data("preserveKeynavIndex")
+            if (preserveKeyNavIndex) {
                 jumpToIndexOnLoad = currentIndex
             }
             currentTarget.addClass("activated")

@@ -74,6 +74,9 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	if err != nil || height > idx {
 		height = idx
 	}
+	if height < 0 {
+		height = 0
+	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
 	if err != nil || rows > maxExplorerRows || rows < minExplorerRows || height-rows < 0 {
