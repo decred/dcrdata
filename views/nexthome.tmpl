@@ -150,8 +150,10 @@
 		   {{range .Blocks}}
   		   <div class="card">
     		     <div class="card-header"></div>
-    		     <div class="card-body">#{{.Height}}</div>
-		     <div class="card-text" data-age="{{.BlockTime}}"></div>	  
+    		     <div class="card-body text-center">#{{.Height}}
+                       <p data-age="{{.BlockTime}}"></p>
+                       <p>{{.Voters}} Votes</p>
+		     </div>  
     		   </div>
 		   {{end}}
   		</div>
