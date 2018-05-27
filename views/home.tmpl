@@ -104,19 +104,19 @@
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem">POW REWARD</td>
+                            <td class="text-right pr-2 lh1rem">POW</td>
                             <td>
                                 <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_pow">{{template "decimalParts" (amountAsDecimalParts .NBlockSubsidy.PoW true)}}</span><span class="unit"> DCR</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem">POS REWARD</td>
+                            <td class="text-right pr-2 lh1rem">POS</td>
                             <td>
                                 <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_pos">{{template "decimalParts" (amountAsDecimalParts ( divide .NBlockSubsidy.PoS 5) true)}}</span><span class="unit"> DCR</span><span class="fs14"> / ticket</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem">DEV REWARD</td>
+                            <td class="text-right pr-2 lh1rem">PROJECT</td>
                             <td>
                                 <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_dev">{{template "decimalParts" (amountAsDecimalParts .NBlockSubsidy.Dev true)}}</span><span class="unit"> DCR</span>
                             </td>
@@ -131,7 +131,7 @@
                         </tr>
                         {{if .DevFund}}
                         <tr>
-                            <td class="text-right pr-2 lh1rem"><a href="/address/{{.DevAddress}}">DEVELOPMENT FUND</a></td>
+                            <td class="text-right pr-2 lh1rem"><a href="/address/{{.DevAddress}}">PROJECT FUND</a></td>
                             <td>
                                 <span id="dev_fund" class="mono lh1rem fs14-decimal fs18">{{template "decimalParts" (amountAsDecimalParts .DevFund true)}}</span><span class="unit"> DCR</span>
                             </td>
