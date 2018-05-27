@@ -9,11 +9,11 @@
         <h4><span>Blocks</span></h4>
         <div class="row fs13">
             <div class="col d-flex justify-content-between">
-                {{ if gt (index .Data 0).Height 0  }}
+                {{ if ge (index .Data 0).Height .Rows }}
                 <a
                     id="prev"
                     class="no-underline"
-                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 (len .Data)) }}&rows=20"
+                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
                     data-keynav-priority
                 >◄ Older</a>
                 {{end}}
@@ -21,7 +21,7 @@
                  <a
                     id="next"
                     class="no-underline"
-                    href="/blocks?height={{ add (index .Data 0).Height (int64 (len .Data)) }}&rows=20"
+                    href="/blocks?height={{ add (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
                     data-preserve-keynav-index="true"
                 >Newer ►</a>
                 {{end}}
