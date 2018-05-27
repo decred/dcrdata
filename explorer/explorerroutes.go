@@ -76,9 +76,16 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-	if err != nil || rows > maxExplorerRows || rows < minExplorerRows || height-rows < 0 {
+
+	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
 		rows = minExplorerRows
 	}
+
+	oldestBlock := height - rows + 1
+	if oldestBlock < 0 {
+		height = rows - 1
+	}
+
 	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
@@ -89,11 +96,13 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("explorer", struct {
 		Data      []*BlockBasic
 		BestBlock int
+		Rows      int
 		Version   string
 		NetName   string
 	}{
 		summaries,
 		idx,
+		rows,
 		exp.Version,
 		exp.NetName,
 	})
