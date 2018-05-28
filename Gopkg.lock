@@ -31,12 +31,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/btcsuite/btclog"
-  packages = ["."]
-  revision = "84c8d2346e9fc8c7b947e243b9c24e6df9fd206a"
-
-[[projects]]
-  branch = "master"
   name = "github.com/btcsuite/go-flags"
   packages = ["."]
   revision = "6c288d648c1cc1befcb90cb5511dcacf64ae8e61"
@@ -71,12 +65,6 @@
   name = "github.com/btcsuite/snappy-go"
   packages = ["."]
   revision = "0bdef8d067237991ddaa1bb6072a740bc40601ba"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/btcsuite/websocket"
-  packages = ["."]
-  revision = "31079b6807923eb23992c421b114992b95131b55"
 
 [[projects]]
   branch = "master"
@@ -137,7 +125,7 @@
     "txscript",
     "wire"
   ]
-  revision = "2e293f28bfdd81e08b012bd83b7ccdb12e19a94a"
+  revision = "7a457fc9c32a415604aba12a6aedd96dfc3f470e"
 
 [[projects]]
   branch = "master"
@@ -150,7 +138,13 @@
     "wallet/udb",
     "walletdb"
   ]
-  revision = "bb6dd72b9b092efa739242893bd7b4dcc4d6bb27"
+  revision = "03d9f2fbabf9db9803bd48a03185fc8cda59d0d6"
+
+[[projects]]
+  name = "github.com/decred/slog"
+  packages = ["."]
+  revision = "fbd821ef791ba2b8ae945f5d44f4e49396d230c5"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -309,6 +303,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "933c7a02d3161f35a6df99bc10dcb7d2f43d4b2b134b48877cdff54130f7faf1"
+  inputs-digest = "7ff9de567f336b0e635f43022eb24981052129452c9569381930a3e5b23d4488"
   solver-name = "gps-cdcl"
   solver-version = 1
