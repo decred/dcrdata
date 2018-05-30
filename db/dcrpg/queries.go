@@ -6,7 +6,9 @@ package dcrpg
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/dcrutil"
@@ -1092,7 +1094,7 @@ func RetrieveBlockHeight(db *sql.DB, hash string) (height int64, err error) {
 }
 
 func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, currentBlockHeight int64) ([]apitypes.AddressTxnOutput, error) {
-	var outputs []apitypes.AddressTxnOutput
+	outputs := make([]apitypes.AddressTxnOutput, 0)
 
 	stmt, err := db.Prepare(internal.SelectAddressUnspentWithTxn)
 	if err != nil {
@@ -1109,18 +1111,51 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	defer rows.Close()
 
 	for rows.Next() {
+		var pkScript []byte
+		var blockHeight int64
+		var atoms int64
+		var blocktime uint64 // not required for insight-api spec
 		var txnOutput apitypes.AddressTxnOutput
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
-			&txnOutput.Atoms, &txnOutput.Height, &txnOutput.BlockHash); err != nil {
+			&atoms, &blockHeight, &blocktime, &txnOutput.Vout, &pkScript); err != nil {
 			fmt.Println(err)
 			log.Error(err)
 		}
-		txnOutput.Amount = txnOutput.Atoms * 100000000
-		txnOutput.Confirmations = currentBlockHeight - txnOutput.Height
+		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
+		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
+		txnOutput.Satoshis = atoms
+		txnOutput.Height = blockHeight
+		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
 		outputs = append(outputs, txnOutput)
 	}
 
 	return outputs, nil
+}
+
+// RetrieveAddressTxnsByFundingTx zen comment
+func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []string) (aSpendByFunHash []*apitypes.AddressSpendByFunHash, err error) {
+
+	query := fmt.Sprintf(`SELECT funding_tx_vout_index, spending_tx_hash, spending_tx_vin_index, 
+		block_height FROM addresses LEFT JOIN 
+		transactions on transactions.tx_hash=spending_tx_hash WHERE 
+		address in ('%s') and funding_tx_hash='%v';`, strings.Join(addresses, "','"), fundTxHash)
+
+	rows, err := db.Query(query)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	for rows.Next() {
+		var addr apitypes.AddressSpendByFunHash
+		err = rows.Scan(&addr.FundingTxVoutIndex, &addr.SpendingTxHash, &addr.SpendingTxVinIndex, &addr.BlockHeight)
+		if err != nil {
+			return
+		}
+
+		aSpendByFunHash = append(aSpendByFunHash, &addr)
+	}
+	return
 }
 
 func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {
@@ -1218,7 +1253,6 @@ func RetrieveVoutValues(db *sql.DB, txHash string) (values []uint64, txInds []ui
 		txInds = append(txInds, ind)
 		txTrees = append(txTrees, tree)
 	}
-
 	return
 }
 

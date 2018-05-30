@@ -4,6 +4,8 @@
 package dcrpg
 
 import (
+	"fmt"
+
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/api/types"
@@ -42,16 +44,16 @@ func (pgb *ChainDB) GetHeight() int {
 
 // SendRawTransaction attempts to decode the input serialized transaction,
 // passed as hex encoded string, and broadcast it, returning the tx hash.
-func (db *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
+func (pgb *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
 	msg, err := txhelpers.MsgTxFromHex(txhex)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: could not decode hex")
 		return "", err
 	}
-	hash, err := db.Client.SendRawTransaction(msg, true)
+	hash, err := pgb.Client.SendRawTransaction(msg, true)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: %v", err)
-		return "", err
+		return fmt.Sprintf("%v", err), err
 	}
 	return hash.String(), err
 }
@@ -148,10 +150,15 @@ func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.In
 		return nil
 	}
 
-	var totalReceived, totalSent, unSpent dcrutil.Amount
-	totalReceived, _ = dcrutil.NewAmount(float64(balance.TotalSpent + balance.TotalUnspent))
-	totalSent, _ = dcrutil.NewAmount(float64(balance.TotalSpent))
-	unSpent, _ = dcrutil.NewAmount(float64(balance.TotalUnspent))
+	var totalReceived, totalSent, unSpent float64
+	var TotalReceivedSat, TotalSentSat dcrutil.Amount
+
+	totalReceived = dcrutil.Amount(balance.TotalSpent + balance.TotalUnspent).ToCoin()
+	totalSent = dcrutil.Amount(balance.TotalSpent).ToCoin()
+	unSpent = dcrutil.Amount(balance.TotalUnspent).ToCoin()
+
+	TotalReceivedSat, _ = dcrutil.NewAmount(totalReceived)
+	TotalSentSat, _ = dcrutil.NewAmount(totalSent)
 
 	var transactionIdList []string
 	for _, row := range rows {
@@ -167,11 +174,14 @@ func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.In
 	}
 
 	return &apitypes.InsightAddressInfo{
-		Address:        address,
-		TotalReceived:  totalReceived,
-		TransactionsID: transactionIdList,
-		TotalSent:      totalSent,
-		Unspent:        unSpent,
+		Address:          address,
+		TotalReceived:    totalReceived,
+		TransactionsID:   transactionIdList,
+		TotalSent:        totalSent,
+		Unspent:          unSpent,
+		TotalReceivedSat: TotalReceivedSat,
+		TotalSentSat:     TotalSentSat,
+		TxApperances:     len(transactionIdList),
 	}
 }
 
@@ -185,25 +195,26 @@ func (pgb *ChainDB) GetBlockSummaryTimeRange(min, max int64, limit int) []dbtype
 	return blockSummary
 }
 
-func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address string) *apitypes.AddressTxnOutput {
-	tx := new(apitypes.AddressTxnOutput)
-	tx.Address = address
-	tx.TxnID = data.Txid
-	tx.Height = 0
+// TODO:  Unused function.  Depreciated?
+// func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address string) *apitypes.AddressTxnOutput {
+// 	tx := new(apitypes.AddressTxnOutput)
+// 	tx.Address = address
+// 	tx.TxnID = data.Txid
+// 	tx.Height = 0
 
-	for i := range data.Vout {
-		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
-			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
-				tx.ScriptPubKey = data.Vout[i].ScriptPubKey.Hex
-				tx.Vout = data.Vout[i].N
-				tx.Atoms += data.Vout[i].Value
-			}
-		}
-	}
+// 	for i := range data.Vout {
+// 		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
+// 			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
+// 				tx.ScriptPubKey = data.Vout[i].ScriptPubKey.Hex
+// 				tx.Vout = data.Vout[i].N
+// 				tx.Amount += data.Vout[i].Value
+// 			}
+// 		}
+// 	}
 
-	tx.Amount = tx.Atoms * 100000000
-	return tx
-}
+// 	//tx.Amount = tx.Atoms * 100000000
+// 	return tx
+// }
 
 // GetAddressUTXO returns the unspent transaction outputs (UTXOs) paying to the
 // specified address in a []apitypes.AddressTxnOutput.
@@ -219,4 +230,15 @@ func (pgb *ChainDB) GetAddressUTXO(address string) []apitypes.AddressTxnOutput {
 		return nil
 	}
 	return txnOutput
+}
+
+// GetAddressSpendByFunHash zen comment
+func (pgb *ChainDB) GetAddressSpendByFunHash(addresses []string, fundHash string) []*apitypes.AddressSpendByFunHash {
+
+	AddrRow, err := RetrieveAddressTxnsByFundingTx(pgb.db, fundHash, addresses)
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+	return AddrRow
 }

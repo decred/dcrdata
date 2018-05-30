@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,24 +18,33 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrdata/txhelpers"
 )
+
+// DataSourceLite specifies an interface for collecting data from the built-in
+// databases (i.e. SQLite, storm, ffldb)
+type DataSourceLite interface {
+	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
+}
 
 type insightApiContext struct {
 	nodeClient *rpcclient.Client
 	BlockData  *dcrpg.ChainDBRPC
+	MemPool    DataSourceLite
 	Status     apitypes.Status
 	statusMtx  sync.RWMutex
 	JSONIndent string
 }
 
 // NewInsightContext Constructor for insightApiContext
-func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, JSONIndent string) *insightApiContext {
+func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, memPoolData DataSourceLite, JSONIndent string) *insightApiContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 	version := semver.NewSemver(1, 0, 0)
@@ -42,6 +52,7 @@ func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, JS
 	newContext := insightApiContext{
 		nodeClient: client,
 		BlockData:  blockData,
+		MemPool:    memPoolData,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -70,7 +81,7 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 }
 
 func writeText(w http.ResponseWriter, str string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
@@ -82,14 +93,25 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	tx, _ := c.BlockData.GetRawTransaction(txid)
-	if tx == nil {
+	// Return raw transaction
+	txOld, err := c.BlockData.GetRawTransaction(txid)
+	if err != nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
+		writeText(w, "Not found")
+		return
+	}
+
+	txsOld := []*dcrjson.TxRawResult{txOld}
+
+	// convert to insight struct
+	txsNew, err := c.TxConverter(txsOld)
+
+	if err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	writeJSON(w, tx, c.getIndentQuery(r))
+	writeJSON(w, txsNew[0], c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
@@ -164,43 +186,150 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
-	rawHexTx := m.GetRawHexTx(r)
+	// Allow parameters to be posted either as query or in the body as a JSON
+	rawHexTx := m.GetRawHexTx(r) // Check for a query post
+
 	if rawHexTx == "" {
-		http.Error(w, http.StatusText(422), 422)
-		return
+		// No query post.  Check for a Body JSON
+		// Read and close the JSON-RPC request body from the caller.
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			apiLog.Errorf("error reading JSON message: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		var req apitypes.InsightRawTx
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			apiLog.Errorf("Failed to parse request: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		// Successful extraction of Body JSON
+		rawHexTx = req.Rawtx
 	}
 
 	txid, err := c.BlockData.SendRawTransaction(rawHexTx)
 	if err != nil {
 		apiLog.Errorf("Unable to send transaction %s", rawHexTx)
-		http.Error(w, http.StatusText(422), 422)
+		// Write the raw error out for display
+		writeText(w, txid)
 		return
 	}
-	writeJSON(w, txid, c.getIndentQuery(r))
-}
 
-func (c *insightApiContext) getAddressTxnOutput(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
-		http.Error(w, http.StatusText(422), 422)
-		return
+	txidJSON := struct {
+		TxidHash string `json:"rawtx"`
+	}{
+		txid,
 	}
-	txnOutputs := c.BlockData.ChainDB.GetAddressUTXO(address)
-	writeJSON(w, txnOutputs, c.getIndentQuery(r))
+	writeJSON(w, txidJSON, c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
-	addresses := strings.Split(m.GetAddressCtx(r), ",")
+	var addresses []string
+	addrs := m.GetAddressCtx(r)
+	if addrs != "" {
+		if strings.Contains(addrs, ",") {
+			addresses = strings.Split(addrs, ",")
+		} else {
+			addresses = []string{addrs}
+		}
+	}
+	// Confirm we have at least one address and if not
+	// check the post body.
+	if len(addresses) == 0 {
+		// No query post.  Check for a Body JSON
+		// Read and close the JSON-RPC request body from the caller.
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			apiLog.Errorf("error reading JSON message: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		var req apitypes.InsightAddr
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			apiLog.Errorf("Failed to parse request: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		// Successful extraction of Body JSON
+		if strings.Contains(req.Addrs, ",") {
+			addresses = strings.Split(req.Addrs, ",")
+		} else {
+			addresses = []string{req.Addrs}
+		}
+	}
 
-	var txnOutputs []apitypes.AddressTxnOutput
+	txnOutputs := make([]apitypes.AddressTxnOutput, 0)
 
 	for _, address := range addresses {
 		if address == "" {
 			http.Error(w, http.StatusText(422), 422)
 			return
 		}
-		utxo := c.BlockData.ChainDB.GetAddressUTXO(address)
-		txnOutputs = append(txnOutputs, utxo...)
+		addressOuts, _, _ := c.MemPool.UnconfirmedTxnsForAddress(address)
+
+		confirmedTxnOutputs := c.BlockData.ChainDB.GetAddressUTXO(address)
+
+		// Add mempool tx to the utxo set
+	OUTER:
+		for _, f := range addressOuts.Outpoints {
+			fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if fundingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+			// TODO: Confirmed() not not always return true for txs that have
+			// already been confirmed in a block.  The mempool cache update
+			// process should correctly update these.  Until we sort out why we
+			// need to do one more search on utxo and do not add if this is
+			// already in the list as a confirmed tx.
+			for _, utxo := range confirmedTxnOutputs {
+				if utxo.TxnID == f.Hash.String() && utxo.Vout == f.Index {
+					continue OUTER
+				}
+			}
+
+			var txnOutput apitypes.AddressTxnOutput
+			txnOutput.Address = address
+			txnOutput.TxnID = fundingTx.Hash().String()
+			txnOutput.Vout = f.Index
+			txnOutput.ScriptPubKey = hex.EncodeToString(fundingTx.Tx.TxOut[f.Index].PkScript)
+			txnOutput.Amount = dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin()
+			txnOutput.Satoshis = fundingTx.Tx.TxOut[f.Index].Value
+			txnOutput.Confirmations = 0
+			txnOutput.BlockTime = fundingTx.MemPoolTime
+
+			txnOutputs = append(txnOutputs, txnOutput)
+		}
+
+		txnOutputs = append(txnOutputs, confirmedTxnOutputs...)
+
+		// Search for items in mempool to remove from the utxo set
+		for _, f := range addressOuts.PrevOuts {
+			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if spendingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+			for g, utxo := range txnOutputs {
+				if utxo.TxnID == f.PreviousOutpoint.Hash.String() && utxo.Vout == f.PreviousOutpoint.Index {
+					// Found a utxo that is unconfirmed spent.  Remove from slice
+					txnOutputs = append(txnOutputs[:g], txnOutputs[g+1:]...)
+				}
+			}
+		}
 	}
 
 	writeJSON(w, txnOutputs, c.getIndentQuery(r))
@@ -233,40 +362,105 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 		}
 		txs := c.BlockData.InsightGetAddressTransactions(address, 20, 0)
 		if txs == nil {
-			http.Error(w, http.StatusText(422), 422)
-			return
+			txs = make([]*dcrjson.SearchRawTransactionsResult, 0)
+
 		}
 
 		txsOutput := struct {
-			Txs []*dcrjson.SearchRawTransactionsResult `json:"txs"`
+			PagesTotal int32                                  `json:"pagesTotal"`
+			Txs        []*dcrjson.SearchRawTransactionsResult `json:"txs"`
 		}{
+			1,
 			txs,
 		}
+
 		writeJSON(w, txsOutput, c.getIndentQuery(r))
 	}
 }
 
 func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
+
+	// Allow parameters to be posted either as query or in the body as a JSON if
+	// address is in query fields then look for from/to (offset/count) in query
+	// fields as well
 	address := m.GetAddressCtx(r)
 	count := m.GetCountCtx(r)
 	offset := m.GetOffsetCtx(r)
+	var req apitypes.InsightMultiAddrsTx
+
+	if address == "" {
+		// No query post.  Check for a Body JSON
+		// Read and close the JSON-RPC request body from the caller.
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			apiLog.Errorf("error reading JSON message: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			apiLog.Errorf("Failed to parse request: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		// Successful extraction of Body JSON
+		address = req.Addresses
+
+		if req.To == "" {
+			req.To = "20"
+		}
+
+		if req.From == "" {
+			req.From = "0"
+		}
+
+		offset, err = strconv.Atoi(req.From)
+		if err != nil {
+			http.Error(w, "invalid from value", 422)
+			return
+		}
+		count, err = strconv.Atoi(req.To)
+		if err != nil {
+			http.Error(w, "invalid to value", 422)
+			return
+		}
+	}
 
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	addresses := strings.Split(address, ",")
-
+	// init block
 	addressOutput := new(apitypes.InsightAddress)
+	rawTxs := []*dcrjson.SearchRawTransactionsResult{}
+	txsOld := []*dcrjson.TxRawResult{}
 
+	addresses := strings.Split(address, ",")
 	addressOutput.From = offset
 	addressOutput.To = count
 
 	for _, addr := range addresses {
-		addressTxn := c.BlockData.InsightGetAddressTransactions(addr, count, offset)
-		addressOutput.Transactions = append(addressOutput.Transactions, addressTxn...)
+		rawTxs = append(rawTxs, c.BlockData.InsightGetAddressTransactions(addr, count, offset)...)
 	}
+
+	for _, rawTx := range rawTxs {
+		txOld, err := c.BlockData.GetRawTransaction(rawTx.Txid)
+		if err != nil {
+			apiLog.Errorf("Unable to get transaction %s", rawTx.Txid)
+		}
+		txsOld = append(txsOld, txOld)
+	}
+
+	// convert to insight struct
+	txsNew, err := c.TxConverterWithParams(txsOld, req)
+	if err != nil {
+		apiLog.Error("Unable to get transactions")
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	addressOutput.Transactions = append(addressOutput.Transactions, txsNew...)
 
 	writeJSON(w, addressOutput, c.getIndentQuery(r))
 }

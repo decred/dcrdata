@@ -33,31 +33,32 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
+	mux.Use(middleware.StripSlashes)
 
 	// Block endpoints
 	mux.With(m.BlockDateQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
 	mux.With(app.BlockHashPathAndIndexCtx).Get("/block/{blockhash}", app.getBlockSummary)
 	mux.With(m.BlockIndexPathCtx).Get("/block-index/{idx}", app.getBlockHash)
-	mux.With(m.BlockIndexOrHashPathCtx).Get("/rawblock/{idx}", app.getRawBlock)
+	mux.With(m.BlockIndexOrHashPathCtx).Get("/rawblock/{idxorhash}", app.getRawBlock)
 
 	// Transaction endpoints
 	mux.With(m.RawTransactionCtx).Post("/tx/send", app.broadcastTransactionRaw)
 	mux.With(m.TransactionHashCtx).Get("/tx/{txid}", app.getTransaction)
 	mux.With(m.TransactionHashCtx).Get("/rawtx/{txid}", app.getTransactionHex)
-	mux.With(m.TransactionsCtx).Get("/txs", app.getTransactions)
+	mux.With(m.PaginationCtx, m.TransactionsCtx).Get("/txs", app.getTransactions)
 
 	// Status
 	mux.With(app.StatusInfoCtx).Get("/status", app.getStatusInfo)
 
 	// Addresses endpoints
 	mux.Route("/addrs", func(rd chi.Router) {
-		mux.Route("/{address}", func(ra chi.Router) {
+		rd.Route("/{address}", func(ra chi.Router) {
 			ra.Use(m.AddressPathCtx, m.PaginationCtx)
 			ra.Get("/txs", app.getAddressesTxn)
 			ra.Get("/utxo", app.getAddressesTxnOutput)
 		})
 		// POST methods
-		rd.With(m.PaginationCtx, m.AddressPostCtx).Post("/txs", app.getAddressesTxn)
+		rd.With(m.AddressPostCtx, m.PaginationCtx).Post("/txs", app.getAddressesTxn)
 		rd.With(m.AddressPostCtx).Post("/utxo", app.getAddressesTxnOutput)
 	})
 
@@ -65,7 +66,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.Route("/addr/{address}", func(rd chi.Router) {
 		rd.Use(m.AddressPathCtx)
 		rd.With(m.PaginationCtx).Get("/", app.getAddressInfo)
-		rd.Get("/utxo", app.getAddressTxnOutput)
+		rd.Get("/utxo", app.getAddressesTxnOutput)
 		rd.Get("/balance", app.getAddressBalance)
 		rd.Get("/totalReceived", app.getAddressTotalReceived)
 		// TODO Missing unconfirmed balance implementation
