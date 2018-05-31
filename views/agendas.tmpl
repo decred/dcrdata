@@ -1,0 +1,45 @@
+{{define "agendas"}}
+<!DOCTYPE html>
+<html lang="en">
+    {{template "html-head" printf "Decred Vote Agendas Page"}}
+    <body>
+        {{template "navbar"}}
+        <div class="container">
+            <div class="row justify-content-between">
+                    <div class="col-md-7 col-sm-6 d-flex">
+                        <h4 class="mb-2">Agendas
+                        </h4>
+                    </div>
+                </div>
+            </div>
+            <table class="table table-mono-cells table-sm striped">
+                <thead>
+                    <th>Agenda ID</th>
+                    <th>Description</th>
+                    <th>Mask</th>
+                    <th>Status</th>
+                    <th>Quorum Progress</th>
+                    <th>Vote Version</th>
+                    <th>Start Time</th>
+                    <th>Expire Time</th>
+                </thead>
+                {{range $i, $v := .Agendas}}
+                {{with $v}}
+                <tbody>
+                    <td><a href="/agenda/{{.Id}}">{{.Id}}</a></td>
+                    <td>{{.Description}}</td>
+                    <td>{{.Mask}}</td>
+                    <td>{{.Status}}</td>
+                    <td>{{.QuorumProgress}}</td>
+                    <td>{{.VoteVersion}}</td>
+                    <td>{{TimeConvertion .StartTime}}</td>
+                    <td>{{TimeConvertion .ExpireTime}}</td>
+                </tbody>
+                {{end}}
+                {{end}}
+            </table>
+        </div>
+        {{template "footer" . }}
+    </body>
+</html>
+{{end}}
