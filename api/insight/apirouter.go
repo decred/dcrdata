@@ -43,7 +43,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 
 	// Transaction endpoints
 	mux.With(m.RawTransactionCtx).Post("/tx/send", app.broadcastTransactionRaw)
-	mux.With(m.TransactionHashCtx).Get("/tx/{txid}", app.getTransaction)
+	mux.With(m.TransactionHashCtx).Get("/tx/{txid}", app.getTransaction) // Insight API [6]
 	mux.With(m.TransactionHashCtx).Get("/rawtx/{txid}", app.getTransactionHex)
 	mux.With(m.PaginationCtx, m.TransactionsCtx).Get("/txs", app.getTransactions)
 
@@ -53,12 +53,12 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	// Addresses endpoints
 	mux.Route("/addrs", func(rd chi.Router) {
 		rd.Route("/{address}", func(ra chi.Router) {
-			ra.Use(m.AddressPathCtx, m.PaginationCtx)
-			ra.Get("/txs", app.getAddressesTxn)
+			ra.Use(app.AddressPathCtx, app.PaginationCtx)
+			ra.Get("/txs", app.getAddressesTxn) // Insight API [15]
 			ra.Get("/utxo", app.getAddressesTxnOutput)
 		})
 		// POST methods
-		rd.With(m.AddressPostCtx, m.PaginationCtx).Post("/txs", app.getAddressesTxn)
+		rd.With(app.PostAddrsTxsCtx).Post("/txs", app.getAddressesTxn) // Insight API [16] [16.1] [16.2] [16.3] [16.4]
 		rd.With(m.AddressPostCtx).Post("/utxo", app.getAddressesTxnOutput)
 	})
 

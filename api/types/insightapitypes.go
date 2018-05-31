@@ -4,6 +4,8 @@
 package types
 
 import (
+	"encoding/json"
+
 	"github.com/decred/dcrd/dcrutil"
 )
 
@@ -50,12 +52,19 @@ type InsightAddr struct {
 
 // InsightMultiAddrsTx models multi address post data structure
 type InsightMultiAddrsTx struct {
-	Addresses   string `json:"addrs"`
-	From        string `json:"from"`
-	To          string `json:"to"`
-	NoAsm       bool   `json:"noAsm"`
-	NoScriptSig bool   `json:"noScriptSig"`
-	NoSpent     bool   `json:"noSpent"`
+	Addresses   string      `json:"addrs"`
+	From        json.Number `json:"from,Number,omitempty"`
+	To          json.Number `json:"to,Number,omitempty"`
+	NoAsm       json.Number `json:"noAsm"`
+	NoScriptSig json.Number `json:"noScriptSig"`
+	NoSpent     json.Number `json:"noSpent"`
+}
+
+type InsightMultiAddrsTxOutput struct {
+	TotalItems int64       `json:"totalItems"`
+	From       int         `json:"from"`
+	To         int         `json:"to"`
+	Items      []InsightTx `json:"items"`
 }
 
 // InsightPagination models basic pagination output
@@ -126,7 +135,7 @@ type InsightScriptSig struct {
 }
 
 type InsightVout struct {
-	Value        float64             `json:"value,omitempty"`
+	Value        float64             `json:"value"`
 	N            uint32              `json:"n"`
 	ScriptPubKey InsightScriptPubKey `json:"scriptPubKey,omitempty"`
 	SpentTxID    interface{}         `json:"spentTxId"`   // Insight requires null if unspent and spending TxID if spent

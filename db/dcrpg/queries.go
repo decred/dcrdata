@@ -1132,7 +1132,40 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	return outputs, nil
 }
 
-// RetrieveAddressTxnsByFundingTx zen comment
+// RetrieveAddressTxnsOrdered will get all transactions for addresses provided
+// and return them sorted by time in descending order. It will also return a
+// short list of recently (defined as greater than recentBlockHeight) confirmed
+// transactions that can be used to validate mempool status.
+func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeight int64) (txs []string, recenttxs []string) {
+	var tx_hash string
+	var height int64
+	stmt, err := db.Prepare(internal.SelectAddressesAllTxn)
+	if err != nil {
+		log.Error(err)
+		return nil, nil
+	}
+
+	rows, err := stmt.Query(pq.Array(addresses))
+	if err != nil {
+		log.Error(err)
+		return nil, nil
+	}
+
+	for rows.Next() {
+		err = rows.Scan(&tx_hash, &height)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		txs = append(txs, tx_hash)
+		if height > recentBlockHeight {
+			recenttxs = append(recenttxs, tx_hash)
+		}
+	}
+	return
+}
+
+// RetrieveAddressTxnsByFundingTx
 func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string, addresses []string) (aSpendByFunHash []*apitypes.AddressSpendByFunHash, err error) {
 
 	query := fmt.Sprintf(`SELECT funding_tx_vout_index, spending_tx_hash, spending_tx_vin_index, 

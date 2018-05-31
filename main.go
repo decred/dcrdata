@@ -495,7 +495,7 @@ func mainCore() error {
 		chainDBRPC, _ := dcrpg.NewChainDBRPC(auxDB, dcrdClient)
 		insightApp := insight.NewInsightContext(dcrdClient, chainDBRPC, &baseDB, cfg.IndentJSON)
 		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
-		webMux.Mount("/insight-api", insightMux.Mux)
+		webMux.Mount("/insight/api", insightMux.Mux)
 	}
 
 	// HTTP profiler

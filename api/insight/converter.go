@@ -18,12 +18,11 @@ import (
 
 // TxConverter converts dcrd-tx to insight tx
 func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.InsightTx, error) {
-	addresses_data := apitypes.InsightMultiAddrsTx{}
-	return c.TxConverterWithParams(txs, addresses_data)
+	return c.TxConverterWithParams(txs, false, false, false)
 }
 
 // TxConverterWithParams takes struct with filter params
-func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, mad apitypes.InsightMultiAddrsTx) ([]apitypes.InsightTx, error) {
+func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, noAsm bool, noScriptSig bool, noSpent bool) ([]apitypes.InsightTx, error) {
 
 	newTxs := []apitypes.InsightTx{}
 
@@ -50,10 +49,12 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, ma
 			txNew.Vins[vinID].CoinBase = vin.Coinbase
 
 			// init ScriptPubKey
-			if !mad.NoScriptSig {
+			if !noScriptSig {
 				txNew.Vins[vinID].ScriptSig = emptySS
 				if vin.ScriptSig != nil {
-					txNew.Vins[vinID].ScriptSig.Asm = vin.ScriptSig.Asm
+					if !noAsm {
+						txNew.Vins[vinID].ScriptSig.Asm = vin.ScriptSig.Asm
+					}
 					txNew.Vins[vinID].ScriptSig.Hex = vin.ScriptSig.Hex
 				}
 			}
@@ -73,7 +74,7 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, ma
 			txNew.Vouts[v.N].N = v.N
 			// pk block
 			txNew.Vouts[v.N].ScriptPubKey = emptyPubKey
-			if !mad.NoAsm {
+			if !noAsm {
 				txNew.Vouts[v.N].ScriptPubKey.Asm = v.ScriptPubKey.Asm
 			}
 			txNew.Vouts[v.N].ScriptPubKey.Hex = v.ScriptPubKey.Hex
@@ -120,7 +121,7 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, ma
 			}
 		}
 
-		if !mad.NoSpent {
+		if !noSpent {
 
 			// set of unique addresses for db query
 			uniqAddrs := make(map[string]string)
