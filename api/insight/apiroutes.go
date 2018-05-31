@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/rpcclient"
@@ -29,13 +30,15 @@ import (
 type insightApiContext struct {
 	nodeClient *rpcclient.Client
 	BlockData  *dcrpg.ChainDBRPC
+	params     *chaincfg.Params
 	Status     apitypes.Status
 	statusMtx  sync.RWMutex
+
 	JSONIndent string
 }
 
 // NewInsightContext Constructor for insightApiContext
-func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, JSONIndent string) *insightApiContext {
+func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, params *chaincfg.Params, JSONIndent string) *insightApiContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 	version := semver.NewSemver(1, 0, 0)
@@ -43,6 +46,7 @@ func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, JS
 	newContext := insightApiContext{
 		nodeClient: client,
 		BlockData:  blockData,
+		params:     params,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -189,6 +193,13 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 
 	if !ok {
 		// JSON extraction failed or rawtx blank.  Error message already returned.
+		return
+	}
+
+	// Check for maximum size
+	if len(rawHexTx)/2 > c.params.MaxTxSize {
+		apiLog.Errorf("Rawtx length exceeds maximum allowable characters (%v bytes received)", len(rawHexTx)/2)
+		writeInsightError(w, fmt.Sprintf("Rawtx length exceeds maximum allowable characters (%v bytes received)", len(rawHexTx)/2))
 		return
 	}
 

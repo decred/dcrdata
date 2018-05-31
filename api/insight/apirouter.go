@@ -9,6 +9,8 @@ package insight
 
 import (
 	m "github.com/decred/dcrdata/middleware"
+	"github.com/didip/tollbooth"
+	"github.com/didip/tollbooth_chi"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 )
@@ -24,8 +26,13 @@ const APIVersion = 0
 // NewInsightApiRouter returns a new HTTP path router, ApiMux, for the Insight
 // API.
 func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
+	// Create a limiter struct.
+	limiter := tollbooth.NewLimiter(1, nil)
+
 	// chi router
 	mux := chi.NewRouter()
+
+	mux.Use(tollbooth_chi.LimitHandler(limiter))
 
 	if userRealIP {
 		mux.Use(middleware.RealIP)
