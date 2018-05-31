@@ -22,6 +22,7 @@ var createTableStatements = map[string]string{
 	"tickets":      internal.CreateTicketsTable,
 	"votes":        internal.CreateVotesTable,
 	"misses":       internal.CreateMissesTable,
+	"agendas":      internal.CreateAgendasTable,
 }
 
 var createTypeStatements = map[string]string{
@@ -39,15 +40,16 @@ var createTypeStatements = map[string]string{
 const tableMajor = 3
 
 var requiredVersions = map[string]TableVersion{
-	"blocks":       NewTableVersion(tableMajor, 0, 0),
-	"transactions": NewTableVersion(tableMajor, 0, 0),
-	"vins":         NewTableVersion(tableMajor, 0, 0),
-	"vouts":        NewTableVersion(tableMajor, 0, 0),
-	"block_chain":  NewTableVersion(tableMajor, 0, 0),
-	"addresses":    NewTableVersion(tableMajor, 0, 0),
-	"tickets":      NewTableVersion(tableMajor, 0, 0),
-	"votes":        NewTableVersion(tableMajor, 0, 0),
-	"misses":       NewTableVersion(tableMajor, 0, 0),
+	"blocks":       NewTableVersion(tableMajor, 4, 0),
+	"transactions": NewTableVersion(tableMajor, 4, 0),
+	"vins":         NewTableVersion(tableMajor, 4, 0),
+	"vouts":        NewTableVersion(tableMajor, 4, 0),
+	"block_chain":  NewTableVersion(tableMajor, 4, 0),
+	"addresses":    NewTableVersion(tableMajor, 4, 0),
+	"tickets":      NewTableVersion(tableMajor, 4, 0),
+	"votes":        NewTableVersion(tableMajor, 4, 0),
+	"misses":       NewTableVersion(tableMajor, 4, 0),
+	"agendas":      NewTableVersion(tableMajor, 4, 0),
 }
 
 // TableVersion models a table version by major.minor.patch
@@ -488,5 +490,27 @@ func IndexMissesTableOnHashes(db *sql.DB) (err error) {
 
 func DeindexMissesTableOnHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexMissesTableOnHashes)
+	return
+}
+
+// agendas
+
+func IndexAgendasTableOnBlockTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexAgendasTableOnBlockTime)
+	return
+}
+
+func DeindexAgendasTableOnBlockTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexAgendasTableOnBlockTime)
+	return
+}
+
+func IndexAgendasTableOnAgendaID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexAgendasTableOnAgendaID)
+	return
+}
+
+func DeindexAgendasTableOnAgendaID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexAgendasTableOnAgendaID)
 	return
 }

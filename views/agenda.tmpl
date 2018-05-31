@@ -3,7 +3,7 @@
 <html lang="en">
     {{template "html-head" printf "Decred Vote Agenda Pages"}}
     <body>
-        {{template "navbar"}}
+        {{template "navbar" .}}
         {{with .Ai}}
         <div class="container">
             <div class="row justify-content-between">
@@ -30,13 +30,13 @@
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">StartTime</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.StartTime}}</span>
+                                <span class="hash break-word  lh1rem">{{TimeConvertion .StartTime}}</span>
                             </td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">ExpireTime</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.ExpireTime}}</span>
+                                <span class="hash break-word  lh1rem">{{TimeConvertion .ExpireTime}}</span>
                             </td>
                         </tr>
                     </table>
@@ -92,8 +92,78 @@
                 {{end}}
             </table>
             {{end}}
+
+            <div id="lineGraph" style="width:100%; height:450px; margin:0 auto;"></div>
+            </div>
         </div>
         {{end}}
+
+        <style type="text/css">
+         .dygraph-legend {
+           padding: 4px !important;
+           border: 1px solid #000;
+           border-radius: 5px;
+           pointer-events: none;
+           font-weight: bold;
+           width: fit-content;
+         }
+         .dygraph-rangesel-bgcanvas {
+           z-index: 0 !important;
+         }
+         .dygraph-rangesel-fgcanvas {
+           z-index: 0 !important;
+         }
+         .dygraph-rangesel-zoomhandle {
+           z-index: 0 !important;
+         }
+         .dygraph-axis-label {
+           z-index: 0 !important;
+         }
+        .doughnutGraph {
+            float: right;
+        }
+       </style>
+
+        <script>
+        var chart = {{.ChartData}}
+
+        var d = ""
+        chart.map(function(n){
+            d = d + n.time + ", " + n.yes + ", " + n.abstain + ", " + n.no +  " \n"
+        });
+
+        function legendFormatter(data) {
+            if (data.x == null) return '';
+            var total = 0;
+            data.series.map(function(n){
+                total += n.y
+            })
+            var html = this.getLabels()[0] + ': ' + data.xHTML;
+            data.series.forEach(function(series) {
+                var labeledData = ' <span style="color: ' + series.color + ';">' +series.labelHTML + ': ' + series.yHTML;
+                html += '<br>' + series.dashHTML  + labeledData + ' (' + ((series.y*100)/total).toFixed(2) +'%) </span>';
+            });
+            return html;
+            }
+
+        new Dygraph(
+            document.getElementById("lineGraph"),
+            d,
+            {
+                labels: ["Date", "Yes", "Abstain", "No"],
+                showRangeSelector: true,
+                ylabel: 'Cumulative Vote Choices Cast',
+                legend: 'follow',
+                labelsKMB: true,
+                colors: ['rgb(0,153,0)', 'orange', 'red'],
+                fillGraph: true,
+                stackedGraph: true,
+                legendFormatter: legendFormatter,
+                labelsSeparateLines: true
+            }
+        );
+        </script>
+
         {{template "footer" . }}
     </body>
 </html>

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -1006,6 +1007,43 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 	return
 }
 
+// RetrieveAgendaVoteChoices retrieves the vote choices count per day and also the total
+// votes count per vote choice for the provided agenda.
+func RetrieveAgendaVoteChoices(db *sql.DB, agendaID string) ([]*dbtypes.AgendaVoteChoices, error) {
+	totalVotes := new(dbtypes.AgendaVoteChoices)
+	chartData := make([]*dbtypes.AgendaVoteChoices, 0)
+
+	rows, err := db.Query(internal.SelectAgendasAgendaVotes, agendaID)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var abstain, yes, no, total uint64
+		var date string
+
+		err := rows.Scan(&date, &yes, &no, &abstain, &total)
+		if err != nil {
+			return nil, err
+		}
+		totalVotes.Abstain += abstain
+		totalVotes.Yes += yes
+		totalVotes.No += no
+		totalVotes.Total += total
+
+		chartData = append(chartData, &dbtypes.AgendaVoteChoices{
+			Abstain: totalVotes.Abstain,
+			Yes:     totalVotes.Yes,
+			No:      totalVotes.No,
+			Total:   totalVotes.Total,
+			Time:    date,
+		})
+
+	}
+
+	return chartData, nil
+}
+
 func RetrieveDbTxByHash(db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx, err error) {
 	dbTx = new(dbtypes.Tx)
 	vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
@@ -1595,7 +1633,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 //
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
 func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
-	fTx *TicketTxnIDGetter, msgBlock *MsgBlockPG, checked bool) ([]uint64,
+	fTx *TicketTxnIDGetter, msgBlock *MsgBlockPG, checked bool, params *chaincfg.Params) ([]uint64,
 	[]*dbtypes.Tx, []string, []uint64, map[string]uint64, error) {
 	// Choose only SSGen txns
 	msgTxs := msgBlock.STransactions
@@ -1627,6 +1665,13 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 	stmt, err := dbtx.Prepare(voteInsert)
 	if err != nil {
 		log.Errorf("Votes INSERT prepare: %v", err)
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return nil, nil, nil, nil, nil, err
+	}
+
+	prep, err := dbtx.Prepare(internal.MakeAgendaInsertStatement(checked))
+	if err != nil {
+		log.Errorf("Agendas INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, nil, nil, nil, nil, err
 	}
@@ -1673,6 +1718,19 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 				misses[im] = misses[len(misses)-1]
 				misses = misses[:len(misses)-1]
 				break
+			}
+		}
+
+		_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
+		if err != nil {
+			return nil, nil, nil, nil, nil, err
+		}
+
+		var rowID uint64
+		for _, val := range choices {
+			err = prep.QueryRow(val.ID, val.Choice.Id, tx.TxID, tx.BlockHeight, tx.BlockTime).Scan(&rowID)
+			if err != nil {
+				return nil, nil, nil, nil, nil, err
 			}
 		}
 
