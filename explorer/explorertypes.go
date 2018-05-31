@@ -466,10 +466,12 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 	return addrPrefix
 }
 
-func GetAgendaInfo(agendaId string) (agenda *agendadb.AgendaTagged) {
-	agenda, err := agendadb.GetAgendaInfo(agendaId)
+// GetAgendaInfo gets the all info for an agenda using agenda id
+func GetAgendaInfo(agendaId string) (agenda *agendadb.AgendaTagged, err error) {
+	agenda, err = agendadb.GetAgendaInfo(agendaId)
 	if err != nil {
 		log.Error(err)
+		return nil, err
 	}
-	return
+	return agenda, nil
 }
