@@ -1,25 +1,29 @@
+// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2017, Jonathan Chappelow
+// See LICENSE for details.
+
 package agendadb
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/decred/dcrd/rpcclient"
-
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/rpcclient"
 )
 
+// AgendaDB represents the data for the saved db
 type AgendaDB struct {
 	sdb        *storm.DB
 	NumAgendas int
 	NumChoices int
 }
 
+var dbName = "agendas.db"
+
 // Open will either open and existing database or create a new one using with
 // the specified file name.
-var dbName = "Agendas.db"
-
 func Open(dbPath string) (*AgendaDB, error) {
 	_, err := os.Stat(dbPath)
 	isNewDB := os.IsNotExist(err)
@@ -138,6 +142,8 @@ func GetVoteAgendasForVersion(ver int64, client *rpcclient.Client) (agendas []Ag
 	return
 }
 
+// CheckAvailabiltyOfVersionAgendas checks for the availabily of agendas in the
+// saved db by version input
 func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version int64) bool {
 	if db == nil || db.sdb == nil {
 		return false
@@ -152,6 +158,7 @@ func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version int64) bool {
 	return true
 }
 
+// Updatedb used when needed to keep the saved db upto date
 func (db *AgendaDB) Updatedb(voteVersion int64, client *rpcclient.Client) {
 	var agendas []AgendaTagged
 	for GetVoteAgendasForVersion(voteVersion, client) != nil {
@@ -166,6 +173,8 @@ func (db *AgendaDB) Updatedb(voteVersion int64, client *rpcclient.Client) {
 	}
 }
 
+// CheckForUpdates checks for update at the start of the process and
+// will proceed to update when neccessary
 func CheckForUpdates(client *rpcclient.Client) {
 	adb, err := Open(dbName)
 	if err != nil {
@@ -180,6 +189,7 @@ func CheckForUpdates(client *rpcclient.Client) {
 	adb.Close()
 }
 
+// GetAgendaInfo for getting an agenda's details given it's agendaId
 func GetAgendaInfo(agendaId string) (*AgendaTagged, error) {
 	adb, err := Open(dbName)
 	if err != nil {
@@ -192,4 +202,18 @@ func GetAgendaInfo(agendaId string) (*AgendaTagged, error) {
 	}
 	adb.Close()
 	return agenda, nil
+}
+
+// GetAllAgendas returns all agendas and their info in the db
+func GetAllAgendas() (agendas []*AgendaTagged) {
+	adb, err := Open(dbName)
+	if err != nil {
+		log.Errorf("Failed to open new DB: %v", err)
+	}
+	err = adb.sdb.All(&agendas)
+	if err != nil {
+		log.Errorf("Failed to get data from DB: %v", err)
+	}
+	adb.Close()
+	return
 }
