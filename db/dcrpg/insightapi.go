@@ -60,8 +60,14 @@ func (pgb *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
 
 // InsightPgGetAddressTransactions performs a db query to pull all txids for the
 // specified addresses ordered desc by time.
-func (pgb *ChainDB) InsightPgGetAddressTransactions(addr []string, recentBlockHeight int64) ([]string, []string) {
+func (pgb *ChainDB) InsightPgGetAddressTransactions(addr []string,
+	recentBlockHeight int64) ([]string, []string) {
 	return RetrieveAddressTxnsOrdered(pgb.db, addr, recentBlockHeight)
+}
+
+func (pgb *ChainDB) RetrieveAddressIDsByOutpoint(txHash string,
+	voutIndex uint32) ([]uint64, []string, error) {
+	return RetrieveAddressIDsByOutpoint(pgb.db, txHash, voutIndex)
 }
 
 // InsightGetAddressTransactions performs a searchrawtransactions for the

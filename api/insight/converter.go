@@ -5,15 +5,10 @@
 package insight
 
 import (
-	"fmt"
-	"strconv"
+	"math"
 
-	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/api/types"
-	"github.com/decred/dcrdata/db/dbtypes"
 )
 
 // TxConverter converts dcrd-tx to insight tx
@@ -62,6 +57,13 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, no
 			txNew.Vins[vinID].N = vinID
 			txNew.Vins[vinID].ValueSat = int64(vin.AmountIn * 100000000.0)
 			txNew.Vins[vinID].Value = vin.AmountIn
+
+			// Lookup addresses OPTION 2
+			_, addresses, err := c.BlockData.ChainDB.RetrieveAddressIDsByOutpoint(vin.Txid, vin.Vout)
+			if err == nil && len(addresses) > 0 {
+				txNew.Vins[vinID].Addr = addresses[0]
+			}
+
 		}
 
 		// Vout fill
@@ -88,8 +90,11 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, no
 		txNew.Time = tx.Time
 		txNew.Blocktime = tx.Blocktime
 
-		txNew.ValueOut = vOutSum // vout value sum plus fees
-		txNew.ValueIn = vInSum
+		txNew.ValueOut = math.Round(vOutSum*100000000.0) / 100000000
+		txNew.ValueIn = math.Round(vInSum*100000000.0) / 100000000
+
+		txNew.Size = uint32(len(tx.Hex) / 2)
+		txNew.Fees = math.Round((txNew.ValueIn-txNew.ValueOut)*100000000.0) / 100000000
 
 		// Return true if coinbase value is not empty, return 0 at some fields
 		if txNew.Vins != nil && len(txNew.Vins[0].CoinBase) > 0 {
@@ -101,25 +106,25 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, no
 			}
 		}
 
-		// This block set addr value in tx vin
-		for _, vin := range txNew.Vins {
-			if vin.Txid != "" {
-				vinsTx, err := c.BlockData.GetRawTransaction(vin.Txid)
-				if err != nil {
-					apiLog.Errorf("Tried to get transaction by vin tx %s", vin.Txid)
-					return newTxs, err
-				}
-				for _, vinVout := range vinsTx.Vout {
-					if vinVout.Value == vin.Value {
-						if vinVout.ScriptPubKey.Addresses != nil {
-							if vinVout.ScriptPubKey.Addresses[0] != "" {
-								vin.Addr = vinVout.ScriptPubKey.Addresses[0]
-							}
-						}
-					}
-				}
-			}
-		}
+		// This block set addr value in tx vin OPTION 1
+		// for _, vin := range txNew.Vins {
+		// 	if vin.Txid != "" {
+		// 		vinsTx, err := c.BlockData.GetRawTransaction(vin.Txid)
+		// 		if err != nil {
+		// 			apiLog.Errorf("Tried to get transaction by vin tx %s", vin.Txid)
+		// 			return newTxs, err
+		// 		}
+		// 		for _, vinVout := range vinsTx.Vout {
+		// 			if vinVout.Value == vin.Value {
+		// 				if vinVout.ScriptPubKey.Addresses != nil {
+		// 					if vinVout.ScriptPubKey.Addresses[0] != "" {
+		// 						vin.Addr = vinVout.ScriptPubKey.Addresses[0]
+		// 					}
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// }
 
 		if !noSpent {
 
@@ -145,40 +150,40 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, no
 			}
 		}
 
-		// create block hash
-		bHash, err := chainhash.NewHashFromStr(txNew.Blockhash)
-		if err != nil {
-			apiLog.Errorf("Failed to gen block hash for Tx %s", txNew.Txid)
-			return newTxs, err
-		}
+		// // create block hash
+		// bHash, err := chainhash.NewHashFromStr(txNew.Blockhash)
+		// if err != nil {
+		// 	apiLog.Errorf("Failed to gen block hash for Tx %s", txNew.Txid)
+		// 	return newTxs, err
+		// }
 
-		// get block
-		block, err := c.BlockData.Client.GetBlock(bHash)
-		if err != nil {
-			apiLog.Errorf("Unable to get block %s", bHash)
-			return newTxs, err
-		}
+		// // get block
+		// block, err := c.BlockData.Client.GetBlock(bHash)
+		// if err != nil {
+		// 	apiLog.Errorf("Unable to get block %s", bHash)
+		// 	return newTxs, err
+		// }
 
-		// stakeTree 0: Tx, 1: stakeTx
-		dbTransactions, _, _ := dbtypes.ExtractBlockTransactions(block, 0, &chaincfg.MainNetParams)
+		// // stakeTree 0: Tx, 1: stakeTx
+		// dbTransactions, _, _ := dbtypes.ExtractBlockTransactions(block, 0, &chaincfg.MainNetParams)
 
-		sdbTransactions, _, _ := dbtypes.ExtractBlockTransactions(block, 1, &chaincfg.MainNetParams)
+		// sdbTransactions, _, _ := dbtypes.ExtractBlockTransactions(block, 1, &chaincfg.MainNetParams)
 
-		// bring tx and stx together
-		dbTransactions = append(dbTransactions, sdbTransactions...)
+		// // bring tx and stx together
+		// dbTransactions = append(dbTransactions, sdbTransactions...)
 
-		for _, dbtx := range dbTransactions {
-			if dbtx.TxID == txNew.Txid {
-				txNew.Size = dbtx.Size
-				txNew.Fees = dcrutil.Amount(dbtx.Fees).ToCoin()
-				if txNew.IsCoinBase {
-					txNew.Fees = 0
-				}
-				txNew.ValueOut, _ = strconv.ParseFloat(fmt.Sprintf("%.8f", txNew.ValueOut), 64)
+		// for _, dbtx := range dbTransactions {
+		// 	if dbtx.TxID == txNew.Txid {
+		// 		txNew.Size = dbtx.Size
+		// 		txNew.Fees = dcrutil.Amount(dbtx.Fees).ToCoin()
+		// 		if txNew.IsCoinBase {
+		// 			txNew.Fees = 0
+		// 		}
+		// 		txNew.ValueOut, _ = strconv.ParseFloat(fmt.Sprintf("%.8f", txNew.ValueOut), 64)
 
-				break
-			}
-		}
+		// 		break
+		// 	}
+		// }
 		newTxs = append(newTxs, txNew)
 	}
 	return newTxs, nil
