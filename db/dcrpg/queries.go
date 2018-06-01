@@ -850,13 +850,15 @@ func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) (ids
 	return
 }
 
+// Update Vin due to DCRD AMOUNTIN - START
 func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
-	voutIndex uint32) ([]uint64, []string, error) {
+	voutIndex uint32) ([]uint64, []string, int64, error) {
 	var ids []uint64
 	var addresses []string
+	var value int64
 	rows, err := db.Query(internal.SelectAddressIDsByFundingOutpoint, txHash, voutIndex)
 	if err != nil {
-		return ids, addresses, err
+		return ids, addresses, 0, err
 	}
 	defer func() {
 		if e := rows.Close(); e != nil {
@@ -867,7 +869,7 @@ func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 	for rows.Next() {
 		var id uint64
 		var addr string
-		err = rows.Scan(&id, &addr)
+		err = rows.Scan(&id, &addr, &value)
 		if err != nil {
 			break
 		}
@@ -875,9 +877,10 @@ func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 		ids = append(ids, id)
 		addresses = append(addresses, addr)
 	}
-
-	return ids, addresses, err
+	return ids, addresses, value, err
 }
+
+// Update Vin due to DCRD AMOUNTIN - END
 
 func RetrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
 	rows, err := db.Query(internal.SelectVinIDsALL)

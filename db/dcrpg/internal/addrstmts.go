@@ -93,9 +93,10 @@ const (
 		FROM addresses
 		WHERE address=$1
 		ORDER BY id DESC LIMIT $2 OFFSET $3;`
-
-	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses
+	// Update Vin due to DCRD AMOUNTIN - START
+	SelectAddressIDsByFundingOutpoint = `SELECT id, address, value FROM addresses
 		WHERE funding_tx_hash=$1 and funding_tx_vout_index=$2;`
+	// Update Vin due to DCRD AMOUNTIN - END
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses
 		WHERE address=$1 and vout_row_id=$2
 		ORDER BY id DESC;`

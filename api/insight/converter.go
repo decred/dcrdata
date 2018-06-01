@@ -8,6 +8,7 @@ import (
 	"math"
 
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/api/types"
 )
 
@@ -40,7 +41,7 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, no
 			txNew.Vins[vinID].Txid = vin.Txid
 			txNew.Vins[vinID].Vout = vin.Vout
 			txNew.Vins[vinID].Sequence = vin.Sequence
-			vInSum += vin.AmountIn
+
 			txNew.Vins[vinID].CoinBase = vin.Coinbase
 
 			// init ScriptPubKey
@@ -55,14 +56,21 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, no
 			}
 
 			txNew.Vins[vinID].N = vinID
-			txNew.Vins[vinID].ValueSat = int64(vin.AmountIn * 100000000.0)
+
 			txNew.Vins[vinID].Value = vin.AmountIn
 
 			// Lookup addresses OPTION 2
-			_, addresses, err := c.BlockData.ChainDB.RetrieveAddressIDsByOutpoint(vin.Txid, vin.Vout)
+			_, addresses, value, err := c.BlockData.ChainDB.RetrieveAddressIDsByOutpoint(vin.Txid, vin.Vout)
 			if err == nil && len(addresses) > 0 {
+				// Update Vin due to DCRD AMOUNTIN - START
+				if tx.Confirmations == 0 {
+					txNew.Vins[vinID].Value = dcrutil.Amount(value).ToCoin()
+				}
+				// Update Vin due to DCRD AMOUNTIN - END
 				txNew.Vins[vinID].Addr = addresses[0]
 			}
+			txNew.Vins[vinID].ValueSat = int64(math.Round(txNew.Vins[vinID].Value * 100000000.0))
+			vInSum += txNew.Vins[vinID].Value
 
 		}
 
