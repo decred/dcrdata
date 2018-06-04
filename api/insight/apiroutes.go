@@ -188,21 +188,21 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
-	//
-	rawHexTx, ok := c.GetRawHexTx(r) // Check for rawtx
-
+	// Check for rawtx
+	rawHexTx, ok := c.GetRawHexTx(r)
 	if !ok {
 		// JSON extraction failed or rawtx blank.  Error message already returned.
 		return
 	}
 
-	// Check for maximum size
+	// Check maximum transaction size
 	if len(rawHexTx)/2 > c.params.MaxTxSize {
-		apiLog.Errorf("Rawtx length exceeds maximum allowable characters (%v bytes received)", len(rawHexTx)/2)
-		writeInsightError(w, fmt.Sprintf("Rawtx length exceeds maximum allowable characters (%v bytes received)", len(rawHexTx)/2))
+		apiLog.Errorf("Rawtx length exceeds maximum allowable characters (%d bytes received)", len(rawHexTx)/2)
+		writeInsightError(w, fmt.Sprintf("Rawtx length exceeds maximum allowable characters (%d bytes received)", len(rawHexTx)/2))
 		return
 	}
 
+	// Broadcast
 	txid, err := c.BlockData.SendRawTransaction(rawHexTx)
 	if err != nil {
 		apiLog.Errorf("Unable to send transaction %s", rawHexTx)
@@ -210,6 +210,7 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 		return
 	}
 
+	// Respond with hash of broadcasted transaction
 	txidJSON := struct {
 		TxidHash string `json:"rawtx"`
 	}{
