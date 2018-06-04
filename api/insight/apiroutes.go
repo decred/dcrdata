@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/rpcclient"
@@ -28,13 +30,15 @@ import (
 type insightApiContext struct {
 	nodeClient *rpcclient.Client
 	BlockData  *dcrpg.ChainDBRPC
+	params     *chaincfg.Params
 	Status     apitypes.Status
 	statusMtx  sync.RWMutex
+
 	JSONIndent string
 }
 
 // NewInsightContext Constructor for insightApiContext
-func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, JSONIndent string) *insightApiContext {
+func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, params *chaincfg.Params, JSONIndent string) *insightApiContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 	version := semver.NewSemver(1, 0, 0)
@@ -42,6 +46,7 @@ func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, JS
 	newContext := insightApiContext{
 		nodeClient: client,
 		BlockData:  blockData,
+		params:     params,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -60,6 +65,7 @@ func (c *insightApiContext) getIndentQuery(r *http.Request) (indent string) {
 	return
 }
 
+// Insight API successful response for JSON return items.
 func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	encoder := json.NewEncoder(w)
@@ -70,8 +76,26 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 }
 
 func writeText(w http.ResponseWriter, str string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// Insight API error response for a BAD REQUEST.  This means the request was
+// malformed in some way or the request HASH, ADDRESS, BLOCK was not valid.
+func writeInsightError(w http.ResponseWriter, str string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusBadRequest)
+	io.WriteString(w, str)
+}
+
+// Insight API response for an item NOT FOUND.  This means the request was valid
+// but no records were found for the item in question.  For some endpoints
+// responding with an empty array [] is expected such as a transaction query for
+// addresses with no transactions.
+func writeInsightNotFound(w http.ResponseWriter, str string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
 	io.WriteString(w, str)
 }
 
@@ -164,19 +188,35 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *http.Request) {
-	rawHexTx := m.GetRawHexTx(r)
-	if rawHexTx == "" {
-		http.Error(w, http.StatusText(422), 422)
+	// Check for rawtx
+	rawHexTx, ok := c.GetRawHexTx(r)
+	if !ok {
+		// JSON extraction failed or rawtx blank.  Error message already returned.
 		return
 	}
 
+	// Check maximum transaction size
+	if len(rawHexTx)/2 > c.params.MaxTxSize {
+		apiLog.Errorf("Rawtx length exceeds maximum allowable characters (%d bytes received)", len(rawHexTx)/2)
+		writeInsightError(w, fmt.Sprintf("Rawtx length exceeds maximum allowable characters (%d bytes received)", len(rawHexTx)/2))
+		return
+	}
+
+	// Broadcast
 	txid, err := c.BlockData.SendRawTransaction(rawHexTx)
 	if err != nil {
 		apiLog.Errorf("Unable to send transaction %s", rawHexTx)
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightError(w, fmt.Sprintf("SendRawTransaction failed: %v", err))
 		return
 	}
-	writeJSON(w, txid, c.getIndentQuery(r))
+
+	// Respond with hash of broadcasted transaction
+	txidJSON := struct {
+		TxidHash string `json:"rawtx"`
+	}{
+		txid,
+	}
+	writeJSON(w, txidJSON, c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getAddressTxnOutput(w http.ResponseWriter, r *http.Request) {
