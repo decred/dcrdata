@@ -15,6 +15,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/docgen"
@@ -26,6 +27,7 @@ const (
 	ctxAPIDocs contextKey = iota
 	ctxAPIStatus
 	ctxAddress
+	ctxZeroAddr
 	ctxBlockIndex0
 	ctxBlockIndex
 	ctxBlockStep
@@ -465,6 +467,27 @@ func AddressPostCtx(next http.Handler) http.Handler {
 		address := r.PostFormValue("addrs")
 		ctx := context.WithValue(r.Context(), ctxAddress, address)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// ZeroAddrDenier https://github.com/decred/dcrdata/issues/358
+func ZeroAddrDenier(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		address := chi.URLParam(r, "address")
+		dadrr, err := dcrutil.DecodeAddress(address)
+		if err != nil {
+			fmt.Println(err)
+		}
+		deniedAddr := apitypes.NewZeroAddressDenial(dadrr.Net())
+		if address == deniedAddr.Addr {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			if err := encoder.Encode(deniedAddr); err != nil {
+				apiLog.Infof("JSON encode error: %v", err)
+			}
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(r.Context()))
 	})
 }
 

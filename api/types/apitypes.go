@@ -4,7 +4,11 @@
 package types
 
 import (
+	"fmt"
+
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/txhelpers"
 )
 
@@ -381,3 +385,28 @@ type MempoolTicketDetails struct {
 // TicketsDetails is an array of pointers of TicketDetails used in
 // MempoolTicketDetails
 type TicketsDetails []*TicketDetails
+
+// DeniedAddress keeps denied address and reasoning of that denial
+type DeniedAddress struct {
+	Addr   string `json:"address"`
+	ErrMsg string `json:"message"`
+}
+
+// NewAddressDenial DeniedAddress constructor
+func NewAddressDenial(addr, reason string) *DeniedAddress {
+	msg := fmt.Sprintf("Request for address %s info denied. Reason: %s", addr, reason)
+	return &DeniedAddress{
+		Addr:   addr,
+		ErrMsg: msg,
+	}
+}
+
+// NewZeroAddressDenial helper that calls DeniedAddress constructor with zero address
+func NewZeroAddressDenial(params *chaincfg.Params) *DeniedAddress {
+	zeroed := [20]byte{}
+	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return NewAddressDenial(address.String(), "This is the zero value P2PKH address.")
+}

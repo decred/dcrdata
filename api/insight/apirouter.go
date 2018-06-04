@@ -71,6 +71,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	// Address endpoints
 	mux.Route("/addr/{address}", func(rd chi.Router) {
 		rd.Use(m.AddressPathCtx)
+		rd.Use(m.ZeroAddrDenier)
 		rd.With(m.PaginationCtx).Get("/", app.getAddressInfo)
 		rd.Get("/utxo", app.getAddressTxnOutput)
 		rd.Get("/balance", app.getAddressBalance)
