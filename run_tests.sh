@@ -74,7 +74,8 @@ if [ $? != 0 ]; then
 fi
 
 docker run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
-  rsync -ra --filter=':- .gitignore'  \
+  rsync -ra --filter=':- .gitignore' \
+  --files-from=<(git --git-dir=/src/.git ls-files) \
   /src/ /go/src/github.com/decred/$REPO/ && \
   cd github.com/decred/$REPO/ && \
   bash run_tests.sh local"
