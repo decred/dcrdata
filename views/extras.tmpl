@@ -385,7 +385,7 @@
                 $("#pow-window-progess-bar").css({ width: (ex.reward_idx/ex.params.reward_window_size)*100 + "%" })
                 $("#pool_size").text(ex.pool_info.size)
                 $("#pool_value").html(humanize.decimalParts(ex.pool_info.value, true, 8))
-                $("#ticket_roi").html(parseFloat(ex.roi).toFixed(2))
+                $("#ticket_reward").html(parseFloat(ex.reward).toFixed(2))
                 $("#target_percent").html(parseFloat(ex.pool_info.percent_target).toFixed(2))
                 $("#pool_size_percentage").html(parseFloat(ex.pool_info.percent).toFixed(2))
             }

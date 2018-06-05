@@ -254,7 +254,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		return float64(blockData.PoolInfo.Size) / target * 100
 	}()
 
-	exp.ExtraInfo.TicketROI = func() float64 {
+	exp.ExtraInfo.TicketReward = func() float64 {
 		PosSubPerVote := dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin() / float64(exp.ChainParams.TicketsPerBlock)
 		return percentage(PosSubPerVote, blockData.CurrentStakeDiff.CurrentStakeDifficulty)
 	}()
@@ -270,15 +270,15 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	// 2.  Total tickets in the pool varies slightly above and below
 	// ticketpoolsize*TicketsPerBlock depending on supply and demand
 
-	// Both minor deviations are not accounted for in the general ROI
+	// Both minor deviations are not accounted for in the general Reward
 	// calculation below because the variance they cause would be would be
 	// extremely small.
 
-	// The actual ROI of a ticket needs to also take into consideration the
+	// The actual Reward of a ticket needs to also take into consideration the
 	// ticket maturity (time from ticket purchase until its eligible to vote)
 	// and coinbase maturity (time after vote until funds distributed to
 	// ticket holder are avaliable to use)
-	exp.ExtraInfo.ROIPeriod = func() string {
+	exp.ExtraInfo.RewardPeriod = func() string {
 		PosAvgTotalBlocks := float64(
 			exp.ChainParams.TicketPoolSize +
 				exp.ChainParams.TicketMaturity +
@@ -286,12 +286,12 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
 	}()
 
-	apr, _ := exp.simulateAPR(1000, false, stakePerc,
+	asr, _ := exp.simulateASR(1000, false, stakePerc,
 		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(),
 		float64(exp.NewBlockData.Height),
 		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
 
-	exp.ExtraInfo.APR = apr
+	exp.ExtraInfo.ASR = asr
 
 	exp.NewBlockDataMtx.Unlock()
 
@@ -358,9 +358,9 @@ func (exp *explorerUI) addRoutes() {
 // starting amount of DCR and calculation parameters.  Generate a TEXT table of
 // the simulation results that can optionally be used for future expansion of
 // dcrdata functionality.
-func (exp *explorerUI) simulateAPR(StartingDCRBalance float64, IntegerTicketQty bool,
+func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty bool,
 	CurrentStakePercent float64, ActualCoinbase float64, CurrentBlockNum float64,
-	ActualTicketPrice float64) (APR float64, ReturnTable string) {
+	ActualTicketPrice float64) (ASR float64, ReturnTable string) {
 
 	// The expected block (aka mean) of the probability distribution is given by:
 	//      sum(B * P(B)), B=1 to 40960
@@ -462,8 +462,8 @@ func (exp *explorerUI) simulateAPR(StartingDCRBalance float64, IntegerTicketQty 
 	}
 
 	// Scale down to exactly 365 days
-	SimulationROI := ((DCRBalance - StartingDCRBalance) / StartingDCRBalance) * 100
-	APR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationROI
-	ReturnTable += fmt.Sprintf("APR over 365 Days is %.2f.\n", APR)
+	SimulationReward := ((DCRBalance - StartingDCRBalance) / StartingDCRBalance) * 100
+	ASR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationReward
+	ReturnTable += fmt.Sprintf("ASR over 365 Days is %.2f.\n", ASR)
 	return
 }
