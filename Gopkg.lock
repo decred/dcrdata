@@ -153,6 +153,23 @@
   revision = "bb6dd72b9b092efa739242893bd7b4dcc4d6bb27"
 
 [[projects]]
+  name = "github.com/didip/tollbooth"
+  packages = [
+    ".",
+    "errors",
+    "libstring",
+    "limiter"
+  ]
+  revision = "c95eaa3ddc98f635a91e218b48727fb2e06613ea"
+  version = "v4.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/didip/tollbooth_chi"
+  packages = ["."]
+  revision = "6ab5f3083f3d925e1944d58cdaebf43bbbff9238"
+
+[[projects]]
   branch = "master"
   name = "github.com/dustin/go-humanize"
   packages = ["."]
@@ -260,6 +277,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/patrickmn/go-cache"
+  packages = ["."]
+  revision = "a3647f8e31d79543b2d0f0ae2fe5c379d72cedc0"
+  version = "v2.1.0"
+
+[[projects]]
   name = "github.com/rs/cors"
   packages = ["."]
   revision = "feef513b9575b32f84bafa580aad89b011259019"
@@ -294,7 +317,10 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["websocket"]
+  packages = [
+    "context",
+    "websocket"
+  ]
   revision = "8e0cdda24ed423affc8f35c241e5e9b16180338e"
 
 [[projects]]
@@ -306,9 +332,15 @@
   ]
   revision = "7f59abf37be6a6007f075af1bc7f16f137bc176b"
 
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/time"
+  packages = ["rate"]
+  revision = "fbb02b2291d28baffd63558aa44b4b56f178d650"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "933c7a02d3161f35a6df99bc10dcb7d2f43d4b2b134b48877cdff54130f7faf1"
+  inputs-digest = "c7cc92e19efe230b5e2f29e91209b5a61494768123422fe95505c66089c69cf1"
   solver-name = "gps-cdcl"
   solver-version = 1
