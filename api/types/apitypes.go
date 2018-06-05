@@ -95,14 +95,6 @@ type Vout struct {
 	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey"`
 }
 
-// VoutHexScript models the hex script for a transaction output
-type VoutHexScript struct {
-	Value           float64 `json:"value"`
-	N               uint32  `json:"n"`
-	Version         uint16  `json:"version"`
-	ScriptPubKeyHex string  `json:"scriptPubKey"`
-}
-
 // ScriptPubKey is the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKey struct {
 	Asm       string   `json:"asm"`
@@ -207,8 +199,8 @@ type TxRawWithTxType struct {
 // ScriptSig models the signature script used to redeem the origin transaction
 // as a JSON object (non-coinbase txns only)
 type ScriptSig struct {
-	Asm string `json:"asm"`
-	Hex string `json:"hex"`
+	Asm string `json:"asm,omitempty"`
+	Hex string `json:"hex,omitempty"`
 }
 
 // PrevOut represents previous output for an input Vin.

@@ -19,18 +19,27 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg"
 	m "github.com/decred/dcrdata/middleware"
 	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrdata/txhelpers"
 )
+
+// DataSourceLite specifies an interface for collecting data from the built-in
+// databases (i.e. SQLite, storm, ffldb)
+type DataSourceLite interface {
+	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
+}
 
 type insightApiContext struct {
 	nodeClient *rpcclient.Client
 	BlockData  *dcrpg.ChainDBRPC
 	params     *chaincfg.Params
+	MemPool    DataSourceLite
 	Status     apitypes.Status
 	statusMtx  sync.RWMutex
 
@@ -38,7 +47,7 @@ type insightApiContext struct {
 }
 
 // NewInsightContext Constructor for insightApiContext
-func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, params *chaincfg.Params, JSONIndent string) *insightApiContext {
+func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, params *chaincfg.Params, memPoolData DataSourceLite, JSONIndent string) *insightApiContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 	version := semver.NewSemver(1, 0, 0)
@@ -47,6 +56,7 @@ func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, pa
 		nodeClient: client,
 		BlockData:  blockData,
 		params:     params,
+		MemPool:    memPoolData,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -102,18 +112,31 @@ func writeInsightNotFound(w http.ResponseWriter, str string) {
 func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 	txid := m.GetTxIDCtx(r)
 	if txid == "" {
-		http.Error(w, http.StatusText(422), 422)
+		apiLog.Errorf("Txid cannot be empty")
+		writeInsightError(w, fmt.Sprintf("Txid cannot be empty"))
 		return
 	}
 
-	tx, _ := c.BlockData.GetRawTransaction(txid)
-	if tx == nil {
+	// Return raw transaction
+	txOld, err := c.BlockData.GetRawTransaction(txid)
+	if err != nil {
 		apiLog.Errorf("Unable to get transaction %s", txid)
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightNotFound(w, fmt.Sprintf("Unable to get transaction (%s)", txid))
 		return
 	}
 
-	writeJSON(w, tx, c.getIndentQuery(r))
+	txsOld := []*dcrjson.TxRawResult{txOld}
+
+	// convert to insight struct
+	txsNew, err := c.TxConverter(txsOld)
+
+	if err != nil {
+		apiLog.Errorf("Error Processing Transactions")
+		writeInsightError(w, fmt.Sprintf("Error Processing Transactions"))
+		return
+	}
+
+	writeJSON(w, txsNew[0], c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
@@ -287,27 +310,136 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	count := m.GetCountCtx(r)
-	offset := m.GetOffsetCtx(r)
+	address := c.GetAddressCtx(r)         // Required
+	noAsm := c.GetNoAsmCtx(r)             // Optional
+	noScriptSig := c.GetNoScriptSigCtx(r) // Optional
+	noSpent := c.GetNoSpentCtx(r)         // Optional
+	from, ok := c.GetFromCtx(r)           // Optional
 
-	if address == "" {
-		http.Error(w, http.StatusText(422), 422)
+	if !ok {
+		from = 0
+	}
+
+	to, ok := c.GetToCtx(r) // Optional
+	if !ok {
+		to = from + 10
+	}
+
+	addresses := []string{}
+
+	// If no address present we need to stop.  Allow Addresses to be single or
+	// multiple separated by a comma.
+	if address != "" {
+		if strings.Contains(address, ",") {
+			addresses = strings.Split(address, ",")
+		} else {
+			addresses = []string{address}
+		}
+	} else {
+		apiLog.Error("Address cannot be empty")
+		writeInsightError(w, fmt.Sprintf("Address cannot be empty"))
 		return
 	}
 
-	addresses := strings.Split(address, ",")
+	// Initialize Output Structure
+	addressOutput := new(apitypes.InsightMultiAddrsTxOutput)
+	UnconfirmedTxs := []string{}
 
-	addressOutput := new(apitypes.InsightAddress)
+	rawTxs, recentTxs := c.BlockData.ChainDB.InsightPgGetAddressTransactions(addresses, int64(c.Status.Height-2))
 
-	addressOutput.From = offset
-	addressOutput.To = count
-
+	// Confirm all addresses are valid and pull unconfirmed transactions for all addresses
 	for _, addr := range addresses {
-		addressTxn := c.BlockData.InsightGetAddressTransactions(addr, count, offset)
-		addressOutput.Transactions = append(addressOutput.Transactions, addressTxn...)
+		address, err := dcrutil.DecodeAddress(addr)
+		if err != nil {
+			apiLog.Errorf("Address is invalid (%s)", addr)
+			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", addr))
+			return
+		}
+		addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address.String())
+		if err != nil {
+			apiLog.Errorf("Error gathering mempool transactions (%s)", err)
+			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%s)", err))
+			return
+		}
+
+	OUTER1:
+		for _, f := range addressOuts.Outpoints {
+			// Confirm its not already in our recent transactions
+			for _, v := range recentTxs {
+				if v == f.Hash.String() {
+					continue OUTER1
+				}
+			}
+			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash.String()) // Funding tx
+			recentTxs = append(recentTxs, f.Hash.String())
+		}
+	OUTER2:
+		for _, f := range addressOuts.PrevOuts {
+			for _, v := range recentTxs {
+				if v == f.TxSpending.String() {
+					continue OUTER2
+				}
+			}
+			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending.String()) // Spending tx
+			recentTxs = append(recentTxs, f.TxSpending.String())
+		}
 	}
 
+	// Merge unconfirmed with confirmed transactions
+	rawTxs = append(UnconfirmedTxs, rawTxs...)
+
+	txcount := len(rawTxs)
+	addressOutput.TotalItems = int64(txcount)
+
+	if txcount > 0 {
+		if int(from) > txcount {
+			from = int64(txcount)
+		}
+		if int(from) < 0 {
+			from = 0
+		}
+		if int(to) > txcount {
+			to = int64(txcount)
+		}
+		if int(to) < 0 {
+			to = 0
+		}
+		if from > to {
+			to = from
+		}
+		if (to - from) > 50 {
+			writeInsightError(w, fmt.Sprintf("\"from\" (%d) and \"to\" (%d) range should be less than or equal to 50", from, to))
+			return
+		}
+		apiLog.Infof("Slicing result set which is %d transactions long from: %d to: %d", txcount, from, to)
+		rawTxs = rawTxs[from:to]
+	}
+	addressOutput.From = int(from)
+	addressOutput.To = int(to)
+
+	txsOld := []*dcrjson.TxRawResult{}
+	for _, rawTx := range rawTxs {
+		txOld, err := c.BlockData.GetRawTransaction(rawTx)
+		if err != nil {
+			apiLog.Errorf("Unable to get transaction %s", rawTx)
+			writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err))
+			return
+		}
+		txsOld = append(txsOld, txOld)
+	}
+
+	// Convert to Insight API struct
+	txsNew, err := c.TxConverterWithParams(txsOld, noAsm, noScriptSig, noSpent)
+	if err != nil {
+		apiLog.Error("Unable to process transactions")
+		writeInsightError(w, fmt.Sprintf("Unable to convert transactions (%s)", err))
+		return
+	}
+	addressOutput.Items = append(addressOutput.Items, txsNew...)
+	if addressOutput.Items == nil {
+		// Make sure we pass an empty array not null to json response if no Tx
+		addressOutput.Items = make([]apitypes.InsightTx, 0)
+	}
 	writeJSON(w, addressOutput, c.getIndentQuery(r))
 }
 
