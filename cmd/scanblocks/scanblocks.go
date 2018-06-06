@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/btcsuite/btclog"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
@@ -16,6 +15,7 @@ import (
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/slog"
 )
 
 var host = flag.String("host", "127.0.0.1:9109", "node RPC host:port")
@@ -27,8 +27,8 @@ var notls = flag.Bool("notls", true, "Disable use of TLS for node connection")
 var (
 	activeNetParams = &chaincfg.MainNetParams
 
-	backendLog      *btclog.Backend
-	rpcclientLogger btclog.Logger
+	backendLog      *slog.Backend
+	rpcclientLogger slog.Logger
 )
 
 func mainCore() int {
@@ -151,7 +151,7 @@ func init() {
 		os.Exit(1)
 	}
 
-	backendLog = btclog.NewBackend(log.Writer())
+	backendLog = slog.NewBackend(log.Writer())
 	rpcclientLogger = backendLog.Logger("RPC")
 	rpcclient.UseLogger(rpcclientLogger)
 	rpcutils.UseLogger(rpcclientLogger)
