@@ -112,7 +112,9 @@ Begin with the sample configuration file:
 cp sample-dcrdata.conf dcrdata.conf
 ```
 
-Then edit dcrdata.conf with your dcrd RPC settings. See the output of
+Then edit dcrdata.conf with your dcrd RPC settings. After you are finished, move dcrdata.conf to ./dcrdata.
+
+See the output of
 `dcrdata --help` for a list of all options and their default values.
 
 ### Indexing the Blockchain
