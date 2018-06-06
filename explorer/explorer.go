@@ -182,6 +182,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			WindowSize:       exp.ChainParams.StakeDiffWindowSize,
 			RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
 			BlockTime:        exp.ChainParams.TargetTimePerBlock.Nanoseconds(),
+			MeanVotingBlocks: calcMeanVotingBlocks(params),
 		},
 		PoolInfo: TicketPoolInfo{
 			Target: exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
@@ -259,30 +260,15 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		return percentage(PosSubPerVote, blockData.CurrentStakeDiff.CurrentStakeDifficulty)
 	}()
 
-	// If there are ticketpoolsize*TicketsPerBlock total tickets and
-	// TicketsPerBlock are drawn every block, and assuming random selection
-	// of tickets, then any one ticket will, on average, be selected to vote
-	// once every ticketpoolsize blocks
-
-	// Small deviations in reality are due to:
-	// 1.  Not all blocks have 5 votes.  On average each block in Decred
-	// currently has about 4.8 votes per block
-	// 2.  Total tickets in the pool varies slightly above and below
-	// ticketpoolsize*TicketsPerBlock depending on supply and demand
-
-	// Both minor deviations are not accounted for in the general Reward
-	// calculation below because the variance they cause would be would be
-	// extremely small.
-
 	// The actual Reward of a ticket needs to also take into consideration the
 	// ticket maturity (time from ticket purchase until its eligible to vote)
 	// and coinbase maturity (time after vote until funds distributed to
 	// ticket holder are avaliable to use)
 	exp.ExtraInfo.RewardPeriod = func() string {
 		PosAvgTotalBlocks := float64(
-			exp.ChainParams.TicketPoolSize +
-				exp.ChainParams.TicketMaturity +
-				exp.ChainParams.CoinbaseMaturity)
+			exp.ExtraInfo.Params.MeanVotingBlocks +
+				int64(exp.ChainParams.TicketMaturity) +
+				int64(exp.ChainParams.CoinbaseMaturity))
 		return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
 	}()
 
@@ -362,13 +348,6 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	CurrentStakePercent float64, ActualCoinbase float64, CurrentBlockNum float64,
 	ActualTicketPrice float64) (ASR float64, ReturnTable string) {
 
-	// The expected block (aka mean) of the probability distribution is given by:
-	//      sum(B * P(B)), B=1 to 40960
-	// Where B is the block number and P(B) is the probability of voting at
-	// block B.  For more information see:
-	// https://github.com/decred/dcrdata/issues/471#issuecomment-390063025
-
-	AvgTicketBlocks := float64(7860.92) // For Mainnet ChainParams
 	BlocksPerDay := 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
 	BlocksPerYear := 365 * BlocksPerDay
 	TicketsPurchased := float64(0)
@@ -401,7 +380,7 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 
 	TheoreticalTicketPrice := func(blocknum float64) float64 {
 		ProjectedCoinsCirculating := MaxCoinSupplyAtBlock(blocknum) * CoinAdjustmentFactor * CurrentStakePercent
-		TicketPoolSize := (AvgTicketBlocks + float64(exp.ChainParams.TicketMaturity) +
+		TicketPoolSize := (float64(exp.ExtraInfo.Params.MeanVotingBlocks) + float64(exp.ChainParams.TicketMaturity) +
 			float64(exp.ChainParams.CoinbaseMaturity)) * float64(exp.ChainParams.TicketsPerBlock)
 		return ProjectedCoinsCirculating / TicketPoolSize
 
@@ -438,7 +417,7 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 			TicketPrice, StakeRewardAtBlock(simblock))
 
 		// Move forward to average vote
-		simblock += (float64(exp.ChainParams.TicketMaturity) + AvgTicketBlocks)
+		simblock += (float64(exp.ChainParams.TicketMaturity) + float64(exp.ExtraInfo.Params.MeanVotingBlocks))
 		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    VOTE\n",
 			int64(simblock), DCRBalance, TicketsPurchased,
 			(TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor), StakeRewardAtBlock(simblock))
@@ -466,4 +445,22 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	ASR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationReward
 	ReturnTable += fmt.Sprintf("ASR over 365 Days is %.2f.\n", ASR)
 	return
+}
+
+// Calculate the Mean ticket voting block for network parameters.
+// The expected block (aka mean) of the probability distribution is given by:
+//      sum(B * P(B)), B=1 to 40960
+// Where B is the block number and P(B) is the probability of voting at
+// block B.  For more information see:
+// https://github.com/decred/dcrdata/issues/471#issuecomment-390063025
+
+func calcMeanVotingBlocks(params *chaincfg.Params) int64 {
+	logPoolSizeM1 := math.Log(float64(params.TicketPoolSize) - 1)
+	logPoolSize := math.Log(float64(params.TicketPoolSize))
+	var v float64
+	for i := float64(1); i <= float64(params.TicketExpiry); i++ {
+		v += math.Exp(math.Log(i) + (i-1)*logPoolSizeM1 - i*logPoolSize)
+	}
+	log.Infof("Mean Voting Blocks calculated: %d", int64(v))
+	return int64(v)
 }

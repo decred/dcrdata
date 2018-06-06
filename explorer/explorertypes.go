@@ -305,6 +305,7 @@ type ChainParams struct {
 	RewardWindowSize int64 `json:"reward_window_size"`
 	TargetPoolSize   int64 `json:"target_pool_size"`
 	BlockTime        int64 `json:"target_block_time"`
+	MeanVotingBlocks int64
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
