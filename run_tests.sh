@@ -23,6 +23,9 @@ testrepo () {
   # Check lockfile
   dep ensure -no-vendor -dry-run
 
+  # All good, so run for real
+  dep ensure
+
   # Check linters
   gometalinter --vendor --disable-all --deadline=10m \
     --enable=gofmt \
