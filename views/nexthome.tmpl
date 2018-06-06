@@ -144,18 +144,54 @@
             </div>
 
             <div class="col-md-6">
-
+ 
                 <h4 class="mt-2">Decred Blockchain</h4>
                 <div class="card-columns">
 		   {{range .Blocks}}
   		   <div class="card">
-    		     <div class="card-header"></div>
-    		     <div class="card-body text-center">#{{.Height}}
+    		    <div class="card-header">
+                    {{range .Votes}}
+                    {{if .VoteInfo.Validation.Validity}}<button type="button" class="btn btn-success"></button>
+                    {{else}}<button type="button" class="btn btn-danger"></button>{{end}}{{end}}
+                    {{range .Misses}}<button type="button" class="btn btn-outline-dark"></button>{{end}}
+                    <div class="row"></div>
+                    {{range .Tickets}}<button type="button" class="btn btn-secondary"></button>{{end}}
+                    {{range .Revs}}<button type="button" class="btn btn-warning"></button>{{end}}
+                    <div class="row"></div>
+                    {{range .Tx}}
+                    {{if eq .Coinbase false}}
+
+                    {{if lt .Total 50.0}}
+                    <button type="button" class="btn btn-info x-small"></button>
+
+                    {{else if lt .Total 100.0}}
+                    <button type="button" class="btn btn-info small"></button>
+
+                    {{else if lt .Total 200.0}}
+                    <button type="button" class="btn btn-info medium"></button>
+
+                    {{else if lt .Total 500.0}}
+                    <button type="button" class="btn btn-info large"></button>
+
+                    {{else if lt .Total 1000.0}}
+                    <button type="button" class="btn btn-info x-large"></button>
+
+                    {{else if ge .Total 1000.0}}
+                    <button type="button" class="btn btn-info xx-large"></button>
+                    {{end}}
+                    
+                    
+                    {{end}}{{end}}
+
+                </div>
+    		    <div class="card-body text-center">
+                       <a href="/block/{{.Height}}">#{{.Height}}</a>
                        <p data-age="{{.BlockTime}}"></p>
-                       <p>{{.Voters}} Votes</p>
-		     </div>  
-    		   </div>
-		   {{end}}
+		        </div>
+    		</div>
+            {{end}}
+            
+		   
   		</div>
       
                 <div class="mb-3"><a href="/blocks"><small>Show Blockchain history</small></a></div>

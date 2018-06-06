@@ -60,7 +60,7 @@
        -webkit-tap-highlight-color:transparent
       }
       *,::after,::before {
-       box-sizing:inherit
+       box-sizing:inherit;
       }
       @-ms-viewport {
        width:device-width
@@ -490,10 +490,12 @@
        display:-ms-flexbox;
        display:flex;
        -ms-flex-wrap:wrap;
-       flex-wrap:wrap;
-       margin-right:-15px;
-       margin-left:-15px;
-       margin-top:80px;
+       /*! flex-wrap:wrap; */
+       /*! margin-right:-15px; */
+       /*! margin-left:-15px; */
+       /*! margin-top:80px; */
+       margin: -7px;
+       /*! padding: -5px; */
       }
       .no-gutters {
        margin-right:0;
@@ -1602,7 +1604,8 @@
        font-size:1rem;
        line-height:1.25;
        border-radius:.25rem;
-       transition:all .15s ease-in-out
+       transition:all .15s ease-in-out;
+       margin: 5px 0 8px 1px;
       }
       .btn:focus,.btn:hover {
        text-decoration:none
@@ -1645,7 +1648,8 @@
       .btn-secondary {
        color:#fff;
        background-color:#868e96;
-       border-color:#868e96
+       border-color:#868e96;
+       padding: .1rem .1rem;
       }
       .btn-secondary:hover {
        color:#fff;
@@ -1689,7 +1693,8 @@
       .btn-info {
        color:#fff;
        background-color:#17a2b8;
-       border-color:#17a2b8
+       border-color:#17a2b8;
+       padding: .1rem .1rem;
       }
       .btn-info:hover {
        color:#fff;
@@ -1710,8 +1715,9 @@
       }
       .btn-warning {
        color:#111;
-       background-color:#ffc107;
-       border-color:#ffc107
+       background-color:#dc3545;
+       border-color:#dc3545;
+       padding: .1rem .1rem;
       }
       .btn-warning:hover {
        color:#111;
@@ -2990,12 +2996,14 @@
        border-bottom-left-radius:.25rem
       }
       .card-header {
-       padding:.0 0 50px 0;
+       /*! padding:.0 0 10px 0; */
        margin-bottom:0;
-       background-color:rgba(143, 181, 255, 1)
+       background-color:rgba(143, 181, 255, 1);
+       height: 50px;
+       /*! width: 169px; */
       }
       .card-header:first-child {
-       border-radius:calc(.25rem - 1px) calc(.25rem - 1px) 0 0
+       border-radius:calc(.25rem - 1px) calc(.25rem - 1px) 0 0;
       }
       .card-footer {
        padding:.75rem 1.25rem;
@@ -3105,7 +3113,8 @@
         -webkit-column-count:3;
         column-count:3;
         width:536px;
-        -webkit-column-gap:1.25rem
+        -webkit-column-gap:1.25rem;
+        height: 450px;
        }
        .card-columns .card {
         display:inline-block
