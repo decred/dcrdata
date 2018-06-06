@@ -158,28 +158,149 @@
                     {{range .Tickets}}<button type="button" class="btn btn-secondary"></button>{{end}}
                     {{range .Revs}}<button type="button" class="btn btn-warning"></button>{{end}}
                     <div class="row"></div>
+
                     {{range .Tx}}
                     {{if eq .Coinbase false}}
 
+                {{/* X-Small TxAmount */}}
                     {{if lt .Total 50.0}}
-                    <button type="button" class="btn btn-info x-small"></button>
 
-                    {{else if lt .Total 100.0}}
-                    <button type="button" class="btn btn-info small"></button>
+                    {{if lt .BytesSize 500}}
+                    <button type="button" class="btn btn-info xs-amount-xs-size"></button>
 
-                    {{else if lt .Total 200.0}}
-                    <button type="button" class="btn btn-info medium"></button>
+                    {{else if lt .BytesSize 1000}}
+                    <button type="button" class="btn btn-info xs-amount-s-size"></button>
 
-                    {{else if lt .Total 500.0}}
-                    <button type="button" class="btn btn-info large"></button>
+                    {{else if lt .BytesSize 2000}}
+                    <button type="button" class="btn btn-info xs-amount-m-size"></button>
 
-                    {{else if lt .Total 1000.0}}
-                    <button type="button" class="btn btn-info x-large"></button>
+                    {{else if lt .BytesSize 10000}}
+                    <button type="button" class="btn btn-info xs-amount-l-size"></button>
 
-                    {{else if ge .Total 1000.0}}
-                    <button type="button" class="btn btn-info xx-large"></button>
+                    {{else if lt .BytesSize 50000}}
+                    <button type="button" class="btn btn-info xs-amount-xl-size"></button>
+
+                    {{else if ge .BytesSize 50000}}
+                    <button type="button" class="btn btn-info xs-amount-xxl-size"></button>
+
                     {{end}}
+
+                {{/* Small TxAmount */}}
+                    {{else if lt .Total 100.0}}
+
+                    {{if lt .BytesSize 500}}
+                  <button type="button" class="btn btn-info s-amount-xs-size"></button>
+
+                    {{else if lt .BytesSize 1000}}
+                    <button type="button" class="btn btn-info s-amount-s-size"></button>
+
+                    {{else if lt .BytesSize 2000}}
+                    <button type="button" class="btn btn-info s-amount-m-size"></button>
+
+                    {{else if lt .BytesSize 10000}}
+                    <button type="button" class="btn btn-info s-amount-l-size"></button>
+
+                    {{else if lt .BytesSize 50000}}
+                    <button type="button" class="btn btn-info s-amount-xl-size"></button>
+
+                    {{else if ge .BytesSize 50000}}
+                    <button type="button" class="btn btn-info s-amount-xxl-size"></button>
+
+                    {{end}}
+
+                {{/* Medium TxAmount */}}
+                    {{else if lt .Total 200.0}}
                     
+                    {{if lt .BytesSize 500}}
+                    <button type="button" class="btn btn-info m-amount-xs-size"></button>
+
+                    {{else if lt .BytesSize 1000}}
+                    <button type="button" class="btn btn-info m-amount-s-size"></button>
+
+                    {{else if lt .BytesSize 2000}}
+                    <button type="button" class="btn btn-info m-amount-m-size"></button>
+
+                    {{else if lt .BytesSize 10000}}
+                    <button type="button" class="btn btn-info m-amount-l-size"></button>
+
+                    {{else if lt .BytesSize 50000}}
+                    <button type="button" class="btn btn-info m-amount-xl-size"></button>
+
+                    {{else if ge .BytesSize 50000}}
+                    <button type="button" class="btn btn-info m-amount-xxl-size"></button>
+
+                    {{end}}
+
+                {{/* Large TxAmount */}}
+                    {{else if lt .Total 500.0}}
+                    
+                    {{if lt .BytesSize 500}}
+                    <button type="button" class="btn btn-info l-amount-xs-size"></button>
+
+                    {{else if lt .BytesSize 1000}}
+                    <button type="button" class="btn btn-info l-amount-s-size"></button>
+
+                    {{else if lt .BytesSize 2000}}
+                    <button type="button" class="btn btn-info l-amount-m-size"></button>
+
+                    {{else if lt .BytesSize 10000}}
+                    <button type="button" class="btn btn-info l-amount-l-size"></button>
+
+                    {{else if lt .BytesSize 50000}}
+                    <button type="button" class="btn btn-info l-amount-xl-size"></button>
+
+                    {{else if ge .BytesSize 50000}}
+                    <button type="button" class="btn btn-info l-amount-xxl-size"></button>
+
+                    {{end}}
+
+                {{/* X-Large TxAmount */}}
+                    {{else if lt .Total 1000.0}}
+                    
+                    {{if lt .BytesSize 500}}
+                    <button type="button" class="btn btn-info xl-amount-xs-size"></button>
+
+                    {{else if lt .BytesSize 1000}}
+                    <button type="button" class="btn btn-info xl-amount-s-size"></button>
+
+                    {{else if lt .BytesSize 2000}}
+                    <button type="button" class="btn btn-info xl-amount-m-size"></button>
+
+                    {{else if lt .BytesSize 10000}}
+                    <button type="button" class="btn btn-info xl-amount-l-size"></button>
+
+                    {{else if lt .BytesSize 50000}}
+                    <button type="button" class="btn btn-info xl-amount-xl-size"></button>
+
+                    {{else if ge .BytesSize 50000}}
+                    <button type="button" class="btn btn-info xl-amount-xxl-size"></button>
+
+                    {{end}}
+
+                {{/* XX-Large TxAmount */}}
+                    {{else if ge .Total 1000.0}}
+                    
+                    {{if lt .BytesSize 500}}
+                    <button type="button" class="btn btn-info xxl-amount-xs-size"></button>
+
+                    {{else if lt .BytesSize 1000}}
+                    <button type="button" class="btn btn-info xxl-amount-s-size"></button>
+
+                    {{else if lt .BytesSize 2000}}
+                    <button type="button" class="btn btn-info xxl-amount-m-size"></button>
+
+                    {{else if lt .BytesSize 10000}}
+                    <button type="button" class="btn btn-info xxl-amount-l-size"></button>
+
+                    {{else if lt .BytesSize 50000}}
+                    <button type="button" class="btn btn-info xxl-amount-xl-size"></button>
+
+                    {{else if ge .BytesSize 50000}}
+                    <button type="button" class="btn btn-info xxl-amount-xxl-size"></button>
+
+                    {{end}}
+
+                    {{end}}
                     
                     {{end}}{{end}}
 

@@ -1694,7 +1694,7 @@
        color:#fff;
        background-color:#17a2b8;
        border-color:#17a2b8;
-       padding: .1rem .1rem;
+       /*! padding: .1rem .1rem; */
       }
       .btn-info:hover {
        color:#fff;
@@ -2034,6 +2034,7 @@
       input[type=button].btn-block,input[type=reset].btn-block,input[type=submit].btn-block {
        width:100%
       }
+
       .fade {
        opacity:0;
        transition:opacity .15s linear
@@ -2268,6 +2269,115 @@
        clip:rect(0,0,0,0);
        pointer-events:none
       }
+    .xs-amount-xs-size {
+        padding: .1rem .1rem
+    }
+    .xs-amount-s-size {
+        padding: .2rem .1rem
+    }
+    .xs-amount-m-size {
+        padding: .3rem .1rem
+    }
+    .xs-amount-l-size {
+        padding: .4rem .1rem
+    }
+    .xs-amount-xl-size {
+        padding: .5rem .1rem
+    }
+    .xs-amount-xxl-size {
+        padding: .6rem .1rem
+    }
+    .s-amount-xs-size {
+        padding: .1rem .2rem
+    }
+    .s-amount-s-size {
+        padding: .2rem .2rem
+    }
+    .s-amount-m-size {
+        padding: .3rem .2rem
+    }
+    .s-amount-l-size {
+        padding: .4rem .2rem
+    }
+    .s-amount-xl-size {
+        padding: .5rem .2rem
+    }
+    .s-amount-xxl-size {
+        padding: .6rem .2rem
+    }
+    .m-amount-xs-size {
+        padding: .1rem .3rem
+    }
+    .m-amount-s-size {
+        padding: .2rem .3rem
+    }
+    .m-amount-m-size {
+        padding: .3rem .3rem
+    }
+    .m-amount-l-size {
+        padding: .4rem .3rem
+    }
+    .m-amount-xl-size {
+        padding: .5rem .3rem
+    }
+    .m-amount-xxl-size {
+        padding: .6rem .3rem
+    }
+    .l-amount-xs-size {
+        padding: .1rem .4rem
+    }
+    .l-amount-s-size {
+        padding: .2rem .4rem
+    }
+    .l-amount-m-size {
+        padding: .3rem .4rem
+    }
+    .l-amount-l-size {
+        padding: .4rem .4rem
+    }
+    .l-amount-xl-size {
+        padding: .5rem .4rem
+    }
+    .l-amount-xxl-size {
+        padding: .6rem .4rem
+    }
+    .xl-amount-xs-size {
+        padding: .1rem .5rem
+    }
+    .xl-amount-s-size {
+        padding: .2rem .5rem
+    }
+    .xl-amount-m-size {
+        padding: .3rem .5rem
+    }
+    .xl-amount-l-size {
+        padding: .4rem .5rem
+    }
+    .xl-amount-xl-size {
+        padding: .5rem .5rem
+    }
+    .xl-amount-xxl-size {
+        padding: .6rem .5rem
+    }
+    .xxl-amount-xs-size {
+        padding: .1rem .6rem
+    }
+    .xxl-amount-s-size {
+        padding: .2rem .6rem
+    }
+    .xxl-amount-m-size {
+        padding: .3rem .6rem
+    }
+    .xxl-amount-l-size {
+        padding: .4rem .6rem
+    }
+    .xxl-amount-xl-size {
+        padding: .5rem .6rem
+    }
+    .xxl-amount-xxl-size {
+        padding: .6rem .6rem
+    }
+
       .input-group {
        position:relative;
        display:-ms-flexbox;

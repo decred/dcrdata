@@ -34,6 +34,7 @@ type BlockBasic struct {
 type TxBasic struct {
 	TxID          string
 	FormattedSize string
+	BytesSize     uint64
 	Total         float64
 	TxAmount      *TxAmount
 	Fee           dcrutil.Amount

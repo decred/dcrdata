@@ -905,6 +905,7 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
+	tx.BytesSize = uint64(len(data.Hex) / 2)
 
 	/**if tx.Total < 50.0 {
 		tx.TxAmount.X_Small = true
