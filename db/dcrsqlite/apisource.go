@@ -745,18 +745,24 @@ func (db *wiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 }
 
 // GetSqliteChartsData fetches the charts data from the sqlite db.
-func (db *wiredDB) GetSqliteChartsData() ([][]dbtypes.ChartsData, error) {
+func (db *wiredDB) GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error) {
 	poolData, err := db.RetrieveAllPoolValAndSize()
 	if err != nil {
-		return [][]dbtypes.ChartsData{}, err
+		return nil, err
 	}
 
 	feeData, err := db.RetrieveBlockFeeInfo()
 	if err != nil {
-		return [][]dbtypes.ChartsData{}, err
+		return nil, err
 	}
 
-	return [][]dbtypes.ChartsData{poolData, feeData}, nil
+	var data = map[string]*dbtypes.ChartsData{
+		"ticket-pool-size":  {Time: poolData.Time, SizeF: poolData.SizeF},
+		"ticket-pool-value": {Time: poolData.Time, ValueF: poolData.ValueF},
+		"fee-per-block":     feeData,
+	}
+
+	return data, nil
 }
 
 func (db *wiredDB) GetSDiff(idx int) float64 {

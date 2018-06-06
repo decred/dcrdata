@@ -61,12 +61,19 @@ const (
 	SelectFundingOutpointByVinID = `SELECT prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins WHERE id=$1;`
 	SelectFundingTxByVinID       = `SELECT prev_tx_hash FROM vins WHERE id=$1;`
 	SelectSpendingTxByVinID      = `SELECT tx_hash, tx_index, tx_tree FROM vins WHERE id=$1;`
-	SelectAllVinInfoByID         = `SELECT * FROM vins WHERE id=$1;`
-	SetIsValidByTxHash           = `UPDATE vins SET is_valid = $1 WHERE tx_hash = $2;`
+	SelectAllVinInfoByID         = `SELECT tx_hash, tx_index, tx_tree, is_valid, block_time,
+		prev_tx_hash, prev_tx_index, prev_tx_tree, value_in FROM vins WHERE id = $1;`
+	SetIsValidByTxHash = `UPDATE vins SET is_valid = $1 WHERE tx_hash = $2, block_time = $3 AND tx_tree = $4;`
 
-	SelectCoinSupply = `SELECT block_time, value_in FROM vins WHERE
+	SetVinsTableCoinSupplyUpgrade = `UPDATE vins SET is_valid = $1, block_time = $2, value_in = $3
+		WHERE tx_hash = $4 and tx_index = $5 and tx_tree = $6;`
+
+	// SelectCoinSupply fetches the coin supply as of the latest block and sum
+	// represents the generated coins for all stakebase and only
+	// not-invalidated coinbase transactions.
+	SelectCoinSupply = `SELECT block_time, sum(value_in) FROM vins WHERE
 		prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000' AND
-		not (is_valid = false AND tx_tree = 0) ORDER BY block_time;`
+		not (is_valid = false AND tx_tree = 0) GROUP BY block_time ORDER BY block_time;`
 
 	CreateVinType = `CREATE TYPE vin_t AS (
 		prev_tx_hash TEXT,

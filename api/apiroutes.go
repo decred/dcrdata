@@ -1047,6 +1047,27 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, totals, c.getIndentQuery(r))
 }
 
+func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Request) {
+	chartData, ok := explorer.GetChartTypeData("ticket-price")
+	if !ok {
+		http.NotFound(w, r)
+		log.Warnf(`No data matching "ticket-price" chart Type was found`)
+		return
+	}
+	writeJSON(w, chartData, c.getIndentQuery(r))
+}
+
+func (c *appContext) getChartTypeData(w http.ResponseWriter, r *http.Request) {
+	chartType := m.GetChartTypeCtx(r)
+	chartData, ok := explorer.GetChartTypeData(chartType)
+	if !ok {
+		http.NotFound(w, r)
+		log.Warnf(`No data matching "%s" chart Type was found`, chartType)
+		return
+	}
+	writeJSON(w, chartData, c.getIndentQuery(r))
+}
+
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
 	if address == "" {

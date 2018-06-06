@@ -83,6 +83,15 @@ const (
 	RetrieveBestBlock       = `SELECT * FROM blocks ORDER BY height DESC LIMIT 0, 1;`
 	RetrieveBestBlockHeight = `SELECT id, hash, height FROM blocks ORDER BY height DESC LIMIT 1;`
 
+	// SelectBlocksTicketsPrice selects the ticket price and difficulty for the first block in a stake difficulty window.
+	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty FROM blocks WHERE height % $1 = 0 ORDER BY time;`
+
+	SelectBlocksBlockSize = `SELECT time, size, numtx, height FROM blocks ORDER BY time;`
+
+	IndexBlocksTableOnHeight = `CREATE INDEX uix_block_height ON blocks(height);`
+
+	DeindexBlocksTableOnHeight = `DROP INDEX uix_block_height;`
+
 	// block_chain, with primary key that is not a SERIAL
 	CreateBlockPrevNextTable = `CREATE TABLE IF NOT EXISTS block_chain (
 		block_db_id INT8 PRIMARY KEY,
@@ -97,16 +106,7 @@ const (
 	VALUES ($1, $2, $3, $4)
 	ON CONFLICT (this_hash) DO NOTHING;`
 
-	SelectBlockChainRowIDByHash = `select block_db_id from block_chain where this_hash = $1;`
-
-	// SelectBlocksTicketsPrice selects the ticket price and difficulty for the 144th block
-	SelectBlocksTicketsPrice = `select sbits, time, difficulty from blocks where height % 144 = 0 order by time;`
-
-	SelectBlocksBlockSize = `Select time, size, numtx, height from blocks order by time;`
-
-	IndexBlocksTableOnHeight = `CREATE INDEX uix_height_index ON blocks(height);`
-
-	DeindexBlocksTableOnHeight = `DROP INDEX uix_height_index;`
+	SelectBlockChainRowIDByHash = `SELECT block_db_id FROM block_chain WHERE this_hash = $1;`
 
 	UpdateBlockNext = `UPDATE block_chain set next_hash = $2 WHERE block_db_id = $1;`
 )

@@ -1,254 +1,73 @@
 {{define "charts"}}
 <!DOCTYPE html>
 <html lang="en">
-
 {{template "html-head" "Decred Charts"}}
 <body>
     {{template "navbar" . }}
-    <style type="text/css">
-      .dygraph-legend {
-        padding: 4px !important;
-        border: 1px solid #000;
-        border-radius: 5px;
-        pointer-events: none;
-        width: fit-content;
-      }
-      .dygraph-rangesel-bgcanvas {
-        z-index: 0 !important;
-      }
-      .dygraph-rangesel-fgcanvas {
-        z-index: 0 !important;
-      }
-      .dygraph-rangesel-zoomhandle {
-        z-index: 0 !important;
-      }
-      .dygraph-axis-label {
-        z-index: 0 !important;
-      }
-    </style>
 
     <div class="container" style="font-size:0.8em;">
-         <br>
-        <br>
-        <br>
-        <div id="row">
-            <select id="selectBox" onchange="changeFunc();">
-                <option value="1">Ticket Price Chart</option>
-                <option value="2">Ticket Pool Size Chart</option>
-                <option value="3">Ticket Pool Value Chart</option>
-                <option value="4">Average Block Size Chart</option>
-                <option value="5">BlockChain Size Chart</option>
-                <option value="6">Number of Transactions Per Block Chart</option>
-                <option value="7">Number of Transactions Per Day Chart</option>
-                <option value="8">PoW Difficulty Chart</option>
-                <option value="9">Total Coin Supply Chart</option>
-                <option value="10">Total Fee Per Block Chart</option>
-                <option value="11">Duration Between Blocks Chart</option>
-            </select>
+        <div data-controller="charts">
+            <br><br>
+            <div id="row">
+                <select id="selectBox" data-target="charts.options" data-action="charts#onChange">
+                    <option value="ticket-price">Ticket Price Chart</option>
+                    <option value="ticket-pool-size">Ticket Pool Size Chart</option>
+                    <option value="ticket-pool-value">Ticket Pool Value Chart</option>
+                    <option value="avg-block-size">Average Block Size Chart</option>
+                    <option value="blockchain-size">BlockChain Size Chart</option>
+                    <option value="tx-per-block">Number of Transactions Per Block Chart</option>
+                    <option value="tx-per-day">Number of Transactions Per Day Chart</option>
+                    <option value="pow-difficulty">PoW Difficulty Chart</option>
+                    <option value="coin-supply">Total Coin Supply Chart</option>
+                    <option value="fee-per-block">Total Fee Per Block Chart</option>
+                    <option value="duration-btw-blocks">Duration Between Blocks Chart</option>
+                    <option value="ticket-spend-type">Tickets Spend Types Chart</option>
+                    <option value="ticket-by-outputs-windows">Tickets By Output Count Chart</option>
+                </select>
+               
+               <div class="row" style="float: right;">
+                    <div class="block-chart-btn-display">
+                        <label>Zoom :</label>
+                        <div class="btn-group" data-toggle="buttons" data-target="charts.zoom" data-action="click->charts#onZoom">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Day" name="288">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Week" name="2016">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Month" name="8760">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Year" name="105120">
+                            <input id="chart-zoom" type="button" class="btn btn_sm btn-active" value="All Blocks" name="0">
+                        </div>
+                    </div>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;</p>
+                    <div class="chart-btn-display">
+                        <label>Group :</label>
+                        <div class="btn-group" data-toggle="buttons" data-target="charts.groupings" data-action="click->charts#onGrouping">
+                            <input id="chart-group" type="button" class="btn btn_sm btn-active"
+                                value="Ticket Price Windows" name="ticket-by-outputs-windows">
+                            <input id="chart-group" type="button" class="btn btn_sm" value="Blocks"
+                                name="ticket-by-outputs-blocks">
+                        </div>
+                    </div>
+                </div>
+     
+            </div>
+            <br><br>
+            <div id="graphdiv" 
+                data-target="chartsview" 
+                style="width:100%; height:450px; margin:0 auto;">
+            </div>
         </div>
-        <br>
-        <br>
-        <div id="graphdiv" style="width:100%; height:450px; margin:0 auto;"></div>
-        <br>
     </div>
 
     <script type="text/javascript">
-        function safeStartTurbolinksProgress() {
-            if(!Turbolinks.supported) { return; }
-            Turbolinks.controller.adapter.progressBar.setValue(0.5);
-            Turbolinks.controller.adapter.progressBar.show();
-        }
+        var ticketsPrice = {{.Data}};
 
-        function safeStopTurbolinksProgress() {
-            if(!Turbolinks.supported) { return; }
-            Turbolinks.controller.adapter.progressBar.setValue(1);
-            Turbolinks.controller.adapter.progressBar.hide();
-        }
-        var g = new Dygraph(
-            document.getElementById("graphdiv"),
-            "1,1\n",
-            {
-                digitsAfterDecimal: 8,
-                showRangeSelector: true,
-                legend: "follow",
-                ylabel: "Data loading...",
-                xlabel: "Data loading...",
-                title: "Charts Loading Please Wait ...",
-                labelsSeparateLines: true
-            });
-
-        var data = {{.Data}};
-        var ticketsPrice = data[0];  // TicketsPriceByHeight
-        var coinSupply = data[1];    // CoinSupply
-        var blockSize = data[2];    // BlockSizeValue
-        var txPerDay = data[3];     // TxPerDay
-        var poolInfo = data[4];     // PoolValueAndSize
-        var blockFee = data[5];     // BlockFee
-
-        var tickets_price, difficulty, pool_size, pool_value, blockchain_size, block_size;
-        var tx_per_block, tx_per_day, coin_supply, fee_per_block, time_btw_blocks;
-        var currentGraph = "1";
-
-        var ticketsFunc =function (){
-            tickets_price = "";
-            difficulty = "";
-            ticketsPrice.forEach(function(item){
-                tickets_price = tickets_price+ item.Time+ ", "+ item.ValueF+ "\n";
-                difficulty = difficulty+ item.Time+ ", "+ item.SizeF+ "\n";
-            });
-        }
-
-        var supplyFunc = function (){
-            var supply = 0;
-            coin_supply = "";
-            coinSupply.forEach(function(item){
-                coin_supply = coin_supply + item.Time+ ", "+ (isNaN(item.ValueF) ? 0 : item.ValueF) + "\n";
-            });
-        }
-        
-        var sizeFunc = function (){
-            var size = 0;
-            block_size = "";
-            blockchain_size = "";
-            tx_per_block = "";
-            time_btw_blocks = "";
-            blockSize.forEach(function(item){
-                block_size = block_size + item.Time+ ", "+ item.Size+ "\n";
-                size = size + item.Size
-                blockchain_size = blockchain_size + item.Time+ ", "+ size+"\n";
-                tx_per_block = tx_per_block + item.Time + ", " + item.Count+"\n";
-
-                if (isNaN(item.Value)) {
-                    return;
-                }
-                time_btw_blocks = time_btw_blocks +  item.Value + "," + (isNaN(item.ValueF) ? 0 : item.ValueF) + "\n";
-            });
-        }
-
-        var txFunc = function (){
-            tx_per_day = "";
-            txPerDay.forEach(function(item){
-                tx_per_day = tx_per_day + item.Time + ", " + item.Count+"\n";
-            });
-        }
-
-        var poolFunc = function (){
-            pool_size = "";
-            pool_value = "";
-            poolInfo.forEach(function(item){
-                pool_size =pool_size + item.Time + ", " + (isNaN(item.SizeF) ? 0: item.SizeF) + "\n";
-                pool_value = pool_value + item.Time + ", " + (isNaN(item.ValueF) ? 0: item.ValueF) + "\n";
-            });
-        }
-
-        var blockFeeFunc = function (){
-            fee_per_block = "";
-            blockFee.forEach(function(item){
-                fee_per_block = fee_per_block + item.Count + ", " + (isNaN(item.SizeF) ? 0: item.SizeF)+"\n";
-            }); 
-        }
-
-        var drawGraph = function (data,labelsVal, isDrawPoint, yLabel, xLabel, titleName, labelsMG, labelsMG2) {
-             g.updateOptions({ 
-                    'file': data,
-                    labels: labelsVal,
-                    drawPoints: isDrawPoint,
-                    ylabel: yLabel,
-                    xlabel: xLabel,
-                    labelsKMB: labelsMG,
-                    labelsKMG2: labelsMG2,
-                    title: titleName
-                });
-                safeStopTurbolinksProgress();
-            }
-
-        function resolvePromise(func) {
-        return new Promise(resolve => {
-            setTimeout(() => {
-            func()
-            resolve('resolved');
-            }, 2000);
+        $('input').on('click', function(){
+            $('input#'+this.id).removeClass('btn-active');
+            $(this).toggleClass('btn-active');
         });
-        }
-
-        var plotGraph = async function (value){
-            switch(value){
-                case "1": // price graph
-                    if (tickets_price === undefined) { await resolvePromise(ticketsFunc); }
-                    drawGraph(tickets_price, ["Date", "Price"], true, 'Price (Decred)', 'Date', 'Ticket Price Chart', false, false)
-                break;
-
-                case "2": // pool size graph
-                    if (pool_size === undefined) { await resolvePromise(poolFunc); }
-                    drawGraph(pool_size, ["Date", "Ticket Pool Size"], false, 'Ticket Pool Size', 'Date', 
-                    'Ticket Pool Size Chart', true, false)
-                break;
-                
-                case "3": // pool value graph
-                    if (pool_value === undefined) { await resolvePromise(poolFunc); }
-                    drawGraph(pool_value, ["Date", "Ticket Pool Value"], true, 'Ticket Pool Value','Date', 
-                    'Ticket Pool Value Chart', true, false)
-                break;
-                
-                case "4": // block size graph
-                    if (block_size === undefined) { await resolvePromise(sizeFunc);}
-                    drawGraph(block_size, ["Date", "Block Size"], false, 'Block Size', 'Date','Average Block Size Chart', true, false)
-                break;
-
-                case "5": // blockchain size graph
-                    if (blockchain_size === undefined) { await resolvePromise(sizeFunc); }
-                    drawGraph(blockchain_size, ["Date", "BlockChain Size"], true, 'BlockChain Size', 'Date', 'BlockChain Size Chart', false, true)
-                break;
-
-                case "6":  // tx per block graph
-                    if (tx_per_block === undefined) { await resolvePromise(sizeFunc); }
-                    drawGraph(tx_per_block, ["Date", "Number of Transactions Per Block"], false, 'Number of Transactions', 'Date',
-                     'Number of Transactions Per Block Chart', false, false)
-                break;
-
-                case "7": // tx per day graph
-                    if (tx_per_day === undefined) { await resolvePromise(txFunc);}
-                    drawGraph(tx_per_day, ["Date", "Number of Transactions Per Day"], true, 'Number of Transactions', 'Date', 
-                    'Number of Transactions Per Day Chart', true, false)
-                break;
-
-                case "8": // difficulty graph
-                    if (difficulty === undefined) { await resolvePromise(ticketsFunc);}
-                    drawGraph(difficulty, ["Date", "Difficulty"], true, 'Difficulty', 'Date', 'PoW Difficulty Chart', true, false)
-                break;
-                
-                case "9": // supply graph
-                    if (coin_supply === undefined ){ await resolvePromise(supplyFunc);}
-                    drawGraph(coin_supply, ["Date", "Coin Supply"], true, 'Coin Supply', 'Date', 'Total Coin Supply Chart', true, false)
-                break;
-
-                case "10": // block fee graph
-                    if (fee_per_block === undefined) { await resolvePromise(blockFeeFunc);}
-                    drawGraph(fee_per_block, ["Block Height", "Total Fee"], false, 'Total Fee (DCR)', 'Block Height', 
-                    'Total Fee Per Block Chart', true, false)
-                break;
-
-                case "11": // Duration between blocks graph
-                    if (time_btw_blocks === undefined) { await resolvePromise(sizeFunc);}
-                    drawGraph(time_btw_blocks, ["Block Height", "Duration Between Block"], false, 'Duration Between Block (Seconds)', 'Block Height',
-                    'Duration Between Blocks Chart', true, false)
-                break;
-            }
-        }
-        plotGraph("1")
-
-        var changeFunc = function() {
-            safeStartTurbolinksProgress();
-            var selectBox = document.getElementById("selectBox");
-            var selectedValue = selectBox.options[selectBox.selectedIndex].value;
-            if (currentGraph != selectedValue) {
-                plotGraph(selectedValue);
-                currentGraph = selectedValue;
-            }
-        }
     </script>
 
     {{ template "footer" . }}
+    <div class="modal"></div>
 </body>
 </html>
 {{end}}

@@ -56,6 +56,11 @@ const (
 	SelectTicketStatusByHash     = `SELECT id, spend_type, pool_status FROM tickets WHERE tx_hash = $1;`
 	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1;`
 
+	SelectTicketSpendTypeByBlock = `SELECT block_height, 
+		SUM(CASE WHEN spend_type = 0 THEN 1 ELSE 0 END) as unspent,
+		SUM(CASE WHEN spend_type = 1 THEN 1 ELSE 0 END) as revoked
+		FROM tickets GROUP BY block_height ORDER BY block_height;`
+
 	// Update
 	SetTicketSpendingInfoForHash = `UPDATE tickets
 		SET spend_type = $5, spend_height = $3, spend_tx_db_id = $4, pool_status = $6

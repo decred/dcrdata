@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/decred/dcrdata/db/dbtypes"
 
@@ -495,13 +494,12 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 
 // RetrieveAllPoolValAndSize returns all the pool values and sizes
 // stored since the first value was recorded up current height.
-func (db *DB) RetrieveAllPoolValAndSize() ([]dbtypes.ChartsData, error) {
+func (db *DB) RetrieveAllPoolValAndSize() (*dbtypes.ChartsData, error) {
 	db.RLock()
 	db.RUnlock()
 
-	chartsData := make([]dbtypes.ChartsData, 0)
-
-	stmt, err := db.Prepare(db.getAllPoolValSize)
+	var chartsData = new(dbtypes.ChartsData)
+	var stmt, err = db.Prepare(db.getAllPoolValSize)
 	if err != nil {
 		return chartsData, err
 	}
@@ -520,31 +518,28 @@ func (db *DB) RetrieveAllPoolValAndSize() ([]dbtypes.ChartsData, error) {
 		if err = rows.Scan(&psize, &pval, &timestamp); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 		}
-		chartsData = append(chartsData, dbtypes.ChartsData{
-			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			SizeF:  psize,
-			ValueF: pval,
-		})
+		chartsData.Time = append(chartsData.Time, timestamp)
+		chartsData.SizeF = append(chartsData.SizeF, psize)
+		chartsData.ValueF = append(chartsData.ValueF, pval)
 	}
 	if err = rows.Err(); err != nil {
 		log.Error(err)
 	}
 
-	if len(chartsData) < 1 {
-		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(chartsData), 1)
+	if len(chartsData.Time) < 1 {
+		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(chartsData.Time), 1)
 	}
 
 	return chartsData, nil
 }
 
 // RetrieveBlockFeeInfo fetches the block median fee chart data
-func (db *DB) RetrieveBlockFeeInfo() ([]dbtypes.ChartsData, error) {
+func (db *DB) RetrieveBlockFeeInfo() (*dbtypes.ChartsData, error) {
 	db.RLock()
 	db.RUnlock()
 
-	chartsData := make([]dbtypes.ChartsData, 0)
-
-	stmt, err := db.Prepare(db.getAllFeeInfoPerBlock)
+	var chartsData = new(dbtypes.ChartsData)
+	var stmt, err = db.Prepare(db.getAllFeeInfoPerBlock)
 	if err != nil {
 		return chartsData, err
 	}
@@ -567,17 +562,15 @@ func (db *DB) RetrieveBlockFeeInfo() ([]dbtypes.ChartsData, error) {
 			continue
 		}
 
-		chartsData = append(chartsData, dbtypes.ChartsData{
-			Count: height,
-			SizeF: feeMed,
-		})
+		chartsData.Count = append(chartsData.Count, height)
+		chartsData.SizeF = append(chartsData.SizeF, feeMed)
 	}
 	if err = rows.Err(); err != nil {
 		log.Error(err)
 	}
 
-	if len(chartsData) < 1 {
-		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(chartsData), 1)
+	if len(chartsData.Count) < 1 {
+		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(chartsData.Count), 1)
 	}
 
 	return chartsData, nil

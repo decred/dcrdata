@@ -23,9 +23,8 @@
     <title>{{.}}</title>
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
-    <link href="/css/dygraphs.css" rel="stylesheet">
+    <link href="/css/charts.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
-    <script src="/js/dygraphs.min.js"></script>
     <script src="/js/turbolinks.js"></script>
     <script src="/js/jquery.js"></script>
     <script src="/js/lodash.min.js"></script>
@@ -543,8 +542,7 @@ const app = Stimulus.Application.start()
 <script src="/js/controllers/main.js"  data-turbolinks-eval="false"></script>
 <script src="/js/controllers/mempool.js"  data-turbolinks-eval="false"></script>
 <script src="/js/controllers/agenda.js"  data-turbolinks-eval="false"></script>
-
-
+<script src="/js/controllers/charts.js" data-turbolinks-eval="false"></script>
 {{end}}
 
 {{define "decimalParts"}}<span class="int">{{ index . 0 }}</span><span class="dot">.</span><span class="decimal">{{ index . 1 }}<span class="trailing-zeroes">{{ index . 2 }}</span></span>{{end}}

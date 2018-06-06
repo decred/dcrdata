@@ -308,15 +308,23 @@ type AddressRow struct {
 	VinVoutDbID    uint64
 }
 
-// ChartsData defines the fields that will be store the
-// x , y and y2 values needed to plot the charts on the frontend.
+// ChartsData defines the fields that store the values needed to plot the charts
+// on the frontend.
 type ChartsData struct {
-	Time   string  `json:"Time,omitempty"`
-	Value  uint64  `json:"Value,omitempty"`
-	Size   uint64  `json:"Size,omitempty"`
-	Count  uint64  `json:"Count,omitempty"`
-	SizeF  float64 `json:"SizeF,omitempty"`
-	ValueF float64 `json:"ValueF,omitempty"`
+	TimeStr    []string  `json:"timestr,omitempty"`
+	Difficulty []float64 `json:"difficulty,omitempty"`
+	Time       []uint64  `json:"time,omitempty"`
+	Value      []uint64  `json:"value,omitempty"`
+	Size       []uint64  `json:"size,omitempty"`
+	ChainSize  []uint64  `json:"chainsize,omitempty"`
+	Count      []uint64  `json:"count,omitempty"`
+	SizeF      []float64 `json:"sizef,omitempty"`
+	ValueF     []float64 `json:"valuef,omitempty"`
+	Unspent    []uint64  `json:"unspent,omitempty"`
+	Revoked    []uint64  `json:"revoked,omitempty"`
+	Height     []uint64  `json:"height,omitempty"`
+	Pooled     []uint64  `json:"pooled,omitempty"`
+	Solo       []uint64  `json:"solo,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
