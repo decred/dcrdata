@@ -14,13 +14,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/btcsuite/btclog"
 	flags "github.com/btcsuite/go-flags"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/version"
 	"github.com/decred/dcrwallet/netparams"
+	"github.com/decred/slog"
 )
 
 const (
@@ -191,7 +191,7 @@ func cleanAndExpandPath(path string) string {
 
 // validLogLevel returns whether or not logLevel is a valid debug log level.
 func validLogLevel(logLevel string) bool {
-	_, ok := btclog.LevelFromString(logLevel)
+	_, ok := slog.LevelFromString(logLevel)
 	return ok
 }
 

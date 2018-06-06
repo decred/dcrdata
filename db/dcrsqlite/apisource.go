@@ -1104,7 +1104,10 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
 			stx := makeExplorerTxBasic(tx, msgTx, db.params)
-			stx.Fee, stx.FeeRate = 0.0, 0.0
+			// Fees for votes should be zero, but if the transaction was created
+			// with unmatched inputs/outputs then the remainder becomes a fee.
+			// Account for this possibility by calculating the fee for votes as
+			// well.
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
 			stx := makeExplorerTxBasic(tx, msgTx, db.params)
@@ -1164,7 +1167,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	block.TotalSent = (getTotalSent(block.Tx) + getTotalSent(block.Revs) +
 		getTotalSent(block.Tickets) + getTotalSent(block.Votes)).ToCoin()
 	block.MiningFee = getTotalFee(block.Tx) + getTotalFee(block.Revs) +
-		getTotalFee(block.Tickets)
+		getTotalFee(block.Tickets) + getTotalFee(block.Votes)
 
 	return block
 }
@@ -1192,6 +1195,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.Type = txhelpers.DetermineTxTypeString(msgTx)
 	tx.BlockHeight = txraw.BlockHeight
 	tx.BlockIndex = txraw.BlockIndex
+	tx.BlockHash = txraw.BlockHash
 	tx.Confirmations = txraw.Confirmations
 	tx.Time = txraw.Time
 	t := time.Unix(tx.Time, 0)

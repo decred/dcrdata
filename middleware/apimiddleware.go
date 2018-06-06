@@ -458,17 +458,6 @@ func PaginationCtx(next http.Handler) http.Handler {
 	})
 }
 
-// RawTransactionCtx returns a http.HandlerFunc that embeds the value at the url
-// part {rawtx} into the request context.
-func RawTransactionCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rawHexTx := r.PostFormValue("rawtx")
-		// txid := chi.URLParam(r, "rawtx")
-		ctx := context.WithValue(r.Context(), ctxRawHexTx, rawHexTx)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 // AddressPostCtx returns a http.HandlerFunc that embeds the {addrs} value in
 // the post request into the request context.
 func AddressPostCtx(next http.Handler) http.Handler {
