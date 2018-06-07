@@ -25,7 +25,7 @@ type contextKey int
 const (
 	ctxAPIDocs contextKey = iota
 	ctxAPIStatus
-	ctxAddress
+	CtxAddress
 	ctxBlockIndex0
 	ctxBlockIndex
 	ctxBlockStep
@@ -142,7 +142,7 @@ func GetBlockHashCtx(r *http.Request) string {
 // GetAddressCtx retrieves the ctxAddress data from the request context. If not
 // set, the return value is an empty string.
 func GetAddressCtx(r *http.Request) string {
-	address, ok := r.Context().Value(ctxAddress).(string)
+	address, ok := r.Context().Value(CtxAddress).(string)
 	if !ok {
 		apiLog.Trace("address not set")
 		return ""
@@ -372,7 +372,7 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
-		ctx := context.WithValue(r.Context(), ctxAddress, address)
+		ctx := context.WithValue(r.Context(), CtxAddress, address)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -416,7 +416,7 @@ func TransactionsCtx(next http.Handler) http.Handler {
 
 		address := r.FormValue("address")
 		if address != "" {
-			ctx := context.WithValue(r.Context(), ctxAddress, address)
+			ctx := context.WithValue(r.Context(), CtxAddress, address)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 
@@ -463,7 +463,7 @@ func PaginationCtx(next http.Handler) http.Handler {
 func AddressPostCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := r.PostFormValue("addrs")
-		ctx := context.WithValue(r.Context(), ctxAddress, address)
+		ctx := context.WithValue(r.Context(), CtxAddress, address)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

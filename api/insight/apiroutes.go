@@ -310,36 +310,23 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Request) {
-	address := c.GetAddressCtx(r)         // Required
+	address := m.GetAddressCtx(r) // Required
+	if address == "" {
+		writeInsightError(w, "Address cannot be empty")
+		return
+	}
+
 	noAsm := c.GetNoAsmCtx(r)             // Optional
 	noScriptSig := c.GetNoScriptSigCtx(r) // Optional
 	noSpent := c.GetNoSpentCtx(r)         // Optional
-	from, ok := c.GetFromCtx(r)           // Optional
-
-	if !ok {
-		from = 0
-	}
-
-	to, ok := c.GetToCtx(r) // Optional
+	from := c.GetFromCtx(r)               // Optional
+	to, ok := c.GetToCtx(r)               // Optional
 	if !ok {
 		to = from + 10
 	}
 
-	addresses := []string{}
-
-	// If no address present we need to stop.  Allow Addresses to be single or
-	// multiple separated by a comma.
-	if address != "" {
-		if strings.Contains(address, ",") {
-			addresses = strings.Split(address, ",")
-		} else {
-			addresses = []string{address}
-		}
-	} else {
-		apiLog.Error("Address cannot be empty")
-		writeInsightError(w, fmt.Sprintf("Address cannot be empty"))
-		return
-	}
+	// Allow Addresses to be single or multiple separated by a comma.
+	addresses := strings.Split(address, ",")
 
 	// Initialize Output Structure
 	addressOutput := new(apitypes.InsightMultiAddrsTxOutput)
@@ -351,33 +338,31 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 	for _, addr := range addresses {
 		address, err := dcrutil.DecodeAddress(addr)
 		if err != nil {
-			apiLog.Errorf("Address is invalid (%s)", addr)
 			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", addr))
 			return
 		}
 		addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address.String())
 		if err != nil {
-			apiLog.Errorf("Error gathering mempool transactions (%s)", err)
 			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%s)", err))
 			return
 		}
 
-	OUTER1:
+	FUNDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.Outpoints {
 			// Confirm its not already in our recent transactions
 			for _, v := range recentTxs {
 				if v == f.Hash.String() {
-					continue OUTER1
+					continue FUNDING_TX_DUPLICATE_CHECK
 				}
 			}
 			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash.String()) // Funding tx
 			recentTxs = append(recentTxs, f.Hash.String())
 		}
-	OUTER2:
+	SPENDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.PrevOuts {
 			for _, v := range recentTxs {
 				if v == f.TxSpending.String() {
-					continue OUTER2
+					continue SPENDING_TX_DUPLICATE_CHECK
 				}
 			}
 			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending.String()) // Spending tx
@@ -411,7 +396,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 			writeInsightError(w, fmt.Sprintf("\"from\" (%d) and \"to\" (%d) range should be less than or equal to 50", from, to))
 			return
 		}
-		apiLog.Infof("Slicing result set which is %d transactions long from: %d to: %d", txcount, from, to)
+		// Final Slice Extraction
 		rawTxs = rawTxs[from:to]
 	}
 	addressOutput.From = int(from)
