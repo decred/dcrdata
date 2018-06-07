@@ -4,7 +4,7 @@
 {{template "html-head" printf "Decred Transaction %.20s..." .Data.TxID}}
 <body>
 {{template "navbar" . }}
-<div class="container">
+<div class="container" data-controller="main">
 {{with .Data}}
     <div class="row justify-content-between">
         <div class="col-md-8 col-sm-6">
@@ -205,7 +205,7 @@
                         {{if eq .Time 0}}
                             N/A
                         {{else}}
-                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-age="{{.Time}}"></span> ago)</span>
+                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.Time}}"></span> ago)</span>
                         {{end}}
                     </td>
                 </tr>

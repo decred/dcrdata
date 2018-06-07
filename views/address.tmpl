@@ -8,7 +8,7 @@
     {{with .Data}}
     {{$heights := $.ConfirmHeight}}
     {{$TxnCount := .TxnCount}}
-    <div class="container">
+    <div class="container" data-controller="main">
         <div class="row">
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
@@ -173,7 +173,7 @@
                             {{if eq .Time 0}}
                                 N/A
                             {{else}}
-                                <span data-age="{{.Time}}"></span>
+                                <span data-target="main.age" data-age="{{.Time}}"></span>
                             {{end}}
                             </td>
                             <td data-confirmation-block-height="{{index $.ConfirmHeight $i}}">{{.Confirmations}}</td>

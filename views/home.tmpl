@@ -6,7 +6,7 @@
 
 <body>
     {{ template "navbar" . }}
-    <div class="container">
+    <div class="container" data-controller="main">
 
         <div class="row">
 
@@ -164,7 +164,7 @@
                             <span style="flex: 0 0 65px" class="mono text-right ml-1">{{.Type}}</span>
                             <span style="flex: 0 0 105px" class="mono text-right ml-1">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</span>
                             <span style="flex: 0 0 50px" class="mono text-right ml-1">{{.Size}} B</span>
-                            <span style="flex: 0 0 62px" class="mono text-right ml-1" data-age="{{.Time}}"></span>
+                            <span style="flex: 0 0 62px" class="mono text-right ml-1" data-target="main.age" data-age="{{.Time}}"></span>
                         </div>
                     {{end}}
                     </div>
@@ -202,7 +202,7 @@
                             <td>{{.FreshStake}}</td>
                             <td>{{.Revocations}}</td>
                             <td>{{.FormattedBytes}}</td>
-                            <td data-age="{{.BlockTime}}"></td>
+                            <td data-target="main.age" data-age="{{.BlockTime}}"></td>
                             <td>{{.FormattedTime}}</td>
                         </tr>
                         {{end}}

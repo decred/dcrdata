@@ -24,10 +24,12 @@
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
-    <script src="/js/messagesocket.js"></script>
-    <script src="/js/humanize.js"></script>
     <script src="/js/turbolinks.js"></script>
     <script src="/js/jquery.js"></script>
+    <script src="/js/stimulus.umd.js"></script>
+    <script src="/js/controllers/main.js"></script>
+    <script src="/js/messagesocket.js"></script>
+    <script src="/js/humanize.js"></script>
     <script src="/js/mousetrap.min.js"></script>
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -186,7 +188,7 @@
             <span style="flex: 0 0 60px" class="mono text-right ml-1">${tx.Type}</span>
             <span style="flex: 0 0 105px" class="mono text-right ml-1">${totalTxt}</span>
             <span style="flex: 0 0 50px" class="mono text-right ml-1">${tx.size} B</span>
-            <span style="flex: 0 0 65px" class="mono text-right ml-1" data-age="${tx.time}">${humanize.timeSince(tx.time)}</span>
+            <span style="flex: 0 0 65px" class="mono text-right ml-1" data-target="main.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</span>
         </div>`
     }
 
@@ -229,7 +231,7 @@
                     tx.hash + '">' + tx.hash + '</a></span></td>' +
                     '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
                     '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+                    '<td class="mono fs15 text-right" data-target="main.age" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
                 var newRowHtml = $.parseHTML(newRow)
                 $(newRowHtml).insertBefore(rows.first())
             }
@@ -253,7 +255,7 @@
                         '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
                         '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
                         '<td class="mono fs15">' + tx.size + ' B</td>' +
-                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+                        '<td class="mono fs15 text-right" data-target="main.age" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
                     var newRowHtml = $.parseHTML(newRow)
                     $(newRowHtml).insertBefore(rows.first())
                     break
@@ -274,7 +276,6 @@
                 $(newRowHtml).insertBefore(rows.first())
             }
         })
-            setTimeElements()
         });
 
         ws.registerEvtHandler("getmempooltxsResp", function(evt) {
@@ -289,7 +290,7 @@
                     tx.hash + '">' + tx.hash + '</a></span></td>' +
                     '<td class="mono fs15 text-right">' + totalTxt +'</td>' +
                     '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) + '</td>'
+                    '<td class="mono fs15 text-right" data-target="main.age" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) + '</td>'
                 }
             var m = JSON.parse(evt)
 
@@ -315,7 +316,7 @@
                         '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
                         '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
                         '<td class="mono fs15">' + tx.size + ' B</td>'  +
-                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+                        '<td class="mono fs15 text-right" data-target="main.age" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
 
             })
             $('#mempool_votes tbody').html($.parseHTML(newTable))
@@ -371,12 +372,11 @@
                     '<td>' + b.tickets + '</td>' +
                     '<td>' + b.revocations + '</td>' +
                     '<td>' + humanize.bytes(b.size) + '</td>' +
-                    '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
+                    '<td data-target="main.age"  data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
                     '<td>' + b.formatted_time + '</td>' +
                 '</tr>'
                 var newRowHtml = $.parseHTML(newRow)
                 $(newRowHtml).insertBefore(expTableRows.first())
-                setTimeElements()
             }
             var ex = newBlock.extra
             if ($("#bsubsidy_total").text() !== "") {
@@ -430,12 +430,10 @@
                     '<td class="mono fs15">' + tx.Type + '</td>'+
                     '<td class="mono fs15">' + totalTxt +'</td>' +
                     '<td class="mono fs15">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
+                    '<td class="mono fs15" data-target="main.age" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
                 })
                 $('#mini-transactions tbody').html(newTable)
             }
-            setTimeElements()
-            updateAges()
         };
         ws.registerEvtHandler("mempool", updateMempool);
     }
@@ -497,6 +495,7 @@
 </script>
 
 <script src="/js/notify.min.js"></script>
+
 {{end}}
 
 {{define "footer"}}
@@ -515,20 +514,6 @@
     </div>
 </footer>
 <script data-turbolinks-eval="false">
-    var ages, hiddenAges;
-    function setTimeElements() {
-        ages = $('[data-age]');
-    }
-    function updateAges() {
-        $.each(ages, function(i, age) {
-            var unixTime = $(age).data('age');
-            if (unixTime > 0) {
-                $(age).text(
-                    humanize.timeSince(unixTime)
-                )
-            }
-        })
-    }
 
     // Keyboard Navigation
     var targets;
@@ -658,8 +643,6 @@
 
     $("#keynav-toggle .text").text(keyNavEnabled() ? "Disable Hot Keys":"Enable Hot Keys" )
     document.addEventListener("turbolinks:load", function(e){
-        setTimeElements()
-        updateAges()
         closeMenu(e)
         if (keyNavEnabled()) {
             $(".top-search").removeAttr("autofocus")
@@ -685,7 +668,6 @@
         }
     });
 
-    setInterval(updateAges, 10000);
 </script>
 <script>
     $('.scriptDataStar').on('click', function(){
