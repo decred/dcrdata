@@ -151,12 +151,12 @@
   		   <div class="card">
     		    <div class="card-header">
                     {{range .Votes}}
-                    {{if .VoteInfo.Validation.Validity}}<button type="button" class="btn btn-success"></button>
-                    {{else}}<button type="button" class="btn btn-danger"></button>{{end}}{{end}}
-                    {{range .Misses}}<button type="button" class="btn btn-outline-dark"></button>{{end}}
+                    {{if .VoteInfo.Validation.Validity}}<a class="btn btn-success" href="/tx/{{.TxID}}" role="button"></a>
+                    {{else}}<a class="btn btn-danger" href="/tx/{{.TxID}}" role="button"></a>{{end}}{{end}}
+                    {{range .Misses}}<a class="btn btn-outline-dark" href="/tx/{{.}}" role="button"></a>{{end}}
                     <div class="row"></div>
-                    {{range .Tickets}}<button type="button" class="btn btn-secondary"></button>{{end}}
-                    {{range .Revs}}<button type="button" class="btn btn-warning"></button>{{end}}
+                    {{range .Tickets}}<a class="btn btn-secondary" href="/tx/{{.TxID}}" role="button"></a>{{end}}
+                    {{range .Revs}}<a class="btn btn-warning" href="/tx/{{.TxID}}" role="button"></a>{{end}}
                     <div class="row"></div>
 
                     {{range .Tx}}
@@ -166,22 +166,22 @@
                     {{if lt .Total 50.0}}
 
                     {{if lt .BytesSize 500}}
-                    <button type="button" class="btn btn-info xs-amount-xs-size"></button>
+                    <a class="btn btn-info xs-amount-xs-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 1000}}
-                    <button type="button" class="btn btn-info xs-amount-s-size"></button>
+                    <a class="btn btn-info xs-amount-s-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 2000}}
-                    <button type="button" class="btn btn-info xs-amount-m-size"></button>
+                    <a class="btn btn-info xs-amount-m-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 10000}}
-                    <button type="button" class="btn btn-info xs-amount-l-size"></button>
+                    <a class="btn btn-info xs-amount-l-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 50000}}
-                    <button type="button" class="btn btn-info xs-amount-xl-size"></button>
+                    <a class="btn btn-info xs-amount-xl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if ge .BytesSize 50000}}
-                    <button type="button" class="btn btn-info xs-amount-xxl-size"></button>
+                    <a class="btn btn-info xs-amount-xxl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{end}}
 
@@ -189,22 +189,22 @@
                     {{else if lt .Total 100.0}}
 
                     {{if lt .BytesSize 500}}
-                  <button type="button" class="btn btn-info s-amount-xs-size"></button>
+                    <a class="btn btn-info s-amount-xs-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 1000}}
-                    <button type="button" class="btn btn-info s-amount-s-size"></button>
+                    <a class="btn btn-info s-amount-s-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 2000}}
-                    <button type="button" class="btn btn-info s-amount-m-size"></button>
+                    <a class="btn btn-info s-amount-m-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 10000}}
-                    <button type="button" class="btn btn-info s-amount-l-size"></button>
+                    <a class="btn btn-info s-amount-l-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 50000}}
-                    <button type="button" class="btn btn-info s-amount-xl-size"></button>
+                    <a class="btn btn-info s-amount-xl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if ge .BytesSize 50000}}
-                    <button type="button" class="btn btn-info s-amount-xxl-size"></button>
+                    <a class="btn btn-info s-amount-xxl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{end}}
 
@@ -212,22 +212,22 @@
                     {{else if lt .Total 200.0}}
                     
                     {{if lt .BytesSize 500}}
-                    <button type="button" class="btn btn-info m-amount-xs-size"></button>
+                    <a class="btn btn-info m-amount-xs-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 1000}}
-                    <button type="button" class="btn btn-info m-amount-s-size"></button>
+                    <a class="btn btn-info m-amount-s-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 2000}}
-                    <button type="button" class="btn btn-info m-amount-m-size"></button>
+                    <a class="btn btn-info m-amount-m-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 10000}}
-                    <button type="button" class="btn btn-info m-amount-l-size"></button>
+                    <a class="btn btn-info m-amount-l-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 50000}}
-                    <button type="button" class="btn btn-info m-amount-xl-size"></button>
+                    <a class="btn btn-info m-amount-xl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if ge .BytesSize 50000}}
-                    <button type="button" class="btn btn-info m-amount-xxl-size"></button>
+                    <a class="btn btn-info m-amount-xxl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{end}}
 
@@ -235,22 +235,22 @@
                     {{else if lt .Total 500.0}}
                     
                     {{if lt .BytesSize 500}}
-                    <button type="button" class="btn btn-info l-amount-xs-size"></button>
+                    <a class="btn btn-info l-amount-xs-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 1000}}
-                    <button type="button" class="btn btn-info l-amount-s-size"></button>
+                    <a class="btn btn-info l-amount-s-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 2000}}
-                    <button type="button" class="btn btn-info l-amount-m-size"></button>
+                    <a class="btn btn-info l-amount-m-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 10000}}
-                    <button type="button" class="btn btn-info l-amount-l-size"></button>
+                    <a class="btn btn-info l-amount-l-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 50000}}
-                    <button type="button" class="btn btn-info l-amount-xl-size"></button>
+                    <a class="btn btn-info l-amount-xl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if ge .BytesSize 50000}}
-                    <button type="button" class="btn btn-info l-amount-xxl-size"></button>
+                    <a class="btn btn-info l-amount-xxl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{end}}
 
@@ -258,22 +258,22 @@
                     {{else if lt .Total 1000.0}}
                     
                     {{if lt .BytesSize 500}}
-                    <button type="button" class="btn btn-info xl-amount-xs-size"></button>
+                    <a class="btn btn-info xl-amount-xs-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 1000}}
-                    <button type="button" class="btn btn-info xl-amount-s-size"></button>
+                    <a class="btn btn-info xl-amount-s-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 2000}}
-                    <button type="button" class="btn btn-info xl-amount-m-size"></button>
+                    <a class="btn btn-info xl-amount-m-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 10000}}
-                    <button type="button" class="btn btn-info xl-amount-l-size"></button>
+                    <a class="btn btn-info xl-amount-l-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 50000}}
-                    <button type="button" class="btn btn-info xl-amount-xl-size"></button>
+                    <a class="btn btn-info xl-amount-xl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if ge .BytesSize 50000}}
-                    <button type="button" class="btn btn-info xl-amount-xxl-size"></button>
+                    <a class="btn btn-info xl-amount-xxl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{end}}
 
@@ -281,22 +281,22 @@
                     {{else if ge .Total 1000.0}}
                     
                     {{if lt .BytesSize 500}}
-                    <button type="button" class="btn btn-info xxl-amount-xs-size"></button>
+                    <a class="btn btn-info xxl-amount-xs-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 1000}}
-                    <button type="button" class="btn btn-info xxl-amount-s-size"></button>
+                    <a class="btn btn-info xxl-amount-s-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 2000}}
-                    <button type="button" class="btn btn-info xxl-amount-m-size"></button>
+                    <a class="btn btn-info xxl-amount-m-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 10000}}
-                    <button type="button" class="btn btn-info xxl-amount-l-size"></button>
+                    <a class="btn btn-info xxl-amount-l-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if lt .BytesSize 50000}}
-                    <button type="button" class="btn btn-info xxl-amount-xl-size"></button>
+                    <a class="btn btn-info xxl-amount-xl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{else if ge .BytesSize 50000}}
-                    <button type="button" class="btn btn-info xxl-amount-xxl-size"></button>
+                    <a class="btn btn-info xxl-amount-xxl-size" href="/tx/{{.TxID}}" role="button"></a>
 
                     {{end}}
 
