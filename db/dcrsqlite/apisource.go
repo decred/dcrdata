@@ -259,7 +259,7 @@ func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	}
 }
 
-func (db *wiredDB) GetBlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult {
+func (db *wiredDB) BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult {
 	blockSubsidy, err := db.client.GetBlockSubsidy(height, voters)
 	if err != nil {
 		return nil
