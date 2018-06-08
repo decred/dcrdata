@@ -2269,6 +2269,30 @@
        clip:rect(0,0,0,0);
        pointer-events:none
       }
+    .lowest-rev {
+        background-color:#dc354646;
+        border-color:#dc354646;
+    }
+    .low-rev {
+        background-color:#dc3546cc;
+        border-color:#dc3546cc;
+    }
+    .moderate-rev {
+        background-color:#dc3546;
+        border-color:#dc3546;
+    }
+    .moderate-high-rev {
+        background-color:#e02739;
+        border-color:#e02739;
+    }
+    .high-rev {
+        background-color:#e7172c;
+        border-color:#e7172c;
+    }
+    .very-high-rev {
+        background-color:#ff0019;
+        border-color:#ff0019;
+    }
     .lowest-ticket {
         background-color:#868e9648;
         border-color:#868e9648;

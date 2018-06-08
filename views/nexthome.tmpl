@@ -156,7 +156,7 @@
                     {{range .Misses}}<a class="btn btn-outline-dark" href="/tx/{{.}}" role="button"></a>{{end}}
                     <div class="row"></div>
                     {{range .Tickets}}<a class="btn btn-secondary {{.FeeRateSize}}-ticket" href="/tx/{{.TxID}}" role="button"></a>{{end}}
-                    {{range .Revs}}<a class="btn btn-warning" href="/tx/{{.TxID}}" role="button"></a>{{end}}
+                    {{range .Revs}}<a class="btn btn-warning {{.FeeRateSize}}-rev" href="/tx/{{.TxID}}" role="button"></a>{{end}}
                     <div class="row"></div>
 
                     {{range .Tx}}
