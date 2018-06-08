@@ -72,11 +72,6 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 
 	blocks := exp.blockData.GetExplorerFullBlocks(height, height-12)
 
-	//votes := exp.blockData.GetExplorerVoters(height, height-12)
-
-	// perhaps should be GetBlockData
-	//data := exp.blockData.GetVoteData(height, height-12)
-
 	exp.NewBlockDataMtx.Lock()
 	exp.MempoolData.RLock()
 
@@ -86,18 +81,12 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 		Blocks  []*BlockInfo
 		Version string
 		NetName string
-		//Votes   []*BlockBasic
-		//Votes [][]uint16
-		//Data    []*BlockInfo
 	}{
 		exp.ExtraInfo,
 		exp.MempoolData,
 		blocks,
 		exp.Version,
 		exp.NetName,
-		//votes,
-		//votes,
-		//data,
 	})
 	exp.NewBlockDataMtx.Unlock()
 	exp.MempoolData.RUnlock()

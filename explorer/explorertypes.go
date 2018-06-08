@@ -34,24 +34,14 @@ type BlockBasic struct {
 type TxBasic struct {
 	TxID          string
 	FormattedSize string
-	BytesSize     uint64
+	ByteSize      string
+	TxAmount      string
 	FeeRateSize   string
 	Total         float64
-	TxAmount      *TxAmount
 	Fee           dcrutil.Amount
 	FeeRate       dcrutil.Amount
 	VoteInfo      *VoteInfo
 	Coinbase      bool
-}
-
-// TxAmount models data for transaction amount size on NextHome page
-type TxAmount struct {
-	X_Small  bool // 0_50
-	Small    bool // 50_100
-	Medium   bool // 100_200
-	Large    bool // 200_500
-	X_Large  bool // 500_1000
-	XX_Large bool // 1000_
 }
 
 // AddressTx models data for transactions on the address page

@@ -43,7 +43,6 @@ type explorerDataSourceLite interface {
 	GetExplorerBlocks(start int, end int) []*BlockBasic
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
-	GetExplorerVoters(start int, end int) [][]uint16
 	GetExplorerFullBlocks(start int, end int) []*BlockInfo
 	GetExplorerTx(txid string) *TxInfo
 	GetExplorerAddress(address string, count, offset int64) *AddressInfo

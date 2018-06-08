@@ -905,21 +905,35 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
-	tx.BytesSize = uint64(len(data.Hex) / 2)
+	ByteSize := uint64(len(data.Hex) / 2)
 
-	/**if tx.Total < 50.0 {
-		tx.TxAmount.X_Small = true
+	if tx.Total < 50.0 {
+		tx.TxAmount = "xs"
 	} else if 50.0 <= tx.Total && tx.Total < 100.0 {
-		tx.TxAmount.Small = true
+		tx.TxAmount = "s"
 	} else if 100.0 <= tx.Total && tx.Total < 200.0 {
-		tx.TxAmount.Medium = true
+		tx.TxAmount = "m"
 	} else if 200.0 <= tx.Total && tx.Total < 500.0 {
-		tx.TxAmount.Large = true
+		tx.TxAmount = "l"
 	} else if 500.0 <= tx.Total && tx.Total < 1000.0 {
-		tx.TxAmount.X_Large = true
+		tx.TxAmount = "xl"
 	} else if 1000.0 <= tx.Total {
-		tx.TxAmount.XX_Large = true
-	}**/
+		tx.TxAmount = "xxl"
+	}
+
+	if ByteSize < 50.0 {
+		tx.ByteSize = "xs-size"
+	} else if 50.0 <= ByteSize && ByteSize < 100.0 {
+		tx.ByteSize = "s-size"
+	} else if 100.0 <= ByteSize && ByteSize < 200.0 {
+		tx.ByteSize = "m-size"
+	} else if 200.0 <= ByteSize && ByteSize < 500.0 {
+		tx.ByteSize = "l-size"
+	} else if 500.0 <= ByteSize && ByteSize < 1000.0 {
+		tx.ByteSize = "xl-size"
+	} else if 1000.0 <= ByteSize {
+		tx.ByteSize = "xxl-size"
+	}
 
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 	for _, i := range data.Vin {
@@ -1021,41 +1035,6 @@ func (db *wiredDB) GetExplorerFullBlocks(start int, end int) []*explorer.BlockIn
 		summaries = append(summaries, block)
 	}
 	return summaries
-}
-
-func (db *wiredDB) GetExplorerVoters(start int, end int) [][]uint16 {
-	if start < end {
-		return nil
-	}
-	//voters := make([]uint16, 0, start-end)
-	//votes := make([][]uint16, 0, start-end)
-	votes := make([][]uint16, 0)
-	for i := start; i > end; i-- {
-		data := db.GetBlockVerbose(i, true)
-		block := new(explorer.BlockBasic)
-		if data != nil {
-			block = makeExplorerBlockBasic(data)
-		}
-		//voters = append(voters, block.Voters)
-		//counter := []uint16{}
-		//if 5-block.Voters == 0 {
-		//counter := []uint16{}
-		//votes = append(votes, counter)
-		if 5-block.Voters != 0 {
-			counter := []uint16{5 - block.Voters}
-
-			//counter := 5 - block.Voters
-			//vote := []uint16{counter}
-			for _, c := range counter {
-				counter = append(counter, c)
-			}
-			//votes = append(votes, vote)
-			votes = append(votes, counter)
-		}
-	}
-
-	return votes
-
 }
 
 func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
