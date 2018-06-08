@@ -194,28 +194,24 @@ func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		idx, ok := c.GetInsightBlockIndexCtx(r)
 		if !ok {
-			apiLog.Error("Unable to get block hash from index")
 			writeInsightError(w, "Must provide an index or block hash")
 			return
 		}
 		var err error
 		hash, err = c.BlockData.ChainDB.GetBlockHash(int64(idx))
 		if err != nil {
-			apiLog.Error("Unable to get block hash from index")
 			writeInsightError(w, "Unable to get block hash from index")
 			return
 		}
 	}
 	chainHash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
-		apiLog.Errorf("Failed to parse block hash: %v", err)
 		writeInsightError(w, fmt.Sprintf("Failed to parse block hash: %v", err))
 		return
 	}
 
 	blockMsg, err := c.nodeClient.GetBlock(chainHash)
 	if err != nil {
-		apiLog.Errorf("Failed to retrieve block %s: %v", chainHash.String(), err)
 		writeInsightNotFound(w, fmt.Sprintf("Failed to retrieve block %s: %v", chainHash.String(), err))
 		return
 	}
