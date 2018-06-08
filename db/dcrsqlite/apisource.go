@@ -905,12 +905,45 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
+	tx.BytesSize = uint64(len(data.Hex) / 2)
+
+	/**if tx.Total < 50.0 {
+		tx.TxAmount.X_Small = true
+	} else if 50.0 <= tx.Total && tx.Total < 100.0 {
+		tx.TxAmount.Small = true
+	} else if 100.0 <= tx.Total && tx.Total < 200.0 {
+		tx.TxAmount.Medium = true
+	} else if 200.0 <= tx.Total && tx.Total < 500.0 {
+		tx.TxAmount.Large = true
+	} else if 500.0 <= tx.Total && tx.Total < 1000.0 {
+		tx.TxAmount.X_Large = true
+	} else if 1000.0 <= tx.Total {
+		tx.TxAmount.XX_Large = true
+	}**/
+
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 	for _, i := range data.Vin {
 		if i.IsCoinBase() {
 			tx.Coinbase = true
 		}
 	}
+
+	FeeRate := tx.FeeRate.ToCoin()
+
+	if FeeRate < 0.001 {
+		tx.FeeRateSize = "lowest"
+	} else if 0.001 <= FeeRate && FeeRate < 0.01 {
+		tx.FeeRateSize = "low"
+	} else if 0.01 <= FeeRate && FeeRate < 0.1 {
+		tx.FeeRateSize = "moderate"
+	} else if 0.1 <= FeeRate && FeeRate < 0.5 {
+		tx.FeeRateSize = "moderate-high"
+	} else if 0.5 <= FeeRate && FeeRate < 1.0 {
+		tx.FeeRateSize = "high"
+	} else if 1.0 <= FeeRate {
+		tx.FeeRateSize = "very-high"
+	}
+
 	if stake.IsSSGen(msgTx) {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
@@ -972,6 +1005,57 @@ func (db *wiredDB) GetExplorerBlocks(start int, end int) []*explorer.BlockBasic 
 		summaries = append(summaries, block)
 	}
 	return summaries
+}
+
+func (db *wiredDB) GetExplorerFullBlocks(start int, end int) []*explorer.BlockInfo {
+	if start < end {
+		return nil
+	}
+	summaries := make([]*explorer.BlockInfo, 0, start-end)
+	for i := start; i > end; i-- {
+		data := db.GetBlockVerbose(i, true)
+		block := new(explorer.BlockInfo)
+		if data != nil {
+			block = db.GetExplorerBlock(data.Hash)
+		}
+		summaries = append(summaries, block)
+	}
+	return summaries
+}
+
+func (db *wiredDB) GetExplorerVoters(start int, end int) [][]uint16 {
+	if start < end {
+		return nil
+	}
+	//voters := make([]uint16, 0, start-end)
+	//votes := make([][]uint16, 0, start-end)
+	votes := make([][]uint16, 0)
+	for i := start; i > end; i-- {
+		data := db.GetBlockVerbose(i, true)
+		block := new(explorer.BlockBasic)
+		if data != nil {
+			block = makeExplorerBlockBasic(data)
+		}
+		//voters = append(voters, block.Voters)
+		//counter := []uint16{}
+		//if 5-block.Voters == 0 {
+		//counter := []uint16{}
+		//votes = append(votes, counter)
+		if 5-block.Voters != 0 {
+			counter := []uint16{5 - block.Voters}
+
+			//counter := 5 - block.Voters
+			//vote := []uint16{counter}
+			for _, c := range counter {
+				counter = append(counter, c)
+			}
+			//votes = append(votes, vote)
+			votes = append(votes, counter)
+		}
+	}
+
+	return votes
+
 }
 
 func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
