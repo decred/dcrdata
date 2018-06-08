@@ -12,8 +12,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	apitypes "github.com/decred/dcrdata/api/types"
 	m "github.com/decred/dcrdata/middleware"
+	"github.com/go-chi/chi"
 )
 
 type contextKey int
@@ -25,6 +27,8 @@ const (
 	ctxNoAsm
 	ctxNoScriptSig
 	ctxNoSpent
+	ctxBlockHash
+	ctxBlockIndex
 )
 
 // BlockHashPathAndIndexCtx is a middleware that embeds the value at the url
@@ -76,13 +80,11 @@ func (c *insightApiContext) PostBroadcastTxCtx(next http.Handler) http.Handler {
 		body, err := ioutil.ReadAll(r.Body)
 		r.Body.Close()
 		if err != nil {
-			apiLog.Errorf("error reading JSON message: %v", err)
-			writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
+			writeInsightError(w, fmt.Sprintf("Error reading JSON message: %v", err))
 			return
 		}
 		err = json.Unmarshal(body, &req)
 		if err != nil {
-			apiLog.Errorf("Failed to parse request: %v", err)
 			writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
 			return
 		}
@@ -225,7 +227,7 @@ func (c *insightApiContext) PostAddrsTxsCtx(next http.Handler) http.Handler {
 			}
 		}
 		if req.NoScriptSig != "" {
-			noScriptSig, err = req.To.Int64()
+			noScriptSig, err = req.NoScriptSig.Int64()
 			if err == nil && noScriptSig != 0 {
 				ctx = context.WithValue(ctx, ctxNoScriptSig, true)
 			}
@@ -237,6 +239,71 @@ func (c *insightApiContext) PostAddrsTxsCtx(next http.Handler) http.Handler {
 				ctx = context.WithValue(ctx, ctxNoSpent, true)
 			}
 		}
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// Process params given in post body for an addrs Utxo endpoint
+func (c *insightApiContext) PostAddrsUtxoCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		req := apitypes.InsightAddr{}
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			writeInsightError(w, fmt.Sprintf("error reading JSON message: %v", err))
+			return
+		}
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			writeInsightError(w, fmt.Sprintf("Failed to parse request: %v", err))
+			return
+		}
+		// Successful extraction of Body JSON
+		ctx := context.WithValue(r.Context(), m.CtxAddress, req.Addrs)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// BlockIndexOrHashPathCtx returns a http.HandlerFunc that embeds the value at
+// the url part {idxorhash} into the request context.
+func (c *insightApiContext) BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var ctx context.Context
+		pathIdxOrHashStr := chi.URLParam(r, "idxorhash")
+		if len(pathIdxOrHashStr) == 2*chainhash.HashSize {
+			ctx = context.WithValue(r.Context(), ctxBlockHash, pathIdxOrHashStr)
+		} else {
+			idx, err := strconv.Atoi(pathIdxOrHashStr)
+			if err != nil {
+				writeInsightError(w, "Valid hash or index not found")
+				return
+			}
+			ctx = context.WithValue(r.Context(), ctxBlockIndex, idx)
+		}
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// GetInsightBlockIndexCtx retrieves the ctxBlockIndex data from the request context. If not
+// set, the return value is an 0 and false
+func (c *insightApiContext) GetInsightBlockIndexCtx(r *http.Request) (int, bool) {
+	idx, ok := r.Context().Value(ctxBlockIndex).(int)
+	if !ok {
+		apiLog.Trace("Rawtx hex transaction not set")
+		return 0, false
+	}
+	return idx, true
+}
+
+// GetInsightBlockHashCtx retrieves the ctxBlockHash data from the request context. If not
+// set, the return value is an empty string and false
+func (c *insightApiContext) GetInsightBlockHashCtx(r *http.Request) (string, bool) {
+	hash, ok := r.Context().Value(ctxBlockHash).(string)
+	if !ok {
+		apiLog.Trace("Rawtx hex transaction not set")
+		return "", false
+	}
+	return hash, true
 }

@@ -119,11 +119,12 @@ type PrevOut struct {
 }
 
 // TxWithBlockData contains a MsgTx and the block hash and height in which it
-// was mined.
+// was mined and Time it entered MemPool.
 type TxWithBlockData struct {
 	Tx          *wire.MsgTx
 	BlockHeight int64
 	BlockHash   string
+	MemPoolTime int64
 }
 
 // Hash returns the chainhash.Hash of the transaction.

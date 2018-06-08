@@ -958,28 +958,6 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	return tx
 }
 
-// insight api implementation
-func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address string) *apitypes.AddressTxnOutput {
-	tx := new(apitypes.AddressTxnOutput)
-	tx.Address = address
-	tx.TxnID = data.Txid
-	tx.Height = 0
-	tx.Confirmations = int64(data.Confirmations)
-
-	for i := range data.Vout {
-		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
-			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
-				tx.ScriptPubKey = data.Vout[i].ScriptPubKey.Hex
-				tx.Vout = data.Vout[i].N
-				tx.Atoms += data.Vout[i].Value
-			}
-		}
-	}
-
-	tx.Amount = tx.Atoms * 100000000
-	return tx
-}
-
 func (db *wiredDB) GetExplorerBlocks(start int, end int) []*explorer.BlockBasic {
 	if start < end {
 		return nil
@@ -1332,7 +1310,7 @@ func (db *wiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
 func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
 	// Mempool transactions
 	var numUnconfirmed int64
-	mempoolTxns, err := db.client.GetRawMempool(dcrjson.GRMAll)
+	mempoolTxns, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
 	if err != nil {
 		log.Warnf("GetRawMempool failed for address %s: %v", address, err)
 		return nil, numUnconfirmed, err
@@ -1340,9 +1318,16 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 
 	// Check each transaction for involvement with provided address.
 	addressOutpoints := txhelpers.NewAddressOutpoints(address)
-	for _, tx := range mempoolTxns {
+	for hash, tx := range mempoolTxns {
 		// Transaction details from dcrd
-		Tx, err1 := db.client.GetRawTransaction(tx)
+		txhash, err1 := chainhash.NewHashFromStr(hash)
+		if err1 != nil {
+			log.Errorf("Invalid transaction hash %s", hash)
+			return addressOutpoints, 0, err1
+		}
+
+		Tx, err1 := db.client.GetRawTransaction(txhash)
+
 		if err1 != nil {
 			log.Warnf("Unable to GetRawTransactions(%s): %v", tx, err1)
 			err = err1
@@ -1354,10 +1339,16 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 		if len(outpoints) == 0 && len(prevouts) == 0 {
 			continue
 		}
+		// Update previous outpoint txn slice with mempool time
+		for f := range prevTxns {
+			prevTxns[f].MemPoolTime = tx.Time
+		}
+
 		// Add present transaction to previous outpoint txn slice
 		numUnconfirmed++
 		thisTxUnconfirmed := &txhelpers.TxWithBlockData{
-			Tx: Tx.MsgTx(),
+			Tx:          Tx.MsgTx(),
+			MemPoolTime: tx.Time,
 		}
 		prevTxns = append(prevTxns, thisTxUnconfirmed)
 		// Merge the I/Os and the transactions into results

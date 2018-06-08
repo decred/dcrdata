@@ -198,26 +198,6 @@ func (pgb *ChainDB) GetBlockSummaryTimeRange(min, max int64, limit int) []dbtype
 	return blockSummary
 }
 
-func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address string) *apitypes.AddressTxnOutput {
-	tx := new(apitypes.AddressTxnOutput)
-	tx.Address = address
-	tx.TxnID = data.Txid
-	tx.Height = 0
-
-	for i := range data.Vout {
-		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
-			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
-				tx.ScriptPubKey = data.Vout[i].ScriptPubKey.Hex
-				tx.Vout = data.Vout[i].N
-				tx.Atoms += data.Vout[i].Value
-			}
-		}
-	}
-
-	tx.Amount = tx.Atoms * 100000000
-	return tx
-}
-
 // GetAddressUTXO returns the unspent transaction outputs (UTXOs) paying to the
 // specified address in a []apitypes.AddressTxnOutput.
 func (pgb *ChainDB) GetAddressUTXO(address string) []apitypes.AddressTxnOutput {

@@ -68,14 +68,17 @@ const (
 									addresses.funding_tx_hash,
 									addresses.value,
 									transactions.block_height,
-									transactions.block_hash
+									block_time,
+									funding_tx_vout_index,
+									pkscript
 									FROM addresses 
 									JOIN transactions ON 
 									addresses.funding_tx_hash = transactions.tx_hash 
+									JOIN vouts on addresses.funding_tx_hash = vouts.tx_hash and addresses.funding_tx_vout_index=vouts.tx_index 
 									WHERE 
 									addresses.address=$1 
 									AND 
-									addresses.spending_tx_row_id IS NULL`
+									addresses.spending_tx_row_id IS NULL order by block_height desc`
 
 	SelectAddressLimitNByAddress = `SELECT * FROM addresses WHERE address=$1 order by id desc limit $2 offset $3;`
 

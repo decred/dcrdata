@@ -58,6 +58,11 @@ type InsightMultiAddrsTxOutput struct {
 	Items      []InsightTx `json:"items"`
 }
 
+// InsightAddr models the multi address post data structure
+type InsightAddr struct {
+	Addrs string `json:"addrs"`
+}
+
 // InsightPagination models basic pagination output
 // for a result
 type InsightPagination struct {
@@ -70,12 +75,14 @@ type InsightPagination struct {
 type AddressTxnOutput struct {
 	Address       string  `json:"address"`
 	TxnID         string  `json:"txid"`
-	Vout          uint32  `json:"vout,omitempty"`
-	ScriptPubKey  string  `json:"scriptPubKey,omitempty"`
+	Vout          uint32  `json:"vout"`
+	BlockTime     int64   `json:"ts,omitempty"`
+	ScriptPubKey  string  `json:"scriptPubKey"`
 	Height        int64   `json:"height,omitempty"`
 	BlockHash     string  `json:"block_hash,omitempty"`
-	Amount        float64 `json:"amount"`
-	Atoms         float64 `json:"atoms"`
+	Amount        float64 `json:"amount,omitempty"`
+	Atoms         int64   `json:"atoms,omitempty"` // Not Required per Insight spec
+	Satoshis      int64   `json:"satoshis,omitempty"`
 	Confirmations int64   `json:"confirmations"`
 }
 
