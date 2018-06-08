@@ -47,7 +47,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.With(m.BlockDateQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
 	mux.With(app.BlockHashPathAndIndexCtx).Get("/block/{blockhash}", app.getBlockSummary)
 	mux.With(m.BlockIndexPathCtx).Get("/block-index/{idx}", app.getBlockHash)
-	mux.With(m.BlockIndexOrHashPathCtx).Get("/rawblock/{idx}", app.getRawBlock)
+	mux.With(app.BlockIndexOrHashPathCtx).Get("/rawblock/{idxorhash}", app.getRawBlock)
 
 	// Transaction endpoints
 	mux.With(middleware.AllowContentType("application/json"),
@@ -69,14 +69,15 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 		// POST methods
 		rd.With(middleware.AllowContentType("application/json"),
 			app.ValidatePostCtx, app.PostAddrsTxsCtx).Post("/txs", app.getAddressesTxn)
-		rd.With(m.AddressPostCtx).Post("/utxo", app.getAddressesTxnOutput)
+		rd.With(middleware.AllowContentType("application/json"),
+			app.ValidatePostCtx, app.PostAddrsUtxoCtx).Post("/utxo", app.getAddressesTxnOutput)
 	})
 
 	// Address endpoints
 	mux.Route("/addr/{address}", func(rd chi.Router) {
 		rd.Use(m.AddressPathCtx)
 		rd.With(m.PaginationCtx).Get("/", app.getAddressInfo)
-		rd.Get("/utxo", app.getAddressTxnOutput)
+		rd.Get("/utxo", app.getAddressesTxnOutput)
 		rd.Get("/balance", app.getAddressBalance)
 		rd.Get("/totalReceived", app.getAddressTotalReceived)
 		// TODO Missing unconfirmed balance implementation

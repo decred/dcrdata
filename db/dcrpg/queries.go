@@ -6,6 +6,7 @@ package dcrpg
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/decred/dcrd/blockchain/stake"
@@ -1111,14 +1112,19 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	defer rows.Close()
 
 	for rows.Next() {
-		var txnOutput apitypes.AddressTxnOutput
+		pkScript := []byte{}
+		var blockHeight, atoms int64
+		blocktime := uint64(0)
+		txnOutput := apitypes.AddressTxnOutput{}
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
-			&txnOutput.Atoms, &txnOutput.Height, &txnOutput.BlockHash); err != nil {
-			fmt.Println(err)
+			&atoms, &blockHeight, &blocktime, &txnOutput.Vout, &pkScript); err != nil {
 			log.Error(err)
 		}
-		txnOutput.Amount = txnOutput.Atoms * 100000000
-		txnOutput.Confirmations = currentBlockHeight - txnOutput.Height
+		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
+		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
+		txnOutput.Satoshis = atoms
+		txnOutput.Height = blockHeight
+		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
 		outputs = append(outputs, txnOutput)
 	}
 

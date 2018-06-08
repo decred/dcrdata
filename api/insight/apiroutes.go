@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -188,17 +189,36 @@ func (c *insightApiContext) getBlockChainHashCtx(r *http.Request) *chainhash.Has
 }
 
 func (c *insightApiContext) getRawBlock(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockChainHashCtx(r)
-	blockMsg, err := c.nodeClient.GetBlock(hash)
+
+	hash, ok := c.GetInsightBlockHashCtx(r)
+	if !ok {
+		idx, ok := c.GetInsightBlockIndexCtx(r)
+		if !ok {
+			writeInsightError(w, "Must provide an index or block hash")
+			return
+		}
+		var err error
+		hash, err = c.BlockData.ChainDB.GetBlockHash(int64(idx))
+		if err != nil {
+			writeInsightError(w, "Unable to get block hash from index")
+			return
+		}
+	}
+	chainHash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
-		apiLog.Errorf("Failed to retrieve block %s: %v", hash.String(), err)
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightError(w, fmt.Sprintf("Failed to parse block hash: %v", err))
+		return
+	}
+
+	blockMsg, err := c.nodeClient.GetBlock(chainHash)
+	if err != nil {
+		writeInsightNotFound(w, fmt.Sprintf("Failed to retrieve block %s: %v", chainHash.String(), err))
 		return
 	}
 	var blockHex bytes.Buffer
 	if err = blockMsg.Serialize(&blockHex); err != nil {
 		apiLog.Errorf("Failed to serialize block: %v", err)
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightError(w, fmt.Sprintf("Failed to serialize block"))
 		return
 	}
 
@@ -220,7 +240,6 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 
 	// Check maximum transaction size
 	if len(rawHexTx)/2 > c.params.MaxTxSize {
-		apiLog.Errorf("Rawtx length exceeds maximum allowable characters (%d bytes received)", len(rawHexTx)/2)
 		writeInsightError(w, fmt.Sprintf("Rawtx length exceeds maximum allowable characters (%d bytes received)", len(rawHexTx)/2))
 		return
 	}
@@ -242,29 +261,95 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 	writeJSON(w, txidJSON, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getAddressTxnOutput(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
+func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
+	address := m.GetAddressCtx(r) // Required
 	if address == "" {
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightError(w, "Address cannot be empty")
 		return
 	}
-	txnOutputs := c.BlockData.ChainDB.GetAddressUTXO(address)
-	writeJSON(w, txnOutputs, c.getIndentQuery(r))
-}
 
-func (c *insightApiContext) getAddressesTxnOutput(w http.ResponseWriter, r *http.Request) {
-	addresses := strings.Split(m.GetAddressCtx(r), ",")
+	// Allow Addresses to be single or multiple separated by a comma.
+	addresses := strings.Split(address, ",")
 
-	var txnOutputs []apitypes.AddressTxnOutput
+	// Initialize Output Structure
+	txnOutputs := make([]apitypes.AddressTxnOutput, 0)
 
 	for _, address := range addresses {
-		if address == "" {
-			http.Error(w, http.StatusText(422), 422)
-			return
+
+		confirmedTxnOutputs := c.BlockData.ChainDB.GetAddressUTXO(address)
+
+		addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
+		if err != nil {
+			apiLog.Errorf("Error in getting unconfirmed transactions")
 		}
-		utxo := c.BlockData.ChainDB.GetAddressUTXO(address)
-		txnOutputs = append(txnOutputs, utxo...)
+
+		if addressOuts != nil {
+			// If there is any mempool add to the utxo set
+		FUNDING_TX_DUPLICATE_CHECK:
+			for _, f := range addressOuts.Outpoints {
+				fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+				if !ok {
+					apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+					continue
+				}
+				if fundingTx.Confirmed() {
+					apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+					continue
+				}
+				// TODO: Confirmed() not always return true for txs that have
+				// already been confirmed in a block.  The mempool cache update
+				// process should correctly update these.  Until we sort out why we
+				// need to do one more search on utxo and do not add if this is
+				// already in the list as a confirmed tx.
+				for _, utxo := range confirmedTxnOutputs {
+					if utxo.Vout == f.Index && utxo.TxnID == f.Hash.String() {
+						continue FUNDING_TX_DUPLICATE_CHECK
+					}
+				}
+
+				txnOutput := apitypes.AddressTxnOutput{
+					Address:       address,
+					TxnID:         fundingTx.Hash().String(),
+					Vout:          f.Index,
+					ScriptPubKey:  hex.EncodeToString(fundingTx.Tx.TxOut[f.Index].PkScript),
+					Amount:        dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
+					Satoshis:      fundingTx.Tx.TxOut[f.Index].Value,
+					Confirmations: 0,
+					BlockTime:     fundingTx.MemPoolTime,
+				}
+				txnOutputs = append(txnOutputs, txnOutput)
+			}
+		}
+		txnOutputs = append(txnOutputs, confirmedTxnOutputs...)
+
+		// Search for items in mempool that spend utxo (matching hash and index)
+		// and remove those from the set
+		for _, f := range addressOuts.PrevOuts {
+			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if spendingTx.Confirmed() {
+				apiLog.Errorf("A transaction spending the outpoint of an unconfirmed transaction is unexpectedly confirmed.")
+				continue
+			}
+			for g, utxo := range txnOutputs {
+				if utxo.Vout == f.PreviousOutpoint.Index && utxo.TxnID == f.PreviousOutpoint.Hash.String() {
+					// Found a utxo that is unconfirmed spent.  Remove from slice
+					txnOutputs = append(txnOutputs[:g], txnOutputs[g+1:]...)
+				}
+			}
+		}
 	}
+	// Final sort by timestamp desc if unconfirmed and by confirmations
+	// ascending if confirmed
+	sort.Slice(txnOutputs, func(i, j int) bool {
+		if txnOutputs[i].Confirmations == 0 && txnOutputs[j].Confirmations == 0 {
+			return txnOutputs[i].BlockTime > txnOutputs[j].BlockTime
+		}
+		return txnOutputs[i].Confirmations < txnOutputs[j].Confirmations
+	})
 
 	writeJSON(w, txnOutputs, c.getIndentQuery(r))
 }
