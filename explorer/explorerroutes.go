@@ -215,9 +215,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			data := exp.blockData.GetExplorerBlock(tx.BlockHash)
 			if data == nil {
 				log.Errorf("Unable to get block %s", tx.BlockHash)
-				return
+			} else {
+				tx.BlockMiningFee = int64(data.MiningFee)
 			}
-			tx.BlockMiningFee = int64(data.MiningFee)
 		}
 		// For each output of this transaction, look up any spending transactions,
 		// and the index of the spending transaction input.
