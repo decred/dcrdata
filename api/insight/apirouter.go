@@ -40,6 +40,8 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
+	mux.Use(middleware.StripSlashes)
+	mux.Use(middleware.DefaultCompress)
 
 	// Block endpoints
 	mux.With(m.BlockDateQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
@@ -48,7 +50,8 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.With(m.BlockIndexOrHashPathCtx).Get("/rawblock/{idx}", app.getRawBlock)
 
 	// Transaction endpoints
-	mux.With(app.PostBroadcastTxCtx).Post("/tx/send", app.broadcastTransactionRaw)
+	mux.With(middleware.AllowContentType("application/json"),
+		app.ValidatePostCtx, app.PostBroadcastTxCtx).Post("/tx/send", app.broadcastTransactionRaw)
 	mux.With(m.TransactionHashCtx).Get("/tx/{txid}", app.getTransaction)
 	mux.With(m.TransactionHashCtx).Get("/rawtx/{txid}", app.getTransactionHex)
 	mux.With(m.TransactionsCtx).Get("/txs", app.getTransactions)
@@ -58,13 +61,14 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 
 	// Addresses endpoints
 	mux.Route("/addrs", func(rd chi.Router) {
-		mux.Route("/{address}", func(ra chi.Router) {
-			ra.Use(m.AddressPathCtx, m.PaginationCtx)
+		rd.Route("/{address}", func(ra chi.Router) {
+			ra.Use(m.AddressPathCtx, app.FromToPaginationCtx)
 			ra.Get("/txs", app.getAddressesTxn)
 			ra.Get("/utxo", app.getAddressesTxnOutput)
 		})
 		// POST methods
-		rd.With(m.PaginationCtx, m.AddressPostCtx).Post("/txs", app.getAddressesTxn)
+		rd.With(middleware.AllowContentType("application/json"),
+			app.ValidatePostCtx, app.PostAddrsTxsCtx).Post("/txs", app.getAddressesTxn)
 		rd.With(m.AddressPostCtx).Post("/utxo", app.getAddressesTxnOutput)
 	})
 

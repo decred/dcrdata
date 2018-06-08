@@ -47,6 +47,18 @@ const (
 
 	SelectAddressAllByAddress = `SELECT * FROM addresses WHERE address=$1 order by id desc;`
 	SelectAddressRecvCount    = `SELECT COUNT(*) FROM addresses WHERE address=$1;`
+	SelectAddressesAllTxn     = `WITH these as (SELECT funding_tx_hash as tx_hash, ftxd.time as tx_time, ftxd.block_height as height
+		from addresses left join transactions as ftxd on funding_tx_row_id=ftxd.id
+		where address = ANY($1)
+		UNION
+		SELECT DISTINCT spending_tx_hash as tx_hash, stxd.time as tx_time, stxd.block_height as height from addresses  
+		left join transactions as stxd on spending_tx_hash=stxd.tx_hash  
+		where address = ANY($1) and spending_tx_hash IS NOT NULL) select tx_hash, height from these order by tx_time desc;`
+
+	SelectAddressesTxnByFundingTx = `SELECT funding_tx_vout_index, spending_tx_hash, spending_tx_vin_index, 
+		block_height FROM addresses LEFT JOIN 
+		transactions on transactions.tx_hash=spending_tx_hash WHERE 
+		address = ANY ($1) and funding_tx_hash=$2;`
 
 	SelectAddressUnspentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses WHERE address=$1 and spending_tx_row_id IS NULL;`
 	SelectAddressSpentCountAndValue   = `SELECT COUNT(*), SUM(value) FROM addresses WHERE address=$1 and spending_tx_row_id IS NOT NULL;`
@@ -82,8 +94,11 @@ const (
 		WHERE address=$1
 		ORDER BY id DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses
+	// Update Vin due to DCRD AMOUNTIN - START
+	SelectAddressIDsByFundingOutpoint = `SELECT id, address, value FROM addresses
 		WHERE funding_tx_hash=$1 and funding_tx_vout_index=$2;`
+	// Update Vin due to DCRD AMOUNTIN - END
+
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses
 		WHERE address=$1 and vout_row_id=$2
 		ORDER BY id DESC;`
