@@ -2269,6 +2269,30 @@
        clip:rect(0,0,0,0);
        pointer-events:none
       }
+    .lowest-ticket {
+        background-color:#868e9648;
+        border-color:#868e9648;
+    }
+    .low-ticket {
+        background-color:#868e968f;
+        border-color:#868e968f;
+    }
+    .moderate-ticket {
+        background-color:#868e96;
+        border-color:#868e96;
+    }
+    .moderate-high-ticket {
+        background-color:#6a7179;
+        border-color:#6a7179;
+    }
+    .high-ticket {
+        background-color:#42474d;
+        border-color:#42474d;
+    }
+    .very-high-ticket {
+        background-color:#27292c;
+        border-color:#27292c;
+    }
     .xs-amount-xs-size {
         padding: .1rem .1rem
     }

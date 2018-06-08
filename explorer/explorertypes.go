@@ -35,6 +35,7 @@ type TxBasic struct {
 	TxID          string
 	FormattedSize string
 	BytesSize     uint64
+	FeeRateSize   string
 	Total         float64
 	TxAmount      *TxAmount
 	Fee           dcrutil.Amount

@@ -927,6 +927,23 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 			tx.Coinbase = true
 		}
 	}
+
+	FeeRate := tx.FeeRate.ToCoin()
+
+	if FeeRate < 0.001 {
+		tx.FeeRateSize = "lowest"
+	} else if 0.001 <= FeeRate && FeeRate < 0.01 {
+		tx.FeeRateSize = "low"
+	} else if 0.01 <= FeeRate && FeeRate < 0.1 {
+		tx.FeeRateSize = "moderate"
+	} else if 0.1 <= FeeRate && FeeRate < 0.5 {
+		tx.FeeRateSize = "moderate-high"
+	} else if 0.5 <= FeeRate && FeeRate < 1.0 {
+		tx.FeeRateSize = "high"
+	} else if 1.0 <= FeeRate {
+		tx.FeeRateSize = "very-high"
+	}
+
 	if stake.IsSSGen(msgTx) {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
