@@ -33,13 +33,6 @@ type InsightAddressInfo struct {
 	UnconfirmedTxAppearances int64    `json:"unconfirmedTxApperances"`
 	TxAppearances            int64    `json:"txApperances"`
 	TransactionsID           []string `json:"transactions,omitempty"`
-	// NumFundingTxns           int64          `json:"numFundingTxns,omitempty"`// Not Required per Insight API
-	// NumSpendingTxns          int64          `json:"numSpendingTxns,omitempty"`// Not Required per Insight API
-	// KnownFundingTxns         int64          `json:"knownFundingTxns,omitempty"`// Not Required per Insight API
-	// NumUnconfirmed           int64          `json:"numUnconfirmed,omitempty"`// Not Required per Insight API
-	// Path string `json:"path,omitempty"`// Not Required per Insight API
-	// Limit  int64 `json:"limit,omitemtpy"`  // Not Required per Insight API
-	// Offset int64 `json:"offset,omitempty"` // Not Required per Insight API
 }
 
 // InsightRawTx contains the raw transaction string

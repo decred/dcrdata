@@ -807,7 +807,6 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 			unconfirmedTxs = append(unconfirmedTxs, f.TxSpending.String()) // Spending tx
 			recentTxs = append(recentTxs, f.TxSpending.String())
 		}
-
 	}
 
 	if isCmd {
