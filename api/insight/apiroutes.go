@@ -162,10 +162,19 @@ func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Req
 
 func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 	// attempt to get hash of block set by hash or (fallback) height set on path
-	hash := c.getBlockHashCtx(r)
-	if hash == "" {
-		writeInsightNotFound(w, "Unable to get block")
-		return
+	hash, ok := c.GetInsightBlockHashCtx(r)
+	if !ok {
+		idx, ok := c.GetInsightBlockIndexCtx(r)
+		if !ok {
+			writeInsightError(w, "Must provide an index or block hash")
+			return
+		}
+		var err error
+		hash, err = c.BlockData.ChainDB.GetBlockHash(int64(idx))
+		if err != nil {
+			writeInsightError(w, "Unable to get block hash from index")
+			return
+		}
 	}
 	blockDcrd := c.BlockData.GetBlockVerboseByHash(hash, false)
 	if blockDcrd == nil {
@@ -176,7 +185,7 @@ func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Reque
 	blockSummary := []*dcrjson.GetBlockVerboseResult{blockDcrd}
 	blockInsight, err := c.BlockConverter(blockSummary)
 	if err != nil {
-		apiLog.Errorf("Unable to process block")
+		apiLog.Errorf("Unable to process block (%s)", hash)
 		writeInsightError(w, "Unable to Process Block")
 		return
 	}
@@ -185,10 +194,18 @@ func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockHashCtx(r)
-
-	if hash == "" {
-		writeInsightNotFound(w, "Block Hash not found")
+	idx, ok := c.GetInsightBlockIndexCtx(r)
+	if !ok {
+		writeInsightError(w, "No index found in query")
+		return
+	}
+	if idx < 0 || idx > c.BlockData.ChainDB.GetHeight() {
+		writeInsightError(w, "Block height out of range")
+		return
+	}
+	hash, err := c.BlockData.ChainDB.GetBlockHash(int64(idx))
+	if err != nil || hash == "" {
+		writeInsightNotFound(w, "Not found")
 		return
 	}
 
@@ -630,9 +647,9 @@ func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request
 func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http.Request) {
 	blockDate := m.GetBlockDateCtx(r)
 	limit := c.GetLimitCtx(r)
+
 	summaryOutput := apitypes.InsightBlocksSummaryResult{}
 	layout := "2006-01-02 15:04:05"
-
 	blockDateToday := time.Now().UTC().Format("2006-01-02")
 
 	if blockDate == "" {
@@ -693,7 +710,7 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 
 func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
-	
+	command, isCmd := c.GetAddressCommandCtx(r)
 
 	_, err := dcrutil.DecodeAddress(address)
 	if err != nil {
@@ -701,52 +718,151 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	from := c.GetFromCtx(r)
 	noTxList := c.GetNoTxListCtx(r)
+
+	from := c.GetFromCtx(r)
 	to, ok := c.GetToCtx(r)
 	if !ok || to <= from {
 		to = from + 1000
 	}
-	
-	addressInfo := c.BlockData.ChainDB.GetAddressInfo(address, int64(to-from), int64(from), int64(noTxList))
-	if addressInfo == nil {
-		//Address appears to be empty.  Provide a shell response
-		addressInfo = &apitypes.InsightAddressInfo{
-			Address: address,
+
+	// Get Confirmed Balances
+	var unconfirmedBalanceSat int64
+	_, _, totalSpent, totalUnspent, err := c.BlockData.ChainDB.RetrieveAddressSpentUnspent(address)
+	if err != nil {
+		return
+	}
+
+	if isCmd {
+		switch command {
+		case "balance":
+			writeJSON(w, totalUnspent, c.getIndentQuery(r))
+			return
+		case "totalReceived":
+			writeJSON(w, totalSpent+totalUnspent, c.getIndentQuery(r))
+			return
+		case "totalSent":
+			writeJSON(w, totalSpent, c.getIndentQuery(r))
+			return
+		}
+	}
+
+	addresses := []string{address}
+
+	// Get Confirmed Transactions
+	rawTxs, recentTxs := c.BlockData.ChainDB.InsightPgGetAddressTransactions(addresses, int64(c.Status.Height-2))
+	confirmedTxCount := len(rawTxs)
+
+	// Get Unconfirmed Transactions
+	unconfirmedTxs := []string{}
+	addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
+	if err != nil {
+		apiLog.Errorf("Error in getting unconfirmed transactions")
+	}
+	if addressOuts != nil {
+	FUNDING_TX_DUPLICATE_CHECK:
+		for _, f := range addressOuts.Outpoints {
+			// Confirm its not already in our recent transactions
+			for _, v := range recentTxs {
+				if v == f.Hash.String() {
+					continue FUNDING_TX_DUPLICATE_CHECK
+				}
+			}
+			fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if fundingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+			unconfirmedBalanceSat += fundingTx.Tx.TxOut[f.Index].Value
+			unconfirmedTxs = append(unconfirmedTxs, f.Hash.String()) // Funding tx
+			recentTxs = append(recentTxs, f.Hash.String())
+		}
+	SPENDING_TX_DUPLICATE_CHECK:
+		for _, f := range addressOuts.PrevOuts {
+			for _, v := range recentTxs {
+				if v == f.TxSpending.String() {
+					continue SPENDING_TX_DUPLICATE_CHECK
+				}
+			}
+			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if spendingTx.Confirmed() {
+				apiLog.Errorf("A transaction spending the outpoint of an unconfirmed transaction is unexpectedly confirmed.")
+				continue
+			}
+
+			// Sent total sats has to be a lookup of the vout:i prevout value
+			// because vin:i valuein is not reliable from dcrd at present
+			prevhash := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Hash
+			previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
+			valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
+			unconfirmedBalanceSat -= valuein
+			unconfirmedTxs = append(unconfirmedTxs, f.TxSpending.String()) // Spending tx
+			recentTxs = append(recentTxs, f.TxSpending.String())
 		}
 
 	}
-	addressOuts, utxcount, _ := c.MemPool.UnconfirmedTxnsForAddress(address)
-	for _, f := range addressOuts.Outpoints {
-		fundingTx, ok := addressOuts.TxnsStore[f.Hash]
-		if !ok {
-			apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
-			continue
+
+	if isCmd {
+		switch command {
+		case "unconfirmedBalance":
+			writeJSON(w, unconfirmedBalanceSat, c.getIndentQuery(r))
+			return
 		}
-		if fundingTx.Confirmed() {
-			apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
-			continue
-		}
-		addressInfo.UnconfirmedBalance += dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin()
-		addressInfo.UnconfirmedBalanceSat += fundingTx.Tx.TxOut[f.Index].Value
 	}
-	for _, f := range addressOuts.PrevOuts {
-		spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
-		if !ok {
-			apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
-			continue
+
+	// Merge Unconfirmed with Confirmed transactions
+	rawTxs = append(unconfirmedTxs, rawTxs...)
+
+	// Final Slice Extraction
+	txcount := len(rawTxs)
+	if txcount > 0 {
+		if int(from) > txcount {
+			from = int64(txcount)
 		}
-		if spendingTx.Confirmed() {
-			apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
-			continue
+		if int(from) < 0 {
+			from = 0
 		}
-		addressInfo.UnconfirmedBalance -= dcrutil.Amount(spendingTx.Tx.TxOut[f.PreviousOutpoint.Index].Value).ToCoin()
-		addressInfo.UnconfirmedBalanceSat -= spendingTx.Tx.TxOut[f.PreviousOutpoint.Index].Value
+		if int(to) > txcount {
+			to = int64(txcount)
+		}
+		if int(to) < 0 {
+			to = 0
+		}
+		if from > to {
+			to = from
+		}
+		if (to - from) > 1000 {
+			writeInsightError(w, fmt.Sprintf("\"from\" (%d) and \"to\" (%d) range should be less than or equal to 1000", from, to))
+			return
+		}
+
+		rawTxs = rawTxs[from:to]
 	}
-	addressInfo.UnconfirmedTxAppearances = utxcount
-	if addressInfo == nil {
-		writeInsightNotFound(w, "Not found")
-		return
+
+	addressInfo := apitypes.InsightAddressInfo{
+		Address:                  address,
+		TotalReceivedSat:         (totalSpent + totalUnspent),
+		TotalSentSat:             totalSpent,
+		BalanceSat:               totalUnspent,
+		TotalReceived:            dcrutil.Amount(totalSpent + totalUnspent).ToCoin(),
+		TotalSent:                dcrutil.Amount(totalSpent).ToCoin(),
+		Balance:                  dcrutil.Amount(totalUnspent).ToCoin(),
+		TxAppearances:            int64(confirmedTxCount),
+		UnconfirmedBalance:       dcrutil.Amount(unconfirmedBalanceSat).ToCoin(),
+		UnconfirmedBalanceSat:    unconfirmedBalanceSat,
+		UnconfirmedTxAppearances: int64(len(unconfirmedTxs)),
+	}
+
+	if noTxList == 0 {
+		addressInfo.TransactionsID = rawTxs
 	}
 
 	writeJSON(w, addressInfo, c.getIndentQuery(r))

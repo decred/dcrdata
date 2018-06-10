@@ -30,7 +30,7 @@ const (
 	ctxBlockHash
 	ctxBlockIndex
 	ctxNoTxList
-	ctxLimit
+	ctxAddrCmd
 )
 
 // BlockHashPathAndIndexCtx is a middleware that embeds the value at the url
@@ -268,6 +268,26 @@ func (c *insightApiContext) PostAddrsUtxoCtx(next http.Handler) http.Handler {
 	})
 }
 
+// GetAddressCommandCtx returns a http.HandlerFunc that embeds the value at the
+// url part {command} into the request context.
+func (c *insightApiContext) AddressCommandCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		command := chi.URLParam(r, "command")
+		ctx := context.WithValue(r.Context(), ctxAddrCmd, command)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// GetAddressCommandCtx retrieves the ctxAddrCmd data from the request context.
+// If not set the return value is "" and false.
+func (c *insightApiContext) GetAddressCommandCtx(r *http.Request) (string, bool) {
+	command, ok := r.Context().Value(ctxAddrCmd).(string)
+	if !ok {
+		return "", false
+	}
+	return command, true
+}
+
 // BlockIndexOrHashPathCtx returns a http.HandlerFunc that embeds the value at
 // the url part {idxorhash} into the request context.
 func (c *insightApiContext) BlockIndexOrHashPathCtx(next http.Handler) http.Handler {
@@ -327,8 +347,7 @@ func (c *insightApiContext) NoTxListCtx(next http.Handler) http.Handler {
 // GetLimitCtx retrieves the ctxLimit data from the request context. If not set,
 // the return value is 0 which is interpreted as no limit.
 func (c *insightApiContext) GetLimitCtx(r *http.Request) int {
-	limit, ok := r.Context().Value(ctxLimit).(string)
-	fmt.Println("limit ", limit)
+	limit, ok := r.Context().Value(m.CtxLimit).(string)
 	if !ok {
 		return 0
 	}
@@ -347,4 +366,16 @@ func (c *insightApiContext) GetNoTxListCtx(r *http.Request) int {
 		return 0
 	}
 	return notxlist
+}
+
+// BlockDateLimitQueryCtx returns a http.Handlerfunc that embeds the
+// {blockdate,limit} value in the request into the request context.
+func (c *insightApiContext) BlockDateLimitQueryCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		blockDate := r.FormValue("blockDate")
+		ctx := context.WithValue(r.Context(), m.CtxBlockDate, blockDate)
+		limit := r.FormValue("limit")
+		ctx = context.WithValue(ctx, m.CtxLimit, limit)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

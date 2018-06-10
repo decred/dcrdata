@@ -63,6 +63,12 @@ func (pgb *ChainDB) InsightPgGetAddressTransactions(addr []string,
 	return RetrieveAddressTxnsOrdered(pgb.db, addr, recentBlockHeight)
 }
 
+// RetrieveAddressSpentUnspent retreivese balance information for a specific
+// address.
+func (pgb *ChainDB) RetrieveAddressSpentUnspent(address string) (int64, int64, int64, int64, error) {
+	return RetrieveAddressSpentUnspent(pgb.db, address)
+}
+
 // Update Vin due to DCRD AMOUNTIN - START
 func (pgb *ChainDB) RetrieveAddressIDsByOutpoint(txHash string,
 	voutIndex uint32) ([]uint64, []string, int64, error) {

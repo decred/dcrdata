@@ -5,8 +5,7 @@
 package insight
 
 import (
-	"math"
-
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -151,47 +150,36 @@ func (c *insightApiContext) TxConverterWithParams(txs []*dcrjson.TxRawResult, no
 	return newTxs, nil
 }
 
-// BlockConverter converts dcrd-block to insight block
+// BlockConverter converts dcrd-block to Insight block
 func (c *insightApiContext) BlockConverter(inBlocks []*dcrjson.GetBlockVerboseResult) ([]*apitypes.InsightBlockResult, error) {
 	params := &chaincfg.MainNetParams
 
 	RewardAtBlock := func(blocknum int64, voters uint16) float64 {
-		// Use DCRD package
-		// subsidyCache := blockchain.NewSubsidyCache(0, params)
-		// work := blockchain.CalcBlockWorkSubsidy(subsidyCache, blocknum,
-		// 	voters, params)
-		// stake := blockchain.CalcStakeVoteSubsidy(subsidyCache, blocknum,
-		// 	params) * voters
-		// tax := blockchain.CalcBlockTaxSubsidy(subsidyCache, blocknum,
-		// 	voters, params)
-		// return work + stake + tax
-
-		// Use Calculation
-		epoch := math.Floor(float64(blocknum) / float64(params.SubsidyReductionInterval))
-		StakeRewardProportion := (float64(voters) / float64(params.TicketsPerBlock)) * float64(params.StakeRewardProportion)
-		TotalRewardProportion := ((float64(params.WorkRewardProportion) +
-			float64(params.BlockTaxProportion) + StakeRewardProportion) / 10)
-		TotalReward := TotalRewardProportion * dcrutil.Amount(params.BaseSubsidy).ToCoin() *
-			math.Pow(float64(params.MulSubsidy)/float64(params.DivSubsidy), epoch)
-		return math.Round(TotalReward/0.00000001) * 0.00000001
+		subsidyCache := blockchain.NewSubsidyCache(0, params)
+		work := blockchain.CalcBlockWorkSubsidy(subsidyCache, blocknum, voters, params)
+		stake := blockchain.CalcStakeVoteSubsidy(subsidyCache, blocknum, params) * int64(voters)
+		tax := blockchain.CalcBlockTaxSubsidy(subsidyCache, blocknum, voters, params)
+		return dcrutil.Amount(work + stake + tax).ToCoin()
 	}
 
 	outBlocks := make([]*apitypes.InsightBlockResult, 0)
 	for _, inBlock := range inBlocks {
-		var outBlock apitypes.InsightBlockResult
-		outBlock.Hash = inBlock.Hash
-		outBlock.Confirmations = inBlock.Confirmations
-		outBlock.Size = inBlock.Size
-		outBlock.Height = inBlock.Height
-		outBlock.Version = inBlock.Version
-		outBlock.MerkleRoot = inBlock.MerkleRoot
-		outBlock.Tx = append(inBlock.Tx, inBlock.STx...)
-		outBlock.Time = inBlock.Time
-		outBlock.Nonce = inBlock.Nonce
-		outBlock.Bits = inBlock.Bits
-		outBlock.Difficulty = inBlock.Difficulty
-		outBlock.PreviousHash = inBlock.PreviousHash
-		outBlock.Reward = RewardAtBlock(inBlock.Height, inBlock.Voters)
+		outBlock := apitypes.InsightBlockResult{
+			Hash:          inBlock.Hash,
+			Confirmations: inBlock.Confirmations,
+			Size:          inBlock.Size,
+			Height:        inBlock.Height,
+			Version:       inBlock.Version,
+			MerkleRoot:    inBlock.MerkleRoot,
+			Tx:            append(inBlock.Tx, inBlock.STx...),
+			Time:          inBlock.Time,
+			Nonce:         inBlock.Nonce,
+			Bits:          inBlock.Bits,
+			Difficulty:    inBlock.Difficulty,
+			PreviousHash:  inBlock.PreviousHash,
+			NextHash:      inBlock.NextHash,
+			Reward:        RewardAtBlock(inBlock.Height, inBlock.Voters),
+		}
 		if inBlock.Height > 0 {
 			outBlock.IsMainChain = true
 		} else {

@@ -36,8 +36,8 @@ const (
 	ctxN
 	ctxCount
 	ctxOffset
-	ctxBlockDate
-	ctxLimit
+	CtxBlockDate
+	CtxLimit
 	ctxGetStatus
 	ctxStakeVersionLatest
 	ctxRawHexTx
@@ -187,7 +187,7 @@ func GetStatusInfoCtx(r *http.Request) string {
 // GetBlockDateCtx retrieves the ctxBlockDate data from the request context. If
 // not set, the return value is an empty string.
 func GetBlockDateCtx(r *http.Request) string {
-	blockDate, _ := r.Context().Value(ctxBlockDate).(string)
+	blockDate, _ := r.Context().Value(CtxBlockDate).(string)
 	return blockDate
 }
 
@@ -462,8 +462,8 @@ func BlockDateQueryCtx(next http.Handler) http.Handler {
 			return
 		}
 		fmt.Println("limit in block query ", limit)
-		ctx := context.WithValue(r.Context(), ctxBlockDate, blockDate)
-		ctx = context.WithValue(ctx, ctxLimit, limit)
+		ctx := context.WithValue(r.Context(), CtxBlockDate, blockDate)
+		ctx = context.WithValue(ctx, CtxLimit, limit)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
