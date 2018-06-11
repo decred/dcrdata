@@ -350,6 +350,12 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	CurrentStakePercent float64, ActualCoinbase float64, CurrentBlockNum float64,
 	ActualTicketPrice float64) (ASR float64, ReturnTable string) {
 
+	// Calculations are only useful on mainnet.  Short circuit calculations if
+	// on any other version of chain params.
+	if exp.ChainParams.Name != "mainnet" {
+		return 0, ""
+	}
+
 	BlocksPerDay := 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
 	BlocksPerYear := 365 * BlocksPerDay
 	TicketsPurchased := float64(0)
