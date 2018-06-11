@@ -763,6 +763,8 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 		agendas,
 		exp.Version,
 		exp.NetName,
+		chartData,
+		totalVotes,
 	})
 
 	if err != nil {
@@ -781,9 +783,11 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("agendas", struct {
 		Agendas []*agendadb.AgendaTagged
 		Version string
+		NetName string
 	}{
 		agendas,
 		exp.Version,
+		exp.NetName,
 	})
 
 	if err != nil {

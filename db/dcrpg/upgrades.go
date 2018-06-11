@@ -1,4 +1,4 @@
-// Copyright (c) 2017, The dcrdata developers
+// Copyright (c) 2018, The dcrdata developers.
 // See LICENSE for details.
 
 package dcrpg
@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dbtypes"
@@ -50,8 +51,9 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 }
 
 // handleAgendasTableUpgrade implements the upgrade to the newly added agenda table.
-// If the table exists, the db upgrade fails to proceed.
+// If the table exists, the db upgrade fails to proceed
 func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error {
+	var rowsUpdated int64
 	c, err := isAgendasTable(pgb.db)
 	if c == 0 {
 		return err
@@ -63,14 +65,25 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 	}
 
 	log.Infof("Found the best block at height: %v", height)
-
 	var limit, i uint64
-	var rowsUpdated int64
+
+	var milestones = map[string]dbtypes.MileStone{
+		"sdiffalgorithm": dbtypes.MileStone{
+			Activated:  149248,
+			HardForked: 149328,
+			LockedIn:   141184},
+		"lnsupport": dbtypes.MileStone{
+			Activated: 149248,
+			LockedIn:  141184},
+		"lnfeatures": dbtypes.MileStone{
+			Activated: 189568,
+			LockedIn:  181504},
+	}
 
 	// Range (block height) from where the first the vote for an agenda was cast
 	i, limit = 128000, 128000
 
-	// Fetch the block associated with the provided block height.
+	// Fetch the block associated with the provided block height
 	for ; i < height+1; i++ {
 		var block, err = client.UpdateToBlock(int64(i))
 		if err != nil {
@@ -82,40 +95,18 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 			if height < limit {
 				limit = height + 1
 			}
-
-			log.Infof("Upgrading the Agendas table (Agenda Table Upgrade) from height %v to %v ",
-				i, limit-1)
+			log.Infof("Upgrading the Agendas (New Table Upgrade) from height %v to %v ", i, limit-1)
 		}
 
-		var msgBlock = block.MsgBlock()
-
-		dbTxns, _, _ := dbtypes.ExtractBlockTransactions(msgBlock, wire.TxTreeStake, pgb.chainParams)
-
-		for i, tx := range dbTxns {
-			if tx.TxType != int16(stake.TxTypeSSGen) {
-				continue
-			}
-
-			_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgBlock.STransactions[i], pgb.chainParams)
-			if err != nil {
-				return err
-			}
-
-			var rowID uint64
-			for _, val := range choices {
-				err := pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
-					val.ID, val.Choice.Id, tx.TxID, tx.BlockHeight, tx.BlockTime).Scan(&rowID)
-				if err != nil {
-					return err
-				}
-
-				rowsUpdated++
-			}
+		p, err := pgb.tableUpgrade(block)
+		if err != nil {
+			return err
 		}
+
+		rowsUpdated += p
 	}
 
-	log.Infof(" %v rows in the Agendas table (Agenda Table Upgrade) were successfully upgraded.",
-		rowsUpdated)
+	log.Infof(" %v rows in Agendas (New Table Upgrade) were successfully upgraded.", rowsUpdated)
 
 	log.Infof("Index the Agendas table on Agenda ID...")
 	IndexAgendasTableOnAgendaID(pgb.db)
@@ -126,7 +117,62 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 	return nil
 }
 
-// isAgendasTable checks if the agendas table is empty.
+func (pgb *ChainDB) tableUpgrade(block *dcrutil.Block) (int64, error) {
+	var rowsUpdated int64
+	var milestones = map[string]dbtypes.MileStone{
+		"sdiffalgorithm": {
+			Activated:  149248,
+			HardForked: 149328,
+			LockedIn:   141184,
+		},
+		"lnsupport": {
+			Activated: 149248,
+			LockedIn:  141184,
+		},
+		"lnfeatures": {
+			Activated: 189568,
+			LockedIn:  181504,
+		},
+	}
+
+	var msgBlock = block.MsgBlock()
+	var dbTxns, _, _ = dbtypes.ExtractBlockTransactions(msgBlock,
+		wire.TxTreeStake, pgb.chainParams)
+
+	for i, tx := range dbTxns {
+		if tx.TxType != int16(stake.TxTypeSSGen) {
+			continue
+		}
+
+		_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgBlock.STransactions[i],
+			pgb.chainParams)
+		if err != nil {
+			return 0, err
+		}
+
+		var rowID uint64
+		for _, val := range choices {
+			index, err := dbtypes.ToChoiceIndex(val.Choice.Id)
+			if err != nil {
+				return 0, err
+			}
+
+			err = pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
+				val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime,
+				milestones[val.ID].LockedIn == tx.BlockHeight,
+				milestones[val.ID].Activated == tx.BlockHeight,
+				milestones[val.ID].HardForked == tx.BlockHeight).Scan(&rowID)
+			if err != nil {
+				return 0, err
+			}
+
+			rowsUpdated++
+		}
+	}
+	return rowsUpdated, nil
+}
+
+// isAgendasTable checks if the agendas table is empty
 func isAgendasTable(db *sql.DB) (int, error) {
 	var isExists int
 
@@ -142,7 +188,7 @@ func isAgendasTable(db *sql.DB) (int, error) {
 	return 1, nil
 }
 
-// Comment the tables with the upgraded table version
+// commentTable comments the tables with the upgraded table version
 func commentTable(db *sql.DB, version TableVersion) error {
 	for tableName := range createTableStatements {
 		_, err := db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s IS 'v%s';`,
@@ -153,6 +199,5 @@ func commentTable(db *sql.DB, version TableVersion) error {
 
 		log.Infof("Modified the %v table version to %v", tableName, version)
 	}
-
 	return nil
 }
