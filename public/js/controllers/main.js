@@ -1,6 +1,7 @@
+
 (() => {
-    const application = Stimulus.Application.start()
-    application.register("main", class extends Stimulus.Controller {
+
+    app.register("main", class extends Stimulus.Controller {
         static get targets() {
             return [ "age" ]
         }

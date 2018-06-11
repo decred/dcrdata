@@ -91,16 +91,16 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/dchest/blake256"
   packages = ["."]
   revision = "dee3fe6eb0e98dc774a94fc231f85baf7c29d360"
+  version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/decred/base58"
   packages = ["."]
   revision = "56c501706f00d9e1cfacee19a27117e12da24734"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -131,7 +131,7 @@
     "txscript",
     "wire"
   ]
-  revision = "5386a6375874cbbc001ee915c887a8240933751b"
+  revision = "ca7eeee6af72d69a73fe339b453c1ca20d211d04"
 
 [[projects]]
   branch = "master"
@@ -140,11 +140,11 @@
     "errors",
     "internal/zero",
     "netparams",
-    "snacl",
-    "wallet/udb",
-    "walletdb"
+    "wallet/internal/snacl",
+    "wallet/internal/walletdb",
+    "wallet/udb"
   ]
-  revision = "03d9f2fbabf9db9803bd48a03185fc8cda59d0d6"
+  revision = "69603e2d6d62eefe34f94dc245fc8f8f9180a57c"
 
 [[projects]]
   name = "github.com/decred/slog"
@@ -211,13 +211,13 @@
     "transport",
     "websocket"
   ]
-  revision = "80ae0e43aca17b4c5a6834999d0f2eaa16b9afda"
+  revision = "3c3145340e676971209507021a435520c2700d92"
 
 [[projects]]
   branch = "master"
   name = "github.com/googollee/go-socket.io"
   packages = ["."]
-  revision = "970a1286d096d33129776082dfa89b35970e00c2"
+  revision = "f12da5711bc66c18a0724987fff7f4f3db35c70f"
 
 [[projects]]
   name = "github.com/gorilla/websocket"
@@ -226,10 +226,10 @@
   version = "v1.2.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -244,7 +244,7 @@
     ".",
     "oid"
   ]
-  revision = "d34b9ff171c21ad295489235aec8b6626023cd04"
+  revision = "90697d60dd844d5ef6ff15135d0203f65d2f53b8"
 
 [[projects]]
   name = "github.com/mattn/go-colorable"
@@ -261,8 +261,8 @@
 [[projects]]
   name = "github.com/mattn/go-sqlite3"
   packages = ["."]
-  revision = "6c771bb9887719704b210e87e934f08be014bdb1"
-  version = "v1.6.0"
+  revision = "25ecb14adfc7543176f7d85291ec7dba82c6f7e4"
+  version = "v1.9.0"
 
 [[projects]]
   branch = "master"
@@ -285,8 +285,8 @@
 [[projects]]
   name = "github.com/rs/cors"
   packages = ["."]
-  revision = "feef513b9575b32f84bafa580aad89b011259019"
-  version = "v1.3.0"
+  revision = "ca016a06a5753f8ba03029c0aa5e54afb1bf713f"
+  version = "v1.4.0"
 
 [[projects]]
   branch = "master"
@@ -304,6 +304,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
+    "internal/subtle",
     "nacl/secretbox",
     "pbkdf2",
     "poly1305",
@@ -312,7 +313,7 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "1a580b3eff7814fc9b40602fd35256c63b50f491"
+  revision = "37a17fe027db43f76fd88b056ddf588563fc8722"
 
 [[projects]]
   branch = "master"
@@ -321,7 +322,7 @@
     "context",
     "websocket"
   ]
-  revision = "8e0cdda24ed423affc8f35c241e5e9b16180338e"
+  revision = "db08ff08e8622530d9ed3a0e8ac279f6d4c02196"
 
 [[projects]]
   branch = "master"
@@ -330,7 +331,7 @@
     "unix",
     "windows"
   ]
-  revision = "7f59abf37be6a6007f075af1bc7f16f137bc176b"
+  revision = "56ede360ec1c541828fb88741b3f1049406d28f5"
 
 [[projects]]
   branch = "master"

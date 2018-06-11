@@ -157,7 +157,7 @@
                         <span style="flex: 0 0 50px" class="lh1rem text-right ml-1">Size</span>
                         <span style="flex: 0 0 62px" class="lh1rem text-right ml-1">Age</span>
                     </div>
-                    <div id="mini-transactions" class="transactions md-height-rows rows">
+                    <div data-controller="mempoolMini" data-target="mempoolMini.transactions" class="transactions md-height-rows rows">
                     {{range .Mempool.LatestTransactions}}
                         <div class="d-flex flex-table-row">
                             <a class="hash truncate-hash keyboard-target" style="flex: 1 1 auto" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
