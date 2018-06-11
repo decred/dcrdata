@@ -356,7 +356,6 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	if exp.ChainParams.Name != "mainnet" {
 		return 0, ""
 	}
-	
 	BlocksPerDay := 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
 	BlocksPerYear := 365 * BlocksPerDay
 	TicketsPurchased := float64(0)
