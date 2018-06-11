@@ -3,7 +3,7 @@
 <html lang="en">
     {{template "html-head" printf "Decred Vote Agenda Pages"}}
     <body>
-        {{template "navbar"}}
+        {{template "navbar" .}}
         {{with .Ai}}
         <div class="container">
             <div class="row justify-content-between">
@@ -92,8 +92,62 @@
                 {{end}}
             </table>
             {{end}}
+
+            <table>
+                <tr>
+                    <td>
+                        <canvas id="barGraph" width="400" height="400"></canvas>
+                    </td>
+                    <td>
+                        <canvas id="doughnutGraph" width="400" height="400"></canvas>
+                    </td>
+                </tr>
+            </table>
+            </div>
         </div>
         {{end}}
+
+        <script>
+        var d = [], l = []
+        var v = {{.Ai.Choices}}
+
+        v.map(function(n){
+            l.push(n.id)
+            d.push(n.bits)
+        });
+
+        var plotGraph = function(divName, chartType){
+            new Chart(
+                document.getElementById(divName), {
+                options: {
+                    width:400,
+                    height:400,
+                    responsive: false },
+                type: chartType,
+                data: {
+                    labels: l,
+                    datasets: [{
+                        data: d,
+                        label: 'abstained votes',
+                        backgroundColor: [
+                            'rgba(255, 140, 0, 0.5)',
+                            'rgba(255, 0, 0, 0.5)',
+                            'rgba(0, 255, 0, 0.5)',
+                        ],
+                        borderColor: [
+                            'rgba(255, 140, 0, 1.2)',
+                            'rgba(255, 0, 0, 1.2)',
+                            'rgba(0, 255, 0, 1.2)',
+                        ],
+                        borderWidth: 1
+                    }]
+                }
+            });
+        }
+
+        plotGraph("barGraph", "bar")
+        plotGraph("doughnutGraph", "doughnut")
+        </script>
         {{template "footer" . }}
     </body>
 </html>

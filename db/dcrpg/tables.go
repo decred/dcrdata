@@ -22,6 +22,7 @@ var createTableStatements = map[string]string{
 	"tickets":      internal.CreateTicketsTable,
 	"votes":        internal.CreateVotesTable,
 	"misses":       internal.CreateMissesTable,
+	"agendas":      internal.CreateAgendasTable,
 }
 
 var createTypeStatements = map[string]string{
@@ -48,6 +49,7 @@ var requiredVersions = map[string]TableVersion{
 	"tickets":      NewTableVersion(tableMajor, 0, 0),
 	"votes":        NewTableVersion(tableMajor, 0, 0),
 	"misses":       NewTableVersion(tableMajor, 0, 0),
+	"agendas":      NewTableVersion(tableMajor, 0, 0),
 }
 
 // TableVersion models a table version by major.minor.patch
@@ -479,5 +481,27 @@ func IndexMissesTableOnHashes(db *sql.DB) (err error) {
 
 func DeindexMissesTableOnHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexMissesTableOnHashes)
+	return
+}
+
+// agendas
+
+func IndexAgendasTableOnBlockTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexAgendasTableOnBlockTime)
+	return
+}
+
+func DeindexAgendasTableOnBlockTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexAgendasTableOnBlockTime)
+	return
+}
+
+func IndexAgendasTableOnAgendaID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexAgendasTableOnAgendaID)
+	return
+}
+
+func DeindexAgendasTableOnAgendaID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexAgendasTableOnAgendaID)
 	return
 }

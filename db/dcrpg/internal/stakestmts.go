@@ -18,7 +18,10 @@ const (
 		spend_type INT2,
 		pool_status INT2,
 		spend_height INT4,
-		spend_tx_db_id INT8
+		spend_tx_db_id INT8,
+		block_time INT8,
+		agenda_id TEXT,
+		agenda_vote_choice TEXT
 	);`
 
 	// Insert
@@ -198,6 +201,36 @@ const (
 			WHERE t.rnum > 1);`
 
 	// Revokes?
+
+	// Agendas
+	CreateAgendasTable = `CREATE TABLE IF NOT EXISTS agendas (
+		id SERIAL PRIMARY KEY,
+		agenda_id TEXT,
+		agenda_vote_choice TEXT,
+		tx_hash TEXT NOT NULL,
+		block_height INT4,
+		block_time INT8
+	);`
+
+	// Insert
+	insertAgendaRow0 = `INSERT INTO agendas (
+		agenda_id, agenda_vote_choice,
+		tx_hash, block_height, block_time)
+		VALUES ($1, $2, $3, $4, $5) `
+
+	insertAgendaRow = insertAgendaRow0 + `RETURNING id;`
+
+	upsertAgendaRow = insertAgendaRow0 + `ON CONFLICT (agenda_id, agenda_vote_choice, tx_hash, block_height) DO UPDATE 
+		SET block_time = $5 RETURNING id;`
+
+	IndexAgendasTableOnBlockTime = `CREATE INDEX uix_agendas_block_time
+		ON agendas(block_time);`
+	DeindexAgendasTableOnBlockTime = `DROP INDEX uix_agendas_block_time;`
+
+	IndexAgendasTableOnAgendaID = `CREATE UNIQUE INDEX uix_agendas_agenda_id
+		ON agendas(agenda_id, agenda_vote_choice, tx_hash, block_height);`
+
+	DeindexAgendasTableOnAgendaID = `DROP INDEX uix_agendas_agenda_id;`
 )
 
 func MakeTicketInsertStatement(checked bool) string {
@@ -219,4 +252,11 @@ func MakeMissInsertStatement(checked bool) string {
 		return upsertMissRow
 	}
 	return insertMissRow
+}
+
+func MakeAgendaInsertStatement(checked bool) string {
+	if checked {
+		return upsertAgendaRow
+	}
+	return insertAgendaRow
 }

@@ -964,6 +964,14 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
+	if err = DeindexAgendasTableOnBlockTime(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err = DeindexAgendasTableOnAgendaID(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
 	return errAny
 }
 
@@ -1011,6 +1019,14 @@ func (pgb *ChainDB) IndexAll() error {
 	}
 	log.Infof("Indexing misses table...")
 	if err := IndexMissesTableOnHashes(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing agendas table on Block Time...")
+	if err := IndexAgendasTableOnBlockTime(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing agendas table on Agenda ID...")
+	if err := IndexAgendasTableOnAgendaID(pgb.db); err != nil {
 		return err
 	}
 	// Not indexing the address table on vout ID or address here. See
@@ -1324,7 +1340,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db,
-			dbTransactions, *TxDbIDs, unspentTicketCache, msgBlock, pgb.dupChecks)
+			dbTransactions, *TxDbIDs, unspentTicketCache, msgBlock, pgb.dupChecks, pgb.chainParams)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err
@@ -1585,9 +1601,15 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 
 	updatesPerDBTx := 500
 
-	log.Infof("Updating spending tx info for %d addresses...", len(allVinDbIDs))
+	i, err := RetrieveLastVinsDbIdEntry(pgb.db)
+	if err != nil {
+		log.Errorf("RetrieveLastVinsDbIdEntry: %v", err)
+		return 0, err
+	}
+
+	log.Infof("Updating spending tx info for %d addresses...", (len(allVinDbIDs) - i))
 	var numAddresses int64
-	for i := 0; i < len(allVinDbIDs); i += updatesPerDBTx {
+	for ; i < len(allVinDbIDs); i += updatesPerDBTx {
 		//for i, vinDbID := range allVinDbIDs {
 		if i%250000 == 0 {
 			endRange := i + 250000 - 1
