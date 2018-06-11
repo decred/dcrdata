@@ -1448,6 +1448,57 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 		}
 		var voteInfo *explorer.VoteInfo
 
+		_, Fee_Rate := txhelpers.TxFeeRate(msgTx)
+	
+		FeeRate := Fee_Rate.ToCoin()
+		var FeeRateSize string
+	
+		if FeeRate < 0.001 {
+			FeeRateSize = "lowest"
+		} else if 0.001 <= FeeRate && FeeRate < 0.01 {
+			FeeRateSize = "low"
+		} else if 0.01 <= FeeRate && FeeRate < 0.1 {
+			FeeRateSize = "moderate"
+		} else if 0.1 <= FeeRate && FeeRate < 0.5 {
+			FeeRateSize = "moderate-high"
+		} else if 0.5 <= FeeRate && FeeRate < 1.0 {
+			FeeRateSize = "high"
+		} else if 1.0 <= FeeRate {
+			FeeRateSize = "very-high"
+		}
+
+		var TxAmount string
+
+		if total < 50.0 {
+			TxAmount = "xs"
+		} else if 50.0 <= total && total < 100.0 {
+			TxAmount = "s"
+		} else if 100.0 <= total && total < 200.0 {
+			TxAmount = "m"
+		} else if 200.0 <= total && total < 500.0 {
+			TxAmount = "l"
+		} else if 500.0 <= total && total < 1000.0 {
+			TxAmount = "xl"
+		} else if 1000.0 <= total {
+			TxAmount = "xxl"
+		}
+
+		var ByteSize string
+
+		if tx.Size < 500 {
+			ByteSize = "xs-size"
+		} else if 500 <= tx.Size && tx.Size < 1000 {
+			ByteSize = "s-size"
+		} else if 1000 <= tx.Size && tx.Size < 2000 {
+			ByteSize = "m-size"
+		} else if 2000 <= tx.Size && tx.Size < 10000 {
+			ByteSize = "l-size"
+		} else if 10000 <= tx.Size && tx.Size < 50000 {
+			ByteSize = "xl-size"
+		} else if 50000 <= tx.Size {
+			ByteSize = "xxl-size"
+		}
+
 		if ok := stake.IsSSGen(msgTx); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, db.params)
 			if err != nil {
@@ -1468,12 +1519,15 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 			}
 		}
 		txs = append(txs, explorer.MempoolTx{
-			Hash:     hash,
-			Time:     tx.Time,
-			Size:     tx.Size,
-			TotalOut: total,
-			Type:     txhelpers.DetermineTxTypeString(msgTx),
-			VoteInfo: voteInfo,
+			Hash:     		hash,
+			Time:     		tx.Time,
+			Size:     		tx.Size,
+			TotalOut: 		total,
+			TxAmount: 		TxAmount,
+			FeeRateSize: 	FeeRateSize,
+			ByteSize: 		ByteSize,
+			Type:     		txhelpers.DetermineTxTypeString(msgTx),
+			VoteInfo: 		voteInfo,
 		})
 	}
 

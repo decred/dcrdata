@@ -147,6 +147,30 @@
  
                 <h4 class="mt-2">Decred Blockchain</h4>
                 <div class="card-columns">
+            {{with .Mempool}}
+            <div class="card">
+    		    <div class="card-header">
+                    {{range .Votes}}
+                    {{if .VoteInfo.Validation.Validity}}<a class="btn btn-success" href="/tx/{{.Hash}}" role="button"></a>
+                    {{else}}<a class="btn btn-danger" href="/tx/{{.Hash}}" role="button"></a>{{end}}{{end}}
+                    <div class="row"></div>
+                    {{range .Tickets}}<a class="btn btn-secondary {{.FeeRateSize}}-ticket" href="/tx/{{.Hash}}" role="button"></a>{{end}}
+                    {{range .Revocations}}<a class="btn btn-warning {{.FeeRateSize}}-rev" href="/tx/{{.Hash}}" role="button"></a>{{end}}
+                    <div class="row"></div>
+
+                    {{range .Transactions}}
+
+                    <a class="btn btn-info {{.TxAmount}}-amount-{{.ByteSize}}" href="/tx/{{.Hash}}" role="button"></a>
+                    
+                    {{end}}
+
+                </div>
+    		    <div class="card-body text-center">
+                       <a href="/mempool">Mempool</a>
+		        </div>
+    		</div>
+            {{end}}
+
 		   {{range .Blocks}}
   		   <div class="card">
     		    <div class="card-header">

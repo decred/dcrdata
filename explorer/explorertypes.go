@@ -385,12 +385,15 @@ type TicketPoolInfo struct {
 
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
-	Hash     string    `json:"hash"`
-	Time     int64     `json:"time"`
-	Size     int32     `json:"size"`
-	TotalOut float64   `json:"total"`
-	Type     string    `json:"Type"`
-	VoteInfo *VoteInfo `json:"vote_info"`
+	Hash        string `json:"hash"`
+	Time        int64  `json:"time"`
+	Size        int32  `json:"size"`
+	FeeRateSize string
+	TxAmount    string
+	ByteSize    string
+	TotalOut    float64   `json:"total"`
+	Type        string    `json:"Type"`
+	VoteInfo    *VoteInfo `json:"vote_info"`
 }
 
 // NewMempoolTx models data sent from the notification handler

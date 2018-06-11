@@ -70,7 +70,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	height := exp.blockData.GetHeight()
 
-	blocks := exp.blockData.GetExplorerFullBlocks(height, height-12)
+	blocks := exp.blockData.GetExplorerFullBlocks(height, height-11)
 
 	exp.NewBlockDataMtx.Lock()
 	exp.MempoolData.RLock()
