@@ -37,13 +37,12 @@ func Open(dbPath string) (*AgendaDB, error) {
 	if !isNewDB {
 		numAgendas, err = db.Count(&AgendaTagged{})
 		if err != nil {
-			fmt.Printf("Unable to count agendas in existing DB: %v\n", err)
+			log.Infof("Unable to count agendas in existing DB: %v\n", err)
 		}
 		numChoices, err = db.Count(&ChoiceLabeled{})
 		if err != nil {
-			fmt.Printf("Unable to count choices in existing DB: %v\n", err)
+			log.Infof("Unable to count choices in existing DB: %v\n", err)
 		}
-		fmt.Printf("Opened existing datatbase with %d agendas.\n", numAgendas)
 	}
 
 	agendaDB := &AgendaDB{
@@ -90,7 +89,7 @@ func (db *AgendaDB) ListAgendas() error {
 	i := 0
 	return q.Each(new(AgendaTagged), func(record interface{}) error {
 		a := record.(*AgendaTagged)
-		fmt.Printf("%d: %s\n", i, a.Id)
+		log.Infof("%d: %s\n", i, a.Id)
 		i++
 		return nil
 	})
@@ -167,8 +166,8 @@ func (db *AgendaDB) Updatedb(voteVersion int64, client *rpcclient.Client) {
 	}
 	for _, a := range agendas {
 		err := db.StoreAgenda(&a)
-		if err == nil {
-			fmt.Printf("Agenda saved: %v \n", a.Id)
+		if err != nil {
+			log.Errorf("Agenda not saved: %v \n", err)
 		}
 	}
 }
@@ -182,7 +181,6 @@ func CheckForUpdates(client *rpcclient.Client) {
 	}
 	var voteVersion int64 = 4
 	for adb.CheckAvailabiltyOfVersionAgendas(voteVersion) {
-		fmt.Printf("Vote agendas exist in db for version: %v \n", voteVersion)
 		voteVersion++
 	}
 	adb.Updatedb(voteVersion, client)

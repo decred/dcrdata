@@ -95,6 +95,9 @@ const (
 		spending_tx_hash = $4, spending_tx_vin_index = $5, vin_row_id = $6 
 		WHERE funding_tx_hash=$1 and funding_tx_vout_index=$2;`
 
+	SelectAddressLastVinsDbId = `SELECT vin_row_id FROM addresses WHERE vin_row_id
+	 iS NOT NULL ORDER BY vin_row_id DESC LIMIT 1;`
+
 	IndexAddressTableOnAddress = `CREATE INDEX uix_addresses_address
 		ON addresses(address);`
 	DeindexAddressTableOnAddress = `DROP INDEX uix_addresses_address;`
