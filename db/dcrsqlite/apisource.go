@@ -921,17 +921,17 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 		tx.TxAmount = "xxl"
 	}
 
-	if ByteSize < 50.0 {
+	if ByteSize < 500 {
 		tx.ByteSize = "xs-size"
-	} else if 50.0 <= ByteSize && ByteSize < 100.0 {
+	} else if 500 <= ByteSize && ByteSize < 1000 {
 		tx.ByteSize = "s-size"
-	} else if 100.0 <= ByteSize && ByteSize < 200.0 {
+	} else if 1000 <= ByteSize && ByteSize < 2000 {
 		tx.ByteSize = "m-size"
-	} else if 200.0 <= ByteSize && ByteSize < 500.0 {
+	} else if 2000 <= ByteSize && ByteSize < 10000 {
 		tx.ByteSize = "l-size"
-	} else if 500.0 <= ByteSize && ByteSize < 1000.0 {
+	} else if 10000 <= ByteSize && ByteSize < 50000 {
 		tx.ByteSize = "xl-size"
-	} else if 1000.0 <= ByteSize {
+	} else if 50000 <= ByteSize {
 		tx.ByteSize = "xxl-size"
 	}
 
