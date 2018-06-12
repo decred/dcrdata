@@ -163,7 +163,7 @@ func mainCore() error {
 			return err
 		}
 
-		if err = auxDB.VersionCheck(); err != nil {
+		if err = auxDB.VersionCheck(dcrdClient); err != nil {
 			return err
 		}
 
