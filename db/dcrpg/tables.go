@@ -40,16 +40,16 @@ var createTypeStatements = map[string]string{
 const tableMajor = 2
 
 var requiredVersions = map[string]TableVersion{
-	"blocks":       NewTableVersion(tableMajor, 0, 0),
-	"transactions": NewTableVersion(tableMajor, 0, 0),
-	"vins":         NewTableVersion(tableMajor, 0, 0),
-	"vouts":        NewTableVersion(tableMajor, 0, 0),
-	"block_chain":  NewTableVersion(tableMajor, 0, 0),
-	"addresses":    NewTableVersion(tableMajor, 0, 0),
-	"tickets":      NewTableVersion(tableMajor, 0, 0),
-	"votes":        NewTableVersion(tableMajor, 0, 0),
-	"misses":       NewTableVersion(tableMajor, 0, 0),
-	"agendas":      NewTableVersion(tableMajor, 0, 0),
+	"blocks":       NewTableVersion(tableMajor, 4, 0),
+	"transactions": NewTableVersion(tableMajor, 4, 0),
+	"vins":         NewTableVersion(tableMajor, 4, 0),
+	"vouts":        NewTableVersion(tableMajor, 4, 0),
+	"block_chain":  NewTableVersion(tableMajor, 4, 0),
+	"addresses":    NewTableVersion(tableMajor, 4, 0),
+	"tickets":      NewTableVersion(tableMajor, 4, 0),
+	"votes":        NewTableVersion(tableMajor, 4, 0),
+	"misses":       NewTableVersion(tableMajor, 4, 0),
+	"agendas":      NewTableVersion(tableMajor, 4, 0),
 }
 
 // TableVersion models a table version by major.minor.patch

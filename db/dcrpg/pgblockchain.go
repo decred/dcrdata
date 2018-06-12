@@ -257,12 +257,24 @@ func setupTables(db *sql.DB) error {
 // VersionCheck checks the current version of all known tables and notifies when
 // an upgrade is required. Since there is presently no automatic upgrade, an
 // error is returned when any table is not of the correct version.
-func (pgb *ChainDB) VersionCheck() error {
+func (pgb *ChainDB) VersionCheck(client ...*rpcclient.Client) error {
 	vers := TableVersions(pgb.db)
 	for tab, ver := range vers {
 		log.Debugf("Table %s: v%s", tab, ver)
 	}
 	if tableUpgrades := TableUpgradesRequired(vers); len(tableUpgrades) > 0 {
+		if tableUpgrades[0].UpgradeType == "upgrade" {
+			// CheckForAuxDBUpgrade makes db upgrades that are currently supported.
+			isSuccess, err := pgb.CheckForAuxDBUpgrade(client[0])
+			if err != nil {
+				return err
+			}
+			// Upgrade was successful, no need to proceed.
+			if isSuccess {
+				return nil
+			}
+		}
+
 		for _, u := range tableUpgrades {
 			log.Warnf(u.String())
 		}
