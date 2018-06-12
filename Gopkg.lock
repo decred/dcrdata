@@ -73,6 +73,12 @@
   revision = "3a1d64819adb569fb9952144dd90c0abe92e2822"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/chappjc/trylock"
+  packages = ["."]
+  revision = "9ca31be23b889c622a0b0d3622bb4d7e57ef4800"
+
+[[projects]]
   name = "github.com/coreos/bbolt"
   packages = ["."]
   revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
@@ -335,6 +341,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b0d2e972ec426db76162229ab52c5ac0688d06aea98fedbd2c23603dee1e82ca"
+  inputs-digest = "b37d8f364544946cf0bbec415993d542565aafc182dedfed17fb2d51183f0122"
   solver-name = "gps-cdcl"
   solver-version = 1

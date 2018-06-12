@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chappjc/trylock"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -37,8 +38,9 @@ var (
 type DevFundBalance struct {
 	sync.RWMutex
 	*explorer.AddressBalance
-	Height int64
-	Hash   chainhash.Hash
+	updating trylock.Mutex
+	Height   int64
+	Hash     chainhash.Hash
 }
 
 // BlockHash is a thread-safe accessor for the block hash.
@@ -427,9 +429,20 @@ func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
 // via DB queries. The bool output inidcates if the cached balance was updated
 // (if it was stale).
 func (pgb *ChainDB) UpdateDevBalance() (bool, error) {
+	// See if a DB query is already running
+	okToUpdate := pgb.DevFundBalance.updating.TryLock()
+	// Wait on readers and possibly a writer regardless so the response will not
+	// be stale even when this call doesn't call updateDevBalance.
 	pgb.DevFundBalance.Lock()
 	defer pgb.DevFundBalance.Unlock()
-	return pgb.updateDevBalance()
+	// If we got the trylock, do an actual query for the balance
+	if okToUpdate {
+		defer pgb.DevFundBalance.updating.Unlock()
+		return pgb.updateDevBalance()
+	}
+	// Otherwise the other call will have just updated the balance, and we
+	// should not waste the cycles doing it again.
+	return false, nil
 }
 
 func (pgb *ChainDB) updateDevBalance() (bool, error) {
