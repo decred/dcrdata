@@ -223,6 +223,13 @@ const (
 	upsertAgendaRow = insertAgendaRow0 + `ON CONFLICT (agenda_id, agenda_vote_choice, tx_hash, block_height) DO UPDATE 
 		SET block_time = $5 RETURNING id;`
 
+	SelectAgendasAgendaVotes = `SELECT to_timestamp(block_time)::date as date,
+		COUNT(CASE WHEN agenda_vote_choice = 'yes' THEN 1 ELSE NULL END) as yes,
+		COUNT(CASE WHEN agenda_vote_choice = 'no' THEN 1 ELSE NULL END) as no,
+		COUNT(CASE WHEN agenda_vote_choice = 'abstain' THEN 1 ELSE NULL END) as abstain,
+		count(*) as total FROM agendas WHERE agenda_id = $1
+		GROUP BY date ORDER BY date;`
+
 	IndexAgendasTableOnBlockTime = `CREATE INDEX uix_agendas_block_time
 		ON agendas(block_time);`
 	DeindexAgendasTableOnBlockTime = `DROP INDEX uix_agendas_block_time;`
