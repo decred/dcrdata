@@ -304,6 +304,16 @@ type ScriptSig struct {
 	Hex string `json:"hex"`
 }
 
+// AgendaVoteChoices defines the agenda vote
+// choices count per given vote choice.
+type AgendaVoteChoices struct {
+	Abstain uint64 `json:"abstain"`
+	Yes     uint64 `json:"yes"`
+	No      uint64 `json:"no"`
+	Total   uint64 `json:"total"`
+	Time    string `json:"time"`
+}
+
 // Tx models a Decred transaction. It is stored in a Block.
 type Tx struct {
 	//blockDbID  int64

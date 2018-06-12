@@ -96,10 +96,12 @@
             <table>
                 <tr>
                     <td>
-                        <canvas id="barGraph" width="400" height="400"></canvas>
+                        <div id="lineGraph" style="width:900px; height:450px; margin:0 auto;"></div>
                     </td>
                     <td>
-                        <canvas id="doughnutGraph" width="400" height="400"></canvas>
+                        <canvas id="doughnutGraph" class="doughnutGraph" width="200" height="200"
+             chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'">
+                   </canvas>
                     </td>
                 </tr>
             </table>
@@ -107,46 +109,92 @@
         </div>
         {{end}}
 
-        <script>
-        var d = [], l = []
-        var v = {{.Ai.Choices}}
+        <style type="text/css">
+         .dygraph-legend {
+           padding: 4px !important;
+           border: 1px solid #000;
+           border-radius: 5px;
+           pointer-events: none;
+           width: fit-content;
+         }
+         .dygraph-rangesel-bgcanvas {
+           z-index: 0 !important;
+         }
+         .dygraph-rangesel-fgcanvas {
+           z-index: 0 !important;
+         }
+         .dygraph-rangesel-zoomhandle {
+           z-index: 0 !important;
+         }
+         .dygraph-axis-label {
+           z-index: 0 !important;
+         }
+        .doughnutGraph {
+            float: right;
+        }
+       </style>
 
-        v.map(function(n){
-            l.push(n.id)
-            d.push(n.bits)
+        <script>
+        var v = {{.TotalVotes}}
+        var chart = {{.ChartData}}
+
+        var d = ""
+        chart.map(function(n){
+            d = d + n.time + ", " + n.total + ", " + n.abstain + ", "+ n.yes + ", " + n.no +  " \n"
         });
 
-        var plotGraph = function(divName, chartType){
-            new Chart(
-                document.getElementById(divName), {
-                options: {
-                    width:400,
-                    height:400,
-                    responsive: false },
-                type: chartType,
-                data: {
-                    labels: l,
-                    datasets: [{
-                        data: d,
-                        label: 'abstained votes',
-                        backgroundColor: [
-                            'rgba(255, 140, 0, 0.5)',
-                            'rgba(255, 0, 0, 0.5)',
-                            'rgba(0, 255, 0, 0.5)',
-                        ],
-                        borderColor: [
-                            'rgba(255, 140, 0, 1.2)',
-                            'rgba(255, 0, 0, 1.2)',
-                            'rgba(0, 255, 0, 1.2)',
-                        ],
-                        borderWidth: 1
-                    }]
-                }
-            });
-        }
+        new Dygraph(
+            document.getElementById("lineGraph"),
+            d,
+            {
+                labels: ["Date", "Total Votes",  "Abstain", "Yes", "No"],
+                showRangeSelector: true,
+                ylabel: 'Vote Choices Cast',
+                legend: 'follow',
+                colors: ['blue', 'orange', 'rgb(0,153,0)', 'red'],
+                labelsSeparateLines: true
+            }
+        );
 
-        plotGraph("barGraph", "bar")
-        plotGraph("doughnutGraph", "doughnut")
+        new Chart(
+            document.getElementById("doughnutGraph"), {
+            options: {
+                width:200,
+                height:200,
+                responsive: false, 
+                animation: { animateScale: true },
+                legend: {
+                    position: 'bottom',
+                    },
+                title: {
+                    display: true,
+                    text: 'Total Votes Tally'
+                },
+                tooltips: {
+                    callbacks: {
+                        label: function(tooltipItem, data) {
+                        var dataset = data.datasets[tooltipItem.datasetIndex];
+                        var currentValue = dataset.data[tooltipItem.index];
+                        var precentage = (currentValue/v.total) * 100;
+                        return currentValue + " Votes ( " + precentage.toFixed(2) + "% )";
+                        }
+                    }
+                  } 
+
+                },
+            type: "doughnut",
+            data: {
+                labels: ["Abstain", "No", "Yes"],
+                datasets: [{
+                    data: [v.abstain, v.no, v.yes,],
+                    label: 'abstained votes',
+                    backgroundColor: ['orange', 'red', 'rgb(0,153,0)'],
+                    borderColor: [ 'white', 'white', 'white'],
+                    borderWidth: 0.5
+                }]
+            }
+        });
+
         </script>
         {{template "footer" . }}
     </body>

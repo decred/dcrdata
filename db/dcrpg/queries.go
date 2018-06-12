@@ -711,13 +711,6 @@ func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64,
 	return
 }
 
-// RetrieveLastVinsDbIdEntry should return the last vins table ID that
-// was successfully added to the vins table
-func RetrieveLastVinsDbIdEntry(db *sql.DB) (vinRowID int, err error) {
-	err = db.QueryRow(internal.SelectAddressLastVinsDbId).Scan(&vinRowID)
-	return
-}
-
 func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspent,
 	totalSpent, totalUnspent int64, err error) {
 	dbtx, err := db.Begin()
@@ -1014,6 +1007,36 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 	}
 
 	return
+}
+
+// RetrieveAgendaVoteChoices retrieves the vote choices count per day and also the total
+// votes count per vote choice for the provided agenda.
+func RetrieveAgendaVoteChoices(db *sql.DB, agendaID string) ([]*dbtypes.AgendaVoteChoices,
+	*dbtypes.AgendaVoteChoices, error) {
+	totalVotes := new(dbtypes.AgendaVoteChoices)
+	chartData := make([]*dbtypes.AgendaVoteChoices, 0)
+
+	rows, err := db.Query(internal.SelectAgendasAgendaVotes, agendaID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for rows.Next() {
+		var votes = new(dbtypes.AgendaVoteChoices)
+
+		err := rows.Scan(&votes.Time, &votes.Yes, &votes.No, &votes.Abstain, &votes.Total)
+		if err != nil {
+			return nil, nil, err
+		}
+		chartData = append(chartData, votes)
+
+		totalVotes.Abstain += votes.Abstain
+		totalVotes.Yes += votes.Yes
+		totalVotes.No += votes.No
+		totalVotes.Total += votes.Total
+	}
+
+	return chartData, totalVotes, nil
 }
 
 func RetrieveDbTxByHash(db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx, err error) {

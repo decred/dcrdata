@@ -367,6 +367,13 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 	return blockHash, blockInd, tree, err
 }
 
+// AgendaVotes fetches the data used to plot a graph of vote choice types cast per day for the provided agenda.
+// The total count of all votes cast per vote choice type for the entire period is returned.
+func (pgb *ChainDB) AgendaVotes(agendaID string) ([]*dbtypes.AgendaVoteChoices,
+	*dbtypes.AgendaVoteChoices, error) {
+	return RetrieveAgendaVoteChoices(pgb.db, agendaID)
+}
+
 // AddressTransactions retrieves a slice of *dbtypes.AddressRow for a given
 // address and transaction type (i.e. all, credit, or debit) from the DB. Only
 // the first N transactions starting from the offset element in the set of all
@@ -1601,15 +1608,9 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 
 	updatesPerDBTx := 500
 
-	i, err := RetrieveLastVinsDbIdEntry(pgb.db)
-	if err != nil {
-		log.Errorf("RetrieveLastVinsDbIdEntry: %v", err)
-		return 0, err
-	}
-
-	log.Infof("Updating spending tx info for %d addresses...", (len(allVinDbIDs) - i))
+	log.Infof("Updating spending tx info for %d addresses...", len(allVinDbIDs))
 	var numAddresses int64
-	for ; i < len(allVinDbIDs); i += updatesPerDBTx {
+	for i := 0; i < len(allVinDbIDs); i += updatesPerDBTx {
 		//for i, vinDbID := range allVinDbIDs {
 		if i%250000 == 0 {
 			endRange := i + 250000 - 1
