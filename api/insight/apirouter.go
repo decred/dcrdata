@@ -56,8 +56,10 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.With(m.TransactionHashCtx).Get("/rawtx/{txid}", app.getTransactionHex)
 	mux.With(m.TransactionsCtx).Get("/txs", app.getTransactions)
 
-	// Status
+	// Status and Utility
 	mux.With(app.StatusInfoCtx).Get("/status", app.getStatusInfo)
+	mux.With(app.NbBlocksCtx).Get("/utils/estimatefee", app.getEstimateFee)
+	mux.Get("/peer", app.GetPeerStatus)
 
 	// Addresses endpoints
 	mux.Route("/addrs", func(rd chi.Router) {

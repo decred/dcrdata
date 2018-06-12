@@ -396,39 +396,128 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 	hash := m.GetBlockHashCtx(r)
 	address := m.GetAddressCtx(r)
 	if hash == "" && address == "" {
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightError(w, "Required query parameters (address or block) not present.")
 		return
 	}
 
 	if hash != "" {
-		blockTransactions := c.BlockData.GetTransactionsForBlockByHash(hash)
-		if blockTransactions == nil {
+		blkTrans := c.BlockData.GetBlockVerboseByHash(hash, true)
+		if blkTrans == nil {
 			apiLog.Errorf("Unable to get block %s transactions", hash)
-			http.Error(w, http.StatusText(422), 422)
+			writeInsightError(w, fmt.Sprintf("Unable to get block %s transactions", hash))
 			return
 		}
 
+		txsOld := []*dcrjson.TxRawResult{}
+		txcount := len(blkTrans.RawTx) + len(blkTrans.RawSTx)
+		// Merge tx and stx together and limit result to 10 max
+		count := 0
+		for _, tx := range blkTrans.RawTx {
+			txsOld = append(txsOld, &tx)
+			count++
+			if count > 10 {
+				break
+			}
+		}
+		if count < 10 {
+			for _, tx := range blkTrans.RawSTx {
+				txsOld = append(txsOld, &tx)
+				count++
+				if count > 10 {
+					break
+				}
+			}
+		}
+
+		// Convert to Insight struct
+		txsNew, err := c.TxConverter(txsOld)
+		if err != nil {
+			apiLog.Error("Error Processing Transactions")
+			writeInsightError(w, "Error Processing Transactions")
+			return
+		}
+
+		blockTransactions := apitypes.InsightBlockAddrTxSummary{
+			PagesTotal: int64(txcount),
+			Txs:        txsNew,
+		}
 		writeJSON(w, blockTransactions, c.getIndentQuery(r))
+		return
 	}
 
 	if address != "" {
-		address := m.GetAddressCtx(r)
-		if address == "" {
-			http.Error(w, http.StatusText(422), 422)
+		// Validate Address
+		_, err := dcrutil.DecodeAddress(address)
+		if err != nil {
+			writeInsightError(w, fmt.Sprintf("Address is invalid (%s)", address))
 			return
 		}
-		txs := c.BlockData.InsightGetAddressTransactions(address, 20, 0)
-		if txs == nil {
-			http.Error(w, http.StatusText(422), 422)
+		addresses := []string{address}
+		rawTxs, recentTxs := c.BlockData.ChainDB.InsightPgGetAddressTransactions(addresses, int64(c.Status.Height-2))
+
+		addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
+		UnconfirmedTxs := []string{}
+
+		if err != nil {
+			writeInsightError(w, fmt.Sprintf("Error gathering mempool transactions (%s)", err))
 			return
 		}
 
-		txsOutput := struct {
-			Txs []*dcrjson.SearchRawTransactionsResult `json:"txs"`
-		}{
-			txs,
+	FUNDING_TX_DUPLICATE_CHECK:
+		for _, f := range addressOuts.Outpoints {
+			// Confirm its not already in our recent transactions
+			for _, v := range recentTxs {
+				if v == f.Hash.String() {
+					continue FUNDING_TX_DUPLICATE_CHECK
+				}
+			}
+			UnconfirmedTxs = append(UnconfirmedTxs, f.Hash.String()) // Funding tx
+			recentTxs = append(recentTxs, f.Hash.String())
 		}
-		writeJSON(w, txsOutput, c.getIndentQuery(r))
+	SPENDING_TX_DUPLICATE_CHECK:
+		for _, f := range addressOuts.PrevOuts {
+			for _, v := range recentTxs {
+				if v == f.TxSpending.String() {
+					continue SPENDING_TX_DUPLICATE_CHECK
+				}
+			}
+			UnconfirmedTxs = append(UnconfirmedTxs, f.TxSpending.String()) // Spending tx
+			recentTxs = append(recentTxs, f.TxSpending.String())
+		}
+
+		// Merge unconfirmed with confirmed transactions
+		rawTxs = append(UnconfirmedTxs, rawTxs...)
+
+		txcount := len(rawTxs)
+
+		if txcount > 10 {
+			rawTxs = rawTxs[0:10]
+		}
+
+		txsOld := []*dcrjson.TxRawResult{}
+		for _, rawTx := range rawTxs {
+			txOld, err1 := c.BlockData.GetRawTransaction(rawTx)
+			if err1 != nil {
+				apiLog.Errorf("Unable to get transaction %s", rawTx)
+				writeInsightError(w, fmt.Sprintf("Error gathering transaction details (%s)", err1))
+				return
+			}
+			txsOld = append(txsOld, txOld)
+		}
+
+		// Convert to Insight struct
+		txsNew, err := c.TxConverter(txsOld)
+		if err != nil {
+			apiLog.Error("Error Processing Transactions")
+			writeInsightError(w, "Error Processing Transactions")
+			return
+		}
+
+		addrTransactions := apitypes.InsightBlockAddrTxSummary{
+			PagesTotal: int64(txcount),
+			Txs:        txsNew,
+		}
+		writeJSON(w, addrTransactions, c.getIndentQuery(r))
 	}
 }
 
@@ -613,33 +702,90 @@ func (c *insightApiContext) getAddressTotalSent(w http.ResponseWriter, r *http.R
 	writeText(w, strconv.Itoa(int(addressInfo.TotalSpent)))
 }
 
-// TODO getDifficulty and getInfo
 func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request) {
 	statusInfo := m.GetStatusInfoCtx(r)
 
-	if statusInfo == "" {
-		http.Error(w, http.StatusText(422), 422)
+	// best block idx is also embedded through the middleware.  We could use
+	// this value or the other best blocks as done below.  Which one is best?
+	// idx := m.GetBlockIndexCtx(r)
+
+	infoResult, err := c.nodeClient.GetInfo()
+	if err != nil {
+		apiLog.Error("Error getting status")
+		writeInsightError(w, fmt.Sprintf("Error getting status (%s)", err))
 		return
 	}
 
-	if statusInfo == "getLastBlockHash" {
-		hash := c.getBlockHashCtx(r)
-		hashOutput := struct {
-			LastBlockHash string `json:"lastblockhash"`
+	switch statusInfo {
+	case "getDifficulty":
+		info := struct {
+			Difficulty float64 `json:"difficulty"`
 		}{
-			hash,
+			infoResult.Difficulty,
 		}
-		writeJSON(w, hashOutput, c.getIndentQuery(r))
-	}
+		writeJSON(w, info, c.getIndentQuery(r))
+	case "getBestBlockHash":
+		blockhash, err := c.nodeClient.GetBlockHash(int64(infoResult.Blocks))
+		if err != nil {
+			apiLog.Errorf("Error getting block hash %d (%s)", infoResult.Blocks, err)
+			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", infoResult.Blocks, err))
+			return
+		}
 
-	if statusInfo == "getBestBlockHash" {
-		hash := c.getBlockHashCtx(r)
-		hashOutput := struct {
+		info := struct {
 			BestBlockHash string `json:"bestblockhash"`
 		}{
-			hash,
+			blockhash.String(),
 		}
-		writeJSON(w, hashOutput, c.getIndentQuery(r))
+		writeJSON(w, info, c.getIndentQuery(r))
+	case "getLastBlockHash":
+		blockhashtip, err := c.nodeClient.GetBlockHash(int64(infoResult.Blocks))
+		if err != nil {
+			apiLog.Errorf("Error getting block hash %d (%s)", infoResult.Blocks, err)
+			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", infoResult.Blocks, err))
+			return
+		}
+		lastblockhash, err := c.nodeClient.GetBlockHash(int64(c.Status.Height))
+		if err != nil {
+			apiLog.Errorf("Error getting block hash %d (%s)", c.Status.Height, err)
+			writeInsightError(w, fmt.Sprintf("Error getting block hash %d (%s)", c.Status.Height, err))
+			return
+		}
+
+		info := struct {
+			SyncTipHash   string `json:"syncTipHash"`
+			LastBlockHash string `json:"lastblockhash"`
+		}{
+			blockhashtip.String(),
+			lastblockhash.String(),
+		}
+		writeJSON(w, info, c.getIndentQuery(r))
+	default:
+		info := struct {
+			Version         int32   `json:"version"`
+			Protocolversion int32   `json:"protocolversion"`
+			Blocks          int32   `json:"blocks"`
+			NodeTimeoffset  int64   `json:"timeoffset"`
+			NodeConnections int32   `json:"connections"`
+			Proxy           string  `json:"proxy"`
+			Difficulty      float64 `json:"difficulty"`
+			Testnet         bool    `json:"testnet"`
+			Relayfee        float64 `json:"relayfee"`
+			Errors          string  `json:"errors"`
+		}{
+			infoResult.Version,
+			infoResult.ProtocolVersion,
+			infoResult.Blocks,
+			infoResult.TimeOffset,
+			infoResult.Connections,
+			infoResult.Proxy,
+			infoResult.Difficulty,
+			infoResult.TestNet,
+			infoResult.RelayFee,
+			infoResult.Errors,
+		}
+
+		writeJSON(w, info, c.getIndentQuery(r))
 	}
 
 }
@@ -865,4 +1011,45 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, addressInfo, c.getIndentQuery(r))
+}
+
+func (c *insightApiContext) getEstimateFee(w http.ResponseWriter, r *http.Request) {
+	nbBlocks := c.GetNbBlocksCtx(r)
+	if nbBlocks == 0 {
+		nbBlocks = 2
+	}
+	estimateFee := make(map[string]float64)
+
+	// A better solution would be a call to the DCRD RPC "estimatefee" endpoint
+	// but that does not appear to be exposed currently.
+	infoResult, err := c.nodeClient.GetInfo()
+	if err != nil {
+		apiLog.Error("Error getting status")
+		writeInsightError(w, fmt.Sprintf("Error getting status (%s)", err))
+		return
+	}
+	estimateFee[strconv.Itoa(nbBlocks)] = infoResult.RelayFee
+
+	writeJSON(w, estimateFee, c.getIndentQuery(r))
+}
+
+func (c *insightApiContext) GetPeerStatus(w http.ResponseWriter, r *http.Request) {
+	// Use a RPC call to tell if we are connected or not
+	_, err := c.nodeClient.GetPeerInfo()
+	var connected bool
+	if err == nil {
+		connected = true
+	} else {
+		connected = false
+	}
+	var port *string
+	peerInfo := struct {
+		Connected bool    `json:"connected"`
+		Host      string  `json:"host"`
+		Port      *string `json:"port"`
+	}{
+		connected, "127.0.0.1", port,
+	}
+
+	writeJSON(w, peerInfo, c.getIndentQuery(r))
 }
