@@ -190,6 +190,22 @@
         </div>`
     }
 
+    function MempoolBlockDisplay(tx) {
+        if (tx.Type == "Vote") {
+            if (tx.vote_info.block_validation.validity == true) {
+                return '<a class="btn btn-success" href="/tx/${tx.hash}" role="button"></a>'
+            } else {
+                return '<a class="btn btn-danger" href="/tx/${tx.hash}" role="button"></a>'
+            }
+        } else if (tx.Type == "Ticket"){
+            return '<a class="btn btn-secondary ${tx.FeeRateSize}-ticket" href="/tx/${tx.hash}" role="button"></a>'
+        } else if (tx.Type == "Revocation") {
+            return '<a class="btn btn-warning ${tx.FeeRateSize}-rev" href="/tx/${tx.hash}" role="button"></a>'
+        } else {
+            return '<a class="btn btn-info ${tx.TxAmount}-amount-${tx.ByteSize}" href="/tx/${tx.hash}" role="button"></a>'
+        }
+    }
+
     var ws; // websocket global
     async function createWebSocket(loc) {
         // wait a bit to prevent websocket churn from drive by page loads
@@ -270,6 +286,13 @@
             if (window.location.pathname == "/"){
                 var rows = $('#mini-transactions .flex-table-row')
                 var newRowHtml = $.parseHTML(txRowHTMLFlexBox(tx))
+                rows.last().remove()
+                $(newRowHtml).insertBefore(rows.first())
+            }
+
+            if (window.location.pathname == "/nexthome"){
+                var rows = $('#mempool .card-header')
+                var newRowHtml = $.parseHTML(MempoolBlockDisplay(tx))
                 rows.last().remove()
                 $(newRowHtml).insertBefore(rows.first())
             }
@@ -433,6 +456,25 @@
                     '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
                 })
                 $('#mini-transactions tbody').html(newTable)
+            }
+            if (window.location.pathname == "/nexthome") {
+                var newTable = ""
+                m.latest.forEach(function (tx) {
+                    if (tx.Type == "Vote"){
+                        if (tx.vote_info.block_validation.validity == true) {
+                            newTable += '<a class="btn btn-success" href="/tx/' + tx.hash + '" role="button"></a>'
+                        } else {
+                            newTable += '<a class="btn btn-danger" href="/tx/' + tx.hash + '" role="button"></a>'
+                        }
+                    } else if (tx.Type == "Ticket"){
+                        newTable += '<a class="btn btn-secondary ' + tx.FeeRateSize + '-ticket" href="/tx/' + tx.hash + '" role="button"></a>'
+                    } else if (tx.Type == "Revocation") {
+                        newTable += '<a class="btn btn-warning ' + tx.FeeRateSize + '-rev" href="/tx/' + tx.hash + '" role="button"></a>'
+                    } else{
+                        newTable += '<a class="btn btn-info ' + tx.TxAmount + '-amount-' + tx.ByteSize + '" href="/tx/' + tx.hash +'" role="button"></a>'
+                    }
+                })
+                $('#mempool').html(newTable)
             }
             setTimeElements()
             updateAges()
