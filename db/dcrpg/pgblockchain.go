@@ -257,12 +257,24 @@ func setupTables(db *sql.DB) error {
 // VersionCheck checks the current version of all known tables and notifies when
 // an upgrade is required. Since there is presently no automatic upgrade, an
 // error is returned when any table is not of the correct version.
-func (pgb *ChainDB) VersionCheck() error {
+func (pgb *ChainDB) VersionCheck(client ...*rpcclient.Client) error {
 	vers := TableVersions(pgb.db)
 	for tab, ver := range vers {
 		log.Debugf("Table %s: v%s", tab, ver)
 	}
 	if tableUpgrades := TableUpgradesRequired(vers); len(tableUpgrades) > 0 {
+		if tableUpgrades[0].UpgradeType == "upgrade" {
+			// CheckForAuxDBUpgrade makes db upgrades that are currently supported.
+			isSuccess, err := pgb.CheckForAuxDBUpgrade(client[0])
+			if err != nil {
+				return err
+			}
+			// Upgrade was successful, no need to proceed.
+			if isSuccess {
+				return nil
+			}
+		}
+
 		for _, u := range tableUpgrades {
 			log.Warnf(u.String())
 		}
@@ -365,6 +377,12 @@ func (pgb *ChainDB) VoutValues(txID string) ([]uint64, []uint32, []int8, error) 
 func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) {
 	_, blockHash, blockInd, tree, err := RetrieveTxByHash(pgb.db, txID)
 	return blockHash, blockInd, tree, err
+}
+
+// AgendaVotes fetches the data used to plot a graph of vote choice types cast per day for the provided agenda.
+// The total count of all votes cast per vote choice type for the entire period is returned.
+func (pgb *ChainDB) AgendaVotes(agendaID string) ([]*dbtypes.AgendaVoteChoices, error) {
+	return RetrieveAgendaVoteChoices(pgb.db, agendaID)
 }
 
 // AddressTransactions retrieves a slice of *dbtypes.AddressRow for a given
@@ -964,6 +982,14 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
+	if err = DeindexAgendasTableOnBlockTime(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err = DeindexAgendasTableOnAgendaID(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
 	return errAny
 }
 
@@ -1011,6 +1037,14 @@ func (pgb *ChainDB) IndexAll() error {
 	}
 	log.Infof("Indexing misses table...")
 	if err := IndexMissesTableOnHashes(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing agendas table on Block Time...")
+	if err := IndexAgendasTableOnBlockTime(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing agendas table on Agenda ID...")
+	if err := IndexAgendasTableOnAgendaID(pgb.db); err != nil {
 		return err
 	}
 	// Not indexing the address table on vout ID or address here. See
@@ -1324,7 +1358,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db,
-			dbTransactions, *TxDbIDs, unspentTicketCache, msgBlock, pgb.dupChecks)
+			dbTransactions, *TxDbIDs, unspentTicketCache, msgBlock, pgb.dupChecks, pgb.chainParams)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err

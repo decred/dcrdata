@@ -3,7 +3,7 @@
 <html lang="en">
     {{template "html-head" printf "Decred Vote Agendas Page"}}
     <body>
-        {{template "navbar"}}
+        {{template "navbar" .}}
         <div class="container">
             <div class="row justify-content-between">
                     <div class="col-md-7 col-sm-6 d-flex">
@@ -11,7 +11,6 @@
                         </h4>
                     </div>
                 </div>
-            </div>
             <table class="table table-mono-cells table-sm striped">
                 <thead>
                     <th>Agenda ID</th>

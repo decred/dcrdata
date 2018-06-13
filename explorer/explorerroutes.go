@@ -704,12 +704,23 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	chartData, err := exp.explorerSource.AgendaVotes(agendaid)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "the agenda ID given seems to be wrong", false)
+		return
+	}
+
 	str, err := exp.templates.execTemplateToString("agenda", struct {
-		Ai      *agendadb.AgendaTagged
-		Version string
+		Ai        *agendadb.AgendaTagged
+		Version   string
+		NetName   string
+		ChartData []*dbtypes.AgendaVoteChoices
 	}{
 		agendaInfo,
 		exp.Version,
+		exp.NetName,
+		chartData,
 	})
 
 	if err != nil {
@@ -728,9 +739,11 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("agendas", struct {
 		Agendas []*agendadb.AgendaTagged
 		Version string
+		NetName string
 	}{
 		agendas,
 		exp.Version,
+		exp.NetName,
 	})
 
 	if err != nil {
