@@ -1015,7 +1015,22 @@ func RetrieveAgendaVoteChoices(db *sql.DB, agendaID string) ([]*dbtypes.AgendaVo
 	totalVotes := new(dbtypes.AgendaVoteChoices)
 	chartData := make([]*dbtypes.AgendaVoteChoices, 0)
 
-	rows, err := db.Query(internal.SelectAgendasAgendaVotes, agendaID)
+	yesIndex, err := dbtypes.ToChoiceIndex("yes")
+	if err != nil {
+		return nil, err
+	}
+
+	abstainIndex, err := dbtypes.ToChoiceIndex("abstain")
+	if err != nil {
+		return nil, err
+	}
+
+	noIndex, err := dbtypes.ToChoiceIndex("no")
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := db.Query(internal.SelectAgendasAgendaVotes, yesIndex, abstainIndex, noIndex, agendaID)
 	if err != nil {
 		return nil, err
 	}
@@ -1024,7 +1039,7 @@ func RetrieveAgendaVoteChoices(db *sql.DB, agendaID string) ([]*dbtypes.AgendaVo
 		var abstain, yes, no, total uint64
 		var date string
 
-		err := rows.Scan(&date, &yes, &no, &abstain, &total)
+		err := rows.Scan(&date, &yes, &abstain, &no, &total)
 		if err != nil {
 			return nil, err
 		}
@@ -1700,7 +1715,12 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 
 		var rowID uint64
 		for _, val := range choices {
-			err = prep.QueryRow(val.ID, val.Choice.Id, tx.TxID, tx.BlockHeight, tx.BlockTime).Scan(&rowID)
+			index, err := dbtypes.ToChoiceIndex(val.Choice.Id)
+			if err != nil {
+				return nil, nil, nil, nil, nil, err
+			}
+
+			err = prep.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime, false, false, false).Scan(&rowID)
 			if err != nil {
 				return nil, nil, nil, nil, nil, err
 			}
