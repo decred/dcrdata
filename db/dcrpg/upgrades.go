@@ -67,6 +67,19 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 	var limit, i uint64
 	var rowsUpdated int64
 
+	var milestones = map[string]dbtypes.MileStone{
+		"sdiffalgorithm": dbtypes.MileStone{
+			Activated:  149248,
+			HardForked: 149328,
+			LockedIn:   141184},
+		"lnsupport": dbtypes.MileStone{
+			Activated: 149248,
+			LockedIn:  141184},
+		"lnfeatures": dbtypes.MileStone{
+			Activated: 189568,
+			LockedIn:  181504},
+	}
+
 	// Range (block height) from where the first the vote for an agenda was cast
 	i, limit = 128000, 128000
 
@@ -83,28 +96,38 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 				limit = height + 1
 			}
 
-			log.Infof("Upgrading the Agendas table (Agenda Table Upgrade) from height %v to %v ",
+			log.Infof("Upgrading the Agendas (New Table Upgrade) from height %v to %v ",
 				i, limit-1)
 		}
 
 		var msgBlock = block.MsgBlock()
 
-		dbTxns, _, _ := dbtypes.ExtractBlockTransactions(msgBlock, wire.TxTreeStake, pgb.chainParams)
+		dbTxns, _, _ := dbtypes.ExtractBlockTransactions(msgBlock,
+			wire.TxTreeStake, pgb.chainParams)
 
 		for i, tx := range dbTxns {
 			if tx.TxType != int16(stake.TxTypeSSGen) {
 				continue
 			}
 
-			_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgBlock.STransactions[i], pgb.chainParams)
+			_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgBlock.STransactions[i],
+				pgb.chainParams)
 			if err != nil {
 				return err
 			}
 
 			var rowID uint64
 			for _, val := range choices {
-				err := pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
-					val.ID, val.Choice.Id, tx.TxID, tx.BlockHeight, tx.BlockTime).Scan(&rowID)
+				index, err := dbtypes.ToChoiceIndex(val.Choice.Id)
+				if err != nil {
+					return err
+				}
+
+				err = pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
+					val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime,
+					milestones[val.ID].LockedIn == tx.BlockHeight,
+					milestones[val.ID].Activated == tx.BlockHeight,
+					milestones[val.ID].HardForked == tx.BlockHeight).Scan(&rowID)
 				if err != nil {
 					return err
 				}
@@ -114,7 +137,7 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 		}
 	}
 
-	log.Infof(" %v rows in the Agendas table (Agenda Table Upgrade) were successfully upgraded.",
+	log.Infof(" %v rows in the Agendas (New Table Upgrade) were successfully upgraded.",
 		rowsUpdated)
 
 	log.Infof("Index the Agendas table on Agenda ID...")
