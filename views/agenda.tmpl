@@ -93,18 +93,7 @@
             </table>
             {{end}}
 
-            <table>
-                <tr>
-                    <td>
-                        <div id="lineGraph" style="width:900px; height:450px; margin:0 auto;"></div>
-                    </td>
-                    <td>
-                        <canvas id="doughnutGraph" class="doughnutGraph" width="200" height="200"
-             chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'">
-                   </canvas>
-                    </td>
-                </tr>
-            </table>
+            <div id="lineGraph" style="width:100%; height:450px; margin:0 auto;"></div>
             </div>
         </div>
         {{end}}
@@ -115,6 +104,7 @@
            border: 1px solid #000;
            border-radius: 5px;
            pointer-events: none;
+           font-weight: bold;
            width: fit-content;
          }
          .dygraph-rangesel-bgcanvas {
@@ -135,67 +125,45 @@
        </style>
 
         <script>
-        var v = {{.TotalVotes}}
         var chart = {{.ChartData}}
 
         var d = ""
         chart.map(function(n){
-            d = d + n.time + ", " + n.total + ", " + n.abstain + ", "+ n.yes + ", " + n.no +  " \n"
+            d = d + n.time + ", " + n.yes + ", " + n.abstain + ", " + n.no +  " \n"
         });
+
+        function legendFormatter(data) {
+            if (data.x == null) return '';
+            var total = 0;
+            data.series.map(function(n){
+                total += n.y
+            })
+            var html = this.getLabels()[0] + ': ' + data.xHTML;
+            data.series.forEach(function(series) {
+                var labeledData = ' <span style="color: ' + series.color + ';">' +series.labelHTML + ': ' + series.yHTML;
+                html += '<br>' + series.dashHTML  + labeledData + ' (' + ((series.y*100)/total).toFixed(2) +'%) </span>';
+            });
+            return html;
+            }
 
         new Dygraph(
             document.getElementById("lineGraph"),
             d,
             {
-                labels: ["Date", "Total Votes",  "Abstain", "Yes", "No"],
+                labels: ["Date", "Yes", "Abstain", "No"],
                 showRangeSelector: true,
-                ylabel: 'Vote Choices Cast',
+                ylabel: 'Cumulative Vote Choices Cast',
                 legend: 'follow',
-                colors: ['blue', 'orange', 'rgb(0,153,0)', 'red'],
+                labelsKMB: true,
+                colors: ['rgb(0,153,0)', 'orange', 'red'],
+                fillGraph: true,
+                stackedGraph: true,
+                legendFormatter: legendFormatter,
                 labelsSeparateLines: true
             }
         );
-
-        new Chart(
-            document.getElementById("doughnutGraph"), {
-            options: {
-                width:200,
-                height:200,
-                responsive: false, 
-                animation: { animateScale: true },
-                legend: {
-                    position: 'bottom',
-                    },
-                title: {
-                    display: true,
-                    text: 'Total Votes Tally'
-                },
-                tooltips: {
-                    callbacks: {
-                        label: function(tooltipItem, data) {
-                        var dataset = data.datasets[tooltipItem.datasetIndex];
-                        var currentValue = dataset.data[tooltipItem.index];
-                        var precentage = (currentValue/v.total) * 100;
-                        return currentValue + " Votes ( " + precentage.toFixed(2) + "% )";
-                        }
-                    }
-                  } 
-
-                },
-            type: "doughnut",
-            data: {
-                labels: ["Abstain", "No", "Yes"],
-                datasets: [{
-                    data: [v.abstain, v.no, v.yes,],
-                    label: 'abstained votes',
-                    backgroundColor: ['orange', 'red', 'rgb(0,153,0)'],
-                    borderColor: [ 'white', 'white', 'white'],
-                    borderWidth: 0.5
-                }]
-            }
-        });
-
         </script>
+
         {{template "footer" . }}
     </body>
 </html>

@@ -310,7 +310,7 @@ type AgendaVoteChoices struct {
 	Abstain uint64 `json:"abstain"`
 	Yes     uint64 `json:"yes"`
 	No      uint64 `json:"no"`
-	Total   uint64 `json:"total"`
+	Total   uint64 `json:"total, omitempty"`
 	Time    string `json:"time"`
 }
 

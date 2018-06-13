@@ -1008,32 +1008,39 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 
 // RetrieveAgendaVoteChoices retrieves the vote choices count per day and also the total
 // votes count per vote choice for the provided agenda.
-func RetrieveAgendaVoteChoices(db *sql.DB, agendaID string) ([]*dbtypes.AgendaVoteChoices,
-	*dbtypes.AgendaVoteChoices, error) {
+func RetrieveAgendaVoteChoices(db *sql.DB, agendaID string) ([]*dbtypes.AgendaVoteChoices, error) {
 	totalVotes := new(dbtypes.AgendaVoteChoices)
 	chartData := make([]*dbtypes.AgendaVoteChoices, 0)
 
 	rows, err := db.Query(internal.SelectAgendasAgendaVotes, agendaID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	for rows.Next() {
-		var votes = new(dbtypes.AgendaVoteChoices)
+		var abstain, yes, no, total uint64
+		var date string
 
-		err := rows.Scan(&votes.Time, &votes.Yes, &votes.No, &votes.Abstain, &votes.Total)
+		err := rows.Scan(&date, &yes, &no, &abstain, &total)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		chartData = append(chartData, votes)
+		totalVotes.Abstain += abstain
+		totalVotes.Yes += yes
+		totalVotes.No += no
+		totalVotes.Total += total
 
-		totalVotes.Abstain += votes.Abstain
-		totalVotes.Yes += votes.Yes
-		totalVotes.No += votes.No
-		totalVotes.Total += votes.Total
+		chartData = append(chartData, &dbtypes.AgendaVoteChoices{
+			Abstain: totalVotes.Abstain,
+			Yes:     totalVotes.Yes,
+			No:      totalVotes.No,
+			Total:   totalVotes.Total,
+			Time:    date,
+		})
+
 	}
 
-	return chartData, totalVotes, nil
+	return chartData, nil
 }
 
 func RetrieveDbTxByHash(db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx, err error) {
