@@ -28,8 +28,8 @@ var (
 	dbFile             = "pooldiffs.db"
 	dbFileRef          = "pooldiffs0.db"
 	dbFileFull         = "stakedb_ticket_pool.db"
-	fullHeight   int64 = 204578
-	fullPoolSize       = 41061
+	fullHeight   int64 = 245754
+	fullPoolSize       = 40931
 	poolSpots          = []int64{32215, 43268, 85508, 66322, 178346, 11013, 98265, 1081,
 		40170, 105957, 187824, 148370, 14478, 153239, 109536, 169157, 92064,
 		200277, 27558, 116203, 2338, 28323, 51459, 145753, 137377, 108501,
