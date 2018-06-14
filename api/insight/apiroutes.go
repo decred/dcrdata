@@ -404,6 +404,34 @@ func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request
 
 }
 
+//insight-api sync endpoint
+func (c *insightApiContext) getSyncInfo(w http.ResponseWriter, r *http.Request) { 
+	c.statusMtx.RLock()
+	st := "syncing"
+	if  c.Status.Ready {
+		st = "finished"
+	}
+	blockChainHeight := c.Status.Height // or c.nodeClient.GetBlockCount() if it is not populated ?
+	height := c.Status.DBHeight //  or c.BlockData.GetHeight()  if it is not populated ?
+	syncPercentage := ( height / blockChainHeight  ) * 100 
+	var err *string  
+	type := "bitcore node"  // is that correct ????
+	c.statusMtx.RUnlock()
+
+	syncInfo := struct {
+	Status string `json:"status"`
+	BlockChainHeight int `json:"blockChainHeight"`
+	SyncPercentage int `json:"syncPercentage"`
+	Height int `json:"height"`
+	Error *string `json:"error"`
+	Type string `json:"type"`
+	}{
+		st, blockChainHeight, syncPercentage, height, &err, type,
+	}
+
+	writeJSON(w, syncInfo,  c.getIndentQuery(r))
+}
+
 func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http.Request) {
 	blockDate := m.GetBlockDateCtx(r)
 	limit := m.GetLimitCtx(r)
