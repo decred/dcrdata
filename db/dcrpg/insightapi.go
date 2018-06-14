@@ -63,6 +63,12 @@ func (pgb *ChainDB) InsightPgGetAddressTransactions(addr []string,
 	return RetrieveAddressTxnsOrdered(pgb.db, addr, recentBlockHeight)
 }
 
+// RetrieveAddressSpentUnspent retrieves balance information for a specific
+// address.
+func (pgb *ChainDB) RetrieveAddressSpentUnspent(address string) (int64, int64, int64, int64, error) {
+	return RetrieveAddressSpentUnspent(pgb.db, address)
+}
+
 // Update Vin due to DCRD AMOUNTIN - START
 func (pgb *ChainDB) RetrieveAddressIDsByOutpoint(txHash string,
 	voutIndex uint32) ([]uint64, []string, int64, error) {
@@ -150,42 +156,6 @@ func (pgb *ChainDB) GetAddressBalance(address string, N, offset int64) *explorer
 		return nil
 	}
 	return balance
-}
-
-// GetAddressInfo returns the basic information for the specified address
-// (*apitypes.InsightAddressInfo), given a transaction count limit, and
-// transaction number offset.
-func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.InsightAddressInfo {
-	rows, balance, err := pgb.AddressHistoryAll(address, N, offset)
-	if err != nil {
-		return nil
-	}
-
-	var totalReceived, totalSent, unSpent dcrutil.Amount
-	totalReceived, _ = dcrutil.NewAmount(float64(balance.TotalSpent + balance.TotalUnspent))
-	totalSent, _ = dcrutil.NewAmount(float64(balance.TotalSpent))
-	unSpent, _ = dcrutil.NewAmount(float64(balance.TotalUnspent))
-
-	var transactionIdList []string
-	for _, row := range rows {
-		fundingTxId := row.FundingTxHash
-		if fundingTxId != "" {
-			transactionIdList = append(transactionIdList, fundingTxId)
-		}
-
-		spendingTxId := row.SpendingTxHash
-		if spendingTxId != "" {
-			transactionIdList = append(transactionIdList, spendingTxId)
-		}
-	}
-
-	return &apitypes.InsightAddressInfo{
-		Address:        address,
-		TotalReceived:  totalReceived,
-		TransactionsID: transactionIdList,
-		TotalSent:      totalSent,
-		Unspent:        unSpent,
-	}
 }
 
 // GetBlockSummaryTimeRange returns the blocks created within a specified time

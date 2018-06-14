@@ -44,9 +44,9 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	mux.Use(middleware.DefaultCompress)
 
 	// Block endpoints
-	mux.With(m.BlockDateQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
-	mux.With(app.BlockHashPathAndIndexCtx).Get("/block/{blockhash}", app.getBlockSummary)
-	mux.With(m.BlockIndexPathCtx).Get("/block-index/{idx}", app.getBlockHash)
+	mux.With(app.BlockDateLimitQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
+	mux.With(app.BlockIndexOrHashPathCtx).Get("/block/{idxorhash}", app.getBlockSummary)
+	mux.With(app.BlockIndexOrHashPathCtx).Get("/block-index/{idxorhash}", app.getBlockHash)
 	mux.With(app.BlockIndexOrHashPathCtx).Get("/rawblock/{idxorhash}", app.getRawBlock)
 
 	// Transaction endpoints
@@ -76,13 +76,11 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 	// Address endpoints
 	mux.Route("/addr/{address}", func(rd chi.Router) {
 		rd.Use(m.AddressPathCtx)
-		rd.With(m.PaginationCtx).Get("/", app.getAddressInfo)
+		rd.With(app.FromToPaginationCtx, app.NoTxListCtx).Get("/", app.getAddressInfo)
 		rd.Get("/utxo", app.getAddressesTxnOutput)
-		rd.Get("/balance", app.getAddressBalance)
-		rd.Get("/totalReceived", app.getAddressTotalReceived)
-		// TODO Missing unconfirmed balance implementation
-		rd.Get("/unconfirmedBalance", app.getAddressUnconfirmedBalance)
-		rd.Get("/totalSent", app.getAddressTotalSent)
+		rd.Route("/{command}", func(ra chi.Router) {
+			ra.With(app.AddressCommandCtx).Get("/", app.getAddressInfo)
+		})
 	})
 
 	return ApiMux{mux}

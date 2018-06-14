@@ -143,33 +143,71 @@ func (c *insightApiContext) getTransaction(w http.ResponseWriter, r *http.Reques
 func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
 	txid := m.GetTxIDCtx(r)
 	if txid == "" {
-		http.Error(w, http.StatusText(422), 422)
+		writeInsightError(w, "TxId must not be empty")
 		return
 	}
 
 	txHex := c.BlockData.GetTransactionHex(txid)
+	if txHex == "" {
+		writeInsightNotFound(w, fmt.Sprintf("Unable to get transaction (%s)", txHex))
+		return
+	}
 
-	hexOutput := new(apitypes.InsightRawTx)
-	hexOutput.Rawtx = txHex
+	hexOutput := &apitypes.InsightRawTx{
+		Rawtx: txHex,
+	}
 
 	writeJSON(w, hexOutput, c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 	// attempt to get hash of block set by hash or (fallback) height set on path
-	hash := c.getBlockHashCtx(r)
-	if hash == "" {
-		http.Error(w, http.StatusText(422), 422)
+	hash, ok := c.GetInsightBlockHashCtx(r)
+	if !ok {
+		idx, ok := c.GetInsightBlockIndexCtx(r)
+		if !ok {
+			writeInsightError(w, "Must provide an index or block hash")
+			return
+		}
+		var err error
+		hash, err = c.BlockData.ChainDB.GetBlockHash(int64(idx))
+		if err != nil {
+			writeInsightError(w, "Unable to get block hash from index")
+			return
+		}
+	}
+	blockDcrd := c.BlockData.GetBlockVerboseByHash(hash, false)
+	if blockDcrd == nil {
+		writeInsightNotFound(w, "Unable to get block")
 		return
 	}
 
-	blockSummary := c.BlockData.GetBlockVerboseByHash(hash, false)
+	blockSummary := []*dcrjson.GetBlockVerboseResult{blockDcrd}
+	blockInsight, err := c.DcrToInsightBlock(blockSummary)
+	if err != nil {
+		apiLog.Errorf("Unable to process block (%s)", hash)
+		writeInsightError(w, "Unable to Process Block")
+		return
+	}
 
-	writeJSON(w, blockSummary, c.getIndentQuery(r))
+	writeJSON(w, blockInsight, c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request) {
-	hash := c.getBlockHashCtx(r)
+	idx, ok := c.GetInsightBlockIndexCtx(r)
+	if !ok {
+		writeInsightError(w, "No index found in query")
+		return
+	}
+	if idx < 0 || idx > c.BlockData.ChainDB.GetHeight() {
+		writeInsightError(w, "Block height out of range")
+		return
+	}
+	hash, err := c.BlockData.ChainDB.GetBlockHash(int64(idx))
+	if err != nil || hash == "" {
+		writeInsightNotFound(w, "Not found")
+		return
+	}
 
 	blockOutput := struct {
 		BlockHash string `json:"blockHash"`
@@ -499,7 +537,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Convert to Insight API struct
-	txsNew, err := c.TxConverterWithParams(txsOld, noAsm, noScriptSig, noSpent)
+	txsNew, err := c.DcrToInsightTxns(txsOld, noAsm, noScriptSig, noSpent)
 	if err != nil {
 		apiLog.Error("Unable to process transactions")
 		writeInsightError(w, fmt.Sprintf("Unable to convert transactions (%s)", err))
@@ -608,39 +646,63 @@ func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request
 
 func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http.Request) {
 	blockDate := m.GetBlockDateCtx(r)
-	limit := m.GetLimitCtx(r)
+	limit := c.GetLimitCtx(r)
 
+	summaryOutput := apitypes.InsightBlocksSummaryResult{}
 	layout := "2006-01-02 15:04:05"
+	blockDateToday := time.Now().UTC().Format("2006-01-02")
 
+	if blockDate == "" {
+		blockDate = blockDateToday
+	}
+
+	if blockDateToday == blockDate {
+		summaryOutput.Pagination.IsToday = true
+	}
 	minDate, err := time.Parse(layout, blockDate+" 00:00:00")
 	if err != nil {
-		apiLog.Errorf("Unable to retrieve block summary using time %s: %v", blockDate, err)
-		http.Error(w, "invalid date ", 422)
+		writeInsightError(w, fmt.Sprintf("Unable to retrieve block summary using time %s: %v", blockDate, err))
 		return
 	}
 
 	maxDate, err := time.Parse(layout, blockDate+" 23:59:59")
 	if err != nil {
-		apiLog.Errorf("Unable to retrieve block summary using time %s: %v", blockDate, err)
-		http.Error(w, "invalid date", 422)
+		writeInsightError(w, fmt.Sprintf("Unable to retrieve block summary using time %s: %v", blockDate, err))
 		return
 	}
+	summaryOutput.Pagination.Next = minDate.AddDate(0, 0, 1).Format("2006-01-02")
+	summaryOutput.Pagination.Prev = minDate.AddDate(0, 0, -1).Format("2006-01-02")
+
+	summaryOutput.Pagination.Current = blockDate
 
 	minTime, maxTime := minDate.Unix(), maxDate.Unix()
+	summaryOutput.Pagination.CurrentTs = maxTime
+	summaryOutput.Pagination.MoreTs = maxTime
 
-	blockSummary := c.BlockData.ChainDB.GetBlockSummaryTimeRange(minTime, maxTime, limit)
+	blockSummary := c.BlockData.ChainDB.GetBlockSummaryTimeRange(minTime, maxTime, 0)
 
-	if blockSummary == nil {
-		http.Error(w, "error occurred", 422)
-		return
+	outputBlockSummary := []dbtypes.BlockDataBasic{}
+
+	// Generate the pagenation parameters more and moreTs and limit the result
+	if limit > 0 {
+		for i, block := range blockSummary {
+			if i >= limit {
+				summaryOutput.Pagination.More = true
+				break
+			}
+			outputBlockSummary = append(outputBlockSummary, block)
+			if block.Time < summaryOutput.Pagination.MoreTs {
+				summaryOutput.Pagination.MoreTs = block.Time
+			}
+		}
+		summaryOutput.Blocks = outputBlockSummary
+	} else {
+		summaryOutput.Blocks = blockSummary
+		summaryOutput.Pagination.More = false
+		summaryOutput.Pagination.MoreTs = minTime
 	}
 
-	summaryOutput := struct {
-		Blocks []dbtypes.BlockDataBasic `json:"blocks"`
-		Length int                      `json:"length"`
-	}{
-		blockSummary, limit,
-	}
+	summaryOutput.Length = len(summaryOutput.Blocks)
 
 	writeJSON(w, summaryOutput, c.getIndentQuery(r))
 
@@ -648,19 +710,158 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 
 func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
-	offset := m.GetOffsetCtx(r)
-	count := m.GetCountCtx(r)
-	count -= offset
+	command, isCmd := c.GetAddressCommandCtx(r)
 
-	if count < 0 {
-		count = 20
+	_, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		writeInsightError(w, "Invalid Address")
+		return
 	}
 
-	addressInfo := c.BlockData.ChainDB.GetAddressInfo(address, int64(count), int64(offset))
+	noTxList := c.GetNoTxListCtx(r)
 
-	if addressInfo == nil {
-		http.Error(w, "an error occurred", 422)
+	from := c.GetFromCtx(r)
+	to, ok := c.GetToCtx(r)
+	if !ok || to <= from {
+		to = from + 1000
+	}
+
+	// Get Confirmed Balances
+	var unconfirmedBalanceSat int64
+	_, _, totalSpent, totalUnspent, err := c.BlockData.ChainDB.RetrieveAddressSpentUnspent(address)
+	if err != nil {
 		return
+	}
+
+	if isCmd {
+		switch command {
+		case "balance":
+			writeJSON(w, totalUnspent, c.getIndentQuery(r))
+			return
+		case "totalReceived":
+			writeJSON(w, totalSpent+totalUnspent, c.getIndentQuery(r))
+			return
+		case "totalSent":
+			writeJSON(w, totalSpent, c.getIndentQuery(r))
+			return
+		}
+	}
+
+	addresses := []string{address}
+
+	// Get Confirmed Transactions
+	rawTxs, recentTxs := c.BlockData.ChainDB.InsightPgGetAddressTransactions(addresses, int64(c.Status.Height-2))
+	confirmedTxCount := len(rawTxs)
+
+	// Get Unconfirmed Transactions
+	unconfirmedTxs := []string{}
+	addressOuts, _, err := c.MemPool.UnconfirmedTxnsForAddress(address)
+	if err != nil {
+		apiLog.Errorf("Error in getting unconfirmed transactions")
+	}
+	if addressOuts != nil {
+	FUNDING_TX_DUPLICATE_CHECK:
+		for _, f := range addressOuts.Outpoints {
+			// Confirm its not already in our recent transactions
+			for _, v := range recentTxs {
+				if v == f.Hash.String() {
+					continue FUNDING_TX_DUPLICATE_CHECK
+				}
+			}
+			fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if fundingTx.Confirmed() {
+				apiLog.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+				continue
+			}
+			unconfirmedBalanceSat += fundingTx.Tx.TxOut[f.Index].Value
+			unconfirmedTxs = append(unconfirmedTxs, f.Hash.String()) // Funding tx
+			recentTxs = append(recentTxs, f.Hash.String())
+		}
+	SPENDING_TX_DUPLICATE_CHECK:
+		for _, f := range addressOuts.PrevOuts {
+			for _, v := range recentTxs {
+				if v == f.TxSpending.String() {
+					continue SPENDING_TX_DUPLICATE_CHECK
+				}
+			}
+			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+			if !ok {
+				apiLog.Errorf("An outpoint's transaction is not available in TxnStore.")
+				continue
+			}
+			if spendingTx.Confirmed() {
+				apiLog.Errorf("A transaction spending the outpoint of an unconfirmed transaction is unexpectedly confirmed.")
+				continue
+			}
+
+			// Sent total sats has to be a lookup of the vout:i prevout value
+			// because vin:i valuein is not reliable from dcrd at present
+			prevhash := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Hash
+			previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
+			valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
+			unconfirmedBalanceSat -= valuein
+			unconfirmedTxs = append(unconfirmedTxs, f.TxSpending.String()) // Spending tx
+			recentTxs = append(recentTxs, f.TxSpending.String())
+		}
+	}
+
+	if isCmd {
+		switch command {
+		case "unconfirmedBalance":
+			writeJSON(w, unconfirmedBalanceSat, c.getIndentQuery(r))
+			return
+		}
+	}
+
+	// Merge Unconfirmed with Confirmed transactions
+	rawTxs = append(unconfirmedTxs, rawTxs...)
+
+	// Final Slice Extraction
+	txcount := len(rawTxs)
+	if txcount > 0 {
+		if int(from) > txcount {
+			from = int64(txcount)
+		}
+		if int(from) < 0 {
+			from = 0
+		}
+		if int(to) > txcount {
+			to = int64(txcount)
+		}
+		if int(to) < 0 {
+			to = 0
+		}
+		if from > to {
+			to = from
+		}
+		if (to - from) > 1000 {
+			writeInsightError(w, fmt.Sprintf("\"from\" (%d) and \"to\" (%d) range should be less than or equal to 1000", from, to))
+			return
+		}
+
+		rawTxs = rawTxs[from:to]
+	}
+
+	addressInfo := apitypes.InsightAddressInfo{
+		Address:                  address,
+		TotalReceivedSat:         (totalSpent + totalUnspent),
+		TotalSentSat:             totalSpent,
+		BalanceSat:               totalUnspent,
+		TotalReceived:            dcrutil.Amount(totalSpent + totalUnspent).ToCoin(),
+		TotalSent:                dcrutil.Amount(totalSpent).ToCoin(),
+		Balance:                  dcrutil.Amount(totalUnspent).ToCoin(),
+		TxAppearances:            int64(confirmedTxCount),
+		UnconfirmedBalance:       dcrutil.Amount(unconfirmedBalanceSat).ToCoin(),
+		UnconfirmedBalanceSat:    unconfirmedBalanceSat,
+		UnconfirmedTxAppearances: int64(len(unconfirmedTxs)),
+	}
+
+	if noTxList == 0 {
+		addressInfo.TransactionsID = rawTxs
 	}
 
 	writeJSON(w, addressInfo, c.getIndentQuery(r))

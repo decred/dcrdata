@@ -6,7 +6,7 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/db/dbtypes"
 )
 
 // InsightAddress models an address transactions
@@ -21,18 +21,18 @@ type InsightAddress struct {
 // InsightAddressInfo models basic information
 // about an address
 type InsightAddressInfo struct {
-	Address          string         `json:"addrStr,omitempty"`
-	Limit            int64          `json:"limit,omitemtpy"`
-	Offset           int64          `json:"offset,omitempty"`
-	TransactionsID   []string       `json:"transactions,omitempty"`
-	NumFundingTxns   int64          `json:"numFundingTxns,omitempty"`
-	NumSpendingTxns  int64          `json:"numSpendingTxns,omitempty"`
-	KnownFundingTxns int64          `json:"knownFundingTxns,omitempty"`
-	NumUnconfirmed   int64          `json:"numUnconfirmed,omitempty"`
-	TotalReceived    dcrutil.Amount `json:"totalReceived"`
-	TotalSent        dcrutil.Amount `json:"totalSent"`
-	Unspent          dcrutil.Amount `json:"balance"`
-	Path             string         `json:"path,omitempty"`
+	Address                  string   `json:"addrStr,omitempty"`
+	Balance                  float64  `json:"balance"`
+	BalanceSat               int64    `json:"balanceSat"`
+	TotalReceived            float64  `json:"totalReceived"`
+	TotalReceivedSat         int64    `json:"totalReceivedSat"`
+	TotalSent                float64  `json:"totalSent"`
+	TotalSentSat             int64    `json:"totalSentSat"`
+	UnconfirmedBalance       float64  `json:"unconfirmedBalance"`
+	UnconfirmedBalanceSat    int64    `json:"unconfirmedBalanceSat"`
+	UnconfirmedTxAppearances int64    `json:"unconfirmedTxApperances"`
+	TxAppearances            int64    `json:"txApperances"`
+	TransactionsID           []string `json:"transactions,omitempty"`
 }
 
 // InsightRawTx contains the raw transaction string
@@ -144,4 +144,40 @@ type InsightScriptPubKey struct {
 	Asm       string   `json:"asm,omitempty"`
 	Addresses []string `json:"addresses,omitempty"`
 	Type      string   `json:"type,omitempty"`
+}
+
+// InsightBlockResult models the data required by a block json return for
+// Insight API
+type InsightBlockResult struct {
+	Hash          string   `json:"hash"`
+	Confirmations int64    `json:"confirmations"`
+	Size          int32    `json:"size"`
+	Height        int64    `json:"height"`
+	Version       int32    `json:"version"`
+	MerkleRoot    string   `json:"merkleroot"`
+	Tx            []string `json:"tx,omitempty"`
+	Time          int64    `json:"time"`
+	Nonce         uint32   `json:"nonce"`
+	Bits          string   `json:"bits"`
+	Difficulty    float64  `json:"difficulty"`
+	PreviousHash  string   `json:"previousblockhash"`
+	NextHash      string   `json:"nextblockhash,omitempty"`
+	Reward        float64  `json:"reward"`
+	IsMainChain   bool     `json:"isMainChain"`
+}
+
+// InsightBlocksSummaryResult models data required by blocks json return for
+// Insight API
+type InsightBlocksSummaryResult struct {
+	Blocks     []dbtypes.BlockDataBasic `json:"blocks"`
+	Length     int                      `json:"length"`
+	Pagination struct {
+		Next      string `json:"next"`
+		Prev      string `json:"prev"`
+		CurrentTs int64  `json:"currentTs"`
+		Current   string `json:"current"`
+		IsToday   bool   `json:"isToday"`
+		More      bool   `json:"more"`
+		MoreTs    int64  `json:"moreTs,omitempty"`
+	} `json:"pagination"`
 }
