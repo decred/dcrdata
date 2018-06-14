@@ -148,14 +148,14 @@ func (c *insightApiContext) getTransactionHex(w http.ResponseWriter, r *http.Req
 	}
 
 	txHex := c.BlockData.GetTransactionHex(txid)
-
 	if txHex == "" {
 		writeInsightNotFound(w, fmt.Sprintf("Unable to get transaction (%s)", txHex))
 		return
 	}
 
-	hexOutput := new(apitypes.InsightRawTx)
-	hexOutput.Rawtx = txHex
+	hexOutput := &apitypes.InsightRawTx{
+		Rawtx: txHex,
+	}
 
 	writeJSON(w, hexOutput, c.getIndentQuery(r))
 }
@@ -183,7 +183,7 @@ func (c *insightApiContext) getBlockSummary(w http.ResponseWriter, r *http.Reque
 	}
 
 	blockSummary := []*dcrjson.GetBlockVerboseResult{blockDcrd}
-	blockInsight, err := c.BlockConverter(blockSummary)
+	blockInsight, err := c.DcrToInsightBlock(blockSummary)
 	if err != nil {
 		apiLog.Errorf("Unable to process block (%s)", hash)
 		writeInsightError(w, "Unable to Process Block")
@@ -537,7 +537,7 @@ func (c *insightApiContext) getAddressesTxn(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Convert to Insight API struct
-	txsNew, err := c.TxConverterWithParams(txsOld, noAsm, noScriptSig, noSpent)
+	txsNew, err := c.DcrToInsightTxns(txsOld, noAsm, noScriptSig, noSpent)
 	if err != nil {
 		apiLog.Error("Unable to process transactions")
 		writeInsightError(w, fmt.Sprintf("Unable to convert transactions (%s)", err))
