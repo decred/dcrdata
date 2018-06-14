@@ -60,7 +60,6 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult,
 				}
 			}
 
-			// Lookup addresses OPTION 2
 			// Note, this only gathers information from the database which does not include mempool transactions
 			_, addresses, value, err := c.BlockData.ChainDB.RetrieveAddressIDsByOutpoint(vin.Txid, vin.Vout)
 			if err == nil {
@@ -90,6 +89,7 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult,
 				ScriptPubKey: apitypes.InsightScriptPubKey{
 					Addresses: v.ScriptPubKey.Addresses,
 					Type:      v.ScriptPubKey.Type,
+					Hex:       v.ScriptPubKey.Hex,
 				},
 			}
 			if !noAsm {
