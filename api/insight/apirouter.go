@@ -55,6 +55,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 
 	// Status
 	mux.With(app.StatusInfoCtx).Get("/status", app.getStatusInfo)
+	mux.With(app.StatusInfoCtx).Get("/sync", app.getStatusInfo)
 
 	// Addresses endpoints
 	mux.Route("/addrs", func(rd chi.Router) {
