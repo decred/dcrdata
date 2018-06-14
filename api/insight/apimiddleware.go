@@ -268,8 +268,8 @@ func (c *insightApiContext) PostAddrsUtxoCtx(next http.Handler) http.Handler {
 	})
 }
 
-// GetAddressCommandCtx returns a http.HandlerFunc that embeds the value at the
-// url part {command} into the request context.
+// AddressCommandCtx returns a http.HandlerFunc that embeds the value at the url
+// part {command} into the request context.
 func (c *insightApiContext) AddressCommandCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		command := chi.URLParam(r, "command")
