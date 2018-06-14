@@ -1,10 +1,11 @@
 (() => {
 
     function incrementValue($el) {
-        console.log("incrementValue", $el)
-        $el.text(
-            parseInt($el.text()) + 1
-        )
+        if ($el.size() > 0) {
+            $el.text(
+                parseInt($el.text()) + 1
+            )
+        }
     }
 
     function makeNewTable(tx) {
@@ -28,24 +29,47 @@
         $(newRowHtml).insertBefore(rows.first())
     }
 
-    app.register("mempoolMini", class extends Stimulus.Controller {
+    app.register("homepageMempool", class extends Stimulus.Controller {
         static get targets() {
-            return [ "transactions"]
+            return [
+                "transactions",
+                "numVote",
+                "numTicket"
+            ]
         }
 
         connect() {
-            ws.registerEvtHandler("newtx", (evt) => { 
+            ws.registerEvtHandler("newtx", (evt) => {
                 var txs = JSON.parse(evt)
-                this.renderLatestTransactions(txs)
+                this.renderLatestTransactions(txs, true)
+                keyNav(evt, false, true)
+            })
+            ws.registerEvtHandler("mempool", (evt) => {
+                var m = JSON.parse(evt)
+                this.renderLatestTransactions(m.latest, false)
+                $(this.numTicketTarget).text(m.num_tickets)
+                $(this.numVoteTarget).text(m.num_votes)
+                keyNav(evt, false, true)
+                ws.send("getmempooltxs", "")
+            });
+            ws.registerEvtHandler("getmempooltxsResp", (evt) => {
+                var m = JSON.parse(evt)
+                this.renderLatestTransactions(m.latest, true)
+                keyNav(evt, false, true)
             })
         }
 
         disconnect() {
             ws.deregisterEvtHandlers("newtx")
+            ws.deregisterEvtHandlers("mempool")
+            ws.deregisterEvtHandlers("getmempooltxsResp")
         }
 
-        renderLatestTransactions(txs) {
+        renderLatestTransactions(txs, incremental) {
             _.each(txs, (tx, idx) => {
+                if (incremental) {
+                    incrementValue($(this["num" + tx.Type + "Target"]))
+                }
                 var rows = $(this.transactionsTarget).find(".flex-table-row")
                 rows.last().remove()
                 $($.parseHTML(`<div class="d-flex flex-table-row flash">
@@ -59,7 +83,7 @@
         }
     })
 
-    
+
     app.register("mempool", class extends Stimulus.Controller {
         static get targets() {
             return [
@@ -78,21 +102,21 @@
         }
 
         connect() {
-            console.log("connect mempool", this)
-            ws.registerEvtHandler("newtx", (e) => {
-                this.renderNewTxns(e)
+            ws.registerEvtHandler("newtx", (evt) => {
+                this.renderNewTxns(evt)
+                keyNav(evt, false, true)
             })
-            ws.registerEvtHandler("mempool", (e) => {
-                this.updateMempool(e)
+            ws.registerEvtHandler("mempool", (evt) => {
+                this.updateMempool(evt)
                 ws.send("getmempooltxs", "")
             });
-            ws.registerEvtHandler("getmempooltxsResp", (e) => {
-                this.handleTxsResp(e)                    
+            ws.registerEvtHandler("getmempooltxsResp", (evt) => {
+                this.handleTxsResp(evt)
+                keyNav(evt, false, true)
             })
         }
 
         disconnect() {
-            console.log("dismempool mempool")
             ws.deregisterEvtHandlers("newtx")
             ws.deregisterEvtHandlers("mempool")
             ws.deregisterEvtHandlers("getmempooltxsResp")
@@ -100,7 +124,6 @@
 
         updateMempool(e) {
             var m = JSON.parse(e);
-            console.log("updateMempool", m, this);
             $(this.numTicketTarget).text(m.num_tickets)
             $(this.numVoteTarget).text(m.num_votes)
             $(this.numRegularTarget).text(m.num_regular)
@@ -113,19 +136,18 @@
 
         handleTxsResp(event) {
             var m = JSON.parse(event)
-            console.log("handleTxsResp: ", event, m, this)
-            
+
             var ticketsTable = _.map(m.tickets, makeNewTable).join("")
             $(this.ticketTransactionsTarget).html($.parseHTML(ticketsTable))
-    
+
             var transactionsTable = _.map(m.tx, makeNewTable).join("")
             $(this.regularTransactionsTarget).html($.parseHTML(transactionsTable))
- 
+
+            // TODO handle no revokes scenario properly
             if (m.num_revokes > 0) {
                 var revokesTable = _.map(m.revokes, makeNewTable).join("")
                 $(this.revokeTransactionsTarget).html($.parseHTML(revokesTable))
             }
-            // TODO handle no revokes scenario properly
 
             var votesTable = ''
             _.each(m.votes, (tx) => {
@@ -144,7 +166,6 @@
         }
 
         renderNewTxns(evt) {
-            console.log("mempool renderNewTx", evt, this);
             var txs = JSON.parse(evt)
             _.each(txs, (tx, idx) => {
                 incrementValue($(this["num" + tx.Type + "Target"]))
@@ -169,5 +190,5 @@
             })
         }
     })
-    
+
 })()

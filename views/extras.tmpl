@@ -359,7 +359,7 @@
     var currentIndex = 0;
     var jumpToIndexOnLoad;
     var keyNavCookieName = 'dcrdataKeyNav';
-    
+
     function keyNavEnabled() {
         return document.cookie.includes(keyNavCookieName)
     }
@@ -392,7 +392,22 @@
         }
     }
 
-    function keyNav(event, pulsate) {
+    function updateKeyNavTargets() {
+        if ($("#menuToggle input").prop('checked')) {
+            targets = $('#hamburger-menu a');
+        } else {
+            targets = $.merge($("a:not([data-keynav-skip])"),($('.top-search')));
+        }
+        targetsLength = targets.length;
+        clearTargets()
+        $(targets[currentIndex]).addClass("keynav-target").focus().blur() // refocuses keyboard context
+        if (pulsate) {
+            $(targets[currentIndex]).addClass("pulsate")
+        }
+    }
+
+
+    function keyNav(event, pulsate, preserveIndex) {
         if ($("#menuToggle input").prop('checked')) {
             targets = $('#hamburger-menu a');
             currentIndex = 0;
@@ -401,7 +416,7 @@
             if (jumpToIndexOnLoad > 0) {
                 currentIndex = jumpToIndexOnLoad;
                 jumpToIndexOnLoad = undefined;
-            } else {
+            } else if (!preserveIndex) {
                 var priorityLink = $("[data-keynav-priority]")[0]
                 var i = $.inArray(priorityLink, targets)
                 currentIndex = i > 0 ? i : 0;
@@ -423,7 +438,7 @@
         }
         $(targets[currentIndex]).addClass("keynav-target")
     });
-    
+
     Mousetrap.bind(['right',']'], function(e) {
         clearTargets()
         currentIndex++
@@ -523,7 +538,6 @@ const app = Stimulus.Application.start()
 </script>
 <script src="/js/controllers/main.js"></script>
 <script src="/js/controllers/mempool.js"></script>
-
 
 {{end}}
 
