@@ -18,10 +18,7 @@ const (
 		spend_type INT2,
 		pool_status INT2,
 		spend_height INT4,
-		spend_tx_db_id INT8,
-		block_time INT8,
-		agenda_id TEXT,
-		agenda_vote_choice TEXT
+		spend_tx_db_id INT8
 	);`
 
 	// Insert
@@ -206,17 +203,21 @@ const (
 	CreateAgendasTable = `CREATE TABLE IF NOT EXISTS agendas (
 		id SERIAL PRIMARY KEY,
 		agenda_id TEXT,
-		agenda_vote_choice TEXT,
+		agenda_vote_choice INT2,
 		tx_hash TEXT NOT NULL,
 		block_height INT4,
-		block_time INT8
+		block_time INT8,
+		locked_in BOOLEAN,
+		activated BOOLEAN,
+		hard_forked BOOLEAN
 	);`
 
 	// Insert
 	insertAgendaRow0 = `INSERT INTO agendas (
 		agenda_id, agenda_vote_choice,
-		tx_hash, block_height, block_time)
-		VALUES ($1, $2, $3, $4, $5) `
+		tx_hash, block_height, block_time,
+		locked_in, activated, hard_forked)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
 
 	insertAgendaRow = insertAgendaRow0 + `RETURNING id;`
 
@@ -224,11 +225,16 @@ const (
 		SET block_time = $5 RETURNING id;`
 
 	SelectAgendasAgendaVotes = `SELECT to_timestamp(block_time)::date as date,
-		COUNT(CASE WHEN agenda_vote_choice = 'yes' THEN 1 ELSE NULL END) as yes,
-		COUNT(CASE WHEN agenda_vote_choice = 'no' THEN 1 ELSE NULL END) as no,
-		COUNT(CASE WHEN agenda_vote_choice = 'abstain' THEN 1 ELSE NULL END) as abstain,
-		count(*) as total FROM agendas WHERE agenda_id = $1
+		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
+		COUNT(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) as abstain,
+		COUNT(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) as no,
+		count(*) as total FROM agendas WHERE agenda_id = $4 and
+		block_height <= (select block_height from agendas where locked_in = true and agenda_id = $4 limit 1)
 		GROUP BY date ORDER BY date;`
+
+	SelectAgendasLockedIn   = `select block_height from agendas where locked_in = true and agenda_id = $1 limit 1;`
+	SelectAgendasHardForked = `select block_height from agendas where hard_forked = true and agenda_id = $1 limit 1;`
+	SelectAgendasActivated  = `select block_height from agendas where activated = true and agenda_id = $1 limit 1;`
 
 	IndexAgendasTableOnBlockTime = `CREATE INDEX uix_agendas_block_time
 		ON agendas(block_time);`
