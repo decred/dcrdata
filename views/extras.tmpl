@@ -229,7 +229,7 @@
                     tx.hash + '">' + tx.hash + '</a></span></td>' +
                     '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
                     '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
                 var newRowHtml = $.parseHTML(newRow)
                 $(newRowHtml).insertBefore(rows.first())
             }
@@ -245,17 +245,32 @@
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
-                    var newRow = '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
-                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    var vote_row_class = ''
+                    if (!tx.vote_info.last_block) {
+                        vote_row_class = 'old-vote'
+                    }
+                    var vote_choice = 'Invalid'
+                    if (tx.vote_info.block_validation.validity) {
+                        vote_choice = 'Valid'
+                    }
+                    var newRow = '<tr class="'+ vote_row_class +'"><td class="break-word"><span><a class="hash" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
+                        '<td class="mono fs15"> <a href="/block/' + tx.vote_info.block_validation.height + '">' + tx.vote_info.block_validation.height+ '</a></td>' +
+                        '<td class="mono fs15"><a href="/tx/' + tx.vote_info.ticket_spent + '">' +tx.vote_info.mempool_ticket_index + '</a></td>' +
                         '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
-                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
-                        '<td class="mono fs15">' + tx.size + ' B</td>' +
-                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
+                        '<td class="mono fs15">' + vote_choice + '</td>'+
+                        '<td class="mono fs15"> ' + totalTxt +'</td>' +
+                        '<td class="mono fs15 text-right">' + tx.size + ' B</td>'  +
+                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
                     var newRowHtml = $.parseHTML(newRow)
-                    $(newRowHtml).insertBefore(rows.first())
+                    var before
+                    rows.each(function () {
+                        if (tx.vote_info.block_validation.height > $(this).data('height')) {
+                            before = this
+                            return false
+                        }
+                    })
+
+                    $(newRowHtml).insertBefore(before)
                     break
                 case "Regular":
                     $('#mempool_regular_number').text(parseInt($('#mempool_regular_number').text()) + 1)
@@ -289,7 +304,7 @@
                     tx.hash + '">' + tx.hash + '</a></span></td>' +
                     '<td class="mono fs15 text-right">' + totalTxt +'</td>' +
                     '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) + '</td>'
+                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) + '</td></tr>'
                 }
             var m = JSON.parse(evt)
 
@@ -307,16 +322,23 @@
                     humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
                         totalTxt += str.textContent
                     })
-                    newTable += '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
-                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
+                    var vote_row_class = ''
+                    if (!tx.vote_info.last_block) {
+                        vote_row_class = 'old-vote'
+                    }
+                    var vote_choice = 'Invalid'
+                    if (tx.vote_info.block_validation.validity) {
+                        vote_choice = 'Valid'
+                    }
+                    newTable = '<tr class="'+ vote_row_class +'"><td class="break-word"><span><a class="hash" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
+                        '<td class="mono fs15"> <a href="/block/' + tx.vote_info.block_validation.height + '">' + tx.vote_info.block_validation.height+ '</a></td>' +
+                        '<td class="mono fs15"><a href="/tx/' + tx.vote_info.ticket_spent + '">' +tx.vote_info.mempool_ticket_index + '</a></td>' +
                         '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
-                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
-                        '<td class="mono fs15">' + tx.size + ' B</td>'  +
-                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
-
+                        '<td class="mono fs15">' + vote_choice + '</td>'+
+                        '<td class="mono fs15"> ' + totalTxt +'</td>' +
+                        '<td class="mono fs15 text-right">' + tx.size + ' B</td>'  +
+                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
+       
             })
             $('#mempool_votes tbody').html($.parseHTML(newTable))
 
