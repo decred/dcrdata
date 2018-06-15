@@ -8,6 +8,12 @@
         }
     }
 
+    function emptyRow(txnType, colspan) {
+        return `<tr>
+            <td colspan="${colspan}">No ${txnType} in mempool</td>
+        </tr>`
+    }
+
     function txTableRow(tx) {
         return `<tr class="flash">
             <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a></span></td>
@@ -18,7 +24,7 @@
     }
 
     function voteTxTableRow(tx) {
-        return `<tr>
+        return `<tr class="flash">
             <td class="break-word"><span><a class="hash" title="(${tx.vote_info.mempool_ticket_index}) ${tx.vote_info.ticket_spent}" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
             <td class="mono fs15">${tx.vote_info.vote_version}</td>
             <td class="mono fs15">${tx.vote_info.block_validation.validity}</td>
@@ -26,7 +32,7 @@
             <td class="mono fs15">${tx.vote_info.vote_choices[0].choice.Id}</td>
             <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8, true)}</td>
             <td class="mono fs15">${tx.size} B</td>
-            <td class="mono fs15 text-right" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+            <td class="mono fs15 text-right" data-target="main.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
         </tr>`
     }
 
@@ -40,9 +46,18 @@
         </div>`
     }
 
-    function addTxRow(tx, target) {
+    function buildTable(target, txType, txns, rowFn) {
+        if (txns && txns.length > 0) {
+            var tableBody = _.map(txns, rowFn).join("")
+        } else {
+            var tableBody = `<tr><td colspan="${(txType === 'votes' ? 8 : 4)}">No ${txType} in mempool.</td></tr>`
+        }
+        $(target).html($.parseHTML(tableBody))
+    }
+
+    function addTxRow(tx, target, rowFn) {
         var rows = $(target).find('tr')
-        var newRowHtml = $.parseHTML(txTableRow(tx))
+        var newRowHtml = $.parseHTML(rowFn(tx))
         $(newRowHtml).insertBefore(rows.first())
     }
 
@@ -147,37 +162,18 @@
 
         handleTxsResp(event) {
             var m = JSON.parse(event)
-
-            var ticketsTable = _.map(m.tickets, txTableRow).join("")
-            $(this.ticketTransactionsTarget).html($.parseHTML(ticketsTable))
-
-            var transactionsTable = _.map(m.tx, txTableRow).join("")
-            $(this.regularTransactionsTarget).html($.parseHTML(transactionsTable))
-
-            // TODO handle no revokes scenario properly
-            if (m.num_revokes > 0 && this.revokeTransactionsTarget) {
-                var revokesTable = _.map(m.revokes, txTableRow).join("")
-                $(this.revokeTransactionsTarget).html($.parseHTML(revokesTable))
-            }
-
-            var votesTable = _.map(m.votes, voteTxTableRow).join("")
-            $(this.voteTransactionsTarget).html($.parseHTML(votesTable))
+            buildTable(this.regularTransactionsTarget, 'regular transactions', m.tx, txTableRow)
+            buildTable(this.revokeTransactionsTarget, 'revocations', m.revokes, txTableRow)
+            buildTable(this.voteTransactionsTarget, 'votes', m.votes, voteTxTableRow)
+            buildTable(this.ticketTransactionsTarget, 'tickets', m.tickets, txTableRow)
         }
 
         renderNewTxns(evt) {
             var txs = JSON.parse(evt)
             _.each(txs, (tx, idx) => {
                 incrementValue($(this["num" + tx.Type + "Target"]))
-                switch (tx.Type) {
-                    case "Vote":
-                        var rows = $(this[tx.Type.toLowerCase() + "TransactionsTarget"]).find('tr')
-                        var newRow = voteTxTableRow(tx)
-                        var newRowHtml = $.parseHTML(newRow)
-                        $(newRowHtml).insertBefore(rows.first())
-                        break
-                    default:
-                        addTxRow(tx, this[tx.Type.toLowerCase() + "TransactionsTarget"])
-                }
+                var rowFn = tx.Type === "Vote" ? voteTxTableRow : txTableRow
+                addTxRow(tx, this[tx.Type.toLowerCase() + "TransactionsTarget"], rowFn)
             })
         }
     })
