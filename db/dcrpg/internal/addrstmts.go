@@ -41,7 +41,7 @@ const (
 
 	SelectAddressAllByAddress = `SELECT * FROM addresses WHERE address=$1 order by block_time desc;`
 	SelectAddressRecvCount    = `SELECT COUNT(*) FROM addresses WHERE address=$1;`
-	SelectAddressesAllTxn = `SELECT tx_hash, block_time as tx_time, ftxd.block_height as height 
+	SelectAddressesAllTxn     = `SELECT tx_hash, block_time as tx_time, ftxd.block_height as height 
 		from addresses left join transactions as ftxd on funding_tx_row_id=ftxd.id 
 		where address = $1 order by tx_time desc;`
 
