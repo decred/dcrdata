@@ -31,12 +31,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/btcsuite/btclog"
-  packages = ["."]
-  revision = "84c8d2346e9fc8c7b947e243b9c24e6df9fd206a"
-
-[[projects]]
-  branch = "master"
   name = "github.com/btcsuite/go-flags"
   packages = ["."]
   revision = "6c288d648c1cc1befcb90cb5511dcacf64ae8e61"
@@ -71,12 +65,6 @@
   name = "github.com/btcsuite/snappy-go"
   packages = ["."]
   revision = "0bdef8d067237991ddaa1bb6072a740bc40601ba"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/btcsuite/websocket"
-  packages = ["."]
-  revision = "31079b6807923eb23992c421b114992b95131b55"
 
 [[projects]]
   branch = "master"
@@ -137,7 +125,7 @@
     "txscript",
     "wire"
   ]
-  revision = "2e293f28bfdd81e08b012bd83b7ccdb12e19a94a"
+  revision = "7a457fc9c32a415604aba12a6aedd96dfc3f470e"
 
 [[projects]]
   branch = "master"
@@ -150,7 +138,30 @@
     "wallet/udb",
     "walletdb"
   ]
-  revision = "bb6dd72b9b092efa739242893bd7b4dcc4d6bb27"
+  revision = "03d9f2fbabf9db9803bd48a03185fc8cda59d0d6"
+
+[[projects]]
+  name = "github.com/decred/slog"
+  packages = ["."]
+  revision = "fbd821ef791ba2b8ae945f5d44f4e49396d230c5"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/didip/tollbooth"
+  packages = [
+    ".",
+    "errors",
+    "libstring",
+    "limiter"
+  ]
+  revision = "c95eaa3ddc98f635a91e218b48727fb2e06613ea"
+  version = "v4.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/didip/tollbooth_chi"
+  packages = ["."]
+  revision = "6ab5f3083f3d925e1944d58cdaebf43bbbff9238"
 
 [[projects]]
   branch = "master"
@@ -260,6 +271,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/patrickmn/go-cache"
+  packages = ["."]
+  revision = "a3647f8e31d79543b2d0f0ae2fe5c379d72cedc0"
+  version = "v2.1.0"
+
+[[projects]]
   name = "github.com/rs/cors"
   packages = ["."]
   revision = "feef513b9575b32f84bafa580aad89b011259019"
@@ -294,7 +311,10 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["websocket"]
+  packages = [
+    "context",
+    "websocket"
+  ]
   revision = "8e0cdda24ed423affc8f35c241e5e9b16180338e"
 
 [[projects]]
@@ -306,9 +326,15 @@
   ]
   revision = "7f59abf37be6a6007f075af1bc7f16f137bc176b"
 
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/time"
+  packages = ["rate"]
+  revision = "fbb02b2291d28baffd63558aa44b4b56f178d650"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "933c7a02d3161f35a6df99bc10dcb7d2f43d4b2b134b48877cdff54130f7faf1"
+  inputs-digest = "b0d2e972ec426db76162229ab52c5ac0688d06aea98fedbd2c23603dee1e82ca"
   solver-name = "gps-cdcl"
   solver-version = 1

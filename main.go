@@ -517,7 +517,7 @@ func mainCore() error {
 
 	if usePG {
 		chainDBRPC, _ := dcrpg.NewChainDBRPC(auxDB, dcrdClient)
-		insightApp := insight.NewInsightContext(dcrdClient, chainDBRPC, cfg.IndentJSON)
+		insightApp := insight.NewInsightContext(dcrdClient, chainDBRPC, activeChain, &baseDB, cfg.IndentJSON)
 		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
 		webMux.Mount("/insight/api", insightMux.Mux)
 

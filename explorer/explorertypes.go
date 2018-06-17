@@ -78,6 +78,8 @@ type TxInfo struct {
 	Vout             []Vout
 	BlockHeight      int64
 	BlockIndex       uint32
+	BlockHash        string
+	BlockMiningFee   int64
 	Confirmations    int64
 	Time             int64
 	FormattedTime    string
@@ -257,8 +259,9 @@ type HomeInfo struct {
 	Difficulty        float64        `json:"difficulty"`
 	DevFund           int64          `json:"dev_fund"`
 	DevAddress        string         `json:"dev_address"`
-	TicketROI         float64        `json:"roi"`
-	ROIPeriod         string         `json:"roi_period"`
+	TicketReward      float64        `json:"reward"`
+	RewardPeriod      string         `json:"reward_period"`
+	ASR               float64        `json:"ASR"`
 	NBlockSubsidy     BlockSubsidy   `json:"subsidy"`
 	Params            ChainParams    `json:"params"`
 	PoolInfo          TicketPoolInfo `json:"pool_info"`
@@ -305,6 +308,7 @@ type ChainParams struct {
 	RewardWindowSize int64 `json:"reward_window_size"`
 	TargetPoolSize   int64 `json:"target_pool_size"`
 	BlockTime        int64 `json:"target_block_time"`
+	MeanVotingBlocks int64
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of

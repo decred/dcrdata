@@ -29,9 +29,6 @@
   name = "github.com/asdine/storm"
   version = "~2.1.0"
 
-[[constraint]]
-  branch = "master"
-  name = "github.com/btcsuite/btclog"
 
 [[constraint]]
   branch = "master"
@@ -100,6 +97,11 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/net"
+
+  
+[[constraint]]
+  name = "github.com/decred/slog"
+  version = "1.0.0"
 
 [prune]
   go-tests = true

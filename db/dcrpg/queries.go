@@ -6,6 +6,7 @@ package dcrpg
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/decred/dcrd/blockchain/stake"
@@ -849,13 +850,16 @@ func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) (ids
 	return
 }
 
+// Retreive All AddressIDs for a given Hash and Index
+// Update Vin due to DCRD AMOUNTIN - START - DO NOT MERGE CHANGES IF DCRD FIXED
 func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
-	voutIndex uint32) ([]uint64, []string, error) {
+	voutIndex uint32) ([]uint64, []string, int64, error) {
 	var ids []uint64
 	var addresses []string
+	var value int64
 	rows, err := db.Query(internal.SelectAddressIDsByFundingOutpoint, txHash, voutIndex)
 	if err != nil {
-		return ids, addresses, err
+		return ids, addresses, 0, err
 	}
 	defer func() {
 		if e := rows.Close(); e != nil {
@@ -866,7 +870,7 @@ func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 	for rows.Next() {
 		var id uint64
 		var addr string
-		err = rows.Scan(&id, &addr)
+		err = rows.Scan(&id, &addr, &value)
 		if err != nil {
 			break
 		}
@@ -874,9 +878,8 @@ func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 		ids = append(ids, id)
 		addresses = append(addresses, addr)
 	}
-
-	return ids, addresses, err
-}
+	return ids, addresses, value, err
+} // Update Vin due to DCRD AMOUNTIN - END
 
 func RetrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
 	rows, err := db.Query(internal.SelectVinIDsALL)
@@ -1162,18 +1165,86 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	defer rows.Close()
 
 	for rows.Next() {
-		var txnOutput apitypes.AddressTxnOutput
+		pkScript := []byte{}
+		var blockHeight, atoms int64
+		blocktime := uint64(0)
+		txnOutput := apitypes.AddressTxnOutput{}
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
-			&txnOutput.Atoms, &txnOutput.Height, &txnOutput.BlockHash); err != nil {
-			fmt.Println(err)
+			&atoms, &blockHeight, &blocktime, &txnOutput.Vout, &pkScript); err != nil {
 			log.Error(err)
 		}
-		txnOutput.Amount = txnOutput.Atoms * 100000000
-		txnOutput.Confirmations = currentBlockHeight - txnOutput.Height
+		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
+		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
+		txnOutput.Satoshis = atoms
+		txnOutput.Height = blockHeight
+		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
 		outputs = append(outputs, txnOutput)
 	}
 
 	return outputs, nil
+}
+
+// RetrieveAddressTxnsOrdered will get all transactions for addresses provided
+// and return them sorted by time in descending order. It will also return a
+// short list of recently (defined as greater than recentBlockHeight) confirmed
+// transactions that can be used to validate mempool status.
+func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeight int64) (txs []string, recenttxs []string) {
+	var tx_hash string
+	var height int64
+	stmt, err := db.Prepare(internal.SelectAddressesAllTxn)
+	if err != nil {
+		log.Error(err)
+		return nil, nil
+	}
+
+	rows, err := stmt.Query(pq.Array(addresses))
+	if err != nil {
+		log.Error(err)
+		return nil, nil
+	}
+
+	for rows.Next() {
+		err = rows.Scan(&tx_hash, &height)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		txs = append(txs, tx_hash)
+		if height > recentBlockHeight {
+			recenttxs = append(recenttxs, tx_hash)
+		}
+	}
+	return
+}
+
+// Retrieve all Transactions related to a set of addresses and funded by a
+// specific transaction
+func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string,
+	addresses []string) (aSpendByFunHash []*apitypes.AddressSpendByFunHash, err error) {
+
+	stmt, err := db.Prepare(internal.SelectAddressesTxnByFundingTx)
+	if err != nil {
+		log.Error(err)
+		return nil, nil
+	}
+
+	rows, err := stmt.Query(pq.Array(addresses), fundTxHash)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	for rows.Next() {
+		var addr apitypes.AddressSpendByFunHash
+		err = rows.Scan(&addr.FundingTxVoutIndex,
+			&addr.SpendingTxHash, &addr.SpendingTxVinIndex, &addr.BlockHeight)
+		if err != nil {
+			return
+		}
+
+		aSpendByFunHash = append(aSpendByFunHash, &addr)
+	}
+	return
 }
 
 func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {

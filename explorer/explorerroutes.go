@@ -211,6 +211,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exp.liteMode {
+		// For any coinbase transactions look up the total block fees to include as part of the inputs
+		if tx.Type == "Coinbase" {
+			data := exp.blockData.GetExplorerBlock(tx.BlockHash)
+			if data == nil {
+				log.Errorf("Unable to get block %s", tx.BlockHash)
+				return
+			}
+			tx.BlockMiningFee = int64(data.MiningFee)
+		}
 		// For each output of this transaction, look up any spending transactions,
 		// and the index of the spending transaction input.
 		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
