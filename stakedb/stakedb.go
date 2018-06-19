@@ -420,7 +420,7 @@ func (db *StakeDatabase) applyDiff(poolDiff PoolDiff) {
 	for _, hash := range poolDiff.In {
 		_, ok := db.liveTicketCache[hash]
 		if ok {
-			log.Error("Just tried to add a ticket (%v) to the pool, but it was already there!", hash)
+			log.Errorf("Just tried to add a ticket (%v) to the pool, but it was already there!", hash)
 			continue
 		}
 
