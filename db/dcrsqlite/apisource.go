@@ -461,7 +461,7 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 
 	txraw, err := db.client.GetRawTransactionVerbose(txhash)
 	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
+		log.Errorf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
 		return nil, ""
 	}
 
@@ -1092,7 +1092,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	}
 	txraw, err := db.client.GetRawTransactionVerbose(txhash)
 	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
+		log.Errorf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
 		return nil
 	}
 	msgTx, err := txhelpers.MsgTxFromHex(txraw.Hex)
@@ -1329,7 +1329,7 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 		Tx, err1 := db.client.GetRawTransaction(txhash)
 
 		if err1 != nil {
-			log.Warnf("Unable to GetRawTransactions(%s): %v", tx, err1)
+			log.Warnf("Unable to GetRawTransaction(%s): %v", tx, err1)
 			err = err1
 			continue
 		}
