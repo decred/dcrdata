@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrdata/dcrdataapi"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/docgen"
 )
@@ -26,11 +29,66 @@ const (
 	ctxBlockStep
 	ctxBlockHash
 	ctxTxHash
+	ctxTxns
 	ctxTxInOutIndex
 	ctxSearch
 	ctxN
 	ctxStakeVersionLatest
 )
+
+// GetTxnsCtx retrieves the ctxTxns data from the request context. If not set,
+// the return value is an empty string slice.
+func GetTxnsCtx(r *http.Request) []string {
+	hashes, ok := r.Context().Value(ctxTxns).([]string)
+	if !ok {
+		apiLog.Trace("ctxTxns not set")
+		return nil
+	}
+	return hashes
+}
+
+// PostTxnsCtx extract transaction IDs from the POST body
+func PostTxnsCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		req := dcrdataapi.Txns{}
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			apiLog.Debugf("No/invalid txns: %v", err)
+			http.Error(w, "error reading JSON message", http.StatusBadRequest)
+			return
+		}
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			apiLog.Debugf("failed to unmarshal JSON request to apitypes.Txns: %v", err)
+			http.Error(w, "failed to unmarshal JSON request", http.StatusBadRequest)
+			return
+		}
+		// Successful extraction of body JSON
+		ctx := context.WithValue(r.Context(), ctxTxns, req.Transactions)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// ValidateTxnsPostCtx will confirm Post content length is valid.
+func ValidateTxnsPostCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentLengthString := r.Header.Get("Content-Length")
+		contentLength, err := strconv.Atoi(contentLengthString)
+		if err != nil {
+			http.Error(w, "Unable to parse Content-Length", http.StatusBadRequest)
+			return
+		}
+		// Broadcast Tx has the largest possible body.
+		maxPayload := 1 << 22
+		if contentLength > maxPayload {
+			http.Error(w, fmt.Sprintf("Maximum Content-Length is %d", maxPayload), http.StatusBadRequest)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 // CacheControl creates a new middleware to set the HTTP response header with
 // "Cache-Control: max-age=maxAge" where maxAge is in seconds.

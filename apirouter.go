@@ -122,6 +122,7 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rt.Route("/{txid}", func(rd chi.Router) {
 				rd.Use(TransactionHashCtx)
 				rd.Get("/", app.getTransaction)
+				rd.Get("/trimmed", app.getDecodedTransactions)
 				rd.Route("/out", func(ro chi.Router) {
 					ro.Get("/", app.getTransactionOutputs)
 					ro.With(TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionOutput)
@@ -135,6 +136,13 @@ func newAPIRouter(app *appContext, userRealIP bool) apiMux {
 		})
 		r.With(TransactionHashCtx).Get("/hex/{txid}", app.getTransactionHex)
 		r.With(TransactionHashCtx).Get("/decoded/{txid}", app.getDecodedTx)
+	})
+
+	mux.Route("/txs", func(r chi.Router) {
+		r.Use(middleware.AllowContentType("application/json"),
+			ValidateTxnsPostCtx, PostTxnsCtx)
+		r.Post("/", app.getTransactions)
+		r.Post("/trimmed", app.getDecodedTransactions)
 	})
 
 	mux.Route("/address", func(r chi.Router) {

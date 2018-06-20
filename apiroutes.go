@@ -525,6 +525,48 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, tx, c.getIndentQuery(r))
 }
 
+func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
+	txids := GetTxnsCtx(r)
+	if txids == nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	txns := make([]*apitypes.Tx, 0, len(txids))
+	for i := range txids {
+		tx := c.BlockData.GetRawTransaction(txids[i])
+		if tx == nil {
+			apiLog.Errorf("Unable to get transaction %s", txids[i])
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		txns = append(txns, tx)
+	}
+
+	writeJSON(w, txns, c.getIndentQuery(r))
+}
+
+func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Request) {
+	txids := GetTxnsCtx(r)
+	if txids == nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	txns := make([]*apitypes.TrimmedTx, 0, len(txids))
+	for i := range txids {
+		tx := c.BlockData.GetTrimmedTransaction(txids[i])
+		if tx == nil {
+			apiLog.Errorf("Unable to get transaction %s", tx)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		txns = append(txns, tx)
+	}
+
+	writeJSON(w, txns, c.getIndentQuery(r))
+}
+
 func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
 	txid := getTxIDCtx(r)
 	if txid == "" {
