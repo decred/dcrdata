@@ -224,7 +224,7 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 | Height |  `/block/hash/H/height` | `int` |
 | Size | `/block/hash/H/size` | `int32` |
 | Transactions | `/block/hash/H/tx` | `types.BlockTransactions` |
-| Transactions Count | `/block/hash/H/tx/count` | `types.BlockTransactionCounts` |
+| Transactions count | `/block/hash/H/tx/count` | `types.BlockTransactionCounts` |
 | Verbose block result | `/block/hash/H/verbose` | `dcrjson.GetBlockVerboseResult` |
 
 | Block range (X < Y) | Path | Type |
@@ -236,11 +236,17 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 
 | Transaction T (transaction id) | Path | Type |
 | --- | --- | --- |
-| Transaction Details | `/tx/T` | `types.Tx` |
+| Transaction details | `/tx/T` | `types.Tx` |
+| Transaction details w/o block info | `/tx/trimmed/T` | `types.TrimmedTx` |
 | Inputs | `/tx/T/in` | `[]types.TxIn` |
 | Details for input at index `X` | `/tx/T/in/X` | `types.TxIn` |
 | Outputs | `/tx/T/out` | `[]types.TxOut` |
 | Details for output at index `X` | `/tx/T/out/X` | `types.TxOut` |
+
+| Transactions (batch) | Path | Type |
+| --- | --- | --- |
+| Transaction details (POST body is JSON of `types.Txns`) | `/txs` | `[]types.Tx` |
+| Transaction details w/o block info | `/txs/trimmed` | `[]types.TrimmedTx` |
 
 | Address A | Path | Type |
 | --- | --- | --- |
