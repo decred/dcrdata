@@ -54,6 +54,11 @@ type TrimmedTx struct {
 	Vout     []Vout        `json:"vout"`
 }
 
+// Txns models the multi transaction post data structure
+type Txns struct {
+	Transactions []string `json:"transactions"`
+}
+
 // VoteInfo models data about a SSGen transaction (vote)
 type VoteInfo struct {
 	Validation BlockValidation         `json:"block_validation"`
