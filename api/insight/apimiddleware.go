@@ -31,6 +31,7 @@ const (
 	ctxBlockIndex
 	ctxNoTxList
 	ctxAddrCmd
+	ctxNbBlocks
 )
 
 // BlockHashPathAndIndexCtx is a middleware that embeds the value at the url
@@ -43,7 +44,8 @@ func (c *insightApiContext) BlockHashPathAndIndexCtx(next http.Handler) http.Han
 }
 
 // StatusCtx is a middleware that embeds into the request context the data for
-// the "?q=x" URL query, where x is "getInfo" or "getDifficulty".
+// the "?q=x" URL query, where x is "getInfo" or "getDifficulty" or
+// "getBestBlockHash" or "getLastBlockHash".
 func (c *insightApiContext) StatusInfoCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := m.StatusInfoCtx(r, c.BlockData.ChainDB)
@@ -376,6 +378,29 @@ func (c *insightApiContext) BlockDateLimitQueryCtx(next http.Handler) http.Handl
 		ctx := context.WithValue(r.Context(), m.CtxBlockDate, blockDate)
 		limit := r.FormValue("limit")
 		ctx = context.WithValue(ctx, m.CtxLimit, limit)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// GetNbBlocksCtx retrieves the ctxNbBlocks data from the request context. If not
+// set, the return value is 0.
+func (c *insightApiContext) GetNbBlocksCtx(r *http.Request) int {
+	nbBlocks, ok := r.Context().Value(ctxNbBlocks).(int)
+	if !ok {
+		return 0
+	}
+	return nbBlocks
+}
+
+// NbBlocksCtx will parse the query parameters for nbBlocks.
+func (c *insightApiContext) NbBlocksCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		nbBlocks := r.FormValue("nbBlocks")
+		nbBlocksint, err := strconv.Atoi(nbBlocks)
+		if err == nil {
+			ctx = context.WithValue(r.Context(), ctxNbBlocks, nbBlocksint)
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

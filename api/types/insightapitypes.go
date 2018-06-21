@@ -181,3 +181,10 @@ type InsightBlocksSummaryResult struct {
 		MoreTs    int64  `json:"moreTs,omitempty"`
 	} `json:"pagination"`
 }
+
+// InsightBlockAddrTxSummary models the data required by addrtx json return for
+// Insight API
+type InsightBlockAddrTxSummary struct {
+	PagesTotal int64       `json:"pagesTotal"`
+	Txs        []InsightTx `json:"txs"`
+}
