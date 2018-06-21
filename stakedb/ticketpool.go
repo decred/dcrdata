@@ -9,8 +9,10 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
+	"os"
 	"sync"
 
+	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/dgraph-io/badger"
 )
@@ -39,8 +41,8 @@ type PoolDiff struct {
 // PoolDiffDBItem is the type in the live ticket DB. The primary key (id) is
 // Height.
 type PoolDiffDBItem struct {
-	Height int64
-	PoolDiff
+	Height   int64 `storm:"id"`
+	PoolDiff `storm:"inline"`
 }
 
 // NewTicketPool constructs a TicketPool by opening the persistent diff db,
@@ -53,6 +55,18 @@ func NewTicketPool(dbFolder string) (*TicketPool, error) {
 	db, err := badger.Open(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed badger.Open: %v", err)
+	}
+
+	// Attempt migration from storm to badger if badger was empty
+	TableInfo := db.Tables()
+	if len(TableInfo) == 0 {
+		migrated, err := MigrateFromStorm(DefaultTicketPoolDbName, db)
+		if err != nil {
+			return nil, fmt.Errorf("migration from storm failed: %v", err)
+		}
+		if migrated {
+			log.Info("Successfully migrated ticket pool db from storm to badger DB.")
+		}
 	}
 
 	// Load all diffs
@@ -70,12 +84,67 @@ func NewTicketPool(dbFolder string) (*TicketPool, error) {
 	return &TicketPool{
 		RWMutex: new(sync.RWMutex),
 		pool:    make(map[chainhash.Hash]struct{}),
-		diffs:   diffs,             // make([]PoolDiff, 0, 100000),
+		diffs:   diffs,             // make([]PoolDiff, 0, 100000)
 		tip:     int64(len(diffs)), // number of blocks connected over genesis
 		diffDB:  db,
 	}, nil
 }
 
+// MigrateFromStorm attemps to load the storm DB specified by the given file
+// name, and migrate all ticket pool diffs to the badger db.
+func MigrateFromStorm(stormDBFile string, db *badger.DB) (bool, error) {
+	// Check for the storm DB file
+	finfo, err := os.Stat(stormDBFile)
+	if err == os.ErrNotExist {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if finfo.Size() == 0 {
+		return false, nil
+	}
+
+	// Open the storm DB file
+	dbOld, err := storm.Open(stormDBFile)
+	if err != nil {
+		return false, fmt.Errorf("failed storm.Open: %v", err)
+	}
+	defer dbOld.Close()
+
+	// Attempt to load the pool diffs for block 1
+	var blockOneDiffs PoolDiffDBItem
+	err = dbOld.One("Height", 1, &blockOneDiffs)
+	// If bucket or element with id 1 does not exist, not an error
+	if err != storm.ErrNotFound {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve block one pool diff "+
+			"(delete storm db file and try again): %v", err)
+	}
+
+	log.Info("Found storm ticket pool DB. Attempting migration to badger...")
+
+	// Load all diffs from storm
+	var poolDiffs []PoolDiffDBItem
+	err = dbOld.AllByIndex("Height", &poolDiffs)
+	if err != nil {
+		return false, fmt.Errorf("failed (*storm.DB).AllByIndex: %v", err)
+	}
+
+	// Store all diffs in badger
+	for i := range poolDiffs {
+		err = storeDiff(db, &poolDiffs[i].PoolDiff, poolDiffs[i].Height)
+		if err != nil {
+			return false, fmt.Errorf("failed to store diff in badger: %v", err)
+		}
+	}
+
+	return true, nil
+}
+
+// LoadAllPoolDiffs loads all found ticket pool diffs from badger DB.
 func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiffDBItem, error) {
 	var poolDiffs []PoolDiffDBItem
 	err := db.View(func(txn *badger.Txn) error {
@@ -162,7 +231,7 @@ func (tp *TicketPool) Trim() (int64, PoolDiff) {
 }
 
 // storeDiff stores the input diff for the specified height in the on-disk DB.
-func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
+func storeDiff(db *badger.DB, diff *PoolDiff, height int64) error {
 	var heightBytes [8]byte
 	binary.BigEndian.PutUint64(heightBytes[:], uint64(height))
 
@@ -171,9 +240,13 @@ func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
 		return err
 	}
 
-	return tp.diffDB.Update(func(txn *badger.Txn) error {
+	return db.Update(func(txn *badger.Txn) error {
 		return txn.Set(heightBytes[:], poolDiffBuffer.Bytes())
 	})
+}
+
+func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
+	return storeDiff(tp.diffDB, diff, height)
 }
 
 // fetchDiff retrieves the diff at the specified height from the on-disk DB.
