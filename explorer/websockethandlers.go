@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/decred/dcrdata/db/dbtypes"
 	"golang.org/x/net/websocket"
 )
 
@@ -59,21 +60,22 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				// handle received message according to event ID
 				var webData WebSocketMessage
+				//  If the request sent is past the limit exit the loop
+				if len(msg.Message) > requestLimit {
+					log.Debug("Request size over limit")
+					webData.Message = "Request too large"
+					return
+				}
+
 				switch msg.EventId {
 				case "decodetx":
-					webData.EventId = msg.EventId + "Resp"
-					if len(msg.Message) > requestLimit {
-						log.Debug("Request size over limit")
-						webData.Message = "Request too large"
-						break
-					}
 					log.Debugf("Received decodetx signal for hex: %.40s...", msg.Message)
 					tx, err := exp.blockData.DecodeRawTransaction(msg.Message)
 					if err == nil {
 						message, err := json.MarshalIndent(tx, "", "    ")
 						if err != nil {
 							log.Warn("Invalid JSON message: ", err)
-							webData.Message = fmt.Sprintf("Error: Could not encode JSON message")
+							webData.Message = "Error: Could not encode JSON message"
 							break
 						}
 						webData.Message = string(message)
@@ -81,13 +83,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						log.Debugf("Could not decode raw tx")
 						webData.Message = fmt.Sprintf("Error: %v", err)
 					}
+
 				case "sendtx":
-					webData.EventId = msg.EventId + "Resp"
-					if len(msg.Message) > requestLimit {
-						log.Debugf("Request size over limit")
-						webData.Message = "Request too large"
-						break
-					}
 					log.Debugf("Received sendtx signal for hex: %.40s...", msg.Message)
 					txid, err := exp.blockData.SendRawTransaction(msg.Message)
 					if err != nil {
@@ -95,19 +92,49 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					} else {
 						webData.Message = fmt.Sprintf("Transaction sent: %s", txid)
 					}
-				case "getmempooltxs":
-					webData.EventId = msg.EventId + "Resp"
 
+				case "getmempooltxs":
 					exp.MempoolData.RLock()
 					msg, err := json.Marshal(exp.MempoolData)
 					exp.MempoolData.RUnlock()
 
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)
-						webData.Message = fmt.Sprintf("Error: Could not encode JSON message")
+						webData.Message = "Error: Could not encode JSON message"
 						break
 					}
 					webData.Message = string(msg)
+
+				case "getticketpooldata":
+					if !tpEvent.Active {
+						break
+					}
+
+					tpEvent.Active = false
+
+					chartData, groupedData, err := exp.explorerSource.TicketPoolVisualization(msg.Message)
+					if err != nil {
+						log.Warn("TicketPoolVisualization error: ", err)
+						webData.Message = "Error: Failed to successfully fetch ticketpool data"
+						break
+					}
+
+					var data = struct {
+						BarGraphs  []*dbtypes.PoolTicketsData
+						DonutChart *dbtypes.PoolTicketsData
+					}{
+						chartData,
+						groupedData,
+					}
+
+					msg, err := json.Marshal(data)
+					if err != nil {
+						log.Warn("Invalid JSON message: ", err)
+						webData.Message = "Error: Could not encode JSON message"
+						break
+					}
+					webData.Message = string(msg)
+
 				case "ping":
 					log.Tracef("We've been pinged: %.40s...", msg.Message)
 					continue
@@ -115,6 +142,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					log.Warnf("Unrecognized event ID: %v", msg.EventId)
 					continue
 				}
+
+				webData.EventId = msg.EventId + "Resp"
 
 				// send the response back on the websocket
 				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
@@ -166,6 +195,12 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						Extra: exp.ExtraInfo,
 					})
 					exp.NewBlockDataMtx.RUnlock()
+
+					// Block all reading operations before initiating a write operation
+					tpEvent.RLock()
+					tpEvent.Active = true
+					tpEvent.RUnlock()
+
 					webData.Message = buff.String()
 				case sigMempoolUpdate:
 					exp.MempoolData.RLock()

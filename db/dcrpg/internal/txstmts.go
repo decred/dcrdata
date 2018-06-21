@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
 )
@@ -130,6 +131,27 @@ const (
 	SelectRegularTxByHash = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=0;`
 	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`
 
+	SelectImmatureTickets = `SELECT tx_hash FROM transactions WHERE block_height >= $1 and tx_type = 1;`
+
+	retrieveTicketsByPrice = `SELECT t.sent,
+		SUM(CASE WHEN t.block_height >= %v THEN 1 ELSE 0 END) as immature,
+		SUM(CASE WHEN t.block_height < %v THEN 1 ELSE 0 END) as live
+		FROM transactions as t INNER JOIN (%s) as d(tx_hash) ON t.tx_hash = d.tx_hash
+		GROUP BY t.sent ORDER BY t.sent;`
+
+	retrieveTicketsByPurchaseDate = `SELECT (t.time/$1)*$1 as timestamp,
+		sum(t.sent) as price, count(*) as total,
+		SUM(CASE WHEN t.block_height >= %v THEN 1 ELSE 0 END) as immature,
+		SUM(CASE WHEN t.block_height < %v THEN 1 ELSE 0 END) as live
+		FROM transactions as t INNER JOIN (%s) as d(tx_hash) ON t.tx_hash = d.tx_hash
+		GROUP BY timestamp ORDER BY timestamp;`
+
+	retrieveTicketsByType = `SELECT
+		SUM(CASE WHEN t.num_vout = 3 THEN 1 ELSE 0 END) as solo,
+		SUM(CASE WHEN t.num_vout = 5 THEN 1 ELSE 0 END) as pooled,
+		SUM(CASE WHEN t.num_vout > 5 THEN 1 ELSE 0 END) as tixsplit
+		FROM transactions as t INNER JOIN (%s) as d(tx_hash) ON t.tx_hash = d.tx_hash;`
+
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX uix_tx_block_in
 		ON transactions(block_hash, block_index, tree);`
 	DeindexTransactionTableOnBlockIn = `DROP INDEX uix_tx_block_in;`
@@ -199,4 +221,27 @@ func MakeTxInsertStatement(checked bool) string {
 		return upsertTxRow
 	}
 	return insertTxRow
+}
+
+// MakeRetrieveTicketStatement fetches live and
+// immature tickets in the current ticket pool
+func MakeRetrieveTicketsStatement(hashes []string, graphType int, info ...int64) string {
+	var liveBlocks int64
+	if len(info) > 0 {
+		liveBlocks = info[0] - 256
+	}
+
+	var strHashes = `VALUES ('` + strings.Join(hashes, `'), ('`) + `')`
+	switch graphType {
+	case 1:
+		return fmt.Sprintf(retrieveTicketsByPurchaseDate,
+			liveBlocks, liveBlocks, strHashes)
+	case 2:
+		return fmt.Sprintf(retrieveTicketsByPrice,
+			liveBlocks, liveBlocks, strHashes)
+	case 3:
+		return fmt.Sprintf(retrieveTicketsByType, strHashes)
+	default:
+		return ""
+	}
 }

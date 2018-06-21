@@ -76,6 +76,7 @@ type explorerDataSource interface {
 	//SideChainTips() []*dbtypes.BlockStatus
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	GetOldestTxBlockTime(addr string) (int64, error)
+	TicketPoolVisualization(bars string) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error)
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts
@@ -224,7 +225,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		return nil
 	}
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
-		"rawtx", "status", "parameters", "agenda", "agendas", "charts", "sidechains"}
+		"rawtx", "status", "parameters", "agenda", "agendas", "charts", "sidechains",
+		"ticketpool"}
 
 	tempDefaults := []string{"extras"}
 

@@ -99,9 +99,11 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 
 	// Time this function
 	defer func(start time.Time, perr *error) {
-		if *perr != nil {
-			log.Infof("resyncDBWithPoolValue() completed in %v", time.Since(start))
+		if *perr == nil {
+			log.Infof("resyncDBWithPoolValue completed in %v", time.Since(start))
+			return
 		}
+		log.Errorf("resyncDBWithPoolValue failed: %v", err)
 	}(time.Now(), &err)
 
 	// Check and report heights of the DBs

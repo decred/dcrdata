@@ -528,6 +528,78 @@ func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtyp
 	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
 }
 
+// getTicketPoolHashes returns the tickets hashes need to plot ticket pool charts.
+func (pgb *ChainDB) getTicketPoolHashes() ([]string, int64, error) {
+	var bestBlock = int64(pgb.GetHeight())
+	var tickets, err = pgb.stakeDB.PoolAtHeight(bestBlock)
+	if err != nil {
+		return nil, bestBlock, err
+	}
+
+	var ticketsHashes = make([]string, len(tickets))
+	for i, hash := range tickets {
+		ticketsHashes[i] = hash.String()
+	}
+
+	immatureHashes, err := retrieveImmatureTickets(pgb.db, bestBlock)
+	if err != nil {
+		return nil, bestBlock, err
+	}
+
+	ticketsHashes = append(ticketsHashes, immatureHashes...)
+
+	return ticketsHashes, bestBlock, nil
+}
+
+// TicketPoolVisualization queries the real time ticket pool data.
+// It queries the data needed to populate the real time ticket stages graph.
+// The respective ticket stages include Mempool tickets, Immature tickets and Live tickets.
+func (pgb *ChainDB) TicketPoolVisualization(bars string) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
+	var allTickets = make([]*dbtypes.PoolTicketsData, 3)
+	var ticketsHashes, tickets, bestBlock, err = pgb.TicketPoolByDateAndInterval(bars)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	allTickets[0] = tickets
+
+	allTickets[1], err = retrieveTicketByPrice(pgb.db, bestBlock, ticketsHashes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	grpTickets, err := retrieveTickesGroupedByType(pgb.db, ticketsHashes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return allTickets, grpTickets, nil
+}
+
+// TicketPoolByDateAndInterval fetches the tickets ordered by
+// the purchase in the provided interval.
+func (pgb *ChainDB) TicketPoolByDateAndInterval(val string) ([]string, *dbtypes.PoolTicketsData, int64, error) {
+	var sec int64
+	switch val {
+	case "1m":
+		sec = 2629746
+	case "1wk":
+		sec = 604800
+	case "1d":
+		sec = 86400
+	case "all":
+		sec = 1
+	default:
+		return []string{}, nil, 0, fmt.Errorf("The interval provided '%s' is unknown", val)
+	}
+	var ticketsHashes, bestBlock, err = pgb.getTicketPoolHashes()
+	if err != nil {
+		return ticketsHashes, nil, 0, err
+	}
+	t, err := retrieveTicketsByDate(pgb.db, bestBlock, ticketsHashes, sec)
+	return ticketsHashes, t, bestBlock, err
+}
+
 // retrieveDevBalance retrieves a new DevFundBalance without regard to the cache
 func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
 	bb, hash, _, err := RetrieveBestBlockHeight(pgb.db)

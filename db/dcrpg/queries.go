@@ -1354,6 +1354,87 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	return outputs, nil
 }
 
+// retrieveImmatureTickets appends the immature tickets too the ticket pool tx hashes.
+func retrieveImmatureTickets(db *sql.DB, bestBlock int64) (hashes []string, err error) {
+	rws, err := db.Query(internal.SelectImmatureTickets, bestBlock-255)
+	if err != nil {
+		return
+	}
+
+	for rws.Next() {
+		var txHash string
+		err = rws.Scan(&txHash)
+		if err != nil {
+			return
+		}
+		hashes = append(hashes, txHash)
+	}
+
+	return
+}
+
+// retrieveTicketsByDate fetches the tickets by the purchase date.
+func retrieveTicketsByDate(db *sql.DB, bestBlock int64,
+	hashes []string, groupBy int64) (*dbtypes.PoolTicketsData, error) {
+	var rows, err = db.Query(internal.MakeRetrieveTicketsStatement(hashes, 1, bestBlock), groupBy)
+	if err != nil {
+		return nil, err
+	}
+
+	var tickets = new(dbtypes.PoolTicketsData)
+	for rows.Next() {
+		var immature, live, timestamp uint64
+		var price, total float64
+		err = rows.Scan(&timestamp, &price, &total, &immature, &live)
+		if err != nil {
+			return nil, fmt.Errorf("retrieveTicketsByDate %v", err)
+		}
+		tickets.Time = append(tickets.Time, timestamp)
+		tickets.Immature = append(tickets.Immature, immature)
+		tickets.Live = append(tickets.Live, live)
+		// Returns the average value of a ticket depending on the grouping mode used
+		tickets.Price = append(tickets.Price, (price / (total * 100000000)))
+	}
+
+	return tickets, nil
+}
+
+// retrieveTicketByPrice fetches the tickets by the purchase price
+func retrieveTicketByPrice(db *sql.DB, bestBlock int64, hashes []string) (*dbtypes.PoolTicketsData, error) {
+	var tickets = new(dbtypes.PoolTicketsData)
+	var rows, err = db.Query(internal.MakeRetrieveTicketsStatement(hashes, 2, bestBlock))
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var immature, live uint64
+		var price float64
+		err = rows.Scan(&price, &immature, &live)
+		if err != nil {
+			return nil, fmt.Errorf("retrieveTicketByPrice %v", err)
+		}
+		tickets.Price = append(tickets.Price, (price / 100000000))
+		tickets.Immature = append(tickets.Immature, immature)
+		tickets.Live = append(tickets.Live, live)
+	}
+
+	return tickets, nil
+}
+
+// retrieveTickesGroupedByType the count of tickets grouped by their outputs.
+func retrieveTickesGroupedByType(db *sql.DB, hashes []string) (*dbtypes.PoolTicketsData, error) {
+	var entry dbtypes.PoolTicketsData
+	err := db.QueryRow(internal.MakeRetrieveTicketsStatement(hashes, 3)).Scan(
+		&entry.Solo, &entry.Pooled, &entry.TxSplit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTickesGroupedByType %v", err)
+	}
+
+	return &entry, nil
+}
+
 // RetrieveAddressTxnsOrdered will get all transactions for addresses provided
 // and return them sorted by time in descending order. It will also return a
 // short list of recently (defined as greater than recentBlockHeight) confirmed

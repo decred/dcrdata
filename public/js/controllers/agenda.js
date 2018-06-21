@@ -94,7 +94,7 @@ function barchartPlotter(e) {
 
         connect() {
             var _this = this
-            $.getScript("/js/dygraph.min.js", function() { 
+            $.getScript("/js/dygraphs.min.js", function() {
                 _this.drawCharts()
             })
         }
@@ -127,5 +127,4 @@ function barchartPlotter(e) {
             );
         }
     })
-
 })()

@@ -189,6 +189,11 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 		r.With(m.ChartTypeCtx).Get("/{charttype}", app.getChartTypeData)
 	})
 
+	mux.Route("/ticketpool", func(r chi.Router) {
+		r.Get("/", http.NotFound)
+		r.With(m.TicketPoolCtx).Get("/bydate/{tp}", app.getTicketPoolByDate)
+	})
+
 	mux.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, r.URL.RequestURI()+" ain't no country I've ever heard of! (404)", http.StatusNotFound)
 	})

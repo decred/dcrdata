@@ -564,6 +564,7 @@ func mainCore() error {
 	webMux.Get("/decodetx", explore.DecodeTxPage)
 	webMux.Get("/search", explore.Search)
 	webMux.Get("/charts", explore.Charts)
+	webMux.Get("/ticketpool", explore.Ticketpool)
 
 	if usePG {
 		insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)

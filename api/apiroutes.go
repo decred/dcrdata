@@ -93,6 +93,7 @@ type DataSourceAux interface {
 	VotesInBlock(hash string) (int16, error)
 	GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error)
+	TicketPoolByDateAndInterval(val string) ([]string, *dbtypes.PoolTicketsData, int64, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -720,6 +721,18 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, sstxDetails, c.getIndentQuery(r))
+}
+
+func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request) {
+	tp := m.GetTpCtx(r)
+	_, tpData, _, err := c.AuxDataSource.TicketPoolByDateAndInterval(tp)
+	if err != nil {
+		apiLog.Errorf("Unable to get ticket pool by date %v", err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, tpData, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {

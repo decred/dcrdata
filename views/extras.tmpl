@@ -74,10 +74,10 @@
                         <a data-keynav-skip href="/" title="Home">Home</a>
                         <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
                         <a data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
-                        <a data-keynav-skip href="/charts" title="Decred Charts">Charts</a>
-                        <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
+                        <a data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
+                        <a data-keynav-skip href="/charts" title="Decred charts">Charts</a>
                         <a data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
-                        <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
+                        <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
                         <a data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
                         {{if eq .NetName "Mainnet"}}
                            <a data-keynav-skip href="http://testnet.dcrdata.org/" title="Home">Switch To Testnet</a>
@@ -551,6 +551,7 @@ const app = Stimulus.Application.start()
 <script src="/js/controllers/agenda.js"  data-turbolinks-eval="false"></script>
 <script src="/js/controllers/charts.js" data-turbolinks-eval="false"></script>
 <script src="/js/controllers/address.js" data-turbolinks-eval="false"></script>
+<script src="/js/controllers/ticketpool.js" data-turbolinks-eval="false"></script>
 {{end}}
 
 {{define "decimalParts"}}<span class="int">{{ index . 0 }}</span><span class="dot">.</span><span class="decimal">{{ index . 1 }}<span class="trailing-zeroes">{{ index . 2 }}</span></span>{{end}}

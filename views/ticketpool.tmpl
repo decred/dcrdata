@@ -1,0 +1,71 @@
+{{define "ticketpool"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" printf "Decred Ticket Pool"}}
+<body>
+
+    {{template "navbar" . }}
+
+    <div class="container">
+      <div data-controller="ticketpool">
+        <div>
+            <h2 style="text-align: center; margin-top: 0px">Ticket Pool Visualization</h2>
+            <p style="text-align: center; margin-bottom: 5px">
+            These charts only show current tickets in the ticket pool, for historic views go to
+            <a href="/charts">here</a>
+            </p>
+        </div>
+        <br>
+
+        <label>Zoom :</label>
+        <div class="btn-group" data-toggle="buttons" data-target="ticketpool.zoom" data-action="click->ticketpool#onZoom">
+          <input id="zoom" type="button" class="btn btn_sm all" value="all time" name="all">
+          <input id="zoom" type="button" class="btn btn_sm btn-active 1d" value="day" name="1d">
+          <input id="zoom" type="button" class="btn btn_sm 1wk" value="week" name="1wk">
+          <input id="zoom" type="button" class="btn btn_sm 1m" value="month" name="1m">
+        </div>
+
+        <label>&nbsp;&nbsp;Bars :</label>
+        <div class="btn-group" data-toggle="buttons" data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange">
+          <input id="barSize" type="button" class="btn btn_sm all btn-active" value="all time" name="all">
+          <input id="barSize" type="button" class="btn btn_sm 1d" value="day" name="1d">
+          <input id="barSize" type="button" class="btn btn_sm 1wk" value="week" name="1wk">
+          <input id="barSize" type="button" class="btn btn_sm 1m" value="month" name="1m">
+        </div>
+
+        <div id="tickets_by_purchase_date" class="tickets"></div>
+
+        <br>
+        <div id="tickets_by_purchase_price" class="tickets"></div>
+
+        <br>
+        <div id="tickets_by_type_doughnut" class="doughnutGraph">
+          <canvas id="doughnutGraph" width="250" height="210"
+                  chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'">
+          </canvas>
+
+          <div class="ticket_by_types">
+            <b style="color:#2d00dd;">1. Solo Tickets:</b> - Have three outputs.<br><br>
+            <b style="color:#FF8F00;">2. Stake Server(pooled) Tickets:</b> - Have five outputs.<br><br>
+            <b style="color:limegreen;">3. TixSplit Tickets:</b> - Have more than five outputs.<br>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal"></div>
+
+    <script>
+      var graph = {{.ChartData}}
+      var chart = {{.GroupedData}}
+      var mp = {{.Mempool}}
+
+      $('input').on('click', function(){
+        $('input#'+this.id).removeClass('btn-active');
+        $(this).toggleClass('btn-active');
+      });
+    </script>
+
+    {{ template "footer" . }}
+</body>
+</html>
+{{end}}
