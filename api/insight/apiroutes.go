@@ -1033,6 +1033,7 @@ func (c *insightApiContext) getEstimateFee(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, estimateFee, c.getIndentQuery(r))
 }
 
+// GetPeerStatus handles requests for node peer info (i.e. getpeerinfo RPC).
 func (c *insightApiContext) GetPeerStatus(w http.ResponseWriter, r *http.Request) {
 	// Use a RPC call to tell if we are connected or not
 	_, err := c.nodeClient.GetPeerInfo()
