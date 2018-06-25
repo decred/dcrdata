@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	rescanLogBlockChunk = 250
+	rescanLogBlockChunk = 500
 )
 
 // SyncChainDBAsync is like SyncChainDB except it also takes a result channel on
