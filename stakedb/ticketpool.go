@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/asdine/storm"
@@ -62,8 +61,8 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 
 	// Attempt migration from storm to badger if badger was empty
 	TableInfo := db.Tables()
+	oldDBPath := filepath.Join(dataDir, DefaultTicketPoolDbName)
 	if len(TableInfo) == 0 {
-		oldDBPath := filepath.Join(dataDir, DefaultTicketPoolDbName)
 		migrated, err := MigrateFromStorm(oldDBPath, db)
 		if err != nil {
 			return nil, fmt.Errorf("migration from storm failed: %v", err)
@@ -73,7 +72,12 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 		}
 	}
 
+	if _, err = os.Stat(oldDBPath); err == nil {
+		log.Infof("You may delete the old ticket pool DB file (%s).", oldDBPath)
+	}
+
 	// Load all diffs
+	log.Infof("Loading all ticket pool diffs...")
 	var poolDiffs []PoolDiffDBItem
 	poolDiffs, err = LoadAllPoolDiffs(db)
 	if err != nil {
@@ -99,7 +103,7 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 func MigrateFromStorm(stormDBFile string, db *badger.DB) (bool, error) {
 	// Check for the storm DB file
 	finfo, err := os.Stat(stormDBFile)
-	if strings.Contains(err.Error(), "no such file or directory") {
+	if os.IsNotExist(err) {
 		return false, nil
 	}
 	if err != nil {
@@ -265,11 +269,11 @@ func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
 		return
 	}
 
-	poolDiffBuffer := new(bytes.Buffer)
-	gobEnc := gob.NewEncoder(poolDiffBuffer)
 	txn := db.NewTransaction(true)
 	for i, h := range heights {
 		heightBytes := heightToBytes(h)
+		poolDiffBuffer := new(bytes.Buffer)
+		gobEnc := gob.NewEncoder(poolDiffBuffer)
 		err := gobEnc.Encode(diffs[i])
 		if err != nil {
 			txn.Discard()
@@ -292,7 +296,7 @@ func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
 			txn.Discard()
 			return err
 		}
-		poolDiffBuffer.Reset()
+		//poolDiffBuffer.Reset()
 	}
 	return txn.Commit(nil)
 }
