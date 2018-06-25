@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/asdine/storm"
@@ -98,7 +99,7 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 func MigrateFromStorm(stormDBFile string, db *badger.DB) (bool, error) {
 	// Check for the storm DB file
 	finfo, err := os.Stat(stormDBFile)
-	if err == os.ErrNotExist {
+	if strings.Contains(err.Error(), "no such file or directory") {
 		return false, nil
 	}
 	if err != nil {
