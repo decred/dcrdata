@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	rescanLogBlockChunk = 250
+	rescanLogBlockChunk = 1000
 )
 
 // DBHeights returns the best block heights of: SQLite database tables (block
