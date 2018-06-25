@@ -62,7 +62,7 @@ func TestTicketPoolTraverseFull(t *testing.T) {
 	}
 
 	t.Logf("Loading entire ticket pool diffs from %s...", dbFolderFull)
-	p, err := NewTicketPool(dbFolderFull)
+	p, err := NewTicketPool(".", dbFolderFull)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestTicketPoolAppendInvalid(t *testing.T) {
 	if err := os.RemoveAll(dbFolder); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("Failed to delete db file: %v", err)
 	}
-	p, err := NewTicketPool(dbFolder)
+	p, err := NewTicketPool(".", dbFolder)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestTicketPoolRetreat(t *testing.T) {
 	if err := os.RemoveAll(dbFolder); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("Failed to delete db file: %v", err)
 	}
-	p, err := NewTicketPool(dbFolder)
+	p, err := NewTicketPool(".", dbFolder)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestTicketPoolHeight(t *testing.T) {
 	if err := os.RemoveAll(dbFolder); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("Failed to delete db file: %v", err)
 	}
-	p, err := NewTicketPool(dbFolder)
+	p, err := NewTicketPool(".", dbFolder)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -358,7 +358,7 @@ func TestTicketPoolHeight(t *testing.T) {
 // TestTicketPoolPersistent tests the persistent DB by loading a referece db,
 // and verifies its state is as expected, and Pool works on it.
 func TestTicketPoolPersistent(t *testing.T) {
-	p, err := NewTicketPool(dbFolderRef)
+	p, err := NewTicketPool(".", dbFolderRef)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
