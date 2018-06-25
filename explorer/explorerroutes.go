@@ -252,9 +252,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) * int64(exp.ChainParams.TicketsPerBlock)
 				tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
 				expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(exp.ChainParams.TicketExpiry)) / 24
-				maturityInDay := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.TicketInfo.TicketMaturity)) / 24
+				maturityInHours := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.TicketInfo.TicketMaturity))
 				tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
-					float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInDay
+					float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInHours
 				ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
 				tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
 					float64(exp.ChainParams.TicketExpiry)) * expirationInDays

@@ -1166,9 +1166,9 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		}
 		tx.Maturity = int64(db.params.CoinbaseMaturity) + 1 // Add one to reflect < instead of <=
 	}
-	CoinbaseMaturityInDay := (db.params.TargetTimePerBlock.Hours() * float64(db.params.CoinbaseMaturity)) / 24
+	CoinbaseMaturityInHours := (db.params.TargetTimePerBlock.Hours() * float64(db.params.CoinbaseMaturity))
 	tx.MaturityTimeTill = ((float64(db.params.CoinbaseMaturity) -
-		float64(tx.Confirmations)) / float64(db.params.CoinbaseMaturity)) * CoinbaseMaturityInDay
+		float64(tx.Confirmations)) / float64(db.params.CoinbaseMaturity)) * CoinbaseMaturityInHours
 
 	outputs := make([]explorer.Vout, 0, len(txraw.Vout))
 	for i, vout := range txraw.Vout {

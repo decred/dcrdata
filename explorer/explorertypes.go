@@ -85,14 +85,14 @@ type TxInfo struct {
 	Mature           string
 	VoteFundsLocked  string
 	Maturity         int64   // Total number of blocks before mature
-	MaturityTimeTill float64 // Time in days until mature
+	MaturityTimeTill float64 // Time in hours until mature
 	TicketInfo
 }
 
 // TicketInfo is used to represent data shown for a sstx transaction.
 type TicketInfo struct {
 	TicketMaturity       int64
-	TimeTillMaturity     float64 // Time before a particular ticket reaches maturity
+	TimeTillMaturity     float64 // Time before a particular ticket reaches maturity, in hours
 	PoolStatus           string
 	SpendStatus          string
 	TicketPoolSize       int64   // Total number of ticket in the pool
