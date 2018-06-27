@@ -1,20 +1,18 @@
 language: go
 go:
-  - "1.x"
-
-sudo: required
-services:
-  - docker
-
-env:
-  - GOVERSION=1.9
-  - GOVERSION=1.10
-
-install: true
+  - 1.9.x
+  - 1.10.x
+sudo: false
 
 cache:
   directories:
     - ~/.cache
 
+install:
+    - go get -v github.com/golang/dep/cmd/dep
+    - dep ensure
+    - go install ./...
+    - go get -v github.com/alecthomas/gometalinter
+    - gometalinter --install
 script:
-  - ./run_tests.sh $GOVERSION
+  - ./goclean.sh
