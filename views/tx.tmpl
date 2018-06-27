@@ -1,12 +1,11 @@
 {{define "tx"}}
 <!DOCTYPE html>
 <html lang="en">
-{{with .Data}}
-{{template "html-head" printf "Decred Transaction %.20s..." .TxID}}
+{{template "html-head" printf "Decred Transaction %.20s..." .Data.TxID}}
 <body>
-{{template "navbar"}}
-<div class="container">
-
+{{template "navbar" . }}
+<div class="container" data-controller="main">
+{{with .Data}}
     <div class="row justify-content-between">
         <div class="col-md-8 col-sm-6">
             <h4 class="mb-2">
@@ -206,7 +205,7 @@
                         {{if eq .Time 0}}
                             N/A
                         {{else}}
-                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-age="{{.Time}}"></span> ago)</span>
+                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.Time}}"></span> ago)</span>
                         {{end}}
                     </td>
                 </tr>
@@ -255,7 +254,7 @@
                             {{else if .Stakebase}}
                                 Stakebase: {{ .Stakebase }}
                             {{else}}
-                                <a href="/tx/{{.Txid}}">{{.Txid}}:{{.Vout}}</a>
+                                <a data-keynav-priority href="/tx/{{.Txid}}">{{.Txid}}:{{.Vout}}</a>
                             {{end}}
                             </div>
                         </td>
@@ -280,6 +279,14 @@
                         <td class="mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{template "decimalParts" (float64AsDecimalParts .AmountIn false)}} {{end}}</td>
                     </tr>
                     {{end}}
+                    {{if and (eq .Type "Coinbase") (gt .BlockMiningFee 0)}}
+                        <tr>
+                            <td class="mono fs13">(Transaction Fees Collected)</td>
+                            <td></td>
+                            <td></td>
+                            <td class="mono fs13 text-right">{{template "decimalParts" (amountAsDecimalParts .BlockMiningFee false)}}</td>
+                        </tr>        
+                    {{end}}
                 </tbody>
             </table>
         </div>
@@ -297,7 +304,7 @@
                     <tr>
                         <td class="break-word mono fs13 addressAndScriptData">
                             {{range .Addresses}}
-                                <div class="address sm-fullwidth"><a href="/address/{{.}}">{{.}}</a></div>
+                                <div class="address sm-fullwidth"><a href="/address/{{.}}" data-keynav-priority>{{.}}</a></div>
                             {{end}}
                             {{if .OP_RETURN}}
                                 {{if .Addresses}}
@@ -308,7 +315,7 @@
                                 {{else}}
                                 <div>
                                 {{end}}
-                                    <a >{{.OP_RETURN}}</a>
+                                    <span>{{.OP_RETURN}}</span>
                                 </div>
                             {{end}}
                         </td>
@@ -368,8 +375,8 @@
     </div>
     {{end}}
     {{end}}
-</div>
 {{end}}
+</div>
 
 {{ template "footer" . }}
 

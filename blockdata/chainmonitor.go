@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -17,6 +18,7 @@ type ReorgData struct {
 	OldChainHeight int32
 	NewChainHead   chainhash.Hash
 	NewChainHeight int32
+	WG             *sync.WaitGroup
 }
 
 // for getblock, ticketfeeinfo, estimatestakediff, etc.
@@ -232,6 +234,8 @@ out:
 				newHash, newHeight)
 			log.Infof("Reorganize started in blockdata. OLD head block %v at height %d.",
 				oldHash, oldHeight)
+
+			reorgData.WG.Done()
 
 		case _, ok := <-p.quit:
 			if !ok {

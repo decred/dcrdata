@@ -3,10 +3,11 @@
 <html lang="en">
 {{template "html-head" printf "Error %s" .ErrorCode}}
 <body>
-{{template "navbar"}}    
-    <div class="container">   
-    <br/>
-        <div>
+    {{template "navbar" . }}
+
+    <div class="container">
+        <br/>
+        <div class="alert alert-info">
             <h4>No matching block, address or transaction could be found.</h4>
         </div>
     </div>

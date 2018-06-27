@@ -14,8 +14,8 @@
     <link rel="manifest" href="/images/favicon/manifest.json">
     <link rel="mask-icon" href="/images/favicon/safari-pinned-tab.svg">
     <link rel="shortcut icon" href="/images/favicon/favicon.ico">
-    <meta name="apple-mobile-web-app-title" content="deCRED - decentralized credit">
-    <meta name="application-name" content="deCRED - decentralized credit">
+    <meta name="apple-mobile-web-app-title" content="Decred - decentralized credits">
+    <meta name="application-name" content="Decred - decentralized credits">
     <meta name="msapplication-TileColor" content="#2973ff">
     <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png">
     <meta name="msapplication-config" content="/images/favicon/browserconfig.xml">
@@ -24,10 +24,13 @@
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
-    <script src="/js/messagesocket.js"></script>
-    <script src="/js/humanize.js"></script>
     <script src="/js/turbolinks.js"></script>
     <script src="/js/jquery.js"></script>
+    <script src="/js/lodash.min.js"></script>
+    <script src="/js/messagesocket.js"></script>
+    <script src="/js/humanize.js"></script>
+    <script src="/js/stimulus.umd.js"></script>
+    <script src="/js/mousetrap.min.js"></script>
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
@@ -49,11 +52,11 @@
                 <form class="navbar-form" role="search" id="search-form" action="/search">
                     <div class="input-group">
                         <input
-                            autofocus
+                            tabindex="0"
                             type="text"
                             name="search"
                             id="search"
-                            class="form-control top-search"
+                            class="form-control top-search mousetrap"
                             placeholder="Search for blocks, addresses or transactions"
                         />
                     </div>
@@ -65,15 +68,24 @@
                     <span class="patty"></span>
                     <span class="patty"></span>
                     <span class="patty short"></span>
-                    <ul id="menu">
-                        <a href="/" title="Home"><li>Home</li></a>
-                        <a href="/mempool" title="Decred mempool"><li>Mempool</li></a>
-                        <a href="/parameters" title="Chain Parameters"><li>Parameters</li></a>
-                        <a href="/blocks" title="Decred blocks"><li>Blocks</li></a>
-                        <a href="/decodetx" title="Decode or send a raw transaction"><li>Decode/Broadcast Tx</li></a>
-                        <a href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank"><li>JSON API Docs</li></a>
-                        <a data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><li><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</li></a>
-                    </ul>
+                    <div id="menu">
+                        <a data-keynav-skip href="/" title="Home">Home</a>
+                        <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
+                        <a data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
+                        <a data-keynav-skip href="#" title="Charts">Charts</a>
+                        <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
+                        <a data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
+                        {{if eq .NetName "Mainnet"}}
+                           <a data-keynav-skip href="http://testnet.dcrdata.org/" title="Home">Switch To Testnet</a>
+                        {{else}}
+                           <a data-keynav-skip href="https://mainnet.decred.org/" title="Home">Switch To Mainnet</a>
+                        {{end}}
+                        <a data-keynav-skip data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>
+                        <a data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
+                            <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
+                        </a>
+                        <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>
+                    </div>
                 </div>
             </nav>
         </div>
@@ -136,6 +148,11 @@
         }
         closeMenu(e)
     })
+
+
+    function toggleMenu(e) {
+        $("#menuToggle input").prop('checked', !$("#menuToggle input").prop('checked'))
+    }
     function closeMenu(e) {
         $("#menuToggle input").prop('checked', false)
     }
@@ -161,29 +178,16 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    function txRowHTMLFlexBox(tx) {
-        var totalTxt = ""
-        humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-            totalTxt += str.textContent
-        })
-        return `<div class="d-flex flex-table-row">
-            <a class="hash truncate-hash" style="flex: 1 1 auto" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a>
-            <span style="flex: 0 0 60px" class="mono text-right ml-1">${tx.Type}</span>
-            <span style="flex: 0 0 105px" class="mono text-right ml-1">${totalTxt}</span>
-            <span style="flex: 0 0 50px" class="mono text-right ml-1">${tx.size} B</span>
-            <span style="flex: 0 0 65px" class="mono text-right ml-1" data-age="${tx.time}">${humanize.timeSince(tx.time)}</span>
-        </div>`
-    }
-
     var ws; // websocket global
     async function createWebSocket(loc) {
         // wait a bit to prevent websocket churn from drive by page loads
         console.log('Waiting to create websocket');
         $('#connection').removeClass('hidden');
-        await sleep(3000);
-        console.log('Starting websocket');
         var uri = getSocketURI(loc)
         ws = new MessageSocket(uri);
+        await sleep(3000);
+        ws.connect()
+        console.log('Starting websocket');
         console.log("createdWebSocket", uri, ws)
         ws.registerEvtHandler("open", function() {
             console.log('Connected')
@@ -198,120 +202,6 @@
         ws.registerEvtHandler("error", function(evt) {
             console.log("WebSocket error:", evt);
             updateConnectionStatus('Disconnected', false);
-        });
-
-        ws.registerEvtHandler("newtx", function(evt) {
-            console.log("New Transactions: ", evt);
-            var txs = JSON.parse(evt)
-            txs.forEach(function(tx, idx) {
-            addTxRow = function(str) {
-                var rows = $('#' + str +' tbody tr')
-                var totalTxt = ""
-                humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                    totalTxt += str.textContent
-                })
-                var newRow = '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                    tx.hash + '">' + tx.hash + '</a></span></td>' +
-                    '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
-                    '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
-                var newRowHtml = $.parseHTML(newRow)
-                $(newRowHtml).insertBefore(rows.first())
-            }
-            switch (tx.Type) {
-                case "Ticket":
-                    $('#mempool_ticket_number').text(parseInt($('#mempool_ticket_number').text()) + 1)
-                    addTxRow('mempool_tickets')
-                    break
-                case "Vote":
-                    $('#mempool_vote_number').text(parseInt($('#mempool_vote_number').text()) + 1)
-                    var rows = $('#mempool_votes tbody tr')
-                    var totalTxt = ""
-                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                        totalTxt += str.textContent
-                    })
-                    var newRow = '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
-                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
-                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
-                        '<td class="mono fs15">' + tx.size + ' B</td>' +
-                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
-                    var newRowHtml = $.parseHTML(newRow)
-                    $(newRowHtml).insertBefore(rows.first())
-                    break
-                case "Regular":
-                    $('#mempool_regular_number').text(parseInt($('#mempool_regular_number').text()) + 1)
-                    addTxRow('mempool_transactions')
-                    break
-                case "Revoke":
-                    $('#mempool_revoke_number').text(parseInt($('#mempool_revoke_number').text()) + 1)
-                    addTxRow('mempool_revocations')
-                    break
-            }
-
-            if (window.location.pathname == "/"){
-                var rows = $('#mini-transactions .flex-table-row')
-                var newRowHtml = $.parseHTML(txRowHTMLFlexBox(tx))
-                rows.last().remove()
-                $(newRowHtml).insertBefore(rows.first())
-            }
-        })
-            setTimeElements()
-        });
-
-        ws.registerEvtHandler("getmempooltxsResp", function(evt) {
-            console.log("Get Mempool: ", evt)
-            var newTable = ''
-            var makeNewTable =function (tx) {
-                    var totalTxt = ""
-                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                        totalTxt += str.textContent
-                    })
-                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                    tx.hash + '">' + tx.hash + '</a></span></td>' +
-                    '<td class="mono fs15 text-right">' + totalTxt +'</td>' +
-                    '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) + '</td>'
-                }
-            var m = JSON.parse(evt)
-
-            m.tickets.forEach(makeNewTable)
-            $('#mempool_tickets tbody').html($.parseHTML(newTable))
-
-            newTable = ''
-            m.tx.forEach(makeNewTable)
-            $('#mempool_transactions tbody').html($.parseHTML(newTable))
-
-            newTable = ''
-            m.votes.forEach(function (tx) {
-                var rows = $('#mempool_votes tbody tr')
-                    var totalTxt = ""
-                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                        totalTxt += str.textContent
-                    })
-                    newTable += '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
-                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
-                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
-                        '<td class="mono fs15">' + tx.size + ' B</td>'  +
-                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
-
-            })
-            $('#mempool_votes tbody').html($.parseHTML(newTable))
-
-            if (m.num_revokes > 0) {
-                newTable = ''
-                m.votes.forEach(makeNewTable)
-                $('#mempool_revocations tbody').html($.parseHTML(newTable))
-            }
-
-            setTimeElements()
         });
 
         ws.registerEvtHandler("ping", function(evt) {
@@ -356,12 +246,11 @@
                     '<td>' + b.tickets + '</td>' +
                     '<td>' + b.revocations + '</td>' +
                     '<td>' + humanize.bytes(b.size) + '</td>' +
-                    '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
+                    '<td data-target="main.age"  data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
                     '<td>' + b.formatted_time + '</td>' +
                 '</tr>'
                 var newRowHtml = $.parseHTML(newRow)
                 $(newRowHtml).insertBefore(expTableRows.first())
-                setTimeElements()
             }
             var ex = newBlock.extra
             if ($("#bsubsidy_total").text() !== "") {
@@ -379,50 +268,12 @@
                 $("#pow-window-progess-bar").css({ width: (ex.reward_idx/ex.params.reward_window_size)*100 + "%" })
                 $("#pool_size").text(ex.pool_info.size)
                 $("#pool_value").html(humanize.decimalParts(ex.pool_info.value, true, 8))
-                $("#ticket_roi").html(parseFloat(ex.roi).toFixed(2))
+                $("#ticket_reward").html(parseFloat(ex.reward).toFixed(2))
                 $("#target_percent").html(parseFloat(ex.pool_info.percent_target).toFixed(2))
                 $("#pool_size_percentage").html(parseFloat(ex.pool_info.percent).toFixed(2))
             }
         };
         ws.registerEvtHandler("newblock", updateBlockData);
-
-        var updateMempool = function (event) {
-            console.log("Received mempool message", event);
-            var m = JSON.parse(event);
-
-            //mempool info
-            $('#mempool_ticket_number').text(m.num_tickets)
-            $('#mempool_vote_number').text(m.num_votes)
-            $('#mempool_regular_number').text(m.num_regular)
-            $('#mempool_revoke_number').text(m.num_revokes)
-            if (window.location.pathname == "/mempool") {
-                $('#best_block').text(m.block_height)
-                $('#best_block').attr('href', '/block/'+m.block_height)
-                $('#best_block_time').data('age', m.block_time)
-                $('#mempool_size').text(m.formatted_size)
-                ws.send("getmempooltxs", "")
-            }
-
-            if (window.location.pathname == "/") {
-                var newTable = ""
-                m.latest.forEach(function (tx) {
-                    var totalTxt = ""
-                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                        totalTxt += str.textContent
-                    })
-                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                    tx.hash + '">' + tx.hash + '</a></span></td>' +
-                    '<td class="mono fs15">' + tx.Type + '</td>'+
-                    '<td class="mono fs15">' + totalTxt +'</td>' +
-                    '<td class="mono fs15">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
-                })
-                $('#mini-transactions tbody').html(newTable)
-            }
-            setTimeElements()
-            updateAges()
-        };
-        ws.registerEvtHandler("mempool", updateMempool);
     }
     document.getElementById('search').onkeypress = function(e){
         if (!e) e = window.event;
@@ -482,6 +333,7 @@
 </script>
 
 <script src="/js/notify.min.js"></script>
+
 {{end}}
 
 {{define "footer"}}
@@ -500,26 +352,175 @@
     </div>
 </footer>
 <script data-turbolinks-eval="false">
-    var ages, hiddenAges;
-    function setTimeElements() {
-        ages = $('[data-age]');
+
+    // Keyboard Navigation
+    var targets;
+    var targetsLength;
+    var currentIndex = 0;
+    var jumpToIndexOnLoad;
+    var keyNavCookieName = 'dcrdataKeyNav';
+
+    function keyNavEnabled() {
+        return document.cookie.includes(keyNavCookieName)
     }
-    function updateAges() {
-        $.each(ages, function(i, age) {
-            var unixTime = $(age).data('age');
-            if (unixTime > 0) {
-                $(age).text(
-                    humanize.timeSince(unixTime)
-                )
-            }
+
+    function clearTargets() {
+        $(".keynav-target").each((i,el) => {
+            $(el).removeClass("keynav-target").removeClass("pulsate")
         })
     }
+
+    function enableKeyNav() {
+        setCookie(keyNavCookieName, 1, 525600)
+        Mousetrap.unpause()
+        $("#keynav-toggle .text").text("Disable Hot Keys")
+        keyNav()
+    }
+
+    function disableKeyNav () {
+        setCookie(keyNavCookieName, '', 0)
+        clearTargets()
+        $("#keynav-toggle .text").text("Enable Hot Keys")
+        Mousetrap.pause()
+    }
+
+    function toggleKeyNav() {
+        if (keyNavEnabled()) {
+            disableKeyNav()
+        }  else {
+            enableKeyNav()
+        }
+    }
+
+    function updateKeyNavTargets() {
+        if ($("#menuToggle input").prop('checked')) {
+            targets = $('#hamburger-menu a');
+        } else {
+            targets = $.merge($("a:not([data-keynav-skip])"),($('.top-search')));
+        }
+        targetsLength = targets.length;
+        clearTargets()
+        $(targets[currentIndex]).addClass("keynav-target").focus().blur() // refocuses keyboard context
+        if (pulsate) {
+            $(targets[currentIndex]).addClass("pulsate")
+        }
+    }
+
+
+    function keyNav(event, pulsate, preserveIndex) {
+        if ($("#menuToggle input").prop('checked')) {
+            targets = $('#hamburger-menu a');
+            currentIndex = 0;
+        } else {
+            targets = $.merge($("a:not([data-keynav-skip])"),($('.top-search')));
+            if (jumpToIndexOnLoad > 0) {
+                currentIndex = jumpToIndexOnLoad;
+                jumpToIndexOnLoad = undefined;
+            } else if (!preserveIndex) {
+                var priorityLink = $("[data-keynav-priority]")[0]
+                var i = $.inArray(priorityLink, targets)
+                currentIndex = i > 0 ? i : 0;
+            }
+        }
+        targetsLength = targets.length;
+        clearTargets()
+        $(targets[currentIndex]).addClass("keynav-target").focus().blur() // refocuses keyboard context
+        if (pulsate) {
+            $(targets[currentIndex]).addClass("pulsate")
+        }
+    }
+
+    Mousetrap.bind(['left','['], function(e) {
+        clearTargets()
+        currentIndex--
+        if (currentIndex < 0) {
+            currentIndex = targetsLength-1
+        }
+        $(targets[currentIndex]).addClass("keynav-target")
+    });
+
+    Mousetrap.bind(['right',']'], function(e) {
+        clearTargets()
+        currentIndex++
+        if (currentIndex >= targetsLength) {
+            currentIndex = 0
+        }
+        $(targets[currentIndex]).addClass("keynav-target")
+    });
+
+    Mousetrap.bind('enter', function(e) {
+        var currentTarget = $(targets[currentIndex])
+        if (currentTarget.is( "input")) {
+            currentTarget.focus()
+            e.stopPropagation()
+            e.preventDefault()
+            return
+        }
+        if (currentTarget[0].id == 'keynav-toggle') {
+            toggleKeyNav()
+            return
+        }
+        var location = currentTarget.attr('href');
+        if (location !== undefined) {
+            var preserveKeyNavIndex = currentTarget.data("preserveKeynavIndex")
+            if (preserveKeyNavIndex) {
+                jumpToIndexOnLoad = currentIndex
+            }
+            currentTarget.addClass("activated")
+            Turbolinks.visit(location)
+            return
+        }
+    });
+
+    Mousetrap.bind('\\', function(e) {
+        e.preventDefault();
+        var $topSearch = $(".top-search")
+        if ($topSearch.hasClass("keynav-target")) {
+            $topSearch.blur()
+            clearTargets()
+            keyNav(e, true, 0)
+        } else {
+            clearTargets()
+            $topSearch.addClass("keynav-target").focus()
+        }
+    });
+
+    Mousetrap.bind('=', function(e) {
+        toggleMenu(e)
+        keyNav(e, true)
+    });
+
+    Mousetrap.bind('q', function(e) {
+        clearTargets()
+    });
+
+    $("#keynav-toggle .text").text(keyNavEnabled() ? "Disable Hot Keys":"Enable Hot Keys" )
     document.addEventListener("turbolinks:load", function(e){
-        setTimeElements()
-        updateAges()
         closeMenu(e)
+        if (keyNavEnabled()) {
+            $(".top-search").removeAttr("autofocus")
+            keyNav(e, true)
+        } else {
+            $(".top-search").focus()
+        }
     })
-    setInterval(updateAges, 10000);
+
+    $("#keynav-toggle").on("click", function(e) {
+        if (e.offsetX == 0) {
+            // prevent duplicate click handling when turbolinks re-attaches handlers
+            // TODO find a more semantic way to deal with this
+            return
+        }
+        toggleKeyNav()
+    })
+
+    $("#menuToggle input").change(function(e) {
+        var menuIsOpen = $(e.currentTarget).prop("checked")
+        if (keyNavEnabled()) {
+            keyNav(e, true)
+        }
+    });
+
 </script>
 <script>
     $('.scriptDataStar').on('click', function(){
@@ -531,6 +532,13 @@
         }
     })
 </script>
+
+<script data-turbolinks-eval="false">
+const app = Stimulus.Application.start()
+</script>
+<script src="/js/controllers/main.js"></script>
+<script src="/js/controllers/mempool.js"></script>
+
 {{end}}
 
 {{define "decimalParts"}}<span class="int">{{ index . 0 }}</span><span class="dot">.</span><span class="decimal">{{ index . 1 }}<span class="trailing-zeroes">{{ index . 2 }}</span></span>{{end}}

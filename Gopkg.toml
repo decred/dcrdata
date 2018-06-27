@@ -27,11 +27,8 @@
 
 [[constraint]]
   name = "github.com/asdine/storm"
-  version = "2.0.2"
+  version = "~2.1.0"
 
-[[constraint]]
-  branch = "master"
-  name = "github.com/btcsuite/btclog"
 
 [[constraint]]
   branch = "master"
@@ -60,6 +57,10 @@
 [[constraint]]
   name = "github.com/go-chi/chi"
   version = "3.3.2"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/googollee/go-socket.io"
 
 [[constraint]]
   name = "github.com/go-chi/docgen"
@@ -96,6 +97,11 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/net"
+
+  
+[[constraint]]
+  name = "github.com/decred/slog"
+  version = "1.0.0"
 
 [prune]
   go-tests = true

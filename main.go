@@ -37,6 +37,7 @@ import (
 	"github.com/decred/dcrdata/txhelpers"
 	"github.com/decred/dcrdata/version"
 	"github.com/go-chi/chi"
+	"github.com/google/gops/agent"
 )
 
 // mainCore does all the work. Deferred functions do not run after os.Exit(),
@@ -64,6 +65,14 @@ func mainCore() error {
 		defer pprof.StopCPUProfile()
 	}
 
+	if cfg.UseGops {
+		// Start gops diagnostic agent, without shutdown cleanup
+		if err = agent.Listen(agent.Options{}); err != nil {
+			return err
+		}
+		defer agent.Close()
+	}
+
 	// Start with version info
 	ver := &version.Ver
 	log.Infof(version.AppName+" version %s", ver)
@@ -79,7 +88,7 @@ func mainCore() error {
 	// Connect to dcrd RPC server using websockets
 
 	// Set up the notification handler to deliver blocks through a channel.
-	notify.MakeNtfnChans(cfg.MonitorMempool)
+	notify.MakeNtfnChans(cfg.MonitorMempool, usePG)
 
 	// Daemon client connection
 	ntfnHandlers, collectionQueue := notify.MakeNodeNtfnHandlers()
@@ -355,6 +364,17 @@ func mainCore() error {
 	}
 	// now create and start the monitors that respond to the notification chans
 
+	// Create the insight socket server and add it to block savers if in pg mode
+	var insightSocketServer *insight.SocketServer
+	if usePG {
+		insightSocketServer, err = insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
+		if err == nil {
+			blockDataSavers = append(blockDataSavers, insightSocketServer)
+		} else {
+			return fmt.Errorf("Could not create Insight socket.io server: %v", err)
+		}
+	}
+
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
 
@@ -493,9 +513,13 @@ func mainCore() error {
 
 	if usePG {
 		chainDBRPC, _ := dcrpg.NewChainDBRPC(auxDB, dcrdClient)
-		insightApp := insight.NewInsightContext(dcrdClient, chainDBRPC, cfg.IndentJSON)
+		insightApp := insight.NewInsightContext(dcrdClient, chainDBRPC, activeChain, &baseDB, cfg.IndentJSON)
 		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
-		webMux.Mount("/insight-api", insightMux.Mux)
+		webMux.Mount("/insight/api", insightMux.Mux)
+
+		if insightSocketServer != nil {
+			webMux.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
+		}
 	}
 
 	// HTTP profiler

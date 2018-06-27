@@ -1,12 +1,11 @@
 {{define "block"}}
 <!DOCTYPE html>
-{{with .Data}}
 <html lang="en">
-{{template "html-head" printf "Decred Block %d" .Height}}
+{{template "html-head" printf "Decred Block %d" .Data.Height}}
 <body>
-    {{template "navbar"}}
-    <div class="container">
-
+    {{ template "navbar" . }}
+    <div class="container" data-controller="main">
+    {{with .Data}}
         <div class="row justify-content-between">
             <div class="col-md-7 col-sm-6">
                 <h4 class="mb-2">
@@ -34,25 +33,25 @@
                     <tr>
                         <td class="text-right pr-2 lh1rem vam nowrap xs-w117">BLOCK HASH</td>
                         <td>
-                            <span class="hash break-word  lh1rem">{{.Hash}}</span>
+                            <span class="hash break-word lh1rem">{{.Hash}}</span>
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/block/{{.PreviousHash}}">PREV BLOCK</a></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a data-keynav-priority href="/block/{{.PreviousHash}}">PREV BLOCK</a></td>
                         <td>
-                            <span class="hash break-word lh1rem"  href="/block/{{.PreviousHash}}">{{.PreviousHash}}</span>
+                            <span class="hash break-word lh1rem">{{.PreviousHash}}</span>
                         </td>
                     </tr>
                     {{if .NextHash}}
                     <tr>
-                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/block/{{.NextHash}}">NEXT BLOCK</a></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a data-preserve-keynav-index="true" href="/block/{{.NextHash}}">NEXT BLOCK</a></td>
                         <td>
                             <span class="hash break-word lh1rem">{{.NextHash}}</span>
                         </td>
                     </tr>
                     {{else}}
                     <tr>
-                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/mempool">NEXT BLOCK<a/></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/mempool">NEXT BLOCK</a></td>
                         <td>
                             <span class="lh1rem">mempool</span>
                         </td>
@@ -94,7 +93,7 @@
                     <tr>
                         <td class="text-right lh1rem pr-2 xs-w117">TIME</td>
                         <td class="lh1rem" style="min-width: 178px;">
-                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-age="{{.BlockTime}}"></span> ago)</span>
+                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.BlockTime}}"></span> ago)</span>
                         </td>
                     </tr>
                     <tr>
@@ -102,27 +101,27 @@
                         <td class="mono" title="{{intComma .Size}} Bytes">{{.FormattedBytes}}</td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117"><a href="#votes">VOTES</a></td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117"><a href="#votes" data-keynav-skip>VOTES</a></td>
                         <td class="lh1rem">
                             {{.Voters}}
                         </td>
                     </tr>
                     <tr>
                         <td class="text-right pr-2 lh1rem p03rem0 xs-w117">
-                            {{if gt .FreshStake  0 }}<a href="#tickets">TICKETS</a>{{else}}TICKETS{{end}}
+                            {{if gt .FreshStake  0 }}<a href="#tickets" data-keynav-skip>TICKETS</a>{{else}}TICKETS{{end}}
                         </td>
                         <td class="lh1rem">
                             {{.FreshStake}}
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Revocations  0 }}<a href="#revocations">REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Revocations  0 }}<a href="#revocations" data-keynav-skip>REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
                         <td class="lh1rem">
                             {{.Revocations}}
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Transactions  0 }}<a href="#transactions">TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Transactions  0 }}<a href="#transactions" data-keynav-skip>TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
                         <td class="lh1rem">
                             {{.Transactions}}
                         </td>
@@ -370,11 +369,11 @@
                     </table>
                 {{end}}
             </div>
-        </div>
-
+        </div> 
+    {{end}}
     </div>
 </div>
-{{end}}
+
 {{ template "footer" . }}
 </body>
 </html>

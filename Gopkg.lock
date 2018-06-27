@@ -3,6 +3,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/aead/siphash"
+  packages = ["."]
+  revision = "e404fcfc888570cadd1610538e2dbc89f66af814"
+
+[[projects]]
+  branch = "master"
   name = "github.com/agl/ed25519"
   packages = [
     ".",
@@ -20,14 +26,8 @@
     "internal",
     "q"
   ]
-  revision = "68fc73b635f890fe7ba2f3b15ce80c85b28a744f"
-  version = "v2.0.2"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/btcsuite/btclog"
-  packages = ["."]
-  revision = "84c8d2346e9fc8c7b947e243b9c24e6df9fd206a"
+  revision = "bda68dab90fc908ee5dbccb36400edf4f54972d6"
+  version = "v2.1.1"
 
 [[projects]]
   branch = "master"
@@ -68,15 +68,15 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/btcsuite/websocket"
-  packages = ["."]
-  revision = "31079b6807923eb23992c421b114992b95131b55"
-
-[[projects]]
-  branch = "master"
   name = "github.com/chappjc/logrus-prefix"
   packages = ["."]
   revision = "3a1d64819adb569fb9952144dd90c0abe92e2822"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/chappjc/trylock"
+  packages = ["."]
+  revision = "9ca31be23b889c622a0b0d3622bb4d7e57ef4800"
 
 [[projects]]
   name = "github.com/coreos/bbolt"
@@ -91,16 +91,16 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/dchest/blake256"
   packages = ["."]
   revision = "dee3fe6eb0e98dc774a94fc231f85baf7c29d360"
+  version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/decred/base58"
   packages = ["."]
   revision = "56c501706f00d9e1cfacee19a27117e12da24734"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -124,31 +124,56 @@
     "dcrec/secp256k1/schnorr",
     "dcrjson",
     "dcrutil",
+    "gcs",
+    "gcs/blockcf",
     "hdkeychain",
     "rpcclient",
     "txscript",
     "wire"
   ]
-  revision = "8deac318d025dfcba21cae6eb4a16bfbe9513d9d"
+  revision = "ca7eeee6af72d69a73fe339b453c1ca20d211d04"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrwallet"
   packages = [
-    "apperrors",
+    "errors",
     "internal/zero",
     "netparams",
-    "snacl",
-    "wallet/udb",
-    "walletdb"
+    "wallet/internal/snacl",
+    "wallet/internal/walletdb",
+    "wallet/udb"
   ]
-  revision = "87b1f9a230dfa916a4501c2360e741081ca035a0"
+  revision = "69603e2d6d62eefe34f94dc245fc8f8f9180a57c"
+
+[[projects]]
+  name = "github.com/decred/slog"
+  packages = ["."]
+  revision = "fbd821ef791ba2b8ae945f5d44f4e49396d230c5"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/didip/tollbooth"
+  packages = [
+    ".",
+    "errors",
+    "libstring",
+    "limiter"
+  ]
+  revision = "c95eaa3ddc98f635a91e218b48727fb2e06613ea"
+  version = "v4.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/didip/tollbooth_chi"
+  packages = ["."]
+  revision = "6ab5f3083f3d925e1944d58cdaebf43bbbff9238"
 
 [[projects]]
   branch = "master"
   name = "github.com/dustin/go-humanize"
   packages = ["."]
-  revision = "bb3d318650d48840a39aa21a027c6630e198e626"
+  revision = "02af3965c54e8cacf948b97fef38925c4120652c"
 
 [[projects]]
   name = "github.com/go-chi/chi"
@@ -166,10 +191,51 @@
   version = "v1.0.2"
 
 [[projects]]
+  name = "github.com/google/gops"
+  packages = [
+    "agent",
+    "internal",
+    "signal"
+  ]
+  revision = "0e2aa5d22efec1603f7ded7097c500e9a36a13b3"
+  version = "v0.3.3"
+
+[[projects]]
   branch = "master"
+  name = "github.com/googollee/go-engine.io"
+  packages = [
+    ".",
+    "message",
+    "parser",
+    "polling",
+    "transport",
+    "websocket"
+  ]
+  revision = "3c3145340e676971209507021a435520c2700d92"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/googollee/go-socket.io"
+  packages = ["."]
+  revision = "f12da5711bc66c18a0724987fff7f4f3db35c70f"
+
+[[projects]]
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
+  version = "v1.2.0"
+
+[[projects]]
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kardianos/osext"
+  packages = ["."]
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
 
 [[projects]]
   branch = "master"
@@ -178,7 +244,7 @@
     ".",
     "oid"
   ]
-  revision = "88edab0803230a3898347e77b474f8c1820a1f20"
+  revision = "90697d60dd844d5ef6ff15135d0203f65d2f53b8"
 
 [[projects]]
   name = "github.com/mattn/go-colorable"
@@ -195,8 +261,8 @@
 [[projects]]
   name = "github.com/mattn/go-sqlite3"
   packages = ["."]
-  revision = "6c771bb9887719704b210e87e934f08be014bdb1"
-  version = "v1.6.0"
+  revision = "25ecb14adfc7543176f7d85291ec7dba82c6f7e4"
+  version = "v1.9.0"
 
 [[projects]]
   branch = "master"
@@ -211,10 +277,16 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/patrickmn/go-cache"
+  packages = ["."]
+  revision = "a3647f8e31d79543b2d0f0ae2fe5c379d72cedc0"
+  version = "v2.1.0"
+
+[[projects]]
   name = "github.com/rs/cors"
   packages = ["."]
-  revision = "feef513b9575b32f84bafa580aad89b011259019"
-  version = "v1.3.0"
+  revision = "ca016a06a5753f8ba03029c0aa5e54afb1bf713f"
+  version = "v1.4.0"
 
 [[projects]]
   branch = "master"
@@ -225,13 +297,14 @@
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
-  version = "v1.0.4"
+  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
+  version = "v1.0.5"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
+    "internal/subtle",
     "nacl/secretbox",
     "pbkdf2",
     "poly1305",
@@ -240,13 +313,16 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "c7dcf104e3a7a1417abc0230cb0d5240d764159d"
+  revision = "37a17fe027db43f76fd88b056ddf588563fc8722"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["websocket"]
-  revision = "d0aafc73d5cdc42264b0af071c261abac580695e"
+  packages = [
+    "context",
+    "websocket"
+  ]
+  revision = "db08ff08e8622530d9ed3a0e8ac279f6d4c02196"
 
 [[projects]]
   branch = "master"
@@ -255,11 +331,17 @@
     "unix",
     "windows"
   ]
-  revision = "7dca6fe1f43775aa6d1334576870ff63f978f539"
+  revision = "56ede360ec1c541828fb88741b3f1049406d28f5"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/time"
+  packages = ["rate"]
+  revision = "fbb02b2291d28baffd63558aa44b4b56f178d650"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2bfe6c04715a8ce07c4c67aeaa959e5781c1fd325c9add797b1a3cf9cb5036ed"
+  inputs-digest = "b37d8f364544946cf0bbec415993d542565aafc182dedfed17fb2d51183f0122"
   solver-name = "gps-cdcl"
   solver-version = 1

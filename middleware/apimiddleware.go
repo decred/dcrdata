@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -25,19 +26,20 @@ type contextKey int
 const (
 	ctxAPIDocs contextKey = iota
 	ctxAPIStatus
-	ctxAddress
+	CtxAddress
 	ctxBlockIndex0
 	ctxBlockIndex
 	ctxBlockStep
 	ctxBlockHash
 	ctxTxHash
+	ctxTxns
 	ctxTxInOutIndex
 	ctxSearch
 	ctxN
 	ctxCount
 	ctxOffset
-	ctxBlockDate
-	ctxLimit
+	CtxBlockDate
+	CtxLimit
 	ctxGetStatus
 	ctxStakeVersionLatest
 	ctxRawHexTx
@@ -129,6 +131,60 @@ func GetTxIDCtx(r *http.Request) string {
 	return hash
 }
 
+// GetTxnsCtx retrieves the ctxTxns data from the request context. If not set,
+// the return value is an empty string slice.
+func GetTxnsCtx(r *http.Request) []string {
+	hashes, ok := r.Context().Value(ctxTxns).([]string)
+	if !ok {
+		apiLog.Trace("ctxTxns not set")
+		return nil
+	}
+	return hashes
+}
+
+// PostTxnsCtx extract transaction IDs from the POST body
+func PostTxnsCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		req := apitypes.Txns{}
+		body, err := ioutil.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			apiLog.Debugf("No/invalid txns: %v", err)
+			http.Error(w, "error reading JSON message", http.StatusBadRequest)
+			return
+		}
+		err = json.Unmarshal(body, &req)
+		if err != nil {
+			apiLog.Debugf("failed to unmarshal JSON request to apitypes.Txns: %v", err)
+			http.Error(w, "failed to unmarshal JSON request", http.StatusBadRequest)
+			return
+		}
+		// Successful extraction of body JSON
+		ctx := context.WithValue(r.Context(), ctxTxns, req.Transactions)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// ValidateTxnsPostCtx will confirm Post content length is valid.
+func ValidateTxnsPostCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentLengthString := r.Header.Get("Content-Length")
+		contentLength, err := strconv.Atoi(contentLengthString)
+		if err != nil {
+			http.Error(w, "Unable to parse Content-Length", http.StatusBadRequest)
+			return
+		}
+		// Broadcast Tx has the largest possible body.
+		maxPayload := 1 << 22
+		if contentLength > maxPayload {
+			http.Error(w, fmt.Sprintf("Maximum Content-Length is %d", maxPayload), http.StatusBadRequest)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // GetBlockHashCtx retrieves the ctxBlockHash data from the request context. If
 // not set, the return value is an empty string.
 func GetBlockHashCtx(r *http.Request) string {
@@ -142,7 +198,7 @@ func GetBlockHashCtx(r *http.Request) string {
 // GetAddressCtx retrieves the ctxAddress data from the request context. If not
 // set, the return value is an empty string.
 func GetAddressCtx(r *http.Request) string {
-	address, ok := r.Context().Value(ctxAddress).(string)
+	address, ok := r.Context().Value(CtxAddress).(string)
 	if !ok {
 		apiLog.Trace("address not set")
 		return ""
@@ -184,27 +240,10 @@ func GetStatusInfoCtx(r *http.Request) string {
 	return statusInfo
 }
 
-// GetLimitCtx retrieves the ctxLimit data from the request context. If not set,
-// the return value is 1.
-func GetLimitCtx(r *http.Request) int {
-	limit, ok := r.Context().Value(ctxLimit).(string)
-	fmt.Println("limit ", limit)
-	if !ok {
-		fmt.Println(ok)
-		apiLog.Trace("limit not set")
-		return 1
-	}
-	intValue, err := strconv.Atoi(limit)
-	if err != nil {
-		return 1
-	}
-	return intValue
-}
-
 // GetBlockDateCtx retrieves the ctxBlockDate data from the request context. If
 // not set, the return value is an empty string.
 func GetBlockDateCtx(r *http.Request) string {
-	blockDate, _ := r.Context().Value(ctxBlockDate).(string)
+	blockDate, _ := r.Context().Value(CtxBlockDate).(string)
 	return blockDate
 }
 
@@ -372,7 +411,7 @@ func TransactionIOIndexCtx(next http.Handler) http.Handler {
 func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
-		ctx := context.WithValue(r.Context(), ctxAddress, address)
+		ctx := context.WithValue(r.Context(), CtxAddress, address)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -416,7 +455,7 @@ func TransactionsCtx(next http.Handler) http.Handler {
 
 		address := r.FormValue("address")
 		if address != "" {
-			ctx := context.WithValue(r.Context(), ctxAddress, address)
+			ctx := context.WithValue(r.Context(), CtxAddress, address)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 
@@ -458,23 +497,12 @@ func PaginationCtx(next http.Handler) http.Handler {
 	})
 }
 
-// RawTransactionCtx returns a http.HandlerFunc that embeds the value at the url
-// part {rawtx} into the request context.
-func RawTransactionCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rawHexTx := r.PostFormValue("rawtx")
-		// txid := chi.URLParam(r, "rawtx")
-		ctx := context.WithValue(r.Context(), ctxRawHexTx, rawHexTx)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 // AddressPostCtx returns a http.HandlerFunc that embeds the {addrs} value in
 // the post request into the request context.
 func AddressPostCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := r.PostFormValue("addrs")
-		ctx := context.WithValue(r.Context(), ctxAddress, address)
+		ctx := context.WithValue(r.Context(), CtxAddress, address)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -490,8 +518,8 @@ func BlockDateQueryCtx(next http.Handler) http.Handler {
 			return
 		}
 		fmt.Println("limit in block query ", limit)
-		ctx := context.WithValue(r.Context(), ctxBlockDate, blockDate)
-		ctx = context.WithValue(ctx, ctxLimit, limit)
+		ctx := context.WithValue(r.Context(), CtxBlockDate, blockDate)
+		ctx = context.WithValue(ctx, CtxLimit, limit)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

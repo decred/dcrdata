@@ -13,15 +13,18 @@ set -ex
 # gometalinter (github.com/alecthomas/gometalinter) is used to run each each
 # static checker.
 
+GOVERSION=${1:-1.10}
+REPO=dcrdata
+DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
+
 testrepo () {
   TMPFILE=$(mktemp)
 
   # Check lockfile
-  cp Gopkg.lock $TMPFILE && dep ensure && diff Gopkg.lock $TMPFILE >/dev/null
-  if [ $? != 0 ]; then
-    echo 'lockfile must be updated with dep ensure'
-    exit 1
-  fi
+  dep ensure -no-vendor -dry-run
+
+  # All good, so run for real
+  dep ensure
 
   # Check linters
   gometalinter --vendor --disable-all --deadline=10m \
@@ -58,5 +61,24 @@ testrepo () {
   echo "Tests completed successfully!"
 }
 
-GOVERSION=$(go version | awk '{print $3}' | tr -d 'go' | cut -f1,2 -d.)
-testrepo
+if [ $GOVERSION == "local" ]; then
+    testrepo
+    exit
+fi
+
+docker pull decred/$DOCKER_IMAGE_TAG
+if [ $? != 0 ]; then
+        echo 'docker pull failed'
+        exit 1
+fi
+
+docker run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
+  rsync -ra --include-from=<(git --git-dir=/src/.git ls-files) \
+  --filter=':- .gitignore' \
+  /src/ /go/src/github.com/decred/$REPO/ && \
+  cd github.com/decred/$REPO/ && \
+  bash run_tests.sh local"
+if [ $? != 0 ]; then
+        echo 'docker run failed'
+        exit 1
+fi

@@ -37,7 +37,8 @@ const (
 
 	UpdateLastBlockValid = `UPDATE blocks SET is_valid = $2 WHERE id = $1;`
 
-	SelectBlockByTimeRangeSQL = `select hash, height, size, time, numtx from blocks where time between $1 and $2 ORDER BY time LIMIT $3;`
+	SelectBlockByTimeRangeSQL        = `select hash, height, size, time, numtx from blocks where time between $1 and $2 ORDER BY time DESC LIMIT $3;`
+	SelectBlockByTimeRangeSQLNoLimit = `select hash, height, size, time, numtx from blocks where time between $1 and $2 ORDER BY time DESC;`
 
 	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (  
 		id SERIAL PRIMARY KEY,
