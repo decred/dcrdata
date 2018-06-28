@@ -48,8 +48,8 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan struct{},
 	updateAllAddresses, updateAllVotes, newIndexes bool) (int64, error) {
 	// Note that we are doing a batch blockchain sync
-	db.inBatchSync = true
-	defer func() { db.inBatchSync = false }()
+	db.InBatchSync = true
+	defer func() { db.InBatchSync = false }()
 
 	// Get chain servers's best block
 	nodeHeight, err := client.NodeHeight()
@@ -176,7 +176,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// If this is likely to be the last call to StoreBlock, allow
 		// possibly-repetative code, such as the dev balance update.
 		if ib == nodeHeight {
-			db.inBatchSync = false
+			db.InBatchSync = false
 		}
 
 		// Store data from this block in the database
