@@ -62,8 +62,12 @@
                 {{end}}
                 {{if eq .Mature "True"}}
                     <tr><td class="text-right pr-2 h1rem p03rem0">MATURE</td><td>{{.Mature}}</td></tr>
+                {{else}}
+                {{if and (eq .Confirmations 0) (or (eq .Type "Ticket") (eq .Type "Vote")) }}
+                    <tr><td class="text-right pr-2 h1rem p03rem0">MATURE</td><td>N/A</td></tr>
                 {{end}}
-                {{if and (eq .Mature "False") (eq .Type "Ticket")}}
+                {{end}}
+                {{if and (gt .Confirmations 0) (and (eq .Mature "False") (eq .Type "Ticket"))}}
                     <tr>
                         <td class="text-right pr-2 h1rem p03rem0">MATURITY</td>
                         <td>
