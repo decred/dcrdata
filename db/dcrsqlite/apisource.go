@@ -1151,7 +1151,8 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 
 	}
 	if tx.Type == "Vote" || tx.Type == "Ticket" {
-		if db.GetBestBlockHeight() >= (int64(db.params.TicketMaturity) + tx.BlockHeight) {
+		if tx.Confirmations > 0 && db.GetBestBlockHeight() >=
+			(int64(db.params.TicketMaturity)+tx.BlockHeight) {
 			tx.Mature = "True"
 		} else {
 			tx.Mature = "False"
