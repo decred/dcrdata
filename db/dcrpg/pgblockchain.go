@@ -77,7 +77,7 @@ type ChainDB struct {
 	stakeDB            *stakedb.StakeDatabase
 	unspentTicketCache *TicketTxnIDGetter
 	DevFundBalance     *DevFundBalance
-	inBatchSync        bool
+	InBatchSync        bool
 }
 
 // ChainDBRPC provides an interface for storing and manipulating extracted and
@@ -1210,7 +1210,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		}
 	}
 
-	if !pgb.inBatchSync {
+	if !pgb.InBatchSync {
 		pgb.addressCounts.Lock()
 		pgb.addressCounts.validHeight = int64(msgBlock.Header.Height)
 		pgb.addressCounts.balance = map[string]explorer.AddressBalance{}

@@ -236,6 +236,10 @@ func mainCore() error {
 		}
 	}
 
+	// Note that we are doing a batch blockchain sync
+	db.InBatchSync = true
+	defer func() { db.InBatchSync = false }()
+
 	var totalTxs, totalVins, totalVouts int64
 	var lastTxs, lastVins, lastVouts int64
 	tickTime := 10 * time.Second
