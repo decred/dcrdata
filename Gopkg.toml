@@ -29,7 +29,6 @@
   name = "github.com/asdine/storm"
   version = "~2.1.0"
 
-
 [[constraint]]
   branch = "master"
   name = "github.com/btcsuite/go-flags"
@@ -106,3 +105,7 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "github.com/dgraph-io/badger"
+  version = "1.5.0"

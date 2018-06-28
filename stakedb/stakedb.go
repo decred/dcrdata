@@ -110,22 +110,23 @@ const (
 	dbType = "ffldb"
 	// DefaultStakeDbName is the default name of the stakedb database folder
 	DefaultStakeDbName = "stakenodes"
-	// DefaultTicketPoolDbName is the default name of the ticket pool database
+	// DefaultTicketPoolDbFolder is the default name of the ticket pool database
+	DefaultTicketPoolDbFolder = "ticket_pool.bdgr"
+	// DefaultTicketPoolDbName is the default name of the old storm database
 	DefaultTicketPoolDbName = "ticket_pool.db"
 )
 
 // NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
 // ffldb-backed stake database, and loads all live tickets into a cache.
 func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
-	dbFolder string) (*StakeDatabase, error) {
+	dataDir string) (*StakeDatabase, error) {
 	// Create DB folder
-	err := os.MkdirAll(dbFolder, 0700)
+	err := os.MkdirAll(dataDir, 0700)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create DB folder: %v", err)
 	}
 	log.Infof("Loading ticket pool DB. This may take a minute...")
-	ticketPoolDBPath := filepath.Join(dbFolder, DefaultTicketPoolDbName)
-	poolDB, err := NewTicketPool(ticketPoolDBPath)
+	poolDB, err := NewTicketPool(dataDir, DefaultTicketPoolDbFolder)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ticket pool DB: %v", err)
 	}
@@ -143,7 +144,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	// genesis. Hence it will never be connected, how TPI is usually cached.
 	sDB.poolInfo.Set(*params.GenesisHash, &apitypes.TicketPoolInfo{})
 
-	stakeDBPath := filepath.Join(dbFolder, DefaultStakeDbName)
+	stakeDBPath := filepath.Join(dataDir, DefaultStakeDbName)
 	if err = sDB.Open(stakeDBPath); err != nil {
 		return nil, err
 	}
@@ -152,6 +153,11 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	// to recover.
 	heightStakeDB, heightTicketPool := int64(sDB.Height()), sDB.PoolDB.Tip()
 	if heightStakeDB != heightTicketPool {
+		if heightStakeDB-heightTicketPool > 16 {
+			log.Warnf("The ticket DB format has changed in v2.1. Did you upgrade?")
+			return nil, fmt.Errorf("Remove %s and start dcrdata again.",
+				filepath.Join(dataDir, DefaultTicketPoolDbFolder))
+		}
 		// Roll stake DB back to the height of the ticket pool DB
 		for heightStakeDB > heightTicketPool {
 			if err = sDB.DisconnectBlock(); err != nil {

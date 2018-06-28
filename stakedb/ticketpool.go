@@ -5,25 +5,31 @@
 package stakedb
 
 import (
+	"bytes"
+	"encoding/binary"
+	"encoding/gob"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/dgraph-io/badger"
 )
 
 // TicketPool contains the live ticket pool diffs (tickets in/out) between
 // adjacent block heights in a chain. Diffs are applied in sequence by inserting
 // and removing ticket hashes from a pool, represented as a map. A []PoolDiff
 // stores these diffs, with a cursor pointing to the next unapplied diff. An
-// on-disk database of diffs is maintained using the storm wrapper for boltdb.
+// on-disk database of diffs is maintained using the badger database.
 type TicketPool struct {
 	*sync.RWMutex
 	cursor int64
 	tip    int64
 	diffs  []PoolDiff
 	pool   map[chainhash.Hash]struct{}
-	diffDB *storm.DB
+	diffDB *badger.DB
 }
 
 // PoolDiff represents the tickets going in and out of the live ticket pool from
@@ -33,8 +39,8 @@ type PoolDiff struct {
 	Out []chainhash.Hash
 }
 
-// PoolDiffDBItem is the type in the storm live ticket DB. The primary key (id)
-// is Height.
+// PoolDiffDBItem is the type in the live ticket DB. The primary key (id) is
+// Height.
 type PoolDiffDBItem struct {
 	Height   int64 `storm:"id"`
 	PoolDiff `storm:"inline"`
@@ -42,18 +48,40 @@ type PoolDiffDBItem struct {
 
 // NewTicketPool constructs a TicketPool by opening the persistent diff db,
 // loading all known diffs, initializing the TicketPool values.
-func NewTicketPool(dbFile string) (*TicketPool, error) {
+func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 	// Open ticket pool diffs database
-	db, err := storm.Open(dbFile)
+	badgerDbPath := filepath.Join(dataDir, dbSubDir)
+	opts := badger.DefaultOptions
+	opts.Dir = badgerDbPath
+	opts.ValueDir = badgerDbPath
+	db, err := badger.Open(opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed storm.Open: %v", err)
+		return nil, fmt.Errorf("failed badger.Open: %v", err)
+	}
+
+	// Attempt migration from storm to badger if badger was empty
+	TableInfo := db.Tables()
+	oldDBPath := filepath.Join(dataDir, DefaultTicketPoolDbName)
+	if len(TableInfo) == 0 {
+		migrated, err := MigrateFromStorm(oldDBPath, db)
+		if err != nil {
+			return nil, fmt.Errorf("migration from storm failed: %v", err)
+		}
+		if migrated {
+			log.Info("Successfully migrated ticket pool db from storm to badger DB.")
+		}
+	}
+
+	if _, err = os.Stat(oldDBPath); err == nil {
+		log.Infof("You may delete the old ticket pool DB file (%s).", oldDBPath)
 	}
 
 	// Load all diffs
+	log.Infof("Loading all ticket pool diffs...")
 	var poolDiffs []PoolDiffDBItem
-	err = db.AllByIndex("Height", &poolDiffs)
+	poolDiffs, err = LoadAllPoolDiffs(db)
 	if err != nil {
-		return nil, fmt.Errorf("failed (*storm.DB).AllByIndex: %v", err)
+		return nil, fmt.Errorf("failed LoadAllPoolDiffs: %v", err)
 	}
 	diffs := make([]PoolDiff, len(poolDiffs))
 	for i := range poolDiffs {
@@ -64,10 +92,108 @@ func NewTicketPool(dbFile string) (*TicketPool, error) {
 	return &TicketPool{
 		RWMutex: new(sync.RWMutex),
 		pool:    make(map[chainhash.Hash]struct{}),
-		diffs:   diffs,             // make([]PoolDiff, 0, 100000),
+		diffs:   diffs,             // make([]PoolDiff, 0, 100000)
 		tip:     int64(len(diffs)), // number of blocks connected over genesis
 		diffDB:  db,
 	}, nil
+}
+
+// MigrateFromStorm attemps to load the storm DB specified by the given file
+// name, and migrate all ticket pool diffs to the badger db.
+func MigrateFromStorm(stormDBFile string, db *badger.DB) (bool, error) {
+	// Check for the storm DB file
+	finfo, err := os.Stat(stormDBFile)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if finfo.Size() == 0 {
+		return false, nil
+	}
+
+	// Open the storm DB file
+	dbOld, err := storm.Open(stormDBFile)
+	if err != nil {
+		return false, fmt.Errorf("failed storm.Open: %v", err)
+	}
+	defer dbOld.Close()
+
+	// Attempt to load the pool diffs for block 1
+	var blockOneDiffs PoolDiffDBItem
+	err = dbOld.One("Height", 1, &blockOneDiffs)
+	// If bucket or element with id 1 does not exist, not an error
+	if err == storm.ErrNotFound {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve block one pool diff "+
+			"(delete storm db file and try again): %v", err)
+	}
+
+	log.Info("Found storm ticket pool DB. Attempting migration to badger.")
+
+	// Load all diffs from storm
+	log.Info("Loading all items from storm db...")
+	var poolDiffsItems []PoolDiffDBItem
+	err = dbOld.AllByIndex("Height", &poolDiffsItems)
+	if err != nil {
+		return false, fmt.Errorf("failed (*storm.DB).AllByIndex: %v", err)
+	}
+
+	poolDiffs := make([]*PoolDiff, 0, len(poolDiffsItems))
+	poolHeights := make([]int64, len(poolDiffsItems))
+	for i := range poolDiffsItems {
+		poolHeights[i] = poolDiffsItems[i].Height
+		poolDiffs = append(poolDiffs, &poolDiffsItems[i].PoolDiff)
+	}
+
+	// Store all diffs in badger
+	log.Info("Storing all items in badger db...")
+	err = storeDiffs(db, poolDiffs, poolHeights)
+	if err != nil {
+		return false, fmt.Errorf("failed to store diff in badger: %v", err)
+	}
+
+	return true, nil
+}
+
+// LoadAllPoolDiffs loads all found ticket pool diffs from badger DB.
+func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiffDBItem, error) {
+	var poolDiffs []PoolDiffDBItem
+	err := db.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.AllVersions = true
+		it := txn.NewIterator(opts)
+		var hashesBytes []byte
+		for it.Rewind(); it.Valid(); it.Next() {
+			item := it.Item()
+			height := binary.BigEndian.Uint64(item.Key())
+
+			var err error
+			hashesBytes, err = item.ValueCopy(hashesBytes)
+			if err != nil {
+				log.Warnf("Key [%x]. Error while fetching value [%v]\n", item.Key(), err)
+				continue
+			}
+
+			hashReader := bytes.NewReader(hashesBytes)
+
+			var poolDiff PoolDiff
+			if err = gob.NewDecoder(hashReader).Decode(&poolDiff); err != nil {
+				log.Errorf("failed to decode PoolDiff[%d]: %v", height, hashesBytes)
+				return err
+			}
+
+			poolDiffs = append(poolDiffs, PoolDiffDBItem{
+				Height:   int64(height),
+				PoolDiff: poolDiff,
+			})
+		}
+		return nil
+	})
+	return poolDiffs, err
 }
 
 // Close closes the persistent diff DB.
@@ -122,19 +248,94 @@ func (tp *TicketPool) Trim() (int64, PoolDiff) {
 }
 
 // storeDiff stores the input diff for the specified height in the on-disk DB.
-func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
-	d := &PoolDiffDBItem{
-		Height:   height,
-		PoolDiff: *diff,
+func storeDiff(db *badger.DB, diff *PoolDiff, height int64) error {
+	var heightBytes [8]byte
+	binary.BigEndian.PutUint64(heightBytes[:], uint64(height))
+
+	var poolDiffBuffer bytes.Buffer
+	if err := gob.NewEncoder(&poolDiffBuffer).Encode(diff); err != nil {
+		return err
 	}
-	return tp.diffDB.Save(d)
+
+	return db.Update(func(txn *badger.Txn) error {
+		return txn.Set(heightBytes[:], poolDiffBuffer.Bytes())
+	})
+}
+
+// storeDiffs stores the input diffs for the specified heights in the on-disk DB.
+func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
+	heightToBytes := func(height int64) (heightBytes [8]byte) {
+		binary.BigEndian.PutUint64(heightBytes[:], uint64(height))
+		return
+	}
+
+	txn := db.NewTransaction(true)
+	for i, h := range heights {
+		heightBytes := heightToBytes(h)
+		poolDiffBuffer := new(bytes.Buffer)
+		gobEnc := gob.NewEncoder(poolDiffBuffer)
+		err := gobEnc.Encode(diffs[i])
+		if err != nil {
+			txn.Discard()
+			return err
+		}
+		err = txn.Set(heightBytes[:], poolDiffBuffer.Bytes())
+		// If this transaction got too big, commit and make a new one
+		if err == badger.ErrTxnTooBig {
+			if err = txn.Commit(nil); err != nil {
+				txn.Discard()
+				return err
+			}
+			txn = db.NewTransaction(true)
+			if err = txn.Set(heightBytes[:], poolDiffBuffer.Bytes()); err != nil {
+				txn.Discard()
+				return err
+			}
+		}
+		if err != nil {
+			txn.Discard()
+			return err
+		}
+		//poolDiffBuffer.Reset()
+	}
+	return txn.Commit(nil)
+}
+
+func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
+	return storeDiff(tp.diffDB, diff, height)
 }
 
 // fetchDiff retrieves the diff at the specified height from the on-disk DB.
 func (tp *TicketPool) fetchDiff(height int64) (*PoolDiffDBItem, error) {
-	var diff PoolDiffDBItem
-	err := tp.diffDB.One("Height", height, &diff)
-	return &diff, err
+	var heightBytes [8]byte
+	binary.BigEndian.PutUint64(heightBytes[:], uint64(height))
+
+	var diff *PoolDiffDBItem
+	err := tp.diffDB.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(heightBytes[:])
+		if err != nil {
+			return fmt.Errorf("failed to find height %d in TicketPool", height)
+		}
+		hashesBytes, err := item.Value()
+		if err != nil {
+			return fmt.Errorf("key [%x]. Error while fetching value [%v]", item.Key(), err)
+		}
+
+		hashReader := bytes.NewReader(hashesBytes)
+
+		var poolDiff PoolDiff
+		if err = gob.NewDecoder(hashReader).Decode(&poolDiff); err != nil {
+			return fmt.Errorf("failed to decode PoolDiff")
+		}
+
+		diff = &PoolDiffDBItem{
+			Height:   height,
+			PoolDiff: poolDiff,
+		}
+		return nil
+	})
+
+	return diff, err
 }
 
 // Append grows the diffs slice with the specified diff, and stores it in the

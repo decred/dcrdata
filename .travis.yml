@@ -2,6 +2,11 @@ language: go
 go:
   - "1.x"
 
+addons:
+  apt:
+    packages:
+    - xz-utils
+
 sudo: required
 services:
   - docker

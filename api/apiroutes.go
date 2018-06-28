@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -24,7 +25,7 @@ import (
 )
 
 // DataSourceLite specifies an interface for collecting data from the built-in
-// databases (i.e. SQLite, storm, ffldb)
+// databases (i.e. SQLite, badger, ffldb)
 type DataSourceLite interface {
 	CoinSupply() *apitypes.CoinSupply
 	GetHeight() int
