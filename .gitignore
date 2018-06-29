@@ -31,3 +31,5 @@ ffldb_stake*/
 *.pprof
 testnet/
 .DS_Store
+
+testdata/

@@ -6,15 +6,16 @@ package dcrsqlite
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/decred/slog"
-
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/slog"
 	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
 
@@ -146,7 +147,19 @@ func NewDB(db *sql.DB) (*DB, error) {
 // InitDB creates a new DB instance from a DBInfo containing the name of the
 // file used to back the underlying sql database.
 func InitDB(dbInfo *DBInfo) (*DB, error) {
-	db, err := sql.Open("sqlite3", dbInfo.FileName)
+	dbPath, err := filepath.Abs(dbInfo.FileName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensures target DB-file has a parent folder
+	parent := filepath.Dir(dbPath)
+	err = os.MkdirAll(parent, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil || db == nil {
 		return nil, err
 	}
