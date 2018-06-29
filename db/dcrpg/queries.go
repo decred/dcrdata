@@ -367,8 +367,10 @@ func setSpendingForTickets(dbtx *sql.Tx, ticketDbIDs, spendDbIDs []uint64,
 	return stmt.Close()
 }
 
+// SetSpendingForVinDbIDs updates rows of the addresses table with spending
+// information from the rows of the vins table specified by vinDbIDs.
 func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, error) {
-	// get funding details for vin and set them in the address table
+	// Get funding details for vin and set them in the address table.
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
@@ -392,7 +394,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 	addressRowsUpdated := make([]int64, len(vinDbIDs))
 	var totalUpdated int64
 
-	for _, vinDbID := range vinDbIDs {
+	for iv, vinDbID := range vinDbIDs {
 		// Get the funding tx outpoint (vins table) for the vin DB ID
 		var prevOutHash, txHash string
 		var prevOutVoutInd, txVinInd uint32
@@ -412,21 +414,18 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		}
 
 		// Set the spending tx info (addresses table) for the vin DB ID
-		res, err := insertSpendingTxByPrptStmt(dbtx, prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID)
+		addressRowsUpdated[iv], err = insertSpendingTxByPrptStmt(dbtx,
+			prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
 				`%v + %v (rollback)`, err, bail())
 		}
 
-		totalUpdated += res
+		totalUpdated += addressRowsUpdated[iv]
 	}
 
 	// Close prepared statements. Ignore errors as we'll Commit regardless.
 	_ = vinGetStmt.Close()
-
-	for _, n := range addressRowsUpdated {
-		totalUpdated += n
-	}
 
 	return addressRowsUpdated, totalUpdated, dbtx.Commit()
 }
@@ -466,11 +465,11 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	return N, dbtx.Commit()
 }
 
-// SetSpendingForFundingOP inserts a new spending tx row
-// and updates any corresponding funding tx row
+// SetSpendingForFundingOP inserts a new spending tx row and updates any
+// corresponding funding tx row.
 func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
-	spendingTxVinIndex uint32, spendingTXBlockTime uint64, vinDbID uint64) (int64, error) {
+	spendingTxVinIndex uint32, spendingTXBlockTime, vinDbID uint64) (int64, error) {
 
 	// Only allow atomic transactions to happen
 	dbtx, err := db.Begin()
@@ -496,17 +495,18 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 	var addr string
 	var value, rowID, blockTime uint64
 
-	// select id, address and value from the matching funding tx
+	// Select id, address and value from the matching funding tx.
 	// A maximum of one row and a minimum of none are expected.
 	err := tx.QueryRow(internal.SelectAddressByTxHash,
 		fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&addr, &value)
 	switch err {
 	case sql.ErrNoRows, nil:
-		// If no row found or is nil continue
+		// If no row found or error is nil, continue
 	default:
 		return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
 	}
 
+	// Get first address in list.  TODO: actually handle bare multisig
 	replacer := strings.NewReplacer("{", "", "}", "")
 	addr = replacer.Replace(addr)
 	newAddr := strings.Split(addr, ",")[0]
@@ -517,21 +517,23 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 	} else {
 		// fetch the block time from the tx table
 		err = tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
-	}
-	if err != nil {
-		return 0, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
+		if err != nil {
+			return 0, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
+		}
 	}
 
-	// insert a new spending tx
-	err = tx.QueryRow(internal.InsertAddressRow, newAddr, fundingTxHash, spendingTxHash,
-		spendingTxVinIndex, vinDbID, value, blockTime, false).Scan(&rowID)
+	// Insert the new spending tx
+	var isFunding bool
+	err = tx.QueryRow(internal.InsertAddressRow, newAddr, fundingTxHash,
+		spendingTxHash, spendingTxVinIndex, vinDbID, value, blockTime, isFunding).Scan(&rowID)
 	if err != nil {
 		return 0, fmt.Errorf("InsertAddressRow: %v", err)
 	}
 
-	// update the matchingTxHash for the funding tx output.
-	// matchingTxHash here is the tx hash of the funding tx.
-	res, err := tx.Exec(internal.SetAddressFundingForMatchingTxHash, spendingTxHash, fundingTxHash, fundingTxVoutIndex)
+	// Update the matchingTxHash for the funding tx output. matchingTxHash here
+	// is the hash of the funding tx.
+	res, err := tx.Exec(internal.SetAddressFundingForMatchingTxHash,
+		spendingTxHash, fundingTxHash, fundingTxVoutIndex)
 	if err != nil || res == nil {
 		return 0, fmt.Errorf("SetAddressFundingForMatchingTxHash: %v", err)
 	}
@@ -1382,7 +1384,7 @@ func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool) (uint64, error) 
 }
 
 func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, []dbtypes.AddressRow, error) {
-	addressRows := make([]dbtypes.AddressRow, 0, len(dbVouts)*2)
+	// All inserts in atomic DB transaction
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
@@ -1395,10 +1397,11 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 		return nil, nil, err
 	}
 
+	addressRows := make([]dbtypes.AddressRow, 0, len(dbVouts)) // may grow with multisig
 	ids := make([]uint64, 0, len(dbVouts))
 	for _, vout := range dbVouts {
 		var id uint64
-		err := stmt.QueryRow(
+		err = stmt.QueryRow(
 			vout.TxHash, vout.TxIndex, vout.TxTree, vout.Value, vout.Version,
 			vout.ScriptPubKey, vout.ScriptPubKeyData.ReqSigs,
 			vout.ScriptPubKeyData.Type,
@@ -1431,7 +1434,8 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 	return ids, addressRows, dbtx.Commit()
 }
 
-// InsertAddressRow can insert an input and output for the respective transaction.
+// InsertAddressRow inserts an AddressRow (input or output), returning the row
+// ID in the addresses table of the inserted data.
 func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint64, error) {
 	sqlStmt := internal.InsertAddressRow
 	if dupCheck {
@@ -1480,6 +1484,7 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 			dbA.IsFunding).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
+				log.Errorf("failed to insert/update an AddressRow: %v", *dbA)
 				continue
 			}
 			_ = stmt.Close() // try, but we want the QueryRow error back

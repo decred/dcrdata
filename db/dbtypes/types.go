@@ -249,8 +249,8 @@ type Vout struct {
 type AddressRow struct {
 	// id int64
 	Address string
-	// MatchingTxHash that provides the relationship
-	// between spending tx inputs and funding tx outputs
+	// MatchingTxHash provides the relationship between spending tx inputs and
+	// funding tx outputs.
 	MatchingTxHash string
 	IsFunding      bool
 	TxBlockTime    uint64

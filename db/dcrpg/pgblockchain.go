@@ -379,7 +379,6 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	switch txnType {
 	case dbtypes.AddrTxnCredit:
 		addrFunc = RetrieveAddressCreditTxns
-		//fallthrough // retrieved address rows may also have spends
 	case dbtypes.AddrTxnAll:
 		// The organization address occurs very frequently, so use the regular
 		// (non sub-query) select as it is much more efficient.
@@ -941,10 +940,6 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
-	// if err = DeindexVoutTableOnTxHash(pgb.db); err != nil {
-	// 	warnUnlessNotExists(err)
-	// 	errAny = err
-	// }
 	if err = DeindexBlockTimeOnTableAddress(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
@@ -1411,7 +1406,6 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			}
 
 			// Update tickets table with spending info from new votes
-			// _, err = SetSpendingForTickets(pgb.db, ticketDbIDs, voteDbIDs, blockHeights, spendTypes)
 			_, err = SetSpendingForTickets(pgb.db, ticketDbIDs, spendingTxDbIDs,
 				blockHeights, spendTypes, poolStatuses)
 			if err != nil {
@@ -1495,79 +1489,44 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 
 	// Check the new vins and update spending tx data in Addresses table
 	for it, tx := range dbTransactions {
-		for iv := range dbTxVins[it] {
+		// vins array for this transaction
+		txVins := dbTxVins[it]
+		for iv := range txVins {
 			// Transaction that spends an outpoint paying to >=0 addresses
-			vin := &dbTxVins[it][iv]
-			// Get the tx hash and vout index (previous output) from vins table
-			// vinDbID, txHash, txIndex, _, err := RetrieveFundingOutpointByTxIn(
-			// 	pgb.db, vin.TxID, vin.TxIndex)
-			vinDbID := dbTransactions[it].VinDbIds[iv]
+			vin := &txVins[iv]
 
-			// Single transaction to get funding tx info for the vin, get
-			// address row index for the funding tx, and set spending info.
-			// var numAddressRowsSet int64
-			// numAddressRowsSet, err = SetSpendingByVinID(pgb.db, vinDbID, txDbID, vin.TxID, vin.TxIndex)
-			// if err != nil {
-			// 	log.Errorf("SetSpendingByVinID: %v", err)
-			// }
-			// txRes.numAddresses += numAddressRowsSet
-
-			// prevout, ok := pgb.vinPrevOutpoints[vinDbID]
-			// if !ok {
-			// 	log.Errorf("No funding tx info found for vin %s:%d (prev %s)",
-			// 		vin.TxID, vin.TxIndex, vin.PrevOut)
-			// 	continue
-			// }
-			// delete(pgb.vinPrevOutpoints, vinDbID)
-
-			// skip coinbase inputs
+			// Skip coinbase inputs
 			if bytes.Equal(zeroHashStringBytes, []byte(vin.PrevTxHash)) {
 				continue
 			}
 
+			vinDbID := dbTransactions[it].VinDbIds[iv]
 			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
-				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree), vin.TxID, vin.TxIndex,
-				uint64(tx.BlockTime), vinDbID)
+				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree), vin.TxID,
+				vin.TxIndex, uint64(tx.BlockTime), vinDbID)
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
 			}
 			txRes.numAddresses += numAddressRowsSet
-
-			/* separate transactions
-			txHash, txIndex, _, err := RetrieveFundingOutpointByVinID(pgb.db, vinDbID)
-			if err != nil && err != sql.ErrNoRows {
-				if err == sql.ErrNoRows {
-					log.Warnf("No funding transaction found for input %s:%d", vin.TxID, vin.TxIndex)
-					continue
-				}
-				log.Error("RetrieveFundingOutpointByTxIn:", err)
-				continue
-			}
-
-			// skip coinbase inputs
-			if bytes.Equal(zeroHashStringBytes, []byte(txHash)) {
-				continue
-			}
-
-			var numAddressRowsSet int64
-			numAddressRowsSet, err = SetSpendingForFundingOP(pgb.db, txHash, txIndex, // funding
-				txDbID, vin.TxID, vin.TxIndex, vinDbID) // spending
-			if err != nil {
-				log.Errorf("SetSpendingForFundingOP: %v", err)
-			}
-			txRes.numAddresses += numAddressRowsSet
-			*/
 		}
 	}
 
 	return txRes
 }
 
+// CollectTicketSpendDBInfo processes the stake transactions in msgBlock, which
+// correspond to the transaction data in dbTxns, and extracts data for votes and
+// revokes, including the spent ticket hash and DB row ID.
 func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uint64,
 	msgBlock *wire.MsgBlock) (spendingTxDbIDs []uint64, spendTypes []dbtypes.TicketSpendType,
 	ticketHashes []string, ticketDbIDs []uint64, err error) {
 	// This only makes sense for stake transactions
 	msgTxns := msgBlock.STransactions
+	if len(msgTxns) != len(dbTxns) {
+		err = fmt.Errorf("number of stake transactions (%d) not as expected (%d)",
+			len(msgTxns), len(dbTxns))
+		return
+	}
 
 	for i, tx := range dbTxns {
 		// ensure the transaction slices correspond

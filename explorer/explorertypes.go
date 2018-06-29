@@ -335,19 +335,15 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 			IsFunding: addrOut.IsFunding,
 		}
 
-		switch {
-		case addrOut.IsFunding:
+		if addrOut.IsFunding {
 			// Funding transaction
 			received += int64(addrOut.Value)
 			tx.ReceivedTotal = coin
-
 			creditTxns = append(creditTxns, &tx)
-
-		default:
+		} else {
 			// Spending transaction
 			sent += int64(addrOut.Value)
 			tx.SentTotal = coin
-
 			debitTxns = append(debitTxns, &tx)
 		}
 

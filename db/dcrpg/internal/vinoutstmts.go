@@ -111,7 +111,7 @@ const (
 			WHERE t.rnum > 1);`
 
 	SelectAddressByTxHash = `SELECT script_addresses, value FROM vouts
-		WHERE tx_hash = $1 AND tx_index = $2 and tx_tree = $3;`
+		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`
 
 	SelectPkScriptByID     = `SELECT pkscript FROM vouts WHERE id=$1;`
 	SelectVoutIDByOutpoint = `SELECT id FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
@@ -123,10 +123,6 @@ const (
 	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX uix_vout_txhash_ind
 		ON vouts(tx_hash, tx_index, tx_tree);`
 	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
-
-	// IndexVoutTableOnTxHash = `CREATE INDEX uix_vout_txhash
-	// 	ON vouts(tx_hash);`
-	// DeindexVoutTableOnTxHash = `DROP INDEX uix_vout_txhash;`
 
 	CreateVoutType = `CREATE TYPE vout_t AS (
 		value INT8,
