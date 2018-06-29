@@ -35,7 +35,7 @@ const (
 		value INT8,
 		block_time INT8 NOT NULL,
 		is_funding BOOLEAN,
-		tx_vin_vout_index INT8,
+		tx_vin_vout_index INT4,
 		tx_vin_vout_row_id INT8
 		);`
 
@@ -56,38 +56,29 @@ const (
 	SelectAddressSpentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses 
 	    WHERE address = $1 and is_funding = FALSE and matching_tx_hash != '';`
 
-	SelectAddressUnspentWithTxn = `SELECT
-									addresses.address,
-									addresses.tx_hash,
-									addresses.value,
-									transactions.block_height,
-									addresses.block_time,
-									tx_vin_vout_index,
-									pkscript
-									FROM addresses 
-									JOIN transactions ON 
-									addresses.tx_hash = transactions.tx_hash
-									JOIN vouts on addresses.tx_hash = vouts.tx_hash 
-									and addresses.tx_vin_vout_index=vouts.tx_index
-									WHERE 
-									addresses.address=$1 
-									AND 
-									addresses.is_funding = FALSE order by addresses.block_time desc`
+	SelectAddressUnspentWithTxn = `SELECT addresses.address, addresses.tx_hash, addresses.value,
+			transactions.block_height, addresses.block_time, tx_vin_vout_index, pkscript
+		FROM addresses 
+		JOIN transactions ON 
+			addresses.tx_hash = transactions.tx_hash
+		JOIN vouts on addresses.tx_hash = vouts.tx_hash AND addresses.tx_vin_vout_index=vouts.tx_index
+			WHERE addresses.address=$1 AND addresses.is_funding = FALSE 
+			ORDER BY addresses.block_time DESC;`
 
-	columnNames = `id, address, matching_tx_hash, tx_hash, tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
+	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
 
-	SelectAddressLimitNByAddress = `SELECT ` + columnNames + ` FROM addresses
-	    WHERE address=$1 order by block_time desc limit $2 offset $3;`
+	SelectAddressLimitNByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
+	    WHERE address=$1 ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT ` + columnNames +
+	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT ` + addrsColumnNames +
 		` FROM addresses WHERE address=$1)
-        SELECT * FROM these order by block_time desc limit $2 offset $3;`
+        SELECT * FROM these ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressDebitsLimitNByAddress = `SELECT ` + columnNames + `
+	SelectAddressDebitsLimitNByAddress = `SELECT ` + addrsColumnNames + `
 		FROM addresses WHERE address=$1 and is_funding = FALSE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressCreditsLimitNByAddress = `SELECT ` + columnNames + `
+	SelectAddressCreditsLimitNByAddress = `SELECT ` + addrsColumnNames + `
 		FROM addresses WHERE address=$1 and is_funding = TRUE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
