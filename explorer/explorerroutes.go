@@ -763,31 +763,6 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 		agendas,
 		exp.Version,
 		exp.NetName,
-		chartData,
-		totalVotes,
-	})
-
-	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, str)
-}
-
-func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
-	agendas := agendadb.GetAllAgendas()
-
-	str, err := exp.templates.execTemplateToString("agendas", struct {
-		Agendas []*agendadb.AgendaTagged
-		Version string
-		NetName string
-	}{
-		agendas,
-		exp.Version,
-		exp.NetName,
 	})
 
 	if err != nil {

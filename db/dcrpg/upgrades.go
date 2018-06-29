@@ -67,19 +67,6 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 	log.Infof("Found the best block at height: %v", height)
 	var limit, i uint64
 
-	var milestones = map[string]dbtypes.MileStone{
-		"sdiffalgorithm": dbtypes.MileStone{
-			Activated:  149248,
-			HardForked: 149328,
-			LockedIn:   141184},
-		"lnsupport": dbtypes.MileStone{
-			Activated: 149248,
-			LockedIn:  141184},
-		"lnfeatures": dbtypes.MileStone{
-			Activated: 189568,
-			LockedIn:  181504},
-	}
-
 	// Range (block height) from where the first the vote for an agenda was cast
 	i, limit = 128000, 128000
 
