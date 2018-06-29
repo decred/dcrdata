@@ -36,7 +36,7 @@ var createTypeStatements = map[string]string{
 // by dcrdata or rebuilddb2. The patch versions may also be different. They
 // indicate a change of a table's index or constraint, which may require
 // re-indexing and a duplicate scan/purge.
-const tableMajor = 2
+const tableMajor = 3
 
 var requiredVersions = map[string]TableVersion{
 	"blocks":       NewTableVersion(tableMajor, 0, 0),
@@ -364,20 +364,10 @@ func DeindexBlockTableOnHash(db *sql.DB) (err error) {
 
 // Vouts table indexes
 
-// func IndexVoutTableOnTxHash(db *sql.DB) (err error) {
-// 	_, err = db.Exec(internal.IndexVoutTableOnTxHash)
-// 	return
-// }
-
 func IndexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexVoutTableOnTxHashIdx)
 	return
 }
-
-// func DeindexVoutTableOnTxHash(db *sql.DB) (err error) {
-// 	_, err = db.Exec(internal.DeindexVoutTableOnTxHash)
-// 	return
-// }
 
 func DeindexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexVoutTableOnTxHashIdx)
@@ -385,6 +375,25 @@ func DeindexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 }
 
 // Addresses table indexes
+func IndexBlockTimeOnTableAddress(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexBlockTimeOnTableAddress)
+	return
+}
+
+func DeindexBlockTimeOnTableAddress(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexBlockTimeOnTableAddress)
+	return
+}
+
+func IndexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexMatchingTxHashOnTableAddress)
+	return
+}
+
+func DeindexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexMatchingTxHashOnTableAddress)
+	return
+}
 
 func IndexAddressTableOnAddress(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAddressTableOnAddress)
@@ -407,12 +416,12 @@ func DeindexAddressTableOnVoutID(db *sql.DB) (err error) {
 }
 
 func IndexAddressTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAddressTableOnFundingTx)
+	_, err = db.Exec(internal.IndexAddressTableOnTxHash)
 	return
 }
 
 func DeindexAddressTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAddressTableOnFundingTx)
+	_, err = db.Exec(internal.DeindexAddressTableOnTxHash)
 	return
 }
 

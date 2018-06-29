@@ -63,9 +63,12 @@ func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHei
 	if toHeight < 0 {
 		toHeight = 0
 	}
-	log.Infof("Rewinding from %d to %d", stakeDBHeight, toHeight)
+	fromHeight := stakeDBHeight
+	log.Infof("Rewinding from %d to %d", fromHeight, toHeight)
 	for stakeDBHeight > toHeight {
-		log.Infof("Rewinding from %d to %d", stakeDBHeight, toHeight)
+		if stakeDBHeight == fromHeight || stakeDBHeight%200 == 0 {
+			log.Infof("Rewinding from %d to %d", stakeDBHeight, toHeight)
+		}
 		// check for quit signal
 		select {
 		case <-quit:

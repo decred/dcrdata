@@ -53,6 +53,9 @@ type AddressTx struct {
 	FormattedTime string
 	ReceivedTotal float64
 	SentTotal     float64
+	IsFunding     bool
+	MatchedTx     string
+	BlockTime     uint64
 }
 
 // IOID formats an identification string for the transaction input (or output)
@@ -60,7 +63,7 @@ type AddressTx struct {
 func (a *AddressTx) IOID() string {
 	// When AddressTx is used properly, at least one of ReceivedTotal or
 	// SentTotal should be zero.
-	if a.ReceivedTotal > a.SentTotal {
+	if a.IsFunding {
 		// an outpoint receiving funds
 		return fmt.Sprintf("%s:out[%d]", a.TxID, a.InOutID)
 	}
@@ -324,31 +327,27 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 	var transactions, creditTxns, debitTxns []*AddressTx
 	for _, addrOut := range addrHist {
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
-
-		// Funding transaction
-		received += int64(addrOut.Value)
-		fundingTx := AddressTx{
-			TxID:          addrOut.FundingTxHash,
-			InOutID:       addrOut.FundingTxVoutIndex,
-			ReceivedTotal: coin,
-		}
-		transactions = append(transactions, &fundingTx)
-		creditTxns = append(creditTxns, &fundingTx)
-
-		// Is the outpoint spent?
-		if addrOut.SpendingTxHash == "" {
-			continue
+		tx := AddressTx{
+			BlockTime: addrOut.TxBlockTime,
+			InOutID:   addrOut.TxVinVoutIndex,
+			TxID:      addrOut.TxHash,
+			MatchedTx: addrOut.MatchingTxHash,
+			IsFunding: addrOut.IsFunding,
 		}
 
-		// Spending transaction
-		sent += int64(addrOut.Value)
-		spendingTx := AddressTx{
-			TxID:      addrOut.SpendingTxHash,
-			InOutID:   addrOut.SpendingTxVinIndex,
-			SentTotal: coin,
+		if addrOut.IsFunding {
+			// Funding transaction
+			received += int64(addrOut.Value)
+			tx.ReceivedTotal = coin
+			creditTxns = append(creditTxns, &tx)
+		} else {
+			// Spending transaction
+			sent += int64(addrOut.Value)
+			tx.SentTotal = coin
+			debitTxns = append(debitTxns, &tx)
 		}
-		transactions = append(transactions, &spendingTx)
-		debitTxns = append(debitTxns, &spendingTx)
+
+		transactions = append(transactions, &tx)
 	}
 
 	return &AddressInfo{

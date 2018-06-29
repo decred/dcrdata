@@ -268,7 +268,7 @@ func (pgb *ChainDB) VersionCheck() error {
 		for _, u := range tableUpgrades {
 			log.Warnf(u.String())
 		}
-		return fmt.Errorf("table maintenance required")
+		return fmt.Errorf("rebuild of PostgreSQL tables required (drop with rebuilddb2 -D)")
 	}
 	return nil
 }
@@ -378,8 +378,7 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	var addrFunc func(*sql.DB, string, int64, int64) ([]uint64, []*dbtypes.AddressRow, error)
 	switch txnType {
 	case dbtypes.AddrTxnCredit:
-		//addrFunc = RetrieveAddressCreditTxns
-		fallthrough // retrieved address rows may also have spends
+		addrFunc = RetrieveAddressCreditTxns
 	case dbtypes.AddrTxnAll:
 		// The organization address occurs very frequently, so use the regular
 		// (non sub-query) select as it is much more efficient.
@@ -941,10 +940,14 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
-	// if err = DeindexVoutTableOnTxHash(pgb.db); err != nil {
-	// 	warnUnlessNotExists(err)
-	// 	errAny = err
-	// }
+	if err = DeindexBlockTimeOnTableAddress(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err = DeindexMatchingTxHashOnTableAddress(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
 	if err = DeindexAddressTableOnAddress(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
@@ -1028,8 +1031,17 @@ func (pgb *ChainDB) IndexAll() error {
 	}
 	// Not indexing the address table on vout ID or address here. See
 	// IndexAddressTable to create those indexes.
-	log.Infof("Indexing addresses table on funding tx hash...")
-	return IndexAddressTableOnTxHash(pgb.db)
+	log.Infof("Indexing addresses table on tx hash...")
+	if err := IndexAddressTableOnTxHash(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing addresses table on matching tx hash...")
+	if err := IndexMatchingTxHashOnTableAddress(pgb.db); err != nil {
+		return err
+	}
+
+	log.Infof("Indexing addresses table on block time...")
+	return IndexBlockTimeOnTableAddress(pgb.db)
 }
 
 // IndexTicketsTable creates the indexes on the tickets table on ticket hash and
@@ -1064,22 +1076,38 @@ func warnUnlessNotExists(err error) {
 	}
 }
 
-// IndexAddressTable creates the indexes on the address table on the vout ID and
-// address columns, separately.
+// IndexAddressTable creates the indexes on the address table on the vout ID,
+// block_time, matching_tx_hash and address columns, separately.
 func (pgb *ChainDB) IndexAddressTable() error {
 	log.Infof("Indexing addresses table on address...")
 	if err := IndexAddressTableOnAddress(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing addresses table on matching tx hash...")
+	if err := IndexMatchingTxHashOnTableAddress(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing addresses table on block time...")
+	if err := IndexBlockTimeOnTableAddress(pgb.db); err != nil {
 		return err
 	}
 	log.Infof("Indexing addresses table on vout Db ID...")
 	return IndexAddressTableOnVoutID(pgb.db)
 }
 
-// DeindexAddressTable drops the vin ID and address column indexes for the
-// address table.
+// DeindexAddressTable drops the vin ID, block_time, matching_tx_hash
+// and address column indexes for the address table.
 func (pgb *ChainDB) DeindexAddressTable() error {
 	var errAny error
 	if err := DeindexAddressTableOnAddress(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err := DeindexMatchingTxHashOnTableAddress(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err := DeindexBlockTimeOnTableAddress(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
@@ -1248,6 +1276,7 @@ type MsgBlockPG struct {
 	Validators     []string
 }
 
+// storeTxns stores the transactions of a given block
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64,
 	updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
@@ -1377,7 +1406,6 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			}
 
 			// Update tickets table with spending info from new votes
-			// _, err = SetSpendingForTickets(pgb.db, ticketDbIDs, voteDbIDs, blockHeights, spendTypes)
 			_, err = SetSpendingForTickets(pgb.db, ticketDbIDs, spendingTxDbIDs,
 				blockHeights, spendTypes, poolStatuses)
 			if err != nil {
@@ -1431,24 +1459,26 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 	}
 
-	// Store tx Db IDs as funding tx in AddressRows and rearrange
+	// Store tx block time in AddressRows, and set IsFunding
+	// to true since since this are funding tx inputs.
 	dbAddressRowsFlat := make([]*dbtypes.AddressRow, 0, totalAddressRows)
-	for it, txDbID := range *TxDbIDs {
-		// Set the tx ID of the funding transactions
+	for it, tx := range dbTransactions {
+		// Set the tx BlockTime and IsFunding of the funding transactions
 		for iv := range dbAddressRows[it] {
 			// Transaction that pays to the address
 			dba := &dbAddressRows[it][iv]
-			dba.FundingTxDbID = txDbID
+			dba.TxBlockTime = uint64(tx.BlockTime)
+			dba.IsFunding = true
 			// Funding tx hash, vout id, value, and address are already assigned
-			// by InsertVouts. Only the funding tx DB ID was needed.
+			// by InsertVouts. Only the block time and is_funding was needed.
 			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
 		}
 	}
 
 	// Insert each new AddressRow, absent spending fields
-	_, err = InsertAddressOuts(pgb.db, dbAddressRowsFlat, pgb.dupChecks)
+	_, err = InsertAddressRows(pgb.db, dbAddressRowsFlat, pgb.dupChecks)
 	if err != nil {
-		log.Error("InsertAddressOuts:", err)
+		log.Error("InsertAddressRows:", err)
 		txRes.err = err
 		return txRes
 	}
@@ -1458,81 +1488,45 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	}
 
 	// Check the new vins and update spending tx data in Addresses table
-	for it, txDbID := range *TxDbIDs {
-		for iv := range dbTxVins[it] {
+	for it, tx := range dbTransactions {
+		// vins array for this transaction
+		txVins := dbTxVins[it]
+		for iv := range txVins {
 			// Transaction that spends an outpoint paying to >=0 addresses
-			vin := &dbTxVins[it][iv]
-			// Get the tx hash and vout index (previous output) from vins table
-			// vinDbID, txHash, txIndex, _, err := RetrieveFundingOutpointByTxIn(
-			// 	pgb.db, vin.TxID, vin.TxIndex)
-			vinDbID := dbTransactions[it].VinDbIds[iv]
+			vin := &txVins[iv]
 
-			// Single transaction to get funding tx info for the vin, get
-			// address row index for the funding tx, and set spending info.
-			// var numAddressRowsSet int64
-			// numAddressRowsSet, err = SetSpendingByVinID(pgb.db, vinDbID, txDbID, vin.TxID, vin.TxIndex)
-			// if err != nil {
-			// 	log.Errorf("SetSpendingByVinID: %v", err)
-			// }
-			// txRes.numAddresses += numAddressRowsSet
-
-			// prevout, ok := pgb.vinPrevOutpoints[vinDbID]
-			// if !ok {
-			// 	log.Errorf("No funding tx info found for vin %s:%d (prev %s)",
-			// 		vin.TxID, vin.TxIndex, vin.PrevOut)
-			// 	continue
-			// }
-			// delete(pgb.vinPrevOutpoints, vinDbID)
-
-			// skip coinbase inputs
+			// Skip coinbase inputs
 			if bytes.Equal(zeroHashStringBytes, []byte(vin.PrevTxHash)) {
 				continue
 			}
 
-			var numAddressRowsSet int64
-			numAddressRowsSet, err = SetSpendingForFundingOP(pgb.db,
-				vin.PrevTxHash, vin.PrevTxIndex, // funding
-				txDbID, vin.TxID, vin.TxIndex, vinDbID) // spending
+			vinDbID := dbTransactions[it].VinDbIds[iv]
+			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
+				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree), vin.TxID,
+				vin.TxIndex, uint64(tx.BlockTime), vinDbID)
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
 			}
 			txRes.numAddresses += numAddressRowsSet
-
-			/* separate transactions
-			txHash, txIndex, _, err := RetrieveFundingOutpointByVinID(pgb.db, vinDbID)
-			if err != nil && err != sql.ErrNoRows {
-				if err == sql.ErrNoRows {
-					log.Warnf("No funding transaction found for input %s:%d", vin.TxID, vin.TxIndex)
-					continue
-				}
-				log.Error("RetrieveFundingOutpointByTxIn:", err)
-				continue
-			}
-
-			// skip coinbase inputs
-			if bytes.Equal(zeroHashStringBytes, []byte(txHash)) {
-				continue
-			}
-
-			var numAddressRowsSet int64
-			numAddressRowsSet, err = SetSpendingForFundingOP(pgb.db, txHash, txIndex, // funding
-				txDbID, vin.TxID, vin.TxIndex, vinDbID) // spending
-			if err != nil {
-				log.Errorf("SetSpendingForFundingOP: %v", err)
-			}
-			txRes.numAddresses += numAddressRowsSet
-			*/
 		}
 	}
 
 	return txRes
 }
 
+// CollectTicketSpendDBInfo processes the stake transactions in msgBlock, which
+// correspond to the transaction data in dbTxns, and extracts data for votes and
+// revokes, including the spent ticket hash and DB row ID.
 func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uint64,
 	msgBlock *wire.MsgBlock) (spendingTxDbIDs []uint64, spendTypes []dbtypes.TicketSpendType,
 	ticketHashes []string, ticketDbIDs []uint64, err error) {
 	// This only makes sense for stake transactions
 	msgTxns := msgBlock.STransactions
+	if len(msgTxns) != len(dbTxns) {
+		err = fmt.Errorf("number of stake transactions (%d) not as expected (%d)",
+			len(msgTxns), len(dbTxns))
+		return
+	}
 
 	for i, tx := range dbTxns {
 		// ensure the transaction slices correspond
@@ -1602,8 +1596,8 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 	var numAddresses int64
 	for i := 0; i < len(allVinDbIDs); i += updatesPerDBTx {
 		//for i, vinDbID := range allVinDbIDs {
-		if i%250000 == 0 {
-			endRange := i + 250000 - 1
+		if i%100000 == 0 {
+			endRange := i + 100000 - 1
 			if endRange > len(allVinDbIDs) {
 				endRange = len(allVinDbIDs)
 			}
@@ -1625,7 +1619,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db,
 			allVinDbIDs[i:endChunk])
 		if err != nil {
-			log.Errorf("SetSpendingForFundingOP: %v", err)
+			log.Errorf("SetSpendingForVinDbIDs: %v", err)
 			continue
 		}
 		numAddresses += numAddressRowsSet
