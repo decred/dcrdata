@@ -88,6 +88,14 @@ const (
 	PoolStatusMissed
 )
 
+type VoteChoice uint8
+
+const (
+	Yes VoteChoice = iota + 1
+	Abstain
+	No
+)
+
 func (p TicketPoolStatus) String() string {
 	switch p {
 	case PoolStatusLive:
@@ -101,6 +109,44 @@ func (p TicketPoolStatus) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+func (v VoteChoice) String() string {
+	switch v {
+	case Abstain:
+		return "abstain"
+	case Yes:
+		return "yes"
+	case No:
+		return "no"
+	default:
+		return "unknown"
+	}
+}
+
+// ToChoiceIndex converts the vote choice string to a
+// vote choice index.
+func ToChoiceIndex(choice string) (VoteChoice, error) {
+	switch choice {
+	case "abstain":
+		return Abstain, nil
+	case "yes":
+		return Yes, nil
+	case "no":
+		return No, nil
+	default:
+		return 0, fmt.Errorf(`Vote Choice "%s" is unknown`, choice)
+	}
+}
+
+// MileStone defines the various stages passed by vote on a given agenda.
+// Activated is the height at which the delay time before a yes vote activates.
+// HardForked is the height at which the consensus rule changes.
+// LockedIn is the height at which voting on an agenda is consided complete.
+type MileStone struct {
+	Activated  int64
+	HardForked int64
+	LockedIn   int64
 }
 
 // SyncResult is the result of a database sync operation, containing the height
@@ -302,6 +348,16 @@ type Vin struct {
 type ScriptSig struct {
 	Asm string `json:"asm"`
 	Hex string `json:"hex"`
+}
+
+// AgendaVoteChoices defines the agenda vote
+// choices count per given vote choice.
+type AgendaVoteChoices struct {
+	Abstain uint64 `json:"abstain"`
+	Yes     uint64 `json:"yes"`
+	No      uint64 `json:"no"`
+	Total   uint64 `json:"total,omitempty"`
+	Time    string `json:"time"`
 }
 
 // Tx models a Decred transaction. It is stored in a Block.
