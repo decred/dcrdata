@@ -68,6 +68,15 @@ type TxInfo struct {
 	TicketInfo
 }
 
+func (t *TxInfo) IsTicket() bool {
+	return t.Type == "Ticket"
+}
+
+func (t *TxInfo) IsVote() bool {
+	return t.Type == "Vote"
+}
+
+// TicketInfo is used to represent data shown for a sstx transaction.
 type TicketInfo struct {
 	TicketMaturity       int64
 	TimeTillMaturity     float64 // Time before a particular ticket reaches maturity

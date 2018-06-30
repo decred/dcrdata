@@ -1123,7 +1123,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		tx.Maturity = int64(db.params.CoinbaseMaturity)
 
 	}
-	if tx.Type == "Vote" || tx.Type == "Ticket" {
+	if tx.IsVote() || tx.IsTicket() {
 		if tx.Confirmations > 0 && db.GetBestBlockHeight() >=
 			(int64(db.params.TicketMaturity)+tx.BlockHeight) {
 			tx.Mature = "True"
@@ -1132,7 +1132,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 			tx.TicketInfo.TicketMaturity = int64(db.params.TicketMaturity)
 		}
 	}
-	if tx.Type == "Vote" {
+	if tx.IsVote() {
 		if tx.Confirmations < int64(db.params.CoinbaseMaturity) {
 			tx.VoteFundsLocked = "True"
 		} else {

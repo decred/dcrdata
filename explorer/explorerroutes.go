@@ -192,7 +192,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				Index: spendingTxVinInds[i],
 			}
 		}
-		if tx.Type == "Ticket" {
+		if tx.IsTicket() {
 			spendStatus, poolStatus, err := exp.explorerSource.PoolStatusForTicket(hash)
 			if err != nil {
 				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v", hash, err)
@@ -203,16 +203,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					tx.TicketInfo.PoolStatus = poolStatus.String()
 				}
 				tx.TicketInfo.SpendStatus = spendStatus.String()
+
+				// Ticket luck and probability of voting
 				blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
-				tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) * int64(exp.ChainParams.TicketsPerBlock)
-				tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
-				expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(exp.ChainParams.TicketExpiry)) / 24
-				maturityInDay := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.TicketInfo.TicketMaturity)) / 24
-				tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
-					float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInDay
-				ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
-				tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
-					float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 				if tx.TicketInfo.SpendStatus == "Voted" {
 					// Blocks from eligible until voted (actual luck)
 					tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(tx.SpendingTxns[0].Hash) -
@@ -262,6 +255,23 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					float64(exp.ChainParams.TicketExpiry)-float64(blocksLive)))
 			}
 		}
+	}
+
+	// Set ticket-related parameters for both full and lite mode
+	if tx.IsTicket() {
+		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
+		tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) *
+			int64(exp.ChainParams.TicketsPerBlock)
+		tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
+		expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() *
+			float64(exp.ChainParams.TicketExpiry)) / 24
+		maturityInDay := (exp.ChainParams.TargetTimePerBlock.Hours() *
+			float64(tx.TicketInfo.TicketMaturity))
+		tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
+			float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInDay
+		ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
+		tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
+			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 	}
 
 	pageData := struct {
