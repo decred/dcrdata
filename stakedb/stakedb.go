@@ -399,7 +399,6 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 
 func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Hash,
 	revoked []chainhash.Hash, maturing []chainhash.Hash) error {
-
 	hB, err := block.BlockHeaderBytes()
 	if err != nil {
 		return fmt.Errorf("unable to serialize block header: %v", err)
