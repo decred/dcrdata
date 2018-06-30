@@ -26,7 +26,7 @@ var dbName = "agendas.db"
 // the specified file name.
 func Open(dbPath string) (*AgendaDB, error) {
 	_, err := os.Stat(dbPath)
-	isNewDB := os.IsNotExist(err)
+	isNewDB := err != nil && !os.IsNotExist(err)
 
 	db, err := storm.Open(dbPath)
 	if err != nil {
@@ -37,11 +37,11 @@ func Open(dbPath string) (*AgendaDB, error) {
 	if !isNewDB {
 		numAgendas, err = db.Count(&AgendaTagged{})
 		if err != nil {
-			log.Infof("Unable to count agendas in existing DB: %v\n", err)
+			log.Errorf("Agendas count failed: %v\n", err)
 		}
 		numChoices, err = db.Count(&ChoiceLabeled{})
 		if err != nil {
-			log.Infof("Unable to count choices in existing DB: %v\n", err)
+			log.Errorf("Choices count failed: %v\n", err)
 		}
 	}
 
@@ -122,8 +122,11 @@ type ChoiceLabeled struct {
 // GetVoteAgendasForVersion is used in getting the agendas using the vote versions
 func GetVoteAgendasForVersion(ver int64, client *rpcclient.Client) (agendas []AgendaTagged) {
 	voteInfo, err := client.GetVoteInfo(uint32(ver))
-	if err == nil {
-		for _, v := range voteInfo.Agendas {
+	if err != nil {
+		log.Errorf("Fetching Agendas by vote version failed: %v", err)
+	} else {
+		for i := range voteInfo.Agendas {
+			v := &voteInfo.Agendas[i]
 			a := AgendaTagged{
 				Id:             v.Id,
 				Description:    v.Description,
@@ -147,13 +150,13 @@ func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version int64) bool {
 	if db == nil || db.sdb == nil {
 		return false
 	}
-	agenda := new([]AgendaTagged)
-	if err := db.sdb.Find("VoteVersion", uint32(version), agenda); err != nil {
+
+	agenda := make([]AgendaTagged, 0)
+	err := db.sdb.Find("VoteVersion", uint32(version), &agenda)
+	if len(agenda) == 0 || err != nil {
 		return false
 	}
-	if agenda == nil {
-		return false
-	}
+
 	return true
 }
 
@@ -161,11 +164,14 @@ func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version int64) bool {
 func (db *AgendaDB) Updatedb(voteVersion int64, client *rpcclient.Client) {
 	var agendas []AgendaTagged
 	for GetVoteAgendasForVersion(voteVersion, client) != nil {
-		agendas = append(agendas, GetVoteAgendasForVersion(voteVersion, client)...)
-		voteVersion++
+		taggedAgendas := GetVoteAgendasForVersion(voteVersion, client)
+		if len(taggedAgendas) > 0 {
+			agendas = append(agendas, taggedAgendas...)
+			voteVersion++
+		}
 	}
-	for _, a := range agendas {
-		err := db.StoreAgenda(&a)
+	for i := range agendas {
+		err := db.StoreAgenda(&agendas[i])
 		if err != nil {
 			log.Errorf("Agenda not saved: %v \n", err)
 		}
@@ -174,7 +180,7 @@ func (db *AgendaDB) Updatedb(voteVersion int64, client *rpcclient.Client) {
 
 // CheckForUpdates checks for update at the start of the process and
 // will proceed to update when neccessary
-func CheckForUpdates(client *rpcclient.Client) {
+func CheckForUpdates(client *rpcclient.Client) error {
 	adb, err := Open(dbName)
 	if err != nil {
 		log.Errorf("Failed to open new DB: %v", err)
@@ -184,7 +190,7 @@ func CheckForUpdates(client *rpcclient.Client) {
 		voteVersion++
 	}
 	adb.Updatedb(voteVersion, client)
-	adb.Close()
+	return adb.Close()
 }
 
 // GetAgendaInfo for getting an agenda's details given it's agendaId
@@ -198,12 +204,12 @@ func GetAgendaInfo(agendaId string) (*AgendaTagged, error) {
 		log.Error(err)
 		return nil, err
 	}
-	adb.Close()
-	return agenda, nil
+
+	return agenda, adb.Close()
 }
 
 // GetAllAgendas returns all agendas and their info in the db
-func GetAllAgendas() (agendas []*AgendaTagged) {
+func GetAllAgendas() (agendas []*AgendaTagged, err error) {
 	adb, err := Open(dbName)
 	if err != nil {
 		log.Errorf("Failed to open new DB: %v", err)
@@ -212,6 +218,8 @@ func GetAllAgendas() (agendas []*AgendaTagged) {
 	if err != nil {
 		log.Errorf("Failed to get data from DB: %v", err)
 	}
-	adb.Close()
+
+	err = adb.Close()
+
 	return
 }

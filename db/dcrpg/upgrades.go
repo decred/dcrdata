@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The dcrdata developers.
+// Copyright (c) 2018, The Decred developers
 // See LICENSE for details.
 
 package dcrpg
@@ -139,7 +139,7 @@ func (pgb *ChainDB) tableUpgrade(block *dcrutil.Block) (int64, error) {
 
 		var rowID uint64
 		for _, val := range choices {
-			index, err := dbtypes.ToChoiceIndex(val.Choice.Id)
+			index, err := dbtypes.ChoiceIndexFromStr(val.Choice.Id)
 			if err != nil {
 				return 0, err
 			}

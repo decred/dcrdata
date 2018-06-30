@@ -1007,23 +1007,22 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 	return
 }
 
-// RetrieveAgendaVoteChoices retrieves the vote choices count per day and also the total
+// retrieveAgendaVoteChoices retrieves the vote choices count per day and also the total
 // votes count per vote choice for the provided agenda.
-func RetrieveAgendaVoteChoices(db *sql.DB, agendaID string) ([]*dbtypes.AgendaVoteChoices, error) {
-	totalVotes := new(dbtypes.AgendaVoteChoices)
-	chartData := make([]*dbtypes.AgendaVoteChoices, 0)
-
-	yesIndex, err := dbtypes.ToChoiceIndex("yes")
+func retrieveAgendaVoteChoices(db *sql.DB, agendaID string) (*dbtypes.AgendaVoteChoices, error) {
+	var totalVotes = new(dbtypes.AgendaVoteChoices)
+	var a, y, n, t uint64
+	var yesIndex, err = dbtypes.ChoiceIndexFromStr("yes")
 	if err != nil {
 		return nil, err
 	}
 
-	abstainIndex, err := dbtypes.ToChoiceIndex("abstain")
+	abstainIndex, err := dbtypes.ChoiceIndexFromStr("abstain")
 	if err != nil {
 		return nil, err
 	}
 
-	noIndex, err := dbtypes.ToChoiceIndex("no")
+	noIndex, err := dbtypes.ChoiceIndexFromStr("no")
 	if err != nil {
 		return nil, err
 	}
@@ -1041,22 +1040,19 @@ func RetrieveAgendaVoteChoices(db *sql.DB, agendaID string) ([]*dbtypes.AgendaVo
 		if err != nil {
 			return nil, err
 		}
-		totalVotes.Abstain += abstain
-		totalVotes.Yes += yes
-		totalVotes.No += no
-		totalVotes.Total += total
+		a += abstain
+		y += yes
+		n += no
+		t += total
 
-		chartData = append(chartData, &dbtypes.AgendaVoteChoices{
-			Abstain: totalVotes.Abstain,
-			Yes:     totalVotes.Yes,
-			No:      totalVotes.No,
-			Total:   totalVotes.Total,
-			Time:    date,
-		})
-
+		totalVotes.Abstain = append(totalVotes.Abstain, a)
+		totalVotes.Yes = append(totalVotes.Yes, y)
+		totalVotes.No = append(totalVotes.No, n)
+		totalVotes.Total = append(totalVotes.Total, t)
+		totalVotes.Time = append(totalVotes.Time, date)
 	}
 
-	return chartData, nil
+	return totalVotes, nil
 }
 
 func RetrieveDbTxByHash(db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx, err error) {
@@ -1743,7 +1739,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 
 		var rowID uint64
 		for _, val := range choices {
-			index, err := dbtypes.ToChoiceIndex(val.Choice.Id)
+			index, err := dbtypes.ChoiceIndexFromStr(val.Choice.Id)
 			if err != nil {
 				return nil, nil, nil, nil, nil, err
 			}
