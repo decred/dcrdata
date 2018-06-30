@@ -415,11 +415,6 @@ func IndexAddressTableOnAddress(db *sql.DB) (err error) {
 	return
 }
 
-func IndexBlockTimeOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexBlockTimeOnTableAddress)
-	return
-}
-
 func DeindexAddressTableOnAddress(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexAddressTableOnAddress)
 	return
