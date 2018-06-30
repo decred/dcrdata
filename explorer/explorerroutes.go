@@ -715,8 +715,8 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 // AgendaPage is the page handler for the "/agenda" path
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	// attempt to get agendaid string from URL path
-	agendaid := getAgendaIDCtx(r)
-	agendaInfo, err := GetAgendaInfo(agendaid)
+	var agendaid = getAgendaIDCtx(r)
+	var agendaInfo, err = GetAgendaInfo(agendaid)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "the agenda ID given seems to be wrong", false)
@@ -734,7 +734,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		Ai        *agendadb.AgendaTagged
 		Version   string
 		NetName   string
-		ChartData []*dbtypes.AgendaVoteChoices
+		ChartData *dbtypes.AgendaVoteChoices
 	}{
 		agendaInfo,
 		exp.Version,
@@ -753,7 +753,12 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
-	agendas := agendadb.GetAllAgendas()
+	agendas, err := agendadb.GetAllAgendas()
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
 
 	str, err := exp.templates.execTemplateToString("agendas", struct {
 		Agendas []*agendadb.AgendaTagged
