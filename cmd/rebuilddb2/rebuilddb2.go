@@ -137,7 +137,7 @@ func mainCore() error {
 	}
 
 	// Create/load stake database (which includes the separate ticket pool DB).
-	stakeDB, err := stakedb.NewStakeDatabase(client, activeChain, "rebuild_data")
+	stakeDB, _, err := stakedb.NewStakeDatabase(client, activeChain, "rebuild_data")
 	if err != nil {
 		return fmt.Errorf("Unable to create stake DB: %v", err)
 	}
@@ -203,7 +203,7 @@ func mainCore() error {
 			return nil
 		default:
 		}
-		if err = stakeDB.DisconnectBlock(); err != nil {
+		if err = stakeDB.DisconnectBlock(false); err != nil {
 			return err
 		}
 		stakeDBHeight = int64(stakeDB.Height())
