@@ -484,10 +484,11 @@ func (tp *TicketPool) advanceTo(height int64) error {
 // AdvanceToTip advances the pool map by applying all stored diffs. Note that
 // the cursor will stop just beyond the last element of the diffs slice. It will
 // not be possible to advance further, only retreat.
-func (tp *TicketPool) AdvanceToTip() error {
+func (tp *TicketPool) AdvanceToTip() (error, int64) {
 	tp.Lock()
 	defer tp.Unlock()
-	return tp.advanceTo(tp.tip)
+	err := tp.advanceTo(tp.tip)
+	return err, tp.cursor - 1
 }
 
 // retreat applies the previous diff in reverse, moving the pool map to the

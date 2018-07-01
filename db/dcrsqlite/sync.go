@@ -76,7 +76,7 @@ func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHei
 			return
 		default:
 		}
-		if err = db.sDB.DisconnectBlock(); err != nil {
+		if err = db.sDB.DisconnectBlock(false); err != nil {
 			return
 		}
 		stakeDBHeight = int64(db.sDB.Height())

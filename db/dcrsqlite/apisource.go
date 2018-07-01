@@ -52,10 +52,21 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
 	}
 
 	var err error
-	wDB.sDB, err = stakedb.NewStakeDatabase(cl, p, datadir)
+	var height int64
+	wDB.sDB, height, err = stakedb.NewStakeDatabase(cl, p, datadir)
 	if err != nil {
 		log.Errorf("Unable to create stake DB: %v", err)
-		return wDB, func() error { return nil }
+		if height >= 0 {
+			log.Infof("Attempting to recover stake DB...")
+			wDB.sDB, err = stakedb.LoadAndRecover(cl, p, datadir, height-288)
+		}
+		if err != nil {
+			if wDB.sDB != nil {
+				_ = wDB.sDB.Close()
+			}
+			log.Errorf("StakeDatabase recovery failed: %v", err)
+			return wDB, func() error { return nil }
+		}
 	}
 	return wDB, wDB.sDB.Close
 }

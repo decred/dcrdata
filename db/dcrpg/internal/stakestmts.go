@@ -116,7 +116,7 @@ const (
 	insertVoteRow = insertVoteRow0 + `RETURNING id;`
 	// insertVoteRowChecked = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertVoteRow = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET tx_hash = $3, block_hash = $4 RETURNING id;`
+		SET tx_hash = $2, block_hash = $3 RETURNING id;`
 	insertVoteRowReturnId = `WITH ins AS (` +
 		insertVoteRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE
@@ -126,7 +126,7 @@ const (
 	SELECT id FROM ins
 	UNION  ALL
 	SELECT id FROM votes
-	WHERE  tx_hash = $3 AND block_hash = $4
+	WHERE  tx_hash = $2 AND block_hash = $3
 	LIMIT  1;`
 
 	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
