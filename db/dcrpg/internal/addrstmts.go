@@ -125,3 +125,10 @@ const (
 		ON addresses(funding_tx_hash, funding_tx_vout_index);`
 	DeindexAddressTableOnFundingTx = `DROP INDEX uix_addresses_funding_tx;`
 )
+
+func MakeAddressRowInsertStatement(checked bool) string {
+	if checked {
+		return UpsertAddressRow
+	}
+	return InsertAddressRow
+}

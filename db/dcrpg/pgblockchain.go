@@ -1294,7 +1294,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 
 		// Insert vins
-		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it])
+		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it], pgb.dupChecks)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVins:", err)
 			txRes.err = err
