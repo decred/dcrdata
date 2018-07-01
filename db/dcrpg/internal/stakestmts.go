@@ -224,13 +224,21 @@ const (
 	upsertAgendaRow = insertAgendaRow0 + `ON CONFLICT (agenda_id, agenda_vote_choice, tx_hash, block_height) DO UPDATE 
 		SET block_time = $5 RETURNING id;`
 
-	SelectAgendasAgendaVotes = `SELECT to_timestamp(block_time)::date as date,
+	SelectAgendasAgendaVotesByTime = `SELECT to_timestamp(block_time)::date as date,
 		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
 		COUNT(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) as abstain,
 		COUNT(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) as no,
 		count(*) as total FROM agendas WHERE agenda_id = $4 and
 		block_height <= (select block_height from agendas where locked_in = true and agenda_id = $4 limit 1)
 		GROUP BY date ORDER BY date;`
+
+	SelectAgendasAgendaVotesByHeight = `SELECT block_height,
+		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
+		COUNT(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) as abstain,
+		COUNT(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) as no,
+		count(*) as total FROM agendas WHERE agenda_id = $4 and
+		block_height <= (select block_height from agendas where locked_in = true and agenda_id = $4 limit 1)
+		GROUP BY block_height ORDER BY block_height;`
 
 	SelectAgendasLockedIn   = `select block_height from agendas where locked_in = true and agenda_id = $1 limit 1;`
 	SelectAgendasHardForked = `select block_height from agendas where hard_forked = true and agenda_id = $1 limit 1;`

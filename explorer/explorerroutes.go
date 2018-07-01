@@ -714,32 +714,42 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 
 // AgendaPage is the page handler for the "/agenda" path
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
+	var errMsgDisplay = func(err error) {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "the agenda ID given seems to be wrong", false)
+	}
 	// attempt to get agendaid string from URL path
 	var agendaid = getAgendaIDCtx(r)
 	var agendaInfo, err = GetAgendaInfo(agendaid)
 	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "the agenda ID given seems to be wrong", false)
+		errMsgDisplay(err)
 		return
 	}
 
-	chartData, err := exp.explorerSource.AgendaVotes(agendaid)
+	chartDataByTime, err := exp.explorerSource.AgendaVotes(agendaid, 0)
 	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "the agenda ID given seems to be wrong", false)
+		errMsgDisplay(err)
+		return
+	}
+
+	chartDataByHeight, err := exp.explorerSource.AgendaVotes(agendaid, 1)
+	if err != nil {
+		errMsgDisplay(err)
 		return
 	}
 
 	str, err := exp.templates.execTemplateToString("agenda", struct {
-		Ai        *agendadb.AgendaTagged
-		Version   string
-		NetName   string
-		ChartData *dbtypes.AgendaVoteChoices
+		Ai               *agendadb.AgendaTagged
+		Version          string
+		NetName          string
+		ChartDataByTime  *dbtypes.AgendaVoteChoices
+		ChartDataByBlock *dbtypes.AgendaVoteChoices
 	}{
 		agendaInfo,
 		exp.Version,
 		exp.NetName,
-		chartData,
+		chartDataByTime,
+		chartDataByHeight,
 	})
 
 	if err != nil {

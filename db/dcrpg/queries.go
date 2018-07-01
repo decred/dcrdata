@@ -1007,9 +1007,10 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 	return
 }
 
-// retrieveAgendaVoteChoices retrieves the vote choices count per day and also the total
-// votes count per vote choice for the provided agenda.
-func retrieveAgendaVoteChoices(db *sql.DB, agendaID string) (*dbtypes.AgendaVoteChoices, error) {
+// retrieveAgendaVoteChoices retrieves the vote choices count per day and also
+// the total votes count per vote choice for the provided agenda. The vote choices
+// count is fetched for individual blocks and cummulatively per day for the voting time.
+func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtypes.AgendaVoteChoices, error) {
 	var totalVotes = new(dbtypes.AgendaVoteChoices)
 	var a, y, n, t uint64
 	var yesIndex, err = dbtypes.ChoiceIndexFromStr("yes")
@@ -1026,30 +1027,47 @@ func retrieveAgendaVoteChoices(db *sql.DB, agendaID string) (*dbtypes.AgendaVote
 	if err != nil {
 		return nil, err
 	}
+	var query = internal.SelectAgendasAgendaVotesByTime
+	if byType == 1 {
+		query = internal.SelectAgendasAgendaVotesByHeight
+	}
 
-	rows, err := db.Query(internal.SelectAgendasAgendaVotes, yesIndex, abstainIndex, noIndex, agendaID)
+	rows, err := db.Query(query, yesIndex, abstainIndex, noIndex, agendaID)
 	if err != nil {
 		return nil, err
 	}
 
 	for rows.Next() {
-		var abstain, yes, no, total uint64
+		var abstain, yes, no, total, height uint64
 		var date string
-
-		err := rows.Scan(&date, &yes, &abstain, &no, &total)
+		var err error
+		if byType == 0 {
+			err = rows.Scan(&date, &yes, &abstain, &no, &total)
+		} else {
+			err = rows.Scan(&height, &yes, &abstain, &no, &total)
+		}
 		if err != nil {
 			return nil, err
 		}
-		a += abstain
-		y += yes
-		n += no
-		t += total
+
+		if byType == 0 {
+			a += abstain
+			y += yes
+			n += no
+			t += total
+			totalVotes.Time = append(totalVotes.Time, date)
+		} else {
+			a = abstain
+			y = yes
+			n = no
+			t = total
+			totalVotes.Height = append(totalVotes.Height, height)
+		}
 
 		totalVotes.Abstain = append(totalVotes.Abstain, a)
 		totalVotes.Yes = append(totalVotes.Yes, y)
 		totalVotes.No = append(totalVotes.No, n)
 		totalVotes.Total = append(totalVotes.Total, t)
-		totalVotes.Time = append(totalVotes.Time, date)
 	}
 
 	return totalVotes, nil

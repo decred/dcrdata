@@ -383,8 +383,8 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 
 // AgendaVotes fetches the data used to plot a graph of vote choice types cast per day for the provided agenda.
 // The total count of all votes cast per vote choice type for the entire period is returned.
-func (pgb *ChainDB) AgendaVotes(agendaID string) (*dbtypes.AgendaVoteChoices, error) {
-	return retrieveAgendaVoteChoices(pgb.db, agendaID)
+func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error) {
+	return retrieveAgendaVoteChoices(pgb.db, agendaID, chartType)
 }
 
 // AddressTransactions retrieves a slice of *dbtypes.AddressRow for a given
