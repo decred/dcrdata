@@ -179,13 +179,6 @@
                                     <td>unspent</td>
                                 {{end}}
                             {{end}}
-                            {{if gt .MatchedTx 0}}
-                                {{if .IsFunding}}
-                                    <td><a href="/tx/AddrId/{{.MatchedTx}}" class="hash">Funded By</a></td>
-                                {{else}}
-                                    <td>unspent</td>
-                                {{end}}
-                            {{end}}
                             <td>
                                 {{if eq .Time 0}}
                                     Unconfirmed
