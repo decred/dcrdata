@@ -1744,7 +1744,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 				return nil, nil, nil, nil, nil, err
 			}
 
-			err = prep.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime, false, false, false).Scan(&rowID)
+			err = prep.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight,
+				tx.BlockTime, false, false, false).Scan(&rowID)
 			if err != nil {
 				return nil, nil, nil, nil, nil, err
 			}

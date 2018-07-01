@@ -36,7 +36,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		return false, nil
 
 	// When the required table version is 2.x.0 where x is greater than or equal to 3
-	case version.major == 2 && version.minor > 3 && version.patch == 0:
+	case version.major >= 2 && version.minor > 3 && version.patch == 0:
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		err := pgb.handleAgendasTableUpgrade(smartClient)

@@ -93,53 +93,89 @@
             </table>
             {{end}}
 
-            <div id="lineGraph" style="width:100%; height:450px; margin:0 auto;"></div>
+            <div id="lineGraph" style="width:100%; height:600px; margin:0 auto;"></div>
             </div>
         </div>
         {{end}}
 
         <script>
             var chart = {{.ChartData}};
-            var yes = {
-            x: chart.time,
-            y: chart.yes,
-            mode: 'lines+markers',
-            fill='tonexty',
-            line: {
-                    color: 'rgb(0,153,0)',
-                    width: 3
-                }
-            };
+            var Y = [
+                chart.no,
+                chart.abstain,
+                chart.yes
+            ];
 
-            var abstain = {
-            x: chart.time,
-            y: chart.abstain,
-            mode: 'lines+markers',
-            fill='tonexty',
-            line: {
-                    color: 'orange',
-                    width: 3
-                }
-            };
+            var colors = ['red', 'orange', 'rgb(0,153,0)'];
+            var traces = [{name: 'No'},  {name: 'Abstain'},  {name: 'Yes'}];
 
-            var no = {
-            x: chart.time,
-            y: chart.no,
-            mode: 'lines+markers',
-            fill='tonexty',
-            line: {
-                    color: 'red',
-                    width: 3
-                }
-            };
+            function getPercentage(items){
+                elem = []
+                var text = chart.total.map((val, i) => {
+                    elem.push("("+((100*items[i])/val).toFixed(2)+")%")
+                });
+                return elem
+            }
 
-            var data = [ yes, abstain, no ];
+            function stackedArea(traces) {
+                traces.forEach(function(trace, i) {
+                    trace.y = Y[i].slice();
+                    trace.text = getPercentage(Y[i].slice());
+                    trace.hoverinfo = "all";
+                    trace.x = chart.time;
+                    trace.visible = true;
+                    trace.fill = 'tonexty'
+                    trace.line = { color: colors[i], width: 1};
+                });
+
+                var tracesVisible = traces.filter(function(trace) {
+                    return trace.visible === true;
+                });
+
+                for(var i = 1; i < tracesVisible.length; i++) {
+                    var trace0 = tracesVisible[i-1];
+                    var trace1 = tracesVisible[i];
+                    var len = Math.min(trace0.y.length, trace1.y.length);
+
+                    for(var j = 0; j < len; j++) {
+                        trace1.y[j] += trace0.y[j];
+                    }
+                }
+                return traces;
+            }
 
             var layout = {
-            title:'Line and Scatter Plot'
+            xaxis : {
+                title: 'Date',
+                rangeslider: {}
+                },
+            yaxis : {
+                title: 'Cumulative Vote Choices Cast'
+
+                }
             };
 
-            Plotly.newPlot("lineGraph", data, layout);
+            var graphDiv = document.getElementById("lineGraph");
+            Plotly.react(graphDiv, stackedArea(traces), layout, {displaylogo: false,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'sendDataToCloud']});
+
+            var d3 = Plotly.d3;
+            graphDiv.on('plotly_afterplot', function(d) {
+                d3.selectAll('.legendtoggle').each(function(d, i) {
+
+                    d3.select(this).on('click', function() {
+                        var traceClicked = traces[2 - i];
+
+                        traceClicked.visible = (traceClicked.visible === true) ?
+                            'legendonly' :
+                            true;
+
+                        stackedArea(traces);
+
+                        Plotly.redraw(graphDiv);
+                    });
+                });
+            });
         </script>
 
         {{template "footer" . }}
