@@ -358,6 +358,7 @@ type AgendaVoteChoices struct {
 	Yes     []uint64 `json:"yes"`
 	No      []uint64 `json:"no"`
 	Total   []uint64 `json:"total,omitempty"`
+	Height  []uint64 `json:"height,omitempty"`
 	Time    []string `json:"time"`
 }
 
