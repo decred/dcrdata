@@ -88,8 +88,7 @@ const (
 	PoolStatusMissed
 )
 
-// VoteChoice defines the type of
-// vote choice cast for given agenda
+// VoteChoice defines the type of vote choice cast for given agenda.
 type VoteChoice uint8
 
 const (
