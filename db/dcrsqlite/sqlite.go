@@ -386,7 +386,11 @@ func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
 	var hash, winners string
 	err := db.QueryRow(db.getPoolSQL, ind).Scan(&hash, &tpi.Size,
 		&tpi.Value, &tpi.ValAvg, &winners)
-	tpi.Winners = strings.Split(winners, ";")
+	if winners == "" {
+		tpi.Winners = make([]string, 0)
+	} else {
+		tpi.Winners = strings.Split(winners, ";")
+	}
 	return tpi, err
 }
 
