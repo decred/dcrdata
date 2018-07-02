@@ -37,8 +37,12 @@ const (
 
 	UpdateLastBlockValid = `UPDATE blocks SET is_valid = $2 WHERE id = $1;`
 
-	SelectBlockByTimeRangeSQL        = `select hash, height, size, time, numtx from blocks where time between $1 and $2 ORDER BY time DESC LIMIT $3;`
-	SelectBlockByTimeRangeSQLNoLimit = `select hash, height, size, time, numtx from blocks where time between $1 and $2 ORDER BY time DESC;`
+	SelectBlockByTimeRangeSQL = `SELECT hash, height, size, time, numtx
+		FROM blocks WHERE time BETWEEN $1 and $2 ORDER BY time DESC LIMIT $3;`
+	SelectBlockByTimeRangeSQLNoLimit = `SELECT hash, height, size, time, numtx
+		FROM blocks WHERE time BETWEEN $1 and $2 ORDER BY time DESC;`
+	SelectBlockHashByHeight = `SELECT hash FROM blocks WHERE height = $1;`
+	SelectBlockHeightByHash = `SELECT height FROM blocks WHERE hash = $1;`
 
 	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (  
 		id SERIAL PRIMARY KEY,
@@ -93,8 +97,7 @@ const (
 	VALUES ($1, $2, $3, $4)
 	ON CONFLICT (this_hash) DO NOTHING;`
 
-	SelectBlockHashByHeight = `select hash from blocks where height = $1`
-	SelectBlockHeightByHash = `select height from blocks where hash = $1`
+	SelectBlockChainRowIDByHash = `select block_db_id from block_chain where this_hash = $1;`
 
 	UpdateBlockNext = `UPDATE block_chain set next_hash = $2 WHERE block_db_id = $1;`
 )
