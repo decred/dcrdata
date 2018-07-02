@@ -83,6 +83,17 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed LoadAllPoolDiffs: %v", err)
 	}
+
+	if len(poolDiffs) > 0 {
+		log.Debugf("len(poolDiffs)=%d", len(poolDiffs))
+		endHeight := poolDiffs[len(poolDiffs)-1].Height
+		log.Debugf("poolDiffs[0].Height=%d, poolDiffs[end].Height=%d",
+			poolDiffs[0].Height, endHeight)
+		if int64(len(poolDiffs)) != endHeight {
+			panic(fmt.Sprintf("last poolDiff Height (%d) != %d", endHeight, len(poolDiffs)))
+		}
+	}
+
 	diffs := make([]PoolDiff, len(poolDiffs))
 	for i := range poolDiffs {
 		diffs[i] = poolDiffs[i].PoolDiff
@@ -163,10 +174,17 @@ func MigrateFromStorm(stormDBFile string, db *badger.DB) (bool, error) {
 func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiffDBItem, error) {
 	var poolDiffs []PoolDiffDBItem
 	err := db.View(func(txn *badger.Txn) error {
-		opts := badger.DefaultIteratorOptions
-		opts.AllVersions = true
+		// Create the badger iterator
+		opts := badger.IteratorOptions{
+			PrefetchValues: true,
+			PrefetchSize:   1000,
+			Reverse:        false,
+			AllVersions:    false,
+		}
 		it := txn.NewIterator(opts)
+
 		var hashesBytes []byte
+		var lastheight uint64
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
 			height := binary.BigEndian.Uint64(item.Key())
@@ -190,6 +208,11 @@ func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiffDBItem, error) {
 				Height:   int64(height),
 				PoolDiff: poolDiff,
 			})
+
+			if lastheight+1 != height {
+				panic(fmt.Sprintf("height: %d, lastheight: %d", height, lastheight))
+			}
+			lastheight = height
 		}
 		return nil
 	})
