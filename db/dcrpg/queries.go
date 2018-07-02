@@ -1038,11 +1038,10 @@ func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtype
 	}
 
 	for rows.Next() {
-		var abstain, yes, no, total, height uint64
-		var date string
+		var abstain, yes, no, total, height, timestamp uint64
 		var err error
 		if byType == 0 {
-			err = rows.Scan(&date, &yes, &abstain, &no, &total)
+			err = rows.Scan(&timestamp, &yes, &abstain, &no, &total)
 		} else {
 			err = rows.Scan(&height, &yes, &abstain, &no, &total)
 		}
@@ -1055,7 +1054,7 @@ func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtype
 			y += yes
 			n += no
 			t += total
-			totalVotes.Time = append(totalVotes.Time, date)
+			totalVotes.Time = append(totalVotes.Time, timestamp)
 		} else {
 			a = abstain
 			y = yes
