@@ -112,26 +112,31 @@
             var modalBar = {displaylogo: false,
             modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'sendDataToCloud']}
 
-            function getPercentage(items){
+            function getPercentage(items, graphType){
                 elem = []
-                var text = c.total.map((val, i) => {
-                    elem.push("("+((100*items[i])/val).toFixed(2)+")%")
+                var text = items.map((val, i) => {
+                    if (graphType === 0) {
+                        elem.push(val+"("+((100*val)/c.total[i]).toFixed(2)+")%");
+                    } else {
+                        elem.push(val);
+                    }
                 });
                 return elem
             }
 
-            function stackedArea(traces, yData, dtype) {
+            function stackedArea(traces, yData, graphType) {
                 traces.forEach(function(trace, i) {
                     trace.y = yData[i].slice();
-                    if (dtype === 0) {
-                        trace.hoverinfo = "all";
-                        trace.text = getPercentage(yData[i].slice());
+                    if (graphType === 0) {
                         trace.x = c.time;
                         trace.line = { color: colors[i], width: 1};
                     } else {
+                        trace.text = false
                         trace.x = b.height;
                         trace.line = { color: colors[i], width: 0.7};
                     }
+                    trace.hoverinfo = "name+text+x";
+                    trace.text = getPercentage(yData[i].slice(), graphType);
                     trace.visible = true;
                     trace.fill = 'tonexty'
                 });
@@ -162,27 +167,6 @@
             margin: gmargin
             };
 
-            var graphDiv = document.getElementById("lineGraph");
-            Plotly.react(graphDiv, stackedArea(traces, Y, 0), layout, modalBar);
-
-            var d3 = Plotly.d3;
-            graphDiv.on('plotly_afterplot', function(d) {
-                d3.selectAll('.legendtoggle').each(function(d, i) {
-
-                    d3.select(this).on('click', function() {
-                        var traceClicked = traces[2 - i];
-
-                        traceClicked.visible = (traceClicked.visible === true) ?
-                            'legendonly' :
-                            true;
-
-                        stackedArea(traces, Y, 0);
-
-                        Plotly.redraw(graphDiv);
-                    });
-                });
-            });
-
             var blockTraces = JSON.parse(JSON.stringify(traces));
             var newlayout = {
             title: 'Vote Choices Cast Per Block',
@@ -195,8 +179,26 @@
             margin: gmargin
             };
 
-            var newgraph = document.getElementById("barGraph");
-            Plotly.react(newgraph, stackedArea(blockTraces, YData, 1), newlayout, modalBar);
+            function plotGraph(data, gdiv, glayout, val, graphType){
+                var graphDiv = document.getElementById(gdiv);
+                Plotly.react(graphDiv, stackedArea(data, val, graphType), glayout, modalBar);
+
+                var d3 = Plotly.d3;
+                graphDiv.on('plotly_afterplot', function(d) {
+                    d3.selectAll('.legendtoggle').each(function(d, i) {
+
+                        d3.select(this).on('click', function() {
+                            var traceClicked = data[2 - i];
+                            traceClicked.visible = (traceClicked.visible === true) ?'legendonly' : true;
+                            stackedArea(data, val, graphType);
+                            Plotly.redraw(graphDiv);
+                        });
+                    });
+                });
+            }
+
+            plotGraph(traces, "lineGraph", layout, Y, 0)
+            plotGraph(blockTraces, "barGraph", newlayout, YData, 1)
         </script>
 
         {{template "footer" . }}
