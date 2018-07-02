@@ -1095,6 +1095,14 @@ func RetrieveBlockHeight(db *sql.DB, hash string) (height int64, err error) {
 	return
 }
 
+// RetrieveBlockChainDbID retrieves the row id in the block_chain table of the
+// block with the given hash, if it exists (be sure to check error against
+// sql.ErrNoRows!).
+func RetrieveBlockChainDbID(db *sql.DB, hash string) (dbID uint64, err error) {
+	err = db.QueryRow(internal.SelectBlockChainRowIDByHash, hash).Scan(&dbID)
+	return
+}
+
 func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, currentBlockHeight int64) ([]apitypes.AddressTxnOutput, error) {
 	var outputs []apitypes.AddressTxnOutput
 
