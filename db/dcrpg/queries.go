@@ -1048,6 +1048,14 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	return
 }
 
+// RetrieveBlockChainDbID retrieves the row id in the block_chain table of the
+// block with the given hash, if it exists (be sure to check error against
+// sql.ErrNoRows!).
+func RetrieveBlockChainDbID(db *sql.DB, hash string) (dbID uint64, err error) {
+	err = db.QueryRow(internal.SelectBlockChainRowIDByHash, hash).Scan(&dbID)
+	return
+}
+
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, checked bool) (uint64, error) {
 	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
 	var id uint64
