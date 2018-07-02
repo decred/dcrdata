@@ -359,7 +359,7 @@ type AgendaVoteChoices struct {
 	No      []uint64 `json:"no"`
 	Total   []uint64 `json:"total,omitempty"`
 	Height  []uint64 `json:"height,omitempty"`
-	Time    []string `json:"time"`
+	Time    []uint64 `json:"time"`
 }
 
 // Tx models a Decred transaction. It is stored in a Block.

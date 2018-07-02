@@ -1,6 +1,9 @@
 {{define "agenda"}}
 <!DOCTYPE html>
 <html lang="en">
+    <script src="/js/dygraph.min.js"></script>
+    <link href="/css/charts.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
     {{template "html-head" printf "Decred Vote Agenda Pages"}}
     <body>
         {{template "navbar" .}}
@@ -92,10 +95,10 @@
                 {{end}}
             </table>
             {{end}}
-            <div id="lineGraph" style="width:100%; height:450px; margin:0 auto;"></div>
-
+            <div id="lineGraph" style="width:100%; height:400px; margin:0 auto;"></div>
             <br>
-            <div id="barGraph" style="width:100%; height:300px; margin:0 auto;"></div>
+            <br>
+            <div id="barGraph" style="width:100%; height:250px; margin:0 auto;"></div>
             </div>
         </div>
         {{end}}
@@ -103,102 +106,98 @@
         <script>
             var c = {{.ChartDataByTime}};
             var b = {{.ChartDataByBlock}};
-            var Y = [c.no, c.abstain, c.yes ];
-            var YData = [b.no, b.abstain, b.yes];
-            var gmargin = {l:70, r:10, b:40, t:35, pad:4};
+            
+            var cdata = [];
+            c.yes.map((n,i) => {
+                cdata.push([new Date(c.time[i]*1000), + c.yes[i], c.abstain[i], c.no[i]])
+            })
 
-            var colors = ['red', 'orange', 'rgb(0,153,0)'];
-            var traces = [{name: 'No'},  {name: 'Abstain'},  {name: 'Yes'}];
-            var modalBar = {displaylogo: false,
-            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'sendDataToCloud']}
+            var bdata = [];
+            b.yes.map((n,i) => {
+                bdata.push([b.height[i], + b.yes[i], b.abstain[i], b.no[i]])
+            });
 
-            function getPercentage(items, graphType){
-                elem = []
-                var text = items.map((val, i) => {
-                    if (graphType === 0) {
-                        elem.push(val+"("+((100*val)/c.total[i]).toFixed(2)+")%");
-                    } else {
-                        elem.push(val);
-                    }
+            function legendFormatter(data) {
+                if (data.x == null) return '';
+                var total = 0;
+                data.series.map(function(n){
+                    total += n.y
+                })
+                var html = this.getLabels()[0] + ': ' + data.xHTML;
+                data.series.forEach(function(series) {
+                    var labeledData = ' <span style="color: ' + series.color + ';">' +series.labelHTML + ': ' + series.yHTML;
+                    html += '<br>' + series.dashHTML  + labeledData + ' (' + ((series.y*100)/total).toFixed(2) +'%) </span>';
                 });
-                return elem
+                return html;
+                }
+            
+            function darkenColor(colorStr) {
+                var color = Dygraph.toRGB_(colorStr);
+                color.r = Math.floor((255 + color.r) / 2);
+                color.g = Math.floor((255 + color.g) / 2);
+                color.b = Math.floor((255 + color.b) / 2);
+                return 'rgb(' + color.r + ',' + color.g + ',' + color.b + ')';
             }
 
-            function stackedArea(traces, yData, graphType) {
-                traces.forEach(function(trace, i) {
-                    trace.y = yData[i].slice();
-                    if (graphType === 0) {
-                        trace.x = c.time;
-                        trace.line = { color: colors[i], width: 1};
-                    } else {
-                        trace.text = false
-                        trace.x = b.height;
-                        trace.line = { color: colors[i], width: 0.7};
-                    }
-                    trace.hoverinfo = "name+text+x";
-                    trace.text = getPercentage(yData[i].slice(), graphType);
-                    trace.visible = true;
-                    trace.fill = 'tonexty'
-                });
+            function barchartPlotter(e) {
+                var ctx = e.drawingContext;
+                var points = e.points;
+                var y_bottom = e.dygraph.toDomYCoord(0);
 
-                var tracesVisible = traces.filter(function(trace) {
-                    return trace.visible === true;
-                });
+                ctx.fillStyle = darkenColor(e.color);
 
-                for(var i = 1; i < tracesVisible.length; i++) {
-                    var trace0 = tracesVisible[i-1];
-                    var trace1 = tracesVisible[i];
-                    var len = Math.min(trace0.y.length, trace1.y.length);
-
-                    for(var j = 0; j < len; j++) {
-                        trace1.y[j] += trace0.y[j];
-                    }
+                var min_sep = Infinity;
+                for (var i = 1; i < points.length; i++) {
+                var sep = points[i].canvasx - points[i - 1].canvasx;
+                if (sep < min_sep) min_sep = sep;
                 }
-                return traces;
+                var bar_width = Math.floor(2.0 / 3 * min_sep);
+
+                for (var i = 0; i < points.length; i++) {
+                var p = points[i];
+                var center_x = p.canvasx;
+
+                ctx.fillRect(center_x - bar_width / 2, p.canvasy,
+                    bar_width, y_bottom - p.canvasy);
+
+                ctx.strokeRect(center_x - bar_width / 2, p.canvasy,
+                    bar_width, y_bottom - p.canvasy);
+                }
             }
 
             var layout = {
-            title: 'Cummulative Vote Choices Cast Per Day',
-            xaxis : {
-                title: 'Date',
-                rangeslider: {}
-                },
-            yaxis : {title: 'Cummulative Vote Choices Cast'},
-            margin: gmargin
-            };
+                    showRangeSelector: true,
+                    legend: 'follow',
+                    fillGraph: true,
+                    colors: ['rgb(0,153,0)', 'orange', 'red'],
+                    stackedGraph: true,
+                    legendFormatter: legendFormatter,
+                    labelsSeparateLines: true
+                 }
 
-            var blockTraces = JSON.parse(JSON.stringify(traces));
-            var newlayout = {
-            title: 'Vote Choices Cast Per Block',
-            xaxis : {
-                title: 'Block Height',
-                exponentformat: 'none',
-                rangeslider: {}
-                },
-            yaxis : {title: 'Votes Choices Cast per Block'},
-            margin: gmargin
-            };
+            new Dygraph(
+                document.getElementById("lineGraph"),
+                cdata,
+                {...layout, ...{
+                    labels: ["Date", "Yes", "Abstain", "No"],
+                    ylabel: 'Cummulative Vote Choices Cast',
+                    title: 'Cummulative Vote Choices',
+                    labelsKMB: true
+                    }
+                }
+            );
 
-            function plotGraph(data, gdiv, glayout, val, graphType){
-                var graphDiv = document.getElementById(gdiv);
-                Plotly.react(graphDiv, stackedArea(data, val, graphType), glayout, modalBar);
-
-                var d3 = Plotly.d3;
-                graphDiv.on('plotly_afterplot', function(d) {
-                    d3.selectAll('.legendtoggle').each(function(d, i) {
-
-                        d3.select(this).on('click', function() {
-                            var traceClicked = data[2 - i];
-                            traceClicked.visible = (traceClicked.visible === true) ?'legendonly' : true;
-                            stackedArea(data, val, graphType);
-                            Plotly.redraw(graphDiv);
-                        });
-                    });
-                });
-            }
-
-            plotGraph(traces, "lineGraph", layout, Y, 0)
-            plotGraph(blockTraces, "barGraph", newlayout, YData, 1)
+            new Dygraph(
+                document.getElementById("barGraph"),
+                bdata,
+                {...layout, ...{
+                    labels: ["Block Height", "Yes", "Abstain", "No"],
+                    ylabel: 'Vote Choices Cast',
+                    title: 'Vote Choices By Block',
+                    plotter: barchartPlotter
+                    }
+                }
+            );
         </script>
 
         {{template "footer" . }}

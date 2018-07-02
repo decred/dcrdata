@@ -224,13 +224,13 @@ const (
 	upsertAgendaRow = insertAgendaRow0 + `ON CONFLICT (agenda_id, agenda_vote_choice, tx_hash, block_height) DO UPDATE 
 		SET block_time = $5 RETURNING id;`
 
-	SelectAgendasAgendaVotesByTime = `SELECT to_timestamp(block_time)::date as date,
+	SelectAgendasAgendaVotesByTime = `SELECT (block_time/86400)*86400 as timestamp,
 		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
 		COUNT(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) as abstain,
 		COUNT(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) as no,
 		count(*) as total FROM agendas WHERE agenda_id = $4 and
 		block_height <= (select block_height from agendas where locked_in = true and agenda_id = $4 limit 1)
-		GROUP BY date ORDER BY date;`
+		GROUP BY timestamp ORDER BY timestamp;`
 
 	SelectAgendasAgendaVotesByHeight = `SELECT block_height,
 		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
