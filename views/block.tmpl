@@ -235,14 +235,7 @@
             <span class="anchor" id="misses"></span>
             <div class="col-md-12">
                 <h4><span>Missed Votes</span></h4>
-                {{if not .Misses}}
-                    <table class="table table-sm striped">
-                            <tr>
-                                <td>No missed votes in this block.
-                                </td>
-                            </tr>
-                    </table>
-                {{else}}
+                {{if .Misses}}
                     <table class="table table-sm striped">
                         <thead>
                             <th>Ticket ID</th>
