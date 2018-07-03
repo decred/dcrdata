@@ -1449,10 +1449,10 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 		var voteInfo *explorer.VoteInfo
 
 		_, Fee_Rate := txhelpers.TxFeeRate(msgTx)
-	
+
 		FeeRate := Fee_Rate.ToCoin()
 		var FeeRateSize string
-	
+
 		if FeeRate < 0.001 {
 			FeeRateSize = "lowest"
 		} else if 0.001 <= FeeRate && FeeRate < 0.01 {
@@ -1519,15 +1519,15 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 			}
 		}
 		txs = append(txs, explorer.MempoolTx{
-			Hash:     		hash,
-			Time:     		tx.Time,
-			Size:     		tx.Size,
-			TotalOut: 		total,
-			TxAmount: 		TxAmount,
-			FeeRateSize: 	FeeRateSize,
-			ByteSize: 		ByteSize,
-			Type:     		txhelpers.DetermineTxTypeString(msgTx),
-			VoteInfo: 		voteInfo,
+			Hash:        hash,
+			Time:        tx.Time,
+			Size:        tx.Size,
+			TotalOut:    total,
+			TxAmount:    TxAmount,
+			FeeRateSize: FeeRateSize,
+			ByteSize:    ByteSize,
+			Type:        txhelpers.DetermineTxTypeString(msgTx),
+			VoteInfo:    voteInfo,
 		})
 	}
 

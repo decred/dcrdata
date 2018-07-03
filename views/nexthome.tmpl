@@ -147,23 +147,22 @@
  
                 <h4 class="mt-2">Decred Blockchain</h4>
                 <div class="card-columns">
-            
+            {{with .Mempool}}
             <div class="card">
     		    <div class="card-header" id="mempool">
-                    {{range .Mempool.LatestTransactions}}
-                        {{if eq .Type "Vote"}}
-                            {{if .VoteInfo.Validation.Validity}}
-                                <a class="btn btn-success" href="/tx/{{.Hash}}" role="button"></a></div>
-                            {{else}}
-                                <a class="btn btn-danger" href="/tx/{{.Hash}}" role="button"></a></div>
-                            {{end}}
-                        {{else if eq .Type "Ticket"}}
-                            <a class="btn btn-secondary {{.FeeRateSize}}-ticket" href="/tx/{{.Hash}}" role="button"></a>
-                        {{else if eq .Type "Revocation"}}
-                            <a class="btn btn-warning {{.FeeRateSize}}-rev" href="/tx/{{.Hash}}" role="button"></a>
-                        {{else if eq .Type "Regular"}}
-                            <a class="btn btn-info {{.TxAmount}}-amount-{{.ByteSize}}" href="/tx/{{.Hash}}" role="button"></a>
-                        {{end}}
+                    {{range .Votes}}
+                    {{if .VoteInfo.Validation.Validity}}<a class="btn btn-success" href="/tx/{{.Hash}}" role="button"></a>
+                    {{else}}<a class="btn btn-danger" href="/tx/{{.Hash}}" role="button"></a>{{end}}{{end}}
+                    <div class="row"></div>
+                    {{range .Tickets}}<a class="btn btn-secondary {{.FeeRateSize}}-ticket" href="/tx/{{.Hash}}" role="button"></a>{{end}}
+                    {{range .Revocations}}<a class="btn btn-warning {{.FeeRateSize}}-rev" href="/tx/{{.Hash}}" role="button"></a>{{end}}
+                    <div class="row"></div>
+
+                    {{range .Transactions}}
+
+                    <a class="btn btn-info {{.TxAmount}}-amount-{{.ByteSize}}" href="/tx/{{.Hash}}" role="button"></a>
+                    
+                    {{end}}
                     {{end}}
 
 
@@ -172,8 +171,7 @@
                        <a href="/mempool">Mempool</a>
 		        </div>
     		</div>
-            
-
+            <div id="explorerblocks">
 		   {{range .Blocks}}
   		   <div class="card">
     		    <div class="card-header">
@@ -200,8 +198,7 @@
 		        </div>
     		</div>
             {{end}}
-            
-		   
+		</div>
   		</div>
       
                 <div class="mb-3"><a href="/blocks"><small>Show Blockchain history</small></a></div>

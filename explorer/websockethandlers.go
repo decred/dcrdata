@@ -162,8 +162,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				case sigNewBlock:
 					exp.NewBlockDataMtx.Lock()
 					enc.Encode(WebsocketBlock{
-						Block: exp.NewBlockData,
-						Extra: exp.ExtraInfo,
+						//Block:     exp.NewBlockData,
+						FullBlock: exp.NewFullBlockData,
+						Extra:     exp.ExtraInfo,
 					})
 					exp.NewBlockDataMtx.Unlock()
 					webData.Message = buff.String()

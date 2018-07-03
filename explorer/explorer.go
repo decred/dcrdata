@@ -22,7 +22,6 @@ import (
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/txhelpers"
-	humanize "github.com/dustin/go-humanize"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
@@ -43,6 +42,7 @@ type explorerDataSourceLite interface {
 	GetExplorerBlocks(start int, end int) []*BlockBasic
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
+	GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult
 	GetExplorerFullBlocks(start int, end int) []*BlockInfo
 	GetExplorerTx(txid string) *TxInfo
 	GetExplorerAddress(address string, count, offset int64) *AddressInfo
@@ -100,19 +100,20 @@ func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) str
 }
 
 type explorerUI struct {
-	Mux             *chi.Mux
-	blockData       explorerDataSourceLite
-	explorerSource  explorerDataSource
-	liteMode        bool
-	templates       templates
-	wsHub           *WebsocketHub
-	NewBlockDataMtx sync.RWMutex
-	NewBlockData    *BlockBasic
-	ExtraInfo       *HomeInfo
-	MempoolData     *MempoolInfo
-	ChainParams     *chaincfg.Params
-	Version         string
-	NetName         string
+	Mux              *chi.Mux
+	blockData        explorerDataSourceLite
+	explorerSource   explorerDataSource
+	liteMode         bool
+	templates        templates
+	wsHub            *WebsocketHub
+	NewBlockDataMtx  sync.RWMutex
+	NewBlockData     *BlockBasic
+	NewFullBlockData *BlockInfo
+	ExtraInfo        *HomeInfo
+	MempoolData      *MempoolInfo
+	ChainParams      *chaincfg.Params
+	Version          string
+	NetName          string
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -220,18 +221,38 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
-	newBlockData := &BlockBasic{
-		Height:         int64(bData.Height),
+	hash, _ := exp.blockData.GetBlockHash(int64(bData.Height))
+	//bFullData := exp.blockData.GetBlockVerboseByHash(hash, true)
+	newBlockData := exp.blockData.GetExplorerBlock(hash)
+	/**newBlockData := &BlockInfo{
+		BlockBasic: &BlockBasic{Height: int64(bData.Height),
 		Voters:         bData.Voters,
 		FreshStake:     bData.FreshStake,
 		Size:           int32(bData.Size),
 		Transactions:   bData.TxLen,
 		BlockTime:      bData.Time,
 		FormattedTime:  bData.FormattedTime,
-		FormattedBytes: humanize.Bytes(uint64(bData.Size)),
-		Revocations:    uint32(bData.Revocations),
-	}
-	exp.NewBlockData = newBlockData
+		FormattedBytes: humanize.Bytes(uint64(bData.Size))
+		Revocations:    uint32(bData.Revocations)},
+		Hash:                  bFullData.Hash,
+		Version:               bFullData.Version,
+		Confirmations:         bFullData.Confirmations,
+		StakeRoot:             bFullData.StakeRoot,
+		MerkleRoot:            bFullData.MerkleRoot,
+		Nonce:                 bFullData.Nonce,
+		VoteBits:              bFullData.VoteBits,
+		FinalState:            bFullData.FinalState,
+		PoolSize:              bFullData.PoolSize,
+		Bits:                  bFullData.Bits,
+		SBits:                 bFullData.SBits,
+		Difficulty:            bFullData.Difficulty,
+		ExtraData:             bFullData.ExtraData,
+		StakeVersion:          bFullData.StakeVersion,
+		PreviousHash:          bFullData.PreviousHash,
+		NextHash:              bFullData.NextHash,
+		StakeValidationHeight: exp.ChainParams.StakeValidationHeight,
+	}**/
+	exp.NewFullBlockData = newBlockData
 	percentage := func(a float64, b float64) float64 {
 		return (a / b) * 100
 	}
@@ -277,7 +298,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 
 	asr, _ := exp.simulateASR(1000, false, stakePerc,
 		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(),
-		float64(exp.NewBlockData.Height),
+		float64(exp.NewFullBlockData.Height),
 		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
 
 	exp.ExtraInfo.ASR = asr
