@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -333,14 +332,14 @@ func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo
 		return []apitypes.TicketPoolInfo{}, []string{}, nil
 	}
 	if N < 0 {
-		return nil, nil, fmt.Errorf("Cannot retrieve pool info range (%d<%d)",
-			ind1, ind0)
+		return nil, nil, fmt.Errorf("Cannot retrieve pool info range (%d>%d)",
+			ind0, ind1)
 	}
 	db.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
 		defer db.RUnlock()
 		return nil, nil, fmt.Errorf("Cannot retrieve pool info range [%d,%d], have height %d",
-			ind1, ind0, db.dbSummaryHeight)
+			ind0, ind1, db.dbSummaryHeight)
 	}
 	db.RUnlock()
 
@@ -435,14 +434,14 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 		return []float64{}, []float64{}, nil
 	}
 	if N < 0 {
-		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range (%d<%d)",
-			ind1, ind0)
+		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range (%d>%d)",
+			ind0, ind1)
 	}
 	db.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
 		defer db.RUnlock()
 		return nil, nil, fmt.Errorf("Cannot retrieve pool val and size range [%d,%d], have height %d",
-			ind1, ind0, db.dbSummaryHeight)
+			ind0, ind1, db.dbSummaryHeight)
 	}
 	db.RUnlock()
 
@@ -489,14 +488,14 @@ func (db *DB) RetrieveSDiffRange(ind0, ind1 int64) ([]float64, error) {
 		return []float64{}, nil
 	}
 	if N < 0 {
-		return nil, fmt.Errorf("Cannot retrieve sdiff range (%d<%d)",
-			ind1, ind0)
+		return nil, fmt.Errorf("Cannot retrieve sdiff range (%d>%d)",
+			ind0, ind1)
 	}
 	db.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
 		defer db.RUnlock()
 		return nil, fmt.Errorf("Cannot retrieve sdiff range [%d,%d], have height %d",
-			ind1, ind0, db.dbSummaryHeight)
+			ind0, ind1, db.dbSummaryHeight)
 	}
 	db.RUnlock()
 
@@ -566,18 +565,6 @@ func (db *DB) RetrieveSDiff(ind int64) (float64, error) {
 	var sdiff float64
 	err := db.QueryRow(db.getSDiffSQL, ind).Scan(&sdiff)
 	return sdiff, err
-}
-
-func stringSliceToBoolSlice(ss []string) ([]bool, error) {
-	bs := make([]bool, len(ss))
-	for i := range ss {
-		var err error
-		bs[i], err = strconv.ParseBool(ss[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return bs, nil
 }
 
 // RetrieveLatestBlockSummary returns the block summary for the best block
@@ -702,14 +689,14 @@ func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
 		return []int32{}, nil
 	}
 	if N < 0 {
-		return nil, fmt.Errorf("Cannot retrieve block size range (%d<%d)",
-			ind1, ind0)
+		return nil, fmt.Errorf("Cannot retrieve block size range (%d>%d)",
+			ind0, ind1)
 	}
 	db.RLock()
 	if ind1 > db.dbSummaryHeight || ind0 < 0 {
 		defer db.RUnlock()
 		return nil, fmt.Errorf("Cannot retrieve block size range [%d,%d], have height %d",
-			ind1, ind0, db.dbSummaryHeight)
+			ind0, ind1, db.dbSummaryHeight)
 	}
 	db.RUnlock()
 
