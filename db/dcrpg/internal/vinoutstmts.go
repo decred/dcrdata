@@ -134,6 +134,13 @@ const (
 	);`
 )
 
+func MakeVinInsertStatement(checked bool) string {
+	if checked {
+		return UpsertVinRow
+	}
+	return InsertVinRow
+}
+
 var (
 	voutCopyStmt = pq.CopyIn("vouts",
 		"tx_hash", "tx_index", "tx_tree", "value", "version",

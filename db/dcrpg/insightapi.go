@@ -138,7 +138,8 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	return blockTransactions
 }
 
-// GetBlockHash returns the hash of the block at the specified height.
+// GetBlockHash returns the hash of the block at the specified height. TODO:
+// create GetBlockHashes to return all blocks at a given height.
 func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 	hash, err := RetrieveBlockHash(pgb.db, idx)
 	if err != nil {

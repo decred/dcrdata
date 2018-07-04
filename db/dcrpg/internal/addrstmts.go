@@ -110,3 +110,10 @@ const (
 		ON addresses(tx_hash);`
 	DeindexAddressTableOnTxHash = `DROP INDEX uix_addresses_funding_tx;`
 )
+
+func MakeAddressRowInsertStatement(checked bool) string {
+	if checked {
+		return UpsertAddressRow
+	}
+	return InsertAddressRow
+}
