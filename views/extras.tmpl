@@ -1,5 +1,5 @@
 {{define "html-head"}}
-<head>
+<head data-turbolinks-eval="false">
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -539,8 +539,10 @@
 <script data-turbolinks-eval="false">
 const app = Stimulus.Application.start()
 </script>
-<script src="/js/controllers/main.js"></script>
-<script src="/js/controllers/mempool.js"></script>
+<script src="/js/controllers/main.js"  data-turbolinks-eval="false"></script>
+<script src="/js/controllers/mempool.js"  data-turbolinks-eval="false"></script>
+<script src="/js/controllers/agenda.js"  data-turbolinks-eval="false"></script>
+
 
 {{end}}
 
