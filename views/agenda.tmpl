@@ -1,7 +1,6 @@
 {{define "agenda"}}
 <!DOCTYPE html>
 <html lang="en">
-    <script src="/js/dygraph.min.js"></script>
     <link href="/css/charts.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
     {{template "html-head" printf "Decred Vote Agenda Pages"}}
@@ -95,110 +94,27 @@
                 {{end}}
             </table>
             {{end}}
-            <div id="lineGraph" style="width:100%; height:400px; margin:0 auto;"></div>
-            <br>
-            <br>
-            <div id="barGraph" style="width:100%; height:250px; margin:0 auto;"></div>
-            </div>
         </div>
         {{end}}
 
         <script>
-            var c = {{.ChartDataByTime}};
-            var b = {{.ChartDataByBlock}};
-            
-            var cdata = [];
-            c.yes.map((n,i) => {
-                cdata.push([new Date(c.time[i]*1000), + c.yes[i], c.abstain[i], c.no[i]])
-            })
-
-            var bdata = [];
-            b.yes.map((n,i) => {
-                bdata.push([b.height[i], + b.yes[i], b.abstain[i], b.no[i]])
-            });
-
-            function legendFormatter(data) {
-                if (data.x == null) return '';
-                var total = 0;
-                data.series.map(function(n){
-                    total += n.y
-                })
-                var html = this.getLabels()[0] + ': ' + data.xHTML;
-                data.series.forEach(function(series) {
-                    var labeledData = ' <span style="color: ' + series.color + ';">' +series.labelHTML + ': ' + series.yHTML;
-                    html += '<br>' + series.dashHTML  + labeledData + ' (' + ((series.y*100)/total).toFixed(2) +'%) </span>';
-                });
-                return html;
-                }
-            
-            function darkenColor(colorStr) {
-                var color = Dygraph.toRGB_(colorStr);
-                color.r = Math.floor((255 + color.r) / 2);
-                color.g = Math.floor((255 + color.g) / 2);
-                color.b = Math.floor((255 + color.b) / 2);
-                return 'rgb(' + color.r + ',' + color.g + ',' + color.b + ')';
-            }
-
-            function barchartPlotter(e) {
-                var ctx = e.drawingContext;
-                var points = e.points;
-                var y_bottom = e.dygraph.toDomYCoord(0);
-
-                ctx.fillStyle = darkenColor(e.color);
-
-                var min_sep = Infinity;
-                for (var i = 1; i < points.length; i++) {
-                var sep = points[i].canvasx - points[i - 1].canvasx;
-                if (sep < min_sep) min_sep = sep;
-                }
-                var bar_width = Math.floor(2.0 / 3 * min_sep);
-
-                for (var i = 0; i < points.length; i++) {
-                var p = points[i];
-                var center_x = p.canvasx;
-
-                ctx.fillRect(center_x - bar_width / 2, p.canvasy,
-                    bar_width, y_bottom - p.canvasy);
-
-                ctx.strokeRect(center_x - bar_width / 2, p.canvasy,
-                    bar_width, y_bottom - p.canvasy);
-                }
-            }
-
-            var layout = {
-                    showRangeSelector: true,
-                    legend: 'follow',
-                    fillGraph: true,
-                    colors: ['rgb(0,153,0)', 'orange', 'red'],
-                    stackedGraph: true,
-                    legendFormatter: legendFormatter,
-                    labelsSeparateLines: true
-                 }
-
-            new Dygraph(
-                document.getElementById("lineGraph"),
-                cdata,
-                {...layout, ...{
-                    labels: ["Date", "Yes", "Abstain", "No"],
-                    ylabel: 'Cummulative Vote Choices Cast',
-                    title: 'Cummulative Vote Choices',
-                    labelsKMB: true
-                    }
-                }
-            );
-
-            new Dygraph(
-                document.getElementById("barGraph"),
-                bdata,
-                {...layout, ...{
-                    labels: ["Block Height", "Yes", "Abstain", "No"],
-                    ylabel: 'Vote Choices Cast',
-                    title: 'Vote Choices By Block',
-                    plotter: barchartPlotter
-                    }
-                }
-            );
+            // TODO pass this data via XHR instead
+            var chartDataByTime = {{.ChartDataByTime}};
+            var chartDataByBlock = {{.ChartDataByBlock}};
         </script>
+
+        <div data-controller="agenda">
+            <div
+                data-target="agenda.cumulativeVoteChoices"
+                style="width:100%; height:400px; margin:0 auto;"
+            ></div>
+            <br>
+            <br>
+            <div
+                data-target="agenda.voteChoicesByBlock"
+                style="width:100%; height:250px; margin:0 auto;"
+            ></div>
+        </div>
 
         {{template "footer" . }}
     </body>
