@@ -261,6 +261,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	if heightStakeDB != heightTicketPool {
 		if heightStakeDB-heightTicketPool > 16 {
 			log.Warnf("The ticket DB format has changed in v2.1. Did you upgrade?")
+			// Try to close but ignore any error
 			_ = sDB.Close()
 			return nil, heightTicketPool, fmt.Errorf("Remove %s and start dcrdata again.",
 				filepath.Join(dataDir, DefaultTicketPoolDbFolder))
@@ -268,6 +269,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 		// Roll stake DB back to the height of the ticket pool DB
 		for heightStakeDB > heightTicketPool {
 			if err = sDB.DisconnectBlock(true); err != nil {
+				// Try to close but ignore any error
 				_ = sDB.Close()
 				return nil, heightTicketPool, fmt.Errorf("failed to disconnect block: %v", err)
 			}
@@ -282,6 +284,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 			if heightTicketPool > heightStakeDB {
 				height = heightStakeDB
 			}
+			// Try to close but ignore any error
 			_ = sDB.Close()
 			return nil, height,
 				fmt.Errorf("unable to return stake DB height (%d) to ticket pool height (%d)",
@@ -291,6 +294,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 
 	log.Infof("Advancing ticket pool DB to tip via diffs...")
 	if err, height = sDB.PoolDB.AdvanceToTip(); err != nil {
+		// Try to close but ignore any error
 		_ = sDB.Close()
 		return nil, height, fmt.Errorf("failed to advance ticket pool DB to tip: %v", err)
 	}
