@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/db/agendadb"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
@@ -697,6 +698,84 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 		NetName string
 	}{
 		ecp,
+		exp.Version,
+		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// AgendaPage is the page handler for the "/agenda" path
+func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
+	var errMsgDisplay = func(err error) {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "the agenda ID given seems to be wrong", false)
+	}
+	// attempt to get agendaid string from URL path
+	var agendaid = getAgendaIDCtx(r)
+	var agendaInfo, err = GetAgendaInfo(agendaid)
+	if err != nil {
+		errMsgDisplay(err)
+		return
+	}
+
+	chartDataByTime, err := exp.explorerSource.AgendaVotes(agendaid, 0)
+	if err != nil {
+		errMsgDisplay(err)
+		return
+	}
+
+	chartDataByHeight, err := exp.explorerSource.AgendaVotes(agendaid, 1)
+	if err != nil {
+		errMsgDisplay(err)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("agenda", struct {
+		Ai               *agendadb.AgendaTagged
+		Version          string
+		NetName          string
+		ChartDataByTime  *dbtypes.AgendaVoteChoices
+		ChartDataByBlock *dbtypes.AgendaVoteChoices
+	}{
+		agendaInfo,
+		exp.Version,
+		exp.NetName,
+		chartDataByTime,
+		chartDataByHeight,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
+	agendas, err := agendadb.GetAllAgendas()
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("agendas", struct {
+		Agendas []*agendadb.AgendaTagged
+		Version string
+		NetName string
+	}{
+		agendas,
 		exp.Version,
 		exp.NetName,
 	})

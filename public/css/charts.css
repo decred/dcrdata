@@ -1,0 +1,23 @@
+.dygraph-legend {
+    padding: 4px !important;
+    border: 1px solid #000;
+    border-radius: 5px;
+    pointer-events: none;
+    font-weight: bold;
+    width: fit-content !important;
+}
+.dygraph-rangesel-bgcanvas {
+    z-index: 0 !important;
+}
+.dygraph-rangesel-fgcanvas {
+    z-index: 0 !important;
+}
+.dygraph-rangesel-zoomhandle {
+    z-index: 0 !important;
+}
+.dygraph-axis-label {
+    z-index: 0 !important;
+}
+.dygraph-label {
+    font-size: 14px;
+}
