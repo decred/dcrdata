@@ -1007,60 +1007,50 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 	return
 }
 
-// retrieveAgendaVoteChoices retrieves the vote choices count per day and also
-// the total votes count per vote choice for the provided agenda. The vote choices
-// count is fetched for individual blocks and cummulatively per day for the voting time.
+// retrieveAgendaVoteChoices retrieves for the specified agenda the vote counts
+// for each choice and the total number of votes. The interval size is either a
+// single block or a day, as specified by byType, where a value of 1 indicates a
+// block and 0 indicates a day-long interval. For day intervals, the counts
+// accumulate over time (cumulative sum), whereas for block intervals the counts
+// are just for the block. The total length of time over all intervals always
+// spans the locked-in period of the agenda.
 func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtypes.AgendaVoteChoices, error) {
-	var totalVotes = new(dbtypes.AgendaVoteChoices)
-	var a, y, n, t uint64
-	var yesIndex, err = dbtypes.ChoiceIndexFromStr("yes")
-	if err != nil {
-		return nil, err
-	}
-
-	abstainIndex, err := dbtypes.ChoiceIndexFromStr("abstain")
-	if err != nil {
-		return nil, err
-	}
-
-	noIndex, err := dbtypes.ChoiceIndexFromStr("no")
-	if err != nil {
-		return nil, err
-	}
+	// Query with block or day interval size
 	var query = internal.SelectAgendasAgendaVotesByTime
 	if byType == 1 {
 		query = internal.SelectAgendasAgendaVotesByHeight
 	}
 
-	rows, err := db.Query(query, yesIndex, abstainIndex, noIndex, agendaID)
+	rows, err := db.Query(query, dbtypes.Yes, dbtypes.Abstain, dbtypes.No,
+		agendaID)
 	if err != nil {
 		return nil, err
 	}
 
+	// Sum abstain, yes, no, and total votes
+	var a, y, n, t uint64
+	totalVotes := new(dbtypes.AgendaVoteChoices)
 	for rows.Next() {
-		var abstain, yes, no, total, height, timestamp uint64
-		var err error
-		if byType == 0 {
-			err = rows.Scan(&timestamp, &yes, &abstain, &no, &total)
-		} else {
-			err = rows.Scan(&height, &yes, &abstain, &no, &total)
-		}
+		// Parse the counts and time/height
+		var abstain, yes, no, total, heightOrTime uint64
+		err = rows.Scan(&heightOrTime, &yes, &abstain, &no, &total)
 		if err != nil {
 			return nil, err
 		}
 
+		// For day intervals, counts are cumulative
 		if byType == 0 {
 			a += abstain
 			y += yes
 			n += no
 			t += total
-			totalVotes.Time = append(totalVotes.Time, timestamp)
+			totalVotes.Time = append(totalVotes.Time, heightOrTime)
 		} else {
 			a = abstain
 			y = yes
 			n = no
 			t = total
-			totalVotes.Height = append(totalVotes.Height, height)
+			totalVotes.Height = append(totalVotes.Height, heightOrTime)
 		}
 
 		totalVotes.Abstain = append(totalVotes.Abstain, a)
@@ -1761,8 +1751,9 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 				return nil, nil, nil, nil, nil, err
 			}
 
+			lockedIn, activated, hardForked := false, false, false
 			err = prep.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight,
-				tx.BlockTime, false, false, false).Scan(&rowID)
+				tx.BlockTime, lockedIn, activated, hardForked).Scan(&rowID)
 			if err != nil {
 				return nil, nil, nil, nil, nil, err
 			}

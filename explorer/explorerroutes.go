@@ -714,27 +714,29 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 
 // AgendaPage is the page handler for the "/agenda" path
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
-	var errMsgDisplay = func(err error) {
+	errPageInvalidAgenda := func(err error) {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "the agenda ID given seems to be wrong", false)
+		exp.ErrorPage(w, "Something went wrong...",
+			"the agenda ID given seems to not exist", true)
 	}
-	// attempt to get agendaid string from URL path
-	var agendaid = getAgendaIDCtx(r)
-	var agendaInfo, err = GetAgendaInfo(agendaid)
+
+	// Attempt to get agendaid string from URL path
+	agendaid := getAgendaIDCtx(r)
+	agendaInfo, err := GetAgendaInfo(agendaid)
 	if err != nil {
-		errMsgDisplay(err)
+		errPageInvalidAgenda(err)
 		return
 	}
 
 	chartDataByTime, err := exp.explorerSource.AgendaVotes(agendaid, 0)
 	if err != nil {
-		errMsgDisplay(err)
+		errPageInvalidAgenda(err)
 		return
 	}
 
 	chartDataByHeight, err := exp.explorerSource.AgendaVotes(agendaid, 1)
 	if err != nil {
-		errMsgDisplay(err)
+		errPageInvalidAgenda(err)
 		return
 	}
 
@@ -754,7 +756,8 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, "+
+			"try refreshing... that usually fixes things", false)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -762,11 +765,13 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// AgendasPage is the page handler for the "/agendas" path
 func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	agendas, err := agendadb.GetAllAgendas()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, "+
+			"try refreshing... that usually fixes things", false)
 		return
 	}
 
@@ -782,7 +787,8 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, "+
+			"try refreshing... that usually fixes things", false)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")

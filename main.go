@@ -273,8 +273,12 @@ func mainCore() error {
 			return fmt.Errorf("Failed to charge pool info cache: %v", err)
 		}
 	}
-	// AgendaDB
-	agendadb.CheckForUpdates(dcrdClient)
+
+	// AgendaDB upgrade check
+	if err = agendadb.CheckForUpdates(dcrdClient); err != nil {
+		return fmt.Errorf("agendadb upgrade failed: %v", err)
+	}
+
 	// Block data collector. Needs a StakeDatabase too.
 	collector := blockdata.NewCollector(dcrdClient, activeChain, baseDB.GetStakeDB())
 	if collector == nil {

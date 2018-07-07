@@ -178,12 +178,13 @@ func (db *AgendaDB) Updatedb(voteVersion int64, client *rpcclient.Client) {
 	}
 }
 
-// CheckForUpdates checks for update at the start of the process and
-// will proceed to update when neccessary
+// CheckForUpdates checks for update at the start of the process and will
+// proceed to update when neccessary.
 func CheckForUpdates(client *rpcclient.Client) error {
 	adb, err := Open(dbName)
 	if err != nil {
 		log.Errorf("Failed to open new DB: %v", err)
+		return nil
 	}
 	var voteVersion int64 = 4
 	for adb.CheckAvailabiltyOfVersionAgendas(voteVersion) {
@@ -193,22 +194,23 @@ func CheckForUpdates(client *rpcclient.Client) error {
 	return adb.Close()
 }
 
-// GetAgendaInfo for getting an agenda's details given it's agendaId
+// GetAgendaInfo for getting an agenda's details given it's agendaId.
 func GetAgendaInfo(agendaId string) (*AgendaTagged, error) {
 	adb, err := Open(dbName)
 	if err != nil {
 		log.Errorf("Failed to open new DB: %v", err)
+		return nil, err
 	}
 	agenda, err := adb.LoadAgenda(agendaId)
 	if err != nil {
-		log.Error(err)
+		_ = adb.Close() // only return the LoadAgenda error
 		return nil, err
 	}
 
 	return agenda, adb.Close()
 }
 
-// GetAllAgendas returns all agendas and their info in the db
+// GetAllAgendas returns all agendas and their info in the db.
 func GetAllAgendas() (agendas []*AgendaTagged, err error) {
 	adb, err := Open(dbName)
 	if err != nil {

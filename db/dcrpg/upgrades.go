@@ -17,8 +17,9 @@ import (
 	"github.com/decred/dcrdata/txhelpers"
 )
 
-// CheckForAuxDBUpgrade checks if an upgrade is required and currently supported.
-// A boolean value is returned to indicate that the db upgrade was successfully completed.
+// CheckForAuxDBUpgrade checks if an upgrade is required and currently
+// supported. A boolean value is returned to indicate if the db upgrade was
+// successfully completed.
 func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, error) {
 	var (
 		version     = TableVersion{}
@@ -44,14 +45,14 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			return false, err
 		}
 
-		return true, commentTable(pgb.db, version)
+		return true, versionAllTables(pgb.db, version) // versionTable(pgb.db, "agendas", version)
 	}
 
 	return false, nil
 }
 
-// handleAgendasTableUpgrade implements the upgrade to the newly added agenda table.
-// If the table exists, the db upgrade fails to proceed
+// handleAgendasTableUpgrade implements the upgrade to the newly added agenda
+// table. If the table exists, the db upgrade fails to proceed
 func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error {
 	var rowsUpdated int64
 	c, err := isAgendasTable(pgb.db)
@@ -65,24 +66,25 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 	}
 
 	log.Infof("Found the best block at height: %v", height)
-	var limit, i uint64
 
-	// Range (block height) from where the first the vote for an agenda was cast
-	i, limit = 128000, 128000
+	// Range (block height) from where the first vote for an agenda was cast
+	var i, last int64 = 128000, int64(height) + 1
+	chunkEnd := i
 
 	// Fetch the block associated with the provided block height
-	for ; i < height+1; i++ {
-		var block, err = client.UpdateToBlock(int64(i))
+	for ; i < last; i++ {
+		var block, err = client.UpdateToBlock(i)
 		if err != nil {
 			return err
 		}
 
 		if i%5000 == 0 {
-			limit += 5000
-			if height < limit {
-				limit = height + 1
+			chunkEnd += 5000
+			if int64(height) < chunkEnd {
+				chunkEnd = last
 			}
-			log.Infof("Upgrading the Agendas (New Table Upgrade) from height %v to %v ", i, limit-1)
+			log.Infof("Upgrading the Agendas (New Table Upgrade) from height %v to %v ",
+				i, chunkEnd-1)
 		}
 
 		p, err := pgb.tableUpgrade(block)
@@ -159,7 +161,7 @@ func (pgb *ChainDB) tableUpgrade(block *dcrutil.Block) (int64, error) {
 	return rowsUpdated, nil
 }
 
-// isAgendasTable checks if the agendas table is empty
+// isAgendasTable checks if the agendas table is empty.
 func isAgendasTable(db *sql.DB) (int, error) {
 	var isExists int
 
@@ -175,8 +177,8 @@ func isAgendasTable(db *sql.DB) (int, error) {
 	return 1, nil
 }
 
-// commentTable comments the tables with the upgraded table version
-func commentTable(db *sql.DB, version TableVersion) error {
+// versionAllTables comments the tables with the upgraded table version.
+func versionAllTables(db *sql.DB, version TableVersion) error {
 	for tableName := range createTableStatements {
 		_, err := db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s IS 'v%s';`,
 			tableName, version))
@@ -186,5 +188,17 @@ func commentTable(db *sql.DB, version TableVersion) error {
 
 		log.Infof("Modified the %v table version to %v", tableName, version)
 	}
+	return nil
+}
+
+// versionTable comments the specified table with the upgraded table version.
+func versionTable(db *sql.DB, tableName string, version TableVersion) error {
+	_, err := db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s IS 'v%s';`,
+		tableName, version.String()))
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Modified the %v table version to %v", tableName, version)
 	return nil
 }

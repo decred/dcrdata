@@ -257,8 +257,8 @@ func setupTables(db *sql.DB) error {
 }
 
 // VersionCheck checks the current version of all known tables and notifies when
-// an upgrade is required. Since there is presently no automatic upgrade, an
-// error is returned when any table is not of the correct version.
+// an upgrade is required. If there is no automatic upgrade supported, an error
+// is returned when any table is not of the correct version.
 func (pgb *ChainDB) VersionCheck(client ...*rpcclient.Client) error {
 	vers := TableVersions(pgb.db)
 	for tab, ver := range vers {
@@ -381,8 +381,8 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 	return blockHash, blockInd, tree, err
 }
 
-// AgendaVotes fetches the data used to plot a graph of vote choice types cast per day for the provided agenda.
-// The total count of all votes cast per vote choice type for the entire period is returned.
+// AgendaVotes fetches the data used to plot a graph of votes cast per day per
+// choice for the provided agenda.
 func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error) {
 	return retrieveAgendaVoteChoices(pgb.db, agendaID, chartType)
 }
@@ -1416,7 +1416,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db,
-			dbTransactions, *TxDbIDs, unspentTicketCache, msgBlock, pgb.dupChecks, pgb.chainParams)
+			dbTransactions, *TxDbIDs, unspentTicketCache, msgBlock,
+			pgb.dupChecks, pgb.chainParams)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err

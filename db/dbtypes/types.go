@@ -88,7 +88,8 @@ const (
 	PoolStatusMissed
 )
 
-// VoteChoice defines the type of vote choice cast for given agenda.
+// VoteChoice defines the type of vote choice, and the undelying integer value
+// is stored in the database (do not change these without upgrading the DB!).
 type VoteChoice uint8
 
 const (
@@ -126,8 +127,7 @@ func (v VoteChoice) String() string {
 	}
 }
 
-// ChoiceIndexFromStr converts the vote choice string to a
-// vote choice index.
+// ChoiceIndexFromStr converts the vote choice string to a vote choice index.
 func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 	switch choice {
 	case "abstain":
@@ -352,14 +352,17 @@ type ScriptSig struct {
 	Hex string `json:"hex"`
 }
 
-// AgendaVoteChoices defines the agenda vote choices count per given vote choice.
+// AgendaVoteChoices contains the vote counts on multiple intervals of time. The
+// interval length may be either a single block, in which case Height contains
+// the block heights, or a day, in which case Time contains the time stamps of
+// each interval. Total is always the sum of Yes, No, and Abstain.
 type AgendaVoteChoices struct {
 	Abstain []uint64 `json:"abstain"`
 	Yes     []uint64 `json:"yes"`
 	No      []uint64 `json:"no"`
-	Total   []uint64 `json:"total,omitempty"`
+	Total   []uint64 `json:"total"`
 	Height  []uint64 `json:"height,omitempty"`
-	Time    []uint64 `json:"time"`
+	Time    []uint64 `json:"time,omitempty"`
 }
 
 // Tx models a Decred transaction. It is stored in a Block.
