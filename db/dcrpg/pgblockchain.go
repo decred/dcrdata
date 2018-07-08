@@ -260,6 +260,9 @@ func setupTables(db *sql.DB) error {
 // an upgrade is required. If there is no automatic upgrade supported, an error
 // is returned when any table is not of the correct version.
 func (pgb *ChainDB) VersionCheck(client ...*rpcclient.Client) error {
+	if len(client) == 0 {
+		return fmt.Errorf("TableUpgradesRequired: No rpc client found")
+	}
 	vers := TableVersions(pgb.db)
 	for tab, ver := range vers {
 		log.Debugf("Table %s: v%s", tab, ver)
