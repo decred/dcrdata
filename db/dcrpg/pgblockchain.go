@@ -827,21 +827,33 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	// isValid flag in last block if votes in this block invalidated it.
 	lastBlockHash := msgBlock.Header.PrevBlock
 	lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
-	if ok {
-		lastIsValid := dbBlock.VoteBits&1 != 0
-		if !lastIsValid {
-			log.Infof("Setting last block %s as INVALID", lastBlockHash)
-			err = UpdateLastBlock(pgb.db, lastBlockDbID, lastIsValid)
-			if err != nil {
-				log.Error("UpdateLastBlock:", err)
-				return
-			}
-		}
-		err = UpdateBlockNext(pgb.db, lastBlockDbID, dbBlock.Hash)
+	if !ok {
+		log.Debugf("The previous block for block %s not found in cache, "+
+			"looking it up.", lastBlockHash)
+		lastBlockDbID, err = RetrieveBlockChainDbID(pgb.db, lastBlockHash.String())
 		if err != nil {
-			log.Error("UpdateBlockNext:", err)
+			log.Criticalf("Unable to locate block %s in block_chain table: %v",
+				lastBlockHash, err)
 			return
 		}
+	}
+
+	// Was he previous block invalidated?
+	lastIsValid := dbBlock.VoteBits&1 != 0
+	if !lastIsValid {
+		log.Infof("Setting last block %s as INVALID", lastBlockHash)
+		err = UpdateLastBlock(pgb.db, lastBlockDbID, lastIsValid)
+		if err != nil {
+			log.Error("UpdateLastBlock:", err)
+			return
+		}
+	}
+
+	// Update the previous block's next block hash
+	err = UpdateBlockNext(pgb.db, lastBlockDbID, dbBlock.Hash)
+	if err != nil {
+		log.Error("UpdateBlockNext:", err)
+		return
 	}
 
 	pgb.addressCounts.Lock()
@@ -905,7 +917,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 
 		// Insert vins
-		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it])
+		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it], pgb.dupChecks)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVins:", err)
 			txRes.err = err

@@ -508,7 +508,7 @@ func SetSpendingForFundingOP(db *sql.DB,
 // need to get the funding (previous output) tx info, and then update the
 // corresponding row in the addresses table with the spending tx info.
 func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
-	spendingTxHash string, spendingTxVinIndex uint32) (int64, error) {
+	spendingTxHash string, spendingTxVinIndex uint32, checked bool) (int64, error) {
 	// get funding details for vin and set them in the address table
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -1048,6 +1048,14 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	return
 }
 
+// RetrieveBlockChainDbID retrieves the row id in the block_chain table of the
+// block with the given hash, if it exists (be sure to check error against
+// sql.ErrNoRows!).
+func RetrieveBlockChainDbID(db *sql.DB, hash string) (dbID uint64, err error) {
+	err = db.QueryRow(internal.SelectBlockChainRowIDByHash, hash).Scan(&dbID)
+	return
+}
+
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, checked bool) (uint64, error) {
 	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
 	var id uint64
@@ -1140,20 +1148,20 @@ func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
 	return nil
 }
 
-func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty) (id uint64, err error) {
-	err = db.QueryRow(internal.InsertVinRow,
+func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64, err error) {
+	err = db.QueryRow(internal.MakeVinInsertStatement(checked),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
 		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree).Scan(&id)
 	return
 }
 
-func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error) {
+func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	stmt, err := dbtx.Prepare(internal.InsertVinRow)
+	stmt, err := dbtx.Prepare(internal.MakeVinInsertStatement(checked))
 	if err != nil {
 		log.Errorf("Vin INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
@@ -1245,11 +1253,10 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 	return ids, addressRows, dbtx.Commit()
 }
 
+// InsertAddressOut inserts an AddressRow (input or output), returning the row
+// ID in the addresses table of the inserted data.
 func InsertAddressOut(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint64, error) {
-	sqlStmt := internal.InsertAddressRow
-	if dupCheck {
-		sqlStmt = internal.UpsertAddressRow
-	}
+	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck)
 	var id uint64
 	err := db.QueryRow(sqlStmt, dbA.Address, dbA.FundingTxDbID,
 		dbA.FundingTxHash, dbA.FundingTxVoutIndex, dbA.VoutDbID,
@@ -1271,10 +1278,7 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	sqlStmt := internal.InsertAddressRow
-	if dupCheck {
-		sqlStmt = internal.UpsertAddressRow
-	}
+	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck)
 
 	stmt, err := dbtx.Prepare(sqlStmt)
 	if err != nil {
@@ -1419,7 +1423,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 		return nil, nil, nil, nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	stmt, err := dbtx.Prepare(internal.MakeVoteInsertStatement(checked))
+	voteInsert := internal.MakeVoteInsertStatement(checked)
+	stmt, err := dbtx.Prepare(voteInsert)
 	if err != nil {
 		log.Errorf("Votes INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
