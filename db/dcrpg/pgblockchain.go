@@ -1220,34 +1220,37 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	// Update last block in db with this block's hash as it's next. Also update
 	// isValid flag in last block if votes in this block invalidated it.
 	lastBlockHash := msgBlock.Header.PrevBlock
-	lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
-	if !ok {
-		log.Debugf("The previous block for block %s not found in cache, "+
-			"looking it up.", lastBlockHash)
-		lastBlockDbID, err = RetrieveBlockChainDbID(pgb.db, lastBlockHash.String())
+	// Only update if last was not genesis, which is not in the table (implied)
+	if lastBlockHash != zeroHash {
+		lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
+		if !ok {
+			log.Debugf("The previous block %s for block %s not found in cache, "+
+				"looking it up.", lastBlockHash, msgBlock.BlockHash())
+			lastBlockDbID, err = RetrieveBlockChainDbID(pgb.db, lastBlockHash.String())
+			if err != nil {
+				log.Criticalf("Unable to locate block %s in block_chain table: %v",
+					lastBlockHash, err)
+				return
+			}
+		}
+
+		// Was the previous block invalidated?
+		lastIsValid := dbBlock.VoteBits&1 != 0
+		if !lastIsValid {
+			log.Infof("Setting last block %s as INVALID", lastBlockHash)
+			err = UpdateLastBlock(pgb.db, lastBlockDbID, lastIsValid)
+			if err != nil {
+				log.Error("UpdateLastBlock:", err)
+				return
+			}
+		}
+
+		// Update the previous block's next block hash
+		err = UpdateBlockNext(pgb.db, lastBlockDbID, dbBlock.Hash)
 		if err != nil {
-			log.Criticalf("Unable to locate block %s in block_chain table: %v",
-				lastBlockHash, err)
+			log.Error("UpdateBlockNext:", err)
 			return
 		}
-	}
-
-	// Was he previous block invalidated?
-	lastIsValid := dbBlock.VoteBits&1 != 0
-	if !lastIsValid {
-		log.Infof("Setting last block %s as INVALID", lastBlockHash)
-		err = UpdateLastBlock(pgb.db, lastBlockDbID, lastIsValid)
-		if err != nil {
-			log.Error("UpdateLastBlock:", err)
-			return
-		}
-	}
-
-	// Update the previous block's next block hash
-	err = UpdateBlockNext(pgb.db, lastBlockDbID, dbBlock.Hash)
-	if err != nil {
-		log.Error("UpdateBlockNext:", err)
-		return
 	}
 
 	// If not in batch sync, lazy update the dev fund balance
