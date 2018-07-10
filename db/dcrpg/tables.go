@@ -37,19 +37,22 @@ var createTypeStatements = map[string]string{
 // by dcrdata or rebuilddb2. The patch versions may also be different. They
 // indicate a change of a table's index or constraint, which may require
 // re-indexing and a duplicate scan/purge.
-const tableMajor = 3
+const (
+	tableMajor = 3
+	tableMinor = 1
+)
 
 var requiredVersions = map[string]TableVersion{
-	"blocks":       NewTableVersion(tableMajor, 4, 0),
-	"transactions": NewTableVersion(tableMajor, 4, 0),
-	"vins":         NewTableVersion(tableMajor, 4, 0),
-	"vouts":        NewTableVersion(tableMajor, 4, 0),
-	"block_chain":  NewTableVersion(tableMajor, 4, 0),
-	"addresses":    NewTableVersion(tableMajor, 4, 0),
-	"tickets":      NewTableVersion(tableMajor, 4, 0),
-	"votes":        NewTableVersion(tableMajor, 4, 0),
-	"misses":       NewTableVersion(tableMajor, 4, 0),
-	"agendas":      NewTableVersion(tableMajor, 4, 0),
+	"blocks":       NewTableVersion(tableMajor, tableMinor, 0),
+	"transactions": NewTableVersion(tableMajor, tableMinor, 0),
+	"vins":         NewTableVersion(tableMajor, tableMinor, 0),
+	"vouts":        NewTableVersion(tableMajor, tableMinor, 0),
+	"block_chain":  NewTableVersion(tableMajor, tableMinor, 0),
+	"addresses":    NewTableVersion(tableMajor, tableMinor, 0),
+	"tickets":      NewTableVersion(tableMajor, tableMinor, 0),
+	"votes":        NewTableVersion(tableMajor, tableMinor, 0),
+	"misses":       NewTableVersion(tableMajor, tableMinor, 0),
+	"agendas":      NewTableVersion(tableMajor, tableMinor, 0),
 }
 
 // TableVersion models a table version by major.minor.patch

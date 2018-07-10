@@ -186,6 +186,11 @@ func CheckForUpdates(client *rpcclient.Client) error {
 		log.Errorf("Failed to open new DB: %v", err)
 		return nil
 	}
+	// voteVersion is vote version as of when lnsupport and sdiffalgorithm votes
+	// casting was activated. More information can be found here
+	// https://docs.decred.org/getting-started/user-guides/agenda-voting/#voting-archive
+	// Also at the moment all agenda version information available in the rpc
+	// is from version 4.
 	var voteVersion int64 = 4
 	for adb.CheckAvailabiltyOfVersionAgendas(voteVersion) {
 		voteVersion++
@@ -194,7 +199,7 @@ func CheckForUpdates(client *rpcclient.Client) error {
 	return adb.Close()
 }
 
-// GetAgendaInfo for getting an agenda's details given it's agendaId.
+// GetAgendaInfo fetches an agenda's details given it's agendaId.
 func GetAgendaInfo(agendaId string) (*AgendaTagged, error) {
 	adb, err := Open(dbName)
 	if err != nil {

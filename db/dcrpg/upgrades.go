@@ -36,8 +36,8 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 	case upgradeInfo[0].UpgradeType != "upgrade":
 		return false, nil
 
-	// When the required table version is 2.x.0 where x is greater than or equal to 3
-	case version.major >= 2 && version.minor > 3 && version.patch == 0:
+	// When the required table version is 3.x.0 where x is greater than or equal to 1
+	case version.major >= 3 && version.minor >= 1 && version.patch == 0:
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		err := pgb.handleAgendasTableUpgrade(smartClient)
@@ -45,7 +45,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			return false, err
 		}
 
-		return true, versionAllTables(pgb.db, version) // versionTable(pgb.db, "agendas", version)
+		return true, versionAllTables(pgb.db, version)
 	}
 
 	return false, nil
@@ -55,7 +55,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 // table. If the table exists, the db upgrade fails to proceed
 func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error {
 	var rowsUpdated int64
-	c, err := isAgendasTable(pgb.db)
+	c, err := haveEmptyAgendasTable(pgb.db)
 	if c == 0 {
 		return err
 	}
@@ -67,7 +67,7 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 
 	log.Infof("Found the best block at height: %v", height)
 
-	// Range (block height) from where the first vote for an agenda was cast
+	// last (block height) from where the first vote for an agenda was cast
 	var i, last int64 = 128000, int64(height) + 1
 	chunkEnd := i
 
@@ -141,16 +141,22 @@ func (pgb *ChainDB) tableUpgrade(block *dcrutil.Block) (int64, error) {
 
 		var rowID uint64
 		for _, val := range choices {
-			index, err := dbtypes.ChoiceIndexFromStr(val.Choice.Id)
+			// check if agenda id exists, if not it skips to the next agenda id
+			var progress, ok = milestones[val.ID]
+			if !ok {
+				continue
+			}
+
+			var index, err = dbtypes.ChoiceIndexFromStr(val.Choice.Id)
 			if err != nil {
 				return 0, err
 			}
 
 			err = pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
 				val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime,
-				milestones[val.ID].LockedIn == tx.BlockHeight,
-				milestones[val.ID].Activated == tx.BlockHeight,
-				milestones[val.ID].HardForked == tx.BlockHeight).Scan(&rowID)
+				progress.LockedIn == tx.BlockHeight,
+				progress.Activated == tx.BlockHeight,
+				progress.HardForked == tx.BlockHeight).Scan(&rowID)
 			if err != nil {
 				return 0, err
 			}
@@ -161,15 +167,17 @@ func (pgb *ChainDB) tableUpgrade(block *dcrutil.Block) (int64, error) {
 	return rowsUpdated, nil
 }
 
-// isAgendasTable checks if the agendas table is empty.
-func isAgendasTable(db *sql.DB) (int, error) {
+// haveEmptyAgendasTable checks if the agendas table is empty.
+// If the agenda table exists 0 is returned otherwise 1 is returned.
+// If the table is not empty then this upgrade doesn't proceed.
+func haveEmptyAgendasTable(db *sql.DB) (int, error) {
 	var isExists int
 
 	err := db.QueryRow(`SELECT COUNT(*) FROM agendas;`).Scan(&isExists)
 	if err != nil {
 		return 0, err
 	}
-	// If the table is not empty then this upgrade shouldn't proceed
+
 	if isExists != 0 {
 		return 0, nil
 	}
