@@ -144,6 +144,7 @@ func (pgb *ChainDB) tableUpgrade(block *dcrutil.Block) (int64, error) {
 			// check if agenda id exists, if not it skips to the next agenda id
 			var progress, ok = milestones[val.ID]
 			if !ok {
+				log.Debugf("The Agenda ID: '%s' is unknown", val.ID)
 				continue
 			}
 
