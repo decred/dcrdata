@@ -12,6 +12,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/db/agendadb"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/txhelpers"
 )
@@ -463,4 +464,9 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 		})
 	}
 	return addrPrefix
+}
+
+// GetAgendaInfo gets the all info for the specified agenda ID.
+func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
+	return agendadb.GetAgendaInfo(agendaId)
 }

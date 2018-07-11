@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -1006,6 +1007,61 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 	return
 }
 
+// retrieveAgendaVoteChoices retrieves for the specified agenda the vote counts
+// for each choice and the total number of votes. The interval size is either a
+// single block or a day, as specified by byType, where a value of 1 indicates a
+// block and 0 indicates a day-long interval. For day intervals, the counts
+// accumulate over time (cumulative sum), whereas for block intervals the counts
+// are just for the block. The total length of time over all intervals always
+// spans the locked-in period of the agenda.
+func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtypes.AgendaVoteChoices, error) {
+	// Query with block or day interval size
+	var query = internal.SelectAgendasAgendaVotesByTime
+	if byType == 1 {
+		query = internal.SelectAgendasAgendaVotesByHeight
+	}
+
+	rows, err := db.Query(query, dbtypes.Yes, dbtypes.Abstain, dbtypes.No,
+		agendaID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sum abstain, yes, no, and total votes
+	var a, y, n, t uint64
+	totalVotes := new(dbtypes.AgendaVoteChoices)
+	for rows.Next() {
+		// Parse the counts and time/height
+		var abstain, yes, no, total, heightOrTime uint64
+		err = rows.Scan(&heightOrTime, &yes, &abstain, &no, &total)
+		if err != nil {
+			return nil, err
+		}
+
+		// For day intervals, counts are cumulative
+		if byType == 0 {
+			a += abstain
+			y += yes
+			n += no
+			t += total
+			totalVotes.Time = append(totalVotes.Time, heightOrTime)
+		} else {
+			a = abstain
+			y = yes
+			n = no
+			t = total
+			totalVotes.Height = append(totalVotes.Height, heightOrTime)
+		}
+
+		totalVotes.Abstain = append(totalVotes.Abstain, a)
+		totalVotes.Yes = append(totalVotes.Yes, y)
+		totalVotes.No = append(totalVotes.No, n)
+		totalVotes.Total = append(totalVotes.Total, t)
+	}
+
+	return totalVotes, nil
+}
+
 func RetrieveDbTxByHash(db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx, err error) {
 	dbTx = new(dbtypes.Tx)
 	vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
@@ -1595,7 +1651,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 //
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
 func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
-	fTx *TicketTxnIDGetter, msgBlock *MsgBlockPG, checked bool) ([]uint64,
+	fTx *TicketTxnIDGetter, msgBlock *MsgBlockPG, checked bool, params *chaincfg.Params) ([]uint64,
 	[]*dbtypes.Tx, []string, []uint64, map[string]uint64, error) {
 	// Choose only SSGen txns
 	msgTxs := msgBlock.STransactions
@@ -1627,6 +1683,13 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 	stmt, err := dbtx.Prepare(voteInsert)
 	if err != nil {
 		log.Errorf("Votes INSERT prepare: %v", err)
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return nil, nil, nil, nil, nil, err
+	}
+
+	prep, err := dbtx.Prepare(internal.MakeAgendaInsertStatement(checked))
+	if err != nil {
+		log.Errorf("Agendas INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, nil, nil, nil, nil, err
 	}
@@ -1673,6 +1736,26 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 				misses[im] = misses[len(misses)-1]
 				misses = misses[:len(misses)-1]
 				break
+			}
+		}
+
+		_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
+		if err != nil {
+			return nil, nil, nil, nil, nil, err
+		}
+
+		var rowID uint64
+		for _, val := range choices {
+			index, err := dbtypes.ChoiceIndexFromStr(val.Choice.Id)
+			if err != nil {
+				return nil, nil, nil, nil, nil, err
+			}
+
+			lockedIn, activated, hardForked := false, false, false
+			err = prep.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight,
+				tx.BlockTime, lockedIn, activated, hardForked).Scan(&rowID)
+			if err != nil {
+				return nil, nil, nil, nil, nil, err
 			}
 		}
 
