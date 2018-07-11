@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"math"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/dcrutil"
@@ -321,6 +322,10 @@ func SetSpendingForTickets(db *sql.DB, ticketDbIDs, spendDbIDs []uint64,
 	var totalTicketsUpdated int64
 	rowsAffected := make([]int64, len(ticketDbIDs))
 	for i, ticketDbID := range ticketDbIDs {
+		// sentry for unknown ticket
+		if ticketDbID == math.MaxUint64 {
+			continue
+		}
 		rowsAffected[i], err = sqlExecStmt(stmt, "failed to set ticket spending info: ",
 			ticketDbID, blockHeights[i], spendDbIDs[i], spendTypes[i], poolStatuses[i])
 		if err != nil {

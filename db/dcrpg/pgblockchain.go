@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -1212,8 +1213,8 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 		t, err0 := pgb.unspentTicketCache.TxnDbID(ticketHash,
 			spendType != dbtypes.TicketVoted) // expire cache entry unless a vote
 		if err0 != nil {
-			err = fmt.Errorf("failed to retrieve ticket DB ID: %v", err0)
-			return
+			log.Warnf("failed to retrieve ticket %s DB ID: %v", ticketHash, err0)
+			t = math.MaxUint64
 		}
 		ticketDbIDs = append(ticketDbIDs, t)
 	}
