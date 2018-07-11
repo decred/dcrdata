@@ -1368,7 +1368,7 @@ func UpdateLastVins(db *sql.DB, blockHash string, isValid bool) error {
 			return err
 		}
 
-		if n >= 1 {
+		if n < 1 {
 			return fmt.Errorf(" failed to update at least 1 row")
 		}
 	}
