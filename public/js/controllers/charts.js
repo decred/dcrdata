@@ -1,6 +1,5 @@
 (() => {
     var currentGraph = 'ticket-price';
-    $body = $('body')
 
     function ticketsFunc(gData){
         d = [];
@@ -256,7 +255,7 @@
         
         g.resetZoom();
         g.updateOptions(gOptions, false);
-        $body.removeClass('loading');
+        $('body').removeClass('loading');
     }
 
     app.register('charts', class extends Stimulus.Controller {
@@ -296,29 +295,29 @@
             }
 
         onChange(){
-            $body.addClass('loading');
+            $('body').addClass('loading');
             var selected = this.options
             if (currentGraph != selected) {
                 getAPIData(selected, plotGraph, this.chartsview)
                 currentGraph = selected;
             } else {
-                $body.removeClass('loading');
+                $('body').removeClass('loading');
             }
         }
 
         onGrouping(){
-            $body.addClass('loading');
+            $('body').addClass('loading');
             var selected = this.groupings
             if (currentGraph != selected) {
                 getAPIData(selected, plotGraph, this.chartsview)
                 currentGraph = selected;
             } else {
-                $body.removeClass('loading');
+                $('body').removeClass('loading');
             }
         }
 
         onZoom(){
-            $body.addClass('loading');
+            $('body').addClass('loading');
             this.chartsview.resetZoom();
             this.xVal = this.chartsview.xAxisExtremes();
             if (this.zoom > 0) {
@@ -326,7 +325,7 @@
                     dateWindow:[(this.xVal[1]- this.zoom), this.xVal[1]]
                 });
             }
-            $body.removeClass('loading');
+            $('body').removeClass('loading');
         }
 
         get options() {
