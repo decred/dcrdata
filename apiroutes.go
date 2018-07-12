@@ -532,18 +532,39 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txns := make([]*apitypes.Tx, 0, len(txids))
+	// Prepare JSON encode for streaming response
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	encoder := json.NewEncoder(w)
+	indent := c.getIndentQuery(r)
+	prefix, newline := indent, ""
+	encoder.SetIndent(prefix, indent)
+	if indent != "" {
+		newline = "\n"
+	}
+
+	// Manually structure outer JSON array
+	fmt.Fprintf(w, "[%s%s", newline, prefix)
+	// Go through transactions in list, stop after last
+	last := len(txids) - 1
 	for i := range txids {
 		tx := c.BlockData.GetRawTransaction(txids[i])
 		if tx == nil {
-			apiLog.Errorf("Unable to get transaction %s", txids[i])
+			apiLog.Errorf("Unable to get transaction %s", tx)
 			http.Error(w, http.StatusText(422), 422)
 			return
 		}
-		txns = append(txns, tx)
+		// TODO: deal with the extra newline from Encode, if needed
+		if err := encoder.Encode(tx); err != nil {
+			apiLog.Infof("JSON encode error: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		// After last block, do not print comma+newline+prefix
+		if i != last {
+			fmt.Fprintf(w, ",%s%s", newline, prefix)
+		}
 	}
-
-	writeJSON(w, txns, c.getIndentQuery(r))
+	fmt.Fprintf(w, "]")
 }
 
 func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Request) {
@@ -553,7 +574,20 @@ func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	txns := make([]*apitypes.TrimmedTx, 0, len(txids))
+	// Prepare JSON encode for streaming response
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	encoder := json.NewEncoder(w)
+	indent := c.getIndentQuery(r)
+	prefix, newline := indent, ""
+	encoder.SetIndent(prefix, indent)
+	if indent != "" {
+		newline = "\n"
+	}
+
+	// Manually structure outer JSON array
+	fmt.Fprintf(w, "[%s%s", newline, prefix)
+	// Go through transactions in list, stop after last
+	last := len(txids) - 1
 	for i := range txids {
 		tx := c.BlockData.GetTrimmedTransaction(txids[i])
 		if tx == nil {
@@ -561,10 +595,18 @@ func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Reque
 			http.Error(w, http.StatusText(422), 422)
 			return
 		}
-		txns = append(txns, tx)
+		// TODO: deal with the extra newline from Encode, if needed
+		if err := encoder.Encode(tx); err != nil {
+			apiLog.Infof("JSON encode error: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		// After last block, do not print comma+newline+prefix
+		if i != last {
+			fmt.Fprintf(w, ",%s%s", newline, prefix)
+		}
 	}
-
-	writeJSON(w, txns, c.getIndentQuery(r))
+	fmt.Fprintf(w, "]")
 }
 
 func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
