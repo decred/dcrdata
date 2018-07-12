@@ -277,7 +277,7 @@ func mainCore() error {
 	mempoolSavers = append(mempoolSavers, baseDB.MPC)
 
 	// Create the explorer system
-	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, ver.String())
+	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, ver.String(), !cfg.NoDevPrefetch)
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
 	}
