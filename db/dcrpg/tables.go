@@ -39,7 +39,7 @@ var createTypeStatements = map[string]string{
 // re-indexing and a duplicate scan/purge.
 const (
 	tableMajor = 3
-	tableMinor = 1
+	tableMinor = 2
 )
 
 var requiredVersions = map[string]TableVersion{
@@ -362,8 +362,18 @@ func IndexBlockTableOnHash(db *sql.DB) (err error) {
 	return
 }
 
+func IndexBlockTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexBlocksTableOnHeight)
+	return
+}
+
 func DeindexBlockTableOnHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexBlockTableOnHash)
+	return
+}
+
+func DeindexBlockTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexBlocksTableOnHeight)
 	return
 }
 

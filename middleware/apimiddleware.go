@@ -44,6 +44,7 @@ const (
 	ctxStakeVersionLatest
 	ctxRawHexTx
 	ctxM
+	ctxChart
 )
 
 type DataSource interface {
@@ -204,6 +205,17 @@ func GetAddressCtx(r *http.Request) string {
 		return ""
 	}
 	return address
+}
+
+// GetChartTypeCtx retrieves the ctxChart data from the request context.
+// If not set, the return value is an empty string.
+func GetChartTypeCtx(r *http.Request) string {
+	chartType, ok := r.Context().Value(ctxChart).(string)
+	if !ok {
+		apiLog.Trace("chart type not set")
+		return ""
+	}
+	return chartType
 }
 
 // GetCountCtx retrieves the ctxCount data ("to") URL path element from the
@@ -412,6 +424,15 @@ func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
 		ctx := context.WithValue(r.Context(), CtxAddress, address)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// ChartTypeCtx returns a http.HandlerFunc that embeds the value at the url
+// part {chart} into the request context.
+func ChartTypeCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), ctxChart, chi.URLParam(r, "chart-type"))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

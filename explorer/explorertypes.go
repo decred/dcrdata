@@ -42,6 +42,12 @@ type TxBasic struct {
 	Coinbase      bool
 }
 
+// ChartDataCounter is a data cache for the historical charts.
+type ChartDataCounter struct {
+	sync.RWMutex
+	Data map[string]*dbtypes.ChartsData
+}
+
 // AddressTx models data for transactions on the address page
 type AddressTx struct {
 	TxID          string

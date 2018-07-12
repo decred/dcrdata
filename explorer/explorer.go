@@ -1,7 +1,9 @@
-// Package explorer handles the block explorer subsystem for generating the
-// explorer pages.
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
+
+// package explorer handles the block explorer subsystem for generating the
+// explorer pages.
 package explorer
 
 import (
@@ -53,6 +55,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []MempoolTx
 	TxHeight(txid string) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
+	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -66,6 +69,20 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
+	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
+	GetTicketsPriceByHeight() (*dbtypes.ChartsData, error)
+}
+
+// cacheChartsData holds the prepopulated data that is used to draw the charts
+var cacheChartsData = new(ChartDataCounter)
+
+// GetChartTypeData is a thread-safe way to access the chart type data.
+func GetChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
+	cacheChartsData.RLock()
+	defer cacheChartsData.RUnlock()
+
+	data, ok = cacheChartsData.Data[chartType]
+	return
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction
@@ -196,7 +213,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 		return nil
 	}
-	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address", "rawtx", "error", "parameters", "agenda", "agendas"}
+	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
+		"rawtx", "error", "parameters", "agenda", "agendas", "charts"}
 
 	tempDefaults := []string{"extras"}
 
@@ -208,6 +226,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
+	exp.prePopulateChartsData()
+
 	exp.addRoutes()
 
 	exp.wsHub = NewWebsocketHub()
@@ -217,9 +237,45 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	return exp
 }
 
-func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
+// prePopulateChartsData should run in the background the first time the system
+// is initialized and when new blocks are added.
+func (exp *explorerUI) prePopulateChartsData() {
+	log.Info("Pre-populating the charts data. This may take a minute...")
+	var err error
+
+	pgData, err := exp.explorerSource.GetPgChartsData()
+	if err != nil {
+		log.Errorf("Invalid PG data found: %v", err)
+		return
+	}
+
+	sqliteData, err := exp.blockData.GetSqliteChartsData()
+	if err != nil {
+		log.Errorf("Invalid SQLite data found: %v", err)
+		return
+	}
+
+	for k, v := range sqliteData {
+		pgData[k] = v
+	}
+
+	cacheChartsData.Lock()
+	cacheChartsData.Data = pgData
+	cacheChartsData.Unlock()
+
+	log.Info("Done Pre-populating the charts data")
+}
+
+func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
+
+	// Update the charts data after every five blocks or if no charts data
+	// exists yet.
+	if bData.Height%5 == 0 || len(cacheChartsData.Data) == 0 {
+		go exp.prePopulateChartsData()
+	}
+
 	newBlockData := &BlockBasic{
 		Height:         int64(bData.Height),
 		Voters:         bData.Voters,

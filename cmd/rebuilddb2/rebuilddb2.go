@@ -148,7 +148,7 @@ func mainCore() error {
 	// needs.
 	db.UseStakeDB(stakeDB)
 
-	if err = db.VersionCheck(); err != nil {
+	if err = db.VersionCheck(client); err != nil {
 		log.Warnf("ATTENTION: %v", err)
 	}
 

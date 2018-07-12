@@ -308,6 +308,25 @@ type AddressRow struct {
 	VinVoutDbID    uint64
 }
 
+// ChartsData defines the fields that store the values needed to plot the charts
+// on the frontend.
+type ChartsData struct {
+	TimeStr    []string  `json:"timestr,omitempty"`
+	Difficulty []float64 `json:"difficulty,omitempty"`
+	Time       []uint64  `json:"time,omitempty"`
+	Value      []uint64  `json:"value,omitempty"`
+	Size       []uint64  `json:"size,omitempty"`
+	ChainSize  []uint64  `json:"chainsize,omitempty"`
+	Count      []uint64  `json:"count,omitempty"`
+	SizeF      []float64 `json:"sizef,omitempty"`
+	ValueF     []float64 `json:"valuef,omitempty"`
+	Unspent    []uint64  `json:"unspent,omitempty"`
+	Revoked    []uint64  `json:"revoked,omitempty"`
+	Height     []uint64  `json:"height,omitempty"`
+	Pooled     []uint64  `json:"pooled,omitempty"`
+	Solo       []uint64  `json:"solo,omitempty"`
+}
+
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKeyData struct {
 	ReqSigs   uint32   `json:"reqSigs"`
@@ -322,13 +341,15 @@ type VinTxProperty struct {
 	PrevTxIndex uint32 `json:"prevvoutidx"`
 	PrevTxTree  uint16 `json:"tree"`
 	Sequence    uint32 `json:"sequence"`
-	ValueIn     uint64 `json:"amountin"`
+	ValueIn     int64  `json:"amountin"`
 	TxID        string `json:"tx_hash"`
 	TxIndex     uint32 `json:"tx_index"`
 	TxTree      uint16 `json:"tx_tree"`
 	BlockHeight uint32 `json:"blockheight"`
 	BlockIndex  uint32 `json:"blockindex"`
 	ScriptHex   []byte `json:"scripthex"`
+	IsValid     bool   `json:"is_valid"`
+	Time        int64  `json:"time"`
 }
 
 // Vin models a transaction input.

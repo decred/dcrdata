@@ -259,18 +259,17 @@ func setupTables(db *sql.DB) error {
 // VersionCheck checks the current version of all known tables and notifies when
 // an upgrade is required. If there is no automatic upgrade supported, an error
 // is returned when any table is not of the correct version.
-func (pgb *ChainDB) VersionCheck(client ...*rpcclient.Client) error {
-	if len(client) == 0 {
-		return fmt.Errorf("TableUpgradesRequired: No rpc client found")
-	}
+// A smart client is passed to implement the supported upgrades if need be.
+func (pgb *ChainDB) VersionCheck(client *rpcclient.Client) error {
 	vers := TableVersions(pgb.db)
 	for tab, ver := range vers {
 		log.Debugf("Table %s: v%s", tab, ver)
 	}
+
 	if tableUpgrades := TableUpgradesRequired(vers); len(tableUpgrades) > 0 {
 		if tableUpgrades[0].UpgradeType == "upgrade" {
 			// CheckForAuxDBUpgrade makes db upgrades that are currently supported.
-			isSuccess, err := pgb.CheckForAuxDBUpgrade(client[0])
+			isSuccess, err := pgb.CheckForAuxDBUpgrade(client)
 			if err != nil {
 				return err
 			}
@@ -331,7 +330,7 @@ func (pgb *ChainDB) SpendingTransaction(fundingTxID string,
 // BlockTransactions retrieves all transactions in the specified block, their
 // indexes in the block, their tree, and an error value.
 func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, []int8, error) {
-	_, blockTransactions, blockInds, trees, err := RetrieveTxsByBlockHash(pgb.db, blockHash)
+	_, blockTransactions, blockInds, trees, _, err := RetrieveTxsByBlockHash(pgb.db, blockHash)
 	return blockTransactions, blockInds, trees, err
 }
 
@@ -821,8 +820,73 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	if pgb == nil {
 		return nil
 	}
+	// New blocks stored this way are considered valid
 	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets, true, true, true)
 	return err
+}
+
+// GetTicketsPriceByHeight returns the ticket price by height chart data.
+// This is the default chart that appears at charts page.
+func (pgb *ChainDB) GetTicketsPriceByHeight() (*dbtypes.ChartsData, error) {
+	d, err := RetrieveTicketsPriceByHeight(pgb.db, pgb.chainParams.StakeDiffWindowSize)
+	if err != nil {
+		return nil, fmt.Errorf("RetrieveTicketsPriceByHeight: %v", err)
+	}
+	return &dbtypes.ChartsData{Time: d.Time, ValueF: d.ValueF}, nil
+}
+
+// GetPgChartsData fetches the charts data that is stored in pg
+func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
+	tickets, err := RetrieveTicketsPriceByHeight(pgb.db, pgb.chainParams.StakeDiffWindowSize)
+	if err != nil {
+		return nil, fmt.Errorf("RetrieveTicketsPriceByHeight: %v", err)
+	}
+
+	supply, err := retrieveCoinSupply(pgb.db)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveCoinSupply: %v", err)
+	}
+
+	size, err := retrieveBlockTicketsPoolValue(pgb.db)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveBlockTicketsPoolValue: %v", err)
+	}
+
+	txRate, err := retrieveTxPerDay(pgb.db)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTxPerDay: %v", err)
+	}
+
+	ticketsSpendType, err := retrieveTicketSpendTypePerBlock(pgb.db)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTicketSpendTypePerBlock: %v", err)
+	}
+
+	ticketsByOutputsAllBlocks, err := retrieveTicketByOutputCount(pgb.db, outputCountByAllBlocks)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTicketByOutputCount by All Blocks: %v", err)
+	}
+
+	ticketsByOutputsTPWindow, err := retrieveTicketByOutputCount(pgb.db, outputCountByTicketPoolWindow)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTicketByOutputCount by All TP window: %v", err)
+	}
+
+	var data = map[string]*dbtypes.ChartsData{
+		"avg-block-size":            {Time: size.Time, Size: size.Size},
+		"blockchain-size":           {Time: size.Time, ChainSize: size.ChainSize},
+		"tx-per-block":              {Value: size.Value, Count: size.Count},
+		"duration-btw-blocks":       {Value: size.Value, ValueF: size.ValueF},
+		"tx-per-day":                txRate,
+		"pow-difficulty":            {Time: tickets.Time, Difficulty: tickets.Difficulty},
+		"ticket-price":              {Time: tickets.Time, ValueF: tickets.ValueF},
+		"coin-supply":               supply,
+		"ticket-spend-type":         ticketsSpendType,
+		"ticket-by-outputs-blocks":  ticketsByOutputsAllBlocks,
+		"ticket-by-outputs-windows": ticketsByOutputsTPWindow,
+	}
+
+	return data, nil
 }
 
 func (pgb *ChainDB) DeleteDuplicates() error {
@@ -941,6 +1005,10 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
+	if err = DeindexBlockTableOnHeight(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
 	if err = DeindexTransactionTableOnHashes(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
@@ -1014,8 +1082,12 @@ func (pgb *ChainDB) DeindexAll() error {
 
 // IndexAll creates all of the indexes in all tables
 func (pgb *ChainDB) IndexAll() error {
-	log.Infof("Indexing blocks table...")
+	log.Infof("Indexing blocks table on hash...")
 	if err := IndexBlockTableOnHash(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing blocks table on height...")
+	if err := IndexBlockTableOnHeight(pgb.db); err != nil {
 		return err
 	}
 	log.Infof("Indexing transactions table on tx/block hashes...")
@@ -1203,7 +1275,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	resChanReg := make(chan storeTxnsResult)
 	go func() {
 		resChanReg <- pgb.storeTxns(MsgBlockPG, wire.TxTreeRegular,
-			pgb.chainParams, &dbBlock.TxDbIDs, updateAddressesSpendingInfo,
+			pgb.chainParams, &dbBlock.TxDbIDs, isValid, updateAddressesSpendingInfo,
 			updateTicketsSpendingInfo)
 	}()
 
@@ -1211,7 +1283,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	resChanStake := make(chan storeTxnsResult)
 	go func() {
 		resChanStake <- pgb.storeTxns(MsgBlockPG, wire.TxTreeStake,
-			pgb.chainParams, &dbBlock.STxDbIDs, updateAddressesSpendingInfo,
+			pgb.chainParams, &dbBlock.STxDbIDs, isValid, updateAddressesSpendingInfo,
 			updateTicketsSpendingInfo)
 	}()
 
@@ -1288,6 +1360,18 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 			log.Error("UpdateBlockNext:", err)
 			return
 		}
+
+		// If the previous block is invalidated by this one, flag all the vins
+		// from the previous block's transactions as invalid. Do nothing
+		// otherwise since blocks' transactions are initially added as valid.
+		if !lastIsValid {
+			// Update the is_valid flag in the transactions from the previous block.
+			err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid)
+			if err != nil {
+				log.Error("UpdateLastVins:", err)
+				return
+			}
+		}
 	}
 
 	// If not in batch sync, lazy update the dev fund balance
@@ -1331,12 +1415,12 @@ type MsgBlockPG struct {
 
 // storeTxns stores the transactions of a given block
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
-	chainParams *chaincfg.Params, TxDbIDs *[]uint64,
+	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isTxValid bool,
 	updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block, transaction tree, and network, extract the
 	// transactions, vins, and vouts.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
-		msgBlock.MsgBlock, txTree, chainParams)
+		msgBlock.MsgBlock, txTree, chainParams, isTxValid)
 
 	// The return value, containing counts of inserted vins/vouts/txns, and an
 	// error value.
