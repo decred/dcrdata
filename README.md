@@ -66,6 +66,10 @@ The following instructions assume a Unix-like shell (e.g. bash).
       # build dcrdata executable in workspace:
       go build
 
+To build with the git commit hash appended to the version, set it as follows:
+
+    go build -ldflags "-X github.com/decred/dcrdata/version.CommitHash=`git describe --abbrev=8 --long | awk -F "-" '{print $(NF-1)"-"$NF}'`"
+
 The sqlite driver uses cgo, which requires a C compiler (e.g. gcc) to compile the C sources. On
 Windows this is easily handled with MSYS2 ([download](http://www.msys2.org/) and
 install MinGW-w64 gcc packages).

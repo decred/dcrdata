@@ -15,7 +15,7 @@ var Ver = Version{
 	Label: ""}
 
 // CommitHash may be set on the build command line:
-// go build -ldflags "-X main.CommitHash=`git rev-parse --short HEAD`"
+// go build -ldflags "-X github.com/decred/dcrdata/version.CommitHash=`git describe --abbrev=8 --long | awk -F "-" '{print $(NF-1)"-"$NF}'`"
 var CommitHash string
 
 const AppName string = "dcrdata"
