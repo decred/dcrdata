@@ -155,7 +155,7 @@ func mainCore() error {
 			Pass:   cfg.PGPass,
 			DBName: cfg.PGDBName,
 		}
-		auxDB, err = dcrpg.NewChainDB(&dbi, activeChain, baseDB.GetStakeDB())
+		auxDB, err = dcrpg.NewChainDB(&dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
 		if auxDB != nil {
 			defer auxDB.Close()
 		}
