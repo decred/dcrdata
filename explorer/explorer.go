@@ -226,7 +226,9 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
-	exp.prePopulateChartsData()
+	if !exp.liteMode {
+		exp.prePopulateChartsData()
+	}
 
 	exp.addRoutes()
 
@@ -240,6 +242,10 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 // prePopulateChartsData should run in the background the first time the system
 // is initialized and when new blocks are added.
 func (exp *explorerUI) prePopulateChartsData() {
+	if exp.liteMode {
+		log.Warnf("Charts are not supported in lite mode!")
+		return
+	}
 	log.Info("Pre-populating the charts data. This may take a minute...")
 	var err error
 
@@ -272,7 +278,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Update the charts data after every five blocks or if no charts data
 	// exists yet.
-	if bData.Height%5 == 0 || len(cacheChartsData.Data) == 0 {
+	if !exp.liteMode && bData.Height%5 == 0 || len(cacheChartsData.Data) == 0 {
 		go exp.prePopulateChartsData()
 	}
 
