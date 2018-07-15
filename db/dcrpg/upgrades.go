@@ -143,9 +143,8 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	var rowsUpdated int64
 
 	switch tableUpgrade {
-	case vinsTableCoinSuppleUpgrade, agendasTableUpgrade, vinsTableMainchainUpgrade,
-		transactionsTableMainchainUpgrade, addressesTableMainchainUpgrade:
-		// Fetch the block associated with the provided block height
+	case vinsTableCoinSuppleUpgrade, agendasTableUpgrade:
+		// For each block on the main chain, perform upgrade operations
 		for ; i <= height; i++ {
 			block, err := client.UpdateToBlock(int64(i))
 			if err != nil {
@@ -178,14 +177,36 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		}
 
 	case blocksTableMainchainUpgrade:
-		// This proceeds from best block back to genesis
+		// blocks table upgrade proceeds from best block back to genesis
 		block, err := client.BestBlock()
 		if err != nil {
 			return false, err
 		}
 		rowsUpdated, err = pgb.handleBlocksTableMainchainUpgrade(block.Hash().String())
 		if err != nil {
-			return false, fmt.Errorf(`upgrade of blocks table ended prematurely at %d`, rowsUpdated)
+			return false, fmt.Errorf(`upgrade of blocks table ended prematurely at %d. `+
+				`Error: %v`, rowsUpdated, err)
+		}
+	case transactionsTableMainchainUpgrade:
+		// transactions table upgrade handled entirely by the DB backend
+		rowsUpdated, err = pgb.handleTransactionsTableMainchainUpgrade()
+		if err != nil {
+			return false, fmt.Errorf(`upgrade of transactions table ended prematurely at %d.`+
+				`Error: %v`, rowsUpdated, err)
+		}
+	case vinsTableMainchainUpgrade:
+		// vins table upgrade handled entirely by the DB backend
+		rowsUpdated, err = pgb.handleVinsTableMainchainupgrade()
+		if err != nil {
+			return false, fmt.Errorf(`upgrade of transactions table ended prematurely at %d.`+
+				`Error: %v`, rowsUpdated, err)
+		}
+	case addressesTableMainchainUpgrade:
+		// addresses table upgrade handled entirely by the DB backend
+		rowsUpdated, err = UpdateAllAddressesValidMainchain(pgb.db)
+		if err != nil {
+			return false, fmt.Errorf(`upgrade of transactions table ended prematurely at %d.`+
+				`Error: %v`, rowsUpdated, err)
 		}
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
@@ -205,6 +226,29 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	}
 
 	return true, nil
+}
+
+func (pgb *ChainDB) handleVinsTableMainchainupgrade() (int64, error) {
+	// Get all of the block hashes
+	blockHashes, err := RetrieveBlocksHashesAll(pgb.db)
+	if err != nil {
+		return 0, fmt.Errorf("unable to retrieve all block hashes: %v", err)
+	}
+
+	var rowsUpdated int64
+	for _, blockHash := range blockHashes {
+		vinDbIDs, areValid, areMainchain, err := RetrieveTxnsVinsByBlock(pgb.db, blockHash)
+		if err != nil {
+			return 0, fmt.Errorf("unable to retrieve vin data for block %s: %v", blockHash, err)
+		}
+
+		numUpd, err := pgb.upgradeVinsMainchainForMany(vinDbIDs, areValid, areMainchain)
+		if err != nil {
+			log.Warnf("Unable to set valid/mainchain for vins: %v", err)
+		}
+		rowsUpdated += numUpd
+	}
+	return rowsUpdated, nil
 }
 
 func (pgb *ChainDB) upgradeVinsMainchainForMany(vinDbIDs []dbtypes.UInt64Array,
@@ -268,6 +312,9 @@ func (pgb *ChainDB) handleBlocksTableMainchainUpgrade(bestBlock string) (int64, 
 	return blocksUpdated, nil
 }
 
+// handleTransactionsTableMainchainUpgrade sets is_mainchain and is_valid for
+// all transactions according to their containing block. The number of
+// transactions updates is returned, along with an error value.
 func (pgb *ChainDB) handleTransactionsTableMainchainUpgrade() (int64, error) {
 	return UpdateAllTxnsValidMainchain(pgb.db)
 }

@@ -701,7 +701,7 @@ func DeleteDuplicateMisses(db *sql.DB) (int64, error) {
 func sqlExec(db *sql.DB, stmt, execErrPrefix string, args ...interface{}) (int64, error) {
 	res, err := db.Exec(stmt, args...)
 	if err != nil {
-		return 0, fmt.Errorf(execErrPrefix + err.Error())
+		return 0, fmt.Errorf(execErrPrefix + " " + err.Error())
 	}
 	if res == nil {
 		return 0, nil
@@ -1153,8 +1153,29 @@ func RetrieveFullTxByHash(db *sql.DB, txHash string) (id uint64,
 // block the vin_db_ids arrays, is_valid, and is_mainchain.
 func RetrieveTxnsVinsByBlock(db *sql.DB, blockHash string) (vinDbIDs []dbtypes.UInt64Array,
 	areValid []bool, areMainchain []bool, err error) {
-	err = db.QueryRow(internal.SelectTxnsVinsByBlock, blockHash).Scan(&vinDbIDs,
-		&areValid, &areMainchain)
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectTxnsVinsByBlock, blockHash)
+	if err != nil {
+		return
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var ids dbtypes.UInt64Array
+		var isValid, isMainchain bool
+		err = rows.Scan(&ids, &isValid, &isMainchain)
+		if err != nil {
+			break
+		}
+
+		vinDbIDs = append(vinDbIDs, ids)
+		areValid = append(areValid, isValid)
+		areMainchain = append(areMainchain, isMainchain)
+	}
 	return
 }
 
@@ -1216,9 +1237,18 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	return
 }
 
+// UpdateAllTxnsValidMainchain sets is_mainchain and is_valid for all
+// transactions according to their containing block.
 func UpdateAllTxnsValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
 	return sqlExec(db, internal.UpdateTxnsValidMainchainAll,
 		"failed to update transactions validity and mainchain status")
+}
+
+// UpdateAllAddressesValidMainchain sets valid_mainchain for all addresses table
+// rows according to their corresponding transaction.
+func UpdateAllAddressesValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
+	return sqlExec(db, internal.UpdateValidMainchainFromTransactions,
+		"failed to update addresses rows valid_mainchain status")
 }
 
 // RetrieveBlockHash retrieves the hash of the block at the given height, if it
@@ -1234,6 +1264,32 @@ func RetrieveBlockHash(db *sql.DB, idx int64) (hash string, err error) {
 func RetrieveBlockHeight(db *sql.DB, hash string) (height int64, err error) {
 	err = db.QueryRow(internal.SelectBlockHeightByHash, hash).Scan(&height)
 	return
+}
+
+// RetrieveBlocksHashesAll retrieve the hash of every block in the blocks table,
+// ordered by their row ID.
+func RetrieveBlocksHashesAll(db *sql.DB) ([]string, error) {
+	var hashes []string
+	rows, err := db.Query(internal.SelectBlocksHashes)
+	if err != nil {
+		return hashes, err
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var hash string
+		err = rows.Scan(&hash)
+		if err != nil {
+			break
+		}
+
+		hashes = append(hashes, hash)
+	}
+	return hashes, err
 }
 
 // RetrieveBlockChainDbID retrieves the row id in the block_chain table of the

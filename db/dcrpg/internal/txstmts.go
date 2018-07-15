@@ -57,7 +57,9 @@ const (
 		num_vin INT4,
 		vin_db_ids INT8[],
 		num_vout INT4,
-		vout_db_ids INT8[]
+		vout_db_ids INT8[],
+		is_valid BOOLEAN,
+		is_mainchain BOOLEAN
 	);`
 
 	SelectTxByHash       = `SELECT id, block_hash, block_index, tree FROM transactions WHERE tx_hash = $1;`
