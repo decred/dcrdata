@@ -300,9 +300,10 @@ type Vout struct {
 // AddressRow represents a row in the addresses table
 type AddressRow struct {
 	// id int64
-	Address string
-	// MatchingTxHash that provides the relationship
-	// between spending tx inputs and funding tx outputs
+	Address        string
+	ValidMainChain bool
+	// MatchingTxHash provides the relationship between spending tx inputs and
+	// funding tx outputs.
 	MatchingTxHash   string
 	IsFunding        bool
 	TxBlockTime      uint64
@@ -354,6 +355,7 @@ type VinTxProperty struct {
 	BlockIndex  uint32 `json:"blockindex"`
 	ScriptHex   []byte `json:"scripthex"`
 	IsValid     bool   `json:"is_valid"`
+	IsMainchain bool   `json:"is_mainchain"`
 	Time        int64  `json:"time"`
 }
 
@@ -417,6 +419,8 @@ type Tx struct {
 	VoutDbIds []uint64 `json:"voutdbids"`
 	// NOTE: VoutDbIds may not be needed if there is a vout table since each
 	// vout will have a tx_dbid
+	IsValidBlock     bool `json:"valid_block"`
+	IsMainchainBlock bool `json:"mainchain"`
 }
 
 // Block models a Decred block.

@@ -104,7 +104,8 @@ const (
 		ticket_hash TEXT,
 		ticket_tx_db_id INT8,
 		ticket_price FLOAT8,
-		vote_reward FLOAT8
+		vote_reward FLOAT8,
+		is_mainchain BOOLEAN
 	);`
 
 	// Insert
@@ -112,12 +113,14 @@ const (
 		height, tx_hash,
 		block_hash, candidate_block_hash,
 		version, vote_bits, block_valid,
-		ticket_hash, ticket_tx_db_id, ticket_price, vote_reward)
+		ticket_hash, ticket_tx_db_id, ticket_price, vote_reward,
+		is_mainchain)
 	VALUES (
 		$1, $2,
 		$3, $4,
 		$5, $6, $7,
-		$8, $9, $10, $11) `
+		$8, $9, $10, $11,
+		$12) `
 	insertVoteRow = insertVoteRow0 + `RETURNING id;`
 	// insertVoteRowChecked = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertVoteRow = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 

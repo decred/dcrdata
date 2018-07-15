@@ -828,8 +828,8 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	if pgb == nil {
 		return nil
 	}
-	// New blocks stored this way are considered valid
-	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets, true, true, true)
+	// New blocks stored this way are considered valid and mainchain
+	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets, true, true, true, true)
 	return err
 }
 
@@ -1250,7 +1250,7 @@ func (pgb *ChainDB) ExistsIndexAddressesVoutIDAddress() (bool, error) {
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
 // The number of vins, and vouts stored are also returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
-	isValid, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) (numVins int64, numVouts int64, err error) {
+	isValid, isMainchain, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) (numVins int64, numVouts int64, err error) {
 	// Convert the wire.MsgBlock to a dbtypes.Block
 	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams)
 
@@ -1283,16 +1283,16 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	resChanReg := make(chan storeTxnsResult)
 	go func() {
 		resChanReg <- pgb.storeTxns(MsgBlockPG, wire.TxTreeRegular,
-			pgb.chainParams, &dbBlock.TxDbIDs, isValid, updateAddressesSpendingInfo,
-			updateTicketsSpendingInfo)
+			pgb.chainParams, &dbBlock.TxDbIDs, isValid, isMainchain,
+			updateAddressesSpendingInfo, updateTicketsSpendingInfo)
 	}()
 
 	// stake transactions
 	resChanStake := make(chan storeTxnsResult)
 	go func() {
 		resChanStake <- pgb.storeTxns(MsgBlockPG, wire.TxTreeStake,
-			pgb.chainParams, &dbBlock.STxDbIDs, isValid, updateAddressesSpendingInfo,
-			updateTicketsSpendingInfo)
+			pgb.chainParams, &dbBlock.STxDbIDs, isValid, isMainchain,
+			updateAddressesSpendingInfo, updateTicketsSpendingInfo)
 	}()
 
 	errReg := <-resChanReg
@@ -1318,7 +1318,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 
 	// Store the block now that it has all it's transaction PK IDs
 	var blockDbID uint64
-	blockDbID, err = InsertBlock(pgb.db, dbBlock, isValid, pgb.dupChecks)
+	blockDbID, err = InsertBlock(pgb.db, dbBlock, isValid, isMainchain, pgb.dupChecks)
 	if err != nil {
 		log.Error("InsertBlock:", err)
 		return
@@ -1374,7 +1374,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		// otherwise since blocks' transactions are initially added as valid.
 		if !lastIsValid {
 			// Update the is_valid flag in the transactions from the previous block.
-			err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid)
+			err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid, isMainchain)
 			if err != nil {
 				log.Error("UpdateLastVins:", err)
 				return
@@ -1425,12 +1425,12 @@ type MsgBlockPG struct {
 
 // storeTxns stores the transactions of a given block
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
-	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isTxValid bool,
+	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isTxValid, isMainchain bool,
 	updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block, transaction tree, and network, extract the
 	// transactions, vins, and vouts.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
-		msgBlock.MsgBlock, txTree, chainParams, isTxValid)
+		msgBlock.MsgBlock, txTree, chainParams, isTxValid, isMainchain)
 
 	// The return value, containing counts of inserted vins/vouts/txns, and an
 	// error value.
@@ -1648,10 +1648,12 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 				continue
 			}
 
+			// address table
 			vinDbID := dbTransactions[it].VinDbIds[iv]
 			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree), vin.TxID,
-				vin.TxIndex, uint64(tx.BlockTime), vinDbID, pgb.dupChecks)
+				vin.TxIndex, uint64(tx.BlockTime), vinDbID, pgb.dupChecks,
+				tx.IsValidBlock && tx.IsMainchainBlock)
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
 			}

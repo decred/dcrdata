@@ -9,16 +9,16 @@ import (
 const (
 	// Block insert
 	insertBlockRow0 = `INSERT INTO blocks (
-		hash, height, size, is_valid, version, merkle_root, stake_root,
+		hash, height, size, is_valid, is_mainchain, version, merkle_root, stake_root,
 		numtx, num_rtx, tx, txDbIDs, num_stx, stx, stxDbIDs,
 		time, nonce, vote_bits, final_state, voters,
 		fresh_stake, revocations, pool_size, bits, sbits, 
 		difficulty, extra_data, stake_version, previous_hash)
-	VALUES ($1, $2, $3, $4, $5, $6, $7,
-		$8, $9, %s, %s, $10, %s, %s,
-		$11, $12, $13, $14, $15, 
-		$16, $17, $18, $19, $20,
-		$21, $22, $23, $24) `
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
+		$9, $10, %s, %s, $11, %s, %s,
+		$12, $13, $14, $15, $16, 
+		$17, $18, $19, $20, $21,
+		$22, $23, $24, $25) `
 	insertBlockRow = insertBlockRow0 + `RETURNING id;`
 	// insertBlockRowChecked  = insertBlockRow0 + `ON CONFLICT (hash) DO NOTHING RETURNING id;`
 	upsertBlockRow = insertBlockRow0 + `ON CONFLICT (hash) DO UPDATE 
@@ -50,6 +50,7 @@ const (
 		height INT4,
 		size INT4,
 		is_valid BOOLEAN,
+		is_mainchain BOOLEAN,
 		version INT4,
 		merkle_root TEXT,
 		stake_root TEXT,
@@ -88,6 +89,10 @@ const (
 
 	SelectBlocksBlockSize = `SELECT time, size, numtx, height FROM blocks ORDER BY time;`
 
+	SelectBlocksPreviousHash = `SELECT previous_hash FROM blocks WHERE hash = $1;`
+
+	UpdateBlockMainchain = `UPDATE blocks SET mainchain=true WHERE hash = $1 RETURNING previous_hash;`
+
 	IndexBlocksTableOnHeight = `CREATE INDEX uix_block_height ON blocks(height);`
 
 	DeindexBlocksTableOnHeight = `DROP INDEX uix_block_height;`
@@ -108,7 +113,8 @@ const (
 
 	SelectBlockChainRowIDByHash = `SELECT block_db_id FROM block_chain WHERE this_hash = $1;`
 
-	UpdateBlockNext = `UPDATE block_chain set next_hash = $2 WHERE block_db_id = $1;`
+	UpdateBlockNext       = `UPDATE block_chain SET next_hash = $2 WHERE block_db_id = $1;`
+	UpdateBlockNextByHash = `UPDATE block_chain SET next_hash = $2 WHERE this_hash = $1;`
 )
 
 func MakeBlockInsertStatement(block *dbtypes.Block, checked bool) string {

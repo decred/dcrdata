@@ -12,12 +12,14 @@ const (
 		block_hash, block_height, block_time, time,
 		tx_type, version, tree, tx_hash, block_index, 
 		lock_time, expiry, size, spent, sent, fees, 
-		num_vin, vin_db_ids, num_vout, vout_db_ids)
+		num_vin, vin_db_ids, num_vout, vout_db_ids,
+		is_valid, is_mainchain)
 	VALUES (
 		$1, $2, $3, $4, 
 		$5, $6, $7, $8, $9,
 		$10, $11, $12, $13, $14, $15,
-		$16, $17, $18, $19) `
+		$16, $17, $18, $19,
+		$20, $21) `
 	insertTxRow = insertTxRow0 + `RETURNING id;`
 	//insertTxRowChecked = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTxRow = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -70,21 +72,24 @@ const (
 
 	SelectFullTxByHash = `SELECT id, block_hash, block_height, block_time, 
 		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry, 
-		size, spent, sent, fees, num_vin, vin_db_ids, num_vout, vout_db_ids 
+		size, spent, sent, fees, num_vin, vin_db_ids, num_vout, vout_db_ids,
+		is_valid, is_mainchain
 		FROM transactions WHERE tx_hash = $1;`
 
-	SelectTicketsOutputCountByAllBlocks = `SELECT block_height,
-		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
-		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
-		FROM transactions WHERE tx_type = 1 GROUP BY block_height
-		ORDER BY block_height;`
+	SelectTxnsVinsByBlock = `SELECT vin_db_idss, is_valid, is_mainchain,
+		FROM transactions WHERE block_hash = $1;`
 
-	SelectTicketsOutputCountByTPWindow = `SELECT
-		floor(block_height/144) as count,
-		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
-		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
-		FROM transactions WHERE tx_type = 1
-		GROUP BY count ORDER BY count;`
+	UpdateTxnsValidMainchainByBlock = `UPDATE transactions
+		SET is_valid=$1, is_mainchain=$2 
+		WHERE block_hash=$3;`
+
+	UpdateTxnsValidMainchainAll = `UPDATE transactions
+		SET is_valid=b.is_valid, is_mainchain=b.is_mainchain
+		FROM (
+			SELECT hash, is_valid, is_mainchain
+			FROM blocks
+		) b
+		WHERE block_hash = b.hash;`
 
 	SelectRegularTxByHash = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=0;`
 	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`
@@ -125,7 +130,21 @@ const (
 )
 
 var (
-	SelectAllRevokes = fmt.Sprintf(`SELECT id, tx_hash, block_height, vin_db_ids[0] FROM transactions WHERE tx_type = %d;`, stake.TxTypeSSRtx)
+	SelectAllRevokes = fmt.Sprintf(`SELECT id, tx_hash, block_height, vin_db_ids[0] `+
+		`FROM transactions WHERE tx_type = %d;`, stake.TxTypeSSRtx)
+
+	SelectTicketsOutputCountByAllBlocks = fmt.Sprintf(`SELECT block_height,
+		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
+		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
+		FROM transactions WHERE tx_type = %d GROUP BY block_height
+		ORDER BY block_height;`, stake.TxTypeSStx)
+
+	SelectTicketsOutputCountByTPWindow = fmt.Sprintf(`SELECT
+		floor(block_height/144) as count,
+		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
+		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
+		FROM transactions WHERE tx_type = %d
+		GROUP BY count ORDER BY count;`, stake.TxTypeSStx)
 )
 
 // func makeTxInsertStatement(voutDbIDs, vinDbIDs []uint64, vouts []*dbtypes.Vout, checked bool) string {

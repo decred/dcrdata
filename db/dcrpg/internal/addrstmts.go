@@ -2,8 +2,8 @@ package internal
 
 const (
 	insertAddressRow0 = `INSERT INTO addresses (address, matching_tx_hash, tx_hash,
-		tx_vin_vout_index, tx_vin_vout_row_id, value, block_time, is_funding)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
+		tx_vin_vout_index, tx_vin_vout_row_id, value, block_time, is_funding, valid_mainchain)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
 
 	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
 
@@ -31,6 +31,7 @@ const (
 		id SERIAL8 PRIMARY KEY,
 		address TEXT,
 		tx_hash TEXT,
+		valid_mainchain BOOLEAN,
 		matching_tx_hash TEXT,
 		value INT8,
 		block_time INT8 NOT NULL,
