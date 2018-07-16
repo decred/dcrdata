@@ -99,11 +99,10 @@ const (
 	SetAddressFundingForMatchingTxHash = `UPDATE addresses SET matching_tx_hash=$1 
 		WHERE tx_hash=$2 and is_funding = true and tx_vin_vout_index=$3;`
 
-	UpdateValidMainchainFromTransactions = `FOR tx IN 
-		SELECT tx_hash, valid_mainchain AS (is_valid && is_mainchain) FROM transactions
-		LOOP
-			UPDATE addresses SET valid_mainchain = tx.valid_mainchain WHERE tx_hash = tx.tx_hash
-		END LOOP;`
+	UpdateValidMainchainFromTransactions = `UPDATE addresses
+		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean
+		FROM transactions AS tr
+		WHERE addresses.tx_hash = tr.tx_hash;`
 
 	IndexBlockTimeOnTableAddress   = `CREATE INDEX block_time_index ON addresses (block_time);`
 	DeindexBlockTimeOnTableAddress = `DROP INDEX block_time_index;`

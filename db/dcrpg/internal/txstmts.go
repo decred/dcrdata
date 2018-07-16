@@ -78,7 +78,7 @@ const (
 		is_valid, is_mainchain
 		FROM transactions WHERE tx_hash = $1;`
 
-	SelectTxnsVinsByBlock = `SELECT vin_db_idss, is_valid, is_mainchain,
+	SelectTxnsVinsByBlock = `SELECT vin_db_ids, is_valid, is_mainchain
 		FROM transactions WHERE block_hash = $1;`
 
 	UpdateTxnsValidMainchainByBlock = `UPDATE transactions
