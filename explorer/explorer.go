@@ -103,6 +103,7 @@ type explorerUI struct {
 	blockData       explorerDataSourceLite
 	explorerSource  explorerDataSource
 	liteMode        bool
+	devPrefetch     bool
 	templates       templates
 	wsHub           *WebsocketHub
 	NewBlockDataMtx sync.RWMutex
@@ -149,13 +150,14 @@ func (exp *explorerUI) StopWebsocketHub() {
 
 // New returns an initialized instance of explorerUI
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
-	useRealIP bool, appVersion string) *explorerUI {
+	useRealIP bool, appVersion string, devPrefetch bool) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
 	exp.explorerSource = primaryDataSource
 	exp.MempoolData = new(MempoolInfo)
 	exp.Version = appVersion
+	exp.devPrefetch = devPrefetch
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
@@ -283,7 +285,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 
 	exp.NewBlockDataMtx.Unlock()
 
-	if !exp.liteMode {
+	if !exp.liteMode && exp.devPrefetch {
 		go exp.updateDevFundBalance()
 	}
 
