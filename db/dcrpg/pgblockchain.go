@@ -77,6 +77,7 @@ type ChainDB struct {
 	stakeDB            *stakedb.StakeDatabase
 	unspentTicketCache *TicketTxnIDGetter
 	DevFundBalance     *DevFundBalance
+	devPrefetch        bool
 	InBatchSync        bool
 }
 
@@ -173,7 +174,8 @@ type DBInfo struct {
 
 // NewChainDB constructs a ChainDB for the given connection and Decred network
 // parameters. By default, duplicate row checks on insertion are enabled.
-func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeDatabase) (*ChainDB, error) {
+func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeDatabase,
+	devPrefetch bool) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
 	if err != nil {
@@ -221,6 +223,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		stakeDB:            stakeDB,
 		unspentTicketCache: unspentTicketCache,
 		DevFundBalance:     new(DevFundBalance),
+		devPrefetch:        devPrefetch,
 	}, nil
 }
 
@@ -1382,12 +1385,14 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		pgb.addressCounts.Unlock()
 
 		// Lazy update of DevFundBalance
-		go func() {
-			runtime.Gosched()
-			if _, err = pgb.UpdateDevBalance(); err != nil {
-				log.Errorf("Failed to update development fund balance: %v", err)
-			}
-		}()
+		if pgb.devPrefetch {
+			go func() {
+				runtime.Gosched()
+				if _, err = pgb.UpdateDevBalance(); err != nil {
+					log.Errorf("Failed to update development fund balance: %v", err)
+				}
+			}()
+		}
 	}
 
 	return
