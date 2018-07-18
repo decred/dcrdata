@@ -881,9 +881,10 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 		var addr dbtypes.AddressRow
 		var txHash sql.NullString
 		var blockTime, txVinIndex, vinDbID sql.NullInt64
+		// Scan values in order of columns listed in internal.addrsColumnNames
 		err = rows.Scan(&id, &addr.Address, &addr.MatchingTxHash, &txHash,
-			&txVinIndex, &blockTime, &vinDbID, &addr.Value, &addr.IsFunding,
-			&addr.ValidMainChain)
+			&addr.ValidMainChain, &txVinIndex, &blockTime, &vinDbID,
+			&addr.Value, &addr.IsFunding)
 		if err != nil {
 			return
 		}
