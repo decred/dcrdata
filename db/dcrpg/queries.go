@@ -1471,8 +1471,9 @@ func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
 	return nil
 }
 
-// UpdateLastVins updates the is_valid column in the vins table for all of the
-// transactions in the block specified by the given block hash.
+// UpdateLastVins updates the is_valid and is_mainchain columns in the vins
+// table for all of the transactions in the block specified by the given block
+// hash.
 func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) error {
 	_, txs, _, trees, timestamps, err := RetrieveTxsByBlockHash(db, blockHash)
 	if err != nil {
@@ -1546,8 +1547,8 @@ func RetrievePreviousHashByBlockHash(db *sql.DB, hash string) (previous_hash str
 	return
 }
 
-func SetMainchainByBlockHash(db *sql.DB, hash string) (previous_hash string, err error) {
-	err = db.QueryRow(internal.UpdateBlockMainchain, hash).Scan(&previous_hash)
+func SetMainchainByBlockHash(db *sql.DB, hash string, isMainchain bool) (previous_hash string, err error) {
+	err = db.QueryRow(internal.UpdateBlockMainchain, hash, isMainchain).Scan(&previous_hash)
 	return
 }
 

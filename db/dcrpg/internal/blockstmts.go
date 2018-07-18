@@ -93,7 +93,7 @@ const (
 
 	SelectBlocksHashes = `SELECT hash FROM blocks ORDER BY id;`
 
-	UpdateBlockMainchain = `UPDATE blocks SET is_mainchain = true WHERE hash = $1 RETURNING previous_hash;`
+	UpdateBlockMainchain = `UPDATE blocks SET is_mainchain = $2 WHERE hash = $1 RETURNING previous_hash;`
 
 	IndexBlocksTableOnHeight = `CREATE INDEX uix_block_height ON blocks(height);`
 

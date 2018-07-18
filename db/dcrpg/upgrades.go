@@ -110,21 +110,22 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 		// Go on to next upgrade
 		// fallthrough
-		// or be done
-		log.Infof("Table upgrades completed.")
-		return true, nil
-
+		// or be done.
 	default:
+		// UpgradeType == "upgrade", but no supported case.
 		return false, fmt.Errorf("no upgrade path available for version %v --> %v",
 			version, needVersion)
 	}
 
+	// Ensure the required version was reached.
 	upgradeInfo = TableUpgradesRequired(TableVersions(pgb.db))
 	if upgradeInfo[0].UpgradeType != "ok" {
 		return false, fmt.Errorf("failed to upgrade tables to required version %v", needVersion)
 	}
 
-	return false, nil
+	// Unsupported upgrades caught by default case, so we've succeeded.
+	log.Infof("Table upgrades completed.")
+	return true, nil
 }
 
 // handleUpgrades the individual upgrade and returns a bool and an error
@@ -347,7 +348,7 @@ func (pgb *ChainDB) handleBlocksTableMainchainUpgrade(bestBlock string) (int64, 
 	for !bytes.Equal(zeroHashStringBytes, []byte(previousHash)) {
 		// set is_mainchain=1 and get previous_hash
 		var err error
-		previousHash, err = SetMainchainByBlockHash(pgb.db, thisBlockHash)
+		previousHash, err = SetMainchainByBlockHash(pgb.db, thisBlockHash, true)
 		if err != nil {
 			return blocksUpdated, err
 		}

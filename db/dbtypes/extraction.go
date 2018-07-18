@@ -81,23 +81,25 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 		}
 		fees := spent - sent
 		dbTx := &Tx{
-			BlockHash:   blockHash.String(),
-			BlockHeight: int64(blockHeight),
-			BlockTime:   blockTime,
-			Time:        blockTime, // TODO, receive time?
-			TxType:      int16(stake.DetermineTxType(tx)),
-			Version:     tx.Version,
-			Tree:        tree,
-			TxID:        tx.TxHash().String(),
-			BlockIndex:  uint32(txIndex),
-			Locktime:    tx.LockTime,
-			Expiry:      tx.Expiry,
-			Size:        uint32(tx.SerializeSize()),
-			Spent:       spent,
-			Sent:        sent,
-			Fees:        fees,
-			NumVin:      uint32(len(tx.TxIn)),
-			NumVout:     uint32(len(tx.TxOut)),
+			BlockHash:        blockHash.String(),
+			BlockHeight:      int64(blockHeight),
+			BlockTime:        blockTime,
+			Time:             blockTime, // TODO, receive time?
+			TxType:           int16(stake.DetermineTxType(tx)),
+			Version:          tx.Version,
+			Tree:             tree,
+			TxID:             tx.TxHash().String(),
+			BlockIndex:       uint32(txIndex),
+			Locktime:         tx.LockTime,
+			Expiry:           tx.Expiry,
+			Size:             uint32(tx.SerializeSize()),
+			Spent:            spent,
+			Sent:             sent,
+			Fees:             fees,
+			NumVin:           uint32(len(tx.TxIn)),
+			NumVout:          uint32(len(tx.TxOut)),
+			IsValidBlock:     isValid,
+			IsMainchainBlock: isMainchain,
 		}
 
 		//dbTx.Vins = make([]VinTxProperty, 0, dbTx.NumVin)
