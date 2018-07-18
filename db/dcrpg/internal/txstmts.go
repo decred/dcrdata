@@ -62,15 +62,18 @@ const (
 		is_mainchain BOOLEAN
 	);`
 
-	SelectTxByHash       = `SELECT id, block_hash, block_index, tree FROM transactions WHERE tx_hash = $1;`
-	SelectTxsByBlockHash = `SELECT id, tx_hash, block_index, tree, block_time FROM transactions WHERE block_hash = $1;`
+	SelectTxByHash = `SELECT id, block_hash, block_index, tree
+		FROM transactions WHERE tx_hash = $1;`
+	SelectTxsByBlockHash = `SELECT id, tx_hash, block_index, tree, block_time
+		FROM transactions WHERE block_hash = $1;`
 
 	SelectTxBlockTimeByHash = `SELECT block_time FROM transactions where tx_hash = $1 
 		ORDER BY block_time DESC LIMIT 1;`
 
 	SelectTxIDHeightByHash = `SELECT id, block_height FROM transactions WHERE tx_hash = $1;`
 
-	SelectTxsPerDay = `SELECT to_timestamp(time)::date as date, count(*) FROM transactions GROUP BY date ORDER BY date;`
+	SelectTxsPerDay = `SELECT to_timestamp(time)::date as date, count(*) FROM transactions
+		GROUP BY date ORDER BY date;`
 
 	SelectFullTxByHash = `SELECT id, block_hash, block_height, block_time, 
 		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry, 
@@ -81,9 +84,17 @@ const (
 	SelectTxnsVinsByBlock = `SELECT vin_db_ids, is_valid, is_mainchain
 		FROM transactions WHERE block_hash = $1;`
 
-	UpdateTxnsValidMainchainByBlock = `UPDATE transactions
+	UpdateRegularTxnsValidMainchainByBlock = `UPDATE transactions
 		SET is_valid=$1, is_mainchain=$2 
-		WHERE block_hash=$3;`
+		WHERE block_hash=$3 and tree=0;`
+
+	UpdateRegularTxnsValidByBlock = `UPDATE transactions
+		SET is_valid=$1 
+		WHERE block_hash=$2 and tree=0;`
+
+	UpdateTxnsMainchainByBlock = `UPDATE transactions
+		SET is_mainchain=$1 
+		WHERE block_hash=$2;`
 
 	UpdateTxnsValidMainchainAll = `UPDATE transactions
 		SET is_valid=b.is_valid, is_mainchain=b.is_mainchain

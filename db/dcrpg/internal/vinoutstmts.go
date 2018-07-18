@@ -64,9 +64,18 @@ const (
 	SelectSpendingTxByVinID      = `SELECT tx_hash, tx_index, tx_tree FROM vins WHERE id=$1;`
 	SelectAllVinInfoByID         = `SELECT tx_hash, tx_index, tx_tree, is_valid, is_mainchain, block_time,
 		prev_tx_hash, prev_tx_index, prev_tx_tree, value_in FROM vins WHERE id = $1;`
+
 	SetIsValidIsMainchainByTxHash = `UPDATE vins SET is_valid = $1, is_mainchain = $2
 		WHERE tx_hash = $3 AND block_time = $4 AND tx_tree = $5;`
 	SetIsValidIsMainchainByVinID = `UPDATE vins SET is_valid = $2, is_mainchain = $3
+		WHERE id = $1;`
+	SetIsValidByTxHash = `UPDATE vins SET is_valid = $1
+		WHERE tx_hash = $2 AND block_time = $3 AND tx_tree = $4;`
+	SetIsValidByVinID = `UPDATE vins SET is_valid = $2
+		WHERE id = $1;`
+	SetIsMainchainByTxHash = `UPDATE vins SET is_mainchain = $1
+		WHERE tx_hash = $2 AND block_time = $3 AND tx_tree = $4;`
+	SetIsMainchainByVinID = `UPDATE vins SET is_mainchain = $2
 		WHERE id = $1;`
 
 	// SetVinsTableCoinSupplyUpgrade does not set is_mainchain because that upgrade comes after this one
