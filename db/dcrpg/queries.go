@@ -309,6 +309,7 @@ func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
 		if rowsAffected[i] != 1 {
 			log.Warnf("Updated pool status for %d tickets, expecting just 1 (%s, %v)!",
 				rowsAffected[i], ticket, poolStatuses[i])
+			// TODO: go get the info to add it to the tickets table
 		}
 	}
 
@@ -1854,7 +1855,8 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 				TxVinVoutIndex: vout.TxIndex,
 				VinVoutDbID:    id,
 				Value:          vout.Value,
-				// ValidMainChain: ?
+				// Not set here are: ValidMainchain, MatchingTxHash, IsFunding,
+				// and TxBlockTime.
 			})
 		}
 		ids = append(ids, id)
