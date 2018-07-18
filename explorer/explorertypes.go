@@ -63,7 +63,7 @@ type AddressTx struct {
 	IsFunding      bool
 	MatchedTx      string
 	BlockTime      uint64
-	MergedTxnCount uint64 `json:"MergedTxnCount,omitempty"`
+	MergedTxnCount uint64 `json:",omitempty"`
 }
 
 // IOID formats an identification string for the transaction input (or output)

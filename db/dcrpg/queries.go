@@ -790,6 +790,10 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 
 	totalMergedSpent = nms.Int64
 
+	if !nms.Valid {
+		log.Debug("Merged debit spent count is not valid")
+	}
+
 	err = dbtx.Rollback()
 	return
 }
@@ -810,31 +814,31 @@ func RetrieveAllAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.Ad
 
 func RetrieveAddressTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(db, address, N, offset,
-		internal.SelectAddressLimitNByAddressSubQry)
+		internal.SelectAddressLimitNByAddressSubQry, false)
 }
 
 func RetrieveAddressTxnsAlt(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(db, address, N, offset,
-		internal.SelectAddressLimitNByAddress)
+		internal.SelectAddressLimitNByAddress, false)
 }
 
 func RetrieveAddressDebitTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(db, address, N, offset,
-		internal.SelectAddressDebitsLimitNByAddress)
+		internal.SelectAddressDebitsLimitNByAddress, false)
 }
 
 func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(db, address, N, offset,
-		internal.SelectAddressCreditsLimitNByAddress)
+		internal.SelectAddressCreditsLimitNByAddress, false)
 }
 
 func RetrieveAddressMergedDebitTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(db, address, N, offset,
-		internal.SelectAddressMergedDebitView, 1)
+		internal.SelectAddressMergedDebitView, true)
 }
 
 func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
-	statement string, partialData ...int) ([]uint64, []*dbtypes.AddressRow, error) {
+	statement string, isMergedDebitView bool) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.Query(statement, address, N, offset)
 	if err != nil {
 		return nil, nil, err
@@ -845,18 +849,18 @@ func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
 		}
 	}()
 
-	if len(partialData) > 0 {
-		return scanPartialAddressQueryRows(rows)
+	if isMergedDebitView {
+		addr, err := scanPartialAddressQueryRows(rows, address)
+		return nil, addr, err
 	}
 	return scanAddressQueryRows(rows)
 }
 
-func scanPartialAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.AddressRow, err error) {
+func scanPartialAddressQueryRows(rows *sql.Rows, addr string) (addressRows []*dbtypes.AddressRow, err error) {
 	for rows.Next() {
-		var addr dbtypes.AddressRow
-		addr.IsFunding = false
+		var addr = dbtypes.AddressRow{Address: addr}
 
-		err = rows.Scan(&addr.Address, &addr.TxHash, &addr.TxBlockTime,
+		err = rows.Scan(&addr.TxHash, &addr.TxBlockTime,
 			&addr.Value, &addr.MergedDebitCount)
 		if err != nil {
 			return
