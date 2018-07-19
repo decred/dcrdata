@@ -374,7 +374,7 @@ func (db *DB) RetrievePoolInfoRange(ind0, ind1 int64) ([]apitypes.TicketPoolInfo
 			&tpi.ValAvg, &winners); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 		}
-		tpi.Winners = strings.Split(winners, ";")
+		tpi.Winners = splitToArray(winners)
 		tpis = append(tpis, tpi)
 		hashes = append(hashes, hash)
 	}
@@ -393,11 +393,7 @@ func (db *DB) RetrievePoolInfo(ind int64) (*apitypes.TicketPoolInfo, error) {
 	var hash, winners string
 	err := db.QueryRow(db.getPoolSQL, ind).Scan(&hash, &tpi.Size,
 		&tpi.Value, &tpi.ValAvg, &winners)
-	if winners == "" {
-		tpi.Winners = make([]string, 0)
-	} else {
-		tpi.Winners = strings.Split(winners, ";")
-	}
+	tpi.Winners = splitToArray(winners)
 	return tpi, err
 }
 
@@ -410,8 +406,7 @@ func (db *DB) RetrieveWinners(ind int64) ([]string, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-
-	return strings.Split(winners, ";"), hash, err
+	return splitToArray(winners), hash, err
 }
 
 // RetrieveWinnersByHash returns the winning ticket tx IDs drawn after
@@ -424,8 +419,7 @@ func (db *DB) RetrieveWinnersByHash(hash string) ([]string, uint32, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-
-	return strings.Split(winners, ";"), height, err
+	return splitToArray(winners), height, err
 }
 
 // RetrievePoolInfoByHash returns ticket pool info for blockhash hash
@@ -434,7 +428,7 @@ func (db *DB) RetrievePoolInfoByHash(hash string) (*apitypes.TicketPoolInfo, err
 	var winners string
 	err := db.QueryRow(db.getPoolByHashSQL, hash).Scan(&tpi.Height, &tpi.Size,
 		&tpi.Value, &tpi.ValAvg, &winners)
-	tpi.Winners = strings.Split(winners, ";")
+	tpi.Winners = splitToArray(winners)
 	return tpi, err
 }
 
@@ -675,8 +669,7 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	if err != nil {
 		return nil, err
 	}
-	bd.PoolInfo.Winners = strings.Split(winners, ";")
-
+	bd.PoolInfo.Winners = splitToArray(winners)
 	return bd, nil
 }
 
@@ -720,8 +713,7 @@ func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic,
 	if err != nil {
 		return nil, err
 	}
-	bd.PoolInfo.Winners = strings.Split(winners, ";")
-
+	bd.PoolInfo.Winners = splitToArray(winners)
 	return bd, nil
 }
 
@@ -740,8 +732,7 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 	if err != nil {
 		return nil, err
 	}
-	bd.PoolInfo.Winners = strings.Split(winners, ";")
-
+	bd.PoolInfo.Winners = splitToArray(winners)
 	// 2. Prepare + chained QueryRow/Scan
 	// stmt, err := db.Prepare(getBlockSQL)
 	// if err != nil {
@@ -871,9 +862,7 @@ func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, er
 	if err != nil {
 		return nil, err
 	}
-
-	si.PoolInfo.Winners = strings.Split(winners, ";")
-
+	si.PoolInfo.Winners = splitToArray(winners)
 	return si, nil
 }
 
@@ -891,22 +880,9 @@ func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended,
 	if err != nil {
 		return nil, err
 	}
-
-	si.PoolInfo.Winners = strings.Split(winners, ";")
-
+	si.PoolInfo.Winners = splitToArray(winners)
 	return si, nil
 }
-
-// RetrieveWinners returns the winners for block ind
-// func (db *DB) RetrieveWinners(ind int64) ([]string, error) {
-// 	var winners string
-// 	err := db.QueryRow(db.getStakeInfoWinnersSQL, ind).Scan(&winners)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return strings.Split(winners, ";"), nil
-// }
 
 func logDBResult(res sql.Result) error {
 	if log.Level() > slog.LevelTrace {
@@ -926,4 +902,14 @@ func logDBResult(res sql.Result) error {
 	log.Tracef("ID = %d, affected = %d", lastID, rowCnt)
 
 	return nil
+}
+
+// splitToArray is utility function, correctly splits given string into array of strings
+func splitToArray(str string) []string {
+	if str == "" {
+		// this case returns an empty array
+		return make([]string, 0)
+	} else {
+		return strings.Split(str, ";")
+	}
 }
