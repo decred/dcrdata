@@ -1,11 +1,14 @@
-// Package explorer handles the block explorer subsystem for generating the
-// explorer pages.
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
+
+// package explorer handles the block explorer subsystem for generating the
+// explorer pages.
 package explorer
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -51,6 +54,8 @@ type explorerDataSourceLite interface {
 	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
 	GetMempool() []MempoolTx
 	TxHeight(txid string) (height int64)
+	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
+	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -63,6 +68,21 @@ type explorerDataSource interface {
 	DevBalance() (*AddressBalance, error)
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
+	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
+	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
+	GetTicketsPriceByHeight() (*dbtypes.ChartsData, error)
+}
+
+// cacheChartsData holds the prepopulated data that is used to draw the charts
+var cacheChartsData = new(ChartDataCounter)
+
+// GetChartTypeData is a thread-safe way to access the chart type data.
+func GetChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
+	cacheChartsData.RLock()
+	defer cacheChartsData.RUnlock()
+
+	data, ok = cacheChartsData.Data[chartType]
+	return
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction
@@ -101,6 +121,7 @@ type explorerUI struct {
 	blockData       explorerDataSourceLite
 	explorerSource  explorerDataSource
 	liteMode        bool
+	devPrefetch     bool
 	templates       templates
 	wsHub           *WebsocketHub
 	NewBlockDataMtx sync.RWMutex
@@ -147,13 +168,14 @@ func (exp *explorerUI) StopWebsocketHub() {
 
 // New returns an initialized instance of explorerUI
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
-	useRealIP bool, appVersion string) *explorerUI {
+	useRealIP bool, appVersion string, devPrefetch bool) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
 	exp.explorerSource = primaryDataSource
 	exp.MempoolData = new(MempoolInfo)
 	exp.Version = appVersion
+	exp.devPrefetch = devPrefetch
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
@@ -182,6 +204,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			WindowSize:       exp.ChainParams.StakeDiffWindowSize,
 			RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
 			BlockTime:        exp.ChainParams.TargetTimePerBlock.Nanoseconds(),
+			MeanVotingBlocks: calcMeanVotingBlocks(params),
 		},
 		PoolInfo: TicketPoolInfo{
 			Target: exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
@@ -192,7 +215,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 		return nil
 	}
-	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address", "rawtx", "error", "parameters"}
+	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
+		"rawtx", "error", "parameters", "agenda", "agendas", "charts"}
 
 	tempDefaults := []string{"extras"}
 
@@ -204,6 +228,10 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
+	if !exp.liteMode {
+		exp.prePopulateChartsData()
+	}
+
 	exp.addRoutes()
 
 	exp.wsHub = NewWebsocketHub()
@@ -213,9 +241,49 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	return exp
 }
 
-func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
+// prePopulateChartsData should run in the background the first time the system
+// is initialized and when new blocks are added.
+func (exp *explorerUI) prePopulateChartsData() {
+	if exp.liteMode {
+		log.Warnf("Charts are not supported in lite mode!")
+		return
+	}
+	log.Info("Pre-populating the charts data. This may take a minute...")
+	var err error
+
+	pgData, err := exp.explorerSource.GetPgChartsData()
+	if err != nil {
+		log.Errorf("Invalid PG data found: %v", err)
+		return
+	}
+
+	sqliteData, err := exp.blockData.GetSqliteChartsData()
+	if err != nil {
+		log.Errorf("Invalid SQLite data found: %v", err)
+		return
+	}
+
+	for k, v := range sqliteData {
+		pgData[k] = v
+	}
+
+	cacheChartsData.Lock()
+	cacheChartsData.Data = pgData
+	cacheChartsData.Unlock()
+
+	log.Info("Done Pre-populating the charts data")
+}
+
+func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
+
+	// Update the charts data after every five blocks or if no charts data
+	// exists yet.
+	if !exp.liteMode && bData.Height%5 == 0 || len(cacheChartsData.Data) == 0 {
+		go exp.prePopulateChartsData()
+	}
+
 	newBlockData := &BlockBasic{
 		Height:         int64(bData.Height),
 		Voters:         bData.Voters,
@@ -232,6 +300,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		return (a / b) * 100
 	}
 
+	stakePerc := blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
+
 	// Update all ExtraInfo with latest data
 	exp.ExtraInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
 	exp.ExtraInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
@@ -245,48 +315,40 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	exp.ExtraInfo.PoolInfo.Size = blockData.PoolInfo.Size
 	exp.ExtraInfo.PoolInfo.Value = blockData.PoolInfo.Value
 	exp.ExtraInfo.PoolInfo.ValAvg = blockData.PoolInfo.ValAvg
-	exp.ExtraInfo.PoolInfo.Percentage = percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin())
+	exp.ExtraInfo.PoolInfo.Percentage = stakePerc * 100
 
 	exp.ExtraInfo.PoolInfo.PercentTarget = func() float64 {
 		target := float64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
 		return float64(blockData.PoolInfo.Size) / target * 100
 	}()
 
-	exp.ExtraInfo.TicketROI = func() float64 {
+	exp.ExtraInfo.TicketReward = func() float64 {
 		PosSubPerVote := dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin() / float64(exp.ChainParams.TicketsPerBlock)
 		return percentage(PosSubPerVote, blockData.CurrentStakeDiff.CurrentStakeDifficulty)
 	}()
 
-	// If there are ticketpoolsize*TicketsPerBlock total tickets and
-	// TicketsPerBlock are drawn every block, and assuming random selection
-	// of tickets, then any one ticket will, on average, be selected to vote
-	// once every ticketpoolsize blocks
-
-	// Small deviations in reality are due to:
-	// 1.  Not all blocks have 5 votes.  On average each block in Decred
-	// currently has about 4.8 votes per block
-	// 2.  Total tickets in the pool varies slightly above and below
-	// ticketpoolsize*TicketsPerBlock depending on supply and demand
-
-	// Both minor deviations are not accounted for in the general ROI
-	// calculation below because the variance they cause would be would be
-	// extremely small.
-
-	// The actual ROI of a ticket needs to also take into consideration the
+	// The actual Reward of a ticket needs to also take into consideration the
 	// ticket maturity (time from ticket purchase until its eligible to vote)
 	// and coinbase maturity (time after vote until funds distributed to
 	// ticket holder are avaliable to use)
-	exp.ExtraInfo.ROIPeriod = func() string {
+	exp.ExtraInfo.RewardPeriod = func() string {
 		PosAvgTotalBlocks := float64(
-			exp.ChainParams.TicketPoolSize +
-				exp.ChainParams.TicketMaturity +
-				exp.ChainParams.CoinbaseMaturity)
+			exp.ExtraInfo.Params.MeanVotingBlocks +
+				int64(exp.ChainParams.TicketMaturity) +
+				int64(exp.ChainParams.CoinbaseMaturity))
 		return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
 	}()
 
+	asr, _ := exp.simulateASR(1000, false, stakePerc,
+		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(),
+		float64(exp.NewBlockData.Height),
+		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
+
+	exp.ExtraInfo.ASR = asr
+
 	exp.NewBlockDataMtx.Unlock()
 
-	if !exp.liteMode {
+	if !exp.liteMode && exp.devPrefetch {
 		go exp.updateDevFundBalance()
 	}
 
@@ -343,4 +405,135 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Get("/address/{x}", redirect("address"))
 
 	exp.Mux.Get("/decodetx", redirect("decodetx"))
+}
+
+// Simulate ticket purchase and re-investment over a full year for a given
+// starting amount of DCR and calculation parameters.  Generate a TEXT table of
+// the simulation results that can optionally be used for future expansion of
+// dcrdata functionality.
+func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty bool,
+	CurrentStakePercent float64, ActualCoinbase float64, CurrentBlockNum float64,
+	ActualTicketPrice float64) (ASR float64, ReturnTable string) {
+
+	// Calculations are only useful on mainnet.  Short circuit calculations if
+	// on any other version of chain params.
+	if exp.ChainParams.Name != "mainnet" {
+		return 0, ""
+	}
+
+	BlocksPerDay := 86400 / exp.ChainParams.TargetTimePerBlock.Seconds()
+	BlocksPerYear := 365 * BlocksPerDay
+	TicketsPurchased := float64(0)
+
+	StakeRewardAtBlock := func(blocknum float64) float64 {
+		// Option 1:  RPC Call
+		Subsidy := exp.blockData.BlockSubsidy(int64(blocknum), 1)
+		return dcrutil.Amount(Subsidy.PoS).ToCoin()
+
+		// Option 2:  Calculation
+		// epoch := math.Floor(blocknum / float64(exp.ChainParams.SubsidyReductionInterval))
+		// RewardProportionPerVote := float64(exp.ChainParams.StakeRewardProportion) / (10 * float64(exp.ChainParams.TicketsPerBlock))
+		// return float64(RewardProportionPerVote) * dcrutil.Amount(exp.ChainParams.BaseSubsidy).ToCoin() *
+		// 	math.Pow(float64(exp.ChainParams.MulSubsidy)/float64(exp.ChainParams.DivSubsidy), epoch)
+	}
+
+	MaxCoinSupplyAtBlock := func(blocknum float64) float64 {
+		// 4th order poly best fit curve to Decred mainnet emissions plot.
+		// Curve fit was done with 0 Y intercept and Pre-Mine added after.
+
+		return (-9E-19*math.Pow(blocknum, 4) +
+			7E-12*math.Pow(blocknum, 3) -
+			2E-05*math.Pow(blocknum, 2) +
+			29.757*blocknum + 76963 +
+			1680000) // Premine 1.68M
+
+	}
+
+	CoinAdjustmentFactor := ActualCoinbase / MaxCoinSupplyAtBlock(CurrentBlockNum)
+
+	TheoreticalTicketPrice := func(blocknum float64) float64 {
+		ProjectedCoinsCirculating := MaxCoinSupplyAtBlock(blocknum) * CoinAdjustmentFactor * CurrentStakePercent
+		TicketPoolSize := (float64(exp.ExtraInfo.Params.MeanVotingBlocks) + float64(exp.ChainParams.TicketMaturity) +
+			float64(exp.ChainParams.CoinbaseMaturity)) * float64(exp.ChainParams.TicketsPerBlock)
+		return ProjectedCoinsCirculating / TicketPoolSize
+
+	}
+	TicketAdjustmentFactor := ActualTicketPrice / TheoreticalTicketPrice(CurrentBlockNum)
+
+	// Prepare for simulation
+	simblock := CurrentBlockNum
+	TicketPrice := ActualTicketPrice
+	DCRBalance := StartingDCRBalance
+
+	ReturnTable += fmt.Sprintf("\n\nBLOCKNUM        DCR  TICKETS TKT_PRICE TKT_REWRD  ACTION\n")
+	ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    INIT\n",
+		int64(simblock), DCRBalance, TicketsPurchased,
+		TicketPrice, StakeRewardAtBlock(simblock))
+
+	for simblock < (BlocksPerYear + CurrentBlockNum) {
+
+		// Simulate a Purchase on simblock
+		TicketPrice = TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor
+
+		if IntegerTicketQty {
+			// Use this to simulate integer qtys of tickets up to max funds
+			TicketsPurchased = math.Floor(DCRBalance / TicketPrice)
+		} else {
+			// Use this to simulate ALL funds used to buy tickets - even fractional tickets
+			// which is actually not possible
+			TicketsPurchased = (DCRBalance / TicketPrice)
+		}
+
+		DCRBalance -= (TicketPrice * TicketsPurchased)
+		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f     BUY\n",
+			int64(simblock), DCRBalance, TicketsPurchased,
+			TicketPrice, StakeRewardAtBlock(simblock))
+
+		// Move forward to average vote
+		simblock += (float64(exp.ChainParams.TicketMaturity) + float64(exp.ExtraInfo.Params.MeanVotingBlocks))
+		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    VOTE\n",
+			int64(simblock), DCRBalance, TicketsPurchased,
+			(TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor), StakeRewardAtBlock(simblock))
+
+		// Simulate return of funds
+		DCRBalance += (TicketPrice * TicketsPurchased)
+
+		// Simulate reward
+		DCRBalance += (StakeRewardAtBlock(simblock) * TicketsPurchased)
+		TicketsPurchased = 0
+
+		// Move forward to coinbase maturity
+		simblock += float64(exp.ChainParams.CoinbaseMaturity)
+
+		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f  REWARD\n",
+			int64(simblock), DCRBalance, TicketsPurchased,
+			(TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor), StakeRewardAtBlock(simblock))
+
+		// Need to receive funds before we can use them again so add 1 block
+		simblock++
+	}
+
+	// Scale down to exactly 365 days
+	SimulationReward := ((DCRBalance - StartingDCRBalance) / StartingDCRBalance) * 100
+	ASR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationReward
+	ReturnTable += fmt.Sprintf("ASR over 365 Days is %.2f.\n", ASR)
+	return
+}
+
+// Calculate the Mean ticket voting block for network parameters.
+// The expected block (aka mean) of the probability distribution is given by:
+//      sum(B * P(B)), B=1 to 40960
+// Where B is the block number and P(B) is the probability of voting at
+// block B.  For more information see:
+// https://github.com/decred/dcrdata/issues/471#issuecomment-390063025
+
+func calcMeanVotingBlocks(params *chaincfg.Params) int64 {
+	logPoolSizeM1 := math.Log(float64(params.TicketPoolSize) - 1)
+	logPoolSize := math.Log(float64(params.TicketPoolSize))
+	var v float64
+	for i := float64(1); i <= float64(params.TicketExpiry); i++ {
+		v += math.Exp(math.Log(i) + (i-1)*logPoolSizeM1 - i*logPoolSize)
+	}
+	log.Infof("Mean Voting Blocks calculated: %d", int64(v))
+	return int64(v)
 }

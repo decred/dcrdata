@@ -4,7 +4,7 @@
 {{template "html-head" printf "Decred Block %d" .Data.Height}}
 <body>
     {{ template "navbar" . }}
-    <div class="container">
+    <div class="container" data-controller="main">
     {{with .Data}}
         <div class="row justify-content-between">
             <div class="col-md-7 col-sm-6">
@@ -33,7 +33,7 @@
                     <tr>
                         <td class="text-right pr-2 lh1rem vam nowrap xs-w117">BLOCK HASH</td>
                         <td>
-                            <span class="hash break-word  lh1rem">{{.Hash}}</span>
+                            <span class="hash break-word lh1rem">{{.Hash}}</span>
                         </td>
                     </tr>
                     <tr>
@@ -93,7 +93,7 @@
                     <tr>
                         <td class="text-right lh1rem pr-2 xs-w117">TIME</td>
                         <td class="lh1rem" style="min-width: 178px;">
-                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-age="{{.BlockTime}}"></span> ago)</span>
+                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.BlockTime}}"></span> ago)</span>
                         </td>
                     </tr>
                     <tr>
@@ -231,37 +231,30 @@
         </div>
 
         {{if ge .Height .StakeValidationHeight}}
+        {{if .Misses}}
         <div class="row">
             <span class="anchor" id="misses"></span>
             <div class="col-md-12">
                 <h4><span>Missed Votes</span></h4>
-                {{if not .Misses}}
-                    <table class="table table-sm striped">
-                            <tr>
-                                <td>No missed votes in this block.
-                                </td>
-                            </tr>
-                    </table>
-                {{else}}
-                    <table class="table table-sm striped">
-                        <thead>
-                            <th>Ticket ID</th>
-                        </thead>
-                        <tbody>
-                            {{range .Misses}}
-                            <tr>
-                                <td class="break-word">
-                                    <span>
-                                        <a class="hash lh1rem" href="/tx/{{.}}">{{.}}</a>
-                                    </span>
-                                </td>
-                            </tr>
-                            {{end}}
-                        </tbody>
-                    </table>
-                {{end}}
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Ticket ID</th>
+                    </thead>
+                    <tbody>
+                        {{range .Misses}}
+                        <tr>
+                            <td class="break-word">
+                                <span>
+                                    <a class="hash lh1rem" href="/tx/{{.}}">{{.}}</a>
+                                </span>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
             </div>
         </div>
+        {{end}}
         {{end}}
 
         <div class="row">

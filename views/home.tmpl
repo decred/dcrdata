@@ -6,9 +6,9 @@
 
 <body>
     {{ template "navbar" . }}
-    <div class="container">
+    <div class="container" data-controller="main">
 
-        <div class="row">
+        <div class="row" data-controller="homepageMempool">
 
             <div class="col-md-6">
 
@@ -25,11 +25,11 @@
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKETS IN MEMPOOL</td>
-                            <td><span id="mempool_ticket_number" class="mono fs24">{{$.Mempool.NumTickets}}</span></td>
+                            <td><span data-target="homepageMempool.numTicket" class="mono fs24">{{$.Mempool.NumTickets}}</span></td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">VOTES IN MEMPOOL</td>
-                            <td><span id="mempool_vote_number" class="mono fs24">{{$.Mempool.NumVotes}}</span></td>
+                            <td><span data-target="homepageMempool.numVote" class="mono fs24">{{$.Mempool.NumVotes}}</span></td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET WINDOW PROGRESS</td>
@@ -58,8 +58,8 @@
                             <td class="mono vam fs24 fs14-decimal font-weight-bold"><span id="blocksdiff">{{template "decimalParts" (float64AsDecimalParts .StakeDiff false)}}</span><span class="pl-1 unit">DCR</span></td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET ROI</td>
-                            <td class="mono vam fs24 fs14-decimal">+<span id="ticket_roi">{{printf "%.2f" .TicketROI}}</span>% <span class="mono lh1rem fs18">per ~{{.ROIPeriod}}</span></td>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET REWARD</td>
+                            <td class="mono vam fs24 fs14-decimal">+<span id="ticket_reward">{{printf "%.2f" .TicketReward}}</span>% <span class="mono lh1rem fs18">per ~{{.RewardPeriod}}</span>  <span class="mono lh1rem fs18" title="Annual Stake Rewards">({{printf "%.2f" .ASR}}% / year)</span></td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL SIZE</td>
@@ -157,14 +157,14 @@
                         <span style="flex: 0 0 50px" class="lh1rem text-right ml-1">Size</span>
                         <span style="flex: 0 0 62px" class="lh1rem text-right ml-1">Age</span>
                     </div>
-                    <div id="mini-transactions" class="transactions md-height-rows rows">
+                    <div data-target="homepageMempool.transactions" class="transactions md-height-rows rows">
                     {{range .Mempool.LatestTransactions}}
                         <div class="d-flex flex-table-row">
                             <a class="hash truncate-hash keyboard-target" style="flex: 1 1 auto" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
                             <span style="flex: 0 0 65px" class="mono text-right ml-1">{{.Type}}</span>
                             <span style="flex: 0 0 105px" class="mono text-right ml-1">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</span>
                             <span style="flex: 0 0 50px" class="mono text-right ml-1">{{.Size}} B</span>
-                            <span style="flex: 0 0 62px" class="mono text-right ml-1" data-age="{{.Time}}"></span>
+                            <span style="flex: 0 0 62px" class="mono text-right ml-1" data-target="main.age" data-age="{{.Time}}"></span>
                         </div>
                     {{end}}
                     </div>
@@ -202,7 +202,7 @@
                             <td>{{.FreshStake}}</td>
                             <td>{{.Revocations}}</td>
                             <td>{{.FormattedBytes}}</td>
-                            <td data-age="{{.BlockTime}}"></td>
+                            <td data-target="main.age" data-age="{{.BlockTime}}"></td>
                             <td>{{.FormattedTime}}</td>
                         </tr>
                         {{end}}

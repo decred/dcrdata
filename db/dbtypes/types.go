@@ -88,6 +88,17 @@ const (
 	PoolStatusMissed
 )
 
+// VoteChoice defines the type of vote choice, and the undelying integer value
+// is stored in the database (do not change these without upgrading the DB!).
+type VoteChoice uint8
+
+const (
+	Yes VoteChoice = iota
+	Abstain
+	No
+	VoteChoiceUnknown
+)
+
 func (p TicketPoolStatus) String() string {
 	switch p {
 	case PoolStatusLive:
@@ -101,6 +112,43 @@ func (p TicketPoolStatus) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+func (v VoteChoice) String() string {
+	switch v {
+	case Abstain:
+		return "abstain"
+	case Yes:
+		return "yes"
+	case No:
+		return "no"
+	default:
+		return "unknown"
+	}
+}
+
+// ChoiceIndexFromStr converts the vote choice string to a vote choice index.
+func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
+	switch choice {
+	case "abstain":
+		return Abstain, nil
+	case "yes":
+		return Yes, nil
+	case "no":
+		return No, nil
+	default:
+		return VoteChoiceUnknown, fmt.Errorf(`Vote Choice "%s" is unknown`, choice)
+	}
+}
+
+// MileStone defines the various stages passed by vote on a given agenda.
+// Activated is the height at which the delay time begins before a vote activates.
+// HardForked is the height at which the consensus rule changes.
+// LockedIn is the height at which voting on an agenda is consided complete.
+type MileStone struct {
+	Activated  int64
+	HardForked int64
+	LockedIn   int64
 }
 
 // SyncResult is the result of a database sync operation, containing the height
@@ -248,16 +296,35 @@ type Vout struct {
 // AddressRow represents a row in the addresses table
 type AddressRow struct {
 	// id int64
-	Address            string
-	FundingTxDbID      uint64
-	FundingTxHash      string
-	FundingTxVoutIndex uint32
-	VoutDbID           uint64
-	Value              uint64
-	SpendingTxDbID     uint64
-	SpendingTxHash     string
-	SpendingTxVinIndex uint32
-	VinDbID            uint64
+	Address string
+	// MatchingTxHash provides the relationship between spending tx inputs and
+	// funding tx outputs.
+	MatchingTxHash string
+	IsFunding      bool
+	TxBlockTime    uint64
+	TxHash         string
+	TxVinVoutIndex uint32
+	Value          uint64
+	VinVoutDbID    uint64
+}
+
+// ChartsData defines the fields that store the values needed to plot the charts
+// on the frontend.
+type ChartsData struct {
+	TimeStr    []string  `json:"timestr,omitempty"`
+	Difficulty []float64 `json:"difficulty,omitempty"`
+	Time       []uint64  `json:"time,omitempty"`
+	Value      []uint64  `json:"value,omitempty"`
+	Size       []uint64  `json:"size,omitempty"`
+	ChainSize  []uint64  `json:"chainsize,omitempty"`
+	Count      []uint64  `json:"count,omitempty"`
+	SizeF      []float64 `json:"sizef,omitempty"`
+	ValueF     []float64 `json:"valuef,omitempty"`
+	Unspent    []uint64  `json:"unspent,omitempty"`
+	Revoked    []uint64  `json:"revoked,omitempty"`
+	Height     []uint64  `json:"height,omitempty"`
+	Pooled     []uint64  `json:"pooled,omitempty"`
+	Solo       []uint64  `json:"solo,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
@@ -274,13 +341,15 @@ type VinTxProperty struct {
 	PrevTxIndex uint32 `json:"prevvoutidx"`
 	PrevTxTree  uint16 `json:"tree"`
 	Sequence    uint32 `json:"sequence"`
-	ValueIn     uint64 `json:"amountin"`
+	ValueIn     int64  `json:"amountin"`
 	TxID        string `json:"tx_hash"`
 	TxIndex     uint32 `json:"tx_index"`
 	TxTree      uint16 `json:"tx_tree"`
 	BlockHeight uint32 `json:"blockheight"`
 	BlockIndex  uint32 `json:"blockindex"`
 	ScriptHex   []byte `json:"scripthex"`
+	IsValid     bool   `json:"is_valid"`
+	Time        int64  `json:"time"`
 }
 
 // Vin models a transaction input.
@@ -302,6 +371,19 @@ type Vin struct {
 type ScriptSig struct {
 	Asm string `json:"asm"`
 	Hex string `json:"hex"`
+}
+
+// AgendaVoteChoices contains the vote counts on multiple intervals of time. The
+// interval length may be either a single block, in which case Height contains
+// the block heights, or a day, in which case Time contains the time stamps of
+// each interval. Total is always the sum of Yes, No, and Abstain.
+type AgendaVoteChoices struct {
+	Abstain []uint64 `json:"abstain"`
+	Yes     []uint64 `json:"yes"`
+	No      []uint64 `json:"no"`
+	Total   []uint64 `json:"total"`
+	Height  []uint64 `json:"height,omitempty"`
+	Time    []uint64 `json:"time,omitempty"`
 }
 
 // Tx models a Decred transaction. It is stored in a Block.

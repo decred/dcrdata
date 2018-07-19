@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/db/agendadb"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
@@ -210,6 +211,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exp.liteMode {
+		// For any coinbase transactions look up the total block fees to include as part of the inputs
+		if tx.Type == "Coinbase" {
+			data := exp.blockData.GetExplorerBlock(tx.BlockHash)
+			if data == nil {
+				log.Errorf("Unable to get block %s", tx.BlockHash)
+			} else {
+				tx.BlockMiningFee = int64(data.MiningFee)
+			}
+		}
 		// For each output of this transaction, look up any spending transactions,
 		// and the index of the spending transaction input.
 		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
@@ -228,7 +238,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				Index: spendingTxVinInds[i],
 			}
 		}
-		if tx.Type == "Ticket" {
+		if tx.IsTicket() {
 			spendStatus, poolStatus, err := exp.explorerSource.PoolStatusForTicket(hash)
 			if err != nil {
 				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v", hash, err)
@@ -239,16 +249,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					tx.TicketInfo.PoolStatus = poolStatus.String()
 				}
 				tx.TicketInfo.SpendStatus = spendStatus.String()
+
+				// Ticket luck and probability of voting
 				blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
-				tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) * int64(exp.ChainParams.TicketsPerBlock)
-				tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
-				expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(exp.ChainParams.TicketExpiry)) / 24
-				maturityInDay := (exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.TicketInfo.TicketMaturity)) / 24
-				tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
-					float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInDay
-				ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
-				tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
-					float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 				if tx.TicketInfo.SpendStatus == "Voted" {
 					// Blocks from eligible until voted (actual luck)
 					tx.TicketInfo.TicketLiveBlocks = exp.blockData.TxHeight(tx.SpendingTxns[0].Hash) -
@@ -298,6 +301,23 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					float64(exp.ChainParams.TicketExpiry)-float64(blocksLive)))
 			}
 		}
+	}
+
+	// Set ticket-related parameters for both full and lite mode
+	if tx.IsTicket() {
+		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
+		tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) *
+			int64(exp.ChainParams.TicketsPerBlock)
+		tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
+		expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() *
+			float64(exp.ChainParams.TicketExpiry)) / 24
+		maturityInHours := (exp.ChainParams.TargetTimePerBlock.Hours() *
+			float64(tx.TicketInfo.TicketMaturity))
+		tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
+			float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInHours
+		ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
+		tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
+			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 	}
 
 	pageData := struct {
@@ -575,6 +595,35 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// Charts handles the charts displays showing the various charts plotted.
+func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
+	tickets, err := exp.explorerSource.GetTicketsPriceByHeight()
+	if err != nil {
+		log.Errorf("Loading the Ticket Price By Height chart data failed %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("charts", struct {
+		Version string
+		NetName string
+		Data    *dbtypes.ChartsData
+	}{
+		exp.Version,
+		exp.NetName,
+		tickets,
+	})
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // Search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
 // redirects to the appropriate page or displays an error
@@ -685,6 +734,90 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// AgendaPage is the page handler for the "/agenda" path
+func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
+	errPageInvalidAgenda := func(err error) {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...",
+			"the agenda ID given seems to not exist", true)
+	}
+
+	// Attempt to get agendaid string from URL path
+	agendaid := getAgendaIDCtx(r)
+	agendaInfo, err := GetAgendaInfo(agendaid)
+	if err != nil {
+		errPageInvalidAgenda(err)
+		return
+	}
+
+	chartDataByTime, err := exp.explorerSource.AgendaVotes(agendaid, 0)
+	if err != nil {
+		errPageInvalidAgenda(err)
+		return
+	}
+
+	chartDataByHeight, err := exp.explorerSource.AgendaVotes(agendaid, 1)
+	if err != nil {
+		errPageInvalidAgenda(err)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("agenda", struct {
+		Ai               *agendadb.AgendaTagged
+		Version          string
+		NetName          string
+		ChartDataByTime  *dbtypes.AgendaVoteChoices
+		ChartDataByBlock *dbtypes.AgendaVoteChoices
+	}{
+		agendaInfo,
+		exp.Version,
+		exp.NetName,
+		chartDataByTime,
+		chartDataByHeight,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, "+
+			"try refreshing... that usually fixes things", false)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// AgendasPage is the page handler for the "/agendas" path
+func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
+	agendas, err := agendadb.GetAllAgendas()
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, "+
+			"try refreshing... that usually fixes things", false)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("agendas", struct {
+		Agendas []*agendadb.AgendaTagged
+		Version string
+		NetName string
+	}{
+		agendas,
+		exp.Version,
+		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, "+
+			"try refreshing... that usually fixes things", false)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")

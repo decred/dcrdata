@@ -16,13 +16,16 @@ const (
 		tx_hash TEXT,
 		tx_index INT4,
 		tx_tree INT2,
+		is_valid BOOLEAN,
+		block_time INT8,
 		prev_tx_hash TEXT,
 		prev_tx_index INT8,
-		prev_tx_tree INT2
+		prev_tx_tree INT2,
+		value_in INT8
 	);`
 
-	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree)
-		VALUES ($1, $2, $3, $4, $5, $6) `
+	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree,
+		value_in, is_valid, block_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
 	InsertVinRow = InsertVinRow0 + `RETURNING id;`
 	// InsertVinRowChecked = InsertVinRow0 +
 	// 	`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
@@ -58,7 +61,19 @@ const (
 	SelectFundingOutpointByVinID = `SELECT prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins WHERE id=$1;`
 	SelectFundingTxByVinID       = `SELECT prev_tx_hash FROM vins WHERE id=$1;`
 	SelectSpendingTxByVinID      = `SELECT tx_hash, tx_index, tx_tree FROM vins WHERE id=$1;`
-	SelectAllVinInfoByID         = `SELECT * FROM vins WHERE id=$1;`
+	SelectAllVinInfoByID         = `SELECT tx_hash, tx_index, tx_tree, is_valid, block_time,
+		prev_tx_hash, prev_tx_index, prev_tx_tree, value_in FROM vins WHERE id = $1;`
+	SetIsValidByTxHash = `UPDATE vins SET is_valid = $1 WHERE tx_hash = $2 AND block_time = $3 AND tx_tree = $4;`
+
+	SetVinsTableCoinSupplyUpgrade = `UPDATE vins SET is_valid = $1, block_time = $2, value_in = $3
+		WHERE tx_hash = $4 and tx_index = $5 and tx_tree = $6;`
+
+	// SelectCoinSupply fetches the coin supply as of the latest block and sum
+	// represents the generated coins for all stakebase and only
+	// not-invalidated coinbase transactions.
+	SelectCoinSupply = `SELECT block_time, sum(value_in) FROM vins WHERE
+		prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000' AND
+		not (is_valid = false AND tx_tree = 0) GROUP BY block_time ORDER BY block_time;`
 
 	CreateVinType = `CREATE TYPE vin_t AS (
 		prev_tx_hash TEXT,
@@ -110,6 +125,9 @@ const (
 				FROM vouts) t
 			WHERE t.rnum > 1);`
 
+	SelectAddressByTxHash = `SELECT script_addresses, value FROM vouts
+		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`
+
 	SelectPkScriptByID     = `SELECT pkscript FROM vouts WHERE id=$1;`
 	SelectVoutIDByOutpoint = `SELECT id FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	SelectVoutByID         = `SELECT * FROM vouts WHERE id=$1;`
@@ -121,10 +139,6 @@ const (
 		ON vouts(tx_hash, tx_index, tx_tree);`
 	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
 
-	// IndexVoutTableOnTxHash = `CREATE INDEX uix_vout_txhash
-	// 	ON vouts(tx_hash);`
-	// DeindexVoutTableOnTxHash = `DROP INDEX uix_vout_txhash;`
-
 	CreateVoutType = `CREATE TYPE vout_t AS (
 		value INT8,
 		version INT2,
@@ -134,6 +148,13 @@ const (
 		script_addresses TEXT[]
 	);`
 )
+
+func MakeVinInsertStatement(checked bool) string {
+	if checked {
+		return UpsertVinRow
+	}
+	return InsertVinRow
+}
 
 var (
 	voutCopyStmt = pq.CopyIn("vouts",

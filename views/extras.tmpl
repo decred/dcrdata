@@ -1,11 +1,11 @@
 {{define "html-head"}}
-<head>
+<head data-turbolinks-eval="false">
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <meta name="description" content="dcrdata web">
-    <meta name="author" content="dcrdata">
+    <meta name="description" content="dcrdata, an original Decred block explorer powered by Go">
+    <meta name="author" content="The Decred developers">
     <!--  Custom favicon  -->
     <link rel="apple-touch-icon" sizes="180x180" href="/images/favicon/apple-touch-icon.png">
     <link rel="icon" href="/images/favicon/favicon.ico">
@@ -14,8 +14,8 @@
     <link rel="manifest" href="/images/favicon/manifest.json">
     <link rel="mask-icon" href="/images/favicon/safari-pinned-tab.svg">
     <link rel="shortcut icon" href="/images/favicon/favicon.ico">
-    <meta name="apple-mobile-web-app-title" content="deCRED - decentralized credit">
-    <meta name="application-name" content="deCRED - decentralized credit">
+    <meta name="apple-mobile-web-app-title" content="Decred - Autonomous Digital Currency">
+    <meta name="application-name" content="Decred - Autonomous Digital Currency">
     <meta name="msapplication-TileColor" content="#2973ff">
     <meta name="msapplication-TileImage" content="/images/favicon/mstile-144x144.png">
     <meta name="msapplication-config" content="/images/favicon/browserconfig.xml">
@@ -23,11 +23,14 @@
     <title>{{.}}</title>
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
+    <link href="/css/charts.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
-    <script src="/js/messagesocket.js"></script>
-    <script src="/js/humanize.js"></script>
     <script src="/js/turbolinks.js"></script>
     <script src="/js/jquery.js"></script>
+    <script src="/js/lodash.min.js"></script>
+    <script src="/js/messagesocket.js"></script>
+    <script src="/js/humanize.js"></script>
+    <script src="/js/stimulus.umd.js"></script>
     <script src="/js/mousetrap.min.js"></script>
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -70,8 +73,10 @@
                         <a data-keynav-skip href="/" title="Home">Home</a>
                         <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
                         <a data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
-                        <a data-keynav-skip href="#" title="Charts">Charts</a>
+                        <a data-keynav-skip href="/charts" title="Decred Charts">Charts</a>
                         <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
+                        <a data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
+                        <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
                         <a data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
                         {{if eq .NetName "Mainnet"}}
                            <a data-keynav-skip href="http://testnet.dcrdata.org/" title="Home">Switch To Testnet</a>
@@ -176,29 +181,16 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    function txRowHTMLFlexBox(tx) {
-        var totalTxt = ""
-        humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-            totalTxt += str.textContent
-        })
-        return `<div class="d-flex flex-table-row">
-            <a class="hash truncate-hash" style="flex: 1 1 auto" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a>
-            <span style="flex: 0 0 60px" class="mono text-right ml-1">${tx.Type}</span>
-            <span style="flex: 0 0 105px" class="mono text-right ml-1">${totalTxt}</span>
-            <span style="flex: 0 0 50px" class="mono text-right ml-1">${tx.size} B</span>
-            <span style="flex: 0 0 65px" class="mono text-right ml-1" data-age="${tx.time}">${humanize.timeSince(tx.time)}</span>
-        </div>`
-    }
-
     var ws; // websocket global
     async function createWebSocket(loc) {
         // wait a bit to prevent websocket churn from drive by page loads
         console.log('Waiting to create websocket');
         $('#connection').removeClass('hidden');
-        await sleep(3000);
-        console.log('Starting websocket');
         var uri = getSocketURI(loc)
         ws = new MessageSocket(uri);
+        await sleep(3000);
+        ws.connect()
+        console.log('Starting websocket');
         console.log("createdWebSocket", uri, ws)
         ws.registerEvtHandler("open", function() {
             console.log('Connected')
@@ -213,120 +205,6 @@
         ws.registerEvtHandler("error", function(evt) {
             console.log("WebSocket error:", evt);
             updateConnectionStatus('Disconnected', false);
-        });
-
-        ws.registerEvtHandler("newtx", function(evt) {
-            console.log("New Transactions: ", evt);
-            var txs = JSON.parse(evt)
-            txs.forEach(function(tx, idx) {
-            addTxRow = function(str) {
-                var rows = $('#' + str +' tbody tr')
-                var totalTxt = ""
-                humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                    totalTxt += str.textContent
-                })
-                var newRow = '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                    tx.hash + '">' + tx.hash + '</a></span></td>' +
-                    '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
-                    '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
-                var newRowHtml = $.parseHTML(newRow)
-                $(newRowHtml).insertBefore(rows.first())
-            }
-            switch (tx.Type) {
-                case "Ticket":
-                    $('#mempool_ticket_number').text(parseInt($('#mempool_ticket_number').text()) + 1)
-                    addTxRow('mempool_tickets')
-                    break
-                case "Vote":
-                    $('#mempool_vote_number').text(parseInt($('#mempool_vote_number').text()) + 1)
-                    var rows = $('#mempool_votes tbody tr')
-                    var totalTxt = ""
-                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                        totalTxt += str.textContent
-                    })
-                    var newRow = '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
-                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
-                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
-                        '<td class="mono fs15">' + tx.size + ' B</td>' +
-                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
-                    var newRowHtml = $.parseHTML(newRow)
-                    $(newRowHtml).insertBefore(rows.first())
-                    break
-                case "Regular":
-                    $('#mempool_regular_number').text(parseInt($('#mempool_regular_number').text()) + 1)
-                    addTxRow('mempool_transactions')
-                    break
-                case "Revoke":
-                    $('#mempool_revoke_number').text(parseInt($('#mempool_revoke_number').text()) + 1)
-                    addTxRow('mempool_revocations')
-                    break
-            }
-
-            if (window.location.pathname == "/"){
-                var rows = $('#mini-transactions .flex-table-row')
-                var newRowHtml = $.parseHTML(txRowHTMLFlexBox(tx))
-                rows.last().remove()
-                $(newRowHtml).insertBefore(rows.first())
-            }
-        })
-            setTimeElements()
-        });
-
-        ws.registerEvtHandler("getmempooltxsResp", function(evt) {
-            console.log("Get Mempool: ", evt)
-            var newTable = ''
-            var makeNewTable =function (tx) {
-                    var totalTxt = ""
-                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                        totalTxt += str.textContent
-                    })
-                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                    tx.hash + '">' + tx.hash + '</a></span></td>' +
-                    '<td class="mono fs15 text-right">' + totalTxt +'</td>' +
-                    '<td class="mono fs15 text-right">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) + '</td>'
-                }
-            var m = JSON.parse(evt)
-
-            m.tickets.forEach(makeNewTable)
-            $('#mempool_tickets tbody').html($.parseHTML(newTable))
-
-            newTable = ''
-            m.tx.forEach(makeNewTable)
-            $('#mempool_transactions tbody').html($.parseHTML(newTable))
-
-            newTable = ''
-            m.votes.forEach(function (tx) {
-                var rows = $('#mempool_votes tbody tr')
-                    var totalTxt = ""
-                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                        totalTxt += str.textContent
-                    })
-                    newTable += '<tr><td class="break-word"><span><a class="hash" title="('+tx.vote_info.mempool_ticket_index+
-                        ') ' + tx.vote_info.ticket_spent + '" href="/tx/' + tx.hash + '">' + tx.hash + '</a></span></td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_version + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.block_validation.validity + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].id + '</td>' +
-                        '<td class="mono fs15">' + tx.vote_info.vote_choices[0].choice.Id + '</td>' +
-                        '<td class="mono fs15 text-right"> ' + totalTxt +'</td>' +
-                        '<td class="mono fs15">' + tx.size + ' B</td>'  +
-                        '<td class="mono fs15 text-right" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td>'
-
-            })
-            $('#mempool_votes tbody').html($.parseHTML(newTable))
-
-            if (m.num_revokes > 0) {
-                newTable = ''
-                m.votes.forEach(makeNewTable)
-                $('#mempool_revocations tbody').html($.parseHTML(newTable))
-            }
-
-            setTimeElements()
         });
 
         ws.registerEvtHandler("ping", function(evt) {
@@ -371,12 +249,11 @@
                     '<td>' + b.tickets + '</td>' +
                     '<td>' + b.revocations + '</td>' +
                     '<td>' + humanize.bytes(b.size) + '</td>' +
-                    '<td data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
+                    '<td data-target="main.age"  data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
                     '<td>' + b.formatted_time + '</td>' +
                 '</tr>'
                 var newRowHtml = $.parseHTML(newRow)
                 $(newRowHtml).insertBefore(expTableRows.first())
-                setTimeElements()
             }
             var ex = newBlock.extra
             if ($("#bsubsidy_total").text() !== "") {
@@ -394,50 +271,12 @@
                 $("#pow-window-progess-bar").css({ width: (ex.reward_idx/ex.params.reward_window_size)*100 + "%" })
                 $("#pool_size").text(ex.pool_info.size)
                 $("#pool_value").html(humanize.decimalParts(ex.pool_info.value, true, 8))
-                $("#ticket_roi").html(parseFloat(ex.roi).toFixed(2))
+                $("#ticket_reward").html(parseFloat(ex.reward).toFixed(2))
                 $("#target_percent").html(parseFloat(ex.pool_info.percent_target).toFixed(2))
                 $("#pool_size_percentage").html(parseFloat(ex.pool_info.percent).toFixed(2))
             }
         };
         ws.registerEvtHandler("newblock", updateBlockData);
-
-        var updateMempool = function (event) {
-            console.log("Received mempool message", event);
-            var m = JSON.parse(event);
-
-            //mempool info
-            $('#mempool_ticket_number').text(m.num_tickets)
-            $('#mempool_vote_number').text(m.num_votes)
-            $('#mempool_regular_number').text(m.num_regular)
-            $('#mempool_revoke_number').text(m.num_revokes)
-            if (window.location.pathname == "/mempool") {
-                $('#best_block').text(m.block_height)
-                $('#best_block').attr('href', '/block/'+m.block_height)
-                $('#best_block_time').data('age', m.block_time)
-                $('#mempool_size').text(m.formatted_size)
-                ws.send("getmempooltxs", "")
-            }
-
-            if (window.location.pathname == "/") {
-                var newTable = ""
-                m.latest.forEach(function (tx) {
-                    var totalTxt = ""
-                    humanize.decimalParts(tx.total, false, 8).forEach(function (str) {
-                        totalTxt += str.textContent
-                    })
-                    newTable += '<tr><td class="break-word"><span><a class="hash" href="/tx/' +
-                    tx.hash + '">' + tx.hash + '</a></span></td>' +
-                    '<td class="mono fs15">' + tx.Type + '</td>'+
-                    '<td class="mono fs15">' + totalTxt +'</td>' +
-                    '<td class="mono fs15">' + tx.size + ' B</td>' +
-                    '<td class="mono fs15" data-age="' + tx.time +'">' + humanize.timeSince(tx.time) +'</td></tr>'
-                })
-                $('#mini-transactions tbody').html(newTable)
-            }
-            setTimeElements()
-            updateAges()
-        };
-        ws.registerEvtHandler("mempool", updateMempool);
     }
     document.getElementById('search').onkeypress = function(e){
         if (!e) e = window.event;
@@ -497,6 +336,7 @@
 </script>
 
 <script src="/js/notify.min.js"></script>
+
 {{end}}
 
 {{define "footer"}}
@@ -515,20 +355,6 @@
     </div>
 </footer>
 <script data-turbolinks-eval="false">
-    var ages, hiddenAges;
-    function setTimeElements() {
-        ages = $('[data-age]');
-    }
-    function updateAges() {
-        $.each(ages, function(i, age) {
-            var unixTime = $(age).data('age');
-            if (unixTime > 0) {
-                $(age).text(
-                    humanize.timeSince(unixTime)
-                )
-            }
-        })
-    }
 
     // Keyboard Navigation
     var targets;
@@ -536,7 +362,7 @@
     var currentIndex = 0;
     var jumpToIndexOnLoad;
     var keyNavCookieName = 'dcrdataKeyNav';
-    
+
     function keyNavEnabled() {
         return document.cookie.includes(keyNavCookieName)
     }
@@ -569,7 +395,22 @@
         }
     }
 
-    function keyNav(event, pulsate) {
+    function updateKeyNavTargets() {
+        if ($("#menuToggle input").prop('checked')) {
+            targets = $('#hamburger-menu a');
+        } else {
+            targets = $.merge($("a:not([data-keynav-skip])"),($('.top-search')));
+        }
+        targetsLength = targets.length;
+        clearTargets()
+        $(targets[currentIndex]).addClass("keynav-target").focus().blur() // refocuses keyboard context
+        if (pulsate) {
+            $(targets[currentIndex]).addClass("pulsate")
+        }
+    }
+
+
+    function keyNav(event, pulsate, preserveIndex) {
         if ($("#menuToggle input").prop('checked')) {
             targets = $('#hamburger-menu a');
             currentIndex = 0;
@@ -578,7 +419,7 @@
             if (jumpToIndexOnLoad > 0) {
                 currentIndex = jumpToIndexOnLoad;
                 jumpToIndexOnLoad = undefined;
-            } else {
+            } else if (!preserveIndex) {
                 var priorityLink = $("[data-keynav-priority]")[0]
                 var i = $.inArray(priorityLink, targets)
                 currentIndex = i > 0 ? i : 0;
@@ -600,7 +441,7 @@
         }
         $(targets[currentIndex]).addClass("keynav-target")
     });
-    
+
     Mousetrap.bind(['right',']'], function(e) {
         clearTargets()
         currentIndex++
@@ -658,8 +499,6 @@
 
     $("#keynav-toggle .text").text(keyNavEnabled() ? "Disable Hot Keys":"Enable Hot Keys" )
     document.addEventListener("turbolinks:load", function(e){
-        setTimeElements()
-        updateAges()
         closeMenu(e)
         if (keyNavEnabled()) {
             $(".top-search").removeAttr("autofocus")
@@ -685,7 +524,6 @@
         }
     });
 
-    setInterval(updateAges, 10000);
 </script>
 <script>
     $('.scriptDataStar').on('click', function(){
@@ -697,6 +535,14 @@
         }
     })
 </script>
+
+<script data-turbolinks-eval="false">
+const app = Stimulus.Application.start()
+</script>
+<script src="/js/controllers/main.js"  data-turbolinks-eval="false"></script>
+<script src="/js/controllers/mempool.js"  data-turbolinks-eval="false"></script>
+<script src="/js/controllers/agenda.js"  data-turbolinks-eval="false"></script>
+<script src="/js/controllers/charts.js" data-turbolinks-eval="false"></script>
 {{end}}
 
 {{define "decimalParts"}}<span class="int">{{ index . 0 }}</span><span class="dot">.</span><span class="decimal">{{ index . 1 }}<span class="trailing-zeroes">{{ index . 2 }}</span></span>{{end}}

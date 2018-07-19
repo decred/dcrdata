@@ -12,6 +12,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/db/agendadb"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/txhelpers"
 )
@@ -41,6 +42,12 @@ type TxBasic struct {
 	Coinbase      bool
 }
 
+// ChartDataCounter is a data cache for the historical charts.
+type ChartDataCounter struct {
+	sync.RWMutex
+	Data map[string]*dbtypes.ChartsData
+}
+
 // AddressTx models data for transactions on the address page
 type AddressTx struct {
 	TxID          string
@@ -53,6 +60,9 @@ type AddressTx struct {
 	FormattedTime string
 	ReceivedTotal float64
 	SentTotal     float64
+	IsFunding     bool
+	MatchedTx     string
+	BlockTime     uint64
 }
 
 // IOID formats an identification string for the transaction input (or output)
@@ -60,7 +70,7 @@ type AddressTx struct {
 func (a *AddressTx) IOID() string {
 	// When AddressTx is used properly, at least one of ReceivedTotal or
 	// SentTotal should be zero.
-	if a.ReceivedTotal > a.SentTotal {
+	if a.IsFunding {
 		// an outpoint receiving funds
 		return fmt.Sprintf("%s:out[%d]", a.TxID, a.InOutID)
 	}
@@ -77,20 +87,30 @@ type TxInfo struct {
 	Vout             []Vout
 	BlockHeight      int64
 	BlockIndex       uint32
+	BlockHash        string
+	BlockMiningFee   int64
 	Confirmations    int64
 	Time             int64
 	FormattedTime    string
 	Mature           string
 	VoteFundsLocked  string
 	Maturity         int64   // Total number of blocks before mature
-	MaturityTimeTill float64 // Time in days until mature
+	MaturityTimeTill float64 // Time in hours until mature
 	TicketInfo
+}
+
+func (t *TxInfo) IsTicket() bool {
+	return t.Type == "Ticket"
+}
+
+func (t *TxInfo) IsVote() bool {
+	return t.Type == "Vote"
 }
 
 // TicketInfo is used to represent data shown for a sstx transaction.
 type TicketInfo struct {
 	TicketMaturity       int64
-	TimeTillMaturity     float64 // Time before a particular ticket reaches maturity
+	TimeTillMaturity     float64 // Time before a particular ticket reaches maturity, in hours
 	PoolStatus           string
 	SpendStatus          string
 	TicketPoolSize       int64   // Total number of ticket in the pool
@@ -256,8 +276,9 @@ type HomeInfo struct {
 	Difficulty        float64        `json:"difficulty"`
 	DevFund           int64          `json:"dev_fund"`
 	DevAddress        string         `json:"dev_address"`
-	TicketROI         float64        `json:"roi"`
-	ROIPeriod         string         `json:"roi_period"`
+	TicketReward      float64        `json:"reward"`
+	RewardPeriod      string         `json:"reward_period"`
+	ASR               float64        `json:"ASR"`
 	NBlockSubsidy     BlockSubsidy   `json:"subsidy"`
 	Params            ChainParams    `json:"params"`
 	PoolInfo          TicketPoolInfo `json:"pool_info"`
@@ -304,6 +325,7 @@ type ChainParams struct {
 	RewardWindowSize int64 `json:"reward_window_size"`
 	TargetPoolSize   int64 `json:"target_pool_size"`
 	BlockTime        int64 `json:"target_block_time"`
+	MeanVotingBlocks int64
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
@@ -320,31 +342,27 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 	var transactions, creditTxns, debitTxns []*AddressTx
 	for _, addrOut := range addrHist {
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
-
-		// Funding transaction
-		received += int64(addrOut.Value)
-		fundingTx := AddressTx{
-			TxID:          addrOut.FundingTxHash,
-			InOutID:       addrOut.FundingTxVoutIndex,
-			ReceivedTotal: coin,
-		}
-		transactions = append(transactions, &fundingTx)
-		creditTxns = append(creditTxns, &fundingTx)
-
-		// Is the outpoint spent?
-		if addrOut.SpendingTxHash == "" {
-			continue
+		tx := AddressTx{
+			BlockTime: addrOut.TxBlockTime,
+			InOutID:   addrOut.TxVinVoutIndex,
+			TxID:      addrOut.TxHash,
+			MatchedTx: addrOut.MatchingTxHash,
+			IsFunding: addrOut.IsFunding,
 		}
 
-		// Spending transaction
-		sent += int64(addrOut.Value)
-		spendingTx := AddressTx{
-			TxID:      addrOut.SpendingTxHash,
-			InOutID:   addrOut.SpendingTxVinIndex,
-			SentTotal: coin,
+		if addrOut.IsFunding {
+			// Funding transaction
+			received += int64(addrOut.Value)
+			tx.ReceivedTotal = coin
+			creditTxns = append(creditTxns, &tx)
+		} else {
+			// Spending transaction
+			sent += int64(addrOut.Value)
+			tx.SentTotal = coin
+			debitTxns = append(debitTxns, &tx)
 		}
-		transactions = append(transactions, &spendingTx)
-		debitTxns = append(debitTxns, &spendingTx)
+
+		transactions = append(transactions, &tx)
 	}
 
 	return &AddressInfo{
@@ -452,4 +470,9 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 		})
 	}
 	return addrPrefix
+}
+
+// GetAgendaInfo gets the all info for the specified agenda ID.
+func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
+	return agendadb.GetAgendaInfo(agendaId)
 }

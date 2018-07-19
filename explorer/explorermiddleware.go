@@ -19,6 +19,7 @@ const (
 	ctxBlockHash
 	ctxTxHash
 	ctxAddress
+	ctxAgendaId
 )
 
 func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
@@ -76,6 +77,15 @@ func getTxIDCtx(r *http.Request) string {
 	return hash
 }
 
+func getAgendaIDCtx(r *http.Request) string {
+	hash, ok := r.Context().Value(ctxAgendaId).(string)
+	if !ok {
+		log.Trace("Agendaid not set")
+		return ""
+	}
+	return hash
+}
+
 // TransactionHashCtx embeds "txid" into the request context
 func TransactionHashCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -90,6 +100,15 @@ func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
 		ctx := context.WithValue(r.Context(), ctxAddress, address)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// AgendaPathCtx embeds "agendaid" into the request context
+func AgendaPathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		agendaid := chi.URLParam(r, "agendaid")
+		ctx := context.WithValue(r.Context(), ctxAgendaId, agendaid)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

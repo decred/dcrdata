@@ -56,6 +56,11 @@ const (
 	SelectTicketStatusByHash     = `SELECT id, spend_type, pool_status FROM tickets WHERE tx_hash = $1;`
 	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1;`
 
+	SelectTicketSpendTypeByBlock = `SELECT block_height, 
+		SUM(CASE WHEN spend_type = 0 THEN 1 ELSE 0 END) as unspent,
+		SUM(CASE WHEN spend_type = 1 THEN 1 ELSE 0 END) as revoked
+		FROM tickets GROUP BY block_height ORDER BY block_height;`
+
 	// Update
 	SetTicketSpendingInfoForHash = `UPDATE tickets
 		SET spend_type = $5, spend_height = $3, spend_tx_db_id = $4, pool_status = $6
@@ -116,7 +121,7 @@ const (
 	insertVoteRow = insertVoteRow0 + `RETURNING id;`
 	// insertVoteRowChecked = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertVoteRow = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET tx_hash = $3, block_hash = $4 RETURNING id;`
+		SET tx_hash = $2, block_hash = $3 RETURNING id;`
 	insertVoteRowReturnId = `WITH ins AS (` +
 		insertVoteRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE
@@ -126,7 +131,7 @@ const (
 	SELECT id FROM ins
 	UNION  ALL
 	SELECT id FROM votes
-	WHERE  tx_hash = $3 AND block_hash = $4
+	WHERE  tx_hash = $2 AND block_hash = $3
 	LIMIT  1;`
 
 	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
@@ -198,6 +203,60 @@ const (
 			WHERE t.rnum > 1);`
 
 	// Revokes?
+
+	// Agendas
+	CreateAgendasTable = `CREATE TABLE IF NOT EXISTS agendas (
+		id SERIAL PRIMARY KEY,
+		agenda_id TEXT,
+		agenda_vote_choice INT2,
+		tx_hash TEXT NOT NULL,
+		block_height INT4,
+		block_time INT8,
+		locked_in BOOLEAN,
+		activated BOOLEAN,
+		hard_forked BOOLEAN
+	);`
+
+	// Insert
+	insertAgendaRow0 = `INSERT INTO agendas (
+		agenda_id, agenda_vote_choice,
+		tx_hash, block_height, block_time,
+		locked_in, activated, hard_forked)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
+
+	insertAgendaRow = insertAgendaRow0 + `RETURNING id;`
+
+	upsertAgendaRow = insertAgendaRow0 + `ON CONFLICT (agenda_id, agenda_vote_choice, tx_hash, block_height) DO UPDATE 
+		SET block_time = $5 RETURNING id;`
+
+	SelectAgendasAgendaVotesByTime = `SELECT (block_time/86400)*86400 as timestamp,
+		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
+		COUNT(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) as abstain,
+		COUNT(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) as no,
+		count(*) as total FROM agendas WHERE agenda_id = $4 and
+		block_height <= (select block_height from agendas where locked_in = true and agenda_id = $4 limit 1)
+		GROUP BY timestamp ORDER BY timestamp;`
+
+	SelectAgendasAgendaVotesByHeight = `SELECT block_height,
+		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
+		COUNT(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) as abstain,
+		COUNT(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) as no,
+		count(*) as total FROM agendas WHERE agenda_id = $4 and
+		block_height <= (select block_height from agendas where locked_in = true and agenda_id = $4 limit 1)
+		GROUP BY block_height ORDER BY block_height;`
+
+	SelectAgendasLockedIn   = `select block_height from agendas where locked_in = true and agenda_id = $1 limit 1;`
+	SelectAgendasHardForked = `select block_height from agendas where hard_forked = true and agenda_id = $1 limit 1;`
+	SelectAgendasActivated  = `select block_height from agendas where activated = true and agenda_id = $1 limit 1;`
+
+	IndexAgendasTableOnBlockTime = `CREATE INDEX uix_agendas_block_time
+		ON agendas(block_time);`
+	DeindexAgendasTableOnBlockTime = `DROP INDEX uix_agendas_block_time;`
+
+	IndexAgendasTableOnAgendaID = `CREATE UNIQUE INDEX uix_agendas_agenda_id
+		ON agendas(agenda_id, agenda_vote_choice, tx_hash, block_height);`
+
+	DeindexAgendasTableOnAgendaID = `DROP INDEX uix_agendas_agenda_id;`
 )
 
 func MakeTicketInsertStatement(checked bool) string {
@@ -219,4 +278,11 @@ func MakeMissInsertStatement(checked bool) string {
 		return upsertMissRow
 	}
 	return insertMissRow
+}
+
+func MakeAgendaInsertStatement(checked bool) string {
+	if checked {
+		return upsertAgendaRow
+	}
+	return insertAgendaRow
 }

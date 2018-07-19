@@ -6,9 +6,12 @@ package dcrpg
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
@@ -17,6 +20,17 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/decred/dcrdata/txhelpers"
 	"github.com/lib/pq"
+)
+
+// outputCountType defines the modes of the output count chart data.
+// outputCountByAllBlocks defines count per block i.e. solo and pooled tickets
+// count per block. outputCountByTicketPoolWindow defines the output count per
+// given ticket price window
+type outputCountType int
+
+const (
+	outputCountByAllBlocks outputCountType = iota
+	outputCountByTicketPoolWindow
 )
 
 func ExistsIndex(db *sql.DB, indexName string) (exists bool, err error) {
@@ -365,8 +379,10 @@ func setSpendingForTickets(dbtx *sql.Tx, ticketDbIDs, spendDbIDs []uint64,
 	return stmt.Close()
 }
 
+// SetSpendingForVinDbIDs updates rows of the addresses table with spending
+// information from the rows of the vins table specified by vinDbIDs.
 func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, error) {
-	// get funding details for vin and set them in the address table
+	// Get funding details for vin and set them in the address table.
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
@@ -381,36 +397,27 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		return nil, 0, err
 	}
 
-	var addrSetStmt *sql.Stmt
-	addrSetStmt, err = dbtx.Prepare(internal.SetAddressSpendingForOutpoint)
-	if err != nil {
-		log.Errorf("address row UPDATE prepare failed: %v", err)
-		// Already up a creek. Just return error from Prepare.
-		_ = vinGetStmt.Close()
-		_ = dbtx.Rollback()
-		return nil, 0, err
-	}
-
 	bail := func() error {
 		// Already up a creek. Just return error from Prepare.
 		_ = vinGetStmt.Close()
-		_ = addrSetStmt.Close()
 		return dbtx.Rollback()
 	}
 
 	addressRowsUpdated := make([]int64, len(vinDbIDs))
+	var totalUpdated int64
 
 	for iv, vinDbID := range vinDbIDs {
 		// Get the funding tx outpoint (vins table) for the vin DB ID
 		var prevOutHash, txHash string
 		var prevOutVoutInd, txVinInd uint32
 		var prevOutTree, txTree int8
-		var id uint64
-		err = vinGetStmt.QueryRow(vinDbID).Scan(&id,
-			&txHash, &txVinInd, &txTree,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree)
+		var valueIn, blockTime int64
+		var isValid bool
+		err = vinGetStmt.QueryRow(vinDbID).Scan(
+			&txHash, &txVinInd, &txTree, &isValid, &blockTime,
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 		if err != nil {
-			return addressRowsUpdated, 0, fmt.Errorf(`SetSpendingForVinDbIDs: `+
+			return addressRowsUpdated, 0, fmt.Errorf(`SelectAllVinInfoByID: `+
 				`%v + %v (rollback)`, err, bail())
 		}
 
@@ -420,29 +427,18 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		}
 
 		// Set the spending tx info (addresses table) for the vin DB ID
-		var res sql.Result
-		res, err = addrSetStmt.Exec(prevOutHash, prevOutVoutInd,
-			0, txHash, txVinInd, vinDbID)
-		if err != nil || res == nil {
-			return addressRowsUpdated, 0, fmt.Errorf(`SetSpendingForVinDbIDs: `+
+		addressRowsUpdated[iv], err = insertSpendingTxByPrptStmt(dbtx,
+			prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID, false)
+		if err != nil {
+			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
 				`%v + %v (rollback)`, err, bail())
 		}
 
-		addressRowsUpdated[iv], err = res.RowsAffected()
-		if err != nil {
-			return addressRowsUpdated, 0, fmt.Errorf(`RowsAffected: `+
-				`%v + %v (rollback)`, err, bail())
-		}
+		totalUpdated += addressRowsUpdated[iv]
 	}
 
 	// Close prepared statements. Ignore errors as we'll Commit regardless.
 	_ = vinGetStmt.Close()
-	_ = addrSetStmt.Close()
-
-	var totalUpdated int64
-	for _, n := range addressRowsUpdated {
-		totalUpdated += n
-	}
 
 	return addressRowsUpdated, totalUpdated, dbtx.Commit()
 }
@@ -458,10 +454,11 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	var prevOutHash, txHash string
 	var prevOutVoutInd, txVinInd uint32
 	var prevOutTree, txTree int8
-	var id uint64
+	var isValid bool
+	var valueIn, blockTime int64
 	err = dbtx.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree)
+		Scan(&txHash, &txVinInd, &txTree, &isValid, &blockTime,
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	if err != nil {
 		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
 			`(rollback)`, err, dbtx.Rollback())
@@ -472,18 +469,9 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 		return 0, dbtx.Rollback()
 	}
 
-	// Set the spending tx info (addresses table) for the vin DB ID
-	var res sql.Result
-	res, err = dbtx.Exec(internal.SetAddressSpendingForOutpoint,
-		prevOutHash, prevOutVoutInd,
-		0, txHash, txVinInd, vinDbID)
-	if err != nil || res == nil {
-		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
-			`(rollback)`, err, dbtx.Rollback())
-	}
-
-	var N int64
-	N, err = res.RowsAffected()
+	// Insert the spending tx info (addresses table) for the vin DB ID
+	N, err := insertSpendingTxByPrptStmt(dbtx, prevOutHash, prevOutVoutInd,
+		prevOutTree, txHash, txVinInd, vinDbID, false)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -492,16 +480,80 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	return N, dbtx.Commit()
 }
 
-func SetSpendingForFundingOP(db *sql.DB,
-	fundingTxHash string, fundingTxVoutIndex uint32,
-	spendingTxDbID uint64, spendingTxHash string, spendingTxVinIndex uint32,
-	vinDbID uint64) (int64, error) {
-	res, err := db.Exec(internal.SetAddressSpendingForOutpoint,
-		fundingTxHash, fundingTxVoutIndex,
-		spendingTxDbID, spendingTxHash, spendingTxVinIndex, vinDbID)
-	if err != nil || res == nil {
-		return 0, err
+// SetSpendingForFundingOP inserts a new spending tx row and updates any
+// corresponding funding tx row.
+func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
+	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
+	spendingTxVinIndex uint32, spendingTXBlockTime, vinDbID uint64, checked bool) (int64, error) {
+
+	// Only allow atomic transactions to happen
+	dbtx, err := db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
 	}
+
+	c, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex, fundingTxTree,
+		spendingTxHash, spendingTxVinIndex, vinDbID, checked, spendingTXBlockTime)
+	if err != nil {
+		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
+			err, dbtx.Rollback())
+	}
+
+	return c, dbtx.Commit()
+}
+
+// insertSpendingTxByPrptStmt makes atomic transaction to insert the new spending tx
+// into the addresses table.
+func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
+	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32,
+	vinDbID uint64, checked bool, blockT ...uint64) (int64, error) {
+	var addr string
+	var value, rowID, blockTime uint64
+
+	// Select id, address and value from the matching funding tx.
+	// A maximum of one row and a minimum of none are expected.
+	err := tx.QueryRow(internal.SelectAddressByTxHash,
+		fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&addr, &value)
+	switch err {
+	case sql.ErrNoRows, nil:
+		// If no row found or error is nil, continue
+	default:
+		return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
+	}
+
+	// Get first address in list.  TODO: actually handle bare multisig
+	replacer := strings.NewReplacer("{", "", "}", "")
+	addr = replacer.Replace(addr)
+	newAddr := strings.Split(addr, ",")[0]
+
+	// Check if the block time was passed
+	if len(blockT) > 0 {
+		blockTime = blockT[0]
+	} else {
+		// fetch the block time from the tx table
+		err = tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
+		if err != nil {
+			return 0, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
+		}
+	}
+
+	// Insert the new spending tx
+	var isFunding bool
+	sqlStmt := internal.MakeAddressRowInsertStatement(checked)
+	err = tx.QueryRow(sqlStmt, newAddr, fundingTxHash, spendingTxHash,
+		spendingTxVinIndex, vinDbID, value, blockTime, isFunding).Scan(&rowID)
+	if err != nil {
+		return 0, fmt.Errorf("InsertAddressRow: %v", err)
+	}
+
+	// Update the matchingTxHash for the funding tx output. matchingTxHash here
+	// is the hash of the funding tx.
+	res, err := tx.Exec(internal.SetAddressFundingForMatchingTxHash,
+		spendingTxHash, fundingTxHash, fundingTxVoutIndex)
+	if err != nil || res == nil {
+		return 0, fmt.Errorf("SetAddressFundingForMatchingTxHash: %v", err)
+	}
+
 	return res.RowsAffected()
 }
 
@@ -509,7 +561,7 @@ func SetSpendingForFundingOP(db *sql.DB,
 // need to get the funding (previous output) tx info, and then update the
 // corresponding row in the addresses table with the spending tx info.
 func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
-	spendingTxHash string, spendingTxVinIndex uint32) (int64, error) {
+	spendingTxHash string, spendingTxVinIndex uint32, checked bool) (int64, error) {
 	// get funding details for vin and set them in the address table
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -532,18 +584,9 @@ func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
 		return 0, dbtx.Rollback()
 	}
 
-	// Set the spending tx info (addresses table) for the vin DB ID
-	var res sql.Result
-	res, err = dbtx.Exec(internal.SetAddressSpendingForOutpoint,
-		fundingTxHash, fundingTxVoutIndex,
-		spendingTxDbID, spendingTxHash, spendingTxVinIndex, vinDbID)
-	if err != nil || res == nil {
-		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
-			`(rollback)`, err, dbtx.Rollback())
-	}
-
-	var N int64
-	N, err = res.RowsAffected()
+	// Insert the spending tx info (addresses table) for the vin DB ID
+	N, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex,
+		tree, spendingTxHash, spendingTxVinIndex, vinDbID, checked)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -685,13 +728,6 @@ func sqlExecStmt(stmt *sql.Stmt, execErrPrefix string, args ...interface{}) (int
 	return N, err
 }
 
-func SetSpendingForAddressDbID(db *sql.DB, addrDbID uint64, spendingTxDbID uint64,
-	spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64) error {
-	_, err := db.Exec(internal.SetAddressSpendingForID, addrDbID, spendingTxDbID,
-		spendingTxHash, spendingTxVinIndex, vinDbID)
-	return err
-}
-
 func RetrieveAddressRecvCount(db *sql.DB, address string) (count int64, err error) {
 	err = db.QueryRow(internal.SelectAddressRecvCount, address).Scan(&count)
 	return
@@ -774,6 +810,11 @@ func RetrieveAddressDebitTxns(db *sql.DB, address string, N, offset int64) ([]ui
 		internal.SelectAddressDebitsLimitNByAddress)
 }
 
+func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+	return retrieveAddressTxns(db, address, N, offset,
+		internal.SelectAddressCreditsLimitNByAddress)
+}
+
 func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
 	statement string) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.Query(statement, address, N, offset)
@@ -793,26 +834,25 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 	for rows.Next() {
 		var id uint64
 		var addr dbtypes.AddressRow
-		var spendingTxHash sql.NullString
-		var spendingTxDbID, spendingTxVinIndex, vinDbID sql.NullInt64
-		err = rows.Scan(&id, &addr.Address, &addr.FundingTxDbID, &addr.FundingTxHash,
-			&addr.FundingTxVoutIndex, &addr.VoutDbID, &addr.Value,
-			&spendingTxDbID, &spendingTxHash, &spendingTxVinIndex, &vinDbID)
+		var txHash sql.NullString
+		var blockTime, txVinIndex, vinDbID sql.NullInt64
+		err = rows.Scan(&id, &addr.Address, &addr.MatchingTxHash, &txHash,
+			&txVinIndex, &blockTime, &vinDbID, &addr.Value, &addr.IsFunding)
 		if err != nil {
 			return
 		}
 
-		if spendingTxDbID.Valid {
-			addr.SpendingTxDbID = uint64(spendingTxDbID.Int64)
+		if blockTime.Valid {
+			addr.TxBlockTime = uint64(blockTime.Int64)
 		}
-		if spendingTxHash.Valid {
-			addr.SpendingTxHash = spendingTxHash.String
+		if txHash.Valid {
+			addr.TxHash = txHash.String
 		}
-		if spendingTxVinIndex.Valid {
-			addr.SpendingTxVinIndex = uint32(spendingTxVinIndex.Int64)
+		if txVinIndex.Valid {
+			addr.TxVinVoutIndex = uint32(txVinIndex.Int64)
 		}
 		if vinDbID.Valid {
-			addr.VinDbID = uint64(vinDbID.Int64)
+			addr.VinVoutDbID = uint64(vinDbID.Int64)
 		}
 
 		ids = append(ids, id)
@@ -821,40 +861,16 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 	return
 }
 
-func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) (ids []uint64, addressRows []*dbtypes.AddressRow, err error) {
-	var rows *sql.Rows
-	rows, err = db.Query(internal.SelectAddressCreditsLimitNByAddress, address, N, offset)
-	if err != nil {
-		return
-	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
-
-	for rows.Next() {
-		var id uint64
-		var addr dbtypes.AddressRow
-		err = rows.Scan(&id, &addr.FundingTxDbID, &addr.FundingTxHash,
-			&addr.FundingTxVoutIndex, &addr.VoutDbID, &addr.Value)
-		if err != nil {
-			return
-		}
-		addr.Address = address
-		ids = append(ids, id)
-		addressRows = append(addressRows, &addr)
-	}
-	return
-}
-
+// Retreive All AddressIDs for a given Hash and Index
+// Update Vin due to DCRD AMOUNTIN - START - DO NOT MERGE CHANGES IF DCRD FIXED
 func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
-	voutIndex uint32) ([]uint64, []string, error) {
+	voutIndex uint32) ([]uint64, []string, int64, error) {
 	var ids []uint64
 	var addresses []string
+	var value int64
 	rows, err := db.Query(internal.SelectAddressIDsByFundingOutpoint, txHash, voutIndex)
 	if err != nil {
-		return ids, addresses, err
+		return ids, addresses, 0, err
 	}
 	defer func() {
 		if e := rows.Close(); e != nil {
@@ -865,7 +881,7 @@ func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 	for rows.Next() {
 		var id uint64
 		var addr string
-		err = rows.Scan(&id, &addr)
+		err = rows.Scan(&id, &addr, &value)
 		if err != nil {
 			break
 		}
@@ -873,9 +889,8 @@ func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 		ids = append(ids, id)
 		addresses = append(addresses, addr)
 	}
-
-	return ids, addresses, err
-}
+	return ids, addresses, value, err
+} // Update Vin due to DCRD AMOUNTIN - END
 
 func RetrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
 	rows, err := db.Query(internal.SelectVinIDsALL)
@@ -921,11 +936,12 @@ func RetrieveFundingOutpointByVinID(db *sql.DB, vinDbID uint64) (tx string, inde
 }
 
 func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVoutInd uint32,
-	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, err error) {
-	var id uint64
+	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
+	var blockTime uint64
+	var isValid bool
 	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree)
+		Scan(&txHash, &txVinInd, &txTree, &isValid, &blockTime,
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	return
 }
 
@@ -1005,6 +1021,61 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 	return
 }
 
+// retrieveAgendaVoteChoices retrieves for the specified agenda the vote counts
+// for each choice and the total number of votes. The interval size is either a
+// single block or a day, as specified by byType, where a value of 1 indicates a
+// block and 0 indicates a day-long interval. For day intervals, the counts
+// accumulate over time (cumulative sum), whereas for block intervals the counts
+// are just for the block. The total length of time over all intervals always
+// spans the locked-in period of the agenda.
+func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtypes.AgendaVoteChoices, error) {
+	// Query with block or day interval size
+	var query = internal.SelectAgendasAgendaVotesByTime
+	if byType == 1 {
+		query = internal.SelectAgendasAgendaVotesByHeight
+	}
+
+	rows, err := db.Query(query, dbtypes.Yes, dbtypes.Abstain, dbtypes.No,
+		agendaID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sum abstain, yes, no, and total votes
+	var a, y, n, t uint64
+	totalVotes := new(dbtypes.AgendaVoteChoices)
+	for rows.Next() {
+		// Parse the counts and time/height
+		var abstain, yes, no, total, heightOrTime uint64
+		err = rows.Scan(&heightOrTime, &yes, &abstain, &no, &total)
+		if err != nil {
+			return nil, err
+		}
+
+		// For day intervals, counts are cumulative
+		if byType == 0 {
+			a += abstain
+			y += yes
+			n += no
+			t += total
+			totalVotes.Time = append(totalVotes.Time, heightOrTime)
+		} else {
+			a = abstain
+			y = yes
+			n = no
+			t = total
+			totalVotes.Height = append(totalVotes.Height, heightOrTime)
+		}
+
+		totalVotes.Abstain = append(totalVotes.Abstain, a)
+		totalVotes.Yes = append(totalVotes.Yes, y)
+		totalVotes.No = append(totalVotes.No, n)
+		totalVotes.Total = append(totalVotes.Total, t)
+	}
+
+	return totalVotes, nil
+}
+
 func RetrieveDbTxByHash(db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx, err error) {
 	dbTx = new(dbtypes.Tx)
 	vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
@@ -1036,6 +1107,11 @@ func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, b
 	return
 }
 
+func RetrieveTxBlockTimeByHash(db *sql.DB, txHash string) (blockTime uint64, err error) {
+	err = db.QueryRow(internal.SelectTxBlockTimeByHash, txHash).Scan(&blockTime)
+	return
+}
+
 func RetrieveTxIDHeightByHash(db *sql.DB, txHash string) (id uint64, blockHeight int64, err error) {
 	err = db.QueryRow(internal.SelectTxIDHeightByHash, txHash).Scan(&id, &blockHeight)
 	return
@@ -1051,7 +1127,8 @@ func RetrieveStakeTxByHash(db *sql.DB, txHash string) (id uint64, blockHash stri
 	return
 }
 
-func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string, blockInds []uint32, trees []int8, err error) {
+func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string,
+	blockInds []uint32, trees []int8, blockTimes []uint64, err error) {
 	rows, err := db.Query(internal.SelectTxsByBlockHash, blockHash)
 	if err != nil {
 		return
@@ -1063,11 +1140,11 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	}()
 
 	for rows.Next() {
-		var id uint64
+		var id, blockTime uint64
 		var tx string
 		var bind uint32
 		var tree int8
-		err = rows.Scan(&id, &tx, &bind, &tree)
+		err = rows.Scan(&id, &tx, &bind, &tree, &blockTime)
 		if err != nil {
 			break
 		}
@@ -1076,18 +1153,32 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 		txs = append(txs, tx)
 		blockInds = append(blockInds, bind)
 		trees = append(trees, tree)
+		blockTimes = append(blockTimes, blockTime)
 	}
 
 	return
 }
 
+// RetrieveBlockHash retrieves the hash of the block at the given height, if it
+// exists (be sure to check error against sql.ErrNoRows!). WARNING: this returns
+// the most recently added block at this height, but there may be others.
 func RetrieveBlockHash(db *sql.DB, idx int64) (hash string, err error) {
 	err = db.QueryRow(internal.SelectBlockHashByHeight, idx).Scan(&hash)
 	return
 }
 
+// RetrieveBlockHeight retrieves the height of the block with the given hash, if
+// it exists (be sure to check error against sql.ErrNoRows!).
 func RetrieveBlockHeight(db *sql.DB, hash string) (height int64, err error) {
 	err = db.QueryRow(internal.SelectBlockHeightByHash, hash).Scan(&height)
+	return
+}
+
+// RetrieveBlockChainDbID retrieves the row id in the block_chain table of the
+// block with the given hash, if it exists (be sure to check error against
+// sql.ErrNoRows!).
+func RetrieveBlockChainDbID(db *sql.DB, hash string) (dbID uint64, err error) {
+	err = db.QueryRow(internal.SelectBlockChainRowIDByHash, hash).Scan(&dbID)
 	return
 }
 
@@ -1109,29 +1200,107 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	defer rows.Close()
 
 	for rows.Next() {
-		var txnOutput apitypes.AddressTxnOutput
+		pkScript := []byte{}
+		var blockHeight, atoms int64
+		blocktime := uint64(0)
+		txnOutput := apitypes.AddressTxnOutput{}
 		if err = rows.Scan(&txnOutput.Address, &txnOutput.TxnID,
-			&txnOutput.Atoms, &txnOutput.Height, &txnOutput.BlockHash); err != nil {
-			fmt.Println(err)
+			&atoms, &blockHeight, &blocktime, &txnOutput.Vout, &pkScript); err != nil {
 			log.Error(err)
 		}
-		txnOutput.Amount = txnOutput.Atoms * 100000000
-		txnOutput.Confirmations = currentBlockHeight - txnOutput.Height
+		txnOutput.ScriptPubKey = hex.EncodeToString(pkScript)
+		txnOutput.Amount = dcrutil.Amount(atoms).ToCoin()
+		txnOutput.Satoshis = atoms
+		txnOutput.Height = blockHeight
+		txnOutput.Confirmations = currentBlockHeight - blockHeight + 1
 		outputs = append(outputs, txnOutput)
 	}
 
 	return outputs, nil
 }
 
-func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {
-	var blocks []dbtypes.BlockDataBasic
-
-	stmt, err := db.Prepare(internal.SelectBlockByTimeRangeSQL)
+// RetrieveAddressTxnsOrdered will get all transactions for addresses provided
+// and return them sorted by time in descending order. It will also return a
+// short list of recently (defined as greater than recentBlockHeight) confirmed
+// transactions that can be used to validate mempool status.
+func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeight int64) (txs []string, recenttxs []string) {
+	var tx_hash string
+	var height int64
+	stmt, err := db.Prepare(internal.SelectAddressesAllTxn)
 	if err != nil {
+		log.Error(err)
+		return nil, nil
+	}
+
+	rows, err := stmt.Query(pq.Array(addresses))
+	if err != nil {
+		log.Error(err)
+		return nil, nil
+	}
+
+	for rows.Next() {
+		err = rows.Scan(&tx_hash, &height)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		txs = append(txs, tx_hash)
+		if height > recentBlockHeight {
+			recenttxs = append(recenttxs, tx_hash)
+		}
+	}
+	return
+}
+
+// Retrieve all Transactions related to a set of addresses and funded by a
+// specific transaction
+func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string,
+	addresses []string) (aSpendByFunHash []*apitypes.AddressSpendByFunHash, err error) {
+
+	stmt, err := db.Prepare(internal.SelectAddressesTxnByFundingTx)
+	if err != nil {
+		log.Error(err)
+		return nil, nil
+	}
+
+	rows, err := stmt.Query(pq.Array(addresses), fundTxHash)
+	if err != nil {
+		log.Error(err)
 		return nil, err
 	}
-	fmt.Println(minTime, " * ", maxTime, " * ", limit)
-	rows, err := stmt.Query(minTime, maxTime, limit)
+
+	for rows.Next() {
+		var addr apitypes.AddressSpendByFunHash
+		err = rows.Scan(&addr.FundingTxVoutIndex,
+			&addr.SpendingTxHash, &addr.SpendingTxVinIndex, &addr.BlockHeight)
+		if err != nil {
+			return
+		}
+
+		aSpendByFunHash = append(aSpendByFunHash, &addr)
+	}
+	return
+}
+
+func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit int) ([]dbtypes.BlockDataBasic, error) {
+	var blocks []dbtypes.BlockDataBasic
+	var stmt *sql.Stmt
+	var rows *sql.Rows
+	var err error
+
+	if limit == 0 {
+		stmt, err = db.Prepare(internal.SelectBlockByTimeRangeSQLNoLimit)
+		if err != nil {
+			return nil, err
+		}
+		rows, err = stmt.Query(minTime, maxTime)
+	} else {
+		stmt, err = db.Prepare(internal.SelectBlockByTimeRangeSQL)
+		if err != nil {
+			return nil, err
+		}
+		rows, err = stmt.Query(minTime, maxTime, limit)
+	}
 
 	if err != nil {
 		log.Error(err)
@@ -1183,6 +1352,30 @@ func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
 	return nil
 }
 
+// UpdateLastVins updates the is_valid column in the vins table for all of the
+// transactions in the block specified by the given block hash.
+func UpdateLastVins(db *sql.DB, blockHash string, isValid bool) error {
+	_, txs, _, trees, timestamps, err := RetrieveTxsByBlockHash(db, blockHash)
+	if err != nil {
+		return err
+	}
+
+	for i, txHash := range txs {
+		n, err := sqlExec(db, internal.SetIsValidByTxHash,
+			"failed to update last vins tx validity: ", isValid, txHash,
+			timestamps[i], trees[i])
+		if err != nil {
+			return err
+		}
+
+		if n < 1 {
+			return fmt.Errorf(" failed to update at least 1 row")
+		}
+	}
+
+	return nil
+}
+
 func RetrieveBestBlockHeight(db *sql.DB) (height uint64, hash string, id uint64, err error) {
 	err = db.QueryRow(internal.RetrieveBestBlockHeight).Scan(&id, &hash, &height)
 	return
@@ -1193,17 +1386,192 @@ func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint6
 	return
 }
 
+// closeRows closes the input sql.Rows, logging any error.
+func closeRows(rows *sql.Rows) {
+	if e := rows.Close(); e != nil {
+		log.Errorf("Close of Query failed: %v", e)
+	}
+}
+
+// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that
+// are used to display the ticket price variation on ticket price chart. These
+// data are fetched at an interval of chaincfg.Params.StakeDiffWindowSize.
+func RetrieveTicketsPriceByHeight(db *sql.DB, val int64) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+	rows, err := db.Query(internal.SelectBlocksTicketsPrice, val)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var timestamp, price uint64
+		var difficulty float64
+		err = rows.Scan(&price, &timestamp, &difficulty)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Time = append(items.Time, timestamp)
+		priceCoin := dcrutil.Amount(price).ToCoin()
+		items.ValueF = append(items.ValueF, priceCoin)
+		items.Difficulty = append(items.Difficulty, difficulty)
+	}
+
+	return items, nil
+}
+
+// retrieveCoinSupply fetches the coin supply data
+func retrieveCoinSupply(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+	rows, err := db.Query(internal.SelectCoinSupply)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	var sum float64
+	for rows.Next() {
+		var value, timestamp int64
+		err = rows.Scan(&timestamp, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		if value < 0 {
+			value = 0
+		}
+		sum += dcrutil.Amount(value).ToCoin()
+		items.Time = append(items.Time, uint64(timestamp))
+		items.ValueF = append(items.ValueF, sum)
+	}
+
+	return items, nil
+}
+
+func retrieveBlockTicketsPoolValue(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+	rows, err := db.Query(internal.SelectBlocksBlockSize)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	var oldTimestamp, chainsize uint64
+	for rows.Next() {
+		var timestamp, blockSize, blocksCount, blockHeight uint64
+		err = rows.Scan(&timestamp, &blockSize, &blocksCount, &blockHeight)
+		if err != nil {
+			return nil, err
+		}
+
+		val := int64(oldTimestamp - timestamp)
+		if val < 0 {
+			val = val * -1
+		}
+		chainsize += blockSize
+		oldTimestamp = timestamp
+		items.Time = append(items.Time, timestamp)
+		items.Size = append(items.Size, blockSize)
+		items.ChainSize = append(items.ChainSize, chainsize)
+		items.Count = append(items.Count, blocksCount)
+		items.ValueF = append(items.ValueF, float64(val))
+		items.Value = append(items.Value, blockHeight)
+	}
+
+	return items, nil
+}
+
+func retrieveTxPerDay(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+	rows, err := db.Query(internal.SelectTxsPerDay)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var timestr string
+		var count uint64
+		err = rows.Scan(&timestr, &count)
+		if err != nil {
+			return nil, err
+		}
+
+		items.TimeStr = append(items.TimeStr, timestr)
+		items.Count = append(items.Count, count)
+	}
+	return items, nil
+}
+
+func retrieveTicketSpendTypePerBlock(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+	rows, err := db.Query(internal.SelectTicketSpendTypeByBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var height, unspent, revoked uint64
+		err = rows.Scan(&height, &unspent, &revoked)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Height = append(items.Height, height)
+		items.Unspent = append(items.Unspent, unspent)
+		items.Revoked = append(items.Revoked, revoked)
+	}
+	return items, nil
+}
+
+func retrieveTicketByOutputCount(db *sql.DB, dataType outputCountType) (*dbtypes.ChartsData, error) {
+	var query string
+	switch dataType {
+	case outputCountByAllBlocks:
+		query = internal.SelectTicketsOutputCountByAllBlocks
+	case outputCountByTicketPoolWindow:
+		query = internal.SelectTicketsOutputCountByTPWindow
+	default:
+		return nil, fmt.Errorf("unknown output count type '%v'", dataType)
+	}
+
+	var items = new(dbtypes.ChartsData)
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var height, solo, pooled uint64
+		err = rows.Scan(&height, &solo, &pooled)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Height = append(items.Height, height)
+		items.Solo = append(items.Solo, solo)
+		items.Pooled = append(items.Pooled, pooled)
+	}
+	return items, nil
+}
+
 func RetrieveVoutValues(db *sql.DB, txHash string) (values []uint64, txInds []uint32, txTrees []int8, err error) {
 	var rows *sql.Rows
 	rows, err = db.Query(internal.RetrieveVoutValues, txHash)
 	if err != nil {
 		return
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var v uint64
@@ -1246,20 +1614,21 @@ func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
 	return nil
 }
 
-func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty) (id uint64, err error) {
-	err = db.QueryRow(internal.InsertVinRow,
+func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64, err error) {
+	err = db.QueryRow(internal.MakeVinInsertStatement(checked),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
-		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree).Scan(&id)
+		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree,
+		dbVin.ValueIn, dbVin.IsValid, dbVin.Time).Scan(&id)
 	return
 }
 
-func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error) {
+func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	stmt, err := dbtx.Prepare(internal.InsertVinRow)
+	stmt, err := dbtx.Prepare(internal.MakeVinInsertStatement(checked))
 	if err != nil {
 		log.Errorf("Vin INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
@@ -1272,7 +1641,8 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY) ([]uint64, error)
 	for _, vin := range dbVins {
 		var id uint64
 		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
-			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree).Scan(&id)
+			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree,
+			vin.ValueIn, vin.IsValid, vin.Time).Scan(&id)
 		if err != nil {
 			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
@@ -1302,7 +1672,7 @@ func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool) (uint64, error) 
 }
 
 func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, []dbtypes.AddressRow, error) {
-	addressRows := make([]dbtypes.AddressRow, 0, len(dbVouts)*2)
+	// All inserts in atomic DB transaction
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
@@ -1315,10 +1685,11 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 		return nil, nil, err
 	}
 
+	addressRows := make([]dbtypes.AddressRow, 0, len(dbVouts)) // may grow with multisig
 	ids := make([]uint64, 0, len(dbVouts))
 	for _, vout := range dbVouts {
 		var id uint64
-		err := stmt.QueryRow(
+		err = stmt.QueryRow(
 			vout.TxHash, vout.TxIndex, vout.TxTree, vout.Value, vout.Version,
 			vout.ScriptPubKey, vout.ScriptPubKeyData.ReqSigs,
 			vout.ScriptPubKeyData.Type,
@@ -1335,11 +1706,11 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 		}
 		for _, addr := range vout.ScriptPubKeyData.Addresses {
 			addressRows = append(addressRows, dbtypes.AddressRow{
-				Address:            addr,
-				FundingTxHash:      vout.TxHash,
-				FundingTxVoutIndex: vout.TxIndex,
-				VoutDbID:           id,
-				Value:              vout.Value,
+				Address:        addr,
+				TxHash:         vout.TxHash,
+				TxVinVoutIndex: vout.TxIndex,
+				VinVoutDbID:    id,
+				Value:          vout.Value,
 			})
 		}
 		ids = append(ids, id)
@@ -1351,19 +1722,20 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 	return ids, addressRows, dbtx.Commit()
 }
 
-func InsertAddressOut(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint64, error) {
-	sqlStmt := internal.InsertAddressRow
-	if dupCheck {
-		sqlStmt = internal.UpsertAddressRow
-	}
+// InsertAddressRow inserts an AddressRow (input or output), returning the row
+// ID in the addresses table of the inserted data.
+func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint64, error) {
+	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck)
 	var id uint64
-	err := db.QueryRow(sqlStmt, dbA.Address, dbA.FundingTxDbID,
-		dbA.FundingTxHash, dbA.FundingTxVoutIndex, dbA.VoutDbID,
-		dbA.Value).Scan(&id)
+	err := db.QueryRow(sqlStmt, dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
+		dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
+		dbA.IsFunding).Scan(&id)
 	return id, err
 }
 
-func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([]uint64, error) {
+// InsertAddressRows inserts multiple transaction inputs or outputs for certain
+// addresses ([]AddressRow). The row IDs of the inserted data are returned.
+func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([]uint64, error) {
 	// Create the address table if it does not exist
 	tableName := "addresses"
 	if haveTable, _ := TableExists(db, tableName); !haveTable {
@@ -1377,10 +1749,7 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	sqlStmt := internal.InsertAddressRow
-	if dupCheck {
-		sqlStmt = internal.UpsertAddressRow
-	}
+	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck)
 
 	stmt, err := dbtx.Prepare(sqlStmt)
 	if err != nil {
@@ -1392,10 +1761,12 @@ func InsertAddressOuts(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 	ids := make([]uint64, 0, len(dbAs))
 	for _, dbA := range dbAs {
 		var id uint64
-		err := stmt.QueryRow(dbA.Address, dbA.FundingTxDbID, dbA.FundingTxHash,
-			dbA.FundingTxVoutIndex, dbA.VoutDbID, dbA.Value).Scan(&id)
+		err := stmt.QueryRow(dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
+			dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
+			dbA.IsFunding).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
+				log.Errorf("failed to insert/update an AddressRow: %v", *dbA)
 				continue
 			}
 			_ = stmt.Close() // try, but we want the QueryRow error back
@@ -1497,7 +1868,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 //
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
 func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
-	fTx *TicketTxnIDGetter, msgBlock *MsgBlockPG, checked bool) ([]uint64,
+	fTx *TicketTxnIDGetter, msgBlock *MsgBlockPG, checked bool, params *chaincfg.Params) ([]uint64,
 	[]*dbtypes.Tx, []string, []uint64, map[string]uint64, error) {
 	// Choose only SSGen txns
 	msgTxs := msgBlock.STransactions
@@ -1525,9 +1896,17 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 		return nil, nil, nil, nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	stmt, err := dbtx.Prepare(internal.MakeVoteInsertStatement(checked))
+	voteInsert := internal.MakeVoteInsertStatement(checked)
+	stmt, err := dbtx.Prepare(voteInsert)
 	if err != nil {
 		log.Errorf("Votes INSERT prepare: %v", err)
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return nil, nil, nil, nil, nil, err
+	}
+
+	prep, err := dbtx.Prepare(internal.MakeAgendaInsertStatement(checked))
+	if err != nil {
+		log.Errorf("Agendas INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, nil, nil, nil, nil, err
 	}
@@ -1574,6 +1953,26 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 				misses[im] = misses[len(misses)-1]
 				misses = misses[:len(misses)-1]
 				break
+			}
+		}
+
+		_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
+		if err != nil {
+			return nil, nil, nil, nil, nil, err
+		}
+
+		var rowID uint64
+		for _, val := range choices {
+			index, err := dbtypes.ChoiceIndexFromStr(val.Choice.Id)
+			if err != nil {
+				return nil, nil, nil, nil, nil, err
+			}
+
+			lockedIn, activated, hardForked := false, false, false
+			err = prep.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight,
+				tx.BlockTime, lockedIn, activated, hardForked).Scan(&rowID)
+			if err != nil {
+				return nil, nil, nil, nil, nil, err
 			}
 		}
 

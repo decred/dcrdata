@@ -123,6 +123,7 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rt.Route("/{txid}", func(rd chi.Router) {
 				rd.Use(m.TransactionHashCtx)
 				rd.Get("/", app.getTransaction)
+				rd.Get("/trimmed", app.getDecodedTransactions)
 				rd.Route("/out", func(ro chi.Router) {
 					ro.Get("/", app.getTransactionOutputs)
 					ro.With(m.TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionOutput)
@@ -136,6 +137,13 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 		})
 		r.With(m.TransactionHashCtx).Get("/hex/{txid}", app.getTransactionHex)
 		r.With(m.TransactionHashCtx).Get("/decoded/{txid}", app.getDecodedTx)
+	})
+
+	mux.Route("/txs", func(r chi.Router) {
+		r.Use(middleware.AllowContentType("application/json"),
+			m.ValidateTxnsPostCtx, m.PostTxnsCtx)
+		r.Post("/", app.getTransactions)
+		r.Post("/trimmed", app.getDecodedTransactions)
 	})
 
 	mux.Route("/address", func(r chi.Router) {
@@ -167,6 +175,12 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 			rd.Get("/details", app.getSSTxDetails)
 			rd.With(m.NPathCtx).Get("/details/{N}", app.getSSTxDetails)
 		})
+	})
+
+	mux.Route("/chart", func(r chi.Router) {
+		// Return default chart data (ticket price)
+		r.Get("/", app.getTicketPriceChartData)
+		r.With(m.ChartTypeCtx).Get("/{chart-type}", app.getChartTypeData)
 	})
 
 	mux.NotFound(func(w http.ResponseWriter, r *http.Request) {

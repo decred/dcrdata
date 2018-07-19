@@ -1,0 +1,73 @@
+{{define "charts"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" "Decred Charts"}}
+<body>
+    {{template "navbar" . }}
+
+    <div class="container" style="font-size:0.8em;">
+        <div data-controller="charts">
+            <br><br>
+            <div id="row">
+                <select id="selectBox" data-target="charts.options" data-action="charts#onChange">
+                    <option value="ticket-price">Ticket Price Chart</option>
+                    <option value="ticket-pool-size">Ticket Pool Size Chart</option>
+                    <option value="ticket-pool-value">Ticket Pool Value Chart</option>
+                    <option value="avg-block-size">Average Block Size Chart</option>
+                    <option value="blockchain-size">BlockChain Size Chart</option>
+                    <option value="tx-per-block">Number of Transactions Per Block Chart</option>
+                    <option value="tx-per-day">Number of Transactions Per Day Chart</option>
+                    <option value="pow-difficulty">PoW Difficulty Chart</option>
+                    <option value="coin-supply">Total Coin Supply Chart</option>
+                    <option value="fee-per-block">Total Fee Per Block Chart</option>
+                    <option value="duration-btw-blocks">Duration Between Blocks Chart</option>
+                    <option value="ticket-spend-type">Tickets Spend Types Chart</option>
+                    <option value="ticket-by-outputs-windows">Tickets By Output Count Chart</option>
+                </select>
+               
+               <div class="row" style="float: right;">
+                    <div class="block-chart-btn-display">
+                        <label>Zoom :</label>
+                        <div class="btn-group" data-toggle="buttons" data-target="charts.zoom" data-action="click->charts#onZoom">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Day" name="288">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Week" name="2016">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Month" name="8760">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Year" name="105120">
+                            <input id="chart-zoom" type="button" class="btn btn_sm btn-active" value="All Blocks" name="0">
+                        </div>
+                    </div>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;</p>
+                    <div class="chart-btn-display">
+                        <label>Group :</label>
+                        <div class="btn-group" data-toggle="buttons" data-target="charts.groupings" data-action="click->charts#onGrouping">
+                            <input id="chart-group" type="button" class="btn btn_sm btn-active"
+                                value="Ticket Price Windows" name="ticket-by-outputs-windows">
+                            <input id="chart-group" type="button" class="btn btn_sm" value="Blocks"
+                                name="ticket-by-outputs-blocks">
+                        </div>
+                    </div>
+                </div>
+     
+            </div>
+            <br><br>
+            <div id="graphdiv" 
+                data-target="chartsview" 
+                style="width:100%; height:450px; margin:0 auto;">
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var ticketsPrice = {{.Data}};
+
+        $('input').on('click', function(){
+            $('input#'+this.id).removeClass('btn-active');
+            $(this).toggleClass('btn-active');
+        });
+    </script>
+
+    {{ template "footer" . }}
+    <div class="modal"></div>
+</body>
+</html>
+{{end}}

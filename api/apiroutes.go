@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -24,7 +25,7 @@ import (
 )
 
 // DataSourceLite specifies an interface for collecting data from the built-in
-// databases (i.e. SQLite, storm, ffldb)
+// databases (i.e. SQLite, badger, ffldb)
 type DataSourceLite interface {
 	CoinSupply() *apitypes.CoinSupply
 	GetHeight() int
@@ -447,6 +448,48 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, tx, c.getIndentQuery(r))
+}
+
+func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
+	txids := m.GetTxnsCtx(r)
+	if txids == nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	txns := make([]*apitypes.Tx, 0, len(txids))
+	for i := range txids {
+		tx := c.BlockData.GetRawTransaction(txids[i])
+		if tx == nil {
+			apiLog.Errorf("Unable to get transaction %s", txids[i])
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		txns = append(txns, tx)
+	}
+
+	writeJSON(w, txns, c.getIndentQuery(r))
+}
+
+func (c *appContext) getDecodedTransactions(w http.ResponseWriter, r *http.Request) {
+	txids := m.GetTxnsCtx(r)
+	if txids == nil {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	txns := make([]*apitypes.TrimmedTx, 0, len(txids))
+	for i := range txids {
+		tx := c.BlockData.GetTrimmedTransaction(txids[i])
+		if tx == nil {
+			apiLog.Errorf("Unable to get transaction %s", tx)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		txns = append(txns, tx)
+	}
+
+	writeJSON(w, txns, c.getIndentQuery(r))
 }
 
 func (c *appContext) getTxVoteInfo(w http.ResponseWriter, r *http.Request) {
@@ -1002,6 +1045,27 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, totals, c.getIndentQuery(r))
+}
+
+func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Request) {
+	chartData, ok := explorer.GetChartTypeData("ticket-price")
+	if !ok {
+		http.NotFound(w, r)
+		log.Warnf(`No data matching "ticket-price" chart Type was found`)
+		return
+	}
+	writeJSON(w, chartData, c.getIndentQuery(r))
+}
+
+func (c *appContext) getChartTypeData(w http.ResponseWriter, r *http.Request) {
+	chartType := m.GetChartTypeCtx(r)
+	chartData, ok := explorer.GetChartTypeData(chartType)
+	if !ok {
+		http.NotFound(w, r)
+		log.Warnf(`No data matching "%s" chart Type was found`, chartType)
+		return
+	}
+	writeJSON(w, chartData, c.getIndentQuery(r))
 }
 
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {

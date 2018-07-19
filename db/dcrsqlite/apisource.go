@@ -52,10 +52,21 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
 	}
 
 	var err error
-	wDB.sDB, err = stakedb.NewStakeDatabase(cl, p, datadir)
+	var height int64
+	wDB.sDB, height, err = stakedb.NewStakeDatabase(cl, p, datadir)
 	if err != nil {
 		log.Errorf("Unable to create stake DB: %v", err)
-		return wDB, func() error { return nil }
+		if height >= 0 {
+			log.Infof("Attempting to recover stake DB...")
+			wDB.sDB, err = stakedb.LoadAndRecover(cl, p, datadir, height-288)
+		}
+		if err != nil {
+			if wDB.sDB != nil {
+				_ = wDB.sDB.Close()
+			}
+			log.Errorf("StakeDatabase recovery failed: %v", err)
+			return wDB, func() error { return nil }
+		}
 	}
 	return wDB, wDB.sDB.Close
 }
@@ -259,7 +270,7 @@ func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	}
 }
 
-func (db *wiredDB) GetBlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult {
+func (db *wiredDB) BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult {
 	blockSubsidy, err := db.client.GetBlockSubsidy(height, voters)
 	if err != nil {
 		return nil
@@ -461,7 +472,7 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 
 	txraw, err := db.client.GetRawTransactionVerbose(txhash)
 	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
+		log.Errorf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
 		return nil, ""
 	}
 
@@ -733,6 +744,27 @@ func (db *wiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 	return poolvals, poolsizes
 }
 
+// GetSqliteChartsData fetches the charts data from the sqlite db.
+func (db *wiredDB) GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error) {
+	poolData, err := db.RetrieveAllPoolValAndSize()
+	if err != nil {
+		return nil, err
+	}
+
+	feeData, err := db.RetrieveBlockFeeInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	var data = map[string]*dbtypes.ChartsData{
+		"ticket-pool-size":  {Time: poolData.Time, SizeF: poolData.SizeF},
+		"ticket-pool-value": {Time: poolData.Time, ValueF: poolData.ValueF},
+		"fee-per-block":     feeData,
+	}
+
+	return data, nil
+}
+
 func (db *wiredDB) GetSDiff(idx int) float64 {
 	sdiff, err := db.RetrieveSDiff(int64(idx))
 	if err != nil {
@@ -958,28 +990,6 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	return tx
 }
 
-// insight api implementation
-func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address string) *apitypes.AddressTxnOutput {
-	tx := new(apitypes.AddressTxnOutput)
-	tx.Address = address
-	tx.TxnID = data.Txid
-	tx.Height = 0
-	tx.Confirmations = int64(data.Confirmations)
-
-	for i := range data.Vout {
-		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
-			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
-				tx.ScriptPubKey = data.Vout[i].ScriptPubKey.Hex
-				tx.Vout = data.Vout[i].N
-				tx.Atoms += data.Vout[i].Value
-			}
-		}
-	}
-
-	tx.Amount = tx.Atoms * 100000000
-	return tx
-}
-
 func (db *wiredDB) GetExplorerBlocks(start int, end int) []*explorer.BlockBasic {
 	if start < end {
 		return nil
@@ -1038,7 +1048,10 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
 			stx := makeExplorerTxBasic(tx, msgTx, db.params)
-			stx.Fee, stx.FeeRate = 0.0, 0.0
+			// Fees for votes should be zero, but if the transaction was created
+			// with unmatched inputs/outputs then the remainder becomes a fee.
+			// Account for this possibility by calculating the fee for votes as
+			// well.
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
 			stx := makeExplorerTxBasic(tx, msgTx, db.params)
@@ -1098,7 +1111,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	block.TotalSent = (getTotalSent(block.Tx) + getTotalSent(block.Revs) +
 		getTotalSent(block.Tickets) + getTotalSent(block.Votes)).ToCoin()
 	block.MiningFee = getTotalFee(block.Tx) + getTotalFee(block.Revs) +
-		getTotalFee(block.Tickets)
+		getTotalFee(block.Tickets) + getTotalFee(block.Votes)
 
 	return block
 }
@@ -1111,7 +1124,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	}
 	txraw, err := db.client.GetRawTransactionVerbose(txhash)
 	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for: %v", txhash)
+		log.Errorf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
 		return nil
 	}
 	msgTx, err := txhelpers.MsgTxFromHex(txraw.Hex)
@@ -1126,6 +1139,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.Type = txhelpers.DetermineTxTypeString(msgTx)
 	tx.BlockHeight = txraw.BlockHeight
 	tx.BlockIndex = txraw.BlockIndex
+	tx.BlockHash = txraw.BlockHash
 	tx.Confirmations = txraw.Confirmations
 	tx.Time = txraw.Time
 	t := time.Unix(tx.Time, 0)
@@ -1168,15 +1182,16 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		tx.Maturity = int64(db.params.CoinbaseMaturity)
 
 	}
-	if tx.Type == "Vote" || tx.Type == "Ticket" {
-		if db.GetBestBlockHeight() >= (int64(db.params.TicketMaturity) + tx.BlockHeight) {
+	if tx.IsVote() || tx.IsTicket() {
+		if tx.Confirmations > 0 && db.GetBestBlockHeight() >=
+			(int64(db.params.TicketMaturity)+tx.BlockHeight) {
 			tx.Mature = "True"
 		} else {
 			tx.Mature = "False"
 			tx.TicketInfo.TicketMaturity = int64(db.params.TicketMaturity)
 		}
 	}
-	if tx.Type == "Vote" {
+	if tx.IsVote() {
 		if tx.Confirmations < int64(db.params.CoinbaseMaturity) {
 			tx.VoteFundsLocked = "True"
 		} else {
@@ -1184,9 +1199,9 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		}
 		tx.Maturity = int64(db.params.CoinbaseMaturity) + 1 // Add one to reflect < instead of <=
 	}
-	CoinbaseMaturityInDay := (db.params.TargetTimePerBlock.Hours() * float64(db.params.CoinbaseMaturity)) / 24
+	CoinbaseMaturityInHours := (db.params.TargetTimePerBlock.Hours() * float64(db.params.CoinbaseMaturity))
 	tx.MaturityTimeTill = ((float64(db.params.CoinbaseMaturity) -
-		float64(tx.Confirmations)) / float64(db.params.CoinbaseMaturity)) * CoinbaseMaturityInDay
+		float64(tx.Confirmations)) / float64(db.params.CoinbaseMaturity)) * CoinbaseMaturityInHours
 
 	outputs := make([]explorer.Vout, 0, len(txraw.Vout))
 	for i, vout := range txraw.Vout {
@@ -1328,7 +1343,7 @@ func (db *wiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
 func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
 	// Mempool transactions
 	var numUnconfirmed int64
-	mempoolTxns, err := db.client.GetRawMempool(dcrjson.GRMAll)
+	mempoolTxns, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
 	if err != nil {
 		log.Warnf("GetRawMempool failed for address %s: %v", address, err)
 		return nil, numUnconfirmed, err
@@ -1336,11 +1351,18 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 
 	// Check each transaction for involvement with provided address.
 	addressOutpoints := txhelpers.NewAddressOutpoints(address)
-	for _, tx := range mempoolTxns {
+	for hash, tx := range mempoolTxns {
 		// Transaction details from dcrd
-		Tx, err1 := db.client.GetRawTransaction(tx)
+		txhash, err1 := chainhash.NewHashFromStr(hash)
 		if err1 != nil {
-			log.Warnf("Unable to GetRawTransactions(%s): %v", tx, err1)
+			log.Errorf("Invalid transaction hash %s", hash)
+			return addressOutpoints, 0, err1
+		}
+
+		Tx, err1 := db.client.GetRawTransaction(txhash)
+
+		if err1 != nil {
+			log.Warnf("Unable to GetRawTransaction(%s): %v", tx, err1)
 			err = err1
 			continue
 		}
@@ -1350,10 +1372,16 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 		if len(outpoints) == 0 && len(prevouts) == 0 {
 			continue
 		}
+		// Update previous outpoint txn slice with mempool time
+		for f := range prevTxns {
+			prevTxns[f].MemPoolTime = tx.Time
+		}
+
 		// Add present transaction to previous outpoint txn slice
 		numUnconfirmed++
 		thisTxUnconfirmed := &txhelpers.TxWithBlockData{
-			Tx: Tx.MsgTx(),
+			Tx:          Tx.MsgTx(),
+			MemPoolTime: tx.Time,
 		}
 		prevTxns = append(prevTxns, thisTxUnconfirmed)
 		// Merge the I/Os and the transactions into results
