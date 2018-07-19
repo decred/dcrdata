@@ -17,18 +17,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/btcsuite/btclog"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
-	"github.com/decred/slog"
 )
 
 var (
-	backendLog      *slog.Backend
-	rpcclientLogger slog.Logger
-	pgLogger        slog.Logger
-	stakedbLogger   slog.Logger
+	backendLog      *btclog.Backend
+	rpcclientLogger btclog.Logger
+	pgLogger        btclog.Logger
+	stakedbLogger   btclog.Logger
 )
 
 const (
@@ -41,7 +41,7 @@ func init() {
 		fmt.Printf("Unable to start logger: %v", err)
 		os.Exit(1)
 	}
-	backendLog = slog.NewBackend(log.Writer())
+	backendLog = btclog.NewBackend(log.Writer())
 	rpcclientLogger = backendLog.Logger("RPC")
 	rpcclient.UseLogger(rpcclientLogger)
 	pgLogger = backendLog.Logger("PSQL")
@@ -123,7 +123,7 @@ func mainCore() error {
 		DBName: cfg.DBName,
 	}
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
-	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, false)
+	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil)
 	if db != nil {
 		defer db.Close()
 	}
@@ -137,7 +137,7 @@ func mainCore() error {
 	}
 
 	// Create/load stake database (which includes the separate ticket pool DB).
-	stakeDB, _, err := stakedb.NewStakeDatabase(client, activeChain, "rebuild_data")
+	stakeDB, err := stakedb.NewStakeDatabase(client, activeChain, "rebuild_data")
 	if err != nil {
 		return fmt.Errorf("Unable to create stake DB: %v", err)
 	}
@@ -148,7 +148,7 @@ func mainCore() error {
 	// needs.
 	db.UseStakeDB(stakeDB)
 
-	if err = db.VersionCheck(client); err != nil {
+	if err = db.VersionCheck(); err != nil {
 		log.Warnf("ATTENTION: %v", err)
 	}
 
@@ -203,7 +203,7 @@ func mainCore() error {
 			return nil
 		default:
 		}
-		if err = stakeDB.DisconnectBlock(false); err != nil {
+		if err = stakeDB.DisconnectBlock(); err != nil {
 			return err
 		}
 		stakeDBHeight = int64(stakeDB.Height())
@@ -235,10 +235,6 @@ func mainCore() error {
 			log.Infof("Stake DB at height %d.", stakeDBHeight)
 		}
 	}
-
-	// Note that we are doing a batch blockchain sync
-	db.InBatchSync = true
-	defer func() { db.InBatchSync = false }()
 
 	var totalTxs, totalVins, totalVouts int64
 	var lastTxs, lastVins, lastVouts int64

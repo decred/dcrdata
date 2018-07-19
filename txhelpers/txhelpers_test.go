@@ -178,38 +178,3 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*rpcclient.
 
 	return dcrdClient, nodeVer, nil
 }
-
-func TestFilterHashSlice(t *testing.T) {
-	var hashList, blackList []chainhash.Hash
-	var h *chainhash.Hash
-
-	h, _ = chainhash.NewHashFromStr("8e5b17d75d1845f90940d07ac8338d0919f1cbd8e12e943c972322c628b47416")
-	hashList = append(hashList, *h)
-	h, _ = chainhash.NewHashFromStr("3365991083571c527bd3c81bd7374b6f06c17e67b50671067e78371e0511d1d5") // ***
-	hashList = append(hashList, *h)
-	h, _ = chainhash.NewHashFromStr("fd1a252947ee2ba7be5d0b197952640bdd74066a2a36f3c00beca34dbd3ac8ad")
-	hashList = append(hashList, *h)
-
-	h, _ = chainhash.NewHashFromStr("7ea06b193187dc028b6266ce49f4c942b3d57b4572991b527b5abd9ade4974b8")
-	blackList = append(blackList, *h)
-	h, _ = chainhash.NewHashFromStr("0839e25863e4d04b099d945d57180283e8be217ce6d7bc589c289bc8a1300804")
-	blackList = append(blackList, *h)
-	h, _ = chainhash.NewHashFromStr("3365991083571c527bd3c81bd7374b6f06c17e67b50671067e78371e0511d1d5") // *** [2]
-	blackList = append(blackList, *h)
-	h, _ = chainhash.NewHashFromStr("3edbc5318c36049d5fa70e6b04ef69b02d68e98c4739390c50220509a9803e26")
-	blackList = append(blackList, *h)
-	h, _ = chainhash.NewHashFromStr("37e032ece5ef4bda7b86c8b410476f3399d1ab48863d7d6279a66bea1e3876ab")
-	blackList = append(blackList, *h)
-
-	t.Logf("original: %v", hashList)
-
-	hashList = FilterHashSlice(hashList, func(h chainhash.Hash) bool {
-		return HashInSlice(h, blackList)
-	})
-
-	t.Logf("filtered: %v", hashList)
-
-	if HashInSlice(blackList[2], hashList) {
-		t.Errorf("filtered slice still has hash %v", blackList[2])
-	}
-}

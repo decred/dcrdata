@@ -25,7 +25,6 @@ import (
 	"github.com/decred/dcrdata/api"
 	"github.com/decred/dcrdata/api/insight"
 	"github.com/decred/dcrdata/blockdata"
-	"github.com/decred/dcrdata/db/agendadb"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/db/dcrsqlite"
@@ -155,7 +154,7 @@ func mainCore() error {
 			Pass:   cfg.PGPass,
 			DBName: cfg.PGDBName,
 		}
-		auxDB, err = dcrpg.NewChainDB(&dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
+		auxDB, err = dcrpg.NewChainDB(&dbi, activeChain, baseDB.GetStakeDB())
 		if auxDB != nil {
 			defer auxDB.Close()
 		}
@@ -163,7 +162,7 @@ func mainCore() error {
 			return err
 		}
 
-		if err = auxDB.VersionCheck(dcrdClient); err != nil {
+		if err = auxDB.VersionCheck(); err != nil {
 			return err
 		}
 
@@ -224,12 +223,9 @@ func mainCore() error {
 		// catch up automatically if it is behind, but we must manually rewind
 		// it here if it is ahead of PG.
 		stakedbHeight := int64(baseDB.GetStakeDB().Height())
-		fromHeight := stakedbHeight
 		if uint64(stakedbHeight) > heightDB {
-			// rewind stakedb and log at intervals of 200
-			if stakedbHeight == fromHeight || stakedbHeight%200 == 0 {
-				log.Infof("Rewinding StakeDatabase from %d to %d.", stakedbHeight, lastBlockPG)
-			}
+			// rewind stakedb
+			log.Infof("Rewinding StakeDatabase from %d to %d.", stakedbHeight, lastBlockPG)
 			stakedbHeight, err = baseDB.RewindStakeDB(lastBlockPG, quit)
 			if err != nil {
 				return fmt.Errorf("RewindStakeDB failed: %v", err)
@@ -274,11 +270,6 @@ func mainCore() error {
 		}
 	}
 
-	// AgendaDB upgrade check
-	if err = agendadb.CheckForUpdates(dcrdClient); err != nil {
-		return fmt.Errorf("agendadb upgrade failed: %v", err)
-	}
-
 	// Block data collector. Needs a StakeDatabase too.
 	collector := blockdata.NewCollector(dcrdClient, activeChain, baseDB.GetStakeDB())
 	if collector == nil {
@@ -302,7 +293,7 @@ func mainCore() error {
 	mempoolSavers = append(mempoolSavers, baseDB.MPC)
 
 	// Create the explorer system
-	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, ver.String(), !cfg.NoDevPrefetch)
+	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, ver.String())
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
 	}
@@ -517,15 +508,12 @@ func mainCore() error {
 	webMux.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
 	webMux.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)
 	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)
-	webMux.Get("/agendas", explore.AgendasPage)
-	webMux.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)
 	webMux.Get("/decodetx", explore.DecodeTxPage)
 	webMux.Get("/search", explore.Search)
-	webMux.Get("/charts", explore.Charts)
 
 	if usePG {
 		chainDBRPC, _ := dcrpg.NewChainDBRPC(auxDB, dcrdClient)
-		insightApp := insight.NewInsightContext(dcrdClient, chainDBRPC, activeChain, &baseDB, cfg.IndentJSON)
+		insightApp := insight.NewInsightContext(dcrdClient, chainDBRPC, cfg.IndentJSON)
 		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
 		webMux.Mount("/insight/api", insightMux.Mux)
 

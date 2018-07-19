@@ -8,7 +8,7 @@
     {{with .Data}}
     {{$heights := $.ConfirmHeight}}
     {{$TxnCount := .TxnCount}}
-    <div class="container" data-controller="main">
+    <div class="container">
         <div class="row">
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
@@ -150,11 +150,7 @@
                                 {{if eq .SentTotal 0.0}}
                                 <td class="text-right">sstxcommitment</td>
                                 {{else}}
-                                    {{if ne .MatchedTx ""}}
-                                      <td class="text-right"><a href="/tx/{{.MatchedTx}}" class="hash">source</a></td>
-                                    {{else}}
-                                      <td>N/A</td>
-                                    {{end}}
+                                <td></td>
                                 {{end}}
                             {{end}}
                             {{if ne .SentTotal 0.0}}
@@ -164,11 +160,7 @@
                                     <td>N/A</td>
                                 {{end}}
                             {{else}}
-                                {{if ne .MatchedTx ""}}
-                                    <td><a href="/tx/{{.MatchedTx}}" class="hash">spent</a></td>
-                                {{else}}
-                                    <td>unspent</td>
-                                {{end}}
+                                <td></td>
                             {{end}}
                             <td>
                                 {{if eq .Time 0}}
@@ -181,7 +173,7 @@
                             {{if eq .Time 0}}
                                 N/A
                             {{else}}
-                                <span data-target="main.age" data-age="{{.Time}}"></span>
+                                <span data-age="{{.Time}}"></span>
                             {{end}}
                             </td>
                             <td data-confirmation-block-height="{{index $.ConfirmHeight $i}}">{{.Confirmations}}</td>
@@ -233,7 +225,19 @@
                         class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
                         {{if lt $TxnCount 20}}disabled="disabled"{{end}}
                     >
-                    <option {{if eq .Limit $TxnCount}}selected{{end}} value="{{len .Transactions}}">{{len .Transactions}}</option>
+                        <option {{if eq .Limit 10}}selected{{end}} value="20">20</option>
+                        {{if ge $TxnCount 100}}
+                        <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
+                        {{else}}
+                        <option {{if eq .Limit $TxnCount}}selected{{end}} value="{{$TxnCount}}">All ({{$TxnCount}})</option>
+                        {{end}}
+                        {{if gt $TxnCount 100}}
+                        {{if ge $TxnCount 1000}}
+                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
+                        {{else}}
+                        <option {{if eq .Limit $TxnCount}}selected{{end}} value="{{$TxnCount}}">All ({{$TxnCount}})</option>
+                        {{end}}
+                        {{end}}
                     </select>
                 </div>
             </div>
@@ -241,6 +245,18 @@
     </div>
 
     <script>
+        {{if lt .NumFundingTxns .KnownFundingTxns}}
+        $("#pagesize-wrapper").removeClass("hidden")
+        $("#pagesize").change(function(ev) {
+            Turbolinks.visit(
+                window.location.pathname
+                + "?txntype="+ $("#txntype").val()
+                + "&n="+ parseInt($(ev.currentTarget).val())
+                + "&start=" + {{.Offset}}
+            )
+        })
+        {{end}}
+
         $("#txntype").change(function(ev) {
             Turbolinks.visit(
                 window.location.pathname

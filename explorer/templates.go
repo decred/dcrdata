@@ -78,7 +78,7 @@ func (t *templates) reloadTemplates() error {
 func (t *templates) execTemplateToString(name string, data interface{}) (string, error) {
 	temp, ok := t.templates[name]
 	if !ok {
-		return "", fmt.Errorf("Template %s not known", name)
+		return "", fmt.Errorf("Template %s not know", name)
 	}
 
 	var page bytes.Buffer
@@ -244,10 +244,6 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"uint16Mul": func(a uint16, b int) (result int) {
 			result = int(a) * b
-			return
-		},
-		"TimeConversion": func(a uint64) (result time.Time) {
-			result = time.Unix(int64(a), 0)
 			return
 		},
 	}

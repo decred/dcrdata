@@ -9,8 +9,6 @@ package insight
 
 import (
 	m "github.com/decred/dcrdata/middleware"
-	"github.com/didip/tollbooth"
-	"github.com/didip/tollbooth_chi"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 )
@@ -26,13 +24,8 @@ const APIVersion = 0
 // NewInsightApiRouter returns a new HTTP path router, ApiMux, for the Insight
 // API.
 func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
-	// Create a limiter struct.
-	limiter := tollbooth.NewLimiter(1, nil)
-
 	// chi router
 	mux := chi.NewRouter()
-
-	mux.Use(tollbooth_chi.LimitHandler(limiter))
 
 	if userRealIP {
 		mux.Use(middleware.RealIP)
@@ -40,49 +33,44 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
-	mux.Use(middleware.StripSlashes)
-	mux.Use(middleware.DefaultCompress)
 
 	// Block endpoints
-	mux.With(app.BlockDateLimitQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
-	mux.With(app.BlockIndexOrHashPathCtx).Get("/block/{idxorhash}", app.getBlockSummary)
-	mux.With(app.BlockIndexOrHashPathCtx).Get("/block-index/{idxorhash}", app.getBlockHash)
-	mux.With(app.BlockIndexOrHashPathCtx).Get("/rawblock/{idxorhash}", app.getRawBlock)
+	mux.With(m.BlockDateQueryCtx).Get("/blocks", app.getBlockSummaryByTime)
+	mux.With(app.BlockHashPathAndIndexCtx).Get("/block/{blockhash}", app.getBlockSummary)
+	mux.With(m.BlockIndexPathCtx).Get("/block-index/{idx}", app.getBlockHash)
+	mux.With(m.BlockIndexOrHashPathCtx).Get("/rawblock/{idx}", app.getRawBlock)
 
 	// Transaction endpoints
-	mux.With(middleware.AllowContentType("application/json"),
-		app.ValidatePostCtx, app.PostBroadcastTxCtx).Post("/tx/send", app.broadcastTransactionRaw)
+	mux.With(m.RawTransactionCtx).Post("/tx/send", app.broadcastTransactionRaw)
 	mux.With(m.TransactionHashCtx).Get("/tx/{txid}", app.getTransaction)
 	mux.With(m.TransactionHashCtx).Get("/rawtx/{txid}", app.getTransactionHex)
 	mux.With(m.TransactionsCtx).Get("/txs", app.getTransactions)
 
-	// Status and Utility
+	// Status
 	mux.With(app.StatusInfoCtx).Get("/status", app.getStatusInfo)
-	mux.With(app.NbBlocksCtx).Get("/utils/estimatefee", app.getEstimateFee)
-	mux.Get("/peer", app.GetPeerStatus)
 
 	// Addresses endpoints
 	mux.Route("/addrs", func(rd chi.Router) {
-		rd.Route("/{address}", func(ra chi.Router) {
-			ra.Use(m.AddressPathCtx, app.FromToPaginationCtx)
+		mux.Route("/{address}", func(ra chi.Router) {
+			ra.Use(m.AddressPathCtx, m.PaginationCtx)
 			ra.Get("/txs", app.getAddressesTxn)
 			ra.Get("/utxo", app.getAddressesTxnOutput)
 		})
 		// POST methods
-		rd.With(middleware.AllowContentType("application/json"),
-			app.ValidatePostCtx, app.PostAddrsTxsCtx).Post("/txs", app.getAddressesTxn)
-		rd.With(middleware.AllowContentType("application/json"),
-			app.ValidatePostCtx, app.PostAddrsUtxoCtx).Post("/utxo", app.getAddressesTxnOutput)
+		rd.With(m.PaginationCtx, m.AddressPostCtx).Post("/txs", app.getAddressesTxn)
+		rd.With(m.AddressPostCtx).Post("/utxo", app.getAddressesTxnOutput)
 	})
 
 	// Address endpoints
 	mux.Route("/addr/{address}", func(rd chi.Router) {
 		rd.Use(m.AddressPathCtx)
-		rd.With(app.FromToPaginationCtx, app.NoTxListCtx).Get("/", app.getAddressInfo)
-		rd.Get("/utxo", app.getAddressesTxnOutput)
-		rd.Route("/{command}", func(ra chi.Router) {
-			ra.With(app.AddressCommandCtx).Get("/", app.getAddressInfo)
-		})
+		rd.With(m.PaginationCtx).Get("/", app.getAddressInfo)
+		rd.Get("/utxo", app.getAddressTxnOutput)
+		rd.Get("/balance", app.getAddressBalance)
+		rd.Get("/totalReceived", app.getAddressTotalReceived)
+		// TODO Missing unconfirmed balance implementation
+		rd.Get("/unconfirmedBalance", app.getAddressUnconfirmedBalance)
+		rd.Get("/totalSent", app.getAddressTotalSent)
 	})
 
 	return ApiMux{mux}

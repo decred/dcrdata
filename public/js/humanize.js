@@ -8,7 +8,7 @@ var humanize = (function() {
     return Math.round(value * multiplier) / multiplier
   }
   return {
-    decimalParts: function(v, useCommas, precision, asString) {
+    decimalParts: function(v, useCommas, precision) {
       if (!precision || precision > 8) {
         precision = 8
       }
@@ -27,15 +27,11 @@ var humanize = (function() {
       }
       var decimalVals = decimal.slice(0,decimal.length - numTrailingZeros)
       var trailingZeros = (numTrailingZeros == 0) ? "" : decimal.slice(-(numTrailingZeros))
-      var htmlString = "<span class='int'>"+int+"</span>"+
-      "<span class='dot'>.</span>"+
-      "<span class='decimal'>"+decimalVals+
-         "<span class='trailing-zeroes'>"+trailingZeros+"</span>"+
-       "</span>"
-      if (asString) {
-        return htmlString
-      }
-      return $.parseHTML(htmlString)
+      return $.parseHTML("<span class='int'>"+int+"</span>"+
+             "<span class='dot'>.</span>"+
+             "<span class='decimal'>"+decimalVals+
+                "<span class='trailing-zeroes'>"+trailingZeros+"</span>"+
+              "</span>")
     },
     subsidyToString:  function(x, y = 1) {
       return (x / 100000000 / y) + " DCR"

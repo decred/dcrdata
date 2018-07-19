@@ -5,7 +5,7 @@
 {{template "html-head" "Decred Blocks"}}
 <body>
     {{template "navbar" . }}
-    <div class="container" data-controller="main">
+    <div class="container">
         <h4><span>Blocks</span></h4>
         <div class="row fs13">
             <div class="col d-flex justify-content-between">
@@ -58,7 +58,7 @@
                             <td>{{.FreshStake}}</td>
                             <td>{{.Revocations}}</td>
                             <td>{{.FormattedBytes}}</td>
-                            <td data-target="main.age" data-age="{{.BlockTime}}"></td>
+                            <td data-age="{{.BlockTime}}"></td>
                             <td>{{.FormattedTime}}</td>
                         </tr>
                     {{end}}

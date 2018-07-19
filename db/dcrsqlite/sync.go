@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	rescanLogBlockChunk = 1000
+	rescanLogBlockChunk = 250
 )
 
 // DBHeights returns the best block heights of: SQLite database tables (block
@@ -63,12 +63,9 @@ func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHei
 	if toHeight < 0 {
 		toHeight = 0
 	}
-	fromHeight := stakeDBHeight
-	log.Infof("Rewinding from %d to %d", fromHeight, toHeight)
+	log.Infof("Rewinding from %d to %d", stakeDBHeight, toHeight)
 	for stakeDBHeight > toHeight {
-		if stakeDBHeight == fromHeight || stakeDBHeight%200 == 0 {
-			log.Infof("Rewinding from %d to %d", stakeDBHeight, toHeight)
-		}
+		log.Infof("Rewinding from %d to %d", stakeDBHeight, toHeight)
 		// check for quit signal
 		select {
 		case <-quit:
@@ -76,7 +73,7 @@ func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHei
 			return
 		default:
 		}
-		if err = db.sDB.DisconnectBlock(false); err != nil {
+		if err = db.sDB.DisconnectBlock(); err != nil {
 			return
 		}
 		stakeDBHeight = int64(db.sDB.Height())
