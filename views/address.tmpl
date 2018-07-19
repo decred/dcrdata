@@ -1,12 +1,13 @@
 {{define "address"}}
 <!DOCTYPE html>
 <html lang="en">
-{{with .Data}}
-{{$TxnCount := .TxnCount}}
-{{template "html-head" printf "Decred Address %s" .Address}}
+
+{{template "html-head" printf "Decred Address %s" .Data.Address}}
 <body>
+    {{template "navbar" . }}
+    {{with .Data}}
     {{$heights := $.ConfirmHeight}}
-    {{template "navbar"}}
+    {{$TxnCount := .TxnCount}}
     <div class="container">
         <div class="row">
             <div class="col-md-8 col-sm-6">
@@ -142,7 +143,7 @@
                         {{range $i, $v := .Transactions}}
                         <tr>
                             {{with $v}}
-                            <td><a href="/tx/{{.TxID}}" class="hash">{{.IOID}}</a></td>
+                            <td><a href="/tx/{{.TxID}}" class="hash" data-keynav-priority>{{.IOID}}</a></td>
                             {{if ne .ReceivedTotal 0.0}}
                                 <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal false)}}</td>
                             {{else}}

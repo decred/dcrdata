@@ -10,13 +10,26 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
+
+// netName returns the name used when referring to a decred network.
+func netName(chainParams *chaincfg.Params) string {
+	switch chainParams.Net {
+	case wire.TestNet2:
+		return "Testnet"
+	default:
+		return strings.Title(chainParams.Name)
+	}
+}
 
 // Home is the page handler for the "/" path
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
@@ -26,16 +39,19 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	exp.NewBlockDataMtx.Lock()
 	exp.MempoolData.RLock()
+
 	str, err := exp.templates.execTemplateToString("home", struct {
 		Info    *HomeInfo
 		Mempool *MempoolInfo
 		Blocks  []*BlockBasic
 		Version string
+		NetName string
 	}{
 		exp.ExtraInfo,
 		exp.MempoolData,
 		blocks,
 		exp.Version,
+		exp.NetName,
 	})
 	exp.NewBlockDataMtx.Unlock()
 	exp.MempoolData.RUnlock()
@@ -60,9 +76,16 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-	if err != nil || rows > maxExplorerRows || rows < minExplorerRows || height-rows < 0 {
+
+	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
 		rows = minExplorerRows
 	}
+
+	oldestBlock := height - rows + 1
+	if oldestBlock < 0 {
+		height = rows - 1
+	}
+
 	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
@@ -73,11 +96,15 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("explorer", struct {
 		Data      []*BlockBasic
 		BestBlock int
+		Rows      int
 		Version   string
+		NetName   string
 	}{
 		summaries,
 		idx,
+		rows,
 		exp.Version,
+		exp.NetName,
 	})
 
 	if err != nil {
@@ -124,10 +151,12 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		Data          *BlockInfo
 		ConfirmHeight int64
 		Version       string
+		NetName       string
 	}{
 		data,
 		exp.NewBlockData.Height - data.Confirmations,
 		exp.Version,
+		exp.NetName,
 	}
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
@@ -147,9 +176,11 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("mempool", struct {
 		Mempool *MempoolInfo
 		Version string
+		NetName string
 	}{
 		exp.MempoolData,
 		exp.Version,
+		exp.NetName,
 	})
 	exp.MempoolData.RUnlock()
 
@@ -273,10 +304,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		Data          *TxInfo
 		ConfirmHeight int64
 		Version       string
+		NetName       string
 	}{
 		tx,
 		exp.NewBlockData.Height - tx.Confirmations,
 		exp.Version,
+		exp.NetName,
 	}
 
 	str, err := exp.templates.execTemplateToString("tx", pageData)
@@ -298,6 +331,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		Data          *AddressInfo
 		ConfirmHeight []int64
 		Version       string
+		NetName       string
 	}
 
 	// Get the address URL parameter, which should be set in the request context
@@ -507,6 +541,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		Data:          addrData,
 		ConfirmHeight: confirmHeights,
 		Version:       exp.Version,
+		NetName:       exp.NetName,
 	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
@@ -525,8 +560,10 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("rawtx", struct {
 		Version string
+		NetName string
 	}{
 		exp.Version,
+		exp.NetName,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -599,10 +636,12 @@ func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message str
 		ErrorCode   string
 		ErrorString string
 		Version     string
+		NetName     string
 	}{
 		code,
 		message,
 		exp.Version,
+		exp.NetName,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -636,9 +675,11 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("parameters", struct {
 		Cp      ExtendedChainParams
 		Version string
+		NetName string
 	}{
 		ecp,
 		exp.Version,
+		exp.NetName,
 	})
 
 	if err != nil {

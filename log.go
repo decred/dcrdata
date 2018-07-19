@@ -63,6 +63,7 @@ var (
 	expLog        = backendLog.Logger("EXPR")
 	apiLog        = backendLog.Logger("JAPI")
 	log           = backendLog.Logger("DATD")
+	iapiLog       = backendLog.Logger("IAPI")
 )
 
 // Initialize package-global logger variables.
@@ -76,7 +77,7 @@ func init() {
 	mempool.UseLogger(mempoolLog)
 	explorer.UseLogger(expLog)
 	api.UseLogger(apiLog)
-	insight.UseLogger(apiLog)
+	insight.UseLogger(iapiLog)
 	middleware.UseLogger(apiLog)
 	notify.UseLogger(notifyLog)
 }
@@ -92,6 +93,7 @@ var subsystemLoggers = map[string]btclog.Logger{
 	"MEMP": mempoolLog,
 	"EXPR": expLog,
 	"JAPI": apiLog,
+	"IAPI": iapiLog,
 	"DATD": log,
 }
 

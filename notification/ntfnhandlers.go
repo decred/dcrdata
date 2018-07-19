@@ -14,6 +14,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/api/insight"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/explorer"
@@ -157,36 +158,49 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 		},
 		OnReorganization: func(oldHash *chainhash.Hash, oldHeight int32,
 			newHash *chainhash.Hash, newHeight int32) {
+			wg := new(sync.WaitGroup)
 			// Send reorg data to dcrsqlite's monitor
+			wg.Add(1)
 			select {
 			case NtfnChans.ReorgChanWiredDB <- &dcrsqlite.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
 				NewChainHeight: newHeight,
+				WG:             wg,
 			}:
 			default:
+				wg.Done()
 			}
+
 			// Send reorg data to blockdata's monitor (so that it stops collecting)
+			wg.Add(1)
 			select {
 			case NtfnChans.ReorgChanBlockData <- &blockdata.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
 				NewChainHeight: newHeight,
+				WG:             wg,
 			}:
 			default:
+				wg.Done()
 			}
+
 			// Send reorg data to stakedb's monitor
+			wg.Add(1)
 			select {
 			case NtfnChans.ReorgChanStakeDB <- &stakedb.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
 				NewChainHeight: newHeight,
+				WG:             wg,
 			}:
 			default:
+				wg.Done()
 			}
+			wg.Wait()
 		},
 
 		OnWinningTickets: func(blockHash *chainhash.Hash, blockHeight int64,
@@ -225,6 +239,7 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 		// for the mempool monitors to avoid an extra call to dcrd for
 		// the tx details
 		OnTxAcceptedVerbose: func(txDetails *dcrjson.TxRawResult) {
+
 			select {
 			case NtfnChans.ExpNewTxChan <- &explorer.NewMempoolTx{
 				Time: time.Now().Unix(),
@@ -232,6 +247,17 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 			}:
 			default:
 				log.Warn("expNewTxChan buffer full!")
+			}
+
+			select {
+			case NtfnChans.InsightNewTxChan <- &insight.NewTx{
+				Hex:   txDetails.Hex,
+				Vouts: txDetails.Vout,
+			}:
+			default:
+				if NtfnChans.InsightNewTxChan != nil {
+					log.Warn("InsightNewTxChan buffer full!")
+				}
 			}
 
 			hash, _ := chainhash.NewHashFromStr(txDetails.Txid)

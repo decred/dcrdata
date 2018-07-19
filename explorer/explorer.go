@@ -109,6 +109,7 @@ type explorerUI struct {
 	MempoolData     *MempoolInfo
 	ChainParams     *chaincfg.Params
 	Version         string
+	NetName         string
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -165,6 +166,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	params := exp.blockData.GetChainParams()
 	exp.ChainParams = params
+	exp.NetName = netName(exp.ChainParams)
 
 	// Development subsidy address of the current network
 	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(params)
@@ -172,8 +174,18 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Warnf("explorer.New: %v", err)
 	}
 	log.Debugf("Organization address: %s", devSubsidyAddress)
+
+	// Set default static values for ExtraInfo
 	exp.ExtraInfo = &HomeInfo{
 		DevAddress: devSubsidyAddress,
+		Params: ChainParams{
+			WindowSize:       exp.ChainParams.StakeDiffWindowSize,
+			RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
+			BlockTime:        exp.ChainParams.TargetTimePerBlock.Nanoseconds(),
+		},
+		PoolInfo: TicketPoolInfo{
+			Target: exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
+		},
 	}
 
 	noTemplateError := func(err error) *explorerUI {
@@ -220,73 +232,63 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 		return (a / b) * 100
 	}
 
-	exp.ExtraInfo = &HomeInfo{
-		CoinSupply:        blockData.ExtraInfo.CoinSupply,
-		StakeDiff:         blockData.CurrentStakeDiff.CurrentStakeDifficulty,
-		IdxBlockInWindow:  blockData.IdxBlockInWindow,
-		IdxInRewardWindow: int(newBlockData.Height % exp.ChainParams.SubsidyReductionInterval),
-		DevAddress:        exp.ExtraInfo.DevAddress,
-		Difficulty:        blockData.Header.Difficulty,
-		NBlockSubsidy: BlockSubsidy{
-			Dev:   blockData.ExtraInfo.NextBlockSubsidy.Developer,
-			PoS:   blockData.ExtraInfo.NextBlockSubsidy.PoS,
-			PoW:   blockData.ExtraInfo.NextBlockSubsidy.PoW,
-			Total: blockData.ExtraInfo.NextBlockSubsidy.Total,
-		},
-		Params: ChainParams{
-			WindowSize:       exp.ChainParams.StakeDiffWindowSize,
-			RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
-			BlockTime:        exp.ChainParams.TargetTimePerBlock.Nanoseconds(),
-		},
-		PoolInfo: TicketPoolInfo{
-			Size:       blockData.PoolInfo.Size,
-			Value:      blockData.PoolInfo.Value,
-			ValAvg:     blockData.PoolInfo.ValAvg,
-			Percentage: percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()),
-			Target:     exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
-			PercentTarget: func() float64 {
-				target := float64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
-				return float64(blockData.PoolInfo.Size) / target * 100
-			}(),
-		},
-		TicketROI: func() float64 {
-			PosSubPerVote := dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin() / float64(exp.ChainParams.TicketsPerBlock)
-			return percentage(PosSubPerVote, blockData.CurrentStakeDiff.CurrentStakeDifficulty)
-		}(),
+	// Update all ExtraInfo with latest data
+	exp.ExtraInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
+	exp.ExtraInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
+	exp.ExtraInfo.IdxBlockInWindow = blockData.IdxBlockInWindow
+	exp.ExtraInfo.IdxInRewardWindow = int(newBlockData.Height % exp.ChainParams.SubsidyReductionInterval)
+	exp.ExtraInfo.Difficulty = blockData.Header.Difficulty
+	exp.ExtraInfo.NBlockSubsidy.Dev = blockData.ExtraInfo.NextBlockSubsidy.Developer
+	exp.ExtraInfo.NBlockSubsidy.PoS = blockData.ExtraInfo.NextBlockSubsidy.PoS
+	exp.ExtraInfo.NBlockSubsidy.PoW = blockData.ExtraInfo.NextBlockSubsidy.PoW
+	exp.ExtraInfo.NBlockSubsidy.Total = blockData.ExtraInfo.NextBlockSubsidy.Total
+	exp.ExtraInfo.PoolInfo.Size = blockData.PoolInfo.Size
+	exp.ExtraInfo.PoolInfo.Value = blockData.PoolInfo.Value
+	exp.ExtraInfo.PoolInfo.ValAvg = blockData.PoolInfo.ValAvg
+	exp.ExtraInfo.PoolInfo.Percentage = percentage(blockData.PoolInfo.Value, dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin())
 
-		// If there are ticketpoolsize*TicketsPerBlock total tickets and
-		// TicketsPerBlock are drawn every block, and assuming random selection
-		// of tickets, then any one ticket will, on average, be selected to vote
-		// once every ticketpoolsize blocks
+	exp.ExtraInfo.PoolInfo.PercentTarget = func() float64 {
+		target := float64(exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock)
+		return float64(blockData.PoolInfo.Size) / target * 100
+	}()
 
-		// Small deviations in reality are due to:
-		// 1.  Not all blocks have 5 votes.  On average each block in Decred
-		// currently has about 4.8 votes per block
-		// 2.  Total tickets in the pool varies slightly above and below
-		// ticketpoolsize*TicketsPerBlock depending on supply and demand
+	exp.ExtraInfo.TicketROI = func() float64 {
+		PosSubPerVote := dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin() / float64(exp.ChainParams.TicketsPerBlock)
+		return percentage(PosSubPerVote, blockData.CurrentStakeDiff.CurrentStakeDifficulty)
+	}()
 
-		// Both minor deviations are not accounted for in the general ROI
-		// calculation below because the variance they cause would be would be
-		// extremely small.
+	// If there are ticketpoolsize*TicketsPerBlock total tickets and
+	// TicketsPerBlock are drawn every block, and assuming random selection
+	// of tickets, then any one ticket will, on average, be selected to vote
+	// once every ticketpoolsize blocks
 
-		// The actual ROI of a ticket needs to also take into consideration the
-		// ticket maturity (time from ticket purchase until its eligible to vote)
-		// and coinbase maturity (time after vote until funds distributed to
-		// ticket holder are avaliable to use)
-		ROIPeriod: func() string {
-			PosAvgTotalBlocks := float64(
-				exp.ChainParams.TicketPoolSize +
-					exp.ChainParams.TicketMaturity +
-					exp.ChainParams.CoinbaseMaturity)
-			return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
-		}(),
-	}
+	// Small deviations in reality are due to:
+	// 1.  Not all blocks have 5 votes.  On average each block in Decred
+	// currently has about 4.8 votes per block
+	// 2.  Total tickets in the pool varies slightly above and below
+	// ticketpoolsize*TicketsPerBlock depending on supply and demand
+
+	// Both minor deviations are not accounted for in the general ROI
+	// calculation below because the variance they cause would be would be
+	// extremely small.
+
+	// The actual ROI of a ticket needs to also take into consideration the
+	// ticket maturity (time from ticket purchase until its eligible to vote)
+	// and coinbase maturity (time after vote until funds distributed to
+	// ticket holder are avaliable to use)
+	exp.ExtraInfo.ROIPeriod = func() string {
+		PosAvgTotalBlocks := float64(
+			exp.ChainParams.TicketPoolSize +
+				exp.ChainParams.TicketMaturity +
+				exp.ChainParams.CoinbaseMaturity)
+		return fmt.Sprintf("%.2f days", exp.ChainParams.TargetTimePerBlock.Seconds()*PosAvgTotalBlocks/86400)
+	}()
+
+	exp.NewBlockDataMtx.Unlock()
 
 	if !exp.liteMode {
 		go exp.updateDevFundBalance()
 	}
-
-	exp.NewBlockDataMtx.Unlock()
 
 	// Signal to the websocket hub that a new block was received, but do not
 	// block Store(), and do not hang forever in a goroutine waiting to send.

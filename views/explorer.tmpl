@@ -4,15 +4,27 @@
 
 {{template "html-head" "Decred Blocks"}}
 <body>
-    {{template "navbar"}}
+    {{template "navbar" . }}
     <div class="container">
         <h4><span>Blocks</span></h4>
-
         <div class="row fs13">
             <div class="col d-flex justify-content-between">
-                <a id="prev" class="no-underline" href="/blocks">◄ Older</a>
-                <p id="best" class="hidden">{{.BestBlock}}</p>
-                <a id="next" class="no-underline" href="/blocks">Newer ►</a>
+                {{ if ge (index .Data 0).Height .Rows }}
+                <a
+                    id="prev"
+                    class="no-underline"
+                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    data-keynav-priority
+                >◄ Older</a>
+                {{end}}
+                {{ if lt (index .Data 0).Height .BestBlock }}
+                 <a
+                    id="next"
+                    class="no-underline"
+                    href="/blocks?height={{ add (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    data-preserve-keynav-index="true"
+                >Newer ►</a>
+                {{end}}
             </div>
         </div>
 
@@ -55,27 +67,6 @@
             </div>
         </div>
     </div>
-
-    <script>
-        var heights = document.getElementsByClassName("height");
-        var first = parseInt(heights[0].innerText.replace(/,/g, ''));
-        var last = parseInt(heights[heights.length-1].innerText.replace(/,/g, ''));
-        var numBlocks = first - last + 1;
-        var prev = document.getElementById("prev");
-        var next = document.getElementById("next");
-        prev.addEventListener('click', function(event) {
-            event.preventDefault();
-            window.location.href = prev.href + '?height='+ (first-numBlocks).toString() + "&rows=" + (numBlocks).toString();
-        }, false);
-        next.addEventListener('click', function(event) {
-            event.preventDefault();
-            window.location.href = next.href + '?height='+ (first+numBlocks).toString() + "&rows=" + (numBlocks).toString();
-        }, false);
-        var best = document.getElementById("best");
-        if (parseInt(best.innerText) == first) {
-            next.className = "hidden"
-        }
-    </script>
 
 {{ template "footer" . }}
 

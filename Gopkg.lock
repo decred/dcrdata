@@ -3,6 +3,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/aead/siphash"
+  packages = ["."]
+  revision = "e404fcfc888570cadd1610538e2dbc89f66af814"
+
+[[projects]]
+  branch = "master"
   name = "github.com/agl/ed25519"
   packages = [
     ".",
@@ -20,8 +26,8 @@
     "internal",
     "q"
   ]
-  revision = "68fc73b635f890fe7ba2f3b15ce80c85b28a744f"
-  version = "v2.0.2"
+  revision = "bda68dab90fc908ee5dbccb36400edf4f54972d6"
+  version = "v2.1.1"
 
 [[projects]]
   branch = "master"
@@ -124,31 +130,33 @@
     "dcrec/secp256k1/schnorr",
     "dcrjson",
     "dcrutil",
+    "gcs",
+    "gcs/blockcf",
     "hdkeychain",
     "rpcclient",
     "txscript",
     "wire"
   ]
-  revision = "8deac318d025dfcba21cae6eb4a16bfbe9513d9d"
+  revision = "2e293f28bfdd81e08b012bd83b7ccdb12e19a94a"
 
 [[projects]]
   branch = "master"
   name = "github.com/decred/dcrwallet"
   packages = [
-    "apperrors",
+    "errors",
     "internal/zero",
     "netparams",
     "snacl",
     "wallet/udb",
     "walletdb"
   ]
-  revision = "87b1f9a230dfa916a4501c2360e741081ca035a0"
+  revision = "bb6dd72b9b092efa739242893bd7b4dcc4d6bb27"
 
 [[projects]]
   branch = "master"
   name = "github.com/dustin/go-humanize"
   packages = ["."]
-  revision = "bb3d318650d48840a39aa21a027c6630e198e626"
+  revision = "02af3965c54e8cacf948b97fef38925c4120652c"
 
 [[projects]]
   name = "github.com/go-chi/chi"
@@ -166,10 +174,51 @@
   version = "v1.0.2"
 
 [[projects]]
+  name = "github.com/google/gops"
+  packages = [
+    "agent",
+    "internal",
+    "signal"
+  ]
+  revision = "0e2aa5d22efec1603f7ded7097c500e9a36a13b3"
+  version = "v0.3.3"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/googollee/go-engine.io"
+  packages = [
+    ".",
+    "message",
+    "parser",
+    "polling",
+    "transport",
+    "websocket"
+  ]
+  revision = "80ae0e43aca17b4c5a6834999d0f2eaa16b9afda"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/googollee/go-socket.io"
+  packages = ["."]
+  revision = "970a1286d096d33129776082dfa89b35970e00c2"
+
+[[projects]]
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
+  version = "v1.2.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/jrick/logrotate"
   packages = ["rotator"]
   revision = "a93b200c26cbae3bb09dd0dc2c7c7fe1468a034a"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kardianos/osext"
+  packages = ["."]
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
 
 [[projects]]
   branch = "master"
@@ -178,7 +227,7 @@
     ".",
     "oid"
   ]
-  revision = "88edab0803230a3898347e77b474f8c1820a1f20"
+  revision = "d34b9ff171c21ad295489235aec8b6626023cd04"
 
 [[projects]]
   name = "github.com/mattn/go-colorable"
@@ -225,8 +274,8 @@
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
-  version = "v1.0.4"
+  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
+  version = "v1.0.5"
 
 [[projects]]
   branch = "master"
@@ -240,13 +289,13 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "c7dcf104e3a7a1417abc0230cb0d5240d764159d"
+  revision = "1a580b3eff7814fc9b40602fd35256c63b50f491"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["websocket"]
-  revision = "d0aafc73d5cdc42264b0af071c261abac580695e"
+  revision = "8e0cdda24ed423affc8f35c241e5e9b16180338e"
 
 [[projects]]
   branch = "master"
@@ -255,11 +304,11 @@
     "unix",
     "windows"
   ]
-  revision = "7dca6fe1f43775aa6d1334576870ff63f978f539"
+  revision = "7f59abf37be6a6007f075af1bc7f16f137bc176b"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2bfe6c04715a8ce07c4c67aeaa959e5781c1fd325c9add797b1a3cf9cb5036ed"
+  inputs-digest = "933c7a02d3161f35a6df99bc10dcb7d2f43d4b2b134b48877cdff54130f7faf1"
   solver-name = "gps-cdcl"
   solver-version = 1
