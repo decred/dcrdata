@@ -31,6 +31,10 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/btcsuite/btclog"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/btcsuite/go-flags"
 
 [[constraint]]
@@ -97,15 +101,6 @@
   branch = "master"
   name = "golang.org/x/net"
 
-  
-[[constraint]]
-  name = "github.com/decred/slog"
-  version = "1.0.0"
-
 [prune]
   go-tests = true
   unused-packages = true
-
-[[constraint]]
-  name = "github.com/dgraph-io/badger"
-  version = "1.5.0"

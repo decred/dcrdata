@@ -3,12 +3,18 @@
 <html lang="en">
 {{template "html-head" printf "Error %s" .ErrorCode}}
 <body>
+
     {{template "navbar" . }}
 
     <div class="container">
         <br/>
-        <div class="alert alert-info">
+        <div>
             <h4>No matching block, address or transaction could be found.</h4>
+        </div>
+        <div class="row">
+            <div class="col">
+                
+            </div>
         </div>
     </div>
 {{ template "footer" . }}

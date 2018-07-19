@@ -54,11 +54,6 @@ type TrimmedTx struct {
 	Vout     []Vout        `json:"vout"`
 }
 
-// Txns models the multi transaction post data structure
-type Txns struct {
-	Transactions []string `json:"transactions"`
-}
-
 // VoteInfo models data about a SSGen transaction (vote)
 type VoteInfo struct {
 	Validation BlockValidation         `json:"block_validation"`
@@ -98,6 +93,14 @@ type Vout struct {
 	N                   uint32       `json:"n"`
 	Version             uint16       `json:"version"`
 	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey"`
+}
+
+// VoutHexScript models the hex script for a transaction output
+type VoutHexScript struct {
+	Value           float64 `json:"value"`
+	N               uint32  `json:"n"`
+	Version         uint16  `json:"version"`
+	ScriptPubKeyHex string  `json:"scriptPubKey"`
 }
 
 // ScriptPubKey is the result of decodescript(ScriptPubKeyHex)
@@ -204,8 +207,8 @@ type TxRawWithTxType struct {
 // ScriptSig models the signature script used to redeem the origin transaction
 // as a JSON object (non-coinbase txns only)
 type ScriptSig struct {
-	Asm string `json:"asm,omitempty"`
-	Hex string `json:"hex,omitempty"`
+	Asm string `json:"asm"`
+	Hex string `json:"hex"`
 }
 
 // PrevOut represents previous output for an input Vin.

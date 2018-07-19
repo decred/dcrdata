@@ -37,9 +37,9 @@ func DevSubsidyAddress(params *chaincfg.Params) (string, error) {
 // wire.MsgBlock and returns the processed information in slices of the dbtypes
 // Tx, Vout, and VinTxPropertyARRAY.
 func ExtractBlockTransactions(msgBlock *wire.MsgBlock, txTree int8,
-	chainParams *chaincfg.Params, isValid bool) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
+	chainParams *chaincfg.Params) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
 	dbTxs, dbTxVouts, dbTxVins := processTransactions(msgBlock, txTree,
-		chainParams, isValid)
+		chainParams)
 	if txTree != wire.TxTreeRegular && txTree != wire.TxTreeStake {
 		fmt.Printf("Invalid transaction tree: %v", txTree)
 	}
@@ -47,7 +47,7 @@ func ExtractBlockTransactions(msgBlock *wire.MsgBlock, txTree int8,
 }
 
 func processTransactions(msgBlock *wire.MsgBlock, tree int8,
-	chainParams *chaincfg.Params, isValid bool) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
+	chainParams *chaincfg.Params) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
 
 	var txs []*wire.MsgTx
 	switch tree {
@@ -109,15 +109,13 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8,
 				PrevTxIndex: txin.PreviousOutPoint.Index,
 				PrevTxTree:  uint16(txin.PreviousOutPoint.Tree),
 				Sequence:    txin.Sequence,
-				ValueIn:     txin.ValueIn,
+				ValueIn:     uint64(txin.ValueIn),
 				TxID:        dbTx.TxID,
 				TxIndex:     uint32(idx),
 				TxTree:      uint16(dbTx.Tree),
-				Time:        blockTime,
 				BlockHeight: txin.BlockHeight,
 				BlockIndex:  txin.BlockIndex,
 				ScriptHex:   txin.SignatureScript,
-				IsValid:     isValid,
 			})
 		}
 

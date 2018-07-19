@@ -56,25 +56,6 @@ func (db *ChainDBRPC) SendRawTransaction(txhex string) (string, error) {
 	return hash.String(), err
 }
 
-// InsightPgGetAddressTransactions performs a db query to pull all txids for the
-// specified addresses ordered desc by time.
-func (pgb *ChainDB) InsightPgGetAddressTransactions(addr []string,
-	recentBlockHeight int64) ([]string, []string) {
-	return RetrieveAddressTxnsOrdered(pgb.db, addr, recentBlockHeight)
-}
-
-// RetrieveAddressSpentUnspent retrieves balance information for a specific
-// address.
-func (pgb *ChainDB) RetrieveAddressSpentUnspent(address string) (int64, int64, int64, int64, error) {
-	return RetrieveAddressSpentUnspent(pgb.db, address)
-}
-
-// Update Vin due to DCRD AMOUNTIN - START
-func (pgb *ChainDB) RetrieveAddressIDsByOutpoint(txHash string,
-	voutIndex uint32) ([]uint64, []string, int64, error) {
-	return RetrieveAddressIDsByOutpoint(pgb.db, txHash, voutIndex)
-} // Update Vin due to DCRD AMOUNTIN - END
-
 // InsightGetAddressTransactions performs a searchrawtransactions for the
 // specfied address, max number of transactions, and offset into the transaction
 // list. The search results are in reverse temporal order.
@@ -138,8 +119,7 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	return blockTransactions
 }
 
-// GetBlockHash returns the hash of the block at the specified height. TODO:
-// create GetBlockHashes to return all blocks at a given height.
+// GetBlockHash returns the hash of the block at the specified height.
 func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 	hash, err := RetrieveBlockHash(pgb.db, idx)
 	if err != nil {
@@ -159,6 +139,42 @@ func (pgb *ChainDB) GetAddressBalance(address string, N, offset int64) *explorer
 	return balance
 }
 
+// GetAddressInfo returns the basic information for the specified address
+// (*apitypes.InsightAddressInfo), given a transaction count limit, and
+// transaction number offset.
+func (pgb *ChainDB) GetAddressInfo(address string, N, offset int64) *apitypes.InsightAddressInfo {
+	rows, balance, err := pgb.AddressHistoryAll(address, N, offset)
+	if err != nil {
+		return nil
+	}
+
+	var totalReceived, totalSent, unSpent dcrutil.Amount
+	totalReceived, _ = dcrutil.NewAmount(float64(balance.TotalSpent + balance.TotalUnspent))
+	totalSent, _ = dcrutil.NewAmount(float64(balance.TotalSpent))
+	unSpent, _ = dcrutil.NewAmount(float64(balance.TotalUnspent))
+
+	var transactionIdList []string
+	for _, row := range rows {
+		fundingTxId := row.FundingTxHash
+		if fundingTxId != "" {
+			transactionIdList = append(transactionIdList, fundingTxId)
+		}
+
+		spendingTxId := row.SpendingTxHash
+		if spendingTxId != "" {
+			transactionIdList = append(transactionIdList, spendingTxId)
+		}
+	}
+
+	return &apitypes.InsightAddressInfo{
+		Address:        address,
+		TotalReceived:  totalReceived,
+		TransactionsID: transactionIdList,
+		TotalSent:      totalSent,
+		Unspent:        unSpent,
+	}
+}
+
 // GetBlockSummaryTimeRange returns the blocks created within a specified time
 // range (min, max time), up to limit transactions.
 func (pgb *ChainDB) GetBlockSummaryTimeRange(min, max int64, limit int) []dbtypes.BlockDataBasic {
@@ -167,6 +183,26 @@ func (pgb *ChainDB) GetBlockSummaryTimeRange(min, max int64, limit int) []dbtype
 		log.Errorf("Unable to retrieve block summary using time %d: %v", min, err)
 	}
 	return blockSummary
+}
+
+func makeAddressTxOutput(data *dcrjson.SearchRawTransactionsResult, address string) *apitypes.AddressTxnOutput {
+	tx := new(apitypes.AddressTxnOutput)
+	tx.Address = address
+	tx.TxnID = data.Txid
+	tx.Height = 0
+
+	for i := range data.Vout {
+		if len(data.Vout[i].ScriptPubKey.Addresses) != 0 {
+			if data.Vout[i].ScriptPubKey.Addresses[0] == address {
+				tx.ScriptPubKey = data.Vout[i].ScriptPubKey.Hex
+				tx.Vout = data.Vout[i].N
+				tx.Atoms += data.Vout[i].Value
+			}
+		}
+	}
+
+	tx.Amount = tx.Atoms * 100000000
+	return tx
 }
 
 // GetAddressUTXO returns the unspent transaction outputs (UTXOs) paying to the
@@ -183,15 +219,4 @@ func (pgb *ChainDB) GetAddressUTXO(address string) []apitypes.AddressTxnOutput {
 		return nil
 	}
 	return txnOutput
-}
-
-// GetAddressSpendByFunHash will return the address that fundex a tx
-func (pgb *ChainDB) GetAddressSpendByFunHash(addresses []string, fundHash string) []*apitypes.AddressSpendByFunHash {
-
-	AddrRow, err := RetrieveAddressTxnsByFundingTx(pgb.db, fundHash, addresses)
-	if err != nil {
-		log.Error(err)
-		return nil
-	}
-	return AddrRow
 }

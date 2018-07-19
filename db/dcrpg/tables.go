@@ -22,7 +22,6 @@ var createTableStatements = map[string]string{
 	"tickets":      internal.CreateTicketsTable,
 	"votes":        internal.CreateVotesTable,
 	"misses":       internal.CreateMissesTable,
-	"agendas":      internal.CreateAgendasTable,
 }
 
 var createTypeStatements = map[string]string{
@@ -37,22 +36,18 @@ var createTypeStatements = map[string]string{
 // by dcrdata or rebuilddb2. The patch versions may also be different. They
 // indicate a change of a table's index or constraint, which may require
 // re-indexing and a duplicate scan/purge.
-const (
-	tableMajor = 3
-	tableMinor = 2
-)
+const tableMajor = 2
 
 var requiredVersions = map[string]TableVersion{
-	"blocks":       NewTableVersion(tableMajor, tableMinor, 0),
-	"transactions": NewTableVersion(tableMajor, tableMinor, 0),
-	"vins":         NewTableVersion(tableMajor, tableMinor, 0),
-	"vouts":        NewTableVersion(tableMajor, tableMinor, 0),
-	"block_chain":  NewTableVersion(tableMajor, tableMinor, 0),
-	"addresses":    NewTableVersion(tableMajor, tableMinor, 0),
-	"tickets":      NewTableVersion(tableMajor, tableMinor, 0),
-	"votes":        NewTableVersion(tableMajor, tableMinor, 0),
-	"misses":       NewTableVersion(tableMajor, tableMinor, 0),
-	"agendas":      NewTableVersion(tableMajor, tableMinor, 0),
+	"blocks":       NewTableVersion(tableMajor, 0, 0),
+	"transactions": NewTableVersion(tableMajor, 0, 0),
+	"vins":         NewTableVersion(tableMajor, 0, 0),
+	"vouts":        NewTableVersion(tableMajor, 0, 0),
+	"block_chain":  NewTableVersion(tableMajor, 0, 0),
+	"addresses":    NewTableVersion(tableMajor, 0, 0),
+	"tickets":      NewTableVersion(tableMajor, 0, 0),
+	"votes":        NewTableVersion(tableMajor, 0, 0),
+	"misses":       NewTableVersion(tableMajor, 0, 0),
 }
 
 // TableVersion models a table version by major.minor.patch
@@ -362,27 +357,27 @@ func IndexBlockTableOnHash(db *sql.DB) (err error) {
 	return
 }
 
-func IndexBlockTableOnHeight(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexBlocksTableOnHeight)
-	return
-}
-
 func DeindexBlockTableOnHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexBlockTableOnHash)
 	return
 }
 
-func DeindexBlockTableOnHeight(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexBlocksTableOnHeight)
-	return
-}
-
 // Vouts table indexes
+
+// func IndexVoutTableOnTxHash(db *sql.DB) (err error) {
+// 	_, err = db.Exec(internal.IndexVoutTableOnTxHash)
+// 	return
+// }
 
 func IndexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexVoutTableOnTxHashIdx)
 	return
 }
+
+// func DeindexVoutTableOnTxHash(db *sql.DB) (err error) {
+// 	_, err = db.Exec(internal.DeindexVoutTableOnTxHash)
+// 	return
+// }
 
 func DeindexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexVoutTableOnTxHashIdx)
@@ -390,25 +385,6 @@ func DeindexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 }
 
 // Addresses table indexes
-func IndexBlockTimeOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexBlockTimeOnTableAddress)
-	return
-}
-
-func DeindexBlockTimeOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexBlockTimeOnTableAddress)
-	return
-}
-
-func IndexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexMatchingTxHashOnTableAddress)
-	return
-}
-
-func DeindexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexMatchingTxHashOnTableAddress)
-	return
-}
 
 func IndexAddressTableOnAddress(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAddressTableOnAddress)
@@ -431,12 +407,12 @@ func DeindexAddressTableOnVoutID(db *sql.DB) (err error) {
 }
 
 func IndexAddressTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAddressTableOnTxHash)
+	_, err = db.Exec(internal.IndexAddressTableOnFundingTx)
 	return
 }
 
 func DeindexAddressTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAddressTableOnTxHash)
+	_, err = db.Exec(internal.DeindexAddressTableOnFundingTx)
 	return
 }
 
@@ -503,27 +479,5 @@ func IndexMissesTableOnHashes(db *sql.DB) (err error) {
 
 func DeindexMissesTableOnHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexMissesTableOnHashes)
-	return
-}
-
-// agendas
-
-func IndexAgendasTableOnBlockTime(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAgendasTableOnBlockTime)
-	return
-}
-
-func DeindexAgendasTableOnBlockTime(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAgendasTableOnBlockTime)
-	return
-}
-
-func IndexAgendasTableOnAgendaID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAgendasTableOnAgendaID)
-	return
-}
-
-func DeindexAgendasTableOnAgendaID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAgendasTableOnAgendaID)
 	return
 }

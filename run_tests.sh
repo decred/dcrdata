@@ -13,15 +13,15 @@ set -ex
 # gometalinter (github.com/alecthomas/gometalinter) is used to run each each
 # static checker.
 
-GOVERSION=${1:-1.10}
-REPO=dcrdata
-DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
-
 testrepo () {
   TMPFILE=$(mktemp)
 
-  # Update /vendor, but not Gopkg.lock
-  dep ensure -vendor-only
+  # Check lockfile
+  cp Gopkg.lock $TMPFILE && dep ensure && diff Gopkg.lock $TMPFILE >/dev/null
+  if [ $? != 0 ]; then
+    echo 'lockfile must be updated with dep ensure'
+    exit 1
+  fi
 
   # Check linters
   gometalinter --vendor --disable-all --deadline=10m \
@@ -48,10 +48,7 @@ testrepo () {
   fi
 
   # Check tests
-  git clone https://github.com/dcrlabs/bug-free-happiness test-data-repo
-  tar xvf test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz
-
-  env GORACE='halt_on_error=1' go test -v -race ./...
+  env GORACE='halt_on_error=1' go test -race ./...
   if [ $? != 0 ]; then
     echo 'go tests failed'
     exit 1
@@ -61,24 +58,5 @@ testrepo () {
   echo "Tests completed successfully!"
 }
 
-if [ $GOVERSION == "local" ]; then
-    testrepo
-    exit
-fi
-
-docker pull decred/$DOCKER_IMAGE_TAG
-if [ $? != 0 ]; then
-        echo 'docker pull failed'
-        exit 1
-fi
-
-docker run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
-  rsync -ra --include-from=<(git --git-dir=/src/.git ls-files) \
-  --filter=':- .gitignore' \
-  /src/ /go/src/github.com/decred/$REPO/ && \
-  cd github.com/decred/$REPO/ && \
-  bash run_tests.sh local"
-if [ $? != 0 ]; then
-        echo 'docker run failed'
-        exit 1
-fi
+GOVERSION=$(go version | awk '{print $3}' | tr -d 'go' | cut -f1,2 -d.)
+testrepo

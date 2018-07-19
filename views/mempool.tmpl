@@ -2,10 +2,10 @@
 <!DOCTYPE html>
 <html lang="en">
     {{template "html-head" printf "Decred Mempool"}}
-    <body data-controller="mempool">
+    <body>
         {{template "navbar" . }}
         {{with .Mempool}}
-        <div class="container" data-controller="main">
+        <div class="container">
             <div class="row justify-content-between">
                 <div class="col-md-7 col-sm-6 d-flex">
                     <h4 class="mb-2">Mempool</h4>
@@ -25,15 +25,15 @@
                     <table class="">
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">LAST BLOCK</td>
-                            <td class="lh1rem"><a href="/block/{{.LastBlockHeight}}" data-target="mempool.bestBlock" data-keynav-priority>{{.LastBlockHeight}}</a> (<span data-target="main.age mempool.bestBlockTime" data-age="{{.LastBlockTime}}"></span> ago)</td>
-                        </tr>
+                            <td class="lh1rem"><a href="/block/{{.LastBlockHeight}}" id="best_block" data-keynav-priority>{{.LastBlockHeight}}</a> (<span id="best_block_time" data-age="{{.LastBlockTime}}"></span> ago)</td>
+                        </tr> 
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">VOTES</td>
-                            <td data-target="mempool.numVote" class="lh1rem">{{.NumVotes}}</td>
+                            <td id="mempool_vote_number" class="lh1rem">{{.NumVotes}}</td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">TICKETS</td>
-                            <td data-target="mempool.numTicket" class="lh1rem">{{.NumTickets}}</td>
+                            <td id="mempool_ticket_number"class="lh1rem">{{.NumTickets}}</td>
                         </tr>
                     </table>
                 </div>
@@ -41,15 +41,15 @@
                     <table class="">
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">SIZE</td>
-                            <td data-target="mempool.mempoolSize" class="lh1rem" >{{.FormattedTotalSize}}</td>
+                            <td id="mempool_size" class="lh1rem" >{{.FormattedTotalSize}}</td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">REVOCATIONS</td>
-                            <td data-target="mempool.numRevoke" class="lh1rem">{{.NumRevokes}}</td>
+                            <td id="mempool_revoke_number" class="lh1rem">{{.NumRevokes}}</td>
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">TRANSACTIONS</td>
-                            <td data-target="mempool.numRegular" class="lh1rem">{{.NumRegular}}</td>
+                            <td id="mempool_regular_number" class="lh1rem">{{.NumRegular}}</td>
                         </tr>
                     </table>
                 </div>
@@ -58,7 +58,8 @@
                 <div class="col-sm-12">
                 <h4><span>Votes</span></h4>
 
-                    <table class="table table-sm striped">
+                    {{if gt .NumVotes 0}}
+                    <table class="table table-sm striped" id="mempool_votes">
                         <thead>
                             <th>Transactions ID</th>
                             <th>Version</th>
@@ -69,8 +70,7 @@
                             <th>Size</th>
                             <th class="text-right">Time in Mempool</th>
                         </thead>
-                        <tbody data-target="mempool.voteTransactions">
-                            {{if gt .NumVotes 0}}
+                        <tbody>
                             {{range .Votes}}
                             <tr>
                                 <td class="break-word">
@@ -92,30 +92,30 @@
                                 {{end}}</td>
                                 <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</td>
                                 <td class="mono fs15">{{.Size}} B</td>
-                                <td class="mono fs15 text-right" data-target="main.age" data-age="{{.Time}}"></td>
+                                <td class="mono fs15 text-right" data-age="{{.Time}}"></td>
                             </tr>
                             {{end}}
-                            {{else}}
-                                <tr>
-                                    <td colspan="8">No votes in mempool.</td>
-                                </tr>
-                            {{end}}
                         </tbody>
-                    </table>
+                        {{else}}
+                            <tr>
+                                <td>No votes in mempool.</td>
+                            </tr>
+                        {{end}}
+                    </table>   
                 </div>
             </div>
             <div class="row">
                 <div class="col-sm-12">
                 <h4><span>Tickets</span></h4>
-                    <table class="table table-sm striped">
+                    {{if gt .NumTickets 0}}
+                    <table class="table table-sm striped" id="mempool_tickets">
                         <thead>
                             <th>Transaction ID</th>
                             <th class="text-right">Total DCR</th>
                             <th class="text-right">Size</th>
                             <th class="text-right">Time in Mempool</th>
                         </thead>
-                        <tbody data-target="mempool.ticketTransactions">
-                            {{if gt .NumTickets 0}}
+                        <tbody>
                             {{range .Tickets}}
                             <tr>
                                 <td class="break-word">
@@ -125,31 +125,31 @@
                                 </td>
                                 <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</td>
                                 <td class="mono fs15 text-right">{{.Size}} B</td>
-                                <td class="mono fs15 text-right" data-target="main.age" data-age="{{.Time}}"></td>
-                            </tr>
-                            {{end}}
-                            {{else}}
-                            <tr>
-                                <td colspan="4">No tickets in mempool.</td>
+                                <td class="mono fs15 text-right" data-age="{{.Time}}"></td>
                             </tr>
                             {{end}}
                         </tbody>
+                        {{else}}
+                            <tr>
+                                <td>No tickets in mempool.</td>
+                            </tr>
+                        {{end}}
                     </table>
                 </div>
             </div>
-
+                       
             <div class="row">
                 <div class="col-sm-12">
+                {{if gt .NumRevokes 0}} 
                 <h4><span>Revocations</span></h4>
-                    <table class="table table-sm striped">
+                    <table class="table table-sm striped" id="mempool_revocations">
                         <thead>
                             <th>Transaction ID</th>
                             <th class="text-right">Total DCR</th>
                             <th class="text-right">Size</th>
                             <th class="text-right">Time in Mempool</th>
                         </thead>
-                        <tbody data-target="mempool.revokeTransactions">
-                            {{if gt .NumRevokes 0}}
+                        <tbody>
                             {{range .Revocations}}
                             <tr>
                                 <td class="break-word">
@@ -159,31 +159,27 @@
                                 </td>
                                 <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</td>
                                 <td class="mono fs15 text-right">{{.Size}} B</td>
-                                <td class="mono fs15 text-right" data-target="main.age" data-age="{{.Time}}"></td>
+                                <td class="mono fs15 text-right" data-age="{{.Time}}"></td>
                             </tr>
-                            {{end}}
-                            {{else}}
-                                <tr>
-                                    <td colspan="4">No revocations in mempool.</td>
-                                </tr>
                             {{end}}
                         </tbody>
                     </table>
+                {{end}}
                 </div>
             </div>
 
             <div class="row">
                 <div class="col-sm-12">
                 <h4><span>Transactions</span></h4>
-                    <table class="table table-sm striped">
+                    {{if gt .NumRegular 0}}
+                    <table class="table table-sm striped" id="mempool_transactions">
                         <thead>
                             <th>Transaction ID</th>
                             <th class="text-right">Total DCR</th>
                             <th class="text-right">Size</th>
                             <th class="text-right">Time in Mempool</th>
                         </thead>
-                        <tbody data-target="mempool.regularTransactions">
-                            {{if gt .NumRegular 0}}
+                        <tbody>
                             {{range .Transactions}}
                             <tr>
                                 <td class="break-word">
@@ -193,15 +189,15 @@
                                 </td>
                                 <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</td>
                                 <td class="mono fs15 text-right">{{.Size}} B</td>
-                                <td class="mono fs15 text-right" data-target="main.age" data-age="{{.Time}}"></td>
-                            </tr>
-                            {{end}}
-                            {{else}}
-                            <tr>
-                                <td colspan="4">No regular transactions in mempool.</td>
+                                <td class="mono fs15 text-right" data-age="{{.Time}}"></td>
                             </tr>
                             {{end}}
                         </tbody>
+                        {{else}}
+                        <tr>
+                            <td>No regular transactions in mempool.</td>
+                        </tr>
+                        {{end}}
                     </table>
                 </div>
             </div>

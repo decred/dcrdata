@@ -66,10 +66,6 @@ The following instructions assume a Unix-like shell (e.g. bash).
       # build dcrdata executable in workspace:
       go build
 
-To build with the git commit hash appended to the version, set it as follows:
-
-    go build -ldflags "-X github.com/decred/dcrdata/version.CommitHash=`git describe --abbrev=8 --long | awk -F "-" '{print $(NF-1)"-"$NF}'`"
-
 The sqlite driver uses cgo, which requires a C compiler (e.g. gcc) to compile the C sources. On
 Windows this is easily handled with MSYS2 ([download](http://www.msys2.org/) and
 install MinGW-w64 gcc packages).
@@ -97,30 +93,6 @@ First, update the repository (assuming you have `master` checked out):
 Look carefully for errors with `git pull`, and reset locally modified files if
 necessary.
 
-## Upgrading Instructions 
-
-*__Only necessary while upgrading from v1.3.2 or below.__*
-
-1. Drop the old dcrdata database and create a new empty dcrdata database.
- ```sql
- // drop the old database
- DROP DATABASE dcrdata;
-
-// create a new database with the same user set in the dcrdata.conf e.g user dcrdata
-CREATE DATABASE dcrdata WITH OWNER dcrdata;
-
-// grant all permissions to user dcrdata
-GRANT ALL PRIVILEGES ON DATABASE dcrdata to dcrdata;
- ```
-
-2. Delete the data folder in dcrdata folder where dcrdata.conf file is located
-  - Mac :  `~/Library/Application Support/Dcrdata/data`
-  - Linux :  `~/Dcrdata/data`
-  - Window :  `C:\Users\<your-username>\AppData\Local\Dcrdata\data` 
-  
-3. Restart the data migration again by running the dcrdata and dcrd binaries
-  - run the downloaded dcrd binary first then the generated dcrdata binary
-
 ## Getting Started
 
 ### Configure PostgreSQL (IMPORTANT)
@@ -140,10 +112,8 @@ Begin with the sample configuration file:
 cp sample-dcrdata.conf dcrdata.conf
 ```
 
-Then edit dcrdata.conf with your dcrd RPC settings. After you are finished, move
-dcrdata.conf to the `appdata` folder (default is `~/.dcrdata` on Linux,
-`%localappdata%\Dcrdata` on Windows). See the output of `dcrdata --help` for a list
-of all options and their default values.
+Then edit dcrdata.conf with your dcrd RPC settings. See the output of
+`dcrdata --help` for a list of all options and their default values.
 
 ### Indexing the Blockchain
 
@@ -252,7 +222,7 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 | Height |  `/block/hash/H/height` | `int` |
 | Size | `/block/hash/H/size` | `int32` |
 | Transactions | `/block/hash/H/tx` | `types.BlockTransactions` |
-| Transactions count | `/block/hash/H/tx/count` | `types.BlockTransactionCounts` |
+| Transactions Count | `/block/hash/H/tx/count` | `types.BlockTransactionCounts` |
 | Verbose block result | `/block/hash/H/verbose` | `dcrjson.GetBlockVerboseResult` |
 
 | Block range (X < Y) | Path | Type |
@@ -264,17 +234,11 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 
 | Transaction T (transaction id) | Path | Type |
 | --- | --- | --- |
-| Transaction details | `/tx/T` | `types.Tx` |
-| Transaction details w/o block info | `/tx/trimmed/T` | `types.TrimmedTx` |
+| Transaction Details | `/tx/T` | `types.Tx` |
 | Inputs | `/tx/T/in` | `[]types.TxIn` |
 | Details for input at index `X` | `/tx/T/in/X` | `types.TxIn` |
 | Outputs | `/tx/T/out` | `[]types.TxOut` |
 | Details for output at index `X` | `/tx/T/out/X` | `types.TxOut` |
-
-| Transactions (batch) | Path | Type |
-| --- | --- | --- |
-| Transaction details (POST body is JSON of `types.Txns`) | `/txs` | `[]types.Tx` |
-| Transaction details w/o block info | `/txs/trimmed` | `[]types.TrimmedTx` |
 
 | Address A | Path | Type |
 | --- | --- | --- |

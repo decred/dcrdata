@@ -1,25 +1,13 @@
 language: go
 go:
-  - "1.x"
-
-addons:
-  apt:
-    packages:
-    - xz-utils
-
-sudo: required
-services:
-  - docker
-
-env:
-  - GOVERSION=1.9
-  - GOVERSION=1.10
-
-install: true
-
-cache:
-  directories:
-    - ~/.cache
-
+  - 1.9.x
+  - 1.10.x
+sudo: false
+install:
+  - go get -u github.com/golang/dep/cmd/dep
+  - dep ensure -v
+  - go get -v github.com/alecthomas/gometalinter
+  - gometalinter --install
 script:
-  - ./run_tests.sh $GOVERSION
+  - export PATH=$PATH:$GOPATH/bin
+  - ./run_tests.sh

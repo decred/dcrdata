@@ -93,9 +93,8 @@ type StakeDatabase struct {
 	BestNode        *stake.Node
 	blkMtx          sync.RWMutex
 	blockCache      map[int64]*dcrutil.Block
-	liveTicketMtx   sync.RWMutex
+	liveTicketMtx   sync.Mutex
 	liveTicketCache map[chainhash.Hash]int64
-	poolValue       int64
 	poolInfo        *PoolInfoCache
 	PoolDB          *TicketPool
 
@@ -110,35 +109,30 @@ const (
 	dbType = "ffldb"
 	// DefaultStakeDbName is the default name of the stakedb database folder
 	DefaultStakeDbName = "stakenodes"
-	// DefaultTicketPoolDbFolder is the default name of the ticket pool database
-	DefaultTicketPoolDbFolder = "ticket_pool.bdgr"
-	// DefaultTicketPoolDbName is the default name of the old storm database
+	// DefaultTicketPoolDbName is the default name of the ticket pool database
 	DefaultTicketPoolDbName = "ticket_pool.db"
 )
 
-// LoadAndRecover attempts to load the StakeDatabase and it's TicketPool,
-// rewinding either TicketPool or StakeDatabase so that they are at the same
-// height, and then further rewinding both to the specified height. Finally, it
-// advances the TicketPool to tip, and if there is an error it rewinds both back
-// to that height - 1.  Normally use NewStakeDatabase.
-func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
-	dataDir string, toHeight int64) (*StakeDatabase, error) {
-	if toHeight < 0 {
-		toHeight = 0
+// NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
+// ffldb-backed stake database, and loads all live tickets into a cache.
+func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
+	dbFolder string) (*StakeDatabase, error) {
+	// Create DB folder
+	err := os.MkdirAll(dbFolder, 0700)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create DB folder: %v", err)
 	}
-	log.Infof("Recovery: rewinding to %d", toHeight)
-
 	log.Infof("Loading ticket pool DB. This may take a minute...")
-	poolDB, err := NewTicketPool(dataDir, DefaultTicketPoolDbFolder)
+	ticketPoolDBPath := filepath.Join(dbFolder, DefaultTicketPoolDbName)
+	poolDB, err := NewTicketPool(ticketPoolDBPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ticket pool DB: %v", err)
 	}
-
 	sDB := &StakeDatabase{
 		params:          params,
 		NodeClient:      client,
 		blockCache:      make(map[int64]*dcrutil.Block),
-		liveTicketCache: make(map[chainhash.Hash]int64, params.TicketPoolSize*(params.TicketsPerBlock+1)),
+		liveTicketCache: make(map[chainhash.Hash]int64),
 		poolInfo:        NewPoolInfoCache(513),
 		PoolDB:          poolDB,
 		heightWaiters:   make(map[int64][]chan *chainhash.Hash),
@@ -148,228 +142,99 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 	// genesis. Hence it will never be connected, how TPI is usually cached.
 	sDB.poolInfo.Set(*params.GenesisHash, &apitypes.TicketPoolInfo{})
 
-	stakeDBPath := filepath.Join(dataDir, DefaultStakeDbName)
+	stakeDBPath := filepath.Join(dbFolder, DefaultStakeDbName)
 	if err = sDB.Open(stakeDBPath); err != nil {
 		return nil, err
 	}
 
-	// Check if stake DB and ticket pool DB are at the same height, and attempt
-	// to recover.
-	heightStakeDB, heightTicketPool := int64(sDB.Height()), sDB.PoolDB.Tip()
-	if toHeight > heightStakeDB {
-		log.Warnf("Rewinding to %d instead of %d", heightStakeDB, toHeight)
-		toHeight = heightStakeDB
-	}
-	if toHeight > heightTicketPool {
-		log.Warnf("Rewinding to %d instead of %d", heightTicketPool, toHeight)
-		toHeight = heightTicketPool
-	}
-
-	// Roll stake DB back to the height of the ticket pool DB
-	if heightStakeDB > heightTicketPool {
-		log.Debugf("Rolling back StakeDatabase from %d to %d",
-			heightStakeDB, heightTicketPool)
-	}
-	for heightStakeDB > heightTicketPool {
-		if err = sDB.DisconnectBlock(true); err != nil {
-			return nil, fmt.Errorf("failed to disconnect block: %v", err)
-		}
-		heightStakeDB, heightTicketPool = int64(sDB.Height()), sDB.PoolDB.Tip()
-	}
-
-	// Trim ticket pool DB back to the height of the stake DB
-	if heightTicketPool > heightStakeDB {
-		log.Debugf("Rolling back TicketPool from %d to %d",
-			heightTicketPool, heightStakeDB)
-	}
-	for heightTicketPool > heightStakeDB {
-		heightTicketPool, _ = sDB.PoolDB.Trim()
-	}
-
-	if heightTicketPool != heightStakeDB {
-		return nil, fmt.Errorf("unable to return stake DB height (%d) to ticket pool height (%d)",
-			heightStakeDB, heightTicketPool)
-	}
-
-	// Rewind back to specified height
-	for toHeight < heightStakeDB {
-		if err = sDB.DisconnectBlock(true); err != nil {
-			return nil, fmt.Errorf("failed to disconnect block: %v", err)
-		}
-		heightStakeDB, heightTicketPool = int64(sDB.Height()), sDB.PoolDB.Tip()
-		if heightTicketPool != heightStakeDB {
-			return nil, fmt.Errorf("failed to disconnect block: "+
-				"stake DB height (%d) != ticket pool height (%d)",
-				heightStakeDB, heightTicketPool)
-		}
-	}
-
-	// Advance ticket pool DB to tip. If there is an error, attempt recovery by
-	// rewinding back to the height-1 of the last successful advancement.
-	log.Infof("Attempting to advance ticket pool DB to tip via diffs...")
-	if err, stopHeight := sDB.PoolDB.AdvanceToTip(); err != nil {
-		log.Infof("Failed to advance pool. Rewinding to %d", stopHeight-1)
-		if err = sDB.Rewind(stopHeight-1, true); err != nil {
-			return nil, err
-		}
-	}
-
-	return sDB, sDB.PopulateLiveTicketCache()
-}
-
-// NewStakeDatabase creates a StakeDatabase instance, opening or creating a new
-// ffldb-backed stake database, and loads all live tickets into a cache. The
-// smaller height of the StakeDatabase and TicketPool is also returned to aid in
-// recovery (they should be the same height). The live ticket cache is only
-// populated if there are no errors.
-func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
-	dataDir string) (*StakeDatabase, int64, error) {
-	height := int64(-1)
-	// Create DB folder
-	err := os.MkdirAll(dataDir, 0700)
+	nodeHeight, err := client.GetBlockCount()
 	if err != nil {
-		return nil, height, fmt.Errorf("unable to create DB folder: %v", err)
-	}
-	log.Infof("Loading ticket pool DB. This may take a minute...")
-	poolDB, err := NewTicketPool(dataDir, DefaultTicketPoolDbFolder)
-	if err != nil {
-		return nil, height, fmt.Errorf("unable to open ticket pool DB: %v", err)
-	}
-	sDB := &StakeDatabase{
-		params:          params,
-		NodeClient:      client,
-		blockCache:      make(map[int64]*dcrutil.Block),
-		liveTicketCache: make(map[chainhash.Hash]int64, params.TicketPoolSize*(params.TicketsPerBlock+1)),
-		poolInfo:        NewPoolInfoCache(513),
-		PoolDB:          poolDB,
-		heightWaiters:   make(map[int64][]chan *chainhash.Hash),
-	}
-
-	// Put the genesis block in the pool info cache since stakedb starts with
-	// genesis. Hence it will never be connected, how TPI is usually cached.
-	sDB.poolInfo.Set(*params.GenesisHash, &apitypes.TicketPoolInfo{})
-
-	stakeDBPath := filepath.Join(dataDir, DefaultStakeDbName)
-	if err = sDB.Open(stakeDBPath); err != nil {
-		_ = poolDB.Close()
-		return nil, height, err
+		log.Errorf("Unable to get best block height: %v", err)
 	}
 
 	// Check if stake DB and ticket pool DB are at the same height, and attempt
 	// to recover.
 	heightStakeDB, heightTicketPool := int64(sDB.Height()), sDB.PoolDB.Tip()
 	if heightStakeDB != heightTicketPool {
-		if heightStakeDB-heightTicketPool > 16 {
-			log.Warnf("The ticket DB format has changed in v2.1. Did you upgrade?")
-			// Try to close but ignore any error
-			_ = sDB.Close()
-			return nil, heightTicketPool, fmt.Errorf("Remove %s and start dcrdata again.",
-				filepath.Join(dataDir, DefaultTicketPoolDbFolder))
-		}
-		// Roll stake DB back to the height of the ticket pool DB
-		for heightStakeDB > heightTicketPool {
-			if err = sDB.DisconnectBlock(true); err != nil {
-				// Try to close but ignore any error
-				_ = sDB.Close()
-				return nil, heightTicketPool, fmt.Errorf("failed to disconnect block: %v", err)
-			}
-			heightStakeDB, heightTicketPool = int64(sDB.Height()), sDB.PoolDB.Tip()
+		if heightStakeDB > heightTicketPool {
+			return nil, fmt.Errorf("StakeDB height (%d) and TicketPool (%d) height not equal. "+
+				"Delete both and try again.", sDB.Height(), sDB.PoolDB.Tip())
 		}
 
 		// Trim ticket pool DB back to the height of the stake DB
 		for heightTicketPool > heightStakeDB {
-			heightTicketPool, _ = sDB.PoolDB.Trim()
+			heightTicketPool = sDB.PoolDB.Trim()
 		}
 		if heightTicketPool != heightStakeDB {
-			if heightTicketPool > heightStakeDB {
-				height = heightStakeDB
-			}
-			// Try to close but ignore any error
-			_ = sDB.Close()
-			return nil, height,
-				fmt.Errorf("unable to return stake DB height (%d) to ticket pool height (%d)",
-					heightStakeDB, heightTicketPool)
+			return nil, fmt.Errorf("unable to trim pool DB to height %d, at %d",
+				heightStakeDB, heightTicketPool)
 		}
 	}
 
 	log.Infof("Advancing ticket pool DB to tip via diffs...")
-	if err, height = sDB.PoolDB.AdvanceToTip(); err != nil {
-		// Try to close but ignore any error
-		_ = sDB.Close()
-		return nil, height, fmt.Errorf("failed to advance ticket pool DB to tip: %v", err)
+	if err = poolDB.AdvanceToTip(); err != nil {
+		return nil, fmt.Errorf("failed to advance ticket pool DB to tip: %v", err)
 	}
 
-	return sDB, height, sDB.PopulateLiveTicketCache()
-}
+	// Pre-populate the live ticket cache if stakedb is close enough to the
+	// network height that the live tickets returned by the node are likely to
+	// be required to advance the stakedb.
+	if heightStakeDB >= nodeHeight-int64(params.TicketPoolSize)/4 {
 
-// PopulateLiveTicketCache loads the hashes of all tickets in BestNode into the
-// cache and computes the internally-stored pool value.
-func (db *StakeDatabase) PopulateLiveTicketCache() error {
-	var err error
-	// Live tickets from dcrdata's stake Node's perspective
-	liveTickets := db.BestNode.LiveTickets()
-
-	log.Info("Pre-populating live ticket cache and computing pool value...")
-
-	// Send all the live ticket requests
-	type promiseGetRawTransaction struct {
-		result rpcclient.FutureGetRawTransactionResult
-		ticket chainhash.Hash
-	}
-	promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(liveTickets))
-
-	// Send all the live ticket requests
-	for _, hash := range liveTickets {
-		promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
-			result: db.NodeClient.GetRawTransactionAsync(&hash),
-			ticket: hash,
-		})
-	}
-
-	// reset ticket cache
-	db.liveTicketMtx.Lock()
-	db.poolValue = 0
-	db.liveTicketCache = make(map[chainhash.Hash]int64, db.params.TicketPoolSize*(db.params.TicketsPerBlock+1))
-
-	// Receive the live ticket tx results
-	for _, p := range promisesGetRawTransaction {
-		ticketTx, err0 := p.result.Receive()
-		if err0 != nil {
-			log.Errorf("RPC error: %v", err)
-			err = err0
-			continue
-		}
-		if !ticketTx.Hash().IsEqual(&p.ticket) {
-			panic(fmt.Sprintf("Failed to receive Tx details for requested ticket hash: %v, %v", p.ticket, ticketTx.Hash()))
+		liveTickets, err := sDB.NodeClient.LiveTickets()
+		if err != nil {
+			return sDB, err
 		}
 
-		value := ticketTx.MsgTx().TxOut[0].Value
-		db.poolValue += value
-		db.liveTicketCache[p.ticket] = value
-	}
-	db.liveTicketMtx.Unlock()
+		log.Info("Pre-populating live ticket cache...")
 
-	return err
-}
+		type promiseGetRawTransaction struct {
+			result rpcclient.FutureGetRawTransactionResult
+			ticket *chainhash.Hash
+		}
+		promisesGetRawTransaction := make([]promiseGetRawTransaction, 0, len(liveTickets))
 
-// Rewind disconnects blocks until the new height is the specified height.
-// During disconnect, the ticket pool cache and value are kept accurate, unless
-// neglectCache is true.
-func (db *StakeDatabase) Rewind(to int64, neglectCache bool) error {
-	var heightTicketPool int64
-	heightStakeDB := int64(db.Height())
-	for to < heightStakeDB {
-		if err := db.DisconnectBlock(neglectCache); err != nil {
-			return fmt.Errorf("failed to disconnect block: %v", err)
+		// Send all the live ticket requests
+		for _, hash := range liveTickets {
+			promisesGetRawTransaction = append(promisesGetRawTransaction, promiseGetRawTransaction{
+				result: sDB.NodeClient.GetRawTransactionAsync(hash),
+				ticket: hash,
+			})
 		}
-		heightStakeDB, heightTicketPool = int64(db.Height()), db.PoolDB.Tip()
-		if heightTicketPool != heightStakeDB {
-			return fmt.Errorf("failed to disconnect block: "+
-				"stake DB height (%d) != ticket pool height (%d)",
-				heightStakeDB, heightTicketPool)
+
+		// Receive the live ticket tx results
+		for _, p := range promisesGetRawTransaction {
+			ticketTx, err := p.result.Receive()
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			if !ticketTx.Hash().IsEqual(p.ticket) {
+				panic(fmt.Sprintf("Failed to receive Tx details for requested ticket hash: %v, %v", p.ticket, ticketTx.Hash()))
+			}
+
+			sDB.liveTicketCache[*p.ticket] = ticketTx.MsgTx().TxOut[0].Value
+
+			// txHeight := ticketTx.BlockHeight
+			// unconfirmed := (txHeight == 0)
+			// immature := (tipHeight-int32(txHeight) < int32(w.ChainParams().TicketMaturity))
 		}
+
+		// Old synchronous way
+		// for _, hash := range liveTickets {
+		// 	var txid *dcrutil.Tx
+		// 	txid, err = sDB.NodeClient.GetRawTransaction(hash)
+		// 	if err != nil {
+		// 		log.Errorf("Unable to get transaction %v: %v\n", hash, err)
+		// 		continue
+		// 	}
+		// 	// This isn't quite right for pool tickets where the small
+		// 	// pool fees are included in vout[0], but it's close.
+		// 	sDB.liveTicketCache[*hash] = txid.MsgTx().TxOut[0].Value
+		// }
 	}
-	return nil
+
+	return sDB, nil
 }
 
 // LockStakeNode locks the StakeNode from functions that respect the mutex.
@@ -499,17 +364,25 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 		return fmt.Errorf("cannot connect block height %d at height %d", height, bestNodeHeight)
 	}
 
-	// Who is supposed to vote in the block we are about to connect
+	// who is supposed to vote on this block
 	winners := db.BestNode.Winners()
 
-	// connect it, updating BestNode
+	// connect it
 	err := db.connectBlock(block, votedTickets, revokedTickets, maturingTickets)
 	if err != nil {
 		return err
 	}
 
-	// Expiring tickets
-	expiring := db.BestNode.ExpiredByBlock()
+	// Update the ticket pool db. Determine newly missed and expired tickets.
+	justMissed := db.BestNode.MissedByBlock() // includes expired
+	var expiring []chainhash.Hash
+	for i := range justMissed {
+		if db.BestNode.ExistsExpiredTicket(justMissed[i]) {
+			if !db.BestNode.ExistsRevokedTicket(justMissed[i]) {
+				expiring = append(expiring, justMissed[i])
+			}
+		}
+	}
 
 	// Tickets leaving the live ticket pool = winners + expires
 	liveOut := append(winners, expiring...)
@@ -521,36 +394,25 @@ func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
 
 	defer func() { go db.signalWaiters(height, block.Hash()) }()
 
-	// update liveTicketCache and poolValue
-	db.applyDiff(*poolDiff)
-
-	// Some sanity checks
-	// db.liveTicketMtx.RLock()
-	// liveTickets := make([]chainhash.Hash, 0, len(db.liveTicketCache))
-	// for h := range db.liveTicketCache {
-	// 	liveTickets = append(liveTickets, h)
-	// }
-	// db.liveTicketMtx.RUnlock()
-
-	// Get ticket pool info at current best (just connected in stakedb) block,
-	// and store it in the StakeDatabase's PoolInfoCache.
-	// liveTicketsX := db.BestNode.LiveTickets()
-	// if len(db.liveTicketCache) != len(liveTicketsX) {
-	// 	log.Errorf("%d != %d", len(db.liveTicketCache), len(liveTicketsX))
-	// }
-
-	// Store TicketPoolInfo in the PoolInfoCache
-	poolSize := int64(db.BestNode.PoolSize())
-	winningTickets := db.BestNode.Winners()
-	pib := db.makePoolInfo(db.poolValue, poolSize, winningTickets, uint32(height))
-	db.poolInfo.Set(*block.Hash(), pib)
-
 	// Append this ticket pool diff
 	return db.PoolDB.Append(poolDiff, bestNodeHeight+1)
 }
 
 func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Hash,
 	revoked []chainhash.Hash, maturing []chainhash.Hash) error {
+
+	cleanLiveTicketCache := func() {
+		db.liveTicketMtx.Lock()
+		for i := range spent {
+			delete(db.liveTicketCache, spent[i])
+		}
+		for i := range revoked {
+			delete(db.liveTicketCache, revoked[i])
+		}
+		db.liveTicketMtx.Unlock()
+	}
+	defer cleanLiveTicketCache()
+
 	hB, err := block.BlockHeaderBytes()
 	if err != nil {
 		return fmt.Errorf("unable to serialize block header: %v", err)
@@ -566,51 +428,21 @@ func (db *StakeDatabase) connectBlock(block *dcrutil.Block, spent []chainhash.Ha
 	}
 	db.BestNode = bestNode
 
-	return db.StakeDB.Update(func(dbTx database.Tx) error {
+	if err = db.StakeDB.Update(func(dbTx database.Tx) error {
 		return stake.WriteConnectedBestNode(dbTx, db.BestNode, *block.Hash())
-	})
-}
-
-// applyDiff updates liveTicketCache and poolValue for the given PoolDiff.
-func (db *StakeDatabase) applyDiff(poolDiff PoolDiff) {
-	db.liveTicketMtx.Lock()
-	for _, hash := range poolDiff.In {
-		_, ok := db.liveTicketCache[hash]
-		if ok {
-			log.Warnf("Just tried to add a ticket (%v) to the pool, but it was already there!", hash)
-			continue
-		}
-
-		tx, err := db.NodeClient.GetRawTransaction(&hash)
-		if err != nil {
-			log.Errorf("Unable to get transaction %v: %v\n", hash, err)
-			continue
-		}
-		// This isn't quite right for pool tickets where the small
-		// pool fees are included in vout[0], but it's close.
-		val := tx.MsgTx().TxOut[0].Value
-		db.liveTicketCache[hash] = val
-		db.poolValue += val
+	}); err != nil {
+		return err
 	}
 
-	for _, h := range poolDiff.Out {
-		valOut, ok := db.liveTicketCache[h]
-		if !ok {
-			log.Debugf("Didn't find %v in live ticket cache, cannot remove it.", h)
-			continue
-		}
-		db.poolValue -= valOut
-		delete(db.liveTicketCache, h)
-	}
-	db.liveTicketMtx.Unlock()
-}
+	// Get ticket pool info at current best (just connected in stakedb) block,
+	// and store it in the StakeDatabase's PoolInfoCache.
+	liveTickets := db.BestNode.LiveTickets() // TODO: use NewTickets() instead and merge with liveTicketCache
+	winningTickets := db.BestNode.Winners()
+	height := db.BestNode.Height()
+	pib := db.calcPoolInfo(liveTickets, winningTickets, height)
+	db.poolInfo.Set(*block.Hash(), pib)
 
-// undoDiff is like applyDiff except it swaps In and Out in specifed PoolDiff.
-func (db *StakeDatabase) undoDiff(poolDiff PoolDiff) {
-	db.applyDiff(PoolDiff{
-		In:  poolDiff.Out,
-		Out: poolDiff.In,
-	})
+	return err
 }
 
 // SetPoolInfo stores the ticket pool info for the given hash in the pool info
@@ -626,19 +458,16 @@ func (db *StakeDatabase) SetPoolCacheCapacity(cap int) error {
 }
 
 // DisconnectBlock attempts to disconnect the current best block from the stake
-// DB and updates the best stake node. If the ticket pool db is advanced to the
-// tip, it is trimmed, and the cache and pool value are updated. If neglectCache
-// is true, the trim is performed, but cache and pool value are not updated.
-// Only use neglectCache=true if you plan to
-func (db *StakeDatabase) DisconnectBlock(neglectCache bool) error {
+// DB and updates the best stake node.
+func (db *StakeDatabase) DisconnectBlock() error {
 	db.nodeMtx.Lock()
 	defer db.nodeMtx.Unlock()
 
-	return db.disconnectBlock(neglectCache)
+	return db.disconnectBlock()
 }
 
 // disconnectBlock is the non-thread-safe version of DisconnectBlock.
-func (db *StakeDatabase) disconnectBlock(neglectCache bool) error {
+func (db *StakeDatabase) disconnectBlock() error {
 	childHeight := db.BestNode.Height()
 	parentBlock, err := db.dbPrevBlock()
 	if err != nil {
@@ -648,27 +477,23 @@ func (db *StakeDatabase) disconnectBlock(neglectCache bool) error {
 		panic("BestNode and stake DB are inconsistent")
 	}
 
-	// Trim the ticket pool db to the same height as stake.Node
-	var undoDiffs []PoolDiff
-	poolDBTip := db.PoolDB.tip
-	for poolDBTip > parentBlock.Height() {
-		newTip, undoDiff := db.PoolDB.Trim()
-		undoDiffs = append(undoDiffs, undoDiff)
-		if newTip >= poolDBTip {
-			panic("unable to trim pool DB!")
+	// Trim the best block from the ticket pool db
+	poolDBTip := db.PoolDB.Trim()
+	if poolDBTip != parentBlock.Height() {
+		log.Warnf("Pool DB tip (%d) not equal to stakeDB height (%d)!",
+			poolDBTip, parentBlock.Height())
+		// Try to recover by trimming further if a previous disconnect failed
+		for poolDBTip > parentBlock.Height() {
+			poolDBTip = db.PoolDB.Trim()
 		}
-		poolDBTip = newTip
+		if poolDBTip != parentBlock.Height() {
+			log.Errorf("Unable to trim pool DB!")
+		}
 	}
 
-	// Update liveTicketCache and poolValue
-	if !neglectCache {
-		for i := range undoDiffs {
-			db.undoDiff(undoDiffs[i])
-		}
-	}
+	childUndoData := append(stake.UndoTicketDataSlice(nil), db.BestNode.UndoData()...)
 
 	log.Debugf("Disconnecting block %d.", childHeight)
-	childUndoData := append(stake.UndoTicketDataSlice(nil), db.BestNode.UndoData()...)
 
 	// previous best node
 	hB, errx := parentBlock.BlockHeaderBytes()
@@ -703,7 +528,7 @@ func (db *StakeDatabase) DisconnectBlocks(count int64) error {
 	defer db.nodeMtx.Unlock()
 
 	for i := int64(0); i < count; i++ {
-		if err := db.disconnectBlock(false); err != nil {
+		if err := db.disconnectBlock(); err != nil {
 			return err
 		}
 	}
@@ -829,36 +654,14 @@ func (db *StakeDatabase) PoolInfoBest() *apitypes.TicketPoolInfo {
 		log.Errorf("PoolInfoBest: BestNode is nil!")
 		return nil
 	}
-	poolSize := db.BestNode.PoolSize()
-	//liveTickets := db.BestNode.LiveTickets()
+	//poolSize := db.BestNode.PoolSize()
+	liveTickets := db.BestNode.LiveTickets()
 	winningTickets := db.BestNode.Winners()
 	height := db.BestNode.Height()
 	// expiredTickets, expireRevoked := db.expires()
 	db.nodeMtx.RUnlock()
 
-	return db.makePoolInfo(db.poolValue, int64(poolSize), winningTickets, height) // db.calcPoolInfo(liveTickets, winningTickets, height)
-}
-
-func (db *StakeDatabase) makePoolInfo(poolValue, poolSize int64,
-	winningTickets []chainhash.Hash, height uint32) *apitypes.TicketPoolInfo {
-	poolCoin := dcrutil.Amount(poolValue).ToCoin()
-	valAvg := 0.0
-	if poolSize > 0 {
-		valAvg = poolCoin / float64(poolSize)
-	}
-
-	winners := make([]string, 0, len(winningTickets))
-	for _, winner := range winningTickets {
-		winners = append(winners, winner.String())
-	}
-
-	return &apitypes.TicketPoolInfo{
-		Height:  height,
-		Size:    uint32(poolSize),
-		Value:   poolCoin,
-		ValAvg:  valAvg,
-		Winners: winners,
-	}
+	return db.calcPoolInfo(liveTickets, winningTickets, height)
 }
 
 func (db *StakeDatabase) calcPoolInfo(liveTickets, winningTickets []chainhash.Hash, height uint32) *apitypes.TicketPoolInfo {

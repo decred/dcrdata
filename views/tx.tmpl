@@ -4,7 +4,7 @@
 {{template "html-head" printf "Decred Transaction %.20s..." .Data.TxID}}
 <body>
 {{template "navbar" . }}
-<div class="container" data-controller="main">
+<div class="container">
 {{with .Data}}
     <div class="row justify-content-between">
         <div class="col-md-8 col-sm-6">
@@ -51,7 +51,7 @@
                         {{.Type}}
                     </td>
                 </tr>
-                {{if and (ne .TicketInfo.PoolStatus "") (and (eq .Type "Ticket") (gt .Confirmations 0))}}
+                {{if and (eq .Type "Ticket") (gt .Confirmations 0)}}
                     <tr>
                         <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">POOL STATUS</td>
                         <td>
@@ -61,12 +61,8 @@
                 {{end}}
                 {{if eq .Mature "True"}}
                     <tr><td class="text-right pr-2 h1rem p03rem0">MATURE</td><td>{{.Mature}}</td></tr>
-                {{else}}
-                {{if and (eq .Confirmations 0) (or (eq .Type "Ticket") (eq .Type "Vote")) }}
-                    <tr><td class="text-right pr-2 h1rem p03rem0">MATURE</td><td>N/A</td></tr>
                 {{end}}
-                {{end}}
-                {{if and (gt .Confirmations 0) (and (eq .Mature "False") (eq .Type "Ticket"))}}
+                {{if and (eq .Mature "False") (eq .Type "Ticket")}}
                     <tr>
                         <td class="text-right pr-2 h1rem p03rem0">MATURITY</td>
                         <td>
@@ -82,7 +78,7 @@
                                             aria-valuemax="256"
                                         >
                                             <span class="nowrap pl-1 pr-1">
-                                                Immature, {{ if eq .Type "Ticket"}}eligible to vote{{else}}spendable{{end}} in {{ if eq .Confirmations .TicketInfo.TicketMaturity }}next block{{else}}{{subtract (add .TicketInfo.TicketMaturity 1) .Confirmations}} blocks ({{printf "%.1f" .TicketInfo.TimeTillMaturity}} hours remaining){{end}}
+                                                Immature, {{ if eq .Type "Ticket"}}eligible to vote{{else}}spendable{{end}} in {{ if eq .Confirmations .TicketInfo.TicketMaturity }}next block{{else}}{{subtract (add .TicketInfo.TicketMaturity 1) .Confirmations}} blocks ({{printf "%.1f" .TicketInfo.TimeTillMaturity}} days remaining){{end}}
                                             </span>
                                         </div>
                                     </div>
@@ -107,7 +103,7 @@
                                             aria-valuemax="256"
                                         >
                                             <span class="nowrap pl-1 pr-1">
-                                                Immature, spendable in {{ if eq (add .Confirmations 1) .Maturity }}next block{{else}}{{subtract .Maturity .Confirmations}} blocks ({{printf "%.1f" .MaturityTimeTill}} hours remaining){{end}}
+                                                Immature, spendable in {{ if eq (add .Confirmations 1) .Maturity }}next block{{else}}{{subtract .Maturity .Confirmations}} blocks ({{printf "%.1f" .MaturityTimeTill}} days remaining){{end}}
                                             </span>
                                         </div>
                                     </div>
@@ -209,7 +205,7 @@
                         {{if eq .Time 0}}
                             N/A
                         {{else}}
-                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.Time}}"></span> ago)</span>
+                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-age="{{.Time}}"></span> ago)</span>
                         {{end}}
                     </td>
                 </tr>
@@ -283,14 +279,6 @@
                         <td class="mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} {{template "decimalParts" (float64AsDecimalParts .AmountIn false)}} {{end}}</td>
                     </tr>
                     {{end}}
-                    {{if and (eq .Type "Coinbase") (gt .BlockMiningFee 0)}}
-                        <tr>
-                            <td class="mono fs13">(Transaction Fees Collected)</td>
-                            <td></td>
-                            <td></td>
-                            <td class="mono fs13 text-right">{{template "decimalParts" (amountAsDecimalParts .BlockMiningFee false)}}</td>
-                        </tr>        
-                    {{end}}
                 </tbody>
             </table>
         </div>
@@ -354,6 +342,7 @@
             <h4>Vote Info</h4>
             <p>Last Block Valid: <span class="mono"><strong>{{.Validation.Validity}}</strong></span><br>
             Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span></p>
+           {{if .Choices}}
             <table class="table striped">
                 <thead>
                     <th class="text-right">Issue ID</th>
@@ -364,7 +353,7 @@
                 <tbody>
                     {{range .Choices}}
                     <tr>
-                        <td class="text-right"><span class="highlight-text"><a href="/agenda/{{.ID}}">{{.ID}}</a></span></td>
+                        <td class="text-right"><span class="highlight-text">{{.ID}}</span></td>
                         <td>{{.Description}}</td>
                         <td>
                             <span class="agenda-voting-overview-option-dot _{{.Choice.Id}}"></span>
@@ -375,6 +364,9 @@
                     {{end}}
                 </tbody>
             </table>
+            {{else}}
+            No vote issue list on tx.
+            {{end}}
         </div>
     </div>
     {{end}}

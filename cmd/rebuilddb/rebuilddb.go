@@ -7,18 +7,18 @@ import (
 	"runtime/pprof"
 	"sync"
 
+	"github.com/btcsuite/btclog"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
-	"github.com/decred/slog"
 )
 
 var (
-	backendLog      *slog.Backend
-	rpcclientLogger slog.Logger
-	sqliteLogger    slog.Logger
-	stakedbLogger   slog.Logger
+	backendLog      *btclog.Backend
+	rpcclientLogger btclog.Logger
+	sqliteLogger    btclog.Logger
+	stakedbLogger   btclog.Logger
 )
 
 func init() {
@@ -27,7 +27,7 @@ func init() {
 		fmt.Printf("Unable to start logger: %v", err)
 		os.Exit(1)
 	}
-	backendLog = slog.NewBackend(log.Writer())
+	backendLog = btclog.NewBackend(log.Writer())
 	rpcclientLogger = backendLog.Logger("RPC")
 	rpcclient.UseLogger(rpcclientLogger)
 	sqliteLogger = backendLog.Logger("DSQL")

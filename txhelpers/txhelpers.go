@@ -110,23 +110,6 @@ func IncludesTx(txHash *chainhash.Hash, block *dcrutil.Block) (int, int8) {
 	return -1, -1
 }
 
-// FilterHashSlice removes elements from the specified if the doRemove function
-// evaluates to true for a given element. For example, given a slice of hashes
-// called blackList that should be removed from the slice hashList:
-//
-// hashList = FilterHashSlice(hashList, func(h chainhash.Hash) bool {
-//  return HashInSlice(h, blackList)
-// })
-func FilterHashSlice(s []chainhash.Hash, doRemove func(h chainhash.Hash) bool) []chainhash.Hash {
-	_s := s[:0]
-	for _, h := range s {
-		if !doRemove(h) {
-			_s = append(_s, h)
-		}
-	}
-	return _s
-}
-
 // PrevOut contains a transaction input's previous outpoint, the Hash of the
 // spending (following) transaction, and input index in the transaction.
 type PrevOut struct {
@@ -136,12 +119,11 @@ type PrevOut struct {
 }
 
 // TxWithBlockData contains a MsgTx and the block hash and height in which it
-// was mined and Time it entered MemPool.
+// was mined.
 type TxWithBlockData struct {
 	Tx          *wire.MsgTx
 	BlockHeight int64
 	BlockHash   string
-	MemPoolTime int64
 }
 
 // Hash returns the chainhash.Hash of the transaction.

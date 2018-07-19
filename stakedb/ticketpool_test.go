@@ -25,11 +25,11 @@ func randomHashSlice(N int) []chainhash.Hash {
 }
 
 var (
-	dbFolder           = "pooldiffs.bdgr"
-	dbFolderRef        = "pooldiffs0.bdgr"
-	dbFolderFull       = "test_ticket_pool.bdgr"
-	fullHeight   int64 = 239191
-	fullPoolSize       = 40763
+	dbFile             = "pooldiffs.db"
+	dbFileRef          = "pooldiffs0.db"
+	dbFileFull         = "stakedb_ticket_pool.db"
+	fullHeight   int64 = 204578
+	fullPoolSize       = 41061
 	poolSpots          = []int64{32215, 43268, 85508, 66322, 178346, 11013, 98265, 1081,
 		40170, 105957, 187824, 148370, 14478, 153239, 109536, 169157, 92064,
 		200277, 27558, 116203, 2338, 28323, 51459, 145753, 137377, 108501,
@@ -57,12 +57,12 @@ var (
 // TestTicketPoolTraverseFull tests AdvanceToTip and Pool for random access.
 // After each Pool call, it checks the pool size against the expected size.
 func TestTicketPoolTraverseFull(t *testing.T) {
-	if _, err := os.Stat(dbFolderFull); err != nil {
-		t.Skipf("%s not found, skipping TestTicketPoolTraverseFull", dbFolderFull)
+	if _, err := os.Stat(dbFileFull); err != nil {
+		t.Skipf("%s not found, skipping TestTicketPoolTraverseFull", dbFileFull)
 	}
 
-	t.Logf("Loading entire ticket pool diffs from %s...", dbFolderFull)
-	p, err := NewTicketPool(".", dbFolderFull)
+	t.Logf("Loading entire ticket pool diffs from %s...", dbFileFull)
+	p, err := NewTicketPool(dbFileFull)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestTicketPoolTraverseFull(t *testing.T) {
 	}
 
 	t.Log("Advancing cursor to tip (applying all diffs and building pool map).")
-	if err, _ = p.AdvanceToTip(); err != nil {
+	if err = p.AdvanceToTip(); err != nil {
 		t.Errorf("failed to advance pool to tip: %v", err)
 	}
 
@@ -127,10 +127,10 @@ func TestTicketPoolTraverseFull(t *testing.T) {
 // tests correct use of AppendAndAdvancePool, verifying that tickets are removed
 // from the pool as expected.
 func TestTicketPoolAppendInvalid(t *testing.T) {
-	if err := os.RemoveAll(dbFolder); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(dbFile); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("Failed to delete db file: %v", err)
 	}
-	p, err := NewTicketPool(".", dbFolder)
+	p, err := NewTicketPool(dbFile)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -194,10 +194,10 @@ func TestTicketPoolAppendInvalid(t *testing.T) {
 
 // TestTicketPoolRetreat tests retreat.
 func TestTicketPoolRetreat(t *testing.T) {
-	if err := os.RemoveAll(dbFolder); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(dbFile); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("Failed to delete db file: %v", err)
 	}
-	p, err := NewTicketPool(".", dbFolder)
+	p, err := NewTicketPool(dbFile)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -267,10 +267,10 @@ func TestTicketPoolRetreat(t *testing.T) {
 
 // TestTicketPoolHeight tests Pool(height).
 func TestTicketPoolHeight(t *testing.T) {
-	if err := os.RemoveAll(dbFolder); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(dbFile); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("Failed to delete db file: %v", err)
 	}
-	p, err := NewTicketPool(".", dbFolder)
+	p, err := NewTicketPool(dbFile)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -314,15 +314,6 @@ func TestTicketPoolHeight(t *testing.T) {
 		t.Errorf("cursor (%d) != tip (%d)", cursor, tip)
 	}
 
-	// Generate ref test files
-	// diff2 := &PoolDiff{
-	// 	In:  randomHashSlice(inN),
-	// 	Out: diff.In[:2], // remove first two added last time
-	// }
-	// if err := p.AppendAndAdvancePool(diff2, tip+1); err != nil {
-	// 	t.Errorf("AppendAndAdvancePool failed: %v", err)
-	// }
-
 	poolSize := p.CurrentPoolSize()
 	delta := inN // out were not in the pool to begin with
 	if poolSize != initPoolSize+delta {
@@ -355,10 +346,10 @@ func TestTicketPoolHeight(t *testing.T) {
 	}
 }
 
-// TestTicketPoolPersistent tests the persistent DB by loading a referece db,
-// and verifies its state is as expected, and Pool works on it.
+// TestTicketPoolPersistent tests the persistent DB by loading a referece .db
+// file, and verifies its state is as expected, and Pool works on it.
 func TestTicketPoolPersistent(t *testing.T) {
-	p, err := NewTicketPool(".", dbFolderRef)
+	p, err := NewTicketPool(dbFileRef)
 	if err != nil {
 		t.Fatalf("NewTicketPool failed: %v", err)
 	}
@@ -378,11 +369,6 @@ func TestTicketPoolPersistent(t *testing.T) {
 		t.Fatalf("initial pool size incorrect. expected 0, got %d", initPoolSize)
 	}
 
-	// Debug ticket pool contents
-	// for i := int64(0); i <= tip; i++ {
-	// 	t.Log(p.Pool(i))
-	// }
-
 	tipPool, err := p.Pool(tip)
 	if err != nil {
 		t.Fatalf("Pool(tip) failed: %v", err)
@@ -390,7 +376,7 @@ func TestTicketPoolPersistent(t *testing.T) {
 	t.Logf("tip pool size: %d", len(tipPool))
 
 	tipPoolSize := p.CurrentPoolSize()
-	if tipPoolSize != 6 {
+	if tipPoolSize != 4 {
 		t.Fatalf("initial pool size incorrect. expected 4, got %d", tipPoolSize)
 	}
 }
