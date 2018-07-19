@@ -32,3 +32,4 @@ ffldb_stake*/
 testnet/
 .DS_Store
 testdata/
+\.project
