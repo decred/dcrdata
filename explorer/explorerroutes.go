@@ -227,7 +227,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
 			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 	}
-	
+
 	if !exp.liteMode {
 		// For any coinbase transactions look up the total block fees to include as part of the inputs
 		if tx.Type == "Coinbase" {
@@ -320,8 +320,6 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
-	
 
 	pageData := struct {
 		Data          *TxInfo
