@@ -11,11 +11,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/decred/dcrdata/db/dbtypes"
-
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/slog"
 	_ "github.com/mattn/go-sqlite3" // register sqlite driver with database/sql
 )
@@ -217,7 +216,9 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	if err = db.Ping(); err != nil {
 		return nil, err
 	}
-	return NewDB(db)
+
+	dataBase, err := NewDB(db)
+	return dataBase, err
 }
 
 // DBDataSaver models a DB with a channel to communicate new block height to the web interface
@@ -892,7 +893,6 @@ func logDBResult(res sql.Result) error {
 	lastID, err := res.LastInsertId()
 	if err != nil {
 		return err
-
 	}
 	rowCnt, err := res.RowsAffected()
 	if err != nil {
