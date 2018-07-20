@@ -4,8 +4,9 @@ package dcrsqlite
 This file contains package-related test-setup utils
 */
 import (
-	"github.com/decred/dcrdata/testutil"
 	"path/filepath"
+
+	"github.com/decred/dcrdata/testutil"
 )
 
 // DBPathForTest produces path inside dedicated test folder for current test
