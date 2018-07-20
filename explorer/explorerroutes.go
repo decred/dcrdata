@@ -209,6 +209,24 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		exp.ErrorPage(w, "Something went wrong...", "could not find that transaction", true)
 		return
 	}
+
+	// Set ticket-related parameters for both full and lite mode
+	if tx.IsTicket() {
+		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
+		tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) *
+			int64(exp.ChainParams.TicketsPerBlock)
+		tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
+		expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() *
+			float64(exp.ChainParams.TicketExpiry)) / 24
+		maturityInHours := (exp.ChainParams.TargetTimePerBlock.Hours() *
+			float64(tx.TicketInfo.TicketMaturity))
+		tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
+			float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInHours
+		ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
+		tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
+			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
+	}
+
 	if !exp.liteMode {
 		// For any coinbase transactions look up the total block fees to include as part of the inputs
 		if tx.Type == "Coinbase" {
@@ -300,23 +318,6 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					float64(exp.ChainParams.TicketExpiry)-float64(blocksLive)))
 			}
 		}
-	}
-
-	// Set ticket-related parameters for both full and lite mode
-	if tx.IsTicket() {
-		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
-		tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) *
-			int64(exp.ChainParams.TicketsPerBlock)
-		tx.TicketInfo.TicketExpiry = int64(exp.ChainParams.TicketExpiry)
-		expirationInDays := (exp.ChainParams.TargetTimePerBlock.Hours() *
-			float64(exp.ChainParams.TicketExpiry)) / 24
-		maturityInHours := (exp.ChainParams.TargetTimePerBlock.Hours() *
-			float64(tx.TicketInfo.TicketMaturity))
-		tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
-			float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInHours
-		ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
-		tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
-			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 	}
 
 	pageData := struct {
