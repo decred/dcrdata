@@ -1,0 +1,58 @@
+package testutil
+
+import (
+	"fmt"
+	"testing"
+)
+
+// Tests are written in a way that allows easily
+// to switch to any other test framework
+//
+// Current test setup wraps GO-Lang/testing framework
+var t *testing.T
+
+func CurrentTestSetup() *testing.T {
+	return t
+}
+
+// BindCurrentTestSetup deploys GO-Lang/testing framework
+func BindCurrentTestSetup(set *testing.T) {
+	t = set
+}
+
+// Set this flag "true" to use "github.com/davecgh/go-spew/spew" for arrays pretty print
+var UseSpewToPrettyPrintArrays = true
+
+// Defines what to do on test setup crash
+var PanicOnTestSetupFailure = true
+
+// Set this flag "true" to print a stack stace when a test failed
+var PanicOnTestFailure = false
+
+// ReportTestIsNotAbleToTest called on failure in a test setup
+// Indicates that test needs to be fixed
+func ReportTestIsNotAbleToTest(report string, args ...interface{}) {
+	if PanicOnTestSetupFailure || t == nil {
+		panic("test setup failure: " + report + ": " + fmt.Sprint(args))
+	} else {
+		t.Fatalf("test setup failure: "+report+": %v", args)
+	}
+}
+
+// ReportTestFailed called by test-code to indicate the code failed the test.
+// ReportTestFailed calls testing.T.Fatalf() for tests executed with go-test.
+// Otherwise it brings attention on a bug with the panic(). Ideally this should
+// happen when the test-check was performed by an assert() call in a running
+// program and revealed unacceptable behaviour during debugging or in the test-net.
+func ReportTestFailed(msg string, args ...interface{}) {
+	if t == nil || PanicOnTestFailure {
+		panic(msg + ": " + fmt.Sprint(args))
+	} else {
+		t.Fatalf(msg, args)
+	}
+}
+
+// TestName returns current test name for tests executed with go-test
+func TestName() string {
+	return t.Name()
+}

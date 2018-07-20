@@ -1,25 +1,31 @@
 package dcrsqlite
 
+/*
+This file contains package-related test-setup utils
+*/
 import (
-	"testing"
-
 	"github.com/decred/dcrdata/testutil"
+	"path/filepath"
 )
 
-// TestMissingParentFolder ensures InitDB() is able to create a new DB-file parent directory if necessary
-// See https://github.com/decred/dcrdata/issues/515
-func TestMissingParentFolder(t *testing.T) {
-	// Specify DB file in non-existent path
-	testutil.ResetTempFolder(t)
-	targetDBFile := testutil.FilePathInsideTempDir(t, "x/y/z/"+testutil.DefaultDBFileName)
+// DBPathForTest produces path inside dedicated test folder for current test
+func DBPathForTest() string {
+	testName := testutil.CurrentTestSetup().Name()
+	testutil.ResetTempFolder(&testName)
+	target := filepath.Join(testName, testutil.DefaultDBFileName)
+	targetDBFile := testutil.FilePathInsideTempDir(target)
+	return targetDBFile
+}
 
+// InitTestDB creates default DB instance
+func InitTestDB(targetDBFile string) *DB {
 	dbInfo := &DBInfo{FileName: targetDBFile}
 	db, err := InitDB(dbInfo)
 	if err != nil {
-		t.Fatalf("InitDB() failed: %v", err)
+		testutil.ReportTestFailed("InitDB() failed: %v", err)
 	}
-
 	if db == nil {
-		t.Fatalf("InitDB() failed")
+		testutil.ReportTestFailed("InitDB() failed")
 	}
+	return db //is not nil
 }

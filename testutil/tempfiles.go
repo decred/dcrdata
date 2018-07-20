@@ -4,7 +4,6 @@ package testutil
 import (
 	"os"
 	"path/filepath"
-	"testing"
 )
 
 const (
@@ -14,32 +13,38 @@ const (
 
 // TempFolderPath returns path of a temporary directory used by these tests to
 // store data.
-func TempFolderPath(t *testing.T) string {
+func TempFolderPath() string {
 	testDir, err := filepath.Abs(DefaultDataDirname)
 	if err != nil {
-		t.Fatalf("Failed to produce DB-test folder path")
+		ReportTestIsNotAbleToTest("Failed to produce DB-test folder path", err)
 	}
 	return testDir
 }
 
 // Ensures we run our test in a clean room. Removes all files created by any of
 // these tests in the temp directory.
-func ResetTempFolder(t *testing.T) {
-	testFolderPath := TempFolderPath(t)
+// Returns the test folder path
+func ResetTempFolder(testSubFolder *string) string {
+	testFolderPath := TempFolderPath()
+	// Clear all test files when testSubFolder is not specified
+	if testSubFolder != nil { //testSubFolder is specified
+		testFolderPath = filepath.Join(testFolderPath, *testSubFolder)
+	}
 	err := os.RemoveAll(testFolderPath)
 	// Failed to clear test-files
 	if err != nil {
-		t.Fatalf("Failed to clear temp folder")
+		ReportTestIsNotAbleToTest("Failed to clear temp folder: %v", err)
 	}
+	return testFolderPath
 }
 
 // FilePathInsideTempDir creates a path to a file inside the temp directory.
-func FilePathInsideTempDir(t *testing.T, pathInsideTempFolder string) string {
-	tempDir := TempFolderPath(t)
+func FilePathInsideTempDir(pathInsideTempFolder string) string {
+	tempDir := TempFolderPath()
 	targetPath := filepath.Join(tempDir, pathInsideTempFolder)
 	targetPath, err := filepath.Abs(targetPath)
 	if err != nil {
-		t.Fatalf("Failed to build a path: " + pathInsideTempFolder)
+		ReportTestIsNotAbleToTest("Failed to build a path: "+pathInsideTempFolder, err)
 	}
 	return targetPath
 }
