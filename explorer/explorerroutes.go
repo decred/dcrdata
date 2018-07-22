@@ -604,7 +604,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 // Charts handles the charts displays showing the various charts plotted.
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
-		exp.StatusPage(w, "Activate full-functionality mode",
+		exp.StatusPage(w, "full-functionality mode required for this page",
 			"Charts page cannot run in lite mode", NotSupportedStatusType)
 		return
 	}
@@ -690,8 +690,8 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	exp.StatusPage(w, "search failed", "Could not find any transaction or block "+searchStr, NotFoundStatusType)
 }
 
-// StatusPage provides a way to show the supported status on a pages
-// without redirecting.
+// StatusPage provides a page for displaying status messages and exception
+// handling without redirecting.
 func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message string, sType statusType) {
 	str, err := exp.templates.execTemplateToString("status", struct {
 		StatusType statusType
@@ -725,7 +725,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 
 // NotFound wraps StatusPage to display a 404 page
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
-	exp.StatusPage(w, "Check the URL used.", "Cannot find page: "+r.URL.Path, NotFoundStatusType)
+	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, NotFoundStatusType)
 }
 
 // ParametersPage is the page handler for the "/parameters" path
