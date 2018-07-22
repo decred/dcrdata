@@ -41,49 +41,51 @@ function barchartPlotter(e) {
 
 // Plotting the actual ticketpool graphs
 (() => {
-    var ms = ""
+    var ms = 0
+    var origDate = 0
 
     function Comparator(a, b) {
-      if (a[0] < b[0]) return -1;
-      if (a[0] > b[0]) return 1;
-      return 0;
+        if (a[0] < b[0]) return -1;
+        if (a[0] > b[0]) return 1;
+        return 0;
     }
 
-    function purchasesGraphData(items){
-      var s = [];
-      var finalDate = "";
+    function purchasesGraphData(items, memP){
+        var s = [];
+        var finalDate = "";
 
-      items.time.map(function(n, i){
-          s.push([new Date(n*1000), 0, items.immature[i], items.live[i], items.price[i]]);
-      });
+        items.time.map(function(n, i){
+            finalDate = new Date(n*1000);
+            s.push([finalDate, 0, items.immature[i], items.live[i], items.price[i]]);
+        });
 
-      finalDate = new Date(mp.time[0]*1000);
-      s.push([finalDate , mp.mempool[0], 0, 0, mp.price[0]]); // add mempool
+        s.push([new Date((memP.time[0] + 60) * 1000) , memP.mempool[0], 0, 0, memP.price[0]]); // add mempool
 
-      origDate = s[0][0] - new Date(0)
-      ms = (finalDate - new Date(0)) + 1000
+        origDate = s[0][0] - new Date(0)
+        ms = (finalDate - new Date(0)) + 1000
 
-      return s
+        return s
     }
 
-    function priceGraphData(items) {
-      var mempl = 0
-      var p = []
+    function priceGraphData(items, memP) {
+        var mempl = 0
+        var p = []
 
-      items.price.map((n, i) => {
-        if (n === mp.price[0]) {
-            mempl = mp.mempool[0]
-            p.push([n, mempl, items.immature[i], items.live[i]]);
-        } else {
-            p.push([n, 0, items.immature[i], items.live[i]]);
+        items.price.map((n, i) => {
+            if (n === memP.price[0]) {
+                mempl = memP.mempool[0]
+                p.push([n, mempl, items.immature[i], items.live[i]]);
+            } else {
+                p.push([n, 0, items.immature[i], items.live[i]]);
+            }
+        });
+
+        if (mempl === 0){
+            p.push([memP.price[0], memP.mempool[0], 0, 0]); // add mempool
+            p = p.sort(Comparator)
         }
-      });
 
-      if (mempl === 0){
-        p.push([mp.price[0], mp.mempool[0], 0, 0]); // add mempool
-        p = p.sort(Comparator)
-      }
-      return p
+        return p
     }
 
     function getVal(val) { return isNaN(val) ? 0: val;}
@@ -97,70 +99,62 @@ function barchartPlotter(e) {
     }
 
     function getWindow(val){
-      switch (val){
-        case "1d": return [(ms - 8.64E+07) - 1000, ms]
-        case "1wk": return [(ms - 6.048e+8) - 1000, ms]
-        case "1m": return [(ms - 2.628e+9) - 1000, ms]
-        default: return [origDate, ms]
-      }
+        switch (val){
+            case "1d": return [(ms - 8.64E+07) - 1000, ms]
+            case "1wk": return [(ms - 6.048e+8) - 1000, ms]
+            case "1m": return [(ms - 2.628e+9) - 1000, ms]
+            default: return [origDate, ms]
+        }
+    }
+
+    var commonOptions = {
+        retainDateWindow: false,
+        showRangeSelector: true,
+        digitsAfterDecimal: 8,
+        fillGraph: true,
+        stackedGraph: true,
+        plotter: barchartPlotter,
+        legendFormatter: legendFormatter,
+        labelsSeparateLines: true,
+        ylabel: '# of Tickets',
+        legend: 'follow'
     }
 
     function purchasesGraph(){
-        return new Dygraph(
-            document.getElementById("tickets_by_purchase_date"),
-            purchasesGraphData(graph[0]),
-            {
+        var d = purchasesGraphData(graph[0], mpl)
+        var p = {
             labels: ["Date", "Mempool Tickets", "Immature Tickets", "Live Tickets", "Ticket Value"],
-            showRangeSelector: true,
-            digitsAfterDecimal: 8,
-            ylabel: '# of Tickets',
-            y2label: 'A.v.g. Tickets Value (DCR)',
             colors: ['darkorange', '#006600', '#0066cc', '#ff0090'],
-            legend: 'follow',
-            fillGraph: true,
-            stackedGraph: true,
-            plotter: barchartPlotter,
-            dateWindow: getWindow("1d"),
-            legendFormatter: legendFormatter,
             title: 'Tickets Purchase Distribution',
-            labelsSeparateLines: true,
+            y2label: 'A.v.g. Tickets Value (DCR)',
+            dateWindow: getWindow("1d"),
             series: {
                 "Ticket Value": {
                     axis: 'y2',
                     plotter: Dygraph.Plotters.linePlotter
                 }
             },
-            axes: {
-                y2: {
-                    fillGraph: true,
-                    axisLabelFormatter: function(d) { return d.toFixed(1)},
-                    }
-                }
-            }
+            axes: {  y2: { axisLabelFormatter: function(d) { return d.toFixed(1)} } }
+        }
+        return new Dygraph(
+            document.getElementById("tickets_by_purchase_date"),
+            d, { ...commonOptions, ...p }
         );
     }
 
     function priceGraph(){
+        var d = priceGraphData(graph[1], mpl)
+        var p = {
+                labels: ["Price", 'Mempool Tickets', 'Immature Tickets', 'Live Tickets'],
+                colors: ['darkorange', '#006600', '#0066cc'],
+                title: 'Ticket Price Distribution',
+                labelsKMB: true,
+                xlabel: 'Ticket Price (DCR)',
+        }
         return new Dygraph(
             document.getElementById("tickets_by_purchase_price"),
-            priceGraphData(graph[1]),
-            {
-                labels: ["Price", 'Mempool Tickets', 'Immature Tickets', 'Live Tickets'],
-                digitsAfterDecimal: 8,
-                showRangeSelector: true,
-                xlabel: 'Ticket Price (DCR)',
-                ylabel: '# of Tickets',
-                legend: 'follow',
-                labelsKMB: true,
-                fillGraph: true,
-                stackedGraph: true,
-                plotter: barchartPlotter,
-                legendFormatter: legendFormatter,
-                title: 'Ticket Price Distribution',
-                colors: ['darkorange', '#006600', '#0066cc'],
-                labelsSeparateLines: true
-            })
-        ;
+            d, { ...commonOptions, ...p }
+        );
     }
 
     function outputsGraph(){
@@ -181,11 +175,9 @@ function barchartPlotter(e) {
                 callbacks: {
                     label: function(tooltipItem, data) {
                     var sum = 0
-                    var dataset = data.datasets[tooltipItem.datasetIndex];
-                    var currentValue = dataset.data[tooltipItem.index];
+                    var currentValue = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
                     d.map((u) =>{sum += u})
-                    var percentage = (currentValue/sum) * 100;
-                    return currentValue + " Tickets ( " + percentage.toFixed(2) + "% )";
+                    return currentValue + " Tickets ( " + ((currentValue/sum) * 100).toFixed(2) + "% )";
                     }
                 }
                 }
@@ -206,48 +198,49 @@ function barchartPlotter(e) {
 
     app.register("ticketpool", class extends Stimulus.Controller{
         static get targets(){
-            return [ "zoom", "bars" ]
+            return [ "zoom", "bars", "age" ]
         }
 
-        connect(){
+        initialize(){
             $.getScript('/js/dygraphs.min.js', () => {
-                this.purchasesGraph = purchasesGraph()
-                this.priceGraph = priceGraph()
+                this.purchasesGraph = purchasesGraph();
+                this.priceGraph = priceGraph();
             });
 
             $.getScript('/js/charts.min.js', () => {
-                this.outputsGraph = outputsGraph()
+                this.outputsGraph = outputsGraph();
             });
+        }
 
+        connect(){
             ws.registerEvtHandler("newblock", (evt) => {
-                ws.send("getticketpooldata", this.bars)
+                ws.send("getticketpooldata", this.bars);
             });
 
             ws.registerEvtHandler("getticketpooldataResp", (evt) => {
-                var v = JSON.parse(evt)
-                console.log(' >>>>>>>>> ', v)
-                this.purchasesGraph.updateOptions({'file': purchasesGraphData(v.BarGraphs[0])})
-                this.priceGraph.updateOptions({'file': priceGraphData(v.BarGraphs[1])})
+                if (evt === "") {
+                    return
+                }
+                var v = JSON.parse(evt);
+                mpl = v.Mempool
+                this.purchasesGraph.updateOptions({'file': purchasesGraphData(v.BarGraphs[0], mpl)});
+                this.priceGraph.updateOptions({'file': priceGraphData(v.BarGraphs[1], mpl)});
 
-                console.log(' Before >>>>>>>>>>> ', this.outputsGraph.data.datasets[0].data)
-                this.outputsGraph.data.datasets[0].data = outputsGraphData(v.DonutChart)
-                console.log(' Before >>>>>>>>>>> ', this.outputsGraph.data.datasets[0].data)
-                this.outputsGraph.update()
-
-                console.log(' >>>>>>>>> ticketpool update complete <<<<<<<<<<<<')
+                this.outputsGraph.data.datasets[0].data = outputsGraphData(v.DonutChart);
+                this.outputsGraph.update();
             })
         }
 
         disconnect() {
-            this.purchasesGraph.destroy()
-            this.priceGraph.destroy()
+            this.purchasesGraph.destroy();
+            this.priceGraph.destroy();
 
-            ws.deregisterEvtHandlers("ticketpool")
-            ws.deregisterEvtHandlers("getticketpooldataResp")
+            ws.deregisterEvtHandlers("ticketpool");
+            ws.deregisterEvtHandlers("getticketpooldataResp");
         }
 
         onZoom() {
-            this.purchasesGraph.updateOptions({dateWindow: getWindow(this.zoom)})
+            this.purchasesGraph.updateOptions({dateWindow: getWindow(this.zoom)});
         }
 
         onBarsChange() {
@@ -262,8 +255,7 @@ function barchartPlotter(e) {
                     $("body").removeClass("loading");
                 },
                 success: function(data) {
-                    purchasesGraphData(data)
-                    _this.purchasesGraph.updateOptions({'file': stages});
+                    _this.purchasesGraph.updateOptions({'file': purchasesGraphData(data, mpl)});
                     $("body").removeClass("loading");
                 }
             });

@@ -175,8 +175,6 @@
             buildTable(this.revokeTransactionsTarget, 'revocations', m.revokes, txTableRow)
             buildTable(this.voteTransactionsTarget, 'votes', m.votes, voteTxTableRow)
             buildTable(this.ticketTransactionsTarget, 'tickets', m.tickets, txTableRow)
-
-            mp = m.tickets
         }
 
         renderNewTxns(evt) {

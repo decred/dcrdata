@@ -106,25 +106,40 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					webData.Message = string(msg)
 
 				case "getticketpooldata":
+					// Ensures that multiple requests for the same update are
+					// treated as the single request.
 					if !tpEvent.Active {
+						log.Warn("ticketpool event has not updated data.")
 						break
 					}
 
 					tpEvent.Active = false
 
-					chartData, groupedData, err := exp.explorerSource.TicketPoolVisualization(msg.Message)
+					cData, gData, err := exp.explorerSource.TicketPoolVisualization(msg.Message)
 					if err != nil {
-						log.Warn("TicketPoolVisualization error: ", err)
+						log.Errorf("TicketPoolVisualization error: %v", err)
 						webData.Message = "Error: Failed to successfully fetch ticketpool data"
 						break
 					}
 
+					exp.MempoolData.Lock()
+					var mpData = exp.MempoolData
+					exp.MempoolData.Unlock()
+
+					var mp = dbtypes.PoolTicketsData{}
+
+					mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
+					mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
+					mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
+
 					var data = struct {
 						BarGraphs  []*dbtypes.PoolTicketsData
 						DonutChart *dbtypes.PoolTicketsData
+						Mempool    dbtypes.PoolTicketsData
 					}{
-						chartData,
-						groupedData,
+						cData,
+						gData,
+						mp,
 					}
 
 					msg, err := json.Marshal(data)
@@ -196,7 +211,6 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					})
 					exp.NewBlockDataMtx.RUnlock()
 
-					// Block all reading operations before initiating a write operation
 					tpEvent.RLock()
 					tpEvent.Active = true
 					tpEvent.RUnlock()

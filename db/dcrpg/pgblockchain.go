@@ -528,7 +528,8 @@ func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtyp
 	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
 }
 
-// getTicketPoolHashes returns the tickets hashes need to plot ticket pool charts.
+// getTicketPoolHashes returns the tickets hashes and the best block needed to
+// plot ticketpool charts.
 func (pgb *ChainDB) getTicketPoolHashes() ([]string, int64, error) {
 	var bestBlock = int64(pgb.GetHeight())
 	var tickets, err = pgb.stakeDB.PoolAtHeight(bestBlock)
@@ -551,9 +552,8 @@ func (pgb *ChainDB) getTicketPoolHashes() ([]string, int64, error) {
 	return ticketsHashes, bestBlock, nil
 }
 
-// TicketPoolVisualization queries the real time ticket pool data.
-// It queries the data needed to populate the real time ticket stages graph.
-// The respective ticket stages include Mempool tickets, Immature tickets and Live tickets.
+// TicketPoolVisualization fetches the ticketpool data. The data is needed to
+// populate the ticketpool graphs.
 func (pgb *ChainDB) TicketPoolVisualization(bars string) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
 	var allTickets = make([]*dbtypes.PoolTicketsData, 3)
 	var ticketsHashes, tickets, bestBlock, err = pgb.TicketPoolByDateAndInterval(bars)
@@ -576,8 +576,8 @@ func (pgb *ChainDB) TicketPoolVisualization(bars string) ([]*dbtypes.PoolTickets
 	return allTickets, grpTickets, nil
 }
 
-// TicketPoolByDateAndInterval fetches the tickets ordered by
-// the purchase in the provided interval.
+// TicketPoolByDateAndInterval fetches the tickets ordered by the purchase date
+// interval provided.
 func (pgb *ChainDB) TicketPoolByDateAndInterval(val string) ([]string, *dbtypes.PoolTicketsData, int64, error) {
 	var sec int64
 	switch val {
@@ -592,10 +592,12 @@ func (pgb *ChainDB) TicketPoolByDateAndInterval(val string) ([]string, *dbtypes.
 	default:
 		return []string{}, nil, 0, fmt.Errorf("The interval provided '%s' is unknown", val)
 	}
+
 	var ticketsHashes, bestBlock, err = pgb.getTicketPoolHashes()
 	if err != nil {
 		return ticketsHashes, nil, 0, err
 	}
+
 	t, err := retrieveTicketsByDate(pgb.db, bestBlock, ticketsHashes, sec)
 	return ticketsHashes, t, bestBlock, err
 }

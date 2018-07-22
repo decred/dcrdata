@@ -246,9 +246,13 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var mp = dbtypes.PoolTicketsData{}
-	mp.Time = append(mp.Time, uint64(exp.MempoolData.Tickets[0].Time))
-	mp.Price = append(mp.Price, exp.MempoolData.Tickets[0].TotalOut)
-	mp.Mempool = append(mp.Mempool, uint64(len(exp.MempoolData.Tickets)))
+	exp.MempoolData.Lock()
+	var mpData = exp.MempoolData
+	exp.MempoolData.Unlock()
+
+	mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
+	mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
+	mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
 
 	str, err := exp.templates.execTemplateToString("ticketpool", struct {
 		Version     string
