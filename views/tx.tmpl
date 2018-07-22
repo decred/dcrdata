@@ -353,7 +353,9 @@
         <div class="col-md-12">
             <h4>Vote Info</h4>
             <p>Last Block Valid: <span class="mono"><strong>{{.Validation.Validity}}</strong></span><br>
-            Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span></p>
+            Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span>
+            {{if .Choices}}
+            </p>
             <table class="table striped">
                 <thead>
                     <th class="text-right">Issue ID</th>
@@ -375,6 +377,9 @@
                     {{end}}
                 </tbody>
             </table>
+            {{else}}
+            <br>No votes in this block.</p>
+            {{end}}
         </div>
     </div>
     {{end}}
