@@ -46,7 +46,8 @@ func ArrayToString(tag string, iface interface{}) string {
 	for i := 0; i < n; i++ {
 		e := array.Index(i)
 		val := fmt.Sprintf("%v", e)
-		line := fmt.Sprintf("%"+strconv.Itoa(prefixLen)+"s", "("+strconv.Itoa(i)+") ") + val
+		line := fmt.Sprintf("%"+strconv.Itoa(prefixLen)+"s",
+			"("+strconv.Itoa(i)+") ") + val
 		result = result + line + "\n"
 	}
 	return result

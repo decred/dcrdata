@@ -1,13 +1,16 @@
 // Copyright (c) 2018+ The Decred developers
-// Use of this source code is governed by an ISC license that can be found in the LICENSE file.
+// Use of this source code is governed by an ISC license
+// that can be found in the LICENSE file.
 
 /*
 Package testutil provides convenience functions and types for testing.
 
-Generally tests should be written in a way that helps easily to switch to any other test framework.
-For example, this allows reusing test-checks by calling them from working prod code like assert calls.
+Generally tests should be written in a way that helps easily to switch
+to any other test framework. For example, this allows reusing test-checks
+by calling them from working prod code like assert calls.
 
-testutil stands as a proxy between user-code and a test framework giving some flexibility on configuring test-setup.
+testutil stands as a proxy between user-code and a test framework giving
+some flexibility on configuring test-setup.
 
 Currently testutil wraps only the GO-Lang/testing framework
 */
@@ -30,7 +33,8 @@ func BindCurrentTestSetup(set *testing.T) {
 	t = set
 }
 
-// Set this flag "true" to use "github.com/davecgh/go-spew/spew" for arrays pretty print
+// Set this flag "true" to use "github.com/davecgh/go-spew/spew"
+// for arrays pretty print
 var UseSpewToPrettyPrintArrays = true
 
 // Defines what to do on test setup crash
@@ -53,7 +57,8 @@ func ReportTestIsNotAbleToTest(report string, args ...interface{}) {
 // ReportTestFailed calls testing.T.Fatalf() for tests executed with go-test.
 // Otherwise it brings attention on a bug with the panic(). Ideally this should
 // happen when the test-check was performed by an assert() call in a running
-// program and revealed unacceptable behaviour during debugging or in the test-net.
+// program and revealed unacceptable behaviour during debugging
+// or in the test-net.
 func ReportTestFailed(msg string, args ...interface{}) {
 	if t == nil || PanicOnTestFailure {
 		panic(msg + ": " + fmt.Sprint(args))
