@@ -22,6 +22,11 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
+const (
+	defaultErrorCode    = "Something went wrong..."
+	defaultErrorMessage = "Try refreshing this page... it usually fixes things"
+)
+
 // netName returns the name used when referring to a decred network.
 func netName(chainParams *chaincfg.Params) string {
 	switch chainParams.Net {
@@ -59,7 +64,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -90,7 +95,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
-		exp.ErrorPage(w, "Something went wrong...", "could not find those blocks", true)
+		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", NotFoundStatusType)
 		return
 	}
 
@@ -110,7 +115,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -125,7 +130,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	data := exp.blockData.GetExplorerBlock(hash)
 	if data == nil {
 		log.Errorf("Unable to get block %s", hash)
-		exp.ErrorPage(w, "Something went wrong...", "could not find that block", true)
+		exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
 		return
 	}
 	// Checking if there exists any regular non-Coinbase transactions in the block.
@@ -162,7 +167,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -187,7 +192,7 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -201,13 +206,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		log.Trace("txid not set")
-		exp.ErrorPage(w, "Something went wrong...", "there was no transaction requested", true)
+		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", NotFoundStatusType)
 		return
 	}
 	tx := exp.blockData.GetExplorerTx(hash)
 	if tx == nil {
 		log.Errorf("Unable to get transaction %s", hash)
-		exp.ErrorPage(w, "Something went wrong...", "could not find that transaction", true)
+		exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
 		return
 	}
 
@@ -243,7 +248,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
 		if err != nil {
 			log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
-			exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 			return
 		}
 		for i, vout := range voutInds {
@@ -336,7 +341,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("tx", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -360,7 +365,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
 		log.Trace("address not set")
-		exp.ErrorPage(w, "Something went wrong...", "there seems to not be an address in this request", true)
+		exp.StatusPage(w, defaultErrorCode, "there seems to not be an address in this request", NotFoundStatusType)
 		return
 	}
 
@@ -389,7 +394,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 	txnType := dbtypes.AddrTxnTypeFromStr(txntype)
 	if txnType == dbtypes.AddrTxnUnknown {
-		exp.ErrorPage(w, "Something went wrong...", "unknown txntype query value", false)
+		exp.StatusPage(w, defaultErrorCode, "unknown txntype query value", ErrorStatusType)
 		return
 	}
 	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
@@ -400,7 +405,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 		if addrData == nil {
 			log.Errorf("Unable to get address %s", address)
-			exp.ErrorPage(w, "Something went wrong...", "could not find that address", true)
+			exp.StatusPage(w, defaultErrorCode, "could not find that address", NotFoundStatusType)
 			return
 		}
 	} else {
@@ -413,7 +418,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 			if addrData == nil {
 				log.Errorf("Unable to get address %s", address)
-				exp.ErrorPage(w, "Something went wrong...", "could not find that address", true)
+				exp.StatusPage(w, defaultErrorCode, "could not find that address", NotFoundStatusType)
 				return
 			}
 
@@ -435,7 +440,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			str, err := exp.templates.execTemplateToString("address", pageData)
 			if err != nil {
 				log.Errorf("Template execute failure: %v", err)
-				exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+				exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 				return
 			}
 
@@ -451,7 +456,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			// Empty history is not expected for credit txnType with any txns.
 			if txnType != dbtypes.AddrTxnDebit && (balance.NumSpent+balance.NumUnspent) > 0 {
 				log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
-				exp.ErrorPage(w, "Something went wrong...", "that address has no history", true)
+				exp.StatusPage(w, defaultErrorCode, "that address has no history", NotFoundStatusType)
 				return
 			}
 			// No mined transactions
@@ -488,7 +493,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		err = exp.explorerSource.FillAddressTransactions(addrData)
 		if err != nil {
 			log.Errorf("Unable to fill address %s transactions: %v", address, err)
-			exp.ErrorPage(w, "Something went wrong...", "could not find transactions for that address", false)
+			exp.StatusPage(w, defaultErrorCode, "could not find transactions for that address", ErrorStatusType)
 			return
 		}
 
@@ -567,7 +572,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -588,7 +593,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -598,10 +603,15 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 
 // Charts handles the charts displays showing the various charts plotted.
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
+	if exp.liteMode {
+		exp.StatusPage(w, "full-functionality mode required for this page",
+			"Charts page cannot run in lite mode", NotSupportedStatusType)
+		return
+	}
 	tickets, err := exp.explorerSource.GetTicketsPriceByHeight()
 	if err != nil {
 		log.Errorf("Loading the Ticket Price By Height chart data failed %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 
@@ -616,7 +626,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 
@@ -631,7 +641,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	searchStr := r.URL.Query().Get("search")
 	if searchStr == "" {
-		exp.ErrorPage(w, "search failed", "Nothing was searched for", true)
+		exp.StatusPage(w, "search failed", "Nothing was searched for", NotFoundStatusType)
 		return
 	}
 
@@ -644,7 +654,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
 			return
 		}
-		exp.ErrorPage(w, "search failed", "Block "+searchStr+" has not yet been mined", true)
+		exp.StatusPage(w, "search failed", "Block "+searchStr+" has not yet been mined", NotFoundStatusType)
 		return
 	}
 
@@ -658,7 +668,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Check if the value is a valid hash
 	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
-		exp.ErrorPage(w, "search failed", "Couldn't find any address "+searchStr, true)
+		exp.StatusPage(w, "search failed", "Couldn't find any address "+searchStr, NotFoundStatusType)
 		return
 	}
 
@@ -677,17 +687,20 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
-	exp.ErrorPage(w, "search failed", "Could not find any transaction or block "+searchStr, true)
+	exp.StatusPage(w, "search failed", "Could not find any transaction or block "+searchStr, NotFoundStatusType)
 }
 
-// ErrorPage provides a way to show error on the pages without redirecting
-func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message string, notFound bool) {
-	str, err := exp.templates.execTemplateToString("error", struct {
-		ErrorCode   string
-		ErrorString string
-		Version     string
-		NetName     string
+// StatusPage provides a page for displaying status messages and exception
+// handling without redirecting.
+func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message string, sType statusType) {
+	str, err := exp.templates.execTemplateToString("status", struct {
+		StatusType statusType
+		Code       string
+		Message    string
+		Version    string
+		NetName    string
 	}{
+		sType,
 		code,
 		message,
 		exp.Version,
@@ -697,18 +710,22 @@ func (exp *explorerUI) ErrorPage(w http.ResponseWriter, code string, message str
 		log.Errorf("Template execute failure: %v", err)
 		str = "Something went very wrong if you can see this, try refreshing"
 	}
+
 	w.Header().Set("Content-Type", "text/html")
-	if notFound {
+	switch sType {
+	case NotFoundStatusType:
 		w.WriteHeader(http.StatusNotFound)
-	} else {
+	case ErrorStatusType:
 		w.WriteHeader(http.StatusInternalServerError)
+	default:
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	io.WriteString(w, str)
 }
 
-// NotFound wraps ErrorPage to display a 404 page
+// NotFound wraps StatusPage to display a 404 page
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
-	exp.ErrorPage(w, "Not found", "Cannot find page: "+r.URL.Path, true)
+	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, NotFoundStatusType)
 }
 
 // ParametersPage is the page handler for the "/parameters" path
@@ -734,7 +751,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -744,10 +761,15 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 
 // AgendaPage is the page handler for the "/agenda" path
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
+	if exp.liteMode {
+		exp.StatusPage(w, "Activate full-functionality mode",
+			"Agenda page cannot run in lite mode.", NotSupportedStatusType)
+		return
+	}
 	errPageInvalidAgenda := func(err error) {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...",
-			"the agenda ID given seems to not exist", true)
+		exp.StatusPage(w, defaultErrorCode,
+			"the agenda ID given seems to not exist", NotFoundStatusType)
 	}
 
 	// Attempt to get agendaid string from URL path
@@ -786,8 +808,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, "+
-			"try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -800,8 +821,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	agendas, err := agendadb.GetAllAgendas()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, "+
-			"try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 
@@ -817,8 +837,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, "+
-			"try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")

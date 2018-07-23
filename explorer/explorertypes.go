@@ -17,6 +17,17 @@ import (
 	"github.com/decred/dcrdata/txhelpers"
 )
 
+// statusType defines the various status types supported by the system.
+type statusType string
+
+const (
+	ErrorStatusType          statusType = "Error"
+	NotFoundStatusType       statusType = "Not Found"
+	NotSupportedStatusType   statusType = "Not Supported"
+	NotImplementedStatusType statusType = "Not Implemented"
+	DeprecatedStatusType     statusType = "Deprecated"
+)
+
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
 	Height         int64  `json:"height"`

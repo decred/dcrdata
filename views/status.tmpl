@@ -1,0 +1,21 @@
+{{define "status"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "html-head" printf "Status %s" .StatusType}}
+<body>
+    {{template "navbar" . }}
+
+    <div class="container">
+        <br/>
+        <div class="alert alert-info">
+            {{if eq .StatusType "Not Found"}}
+                <h5>No matching page, block, address or transaction that could be found</h3>
+            {{else}}
+                <h5>{{.Message}}</h5>
+            {{end}}
+        </div>
+    </div>
+{{ template "footer" . }}
+</body>
+</html>
+{{end}}
