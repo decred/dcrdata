@@ -1,3 +1,17 @@
+// Copyright (c) 2018+ The Decred developers
+// Use of this source code is governed by an ISC license that can be found in the LICENSE file.
+
+/*
+Package testutil provides convenience functions and types for testing.
+
+Generally tests should be written in a way that helps easily to switch to any other test framework.
+For example, this allows reusing test-checks by calling them from working prod code like assert calls.
+
+testutil stands as a proxy between user-code and a test framework giving some flexibility on configuring test-setup.
+
+Currently testutil wraps only the GO-Lang/testing framework
+*/
+
 package testutil
 
 import (
@@ -5,10 +19,6 @@ import (
 	"testing"
 )
 
-// Tests are written in a way that allows easily
-// to switch to any other test framework
-//
-// Current test setup wraps GO-Lang/testing framework
 var t *testing.T
 
 func CurrentTestSetup() *testing.T {
