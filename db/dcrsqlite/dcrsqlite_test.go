@@ -9,6 +9,7 @@ import (
 	"github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/testutil"
+	"github.com/decred/dcrdata/db/dbtypes"
 )
 
 // DBPathForTest produces path inside dedicated test folder for current test
