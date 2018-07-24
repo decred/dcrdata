@@ -186,19 +186,19 @@
         }
 
         filterVotesLastBlock() {
-            var bestBlockHash=$(this.bestBlockTarget).data("hash");
-            var bestBlockHeight=$(this.bestBlockTarget).text();
+            var bestBlockHash = $(this.bestBlockTarget).data("hash");
+            var bestBlockHeight = $(this.bestBlockTarget).text();
             $(this.voteTransactionsTarget).children("tr").each(function(i,el) {
-                var voteValidationHash=$(this).data("blockhash");
-                var voteBlockHeight=$(this).data("height");
-                if(voteBlockHeight>bestBlockHeight) {
+                var voteValidationHash = $(this).data("blockhash");
+                var voteBlockHeight = $(this).data("height");
+                if (voteBlockHeight > bestBlockHeight) {
                     $(this).closest("tr").addClass("upcoming-vote");
                     $(this).closest("tr").removeClass("old-vote");
-                }else if(voteValidationHash!=bestBlockHash){
+                } else if (voteValidationHash != bestBlockHash) {
                     $(this).closest("tr").addClass("old-vote");
                     $(this).closest("tr").removeClass("upcoming-vote");
                     $(this).find("td.last_block").text("Invalid");
-                }else{
+                } else {
                     $(this).closest("tr").removeClass("old-vote");
                     $(this).closest("tr").removeClass("upcoming-vote");
                     $(this).find("td.last_block").text("Valid");
@@ -211,11 +211,11 @@
             $rows.sort(function(a, b){
                 var heightA = parseInt($('td:nth-child(2)',a).text());
                 var heightB = parseInt($('td:nth-child(2)',b).text());
-                if(heightA == heightB) {
+                if (heightA == heightB) {
                      var indexA = parseInt($('td:nth-child(3)',a).text());
                      var indexB = parseInt($('td:nth-child(3)',b).text());
                      return (indexA - indexB);
-                }else{
+                } else {
                     return (heightB - heightA);
                 }
             });
