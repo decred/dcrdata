@@ -16,6 +16,9 @@ func TestGetBestBlockHeight(t *testing.T) {
 func testEmptyDBGetBestBlockHeight(db *DB) {
 	h := db.GetBestBlockHeight()
 	if h != -1 {
-		testutil.ReportTestFailed("db.GetBestBlockHeight() is %v", h)
+		testutil.ReportTestFailed(
+			"db.GetBestBlockHeight() is %v,"+
+				" should be -1",
+			h)
 	}
 }

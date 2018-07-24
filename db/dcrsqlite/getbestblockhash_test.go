@@ -17,6 +17,8 @@ func testEmptyDBGetBestBlockHash(db *DB) {
 	if str != "" {
 		// Open question: Should it really be the empty string?
 		// Maybe error instead to avoid confusion?
-		testutil.ReportTestFailed("GetBestBlockHash() failed: %v", str)
+		testutil.ReportTestFailed(
+			"GetBestBlockHash() failed: %v",
+			str)
 	}
 }
