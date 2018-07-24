@@ -1,86 +1,102 @@
 (() => {
-    var currentGraph = 'ticket-price';
+
+    var selectedChart;
+
+    function legendFormatter(data) {
+        if (data.x == null) {
+            var html = this.getLabels()[0] + ': N/A'
+            return html + '<br>' + data.series.map(function(series) { return series.dashHTML + ' ' + series.labelHTML }).join('<br>');
+        }
+        var html = this.getLabels()[0] + ': ' + data.xHTML;
+        data.series.forEach(function(series) {
+          if (!series.isVisible) return;
+          var labeledData = series.labelHTML + ': ' + series.yHTML;
+          if (series.isHighlighted) {
+            labeledData = '<b>' + labeledData + '</b>';
+          }
+          html += '<br>' + series.dashHTML + ' ' + labeledData;
+        });
+        return html;
+    }
+
+    function nightModeOptions(nightModeOn) {
+        if (nightModeOn) {
+            return {
+                rangeSelectorAlpha: .3,
+                gridLineColor: "#596D81",
+                colors: ['#2DD8A3', '#2970FF']
+            }
+        }
+        return {
+            rangeSelectorAlpha: .4,
+            gridLineColor: "#C4CBD2",
+            colors: ['#2970FF','#2DD8A3']
+        }
+    }
 
     function ticketsFunc(gData){
-        d = [];
-        gData.time.forEach((n, i) => { d.push([new Date (n*1000), gData.valuef[i]]);});
-        return d
+        return _.map(gData.time, (n,i) => {
+            return [
+                new Date (n*1000),
+                gData.valuef[i]
+            ]
+        })
     }
 
     function difficultyFunc(gData){
-        d = [];
-        gData.time.forEach((n, i) => { d.push([new Date(n*1000), gData.difficulty[i]])});
-        return d
+        return _.map(gData.time, (n, i) => { return [new Date(n*1000), gData.difficulty[i]] })
     }
 
     function supplyFunc (gData){
-        d = [];
-        gData.time.forEach((n, i) => {d.push([new Date(n*1000), gData.valuef[i]])});
-        return d
+       return _.map(gData.time, (n, i) => { return [new Date(n*1000), gData.valuef[i]] });
     }
 
     function timeBtwBlocksFunc(gData){
-        d = [];
+        var d = [];
         gData.value.forEach((n, i) => { if (n === 0) {return} d.push([n, gData.valuef[i]])});
         return d
     }
 
     function blockSizeFunc(gData){
-        d = [];
-        gData.time.forEach((n, i) => {d.push([new Date(n*1000), gData.size[i]])});
-        return d
+        return _.map(gData.time,(n,i) => {
+            return [new Date(n*1000), gData.size[i]]
+        })
     }
 
     function blockChainSizeFunc(gData){
-        d = [];
-        gData.time.forEach((n, i) => {d.push([new Date(n*1000), gData.chainsize[i]])});
-        return d
+        return _.map(gData.time,(n,i) => { return [new Date(n*1000), gData.chainsize[i]] })
     }
 
     function txPerBlockFunc(gData){
-        d = [];
-        gData.value.forEach((n, i) => {d.push([n, gData.count[i]])});
-        return d
+        return _.map(gData.value,(n,i) => { return [n, gData.count[i]] })
     }
 
     function txPerDayFunc (gData){
-        d = [];
-        gData.timestr.forEach((n, i) => {d.push([new Date(n), gData.count[i]])});
-        return d
+        return _.map(gData.timestr,(n,i) => { return [new Date(n), gData.count[i]] })
     }
 
     function poolSizeFunc(gData){
-        d = [];
-        gData.time.forEach((n, i) =>{d.push([new Date(n*1000), gData.sizef[i]])});
-        return d
+        return _.map(gData.time,(n,i) => { return [new Date(n*1000), gData.sizef[i]] })
     }
 
     function poolValueFunc(gData) {
-        d = [];
-        gData.time.forEach((n, i) => {d.push([new Date(n*1000), gData.valuef[i]])});
-        return d
+        return _.map(gData.time,(n,i) => { return [new Date(n*1000), gData.valuef[i]] })
     }
 
     function blockFeeFunc (gData){
-        d = [];
-        gData.count.forEach((n,i) => {d.push([n, gData.sizef[i]]);}); 
-        return d
+        return _.map(gData.count, (n,i) => { return [n, gData.sizef[i]] })
     }
 
     function ticketSpendTypeFunc(gData) {
-        d = [];
-        gData.height.forEach((n,i) => {d.push([n, gData.unspent[i], gData.revoked[i]])}); 
-        return d
+        return _.map(gData.height, (n,i) => { return [n, gData.unspent[i], gData.revoked[i]] })
     }
 
     function ticketByOutputCountFunc(gData) {
-        d = [];
-        gData.height.forEach((n,i) => {d.push([n, gData.solo[i], gData.pooled[i]]);}); 
-        return d
+        return _.map(gData.height, (n,i) => { return [n, gData.solo[i], gData.pooled[i]] })
     }
 
     function mapDygraphOptions(data,labelsVal, isDrawPoint, yLabel, xLabel, titleName, labelsMG, labelsMG2){
-        return { 
+        return _.merge({
             'file': data,
             digitsAfterDecimal: 8,
             labels: labelsVal,
@@ -93,37 +109,15 @@
             fillGraph: false,
             stackedGraph: false,
             plotter: Dygraph.Plotters.linePlotter,
-            colors: ['rgb(0,128,127)']
-        }
+        }, nightModeOptions(darkEnabled()))
     }
 
-    function getAPIData(gType, callback, g){
-        $.ajax({
+    function getAPIData(chartType, controllerContext){
+        return $.ajax({
             type: 'GET',
-            url: '/api/chart/'+gType,
-            beforeSend: function() {},
-            success: function(data) {
-                callback(gType, data, g);
-            }
+            url: '/api/chart/' + chartType,
+            context: controllerContext
         });
-    }
-
-    function formatter(data) {
-        if (data.x == null) return '';
-        var html = this.getLabels()[0] + ': ' + data.xHTML;
-        data.series.forEach(function(series){
-            var labeledData = `<span style="color: ` + series.color + ';">' +series.labelHTML + ': ' + series.yHTML;
-            html += '<br>' + series.dashHTML  + labeledData +'</span>';
-        });
-        return html;
-    }
-
-    function darkenColor(colorStr) {
-        var color = Dygraph.toRGB_(colorStr);
-        color.r = Math.floor((255 + color.r) / 2);
-        color.g = Math.floor((255 + color.g) / 2);
-        color.b = Math.floor((255 + color.b) / 2);
-        return 'rgb(' + color.r + ',' + color.g + ',' + color.b + ')';
     }
 
     function barchartPlotter(e) {
@@ -131,7 +125,7 @@
     var points = e.points;
     var y_bottom = e.dygraph.toDomYCoord(0);
 
-    ctx.fillStyle = darkenColor(e.color);
+    ctx.fillStyle = e.color
 
     var min_sep = Infinity;
     for (var i = 1; i < points.length; i++) {
@@ -152,193 +146,210 @@
         }
     }
 
-    function plotGraph (value, data, g){
-        $('.chart-btn-display').hide()
-        $('.block-chart-btn-display').hide()
-        var gOptions = {}
-        switch(value){
-            case 'ticket-price': // price graph
-                d = ticketsFunc(data)
-                gOptions = mapDygraphOptions(d, ['Date', 'Price'], true, 'Price (Decred)', 'Date', 'Ticket Price', false, false)
-            break;
-
-            case 'ticket-pool-size': // pool size graph
-                d = poolSizeFunc(data)
-                gOptions = mapDygraphOptions(d, ['Date', 'Ticket Pool Size'], false, 'Ticket Pool Size', 'Date', 
-                'Ticket Pool Size', true, false)
-            break;
-            
-            case 'ticket-pool-value': // pool value graph
-                d = poolValueFunc(data)
-                gOptions = mapDygraphOptions(d, ['Date', 'Ticket Pool Value'], true, 'Ticket Pool Value','Date', 
-                'Ticket Pool Value', true, false)
-            break;
-            
-            case 'avg-block-size': // block size graph
-                d = blockSizeFunc(data)
-                gOptions = mapDygraphOptions(d, ['Date', 'Block Size'], false, 'Block Size', 'Date','Average Block Size', true, false)
-            break;
-
-            case 'blockchain-size': // blockchain size graph
-                d = blockChainSizeFunc(data)
-                gOptions = mapDygraphOptions(d, ['Date', 'BlockChain Size'], true, 'BlockChain Size', 'Date', 'BlockChain Size', false, true)
-            break;
-
-            case 'tx-per-block':  // tx per block graph
-                d = txPerBlockFunc(data)
-                gOptions = mapDygraphOptions(d, ['Date', 'Number of Transactions Per Block'], false, '# of Transactions', 'Date',
-                'Number of Transactions Per Block', false, false)
-            break;
-
-            case 'tx-per-day': // tx per day graph
-                d = txPerDayFunc(data)
-                gOptions = mapDygraphOptions(d, ['Date', 'Number of Transactions Per Day'], true, '# of Transactions', 'Date', 
-                'Number of Transactions Per Day', true, false)
-            break;
-
-            case 'pow-difficulty': // difficulty graph
-                d = difficultyFunc(data)
-                gOptions = mapDygraphOptions(d, ['Date', 'Difficulty'], true, 'Difficulty', 'Date', 'PoW Difficulty', true, false)
-            break;
-            
-            case 'coin-supply': // supply graph
-                d = supplyFunc(data)
-                gOptions = mapDygraphOptions(d, ['Date', 'Coin Supply'], true, 'Coin Supply', 'Date', 'Total Coin Supply', true, false)
-            break;
-
-            case 'fee-per-block': // block fee graph
-                d = blockFeeFunc(data)
-                gOptions = mapDygraphOptions(d, ['Block Height', 'Total Fee'], false, 'Total Fee (DCR)', 'Block Height', 
-                'Total Fee Per Block', true, false)
-            break;
-
-            case 'duration-btw-blocks': // Duration between blocks graph
-                d = timeBtwBlocksFunc(data)
-                gOptions = mapDygraphOptions(d, ['Block Height', 'Duration Between Block'], false, 'Duration Between Block (Seconds)', 'Block Height',
-                'Duration Between Blocks', false, false)
-            break;
-
-            case 'ticket-spend-type': // Tickets spendtype per block graph
-                d = ticketSpendTypeFunc(data)
-                gOptions = mapDygraphOptions(d, ['Block Height', 'Unspent', 'Revoked'], false, '# of Tickets Spend Type', 'Block Height',
-                'Tickets Spend Types', false, false)
-                gOptions.fillGraph = true
-                gOptions.stackedGraph = true
-                gOptions.colors = ['orange', 'red']
-                gOptions.plotter = barchartPlotter
-            break;
-
-            case 'ticket-by-outputs-windows': // Tickets by output count graph for ticket windows
-                d = ticketByOutputCountFunc(data)
-                gOptions = mapDygraphOptions(d, ['Window', 'Solo', 'Pooled'], false, '# of Tickets By Output Count', 'Ticket Price Window',
-                'Tickets Outputs Count By Ticket Price Window', false, false)
-                gOptions.fillGraph = true
-                gOptions.stackedGraph = true
-                gOptions.colors = ['orange', 'rgb(0,153,0)']
-                gOptions.plotter = barchartPlotter
-                $('.chart-btn-display').show();
-                break;
-
-            case 'ticket-by-outputs-blocks': // Tickets by output count graph for all blocks
-                d = ticketByOutputCountFunc(data)
-                height = data.height[data.height.length]
-                gOptions = mapDygraphOptions(d, ['Block Height', 'Solo', 'Pooled'], false, '# of Tickets By Output Count', 'Block Height',
-                'Tickets Outputs Count By All Blocks', false, false)
-                gOptions.fillGraph = true
-                gOptions.stackedGraph = true 
-                gOptions.colors = ['orange', 'rgb(0,153,0)']
-                gOptions.plotter = barchartPlotter
-                $('.chart-btn-display').show();
-                $('.block-chart-btn-display').show()
-            break;
-        }
-        
-        g.resetZoom();
-        g.updateOptions(gOptions, false);
-        $('body').removeClass('loading');
-    }
-
     app.register('charts', class extends Stimulus.Controller {
         static get targets() {
-            return ['chartsview', 'options', 'groupings', 'zoom']
-        } 
+            return [
+                'chartWrapper',
+                'labels',
+                'chartsView',
+                'chartSelect',
+                'zoomSelector',
+                'zoomOption',
+            ]
+        }
 
         connect() {
             $.getScript('/js/dygraphs.min.js', () => {
                 this.drawInitialGraph()
+                $(document).on("nightMode", this, function(event,params) {
+                    event.data.chartsView.updateOptions(
+                        nightModeOptions(params.nightMode)
+                    );
+                })
+
             });
-        } 
+
+        }
 
         disconnect(){
-            if (this.chartsview != undefined) {
-                this.chartsview.destroy()
+            d = undefined;
+            if (this.chartsView != undefined) {
+                this.chartsView.destroy()
             }
         }
 
         drawInitialGraph(){
-            this.chartsview = new Dygraph(
-                document.getElementById('graphdiv'),
-                ticketsFunc(ticketsPrice),
-                {
-                    digitsAfterDecimal: 8,
-                    showRangeSelector: true,
-                    drawPoints: true,
-                    labels: ['Date', 'Price'],
-                    legend: 'follow',
-                    legendFormatter: formatter,
-                    ylabel: 'Price (Decred)',
-                    xlabel: 'Date',
-                    title: 'Ticket Price',
-                    labelsSeparateLines: true,
-                    plotter: Dygraph.Plotters.linePlotter
-                }); 
+            var options = {
+                digitsAfterDecimal: 8,
+                showRangeSelector: true,
+                rangeSelectorPlotFillColor: '#8997A5',
+                rangeSelectorPlotFillGradientColor: "",
+                rangeSelectorPlotStrokeColor: "",
+                rangeSelectorAlpha: .4,
+                rangeSelectorHeight: 40,
+                drawPoints: true,
+                pointSize: .25,
+                labelsSeparateLines: true,
+                plotter: Dygraph.Plotters.linePlotter,
+                labelsDiv: this.labelsTarget,
+                legend: 'always',
+                legendFormatter: legendFormatter,
+                highlightCircleSize: 4,
             }
 
-        onChange(){
-            $('body').addClass('loading');
-            var selected = this.options
-            if (currentGraph != selected) {
-                getAPIData(selected, plotGraph, this.chartsview)
-                currentGraph = selected;
-            } else {
-                $('body').removeClass('loading');
-            }
+            this.chartsView = new Dygraph(
+                this.chartsViewTarget,
+                [[1,1]],
+                options
+            );
+            $(this.chartSelectTarget).val(window.location.hash.replace("#","") || 'ticket-price')
+            this.selectChart()
         }
 
-        onGrouping(){
-            $('body').addClass('loading');
-            var selected = this.groupings
-            if (currentGraph != selected) {
-                getAPIData(selected, plotGraph, this.chartsview)
-                currentGraph = selected;
-            } else {
-                $('body').removeClass('loading');
+        plotGraph(chartName, data) {
+            var d = []
+            window.history.pushState({}, chartName, `#${chartName}`);
+            var gOptions = {}
+            switch(chartName){
+                case 'ticket-price': // price graph
+                    d = ticketsFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Date', 'Price'], true, 'Price (Decred)', 'Date', undefined, false, false)
+                break;
+
+                case 'ticket-pool-size': // pool size graph
+                    d = poolSizeFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Date', 'Ticket Pool Size'], false, 'Ticket Pool Size', 'Date',
+                    undefined, true, false)
+                break;
+
+                case 'ticket-pool-value': // pool value graph
+                    d = poolValueFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Date', 'Ticket Pool Value'], true, 'Ticket Pool Value','Date',
+                    undefined, true, false)
+                break;
+
+                case 'avg-block-size': // block size graph
+                    d = blockSizeFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Date', 'Block Size'], false, 'Block Size', 'Date', undefined, true, false)
+                break;
+
+                case 'blockchain-size': // blockchain size graph
+                    d = blockChainSizeFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Date', 'BlockChain Size'], true, 'BlockChain Size', 'Date', undefined, false, true)
+                break;
+
+                case 'tx-per-block':  // tx per block graph
+                    d = txPerBlockFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Date', 'Number of Transactions Per Block'], false, '# of Transactions', 'Date',
+                    undefined, false, false)
+                break;
+
+                case 'tx-per-day': // tx per day graph
+                    d = txPerDayFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Date', 'Number of Transactions Per Day'], true, '# of Transactions', 'Date',
+                    undefined, true, false)
+                break;
+
+                case 'pow-difficulty': // difficulty graph
+                    d = difficultyFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Date', 'Difficulty'], true, 'Difficulty', 'Date', undefined, true, false)
+                break;
+
+                case 'coin-supply': // supply graph
+                    d = supplyFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Date', 'Coin Supply'], true, 'Coin Supply', 'Date', undefined, true, false)
+                break;
+
+                case 'fee-per-block': // block fee graph
+                    d = blockFeeFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Block Height', 'Total Fee'], false, 'Total Fee (DCR)', 'Block Height',
+                    undefined, true, false)
+                break;
+
+                case 'duration-btw-blocks': // Duration between blocks graph
+                    d = timeBtwBlocksFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Block Height', 'Duration Between Block'], false, 'Duration Between Block (Seconds)', 'Block Height',
+                    undefined, false, false)
+                break;
+
+                case 'ticket-spend-type': // Tickets spendtype per block graph
+                    d = ticketSpendTypeFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Block Height', 'Unspent', 'Revoked'], false, '# of Tickets Spend Type', 'Block Height',
+                    undefined, false, false)
+                    gOptions.fillGraph = true
+                    gOptions.stackedGraph = true
+                    gOptions.plotter = barchartPlotter
+                break;
+
+                case 'ticket-by-outputs-windows': // Tickets by output count graph for ticket windows
+                    d = ticketByOutputCountFunc(data)
+                    gOptions = mapDygraphOptions(d, ['Window', 'Solo', 'Pooled'], false, '# of Tickets By Output Count', 'Ticket Price Window',
+                    undefined, false, false)
+                    gOptions.fillGraph = true
+                    gOptions.stackedGraph = true
+                    gOptions.plotter = barchartPlotter
+                    break;
+                case 'ticket-by-outputs-blocks': // Tickets by output count graph for all blocks
+                    d = ticketByOutputCountFunc(data)
+                    gOptions = mapDygraphOptions(
+                        d,
+                        ['Block Height', 'Solo', 'Pooled'],
+                        false,
+                        '# of Tickets By Output Count',
+                        'Block Height',
+                        undefined,
+                        false,
+                        false
+                    )
+                    gOptions.fillGraph = true
+                    gOptions.stackedGraph = true
+                    gOptions.plotter = barchartPlotter
+                break;
             }
+            this.chartsView.resetZoom();
+            this.chartsView.updateOptions(gOptions, false);
+            $(this.chartWrapperTarget).removeClass('loading');
         }
 
-        onZoom(){
-            $('body').addClass('loading');
-            this.chartsview.resetZoom();
-            this.xVal = this.chartsview.xAxisExtremes();
-            if (this.zoom > 0) {
-                this.chartsview.updateOptions({
-                    dateWindow:[(this.xVal[1]- this.zoom), this.xVal[1]]
+        selectChart(e){
+            var selection = this.chartSelectTarget.value
+            $(this.chartWrapperTarget).addClass('loading');
+            if (selectedChart != selection) {
+                getAPIData(selection, this).success((data) => {
+                    this.plotGraph(selection, data)
+                })
+                selectedChart = selection;
+            } else {
+                $(this.chartWrapperTarget).removeClass('loading');
+            }
+            this.zoomOptionTargets.forEach((el) => {
+                el.classList.toggle("active", $(el).data('zoom') == 0)
+            })
+        }
+
+        onZoom(event){
+            var selectedZoom = parseInt($(event.srcElement).data('zoom'))
+            $(this.chartWrapperTarget).addClass('loading');
+            this.xVal = this.chartsView.xAxisExtremes();
+            if (selectedZoom > 0) {
+                if (this.xVal[0] >= 1400000000000) {
+                    var normalizedZoom = selectedZoom * 1000 * 300
+                } else if (selectedChart === 'ticket-by-outputs-windows') {
+                    var normalizedZoom = selectedZoom / 144
+                } else {
+                    var normalizedZoom = selectedZoom
+                }
+                this.chartsView.updateOptions({
+                    dateWindow: [(this.xVal[1] - normalizedZoom), this.xVal[1]]
                 });
+            } else {
+                this.chartsView.resetZoom();
             }
-            $('body').removeClass('loading');
+            this.zoomOptionTargets.forEach((el, i) => {
+                el.classList.toggle("active", $(el).data('zoom') == selectedZoom)
+            })
+            $(this.chartWrapperTarget).removeClass('loading');
         }
 
-        get options() {
-            var selectedValue = this.optionsTarget
-            return selectedValue.options[selectedValue.selectedIndex].value;
-          }
-
-        get groupings(){
-            return this.groupingsTarget.getElementsByClassName("btn-active")[0].name
-        }
-
-        get zoom(){
-            return parseInt(this.zoomTarget.getElementsByClassName("btn-active")[0].name)
-        }
      });
 })()

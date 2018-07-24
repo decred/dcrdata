@@ -27,6 +27,7 @@
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
     <script src="/js/turbolinks.js"></script>
     <script src="/js/jquery.js"></script>
+    <script src="/js/jquery-plugins.js"></script>
     <script src="/js/lodash.min.js"></script>
     <script src="/js/messagesocket.js"></script>
     <script src="/js/humanize.js"></script>
@@ -130,9 +131,11 @@
         if (darkEnabled()) {
             setCookie(darkBGCookieName, '', 0)
             toggleToLightClasses(document.body)
+            $(document).trigger("nightMode", { nightMode: false });
         } else {
             setCookie(darkBGCookieName, 1, 525600)
             toggleToDarkClasses(document.body)
+            $(document).trigger("nightMode", { nightMode: true })
         }
     }
     document.addEventListener("turbolinks:before-render", function(event) {
@@ -486,6 +489,10 @@
             clearTargets()
             $topSearch.addClass("keynav-target").focus()
         }
+    });
+
+    Mousetrap.bind('`', function(e) {
+       toggleSun()
     });
 
     Mousetrap.bind('=', function(e) {

@@ -5,61 +5,113 @@
 <body>
     {{template "navbar" . }}
 
-    <div class="container" style="font-size:0.8em;">
-        <div data-controller="charts">
-            <br><br>
-            <div id="row">
-                <select id="selectBox" data-target="charts.options" data-action="charts#onChange">
-                    <option value="ticket-price">Ticket Price Chart</option>
-                    <option value="ticket-pool-size">Ticket Pool Size Chart</option>
-                    <option value="ticket-pool-value">Ticket Pool Value Chart</option>
-                    <option value="avg-block-size">Average Block Size Chart</option>
-                    <option value="blockchain-size">BlockChain Size Chart</option>
-                    <option value="tx-per-block">Number of Transactions Per Block Chart</option>
-                    <option value="tx-per-day">Number of Transactions Per Day Chart</option>
-                    <option value="pow-difficulty">PoW Difficulty Chart</option>
-                    <option value="coin-supply">Total Coin Supply Chart</option>
-                    <option value="fee-per-block">Total Fee Per Block Chart</option>
-                    <option value="duration-btw-blocks">Duration Between Blocks Chart</option>
-                    <option value="ticket-spend-type">Tickets Spend Types Chart</option>
-                    <option value="ticket-by-outputs-windows">Tickets By Output Count Chart</option>
+    <div data-controller="charts">
+
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mt-1 mb-1">
+
+
+                <select
+                    id="selectBox"
+                    class="form-control"
+                    data-target="charts.chartSelect"
+                    data-action="charts#selectChart"
+                    style="width: 300px"
+                >
+                    <option value="ticket-price">Ticket Price</option>
+                    <option value="ticket-pool-size">Ticket Pool Size</option>
+                    <option value="ticket-pool-value">Ticket Pool Value</option>
+                    <option value="avg-block-size">Average Block Size</option>
+                    <option value="blockchain-size">BlockChain Size</option>
+                    <option value="tx-per-block">Transactions Per Block</option>
+                    <option value="tx-per-day">Transactions Per Day</option>
+                    <option value="pow-difficulty">PoW Difficulty</option>
+                    <option value="coin-supply">Total Coin Supply</option>
+                    <option value="fee-per-block">Total Fee Per Block</option>
+                    <option value="duration-btw-blocks">Duration Between Blocks</option>
+                    <option value="ticket-spend-type">Ticket Spend Types</option>
+                    <option value="ticket-by-outputs-windows">Ticket Purchases By Price Window</option>
+                    <option value="ticket-by-outputs-blocks">Ticket Purchases By Block</option>
                 </select>
-               
-               <div class="row" style="float: right;">
-                    <div class="block-chart-btn-display">
-                        <label>Zoom :</label>
-                        <div class="btn-group" data-toggle="buttons" data-target="charts.zoom" data-action="click->charts#onZoom">
-                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Day" name="288">
-                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Week" name="2016">
-                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Month" name="8760">
-                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Year" name="105120">
-                            <input id="chart-zoom" type="button" class="btn btn_sm btn-active" value="All Blocks" name="0">
-                        </div>
+
+
+                    <div class="d-flex align-items-center pl-3" data-target="charts.zoomSelector">
+                        <span class="pr-1">Zoom:</span>
+                        <ul
+                            class="nav nav-pills"
+                        >
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.zoomOption"
+                                    data-action="click->charts#onZoom"
+                                    data-zoom="288"
+                                >Day</a>
+                            </li>
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.zoomOption"
+                                    data-action="click->charts#onZoom"
+                                    data-zoom="2016"
+                                >Week</a>
+                            </li>
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.zoomOption"
+                                    data-action="click->charts#onZoom"
+                                    data-zoom="8760"
+                                >Month</a>
+                            </li>
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.zoomOption"
+                                    data-action="click->charts#onZoom"
+                                    data-zoom="105120"
+                                >Year</a>
+                            </li>
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href="javascript:void(0);"
+                                    data-target="charts.zoomOption"
+                                    data-action="click->charts#onZoom"
+                                    data-zoom="0"
+                                >All</a>
+                            </li>
+                        </ul>
                     </div>
-                    <p>&nbsp;&nbsp;&nbsp;&nbsp;</p>
-                    <div class="chart-btn-display">
-                        <label>Group :</label>
-                        <div class="btn-group" data-toggle="buttons" data-target="charts.groupings" data-action="click->charts#onGrouping">
-                            <input id="chart-group" type="button" class="btn btn_sm btn-active"
-                                value="Ticket Price Windows" name="ticket-by-outputs-windows">
-                            <input id="chart-group" type="button" class="btn btn_sm" value="Blocks"
-                                name="ticket-by-outputs-blocks">
-                        </div>
-                    </div>
-                </div>
-     
-            </div>
-            <br><br>
-            <div id="graphdiv" 
-                data-target="chartsview" 
-                style="width:100%; height:450px; margin:0 auto;">
+
+                <div class="legend" data-target="charts.labels"></div>
+
             </div>
         </div>
+
+
+        <div data-target="charts.chartWrapper" class="chart-wrapper pl-2 pr-2">
+            <div
+                data-target="charts.chartsView"
+                style="width:100%; height:76vh; margin:0 auto;">
+            </div>
+            <div class="spinner-wrapper">
+                <div class="spinner-centerer d-flex align-items-center justify-content-center">
+                    <div class="spinner">
+                        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script type="text/javascript">
         var ticketsPrice = {{.Data}};
-
         $('input').on('click', function(){
             $('input#'+this.id).removeClass('btn-active');
             $(this).toggleClass('btn-active');
@@ -67,7 +119,8 @@
     </script>
 
     {{ template "footer" . }}
-    <div class="modal"></div>
+
+
 </body>
 </html>
 {{end}}
