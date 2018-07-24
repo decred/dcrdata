@@ -29,7 +29,7 @@
             <td class="mono fs15"><span><a href="/block/${tx.vote_info.block_validation.height}">${tx.vote_info.block_validation.height}</a></span></td>
             <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
             <td class="mono fs15">${tx.vote_info.vote_version}</td>
-            <td class="mono fs15">${tx.vote_info.block_validation.validity?'Valid':'Invalid'}</td>
+            <td class="mono fs15 last_block">${tx.vote_info.last_block?'Valid':'Invalid'}</td>
             <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8, true)}</td>
             <td class="mono fs15">${tx.size} B</td>
             <td class="mono fs15 text-right" data-target="main.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
@@ -61,13 +61,19 @@
         $(newRowHtml).insertBefore(rows.first())
     }
 
-    function filterVotesLastBlock(last_block) {
+    function filterVotesLastBlock(target) {
+        var best_block_hash=$(target).data("hash");
+        var best_block_height=$(target).text();
+        console.log(best_block_height);
         $('*[data-target="mempool.voteTransactions"] tr').each(function(i,el) {
             var vote_validation_hash=$(this).data("blockhash");
-            if(vote_validation_hash!=last_block) {
+            var vote_block_height=$(this).data("height");
+            if(vote_block_height<=best_block_height&&vote_validation_hash!=best_block_hash) {
                 $(this).closest("tr").addClass("old-vote");
+                $(this).find("td.last_block").text("Invalid");
             }else{
-                $(this).closest("tr").removeClass("old-vote");  
+                $(this).closest("tr").removeClass("old-vote");
+                $(this).find("td.last_block").text("Valid");  
             }
         })
     };
@@ -163,7 +169,7 @@
         connect() {
             ws.registerEvtHandler("newtx", (evt) => {
                 this.renderNewTxns(evt)
-                filterVotesLastBlock($(this.bestBlockTarget).data("hash"));
+                filterVotesLastBlock(this.bestBlockTarget);
                 sortVotesTable();
                 keyNav(evt, false, true)
             })
@@ -173,7 +179,7 @@
             });
             ws.registerEvtHandler("getmempooltxsResp", (evt) => {
                 this.handleTxsResp(evt)
-                filterVotesLastBlock($(this.bestBlockTarget).data("hash"));
+                filterVotesLastBlock(this.bestBlockTarget);
                 sortVotesTable();
                 keyNav(evt, false, true)
             })    
@@ -202,7 +208,7 @@
             $(this.totalNeededTarget).text(m.voting_info.total_votes_required)
             $(this.totalOutTarget).html(`${humanize.decimalParts(m.total, false, 8, true)}`);
             $(this.mempoolSizeTarget).text(m.formatted_size);
-            filterVotesLastBlock(m.block_hash);
+            filterVotesLastBlock(this.bestBlockTarget);
         }
 
         handleTxsResp(event) {

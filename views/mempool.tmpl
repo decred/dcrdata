@@ -71,7 +71,7 @@
                             <th>Vote Block</th>
                             <th>Vote Index</th>
                             <th>Vote Version</th>
-                            <th>Vote Choice</th>
+                            <th>Last Block</th>
                             <th>Total DCR</th>
                             <th class="text-right">Size</th>
                             <th class="text-right">Time</th>
@@ -84,7 +84,7 @@
                                 <td class="mono fs15"><a href="/block/{{.VoteInfo.Validation.Height}}">{{.VoteInfo.Validation.Height}}</a></td>
                                 <td class="mono fs15"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
                                 <td class="mono fs15">{{.VoteInfo.Version}}</td>
-                                <td class="mono fs15">{{if .VoteInfo.Validation.Validity}}Valid{{else}}Invalid{{end}}</td>
+                                <td class="mono fs15 last_block">{{if .VoteInfo.ForLastBlock}}Valid{{else}}Invalid{{end}}</td>
                                 <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</td>
                                 <td class="mono fs15 text-right">{{.Size}} B</td>
                                 <td class="mono fs15 text-right" data-target="main.age" data-age="{{.Time}}"></td>
