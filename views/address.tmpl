@@ -138,8 +138,12 @@
                         {{else}}
                             <th class="text-right">Credit DCR</th>
                         {{end}}
-                        <th>Debit DCR</th>
-                        <th>Time</th>
+                        {{if eq $txType "merged debit"}}
+                            <th class="text-center">Debit DCR</th>
+                        {{else}}
+                            <th>Debit DCR</th>
+                        {{end}}
+                        <th>Time UTC</th>
                         <th>Age</th>
                         <th>Confirms</th>
                         <th>Size</th>
@@ -168,7 +172,11 @@
                             {{end}}
                             {{if ne .SentTotal 0.0}}
                                 {{if lt 0.0 .SentTotal}}
-                                    <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
+                                   {{if eq $txType "merged debit"}}
+                                        <td class="text-right"> {{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
+                                    {{else}}
+                                        <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
+                                    {{end}}
                                 {{else}}
                                     <td>N/A</td>
                                 {{end}}
