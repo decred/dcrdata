@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/testutil"
 )
 
@@ -30,6 +31,89 @@ func InitTestDB(targetDBFile string) *DB {
 		testutil.ReportTestFailed("InitDB() failed")
 	}
 	return db //is not nil
+}
+
+// checkChartsDataIsDefault checks if chartsData is in default mode:
+//  - all the returned arrays expected to be empty
+//  - chartsData is not null (nil)
+//
+// These checks are sorted according to the ChartsData struct fields order
+func checkChartsDataIsDefault(functionName string, chartsData *dbtypes.ChartsData) {
+	if chartsData == nil {
+		testutil.ReportTestFailed(
+			functionName + "() failed: default result expected")
+	}
+	// Array checks:
+	if len(chartsData.TimeStr) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.TimeStr is not empty\n" +
+				testutil.ArrayToString("chartsData.TimeStr", chartsData.TimeStr))
+	}
+	if len(chartsData.Difficulty) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Difficulty is not empty\n" +
+				testutil.ArrayToString("chartsData.Difficulty", chartsData.Difficulty))
+	}
+	if len(chartsData.Time) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Time is not empty\n" +
+				testutil.ArrayToString("chartsData.Time", chartsData.Time))
+	}
+	if len(chartsData.Value) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Value is not empty\n" +
+				testutil.ArrayToString("chartsData.Value", chartsData.Value))
+	}
+	if len(chartsData.Size) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Size is not empty\n" +
+				testutil.ArrayToString("chartsData.Size", chartsData.Size))
+	}
+	if len(chartsData.ChainSize) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.ChainSize is not empty\n" +
+				testutil.ArrayToString("chartsData.ChainSize", chartsData.ChainSize))
+	}
+	if len(chartsData.Count) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Count is not empty\n" +
+				testutil.ArrayToString("chartsData.Count", chartsData.Count))
+	}
+	if len(chartsData.SizeF) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.SizeF is not empty\n" +
+				testutil.ArrayToString("chartsData.SizeF", chartsData.SizeF))
+	}
+	if len(chartsData.ValueF) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.ValueF is not empty\n" +
+				testutil.ArrayToString("chartsData.ValueF", chartsData.ValueF))
+	}
+	if len(chartsData.Unspent) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Unspent is not empty\n" +
+				testutil.ArrayToString("chartsData.Unspent", chartsData.Unspent))
+	}
+	if len(chartsData.Revoked) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Revoked is not empty\n" +
+				testutil.ArrayToString("chartsData.Revoked", chartsData.Revoked))
+	}
+	if len(chartsData.Height) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Height is not empty\n" +
+				testutil.ArrayToString("chartsData.Height", chartsData.Height))
+	}
+	if len(chartsData.Pooled) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Pooled is not empty\n" +
+				testutil.ArrayToString("chartsData.Pooled", chartsData.Pooled))
+	}
+	if len(chartsData.Solo) != 0 {
+		testutil.ReportTestFailed(
+			functionName + "() failed: chartsData.Solo is not empty\n" +
+				testutil.ArrayToString("chartsData.Solo", chartsData.Solo))
+	}
 }
 
 /// checkTicketPoolInfoIsDefault checks if TicketPoolInfo is in default mode:
