@@ -128,9 +128,13 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 					var mp = dbtypes.PoolTicketsData{}
 
-					mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
-					mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
-					mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
+					if len(mpData.Tickets) > 0 {
+						mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
+						mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
+						mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
+					} else {
+						log.Warn("No tickets exists in the mempool")
+					}
 
 					var data = struct {
 						BarGraphs  []*dbtypes.PoolTicketsData

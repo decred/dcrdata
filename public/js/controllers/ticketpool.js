@@ -59,7 +59,9 @@ function barchartPlotter(e) {
             s.push([finalDate, 0, items.immature[i], items.live[i], items.price[i]]);
         });
 
-        s.push([new Date((memP.time[0] + 60) * 1000) , memP.mempool[0], 0, 0, memP.price[0]]); // add mempool
+        if (!isNaN(memP.time)){
+            s.push([new Date((memP.time[0] + 60) * 1000) , memP.mempool[0], 0, 0, memP.price[0]]); // add mempool
+        }
 
         origDate = s[0][0] - new Date(0)
         ms = (finalDate - new Date(0)) + 1000
@@ -69,11 +71,18 @@ function barchartPlotter(e) {
 
     function priceGraphData(items, memP) {
         var mempl = 0
+        var mPrice = 0
+        var mCount = 0
         var p = []
 
+        if (!isNaN(memP.price)) {
+            mPrice = memP.price[0]
+            mCount = memP.mempool[0]
+        }
+
         items.price.map((n, i) => {
-            if (n === memP.price[0]) {
-                mempl = memP.mempool[0]
+            if (n === mPrice) {
+                mempl = mCount
                 p.push([n, mempl, items.immature[i], items.live[i]]);
             } else {
                 p.push([n, 0, items.immature[i], items.live[i]]);
@@ -81,7 +90,7 @@ function barchartPlotter(e) {
         });
 
         if (mempl === 0){
-            p.push([memP.price[0], memP.mempool[0], 0, 0]); // add mempool
+            p.push([mPrice, mCount, 0, 0]); // add mempool
             p = p.sort(Comparator)
         }
 
