@@ -37,9 +37,9 @@
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">VOTE CHOICES</td>
-                            <td id="mempool_vote_choices" class="lh1rem"><span data-target="mempool.totalCollected">
+                            <td class="lh1rem"><span data-target="mempool.totalCollected">
                             {{.VotingInfo.TotalCollected}}</span>/<span data-target="mempool.totalNeeded">{{.VotingInfo.TotalNeeded}}</span>
-                            <span id="mempool_block_validity" class="lh1rem {{if lt .VotingInfo.TotalCollected .VotingInfo.TotalNeeded}}hidden{{end}}">({{if .VotingInfo.BlockValid}}Valid{{else}}Invalid{{end}})</span>
+                            <span class="lh1rem {{if lt .VotingInfo.TotalCollected .VotingInfo.TotalNeeded}}hidden{{end}}">({{if .VotingInfo.BlockValid}}Valid{{else}}Invalid{{end}})</span>
                             </td>
                         </tr>
                     </table>
