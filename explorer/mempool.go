@@ -284,7 +284,6 @@ func (exp *explorerUI) getLastBlock() (lastBlockHash string, lastBlock int64, la
 	if err != nil {
 		log.Warnf("Could not get bloch hash for last block")
 	}
-	log.Debug("Last Block Hash: ", lastBlockHash)
 	return
 }
 
