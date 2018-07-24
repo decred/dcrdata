@@ -772,3 +772,7 @@ body.darkBG .keynav-target {
 .old-vote {
   background-color: pink;
 }
+
+.upcoming-vote {
+  background-color: lightgrey;
+}

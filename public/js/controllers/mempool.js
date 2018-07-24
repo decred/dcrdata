@@ -68,11 +68,16 @@
         $('*[data-target="mempool.voteTransactions"] tr').each(function(i,el) {
             var vote_validation_hash=$(this).data("blockhash");
             var vote_block_height=$(this).data("height");
-            if(vote_block_height<=best_block_height&&vote_validation_hash!=best_block_hash) {
+            if(vote_block_height>best_block_height) {
+                $(this).closest("tr").addClass("upcoming-vote");
+                $(this).closest("tr").removeClass("old-vote");
+            }else if(vote_validation_hash!=best_block_hash){
                 $(this).closest("tr").addClass("old-vote");
+                $(this).closest("tr").removeClass("upcoming-vote");
                 $(this).find("td.last_block").text("Invalid");
             }else{
                 $(this).closest("tr").removeClass("old-vote");
+                $(this).closest("tr").removeClass("upcoming-vote");
                 $(this).find("td.last_block").text("Valid");  
             }
         })
