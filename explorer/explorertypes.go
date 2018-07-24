@@ -345,7 +345,7 @@ type MempoolShort struct {
 	NumAll             int                      `json:"num_all"`
 	LatestTransactions []MempoolTx              `json:"latest"`
 	FormattedTotalSize string                   `json:"formatted_size"`
-	TicketIndexes      map[int64]map[string]int `json:"ticket_indexes"`
+	TicketIndexes      map[int64]map[string]int `json:"-"`
 	VotingInfo         VotingInfo               `json:"voting_info"`
 }
 

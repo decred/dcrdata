@@ -920,7 +920,10 @@ body.darkBG .keynav-target {
   }
 }
 
+/*mempool Vote Table*/
 .old-vote {
-  background-color: pink;
+  background-color: #ff3d001f;
 }
-
+.upcoming-vote {
+  background: #0078ff1c;
+}
