@@ -421,7 +421,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				// Empty history is not expected for credit txnType with any txns.
 				if txnType != dbtypes.AddrTxnDebit && (balance.NumSpent+balance.NumUnspent) > 0 {
 					log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
-					exp.ErrorPage(w, "Something went wrong...", "that address has no history", true)
+					exp.StatusPage(w, defaultErrorCode, "that address has no history", NotFoundStatusType)
 					return
 				}
 				// No mined transactions
@@ -458,7 +458,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			err = exp.explorerSource.FillAddressTransactions(addrData)
 			if err != nil {
 				log.Errorf("Unable to fill address %s transactions: %v", address, err)
-				exp.ErrorPage(w, "Something went wrong...", "could not find transactions for that address", false)
+				exp.StatusPage(w, defaultErrorCode, "could not find transactions for that address", NotFoundStatusType)
 				return
 			}
 		} else {
