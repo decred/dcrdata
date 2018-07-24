@@ -37,9 +37,9 @@
                         </tr>
                         <tr>
                             <td class="text-right pr-2 lh1rem nowrap p03rem0">VOTE CHOICES</td>
-                            <td id="mempool_vote_choices" class="lh1rem"><span data-target="mempool.totalCollected">
+                            <td class="lh1rem"><span data-target="mempool.totalCollected">
                             {{.VotingInfo.TotalCollected}}</span>/<span data-target="mempool.totalNeeded">{{.VotingInfo.TotalNeeded}}</span>
-                            <span id="mempool_block_validity" class="lh1rem {{if lt .VotingInfo.TotalCollected .VotingInfo.TotalNeeded}}hidden{{end}}">({{if .VotingInfo.BlockValid}}Valid{{else}}Invalid{{end}})</span>
+                            <span class="lh1rem {{if lt .VotingInfo.TotalCollected .VotingInfo.TotalNeeded}}hidden{{end}}">({{if .VotingInfo.BlockValid}}Valid{{else}}Invalid{{end}})</span>
                             </td>
                         </tr>
                     </table>
@@ -71,7 +71,7 @@
                             <th>Vote Block</th>
                             <th>Vote Index</th>
                             <th>Vote Version</th>
-                            <th>Vote Choice</th>
+                            <th>Last Block</th>
                             <th>Total DCR</th>
                             <th class="text-right">Size</th>
                             <th class="text-right">Time</th>
@@ -84,7 +84,7 @@
                                 <td class="mono fs15"><a href="/block/{{.VoteInfo.Validation.Height}}">{{.VoteInfo.Validation.Height}}</a></td>
                                 <td class="mono fs15"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
                                 <td class="mono fs15">{{.VoteInfo.Version}}</td>
-                                <td class="mono fs15">{{if .VoteInfo.Validation.Validity}}Valid{{else}}Invalid{{end}}</td>
+                                <td class="mono fs15 last_block">{{if .VoteInfo.ForLastBlock}}Valid{{else}}Invalid{{end}}</td>
                                 <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .TotalOut false)}}</td>
                                 <td class="mono fs15 text-right">{{.Size}} B</td>
                                 <td class="mono fs15 text-right" data-target="main.age" data-age="{{.Time}}"></td>
