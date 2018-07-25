@@ -61,24 +61,29 @@ type ChartDataCounter struct {
 
 // AddressTx models data for transactions on the address page
 type AddressTx struct {
-	TxID          string
-	InOutID       uint32
-	Size          uint32
-	FormattedSize string
-	Total         float64
-	Confirmations uint64
-	Time          int64
-	FormattedTime string
-	ReceivedTotal float64
-	SentTotal     float64
-	IsFunding     bool
-	MatchedTx     string
-	BlockTime     uint64
+	TxID           string
+	InOutID        uint32
+	Size           uint32
+	FormattedSize  string
+	Total          float64
+	Confirmations  uint64
+	Time           int64
+	FormattedTime  string
+	ReceivedTotal  float64
+	SentTotal      float64
+	IsFunding      bool
+	MatchedTx      string
+	BlockTime      uint64
+	MergedTxnCount uint64 `json:",omitempty"`
 }
 
 // IOID formats an identification string for the transaction input (or output)
 // represented by the AddressTx.
-func (a *AddressTx) IOID() string {
+func (a *AddressTx) IOID(txType ...string) string {
+	// if transaction is of type merged debit, return unformatted transaction ID
+	if len(txType) > 0 && dbtypes.AddrTxnTypeFromStr(txType[0]) == dbtypes.AddrMergedTxnDebit {
+		return a.TxID
+	}
 	// When AddressTx is used properly, at least one of ReceivedTotal or
 	// SentTotal should be zero.
 	if a.IsFunding {
@@ -248,6 +253,10 @@ type AddressInfo struct {
 	KnownTransactions int64
 	KnownFundingTxns  int64
 	KnownSpendingTxns int64
+
+	// KnownMergedSpendingTxns refers to the total count of unique debit transactions
+	// that appear in the merged debit view.
+	KnownMergedSpendingTxns int64
 }
 
 // TxnCount returns the number of transaction "rows" available.
@@ -262,6 +271,8 @@ func (a *AddressInfo) TxnCount() int64 {
 		return a.KnownFundingTxns
 	case dbtypes.AddrTxnDebit:
 		return a.KnownSpendingTxns
+	case dbtypes.AddrMergedTxnDebit:
+		return a.KnownMergedSpendingTxns
 	default:
 		log.Warnf("Unknown address transaction type: %v", a.TxnType)
 		return 0
@@ -271,11 +282,12 @@ func (a *AddressInfo) TxnCount() int64 {
 // AddressBalance represents the number and value of spent and unspent outputs
 // for an address.
 type AddressBalance struct {
-	Address      string `json:"address"`
-	NumSpent     int64  `json:"num_stxos"`
-	NumUnspent   int64  `json:"num_utxos"`
-	TotalSpent   int64  `json:"amount_spent"`
-	TotalUnspent int64  `json:"amount_unspent"`
+	Address        string `json:"address"`
+	NumSpent       int64  `json:"num_stxos"`
+	NumUnspent     int64  `json:"num_utxos"`
+	TotalSpent     int64  `json:"amount_spent"`
+	TotalUnspent   int64  `json:"amount_unspent"`
+	NumMergedSpent int64  `json:"num_merged_spent,omitempty"`
 }
 
 // HomeInfo represents data used for the home page
@@ -370,6 +382,8 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 			// Spending transaction
 			sent += int64(addrOut.Value)
 			tx.SentTotal = coin
+			tx.MergedTxnCount = addrOut.MergedDebitCount
+
 			debitTxns = append(debitTxns, &tx)
 		}
 

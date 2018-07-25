@@ -54,7 +54,10 @@ const (
 	    WHERE address = $1 and is_funding = TRUE and matching_tx_hash = '';`
 
 	SelectAddressSpentCountAndValue = `SELECT COUNT(*), SUM(value) FROM addresses 
-	    WHERE address = $1 and is_funding = FALSE and matching_tx_hash != '';`
+		WHERE address = $1 and is_funding = FALSE and matching_tx_hash != '';`
+
+	SelectAddressesMergedSpentCount = `SELECT COUNT( distinct tx_hash ) FROM addresses
+		WHERE address = $1 and is_funding = false`
 
 	SelectAddressUnspentWithTxn = `SELECT addresses.address, addresses.tx_hash, addresses.value,
 			transactions.block_height, addresses.block_time, tx_vin_vout_index, pkscript
@@ -72,7 +75,11 @@ const (
 
 	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT ` + addrsColumnNames +
 		` FROM addresses WHERE address=$1)
-        SELECT * FROM these ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+		SELECT * FROM these order by block_time desc limit $2 offset $3;`
+
+	SelectAddressMergedDebitView = `SELECT tx_hash, block_time, sum(value), 
+		COUNT(*) FROM addresses WHERE address=$1 AND is_funding = FALSE 
+		GROUP BY (tx_hash, block_time) ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + addrsColumnNames + `
 		FROM addresses WHERE address=$1 and is_funding = FALSE
