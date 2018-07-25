@@ -469,6 +469,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData.Fullmode = true
 			addrData.Balance = &AddressBalance{}
 		}
+
 		// Check for unconfirmed transactions
 		addressOuts, numUnconfirmed, err := exp.blockData.UnconfirmedTxnsForAddress(address)
 		if err != nil {

@@ -412,6 +412,9 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 		}
 	case dbtypes.AddrTxnDebit:
 		addrFunc = RetrieveAddressDebitTxns
+
+	case dbtypes.AddrMergedTxnDebit:
+		addrFunc = RetrieveAddressMergedDebitTxns
 	default:
 		return nil, fmt.Errorf("unknown AddrTxnType %v", txnType)
 	}
@@ -540,18 +543,19 @@ func (pgb *ChainDB) addressBalance(address string) (*explorer.AddressBalance, er
 	}
 
 	if !fresh {
-		var numSpent, numUnspent, totalSpent, totalUnspent int64
-		numSpent, numUnspent, totalSpent, totalUnspent, err =
+		var numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent int64
+		numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent, err =
 			RetrieveAddressSpentUnspent(pgb.db, address)
 		if err != nil {
 			return nil, err
 		}
 		balanceInfo = explorer.AddressBalance{
-			Address:      address,
-			NumSpent:     numSpent,
-			NumUnspent:   numUnspent,
-			TotalSpent:   totalSpent,
-			TotalUnspent: totalUnspent,
+			Address:        address,
+			NumSpent:       numSpent,
+			NumUnspent:     numUnspent,
+			NumMergedSpent: totalMergedSpent,
+			TotalSpent:     totalSpent,
+			TotalUnspent:   totalUnspent,
 		}
 
 		totals.balance[address] = balanceInfo
@@ -616,18 +620,19 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 			TotalUnspent: int64(addrInfo.AmountUnspent),
 		}
 	} else {
-		var numSpent, numUnspent, totalSpent, totalUnspent int64
-		numSpent, numUnspent, totalSpent, totalUnspent, err =
+		var numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent int64
+		numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent, err =
 			RetrieveAddressSpentUnspent(pgb.db, address)
 		if err != nil {
 			return nil, nil, err
 		}
 		balanceInfo = explorer.AddressBalance{
-			Address:      address,
-			NumSpent:     numSpent,
-			NumUnspent:   numUnspent,
-			TotalSpent:   totalSpent,
-			TotalUnspent: totalUnspent,
+			Address:        address,
+			NumSpent:       numSpent,
+			NumUnspent:     numUnspent,
+			NumMergedSpent: totalMergedSpent,
+			TotalSpent:     totalSpent,
+			TotalUnspent:   totalUnspent,
 		}
 	}
 
@@ -737,7 +742,7 @@ func (pgb *ChainDB) addressInfo(addr string, count, skip int64,
 	// Transactions to fetch with FillAddressTransactions. This should be a
 	// noop if AddressHistory/ReduceAddressHistory are working right.
 	switch txnType {
-	case dbtypes.AddrTxnAll:
+	case dbtypes.AddrTxnAll, dbtypes.AddrMergedTxnDebit:
 	case dbtypes.AddrTxnCredit:
 		addrData.Transactions = addrData.TxnsFunding
 	case dbtypes.AddrTxnDebit:

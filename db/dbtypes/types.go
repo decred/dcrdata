@@ -44,15 +44,17 @@ const (
 	AddrTxnAll AddrTxnType = iota
 	AddrTxnCredit
 	AddrTxnDebit
+	AddrMergedTxnDebit
 	AddrTxnUnknown
 )
 
 // AddrTxnTypes is the canonical mapping from AddrTxnType to string.
 var AddrTxnTypes = map[AddrTxnType]string{
-	AddrTxnAll:     "all",
-	AddrTxnCredit:  "credit",
-	AddrTxnDebit:   "debit",
-	AddrTxnUnknown: "unknown",
+	AddrTxnAll:         "all",
+	AddrTxnCredit:      "credit",
+	AddrTxnDebit:       "debit",
+	AddrMergedTxnDebit: "merged debit",
+	AddrTxnUnknown:     "unknown",
 }
 
 func (a AddrTxnType) String() string {
@@ -73,6 +75,8 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 		fallthrough
 	case "debits":
 		return AddrTxnDebit
+	case "merged debit":
+		return AddrMergedTxnDebit
 	default:
 		return AddrTxnUnknown
 	}
@@ -297,15 +301,16 @@ type Vout struct {
 type AddressRow struct {
 	// id int64
 	Address string
-	// MatchingTxHash provides the relationship between spending tx inputs and
-	// funding tx outputs.
-	MatchingTxHash string
-	IsFunding      bool
-	TxBlockTime    uint64
-	TxHash         string
-	TxVinVoutIndex uint32
-	Value          uint64
-	VinVoutDbID    uint64
+	// MatchingTxHash that provides the relationship
+	// between spending tx inputs and funding tx outputs
+	MatchingTxHash   string
+	IsFunding        bool
+	TxBlockTime      uint64
+	TxHash           string
+	TxVinVoutIndex   uint32
+	Value            uint64
+	VinVoutDbID      uint64
+	MergedDebitCount uint64
 }
 
 // ChartsData defines the fields that store the values needed to plot the charts
