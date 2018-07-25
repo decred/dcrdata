@@ -1148,13 +1148,18 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	inputs := make([]explorer.Vin, 0, len(txraw.Vin))
 	for i, vin := range txraw.Vin {
 		var addresses []string
+		// ValueIn is a temporary fix until amountIn is correct from dcrd call
+		var ValueIn dcrutil.Amount
 		if !(vin.IsCoinBase() || (vin.IsStakeBase() && i == 0)) {
-			addrs, err := txhelpers.OutPointAddresses(&msgTx.TxIn[i].PreviousOutPoint, db.client, db.params)
+			var addrs []string
+			addrs, ValueIn, err = txhelpers.OutPointAddresses(&msgTx.TxIn[i].PreviousOutPoint, db.client, db.params)
 			if err != nil {
 				log.Warnf("Failed to get outpoint address from txid: %v", err)
 				continue
 			}
 			addresses = addrs
+		} else {
+			ValueIn, _ = dcrutil.NewAmount(vin.AmountIn)
 		}
 		inputs = append(inputs, explorer.Vin{
 			Vin: &dcrjson.Vin{
@@ -1162,11 +1167,11 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 				Coinbase:    vin.Coinbase,
 				Stakebase:   vin.Stakebase,
 				Vout:        vin.Vout,
-				AmountIn:    vin.AmountIn,
+				AmountIn:    ValueIn.ToCoin(),
 				BlockHeight: vin.BlockHeight,
 			},
 			Addresses:       addresses,
-			FormattedAmount: humanize.Commaf(vin.AmountIn),
+			FormattedAmount: humanize.Commaf(ValueIn.ToCoin()),
 		})
 	}
 	tx.Vin = inputs
@@ -1360,7 +1365,6 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 		}
 
 		Tx, err1 := db.client.GetRawTransaction(txhash)
-
 		if err1 != nil {
 			log.Warnf("Unable to GetRawTransaction(%s): %v", tx, err1)
 			err = err1
@@ -1387,6 +1391,7 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 		// Merge the I/Os and the transactions into results
 		addressOutpoints.Update(prevTxns, outpoints, prevouts)
 	}
+
 	return addressOutpoints, numUnconfirmed, err
 }
 
