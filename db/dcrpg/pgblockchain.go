@@ -282,9 +282,19 @@ func (pgb *ChainDB) VersionCheck(client *rpcclient.Client) error {
 			}
 		}
 
+		// ensure all tables have "ok" status
+		OK := true
 		for _, u := range tableUpgrades {
-			log.Warnf(u.String())
+			if u.UpgradeType != "ok" {
+				log.Warnf(u.String())
+				OK = false
+			}
 		}
+		if OK {
+			log.Debugf("All tables at correct version (%v)", tableUpgrades[0].RequiredVer)
+			return nil
+		}
+
 		return fmt.Errorf("rebuild of PostgreSQL tables required (drop with rebuilddb2 -D)")
 	}
 	return nil
