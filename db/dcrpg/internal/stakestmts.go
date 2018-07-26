@@ -140,6 +140,14 @@ const (
 	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
 	SelectAllVoteDbIDsHeightsTicketDbIDs  = `SELECT id, height, ticket_tx_db_id FROM votes;`
 
+	UpdateVotesMainchainAll = `UPDATE votes
+		SET is_mainchain=b.is_mainchain
+		FROM (
+			SELECT hash, is_mainchain
+			FROM blocks
+		) b
+		WHERE block_hash = b.hash;`
+
 	// Index
 	IndexVotesTableOnHashes = `CREATE UNIQUE INDEX uix_votes_hashes_index
 		ON votes(tx_hash, block_hash);`

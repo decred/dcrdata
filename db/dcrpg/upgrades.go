@@ -30,6 +30,7 @@ const (
 	blocksTableMainchainUpgrade
 	transactionsTableMainchainUpgrade
 	addressesTableMainchainUpgrade
+	votesTableMainchainUpgrade
 )
 
 type TableUpgradeType struct {
@@ -93,6 +94,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			{"transactions", transactionsTableMainchainUpgrade},
 			{"vins", vinsTableMainchainUpgrade},
 			{"addresses", addressesTableMainchainUpgrade},
+			{"votes", votesTableMainchainUpgrade},
 		}
 
 		for it := range theseUpgrades {
@@ -152,6 +154,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case addressesTableMainchainUpgrade:
 		tableReady, err = addAddressesColumnsForMainchain(pgb.db)
 		tableName, upgradeTypeStr = "addresses", "sidechain/reorg"
+	case votesTableMainchainUpgrade:
+		tableReady, err = addVotesColumnsForMainchain(pgb.db)
+		tableName, upgradeTypeStr = "votes", "sidechain/reorg"
 	case transactionsTableMainchainUpgrade:
 		tableReady, err = addTransactionsColumnsForMainchain(pgb.db)
 		tableName, upgradeTypeStr = "transactions", "sidechain/reorg"
@@ -240,6 +245,14 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		rowsUpdated, err = pgb.handleVinsTableMainchainupgrade()
 		if err != nil {
 			return false, fmt.Errorf(`upgrade of vins table ended prematurely after %d vins. `+
+				`Error: %v`, rowsUpdated, err)
+		}
+	case votesTableMainchainUpgrade:
+		// votes table upgrade handled entirely by the DB backend
+		log.Infof("Starting votes table mainchain upgrade...")
+		rowsUpdated, err = updateAllVotesMainchain(pgb.db)
+		if err != nil {
+			return false, fmt.Errorf(`upgrade of votes table ended prematurely after %d votes. `+
 				`Error: %v`, rowsUpdated, err)
 		}
 	case addressesTableMainchainUpgrade:
@@ -340,6 +353,13 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 	}
 
 	return rowsUpdated, nil
+}
+
+// updateAllVotesMainchain sets is_mainchain for all votes according to their
+// containing block.
+func updateAllVotesMainchain(db *sql.DB) (rowsUpdated int64, err error) {
+	return sqlExec(db, internal.UpdateVotesMainchainAll,
+		"failed to update votes and mainchain status")
 }
 
 // updateAllTxnsValidMainchain sets is_mainchain and is_valid for all
@@ -577,6 +597,14 @@ func addBlocksColumnsForMainchain(db *sql.DB) (bool, error) {
 		{"is_mainchain", "BOOLEAN", "False"},
 	}
 	return addNewColumnsIfNotFound(db, "blocks", newColumns)
+}
+
+func addVotesColumnsForMainchain(db *sql.DB) (bool, error) {
+	// The new columns and their data types
+	newColumns := []newColumn{
+		{"is_mainchain", "BOOLEAN", ""},
+	}
+	return addNewColumnsIfNotFound(db, "votes", newColumns)
 }
 
 func addTransactionsColumnsForMainchain(db *sql.DB) (bool, error) {
