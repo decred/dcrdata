@@ -435,11 +435,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData.KnownTransactions = (balance.NumSpent * 2) + balance.NumUnspent
 			addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 			addrData.KnownSpendingTxns = balance.NumSpent
+			addrData.KnownMergedSpendingTxns = balance.NumMergedSpent
 
 			// Transactions to fetch with FillAddressTransactions. This should be a
 			// noop if ReduceAddressHistory is working right.
 			switch txnType {
-			case dbtypes.AddrTxnAll:
+			case dbtypes.AddrTxnAll, dbtypes.AddrMergedTxnDebit:
 			case dbtypes.AddrTxnCredit:
 				addrData.Transactions = addrData.TxnsFunding
 			case dbtypes.AddrTxnDebit:
