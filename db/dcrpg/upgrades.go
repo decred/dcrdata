@@ -119,7 +119,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Ensure the required version was reached.
 	upgradeInfo = TableUpgradesRequired(TableVersions(pgb.db))
-	if upgradeInfo[0].UpgradeType != "ok" {
+	if len(upgradeInfo) > 0 && upgradeInfo[0].UpgradeType != "ok" {
 		return false, fmt.Errorf("failed to upgrade tables to required version %v", needVersion)
 	}
 

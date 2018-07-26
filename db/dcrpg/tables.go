@@ -261,14 +261,12 @@ func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
 			continue
 		}
 		versionCompatibility := TableVersionCompatible(req, act)
-		if versionCompatibility != "ok" {
-			tableUpgrades = append(tableUpgrades, TableUpgrade{
-				TableName:   t,
-				UpgradeType: versionCompatibility,
-				CurrentVer:  act,
-				RequiredVer: req,
-			})
-		}
+		tableUpgrades = append(tableUpgrades, TableUpgrade{
+			TableName:   t,
+			UpgradeType: versionCompatibility,
+			CurrentVer:  act,
+			RequiredVer: req,
+		})
 	}
 	return tableUpgrades
 }
