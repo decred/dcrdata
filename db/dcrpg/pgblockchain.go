@@ -828,7 +828,7 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	if pgb == nil {
 		return nil
 	}
-	// New blocks stored this way are considered valid and mainchain
+	// New blocks stored this way are considered valid and part of mainchain.
 	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets, true, true, true, true)
 	return err
 }

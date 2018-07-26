@@ -719,7 +719,7 @@ func sqlExec(db *sql.DB, stmt, execErrPrefix string, args ...interface{}) (int64
 func sqlExecStmt(stmt *sql.Stmt, execErrPrefix string, args ...interface{}) (int64, error) {
 	res, err := stmt.Exec(args...)
 	if err != nil {
-		return 0, fmt.Errorf(execErrPrefix + err.Error())
+		return 0, fmt.Errorf("%v %v", execErrPrefix, err)
 	}
 	if res == nil {
 		return 0, nil
@@ -1237,20 +1237,6 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	}
 
 	return
-}
-
-// UpdateAllTxnsValidMainchain sets is_mainchain and is_valid for all
-// transactions according to their containing block.
-func UpdateAllTxnsValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
-	return sqlExec(db, internal.UpdateTxnsValidMainchainAll,
-		"failed to update transactions validity and mainchain status")
-}
-
-// UpdateAllAddressesValidMainchain sets valid_mainchain for all addresses table
-// rows according to their corresponding transaction.
-func UpdateAllAddressesValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
-	return sqlExec(db, internal.UpdateValidMainchainFromTransactions,
-		"failed to update addresses rows valid_mainchain status")
 }
 
 // RetrieveBlockHash retrieves the hash of the block at the given height, if it

@@ -7,7 +7,11 @@ import (
 )
 
 const (
-	// Block insert
+	// Block insert. is_valid refers to blocks that have been validated by
+	// stakeholders (voting on the previous block), while is_mainchain
+	// distinguishes blocks that are on the main chain from those that are
+	// on side chains and/or orphaned.
+
 	insertBlockRow0 = `INSERT INTO blocks (
 		hash, height, size, is_valid, is_mainchain, version, merkle_root, stake_root,
 		numtx, num_rtx, tx, txDbIDs, num_stx, stx, stxDbIDs,

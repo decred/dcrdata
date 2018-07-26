@@ -246,7 +246,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		// addresses table upgrade handled entirely by the DB backend
 		log.Infof("Starting addresses table mainchain upgrade...")
 		log.Infof("This an extremely I/O intensive operation on the database machine. It can take from 30-90 minutes.")
-		rowsUpdated, err = UpdateAllAddressesValidMainchain(pgb.db)
+		rowsUpdated, err = updateAllAddressesValidMainchain(pgb.db)
 		if err != nil {
 			return false, fmt.Errorf(`upgrade of addresses table ended prematurely after %d address rows.`+
 				`Error: %v`, rowsUpdated, err)
@@ -342,6 +342,20 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 	return rowsUpdated, nil
 }
 
+// updateAllTxnsValidMainchain sets is_mainchain and is_valid for all
+// transactions according to their containing block.
+func updateAllTxnsValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
+	return sqlExec(db, internal.UpdateTxnsValidMainchainAll,
+		"failed to update transactions validity and mainchain status")
+}
+
+// updateAllAddressesValidMainchain sets valid_mainchain for all addresses table
+// rows according to their corresponding transaction.
+func updateAllAddressesValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
+	return sqlExec(db, internal.UpdateValidMainchainFromTransactions,
+		"failed to update addresses rows valid_mainchain status")
+}
+
 func (pgb *ChainDB) handleBlocksTableMainchainUpgrade(bestBlock string) (int64, error) {
 	var blocksUpdated int64
 	previousHash, thisBlockHash := bestBlock, bestBlock
@@ -374,7 +388,7 @@ func (pgb *ChainDB) handleBlocksTableMainchainUpgrade(bestBlock string) (int64, 
 // all transactions according to their containing block. The number of
 // transactions updates is returned, along with an error value.
 func (pgb *ChainDB) handleTransactionsTableMainchainUpgrade() (int64, error) {
-	return UpdateAllTxnsValidMainchain(pgb.db)
+	return updateAllTxnsValidMainchain(pgb.db)
 }
 
 // handlevinsTableCoinSupplyUpgrade implements the upgrade to the new newly added columns
@@ -543,8 +557,8 @@ func addVinsColumnsForCoinSupply(db *sql.DB) (bool, error) {
 	// The new columns and their data types
 	newColumns := []newColumn{
 		{"is_valid", "BOOLEAN", "False"},
-		{"block_time", "INT8", "False"},
-		{"value_in", "INT8", "False"},
+		{"block_time", "INT8", "0"},
+		{"value_in", "INT8", "0"},
 	}
 	return addNewColumnsIfNotFound(db, "vins", newColumns)
 }
