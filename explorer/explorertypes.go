@@ -389,14 +389,16 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 
 		transactions = append(transactions, &tx)
 	}
+	var fundingTxs, spendingTxs = int64(len(creditTxns)), int64(len(debitTxns))
 
 	return &AddressInfo{
 		Address:         addrHist[0].Address,
 		Transactions:    transactions,
 		TxnsFunding:     creditTxns,
 		TxnsSpending:    debitTxns,
-		NumFundingTxns:  int64(len(creditTxns)),
-		NumSpendingTxns: int64(len(debitTxns)),
+		NumTransactions: fundingTxs +spendingTxs,
+		NumFundingTxns:  fundingTxs,
+		NumSpendingTxns: spendingTxs,
 		AmountReceived:  dcrutil.Amount(received),
 		AmountSent:      dcrutil.Amount(sent),
 		AmountUnspent:   dcrutil.Amount(received - sent),
