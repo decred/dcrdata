@@ -31,8 +31,8 @@ const (
 	InsertVinRow = InsertVinRow0 + `RETURNING id;`
 	// InsertVinRowChecked = InsertVinRow0 +
 	// 	`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
-	UpsertVinRow = InsertVinRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE 
-		SET is_valid = $8, is_mainchain = $9, block_time = $10, 
+	UpsertVinRow = InsertVinRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
+		SET is_valid = $8, is_mainchain = $9, block_time = $10,
 			prev_tx_hash = $4, prev_tx_index = $5, prev_tx_tree = $6
 		RETURNING id;`
 
@@ -56,12 +56,18 @@ const (
 
 	SetTxTypeOnVinsByVinIDs = `UPDATE vins SET tx_type=$1 WHERE id=$2;`
 
-	SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
-	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins 
+	SelectSpendingTxsByPrevTx                = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
+	SelectSpendingTxsByPrevTxWithBlockHeight = `SELECT prev_tx_index, vins.tx_hash, vins.tx_index, block_height
+		FROM vins LEFT JOIN transactions ON
+			transactions.tx_hash=vins.tx_hash AND
+			transactions.is_valid=TRUE AND
+			transactions.is_mainchain=TRUE
+		WHERE prev_tx_hash=$1 AND vins.is_valid=TRUE AND vins.is_mainchain=TRUE;`
+	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins
 		WHERE prev_tx_hash=$1 AND prev_tx_index=$2;`
 	SelectFundingTxsByTx        = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`
 	SelectFundingTxByTxIn       = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1 AND tx_index=$2;`
-	SelectFundingOutpointByTxIn = `SELECT id, prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins 
+	SelectFundingOutpointByTxIn = `SELECT id, prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins
 		WHERE tx_hash=$1 AND tx_index=$2;`
 
 	SelectFundingOutpointByVinID = `SELECT prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins WHERE id=$1;`
@@ -119,12 +125,12 @@ const (
 		script_addresses TEXT[]
 	);`
 
-	insertVoutRow0 = `INSERT INTO vouts (tx_hash, tx_index, tx_tree, value, 
+	insertVoutRow0 = `INSERT INTO vouts (tx_hash, tx_index, tx_tree, value,
 		version, pkscript, script_req_sigs, script_type, script_addresses)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
 	insertVoutRow = insertVoutRow0 + `RETURNING id;`
 	//insertVoutRowChecked  = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
-	upsertVoutRow = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE 
+	upsertVoutRow = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
 		SET version = $5 RETURNING id;`
 	insertVoutRowReturnId = `WITH inserting AS (` +
 		insertVoutRow0 +

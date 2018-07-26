@@ -1329,27 +1329,26 @@ func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeigh
 	return
 }
 
-// Retrieve all Transactions related to a set of addresses and funded by a
-// specific transaction
-func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string,
-	addresses []string) (aSpendByFunHash []*apitypes.AddressSpendByFunHash, err error) {
+// RetrieveSpendingTxsByFundingTxWithBlockHeight will Retrieve all Transactions,
+// indexes and block heights funded by a specific transaction
+func RetrieveSpendingTxsByFundingTxWithBlockHeight(db *sql.DB,
+	fundingTxID string) (aSpendByFunHash []*apitypes.SpendByFundingHash, err error) {
 
-	stmt, err := db.Prepare(internal.SelectAddressesTxnByFundingTx)
+	rows, err := db.Query(internal.SelectSpendingTxsByPrevTxWithBlockHeight, fundingTxID)
 	if err != nil {
-		log.Error(err)
-		return nil, nil
+		return
 	}
 
-	rows, err := stmt.Query(pq.Array(addresses), fundTxHash)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
 
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var addr apitypes.AddressSpendByFunHash
+		var addr apitypes.SpendByFundingHash
 		err = rows.Scan(&addr.FundingTxVoutIndex,
 			&addr.SpendingTxHash, &addr.SpendingTxVinIndex, &addr.BlockHeight)
 		if err != nil {

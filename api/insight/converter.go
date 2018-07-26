@@ -121,22 +121,9 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult,
 		}
 
 		if !noSpent {
-			// set of unique addresses for db query
-			uniqAddrs := make(map[string]string)
-
-			for _, vout := range txNew.Vouts {
-				for _, addr := range vout.ScriptPubKey.Addresses {
-					uniqAddrs[addr] = txNew.Txid
-				}
-			}
-
-			var addresses []string
-			for addr := range uniqAddrs {
-				addresses = append(addresses, addr)
-			}
-
+			// populate the spending status of all vouts
 			// Note, this only gathers information from the database which does not include mempool transactions
-			addrFull := c.BlockData.ChainDB.GetAddressSpendByFunHash(addresses, txNew.Txid)
+			addrFull := c.BlockData.ChainDB.GetSpendDetailsByFundingHash(txNew.Txid)
 			for _, dbaddr := range addrFull {
 				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
 				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash

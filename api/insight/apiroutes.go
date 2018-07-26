@@ -409,16 +409,16 @@ func (c *insightApiContext) getTransactions(w http.ResponseWriter, r *http.Reque
 		txcount := len(blkTrans.RawTx) + len(blkTrans.RawSTx)
 		// Merge tx and stx together and limit result to 10 max
 		count := 0
-		for _, tx := range blkTrans.RawTx {
-			txsOld = append(txsOld, &tx)
+		for i := range blkTrans.RawTx {
+			txsOld = append(txsOld, &blkTrans.RawTx[i])
 			count++
 			if count > 10 {
 				break
 			}
 		}
 		if count < 10 {
-			for _, tx := range blkTrans.RawSTx {
-				txsOld = append(txsOld, &tx)
+			for i := range blkTrans.RawSTx {
+				txsOld = append(txsOld, &blkTrans.RawSTx[i])
 				count++
 				if count > 10 {
 					break
