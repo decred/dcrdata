@@ -126,7 +126,7 @@
         connect() {
             ws.registerEvtHandler("newtx", (evt) => {
                 this.renderNewTxns(evt)
-                this.filterVotesLastBlock();
+                this.labelVotes();
                 this.sortVotesTable();
                 keyNav(evt, false, true)
             })
@@ -136,7 +136,7 @@
             });
             ws.registerEvtHandler("getmempooltxsResp", (evt) => {
                 this.handleTxsResp(evt)
-                this.filterVotesLastBlock();
+                this.labelVotes();
                 this.sortVotesTable();
                 keyNav(evt, false, true)
             })
@@ -165,7 +165,7 @@
             $(this.totalNeededTarget).text(m.voting_info.total_votes_required)
             $(this.totalOutTarget).html(`${humanize.decimalParts(m.total, false, 8, true)}`);
             $(this.mempoolSizeTarget).text(m.formatted_size);
-            this.filterVotesLastBlock();
+            this.labelVotes();
         }
 
         handleTxsResp(event) {
@@ -185,7 +185,7 @@
             })
         }
 
-        filterVotesLastBlock() {
+        labelVotes() {
             var bestBlockHash = $(this.bestBlockTarget).data("hash");
             var bestBlockHeight = $(this.bestBlockTarget).text();
             $(this.voteTransactionsTarget).children("tr").each(function(i,el) {
