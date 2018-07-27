@@ -46,10 +46,11 @@ var PanicOnTestFailure = false
 // ReportTestIsNotAbleToTest called on failure in a test setup
 // Indicates that test needs to be fixed
 func ReportTestIsNotAbleToTest(report string, args ...interface{}) {
+	errorMessage := "test setup failure: " + fmt.Sprintf(report, args...)
 	if PanicOnTestSetupFailure || t == nil {
-		panic("test setup failure: " + report + ": " + fmt.Sprint(args))
+		panic(errorMessage)
 	} else {
-		t.Fatalf("test setup failure: "+report+": %v", args)
+		t.Fatal(errorMessage)
 	}
 }
 
@@ -60,10 +61,11 @@ func ReportTestIsNotAbleToTest(report string, args ...interface{}) {
 // program and revealed unacceptable behaviour during debugging
 // or in the test-net.
 func ReportTestFailed(msg string, args ...interface{}) {
+	errorMessage := fmt.Sprintf(msg, args...)
 	if t == nil || PanicOnTestFailure {
-		panic(msg + ": " + fmt.Sprint(args))
+		panic(errorMessage)
 	} else {
-		t.Fatalf(msg, args)
+		t.Fatal(errorMessage)
 	}
 }
 
