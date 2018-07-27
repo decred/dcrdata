@@ -473,6 +473,10 @@ func (db *StakeDatabase) ConnectBlockHash(hash *chainhash.Hash) (*dcrutil.Block,
 // tickets from the input block, and any maturing tickets from the past block in
 // which those tickets would be found, and passes them to connectBlock.
 func (db *StakeDatabase) ConnectBlock(block *dcrutil.Block) error {
+	block.Bytes() // serialize block
+
+	fmt.Println("ConnectBlock:", block.MsgBlock().Header.Height)
+
 	height := block.Height()
 	maturingHeight := height - int64(db.params.TicketMaturity)
 
