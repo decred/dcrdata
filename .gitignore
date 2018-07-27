@@ -33,3 +33,4 @@ testnet/
 .DS_Store
 testdata/
 \.project
+test-data-repo
