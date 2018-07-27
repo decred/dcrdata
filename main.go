@@ -366,6 +366,10 @@ func mainCore() error {
 	}
 	log.Infof("All ready, at height %d.", baseDBHeight)
 
+	if cfg.SyncAndQuit {
+		return nil
+	}
+
 	// Register for notifications from dcrd
 	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
 	if cerr != nil {
