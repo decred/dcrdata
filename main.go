@@ -518,6 +518,12 @@ func waitForSync(base chan dbtypes.SyncResult, aux chan dbtypes.SyncResult,
 	baseRes := <-base
 	baseDBHeight := baseRes.Height
 	log.Infof("SQLite sync ended at height %d", baseDBHeight)
+	if baseRes.Error != nil {
+		log.Errorf("dcrsqlite.SyncDBAsync failed at height %d: %v.", baseDBHeight, baseRes.Error)
+		close(quit)
+		auxRes := <-aux
+		return baseDBHeight, auxRes.Height, baseRes.Error
+	}
 
 	auxRes := <-aux
 	auxDBHeight := auxRes.Height
