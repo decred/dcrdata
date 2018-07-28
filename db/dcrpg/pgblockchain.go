@@ -610,8 +610,9 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		return addressRows, nil, fmt.Errorf("ReduceAddressHistory failed. len(addressRows) = %d", len(addressRows))
 	}
 
-	// N is a limit on NumFundingTxns, so this checks if we have them all.
-	if addrInfo.NumFundingTxns < N && offset == 0 && txnType == dbtypes.AddrTxnAll {
+	// You've got all txs when the total number of fetched txs is less than the
+	// limit ,txtype is AddrTxnAll and Offset is zero.
+	if len(addressRows) < int(N) && offset == 0 && txnType == dbtypes.AddrTxnAll {
 		balanceInfo = explorer.AddressBalance{
 			Address:      address,
 			NumSpent:     addrInfo.NumSpendingTxns,
