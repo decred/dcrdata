@@ -528,23 +528,26 @@ func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtyp
 	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
 }
 
-// getTicketPoolHashes returns the tickets hashes and the best block needed to
-// plot ticketpool charts.
+// getTicketPoolHashes returns the union of live (ticket pool) and immature
+// ticket hashes, and the best block of the stake database.
 func (pgb *ChainDB) getTicketPoolHashes() ([]string, int64, error) {
-	var bestBlock = int64(pgb.GetHeight())
-	var tickets, err = pgb.stakeDB.PoolAtHeight(bestBlock)
+	// Live tickets at best block
+	bestBlock := int64(pgb.stakeDB.Height())
+	tickets, err := pgb.stakeDB.PoolAtHeight(bestBlock)
 	if err != nil {
 		return nil, bestBlock, err
 	}
 
-	var ticketsHashes = make([]string, len(tickets))
-	for i, hash := range tickets {
-		ticketsHashes[i] = hash.String()
-	}
-
+	// Immature tickets
 	immatureHashes, err := retrieveImmatureTickets(pgb.db, bestBlock)
 	if err != nil {
 		return nil, bestBlock, err
+	}
+
+	// Concatenate live and immature ticket IDs
+	ticketsHashes := make([]string, len(tickets), len(tickets)+len(immatureHashes))
+	for i := range tickets {
+		ticketsHashes[i] = tickets[i].String()
 	}
 
 	ticketsHashes = append(ticketsHashes, immatureHashes...)
@@ -552,22 +555,28 @@ func (pgb *ChainDB) getTicketPoolHashes() ([]string, int64, error) {
 	return ticketsHashes, bestBlock, nil
 }
 
-// TicketPoolVisualization fetches the ticketpool data. The data is needed to
-// populate the ticketpool graphs.
-func (pgb *ChainDB) TicketPoolVisualization(bars string) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
-	var allTickets = make([]*dbtypes.PoolTicketsData, 3)
-	var ticketsHashes, tickets, bestBlock, err = pgb.TicketPoolByDateAndInterval(bars)
+// TicketPoolVisualization fetches the following ticketpool data: tickets
+// grouped on the specified interval, tickets grouped by price, and ticket
+// counts by ticket type (solo, pool, other split). The interval may be one of:
+// "mo", "wk", "day", or "all". The data is needed to populate the ticketpool
+// graphs. The data grouped by time and price are returned in a slice.
+func (pgb *ChainDB) TicketPoolVisualization(interval string) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
+	// Tickets grouped by time interval
+	ticketsHashes, ticketsByTime, bestBlock, err := pgb.TicketPoolByDateAndInterval(interval)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	allTickets[0] = tickets
-
-	allTickets[1], err = retrieveTicketByPrice(pgb.db, bestBlock, ticketsHashes)
+	// Tickets grouped by price
+	ticketsByPrice, err := retrieveTicketByPrice(pgb.db, bestBlock, ticketsHashes)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	// Return time- and price-grouped data in a slice
+	allTickets := []*dbtypes.PoolTicketsData{ticketsByTime, ticketsByPrice}
+
+	// Tickets grouped by type (solo, pool, other split)
 	grpTickets, err := retrieveTickesGroupedByType(pgb.db, ticketsHashes)
 	if err != nil {
 		return nil, nil, err
@@ -577,28 +586,31 @@ func (pgb *ChainDB) TicketPoolVisualization(bars string) ([]*dbtypes.PoolTickets
 }
 
 // TicketPoolByDateAndInterval fetches the tickets ordered by the purchase date
-// interval provided.
-func (pgb *ChainDB) TicketPoolByDateAndInterval(val string) ([]string, *dbtypes.PoolTicketsData, int64, error) {
+// interval provided, the corresponding PoolTicketsData, the height of the best
+// block in the stake database, and an error value.
+func (pgb *ChainDB) TicketPoolByDateAndInterval(interval string) ([]string, *dbtypes.PoolTicketsData, int64, error) {
 	var sec int64
-	switch val {
-	case "1m":
-		sec = 2629746
-	case "1wk":
-		sec = 604800
-	case "1d":
-		sec = 86400
+	switch interval {
+	case "mo":
+		sec = int64(float64(time.Hour) * 24 * 30.436875) // Gregorian month
+	case "wk":
+		sec = int64(time.Hour) * 24 * 7
+	case "day":
+		sec = int64(time.Hour) * 24
 	case "all":
 		sec = 1
 	default:
-		return []string{}, nil, 0, fmt.Errorf("The interval provided '%s' is unknown", val)
+		return []string{}, nil, 0, fmt.Errorf(`unknown interval "%s"`, interval)
 	}
 
-	var ticketsHashes, bestBlock, err = pgb.getTicketPoolHashes()
+	// All ticket IDs for live and immature tickets
+	ticketsHashes, bestBlock, err := pgb.getTicketPoolHashes()
 	if err != nil {
 		return ticketsHashes, nil, 0, err
 	}
 
-	t, err := retrieveTicketsByDate(pgb.db, bestBlock, ticketsHashes, sec)
+	maturityBlock := bestBlock - int64(pgb.chainParams.TicketMaturity)
+	t, err := retrieveTicketsByDate(pgb.db, maturityBlock, ticketsHashes, sec)
 	return ticketsHashes, t, bestBlock, err
 }
 

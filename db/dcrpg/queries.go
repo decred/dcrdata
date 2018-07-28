@@ -1376,14 +1376,16 @@ func retrieveImmatureTickets(db *sql.DB, bestBlock int64) (hashes []string, err 
 
 // retrieveTicketsByDate fetches the tickets in the current ticketpool by the
 // purchase date.
-func retrieveTicketsByDate(db *sql.DB, bestBlock int64,
-	hashes []string, groupBy int64) (*dbtypes.PoolTicketsData, error) {
-	var rows, err = db.Query(internal.MakeRetrieveTicketsStatement(hashes, 1, bestBlock), groupBy)
+func retrieveTicketsByDate(db *sql.DB, bestBlock int64, hashes []string,
+	groupBy int64) (*dbtypes.PoolTicketsData, error) {
+	// Create the query statement and retrieve rows
+	rows, err := db.Query(internal.MakeRetrieveTicketTimesStatement(hashes,
+		internal.TicketsByDateTime, bestBlock), groupBy)
 	if err != nil {
 		return nil, err
 	}
 
-	var tickets = new(dbtypes.PoolTicketsData)
+	tickets := new(dbtypes.PoolTicketsData)
 	for rows.Next() {
 		var immature, live, timestamp uint64
 		var price, total float64
@@ -1404,12 +1406,14 @@ func retrieveTicketsByDate(db *sql.DB, bestBlock int64,
 // retrieveTicketByPrice fetches the tickets in the current ticketpool by the
 // purchase price.
 func retrieveTicketByPrice(db *sql.DB, bestBlock int64, hashes []string) (*dbtypes.PoolTicketsData, error) {
-	var tickets = new(dbtypes.PoolTicketsData)
-	var rows, err = db.Query(internal.MakeRetrieveTicketsStatement(hashes, 2, bestBlock))
+	// Create the query statement and retrieve rows
+	rows, err := db.Query(internal.MakeRetrieveTicketTimesStatement(hashes,
+		internal.TicketsByPrice, bestBlock))
 	if err != nil {
 		return nil, err
 	}
 
+	tickets := new(dbtypes.PoolTicketsData)
 	for rows.Next() {
 		var immature, live uint64
 		var price float64
@@ -1426,10 +1430,10 @@ func retrieveTicketByPrice(db *sql.DB, bestBlock int64, hashes []string) (*dbtyp
 }
 
 // retrieveTickesGroupedByType the count of tickets in the current ticketpool
-// grouped by their outputs.
+// grouped by ticket type (inferred by their output counts).
 func retrieveTickesGroupedByType(db *sql.DB, hashes []string) (*dbtypes.PoolTicketsData, error) {
 	var entry dbtypes.PoolTicketsData
-	err := db.QueryRow(internal.MakeRetrieveTicketsStatement(hashes, 3)).Scan(
+	err := db.QueryRow(internal.MakeRetrieveTicketTypeCountsStatement(hashes)).Scan(
 		&entry.Solo, &entry.Pooled, &entry.TxSplit,
 	)
 	if err != nil {

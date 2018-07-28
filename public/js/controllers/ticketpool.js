@@ -109,9 +109,9 @@ function barchartPlotter(e) {
 
     function getWindow(val){
         switch (val){
-            case "1d": return [(ms - 8.64E+07) - 1000, ms]
-            case "1wk": return [(ms - 6.048e+8) - 1000, ms]
-            case "1m": return [(ms - 2.628e+9) - 1000, ms]
+            case "day": return [(ms - 8.64E+07) - 1000, ms]
+            case "wk": return [(ms - 6.048e+8) - 1000, ms]
+            case "mo": return [(ms - 2.628e+9) - 1000, ms]
             default: return [origDate, ms]
         }
     }

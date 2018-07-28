@@ -76,7 +76,7 @@ type explorerDataSource interface {
 	//SideChainTips() []*dbtypes.BlockStatus
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	GetOldestTxBlockTime(addr string) (int64, error)
-	TicketPoolVisualization(bars string) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error)
+	TicketPoolVisualization(interval string) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error)
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts

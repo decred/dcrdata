@@ -223,25 +223,37 @@ func MakeTxInsertStatement(checked bool) string {
 	return insertTxRow
 }
 
-// MakeRetrieveTicketStatement fetches live and
-// immature tickets in the current ticket pool
-func MakeRetrieveTicketsStatement(hashes []string, graphType int, info ...int64) string {
-	var liveBlocks int64
-	if len(info) > 0 {
-		liveBlocks = info[0] - 256
-	}
+// TicketGrouping indicates if tickets retrieved via
+// MakeRetrieveTicketTimesStatement should be grouped by date/time or by price.
+type TicketGrouping int
 
-	var strHashes = `VALUES ('` + strings.Join(hashes, `'), ('`) + `')`
-	switch graphType {
-	case 1:
+const (
+	TicketsByDateTime TicketGrouping = iota
+	TicketsByPrice
+)
+
+// MakeRetrieveTicketStatement creates the statement to fetch data on the
+// provided ticket IDs grouped by either purchase time or purchase price. The
+// sinceBlock is used to specify at which height tickets should be considered
+// mature.
+func MakeRetrieveTicketTimesStatement(hashes []string, ticketGrouping TicketGrouping,
+	sinceBlock int64) string {
+	strHashes := `VALUES ('` + strings.Join(hashes, `'), ('`) + `')`
+	switch ticketGrouping {
+	case TicketsByDateTime:
 		return fmt.Sprintf(retrieveTicketsByPurchaseDate,
-			liveBlocks, liveBlocks, strHashes)
-	case 2:
+			sinceBlock, sinceBlock, strHashes)
+	case TicketsByPrice:
 		return fmt.Sprintf(retrieveTicketsByPrice,
-			liveBlocks, liveBlocks, strHashes)
-	case 3:
-		return fmt.Sprintf(retrieveTicketsByType, strHashes)
+			sinceBlock, sinceBlock, strHashes)
 	default:
 		return ""
 	}
+}
+
+// MakeRetrieveTicketTypeCountsStatement fetches the count of solo, pooled, or
+// otherwise split ticket purchases given the provided ticket IDs.
+func MakeRetrieveTicketTypeCountsStatement(hashes []string) string {
+	strHashes := `VALUES ('` + strings.Join(hashes, `'), ('`) + `')`
+	return fmt.Sprintf(retrieveTicketsByType, strHashes)
 }

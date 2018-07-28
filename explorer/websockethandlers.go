@@ -117,8 +117,13 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 					cData, gData, err := exp.explorerSource.TicketPoolVisualization(msg.Message)
 					if err != nil {
+						if strings.HasPrefix(err.Error(), "unknown interval") {
+							log.Debugf("Invalid ticket pool interval provided via getticketpooldata: %s", msg.Message)
+							webData.Message = "Error: " + err.Error()
+							break
+						}
 						log.Errorf("TicketPoolVisualization error: %v", err)
-						webData.Message = "Error: Failed to successfully fetch ticketpool data"
+						webData.Message = "Error: Failed to fetch ticketpool data"
 						break
 					}
 
