@@ -136,7 +136,7 @@ function barchartPlotter(e) {
             colors: ['darkorange', '#006600', '#0066cc', '#ff0090'],
             title: 'Tickets Purchase Distribution',
             y2label: 'A.v.g. Tickets Value (DCR)',
-            dateWindow: getWindow("1d"),
+            dateWindow: getWindow("day"),
             series: {
                 "Ticket Value": {
                     axis: 'y2',
