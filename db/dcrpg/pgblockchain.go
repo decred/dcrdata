@@ -84,8 +84,8 @@ type ChainDB struct {
 // ChainDBRPC provides an interface for storing and manipulating extracted and
 // includes the RPC Client blockchain data in a PostgreSQL database.
 type ChainDBRPC struct {
-	ChainDB *ChainDB
-	Client  *rpcclient.Client
+	*ChainDB
+	Client *rpcclient.Client
 }
 
 // NewChainDBRPC contains ChainDB and RPC client parameters. By default,

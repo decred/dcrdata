@@ -204,7 +204,9 @@ out:
 
 }
 
-// ReorgHandler receives notification of a chain reorganization
+// ReorgHandler receives notification of a chain reorganization. A
+// reorganization is handled in blockdata by setting the reorganizing flag so
+// that block data is not collected as the new chain is connected.
 func (p *chainMonitor) ReorgHandler() {
 	defer p.wg.Done()
 out:
