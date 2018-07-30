@@ -364,6 +364,9 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 	var received, sent int64
 	var transactions, creditTxns, debitTxns []*AddressTx
 	for _, addrOut := range addrHist {
+		if !addrOut.ValidMainChain {
+			continue
+		}
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
 		tx := AddressTx{
 			BlockTime: addrOut.TxBlockTime,

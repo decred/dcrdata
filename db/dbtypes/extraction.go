@@ -37,17 +37,17 @@ func DevSubsidyAddress(params *chaincfg.Params) (string, error) {
 // wire.MsgBlock and returns the processed information in slices of the dbtypes
 // Tx, Vout, and VinTxPropertyARRAY.
 func ExtractBlockTransactions(msgBlock *wire.MsgBlock, txTree int8,
-	chainParams *chaincfg.Params, isValid bool) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
+	chainParams *chaincfg.Params, isValid, isMainchain bool) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
 	dbTxs, dbTxVouts, dbTxVins := processTransactions(msgBlock, txTree,
-		chainParams, isValid)
+		chainParams, isValid, isMainchain)
 	if txTree != wire.TxTreeRegular && txTree != wire.TxTreeStake {
 		fmt.Printf("Invalid transaction tree: %v", txTree)
 	}
 	return dbTxs, dbTxVouts, dbTxVins
 }
 
-func processTransactions(msgBlock *wire.MsgBlock, tree int8,
-	chainParams *chaincfg.Params, isValid bool) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
+func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chaincfg.Params,
+	isValid, isMainchain bool) ([]*Tx, [][]*Vout, []VinTxPropertyARRAY) {
 
 	var txs []*wire.MsgTx
 	switch tree {
@@ -81,23 +81,25 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8,
 		}
 		fees := spent - sent
 		dbTx := &Tx{
-			BlockHash:   blockHash.String(),
-			BlockHeight: int64(blockHeight),
-			BlockTime:   blockTime,
-			Time:        blockTime, // TODO, receive time?
-			TxType:      int16(stake.DetermineTxType(tx)),
-			Version:     tx.Version,
-			Tree:        tree,
-			TxID:        tx.TxHash().String(),
-			BlockIndex:  uint32(txIndex),
-			Locktime:    tx.LockTime,
-			Expiry:      tx.Expiry,
-			Size:        uint32(tx.SerializeSize()),
-			Spent:       spent,
-			Sent:        sent,
-			Fees:        fees,
-			NumVin:      uint32(len(tx.TxIn)),
-			NumVout:     uint32(len(tx.TxOut)),
+			BlockHash:        blockHash.String(),
+			BlockHeight:      int64(blockHeight),
+			BlockTime:        blockTime,
+			Time:             blockTime, // TODO, receive time?
+			TxType:           int16(stake.DetermineTxType(tx)),
+			Version:          tx.Version,
+			Tree:             tree,
+			TxID:             tx.TxHash().String(),
+			BlockIndex:       uint32(txIndex),
+			Locktime:         tx.LockTime,
+			Expiry:           tx.Expiry,
+			Size:             uint32(tx.SerializeSize()),
+			Spent:            spent,
+			Sent:             sent,
+			Fees:             fees,
+			NumVin:           uint32(len(tx.TxIn)),
+			NumVout:          uint32(len(tx.TxOut)),
+			IsValidBlock:     isValid,
+			IsMainchainBlock: isMainchain,
 		}
 
 		//dbTx.Vins = make([]VinTxProperty, 0, dbTx.NumVin)
@@ -118,6 +120,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8,
 				BlockIndex:  txin.BlockIndex,
 				ScriptHex:   txin.SignatureScript,
 				IsValid:     isValid,
+				IsMainchain: isMainchain,
 			})
 		}
 

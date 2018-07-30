@@ -39,7 +39,7 @@ var createTypeStatements = map[string]string{
 // re-indexing and a duplicate scan/purge.
 const (
 	tableMajor = 3
-	tableMinor = 2
+	tableMinor = 3
 )
 
 var requiredVersions = map[string]TableVersion{
@@ -261,14 +261,12 @@ func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
 			continue
 		}
 		versionCompatibility := TableVersionCompatible(req, act)
-		if versionCompatibility != "ok" {
-			tableUpgrades = append(tableUpgrades, TableUpgrade{
-				TableName:   t,
-				UpgradeType: versionCompatibility,
-				CurrentVer:  act,
-				RequiredVer: req,
-			})
-		}
+		tableUpgrades = append(tableUpgrades, TableUpgrade{
+			TableName:   t,
+			UpgradeType: versionCompatibility,
+			CurrentVer:  act,
+			RequiredVer: req,
+		})
 	}
 	return tableUpgrades
 }

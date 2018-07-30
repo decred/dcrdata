@@ -181,7 +181,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 
 		// Store data from this block in the database
 		numVins, numVouts, err := db.StoreBlock(block.MsgBlock(), winners, true,
-			!updateAllAddresses, !updateAllVotes)
+			true, !updateAllAddresses, !updateAllVotes)
 		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}

@@ -309,6 +309,7 @@ func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
 		if rowsAffected[i] != 1 {
 			log.Warnf("Updated pool status for %d tickets, expecting just 1 (%s, %v)!",
 				rowsAffected[i], ticket, poolStatuses[i])
+			// TODO: go get the info to add it to the tickets table
 		}
 	}
 
@@ -412,9 +413,9 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		var prevOutVoutInd, txVinInd uint32
 		var prevOutTree, txTree int8
 		var valueIn, blockTime int64
-		var isValid bool
+		var isValid, isMainchain bool
 		err = vinGetStmt.QueryRow(vinDbID).Scan(
-			&txHash, &txVinInd, &txTree, &isValid, &blockTime,
+			&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`SelectAllVinInfoByID: `+
@@ -428,7 +429,8 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 
 		// Set the spending tx info (addresses table) for the vin DB ID
 		addressRowsUpdated[iv], err = insertSpendingTxByPrptStmt(dbtx,
-			prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID, false)
+			prevOutHash, prevOutVoutInd, prevOutTree,
+			txHash, txVinInd, vinDbID, false, isValid && isMainchain)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
 				`%v + %v (rollback)`, err, bail())
@@ -454,10 +456,10 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	var prevOutHash, txHash string
 	var prevOutVoutInd, txVinInd uint32
 	var prevOutTree, txTree int8
-	var isValid bool
+	var isValid, isMainchain bool
 	var valueIn, blockTime int64
 	err = dbtx.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&txHash, &txVinInd, &txTree, &isValid, &blockTime,
+		Scan(&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	if err != nil {
 		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
@@ -471,7 +473,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 
 	// Insert the spending tx info (addresses table) for the vin DB ID
 	N, err := insertSpendingTxByPrptStmt(dbtx, prevOutHash, prevOutVoutInd,
-		prevOutTree, txHash, txVinInd, vinDbID, false)
+		prevOutTree, txHash, txVinInd, vinDbID, false, isValid && isMainchain)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -484,7 +486,8 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 // corresponding funding tx row.
 func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
-	spendingTxVinIndex uint32, spendingTXBlockTime, vinDbID uint64, checked bool) (int64, error) {
+	spendingTxVinIndex uint32, spendingTXBlockTime, vinDbID uint64,
+	checked, isValidMainchain bool) (int64, error) {
 
 	// Only allow atomic transactions to happen
 	dbtx, err := db.Begin()
@@ -492,8 +495,9 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
 	}
 
-	c, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex, fundingTxTree,
-		spendingTxHash, spendingTxVinIndex, vinDbID, checked, spendingTXBlockTime)
+	c, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex,
+		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, checked,
+		isValidMainchain, spendingTXBlockTime)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -506,7 +510,7 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 // into the addresses table.
 func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32,
-	vinDbID uint64, checked bool, blockT ...uint64) (int64, error) {
+	vinDbID uint64, checked, validMainchain bool, blockT ...uint64) (int64, error) {
 	var addr string
 	var value, rowID, blockTime uint64
 
@@ -541,7 +545,8 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 	var isFunding bool
 	sqlStmt := internal.MakeAddressRowInsertStatement(checked)
 	err = tx.QueryRow(sqlStmt, newAddr, fundingTxHash, spendingTxHash,
-		spendingTxVinIndex, vinDbID, value, blockTime, isFunding).Scan(&rowID)
+		spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
+		validMainchain).Scan(&rowID)
 	if err != nil {
 		return 0, fmt.Errorf("InsertAddressRow: %v", err)
 	}
@@ -561,7 +566,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 // need to get the funding (previous output) tx info, and then update the
 // corresponding row in the addresses table with the spending tx info.
 func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
-	spendingTxHash string, spendingTxVinIndex uint32, checked bool) (int64, error) {
+	spendingTxHash string, spendingTxVinIndex uint32, checked, isValidMainchain bool) (int64, error) {
 	// get funding details for vin and set them in the address table
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -586,7 +591,7 @@ func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
 
 	// Insert the spending tx info (addresses table) for the vin DB ID
 	N, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex,
-		tree, spendingTxHash, spendingTxVinIndex, vinDbID, checked)
+		tree, spendingTxHash, spendingTxVinIndex, vinDbID, checked, isValidMainchain)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -697,7 +702,7 @@ func DeleteDuplicateMisses(db *sql.DB) (int64, error) {
 func sqlExec(db *sql.DB, stmt, execErrPrefix string, args ...interface{}) (int64, error) {
 	res, err := db.Exec(stmt, args...)
 	if err != nil {
-		return 0, fmt.Errorf(execErrPrefix + err.Error())
+		return 0, fmt.Errorf(execErrPrefix + " " + err.Error())
 	}
 	if res == nil {
 		return 0, nil
@@ -714,7 +719,7 @@ func sqlExec(db *sql.DB, stmt, execErrPrefix string, args ...interface{}) (int64
 func sqlExecStmt(stmt *sql.Stmt, execErrPrefix string, args ...interface{}) (int64, error) {
 	res, err := stmt.Exec(args...)
 	if err != nil {
-		return 0, fmt.Errorf(execErrPrefix + err.Error())
+		return 0, fmt.Errorf("%v %v", execErrPrefix, err)
 	}
 	if res == nil {
 		return 0, nil
@@ -876,8 +881,10 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 		var addr dbtypes.AddressRow
 		var txHash sql.NullString
 		var blockTime, txVinIndex, vinDbID sql.NullInt64
+		// Scan values in order of columns listed in internal.addrsColumnNames
 		err = rows.Scan(&id, &addr.Address, &addr.MatchingTxHash, &txHash,
-			&txVinIndex, &blockTime, &vinDbID, &addr.Value, &addr.IsFunding)
+			&addr.ValidMainChain, &txVinIndex, &blockTime, &vinDbID,
+			&addr.Value, &addr.IsFunding)
 		if err != nil {
 			return
 		}
@@ -978,9 +985,9 @@ func RetrieveFundingOutpointByVinID(db *sql.DB, vinDbID uint64) (tx string, inde
 func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVoutInd uint32,
 	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
 	var blockTime uint64
-	var isValid bool
+	var isValid, isMainchain bool
 	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&txHash, &txVinInd, &txTree, &isValid, &blockTime,
+		Scan(&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	return
 }
@@ -1124,7 +1131,8 @@ func RetrieveDbTxByHash(db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx,
 		&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
 		&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
 		&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
-		&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs)
+		&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs,
+		&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
 	return
 }
 
@@ -1133,16 +1141,48 @@ func RetrieveFullTxByHash(db *sql.DB, txHash string) (id uint64,
 	txType int16, version int32, tree int8, blockInd uint32,
 	lockTime, expiry int32, size uint32, spent, sent, fees int64,
 	numVin int32, vinDbIDs []int64, numVout int32, voutDbIDs []int64,
-	err error) {
+	isValidBlock, isMainchainBlock bool, err error) {
 	var hash string
 	err = db.QueryRow(internal.SelectFullTxByHash, txHash).Scan(&id, &blockHash,
 		&blockHeight, &blockTime, &time, &txType, &version, &tree,
 		&hash, &blockInd, &lockTime, &expiry, &size, &spent, &sent, &fees,
-		&numVin, &vinDbIDs, &numVout, &voutDbIDs)
+		&numVin, &vinDbIDs, &numVout, &voutDbIDs,
+		&isValidBlock, &isMainchainBlock)
 	return
 }
 
-func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, tree int8, err error) {
+// RetrieveTxnsVinsByBlock retrieves for all the transactions in the specified
+// block the vin_db_ids arrays, is_valid, and is_mainchain.
+func RetrieveTxnsVinsByBlock(db *sql.DB, blockHash string) (vinDbIDs []dbtypes.UInt64Array,
+	areValid []bool, areMainchain []bool, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectTxnsVinsByBlock, blockHash)
+	if err != nil {
+		return
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var ids dbtypes.UInt64Array
+		var isValid, isMainchain bool
+		err = rows.Scan(&ids, &isValid, &isMainchain)
+		if err != nil {
+			break
+		}
+
+		vinDbIDs = append(vinDbIDs, ids)
+		areValid = append(areValid, isValid)
+		areMainchain = append(areMainchain, isMainchain)
+	}
+	return
+}
+
+func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string,
+	blockInd uint32, tree int8, err error) {
 	err = db.QueryRow(internal.SelectTxByHash, txHash).Scan(&id, &blockHash, &blockInd, &tree)
 	return
 }
@@ -1212,6 +1252,32 @@ func RetrieveBlockHash(db *sql.DB, idx int64) (hash string, err error) {
 func RetrieveBlockHeight(db *sql.DB, hash string) (height int64, err error) {
 	err = db.QueryRow(internal.SelectBlockHeightByHash, hash).Scan(&height)
 	return
+}
+
+// RetrieveBlocksHashesAll retrieve the hash of every block in the blocks table,
+// ordered by their row ID.
+func RetrieveBlocksHashesAll(db *sql.DB) ([]string, error) {
+	var hashes []string
+	rows, err := db.Query(internal.SelectBlocksHashes)
+	if err != nil {
+		return hashes, err
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var hash string
+		err = rows.Scan(&hash)
+		if err != nil {
+			break
+		}
+
+		hashes = append(hashes, hash)
+	}
+	return hashes, err
 }
 
 // RetrieveBlockChainDbID retrieves the row id in the block_chain table of the
@@ -1363,12 +1429,12 @@ func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit i
 	return blocks, nil
 }
 
-func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, checked bool) (uint64, error) {
+func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
 	insertStatement := internal.MakeBlockInsertStatement(dbBlock, checked)
 	var id uint64
 	err := db.QueryRow(insertStatement,
-		dbBlock.Hash, dbBlock.Height, dbBlock.Size, isValid, dbBlock.Version,
-		dbBlock.MerkleRoot, dbBlock.StakeRoot,
+		dbBlock.Hash, dbBlock.Height, dbBlock.Size, isValid, isMainchain,
+		dbBlock.Version, dbBlock.MerkleRoot, dbBlock.StakeRoot,
 		dbBlock.NumTx, dbBlock.NumRegTx, dbBlock.NumStakeTx,
 		dbBlock.Time, dbBlock.Nonce, dbBlock.VoteBits,
 		dbBlock.FinalState, dbBlock.Voters, dbBlock.FreshStake,
@@ -1392,18 +1458,19 @@ func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
 	return nil
 }
 
-// UpdateLastVins updates the is_valid column in the vins table for all of the
-// transactions in the block specified by the given block hash.
-func UpdateLastVins(db *sql.DB, blockHash string, isValid bool) error {
+// UpdateLastVins updates the is_valid and is_mainchain columns in the vins
+// table for all of the transactions in the block specified by the given block
+// hash.
+func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) error {
 	_, txs, _, trees, timestamps, err := RetrieveTxsByBlockHash(db, blockHash)
 	if err != nil {
 		return err
 	}
 
 	for i, txHash := range txs {
-		n, err := sqlExec(db, internal.SetIsValidByTxHash,
-			"failed to update last vins tx validity: ", isValid, txHash,
-			timestamps[i], trees[i])
+		n, err := sqlExec(db, internal.SetIsValidIsMainchainByTxHash,
+			"failed to update last vins tx validity: ", isValid, isMainchain,
+			txHash, timestamps[i], trees[i])
 		if err != nil {
 			return err
 		}
@@ -1460,6 +1527,16 @@ func RetrieveTicketsPriceByHeight(db *sql.DB, val int64) (*dbtypes.ChartsData, e
 	}
 
 	return items, nil
+}
+
+func RetrievePreviousHashByBlockHash(db *sql.DB, hash string) (previous_hash string, err error) {
+	err = db.QueryRow(internal.SelectBlocksPreviousHash, hash).Scan(&previous_hash)
+	return
+}
+
+func SetMainchainByBlockHash(db *sql.DB, hash string, isMainchain bool) (previous_hash string, err error) {
+	err = db.QueryRow(internal.UpdateBlockMainchain, hash, isMainchain).Scan(&previous_hash)
+	return
 }
 
 // retrieveCoinSupply fetches the coin supply data
@@ -1654,11 +1731,26 @@ func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
 	return nil
 }
 
+func UpdateBlockNextByHash(db *sql.DB, this, next string) error {
+	res, err := db.Exec(internal.UpdateBlockNextByHash, this, next)
+	if err != nil {
+		return err
+	}
+	numRows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if numRows != 1 {
+		return fmt.Errorf("UpdateBlockNextByHash failed to update exactly 1 row (%d)", numRows)
+	}
+	return nil
+}
+
 func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64, err error) {
 	err = db.QueryRow(internal.MakeVinInsertStatement(checked),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
 		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree,
-		dbVin.ValueIn, dbVin.IsValid, dbVin.Time).Scan(&id)
+		dbVin.ValueIn, dbVin.IsValid, dbVin.IsMainchain, dbVin.Time).Scan(&id)
 	return
 }
 
@@ -1682,7 +1774,7 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool) ([]
 		var id uint64
 		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
 			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree,
-			vin.ValueIn, vin.IsValid, vin.Time).Scan(&id)
+			vin.ValueIn, vin.IsValid, vin.IsMainchain, vin.Time).Scan(&id)
 		if err != nil {
 			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
@@ -1751,6 +1843,8 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 				TxVinVoutIndex: vout.TxIndex,
 				VinVoutDbID:    id,
 				Value:          vout.Value,
+				// Not set here are: ValidMainchain, MatchingTxHash, IsFunding,
+				// and TxBlockTime.
 			})
 		}
 		ids = append(ids, id)
@@ -1769,7 +1863,7 @@ func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint6
 	var id uint64
 	err := db.QueryRow(sqlStmt, dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
 		dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
-		dbA.IsFunding).Scan(&id)
+		dbA.IsFunding, dbA.ValidMainChain).Scan(&id)
 	return id, err
 }
 
@@ -1803,7 +1897,7 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 		var id uint64
 		err := stmt.QueryRow(dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
 			dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
-			dbA.IsFunding).Scan(&id)
+			dbA.IsFunding, dbA.ValidMainChain).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				log.Errorf("failed to insert/update an AddressRow: %v", *dbA)
@@ -1937,7 +2031,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 	}
 
 	voteInsert := internal.MakeVoteInsertStatement(checked)
-	stmt, err := dbtx.Prepare(voteInsert)
+	voteStmt, err := dbtx.Prepare(voteInsert)
 	if err != nil {
 		log.Errorf("Votes INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
@@ -1975,7 +2069,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 		if fTx != nil {
 			t, err := fTx.TxnDbID(stakeSubmissionTxHash, true)
 			if err != nil {
-				_ = stmt.Close() // try, but we want the QueryRow error back
+				_ = voteStmt.Close() // try, but we want the QueryRow error back
 				if errRoll := dbtx.Rollback(); errRoll != nil {
 					log.Errorf("Rollback failed: %v", errRoll)
 				}
@@ -2001,6 +2095,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 			return nil, nil, nil, nil, nil, err
 		}
 
+		// agendas
 		var rowID uint64
 		for _, val := range choices {
 			index, err := dbtypes.ChoiceIndexFromStr(val.Choice.Id)
@@ -2017,15 +2112,16 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 		}
 
 		var id uint64
-		err = stmt.QueryRow(
+		err = voteStmt.QueryRow(
 			tx.BlockHeight, tx.TxID, tx.BlockHash, candidateBlockHash,
 			voteVersion, voteBits, validBlock.Validity,
-			stakeSubmissionTxHash, ticketTxDbID, stakeSubmissionAmount, voteReward).Scan(&id)
+			stakeSubmissionTxHash, ticketTxDbID, stakeSubmissionAmount,
+			voteReward, tx.IsMainchainBlock).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
 			}
-			_ = stmt.Close() // try, but we want the QueryRow error back
+			_ = voteStmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
 				log.Errorf("Rollback failed: %v", errRoll)
 			}
@@ -2035,7 +2131,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 	}
 
 	// Close prepared statement. Ignore errors as we'll Commit regardless.
-	_ = stmt.Close()
+	_ = voteStmt.Close()
 
 	if len(ids)+len(misses) != 5 {
 		fmt.Println(misses)
@@ -2086,7 +2182,8 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {
 		dbTx.TxType, dbTx.Version, dbTx.Tree, dbTx.TxID, dbTx.BlockIndex,
 		dbTx.Locktime, dbTx.Expiry, dbTx.Size, dbTx.Spent, dbTx.Sent, dbTx.Fees,
 		dbTx.NumVin, dbtypes.UInt64Array(dbTx.VinDbIds),
-		dbTx.NumVout, dbtypes.UInt64Array(dbTx.VoutDbIds)).Scan(&id)
+		dbTx.NumVout, dbtypes.UInt64Array(dbTx.VoutDbIds),
+		dbTx.IsValidBlock, dbTx.IsMainchainBlock).Scan(&id)
 	return id, err
 }
 
@@ -2111,7 +2208,8 @@ func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error
 			tx.TxType, tx.Version, tx.Tree, tx.TxID, tx.BlockIndex,
 			tx.Locktime, tx.Expiry, tx.Size, tx.Spent, tx.Sent, tx.Fees,
 			tx.NumVin, dbtypes.UInt64Array(tx.VinDbIds),
-			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds)).Scan(&id)
+			tx.NumVout, dbtypes.UInt64Array(tx.VoutDbIds), tx.IsValidBlock,
+			tx.IsMainchainBlock).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
