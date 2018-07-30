@@ -100,6 +100,12 @@ const (
 	SetAddressFundingForMatchingTxHash = `UPDATE addresses SET matching_tx_hash=$1 
 		WHERE tx_hash=$2 and is_funding = true and tx_vin_vout_index=$3;`
 
+	SetAddressMainchainForVoutIDs = `UPDATE addresses SET valid_mainchain=$1 
+		WHERE is_funding = true and tx_vin_vout_index=$2;`
+
+	SetAddressMainchainForVinIDs = `UPDATE addresses SET valid_mainchain=$1 
+		WHERE is_funding = false and tx_vin_vout_index=$2;`
+
 	UpdateValidMainchainFromTransactions = `UPDATE addresses
 		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean
 		FROM transactions AS tr

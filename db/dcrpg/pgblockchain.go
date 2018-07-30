@@ -23,6 +23,7 @@ import (
 	apitypes "github.com/decred/dcrdata/api/types"
 	"github.com/decred/dcrdata/blockdata"
 	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/decred/dcrdata/explorer"
 	"github.com/decred/dcrdata/stakedb"
 	humanize "github.com/dustin/go-humanize"
@@ -72,6 +73,7 @@ type ChainDB struct {
 	devAddress         string
 	dupChecks          bool
 	bestBlock          int64
+	bestBlockHash      string
 	lastBlock          map[chainhash.Hash]uint64
 	addressCounts      *addressCounter
 	stakeDB            *stakedb.StakeDatabase
@@ -183,7 +185,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 	}
 	// Attempt to get DB best block height from tables, but if the tables are
 	// empty or not yet created, it is not an error.
-	bestHeight, _, _, err := RetrieveBestBlockHeight(db)
+	bestHeight, bestHash, _, err := RetrieveBestBlockHeight(db)
 	if err != nil && !(err == sql.ErrNoRows ||
 		strings.HasSuffix(err.Error(), "does not exist")) {
 		return nil, err
@@ -218,6 +220,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		devAddress:         devSubsidyAddress,
 		dupChecks:          true,
 		bestBlock:          int64(bestHeight),
+		bestBlockHash:      bestHash,
 		lastBlock:          make(map[chainhash.Hash]uint64),
 		addressCounts:      makeAddressCounter(),
 		stakeDB:            stakeDB,
@@ -320,6 +323,18 @@ func (pgb *ChainDB) HashDB() (string, error) {
 // Height uses the last stored height.
 func (pgb *ChainDB) Height() uint64 {
 	return uint64(pgb.bestBlock)
+}
+
+// HashStr uses the last stored block hash.
+func (pgb *ChainDB) HashStr() string {
+	return pgb.bestBlockHash
+}
+
+// Hash uses the last stored block hash.
+func (pgb *ChainDB) Hash() *chainhash.Hash {
+	// Caller should check hash instead of error
+	hash, _ := chainhash.NewHashFromStr(pgb.bestBlockHash)
+	return hash
 }
 
 // VotesInBlock returns the number of votes mined in the block with the
@@ -1269,6 +1284,113 @@ func (pgb *ChainDB) ExistsIndexAddressesVoutIDAddress() (bool, error) {
 	return ExistsIndex(pgb.db, "uix_addresses_vout_id")
 }
 
+func (pgb *ChainDB) SetVinsMainchainByBlock(blockHash string) (int64, []dbtypes.UInt64Array, []dbtypes.UInt64Array, error) {
+	// Get vins DB IDs for the block
+	vinDbIDsBlk, voutDbIDsBlk, areMainchain, err := RetrieveTxnsVinsVoutsByBlock(pgb.db, blockHash)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("unable to retrieve vin data for block %s: %v", blockHash, err)
+	}
+	vinsUpdated, err := pgb.setVinsMainchainForMany(vinDbIDsBlk, areMainchain)
+	return vinsUpdated, vinDbIDsBlk, voutDbIDsBlk, err
+}
+
+func (pgb *ChainDB) setVinsMainchainForMany(vinDbIDsBlk []dbtypes.UInt64Array,
+	areMainchain []bool) (int64, error) {
+	var rowsUpdated int64
+	// each transaction
+	for it, vs := range vinDbIDsBlk {
+		// each vin
+		numUpd, err := pgb.setVinsMainchainOneTxn(vs, areMainchain[it])
+		if err != nil {
+			continue
+		}
+		rowsUpdated += numUpd
+	}
+	return rowsUpdated, nil
+}
+
+func (pgb *ChainDB) setVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
+	isMainchain bool) (int64, error) {
+	var rowsUpdated int64
+
+	// each vin
+	for _, vinDbID := range vinDbIDs {
+		result, err := pgb.db.Exec(internal.SetIsMainchainByVinID,
+			vinDbID, isMainchain)
+		if err != nil {
+			log.Warnf("db ID not found: %d", vinDbID)
+			continue
+		}
+
+		c, err := result.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+
+		rowsUpdated += c
+	}
+
+	return rowsUpdated, nil
+}
+
+func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
+	tipHash := pgb.bestBlockHash
+	var blocksMoved, txnsUpdated, vinsUpdated, votesUpdated, addrsUpdated int64
+	for tipHash != mainRoot {
+		// 1. Block. Set is_mainchain=false on the tip block, return hash of
+		// previous block.
+		previousHash, err := SetMainchainByBlockHash(pgb.db, tipHash, false)
+		if err != nil {
+			log.Errorf("Failed to set block %s as a sidechain block: %v",
+				tipHash, err)
+		}
+		blocksMoved++
+
+		// 2. Transactions. Set is_mainchain=false on all transactions in the
+		// tip block, returning only the number of transactions updated.
+		rowsUpdated, _, err := UpdateTransactionsMainchain(pgb.db, tipHash, false)
+		if err != nil {
+			log.Errorf("Failed to set transactions in block %s as sidechain: %v",
+				tipHash, err)
+		}
+		txnsUpdated += rowsUpdated
+
+		// 3. Vins. Set is_mainchain=false on all vins, returning the number of
+		// vins updated, the vins table row IDs, and the vouts table row IDs.
+		rowsUpdated, vinDbIDsBlk, voutDbIDsBlk, err := pgb.SetVinsMainchainByBlock(tipHash) // isMainchain from transactions table
+		if err != nil {
+			log.Errorf("Failed to set vins in block %s as sidechain: %v",
+				tipHash, err)
+		}
+		vinsUpdated += rowsUpdated
+
+		// 4. Addresses. Set valid_mainchain=false on all addresses rows
+		// corresponding to the spending transactions specified by the vins DB
+		// row IDs, and the funding transactions specified by the vouts DB row
+		// IDs. The IDs come for free via RetrieveTxnsVinsVoutsByBlock.
+		numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(pgb.db,
+			vinDbIDsBlk, voutDbIDsBlk, false)
+		if err != nil {
+			log.Errorf("Failed to addresses rows in block %s as sidechain: %v",
+				tipHash, err)
+		}
+		addrsUpdated += numAddrSpending + numAddrFunding
+
+		// 5. Votes. Sets is_mainchain=false on all votes in the tip block.
+		rowsUpdated, err = UpdateVotesMainchain(pgb.db, tipHash, false)
+		if err != nil {
+			log.Errorf("Failed to set transactions in block %s as sidechain: %v",
+				tipHash, err)
+		}
+		votesUpdated += rowsUpdated
+
+		// move on to next block
+		tipHash = previousHash
+	}
+
+	return tipHash, blocksMoved, nil
+}
+
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
 // The number of vins, and vouts stored are also returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
@@ -1348,6 +1470,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	pgb.lastBlock[msgBlock.BlockHash()] = blockDbID
 
 	pgb.bestBlock = int64(dbBlock.Height)
+	pgb.bestBlockHash = dbBlock.Hash
 
 	err = InsertBlockPrevNext(pgb.db, blockDbID, dbBlock.Hash,
 		dbBlock.PreviousHash, "")
@@ -1401,6 +1524,8 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 				log.Error("UpdateLastVins:", err)
 				return
 			}
+
+			// TODO Update last block's regular transactions
 		}
 	}
 

@@ -84,6 +84,9 @@ const (
 	SelectTxnsVinsByBlock = `SELECT vin_db_ids, is_valid, is_mainchain
 		FROM transactions WHERE block_hash = $1;`
 
+	SelectTxnsVinsVoutsByBlock = `SELECT vin_db_ids, vout_db_ids, is_mainchain
+		FROM transactions WHERE block_hash = $1;`
+
 	UpdateRegularTxnsValidMainchainByBlock = `UPDATE transactions
 		SET is_valid=$1, is_mainchain=$2 
 		WHERE block_hash=$3 and tree=0;`
@@ -94,7 +97,8 @@ const (
 
 	UpdateTxnsMainchainByBlock = `UPDATE transactions
 		SET is_mainchain=$1 
-		WHERE block_hash=$2;`
+		WHERE block_hash=$2
+		RETURNING id;`
 
 	UpdateTxnsValidMainchainAll = `UPDATE transactions
 		SET is_valid=b.is_valid, is_mainchain=b.is_mainchain

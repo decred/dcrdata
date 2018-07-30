@@ -148,6 +148,10 @@ const (
 		) b
 		WHERE block_hash = b.hash;`
 
+	UpdateVotesMainchainByBlock = `UPDATE votes
+		SET is_mainchain=$1 
+		WHERE block_hash=$2;`
+
 	// Index
 	IndexVotesTableOnHashes = `CREATE UNIQUE INDEX uix_votes_hashes_index
 		ON votes(tx_hash, block_hash);`
