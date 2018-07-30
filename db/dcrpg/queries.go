@@ -1505,6 +1505,30 @@ func UpdateTransactionsMainchain(db *sql.DB, blockHash string, isMainchain bool)
 	return numRows, txRowIDs, nil
 }
 
+// UpdateTransactionsValid sets the is_valid column of the transactions table
+// for the regular (non-stake) transactions in the specified block.
+func UpdateTransactionsValid(db *sql.DB, blockHash string, isValid bool) (int64, []uint64, error) {
+	rows, err := db.Query(internal.UpdateRegularTxnsValidByBlock, isValid, blockHash)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to update regular transactions is_valid: %v", err)
+	}
+
+	var numRows int64
+	var txRowIDs []uint64
+	for rows.Next() {
+		var id uint64
+		err = rows.Scan(&id)
+		if err != nil {
+			break
+		}
+
+		txRowIDs = append(txRowIDs, id)
+		numRows++
+	}
+
+	return numRows, txRowIDs, nil
+}
+
 // UpdateVotesMainchain sets the is_mainchain column for the votes in the
 // specified block.
 func UpdateVotesMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64, error) {

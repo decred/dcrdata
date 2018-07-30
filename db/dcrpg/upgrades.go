@@ -365,8 +365,13 @@ func updateAllVotesMainchain(db *sql.DB) (rowsUpdated int64, err error) {
 // updateAllTxnsValidMainchain sets is_mainchain and is_valid for all
 // transactions according to their containing block.
 func updateAllTxnsValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
-	return sqlExec(db, internal.UpdateTxnsValidMainchainAll,
-		"failed to update transactions validity and mainchain status")
+	rowsUpdated, err = sqlExec(db, internal.UpdateRegularTxnsValidAll,
+		"failed to update regular transactions' validity status")
+	if err != nil {
+		return
+	}
+	return sqlExec(db, internal.UpdateTxnsMainchainAll,
+		"failed to update all transactions' mainchain status")
 }
 
 // updateAllAddressesValidMainchain sets valid_mainchain for all addresses table

@@ -1525,7 +1525,13 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 				return
 			}
 
-			// TODO Update last block's regular transactions
+			// Update last block's regular transactions
+			_, _, err = UpdateTransactionsValid(pgb.db, lastBlockHash.String(), lastIsValid)
+			if err != nil {
+				log.Error("UpdateTransactionsValid:", err)
+				return
+			}
+
 		}
 	}
 

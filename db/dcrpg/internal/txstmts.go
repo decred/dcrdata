@@ -101,9 +101,25 @@ const (
 		RETURNING id;`
 
 	UpdateTxnsValidMainchainAll = `UPDATE transactions
-		SET is_valid=b.is_valid, is_mainchain=b.is_mainchain
+		SET is_valid=(b.is_valid::int + tree)::boolean, is_mainchain=b.is_mainchain
 		FROM (
 			SELECT hash, is_valid, is_mainchain
+			FROM blocks
+		) b
+		WHERE block_hash = b.hash ;`
+
+	UpdateRegularTxnsValidAll = `UPDATE transactions
+		SET is_valid=b.is_valid
+		FROM (
+			SELECT hash, is_valid
+			FROM blocks
+		) b
+		WHERE block_hash = b.hash AND tree = 0;`
+
+	UpdateTxnsMainchainAll = `UPDATE transactions
+		SET is_mainchain=b.is_mainchain
+		FROM (
+			SELECT hash, is_mainchain
 			FROM blocks
 		) b
 		WHERE block_hash = b.hash;`
