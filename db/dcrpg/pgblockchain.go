@@ -1335,7 +1335,7 @@ func (pgb *ChainDB) setVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 
 func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 	tipHash := pgb.bestBlockHash
-	var blocksMoved, txnsUpdated, vinsUpdated, votesUpdated, addrsUpdated int64
+	var blocksMoved, txnsUpdated, vinsUpdated, votesUpdated, ticketsUpdated, addrsUpdated int64
 	for tipHash != mainRoot {
 		// 1. Block. Set is_mainchain=false on the tip block, return hash of
 		// previous block.
@@ -1379,14 +1379,25 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		// 5. Votes. Sets is_mainchain=false on all votes in the tip block.
 		rowsUpdated, err = UpdateVotesMainchain(pgb.db, tipHash, false)
 		if err != nil {
-			log.Errorf("Failed to set transactions in block %s as sidechain: %v",
+			log.Errorf("Failed to set votes in block %s as sidechain: %v",
 				tipHash, err)
 		}
 		votesUpdated += rowsUpdated
 
+		// 6. Tickets. Sets is_mainchain=false on all tickets in the tip block.
+		rowsUpdated, err = UpdateTicketsMainchain(pgb.db, tipHash, false)
+		if err != nil {
+			log.Errorf("Failed to set tickets in block %s as sidechain: %v",
+				tipHash, err)
+		}
+		ticketsUpdated += rowsUpdated
+
 		// move on to next block
 		tipHash = previousHash
 	}
+
+	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets",
+		blocksMoved, txnsUpdated, vinsUpdated, addrsUpdated, votesUpdated, ticketsUpdated)
 
 	return tipHash, blocksMoved, nil
 }

@@ -74,6 +74,18 @@ const (
 	SetTicketPoolStatusForTicketDbID = `UPDATE tickets SET pool_status = $2 WHERE id = $1;`
 	SetTicketPoolStatusForHash       = `UPDATE tickets SET pool_status = $2 WHERE tx_hash = $1;`
 
+	UpdateTicketsMainchainAll = `UPDATE tickets
+		SET is_mainchain=b.is_mainchain
+		FROM (
+			SELECT hash, is_mainchain
+			FROM blocks
+		) b
+		WHERE block_hash = b.hash;`
+
+	UpdateTicketsMainchainByBlock = `UPDATE tickets
+		SET is_mainchain=$1 
+		WHERE block_hash=$2;`
+
 	// Index
 	IndexTicketsTableOnHashes = `CREATE UNIQUE INDEX uix_ticket_hashes_index
 		ON tickets(tx_hash, block_hash);`

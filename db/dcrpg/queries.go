@@ -1540,6 +1540,17 @@ func UpdateVotesMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64
 	return numRows, nil
 }
 
+// UpdateTicketsMainchain sets the is_mainchain column for the tickets in the
+// specified block.
+func UpdateTicketsMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64, error) {
+	numRows, err := sqlExec(db, internal.UpdateTicketsMainchainByBlock,
+		"failed to update tickets is_mainchain: ", isMainchain, blockHash)
+	if err != nil {
+		return 0, err
+	}
+	return numRows, nil
+}
+
 // UpdateAddressesMainchainByIDs sets the is_mainchain column for the addresses
 // specified by their vin (spending) or vout (funding) row IDs.
 func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt64Array, isMainchain bool) (numSpendingRows, numFundingRows int64, err error) {
