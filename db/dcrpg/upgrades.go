@@ -376,7 +376,11 @@ func updateAllAddressesValidMainchain(db *sql.DB) (rowsUpdated int64, err error)
 		"failed to update addresses rows valid_mainchain status")
 }
 
+// handleBlocksTableMainchainUpgrade sets is_mainchain=true for all blocks in
+// the main chain, starting with the best block and working back to genesis.
 func (pgb *ChainDB) handleBlocksTableMainchainUpgrade(bestBlock string) (int64, error) {
+	// Start at best block, upgrade, and move to previous block. Stop after
+	// genesis, which previous block hash is the zero hash.
 	var blocksUpdated int64
 	previousHash, thisBlockHash := bestBlock, bestBlock
 	for !bytes.Equal(zeroHashStringBytes, []byte(previousHash)) {
@@ -384,7 +388,8 @@ func (pgb *ChainDB) handleBlocksTableMainchainUpgrade(bestBlock string) (int64, 
 		var err error
 		previousHash, err = SetMainchainByBlockHash(pgb.db, thisBlockHash, true)
 		if err != nil {
-			return blocksUpdated, err
+			return blocksUpdated, fmt.Errorf("SetMainchainByBlockHash for block %s failed: %v",
+				thisBlockHash, err)
 		}
 		blocksUpdated++
 
