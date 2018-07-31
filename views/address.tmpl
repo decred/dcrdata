@@ -34,11 +34,11 @@
                 {{end}}
                 <div class="btn-group mr-auto mb-0 align-bottom address-btn" 
                     data-toggle="buttons" 
-                    data-target="addressBtns" 
-                    data-action="address#switchDisplay"
+                    data-target="address.btns" 
+                    data-action="click->address#changeview"
                 >
-                    <input id="addr-btn" type="button" class="btn btn_sm" value="List" name="list">
-                    <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="Chart" name="chart">
+                    <input id="addr-btn" type="button" class="btn btn_sm" value="List" name="list-display">
+                    <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="Chart" name="chart-display">
                 </div> 
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
@@ -290,10 +290,11 @@
             </div>
         </div>
     </div>
-
+    
     <script>
         $(".jsonly").show()
-        
+        $('#list-display').hide()
+
         $("#txntype").change(function(ev) {
             Turbolinks.visit(
                 window.location.pathname
@@ -333,8 +334,9 @@
     </script>
     {{end}}
     {{ template "footer" . }}
+
     <script>
-        var val = {{.}}
+        var val = {{.ChartData}}
     </script>
 </body>
 </html>

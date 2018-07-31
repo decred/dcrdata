@@ -336,7 +336,7 @@ type ChartsData struct {
 	RegularTx  []uint64  `json:"regularTx,omitempty"`
 	Tickets    []uint64  `json:"tickets,omitempty"`
 	Votes      []uint64  `json:"votes,omitempty"`
-	RevokeTx   []uint64  `json:"revoke,omitempty"`
+	RevokeTx   []uint64  `json:"revokeTx,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)

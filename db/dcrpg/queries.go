@@ -1648,6 +1648,34 @@ func closeRows(rows *sql.Rows) {
 	}
 }
 
+// retrieveTxHistoryByType fetches the transaction types count for all the
+// transactions associated with a given address.
+func retrieveTxHistoryByType(db *sql.DB, addr string) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+
+	rows, err := db.Query(internal.SelectAddressTxTypesByAddress, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var blockTime, regularTx, tickets, votes, revokeTx uint64
+		err = rows.Scan(&blockTime, &regularTx, &tickets, &votes, &revokeTx)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Time = append(items.Time, blockTime)
+		items.RegularTx = append(items.RegularTx, regularTx)
+		items.Tickets = append(items.Tickets, tickets)
+		items.Votes = append(items.Votes, votes)
+		items.RevokeTx = append(items.RevokeTx, revokeTx)
+	}
+	return items, nil
+}
+
 // RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that
 // are used to display the ticket price variation on ticket price chart. These
 // data are fetched at an interval of chaincfg.Params.StakeDiffWindowSize.

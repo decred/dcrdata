@@ -74,39 +74,39 @@
 
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
-            return ['list', 'chart', 'qrcode', 'addressBtns']
+            return ['list', 'chart', 'qrcode', 'btns']
         }
 
-        initialize(){
-            $.getScript('/js/dygraphs.min.js', () => {
-                this.graph = plotGraph()
-            })
+        disconnect(){
+            this.graph.destroy()
         }
 
         get list(){
             return this.listTarget.name
         }
 
-        drawGraph(){
-        }
-
-        switchDisplay() {
-            divHide = 'list-display'
-            divShow = this.addressBtns
+        changeview() {
+            var _this = this
+            var divHide = 'list-display'
+            var divShow = _this.btns
 
             if (divShow !== 'chart-display') {
                 divHide = 'chart-display'
+            } else {
+                $.getScript('/js/dygraphs.min.js', () => {
+                    _this.graph = plotGraph()
+                })
             }
-            $(divShow).show()
-            $(divHide).hide()
+            $('#'+divShow).show()
+            $('#'+divHide).hide()
         }
 
         get chart(){
             return this.chartTarget.name
         }
 
-        get addressBtns(){
-            return this.addressBtnsTarget.getElementsByClassName("btn-active")[0].name
+        get btns(){
+            return this.btnsTarget.getElementsByClassName("btn-active")[0].name
         }
 
         get qrcode(){

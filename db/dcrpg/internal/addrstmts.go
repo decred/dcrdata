@@ -41,7 +41,7 @@ const (
 		tx_type INT4
 		);`
 
-	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, valid_mainchain, 
+	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, valid_mainchain,
 		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
 
 	SelectAddressAllByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses WHERE address=$1 ORDER BY block_time DESC;`
@@ -107,6 +107,15 @@ const (
 
 	SetAddressMainchainForVinIDs = `UPDATE addresses SET valid_mainchain=$1 
 		WHERE is_funding = FALSE AND tx_vin_vout_row_id=$2;`
+
+	// rtx defines Regular transactions, ssTx defines tickets, ssGen defines votes
+	// and ssRtx defines Revocation transactions
+	SelectAddressTxTypesByAddress = `SELECT block_time,
+		SUM(CASE WHEN tx_type = 0 THEN 1 ELSE 0 END) as rtx, 
+		SUM(CASE WHEN tx_type = 1 THEN 1 ELSE 0 END) as ssTx,
+		SUM(CASE WHEN tx_type = 2 THEN 1 ELSE 0 END) as ssGen,
+		SUM(CASE WHEN tx_type = 3 THEN 1 ELSE 0 END) as ssRtx 
+		FROM addresses WHERE address=$1 GROUP BY block_time ORDER BY block_time;`
 
 	UpdateValidMainchainFromTransactions = `UPDATE addresses
 		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean
