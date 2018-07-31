@@ -191,7 +191,9 @@ func (wsh *WebsocketHub) run() {
 			case sigPingAndUserCount:
 				log.Tracef("Signaling ping/user count to %d websocket clients.", len(wsh.clients))
 			case sigMempoolUpdate:
-				log.Infof("Signaling mempool update to %d websocket clients.", len(wsh.clients))
+				if len(wsh.clients) > 0 {
+					log.Infof("Signaling mempool update to %d websocket clients.", len(wsh.clients))
+				}
 			case sigNewTx:
 				newtx = <-wsh.NewTxChan
 				log.Tracef("Received new tx %s", newtx.Hash)
@@ -241,7 +243,9 @@ func (wsh *WebsocketHub) run() {
 			copy(txs, wsh.newTxBuffer)
 			wsh.newTxBuffer = make([]*MempoolTx, 0, newTxBufferSize)
 			wsh.bufferMtx.Unlock()
-			log.Debugf("Signaling %d new tx to %d clients", len(txs), len(wsh.clients))
+			if len(wsh.clients) > 0 {
+				log.Debugf("Signaling %d new tx to %d clients", len(txs), len(wsh.clients))
+			}
 			for signal, client := range wsh.clients {
 				client.Lock()
 				client.newTxs = txs
