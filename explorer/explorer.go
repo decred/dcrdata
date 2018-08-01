@@ -56,6 +56,7 @@ type explorerDataSourceLite interface {
 	TxHeight(txid string) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
+	GetDifficulty() (float64, error)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -226,7 +227,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	}
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts", "sidechains",
-		"ticketpool"}
+		"ticketpool", "stats"}
 
 	tempDefaults := []string{"extras"}
 

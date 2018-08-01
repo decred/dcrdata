@@ -533,3 +533,28 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
 	return agendadb.GetAgendaInfo(agendaId)
 }
+
+// StatsInfo represents the all data for the stats page
+type StatsInfo struct {
+	TotalSupply                int64
+	DevFunds                   int64
+	DevAddress                 string
+	POWDiff                    float64
+	HashRate                   float64
+	BlockReward                int64
+	POWReward                  int64
+	POSReward                  int64
+	DevFundReward              int64
+	VotesInMempool             int
+	TicketsInMempool           int
+	TicketPrice                float64
+	TicketPoolSize             uint32
+	TicketPoolValue            float64
+	TPVOfTotalSupplyPeecentage float64
+	TicketsROI                 float64
+	IdxBlockInWindow           int
+	WindowSize                 int64
+	BlockTime                  int64
+	IdxInRewardWindow          int
+	RewardWindowSize           int64
+}

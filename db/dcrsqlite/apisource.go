@@ -1501,3 +1501,13 @@ func (db *wiredDB) TxHeight(txid string) (height int64) {
 	height = txraw.BlockHeight
 	return
 }
+
+//GetDifficulty returns the difficulty
+func (db *wiredDB) GetDifficulty() (float64, error) {
+	diff, err := db.client.GetDifficulty()
+	if err != nil {
+		log.Error("GetDifficulty failed")
+		return diff, err
+	}
+	return diff, nil
+}
