@@ -96,6 +96,8 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			exp.MempoolData.Votes = append([]MempoolTx{tx}, exp.MempoolData.Votes...)
 			sort.Sort(byHeight(exp.MempoolData.Votes))
 			exp.MempoolData.NumVotes++
+			// Multiple transactions can be in mempool from the same ticket.  We
+			// need to insure we do not double count these votes.
 			if tx.VoteInfo.ForLastBlock && !exp.MempoolData.VotingInfo.voted[tx.VoteInfo.TicketSpent] {
 				exp.MempoolData.VotingInfo.voted[tx.VoteInfo.TicketSpent] = true
 				exp.MempoolData.VotingInfo.TotalCollected++
@@ -199,7 +201,8 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 			tickets = append(tickets, tx)
 		case "Vote":
 			addVoteIndex(tx.VoteInfo, txindexes)
-			if tx.VoteInfo.ForLastBlock = voteForLastBlock(lastBlockHash, tx.VoteInfo.Validation.Hash); tx.VoteInfo.ForLastBlock && !votingInfo.voted[tx.VoteInfo.TicketSpent] {
+			tx.VoteInfo.ForLastBlock = voteForLastBlock(lastBlockHash, tx.VoteInfo.Validation.Hash)
+			if tx.VoteInfo.ForLastBlock && !votingInfo.voted[tx.VoteInfo.TicketSpent] {
 				votingInfo.voted[tx.VoteInfo.TicketSpent] = true
 				votingInfo.TotalCollected++
 				if tx.VoteInfo.Validation.Validity {
@@ -247,8 +250,9 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 	return
 }
 
-// addVoteIndex sets v.MempoolTicketIndex to the corresponding map value if it exits in
-// txindexes and creates a new index map if it doesn't
+// addVoteIndex assigns a unique index for a vote in a block if an index has not
+// already been assigned.  This index is used for sorting in views and counting
+// total unique votes for a block.
 func addVoteIndex(v *VoteInfo, txindexes map[int64]map[string]int) {
 	if idxs, ok := txindexes[v.Validation.Height]; ok {
 		if idx, ok := idxs[v.TicketSpent]; ok {
