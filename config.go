@@ -387,14 +387,6 @@ func loadConfig() (*config, error) {
 		return loadConfigError(err)
 	}
 
-	// Disable dev balance prefetch if network has invalid script.
-	_, err = dbtypes.DevSubsidyAddress(activeChain)
-	if !cfg.NoDevPrefetch && err != nil {
-		cfg.NoDevPrefetch = true
-		log.Warnf("%v. Disabling balance prefetch (--no-dev-prefetch).",
-			err, activeChain.Name)
-	}
-
 	// Append the network type to the data directory so it is "namespaced" per
 	// network.  In addition to the block database, there are other pieces of
 	// data that are saved to disk such as address manager state. All data is
@@ -424,6 +416,13 @@ func loadConfig() (*config, error) {
 
 	log.Infof("Log folder:  %s", cfg.LogDir)
 	log.Infof("Config file: %s", configFile)
+
+	// Disable dev balance prefetch if network has invalid script.
+	_, err = dbtypes.DevSubsidyAddress(activeChain)
+	if !cfg.NoDevPrefetch && err != nil {
+		cfg.NoDevPrefetch = true
+		log.Warnf("%v. Disabling balance prefetch (--no-dev-prefetch).", err)
+	}
 
 	// Set the host names and ports to the default if the user does not specify
 	// them.
