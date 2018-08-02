@@ -17,7 +17,7 @@ testrepo () {
   TMPFILE=$(mktemp)
 
   # Check lockfile
-  cp Gopkg.lock $TMPFILE && dep ensure && diff Gopkg.lock $TMPFILE >/dev/null
+  cp Gopkg.lock $TMPFILE && dep ensure -v -vendor-only && diff Gopkg.lock $TMPFILE >/dev/null
   if [ $? != 0 ]; then
     echo 'lockfile must be updated with dep ensure'
     exit 1
