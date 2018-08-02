@@ -18,6 +18,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/version"
 	"github.com/decred/dcrwallet/netparams"
 	"github.com/decred/slog"
@@ -384,6 +385,14 @@ func loadConfig() (*config, error) {
 		fmt.Fprintln(os.Stderr, err)
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
+	}
+
+	// Disable dev balance prefetch if network has invalid script.
+	_, err = dbtypes.DevSubsidyAddress(activeChain)
+	if !cfg.NoDevPrefetch && err != nil {
+		cfg.NoDevPrefetch = true
+		log.Warnf("%v. Disabling balance prefetch (--no-dev-prefetch).",
+			err, activeChain.Name)
 	}
 
 	// Append the network type to the data directory so it is "namespaced" per
