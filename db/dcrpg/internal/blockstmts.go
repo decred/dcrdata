@@ -83,6 +83,8 @@ const (
 	RetrieveBestBlock       = `SELECT * FROM blocks ORDER BY height DESC LIMIT 0, 1;`
 	RetrieveBestBlockHeight = `SELECT id, hash, height FROM blocks ORDER BY height DESC LIMIT 1;`
 
+	SelectBlockVoteCount = `SELECT voters FROM blocks WHERE hash = $1;`
+
 	// block_chain, with primary key that is not a SERIAL
 	CreateBlockPrevNextTable = `CREATE TABLE IF NOT EXISTS block_chain (
 		block_db_id INT8 PRIMARY KEY,

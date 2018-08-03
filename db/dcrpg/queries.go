@@ -1099,6 +1099,12 @@ func RetrieveBlockHeight(db *sql.DB, hash string) (height int64, err error) {
 	return
 }
 
+// RetrieveBlockVoteCount gets the number of votes mined in a block.
+func RetrieveBlockVoteCount(db *sql.DB, hash string) (numVotes int16, err error) {
+	err = db.QueryRow(internal.SelectBlockVoteCount, hash).Scan(&numVotes)
+	return
+}
+
 // RetrieveBlockChainDbID retrieves the row id in the block_chain table of the
 // block with the given hash, if it exists (be sure to check error against
 // sql.ErrNoRows!).
