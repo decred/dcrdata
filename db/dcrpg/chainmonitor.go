@@ -7,6 +7,7 @@ package dcrpg
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
@@ -148,6 +149,11 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 		return 0, nil, fmt.Errorf("no side chain")
 	}
 
+	// Time this process.
+	defer func(start time.Time) {
+		log.Infof("dcrpg: switchToSideChain completed in %v", time.Since(start))
+	}(time.Now())
+
 	// Determine highest common ancestor of side chain and main chain
 	msgBlock, err := p.db.Client.GetBlock(&p.sideChain[0])
 	if err != nil {
@@ -168,6 +174,7 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	}
 
 	// Flag blocks from mainRoot+1 to mainTip as is_mainchain=false
+	startTime := time.Now()
 	mainTip := int64(p.db.Height())
 	mainRoot := mainRootHash.String()
 	log.Infof("Moving %d blocks to side chain...", mainTip-commonAncestorHeight)
@@ -175,7 +182,8 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 	if err != nil || mainRoot != newMainRoot {
 		return 0, nil, fmt.Errorf("failed to flag blocks as side chain")
 	}
-	log.Infof("Moved %d blocks to side chain.", numBlocksmoved)
+	log.Infof("Moved %d blocks from the main chain to a side chain in %v.",
+		numBlocksmoved, time.Since(startTime))
 
 	// Verify the tip is now the previous common ancestor
 	mainTip = int64(p.db.Height())
@@ -225,6 +233,9 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 
 		currentHeight++
 	}
+
+	log.Infof("Moved %d blocks from a side chain to the main chain in %v.",
+		numBlocksmoved, time.Since(startTime))
 
 	mainTip = int64(p.db.Height())
 	if mainTip != int64(msgBlock.Header.Height) {
