@@ -317,7 +317,7 @@ type BlockTransactionCounts struct {
 // votes.
 type BlockSubsidies struct {
 	BlockNum   int64  `json:"height"`
-	BlockHash  string `json:"hash"`
+	BlockHash  string `json:"hash,omitempty"`
 	Work       int64  `json:"work_reward"`
 	Stake      int64  `json:"stake_reward"`
 	NumVotes   int16  `json:"num_votes,omitempty"`

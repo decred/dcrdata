@@ -750,10 +750,15 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 	}
 	hash := c.getBlockHashCtx(r)
 
-	numVotes, err := c.AuxDataSource.VotesInBlock(hash)
-	if err != nil {
-		http.NotFound(w, r)
-		return
+	// Unless this is a mined block, assume all votes.
+	numVotes := int16(c.Params.TicketsPerBlock)
+	if hash != "" {
+		var err error
+		numVotes, err = c.AuxDataSource.VotesInBlock(hash)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
 	}
 
 	work, stake, tax := txhelpers.RewardsAtBlock(idx, uint16(numVotes), c.Params)
