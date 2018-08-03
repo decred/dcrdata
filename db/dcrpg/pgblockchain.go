@@ -322,6 +322,17 @@ func (pgb *ChainDB) Height() uint64 {
 	return uint64(pgb.bestBlock)
 }
 
+// VotesInBlock returns the number of votes mined in the block with the
+// specified hash.
+func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
+	voters, err := RetrieveBlockVoteCount(pgb.db, hash)
+	if err != nil {
+		log.Errorf("Unable to get block voter count for hash %s: %v", hash, err)
+		return -1, err
+	}
+	return voters, nil
+}
+
 // SpendingTransactions retrieves all transactions spending outpoints from the
 // specified funding transaction. The spending transaction hashes, the spending
 // tx input indexes, and the corresponding funding tx output indexes, and an

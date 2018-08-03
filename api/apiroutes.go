@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/rpcclient"
 	apitypes "github.com/decred/dcrdata/api/types"
@@ -21,6 +22,7 @@ import (
 	"github.com/decred/dcrdata/explorer"
 	m "github.com/decred/dcrdata/middleware"
 	notify "github.com/decred/dcrdata/notification"
+	"github.com/decred/dcrdata/txhelpers"
 	appver "github.com/decred/dcrdata/version"
 )
 
@@ -88,11 +90,13 @@ type DataSourceAux interface {
 	AddressTransactionDetails(addr string, count, skip int64,
 		txnType dbtypes.AddrTxnType) (*apitypes.Address, error)
 	AddressTotals(address string) (*apitypes.AddressTotals, error)
+	VotesInBlock(hash string) (int16, error)
 }
 
 // dcrdata application context used by all route handlers
 type appContext struct {
 	nodeClient    *rpcclient.Client
+	Params        *chaincfg.Params
 	BlockData     DataSourceLite
 	AuxDataSource DataSourceAux
 	LiteMode      bool
@@ -103,7 +107,7 @@ type appContext struct {
 
 // NewContext constructs a new appContext from the RPC client, primary and
 // auxiliary data sources, and JSON indentation string.
-func NewContext(client *rpcclient.Client, dataSource DataSourceLite, auxDataSource DataSourceAux, JSONIndent string) *appContext {
+func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource DataSourceLite, auxDataSource DataSourceAux, JSONIndent string) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 
@@ -113,6 +117,7 @@ func NewContext(client *rpcclient.Client, dataSource DataSourceLite, auxDataSour
 
 	return &appContext{
 		nodeClient:    client,
+		Params:        params,
 		BlockData:     dataSource,
 		AuxDataSource: auxDataSource,
 		LiteMode:      liteMode,
@@ -729,6 +734,41 @@ func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, blockSize, "")
+}
+
+func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		// not available in lite mode
+		http.Error(w, "note available in lite mode", 422)
+		return
+	}
+
+	idx := c.getBlockHeightCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	hash := c.getBlockHashCtx(r)
+
+	numVotes, err := c.AuxDataSource.VotesInBlock(hash)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	work, stake, tax := txhelpers.RewardsAtBlock(idx, uint16(numVotes), c.Params)
+	rewards := apitypes.BlockSubsidies{
+		BlockNum:   idx,
+		BlockHash:  hash,
+		Work:       work,
+		Stake:      stake,
+		NumVotes:   numVotes,
+		TotalStake: stake * int64(numVotes),
+		Tax:        tax,
+		Total:      work + stake*int64(numVotes) + tax,
+	}
+
+	writeJSON(w, rewards, "")
 }
 
 func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
