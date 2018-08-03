@@ -773,7 +773,7 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 		Total:      work + stake*int64(numVotes) + tax,
 	}
 
-	writeJSON(w, rewards, "")
+	writeJSON(w, rewards, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockRangeSize(w http.ResponseWriter, r *http.Request) {
