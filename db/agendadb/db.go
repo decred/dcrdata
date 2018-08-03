@@ -220,13 +220,20 @@ func GetAllAgendas() (agendas []*AgendaTagged, err error) {
 	adb, err := Open(dbName)
 	if err != nil {
 		log.Errorf("Failed to open new DB: %v", err)
-	}
-	err = adb.sdb.All(&agendas)
-	if err != nil {
-		log.Errorf("Failed to get data from DB: %v", err)
+		return
 	}
 
-	err = adb.Close()
+	defer func() {
+		err = adb.Close()
+		if err != nil {
+			log.Errorf("Failed to close the DB: %v", err)
+		}
+	}()
+
+	err = adb.sdb.All(&agendas)
+	if err != nil {
+		log.Errorf("Failed to fetch data from DB: %v", err)
+	}
 
 	return
 }
