@@ -18,6 +18,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/version"
 	"github.com/decred/dcrwallet/netparams"
 	"github.com/decred/slog"
@@ -415,6 +416,13 @@ func loadConfig() (*config, error) {
 
 	log.Infof("Log folder:  %s", cfg.LogDir)
 	log.Infof("Config file: %s", configFile)
+
+	// Disable dev balance prefetch if network has invalid script.
+	_, err = dbtypes.DevSubsidyAddress(activeChain)
+	if !cfg.NoDevPrefetch && err != nil {
+		cfg.NoDevPrefetch = true
+		log.Warnf("%v. Disabling balance prefetch (--no-dev-prefetch).", err)
+	}
 
 	// Set the host names and ports to the default if the user does not specify
 	// them.

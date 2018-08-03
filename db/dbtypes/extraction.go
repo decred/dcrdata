@@ -21,6 +21,7 @@ func DevSubsidyAddress(params *chaincfg.Params) (string, error) {
 	case "testnet2":
 		// TestNet2 uses an invalid organization PkScript
 		devSubsidyAddress = "TccTkqj8wFqrUemmHMRSx8SYEueQYLmuuFk"
+		err = fmt.Errorf("testnet2 has invalid project fund script")
 	default:
 		_, devSubsidyAddresses, _, err0 := txscript.ExtractPkScriptAddrs(
 			params.OrganizationPkScriptVersion, params.OrganizationPkScript, params)
