@@ -1254,6 +1254,12 @@ func RetrieveBlockHeight(db *sql.DB, hash string) (height int64, err error) {
 	return
 }
 
+// RetrieveBlockVoteCount gets the number of votes mined in a block.
+func RetrieveBlockVoteCount(db *sql.DB, hash string) (numVotes int16, err error) {
+	err = db.QueryRow(internal.SelectBlockVoteCount, hash).Scan(&numVotes)
+	return
+}
+
 // RetrieveBlocksHashesAll retrieve the hash of every block in the blocks table,
 // ordered by their row ID.
 func RetrieveBlocksHashesAll(db *sql.DB) ([]string, error) {

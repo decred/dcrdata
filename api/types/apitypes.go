@@ -312,6 +312,20 @@ type BlockTransactionCounts struct {
 	STx int `json:"stx"`
 }
 
+// BlockSubsidies contains the block reward proportions for a certain block
+// height. The stake_reward is per vote, while total is for a certain number of
+// votes.
+type BlockSubsidies struct {
+	BlockNum   int64  `json:"height"`
+	BlockHash  string `json:"hash,omitempty"`
+	Work       int64  `json:"work_reward"`
+	Stake      int64  `json:"stake_reward"`
+	NumVotes   int16  `json:"num_votes,omitempty"`
+	TotalStake int64  `json:"stake_reward_total,omitempty"`
+	Tax        int64  `json:"project_subsidy"`
+	Total      int64  `json:"total,omitempty"`
+}
+
 // StakeDiff represents data about the evaluated stake difficulty and estimates
 type StakeDiff struct {
 	dcrjson.GetStakeDifficultyResult
