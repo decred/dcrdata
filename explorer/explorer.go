@@ -204,12 +204,14 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 			WindowSize:       exp.ChainParams.StakeDiffWindowSize,
 			RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
 			BlockTime:        exp.ChainParams.TargetTimePerBlock.Nanoseconds(),
-			MeanVotingBlocks: calcMeanVotingBlocks(params),
+			MeanVotingBlocks: txhelpers.CalcMeanVotingBlocks(params),
 		},
 		PoolInfo: TicketPoolInfo{
 			Target: exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
 		},
 	}
+
+	log.Infof("Mean Voting Blocks calculated: %d", exp.ExtraInfo.Params.MeanVotingBlocks)
 
 	noTemplateError := func(err error) *explorerUI {
 		log.Errorf("Unable to create new html template: %v", err)
@@ -518,22 +520,4 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	ASR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationReward
 	ReturnTable += fmt.Sprintf("ASR over 365 Days is %.2f.\n", ASR)
 	return
-}
-
-// Calculate the Mean ticket voting block for network parameters.
-// The expected block (aka mean) of the probability distribution is given by:
-//      sum(B * P(B)), B=1 to 40960
-// Where B is the block number and P(B) is the probability of voting at
-// block B.  For more information see:
-// https://github.com/decred/dcrdata/issues/471#issuecomment-390063025
-
-func calcMeanVotingBlocks(params *chaincfg.Params) int64 {
-	logPoolSizeM1 := math.Log(float64(params.TicketPoolSize) - 1)
-	logPoolSize := math.Log(float64(params.TicketPoolSize))
-	var v float64
-	for i := float64(1); i <= float64(params.TicketExpiry); i++ {
-		v += math.Exp(math.Log(i) + (i-1)*logPoolSizeM1 - i*logPoolSize)
-	}
-	log.Infof("Mean Voting Blocks calculated: %d", int64(v))
-	return int64(v)
 }
