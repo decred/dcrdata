@@ -217,22 +217,23 @@ func GetAgendaInfo(agendaId string) (*AgendaTagged, error) {
 
 // GetAllAgendas returns all agendas and their info in the db.
 func GetAllAgendas() (agendas []*AgendaTagged, err error) {
-	adb, err := Open(dbName)
+	var adb *AgendaDB
+	adb, err = Open(dbName)
 	if err != nil {
-		log.Errorf("Failed to open new DB: %v", err)
+		log.Errorf("Failed to open new Agendas DB: %v", err)
 		return
 	}
 
 	defer func() {
 		err = adb.Close()
 		if err != nil {
-			log.Errorf("Failed to close the DB: %v", err)
+			log.Errorf("Failed to close the Agendas DB: %v", err)
 		}
 	}()
 
 	err = adb.sdb.All(&agendas)
 	if err != nil {
-		log.Errorf("Failed to fetch data from DB: %v", err)
+		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
 	}
 
 	return
