@@ -87,7 +87,8 @@ const (
 	// not-invalidated coinbase transactions.
 	SelectCoinSupply = `SELECT block_time, sum(value_in) FROM vins WHERE
 		prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000' AND
-		not (is_valid = false AND tx_tree = 0) GROUP BY block_time ORDER BY block_time;` // TODO is_mainchain
+		NOT (is_valid = false AND tx_tree = 0)
+		AND is_mainchain = true GROUP BY block_time ORDER BY block_time;`
 
 	CreateVinType = `CREATE TYPE vin_t AS (
 		prev_tx_hash TEXT,
