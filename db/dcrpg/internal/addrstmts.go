@@ -46,6 +46,7 @@ const (
 		FROM addresses LEFT JOIN transactions AS ftxd ON funding_tx_row_id=ftxd.id 
 		WHERE address = $1 ORDER BY tx_time desc;`
 
+	// WTF?
 	SelectAddressesTxnByFundingTx = `SELECT tx_vin_vout_index, tx_hash, tx_vin_vout_index, block_height
 		FROM addresses
 		LEFT JOIN transactions ON transactions.tx_hash=tx_hash AND is_funding = FALSE
@@ -91,8 +92,8 @@ const (
 		FROM addresses WHERE address=$1 AND is_funding = TRUE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses WHERE tx_hash=$1, 
-        tx_vin_vout_index=$2 and is_funding = TRUE ORDER BY block_time DESC;`
+	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses WHERE tx_hash=$1 AND 
+		tx_vin_vout_index=$2 and is_funding = TRUE ORDER BY block_time DESC;`
 
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses WHERE address=$1 and 
 	    tx_vin_vout_row_id=$2 and is_funding = true;`
@@ -101,10 +102,10 @@ const (
 		WHERE tx_hash=$2 and is_funding = true and tx_vin_vout_index=$3;`
 
 	SetAddressMainchainForVoutIDs = `UPDATE addresses SET valid_mainchain=$1 
-		WHERE is_funding = true and tx_vin_vout_index=$2;`
+		WHERE is_funding = true and tx_vin_vout_row_id=$2;`
 
 	SetAddressMainchainForVinIDs = `UPDATE addresses SET valid_mainchain=$1 
-		WHERE is_funding = false and tx_vin_vout_index=$2;`
+		WHERE is_funding = false and tx_vin_vout_row_id=$2;`
 
 	UpdateValidMainchainFromTransactions = `UPDATE addresses
 		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean
