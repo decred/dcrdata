@@ -2104,7 +2104,8 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 		err := stmt.QueryRow(
 			tx.TxID, tx.BlockHash, tx.BlockHeight, ticketDbIDs[i],
 			stakesubmissionAddress, isMultisig, isSplit, tx.NumVin,
-			price, fee, dbtypes.TicketUnspent, dbtypes.PoolStatusLive).Scan(&id)
+			price, fee, dbtypes.TicketUnspent, dbtypes.PoolStatusLive,
+			tx.IsMainchainBlock).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue

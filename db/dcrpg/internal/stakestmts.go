@@ -17,6 +17,7 @@ const (
 		fee FLOAT8,
 		spend_type INT2,
 		pool_status INT2,
+		is_mainchain BOOLEAN,
 		spend_height INT4,
 		spend_tx_db_id INT8
 	);`
@@ -25,11 +26,13 @@ const (
 	insertTicketRow0 = `INSERT INTO tickets (
 		tx_hash, block_hash, block_height, purchase_tx_db_id,
 		stakesubmission_address, is_multisig, is_split,
-		num_inputs, price, fee, spend_type, pool_status)
+		num_inputs, price, fee, spend_type, pool_status,
+		is_mainchain)
 	VALUES (
 		$1, $2, $3,	$4,
 		$5, $6, $7,
-		$8, $9, $10, $11, $12) `
+		$8, $9, $10, $11, $12, 
+		$13) `
 	insertTicketRow = insertTicketRow0 + `RETURNING id;`
 	// insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTicketRow = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -52,9 +55,10 @@ const (
 	SelectTicketsForPriceAtLeast = `SELECT * FROM tickets WHERE price >= $1;`
 	SelectTicketsForPriceAtMost  = `SELECT * FROM tickets WHERE price <= $1;`
 	SelectTicketIDHeightByHash   = `SELECT id, block_height FROM tickets WHERE tx_hash = $1;`
-	SelectTicketIDByHash         = `SELECT id FROM tickets WHERE tx_hash = $1;`
+	SelectTicketIDByHash         = `SELECT id FROM tickets WHERE tx_hash = $1 AND is;`
 	SelectTicketStatusByHash     = `SELECT id, spend_type, pool_status FROM tickets WHERE tx_hash = $1;`
-	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1;`
+	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1
+		AND is_mainchain = true;`
 
 	SelectTicketSpendTypeByBlock = `SELECT block_height, 
 		SUM(CASE WHEN spend_type = 0 THEN 1 ELSE 0 END) as unspent,
