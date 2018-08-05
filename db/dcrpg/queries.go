@@ -1089,6 +1089,12 @@ func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtype
 		return nil, err
 	}
 
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
 	// Sum abstain, yes, no, and total votes
 	var a, y, n, t uint64
 	totalVotes := new(dbtypes.AgendaVoteChoices)

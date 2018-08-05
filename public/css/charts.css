@@ -48,7 +48,6 @@
     -o-transform: rotate(-90deg);
     -ms-transform: rotate(-90deg);
 }
-
 /* chart theme */
 .chart-wrapper {
     position: relative;
@@ -106,4 +105,13 @@
 }
 .darkBG .legend {
     background: #2a2a2a;
+}
+.align-bottom {
+    position: relative;
+}
+.list-display {
+    width: 100%;
+}
+.address-btn {
+    margin-bottom: 5px !important;
 }
