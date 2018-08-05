@@ -45,7 +45,7 @@ const (
 		FROM blocks WHERE time BETWEEN $1 and $2 ORDER BY time DESC LIMIT $3;`
 	SelectBlockByTimeRangeSQLNoLimit = `SELECT hash, height, size, time, numtx
 		FROM blocks WHERE time BETWEEN $1 and $2 ORDER BY time DESC;`
-	SelectBlockHashByHeight = `SELECT hash FROM blocks WHERE height = $1;`
+	SelectBlockHashByHeight = `SELECT hash FROM blocks WHERE height = $1 AND is_mainchain = true;`
 	SelectBlockHeightByHash = `SELECT height FROM blocks WHERE hash = $1;`
 
 	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (  
@@ -86,7 +86,7 @@ const (
 	DeindexBlockTableOnHash = `DROP INDEX uix_block_hash;`
 
 	RetrieveBestBlock       = `SELECT * FROM blocks ORDER BY height DESC LIMIT 0, 1;`
-	RetrieveBestBlockHeight = `SELECT id, hash, height FROM blocks ORDER BY height DESC LIMIT 1;`
+	RetrieveBestBlockHeight = `SELECT id, hash, height FROM blocks WHERE is_mainchain = true ORDER BY height DESC LIMIT 1;`
 
 	// SelectBlocksTicketsPrice selects the ticket price and difficulty for the first block in a stake difficulty window.
 	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty FROM blocks WHERE height % $1 = 0 ORDER BY time;`

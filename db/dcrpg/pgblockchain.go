@@ -337,6 +337,17 @@ func (pgb *ChainDB) Hash() *chainhash.Hash {
 	return hash
 }
 
+// BlockHeight queries the DB for the height of the specified hash.
+func (pgb *ChainDB) BlockHeight(hash string) (int64, error) {
+	return RetrieveBlockHeight(pgb.db, hash)
+}
+
+// BlockHash queries the DB for the hash of the mainchain block at the given
+// height.
+func (pgb *ChainDB) BlockHash(height int64) (string, error) {
+	return RetrieveBlockHash(pgb.db, height)
+}
+
 // VotesInBlock returns the number of votes mined in the block with the
 // specified hash.
 func (pgb *ChainDB) VotesInBlock(hash string) (int16, error) {
@@ -1339,35 +1350,42 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 	for tipHash != mainRoot {
 		// 1. Block. Set is_mainchain=false on the tip block, return hash of
 		// previous block.
+		now := time.Now()
 		previousHash, err := SetMainchainByBlockHash(pgb.db, tipHash, false)
 		if err != nil {
 			log.Errorf("Failed to set block %s as a sidechain block: %v",
 				tipHash, err)
 		}
 		blocksMoved++
+		log.Debugf("SetMainchainByBlockHash: %v", time.Since(now))
 
 		// 2. Transactions. Set is_mainchain=false on all transactions in the
 		// tip block, returning only the number of transactions updated.
+		now = time.Now()
 		rowsUpdated, _, err := UpdateTransactionsMainchain(pgb.db, tipHash, false)
 		if err != nil {
 			log.Errorf("Failed to set transactions in block %s as sidechain: %v",
 				tipHash, err)
 		}
 		txnsUpdated += rowsUpdated
+		log.Debugf("UpdateTransactionsMainchain: %v", time.Since(now))
 
 		// 3. Vins. Set is_mainchain=false on all vins, returning the number of
 		// vins updated, the vins table row IDs, and the vouts table row IDs.
+		now = time.Now()
 		rowsUpdated, vinDbIDsBlk, voutDbIDsBlk, err := pgb.SetVinsMainchainByBlock(tipHash) // isMainchain from transactions table
 		if err != nil {
 			log.Errorf("Failed to set vins in block %s as sidechain: %v",
 				tipHash, err)
 		}
 		vinsUpdated += rowsUpdated
+		log.Debugf("SetVinsMainchainByBlock: %v", time.Since(now))
 
 		// 4. Addresses. Set valid_mainchain=false on all addresses rows
 		// corresponding to the spending transactions specified by the vins DB
 		// row IDs, and the funding transactions specified by the vouts DB row
 		// IDs. The IDs come for free via RetrieveTxnsVinsVoutsByBlock.
+		now = time.Now()
 		numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(pgb.db,
 			vinDbIDsBlk, voutDbIDsBlk, false)
 		if err != nil {
@@ -1375,25 +1393,36 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 				tipHash, err)
 		}
 		addrsUpdated += numAddrSpending + numAddrFunding
+		log.Debugf("UpdateAddressesMainchainByIDs: %v", time.Since(now))
 
 		// 5. Votes. Sets is_mainchain=false on all votes in the tip block.
+		now = time.Now()
 		rowsUpdated, err = UpdateVotesMainchain(pgb.db, tipHash, false)
 		if err != nil {
 			log.Errorf("Failed to set votes in block %s as sidechain: %v",
 				tipHash, err)
 		}
 		votesUpdated += rowsUpdated
+		log.Debugf("UpdateVotesMainchain: %v", time.Since(now))
 
 		// 6. Tickets. Sets is_mainchain=false on all tickets in the tip block.
+		now = time.Now()
 		rowsUpdated, err = UpdateTicketsMainchain(pgb.db, tipHash, false)
 		if err != nil {
 			log.Errorf("Failed to set tickets in block %s as sidechain: %v",
 				tipHash, err)
 		}
 		ticketsUpdated += rowsUpdated
+		log.Debugf("UpdateTicketsMainchain: %v", time.Since(now))
 
 		// move on to next block
 		tipHash = previousHash
+
+		pgb.bestBlock, err = pgb.BlockHeight(tipHash)
+		if err != nil {
+			log.Errorf("Failed to retrieve block height for %s", tipHash)
+		}
+		pgb.bestBlockHash = tipHash
 	}
 
 	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets",
