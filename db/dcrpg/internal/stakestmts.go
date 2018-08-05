@@ -54,9 +54,9 @@ const (
 	SelectTicketsForAddress      = `SELECT * FROM tickets WHERE stakesubmission_address = $1;`
 	SelectTicketsForPriceAtLeast = `SELECT * FROM tickets WHERE price >= $1;`
 	SelectTicketsForPriceAtMost  = `SELECT * FROM tickets WHERE price <= $1;`
-	SelectTicketIDHeightByHash   = `SELECT id, block_height FROM tickets WHERE tx_hash = $1;`
-	SelectTicketIDByHash         = `SELECT id FROM tickets WHERE tx_hash = $1 AND is;`
-	SelectTicketStatusByHash     = `SELECT id, spend_type, pool_status FROM tickets WHERE tx_hash = $1;`
+	SelectTicketIDHeightByHash   = `SELECT id, block_height FROM tickets WHERE tx_hash = $1 ORDER BY is_mainchain DESC;`
+	SelectTicketIDByHash         = `SELECT id FROM tickets WHERE tx_hash = $1 ORDER BY is_mainchain DESC;`
+	SelectTicketStatusByHash     = `SELECT id, spend_type, pool_status FROM tickets WHERE tx_hash = $1 ORDER BY is_mainchain DESC;`
 	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1
 		AND is_mainchain = true;`
 
