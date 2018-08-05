@@ -126,6 +126,7 @@ out:
 			// Reorg is complete
 			p.sideChain = nil
 			p.reorganizing = false
+			p.db.InReorg = false
 			log.Infof("Reorganization to block %v (height %d) complete",
 				p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
 
@@ -274,6 +275,7 @@ out:
 			}
 
 			// This is the primary action of this handler.
+			p.db.InReorg = true
 			p.reorganizing = true
 			p.reorgData = reorgData
 			p.Unlock()

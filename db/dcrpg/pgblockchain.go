@@ -81,6 +81,7 @@ type ChainDB struct {
 	DevFundBalance     *DevFundBalance
 	devPrefetch        bool
 	InBatchSync        bool
+	InReorg            bool
 }
 
 // ChainDBRPC provides an interface for storing and manipulating extracted and
@@ -539,15 +540,17 @@ func (pgb *ChainDB) updateDevBalance() (bool, error) {
 // DevBalance returns the current development/project fund balance, updating the
 // cached balance if it is stale.
 func (pgb *ChainDB) DevBalance() (*explorer.AddressBalance, error) {
-	hash, err := pgb.HashDB()
-	if err != nil {
-		return nil, err
-	}
-
-	// Update cache if stale
-	if pgb.DevFundBalance.BlockHash().String() != hash || pgb.DevFundBalance.Balance() == nil {
-		if _, err = pgb.UpdateDevBalance(); err != nil {
+	if !pgb.InReorg {
+		hash, err := pgb.HashDB()
+		if err != nil {
 			return nil, err
+		}
+
+		// Update cache if stale
+		if pgb.DevFundBalance.BlockHash().String() != hash || pgb.DevFundBalance.Balance() == nil {
+			if _, err = pgb.UpdateDevBalance(); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -1583,7 +1586,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		pgb.addressCounts.Unlock()
 
 		// Lazy update of DevFundBalance
-		if pgb.devPrefetch {
+		if pgb.devPrefetch && !pgb.InReorg {
 			go func() {
 				runtime.Gosched()
 				if _, err = pgb.UpdateDevBalance(); err != nil {
