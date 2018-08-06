@@ -33,12 +33,17 @@ const (
 	votesTableMainchainUpgrade
 	ticketsTableMainchainUpgrade
 	votesTableBlockHashIndex
+	vinsTxHistogramUpgrade
+	addressesTxHistogramUpgrade
 )
 
 type TableUpgradeType struct {
 	TableName   string
 	upgradeType tableUpgradeType
 }
+
+// toVersion defines a table version to which the pg tables will commented to.
+var toVersion TableVersion
 
 // CheckForAuxDBUpgrade checks if an upgrade is required and currently supported.
 // A boolean value is returned to indicate if the db upgrade was
@@ -61,7 +66,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Upgrade from 3.1.0 --> 3.2.0
 	case version.major == 3 && version.minor == 1 && version.patch == 0:
-		toVersion := TableVersion{3, 2, 0}
+		toVersion = TableVersion{3, 2, 0}
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		theseUpgrades := []TableUpgradeType{
@@ -69,17 +74,9 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			{"vins", vinsTableCoinSupplyUpgrade},
 		}
 
-		for it := range theseUpgrades {
-			upgradeSuccess, err := pgb.handleUpgrades(smartClient, theseUpgrades[it].upgradeType)
-			if err != nil || !upgradeSuccess {
-				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
-					theseUpgrades[it].TableName, toVersion, err)
-			}
-		}
-
-		// Bump version
-		if err := versionAllTables(pgb.db, toVersion); err != nil {
-			return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
 		}
 
 		// Go on to next upgrade
@@ -87,7 +84,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Upgrade from 3.2.0 --> 3.3.0
 	case version.major == 3 && version.minor == 2 && version.patch == 0:
-		toVersion := TableVersion{3, 3, 0}
+		toVersion = TableVersion{3, 3, 0}
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		// The order of these upgrades is critical
@@ -99,17 +96,27 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			{"votes", votesTableMainchainUpgrade},
 		}
 
-		for it := range theseUpgrades {
-			upgradeSuccess, err := pgb.handleUpgrades(smartClient, theseUpgrades[it].upgradeType)
-			if err != nil || !upgradeSuccess {
-				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
-					theseUpgrades[it].TableName, toVersion, err)
-			}
+		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
 		}
 
-		// Bump version
-		if err := versionAllTables(pgb.db, toVersion); err != nil {
-			return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.4.0 --> 3.5.0
+	case version.major == 3 && version.minor == 3 && version.patch == 0:
+		toVersion = TableVersion{3, 5, 0}
+		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
+
+		theseUpgrades := []TableUpgradeType{
+			{"vins", vinsTxHistogramUpgrade},
+			{"addresses", addressesTxHistogramUpgrade},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
 		}
 
 		// Go on to next upgrade
@@ -179,8 +186,25 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		return false, fmt.Errorf("failed to upgrade tables to required version %v", needVersion)
 	}
 
+	// A Table upgrade must have happened therefore Bump version
+	if err := versionAllTables(pgb.db, toVersion); err != nil {
+		return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+	}
+
 	// Unsupported upgrades caught by default case, so we've succeeded.
 	log.Infof("Table upgrades completed.")
+	return true, nil
+}
+
+// initiatePgUpgrade starts the specific auxiliary database.
+func (pgb *ChainDB) initiatePgUpgrade(smartClient *rpcutils.BlockGate, theseUpgrades []TableUpgradeType) (bool, error) {
+	for it := range theseUpgrades {
+		upgradeSuccess, err := pgb.handleUpgrades(smartClient, theseUpgrades[it].upgradeType)
+		if err != nil || !upgradeSuccess {
+			return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
+				theseUpgrades[it].TableName, toVersion, err)
+		}
+	}
 	return true, nil
 }
 

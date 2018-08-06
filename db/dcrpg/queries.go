@@ -414,9 +414,10 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		var prevOutTree, txTree int8
 		var valueIn, blockTime int64
 		var isValid, isMainchain bool
+		var txType int16
 		err = vinGetStmt.QueryRow(vinDbID).Scan(
 			&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn, &txType)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`SelectAllVinInfoByID: `+
 				`%v + %v (rollback)`, err, bail())
@@ -430,7 +431,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		// Set the spending tx info (addresses table) for the vin DB ID
 		addressRowsUpdated[iv], err = insertSpendingTxByPrptStmt(dbtx,
 			prevOutHash, prevOutVoutInd, prevOutTree,
-			txHash, txVinInd, vinDbID, false, isValid && isMainchain)
+			txHash, txVinInd, vinDbID, false, isValid && isMainchain, txType)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
 				`%v + %v (rollback)`, err, bail())
@@ -458,9 +459,10 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	var prevOutTree, txTree int8
 	var isValid, isMainchain bool
 	var valueIn, blockTime int64
+	var txType int16
 	err = dbtx.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
 		Scan(&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn, &txType)
 	if err != nil {
 		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
 			`(rollback)`, err, dbtx.Rollback())
@@ -473,7 +475,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 
 	// Insert the spending tx info (addresses table) for the vin DB ID
 	N, err := insertSpendingTxByPrptStmt(dbtx, prevOutHash, prevOutVoutInd,
-		prevOutTree, txHash, txVinInd, vinDbID, false, isValid && isMainchain)
+		prevOutTree, txHash, txVinInd, vinDbID, false, isValid && isMainchain, txType)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -487,7 +489,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
 	spendingTxVinIndex uint32, spendingTXBlockTime, vinDbID uint64,
-	checked, isValidMainchain bool) (int64, error) {
+	checked, isValidMainchain bool, txType int16) (int64, error) {
 
 	// Only allow atomic transactions to happen
 	dbtx, err := db.Begin()
@@ -497,7 +499,7 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 
 	c, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex,
 		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, checked,
-		isValidMainchain, spendingTXBlockTime)
+		isValidMainchain, txType, spendingTXBlockTime)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -510,7 +512,7 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 // into the addresses table.
 func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32,
-	vinDbID uint64, checked, validMainchain bool, blockT ...uint64) (int64, error) {
+	vinDbID uint64, checked, validMainchain bool, txType int16, blockT ...uint64) (int64, error) {
 	var addr string
 	var value, rowID, blockTime uint64
 
@@ -546,7 +548,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 	sqlStmt := internal.MakeAddressRowInsertStatement(checked)
 	err = tx.QueryRow(sqlStmt, newAddr, fundingTxHash, spendingTxHash,
 		spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
-		validMainchain).Scan(&rowID)
+		validMainchain, txType).Scan(&rowID)
 	if err != nil {
 		return 0, fmt.Errorf("InsertAddressRow: %v", err)
 	}
@@ -566,7 +568,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 // need to get the funding (previous output) tx info, and then update the
 // corresponding row in the addresses table with the spending tx info.
 func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
-	spendingTxHash string, spendingTxVinIndex uint32, checked, isValidMainchain bool) (int64, error) {
+	spendingTxHash string, spendingTxVinIndex uint32, checked, isValidMainchain bool, txType int16) (int64, error) {
 	// get funding details for vin and set them in the address table
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -591,7 +593,7 @@ func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
 
 	// Insert the spending tx info (addresses table) for the vin DB ID
 	N, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex,
-		tree, spendingTxHash, spendingTxVinIndex, vinDbID, checked, isValidMainchain)
+		tree, spendingTxHash, spendingTxVinIndex, vinDbID, checked, isValidMainchain, txType)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -1896,7 +1898,7 @@ func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64
 	err = db.QueryRow(internal.MakeVinInsertStatement(checked),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
 		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree,
-		dbVin.ValueIn, dbVin.IsValid, dbVin.IsMainchain, dbVin.Time).Scan(&id)
+		dbVin.ValueIn, dbVin.IsValid, dbVin.IsMainchain, dbVin.Time, dbVin.TxType).Scan(&id)
 	return
 }
 
@@ -1920,7 +1922,7 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool) ([]
 		var id uint64
 		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
 			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree,
-			vin.ValueIn, vin.IsValid, vin.IsMainchain, vin.Time).Scan(&id)
+			vin.ValueIn, vin.IsValid, vin.IsMainchain, vin.Time, vin.TxType).Scan(&id)
 		if err != nil {
 			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
@@ -1988,6 +1990,7 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 				TxHash:         vout.TxHash,
 				TxVinVoutIndex: vout.TxIndex,
 				VinVoutDbID:    id,
+				TxType:         vout.TxType,
 				Value:          vout.Value,
 				// Not set here are: ValidMainchain, MatchingTxHash, IsFunding,
 				// and TxBlockTime.
@@ -2009,7 +2012,7 @@ func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint6
 	var id uint64
 	err := db.QueryRow(sqlStmt, dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
 		dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
-		dbA.IsFunding, dbA.ValidMainChain).Scan(&id)
+		dbA.IsFunding, dbA.ValidMainChain, dbA.TxType).Scan(&id)
 	return id, err
 }
 
@@ -2043,7 +2046,7 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 		var id uint64
 		err := stmt.QueryRow(dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
 			dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
-			dbA.IsFunding, dbA.ValidMainChain).Scan(&id)
+			dbA.IsFunding, dbA.ValidMainChain, dbA.TxType).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				log.Errorf("failed to insert/update an AddressRow: %v", *dbA)

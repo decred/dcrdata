@@ -291,6 +291,7 @@ type Vout struct {
 	TxHash           string           `json:"tx_hash"`
 	TxIndex          uint32           `json:"tx_index"`
 	TxTree           int8             `json:"tx_tree"`
+	TxType           int16           `json:"tx_type"`
 	Value            uint64           `json:"value"`
 	Version          uint16           `json:"version"`
 	ScriptPubKey     []byte           `json:"pkScriptHex"`
@@ -312,6 +313,7 @@ type AddressRow struct {
 	Value            uint64
 	VinVoutDbID      uint64
 	MergedDebitCount uint64
+	TxType           int16
 }
 
 // ChartsData defines the fields that store the values needed to plot the charts
@@ -331,6 +333,10 @@ type ChartsData struct {
 	Height     []uint64  `json:"height,omitempty"`
 	Pooled     []uint64  `json:"pooled,omitempty"`
 	Solo       []uint64  `json:"solo,omitempty"`
+	RegularTx  []uint64  `json:"regularTx,omitempty"`
+	Tickets    []uint64  `json:"tickets,omitempty"`
+	Votes      []uint64  `json:"votes,omitempty"`
+	RevokeTx   []uint64  `json:"revoke,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
@@ -351,6 +357,7 @@ type VinTxProperty struct {
 	TxID        string `json:"tx_hash"`
 	TxIndex     uint32 `json:"tx_index"`
 	TxTree      uint16 `json:"tx_tree"`
+	TxType      int16 `json:"tx_type"`
 	BlockHeight uint32 `json:"blockheight"`
 	BlockIndex  uint32 `json:"blockindex"`
 	ScriptHex   []byte `json:"scripthex"`
