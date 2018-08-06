@@ -274,7 +274,7 @@ func (pgb *ChainDB) VersionCheck(client *rpcclient.Client) error {
 	}
 
 	if tableUpgrades := TableUpgradesRequired(vers); len(tableUpgrades) > 0 {
-		if tableUpgrades[0].UpgradeType == "upgrade" {
+		if tableUpgrades[0].UpgradeType == "upgrade" || tableUpgrades[0].UpgradeType == "reindex" {
 			// CheckForAuxDBUpgrade makes db upgrades that are currently supported.
 			isSuccess, err := pgb.CheckForAuxDBUpgrade(client)
 			if err != nil {
@@ -1116,6 +1116,10 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
+	if err = DeindexVotesTableOnBlockHash(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
 	if err = DeindexVotesTableOnHash(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
@@ -1177,7 +1181,11 @@ func (pgb *ChainDB) IndexAll() error {
 	if err := IndexVotesTableOnCandidate(pgb.db); err != nil {
 		return err
 	}
-	log.Infof("Indexing votes table on vote hash...")
+	log.Infof("Indexing votes table on block hash...")
+	if err := IndexVotesTableOnBlockHash(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing votes table on block+tx hash...")
 	if err := IndexVotesTableOnHashes(pgb.db); err != nil {
 		return err
 	}

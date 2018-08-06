@@ -32,6 +32,7 @@ const (
 	addressesTableMainchainUpgrade
 	votesTableMainchainUpgrade
 	ticketsTableMainchainUpgrade
+	votesTableBlockHashIndex
 )
 
 type TableUpgradeType struct {
@@ -55,7 +56,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Apply each upgrade in succession
 	switch {
-	case upgradeInfo[0].UpgradeType != "upgrade":
+	case upgradeInfo[0].UpgradeType != "upgrade" && upgradeInfo[0].UpgradeType != "reindex":
 		return false, nil
 
 	// Upgrade from 3.1.0 --> 3.2.0
@@ -117,7 +118,6 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 	// Upgrade from 3.3.0 --> 3.4.0
 	case version.major == 3 && version.minor == 3 && version.patch == 0:
 		toVersion := TableVersion{3, 4, 0}
-		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		// The order of these upgrades is critical
 		theseUpgrades := []TableUpgradeType{
@@ -125,7 +125,33 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		}
 
 		for it := range theseUpgrades {
-			upgradeSuccess, err := pgb.handleUpgrades(smartClient, theseUpgrades[it].upgradeType)
+			upgradeSuccess, err := pgb.handleUpgrades(nil, theseUpgrades[it].upgradeType)
+			if err != nil || !upgradeSuccess {
+				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
+					theseUpgrades[it].TableName, toVersion, err)
+			}
+		}
+
+		// Bump version
+		if err := versionAllTables(pgb.db, toVersion); err != nil {
+			return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+		}
+
+		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.4.0 --> 3.4.1
+	case version.major == 3 && version.minor == 4 && version.patch == 0:
+		// This is a "reindex" upgrade. Bump patch.
+		toVersion := TableVersion{3, 4, 1}
+
+		// The order of these upgrades is critical
+		theseUpgrades := []TableUpgradeType{
+			{"votes", votesTableBlockHashIndex},
+		}
+
+		for it := range theseUpgrades {
+			upgradeSuccess, err := pgb.handleUpgrades(nil, theseUpgrades[it].upgradeType)
 			if err != nil || !upgradeSuccess {
 				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
 					theseUpgrades[it].TableName, toVersion, err)
@@ -139,9 +165,10 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 		// Go on to next upgrade
 		// fallthrough
-		// or be done.
+		// or be done
+
 	default:
-		// UpgradeType == "upgrade", but no supported case.
+		// UpgradeType == "upgrade" or "reindex", but no supported case.
 		return false, fmt.Errorf("no upgrade path available for version %v --> %v",
 			version, needVersion)
 	}
@@ -194,6 +221,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		tableReady, err = haveEmptyAgendasTable(pgb.db)
 		tableName, upgradeTypeStr = "agendas", "new table"
 		i = 128000
+	case votesTableBlockHashIndex:
+		tableReady = true
+		tableName, upgradeTypeStr = "votes", "new index"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -302,12 +332,16 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 			return false, fmt.Errorf(`upgrade of addresses table ended prematurely after %d address rows.`+
 				`Error: %v`, rowsUpdated, err)
 		}
+	case votesTableBlockHashIndex:
+		// no upgrade, just "reindex"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
 	}
 
-	log.Infof(" - %v rows in %s table (%s upgrade) were successfully upgraded in %.1f sec",
-		rowsUpdated, tableName, upgradeTypeStr, time.Since(timeStart).Seconds())
+	if rowsUpdated > 0 {
+		log.Infof(" - %v rows in %s table (%s upgrade) were successfully upgraded in %.2f sec",
+			rowsUpdated, tableName, upgradeTypeStr, time.Since(timeStart).Seconds())
+	}
 
 	// Indexes
 	switch tableUpgrade {
@@ -320,6 +354,11 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("Index the agendas table on Block Time...")
 		if err = IndexAgendasTableOnBlockTime(pgb.db); err != nil {
 			return false, fmt.Errorf("failed to index agendas table: %v", err)
+		}
+	case votesTableBlockHashIndex:
+		log.Infof("Indexing votes table on block hash...")
+		if err = IndexVotesTableOnBlockHash(pgb.db); err != nil {
+			return false, fmt.Errorf("failed to index votes table on block_hash: %v", err)
 		}
 	}
 

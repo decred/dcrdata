@@ -173,6 +173,10 @@ const (
 		ON votes(tx_hash, block_hash);`
 	DeindexVotesTableOnHashes = `DROP INDEX uix_votes_hashes_index;`
 
+	IndexVotesTableOnBlockHash = `CREATE INDEX uix_votes_block_hash
+		ON votes(block_hash);`
+	DeindexVotesTableOnBlockHash = `DROP INDEX uix_votes_block_hash;`
+
 	IndexVotesTableOnCandidate = `CREATE INDEX uix_votes_candidate_block
 		ON votes(candidate_block_hash);`
 	DeindexVotesTableOnCandidate = `DROP INDEX uix_votes_candidate_block;`

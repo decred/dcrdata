@@ -40,19 +40,21 @@ var createTypeStatements = map[string]string{
 const (
 	tableMajor = 3
 	tableMinor = 4
+	tablePatch = 1
 )
 
+// TODO eliminiate this map since we're actually versioning each table the same.
 var requiredVersions = map[string]TableVersion{
-	"blocks":       NewTableVersion(tableMajor, tableMinor, 0),
-	"transactions": NewTableVersion(tableMajor, tableMinor, 0),
-	"vins":         NewTableVersion(tableMajor, tableMinor, 0),
-	"vouts":        NewTableVersion(tableMajor, tableMinor, 0),
-	"block_chain":  NewTableVersion(tableMajor, tableMinor, 0),
-	"addresses":    NewTableVersion(tableMajor, tableMinor, 0),
-	"tickets":      NewTableVersion(tableMajor, tableMinor, 0),
-	"votes":        NewTableVersion(tableMajor, tableMinor, 0),
-	"misses":       NewTableVersion(tableMajor, tableMinor, 0),
-	"agendas":      NewTableVersion(tableMajor, tableMinor, 0),
+	"blocks":       NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"transactions": NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"vins":         NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"vouts":        NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"block_chain":  NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"addresses":    NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"tickets":      NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"votes":        NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"misses":       NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"agendas":      NewTableVersion(tableMajor, tableMinor, tablePatch),
 }
 
 // TableVersion models a table version by major.minor.patch
@@ -447,6 +449,16 @@ func IndexVotesTableOnHashes(db *sql.DB) (err error) {
 
 func DeindexVotesTableOnHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexVotesTableOnHashes)
+	return
+}
+
+func IndexVotesTableOnBlockHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexVotesTableOnBlockHash)
+	return
+}
+
+func DeindexVotesTableOnBlockHash(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexVotesTableOnBlockHash)
 	return
 }
 
