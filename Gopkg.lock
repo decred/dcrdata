@@ -273,6 +273,17 @@
 
 [[projects]]
   digest = "1:e22469bf84466c427efe488bdb825101c527ecfd79f7829f72505c5ec64a7c06"
+  name = "github.com/google/go-cmp"
+  packages = [
+    "cmp",
+    "cmp/internal/diff",
+    "cmp/internal/function",
+    "cmp/internal/value"
+    ]
+  revision = "3af367b6b30c263d47e8895973edcca9a49cf029"
+  version = "v0.2.0"
+
+[[projects]]
   name = "github.com/google/gops"
   packages = [
     "agent",

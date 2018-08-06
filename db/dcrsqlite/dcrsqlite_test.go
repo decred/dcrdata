@@ -30,3 +30,19 @@ func InitTestDB(targetDBFile string) *DB {
 	}
 	return db //is not nil
 }
+
+var reusableEmptyDB *DB = nil
+
+// ObtainReusableEmptyDB returns a single reusable instance of an empty DB. The instance
+// is created once during the first call. All the subsequent calls will return
+// result cached in the reusableEmptyDB variable above.
+func ObtainReusableEmptyDB() *DB {
+	if reusableEmptyDB == nil {
+		testName := "reusableEmptyDB"
+		testutil.ResetTempFolder(&testName)
+		target := filepath.Join(testName, testutil.DefaultDBFileName)
+		targetDBFile := testutil.FilePathInsideTempDir(target)
+		reusableEmptyDB = InitTestDB(targetDBFile)
+	}
+	return reusableEmptyDB
+}
