@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -76,7 +77,7 @@ func mainCore() error {
 
 	// Start with version info
 	ver := &version.Ver
-	log.Infof(version.AppName+" version %s", ver)
+	log.Infof("%s version %v (Go version %s)\n", version.AppName, ver, runtime.Version())
 
 	// PostgreSQL
 	usePG := cfg.FullMode
