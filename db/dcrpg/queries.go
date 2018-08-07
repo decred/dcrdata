@@ -739,13 +739,13 @@ func RetrieveAddressRecvCount(db *sql.DB, address string) (count int64, err erro
 }
 
 func RetrieveAddressUnspent(db *sql.DB, address string) (count, totalAmount int64, err error) {
-	err = db.QueryRow(internal.SelectAddressUnspentCountAndValue, address).
+	err = db.QueryRow(internal.SelectAddressUnspentCountANDValue, address).
 		Scan(&count, &totalAmount)
 	return
 }
 
 func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64, err error) {
-	err = db.QueryRow(internal.SelectAddressSpentCountAndValue, address).
+	err = db.QueryRow(internal.SelectAddressSpentCountANDValue, address).
 		Scan(&count, &totalAmount)
 	return
 }
@@ -759,7 +759,7 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 	}
 
 	var nu, tu sql.NullInt64
-	err = dbtx.QueryRow(internal.SelectAddressUnspentCountAndValue, address).
+	err = dbtx.QueryRow(internal.SelectAddressUnspentCountANDValue, address).
 		Scan(&nu, &tu)
 	if err != nil && err != sql.ErrNoRows {
 		if errRoll := dbtx.Rollback(); errRoll != nil {
@@ -771,7 +771,7 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 	numUnspent, totalUnspent = nu.Int64, tu.Int64
 
 	var ns, ts sql.NullInt64
-	err = dbtx.QueryRow(internal.SelectAddressSpentCountAndValue, address).
+	err = dbtx.QueryRow(internal.SelectAddressSpentCountANDValue, address).
 		Scan(&ns, &ts)
 	if err != nil && err != sql.ErrNoRows {
 		if errRoll := dbtx.Rollback(); errRoll != nil {
