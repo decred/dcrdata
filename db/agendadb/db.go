@@ -179,7 +179,7 @@ func (db *AgendaDB) Updatedb(voteVersion int64, client *rpcclient.Client) {
 }
 
 // CheckForUpdates checks for update at the start of the process and will
-// proceed to update when neccessary.
+// proceed to update when necessary.
 func CheckForUpdates(client *rpcclient.Client) error {
 	adb, err := Open(dbName)
 	if err != nil {

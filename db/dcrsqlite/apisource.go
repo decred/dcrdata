@@ -1344,7 +1344,7 @@ func (db *wiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
 
 // UnconfirmedTxnsForAddress returns the chainhash.Hash of all transactions in
 // mempool that (1) pay to the given address, or (2) spend a previous outpoint
-// that payed to the address.
+// that paid to the address.
 func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
 	// Mempool transactions
 	var numUnconfirmed int64
