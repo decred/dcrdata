@@ -13,7 +13,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 )
 
-// ReorgData contains the information from a reoranization notification.
+// ReorgData contains the information from a reorganization notification.
 type ReorgData struct {
 	OldChainHead   chainhash.Hash
 	OldChainHeight int32
