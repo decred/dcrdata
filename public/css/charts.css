@@ -109,9 +109,9 @@
 .align-bottom {
     position: relative;
 }
-.list-display {
-    width: 100%;
-}
 .address-btn {
     margin-bottom: 5px !important;
+}
+.d-hide {
+    display: none !important;
 }

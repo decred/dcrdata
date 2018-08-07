@@ -91,6 +91,7 @@ type DataSourceAux interface {
 		txnType dbtypes.AddrTxnType) (*apitypes.Address, error)
 	AddressTotals(address string) (*apitypes.AddressTotals, error)
 	VotesInBlock(hash string) (int16, error)
+	GetTxHistoryByTxType(address string) (*dbtypes.ChartsData, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -1072,6 +1073,50 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	if c.LiteMode {
 		// not available in lite mode
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
+
+	address := m.GetAddressCtx(r)
+	if address == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	totals, err := c.AuxDataSource.AddressTotals(address)
+	if err != nil {
+		log.Warnf("failed to get address totals (%s): %v", address, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, totals, c.getIndentQuery(r))
+}
+
+func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
+	
+	address := m.GetAddressCtx(r)
+	if address == "" {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	txTypeData, err := c.AuxDataSource.GetTxHistoryByTxType(address)
+	if err != nil {
+		log.Warnf("failed to get address (%s) history by tx type : %v", address, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, txTypeData, c.getIndentQuery(r))
+}
+
+func (c *appContext) getAddressTxAmountData(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
 		http.Error(w, "not available in lite mode", 422)
 		return
 	}

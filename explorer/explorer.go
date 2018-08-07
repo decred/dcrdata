@@ -71,7 +71,6 @@ type explorerDataSource interface {
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
 	GetTicketsPriceByHeight() (*dbtypes.ChartsData, error)
-	GetTxHistoryByTxType(address string) (*dbtypes.ChartsData, error)
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts

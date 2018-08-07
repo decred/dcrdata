@@ -74,31 +74,38 @@
 
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
-            return ['list', 'chart', 'qrcode', 'btns']
+            return ['chart', 'qrcode', 'btns']
+        }
+        initialize(){
+            $.getScript('/js/dygraphs.min.js', () => {})
         }
 
         disconnect(){
             this.graph.destroy()
         }
 
-        get list(){
-            return this.listTarget.name
-        }
-
         changeview() {
+            $('body').addClass('loading');
             var _this = this
-            var divHide = 'list-display'
+            var divHide = 'list'
             var divShow = _this.btns
 
-            if (divShow !== 'chart-display') {
-                divHide = 'chart-display'
+            if (divShow !== 'chart') {
+                divHide = 'chart'
+                $('body').removeClass('loading');
             } else {
-                $.getScript('/js/dygraphs.min.js', () => {
+                if (_this.graph == null) {
                     _this.graph = plotGraph()
-                })
+                } else {
+                    _this.updatedata({'file': "data"})
+                }
             }
-            $('#'+divShow).show()
-            $('#'+divHide).hide()
+            $('.'+divShow+'-display').removeClass('d-hide');
+            $('.'+divHide+'-display').addClass('d-hide');
+        }
+
+        updategraph(){
+            
         }
 
         get chart(){

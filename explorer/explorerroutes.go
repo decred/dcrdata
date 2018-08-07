@@ -398,8 +398,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
 
-	var histTypeData *dbtypes.ChartsData
-
 	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
 	if exp.liteMode {
@@ -567,7 +565,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.Balance.TotalSpent += sent
 		addrData.Balance.TotalUnspent += (received - sent)
 
-		histTypeData, err = exp.explorerSource.GetTxHistoryByTxType(address)
 		if err != nil {
 			log.Errorf("Unable to fetch transactions for the address %s: %v", address, err)
 			exp.StatusPage(w, defaultErrorCode, "could not find transactions for that address", NotFoundStatusType)
@@ -605,7 +602,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		ConfirmHeight: confirmHeights,
 		Version:       exp.Version,
 		NetName:       exp.NetName,
-		ChartData:     histTypeData,
 	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {

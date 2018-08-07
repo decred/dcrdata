@@ -21,9 +21,9 @@
                     ></a>
                 </div>
                 <div class="row">
-                    <a href="javascript:hideAddressQRCode();" 
-                        id="address-qrcode" 
-                        class="col opacity-transition d-block" 
+                    <a href="javascript:hideAddressQRCode();"
+                        id="address-qrcode"
+                        class="col opacity-transition d-block"
                         style="opacity: 0">
                     </a>
                 </div>
@@ -37,8 +37,8 @@
                     data-target="address.btns" 
                     data-action="click->address#changeview"
                 >
-                    <input id="addr-btn" type="button" class="btn btn_sm" value="List" name="list-display">
-                    <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="Chart" name="chart-display">
+                    <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="List" name="list">
+                    <input id="addr-btn" type="button" class="btn btn_sm" value="Chart" name="chart">
                 </div> 
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
@@ -113,50 +113,52 @@
         <div class="row">
             <div class="col">
                 <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
-                    <div class="chart-display  mr-auto">
-                        <select id="selectBox" data-target="charts.options" data-action="charts#onChange">
-                            <option value="tx-distribution">Transactions Type Distribution</option>
-                            <option value="amount-distribution">Amount Distribution</option>
-                        </select>
+                    <select 
+                        id="selectBox"
+                        class="chart-display mr-auto d-hide"
+                        data-target="charts.options"
+                        data-action="charts#onChange"
+                        style="font-size:0.8em; margin-top: 12px;"
+                    >
+                        <option value="tx-distribution">Type Distribution</option>
+                        <option value="amount-distribution">Amount Distribution</option>
+                    </select>
+                    <h5 class="mr-auto mb-0 list-display">History</h5>
+                    {{if lt .NumTransactions $TxnCount}}
+                    <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
+                        <span class="fs12 nowrap text-right">
+                            {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma $TxnCount}} transactions
+                            {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
+                            <sup>*</sup>
+                            {{end}}
+                        </span>
+                        <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
+                            <ul class="pagination mb-0 pagination-sm">
+                                <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{$txType}}"
+                                        id="prev"
+                                    >Previous</a>
+                                </li>
+                                <li class="page-item {{if lt (subtract $TxnCount .Offset) (add .Limit 1)}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{$txType}}"
+                                        id="next">
+                                        Next
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
                     </div>
-                    <div class="list-display">
-                        <h5 class="mr-auto mb-0">History</h5>
-                        {{if lt .NumTransactions $TxnCount}}
-                        <div class="d-flex flex-wrap-reverse align-items-center justify-content-end">
-                            <span class="fs12 nowrap text-right">
-                                {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma $TxnCount}} transactions
-                                {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
-                                <sup>*</sup>
-                                {{end}}
-                            </span>
-                            <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
-                                <ul class="pagination mb-0 pagination-sm">
-                                    <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
-                                        <a
-                                            class="page-link"
-                                            href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{$txType}}"
-                                            id="prev"
-                                        >Previous</a>
-                                    </li>
-                                    <li class="page-item {{if lt (subtract $TxnCount .Offset) (add .Limit 1)}}disabled{{end}}">
-                                        <a
-                                            class="page-link"
-                                            href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{$txType}}"
-                                            id="next">
-                                            Next
-                                        </a>
-                                    </li>
-                                </ul>
-                            </nav>
-                        </div>
-                        {{else}}
-                        <span class="fs12 nowrap text-right">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
-                        {{end}}
-                    </div>
+                    {{else}}
+                    <span class="fs12 nowrap text-right">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
+                    {{end}}
                 </div>
                 <div class="list-display">
                     {{if .Transactions}}
-                    <table class="table table-mono-cells table-sm striped">
+                    <table class="table table-mono-cells table-sm striped" style="width: 100%;">
                         <thead>
                             <th>Input/Output ID</th>
                             {{if eq $txType "merged debit"}}
@@ -280,7 +282,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="chart-display" data-target="address.chart" hidden>
+                <div class="chart-display d-hide" data-target="address.chart" hidden>
                     <select id="selectBox">
                         <option value="">Types</option>
                         <option value="">Amounts</option>
@@ -334,10 +336,8 @@
     </script>
     {{end}}
     {{ template "footer" . }}
+    <div class="modal"></div>
 
-    <script>
-        var val = {{.ChartData}}
-    </script>
 </body>
 </html>
 {{end}}
