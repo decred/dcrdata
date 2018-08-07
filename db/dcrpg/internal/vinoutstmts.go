@@ -43,12 +43,11 @@ const (
 			WHERE t.rnum > 1);`
 
 	IndexVinTableOnVins = `CREATE UNIQUE INDEX uix_vin
-		ON vins(tx_hash, tx_index, tx_tree)
-		;`  // STORING (prev_tx_hash, prev_tx_index)
+		ON vins(tx_hash, tx_index, tx_tree);`
+	DeindexVinTableOnVins = `DROP INDEX uix_vin;`
+
 	IndexVinTableOnPrevOuts = `CREATE INDEX uix_vin_prevout
-		ON vins(prev_tx_hash, prev_tx_index)
-		;`  // STORING (tx_hash, tx_index)
-	DeindexVinTableOnVins     = `DROP INDEX uix_vin;`
+		ON vins(prev_tx_hash, prev_tx_index);`
 	DeindexVinTableOnPrevOuts = `DROP INDEX uix_vin_prevout;`
 
 	SelectVinIDsALL = `SELECT id FROM vins;`
@@ -82,11 +81,11 @@ const (
 
 	// SetVinsTableCoinSupplyUpgrade does not set is_mainchain because that upgrade comes after this one
 	SetVinsTableCoinSupplyUpgrade = `UPDATE vins SET is_valid = $1, block_time = $3, value_in = $4
-		WHERE tx_hash = $5 and tx_index = $6 and tx_tree = $7;`
+		WHERE tx_hash = $5 AND tx_index = $6 AND tx_tree = $7;`
 
-	// SelectCoinSupply fetches the coin supply as of the latest block and sum
-	// represents the generated coins for all stakebase and only
-	// not-invalidated coinbase transactions.
+	// SelectCoinSupply fetches the coin supply as of the latest block, where
+	// sum represents the generated coins for all stakebase and only
+	// stake-validated coinbase transactions.
 	SelectCoinSupply = `SELECT block_time, sum(value_in) FROM vins WHERE
 		prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000' AND
 		NOT (is_valid = false AND tx_tree = 0)
