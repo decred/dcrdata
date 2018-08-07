@@ -23,7 +23,7 @@ const (
 	insertTxRow = insertTxRow0 + `RETURNING id;`
 	//insertTxRowChecked = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTxRow = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET block_height = $2 RETURNING id;`
+		SET is_valid = $20, is_mainchain = $21 RETURNING id;`
 	insertTxRowReturnId = `WITH ins AS (` +
 		insertTxRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE

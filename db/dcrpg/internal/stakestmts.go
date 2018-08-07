@@ -36,7 +36,7 @@ const (
 	insertTicketRow = insertTicketRow0 + `RETURNING id;`
 	// insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTicketRow = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET tx_hash = $1, block_hash = $2 RETURNING id;`
+		SET is_mainchain = $13 RETURNING id;`
 	insertTicketRowReturnId = `WITH ins AS (` +
 		insertTicketRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE
@@ -140,7 +140,7 @@ const (
 	insertVoteRow = insertVoteRow0 + `RETURNING id;`
 	// insertVoteRowChecked = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertVoteRow = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET tx_hash = $2, block_hash = $3 RETURNING id;`
+		SET is_mainchain = $12 RETURNING id;`
 	insertVoteRowReturnId = `WITH ins AS (` +
 		insertVoteRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE

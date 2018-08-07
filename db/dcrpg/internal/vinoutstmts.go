@@ -31,7 +31,9 @@ const (
 	// InsertVinRowChecked = InsertVinRow0 +
 	// 	`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
 	UpsertVinRow = InsertVinRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE 
-		SET tx_hash = $1, tx_index = $2, tx_tree = $3 RETURNING id;`
+		SET is_valid = $8, is_mainchain = $9, block_time = $10, 
+			prev_tx_hash = $4, prev_tx_index = $5, prev_tx_tree = $6
+		RETURNING id;`
 
 	DeleteVinsDuplicateRows = `DELETE FROM vins
 		WHERE id IN (SELECT id FROM (
@@ -42,10 +44,10 @@ const (
 
 	IndexVinTableOnVins = `CREATE UNIQUE INDEX uix_vin
 		ON vins(tx_hash, tx_index, tx_tree)
-		;` // STORING (prev_tx_hash, prev_tx_index)
+		;`  // STORING (prev_tx_hash, prev_tx_index)
 	IndexVinTableOnPrevOuts = `CREATE INDEX uix_vin_prevout
 		ON vins(prev_tx_hash, prev_tx_index)
-		;` // STORING (tx_hash, tx_index)
+		;`  // STORING (tx_hash, tx_index)
 	DeindexVinTableOnVins     = `DROP INDEX uix_vin;`
 	DeindexVinTableOnPrevOuts = `DROP INDEX uix_vin_prevout;`
 
@@ -120,7 +122,7 @@ const (
 	insertVoutRow = insertVoutRow0 + `RETURNING id;`
 	//insertVoutRowChecked  = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
 	upsertVoutRow = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE 
-		SET tx_hash = $1, tx_index = $2, tx_tree = $3 RETURNING id;`
+		SET version = $5 RETURNING id;`
 	insertVoutRowReturnId = `WITH inserting AS (` +
 		insertVoutRow0 +
 		`ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE

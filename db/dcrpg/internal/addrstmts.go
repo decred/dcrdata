@@ -8,7 +8,7 @@ const (
 	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
 
 	UpsertAddressRow = insertAddressRow0 + `ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE 
-		SET address = $1, tx_vin_vout_row_id = $5 RETURNING id;`
+		SET block_time = $7, valid_mainchain = $9 RETURNING id;`
 	InsertAddressRowReturnID = `WITH inserting AS (` +
 		insertAddressRow0 +
 		`ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE

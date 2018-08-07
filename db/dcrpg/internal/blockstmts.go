@@ -26,7 +26,7 @@ const (
 	insertBlockRow = insertBlockRow0 + `RETURNING id;`
 	// insertBlockRowChecked  = insertBlockRow0 + `ON CONFLICT (hash) DO NOTHING RETURNING id;`
 	upsertBlockRow = insertBlockRow0 + `ON CONFLICT (hash) DO UPDATE 
-		SET hash = $1 RETURNING id;`
+		SET is_valid = $4, is_mainchain = $5 RETURNING id;`
 	insertBlockRowReturnId = `WITH ins AS (` +
 		insertBlockRow0 +
 		`ON CONFLICT (hash) DO UPDATE
