@@ -487,11 +487,11 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	return poolvals, poolsizes, nil
 }
 
-// RetrieveAllPoolValAndSize returns all the pool values and sizes
-// stored since the first value was recorded up current height.
+// RetrieveAllPoolValAndSize returns all the pool values and sizes stored since
+// the first value was recorded up current height.
 func (db *DB) RetrieveAllPoolValAndSize() (*dbtypes.ChartsData, error) {
 	db.RLock()
-	db.RUnlock()
+	defer db.RUnlock()
 
 	var chartsData = new(dbtypes.ChartsData)
 	var stmt, err = db.Prepare(db.getAllPoolValSize)
@@ -528,10 +528,10 @@ func (db *DB) RetrieveAllPoolValAndSize() (*dbtypes.ChartsData, error) {
 	return chartsData, nil
 }
 
-// RetrieveBlockFeeInfo fetches the block median fee chart data
+// RetrieveBlockFeeInfo fetches the block median fee chart data.
 func (db *DB) RetrieveBlockFeeInfo() (*dbtypes.ChartsData, error) {
 	db.RLock()
-	db.RUnlock()
+	defer db.RUnlock()
 
 	var chartsData = new(dbtypes.ChartsData)
 	var stmt, err = db.Prepare(db.getAllFeeInfoPerBlock)

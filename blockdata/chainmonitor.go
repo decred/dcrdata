@@ -5,6 +5,7 @@
 package blockdata
 
 import (
+	"reflect"
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -185,7 +186,9 @@ out:
 			for _, s := range savers {
 				if s != nil {
 					// save data to wherever the saver wants to put it
-					s.Store(blockData, msgBlock)
+					if err = s.Store(blockData, msgBlock); err != nil {
+						log.Errorf("(%v).Store failed: %v", reflect.TypeOf(s), err)
+					}
 				}
 			}
 

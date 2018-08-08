@@ -77,7 +77,7 @@ func mainCore() error {
 
 	// Start with version info
 	ver := &version.Ver
-	log.Infof("%s version %v (Go version %s)\n", version.AppName, ver, runtime.Version())
+	log.Infof("%s version %v (Go version %s)", version.AppName, ver, runtime.Version())
 
 	// PostgreSQL
 	usePG := cfg.FullMode
