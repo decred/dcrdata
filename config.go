@@ -369,8 +369,8 @@ func loadConfig() (*config, error) {
 	activeNet = &netparams.MainNetParams
 	activeChain = &chaincfg.MainNetParams
 	if cfg.TestNet {
-		activeNet = &netparams.TestNet2Params
-		activeChain = &chaincfg.TestNet2Params
+		activeNet = &netparams.TestNet3Params
+		activeChain = &chaincfg.TestNet3Params
 		numNets++
 	}
 	if cfg.SimNet {
@@ -397,7 +397,7 @@ func loadConfig() (*config, error) {
 	// Make list of old versions of testnet directories here since the network
 	// specific DataDir will be used after this.
 	cfg.DataDir = cleanAndExpandPath(cfg.DataDir)
-	cfg.DataDir = filepath.Join(cfg.DataDir, netName(activeNet))
+	cfg.DataDir = filepath.Join(cfg.DataDir, activeNet.Name)
 	// Create the data folder if it does not exist.
 	err = os.MkdirAll(cfg.DataDir, 0700)
 	if err != nil {
@@ -408,7 +408,7 @@ func loadConfig() (*config, error) {
 	// Append the network type to the log directory so it is "namespaced"
 	// per network in the same fashion as the data directory.
 	cfg.LogDir = cleanAndExpandPath(cfg.LogDir)
-	cfg.LogDir = filepath.Join(cfg.LogDir, netName(activeNet))
+	cfg.LogDir = filepath.Join(cfg.LogDir, activeNet.Name)
 
 	// Initialize log rotation. After log rotation has been initialized, the
 	// logger variables may be used. This creates the LogDir if needed.
@@ -461,20 +461,16 @@ func loadConfig() (*config, error) {
 	return &cfg, nil
 }
 
-// netName returns the name used when referring to a decred network.  At the
-// time of writing, dcrd currently places blocks for testnet version 0 in the
-// data and log directory "testnet", which does not match the Name field of the
-// chaincfg parameters.  This function can be used to override this directory
-// name as "testnet2" when the passed active network matches wire.TestNet2.
-//
-// A proper upgrade to move the data and log directories for this network to
-// "testnet" is planned for the future, at which point this function can be
-// removed and the network parameter's name used instead.
+// netName returns the name used when referring to a decred network. TestNet3
+// correctly returns "testnet3", but not TestNet2. This function may be removed
+// after testnet2 is ancient history.
 func netName(chainParams *netparams.Params) string {
+	// The following switch is to ensure this code is not built for testnet2, as
+	// TestNet2 was removed entirely for dcrd 1.3.0. Compile check!
 	switch chainParams.Net {
-	case wire.TestNet2:
-		return "testnet2"
+	case wire.TestNet3, wire.MainNet, wire.SimNet:
 	default:
-		return chainParams.Name
+		log.Warnf("Unknown network: %s", chainParams.Name)
 	}
+	return chainParams.Name
 }
