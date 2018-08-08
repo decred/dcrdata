@@ -86,3 +86,36 @@ func TestEmptyDBGetStakeInfoHeight(t *testing.T) {
 			endHeight)
 	}
 }
+
+func TestEmptyDBRetrieveSDiff(t *testing.T) {
+	testutil.BindCurrentTestSetup(t)
+	db := ObtainReusableEmptyDB()
+	checkEmptyDBRetrieveSDiff(db, 0)
+	checkEmptyDBRetrieveSDiff(db, 1)
+	checkEmptyDBRetrieveSDiff(db, 2)
+}
+
+func checkEmptyDBRetrieveSDiff(db *DB, i int64) {
+	_, err := db.RetrieveSDiff(i)
+	if err == nil {
+		testutil.ReportTestFailed(
+			"RetrieveSDiff() failed: error expected")
+	}
+}
+
+func TestEmptyDBRetrieveBlockHash(t *testing.T) {
+	testutil.BindCurrentTestSetup(t)
+	db := ObtainReusableEmptyDB()
+
+	checkEmptyDBRetrieveBlockHash(db, 0)
+	checkEmptyDBRetrieveBlockHash(db, 1)
+	checkEmptyDBRetrieveBlockHash(db, 2)
+}
+
+func checkEmptyDBRetrieveBlockHash(db *DB, i int64) {
+	_, err := db.RetrieveBlockHash(i)
+	if err == nil {
+		testutil.ReportTestFailed(
+			"RetrieveBlockHash() failed: error expected")
+	}
+}

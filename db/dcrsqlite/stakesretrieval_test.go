@@ -90,3 +90,42 @@ func TestEmptyDBRetrieveLatestStakeInfoExtended(t *testing.T) {
 			result)
 	}
 }
+
+func TestEmptyDBRetrievePoolInfoByHash(t *testing.T) {
+	testutil.BindCurrentTestSetup(t)
+	db := ObtainReusableEmptyDB()
+	result, err := db.RetrievePoolInfoByHash("")
+	if err == nil {
+		testutil.ReportTestFailed(
+			"RetrievePoolInfoByHash() failed: error expected")
+	}
+	if result == nil {
+		testutil.ReportTestFailed(
+			"RetrievePoolInfoByHash() failed: default result expected, nil returned")
+	}
+	if len(result.Winners) != 0 {
+		testutil.ReportTestFailed(
+			"RetrievePoolInfoByHash() failed: empty array expected\n%v",
+			testutil.ArrayToString("result.Winners", result.Winners))
+	}
+}
+
+func TestEmptyDBRetrievePoolInfo(t *testing.T) {
+	testutil.BindCurrentTestSetup(t)
+	db := ObtainReusableEmptyDB()
+	result, err := db.RetrievePoolInfo(0)
+	if err == nil {
+		testutil.ReportTestFailed(
+			"RetrievePoolInfo() failed: error expected")
+	}
+	if result == nil {
+		testutil.ReportTestFailed(
+			"RetrievePoolInfo() failed: default result expected," +
+				" nil returned")
+	}
+	if len(result.Winners) != 0 {
+		testutil.ReportTestFailed(
+			"RetrievePoolInfo() failed: empty array expected\n%v",
+			testutil.ArrayToString("result.Winners", result.Winners))
+	}
+}
