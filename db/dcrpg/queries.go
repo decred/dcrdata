@@ -1676,25 +1676,48 @@ func retrieveTxHistoryByType(db *sql.DB, addr string) (*dbtypes.ChartsData, erro
 	return items, nil
 }
 
-// retrieveTxHistoryByAmount fetches the transaction amount flow for all the
-// transactions associated with a given address.
-func retrieveTxHistoryByAmount(db *sql.DB, addr string, chartType dbtypes.ChartType) (*dbtypes.ChartsData, error) {
-	var query = ""
+// retrieveTxHistoryByAmount fetches the transaction amount flow i.e. recieved
+// amount and sent for all the transactions associated with a given address per
+// block (per block time).
+func retrieveTxHistoryByAmountFlow(db *sql.DB, addr string) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+
+	rows, err := db.Query(internal.SelectAddressAmountFlowByAddress, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var blockTime, received, sent uint64
+		err = rows.Scan(&blockTime, &received, &sent)
+		if err != nil {
+			return nil, err
+		}
+
+		var fmtSent = dcrutil.Amount(sent).ToCoin()
+		var fmtReceived = dcrutil.Amount(received).ToCoin()
+
+		items.Time = append(items.Time, blockTime)
+		items.Recieved = append(items.Recieved, fmtReceived)
+		items.Sent = append(items.Sent, fmtSent)
+		// Net represents the difference between the recieved and sent for a
+		// given block. If the difference is positive then the values is unspent amount
+		// otherwise if the value is zero then all amount is spent and if the net amount
+		// is negative then for the given block more was sent than recieved.
+		items.Net = append(items.Net, (fmtReceived - fmtSent))
+	}
+	return items, nil
+}
+
+// retrieveTxHistoryByUnspentAmount fetches the unspent amount for all the
+// transactions associated with a given address per given block (block time).
+func retrieveTxHistoryByUnspentAmount(db *sql.DB, addr string) (*dbtypes.ChartsData, error) {
 	var totalAmount = 0.0
 	var items = new(dbtypes.ChartsData)
 
-	switch chartType {
-	case dbtypes.ReceivedAmountChart:
-		query = internal.SelectAddressReceivedAmountByAddress
-
-	case dbtypes.UnspentAmountChart:
-		query = internal.SelectAddressUnspentAmountByAddress
-
-	default:
-		return items, fmt.Errorf("Invalid chartType was found: %v", chartType)
-	}
-
-	rows, err := db.Query(query, addr)
+	rows, err := db.Query(internal.SelectAddressUnspentAmountByAddress, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -1711,14 +1734,8 @@ func retrieveTxHistoryByAmount(db *sql.DB, addr string, chartType dbtypes.ChartT
 		items.Time = append(items.Time, blockTime)
 
 		// Return commmulative amount data for the unspent chart type
-		switch chartType {
-		case dbtypes.ReceivedAmountChart:
-			items.Amount = append(items.Amount, dcrutil.Amount(amount).ToCoin())
-
-		case dbtypes.UnspentAmountChart:
-			totalAmount += dcrutil.Amount(amount).ToCoin()
-			items.Amount = append(items.Amount, totalAmount)
-		}
+		totalAmount += dcrutil.Amount(amount).ToCoin()
+		items.Amount = append(items.Amount, totalAmount)
 	}
 	return items, nil
 }

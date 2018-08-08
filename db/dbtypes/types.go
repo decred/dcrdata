@@ -36,14 +36,6 @@ func (p TicketSpendType) String() string {
 	}
 }
 
-// ChartType defines the two amount chart types that appear on the addresses page.
-type ChartType int
-
-const (
-	ReceivedAmountChart ChartType = iota
-	UnspentAmountChart
-)
-
 // AddrTxnType enumerates the different transaction types as displayed by the
 // address page.
 type AddrTxnType int
@@ -346,6 +338,9 @@ type ChartsData struct {
 	Votes      []uint64  `json:"votes,omitempty"`
 	RevokeTx   []uint64  `json:"revokeTx,omitempty"`
 	Amount     []float64 `json:"amount,omitempty"`
+	Recieved   []float64 `json:"received,omitempty"`
+	Sent       []float64 `json:"sent,omitempty"`
+	Net        []float64 `json:"net,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)

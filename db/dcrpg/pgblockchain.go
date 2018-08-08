@@ -920,8 +920,12 @@ func (pgb *ChainDB) GetTxHistoryByTxType(address string) (*dbtypes.ChartsData, e
 	return retrieveTxHistoryByType(pgb.db, address)
 }
 
-func (pgb *ChainDB) GetTxHistoryByTxAmount(address string, chartType dbtypes.ChartType) (*dbtypes.ChartsData, error) {
-	return retrieveTxHistoryByAmount(pgb.db, address, chartType)
+func (pgb *ChainDB) GetTxHistoryByTxAmountFlow(address string) (*dbtypes.ChartsData, error) {
+	return retrieveTxHistoryByAmountFlow(pgb.db, address)
+}
+
+func (pgb *ChainDB) GetTxHistoryByTxUnspentAmount(address string) (*dbtypes.ChartsData, error) {
+	return retrieveTxHistoryByUnspentAmount(pgb.db, address)
 }
 
 // GetTicketsPriceByHeight returns the ticket price by height chart data.

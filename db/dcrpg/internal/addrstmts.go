@@ -117,9 +117,11 @@ const (
 		COUNT(CASE WHEN tx_type = 3 THEN 1 ELSE NULL END) as ssRtx 
 		FROM addresses WHERE address=$1 GROUP BY block_time ORDER BY block_time;`
 
-	SelectAddressReceivedAmountByAddress = `SELECT block_time, SUM(value) as received FROM
-		addresses WHERE address=$1 and is_funding = TRUE GROUP BY block_time
-		ORDER BY block_time;`
+	SelectAddressAmountFlowByAddress = `SELECT block_time,
+		CASE WHEN is_funding = TRUE THEN SUM(value) ELSE 0 END as received,
+		CASE WHEN is_funding = FALSE THEN SUM(value) ELSE 0 END as sent FROM
+		addresses WHERE address=$1 GROUP BY block_time, is_funding ORDER BY
+		block_time;`
 
 	SelectAddressUnspentAmountByAddress = `SELECT block_time, SUM(value) as unspent
 		FROM addresses WHERE address=$1 and is_funding = TRUE and matching_tx_hash =''

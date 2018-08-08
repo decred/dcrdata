@@ -11,8 +11,13 @@
     function amountFlowFunc(d){
         var p = []
 
+        // start plotting 6 days before the actual day
+        if (d.length > 0) {
+            p.push([new Date((d.time[0] - 10000) * 1000), 0, 0, 0])
+        }
+
         d.time.map((n, i) => {
-            p.push([new Date(n*1000), d.amount[i]])
+            p.push([new Date(n*1000), d.received[i], d.sent[i], d.net[i]])
         });
         return p
     }
@@ -22,6 +27,16 @@
         var html = this.getLabels()[0] + ': ' + data.xHTML;
         data.series.map(function(series){
             var labeledData = `<span style="color: ` + series.color + ';">' +series.labelHTML + ': ' + series.y;
+            html += '<br>' + series.dashHTML  + labeledData +'</span>';
+        });
+        return html;
+    }
+
+    function customizedFormatter(data) {
+        if (data.x == null) return '';
+        var html = this.getLabels()[0] + ': ' + data.xHTML;
+        data.series.map(function(series){
+            var labeledData = `<span style="color: ` + series.color + ';">' +series.labelHTML + ': ' + series.y + ' DCR';
             html += '<br>' + series.dashHTML  + labeledData +'</span>';
         });
         return html;
@@ -65,13 +80,9 @@
         var commonOptions = {
             digitsAfterDecimal: 8,
             showRangeSelector: true,
-            drawPoints: true,
-            stackedGraph: true,
             legend: 'follow',
             xlabel: 'Date',
             labelsSeparateLines: true,
-            plotter: barchartPlotter,
-            legendFormatter: formatter
         }
 
         return new Dygraph(
@@ -83,7 +94,7 @@
 
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
-            return ['options', 'addr', 'btns']
+            return ['options', 'addr', 'btns', 'unspent']
         }
 
         initialize(){
@@ -93,28 +104,34 @@
                     labels: ['Date', 'RegularTx', 'Tickets', 'Votes', 'RevokeTx'],
                     colors: ['#0066cc', '#006600', 'darkorange', '#ff0090'],
                     ylabel: '# of Tx Types',
-                    title: 'Transactions Type Distribution',
+                    title: 'Transactions Types Distribution',
                     plotter: barchartPlotter,
+                    legendFormatter: formatter,
+                    stackedGraph: true,
                     fillGraph: false,
                     labelsKMB: false
                 }
 
-                this.receivedAmountGraphOptions = {
-                    labels: ['Date', 'Received Amount'],
-                    colors: ['rgb(0,128,127)'],
-                    ylabel: 'Received Tx Amount (DCR)',
-                    title: 'Transactions Received Amount Distribution',
+                this.amountFlowGraphOptions = {
+                    labels: ['Date', 'Received', 'Sent', 'Net'],
+                    colors: ['#0066cc', 'rgb(0,128,127)',  '#ff0090'],
+                    ylabel: 'Total Amount (DCR)',
+                    title: 'Transactions Received And Spent Amount Distribution',
                     plotter: barchartPlotter,
+                    legendFormatter: customizedFormatter,
+                    stackedGraph: true,
                     fillGraph: false,
                     labelsKMB: false
                 }
 
-                this.unspentAmountGraphOptions = {
-                    labels: ['Date', 'Unspent Amount'],
+                this.unspentGraphOptions = {
+                    labels: ['Date', 'Unspent'],
                     colors: ['rgb(0,128,127)'],
-                    ylabel: 'Cummulative Unspent Tx Amount (DCR)',
+                    ylabel: 'Cummulative Unspent Amount (DCR)',
                     title: 'Transactions Unspent Amount Distribution',
-                    plotter: Dygraph.Plotters.linePlotter,
+                    plotter: [Dygraph.Plotters.linePlotter, Dygraph.Plotters.fillPlotter],
+                    legendFormatter: customizedFormatter,
+                    stackedGraph: false,
                     fillGraph: true,
                     labelsKMB: true
                 }
@@ -129,11 +146,20 @@
             var _this = this
             var options = _this.typesGraphOptions
 
-            if (graphType === 'received') {
-                options = _this.receivedAmountGraphOptions
+            $('#no-bal').addClass('d-hide');
+            $('#history-chart').removeClass('d-hide');
+
+            if (graphType === 'amountflow') {
+                options = _this.amountFlowGraphOptions
 
             } else if (graphType === 'unspent') {
-                options = _this.unspentAmountGraphOptions
+                if (_this.unspent == "0") {
+                    $('#no-bal').removeClass('d-hide');
+                    $('#history-chart').addClass('d-hide');
+                    $('body').removeClass('loading');
+                    return
+                }
+                options = _this.unspentGraphOptions
             }
 
             $.ajax({
@@ -189,6 +215,10 @@
         }
         get addr(){
             return this.addrTarget.outerText
+        }
+
+        get unspent(){
+            return this.unspentTarget.id
         }
 
         get btns(){
