@@ -29,7 +29,7 @@
   revision = "5312a61534124124185d41f09206b9fef1d88403"
 
 [[projects]]
-  digest = "1:9a11f5a138abe955049bdb542649e85f0f92a2ea2d5347a2d58051c30a63254e"
+  digest = "1:9ede7940cd19ac5d92896381abac71954feb57608b617152e48112c3dc667e87"
   name = "github.com/asdine/storm"
   packages = [
     ".",
@@ -61,7 +61,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:815cf0849e687f1006184d4c5b928339c9872956b811a658023b55486dd45d10"
+  digest = "1:2d6b1dd5a1f854ffbc1e7fc3bf4609b3351f9a621930840a8db321beb03922a1"
   name = "github.com/btcsuite/goleveldb"
   packages = [
     "leveldb",
@@ -138,7 +138,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:eb2039eced6825a24ba5ef99904b1129402e98f44712f9a494dbb33698904e4b"
+  digest = "1:90e23180f5a887b28d58ea40a94f88ad242b3f596adb4f512c5bad9be6b6eb00"
   name = "github.com/decred/dcrd"
   packages = [
     "blockchain",
@@ -154,6 +154,7 @@
     "database",
     "database/ffldb",
     "database/internal/treap",
+    "dcrec",
     "dcrec/edwards",
     "dcrec/secp256k1",
     "dcrec/secp256k1/schnorr",
@@ -167,22 +168,26 @@
     "wire",
   ]
   pruneopts = "UT"
-  revision = "ca7eeee6af72d69a73fe339b453c1ca20d211d04"
+  revision = "553c8a6efb8bff2264d46d1a4781c7b1dbc15964"
 
 [[projects]]
   branch = "master"
-  digest = "1:eb3eacd2115a4e5aa3d07908fb28bbea41d1b7e2a445c698a2706730c92036cb"
+  digest = "1:a6dffa62798a090c972044178af71dd58cdc42088d56dc7cb08589b06135547c"
   name = "github.com/decred/dcrwallet"
   packages = [
     "errors",
+    "internal/helpers",
     "internal/zero",
     "netparams",
     "wallet/internal/snacl",
+    "wallet/internal/txsizes",
     "wallet/internal/walletdb",
+    "wallet/txauthor",
+    "wallet/txrules",
     "wallet/udb",
   ]
   pruneopts = "UT"
-  revision = "69603e2d6d62eefe34f94dc245fc8f8f9180a57c"
+  revision = "640cbe14449e70dc5bd58b7d55049d1457cd5415"
 
 [[projects]]
   digest = "1:72c1f6339c7ca1ecea3e3d30f9cae51bfca19b02d04cfe7e6db32cbfb9a65ddc"
@@ -193,7 +198,7 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:18cb1733391890b2b04df91e61906068f478b4585b0ce3137ec1643d664206cd"
+  digest = "1:49477ff0601513c7c659bf56d3ddf58ffafcc21fe1c2e477a81795eb221ed2cc"
   name = "github.com/dgraph-io/badger"
   packages = [
     ".",
@@ -216,7 +221,7 @@
   revision = "2de33835d10275975374b37b2dcfd22c9020a1f5"
 
 [[projects]]
-  digest = "1:8a7856815c2c403f58da3ab5eda0b0df6f07f2fac6c5a69fd374210cd61ecab6"
+  digest = "1:82c6357bc57f8417f993d490f6c07a9f0b5682ac68b1a64b93a189dece7c5bf5"
   name = "github.com/didip/tollbooth"
   packages = [
     ".",
@@ -245,7 +250,7 @@
   revision = "02af3965c54e8cacf948b97fef38925c4120652c"
 
 [[projects]]
-  digest = "1:343620e06188e0f76464f6524e3db6fa2da8e1c2a0b04eb2267bd91736097f51"
+  digest = "1:4eda9f7bf70f5145b3b9ed3f18ac93e9b1a0e38906eb69e526380c34861e2b07"
   name = "github.com/go-chi/chi"
   packages = [
     ".",
@@ -272,18 +277,20 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:e22469bf84466c427efe488bdb825101c527ecfd79f7829f72505c5ec64a7c06"
+  digest = "1:2e3c336fc7fde5c984d2841455a658a6d626450b1754a854b3b32e7a8f49a07a"
   name = "github.com/google/go-cmp"
   packages = [
     "cmp",
     "cmp/internal/diff",
     "cmp/internal/function",
-    "cmp/internal/value"
-    ]
+    "cmp/internal/value",
+  ]
+  pruneopts = "UT"
   revision = "3af367b6b30c263d47e8895973edcca9a49cf029"
   version = "v0.2.0"
 
 [[projects]]
+  digest = "1:aebccac5eae98c77bbdf314428fb06ec1c1b4bee91589c3624d7facba176b8a6"
   name = "github.com/google/gops"
   packages = [
     "agent",
@@ -296,7 +303,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:19c72f0c685aac774bf2e04a2779e9f917a8228d82007c00d70a4ef22378f03b"
+  digest = "1:324591cd9122f94cc39a87bd44ec71153672c239e2cff5743bfad96b60be3749"
   name = "github.com/googollee/go-engine.io"
   packages = [
     ".",
@@ -343,7 +350,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6866fc4160284073ee63525fc9e2cdef043a26892574340f71b4add734232853"
+  digest = "1:37ce7d7d80531b227023331002c0d42b4b4b291a96798c82a049d03a54ba79e4"
   name = "github.com/lib/pq"
   packages = [
     ".",
@@ -434,7 +441,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e3800245811f109e68be6ade746d6e1da4a40e182a0a6c0f273c67c595837b03"
+  digest = "1:6e74c39c65711bebdc4edfd4a4a8b6ef5be3784b17618393647ed5d25766db04"
   name = "golang.org/x/crypto"
   packages = [
     "internal/subtle",
@@ -447,11 +454,11 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "37a17fe027db43f76fd88b056ddf588563fc8722"
+  revision = "f027049dab0ad238e394a753dba2d14753473a04"
 
 [[projects]]
   branch = "master"
-  digest = "1:7413b347bdda232c930e5528d57c06a65ada843a194521ade0d96d86529fc62e"
+  digest = "1:73eed735a951ac6f608576d9f567e578b60b2784bee332b77b43630bb134b488"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -460,18 +467,18 @@
     "websocket",
   ]
   pruneopts = "UT"
-  revision = "db08ff08e8622530d9ed3a0e8ac279f6d4c02196"
+  revision = "f9ce57c11b242f0f1599cf25c89d8cb02c45295a"
 
 [[projects]]
   branch = "master"
-  digest = "1:b8bce82843bec452e49c13eb44beb487331febbfd7b33d703eb64dff7413150b"
+  digest = "1:50d57c1312366d0d27568591ae750fbb3d00659ad5fd50e3538392a11ccf1e6e"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "56ede360ec1c541828fb88741b3f1049406d28f5"
+  revision = "3249cb6984157e6ed574d535fb27fc72a94a67e2"
 
 [[projects]]
   branch = "master"
@@ -511,6 +518,7 @@
     "github.com/go-chi/chi",
     "github.com/go-chi/chi/middleware",
     "github.com/go-chi/docgen",
+    "github.com/google/go-cmp/cmp",
     "github.com/google/gops/agent",
     "github.com/googollee/go-socket.io",
     "github.com/jrick/logrotate/rotator",
