@@ -1366,7 +1366,7 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 
 		Tx, err1 := db.client.GetRawTransaction(txhash)
 		if err1 != nil {
-			log.Warnf("Unable to GetRawTransaction(%s): %v", tx, err1)
+			log.Warnf("Unable to GetRawTransaction(%s): %v", hash, err1)
 			err = err1
 			continue
 		}

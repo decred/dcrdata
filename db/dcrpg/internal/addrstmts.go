@@ -80,9 +80,9 @@ const (
 		` FROM addresses WHERE address=$1)
 		SELECT * FROM these order by block_time desc limit $2 offset $3;`
 
-	SelectAddressMergedDebitView = `SELECT tx_hash, block_time, sum(value), 
+	SelectAddressMergedDebitView = `SELECT tx_hash, valid_mainchain, block_time, sum(value), 
 		COUNT(*) FROM addresses WHERE address=$1 AND is_funding = FALSE 
-		GROUP BY (tx_hash, block_time) ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+		GROUP BY (tx_hash, valid_mainchain, block_time) ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + addrsColumnNames + `
 		FROM addresses WHERE address=$1 AND is_funding = FALSE

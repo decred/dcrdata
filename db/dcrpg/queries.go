@@ -865,7 +865,7 @@ func scanPartialAddressQueryRows(rows *sql.Rows, addr string) (addressRows []*db
 	for rows.Next() {
 		var addr = dbtypes.AddressRow{Address: addr}
 
-		err = rows.Scan(&addr.TxHash, &addr.TxBlockTime,
+		err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &addr.TxBlockTime,
 			&addr.Value, &addr.MergedDebitCount)
 		if err != nil {
 			return
