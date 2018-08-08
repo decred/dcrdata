@@ -130,6 +130,9 @@ const (
 		FROM transactions AS tr
 		WHERE addresses.tx_hash = tr.tx_hash;`
 
+	SetTxTypeOnAddressesByVinAndVoutIDs = `UPDATE addresses SET tx_type=$1 WHERE
+		tx_vin_vout_row_id=$2 AND is_funding=$3;`
+
 	IndexBlockTimeOnTableAddress   = `CREATE INDEX block_time_index ON addresses (block_time);`
 	DeindexBlockTimeOnTableAddress = `DROP INDEX block_time_index;`
 
