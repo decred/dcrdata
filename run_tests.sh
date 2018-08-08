@@ -25,7 +25,6 @@ testrepo () {
 
   # Check linters
   gometalinter --vendor --disable-all --deadline=10m \
-    --enable=gofmt \
     --enable=vet \
     --enable=gosimple \
     --enable=unconvert \
