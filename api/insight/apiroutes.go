@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -42,8 +41,6 @@ type insightApiContext struct {
 	params     *chaincfg.Params
 	MemPool    DataSourceLite
 	Status     apitypes.Status
-	statusMtx  sync.RWMutex
-
 	JSONIndent string
 }
 

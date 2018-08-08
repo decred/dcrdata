@@ -109,7 +109,7 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 	}, nil
 }
 
-// MigrateFromStorm attemps to load the storm DB specified by the given file
+// MigrateFromStorm attempts to load the storm DB specified by the given file
 // name, and migrate all ticket pool diffs to the badger db.
 func MigrateFromStorm(stormDBFile string, db *badger.DB) (bool, error) {
 	// Check for the storm DB file

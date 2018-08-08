@@ -849,7 +849,8 @@ func RetrieveAddressCreditTxns(db *sql.DB, address string, N, offset int64) (ids
 	return
 }
 
-// Retreive All AddressIDs for a given Hash and Index
+// RetrieveAddressIDsByOutpoint fetches all address row IDs for a given outpoint
+// (hash:index).
 // Update Vin due to DCRD AMOUNTIN - START - DO NOT MERGE CHANGES IF DCRD FIXED
 func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 	voutIndex uint32) ([]uint64, []string, int64, error) {

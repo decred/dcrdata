@@ -91,7 +91,7 @@ func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 		FreshStake:             b.Header.FreshStake,
 		StakeDiff:              b.Header.SBits,
 		BlockExplorerExtraInfo: extra,
-		Time: b.Header.Time,
+		Time:                   b.Header.Time,
 	}
 }
 

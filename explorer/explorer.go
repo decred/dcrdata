@@ -266,8 +266,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 
 	// The actual Reward of a ticket needs to also take into consideration the
 	// ticket maturity (time from ticket purchase until its eligible to vote)
-	// and coinbase maturity (time after vote until funds distributed to
-	// ticket holder are avaliable to use)
+	// and coinbase maturity (time after vote until funds distributed to ticket
+	// holder are available to use).
 	exp.ExtraInfo.RewardPeriod = func() string {
 		PosAvgTotalBlocks := float64(
 			exp.ExtraInfo.Params.MeanVotingBlocks +
