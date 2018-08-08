@@ -1676,6 +1676,53 @@ func retrieveTxHistoryByType(db *sql.DB, addr string) (*dbtypes.ChartsData, erro
 	return items, nil
 }
 
+// retrieveTxHistoryByAmount fetches the transaction amount flow for all the
+// transactions associated with a given address.
+func retrieveTxHistoryByAmount(db *sql.DB, addr string, chartType dbtypes.ChartType) (*dbtypes.ChartsData, error) {
+	var query = ""
+	var totalAmount = 0.0
+	var items = new(dbtypes.ChartsData)
+
+	switch chartType {
+	case dbtypes.ReceivedAmountChart:
+		query = internal.SelectAddressReceivedAmountByAddress
+
+	case dbtypes.UnspentAmountChart:
+		query = internal.SelectAddressUnspentAmountByAddress
+
+	default:
+		return items, fmt.Errorf("Invalid chartType was found: %v", chartType)
+	}
+
+	rows, err := db.Query(query, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var blockTime, amount uint64
+		err = rows.Scan(&blockTime, &amount)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Time = append(items.Time, blockTime)
+
+		// Return commmulative amount data for the unspent chart type
+		switch chartType {
+		case dbtypes.ReceivedAmountChart:
+			items.Amount = append(items.Amount, dcrutil.Amount(amount).ToCoin())
+
+		case dbtypes.UnspentAmountChart:
+			totalAmount += dcrutil.Amount(amount).ToCoin()
+			items.Amount = append(items.Amount, totalAmount)
+		}
+	}
+	return items, nil
+}
+
 // RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that
 // are used to display the ticket price variation on ticket price chart. These
 // data are fetched at an interval of chaincfg.Params.StakeDiffWindowSize.

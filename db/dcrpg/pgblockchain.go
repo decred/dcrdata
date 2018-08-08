@@ -916,8 +916,12 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
-func (pgb *ChainDB) GetTxHistoryByTxType(address string) (*dbtypes.ChartsData, error){
+func (pgb *ChainDB) GetTxHistoryByTxType(address string) (*dbtypes.ChartsData, error) {
 	return retrieveTxHistoryByType(pgb.db, address)
+}
+
+func (pgb *ChainDB) GetTxHistoryByTxAmount(address string, chartType dbtypes.ChartType) (*dbtypes.ChartsData, error) {
+	return retrieveTxHistoryByAmount(pgb.db, address, chartType)
 }
 
 // GetTicketsPriceByHeight returns the ticket price by height chart data.

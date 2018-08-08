@@ -111,11 +111,19 @@ const (
 	// rtx defines Regular transactions, ssTx defines tickets, ssGen defines votes
 	// and ssRtx defines Revocation transactions
 	SelectAddressTxTypesByAddress = `SELECT block_time,
-		SUM(CASE WHEN tx_type = 0 THEN 1 ELSE 0 END) as rtx, 
-		SUM(CASE WHEN tx_type = 1 THEN 1 ELSE 0 END) as ssTx,
-		SUM(CASE WHEN tx_type = 2 THEN 1 ELSE 0 END) as ssGen,
-		SUM(CASE WHEN tx_type = 3 THEN 1 ELSE 0 END) as ssRtx 
+		COUNT(CASE WHEN tx_type = 0 THEN 1 ELSE NULL END) as rtx, 
+		COUNT(CASE WHEN tx_type = 1 THEN 1 ELSE NULL END) as ssTx,
+		COUNT(CASE WHEN tx_type = 2 THEN 1 ELSE NULL END) as ssGen,
+		COUNT(CASE WHEN tx_type = 3 THEN 1 ELSE NULL END) as ssRtx 
 		FROM addresses WHERE address=$1 GROUP BY block_time ORDER BY block_time;`
+
+	SelectAddressReceivedAmountByAddress = `SELECT block_time, SUM(value) as received FROM
+		addresses WHERE address=$1 and is_funding = TRUE GROUP BY block_time
+		ORDER BY block_time;`
+
+	SelectAddressUnspentAmountByAddress = `SELECT block_time, SUM(value) as unspent
+		FROM addresses WHERE address=$1 and is_funding = TRUE and matching_tx_hash =''
+		GROUP BY block_time ORDER BY block_time;`
 
 	UpdateValidMainchainFromTransactions = `UPDATE addresses
 		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean

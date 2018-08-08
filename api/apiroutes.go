@@ -92,6 +92,7 @@ type DataSourceAux interface {
 	AddressTotals(address string) (*apitypes.AddressTotals, error)
 	VotesInBlock(hash string) (int16, error)
 	GetTxHistoryByTxType(address string) (*dbtypes.ChartsData, error)
+	GetTxHistoryByTxAmount(address string, chartType dbtypes.ChartType) (*dbtypes.ChartsData, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -956,7 +957,7 @@ func (c *appContext) getBlockRangeSteppedSummary(w http.ResponseWriter, r *http.
 func (c *appContext) getTicketPool(w http.ResponseWriter, r *http.Request) {
 	// getBlockHeightCtx falls back to try hash if height fails
 	idx := c.getBlockHeightCtx(r)
-	if idx < 0 {
+	if idx < 0 || c.LiteMode {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1098,7 +1099,7 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "not available in lite mode", 422)
 		return
 	}
-	
+
 	address := m.GetAddressCtx(r)
 	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
@@ -1127,9 +1128,26 @@ func (c *appContext) getAddressTxAmountData(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	totals, err := c.AuxDataSource.AddressTotals(address)
+	totals, err := c.AuxDataSource.GetTxHistoryByTxAmount(address, dbtypes.ReceivedAmountChart)
 	if err != nil {
-		log.Warnf("failed to get address totals (%s): %v", address, err)
+		log.Warnf("failed to get address (%s) history by received amount flow: %v", address, err)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, totals, c.getIndentQuery(r))
+}
+
+func (c *appContext) getAddressTxUnspentAmountData(w http.ResponseWriter, r *http.Request) {
+	address := m.GetAddressCtx(r)
+	if address == "" || c.LiteMode {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	totals, err := c.AuxDataSource.GetTxHistoryByTxAmount(address, dbtypes.UnspentAmountChart)
+	if err != nil {
+		log.Warnf("failed to get address (%s) history by unspent amount flow: %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}

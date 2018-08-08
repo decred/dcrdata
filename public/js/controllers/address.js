@@ -1,8 +1,18 @@
 (() => {
     function txTypesFunc(d){
         var p = []
-        d.time.forEach((n, i) => {
+
+        d.time.map((n, i) => {
             p.push([new Date(n*1000), d.regularTx[i], d.tickets[i], d.votes[i], d.revokeTx[i]])
+        });
+        return p
+    }
+
+    function amountFlowFunc(d){
+        var p = []
+
+        d.time.map((n, i) => {
+            p.push([new Date(n*1000), d.amount[i]])
         });
         return p
     }
@@ -10,8 +20,8 @@
     function formatter(data) {
         if (data.x == null) return '';
         var html = this.getLabels()[0] + ': ' + data.xHTML;
-        data.series.forEach(function(series){
-            var labeledData = `<span style="color: ` + series.color + ';">' +series.labelHTML + ': ' + series.yHTML;
+        data.series.map(function(series){
+            var labeledData = `<span style="color: ` + series.color + ';">' +series.labelHTML + ': ' + series.y;
             html += '<br>' + series.dashHTML  + labeledData +'</span>';
         });
         return html;
@@ -51,40 +61,106 @@
             }               
         } 
    
-    function plotGraph(){
+    function plotGraph(processedData, otherOptions){
+        var commonOptions = {
+            digitsAfterDecimal: 8,
+            showRangeSelector: true,
+            drawPoints: true,
+            stackedGraph: true,
+            legend: 'follow',
+            xlabel: 'Date',
+            labelsSeparateLines: true,
+            plotter: barchartPlotter,
+            legendFormatter: formatter
+        }
+
         return new Dygraph(
-            document.getElementById('tx-type-chart'),
-            txTypesFunc(val),
-            {
-                digitsAfterDecimal: 8,
-                showRangeSelector: true,
-                drawPoints: true,
-                labels: ['Date', 'RegularTx', 'Tickets', 'Votes', 'RevokeTx'],
-                legend: 'follow',
-                colors: ['#0066cc', '#006600', 'darkorange', '#ff0090'],
-                ylabel: '# of tx types',
-                xlabel: 'Date',
-                title: 'Transactions Type Distribution',
-                stackedGraph: true,
-                labelsSeparateLines: true,
-                legendFormatter: formatter,
-                plotter: barchartPlotter
-            });
+            document.getElementById('history-chart'),
+            processedData,
+            {...commonOptions, ...otherOptions}
+        );
     }
 
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
-            return ['chart', 'qrcode', 'btns']
+            return ['options', 'addr', 'btns']
         }
+
         initialize(){
-            $.getScript('/js/dygraphs.min.js', () => {})
+            var _this = this
+            $.getScript('/js/dygraphs.min.js', () => {
+                this.typesGraphOptions = {
+                    labels: ['Date', 'RegularTx', 'Tickets', 'Votes', 'RevokeTx'],
+                    colors: ['#0066cc', '#006600', 'darkorange', '#ff0090'],
+                    ylabel: '# of Tx Types',
+                    title: 'Transactions Type Distribution',
+                    plotter: barchartPlotter,
+                    fillGraph: false,
+                    labelsKMB: false
+                }
+
+                this.receivedAmountGraphOptions = {
+                    labels: ['Date', 'Received Amount'],
+                    colors: ['rgb(0,128,127)'],
+                    ylabel: 'Received Tx Amount (DCR)',
+                    title: 'Transactions Received Amount Distribution',
+                    plotter: barchartPlotter,
+                    fillGraph: false,
+                    labelsKMB: false
+                }
+
+                this.unspentAmountGraphOptions = {
+                    labels: ['Date', 'Unspent Amount'],
+                    colors: ['rgb(0,128,127)'],
+                    ylabel: 'Cummulative Unspent Tx Amount (DCR)',
+                    title: 'Transactions Unspent Amount Distribution',
+                    plotter: Dygraph.Plotters.linePlotter,
+                    fillGraph: true,
+                    labelsKMB: true
+                }
+            })
         }
 
         disconnect(){
             this.graph.destroy()
         }
 
-        changeview() {
+        drawGraph(graphType){
+            var _this = this
+            var options = _this.typesGraphOptions
+
+            if (graphType === 'received') {
+                options = _this.receivedAmountGraphOptions
+
+            } else if (graphType === 'unspent') {
+                options = _this.unspentAmountGraphOptions
+            }
+
+            $.ajax({
+                type: 'GET',
+                url: '/api/address/' + _this.addr + '/' + graphType,
+                beforeSend: function() {},
+                success: function(data) {
+                    var newData = []
+                    if (graphType === 'types') {
+                        newData = txTypesFunc(data)
+                    } else {
+                        newData = amountFlowFunc(data)
+                    }
+
+                    if (_this.graph == null) {
+                        _this.graph = plotGraph(newData, options)
+                    } else {
+                        _this.graph.updateOptions({
+                            ...{'file': newData},
+                            ...options})
+                    }
+                    $('body').removeClass('loading');
+                }
+            });
+        }
+
+        changeView() {
             $('body').addClass('loading');
             var _this = this
             var divHide = 'list'
@@ -94,30 +170,29 @@
                 divHide = 'chart'
                 $('body').removeClass('loading');
             } else {
-                if (_this.graph == null) {
-                    _this.graph = plotGraph()
-                } else {
-                    _this.updatedata({'file': "data"})
-                }
+                _this.drawGraph('types')
             }
+
             $('.'+divShow+'-display').removeClass('d-hide');
             $('.'+divHide+'-display').addClass('d-hide');
         }
 
-        updategraph(){
-            
+        changeGraph(){
+            $('body').addClass('loading');
+
+            this.drawGraph(this.options)
         }
 
-        get chart(){
-            return this.chartTarget.name
+        get options(){
+            var selectedValue = this.optionsTarget
+            return selectedValue.options[selectedValue.selectedIndex].value;
+        }
+        get addr(){
+            return this.addrTarget.outerText
         }
 
         get btns(){
             return this.btnsTarget.getElementsByClassName("btn-active")[0].name
-        }
-
-        get qrcode(){
-            return this.qrcodeTarget.name
         }
     })
 })()

@@ -36,6 +36,14 @@ func (p TicketSpendType) String() string {
 	}
 }
 
+// ChartType defines the two amount chart types that appear on the addresses page.
+type ChartType int
+
+const (
+	ReceivedAmountChart ChartType = iota
+	UnspentAmountChart
+)
+
 // AddrTxnType enumerates the different transaction types as displayed by the
 // address page.
 type AddrTxnType int
@@ -291,7 +299,7 @@ type Vout struct {
 	TxHash           string           `json:"tx_hash"`
 	TxIndex          uint32           `json:"tx_index"`
 	TxTree           int8             `json:"tx_tree"`
-	TxType           int16           `json:"tx_type"`
+	TxType           int16            `json:"tx_type"`
 	Value            uint64           `json:"value"`
 	Version          uint16           `json:"version"`
 	ScriptPubKey     []byte           `json:"pkScriptHex"`
@@ -337,6 +345,7 @@ type ChartsData struct {
 	Tickets    []uint64  `json:"tickets,omitempty"`
 	Votes      []uint64  `json:"votes,omitempty"`
 	RevokeTx   []uint64  `json:"revokeTx,omitempty"`
+	Amount     []float64 `json:"amount,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
@@ -357,7 +366,7 @@ type VinTxProperty struct {
 	TxID        string `json:"tx_hash"`
 	TxIndex     uint32 `json:"tx_index"`
 	TxTree      uint16 `json:"tx_tree"`
-	TxType      int16 `json:"tx_type"`
+	TxType      int16  `json:"tx_type"`
 	BlockHeight uint32 `json:"blockheight"`
 	BlockIndex  uint32 `json:"blockindex"`
 	ScriptHex   []byte `json:"scripthex"`
