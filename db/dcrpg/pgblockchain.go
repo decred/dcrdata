@@ -620,7 +620,7 @@ func (pgb *ChainDB) addressBalance(address string) (*explorer.AddressBalance, er
 func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *explorer.AddressBalance, error) {
 
-	bb, err := pgb.HeightDB()
+	bb, err := pgb.HeightDB() // TODO: should be by block hash
 	if err != nil {
 		return nil, nil, err
 	}
@@ -663,6 +663,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	// You've got all txs when the total number of fetched txs is less than the
 	// limit ,txtype is AddrTxnAll and Offset is zero.
 	if len(addressRows) < int(N) && offset == 0 && txnType == dbtypes.AddrTxnAll {
+		log.Debugf("Taking balance shortcut since address rows includes all.")
 		balanceInfo = explorer.AddressBalance{
 			Address:      address,
 			NumSpent:     addrInfo.NumSpendingTxns,
@@ -671,6 +672,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 			TotalUnspent: int64(addrInfo.AmountUnspent),
 		}
 	} else {
+		log.Debugf("Obtaining balance via DB query.")
 		var numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent int64
 		numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent, err =
 			RetrieveAddressSpentUnspent(pgb.db, address)

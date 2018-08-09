@@ -41,7 +41,7 @@ const (
 		);`
 
 	SelectAddressAllByAddress = `SELECT * FROM addresses WHERE address=$1 ORDER BY block_time DESC;`
-	SelectAddressRecvCount    = `SELECT COUNT(*) FROM addresses WHERE address=$1;`
+	SelectAddressRecvCount    = `SELECT COUNT(*) FROM addresses WHERE address=$1 AND valid_mainchain = TRUE;`
 	SelectAddressesAllTxn     = `SELECT tx_hash, block_time AS tx_time, ftxd.block_height AS height 
 		FROM addresses LEFT JOIN transactions AS ftxd ON funding_tx_row_id=ftxd.id 
 		WHERE address = $1 ORDER BY tx_time desc;`
@@ -59,7 +59,7 @@ const (
 	    WHERE address = $1 AND is_funding = FALSE AND matching_tx_hash != '' AND valid_mainchain = TRUE;`
 
 	SelectAddressesMergedSpentCount = `SELECT COUNT( distinct tx_hash ) FROM addresses
-		WHERE address = $1 AND is_funding = FALSE`
+		WHERE address = $1 AND is_funding = FALSE AND valid_mainchain = TRUE;`
 
 	SelectAddressUnspentWithTxn = `SELECT addresses.address, addresses.tx_hash, addresses.value,
 			transactions.block_height, addresses.block_time, tx_vin_vout_index, pkscript
@@ -74,22 +74,22 @@ const (
 		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
 
 	SelectAddressLimitNByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
-	    WHERE address=$1 ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+	    WHERE address=$1 AND valid_mainchain = TRUE ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressLimitNByAddressSubQry = `WITH these as (SELECT ` + addrsColumnNames +
-		` FROM addresses WHERE address=$1)
-		SELECT * FROM these order by block_time desc limit $2 offset $3;`
+	SelectAddressLimitNByAddressSubQry = `WITH these AS (SELECT ` + addrsColumnNames +
+		` FROM addresses WHERE address=$1 AND valid_mainchain = TRUE)
+		SELECT * FROM these ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressMergedDebitView = `SELECT tx_hash, valid_mainchain, block_time, sum(value), 
 		COUNT(*) FROM addresses WHERE address=$1 AND is_funding = FALSE 
 		GROUP BY (tx_hash, valid_mainchain, block_time) ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + addrsColumnNames + `
-		FROM addresses WHERE address=$1 AND is_funding = FALSE
+		FROM addresses WHERE address=$1 AND is_funding = FALSE AND valid_mainchain = TRUE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressCreditsLimitNByAddress = `SELECT ` + addrsColumnNames + `
-		FROM addresses WHERE address=$1 AND is_funding = TRUE
+		FROM addresses WHERE address=$1 AND is_funding = TRUE AND valid_mainchain = TRUE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressIDsByFundingOutpoint = `SELECT id, address FROM addresses WHERE tx_hash=$1 AND 
