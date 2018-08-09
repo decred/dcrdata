@@ -25,6 +25,7 @@ import (
 	"github.com/decred/dcrdata/db/dbtypes"
 	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/decred/dcrdata/explorer"
+	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -95,6 +96,22 @@ type ChainDBRPC struct {
 // duplicate row checks on insertion are enabled. also enables rpc client
 func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) {
 	return &ChainDBRPC{chaindb, cl}, nil
+}
+
+// SyncChainDBAsync calls (*ChainDB).SyncChainDBAsync after a nil pointer check
+// on the ChainDBRPC receiver.
+func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
+	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
+	updateAllVotes, newIndexes bool) {
+	if db == nil {
+		res <- dbtypes.SyncResult{
+			Height: -1,
+			Error:  fmt.Errorf("ChainDB (psql) disabled"),
+		}
+		return
+	}
+	db.ChainDB.SyncChainDBAsync(res, client, quit, updateAllAddresses,
+		updateAllVotes, newIndexes)
 }
 
 // addressCounter provides a cache for address balances.
