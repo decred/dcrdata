@@ -9,6 +9,10 @@ import (
 	"github.com/decred/dcrdata/testutil"
 )
 
+const (
+	TestDBFileName = "test-data.db"
+)
+
 // DBPathForTest produces path inside dedicated test folder for current test
 func DBPathForTest() string {
 	testName := testutil.CurrentTestSetup().Name()
@@ -45,4 +49,26 @@ func ObtainReusableEmptyDB() *DB {
 		reusableEmptyDB = InitTestDB(targetDBFile)
 	}
 	return reusableEmptyDB
+}
+
+var testDBs = make(map[string]*DB)
+
+func ObtainDB(tag string) *DB {
+	tdb := testDBs[tag]
+	if tdb == nil {
+		tdb = loadTDB(tag)
+		testDBs[tag] = tdb
+	}
+	return tdb
+}
+
+func PathToTestDBFile(tag string) string {
+	return testutil.PathToTestDataFile(tag, TestDBFileName)
+}
+
+func loadTDB(tag string) *DB {
+	testDBFile := PathToTestDBFile(tag)
+	testutil.Log("        testDBFile", testDBFile)
+	db := InitTestDB(testDBFile)
+	return db
 }
