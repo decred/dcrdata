@@ -80,17 +80,17 @@ type AddressTx struct {
 // IOID formats an identification string for the transaction input (or output)
 // represented by the AddressTx.
 func (a *AddressTx) IOID(txType ...string) string {
-	// if transaction is of type merged debit, return unformatted transaction ID
+	// If transaction is of type merged_debit, return unformatted transaction ID
 	if len(txType) > 0 && dbtypes.AddrTxnTypeFromStr(txType[0]) == dbtypes.AddrMergedTxnDebit {
 		return a.TxID
 	}
 	// When AddressTx is used properly, at least one of ReceivedTotal or
 	// SentTotal should be zero.
 	if a.IsFunding {
-		// an outpoint receiving funds
+		// An outpoint receiving funds
 		return fmt.Sprintf("%s:out[%d]", a.TxID, a.InOutID)
 	}
-	// a transaction input referencing an outpoint being spent
+	// A transaction input referencing an outpoint being spent
 	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
 }
 
