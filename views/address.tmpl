@@ -133,12 +133,12 @@
                 <table class="table table-mono-cells table-sm striped">
                     <thead>
                         <th>Input/Output ID</th>
-                        {{if eq $txType "merged debit"}}
+                        {{if eq $txType "merged_debit"}}
                             <th># of Input(s)</th>
                         {{else}}
                             <th class="text-right">Credit DCR</th>
                         {{end}}
-                        {{if eq $txType "merged debit"}}
+                        {{if eq $txType "merged_debit"}}
                             <th class="text-center">Debit DCR</th>
                         {{else}}
                             <th>Debit DCR</th>
@@ -153,7 +153,7 @@
                         <tr>
                             {{with $v}}
                             <td><a href="/tx/{{.TxID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
-                            {{if eq $txType "merged debit"}}
+                            {{if eq $txType "merged_debit"}}
                                 <td>{{.MergedTxnCount}}</td>
                             {{else}}
                                 {{if ne .ReceivedTotal 0.0}}
@@ -172,7 +172,7 @@
                             {{end}}
                             {{if ne .SentTotal 0.0}}
                                 {{if lt 0.0 .SentTotal}}
-                                   {{if eq $txType "merged debit"}}
+                                   {{if eq $txType "merged_debit"}}
                                         <td class="text-right"> {{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
                                     {{else}}
                                         <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
@@ -232,7 +232,7 @@
                         <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
                         <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
                         <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
-                        <option {{if eq $txType "merged debit"}}selected{{end}} value="merged debit">Merged Debits</option>
+                        <option {{if eq $txType "merged_debit"}}selected{{end}} value="merged_debit">Merged Debits</option>
                     </select>
                 </div>
                 {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}

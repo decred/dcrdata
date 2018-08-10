@@ -53,7 +53,7 @@ var AddrTxnTypes = map[AddrTxnType]string{
 	AddrTxnAll:         "all",
 	AddrTxnCredit:      "credit",
 	AddrTxnDebit:       "debit",
-	AddrMergedTxnDebit: "merged debit",
+	AddrMergedTxnDebit: "merged_debit",
 	AddrTxnUnknown:     "unknown",
 }
 
@@ -75,7 +75,7 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 		fallthrough
 	case "debits":
 		return AddrTxnDebit
-	case "merged debit":
+	case "merged_debit", "merged debit":
 		return AddrMergedTxnDebit
 	default:
 		return AddrTxnUnknown
