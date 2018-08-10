@@ -139,7 +139,7 @@ func mainCore() error {
 	defer baseDB.Close()
 
 	// PostgreSQL
-	var auxDB *dcrpg.ChainDB
+	var auxDB *dcrpg.ChainDBRPC
 	var newPGIndexes, updateAllAddresses, updateAllVotes bool
 	if usePG {
 		pgHost, pgPort := cfg.PGHost, ""
@@ -156,10 +156,15 @@ func mainCore() error {
 			Pass:   cfg.PGPass,
 			DBName: cfg.PGDBName,
 		}
-		auxDB, err = dcrpg.NewChainDB(&dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
-		if auxDB != nil {
-			defer auxDB.Close()
+		chainDB, err := dcrpg.NewChainDB(&dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
+		if chainDB != nil {
+			defer chainDB.Close()
 		}
+		if err != nil {
+			return err
+		}
+
+		auxDB, err = dcrpg.NewChainDBRPC(chainDB, dcrdClient)
 		if err != nil {
 			return err
 		}
@@ -410,12 +415,22 @@ func mainCore() error {
 	wiredDBChainMonitor := baseDB.NewChainMonitor(collector, quit, &wg,
 		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
 
+	var auxDBChainMonitor *dcrpg.ChainMonitor
+	auxDBBlockConnectedSync := func(*chainhash.Hash) {}
+	if usePG {
+		// Blockchain monitor for the aux (PG) DB
+		auxDBChainMonitor = auxDB.NewChainMonitor(quit, &wg,
+			notify.NtfnChans.ConnectChanDcrpgDB, notify.NtfnChans.ReorgChanDcrpgDB)
+		auxDBBlockConnectedSync = auxDBChainMonitor.BlockConnectedSync
+	}
+
 	// Setup the synchronous handler functions called by the collectionQueue via
 	// OnBlockConnected.
 	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
 		sdbChainMonitor.BlockConnectedSync,     // 1. Stake DB for pool info
 		wsChainMonitor.BlockConnectedSync,      // 2. blockdata for regular block data collection and storage
 		wiredDBChainMonitor.BlockConnectedSync, // 3. dcrsqlite for sqlite DB reorg handling
+		auxDBBlockConnectedSync,
 	})
 
 	// Initial data summary for web ui. stakedb must be at the same height, so
@@ -448,6 +463,13 @@ func mainCore() error {
 	wg.Add(2)
 	go wiredDBChainMonitor.BlockConnectedHandler()
 	go wiredDBChainMonitor.ReorgHandler()
+
+	if usePG {
+		// dcrsqlite does not handle new blocks except during reorg
+		wg.Add(2)
+		go auxDBChainMonitor.BlockConnectedHandler()
+		go auxDBChainMonitor.ReorgHandler()
+	}
 
 	if cfg.MonitorMempool {
 		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
@@ -529,8 +551,7 @@ func mainCore() error {
 	webMux.Get("/charts", explore.Charts)
 
 	if usePG {
-		chainDBRPC, _ := dcrpg.NewChainDBRPC(auxDB, dcrdClient)
-		insightApp := insight.NewInsightContext(dcrdClient, chainDBRPC, activeChain, &baseDB, cfg.IndentJSON)
+		insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
 		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
 		webMux.Mount("/insight/api", insightMux.Mux)
 

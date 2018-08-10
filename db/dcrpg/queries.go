@@ -739,13 +739,13 @@ func RetrieveAddressRecvCount(db *sql.DB, address string) (count int64, err erro
 }
 
 func RetrieveAddressUnspent(db *sql.DB, address string) (count, totalAmount int64, err error) {
-	err = db.QueryRow(internal.SelectAddressUnspentCountAndValue, address).
+	err = db.QueryRow(internal.SelectAddressUnspentCountANDValue, address).
 		Scan(&count, &totalAmount)
 	return
 }
 
 func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64, err error) {
-	err = db.QueryRow(internal.SelectAddressSpentCountAndValue, address).
+	err = db.QueryRow(internal.SelectAddressSpentCountANDValue, address).
 		Scan(&count, &totalAmount)
 	return
 }
@@ -759,7 +759,7 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 	}
 
 	var nu, tu sql.NullInt64
-	err = dbtx.QueryRow(internal.SelectAddressUnspentCountAndValue, address).
+	err = dbtx.QueryRow(internal.SelectAddressUnspentCountANDValue, address).
 		Scan(&nu, &tu)
 	if err != nil && err != sql.ErrNoRows {
 		if errRoll := dbtx.Rollback(); errRoll != nil {
@@ -771,7 +771,7 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 	numUnspent, totalUnspent = nu.Int64, tu.Int64
 
 	var ns, ts sql.NullInt64
-	err = dbtx.QueryRow(internal.SelectAddressSpentCountAndValue, address).
+	err = dbtx.QueryRow(internal.SelectAddressSpentCountANDValue, address).
 		Scan(&ns, &ts)
 	if err != nil && err != sql.ErrNoRows {
 		if errRoll := dbtx.Rollback(); errRoll != nil {
@@ -865,7 +865,7 @@ func scanPartialAddressQueryRows(rows *sql.Rows, addr string) (addressRows []*db
 	for rows.Next() {
 		var addr = dbtypes.AddressRow{Address: addr}
 
-		err = rows.Scan(&addr.TxHash, &addr.TxBlockTime,
+		err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &addr.TxBlockTime,
 			&addr.Value, &addr.MergedDebitCount)
 		if err != nil {
 			return
@@ -1182,6 +1182,36 @@ func RetrieveTxnsVinsByBlock(db *sql.DB, blockHash string) (vinDbIDs []dbtypes.U
 	return
 }
 
+// RetrieveTxnsVinsVoutsByBlock retrieves for all the transactions in the
+// specified block the vin_db_ids and vout_db_ids arrays.
+func RetrieveTxnsVinsVoutsByBlock(db *sql.DB, blockHash string) (vinDbIDs, voutDbIDs []dbtypes.UInt64Array,
+	areMainchain []bool, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectTxnsVinsVoutsByBlock, blockHash)
+	if err != nil {
+		return
+	}
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var vinIDs, voutIDs dbtypes.UInt64Array
+		var isMainchain bool
+		err = rows.Scan(&vinIDs, &voutIDs, &isMainchain)
+		if err != nil {
+			break
+		}
+
+		vinDbIDs = append(vinDbIDs, vinIDs)
+		voutDbIDs = append(voutDbIDs, voutIDs)
+		areMainchain = append(areMainchain, isMainchain)
+	}
+	return
+}
+
 func RetrieveTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string,
 	blockInd uint32, tree int8, err error) {
 	err = db.QueryRow(internal.SelectTxByHash, txHash).Scan(&id, &blockHash, &blockInd, &tree)
@@ -1449,6 +1479,104 @@ func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, check
 		dbBlock.SBits, dbBlock.Difficulty, dbBlock.ExtraData,
 		dbBlock.StakeVersion, dbBlock.PreviousHash).Scan(&id)
 	return id, err
+}
+
+// UpdateTransactionsMainchain sets the is_mainchain column for the transactions
+// in the specified block.
+func UpdateTransactionsMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64, []uint64, error) {
+	rows, err := db.Query(internal.UpdateTxnsMainchainByBlock, isMainchain, blockHash)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to update transactions is_mainchain: %v", err)
+	}
+
+	var numRows int64
+	var txRowIDs []uint64
+	for rows.Next() {
+		var id uint64
+		err = rows.Scan(&id)
+		if err != nil {
+			break
+		}
+
+		txRowIDs = append(txRowIDs, id)
+		numRows++
+	}
+
+	return numRows, txRowIDs, nil
+}
+
+// UpdateTransactionsValid sets the is_valid column of the transactions table
+// for the regular (non-stake) transactions in the specified block.
+func UpdateTransactionsValid(db *sql.DB, blockHash string, isValid bool) (int64, []uint64, error) {
+	rows, err := db.Query(internal.UpdateRegularTxnsValidByBlock, isValid, blockHash)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to update regular transactions is_valid: %v", err)
+	}
+
+	var numRows int64
+	var txRowIDs []uint64
+	for rows.Next() {
+		var id uint64
+		err = rows.Scan(&id)
+		if err != nil {
+			break
+		}
+
+		txRowIDs = append(txRowIDs, id)
+		numRows++
+	}
+
+	return numRows, txRowIDs, nil
+}
+
+// UpdateVotesMainchain sets the is_mainchain column for the votes in the
+// specified block.
+func UpdateVotesMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64, error) {
+	numRows, err := sqlExec(db, internal.UpdateVotesMainchainByBlock,
+		"failed to update votes is_mainchain: ", isMainchain, blockHash)
+	if err != nil {
+		return 0, err
+	}
+	return numRows, nil
+}
+
+// UpdateTicketsMainchain sets the is_mainchain column for the tickets in the
+// specified block.
+func UpdateTicketsMainchain(db *sql.DB, blockHash string, isMainchain bool) (int64, error) {
+	numRows, err := sqlExec(db, internal.UpdateTicketsMainchainByBlock,
+		"failed to update tickets is_mainchain: ", isMainchain, blockHash)
+	if err != nil {
+		return 0, err
+	}
+	return numRows, nil
+}
+
+// UpdateAddressesMainchainByIDs sets the is_mainchain column for the addresses
+// specified by their vin (spending) or vout (funding) row IDs.
+func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt64Array, isMainchain bool) (numSpendingRows, numFundingRows int64, err error) {
+	var numUpdated int64
+	for iTxn := range vinsBlk {
+		for _, vin := range vinsBlk[iTxn] {
+			numUpdated, err = sqlExec(db, internal.SetAddressMainchainForVinIDs,
+				"failed to update spending addresses is_mainchain: ", isMainchain, vin)
+			if err != nil {
+				return
+			}
+			numSpendingRows += numUpdated
+		}
+	}
+
+	for iTxn := range voutsBlk {
+		for _, vout := range voutsBlk[iTxn] {
+			numUpdated, err = sqlExec(db, internal.SetAddressMainchainForVoutIDs,
+				"failed to update funding addresses is_mainchain: ", isMainchain, vout)
+			if err != nil {
+				return
+			}
+			numFundingRows += numUpdated
+		}
+	}
+	return
 }
 
 // UpdateLastBlock updates the is_valid column of the block specified by the row
@@ -1976,7 +2104,8 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 		err := stmt.QueryRow(
 			tx.TxID, tx.BlockHash, tx.BlockHeight, ticketDbIDs[i],
 			stakesubmissionAddress, isMultisig, isSplit, tx.NumVin,
-			price, fee, dbtypes.TicketUnspent, dbtypes.PoolStatusLive).Scan(&id)
+			price, fee, dbtypes.TicketUnspent, dbtypes.PoolStatusLive,
+			tx.IsMainchainBlock).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue

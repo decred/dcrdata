@@ -31,6 +31,8 @@ const (
 	transactionsTableMainchainUpgrade
 	addressesTableMainchainUpgrade
 	votesTableMainchainUpgrade
+	ticketsTableMainchainUpgrade
+	votesTableBlockHashIndex
 )
 
 type TableUpgradeType struct {
@@ -54,7 +56,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Apply each upgrade in succession
 	switch {
-	case upgradeInfo[0].UpgradeType != "upgrade":
+	case upgradeInfo[0].UpgradeType != "upgrade" && upgradeInfo[0].UpgradeType != "reindex":
 		return false, nil
 
 	// Upgrade from 3.1.0 --> 3.2.0
@@ -111,10 +113,62 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		}
 
 		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.3.0 --> 3.4.0
+	case version.major == 3 && version.minor == 3 && version.patch == 0:
+		toVersion := TableVersion{3, 4, 0}
+
+		// The order of these upgrades is critical
+		theseUpgrades := []TableUpgradeType{
+			{"tickets", ticketsTableMainchainUpgrade},
+		}
+
+		for it := range theseUpgrades {
+			upgradeSuccess, err := pgb.handleUpgrades(nil, theseUpgrades[it].upgradeType)
+			if err != nil || !upgradeSuccess {
+				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
+					theseUpgrades[it].TableName, toVersion, err)
+			}
+		}
+
+		// Bump version
+		if err := versionAllTables(pgb.db, toVersion); err != nil {
+			return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+		}
+
+		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.4.0 --> 3.4.1
+	case version.major == 3 && version.minor == 4 && version.patch == 0:
+		// This is a "reindex" upgrade. Bump patch.
+		toVersion := TableVersion{3, 4, 1}
+
+		// The order of these upgrades is critical
+		theseUpgrades := []TableUpgradeType{
+			{"votes", votesTableBlockHashIndex},
+		}
+
+		for it := range theseUpgrades {
+			upgradeSuccess, err := pgb.handleUpgrades(nil, theseUpgrades[it].upgradeType)
+			if err != nil || !upgradeSuccess {
+				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
+					theseUpgrades[it].TableName, toVersion, err)
+			}
+		}
+
+		// Bump version
+		if err := versionAllTables(pgb.db, toVersion); err != nil {
+			return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+		}
+
+		// Go on to next upgrade
 		// fallthrough
-		// or be done.
+		// or be done
+
 	default:
-		// UpgradeType == "upgrade", but no supported case.
+		// UpgradeType == "upgrade" or "reindex", but no supported case.
 		return false, fmt.Errorf("no upgrade path available for version %v --> %v",
 			version, needVersion)
 	}
@@ -157,6 +211,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case votesTableMainchainUpgrade:
 		tableReady, err = addVotesColumnsForMainchain(pgb.db)
 		tableName, upgradeTypeStr = "votes", "sidechain/reorg"
+	case ticketsTableMainchainUpgrade:
+		tableReady, err = addTicketsColumnsForMainchain(pgb.db)
+		tableName, upgradeTypeStr = "tickets", "sidechain/reorg"
 	case transactionsTableMainchainUpgrade:
 		tableReady, err = addTransactionsColumnsForMainchain(pgb.db)
 		tableName, upgradeTypeStr = "transactions", "sidechain/reorg"
@@ -164,6 +221,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		tableReady, err = haveEmptyAgendasTable(pgb.db)
 		tableName, upgradeTypeStr = "agendas", "new table"
 		i = 128000
+	case votesTableBlockHashIndex:
+		tableReady = true
+		tableName, upgradeTypeStr = "votes", "new index"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -255,6 +315,14 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 			return false, fmt.Errorf(`upgrade of votes table ended prematurely after %d votes. `+
 				`Error: %v`, rowsUpdated, err)
 		}
+	case ticketsTableMainchainUpgrade:
+		// tickets table upgrade handled entirely by the DB backend
+		log.Infof("Starting tickets table mainchain upgrade...")
+		rowsUpdated, err = updateAllTicketsMainchain(pgb.db)
+		if err != nil {
+			return false, fmt.Errorf(`upgrade of tickets table ended prematurely after %d tickets. `+
+				`Error: %v`, rowsUpdated, err)
+		}
 	case addressesTableMainchainUpgrade:
 		// addresses table upgrade handled entirely by the DB backend
 		log.Infof("Starting addresses table mainchain upgrade...")
@@ -264,12 +332,16 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 			return false, fmt.Errorf(`upgrade of addresses table ended prematurely after %d address rows.`+
 				`Error: %v`, rowsUpdated, err)
 		}
+	case votesTableBlockHashIndex:
+		// no upgrade, just "reindex"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
 	}
 
-	log.Infof(" - %v rows in %s table (%s upgrade) were successfully upgraded in %.1f sec",
-		rowsUpdated, tableName, upgradeTypeStr, time.Since(timeStart).Seconds())
+	if rowsUpdated > 0 {
+		log.Infof(" - %v rows in %s table (%s upgrade) were successfully upgraded in %.2f sec",
+			rowsUpdated, tableName, upgradeTypeStr, time.Since(timeStart).Seconds())
+	}
 
 	// Indexes
 	switch tableUpgrade {
@@ -282,6 +354,11 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("Index the agendas table on Block Time...")
 		if err = IndexAgendasTableOnBlockTime(pgb.db); err != nil {
 			return false, fmt.Errorf("failed to index agendas table: %v", err)
+		}
+	case votesTableBlockHashIndex:
+		log.Infof("Indexing votes table on block hash...")
+		if err = IndexVotesTableOnBlockHash(pgb.db); err != nil {
+			return false, fmt.Errorf("failed to index votes table on block_hash: %v", err)
 		}
 	}
 
@@ -362,11 +439,23 @@ func updateAllVotesMainchain(db *sql.DB) (rowsUpdated int64, err error) {
 		"failed to update votes and mainchain status")
 }
 
+// updateAllTicketsMainchain sets is_mainchain for all tickets according to
+// their containing block.
+func updateAllTicketsMainchain(db *sql.DB) (rowsUpdated int64, err error) {
+	return sqlExec(db, internal.UpdateTicketsMainchainAll,
+		"failed to update tickets and mainchain status")
+}
+
 // updateAllTxnsValidMainchain sets is_mainchain and is_valid for all
 // transactions according to their containing block.
 func updateAllTxnsValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
-	return sqlExec(db, internal.UpdateTxnsValidMainchainAll,
-		"failed to update transactions validity and mainchain status")
+	rowsUpdated, err = sqlExec(db, internal.UpdateRegularTxnsValidAll,
+		"failed to update regular transactions' validity status")
+	if err != nil {
+		return
+	}
+	return sqlExec(db, internal.UpdateTxnsMainchainAll,
+		"failed to update all transactions' mainchain status")
 }
 
 // updateAllAddressesValidMainchain sets valid_mainchain for all addresses table
@@ -610,6 +699,14 @@ func addVotesColumnsForMainchain(db *sql.DB) (bool, error) {
 		{"is_mainchain", "BOOLEAN", ""},
 	}
 	return addNewColumnsIfNotFound(db, "votes", newColumns)
+}
+
+func addTicketsColumnsForMainchain(db *sql.DB) (bool, error) {
+	// The new columns and their data types
+	newColumns := []newColumn{
+		{"is_mainchain", "BOOLEAN", ""},
+	}
+	return addNewColumnsIfNotFound(db, "tickets", newColumns)
 }
 
 func addTransactionsColumnsForMainchain(db *sql.DB) (bool, error) {

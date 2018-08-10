@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/api/insight"
 	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/explorer"
 	"github.com/decred/dcrdata/mempool"
@@ -78,6 +79,8 @@ func NewCollectionQueue() *collectionQueue {
 	}
 }
 
+// SetSynchronousHandlers sets the slice of synchronous new block handler
+// functions, which are called in the order they occur in the slice.
 func (q *collectionQueue) SetSynchronousHandlers(syncHandlers []func(hash *chainhash.Hash)) {
 	q.syncHandlers = syncHandlers
 }
@@ -122,19 +125,6 @@ func (q *collectionQueue) ProcessBlocks() {
 		}
 	}
 }
-
-// func (q *collectionQueue) PushBlock(b *blockHashHeight) {
-// 	q.blockQueue = append(q.blockQueue, b)
-// }
-
-// func (q *collectionQueue) PopBlock() *blockHashHeight {
-// 	if len(q.blockQueue) == 0 {
-// 		return nil
-// 	}
-// 	b := q.blockQueue[0]
-// 	q.blockQueue = q.blockQueue[1:]
-// 	return b
-// }
 
 // MakeNodeNtfnHandlers defines the dcrd notification handlers
 func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) {
@@ -191,6 +181,21 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 			wg.Add(1)
 			select {
 			case NtfnChans.ReorgChanStakeDB <- &stakedb.ReorgData{
+				OldChainHead:   *oldHash,
+				OldChainHeight: oldHeight,
+				NewChainHead:   *newHash,
+				NewChainHeight: newHeight,
+				WG:             wg,
+			}:
+			default:
+				wg.Done()
+			}
+			wg.Wait()
+
+			// Send reorg data to ChainDB's monitor
+			wg.Add(1)
+			select {
+			case NtfnChans.ReorgChanDcrpgDB <- &dcrpg.ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,

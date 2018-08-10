@@ -23,7 +23,7 @@ const (
 	insertTxRow = insertTxRow0 + `RETURNING id;`
 	//insertTxRowChecked = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTxRow = insertTxRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET block_height = $2 RETURNING id;`
+		SET is_valid = $20, is_mainchain = $21 RETURNING id;`
 	insertTxRowReturnId = `WITH ins AS (` +
 		insertTxRow0 +
 		`ON CONFLICT (tx_hash, block_hash) DO UPDATE
@@ -84,6 +84,9 @@ const (
 	SelectTxnsVinsByBlock = `SELECT vin_db_ids, is_valid, is_mainchain
 		FROM transactions WHERE block_hash = $1;`
 
+	SelectTxnsVinsVoutsByBlock = `SELECT vin_db_ids, vout_db_ids, is_mainchain
+		FROM transactions WHERE block_hash = $1;`
+
 	UpdateRegularTxnsValidMainchainByBlock = `UPDATE transactions
 		SET is_valid=$1, is_mainchain=$2 
 		WHERE block_hash=$3 and tree=0;`
@@ -94,12 +97,29 @@ const (
 
 	UpdateTxnsMainchainByBlock = `UPDATE transactions
 		SET is_mainchain=$1 
-		WHERE block_hash=$2;`
+		WHERE block_hash=$2
+		RETURNING id;`
 
 	UpdateTxnsValidMainchainAll = `UPDATE transactions
-		SET is_valid=b.is_valid, is_mainchain=b.is_mainchain
+		SET is_valid=(b.is_valid::int + tree)::boolean, is_mainchain=b.is_mainchain
 		FROM (
 			SELECT hash, is_valid, is_mainchain
+			FROM blocks
+		) b
+		WHERE block_hash = b.hash ;`
+
+	UpdateRegularTxnsValidAll = `UPDATE transactions
+		SET is_valid=b.is_valid
+		FROM (
+			SELECT hash, is_valid
+			FROM blocks
+		) b
+		WHERE block_hash = b.hash AND tree = 0;`
+
+	UpdateTxnsMainchainAll = `UPDATE transactions
+		SET is_mainchain=b.is_mainchain
+		FROM (
+			SELECT hash, is_mainchain
 			FROM blocks
 		) b
 		WHERE block_hash = b.hash;`
@@ -108,7 +128,7 @@ const (
 	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`
 
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX uix_tx_block_in
-		ON transactions(block_hash, block_index, tree);`
+		ON transactions(block_hash, block_index, tree);`  // with cockroach: STORING (tx_hash, block_hash)
 	DeindexTransactionTableOnBlockIn = `DROP INDEX uix_tx_block_in;`
 
 	IndexTransactionTableOnHashes = `CREATE UNIQUE INDEX uix_tx_hashes

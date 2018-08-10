@@ -10,6 +10,7 @@ import (
 
 	"github.com/decred/dcrdata/api/insight"
 	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/dcrpg"
 	"github.com/decred/dcrdata/db/dcrsqlite"
 	"github.com/decred/dcrdata/explorer"
 	"github.com/decred/dcrdata/mempool"
@@ -41,6 +42,8 @@ var NtfnChans struct {
 	ReorgChanWiredDB                  chan *dcrsqlite.ReorgData
 	ConnectChanStakeDB                chan *chainhash.Hash
 	ReorgChanStakeDB                  chan *stakedb.ReorgData
+	ConnectChanDcrpgDB                chan *chainhash.Hash
+	ReorgChanDcrpgDB                  chan *dcrpg.ReorgData
 	UpdateStatusNodeHeight            chan uint32
 	UpdateStatusDBHeight              chan uint32
 	SpendTxBlockChan, RecvTxBlockChan chan *txhelpers.BlockWatchedTx
@@ -65,10 +68,13 @@ func MakeNtfnChans(monitorMempool, postgresEnabled bool) {
 	// Stake DB channel for connecting new blocks - BLOCKING!
 	NtfnChans.ConnectChanStakeDB = make(chan *chainhash.Hash)
 
+	NtfnChans.ConnectChanDcrpgDB = make(chan *chainhash.Hash, blockConnChanBuffer)
+
 	// Reorg data channels
 	NtfnChans.ReorgChanBlockData = make(chan *blockdata.ReorgData)
 	NtfnChans.ReorgChanWiredDB = make(chan *dcrsqlite.ReorgData)
 	NtfnChans.ReorgChanStakeDB = make(chan *stakedb.ReorgData)
+	NtfnChans.ReorgChanDcrpgDB = make(chan *dcrpg.ReorgData)
 
 	// To update app status
 	NtfnChans.UpdateStatusNodeHeight = make(chan uint32, blockConnChanBuffer)
@@ -105,6 +111,9 @@ func CloseNtfnChans() {
 	if NtfnChans.ConnectChanStakeDB != nil {
 		close(NtfnChans.ConnectChanStakeDB)
 	}
+	if NtfnChans.ConnectChanDcrpgDB != nil {
+		close(NtfnChans.ConnectChanDcrpgDB)
+	}
 
 	if NtfnChans.ReorgChanBlockData != nil {
 		close(NtfnChans.ReorgChanBlockData)
@@ -114,6 +123,9 @@ func CloseNtfnChans() {
 	}
 	if NtfnChans.ReorgChanStakeDB != nil {
 		close(NtfnChans.ReorgChanStakeDB)
+	}
+	if NtfnChans.ReorgChanDcrpgDB != nil {
+		close(NtfnChans.ReorgChanDcrpgDB)
 	}
 
 	if NtfnChans.UpdateStatusNodeHeight != nil {
