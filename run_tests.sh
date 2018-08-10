@@ -68,6 +68,7 @@ testrepo () {
   git clone https://github.com/dcrlabs/bug-free-happiness test-data-repo
      tar xvf test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz
 
+
   env GORACE='halt_on_error=1' go test -v -race ./...
   if [ $? != 0 ]; then
     echo 'go tests failed'
