@@ -75,7 +75,7 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 		fallthrough
 	case "debits":
 		return AddrTxnDebit
-	case "merged_debit":
+	case "merged_debit", "merged debit":
 		return AddrMergedTxnDebit
 	default:
 		return AddrTxnUnknown
