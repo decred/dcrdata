@@ -159,6 +159,11 @@ body.darkBG .progress {
   background: #2a2a2a !important;
   border-color: #191919 !important;
 }
+.darkBG .nav-pills .nav-link.active {
+  background-color: #2DD8A3;
+  color: black;
+}
+
 .flash {
   animation-duration: .4s;
   animation-name: flashBg;
@@ -772,7 +777,8 @@ body.darkBG .keynav-target {
   padding: .3rem .4rem;
 }
 .nav-pills .nav-link.active {
-  background-color: #007bffad;
+  background-color: #2970FF;
+  color: #f4f6f6;
 }
 
 /*animation*/

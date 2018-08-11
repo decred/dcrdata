@@ -10,7 +10,6 @@
         <div class="container">
             <div class="d-flex justify-content-between align-items-center flex-wrap mt-1 mb-1">
 
-
                 <select
                     id="selectBox"
                     class="form-control"
@@ -34,59 +33,58 @@
                     <option value="ticket-by-outputs-blocks">Ticket Purchases By Block</option>
                 </select>
 
-
-                    <div class="d-flex align-items-center pl-3" data-target="charts.zoomSelector">
-                        <span class="pr-1">Zoom:</span>
-                        <ul
-                            class="nav nav-pills"
-                        >
-                            <li class="nav-item">
-                                <a
-                                    class="nav-link"
-                                    href="javascript:void(0);"
-                                    data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="288"
-                                >Day</a>
-                            </li>
-                            <li class="nav-item">
-                                <a
-                                    class="nav-link"
-                                    href="javascript:void(0);"
-                                    data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="2016"
-                                >Week</a>
-                            </li>
-                            <li class="nav-item">
-                                <a
-                                    class="nav-link"
-                                    href="javascript:void(0);"
-                                    data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="8760"
-                                >Month</a>
-                            </li>
-                            <li class="nav-item">
-                                <a
-                                    class="nav-link"
-                                    href="javascript:void(0);"
-                                    data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="105120"
-                                >Year</a>
-                            </li>
-                            <li class="nav-item">
-                                <a
-                                    class="nav-link"
-                                    href="javascript:void(0);"
-                                    data-target="charts.zoomOption"
-                                    data-action="click->charts#onZoom"
-                                    data-zoom="0"
-                                >All</a>
-                            </li>
-                        </ul>
-                    </div>
+                <div class="d-flex align-items-center pl-3" data-target="charts.zoomSelector">
+                    <span class="pr-1">Zoom:</span>
+                    <ul
+                        class="nav nav-pills"
+                    >
+                        <li class="nav-item">
+                            <a
+                                class="nav-link"
+                                href="javascript:void(0);"
+                                data-target="charts.zoomOption"
+                                data-action="click->charts#onZoom"
+                                data-zoom="288"
+                            >Day</a>
+                        </li>
+                        <li class="nav-item">
+                            <a
+                                class="nav-link"
+                                href="javascript:void(0);"
+                                data-target="charts.zoomOption"
+                                data-action="click->charts#onZoom"
+                                data-zoom="2016"
+                            >Week</a>
+                        </li>
+                        <li class="nav-item">
+                            <a
+                                class="nav-link"
+                                href="javascript:void(0);"
+                                data-target="charts.zoomOption"
+                                data-action="click->charts#onZoom"
+                                data-zoom="8760"
+                            >Month</a>
+                        </li>
+                        <li class="nav-item">
+                            <a
+                                class="nav-link"
+                                href="javascript:void(0);"
+                                data-target="charts.zoomOption"
+                                data-action="click->charts#onZoom"
+                                data-zoom="105120"
+                            >Year</a>
+                        </li>
+                        <li class="nav-item">
+                            <a
+                                class="nav-link"
+                                href="javascript:void(0);"
+                                data-target="charts.zoomOption"
+                                data-action="click->charts#onZoom"
+                                data-zoom="0"
+                            >All</a>
+                        </li>
+                    </ul>
+                </div>
 
                 <div class="legend" data-target="charts.labels"></div>
 
@@ -119,7 +117,6 @@
     </script>
 
     {{ template "footer" . }}
-
 
 </body>
 </html>
