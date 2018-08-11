@@ -4,7 +4,7 @@
 
 {{ template "html-head" "Decred Block Explorer by dcrdata.org"}}
 
-<body>
+<body class="{{ .Theme }}"> 
     {{ template "navbar" . }}
     <div class="container" data-controller="main">
 

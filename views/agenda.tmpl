@@ -4,7 +4,7 @@
     <link href="/css/charts.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
     {{template "html-head" printf "Decred Vote Agenda Pages"}}
-    <body>
+    <body class="{{ .Theme }}">
         {{template "navbar" .}}
         {{with .Ai}}
         <div class="container">
