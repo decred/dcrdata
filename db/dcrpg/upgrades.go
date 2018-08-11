@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrdata/db/dcrpg/internal"
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/txhelpers"
+	"github.com/lib/pq"
 )
 
 // tableUpgradeType defines the types of upgrades that currently exists and
@@ -45,8 +46,8 @@ type TableUpgradeType struct {
 // histogramUpdate defines the fetched details from the transactions table the
 // are needed to undertake the histogram.
 type histogramUpdateType struct {
-	VinsDbIDs  []dbtypes.UInt64Array
-	VoutsDbIDs []dbtypes.UInt64Array
+	VinsDbIDs  []sql.NullInt64
+	VoutsDbIDs []sql.NullInt64
 	TxType     stake.TxType
 }
 
@@ -188,15 +189,15 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			version, needVersion)
 	}
 
+	// A Table upgrade must have happened therefore Bump version
+	if err := versionAllTables(pgb.db, toVersion); err != nil {
+		return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+	}
+
 	// Ensure the required version was reached.
 	upgradeInfo = TableUpgradesRequired(TableVersions(pgb.db))
 	if len(upgradeInfo) > 0 && upgradeInfo[0].UpgradeType != "ok" {
 		return false, fmt.Errorf("failed to upgrade tables to required version %v", needVersion)
-	}
-
-	// A Table upgrade must have happened therefore Bump version
-	if err := versionAllTables(pgb.db, toVersion); err != nil {
-		return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
 	}
 
 	// Unsupported upgrades caught by default case, so we've succeeded.
@@ -253,18 +254,15 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		tableReady, err = haveEmptyAgendasTable(pgb.db)
 		tableName, upgradeTypeStr = "agendas", "new table"
 		i = 128000
-<<<<<<< HEAD
 	case votesTableBlockHashIndex:
 		tableReady = true
 		tableName, upgradeTypeStr = "votes", "new index"
-=======
 	case vinsTxHistogramUpgrade:
 		tableReady, err = addVinsColumnsForHistogramUpgrade(pgb.db)
 		tableName, upgradeTypeStr = "vins", "tx-type addition/histogram"
 	case addressesTxHistogramUpgrade:
 		tableReady, err = addAddressesColumnsForHistogramUpgrade(pgb.db)
 		tableName, upgradeTypeStr = "addresses", "tx-type addition/histogram"
->>>>>>> ac43f38... Automate the histogram upgrade
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -358,7 +356,6 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 			return false, fmt.Errorf(`upgrade of votes table ended prematurely after %d votes. `+
 				`Error: %v`, rowsUpdated, err)
 		}
-<<<<<<< HEAD
 	case ticketsTableMainchainUpgrade:
 		// tickets table upgrade handled entirely by the DB backend
 		log.Infof("Starting tickets table mainchain upgrade...")
@@ -367,9 +364,6 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 			return false, fmt.Errorf(`upgrade of tickets table ended prematurely after %d tickets. `+
 				`Error: %v`, rowsUpdated, err)
 		}
-=======
-
->>>>>>> ac43f38... Automate the histogram upgrade
 	case addressesTableMainchainUpgrade:
 		// addresses table upgrade handled entirely by the DB backend
 		log.Infof("Starting addresses table mainchain upgrade...")
@@ -379,10 +373,8 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 			return false, fmt.Errorf(`upgrade of addresses table ended prematurely after %d address rows.`+
 				`Error: %v`, rowsUpdated, err)
 		}
-<<<<<<< HEAD
 	case votesTableBlockHashIndex:
 		// no upgrade, just "reindex"
-=======
 	case vinsTxHistogramUpgrade, addressesTxHistogramUpgrade:
 		// height is the best block where this table upgrade should stop at.
 		height, err := pgb.HeightDB()
@@ -397,7 +389,6 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 				`Error: %v`, tableName, rowsUpdated, err)
 		}
 
->>>>>>> ac43f38... Automate the histogram upgrade
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
 	}
@@ -497,29 +488,29 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 }
 
 func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade tableUpgradeType) (int64, error) {
-	var i uint64
+	var i, diff uint64
 	// diff is the payload process at once without using over using the memory
-	var diff = uint64(100000)
+	diff = 50000
 	var rowModified int64
 
-	var dbIDs = make([]histogramUpdateType, 0)
-
-	for ; i >= bestBlock; i += diff {
-		rem := bestBlock - i
-		if rem < diff {
-			diff = rem
+	for i < bestBlock {
+		if (bestBlock - i) < diff {
+			diff = (bestBlock - i)
 		}
+		val := (i + 1)
+		i += diff
 
-		log.Infof("Retrieving data from Transactions table between height %d and %d ...", (i - diff + 1), i)
+		log.Infof(" - Retrieving data from txs table between height %d and %d ...", val, i)
 
-		rows, err := pgb.db.Query(internal.SelectTxsVinsAndVoutsIDs, (i - diff + 1), i)
+		rows, err := pgb.db.Query(internal.SelectTxsVinsAndVoutsIDs, val, i)
 		if err != nil {
 			return 0, err
 		}
 
-		if rows.Next() {
+		var dbIDs = make([]histogramUpdateType, 0)
+		for rows.Next() {
 			rowIDs := histogramUpdateType{}
-			err = rows.Scan(&rowIDs.TxType, &rowIDs.VinsDbIDs, &rowIDs.VoutsDbIDs)
+			err = rows.Scan(&rowIDs.TxType, pq.Array(&rowIDs.VinsDbIDs), pq.Array(&rowIDs.VoutsDbIDs))
 			if err != nil {
 				return 0, err
 			}
@@ -527,12 +518,16 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 			dbIDs = append(dbIDs, rowIDs)
 		}
 
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+
 		switch upgrade {
 		case vinsTxHistogramUpgrade:
-			log.Infof("Populating vins table with data between height %d and %d ...", (i - diff + 1), i)
+			log.Infof("Populating vins table with data between height %d and %d ...", val, i)
 
 		case addressesTxHistogramUpgrade:
-			log.Infof("Populating addresses table with data between height %d and %d ...", (i - diff + 1), i)
+			log.Infof("Populating addresses table with data between height %d and %d ...", val, i)
 
 		default:
 			return 0, fmt.Errorf("Unsupported upgrade found: %v", upgrade)
@@ -549,29 +544,28 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 				if err != nil {
 					return 0, err
 				}
-				voutsCount, err = pgb.updateAddressesTxTypeHistogramUpgrade(rowIDs.TxType, false, rowIDs.VinsDbIDs)
+				voutsCount, err = pgb.updateAddressesTxTypeHistogramUpgrade(rowIDs.TxType, true, rowIDs.VoutsDbIDs)
 			}
 
 			if err != nil {
 				return 0, err
 			}
 
-			rowModified += vinsCount + voutsCount
+			rowModified += (vinsCount + voutsCount)
 		}
+
 	}
 	return rowModified, nil
 }
 
-func (pgb *ChainDB) updateVinsTxTypeHistogramUpgrade(txType stake.TxType,
-	vinIDs []dbtypes.UInt64Array) (int64, error) {
+func (pgb *ChainDB) updateVinsTxTypeHistogramUpgrade(txType stake.TxType, vinIDs []sql.NullInt64) (int64, error) {
 	var rowsUpdated int64
 
 	// each vin
 	for _, vinDbID := range vinIDs {
-		result, err := pgb.db.Exec(internal.SetTxTypeOnVinsByVinIDs, txType, vinDbID)
+		result, err := pgb.db.Exec(internal.SetTxTypeOnVinsByVinIDs, txType, vinDbID.Int64)
 		if err != nil {
-			log.Warnf("db ID not found: %d", vinDbID)
-			continue
+			return 0, err
 		}
 
 		c, err := result.RowsAffected()
@@ -586,15 +580,15 @@ func (pgb *ChainDB) updateVinsTxTypeHistogramUpgrade(txType stake.TxType,
 }
 
 func (pgb *ChainDB) updateAddressesTxTypeHistogramUpgrade(txType stake.TxType,
-	isFunding bool, vinVoutRowIDs []dbtypes.UInt64Array) (int64, error) {
+	isFunding bool, vinVoutRowIDs []sql.NullInt64) (int64, error) {
 	var rowsUpdated int64
 
 	// each address entry with a vin db row id or with vout db row id
 	for _, rowDbID := range vinVoutRowIDs {
-		result, err := pgb.db.Exec(internal.SetTxTypeOnVinsByVinIDs, txType, rowDbID, isFunding)
+		result, err := pgb.db.Exec(internal.SetTxTypeOnAddressesByVinAndVoutIDs,
+			txType, rowDbID.Int64, isFunding)
 		if err != nil {
-			log.Warnf("db ID not found: %d", rowDbID)
-			continue
+			return 0, err
 		}
 
 		c, err := result.RowsAffected()
@@ -846,7 +840,7 @@ func addNewColumnsIfNotFound(db *sql.DB, table string, newColumns []newColumn) (
 func addVinsColumnsForHistogramUpgrade(db *sql.DB) (bool, error) {
 	// The new columns and their data types
 	newColumns := []newColumn{
-		{"tx_type", "INT4", "0"},
+		{"tx_type", "INT4", ""},
 	}
 
 	return addNewColumnsIfNotFound(db, "vins", newColumns)
@@ -855,7 +849,7 @@ func addVinsColumnsForHistogramUpgrade(db *sql.DB) (bool, error) {
 func addAddressesColumnsForHistogramUpgrade(db *sql.DB) (bool, error) {
 	// The new columns and their data types
 	newColumns := []newColumn{
-		{"tx_type", "INT4", "0"},
+		{"tx_type", "INT4", ""},
 	}
 
 	return addNewColumnsIfNotFound(db, "addresses", newColumns)

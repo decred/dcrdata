@@ -61,11 +61,8 @@ func RetrieveMissedVotesInBlock(db *sql.DB, blockHash string) (ticketHashes []st
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var hash string
@@ -85,11 +82,8 @@ func RetrieveAllRevokesDbIDHashHeight(db *sql.DB) (ids []uint64,
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var id, vinDbID uint64
@@ -114,11 +108,7 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(db *sql.DB) (ids []uint64, heights 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var id, ticketDbID uint64
@@ -135,44 +125,12 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(db *sql.DB) (ids []uint64, heights 
 	return
 }
 
-// func RetrieveAllVotesDbIDsHeightsTicketHashes(db *sql.DB) (ids []uint64, heights []int64,
-// 	ticketHashes []string, err error) {
-// 	rows, err := db.Query(internal.SelectAllVoteDbIDsHeightsTicketHashes)
-// 	if err != nil {
-// 		return nil, nil, nil, err
-// 	}
-// 	defer func() {
-// 		if e := rows.Close(); e != nil {
-// 			log.Errorf("Close of Query failed: %v", e)
-// 		}
-// 	}()
-
-// 	for rows.Next() {
-// 		var id uint64
-// 		var height int64
-// 		var ticketHash string
-// 		err = rows.Scan(&id, &height, &ticketHash)
-// 		if err != nil {
-// 			break
-// 		}
-
-// 		ids = append(ids, id)
-// 		heights = append(heights, height)
-// 		ticketHashes = append(ticketHashes, ticketHash)
-// 	}
-// 	return
-// }
-
 func RetrieveUnspentTickets(db *sql.DB) (ids []uint64, hashes []string, err error) {
 	rows, err := db.Query(internal.SelectUnspentTickets)
 	if err != nil {
 		return ids, hashes, err
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var id uint64
@@ -810,11 +768,8 @@ func RetrieveAllAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.Ad
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	return scanAddressQueryRows(rows)
 }
@@ -850,11 +805,8 @@ func retrieveAddressTxns(db *sql.DB, address string, N, offset int64,
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	if isMergedDebitView {
 		addr, err := scanPartialAddressQueryRows(rows, address)
@@ -922,11 +874,8 @@ func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 	if err != nil {
 		return ids, addresses, 0, err
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var id uint64
@@ -947,11 +896,8 @@ func RetrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
 	if err != nil {
 		return
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var id uint64
@@ -1013,11 +959,8 @@ func RetrieveFundingTxsByTx(db *sql.DB, txHash string) ([]uint64, []*dbtypes.Tx,
 	if err != nil {
 		return ids, txs, err
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var id uint64
@@ -1047,11 +990,8 @@ func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uin
 	if err != nil {
 		return
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var id uint64
@@ -1091,11 +1031,7 @@ func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtype
 		return nil, err
 	}
 
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+	defer closeRows(rows)
 
 	// Sum abstain, yes, no, and total votes
 	var a, y, n, t uint64
@@ -1169,11 +1105,8 @@ func RetrieveTxnsVinsByBlock(db *sql.DB, blockHash string) (vinDbIDs []dbtypes.U
 	if err != nil {
 		return
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var ids dbtypes.UInt64Array
@@ -1199,11 +1132,8 @@ func RetrieveTxnsVinsVoutsByBlock(db *sql.DB, blockHash string) (vinDbIDs, voutD
 	if err != nil {
 		return
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var vinIDs, voutIDs dbtypes.UInt64Array
@@ -1252,11 +1182,8 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	if err != nil {
 		return
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var id, blockTime uint64
@@ -1307,11 +1234,8 @@ func RetrieveBlocksHashesAll(db *sql.DB) ([]string, error) {
 	if err != nil {
 		return hashes, err
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var hash string
@@ -1389,6 +1313,8 @@ func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeigh
 		return nil, nil
 	}
 
+	defer closeRows(rows)
+
 	for rows.Next() {
 		err = rows.Scan(&tx_hash, &height)
 		if err != nil {
@@ -1419,6 +1345,8 @@ func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string,
 		log.Error(err)
 		return nil, err
 	}
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var addr apitypes.AddressSpendByFunHash
@@ -1497,6 +1425,8 @@ func UpdateTransactionsMainchain(db *sql.DB, blockHash string, isMainchain bool)
 		return 0, nil, fmt.Errorf("failed to update transactions is_mainchain: %v", err)
 	}
 
+	defer closeRows(rows)
+
 	var numRows int64
 	var txRowIDs []uint64
 	for rows.Next() {
@@ -1520,6 +1450,8 @@ func UpdateTransactionsValid(db *sql.DB, blockHash string, isValid bool) (int64,
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to update regular transactions is_valid: %v", err)
 	}
+
+	defer closeRows(rows)
 
 	var numRows int64
 	var txRowIDs []uint64

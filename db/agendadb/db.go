@@ -128,7 +128,7 @@ func GetVoteAgendasForVersion(ver int64, client *rpcclient.Client) (agendas []Ag
 		for i := range voteInfo.Agendas {
 			v := &voteInfo.Agendas[i]
 			a := AgendaTagged{
-				Id:             v.Id,
+				Id:             v.ID,
 				Description:    v.Description,
 				Mask:           v.Mask,
 				StartTime:      v.StartTime,

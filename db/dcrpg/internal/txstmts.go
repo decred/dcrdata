@@ -88,7 +88,7 @@ const (
 		FROM transactions WHERE block_hash = $1;`
 		
 	SelectTxsVinsAndVoutsIDs = `SELECT tx_type, vin_db_ids, vout_db_ids FROM 
-		transactions LIMIT $1 OFFSET $2;`
+		transactions WHERE block_height BETWEEN $1 AND $2;`
 
 	UpdateRegularTxnsValidMainchainByBlock = `UPDATE transactions
 		SET is_valid=$1, is_mainchain=$2 

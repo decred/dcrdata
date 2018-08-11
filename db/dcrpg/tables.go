@@ -39,7 +39,7 @@ var createTypeStatements = map[string]string{
 // re-indexing and a duplicate scan/purge.
 const (
 	tableMajor = 3
-	tableMinor = 4
+	tableMinor = 5
 	tablePatch = 1
 )
 

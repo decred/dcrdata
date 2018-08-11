@@ -44,7 +44,8 @@
             <div class="col-md-4 col-sm-6 d-flex pb-3">
                 <table>
                     <tr  class="h2rem">
-                        <td id="{{.Balance.TotalUnspent}}" class="pr-2 lh1rem vam text-right xs-w91" data-target="address.unspent">TOTAL UNSPENT</td>
+                        <td id="{{.Balance.TotalUnspent}}" class="pr-2 lh1rem vam text-right xs-w91"
+                            data-target="address.unspent">TOTAL UNSPENT</td>
                         {{if .Fullmode}}
                             <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
                                 {{if .Balance}}
@@ -227,7 +228,7 @@
                                 {{if eq .Time 0}}
                                     N/A
                                 {{else}}
-                                    <span data-target="main.age" data-age="{{.Time}}"></span>
+                                    <span data-controller="main" data-target="main.age" data-age="{{.Time}}"></span>
                                 {{end}}
                                 </td>
                                 <td data-confirmation-block-height="{{index $.ConfirmHeight $i}}">{{.Confirmations}}</td>
