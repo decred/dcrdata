@@ -42,8 +42,8 @@ type TableUpgradeType struct {
 	upgradeType tableUpgradeType
 }
 
-// histogramUpdate defines the fetched details from the transactions table the
-// are needed to undertake the histogram.
+// histogramUpdate defines the fetched details from the transactions table that
+// are needed to undertake the histogram upgrade.
 type histogramUpdateType struct {
 	VinsDbIDs  dbtypes.UInt64Array
 	VoutsDbIDs dbtypes.UInt64Array

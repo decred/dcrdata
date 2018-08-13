@@ -11,16 +11,29 @@
     function amountFlowFunc(d){
         var p = []
 
-        // start plotting 6 days before the actual day
-        if (d.length > 0) {
-            p.push([new Date((d.time[0] - 10000) * 1000), 0, 0, 0])
-        }
-
         d.time.map((n, i) => {
-            p.push([new Date(n*1000), d.received[i], d.sent[i], d.net[i]])
+            var v = d.net[i]
+            var netReceived = 0
+            var netSent = 0
+
+            v > 0 ? (netReceived = v) : (netSent = (v* -1))
+            p.push([new Date(n*1000), d.received[i], d.sent[i], netReceived, netSent])
         });
         return p
     }
+
+    function unspentAmountFunc(d){
+        var p = []
+        // start plotting 6 days before the actual day
+        if (d.length > 0) {
+            p.push([new Date((d.time[0] - 10000) * 1000), 0])
+        }
+
+        d.time.map((n, i) => p.push([new Date(n*1000), d.amount[i]]));
+        return p
+    }
+
+
 
     function formatter(data) {
         if (data.x == null) return '';
@@ -36,6 +49,8 @@
         if (data.x == null) return '';
         var html = this.getLabels()[0] + ': ' + data.xHTML;
         data.series.map(function(series){
+            if (isNaN(series.y)) return '';
+        
             var labeledData = `<span style="color: ` + series.color + ';">' +series.labelHTML + ': ' + series.y + ' DCR';
             html += '<br>' + series.dashHTML  + labeledData +'</span>';
         });
@@ -94,7 +109,7 @@
 
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
-            return ['options', 'addr', 'btns', 'unspent']
+            return ['options', 'addr', 'btns', 'unspent', 'flow']
         }
 
         initialize(){
@@ -105,20 +120,22 @@
                     colors: ['#0066cc', '#006600', 'darkorange', '#ff0090'],
                     ylabel: '# of Tx Types',
                     title: 'Transactions Types Distribution',
-                    plotter: barchartPlotter,
+                    visibility: [true, true, true, true],
                     legendFormatter: formatter,
+                    plotter: barchartPlotter,
                     stackedGraph: true,
                     fillGraph: false,
                     labelsKMB: false
                 }
 
                 this.amountFlowGraphOptions = {
-                    labels: ['Date', 'Received', 'Sent', 'Net'],
-                    colors: ['#0066cc', 'rgb(0,128,127)',  '#ff0090'],
+                    labels: ['Date', 'Received', 'Sent', 'Net Received', 'Net Spent'],
+                    colors: ['#0066cc', 'rgb(0,128,127)', 'rgb(0,153,0)', '#ff0090'],
                     ylabel: 'Total Amount (DCR)',
                     title: 'Transactions Received And Spent Amount Distribution',
-                    plotter: barchartPlotter,
+                    visibility: [true, false, false, false],
                     legendFormatter: customizedFormatter,
+                    plotter: barchartPlotter,
                     stackedGraph: true,
                     fillGraph: false,
                     labelsKMB: false
@@ -132,6 +149,7 @@
                     plotter: [Dygraph.Plotters.linePlotter, Dygraph.Plotters.fillPlotter],
                     legendFormatter: customizedFormatter,
                     stackedGraph: false,
+                    visibility: [true],
                     fillGraph: true,
                     labelsKMB: true
                 }
@@ -139,27 +157,23 @@
         }
 
         disconnect(){
-            this.graph.destroy()
+            if (this.graph != undefined) {
+                this.graph.destroy()
+            }
         }
 
         drawGraph(graphType){
             var _this = this
-            var options = _this.typesGraphOptions
 
             $('#no-bal').addClass('d-hide');
             $('#history-chart').removeClass('d-hide');
+            $('#toggle-charts').addClass('d-hide');
 
-            if (graphType === 'amountflow') {
-                options = _this.amountFlowGraphOptions
-
-            } else if (graphType === 'unspent') {
-                if (_this.unspent == "0") {
-                    $('#no-bal').removeClass('d-hide');
-                    $('#history-chart').addClass('d-hide');
-                    $('body').removeClass('loading');
-                    return
-                }
-                options = _this.unspentGraphOptions
+            if (_this.unspent == "0" && graphType === 'unspent') {
+                $('#no-bal').removeClass('d-hide');
+                $('#history-chart').addClass('d-hide');
+                $('body').removeClass('loading');
+                return
             }
 
             $.ajax({
@@ -168,13 +182,27 @@
                 beforeSend: function() {},
                 success: function(data) {
                     var newData = []
-                    if (graphType === 'types') {
-                        newData = txTypesFunc(data)
-                    } else {
-                        newData = amountFlowFunc(data)
+                    var options = {}
+
+                    switch(graphType){
+                        case 'types':
+                            newData = txTypesFunc(data)
+                            options = _this.typesGraphOptions
+                            break
+
+                        case 'amountflow':
+                            newData = amountFlowFunc(data)
+                            options = _this.amountFlowGraphOptions
+                            $('#toggle-charts').removeClass('d-hide');
+                            break
+
+                        case 'unspent':
+                            newData = unspentAmountFunc(data)
+                            options = _this.unspentGraphOptions
+                            break
                     }
 
-                    if (_this.graph == null) {
+                    if (_this.graph == undefined) {
                         _this.graph = plotGraph(newData, options)
                     } else {
                         _this.graph.updateOptions({
@@ -209,6 +237,10 @@
             this.drawGraph(this.options)
         }
 
+        updateFlow(){
+           console.log(' >>>>>> Flow >>>', this.flow)
+        }
+
         get options(){
             var selectedValue = this.optionsTarget
             return selectedValue.options[selectedValue.selectedIndex].value;
@@ -223,6 +255,14 @@
 
         get btns(){
             return this.btnsTarget.getElementsByClassName("btn-active")[0].name
+        }
+
+        get flow(){
+            var ar = []
+            var boxes = this.flowTarget.querySelectorAll('input:checked')
+            console.log('mmmm <<<<<<', boxes)
+            boxes.forEach((n) => ar.push[n.value])
+            return ar
         }
     })
 })()

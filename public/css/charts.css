@@ -99,8 +99,14 @@ body.loading .modal {
     z-index: 10;
     line-height: normal;
     overflow: hidden;
-    color: black;
+    color: black; 
 }
+.dygraph-title {
+    font-weight: bold;
+    z-index: 10;
+    text-align: center;
+}
+
 .dygraph-xlabel {
     text-align: center;
 }
@@ -186,4 +192,26 @@ body.loading .modal {
 }
 .d-hide {
     display: none !important;
+}
+.c-box {
+    margin: .3rem auto;
+}
+input:checked {
+     background-color: #2196F3;
+}
+.checkmark:after {
+    border: solid white;
+}
+.t-charts {
+    width: 22%;
+    max-width: 270px;
+    margin: 20px auto 0 auto;
+    font-size: 14px;
+    font-weight: bolder;
+}
+.received-label {
+    background-color: '#0066cc';
+}
+.sent-label {
+    background-color: 'rgb(0,128,127)';
 }
