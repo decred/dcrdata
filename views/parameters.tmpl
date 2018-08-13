@@ -80,6 +80,11 @@
                                 <td>Amount of time that should elapse before the block difficulty requirement is examined to determine how it should be changed in order to maintain the desired block generation rate</td>
                             </tr>
                             <tr>
+                                <td class="mono text-right pr-2 nowrap p03rem0">TargetTimePerBlock</td>
+                                <td class="mono">{{TimeDurationFormat .Params.TargetTimePerBlock}}</td>
+                                <td>The desired amount of time to generate each block</td>
+                            </tr>
+                            <tr>
                                 <td class="mono text-right pr-2 nowrap p03rem0">RetargetAdjustmentFactor</td>
                                 <td class="mono">{{.Params.RetargetAdjustmentFactor}}</td>
                                 <td>Adjustment factor used to limit the minimum and maximum amount of adjustment that can occur between difficulty retargets</td>
