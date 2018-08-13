@@ -28,7 +28,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 )
 
 // wiredDB is intended to satisfy DataSourceLite interface. The block header is
