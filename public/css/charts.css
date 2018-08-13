@@ -1,40 +1,4 @@
-.chart-wrapper {
-    position: relative;
-}
-.chart-wrapper.loading .spinner-wrapper {
-    display: block;
-}
-.legend {
-    min-width: 360px;
-}
-
-.dygraph-legend {
-    position: absolute;
-    font-size: 14px;
-    z-index: 10;
-    background: white;
-    line-height: normal;
-    text-align: left;
-    overflow: hidden;
-    padding: 4px !important;
-    border: 1px solid #000;
-    border-radius: 5px;
-    font-weight: bold;
-    width: fit-content !important;
-    color: #3D5873;
-}
-.dygraph-rangesel-bgcanvas {
-    z-index: 0 !important;
-}
-.dygraph-rangesel-fgcanvas {
-    z-index: 0 !important;
-}
-.dygraph-rangesel-zoomhandle {
-    z-index: 0 !important;
-}
-.dygraph-axis-label {
-    z-index: 0 !important;
-}
+/* dygraph */
 .dygraph-label {
     font-size: 14px;
 }
@@ -55,35 +19,16 @@
     border-bottom-width: 2px;
     border-bottom-style: solid;
 }
-
 .dygraph-roller {
     position: absolute;
     z-index: 10;
 }
-.dygraph-annotation {
-    position: absolute;
-    z-index: 10;
-    overflow: hidden;
-}
-.dygraph-default-annotation {
-    border: 1px solid black;
-    background-color: white;
-    text-align: center;
-}
-
 .dygraph-axis-label {
     z-index: 10;
     line-height: normal;
     overflow: hidden;
-    color: black; 
+    color: black;
 }
-
-.dygraph-title {
-    font-weight: bold;
-    z-index: 10;
-    text-align: center;
-}
-
 .dygraph-xlabel {
     text-align: center;
 }
@@ -104,6 +49,62 @@
     -ms-transform: rotate(-90deg);
 }
 
+
+/* chart theme */
+.chart-wrapper {
+    position: relative;
+}
+.chart-wrapper.loading .spinner-wrapper {
+    display: block;
+}
+.chart-control-wrapper {
+    border: 1px solid #E6EAED;
+}
+.chart-control-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #8997A5;
+    text-align: center;
+    border-bottom: 1px solid #E6EAED;
+}
+.chart-control {
+    padding: 2px;
+    background: #fff;
+    height: 42px;
+}
+.chart-control select,
+.chart-control input {
+    border: none;
+}
+.chart-control input {
+    height: 38px;
+}
+.chart-control-wrapper {
+    border-left:  1px solid #E6EAED;
+}
+.legend-wrapper {
+    position: absolute;
+    top: 0;
+    left: 100px;
+    right: 20px;
+}
+.legend {
+    background: #ececec;
+    z-index: 10000;
+    padding: 0 2px 0 5px;
+    font-size: 14px;
+}
 .darkBG .dygraph-axis-label {
     color:  #C4CBD2;
+}
+.darkBG .chart-control {
+    background: #2b2b2b;
+}
+.darkBG .chart-control-label,
+.darkBG .chart-control-wrapper {
+    color: #eeeeef;
+    border-color: #2b2b2b;
+}
+.darkBG .legend {
+    background: #2a2a2a;
 }

@@ -71,7 +71,7 @@ html {
 body {
   font-family: 'source-sans-pro-v9-latin-regular';
   padding-bottom: 2.1rem;
-  background: rgb(244, 246, 246);
+  background: #F3F5F6;
 }
 a {
   color: #2e75ff;
@@ -154,7 +154,8 @@ body.darkBG #menu {
 body.darkBG .progress {
   background-color: #757575;
 }
-.darkBG select {
+.darkBG select,
+.darkBG input[type=number] {
   color: #fff !important;
   background: #2a2a2a !important;
   border-color: #191919 !important;
@@ -775,6 +776,9 @@ body.darkBG .keynav-target {
 
 .nav-pills .nav-link {
   padding: .3rem .4rem;
+  border-radius: 0;
+  height: 38px;
+  line-height: 28px;
 }
 .nav-pills .nav-link.active {
   background-color: #2970FF;
