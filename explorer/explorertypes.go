@@ -258,9 +258,12 @@ type AddressInfo struct {
 	// that appear in the merged debit view.
 	KnownMergedSpendingTxns int64
 
-	// IsTechnicalAddress flag is true when the address has a special status,
+	// IsDummyAddress flag is true when the address has a special status,
 	// see https://github.com/decred/dcrdata/issues/358 for details
-	IsTechnicalAddress bool
+	//
+	// The flag signals this is dummy address, typically used for
+	// unspendable ticket change outputs.
+	IsDummyAddress bool
 }
 
 // TxnCount returns the number of transaction "rows" available.

@@ -1242,12 +1242,12 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		return nil
 	}
 
-	isTechnicalAddress := IsZeroHashP2PHKAddress(address, db.params)
-	if isTechnicalAddress {
+	isDummyAddress := IsZeroHashP2PHKAddress(address, db.params)
+	if isDummyAddress {
 		return &explorer.AddressInfo{
-			Address:            address,
-			IsTechnicalAddress: isTechnicalAddress,
-			Fullmode:           true,
+			Address:        address,
+			IsDummyAddress: isDummyAddress,
+			Fullmode:       true,
 		}
 	}
 
@@ -1321,27 +1321,27 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		TotalUnspent: int64(totalreceived - totalsent),
 	}
 	return &explorer.AddressInfo{
-		Address:            address,
-		MaxTxLimit:         maxcount,
-		Limit:              count,
-		Offset:             offset,
-		NumUnconfirmed:     numUnconfirmed,
-		Transactions:       addressTxs,
-		NumTransactions:    numTxns,
-		NumFundingTxns:     numReceiving,
-		NumSpendingTxns:    numSpending,
-		AmountReceived:     totalreceived,
-		AmountSent:         totalsent,
-		AmountUnspent:      totalreceived - totalsent,
-		Balance:            balance,
-		KnownTransactions:  numberMaxOfTx,
-		KnownFundingTxns:   numReceiving,
-		KnownSpendingTxns:  numSpending,
-		IsTechnicalAddress: false,
+		Address:           address,
+		MaxTxLimit:        maxcount,
+		Limit:             count,
+		Offset:            offset,
+		NumUnconfirmed:    numUnconfirmed,
+		Transactions:      addressTxs,
+		NumTransactions:   numTxns,
+		NumFundingTxns:    numReceiving,
+		NumSpendingTxns:   numSpending,
+		AmountReceived:    totalreceived,
+		AmountSent:        totalsent,
+		AmountUnspent:     totalreceived - totalsent,
+		Balance:           balance,
+		KnownTransactions: numberMaxOfTx,
+		KnownFundingTxns:  numReceiving,
+		KnownSpendingTxns: numSpending,
+		IsDummyAddress:    false,
 	}
 }
 
-// IsZeroHashP2PHKAddress checks if given address is special
+// IsZeroHashP2PHKAddress checks if given address is dummy
 // see https://github.com/decred/dcrdata/issues/358 for details
 func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
 	zeroed := [20]byte{}

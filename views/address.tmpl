@@ -23,9 +23,10 @@
                 <div class="row">
                     <a href="javascript:hideAddressQRCode();" id="address-qrcode" class="col opacity-transition d-block" style="opacity: 0"></a>
                 </div>
-                {{if .IsTechnicalAddress}}
+                {{if .IsDummyAddress}}
                   <br/>
-                  This address is special. Please update this message once you know why it is special.
+                  This is dummy address, typically used for unspendable ticket change outputs.
+                  <br/>
                   <br/>
                 {{end}}
             </div>
