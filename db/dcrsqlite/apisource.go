@@ -28,7 +28,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 )
 
 // wiredDB is intended to satisfy DataSourceLite interface. The block header is
@@ -1241,7 +1241,16 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		log.Infof("Invalid address %s: %v", address, err)
 		return nil
 	}
+
 	isTechnicalAddress := IsZeroHashP2PHKAddress(address, db.params)
+	if isTechnicalAddress {
+		return &explorer.AddressInfo{
+			Address:            address,
+			IsTechnicalAddress: isTechnicalAddress,
+			Fullmode:           true,
+		}
+	}
+
 	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(maxcount), true, true, nil)
@@ -1328,7 +1337,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		KnownTransactions:  numberMaxOfTx,
 		KnownFundingTxns:   numReceiving,
 		KnownSpendingTxns:  numSpending,
-		IsTechnicalAddress: isTechnicalAddress,
+		IsTechnicalAddress: false,
 	}
 }
 
