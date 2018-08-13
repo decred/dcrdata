@@ -257,6 +257,10 @@ type AddressInfo struct {
 	// KnownMergedSpendingTxns refers to the total count of unique debit transactions
 	// that appear in the merged debit view.
 	KnownMergedSpendingTxns int64
+
+	// IsTechnicalAddress flag is true when the address has a special status,
+	// see https://github.com/decred/dcrdata/issues/358 for details
+	IsTechnicalAddress bool
 }
 
 // TxnCount returns the number of transaction "rows" available.

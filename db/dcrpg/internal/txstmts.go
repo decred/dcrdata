@@ -128,7 +128,7 @@ const (
 	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`
 
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX uix_tx_block_in
-		ON transactions(block_hash, block_index, tree);`  // with cockroach: STORING (tx_hash, block_hash)
+		ON transactions(block_hash, block_index, tree);` // with cockroach: STORING (tx_hash, block_hash)
 	DeindexTransactionTableOnBlockIn = `DROP INDEX uix_tx_block_in;`
 
 	IndexTransactionTableOnHashes = `CREATE UNIQUE INDEX uix_tx_hashes

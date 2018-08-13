@@ -28,7 +28,7 @@ import (
 	"github.com/decred/dcrdata/rpcutils"
 	"github.com/decred/dcrdata/stakedb"
 	"github.com/decred/dcrdata/txhelpers"
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 )
 
 // wiredDB is intended to satisfy DataSourceLite interface. The block header is
@@ -1241,7 +1241,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		log.Infof("Invalid address %s: %v", address, err)
 		return nil
 	}
-
+	isTechnicalAddress := IsZeroHashP2PHKAddress(address, db.params)
 	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(maxcount), true, true, nil)
@@ -1312,23 +1312,46 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		TotalUnspent: int64(totalreceived - totalsent),
 	}
 	return &explorer.AddressInfo{
-		Address:           address,
-		MaxTxLimit:        maxcount,
-		Limit:             count,
-		Offset:            offset,
-		NumUnconfirmed:    numUnconfirmed,
-		Transactions:      addressTxs,
-		NumTransactions:   numTxns,
-		NumFundingTxns:    numReceiving,
-		NumSpendingTxns:   numSpending,
-		AmountReceived:    totalreceived,
-		AmountSent:        totalsent,
-		AmountUnspent:     totalreceived - totalsent,
-		Balance:           balance,
-		KnownTransactions: numberMaxOfTx,
-		KnownFundingTxns:  numReceiving,
-		KnownSpendingTxns: numSpending,
+		Address:            address,
+		MaxTxLimit:         maxcount,
+		Limit:              count,
+		Offset:             offset,
+		NumUnconfirmed:     numUnconfirmed,
+		Transactions:       addressTxs,
+		NumTransactions:    numTxns,
+		NumFundingTxns:     numReceiving,
+		NumSpendingTxns:    numSpending,
+		AmountReceived:     totalreceived,
+		AmountSent:         totalsent,
+		AmountUnspent:      totalreceived - totalsent,
+		Balance:            balance,
+		KnownTransactions:  numberMaxOfTx,
+		KnownFundingTxns:   numReceiving,
+		KnownSpendingTxns:  numSpending,
+		IsTechnicalAddress: isTechnicalAddress,
 	}
+}
+
+// IsZeroHashP2PHKAddress checks if given address is special
+// see https://github.com/decred/dcrdata/issues/358 for details
+func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
+
+	//sanity check
+	checkAddress, err := dcrutil.DecodeAddress(checkAddressString)
+	if err != nil {
+		return false
+	}
+
+	zeroed := [20]byte{}
+	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
+	if err != nil {
+		return false //invalid state, should panic
+	}
+
+	a := checkAddress.String()
+	b := address.String()
+	equal := a == b
+	return equal
 }
 
 func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
