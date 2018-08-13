@@ -103,6 +103,7 @@ func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) 
 func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
 	updateAllVotes, newIndexes bool) {
+	// Allowing db to be nil simplifies logic in caller.
 	if db == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
@@ -112,6 +113,17 @@ func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	}
 	db.ChainDB.SyncChainDBAsync(res, client, quit, updateAllAddresses,
 		updateAllVotes, newIndexes)
+}
+
+// Store satisfies BlockDataSaver. Blocks stored this way are considered valid
+// and part of mainchain. This calls (*ChainDB).Store after a nil pointer check
+// on the ChainDBRPC receiver
+func (db *ChainDBRPC) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+	// Allowing db to be nil simplifies logic in caller.
+	if db == nil {
+		return nil
+	}
+	return db.ChainDB.Store(blockData, msgBlock)
 }
 
 // addressCounter provides a cache for address balances.
@@ -893,7 +905,8 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 	return txsRaw, nil
 }
 
-// Store satisfies BlockDataSaver
+// Store satisfies BlockDataSaver. Blocks stored this way are considered valid
+// and part of mainchain.
 func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	if pgb == nil {
 		return nil

@@ -179,6 +179,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
+		log.Debugf("Primary data source not available. Operating explorer in lite mode.")
 		exp.liteMode = true
 	}
 
@@ -370,6 +371,11 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 }
 
 func (exp *explorerUI) updateDevFundBalance() {
+	if exp.liteMode {
+		log.Warnf("Full balances not supported in lite mode.")
+		return
+	}
+
 	// yield processor to other goroutines
 	runtime.Gosched()
 	exp.NewBlockDataMtx.Lock()

@@ -739,7 +739,7 @@ func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
 func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 	if c.LiteMode {
 		// not available in lite mode
-		http.Error(w, "note available in lite mode", 422)
+		http.Error(w, "not available in lite mode", 422)
 		return
 	}
 
@@ -1070,14 +1070,14 @@ func (c *appContext) getStakeDiffRange(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
-		http.Error(w, http.StatusText(422), 422)
+	if c.LiteMode {
+		// not available in lite mode
+		http.Error(w, "not available in lite mode", 422)
 		return
 	}
 
-	if c.LiteMode {
-		// not available in lite mode
+	address := m.GetAddressCtx(r)
+	if address == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
@@ -1093,6 +1093,11 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
+
 	chartData, ok := explorer.GetChartTypeData("ticket-price")
 	if !ok {
 		http.NotFound(w, r)
@@ -1103,6 +1108,11 @@ func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Requ
 }
 
 func (c *appContext) getChartTypeData(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
+
 	chartType := m.GetChartTypeCtx(r)
 	chartData, ok := explorer.GetChartTypeData(chartType)
 	if !ok {

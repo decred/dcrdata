@@ -43,6 +43,9 @@ type ChainMonitor struct {
 // NewChainMonitor creates a new ChainMonitor.
 func (db *ChainDBRPC) NewChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
+	if db == nil {
+		return nil
+	}
 	return &ChainMonitor{
 		db:             db,
 		quit:           quit,
