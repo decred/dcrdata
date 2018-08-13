@@ -1335,23 +1335,13 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 // IsZeroHashP2PHKAddress checks if given address is special
 // see https://github.com/decred/dcrdata/issues/358 for details
 func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
-
-	//sanity check
-	checkAddress, err := dcrutil.DecodeAddress(checkAddressString)
-	if err != nil {
-		return false
-	}
-
 	zeroed := [20]byte{}
 	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
 	if err != nil {
 		return false //invalid state, should panic
 	}
-
-	a := checkAddress.String()
-	b := address.String()
-	equal := a == b
-	return equal
+	zeroAddress := address.String()
+	return checkAddressString == zeroAddress
 }
 
 func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
