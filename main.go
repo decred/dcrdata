@@ -294,8 +294,9 @@ func mainCore() error {
 	// Build a slice of each required saver type for each data source
 	var blockDataSavers []blockdata.BlockDataSaver
 	var mempoolSavers []mempool.MempoolDataSaver
-
-	blockDataSavers = append(blockDataSavers, auxDB)
+	if usePG {
+		blockDataSavers = append(blockDataSavers, auxDB)
+	}
 
 	// For example, dumping all mempool fees with a custom saver
 	if cfg.DumpAllMPTix {
@@ -421,6 +422,9 @@ func mainCore() error {
 		// Blockchain monitor for the aux (PG) DB
 		auxDBChainMonitor = auxDB.NewChainMonitor(quit, &wg,
 			notify.NtfnChans.ConnectChanDcrpgDB, notify.NtfnChans.ReorgChanDcrpgDB)
+		if auxDBChainMonitor == nil {
+			return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
+		}
 		auxDBBlockConnectedSync = auxDBChainMonitor.BlockConnectedSync
 	}
 
