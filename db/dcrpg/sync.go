@@ -254,6 +254,10 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 	}
 
+	// After sync and indexing, must use upsert statement, which checks for
+	// duplicate entries and updates instead of throwing and error and panicing.
+	db.EnableDuplicateCheckOnInsert(true)
+
 	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
 		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)
 
