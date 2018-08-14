@@ -50,14 +50,12 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Blocks  []*BlockBasic
 		Version string
 		NetName string
-		Theme   string
 	}{
 		exp.ExtraInfo,
 		exp.MempoolData,
 		blocks,
 		exp.Version,
 		exp.NetName,
-		"theme-" + strings.ToLower(exp.NetName),
 	})
 	exp.NewBlockDataMtx.Unlock()
 	exp.MempoolData.RUnlock()
@@ -105,14 +103,12 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		Rows      int
 		Version   string
 		NetName   string
-		Theme     string
 	}{
 		summaries,
 		idx,
 		rows,
 		exp.Version,
 		exp.NetName,
-		"theme-" + strings.ToLower(exp.NetName),
 	})
 
 	if err != nil {
@@ -160,13 +156,11 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		ConfirmHeight int64
 		Version       string
 		NetName       string
-		Theme         string
 	}{
 		data,
 		exp.NewBlockData.Height - data.Confirmations,
 		exp.Version,
 		exp.NetName,
-		"theme-" + strings.ToLower(exp.NetName),
 	}
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
@@ -187,12 +181,10 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 		Mempool *MempoolInfo
 		Version string
 		NetName string
-		Theme   string
 	}{
 		exp.MempoolData,
 		exp.Version,
 		exp.NetName,
-		"theme-" + strings.ToLower(exp.NetName),
 	})
 	exp.MempoolData.RUnlock()
 
@@ -337,13 +329,11 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		ConfirmHeight int64
 		Version       string
 		NetName       string
-		Theme         string
 	}{
 		tx,
 		exp.NewBlockData.Height - tx.Confirmations,
 		exp.Version,
 		exp.NetName,
-		"theme-" + strings.ToLower(exp.NetName),
 	}
 
 	str, err := exp.templates.execTemplateToString("tx", pageData)
@@ -366,7 +356,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		ConfirmHeight []int64
 		Version       string
 		NetName       string
-		Theme         string
 	}
 
 	// Get the address URL parameter, which should be set in the request context
@@ -606,7 +595,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		ConfirmHeight: confirmHeights,
 		Version:       exp.Version,
 		NetName:       exp.NetName,
-		Theme:         "theme-" + strings.ToLower(exp.NetName),
 	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
@@ -626,11 +614,9 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("rawtx", struct {
 		Version string
 		NetName string
-		Theme   string
 	}{
 		exp.Version,
 		exp.NetName,
-		"theme-" + strings.ToLower(exp.NetName),
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -660,12 +646,10 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 		Version string
 		NetName string
 		Data    *dbtypes.ChartsData
-		Theme   string
 	}{
 		exp.Version,
 		exp.NetName,
 		tickets,
-		"theme-" + strings.ToLower(exp.NetName),
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -742,14 +726,12 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 		Message    string
 		Version    string
 		NetName    string
-		Theme      string
 	}{
 		sType,
 		code,
 		message,
 		exp.Version,
 		exp.NetName,
-		"theme-" + strings.ToLower(exp.NetName),
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -788,12 +770,10 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 		Cp      ExtendedChainParams
 		Version string
 		NetName string
-		Theme   string
 	}{
 		ecp,
 		exp.Version,
 		exp.NetName,
-		"theme-" + strings.ToLower(exp.NetName),
 	})
 
 	if err != nil {
@@ -845,14 +825,12 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		NetName          string
 		ChartDataByTime  *dbtypes.AgendaVoteChoices
 		ChartDataByBlock *dbtypes.AgendaVoteChoices
-		Theme            string
 	}{
 		agendaInfo,
 		exp.Version,
 		exp.NetName,
 		chartDataByTime,
 		chartDataByHeight,
-		"theme-" + strings.ToLower(exp.NetName),
 	})
 
 	if err != nil {
@@ -878,12 +856,10 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 		Agendas []*agendadb.AgendaTagged
 		Version string
 		NetName string
-		Theme   string
 	}{
 		agendas,
 		exp.Version,
 		exp.NetName,
-		"theme-" + strings.ToLower(exp.NetName),
 	})
 
 	if err != nil {
