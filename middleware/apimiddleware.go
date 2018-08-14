@@ -44,7 +44,8 @@ const (
 	ctxStakeVersionLatest
 	ctxRawHexTx
 	ctxM
-	ctxChart
+	ctxChartType
+	ctxChartGrouping
 )
 
 type DataSource interface {
@@ -210,9 +211,20 @@ func GetAddressCtx(r *http.Request) string {
 // GetChartTypeCtx retrieves the ctxChart data from the request context.
 // If not set, the return value is an empty string.
 func GetChartTypeCtx(r *http.Request) string {
-	chartType, ok := r.Context().Value(ctxChart).(string)
+	chartType, ok := r.Context().Value(ctxChartType).(string)
 	if !ok {
 		apiLog.Trace("chart type not set")
+		return ""
+	}
+	return chartType
+}
+
+// GetChartGroupingCtx retrieves the ctxChart data from the request context.
+// If not set, the return value is an empty string.
+func GetChartGroupingCtx(r *http.Request) string {
+	chartType, ok := r.Context().Value(ctxChartGrouping).(string)
+	if !ok {
+		apiLog.Trace("chart grouping not set")
 		return ""
 	}
 	return chartType
@@ -429,10 +441,21 @@ func AddressPathCtx(next http.Handler) http.Handler {
 }
 
 // ChartTypeCtx returns a http.HandlerFunc that embeds the value at the url
-// part {chart} into the request context.
+// part {charttype} into the request context.
 func ChartTypeCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), ctxChart, chi.URLParam(r, "chart-type"))
+		ctx := context.WithValue(r.Context(), ctxChartType,
+			chi.URLParam(r, "charttype"))
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// ChartGroupingCtx returns a http.HandlerFunc that embeds the value art the url
+// part {chartgrouping} into the request context.
+func ChartGroupingCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), ctxChartGrouping,
+			chi.URLParam(r, "chartgrouping"))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

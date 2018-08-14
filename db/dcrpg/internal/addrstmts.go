@@ -110,22 +110,21 @@ const (
 
 	// rtx defines Regular transactions, ssTx defines tickets, ssGen defines votes
 	// and ssRtx defines Revocation transactions
-	SelectAddressTxTypesByAddress = `SELECT block_time,
+	SelectAddressTxTypesByAddress = `SELECT (block_time/$1)*$1 as timestamp,
 		COUNT(CASE WHEN tx_type = 0 THEN 1 ELSE NULL END) as rtx, 
 		COUNT(CASE WHEN tx_type = 1 THEN 1 ELSE NULL END) as ssTx,
 		COUNT(CASE WHEN tx_type = 2 THEN 1 ELSE NULL END) as ssGen,
 		COUNT(CASE WHEN tx_type = 3 THEN 1 ELSE NULL END) as ssRtx 
-		FROM addresses WHERE address=$1 GROUP BY block_time ORDER BY block_time;`
+		FROM addresses WHERE address=$2 GROUP BY timestamp ORDER BY timestamp;`
 
-	SelectAddressAmountFlowByAddress = `SELECT block_time,
-		CASE WHEN is_funding = TRUE THEN SUM(value) ELSE 0 END as received,
-		CASE WHEN is_funding = FALSE THEN SUM(value) ELSE 0 END as sent FROM
-		addresses WHERE address=$1 GROUP BY block_time, is_funding ORDER BY
-		block_time;`
+	SelectAddressAmountFlowByAddress = `SELECT (block_time/$1)*$1 as timestamp,
+		SUM(CASE WHEN is_funding = TRUE THEN value ELSE 0 END) as received,
+		SUM(CASE WHEN is_funding = FALSE THEN value ELSE 0 END) as sent FROM
+		addresses WHERE address=$2 GROUP BY timestamp ORDER BY timestamp;`
 
-	SelectAddressUnspentAmountByAddress = `SELECT block_time, SUM(value) as unspent
-		FROM addresses WHERE address=$1 and is_funding = TRUE and matching_tx_hash =''
-		GROUP BY block_time ORDER BY block_time;`
+	SelectAddressUnspentAmountByAddress = `SELECT (block_time/$1)*$1 as timestamp,
+		SUM(value) as unspent FROM addresses WHERE address=$2 AND is_funding=TRUE
+		AND matching_tx_hash ='' GROUP BY timestamp ORDER BY timestamp;`
 
 	UpdateValidMainchainFromTransactions = `UPDATE addresses
 		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean

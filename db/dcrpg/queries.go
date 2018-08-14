@@ -1581,11 +1581,13 @@ func closeRows(rows *sql.Rows) {
 }
 
 // retrieveTxHistoryByType fetches the transaction types count for all the
-// transactions associated with a given address.
-func retrieveTxHistoryByType(db *sql.DB, addr string) (*dbtypes.ChartsData, error) {
+// transactions associated with a given address for the given time interval.
+func retrieveTxHistoryByType(db *sql.DB, addr string,
+	timeInterval int64) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
 
-	rows, err := db.Query(internal.SelectAddressTxTypesByAddress, addr)
+	rows, err := db.Query(internal.SelectAddressTxTypesByAddress,
+		timeInterval, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -1609,12 +1611,14 @@ func retrieveTxHistoryByType(db *sql.DB, addr string) (*dbtypes.ChartsData, erro
 }
 
 // retrieveTxHistoryByAmount fetches the transaction amount flow i.e. recieved
-// amount and sent for all the transactions associated with a given address per
-// block (per block time).
-func retrieveTxHistoryByAmountFlow(db *sql.DB, addr string) (*dbtypes.ChartsData, error) {
+// amount and sent for all the transactions associated with a given address for
+// the given time interval.
+func retrieveTxHistoryByAmountFlow(db *sql.DB, addr string,
+	timeInterval int64) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
 
-	rows, err := db.Query(internal.SelectAddressAmountFlowByAddress, addr)
+	rows, err := db.Query(internal.SelectAddressAmountFlowByAddress,
+		timeInterval, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -1644,12 +1648,14 @@ func retrieveTxHistoryByAmountFlow(db *sql.DB, addr string) (*dbtypes.ChartsData
 }
 
 // retrieveTxHistoryByUnspentAmount fetches the unspent amount for all the
-// transactions associated with a given address per given block (block time).
-func retrieveTxHistoryByUnspentAmount(db *sql.DB, addr string) (*dbtypes.ChartsData, error) {
+// transactions associated with a given address for the given time interval.
+func retrieveTxHistoryByUnspentAmount(db *sql.DB, addr string,
+	timeInterval int64) (*dbtypes.ChartsData, error) {
 	var totalAmount = 0.0
 	var items = new(dbtypes.ChartsData)
 
-	rows, err := db.Query(internal.SelectAddressUnspentAmountByAddress, addr)
+	rows, err := db.Query(internal.SelectAddressUnspentAmountByAddress,
+		timeInterval, addr)
 	if err != nil {
 		return nil, err
 	}

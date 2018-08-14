@@ -91,9 +91,8 @@ type DataSourceAux interface {
 		txnType dbtypes.AddrTxnType) (*apitypes.Address, error)
 	AddressTotals(address string) (*apitypes.AddressTotals, error)
 	VotesInBlock(hash string) (int16, error)
-	GetTxHistoryByTxType(address string) (*dbtypes.ChartsData, error)
-	GetTxHistoryByTxUnspentAmount(address string) (*dbtypes.ChartsData, error)
-	GetTxHistoryByTxAmountFlow(address string) (*dbtypes.ChartsData, error)
+	GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
+		chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -1102,19 +1101,21 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 	}
 
 	address := m.GetAddressCtx(r)
-	if address == "" {
+	chartGrouping := m.GetChartGroupingCtx(r)
+	if address == "" || chartGrouping == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	txTypeData, err := c.AuxDataSource.GetTxHistoryByTxType(address)
+	data, err := c.AuxDataSource.GetTxHistoryData(address, dbtypes.TxsType,
+		dbtypes.ChartGroupingFromStr(chartGrouping))
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by tx type : %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	writeJSON(w, txTypeData, c.getIndentQuery(r))
+	writeJSON(w, data, c.getIndentQuery(r))
 }
 
 func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.Request) {
@@ -1124,36 +1125,45 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 	}
 
 	address := m.GetAddressCtx(r)
-	if address == "" {
+	chartGrouping := m.GetChartGroupingCtx(r)
+	if address == "" || chartGrouping == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	totals, err := c.AuxDataSource.GetTxHistoryByTxAmountFlow(address)
+	data, err := c.AuxDataSource.GetTxHistoryData(address, dbtypes.AmountFlow,
+		dbtypes.ChartGroupingFromStr(chartGrouping))
 	if err != nil {
-		log.Warnf("failed to get address (%s) history by received amount flow: %v", address, err)
+		log.Warnf("failed to get address (%s) history by amount flow: %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	writeJSON(w, totals, c.getIndentQuery(r))
+	writeJSON(w, data, c.getIndentQuery(r))
 }
 
 func (c *appContext) getAddressTxUnspentAmountData(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
+
 	address := m.GetAddressCtx(r)
-	if address == "" || c.LiteMode {
+	chartGrouping := m.GetChartGroupingCtx(r)
+	if address == "" || chartGrouping == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	totals, err := c.AuxDataSource.GetTxHistoryByTxUnspentAmount(address)
+	data, err := c.AuxDataSource.GetTxHistoryData(address, dbtypes.TotalUnspent,
+		dbtypes.ChartGroupingFromStr(chartGrouping))
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by unspent amount flow: %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	writeJSON(w, totals, c.getIndentQuery(r))
+	writeJSON(w, data, c.getIndentQuery(r))
 }
 
 func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Request) {

@@ -67,21 +67,71 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 	switch txnType {
 	case "all":
 		return AddrTxnAll
-	case "credit":
-		fallthrough
-	case "credits":
+	case "credit", "credits":
 		return AddrTxnCredit
-	case "debit":
-		fallthrough
-	case "debits":
+	case "debit", "debits":
 		return AddrTxnDebit
 	case "merged_debit", "merged debit":
 		return AddrMergedTxnDebit
 	default:
 		return AddrTxnUnknown
 	}
-
 }
+
+// ChartGrouping defines the possible ways that a graph's axis can be grouped
+// according to all, year, month, week or day grouping.
+type ChartGrouping int8
+
+const (
+	AllChartGrouping ChartGrouping = iota
+	YearChartGrouping
+	MonthChartGrouping
+	WeekChartGrouping
+	DayChartGrouping
+	UnknownGrouping
+)
+
+// ChartGroupings helps maping a given chart grouping to its standard string value.
+var ChartGroupings = map[ChartGrouping]string{
+	AllChartGrouping:   "all",
+	YearChartGrouping:  "yr",
+	MonthChartGrouping: "mo",
+	WeekChartGrouping:  "wk",
+	DayChartGrouping:   "day",
+}
+
+func (g ChartGrouping) String() string {
+	return ChartGroupings[g]
+}
+
+// ChartGroupingFromStr convert groupings string to the chartGrouping value.
+func ChartGroupingFromStr(groupings string) ChartGrouping {
+	switch groupings {
+	case "all":
+		return AllChartGrouping
+	case "yr", "year":
+		return YearChartGrouping
+	case "mo", "month":
+		return MonthChartGrouping
+	case "wk", "week":
+		return WeekChartGrouping
+	case "day":
+		return DayChartGrouping
+	default:
+		return UnknownGrouping
+	}
+}
+
+// HistoryChart is used to differentaite the three distinct graphs that
+// appear on the address history page.
+type HistoryChart int8
+
+const (
+	TxsType HistoryChart = iota
+	AmountFlow
+	TotalUnspent
+	ChartUnknown
+)
 
 type TicketPoolStatus int16
 

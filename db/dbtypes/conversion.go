@@ -1,6 +1,8 @@
 package dbtypes
 
 import (
+	"fmt"
+
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/txhelpers"
@@ -52,5 +54,32 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params) *B
 		ExtraData:    blockHeader.ExtraData[:],
 		StakeVersion: blockHeader.StakeVersion,
 		PreviousHash: blockHeader.PrevBlock.String(),
+	}
+}
+
+// ChartGroupingToInterval converts the chartGrouping value to an actual time
+// interval based on the gregorian calendar. AllChartGrouping returns 1 while
+// the unknown chartGrouping returns -1 and an error. All the other time
+// interval values is returned in terms of seconds.
+func ChartGroupingToInterval(grouping ChartGrouping) (float64, error) {
+	var hr = 3600.0
+	switch grouping {
+	case AllChartGrouping:
+		return 1, nil
+
+	case DayChartGrouping:
+		return hr * 24, nil
+
+	case WeekChartGrouping:
+		return hr * 24 * 7, nil
+
+	case MonthChartGrouping:
+		return hr * 24 * 30.436875, nil
+
+	case YearChartGrouping:
+		return hr * 24 * 30.436875 * 12, nil
+
+	default:
+		return -1, fmt.Errorf(`unknown chart grouping "%d"`, grouping)
 	}
 }

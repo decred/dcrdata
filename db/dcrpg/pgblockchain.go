@@ -916,16 +916,29 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
-func (pgb *ChainDB) GetTxHistoryByTxType(address string) (*dbtypes.ChartsData, error) {
-	return retrieveTxHistoryByType(pgb.db, address)
-}
+// GetTxHistoryData fetches the address history chart data for the provided parameters.
+func (pgb *ChainDB) GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
+	chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error) {
+	timeInterval, err := dbtypes.ChartGroupingToInterval(chartGroupings)
+	if err != nil {
+		return nil, fmt.Errorf("GetTxHistoryData error: %v", err)
+	}
 
-func (pgb *ChainDB) GetTxHistoryByTxAmountFlow(address string) (*dbtypes.ChartsData, error) {
-	return retrieveTxHistoryByAmountFlow(pgb.db, address)
-}
+	timestamp := int64(timeInterval)
 
-func (pgb *ChainDB) GetTxHistoryByTxUnspentAmount(address string) (*dbtypes.ChartsData, error) {
-	return retrieveTxHistoryByUnspentAmount(pgb.db, address)
+	switch addrChart {
+	case dbtypes.TxsType:
+		return retrieveTxHistoryByType(pgb.db, address, timestamp)
+
+	case dbtypes.AmountFlow:
+		return retrieveTxHistoryByAmountFlow(pgb.db, address, timestamp)
+
+	case dbtypes.TotalUnspent:
+		return retrieveTxHistoryByUnspentAmount(pgb.db, address, timestamp)
+
+	default:
+		return nil, fmt.Errorf("Unknown error occured")
+	}
 }
 
 // GetTicketsPriceByHeight returns the ticket price by height chart data.

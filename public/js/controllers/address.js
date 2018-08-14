@@ -161,8 +161,9 @@
             }
         }
 
-        drawGraph(graphType){
+        drawGraph(){
             var _this = this
+            var graphType = _this.options
 
             $('#no-bal').addClass('d-hide');
             $('#history-chart').removeClass('d-hide');
@@ -177,7 +178,7 @@
 
             $.ajax({
                 type: 'GET',
-                url: '/api/address/' + _this.addr + '/' + graphType,
+                url: '/api/address/' + _this.addr + '/' + graphType +'/'+ _this.size,
                 beforeSend: function() {},
                 success: function(data) {
                     var newData = []
@@ -210,8 +211,8 @@
                         _this.graph.resetZoom()
                     }
 
-                    _this.xVal = _this.graph.xAxisExtremes()
                     _this.resetZoomButtons()
+                    _this.xVal = _this.graph.xAxisExtremes()
 
                     $('body').removeClass('loading');
                 }
@@ -228,7 +229,9 @@
                 divHide = 'chart'
                 $('body').removeClass('loading');
             } else {
-                _this.drawGraph('types')
+                _this.options = 'types'
+                _this.size = 'all'
+                _this.drawGraph()
             }
 
             $('.'+divShow+'-display').removeClass('d-hide');
@@ -237,8 +240,7 @@
 
         changeGraph(){
             $('body').addClass('loading');
-
-            this.drawGraph(this.options)
+            this.drawGraph()
         }
 
         updateFlow(){
@@ -269,6 +271,7 @@
             var selectedValue = this.optionsTarget
             return selectedValue.options[selectedValue.selectedIndex].value;
         }
+
         get addr(){
             return this.addrTarget.outerText
         }
@@ -284,6 +287,10 @@
         get zoom(){
             var v = this.zoomTarget.getElementsByClassName("btn-active")[0].name
             return parseFloat(v)
+        }
+
+        get size(){
+            return this.sizeTarget.getElementsByClassName("btn-active")[0].name
         }
 
         get flow(){

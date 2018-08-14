@@ -127,7 +127,12 @@
                     </select>
                     <div class="chart-display d-hide">
                         <label>Zoom </label>
-                        <div class="btn-group" data-toggle="buttons" data-target="address.zoom" data-action="click->address#onZoom">
+                        <div
+                            class="btn-group"
+                            data-toggle="buttons"
+                            data-target="address.zoom"
+                            data-action="click->address#onZoom"
+                        >
                             <input id="chart-zoom" type="button" class="btn btn_sm btn-active all" value="All" name="0">
                             <input id="chart-zoom" type="button" class="btn btn_sm" value="Year" name="3.154e+10">
                             <input id="chart-zoom" type="button" class="btn btn_sm" value="Month" name="2.628e+9">
@@ -135,11 +140,16 @@
                             <input id="chart-zoom" type="button" class="btn btn_sm" value="Day" name="8.64e+7">
                         </div>
                         <label style="margin-left:20px;">Size </label>
-                        <div class="btn-group" data-toggle="buttons" data-target="address.size" data-action="click->address#onSize">
+                        <div
+                            class="btn-group"
+                            data-toggle="buttons"
+                            data-target="address.size"
+                            data-action="click->address#changeGraph"
+                        >
                             <input id="chart-size" type="button" class="btn btn_sm btn-active all" value="All" name="all">
-                            <input id="chart-size" type="button" class="btn btn_sm" value="Year" name="year">
-                            <input id="chart-size" type="button" class="btn btn_sm" value="Month" name="month">
-                            <input id="chart-size" type="button" class="btn btn_sm" value="Week" name="week">
+                            <input id="chart-size" type="button" class="btn btn_sm" value="Year" name="yr">
+                            <input id="chart-size" type="button" class="btn btn_sm" value="Month" name="mo">
+                            <input id="chart-size" type="button" class="btn btn_sm" value="Week" name="wk">
                             <input id="chart-size" type="button" class="btn btn_sm" value="Day" name="day">
                         </div>
                     </div>
