@@ -567,7 +567,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.Errorf("Unable to fetch transactions for the address %s: %v", address, err)
-			exp.StatusPage(w, defaultErrorCode, "could not find transactions for that address", NotFoundStatusType)
+			exp.StatusPage(w, defaultErrorCode, "transactions for that address not found",
+				NotFoundStatusType)
 			return
 		}
 	}

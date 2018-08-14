@@ -27,7 +27,7 @@ body.loading .modal {
     text-align: center;
 }
 .btn_sm {
-    padding: .25rem .5rem !important;
+    padding: .0rem .5rem !important;
     font-size: .875rem !important;
     background-color: hsl(0, 0%, 79%) !important;
     background-repeat: repeat-x;
@@ -193,15 +193,6 @@ body.loading .modal {
 .d-hide {
     display: none !important;
 }
-.c-box {
-    margin: .3rem auto;
-}
-input:checked {
-     background-color: #2196F3;
-}
-.checkmark:after {
-    border: solid white;
-}
 .t-charts {
     width: 22%;
     max-width: 270px;
@@ -209,9 +200,70 @@ input:checked {
     font-size: 14px;
     font-weight: bolder;
 }
-.received-label {
-    background-color: '#0066cc';
+
+/* The customcheck */
+.customcheck {
+    display: block;
+    position: relative;
+    padding-left: 20px;
+    margin: .3rem auto;
+    border: black;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
-.sent-label {
-    background-color: 'rgb(0,128,127)';
+
+/* Hide the browser's default checkbox */
+.customcheck input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Create a custom checkbox */
+.checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 15px;
+    width: 15px;
+    background-color: #eee;
+    border-radius: 5px;
+}
+
+/* When the checkbox is checked, add a blue background */
+.customcheck input:checked ~ .checkmark {
+    background-color: #037efd;
+    border-radius: 5px;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+input ~ .checkmark {
+    background-color: #ccc;
+  }
+
+/* Show the checkmark when checked */
+.customcheck input:checked ~ .checkmark:after {
+    display: block;
+}
+
+/* Style the checkmark/indicator */
+.customcheck .checkmark:after {
+    left: 5px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 3px 3px 0;
+    -webkit-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    transform: rotate(45deg);
 }

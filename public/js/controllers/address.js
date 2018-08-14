@@ -39,8 +39,8 @@
         if (data.x == null) return '';
         var html = this.getLabels()[0] + ': ' + data.xHTML;
         data.series.map(function(series){
-            var labeledData = `<span style="color: ` + series.color + ';">' +series.labelHTML + ': ' + series.y;
-            html += '<br>' + series.dashHTML  + labeledData +'</span>';
+            var l = `<span style="color: ` + series.color + ';">' +series.labelHTML;
+            html += '<br>' + series.dashHTML  + l + ': ' + series.y +'</span>';
         });
         return html;
     }
@@ -50,9 +50,8 @@
         var html = this.getLabels()[0] + ': ' + data.xHTML;
         data.series.map(function(series){
             if (isNaN(series.y)) return '';
-        
-            var labeledData = `<span style="color: ` + series.color + ';">' +series.labelHTML + ': ' + series.y + ' DCR';
-            html += '<br>' + series.dashHTML  + labeledData +'</span>';
+            var l = `<span style="color: ` + series.color + ';">' +series.labelHTML;
+            html += '<br>' + series.dashHTML  + l + ': ' + series.y +' DCR</span>';
         });
         return html;
     }
@@ -109,7 +108,7 @@
 
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
-            return ['options', 'addr', 'btns', 'unspent', 'flow']
+            return ['options', 'addr', 'btns', 'unspent', 'flow', 'zoom']
         }
 
         initialize(){
@@ -119,7 +118,7 @@
                     labels: ['Date', 'RegularTx', 'Tickets', 'Votes', 'RevokeTx'],
                     colors: ['#0066cc', '#006600', 'darkorange', '#ff0090'],
                     ylabel: '# of Tx Types',
-                    title: 'Transactions Types Distribution',
+                    title: 'Transactions Types',
                     visibility: [true, true, true, true],
                     legendFormatter: formatter,
                     plotter: barchartPlotter,
@@ -129,10 +128,10 @@
                 }
 
                 this.amountFlowGraphOptions = {
-                    labels: ['Date', 'Received', 'Sent', 'Net Received', 'Net Spent'],
+                    labels: ['Date', 'Received', 'Sent', 'Net Received', 'Net Sent'],
                     colors: ['#0066cc', 'rgb(0,128,127)', 'rgb(0,153,0)', '#ff0090'],
                     ylabel: 'Total Amount (DCR)',
-                    title: 'Transactions Received And Spent Amount Distribution',
+                    title: 'Sent And Received',
                     visibility: [true, false, false, false],
                     legendFormatter: customizedFormatter,
                     plotter: barchartPlotter,
@@ -145,7 +144,7 @@
                     labels: ['Date', 'Unspent'],
                     colors: ['rgb(0,128,127)'],
                     ylabel: 'Cummulative Unspent Amount (DCR)',
-                    title: 'Transactions Unspent Amount Distribution',
+                    title: 'Total Unspent',
                     plotter: [Dygraph.Plotters.linePlotter, Dygraph.Plotters.fillPlotter],
                     legendFormatter: customizedFormatter,
                     stackedGraph: false,
@@ -208,7 +207,12 @@
                         _this.graph.updateOptions({
                             ...{'file': newData},
                             ...options})
+                        _this.graph.resetZoom()
                     }
+
+                    _this.xVal = _this.graph.xAxisExtremes()
+                    _this.resetZoomButtons()
+
                     $('body').removeClass('loading');
                 }
             });
@@ -238,7 +242,27 @@
         }
 
         updateFlow(){
-           console.log(' >>>>>> Flow >>>', this.flow)
+            for (var i = 0; i < this.flow.length; i++){
+               var d = this.flow[i]
+               this.graph.setVisibility(d[0], d[1])
+           }
+        }
+
+        onZoom(){
+            $('body').addClass('loading');
+            this.graph.resetZoom();
+            if (this.zoom > 0 && this.zoom < this.xVal[1]) {
+                this.graph.updateOptions({
+                    dateWindow:[(this.xVal[1] - this.zoom), this.xVal[1]]
+                });
+            }
+            $('body').removeClass('loading');
+        }
+
+        resetZoomButtons(){
+            $('input#chart-zoom').removeClass('btn-active');
+            $('input#chart-size').removeClass('btn-active');
+            $('input.all').addClass('btn-active');
         }
 
         get options(){
@@ -257,11 +281,21 @@
             return this.btnsTarget.getElementsByClassName("btn-active")[0].name
         }
 
+        get zoom(){
+            var v = this.zoomTarget.getElementsByClassName("btn-active")[0].name
+            return parseFloat(v)
+        }
+
         get flow(){
             var ar = []
-            var boxes = this.flowTarget.querySelectorAll('input:checked')
-            console.log('mmmm <<<<<<', boxes)
-            boxes.forEach((n) => ar.push[n.value])
+            var boxes = this.flowTarget.querySelectorAll('input[type=checkbox]')
+            boxes.forEach((n) => {
+                var intVal = parseFloat(n.value)
+                ar.push([isNaN(intVal) ? 0 : intVal, n.checked])
+                if (intVal == 2){
+                    ar.push([3, n.checked])
+                }
+            })
             return ar
         }
     })

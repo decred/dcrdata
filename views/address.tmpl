@@ -125,6 +125,24 @@
                         <option value="amountflow">Sent and Received</option>
                         <option value="unspent">Total Unspent</option>
                     </select>
+                    <div class="chart-display d-hide">
+                        <label>Zoom </label>
+                        <div class="btn-group" data-toggle="buttons" data-target="address.zoom" data-action="click->address#onZoom">
+                            <input id="chart-zoom" type="button" class="btn btn_sm btn-active all" value="All" name="0">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Year" name="3.154e+10">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Month" name="2.628e+9">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Week" name="6.048e+8">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Day" name="8.64e+7">
+                        </div>
+                        <label style="margin-left:20px;">Size </label>
+                        <div class="btn-group" data-toggle="buttons" data-target="address.size" data-action="click->address#onSize">
+                            <input id="chart-size" type="button" class="btn btn_sm btn-active all" value="All" name="all">
+                            <input id="chart-size" type="button" class="btn btn_sm" value="Year" name="year">
+                            <input id="chart-size" type="button" class="btn btn_sm" value="Month" name="month">
+                            <input id="chart-size" type="button" class="btn btn_sm" value="Week" name="week">
+                            <input id="chart-size" type="button" class="btn btn_sm" value="Day" name="day">
+                        </div>
+                    </div>
                     <h5 class="mr-auto mb-0 list-display">History</h5>
                     {{if lt .NumTransactions $TxnCount}}
                     <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
@@ -290,12 +308,18 @@
 
                     <div id="toggle-charts" class="row t-charts d-hide" data-target="address.flow" 
                         data-action="change->address#updateFlow">
-                        <input class="c-box" type="checkbox" value="received" checked>
-                        <label class="font-weight-bold received-label">: Received</label>
-                        <input class="c-box" type="checkbox" value="sent">
-                        <label class="font-weight-bold sent-label">: Sent</label>
-                        <input class="c-box" type="checkbox" value="net">
-                        <label class="font-weight-bold net-label">: Net</label>
+                        <label class="customcheck">Received
+                            <input type="checkbox" checked="checked">
+                            <span class="checkmark" value="0"></span>
+                        </label>
+                            <label class="customcheck">Sent
+                            <input type="checkbox" value="1">
+                        <span class="checkmark"></span>
+                        </label>
+                        <label class="customcheck">Net
+                            <input type="checkbox" value="2">
+                            <span class="checkmark"></span>
+                        </label>
                     </div>
                 </div>
             </div>
