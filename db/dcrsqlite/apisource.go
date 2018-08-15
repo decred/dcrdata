@@ -1242,12 +1242,19 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		return nil
 	}
 
-	isDummyAddress := IsZeroHashP2PHKAddress(address, db.params)
-	if isDummyAddress {
-		return &explorer.AddressInfo{
-			Address:        address,
-			IsDummyAddress: isDummyAddress,
-			Fullmode:       true,
+	{
+		// Short circuit the transaction and balance queries if the provided address
+		// is the zero pubkey hash address commonly used for zero value
+		// sstxchange-tagged outputs.
+		isDummyAddress := IsZeroHashP2PHKAddress(address, db.params)
+		if isDummyAddress {
+			return &explorer.AddressInfo{
+				Address:         address,
+				Balance:         new(explorer.AddressBalance),
+				UnconfirmedTxns: new(explorer.AddressTransactions),
+				IsDummyAddress:  true,
+				Fullmode:        true,
+			}
 		}
 	}
 
@@ -1337,12 +1344,11 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		KnownTransactions: numberMaxOfTx,
 		KnownFundingTxns:  numReceiving,
 		KnownSpendingTxns: numSpending,
-		IsDummyAddress:    false,
 	}
 }
 
-// IsZeroHashP2PHKAddress checks if given address is dummy
-// see https://github.com/decred/dcrdata/issues/358 for details
+// IsZeroHashP2PHKAddress checks if the given address is the dummy (zero pubkey
+// hash) address. See https://github.com/decred/dcrdata/issues/358 for details.
 func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
 	zeroed := [20]byte{}
 	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
