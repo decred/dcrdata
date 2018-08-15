@@ -19,15 +19,15 @@ import (
 )
 
 const (
-	// blockConnChanBuffer is the size of the block connected channel buffers.
-	blockConnChanBuffer = 64
+	// blockConnChanBuffer is the size of the block connected channel buffer.
+	blockConnChanBuffer = 4096
 
 	// newTxChanBuffer is the size of the new transaction channel buffer, for
 	// ANY transactions are added into mempool.
-	newTxChanBuffer = 48
+	newTxChanBuffer = 4096
 
 	// expNewTxChanBuffer is the size of the new transaction buffer for explorer
-	expNewTxChanBuffer = 70
+	expNewTxChanBuffer = 4096
 
 	// relevantMempoolTxChanBuffer is the size of the new transaction channel
 	// buffer, for relevant transactions that are added into mempool.
