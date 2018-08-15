@@ -41,7 +41,7 @@ var UseSpewToPrettyPrintArrays = true
 var PanicOnTestSetupFailure = true
 
 // Set this flag "true" to print a stack stace when a test failed
-var PanicOnTestFailure = false
+var PanicOnTestFailure = !false
 
 // ReportTestIsNotAbleToTest called on failure in a test setup
 // Indicates that test needs to be fixed

@@ -46,9 +46,28 @@ testrepo () {
     exit 1
   fi
 
-  # Check tests
+  # install git lfs, temporary solution, should be handled by docker
+  #wget https://github.com/git-lfs/git-lfs/releases/download/v2.5.0/git-lfs-linux-amd64-v2.5.0.tar.gz
+  #tar xvf git-lfs-linux-amd64-v2.5.0.tar.gz
+  #./git-lfs install
+  #git config --global http.postBuffer 157286400
+
+  # download test data
+  git clone https://github.com/JFixby/dcrdata-testdata db/dcrsqlite/dcrdata-testdata
+     # unpack synced_up_to_260241
+     pushd db/dcrsqlite/dcrdata-testdata/synced_up_to_260241
+     tar xvf test-data.tar.xz
+     popd
+
+     # unpack blocks_0-5000
+     pushd db/dcrsqlite/dcrdata-testdata/blocks_0-5000
+     tar xf test-data.tar.xz
+     popd
+
+  # download bug-free-happiness
   git clone https://github.com/dcrlabs/bug-free-happiness test-data-repo
-  tar xvf test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz
+     tar xvf test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz
+
 
   env GORACE='halt_on_error=1' go test -v -race ./...
   if [ $? != 0 ]; then
