@@ -50,6 +50,7 @@
         var html = this.getLabels()[0] + ': ' + data.xHTML;
         data.series.map(function(series){
             if (isNaN(series.y)) return '';
+            if (series.y === 0 && series.labelHTML.includes('Net')) return '';
             var l = `<span style="color: ` + series.color + ';">' +series.labelHTML;
             html += '<br>' + series.dashHTML  + l + ': ' + series.y +' DCR</span>';
         });
@@ -108,7 +109,7 @@
 
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
-            return ['options', 'addr', 'btns', 'unspent', 'flow', 'zoom']
+            return ['options', 'addr', 'btns', 'unspent', 'flow', 'zoom', 'interval']
         }
 
         initialize(){
@@ -128,11 +129,10 @@
                 }
 
                 this.amountFlowGraphOptions = {
-                    labels: ['Date', 'Received', 'Sent', 'Net Received', 'Net Sent'],
+                    labels: ['Date', 'Received', 'Spent', 'Net Received', 'Net Spent'],
                     colors: ['#0066cc', 'rgb(0,128,127)', 'rgb(0,153,0)', '#ff0090'],
                     ylabel: 'Total Amount (DCR)',
                     title: 'Sent And Received',
-                    visibility: [true, false, false, false],
                     legendFormatter: customizedFormatter,
                     plotter: barchartPlotter,
                     stackedGraph: true,
@@ -164,6 +164,7 @@
         drawGraph(){
             var _this = this
             var graphType = _this.options
+            var interval = _this.interval
 
             $('#no-bal').addClass('d-hide');
             $('#history-chart').removeClass('d-hide');
@@ -178,7 +179,7 @@
 
             $.ajax({
                 type: 'GET',
-                url: '/api/address/' + _this.addr + '/' + graphType +'/'+ _this.size,
+                url: '/api/address/' + _this.addr + '/' + graphType +'/'+ interval,
                 beforeSend: function() {},
                 success: function(data) {
                     var newData = []
@@ -188,17 +189,20 @@
                         case 'types':
                             newData = txTypesFunc(data)
                             options = _this.typesGraphOptions
+                            options.visibility = [true, true, true, true]
                             break
 
                         case 'amountflow':
                             newData = amountFlowFunc(data)
                             options = _this.amountFlowGraphOptions
+                            _this.updateFlow()
                             $('#toggle-charts').removeClass('d-hide');
                             break
 
                         case 'unspent':
                             newData = unspentAmountFunc(data)
                             options = _this.unspentGraphOptions
+                            options.visibility = [true]
                             break
                     }
 
@@ -210,8 +214,6 @@
                             ...options})
                         _this.graph.resetZoom()
                     }
-
-                    _this.resetZoomButtons()
                     _this.xVal = _this.graph.xAxisExtremes()
 
                     $('body').removeClass('loading');
@@ -229,8 +231,6 @@
                 divHide = 'chart'
                 $('body').removeClass('loading');
             } else {
-                _this.options = 'types'
-                _this.size = 'all'
                 _this.drawGraph()
             }
 
@@ -261,12 +261,6 @@
             $('body').removeClass('loading');
         }
 
-        resetZoomButtons(){
-            $('input#chart-zoom').removeClass('btn-active');
-            $('input#chart-size').removeClass('btn-active');
-            $('input.all').addClass('btn-active');
-        }
-
         get options(){
             var selectedValue = this.optionsTarget
             return selectedValue.options[selectedValue.selectedIndex].value;
@@ -289,12 +283,13 @@
             return parseFloat(v)
         }
 
-        get size(){
-            return this.sizeTarget.getElementsByClassName("btn-active")[0].name
+        get interval(){
+            return this.intervalTarget.getElementsByClassName("btn-active")[0].name
         }
 
         get flow(){
             var ar = []
+            var newArr = []
             var boxes = this.flowTarget.querySelectorAll('input[type=checkbox]')
             boxes.forEach((n) => {
                 var intVal = parseFloat(n.value)
@@ -303,6 +298,9 @@
                     ar.push([3, n.checked])
                 }
             })
+
+            ar.forEach((n, i)=>{ newArr.push(ar[i][1])})
+            this.newArr = newArr
             return ar
         }
     })

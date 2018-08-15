@@ -114,19 +114,34 @@
         <div class="row">
             <div class="col">
                 <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
-                    <select 
-                        id="selectBox"
-                        class="chart-display mr-auto d-hide"
-                        data-target="address.options"
-                        data-action="change->address#changeGraph"
-                        style="font-size:0.8em; margin-top:7px;"
-                    >
-                        <option value="types">Transaction Types</option>
-                        <option value="amountflow">Sent and Received</option>
-                        <option value="unspent">Total Unspent</option>
-                    </select>
-                    <div class="chart-display d-hide">
-                        <label>Zoom </label>
+                    <div class="chart-display row d-hide" style="width:100%; margin-bottom:.7rem;">
+                        <select
+                            id="selectBox"
+                            class="chart-display mr-auto d-hide"
+                            data-target="address.options"
+                            data-action="change->address#changeGraph"
+                            style="font-size:0.8em; margin-top:5px;"
+                        >
+                            <option value="types" selected>Transaction Types</option>
+                            <option value="amountflow">Sent and Received</option>
+                            <option value="unspent">Total Unspent</option>
+                        </select>
+                        <div id="toggle-charts" class="row t-charts d-hide" data-target="address.flow"
+                            data-action="change->address#updateFlow">
+                            <label class="customcheck">Sent
+                                <input type="checkbox" value="1">
+                                <span class="checkmark"></span>
+                            </label>
+                            <label class="customcheck">Received
+                                <input type="checkbox" checked="checked">
+                                <span class="checkmark" value="0"></span>
+                            </label>
+                            <label class="customcheck">Net
+                                <input type="checkbox" value="2">
+                                <span class="checkmark"></span>
+                            </label>
+                        </div>
+                        <label style="margin: 0 1% 0 .0rem;">Zoom </label>
                         <div
                             class="btn-group"
                             data-toggle="buttons"
@@ -139,14 +154,14 @@
                             <input id="chart-zoom" type="button" class="btn btn_sm" value="Week" name="6.048e+8">
                             <input id="chart-zoom" type="button" class="btn btn_sm" value="Day" name="8.64e+7">
                         </div>
-                        <label style="margin-left:20px;">Size </label>
+                        <label style="margin: 0 1% 0 2%;">Group By </label>
                         <div
                             class="btn-group"
                             data-toggle="buttons"
-                            data-target="address.size"
+                            data-target="address.interval"
                             data-action="click->address#changeGraph"
                         >
-                            <input id="chart-size" type="button" class="btn btn_sm btn-active all" value="All" name="all">
+                            <input id="chart-size" type="button" class="btn btn_sm btn-active all" value="All Blocks" name="all">
                             <input id="chart-size" type="button" class="btn btn_sm" value="Year" name="yr">
                             <input id="chart-size" type="button" class="btn btn_sm" value="Month" name="mo">
                             <input id="chart-size" type="button" class="btn btn_sm" value="Week" name="wk">
@@ -315,22 +330,6 @@
                 <div class="chart-display d-hide">
                     <div id="history-chart" style="width:100%; height:500px; margin-top:20 auto;"></div>
                     <h5 id="no-bal" class="mt-2 bal-d" style="margin:7% auto 0 auto;">There are no transactions to display.</h5>
-
-                    <div id="toggle-charts" class="row t-charts d-hide" data-target="address.flow" 
-                        data-action="change->address#updateFlow">
-                        <label class="customcheck">Received
-                            <input type="checkbox" checked="checked">
-                            <span class="checkmark" value="0"></span>
-                        </label>
-                            <label class="customcheck">Sent
-                            <input type="checkbox" value="1">
-                        <span class="checkmark"></span>
-                        </label>
-                        <label class="customcheck">Net
-                            <input type="checkbox" value="2">
-                            <span class="checkmark"></span>
-                        </label>
-                    </div>
                 </div>
             </div>
         </div>

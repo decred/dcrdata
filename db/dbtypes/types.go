@@ -104,9 +104,9 @@ func (g ChartGrouping) String() string {
 	return ChartGroupings[g]
 }
 
-// ChartGroupingFromStr convert groupings string to the chartGrouping value.
+// ChartGroupingFromStr converts groupings string to its respective chartGrouping value.
 func ChartGroupingFromStr(groupings string) ChartGrouping {
-	switch groupings {
+	switch strings.ToLower(groupings) {
 	case "all":
 		return AllChartGrouping
 	case "yr", "year":

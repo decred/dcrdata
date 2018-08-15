@@ -1632,17 +1632,14 @@ func retrieveTxHistoryByAmountFlow(db *sql.DB, addr string,
 			return nil, err
 		}
 
-		var fmtSent = dcrutil.Amount(sent).ToCoin()
-		var fmtReceived = dcrutil.Amount(received).ToCoin()
-
 		items.Time = append(items.Time, blockTime)
-		items.Recieved = append(items.Recieved, fmtReceived)
-		items.Sent = append(items.Sent, fmtSent)
+		items.Recieved = append(items.Recieved, dcrutil.Amount(received).ToCoin())
+		items.Sent = append(items.Sent, dcrutil.Amount(sent).ToCoin())
 		// Net represents the difference between the recieved and sent for a
 		// given block. If the difference is positive then the values is unspent amount
 		// otherwise if the value is zero then all amount is spent and if the net amount
 		// is negative then for the given block more was sent than recieved.
-		items.Net = append(items.Net, (fmtReceived - fmtSent))
+		items.Net = append(items.Net, dcrutil.Amount(received-sent).ToCoin())
 	}
 	return items, nil
 }

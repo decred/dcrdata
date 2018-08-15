@@ -45,6 +45,7 @@ body.loading .modal {
     -webkit-font-smoothing: antialiased;
     border-style: solid;
     border-color: rgba(0, 0, 0, 0.50) !important;
+    height: fit-content;
   }
 
   .btn-active, .btn:active {
@@ -196,7 +197,7 @@ body.loading .modal {
 .t-charts {
     width: 22%;
     max-width: 270px;
-    margin: 20px auto 0 auto;
+    margin: 0 auto 0 auto;
     font-size: 14px;
     font-weight: bolder;
 }
