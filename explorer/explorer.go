@@ -309,6 +309,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) e
 	// Update all ExtraInfo with latest data
 	exp.ExtraInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
 	exp.ExtraInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
+	exp.ExtraInfo.NextExpectedStakeDiff = blockData.EstStakeDiff.Expected
 	exp.ExtraInfo.IdxBlockInWindow = blockData.IdxBlockInWindow
 	exp.ExtraInfo.IdxInRewardWindow = int(newBlockData.Height % exp.ChainParams.SubsidyReductionInterval)
 	exp.ExtraInfo.Difficulty = blockData.Header.Difficulty
