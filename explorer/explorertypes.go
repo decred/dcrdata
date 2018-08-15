@@ -257,6 +257,11 @@ type AddressInfo struct {
 	// KnownMergedSpendingTxns refers to the total count of unique debit transactions
 	// that appear in the merged debit view.
 	KnownMergedSpendingTxns int64
+
+	// IsDummyAddress is true when the address is the dummy address typically
+	// used for unspendable ticket change outputs. See
+	// https://github.com/decred/dcrdata/issues/358 for details.
+	IsDummyAddress bool
 }
 
 // TxnCount returns the number of transaction "rows" available.
