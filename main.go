@@ -351,10 +351,12 @@ func mainCore() error {
 		return err
 	}
 
-	// After sync and indexing, must use upsert statement, which checks for
-	// duplicate entries and updates instead of erroring. SyncChainDB should set
-	// this on successful sync, but do it again anyway.
-	auxDB.EnableDuplicateCheckOnInsert(true)
+	if usePG {
+		// After sync and indexing, must use upsert statement, which checks for
+		// duplicate entries and updates instead of erroring. SyncChainDB should set
+		// this on successful sync, but do it again anyway.
+		auxDB.EnableDuplicateCheckOnInsert(true)
+	}
 
 	// The sync routines may have lengthy tasks, such as table indexing, that
 	// follow main sync loop. Before enabling the chain monitors, ensure the DBs
