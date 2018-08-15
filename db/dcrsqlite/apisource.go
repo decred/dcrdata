@@ -1351,9 +1351,11 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 // hash) address. See https://github.com/decred/dcrdata/issues/358 for details.
 func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
 	zeroed := [20]byte{}
+	// expecting DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg address for mainnet
 	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
 	if err != nil {
-		return false //invalid state, should panic
+		log.Errorf("Incorrect pub key hash or invalid network params %v", params)
+		return false
 	}
 	zeroAddress := address.String()
 	return checkAddressString == zeroAddress
