@@ -182,6 +182,7 @@ func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiffDBItem, error) {
 			AllVersions:    false,
 		}
 		it := txn.NewIterator(opts)
+		defer it.Close()
 
 		var hashesBytes []byte
 		var lastheight uint64
