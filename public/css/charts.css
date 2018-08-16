@@ -29,18 +29,8 @@ body.loading .modal {
 .btn_sm {
     padding: .0rem .5rem !important;
     font-size: .875rem !important;
-    background-color: hsl(0, 0%, 79%) !important;
+    background-color:#ffffff !important;
     background-repeat: repeat-x;
-    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#ffffff", endColorstr="#c9c9c9");
-    background-image: -khtml-gradient(linear, left top, left bottom, from(#ffffff), to(#c9c9c9));
-    background-image: -moz-linear-gradient(top, #ffffff, #c9c9c9);
-    background-image: -ms-linear-gradient(top, #ffffff, #c9c9c9);
-    background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #ffffff), color-stop(100%, #c9c9c9));
-    background-image: -webkit-linear-gradient(top, #ffffff, #c9c9c9);
-    background-image: -o-linear-gradient(top, #ffffff, #c9c9c9);
-    background-image: linear-gradient(#ffffff, #c9c9c9);
-    border-color: #c9c9c9 #c9c9c9 hsl(0, 0%, 68.5%);
-    color: #333 !important;
     text-shadow: 0 1px 1px rgba(255, 255, 255, 0.69);
     -webkit-font-smoothing: antialiased;
     border-style: solid;

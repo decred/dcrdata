@@ -238,7 +238,7 @@
                                             {{if ne .MatchedTx ""}}
                                             <td class="text-right"><a href="/tx/{{.MatchedTx}}" class="hash">source</a></td>
                                             {{else}}
-                                            <td>N/A</td>
+                                            <td class="text-right">N/A</td>
                                             {{end}}
                                         {{end}}
                                     {{end}}
@@ -251,7 +251,7 @@
                                             <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
                                         {{end}}
                                     {{else}}
-                                        <td>N/A</td>
+                                        <td class="text-right">N/A</td>
                                     {{end}}
                                 {{else}}
                                     {{if ne .MatchedTx ""}}

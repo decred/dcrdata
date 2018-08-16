@@ -98,6 +98,7 @@
             legend: 'follow',
             xlabel: 'Date',
             labelsSeparateLines: true,
+            fillAlpha: 0.6,
         }
 
         return new Dygraph(
