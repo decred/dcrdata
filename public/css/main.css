@@ -270,7 +270,7 @@ body.darkBG .progress {
 .navbar-fixed-bottom {
   position: fixed;
   background: #3B3F45;
-  z-index: 1;
+  z-index: 1000;
 }
 .top-nav {
   width: 100%;
