@@ -103,8 +103,6 @@ necessary.
 
 Call `dep ensure` to update project dependencies when introduce new imports.
 
-Use `dep ensure -update` to sync up the `Gopkg.lock` file with the latest dependency revisions.
-
 For guides and reference materials about `dep`, see [the documentation](https://golang.github.io/dep).
 
 The following FAQ explains [the difference between `Gopkg.toml` and `Gopkg.lock` files](https://github.com/golang/dep/blob/master/docs/FAQ.md#what-is-the-difference-between-gopkgtoml-the-manifest-and-gopkglock-the-lock).
