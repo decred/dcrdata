@@ -1,4 +1,4 @@
-// a place for handy functions utility that can be shared accross the client side application
+// a place for handy functions utility that can be shared across the client side application
 
 function animationFrame() {
     let resolve = null
