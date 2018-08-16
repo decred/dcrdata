@@ -86,137 +86,39 @@ body.theme-mainnet a {
 }
 
 /**testnet theme**/
-body.theme-testnet{
-  background: #116466;
-  color: #fdfdfd;
-}
-body.theme-testnet a{
-  color: #94ffca;
-}
-body.theme-testnet .flex-table .header,
-body.theme-testnet .table thead tr {
-  background: #012f30 !important;
-}
-body.theme-testnet .flex-table .flex-table-row,
-body.theme-testnet .flex-table .header,
-body.theme-testnet .table tr {
-  border-bottom: 1px solid #012f30;
-}
-
 body.theme-testnet .top-nav,
 body.theme-testnet .navbar-fixed-bottom {
-  background: #012f30;
-  color: #3c4044;
-}
-body.theme-testnet .top-nav a,
-body.theme-testnet .navbar-fixed-bottom a {
+  /**background: #012f30;**/
+  background: #116466;
   color: #fff;
 }
-body.theme-testnet .page-link {
-  background-color: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(221, 221, 221, 0);
-}
-body.theme-testnet .page-item.disabled .page-link {
-  border-color: transparent;
-  background-color: #565656;
-}
-body.theme-testnet .json-block {
-  color: #fdfdfd;
+
+body.theme-testnet .navbar-fixed-bottom .nav-item {
+  color: #fff;
 }
 body.theme-testnet .top-search {
- color: #7fbdff;
-}
-body.theme-testnet .top-nav input:-webkit-autofill {
-  -webkit-animation-name: autofillDark;
-  -webkit-animation-fill-mode: both;
-}
-body.theme-testnet .navbar-fixed-bottom .nav-item {
-  color: #dcdcdc;
+ color: #fff;
 }
 body.theme-testnet #menuToggle .patty {
-  background: #fdfdfd;
+  background: #fff;
 }
-body.theme-testnet #menuToggle input:checked ~ .patty {
-  background: #fbfbfb;
-}
-body.theme-testnet #hamburger-menu a {
-  color: #fbfbfb;
-}
-body.theme-testnet #hamburger-menu a:hover {
-  color: #94ffca;
-}
-body.theme-testnet #menu {
-  background:  #012f30;;
-  box-shadow: 0px 0px 0px 1px rgba(0,0,0,0.24);;
-}
-body.theme-testnet .progress {
-  background-color: #757575;
-}
+
 
 /**simnet theme**/
-body.theme-simnet {
-  background: #076191;
-  color: #fdfdfd;
-}
-body.theme-simnet a{
-  color: #12edc5;
-}
-
-body.theme-simnet .flex-table .header,
-body.theme-simnet .table thead tr {
-  background: #001a27 !important;
-}
-body.theme-simnet .flex-table .flex-table-row,
-body.theme-simnet .flex-table .header,
-body.theme-simnet .table tr {
-  border-bottom: 1px solid rgba(0,0,0,0.24);
-}
-
 body.theme-simnet .top-nav,
 body.theme-simnet .navbar-fixed-bottom {
-  background: #001a27;
-  color: #fdfdfd;
-}
-
-body.theme-simnet .page-link {
-  background-color: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(221, 221, 221, 0);
-}
-body.theme-simnet .page-item.disabled .page-link {
-  border-color: transparent;
-  background-color: #565656;
-}
-body.theme-simnet .json-block {
-  color: #fdfdfd;
+  background: #076191;
+  color: #fff;
 }
 body.theme-simnet .top-search {
- color: #7fbdff;
+ color: #fff;
 }
-body.theme-simnet .top-nav input:-webkit-autofill {
-  -webkit-animation-name: autofillDark;
-  -webkit-animation-fill-mode: both;
-}
+
 body.theme-simnet .navbar-fixed-bottom .nav-item {
-  color: #fdfdfd;
+  color: #fff;
 }
 body.theme-simnet #menuToggle .patty {
-  background: #fdfdfd;
-}
-body.theme-simnet #menuToggle input:checked ~ .patty {
-  background: #fbfbfb;
-}
-body.theme-simnet #hamburger-menu a {
-  color: #fbfbfb;
-}
-body.theme-simnet #hamburger-menu a:hover {
-  color: #94ffca;
-}
-body.theme-simnet #menu {
-  background:  #001a27;
-  box-shadow: 0px 0px 0px 1px rgba(0,0,0,0.24);
-}
-body.theme-simnet .progress {
-  background-color: #898989;
+  background: #fff;
 }
 
 
