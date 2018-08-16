@@ -62,7 +62,7 @@ The following instructions assume a Unix-like shell (e.g. bash).
 * Fetch dependencies, and build the `dcrdata` executable.
 
       cd $GOPATH/src/github.com/decred/dcrdata
-      dep ensure
+      dep ensure -vendor-only
       # build dcrdata executable in workspace:
       go build
 
@@ -91,11 +91,23 @@ First, update the repository (assuming you have `master` checked out):
 
     cd $GOPATH/src/github.com/decred/dcrdata
     git pull origin master
-    dep ensure
+    dep ensure -vendor-only
     go build
 
 Look carefully for errors with `git pull`, and reset locally modified files if
 necessary.
+
+## Updating dependencies
+
+`dep ensure -vendor-only` fetches project dependencies, without making changes in manifest files `Gopkg.toml` and `Gopkg.lock`.
+
+Call `dep ensure` to update project dependencies when introduce new imports.
+
+Use `dep ensure -update` to sync up the `Gopkg.lock` file with the latest dependency revisions.
+
+For guides and reference materials about `dep`, see [the documentation](https://golang.github.io/dep).
+
+The following FAQ explains [the difference between `Gopkg.toml` and `Gopkg.lock` files](https://github.com/golang/dep/blob/master/docs/FAQ.md#what-is-the-difference-between-gopkgtoml-the-manifest-and-gopkglock-the-lock).
 
 ## Upgrading Instructions 
 
