@@ -14,8 +14,17 @@
             </div>
             `
         }
+
+        if (selectedChart == 'ticket-by-outputs-windows') {
+            let start = data.x * 144
+            let end = start + 143
+            var xAxisAdditionalInfo = ` (Blocks ${start} &mdash; ${end})`
+        } else {
+            var xAxisAdditionalInfo = ""
+        }
+
         return `<div class="d-flex flex-wrap justify-content-center align-items-center">
-            <div class="pr-3">${this.getLabels()[0]}: ${data.xHTML}</div>
+            <div class="pr-3">${this.getLabels()[0]}: ${data.xHTML}${xAxisAdditionalInfo}</div>
             <div class="d-flex flex-wrap">
             ${_.map(data.series,(series) => {
                 if (!series.isVisible) return;
@@ -294,7 +303,7 @@
 
                 case 'ticket-by-outputs-windows': // Tickets by output count graph for ticket windows
                     d = ticketByOutputCountFunc(data)
-                    _.assign(gOptions, mapDygraphOptions(d, ['Window', 'Solo', 'Pooled'], false, '# of Tickets By Output Count', 'Ticket Price Window',
+                    _.assign(gOptions, mapDygraphOptions(d, ['Window', '3 Outputs (likely Solo)', '5 Outputs (likely Pooled)'], false, '# of Tickets By Output Count', 'Ticket Price Window',
                     undefined, false, false), {
                         fillGraph: true,
                         stackedGraph: true,
