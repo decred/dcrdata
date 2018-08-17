@@ -1,7 +1,6 @@
 # dcrdata
 
 [![Build Status](https://img.shields.io/travis/decred/dcrdata.svg)](https://travis-ci.org/decred/dcrdata)
-[![GitHub release](https://img.shields.io/github/release/decred/dcrdata.svg)](https://github.com/decred/dcrdata/releases)
 [![Latest tag](https://img.shields.io/github/tag/decred/dcrdata.svg)](https://github.com/decred/dcrdata/tags)
 [![Go Report Card](https://goreportcard.com/badge/github.com/decred/dcrdata)](https://goreportcard.com/report/github.com/decred/dcrdata)
 [![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
@@ -12,31 +11,48 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 
 ```none
 ../dcrdata              The dcrdata daemon.
-├── blockdata           Package blockdata.
+├── api                 Package blockdata implements dcrdata's own HTTP API.
+│   ├── insight         Package insight implements the Insight API.
+│   └── types           Package types includes the exported structures used by
+|                         the dcrdata and Insight APIs.
+├── blockdata           Package blockdata is the primary data collection and
+|                         storage hub, and chain monitor.
 ├── cmd
-│   ├── rebuilddb       rebuilddb utility, for SQLite backend.
-│   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend.
-│   └── scanblocks      scanblocks utility.
+│   ├── rebuilddb       rebuilddb utility, for SQLite backend. Not requried.
+│   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not requried.
+│   └── scanblocks      scanblocks utility. Not requried.
 ├── dcrdataapi          Package dcrdataapi for golang API clients.
 ├── db
+│   ├── agendadb        Package agendadb is a basic PoS voting agenda database.
 │   ├── dbtypes         Package dbtypes with common data types.
 │   ├── dcrpg           Package dcrpg providing PostgreSQL backend.
 │   └── dcrsqlite       Package dcrsqlite providing SQLite backend.
 ├── dev                 Shell scripts for maintenance and deployment.
-├── public              Public resources for block explorer (css, js, etc.).
 ├── explorer            Package explorer, powering the block explorer.
-├── mempool             Package mempool.
-├── rpcutils            Package rpcutils.
+├── mempool             Package mempool for monitoring mempool for transactions,
+|                         data collection, and storage.
+├── middleware          Package middleware provides HTTP router middleware.
+├── notification        Package notification manages dcrd notifications, and
+|                         synchronous data collection by a queue of collectors.
+├── public              Public resources for block explorer (css, js, etc.).
+├── rpcutils            Package rpcutils contains helper types and functions for
+|                         interacting with a chain server via RPC.
 ├── semver              Package semver.
 ├── stakedb             Package stakedb, for tracking tickets.
-├── txhelpers           Package txhelpers.
+├── testutil            Package testutil provides some testing helper functions.
+├── txhelpers           Package txhelpers provides many functions and types for
+|                         processing blocks, transactions, voting, etc.
+├── version             Package version describes the dcrdata version.
 └── views               HTML templates for block explorer.
 ```
 
 ## Requirements
 
 * [Go](http://golang.org) 1.9.x or 1.10.x.
-* Running `dcrd` (>=1.1.2) synchronized to the current best block on the network.
+* Running `dcrd` (>=1.3.0) synchronized to the current best block on the
+  network. This is a strict requirement as testnet2 support is removed from
+  dcrdata v3.0.0.
+* (Optional) PostgreSQL 9.6+, if running in "full" mode.
 
 ## Installation
 
@@ -51,7 +67,9 @@ The following instructions assume a Unix-like shell (e.g. bash).
       go env GOROOT GOPATH
 
 * Ensure `$GOPATH/bin` is on your `$PATH`.
-* Install `dep`, the dependency management tool.
+* Install `dep`, the dependency management tool. The current [released binary of
+  `dep`](https://github.com/golang/dep/releases) is recommended, but the latest
+  may be installed from git via:
 
       go get -u -v github.com/golang/dep/cmd/dep
 
@@ -68,22 +86,26 @@ The following instructions assume a Unix-like shell (e.g. bash).
 
 To build with the git commit hash appended to the version, set it as follows:
 
-    go build -ldflags "-X github.com/decred/dcrdata/version.CommitHash=`git describe --abbrev=8 --long | awk -F "-" '{print $(NF-1)"-"$NF}'`"
+```bash
+go build -ldflags "-X github.com/decred/dcrdata/version.CommitHash=`git describe --abbrev=8 --long | awk -F "-" '{print $(NF-1)"-"$NF}'`"
+```
 
-The sqlite driver uses cgo, which requires a C compiler (e.g. gcc) to compile the C sources. On
-Windows this is easily handled with MSYS2 ([download](http://www.msys2.org/) and
-install MinGW-w64 gcc packages).
+The sqlite driver uses cgo, which requires a C compiler (e.g. gcc) to compile
+the C sources. On Windows this is easily handled with MSYS2
+([download](http://www.msys2.org/) and install MinGW-w64 gcc packages).
 
 Tip: If you receive other build errors, it may be due to "vendor" directories
 left by dep builds of dependencies such as dcrwallet. You may safely delete
-vendor folders and run `dep ensure` again.
+vendor folders and run `dep ensure -vendor-only` again.
 
 ### Runtime resources
 
-The config file, logs, and data files are stored in the application data folder, which may be specified via the `-A/--appdata` setting. However, the location of the config file may be set with `-C/--configfile`.
+The config file, logs, and data files are stored in the application data folder,
+which may be specified via the `-A/--appdata` and `-b/--datadir` settings.
+However, the location of the config file may be set with `-C/--configfile`.
 
-The "public" and "views" folders *must* be in the same
-folder as the `dcrdata` executable.
+The "public" and "views" folders *must* be in the same folder as the `dcrdata`
+executable.
 
 ## Updating
 
@@ -99,7 +121,8 @@ necessary.
 
 ## Updating dependencies
 
-`dep ensure -vendor-only` fetches project dependencies, without making changes in manifest files `Gopkg.toml` and `Gopkg.lock`.
+`dep ensure -vendor-only` fetches project dependencies, without making changes
+in manifest files `Gopkg.toml` and `Gopkg.lock`.
 
 Call `dep ensure` to update project dependencies when introduce new imports.
 
@@ -109,51 +132,65 @@ The following FAQ explains [the difference between `Gopkg.toml` and `Gopkg.lock`
 
 ## Upgrading Instructions 
 
-*__Only necessary while upgrading from v1.3.2 or below.__*
+*__Only necessary while upgrading from v2.x or below.__*  The database scheme
+change from dcrdata v2.x to v3.x does not permit an automatic migration. The
+tables must be rebuilt from scratch:
 
-1. Drop the old dcrdata database and create a new empty dcrdata database.
- ```sql
- // drop the old database
+1. Drop the old dcrdata database, and create a new empty dcrdata database.
+
+```sql
+ -- drop the old database
  DROP DATABASE dcrdata;
 
-// create a new database with the same user set in the dcrdata.conf e.g user dcrdata
-CREATE DATABASE dcrdata WITH OWNER dcrdata;
+-- create a new database with the same `pguser` set in the dcrdata.conf
+CREATE DATABASE dcrdata OWNER dcrdata;
 
-// grant all permissions to user dcrdata
+-- grant all permissions to user dcrdata
 GRANT ALL PRIVILEGES ON DATABASE dcrdata to dcrdata;
  ```
 
-2. Delete the data folder in dcrdata folder where dcrdata.conf file is located
-  - Mac :  `~/Library/Application Support/Dcrdata/data`
-  - Linux :  `~/Dcrdata/data`
-  - Window :  `C:\Users\<your-username>\AppData\Local\Dcrdata\data` 
+2. Delete the dcrdata data folder (i.e. corresponding to the `datadir` setting).
+   By default, `datadir` is in `{appdata}/data`:
+
+    * Linux:  `~/.dcrdata/data`
+    * Mac:  `~/Library/Application Support/Dcrdata/data`
+    * Windows:  `C:\Users\<your-username>\AppData\Local\Dcrdata\data` (`%localappdata%\Dcrdata\data`)
   
-3. Restart the data migration again by running the dcrdata and dcrd binaries
-  - run the downloaded dcrd binary first then the generated dcrdata binary
+3. With dcrd synchronized to the network's best block, start dcrdata to begin
+   the initial block data import.
 
 ## Getting Started
 
-### Configure PostgreSQL (IMPORTANT)
+### Configuring PostgreSQL (IMPORTANT)
 
 If you intend to run dcrdata in "full" mode (i.e. with the `--pg` switch), which
 uses a PostgreSQL database backend, it is crucial that you configure your
 PostgreSQL server for your hardware and the dcrdata workload.
 
 Read [postgresql-tuning.conf](./db/dcrpg/postgresql-tuning.conf) carefully for
-details on how to make the necessary changes to your system.
+details on how to make the necessary changes to your system. A helpful online
+tool for determining good settings for your system is called
+[PGTune](https://pgtune.leopard.in.ua/). **DO NOT** simply use this file in place
+of your existing postgresql.conf or copy and paste these settings into the
+existing postgresql.conf. It is necessary to edit postgresql.conf, reviewing all
+the settings to ensure the same configuration parameters are not set in two
+different places in the file.
 
-### Create configuration file
+On Linux, you may wish to use a unix domain socket instead of a TCP connection.
+The path to the socket depends on the system, but it is commonly
+/var/run/postgresql. Just set this path in `pghost`.
 
-Begin with the sample configuration file:
+### Creating the Configuration File
+
+Begin with the sample configuration file. With the default `appdata` directory
+for the current user on Linux:
 
 ```bash
-cp sample-dcrdata.conf dcrdata.conf
+cp sample-dcrdata.conf ~/.dcrdata/dcrdata.conf
 ```
 
-Then edit dcrdata.conf with your dcrd RPC settings. After you are finished, move
-dcrdata.conf to the `appdata` folder (default is `~/.dcrdata` on Linux,
-`%localappdata%\Dcrdata` on Windows). See the output of `dcrdata --help` for a list
-of all options and their default values.
+Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata --help`
+for a list of all options and their default values.
 
 ### Indexing the Blockchain
 
@@ -161,8 +198,8 @@ If dcrdata has not previously been run with the PostgreSQL database backend, it
 is necessary to perform a bulk import of blockchain data and generate table
 indexes. *This will be done automatically by `dcrdata`* on a fresh startup.
 
-Alternatively, the PostgreSQL tables may also be generated with the `rebuilddb2`
-command line tool:
+Alternatively (but not recommended), the PostgreSQL tables may also be generated
+with the `rebuilddb2` command line tool:
 
 * Create the dcrdata user and database in PostgreSQL (tables will be created automatically).
 * Set your PostgreSQL credentials and host in both `./cmd/rebuilddb2/rebuilddb2.conf`,
@@ -171,20 +208,27 @@ command line tool:
 * In case of irrecoverable errors, such as detected schema changes without an
   upgrade path, the tables and their indexes may be dropped with `rebuilddb2 -D`.
 
-Note that dcrdata requires that [dcrd](https://docs.decred.org/getting-started/user-guides/dcrd-setup/) is running with optional indexes enabled.  By default these indexes are not turned on when dcrd is installed.
+Note that dcrdata requires that
+[dcrd](https://docs.decred.org/getting-started/user-guides/dcrd-setup/) is
+running with some optional indexes enabled.  By default, these indexes are not
+turned on when dcrd is installed. To enable them, set the following in
+dcrd.conf:
 
-In dcrd.conf set:
-```
+```ini
 txindex=1
 addrindex=1
 ```
 
 ### Starting dcrdata
 
-Launch the dcrdata daemon and allow the databases to process new blocks. Both
-SQLite and PostgreSQL synchronization require about an hour the first time
-dcrdata is run, but they are done concurrently. On subsequent launches, only
-blocks new to dcrdata are processed.
+Launch the dcrdata daemon and allow the databases to process new blocks. In
+"lite" mode (without `--pg`), only a SQLite DB is populated, which usually
+requires 30-60 minutes. In "full" mode (with `--pg`), concurrent synchronization
+of both SQLite and PostgreSQL databases is performed, requiring from 3-12 hours.
+See [System Hardware Requirements](#System-Hardware-Requirements) for more
+information.
+
+On subsequent launches, only blocks new to dcrdata are processed.
 
 ```bash
 ./dcrdata    # don't forget to configure dcrdata.conf in the appdata folder!
@@ -194,40 +238,74 @@ Unlike dcrdata.conf, which must be placed in the `appdata` folder or explicitly
 set with `-C`, the "public" and "views" folders *must* be in the same folder as
 the `dcrdata` executable.
 
-## dcrdata daemon
+## System Hardware Requirements
 
-The root of the repository is the `main` package for the dcrdata app, which has
-several components including:
+The time required to sync in "full" mode varies greatly with system hardware and
+software configuration. The most important factor is the storage medium on the
+database machine. An SSD (preferably NVMe, not SATA) is strongly recommended if
+you value your time and system performance.
+
+### "lite" Mode (SQLite only)
+
+Minimum:
+
+* 1 CPU core
+* 2 GB RAM
+* HDD with 4GB free space
+
+### "full" Mode (SQLite and PostgreSQL)
+
+These specifications assume dcrdata and postgres are running on the same machine.
+
+Minimum:
+
+* 1 CPU core
+* 4 GB RAM
+* HDD with 60GB free space
+
+Recommend:
+
+* 2+ CPU cores
+* 7+ GB RAM
+* SSD (NVMe preferred) with 60 GB free space
+
+If PostgreSQL is running on a separate machine, the minimum "lite" mode
+requirements may be applied to the dcrdata machine, while the recommended
+"full" mode requirements should be applied to the PostgreSQL host.
+
+## dcrdata Daemon
+
+The root of the repository is the `main` package for the `dcrdata` app, which
+has several components including:
 
 1. Block explorer (web interface).
-1. Blockchain monitoring and data collection.
-1. Mempool monitoring and reporting.
-1. Data storage in durable database (sqlite presently).
-1. RESTful JSON API over HTTP(S).
+2. Blockchain monitoring and data collection.
+3. Mempool monitoring and reporting.
+4. Database backend interfaces.
+5. RESTful JSON API (custom and Insight) over HTTP(S).
 
 ### Block Explorer
 
 After dcrdata syncs with the blockchain server via RPC, by default it will begin
 listening for HTTP connections on `http://127.0.0.1:7777/`. This means it starts
 a web server listening on IPv4 localhost, port 7777. Both the interface and port
-are configurable. The block explorer and the JSON API are both provided by the
+are configurable. The block explorer and the JSON APIs are both provided by the
 server on this port. See [JSON REST API](#json-rest-api) for details.
 
 Note that while dcrdata can be started with HTTPS support, it is recommended to
-employ a reverse proxy such as nginx. See sample-nginx.conf for an example nginx
-configuration.
+employ a reverse proxy such as Nginx ("engine x"). See sample-nginx.conf for an
+example Nginx configuration.
 
-A new auxillary database backend using PostgreSQL was introduced in v0.9.0 that
-provides expanded functionality. However, initial population of the database
-takes additional time and tens of gigabytes of disk storage space. Thus, dcrdata
-runs by default in a reduced functionality mode that does not require
+To save time and tens of gigabytes of disk storage space, dcrdata runs by
+default in a reduced functionality ("lite") mode that does not require
 PostgreSQL. To enable the PostgreSQL backend (and the expanded functionality),
 dcrdata may be started with the `--pg` switch.
 
 ### JSON REST API
 
 The API serves JSON data over HTTP(S). **All API endpoints are currently
-prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
+prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).  The Insight
+API endpoints (not described in this section) are prefixed with `/insight/api`.
 
 #### Endpoint List
 
@@ -239,6 +317,7 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 | Hash |  `/block/best/hash` | `string` |
 | Height | `/block/best/height` | `int` |
 | Size | `/block/best/size` | `int32` |
+| Subsidy | `/block/best/subsidy` | `types.BlockSubsidies` |
 | Transactions | `/block/best/tx` | `types.BlockTransactions` |
 | Transactions Count | `/block/best/tx/count` | `types.BlockTransactionCounts` |
 | Verbose block result | `/block/best/verbose` | `dcrjson.GetBlockVerboseResult` |
@@ -250,6 +329,7 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 | Header |  `/block/X/header` | `dcrjson.GetBlockHeaderVerboseResult` |
 | Hash |  `/block/X/hash` | `string` |
 | Size | `/block/X/size` | `int32` |
+| Subsidy | `/block/best/subsidy` | `types.BlockSubsidies` |
 | Transactions | `/block/X/tx` | `types.BlockTransactions` |
 | Transactions Count | `/block/X/tx/count` | `types.BlockTransactionCounts` |
 | Verbose block result | `/block/X/verbose` | `dcrjson.GetBlockVerboseResult` |
@@ -261,6 +341,7 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 | Header |  `/block/hash/H/header` | `dcrjson.GetBlockHeaderVerboseResult` |
 | Height |  `/block/hash/H/height` | `int` |
 | Size | `/block/hash/H/size` | `int32` |
+| Subsidy | `/block/best/subsidy` | `types.BlockSubsidies` |
 | Transactions | `/block/hash/H/tx` | `types.BlockTransactions` |
 | Transactions count | `/block/hash/H/tx/count` | `types.BlockTransactionCounts` |
 | Verbose block result | `/block/hash/H/verbose` | `dcrjson.GetBlockVerboseResult` |
@@ -280,6 +361,9 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 | Details for input at index `X` | `/tx/T/in/X` | `types.TxIn` |
 | Outputs | `/tx/T/out` | `[]types.TxOut` |
 | Details for output at index `X` | `/tx/T/out/X` | `types.TxOut` |
+| Vote info (ssgen transactions only) | `/tx/T/vinfo` | `types.VoteInfo` |
+| Serialized bytes of the transaction | `/tx/hex/T` | `string` |
+| Same as `/tx/trimmed/T` | `/tx/decoded/T` | `types.TrimmedTx` |
 
 | Transactions (batch) | Path | Type |
 | --- | --- | --- |
@@ -289,6 +373,7 @@ prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).
 | Address A | Path | Type |
 | --- | --- | --- |
 | Summary of last 10 transactions | `/address/A` | `types.Address` |
+| Number and value of spent and unspent outputs | `/address/A/totals` | `types.AddressTotals` |
 | Verbose transaction result for last <br> 10 transactions | `/address/A/raw` | `types.AddressTxRaw` |
 | Summary of last `N` transactions | `/address/A/count/N` | `types.Address` |
 | Verbose transaction result for last <br> `N` transactions | `/address/A/count/N/raw` | `types.AddressTxRaw` |
@@ -339,7 +424,6 @@ parsing more efficient for the client.
 | Status | `/status` | `types.Status` |
 | Coin Supply | `/supply` | `types.CoinSupply` |
 | Endpoint list (always indented) | `/list` | `[]string` |
-| Directory | `/directory` | `string` |
 
 All JSON endpoints accept the URL query `indent=[true|false]`.  For example,
 `/stake/diff?indent=true`. By default, indentation is off. The characters to use
@@ -367,8 +451,10 @@ of the dcrdata daemon, but may be called alone with rebuilddb.
 
 `rebuilddb2` is a CLI app used for maintenance of dcrdata's `dcrpg` database
 (a.k.a. DB v2) that uses PostgreSQL to store a nearly complete record of the
-Decred blockchain data. See the [README.md](./cmd/rebuilddb2/README.md) for
-`rebuilddb2` for important usage information.
+Decred blockchain data. This functionality is included in the startup of the
+dcrdata daemon, but may be called alone with rebuilddb. See the
+[README.md](./cmd/rebuilddb2/README.md) for `rebuilddb2` for important usage
+information.
 
 ### scanblocks
 
@@ -377,7 +463,7 @@ More details are in [its own README](./cmd/scanblocks/README.md). The repository
 also includes a shell script, jsonarray2csv.sh, to convert the result into a
 comma-separated value (CSV) file.
 
-## Helper packages
+## Helper Packages
 
 `package dcrdataapi` defines the data types, with json tags, used by the JSON
 API.  This facilitates authoring of robust golang clients of the API.
@@ -402,7 +488,7 @@ from dcrd.
 `package txhelpers` includes helper functions for working with the common types
 `dcrutil.Tx`, `dcrutil.Block`, `chainhash.Hash`, and others.
 
-## Internal-use packages
+## Internal-use Packages
 
 Packages `blockdata` and `dcrsqlite` are currently designed only for internal
 use internal use by other dcrdata packages, but they may be of general value in
@@ -451,10 +537,12 @@ See the GitHub issue tracker and the [project milestones](https://github.com/dec
 Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it:
 
 1. Fork the repo.
-1. Create a branch for your work (`git branch -b cool-stuff`).
-1. Code something great.
-1. Commit and push to your repo.
-1. Create a [pull request](https://github.com/decred/dcrdata/compare).
+2. Create a branch for your work (`git branch -b cool-stuff`).
+3. Code something great.
+4. Commit and push to your repo.
+5. Create a [pull request](https://github.com/decred/dcrdata/compare).
+
+**DO NOT merge from master to your feature branch; rebase.**
 
 Before committing any changes to the Gopkg.lock file, you must update `dep` to
 the latest version via:
@@ -467,7 +555,7 @@ shown above.**
 Note that all dcrdata.org community and team members are expected to adhere to
 the code of conduct, described in the CODE_OF_CONDUCT file.
 
-Also, [come chat with us on Slack](https://join.slack.com/t/dcrdata/shared_invite/enQtMjQ2NzAzODk0MjQ3LTRkZGJjOWIyNDc0MjBmOThhN2YxMzZmZGRlYmVkZmNkNmQ3MGQyNzAxMzJjYzU1MzA2ZGIwYTIzMTUxMjM3ZDY)!
+Also, [come chat with us on Slack](https://slack.decred.org/)!
 
 ## License
 
