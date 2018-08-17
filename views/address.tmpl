@@ -114,13 +114,12 @@
         <div class="row">
             <div class="col">
                 <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
-                    <div class="chart-display row d-hide" style="width:100%; margin-bottom:.7rem;">
+                    <div class="chart-display row d-hide" style="width:100%; margin:.7rem 0 0 -15px !important;">
                         <select
                             id="selectBox"
-                            class="chart-display mr-auto d-hide"
+                            class="chart-display mr-auto chart-box d-hide"
                             data-target="address.options"
                             data-action="change->address#changeGraph"
-                            style="font-size:0.8em; margin-top:5px;"
                         >
                             <option value="types" selected>Transaction Types</option>
                             <option value="amountflow">Sent and Received</option>
@@ -130,15 +129,15 @@
                             data-action="change->address#updateFlow">
                             <label class="customcheck">Sent
                                 <input type="checkbox" value="1">
-                                <span class="checkmark"></span>
+                                <span class="checkmark sent"></span>
                             </label>
                             <label class="customcheck">Received
                                 <input type="checkbox" checked="checked">
-                                <span class="checkmark" value="0"></span>
+                                <span class="checkmark received" value="0"></span>
                             </label>
                             <label class="customcheck">Net
                                 <input type="checkbox" value="2">
-                                <span class="checkmark"></span>
+                                <span class="checkmark net"></span>
                             </label>
                         </div>
                         <label style="margin: 0 1% 0 .0rem;">Zoom </label>
@@ -148,11 +147,11 @@
                             data-target="address.zoom"
                             data-action="click->address#onZoom"
                         >
-                            <input id="chart-zoom" type="button" class="btn btn_sm btn-active all" value="All" name="0">
-                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Year" name="3.154e+10">
-                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Month" name="2.628e+9">
-                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Week" name="6.048e+8">
-                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Day" name="8.64e+7">
+                            <input id="chart-zoom" type="button" class="btn btn_sm btn-active all" value="All Time" name="0">
+                            <input id="chart-zoom" type="button" class="btn btn_sm year" value="Year" name="3.154e+10">
+                            <input id="chart-zoom" type="button" class="btn btn_sm month" value="Month" name="2.628e+9">
+                            <input id="chart-zoom" type="button" class="btn btn_sm week" value="Week" name="6.048e+8">
+                            <input id="chart-zoom" type="button" class="btn btn_sm day" value="Day" name="8.64e+7">
                         </div>
                         <label style="margin: 0 1% 0 2%;">Group By </label>
                         <div
@@ -161,11 +160,11 @@
                             data-target="address.interval"
                             data-action="click->address#changeGraph"
                         >
+                            <input id="chart-size" type="button" class="btn btn_sm year" value="Year" name="yr">
+                            <input id="chart-size" type="button" class="btn btn_sm month" value="Month" name="mo">
+                            <input id="chart-size" type="button" class="btn btn_sm week" value="Week" name="wk">
+                            <input id="chart-size" type="button" class="btn btn_sm day" value="Day" name="day">
                             <input id="chart-size" type="button" class="btn btn_sm btn-active all" value="All Blocks" name="all">
-                            <input id="chart-size" type="button" class="btn btn_sm" value="Year" name="yr">
-                            <input id="chart-size" type="button" class="btn btn_sm" value="Month" name="mo">
-                            <input id="chart-size" type="button" class="btn btn_sm" value="Week" name="wk">
-                            <input id="chart-size" type="button" class="btn btn_sm" value="Day" name="day">
                         </div>
                     </div>
                     <h5 class="mr-auto mb-0 list-display">History</h5>

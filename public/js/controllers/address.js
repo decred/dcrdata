@@ -33,8 +33,6 @@
         return p
     }
 
-
-
     function formatter(data) {
         if (data.x == null) return '';
         var html = this.getLabels()[0] + ': ' + data.xHTML;
@@ -57,20 +55,11 @@
         return html;
     }
 
-    function darkenColor(colorStr) {
-        var color = Dygraph.toRGB_(colorStr);
-        color.r = Math.floor((255 + color.r) / 2);
-        color.g = Math.floor((255 + color.g) / 2);
-        color.b = Math.floor((255 + color.b) / 2);
-        return 'rgb(' + color.r + ',' + color.g + ',' + color.b + ')';
-    }
-
     function barchartPlotter(e) {
         var ctx = e.drawingContext;
         var points = e.points;
         var y_bottom = e.dygraph.toDomYCoord(0);
-
-        ctx.fillStyle = darkenColor(e.color);
+        ctx.fillStyle = e.color;
         var min_sep = Infinity;
 
         for (var i = 1; i < points.length; i++) {
@@ -98,7 +87,7 @@
             legend: 'follow',
             xlabel: 'Date',
             labelsSeparateLines: true,
-            fillAlpha: 0.6,
+            fillAlpha: 0.9,
         }
 
         return new Dygraph(
@@ -110,7 +99,8 @@
 
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
-            return ['options', 'addr', 'btns', 'unspent', 'flow', 'zoom', 'interval']
+            return ['options', 'addr', 'btns', 'unspent',
+                    'flow', 'zoom', 'interval']
         }
 
         initialize(){
@@ -118,7 +108,7 @@
             $.getScript('/js/dygraphs.min.js', () => {
                 this.typesGraphOptions = {
                     labels: ['Date', 'RegularTx', 'Tickets', 'Votes', 'RevokeTx'],
-                    colors: ['#0066cc', '#006600', 'darkorange', '#ff0090'],
+                    colors: ['#2971FF', '#41BF53', 'darkorange', '#FF0090'],
                     ylabel: '# of Tx Types',
                     title: 'Transactions Types',
                     visibility: [true, true, true, true],
@@ -131,7 +121,7 @@
 
                 this.amountFlowGraphOptions = {
                     labels: ['Date', 'Received', 'Spent', 'Net Received', 'Net Spent'],
-                    colors: ['#0066cc', 'rgb(0,128,127)', 'rgb(0,153,0)', '#ff0090'],
+                    colors: ['#2971FF', '#2ED6A1', '#41BF53', '#FF0090'],
                     ylabel: 'Total Amount (DCR)',
                     title: 'Sent And Received',
                     legendFormatter: customizedFormatter,
@@ -143,7 +133,7 @@
 
                 this.unspentGraphOptions = {
                     labels: ['Date', 'Unspent'],
-                    colors: ['rgb(0,128,127)'],
+                    colors: ['#41BF53'],
                     ylabel: 'Cummulative Unspent Amount (DCR)',
                     title: 'Total Unspent',
                     plotter: [Dygraph.Plotters.linePlotter, Dygraph.Plotters.fillPlotter],
@@ -175,6 +165,7 @@
                 $('#no-bal').removeClass('d-hide');
                 $('#history-chart').addClass('d-hide');
                 $('body').removeClass('loading');
+                _this.disableBtnsIfNotApplicable()
                 return
             }
 
@@ -216,6 +207,7 @@
                         _this.graph.resetZoom()
                     }
                     _this.xVal = _this.graph.xAxisExtremes()
+                    _this.disableBtnsIfNotApplicable()
 
                     $('body').removeClass('loading');
                 }
@@ -260,6 +252,31 @@
                 });
             }
             $('body').removeClass('loading');
+        }
+
+        disableBtnsIfNotApplicable(){
+            var val = this.xVal[0]
+            var d = new Date()
+
+            var pastYear = d.getFullYear() - 1;
+            var pastMonth = d.getMonth() - 1;
+            var pastWeek = d.getDate() - 7
+            var pastDay = d.getDate() - 1
+
+            var setApplicableBtns = (className, ts) => {
+                var isApplicable = (val > Number(new Date(ts))) ||
+                    (this.options === 'unspent' && this.unspent == "0")
+                var zoomElem = this.zoomTarget.getElementsByClassName(className)[0]
+                zoomElem.disabled = isApplicable
+
+                var intervalElem = this.intervalTarget.getElementsByClassName(className)[0]
+                intervalElem.disabled = isApplicable
+            }
+
+            setApplicableBtns('year', new Date().setFullYear(pastYear))
+            setApplicableBtns('month', new Date().setMonth(pastMonth))
+            setApplicableBtns('week', new Date().setDate(pastWeek))
+            setApplicableBtns('day', new Date().setDate(pastDay))
         }
 
         get options(){

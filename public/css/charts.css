@@ -191,8 +191,6 @@ body.loading .modal {
     font-size: 14px;
     font-weight: bolder;
 }
-
-/* The customcheck */
 .customcheck {
     display: block;
     position: relative;
@@ -205,15 +203,11 @@ body.loading .modal {
     -ms-user-select: none;
     user-select: none;
 }
-
-/* Hide the browser's default checkbox */
 .customcheck input {
     position: absolute;
     opacity: 0;
     cursor: pointer;
 }
-
-/* Create a custom checkbox */
 .checkmark {
     position: absolute;
     top: 0;
@@ -223,30 +217,29 @@ body.loading .modal {
     background-color: #eee;
     border-radius: 5px;
 }
-
-/* When the checkbox is checked, add a blue background */
 .customcheck input:checked ~ .checkmark {
-    background-color: #037efd;
     border-radius: 5px;
 }
-
-/* Create the checkmark/indicator (hidden when not checked) */
+.customcheck input:checked ~ .received {
+    background-color: #2971FF;
+}
+.customcheck input:checked ~ .sent {
+    background-color: #2ED6A1;
+}
+.customcheck input:checked ~ .net {
+    background-color: #FF0090;
+}
 .checkmark:after {
     content: "";
     position: absolute;
     display: none;
 }
-
 input ~ .checkmark {
     background-color: #ccc;
   }
-
-/* Show the checkmark when checked */
 .customcheck input:checked ~ .checkmark:after {
     display: block;
 }
-
-/* Style the checkmark/indicator */
 .customcheck .checkmark:after {
     left: 5px;
     top: 2px;
@@ -257,4 +250,10 @@ input ~ .checkmark {
     -webkit-transform: rotate(45deg);
     -ms-transform: rotate(45deg);
     transform: rotate(45deg);
+}
+.chart-box {
+    background-color: #ffffff;
+    height: fit-content;
+    font-size: 0.8em;
+    margin-top: 5px;
 }
