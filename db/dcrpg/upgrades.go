@@ -281,7 +281,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 
 	case blocksTableMainchainUpgrade:
 		// blocks table upgrade proceeds from best block back to genesis
-		blockHash, err := pgb.HashDB()
+		_, blockHash, _, err := RetrieveBestBlockHeightAny(pgb.db)
 		if err != nil {
 			return false, fmt.Errorf("failed to retrieve best block from DB: %v", err)
 		}

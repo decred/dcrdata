@@ -85,8 +85,9 @@ const (
 		ON blocks(hash);`
 	DeindexBlockTableOnHash = `DROP INDEX uix_block_hash;`
 
-	RetrieveBestBlock       = `SELECT * FROM blocks ORDER BY height DESC LIMIT 0, 1;`
-	RetrieveBestBlockHeight = `SELECT id, hash, height FROM blocks WHERE is_mainchain = true ORDER BY height DESC LIMIT 1;`
+	RetrieveBestBlock          = `SELECT * FROM blocks ORDER BY height DESC LIMIT 0, 1;`
+	RetrieveBestBlockHeightAny = `SELECT id, hash, height FROM blocks ORDER BY height DESC LIMIT 1;`
+	RetrieveBestBlockHeight    = `SELECT id, hash, height FROM blocks WHERE is_mainchain = true ORDER BY height DESC LIMIT 1;`
 
 	// SelectBlocksTicketsPrice selects the ticket price and difficulty for the first block in a stake difficulty window.
 	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty FROM blocks WHERE height % $1 = 0 ORDER BY time;`
