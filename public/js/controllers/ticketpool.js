@@ -9,21 +9,12 @@ function legendFormatter(data) {
     return html;
 }
 
-// Darken a color
-function darkenColor(colorStr) {
-    var color = Dygraph.toRGB_(colorStr);
-    color.r = Math.floor((255 + color.r) / 2);
-    color.g = Math.floor((255 + color.g) / 2);
-    color.b = Math.floor((255 + color.b) / 2);
-    return 'rgb(' + color.r + ',' + color.g + ',' + color.b + ')';
-}
-
 function barchartPlotter(e) {
     var ctx = e.drawingContext;
     var points = e.points;
     var yBottom = e.dygraph.toDomYCoord(0);
 
-    ctx.fillStyle = darkenColor(e.color);
+    ctx.fillStyle = e.color;
 
     var minSep = Infinity;
     for (var i = 1; i < points.length; i++) {
@@ -133,7 +124,7 @@ function barchartPlotter(e) {
         var d = purchasesGraphData(graph[0], mpl)
         var p = {
             labels: ["Date", "Mempool Tickets", "Immature Tickets", "Live Tickets", "Ticket Value"],
-            colors: ['darkorange', '#006600', '#0066cc', '#ff0090'],
+            colors: ['#FF8C00', '#006600', '#2971FF', '#ff0090'],
             title: 'Tickets Purchase Distribution',
             y2label: 'A.v.g. Tickets Value (DCR)',
             dateWindow: getWindow("day"),
@@ -155,7 +146,7 @@ function barchartPlotter(e) {
         var d = priceGraphData(graph[1], mpl)
         var p = {
                 labels: ["Price", 'Mempool Tickets', 'Immature Tickets', 'Live Tickets'],
-                colors: ['darkorange', '#006600', '#0066cc'],
+                colors: ['#FF8C00', '#006600', '#2971FF'],
                 title: 'Ticket Price Distribution',
                 labelsKMB: true,
                 xlabel: 'Ticket Price (DCR)',
@@ -193,11 +184,11 @@ function barchartPlotter(e) {
             },
             type: "doughnut",
             data: {
-                labels: ["Solo", "Pooled", "TixSplit"],
+                labels: ["Solo", "VPS Tickets", "TixSplit"],
                 datasets: [{
                     data: d,
                     label: 'Solo Tickets',
-                    backgroundColor: ['#2d00dd', '#FF8F00', 'limegreen'],
+                    backgroundColor: ['#2971FF', '#FF8C00', '#41BF53'],
                     borderColor: [ 'white', 'white', 'white'],
                     borderWidth: 0.5
                 }]

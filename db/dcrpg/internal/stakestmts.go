@@ -19,7 +19,8 @@ const (
 		pool_status INT2,
 		is_mainchain BOOLEAN,
 		spend_height INT4,
-		spend_tx_db_id INT8
+		spend_tx_db_id INT8,
+		block_time INT8
 	);`
 
 	// Insert
@@ -27,12 +28,12 @@ const (
 		tx_hash, block_hash, block_height, purchase_tx_db_id,
 		stakesubmission_address, is_multisig, is_split,
 		num_inputs, price, fee, spend_type, pool_status,
-		is_mainchain)
+		is_mainchain, block_time)
 	VALUES (
 		$1, $2, $3,	$4,
 		$5, $6, $7,
 		$8, $9, $10, $11, $12, 
-		$13) `
+		$13, $14) `
 	insertTicketRow = insertTicketRow0 + `RETURNING id;`
 	// insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTicketRow = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -77,6 +78,8 @@ const (
 		WHERE purchase_tx_db_id = $1;`
 	SetTicketPoolStatusForTicketDbID = `UPDATE tickets SET pool_status = $2 WHERE id = $1;`
 	SetTicketPoolStatusForHash       = `UPDATE tickets SET pool_status = $2 WHERE tx_hash = $1;`
+
+	SetTicketBlockTimeByHeight = `UPDATE tickets SET block_time=$1 WHERE block_height=$2;`
 
 	UpdateTicketsMainchainAll = `UPDATE tickets
 		SET is_mainchain=b.is_mainchain

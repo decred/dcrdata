@@ -36,6 +36,7 @@ const (
 	vinsTxHistogramUpgrade
 	addressesTxHistogramUpgrade
 	agendasVotingMilestonesUpgrade
+	ticketsTableBlockTimeUpgrade
 )
 
 type TableUpgradeType struct {
@@ -186,12 +187,28 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		// Go on to next upgrade
 		fallthrough
 
-		// Upgrade from 3.5.0 --> 3.5.1
+	// Upgrade from 3.5.0 --> 3.5.1
 	case version.major == 3 && version.minor == 5 && version.patch == 0:
 		toVersion = TableVersion{3, 5, 1}
 
 		theseUpgrades := []TableUpgradeType{
 			{"agendas", agendasVotingMilestonesUpgrade},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
+		// Go on to next upgrade
+		fallthrough
+
+		// Upgrade from 3.5.1 --> 3.6.0
+	case version.major == 3 && version.minor == 5 && version.patch == 1:
+		toVersion = TableVersion{3, 6, 0}
+
+		theseUpgrades := []TableUpgradeType{
+			{"tickets", ticketsTableBlockTimeUpgrade},
 		}
 
 		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
@@ -288,6 +305,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		// migration between pg version 3.2.0 and 3.5.0.
 		tableReady = true
 		tableName, upgradeTypeStr = "agendas", "voting milestones"
+	case ticketsTableBlockTimeUpgrade:
+		tableReady, err = addTicketsColumnsForBlockTimeUpgrade(pgb.db)
+		tableName, upgradeTypeStr = "tickets", "block time"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -397,12 +417,16 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("Set the agendas voting milestones...")
 		rowsUpdated, err = pgb.handleAgendasVotingMilestonesUpgrade()
 
+	case ticketsTableBlockTimeUpgrade:
+		log.Infof("Starting tickets table block time upgrade ...")
+		rowsUpdated, err = pgb.handleTicketsBlockTimeUpgrade()
+
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
 	}
 
 	if err != nil {
-		return false, fmt.Errorf(`%s upgrade of %s table ended prematurely after %d rows. `+
+		return false, fmt.Errorf(`%s upgrade of %s table ended prematurely after %d rows.`+
 			`Error: %v`, upgradeTypeStr, tableName, rowsUpdated, err)
 	}
 
@@ -486,6 +510,48 @@ func (pgb *ChainDB) handleVinsTableMainchainupgrade() (int64, error) {
 	return rowsUpdated, nil
 }
 
+func (pgb *ChainDB) handleTicketsBlockTimeUpgrade() (int64, error) {
+	log.Info(" - Retrieving all the ticket transactions with blocktime")
+	ticketsBlockTime, err := retrieveTicketsTxsBlockTime(pgb.db)
+	if err != nil {
+		return 0, fmt.Errorf("Unable to retreive all a tickets block time: %v", err)
+	}
+
+	log.Info(" - Indexing the block_height to hasten the block_time update")
+	_, err = pgb.db.Exec("CREATE INDEX xxxx_tickets ON tickets(block_height);")
+	if err != nil {
+		log.Warnf("failed to index block_height on tickets: %v ", err)
+	}
+
+	// drop the created index since its no longer need
+	defer func() {
+		_, err = pgb.db.Exec("DROP INDEX xxxx_tickets;")
+		if err != nil {
+			log.Warnf("failed to drop index xxxx_tickets: %v ", err)
+		}
+	}()
+
+	log.Infof(" - Updating tickets data with its block time value ...")
+	var rowsUpdated int64
+	for _, timeData := range ticketsBlockTime {
+		results, err := pgb.db.Exec(internal.SetTicketBlockTimeByHeight,
+			timeData.BlockTime, timeData.BlockHeight)
+		if err != nil {
+			log.Warnf("Unable to set block time for ticket at height %d : %v",
+				timeData.BlockHeight, err)
+		}
+
+		c, err := results.RowsAffected()
+		if err != nil {
+			log.Warnf("Unable to fetch rows affected: %v", err)
+		}
+
+		rowsUpdated += c
+	}
+
+	return rowsUpdated, nil
+}
+
 func (pgb *ChainDB) upgradeVinsMainchainForMany(vinDbIDsBlk []dbtypes.UInt64Array,
 	areValid, areMainchain []bool) (int64, error) {
 	var rowsUpdated int64
@@ -518,7 +584,6 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 		if err != nil {
 			return 0, err
 		}
-
 		rowsUpdated += c
 	}
 
@@ -889,8 +954,15 @@ func addAddressesColumnsForHistogramUpgrade(db *sql.DB) (bool, error) {
 	newColumns := []newColumn{
 		{"tx_type", "INT4", ""},
 	}
-
 	return addNewColumnsIfNotFound(db, "addresses", newColumns)
+}
+
+func addTicketsColumnsForBlockTimeUpgrade(db *sql.DB) (bool, error) {
+	// The new columns and their data types
+	newColumns := []newColumn{
+		{"block_time", "INT8", ""},
+	}
+	return addNewColumnsIfNotFound(db, "tickets", newColumns)
 }
 
 func addVinsColumnsForCoinSupply(db *sql.DB) (bool, error) {

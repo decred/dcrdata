@@ -1533,8 +1533,7 @@ func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit i
 	for rows.Next() {
 		var dbBlock dbtypes.BlockDataBasic
 		if err = rows.Scan(&dbBlock.Hash, &dbBlock.Height, &dbBlock.Size, &dbBlock.Time, &dbBlock.NumTx); err != nil {
-			fmt.Println(err)
-			log.Errorf("Unable to scan for block fields")
+			log.Errorf("Unable to scan for block fields: %v", err)
 		}
 		blocks = append(blocks, dbBlock)
 	}
@@ -1542,6 +1541,32 @@ func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit i
 		log.Error(err)
 	}
 	return blocks, nil
+}
+
+// retrieveTicketsTxsBlockTime fetches the block time for all the tickets
+// transactions in the transactions table. The Tx struct from this function
+// only contains the block height and the block time.
+func retrieveTicketsTxsBlockTime(db *sql.DB) ([]*dbtypes.Tx, error) {
+	var txsData = make([]*dbtypes.Tx, 0)
+
+	rows, err := db.Query(internal.SelectAllTicketsBlockTime)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTicketsTxsBlockTime: %v", err)
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var data = new(dbtypes.Tx)
+
+		if err = rows.Scan(&data.BlockHeight, &data.BlockTime); err != nil {
+			return nil, fmt.Errorf("Unable to scan fields: %v", err)
+		}
+
+		txsData = append(txsData, data)
+	}
+
+	return txsData, nil
 }
 
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
@@ -2305,7 +2330,7 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 			tx.TxID, tx.BlockHash, tx.BlockHeight, ticketDbIDs[i],
 			stakesubmissionAddress, isMultisig, isSplit, tx.NumVin,
 			price, fee, dbtypes.TicketUnspent, dbtypes.PoolStatusLive,
-			tx.IsMainchainBlock).Scan(&id)
+			tx.IsMainchainBlock, tx.BlockTime).Scan(&id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue

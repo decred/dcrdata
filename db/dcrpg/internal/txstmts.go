@@ -133,6 +133,8 @@ const (
 
 	SelectImmatureTickets = `SELECT tx_hash FROM transactions WHERE block_height >= $1 and tx_type = 1;`
 
+	SelectAllTicketsBlockTime = `SELECT block_height, block_time FROM transactions WHERE tx_type = 1;`
+
 	retrieveTicketsByPrice = `SELECT t.sent,
 		SUM(CASE WHEN t.block_height >= %v THEN 1 ELSE 0 END) as immature,
 		SUM(CASE WHEN t.block_height < %v THEN 1 ELSE 0 END) as live

@@ -39,8 +39,8 @@ var createTypeStatements = map[string]string{
 // re-indexing and a duplicate scan/purge.
 const (
 	tableMajor = 3
-	tableMinor = 5
-	tablePatch = 1
+	tableMinor = 6
+	tablePatch = 0
 )
 
 // TODO eliminiate this map since we're actually versioning each table the same.
