@@ -71,18 +71,13 @@ html {
 body {
   font-family: 'source-sans-pro-v9-latin-regular';
   padding-bottom: 2.1rem;
+  background: rgb(244, 246, 246);
+}
+a {
+  color: #2e75ff;
 }
 h4 {
   margin-top: 10px;
-}
-
-/**mainnet theme**/ 
-body.theme-mainnet {
-  background: rgb(244, 246, 246);
-}
-
-body.theme-mainnet a {
-  color: #2e75ff;
 }
 
 /**testnet theme**/
