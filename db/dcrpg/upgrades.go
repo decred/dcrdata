@@ -42,9 +42,9 @@ type TableUpgradeType struct {
 	upgradeType tableUpgradeType
 }
 
-// histogramUpdate defines the fetched details from the transactions table that
+// VinVoutTypeUpdateData defines the fetched details from the transactions table that
 // are needed to undertake the histogram upgrade.
-type histogramUpdateType struct {
+type VinVoutTypeUpdateData struct {
 	VinsDbIDs  dbtypes.UInt64Array
 	VoutsDbIDs dbtypes.UInt64Array
 	TxType     stake.TxType
@@ -173,11 +173,6 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			version, needVersion)
 	}
 
-	// A Table upgrade must have happened therefore Bump version
-	if err := versionAllTables(pgb.db, toVersion); err != nil {
-		return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
-	}
-
 	// Ensure the required version was reached.
 	upgradeInfo = TableUpgradesRequired(TableVersions(pgb.db))
 	if len(upgradeInfo) > 0 && upgradeInfo[0].UpgradeType != "ok" {
@@ -197,6 +192,11 @@ func (pgb *ChainDB) initiatePgUpgrade(smartClient *rpcutils.BlockGate, theseUpgr
 			return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
 				theseUpgrades[it].TableName, toVersion, err)
 		}
+	}
+
+	// A Table upgrade must have happened therefore Bump version
+	if err := versionAllTables(pgb.db, toVersion); err != nil {
+		return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
 	}
 	return true, nil
 }
@@ -491,9 +491,9 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 			return 0, err
 		}
 
-		var dbIDs = make([]histogramUpdateType, 0)
+		var dbIDs = make([]VinVoutTypeUpdateData, 0)
 		for rows.Next() {
-			rowIDs := histogramUpdateType{}
+			rowIDs := VinVoutTypeUpdateData{}
 			err = rows.Scan(&rowIDs.TxType, &rowIDs.VinsDbIDs, &rowIDs.VoutsDbIDs)
 			if err != nil {
 				return 0, err
@@ -519,16 +519,16 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 			var vinsCount, voutsCount int64
 			switch upgrade {
 			case vinsTxHistogramUpgrade:
-				vinsCount, err = pgb.updateVinsTxTypeHistogramUpgrade(rowIDs.TxType, 
+				vinsCount, err = pgb.updateVinsTxTypeHistogramUpgrade(rowIDs.TxType,
 					rowIDs.VinsDbIDs)
 
 			case addressesTxHistogramUpgrade:
-				vinsCount, err = pgb.updateAddressesTxTypeHistogramUpgrade(rowIDs.TxType, 
+				vinsCount, err = pgb.updateAddressesTxTypeHistogramUpgrade(rowIDs.TxType,
 					false, rowIDs.VinsDbIDs)
 				if err != nil {
 					return 0, err
 				}
-				voutsCount, err = pgb.updateAddressesTxTypeHistogramUpgrade(rowIDs.TxType, true, 
+				voutsCount, err = pgb.updateAddressesTxTypeHistogramUpgrade(rowIDs.TxType, true,
 					rowIDs.VoutsDbIDs)
 			}
 

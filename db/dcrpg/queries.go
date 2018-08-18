@@ -1582,6 +1582,9 @@ func closeRows(rows *sql.Rows) {
 
 // retrieveTxHistoryByType fetches the transaction types count for all the
 // transactions associated with a given address for the given time interval.
+// The time interval is grouping records by week, month, year, day and all.
+// For all time interval, transactions are grouped by the unique
+// timestamps (blocks) available.
 func retrieveTxHistoryByType(db *sql.DB, addr string,
 	timeInterval int64) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
@@ -1610,9 +1613,11 @@ func retrieveTxHistoryByType(db *sql.DB, addr string,
 	return items, nil
 }
 
-// retrieveTxHistoryByAmount fetches the transaction amount flow i.e. recieved
-// amount and sent for all the transactions associated with a given address for
-// the given time interval.
+// retrieveTxHistoryByAmount fetches the transaction amount flow i.e. received
+// and sent amount for all the transactions associated with a given address and for
+// the given time interval. The time interval is grouping records by week,
+// month, year, day and all. For all time interval, transactions are grouped by
+// the unique timestamps (blocks) available.
 func retrieveTxHistoryByAmountFlow(db *sql.DB, addr string,
 	timeInterval int64) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
@@ -1633,12 +1638,12 @@ func retrieveTxHistoryByAmountFlow(db *sql.DB, addr string,
 		}
 
 		items.Time = append(items.Time, blockTime)
-		items.Recieved = append(items.Recieved, dcrutil.Amount(received).ToCoin())
+		items.Received = append(items.Received, dcrutil.Amount(received).ToCoin())
 		items.Sent = append(items.Sent, dcrutil.Amount(sent).ToCoin())
-		// Net represents the difference between the recieved and sent for a
-		// given block. If the difference is positive then the values is unspent amount
+		// Net represents the difference between the received and sent amount for a
+		// given block. If the difference is positive then the value is unspent amount
 		// otherwise if the value is zero then all amount is spent and if the net amount
-		// is negative then for the given block more was sent than recieved.
+		// is negative then for the given block more amount was sent than received.
 		items.Net = append(items.Net, dcrutil.Amount(received-sent).ToCoin())
 	}
 	return items, nil
@@ -1646,9 +1651,12 @@ func retrieveTxHistoryByAmountFlow(db *sql.DB, addr string,
 
 // retrieveTxHistoryByUnspentAmount fetches the unspent amount for all the
 // transactions associated with a given address for the given time interval.
+// The time interval is grouping records by week, month, year, day and all.
+// For all time interval, transactions are grouped by the unique
+// timestamps (blocks) available.
 func retrieveTxHistoryByUnspentAmount(db *sql.DB, addr string,
 	timeInterval int64) (*dbtypes.ChartsData, error) {
-	var totalAmount = 0.0
+	var totalAmount uint64
 	var items = new(dbtypes.ChartsData)
 
 	rows, err := db.Query(internal.SelectAddressUnspentAmountByAddress,
@@ -1669,8 +1677,8 @@ func retrieveTxHistoryByUnspentAmount(db *sql.DB, addr string,
 		items.Time = append(items.Time, blockTime)
 
 		// Return commmulative amount data for the unspent chart type
-		totalAmount += dcrutil.Amount(amount).ToCoin()
-		items.Amount = append(items.Amount, totalAmount)
+		totalAmount += amount
+		items.Amount = append(items.Amount, dcrutil.Amount(totalAmount).ToCoin())
 	}
 	return items, nil
 }

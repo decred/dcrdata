@@ -106,7 +106,7 @@
         initialize(){
             var _this = this
             $.getScript('/js/dygraphs.min.js', () => {
-                this.typesGraphOptions = {
+                _this.typesGraphOptions = {
                     labels: ['Date', 'RegularTx', 'Tickets', 'Votes', 'RevokeTx'],
                     colors: ['#2971FF', '#41BF53', 'darkorange', '#FF0090'],
                     ylabel: '# of Tx Types',
@@ -119,11 +119,12 @@
                     labelsKMB: false
                 }
 
-                this.amountFlowGraphOptions = {
+                _this.amountFlowGraphOptions = {
                     labels: ['Date', 'Received', 'Spent', 'Net Received', 'Net Spent'],
                     colors: ['#2971FF', '#2ED6A1', '#41BF53', '#FF0090'],
                     ylabel: 'Total Amount (DCR)',
                     title: 'Sent And Received',
+                    visibility:[true, false, false, false],
                     legendFormatter: customizedFormatter,
                     plotter: barchartPlotter,
                     stackedGraph: true,
@@ -131,7 +132,7 @@
                     labelsKMB: false
                 }
 
-                this.unspentGraphOptions = {
+                _this.unspentGraphOptions = {
                     labels: ['Date', 'Unspent'],
                     colors: ['#41BF53'],
                     ylabel: 'Cummulative Unspent Amount (DCR)',
@@ -181,20 +182,17 @@
                         case 'types':
                             newData = txTypesFunc(data)
                             options = _this.typesGraphOptions
-                            options.visibility = [true, true, true, true]
                             break
 
                         case 'amountflow':
                             newData = amountFlowFunc(data)
                             options = _this.amountFlowGraphOptions
-                            _this.updateFlow()
                             $('#toggle-charts').removeClass('d-hide');
                             break
 
                         case 'unspent':
                             newData = unspentAmountFunc(data)
                             options = _this.unspentGraphOptions
-                            options.visibility = [true]
                             break
                     }
 
@@ -206,6 +204,7 @@
                             ...options})
                         _this.graph.resetZoom()
                     }
+                    _this.updateFlow()
                     _this.xVal = _this.graph.xAxisExtremes()
                     _this.disableBtnsIfNotApplicable()
 
@@ -237,6 +236,7 @@
         }
 
         updateFlow(){
+            if (this.options != 'amountflow') return ''
             for (var i = 0; i < this.flow.length; i++){
                var d = this.flow[i]
                this.graph.setVisibility(d[0], d[1])
@@ -307,7 +307,6 @@
 
         get flow(){
             var ar = []
-            var newArr = []
             var boxes = this.flowTarget.querySelectorAll('input[type=checkbox]')
             boxes.forEach((n) => {
                 var intVal = parseFloat(n.value)
@@ -316,9 +315,6 @@
                     ar.push([3, n.checked])
                 }
             })
-
-            ar.forEach((n, i)=>{ newArr.push(ar[i][1])})
-            this.newArr = newArr
             return ar
         }
     })

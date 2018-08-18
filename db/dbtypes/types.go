@@ -388,7 +388,7 @@ type ChartsData struct {
 	Votes      []uint64  `json:"votes,omitempty"`
 	RevokeTx   []uint64  `json:"revokeTx,omitempty"`
 	Amount     []float64 `json:"amount,omitempty"`
-	Recieved   []float64 `json:"received,omitempty"`
+	Received   []float64 `json:"received,omitempty"`
 	Sent       []float64 `json:"sent,omitempty"`
 	Net        []float64 `json:"net,omitempty"`
 }

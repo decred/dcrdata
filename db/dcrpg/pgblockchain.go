@@ -937,7 +937,7 @@ func (pgb *ChainDB) GetTxHistoryData(address string, addrChart dbtypes.HistoryCh
 		return retrieveTxHistoryByUnspentAmount(pgb.db, address, timestamp)
 
 	default:
-		return nil, fmt.Errorf("Unknown error occured")
+		return nil, fmt.Errorf("unknown error occured")
 	}
 }
 
