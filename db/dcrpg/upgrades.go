@@ -151,14 +151,13 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 	// Upgrade from 3.4.1 --> 3.5.0
 	case version.major == 3 && version.minor == 4 && version.patch == 1:
 		toVersion = TableVersion{3, 5, 0}
-		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		theseUpgrades := []TableUpgradeType{
 			{"vins", vinsTxHistogramUpgrade},
 			{"addresses", addressesTxHistogramUpgrade},
 		}
 
-		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
 		if !isSuccess {
 			return isSuccess, er
 		}
