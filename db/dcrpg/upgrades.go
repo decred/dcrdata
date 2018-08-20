@@ -508,10 +508,24 @@ func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade table
 			log.Infof("Populating vins table with data between height %d and %d ...", val, i)
 
 		case addressesTxHistogramUpgrade:
+			log.Infof("Indexing on addresses table just to hasten the update")
+
+			_, err = pgb.db.Exec("CREATE INDEX xxxxx_histogram ON addresses(tx_vin_vout_row_id, is_funding)")
+			if err != nil {
+				log.Warnf("histogram upgrade maybe slower since indexing failed: %v", err)
+			} else {
+				defer func() {
+					_, err = pgb.db.Exec("DROP INDEX xxxxx_histogram;")
+					if err != nil {
+						log.Warnf("droping the histogram index failed: %v", err)
+					}
+				}()
+			}
+
 			log.Infof("Populating addresses table with data between height %d and %d ...", val, i)
 
 		default:
-			return 0, fmt.Errorf("Unsupported upgrade found: %v", upgrade)
+			return 0, fmt.Errorf("unsupported upgrade found: %v", upgrade)
 		}
 
 		for _, rowIDs := range dbIDs {
