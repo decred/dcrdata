@@ -22,11 +22,12 @@ const (
 		prev_tx_hash TEXT,
 		prev_tx_index INT8,
 		prev_tx_tree INT2,
-		value_in INT8
+		value_in INT8,
+		tx_type INT4
 	);`
 
 	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree,
-		value_in, is_valid, is_mainchain, block_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) `
+		value_in, is_valid, is_mainchain, block_time, tx_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) `
 	InsertVinRow = InsertVinRow0 + `RETURNING id;`
 	// InsertVinRowChecked = InsertVinRow0 +
 	// 	`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
@@ -53,6 +54,8 @@ const (
 	SelectVinIDsALL = `SELECT id FROM vins;`
 	CountVinsRows   = `SELECT reltuples::BIGINT AS estimate FROM pg_class WHERE relname='vins';`
 
+	SetTxTypeOnVinsByVinIDs = `UPDATE vins SET tx_type=$1 WHERE id=$2;`
+
 	SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
 	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins 
 		WHERE prev_tx_hash=$1 AND prev_tx_index=$2;`
@@ -65,7 +68,7 @@ const (
 	SelectFundingTxByVinID       = `SELECT prev_tx_hash FROM vins WHERE id=$1;`
 	SelectSpendingTxByVinID      = `SELECT tx_hash, tx_index, tx_tree FROM vins WHERE id=$1;`
 	SelectAllVinInfoByID         = `SELECT tx_hash, tx_index, tx_tree, is_valid, is_mainchain, block_time,
-		prev_tx_hash, prev_tx_index, prev_tx_tree, value_in FROM vins WHERE id = $1;`
+		prev_tx_hash, prev_tx_index, prev_tx_tree, value_in, tx_type FROM vins WHERE id = $1;`
 
 	SetIsValidIsMainchainByTxHash = `UPDATE vins SET is_valid = $1, is_mainchain = $2
 		WHERE tx_hash = $3 AND block_time = $4 AND tx_tree = $5;`

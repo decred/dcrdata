@@ -356,6 +356,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		ConfirmHeight []int64
 		Version       string
 		NetName       string
+		ChartData     *dbtypes.ChartsData
 	}
 
 	// Get the address URL parameter, which should be set in the request context
@@ -563,6 +564,13 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.Balance.NumUnspent += (numReceived - numSent)
 		addrData.Balance.TotalSpent += sent
 		addrData.Balance.TotalUnspent += (received - sent)
+
+		if err != nil {
+			log.Errorf("Unable to fetch transactions for the address %s: %v", address, err)
+			exp.StatusPage(w, defaultErrorCode, "transactions for that address not found",
+				NotFoundStatusType)
+			return
+		}
 	}
 
 	// Set page parameters

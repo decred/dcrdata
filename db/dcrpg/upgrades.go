@@ -33,12 +33,25 @@ const (
 	votesTableMainchainUpgrade
 	ticketsTableMainchainUpgrade
 	votesTableBlockHashIndex
+	vinsTxHistogramUpgrade
+	addressesTxHistogramUpgrade
 )
 
 type TableUpgradeType struct {
 	TableName   string
 	upgradeType tableUpgradeType
 }
+
+// VinVoutTypeUpdateData defines the fetched details from the transactions table that
+// are needed to undertake the histogram upgrade.
+type VinVoutTypeUpdateData struct {
+	VinsDbIDs  dbtypes.UInt64Array
+	VoutsDbIDs dbtypes.UInt64Array
+	TxType     stake.TxType
+}
+
+// toVersion defines a table version to which the pg tables will commented to.
+var toVersion TableVersion
 
 // CheckForAuxDBUpgrade checks if an upgrade is required and currently supported.
 // A boolean value is returned to indicate if the db upgrade was
@@ -61,7 +74,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Upgrade from 3.1.0 --> 3.2.0
 	case version.major == 3 && version.minor == 1 && version.patch == 0:
-		toVersion := TableVersion{3, 2, 0}
+		toVersion = TableVersion{3, 2, 0}
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		theseUpgrades := []TableUpgradeType{
@@ -69,17 +82,9 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			{"vins", vinsTableCoinSupplyUpgrade},
 		}
 
-		for it := range theseUpgrades {
-			upgradeSuccess, err := pgb.handleUpgrades(smartClient, theseUpgrades[it].upgradeType)
-			if err != nil || !upgradeSuccess {
-				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
-					theseUpgrades[it].TableName, toVersion, err)
-			}
-		}
-
-		// Bump version
-		if err := versionAllTables(pgb.db, toVersion); err != nil {
-			return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
 		}
 
 		// Go on to next upgrade
@@ -87,7 +92,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Upgrade from 3.2.0 --> 3.3.0
 	case version.major == 3 && version.minor == 2 && version.patch == 0:
-		toVersion := TableVersion{3, 3, 0}
+		toVersion = TableVersion{3, 3, 0}
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		// The order of these upgrades is critical
@@ -99,17 +104,9 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			{"votes", votesTableMainchainUpgrade},
 		}
 
-		for it := range theseUpgrades {
-			upgradeSuccess, err := pgb.handleUpgrades(smartClient, theseUpgrades[it].upgradeType)
-			if err != nil || !upgradeSuccess {
-				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
-					theseUpgrades[it].TableName, toVersion, err)
-			}
-		}
-
-		// Bump version
-		if err := versionAllTables(pgb.db, toVersion); err != nil {
-			return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
 		}
 
 		// Go on to next upgrade
@@ -117,24 +114,17 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Upgrade from 3.3.0 --> 3.4.0
 	case version.major == 3 && version.minor == 3 && version.patch == 0:
-		toVersion := TableVersion{3, 4, 0}
+		toVersion = TableVersion{3, 4, 0}
+		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		// The order of these upgrades is critical
 		theseUpgrades := []TableUpgradeType{
 			{"tickets", ticketsTableMainchainUpgrade},
 		}
 
-		for it := range theseUpgrades {
-			upgradeSuccess, err := pgb.handleUpgrades(nil, theseUpgrades[it].upgradeType)
-			if err != nil || !upgradeSuccess {
-				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
-					theseUpgrades[it].TableName, toVersion, err)
-			}
-		}
-
-		// Bump version
-		if err := versionAllTables(pgb.db, toVersion); err != nil {
-			return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
 		}
 
 		// Go on to next upgrade
@@ -143,24 +133,33 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 	// Upgrade from 3.4.0 --> 3.4.1
 	case version.major == 3 && version.minor == 4 && version.patch == 0:
 		// This is a "reindex" upgrade. Bump patch.
-		toVersion := TableVersion{3, 4, 1}
+		toVersion = TableVersion{3, 4, 1}
 
 		// The order of these upgrades is critical
 		theseUpgrades := []TableUpgradeType{
 			{"votes", votesTableBlockHashIndex},
 		}
 
-		for it := range theseUpgrades {
-			upgradeSuccess, err := pgb.handleUpgrades(nil, theseUpgrades[it].upgradeType)
-			if err != nil || !upgradeSuccess {
-				return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
-					theseUpgrades[it].TableName, toVersion, err)
-			}
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
 		}
 
-		// Bump version
-		if err := versionAllTables(pgb.db, toVersion); err != nil {
-			return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.4.1 --> 3.5.0
+	case version.major == 3 && version.minor == 4 && version.patch == 1:
+		toVersion = TableVersion{3, 5, 0}
+
+		theseUpgrades := []TableUpgradeType{
+			{"vins", vinsTxHistogramUpgrade},
+			{"addresses", addressesTxHistogramUpgrade},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
 		}
 
 		// Go on to next upgrade
@@ -181,6 +180,23 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Unsupported upgrades caught by default case, so we've succeeded.
 	log.Infof("Table upgrades completed.")
+	return true, nil
+}
+
+// initiatePgUpgrade starts the specific auxiliary database.
+func (pgb *ChainDB) initiatePgUpgrade(smartClient *rpcutils.BlockGate, theseUpgrades []TableUpgradeType) (bool, error) {
+	for it := range theseUpgrades {
+		upgradeSuccess, err := pgb.handleUpgrades(smartClient, theseUpgrades[it].upgradeType)
+		if err != nil || !upgradeSuccess {
+			return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
+				theseUpgrades[it].TableName, toVersion, err)
+		}
+	}
+
+	// A Table upgrade must have happened therefore Bump version
+	if err := versionAllTables(pgb.db, toVersion); err != nil {
+		return false, fmt.Errorf("failed to bump version to %v: %v", toVersion, err)
+	}
 	return true, nil
 }
 
@@ -224,6 +240,12 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case votesTableBlockHashIndex:
 		tableReady = true
 		tableName, upgradeTypeStr = "votes", "new index"
+	case vinsTxHistogramUpgrade:
+		tableReady, err = addVinsColumnsForHistogramUpgrade(pgb.db)
+		tableName, upgradeTypeStr = "vins", "tx-type addition/histogram"
+	case addressesTxHistogramUpgrade:
+		tableReady, err = addAddressesColumnsForHistogramUpgrade(pgb.db)
+		tableName, upgradeTypeStr = "addresses", "tx-type addition/histogram"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -245,7 +267,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		if err != nil {
 			return false, err
 		}
-		log.Infof("Found the best block at height: %v", height)
+		log.Infof("found the best block at height: %v", height)
 
 		// For each block on the main chain, perform upgrade operations
 		for ; i <= height; i++ {
@@ -291,6 +313,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 			return false, fmt.Errorf(`upgrade of blocks table ended prematurely after %d blocks. `+
 				`Error: %v`, rowsUpdated, err)
 		}
+
 	case transactionsTableMainchainUpgrade:
 		// transactions table upgrade handled entirely by the DB backend
 		log.Infof("Starting transactions table mainchain upgrade...")
@@ -299,6 +322,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 			return false, fmt.Errorf(`upgrade of transactions table ended prematurely after %d transactions. `+
 				`Error: %v`, rowsUpdated, err)
 		}
+
 	case vinsTableMainchainUpgrade:
 		// vins table upgrade handled entirely by the DB backend
 		log.Infof("Starting vins table mainchain upgrade...")
@@ -334,6 +358,20 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		}
 	case votesTableBlockHashIndex:
 		// no upgrade, just "reindex"
+	case vinsTxHistogramUpgrade, addressesTxHistogramUpgrade:
+		// height is the best block where this table upgrade should stop at.
+		height, err := pgb.HeightDB()
+		if err != nil {
+			return false, err
+		}
+		log.Infof("found the best block at height: %v", height)
+
+		rowsUpdated, err = pgb.handleTxTypeHistogramUpgrade(height, tableUpgrade)
+		if err != nil {
+			return false, fmt.Errorf(`Histogram update on %v table ended prematurely after %d address rows.`+
+				`Error: %v`, tableName, rowsUpdated, err)
+		}
+
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
 	}
@@ -419,6 +457,137 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 		if err != nil {
 			log.Warnf("db ID not found: %d", vinDbID)
 			continue
+		}
+
+		c, err := result.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+
+		rowsUpdated += c
+	}
+
+	return rowsUpdated, nil
+}
+
+func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade tableUpgradeType) (int64, error) {
+	var i, diff uint64
+	// diff is the payload process at once without using over using the memory
+	diff = 50000
+	var rowModified int64
+
+	// Indexing the addresses table
+	log.Infof("Indexing on addresses table just to hasten the update")
+	_, err := pgb.db.Exec("CREATE INDEX xxxxx_histogram ON addresses(tx_vin_vout_row_id, is_funding)")
+	if err != nil {
+		log.Warnf("histogram upgrade maybe slower since indexing failed: %v", err)
+	} else {
+		defer func() {
+			_, err = pgb.db.Exec("DROP INDEX xxxxx_histogram;")
+			if err != nil {
+				log.Warnf("droping the histogram index failed: %v", err)
+			}
+		}()
+	}
+
+	for i < bestBlock {
+		if (bestBlock - i) < diff {
+			diff = (bestBlock - i)
+		}
+		val := (i + 1)
+		i += diff
+
+		log.Infof(" - Retrieving data from txs table between height %d and %d ...", val, i)
+
+		rows, err := pgb.db.Query(internal.SelectTxsVinsAndVoutsIDs, val, i)
+		if err != nil {
+			return 0, err
+		}
+
+		var dbIDs = make([]VinVoutTypeUpdateData, 0)
+		for rows.Next() {
+			rowIDs := VinVoutTypeUpdateData{}
+			err = rows.Scan(&rowIDs.TxType, &rowIDs.VinsDbIDs, &rowIDs.VoutsDbIDs)
+			if err != nil {
+				return 0, err
+			}
+
+			dbIDs = append(dbIDs, rowIDs)
+		}
+
+		closeRows(rows)
+
+		switch upgrade {
+		case vinsTxHistogramUpgrade:
+			log.Infof("Populating vins table with data between height %d and %d ...", val, i)
+
+		case addressesTxHistogramUpgrade:
+			log.Infof("Populating addresses table with data between height %d and %d ...", val, i)
+
+		default:
+			return 0, fmt.Errorf("unsupported upgrade found: %v", upgrade)
+		}
+
+		for _, rowIDs := range dbIDs {
+			var vinsCount, voutsCount int64
+			switch upgrade {
+			case vinsTxHistogramUpgrade:
+				vinsCount, err = pgb.updateVinsTxTypeHistogramUpgrade(rowIDs.TxType,
+					rowIDs.VinsDbIDs)
+
+			case addressesTxHistogramUpgrade:
+				vinsCount, err = pgb.updateAddressesTxTypeHistogramUpgrade(rowIDs.TxType,
+					false, rowIDs.VinsDbIDs)
+				if err != nil {
+					return 0, err
+				}
+				voutsCount, err = pgb.updateAddressesTxTypeHistogramUpgrade(rowIDs.TxType, true,
+					rowIDs.VoutsDbIDs)
+			}
+
+			if err != nil {
+				return 0, err
+			}
+
+			rowModified += (vinsCount + voutsCount)
+		}
+
+	}
+	return rowModified, nil
+}
+
+func (pgb *ChainDB) updateVinsTxTypeHistogramUpgrade(txType stake.TxType,
+	vinIDs dbtypes.UInt64Array) (int64, error) {
+	var rowsUpdated int64
+
+	// each vin
+	for _, vinDbID := range vinIDs {
+		result, err := pgb.db.Exec(internal.SetTxTypeOnVinsByVinIDs, txType, vinDbID)
+		if err != nil {
+			return 0, err
+		}
+
+		c, err := result.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+
+		rowsUpdated += c
+	}
+
+	return rowsUpdated, nil
+}
+
+func (pgb *ChainDB) updateAddressesTxTypeHistogramUpgrade(txType stake.TxType,
+	isFunding bool, vinVoutRowIDs dbtypes.UInt64Array) (int64, error) {
+	var rowsUpdated int64
+
+	// each address entry with a vin db row id or with vout db row id
+	for _, rowDbID := range vinVoutRowIDs {
+		result, err := pgb.db.Exec(internal.SetTxTypeOnAddressesByVinAndVoutIDs,
+			txType, rowDbID, isFunding)
+		if err != nil {
+			return 0, err
 		}
 
 		c, err := result.RowsAffected()
@@ -665,6 +834,24 @@ func addNewColumnsIfNotFound(db *sql.DB, table string, newColumns []newColumn) (
 		}
 	}
 	return true, nil
+}
+
+func addVinsColumnsForHistogramUpgrade(db *sql.DB) (bool, error) {
+	// The new columns and their data types
+	newColumns := []newColumn{
+		{"tx_type", "INT4", ""},
+	}
+
+	return addNewColumnsIfNotFound(db, "vins", newColumns)
+}
+
+func addAddressesColumnsForHistogramUpgrade(db *sql.DB) (bool, error) {
+	// The new columns and their data types
+	newColumns := []newColumn{
+		{"tx_type", "INT4", ""},
+	}
+
+	return addNewColumnsIfNotFound(db, "addresses", newColumns)
 }
 
 func addVinsColumnsForCoinSupply(db *sql.DB) (bool, error) {

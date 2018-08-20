@@ -916,6 +916,31 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
+// GetTxHistoryData fetches the address history chart data for the provided parameters.
+func (pgb *ChainDB) GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
+	chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error) {
+	timeInterval, err := dbtypes.ChartGroupingToInterval(chartGroupings)
+	if err != nil {
+		return nil, fmt.Errorf("GetTxHistoryData error: %v", err)
+	}
+
+	timestamp := int64(timeInterval)
+
+	switch addrChart {
+	case dbtypes.TxsType:
+		return retrieveTxHistoryByType(pgb.db, address, timestamp)
+
+	case dbtypes.AmountFlow:
+		return retrieveTxHistoryByAmountFlow(pgb.db, address, timestamp)
+
+	case dbtypes.TotalUnspent:
+		return retrieveTxHistoryByUnspentAmount(pgb.db, address, timestamp)
+
+	default:
+		return nil, fmt.Errorf("unknown error occured")
+	}
+}
+
 // GetTicketsPriceByHeight returns the ticket price by height chart data.
 // This is the default chart that appears at charts page.
 func (pgb *ChainDB) GetTicketsPriceByHeight() (*dbtypes.ChartsData, error) {
@@ -1912,7 +1937,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree), vin.TxID,
 				vin.TxIndex, uint64(tx.BlockTime), vinDbID, pgb.dupChecks,
-				tx.IsValidBlock && tx.IsMainchainBlock)
+				tx.IsValidBlock && tx.IsMainchainBlock, vin.TxType)
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
 			}
