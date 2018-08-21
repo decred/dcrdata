@@ -76,8 +76,8 @@ func mainCore() error {
 	}
 
 	// Start with version info
-	ver := &version.Ver
-	log.Infof("%s version %v (Go version %s)", version.AppName, ver, runtime.Version())
+	log.Infof("%s version %v (Go version %s)", version.AppName,
+		version.Version(), runtime.Version())
 
 	// PostgreSQL
 	usePG := cfg.FullMode
@@ -309,7 +309,7 @@ func mainCore() error {
 	mempoolSavers = append(mempoolSavers, baseDB.MPC)
 
 	// Create the explorer system
-	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, ver.String(), !cfg.NoDevPrefetch)
+	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, version.Version(), !cfg.NoDevPrefetch)
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
 	}
