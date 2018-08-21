@@ -308,11 +308,21 @@ default in a reduced functionality ("lite") mode that does not require
 PostgreSQL. To enable the PostgreSQL backend (and the expanded functionality),
 dcrdata may be started with the `--pg` switch.
 
-### JSON REST API
+### Insight API (EXPERIMENTAL)
 
-The API serves JSON data over HTTP(S). **All API endpoints are currently
-prefixed with `/api`** (e.g. `http://localhost:7777/api/stake`).  The Insight
-API endpoints (not described in this section) are prefixed with `/insight/api`.
+The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP
+at the `/insight/api` URL path prefix, and via WebSocket at the
+`/insight/socket.io` URL path prefix.
+
+The following endpoints are not implemented: `status`, `sync`, `peer`, `email`,
+and `rates`.
+
+### dcrdata API
+
+dcrdata has its own JSON HTTP API in addition to the experimental Insight API
+implementation. **dcrdata's API endpoints are prefixed with `/api`** (e.g.
+`http://localhost:7777/api/stake`).  The Insight API endpoints (not described in
+this section) are prefixed with `/insight/api`.
 
 #### Endpoint List
 
