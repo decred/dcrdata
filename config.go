@@ -295,7 +295,7 @@ func loadConfig() (*config, error) {
 	appName = strings.TrimSuffix(appName, filepath.Ext(appName))
 	if preCfg.ShowVersion {
 		fmt.Printf("%s version %s (Go version %s)\n", appName,
-			version.Ver.String(), runtime.Version())
+			version.Version(), runtime.Version())
 		os.Exit(0)
 	}
 
