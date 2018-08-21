@@ -86,9 +86,9 @@ type AddressTxnOutput struct {
 	Confirmations int64   `json:"confirmations"`
 }
 
-// AddressSpendByFunHash models a return from
-// GetAddressSpendByFunHash
-type AddressSpendByFunHash struct {
+// SpendByFundingHash models a return from
+// GetSpendDetailsByFundingHash
+type SpendByFundingHash struct {
 	FundingTxVoutIndex uint32
 	SpendingTxVinIndex interface{}
 	SpendingTxHash     interface{}

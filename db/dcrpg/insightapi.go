@@ -185,10 +185,10 @@ func (pgb *ChainDB) GetAddressUTXO(address string) []apitypes.AddressTxnOutput {
 	return txnOutput
 }
 
-// GetAddressSpendByFunHash will return the address that fundex a tx
-func (pgb *ChainDB) GetAddressSpendByFunHash(addresses []string, fundHash string) []*apitypes.AddressSpendByFunHash {
-
-	AddrRow, err := RetrieveAddressTxnsByFundingTx(pgb.db, fundHash, addresses)
+// GetSpendDetailsByFundingHash will return the spending details (tx, index,
+// block height) by funding transaction
+func (pgb *ChainDB) GetSpendDetailsByFundingHash(fundHash string) []*apitypes.SpendByFundingHash {
+	AddrRow, err := RetrieveSpendingTxsByFundingTxWithBlockHeight(pgb.db, fundHash)
 	if err != nil {
 		log.Error(err)
 		return nil
