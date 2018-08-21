@@ -80,6 +80,43 @@ h4 {
   margin-top: 10px;
 }
 
+/**testnet theme**/
+body.theme-testnet .top-nav,
+body.theme-testnet .navbar-fixed-bottom {
+  /**background: #012f30;**/
+  background: #116466;
+  color: #fff;
+}
+
+body.theme-testnet .navbar-fixed-bottom .nav-item {
+  color: #fff;
+}
+body.theme-testnet .top-search {
+ color: #fff;
+}
+body.theme-testnet #menuToggle .patty {
+  background: #fff;
+}
+
+
+/**simnet theme**/
+body.theme-simnet .top-nav,
+body.theme-simnet .navbar-fixed-bottom {
+  background: #076191;
+  color: #fff;
+}
+body.theme-simnet .top-search {
+ color: #fff;
+}
+
+body.theme-simnet .navbar-fixed-bottom .nav-item {
+  color: #fff;
+}
+body.theme-simnet #menuToggle .patty {
+  background: #fff;
+}
+
+
 /*dark theme*/
 body.darkBG {
   background: #3B3F45;
