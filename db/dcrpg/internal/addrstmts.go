@@ -86,9 +86,6 @@ const (
 		WHERE addresses.address=$1 AND addresses.is_funding = TRUE and addresses.matching_tx_hash = '' AND valid_mainchain = TRUE
 		ORDER BY addresses.block_time DESC;`
 
-	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, valid_mainchain,
-		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
-
 	SelectAddressLimitNByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
 	    WHERE address=$1 AND valid_mainchain = TRUE ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
