@@ -18,9 +18,9 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 ├── blockdata           Package blockdata is the primary data collection and
 |                         storage hub, and chain monitor.
 ├── cmd
-│   ├── rebuilddb       rebuilddb utility, for SQLite backend. Not requried.
-│   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not requried.
-│   └── scanblocks      scanblocks utility. Not requried.
+│   ├── rebuilddb       rebuilddb utility, for SQLite backend. Not required.
+│   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not required.
+│   └── scanblocks      scanblocks utility. Not required.
 ├── dcrdataapi          Package dcrdataapi for golang API clients.
 ├── db
 │   ├── agendadb        Package agendadb is a basic PoS voting agenda database.
@@ -52,7 +52,8 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 * Running `dcrd` (>=1.3.0) synchronized to the current best block on the
   network. This is a strict requirement as testnet2 support is removed from
   dcrdata v3.0.0.
-* (Optional) PostgreSQL 9.6+, if running in "full" mode.
+* (Optional) PostgreSQL 9.6+, if running in "full" mode. v10.x is recommended
+  for improved dump/restore formats and utilities.
 
 ## Installation
 
@@ -102,10 +103,12 @@ vendor folders and run `dep ensure -vendor-only` again.
 
 The config file, logs, and data files are stored in the application data folder,
 which may be specified via the `-A/--appdata` and `-b/--datadir` settings.
-However, the location of the config file may be set with `-C/--configfile`.
+However, the location of the config file may be set with `-C/--configfile`. If
+encountering errors involving file system paths, check the permissions on these
+folders to ensure that *the user running dcrdata* is able to access these paths.
 
 The "public" and "views" folders *must* be in the same folder as the `dcrdata`
-executable.
+executable. Set read-only permissions as appropriate.
 
 ## Updating
 
@@ -218,6 +221,10 @@ dcrd.conf:
 txindex=1
 addrindex=1
 ```
+
+If these parameters are not set, dcrdata will be unable to retrieve transaction
+details and perform address searches, and will exit with an error mentioning
+these indexes.
 
 ### Starting dcrdata
 
