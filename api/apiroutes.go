@@ -127,7 +127,7 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
 			APIVersion:      APIVersion,
-			DcrdataVersion:  appver.Ver.String(),
+			DcrdataVersion:  appver.Version(),
 		},
 		JSONIndent: JSONIndent,
 	}
