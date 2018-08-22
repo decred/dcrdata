@@ -5,6 +5,10 @@
 - [dcrdata](#dcrdata)
   - [Repository overview](#repository-overview)
   - [Requirements](#requirements)
+  - [Docker Support](#docker-support)
+    - [Building the image](#building-the-image)
+    - [Developing dcrdata using a container](#developing-dcrdata-using-a-container)
+    - [Container Production usage](#container-production-usage)
   - [Installation](#installation)
     - [Build from Source](#build-from-source)
     - [Runtime resources](#runtime-resources)
@@ -94,6 +98,84 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
   dcrdata v3.0.0.
 * (Optional) PostgreSQL 9.6+, if running in "full" mode. v10.x is recommended
   for improved dump/restore formats and utilities.
+
+
+## Docker support
+The inclusion of a dockerfile in this repo means you can use docker for either development or production usage.  Although
+at this time we are not publishing images to docker hub.
+
+When developing you can utilize containers for easily swapping out golang runtimes and overall complete project setup.
+You don't even need Golang installed on your system if using containers during development. 
+
+The first thing you need is [docker](https://docs.docker.com/install/).  So once installed you can then download this repo 
+and get started. 
+
+### Building the image
+In order to use the dcrdata container image you need to build the image. This is accomplished by running docker build.
+
+`docker build --squash -t decred/dcrdata:dev-alpine .`
+
+Note: when building the `--squash` flag is an experimental feature as of Docker 18.06
+
+By default docker will build the container based on the Dockerfile found in the root of this directory.
+If you wish to use an ubuntu based container you can build from the ubuntu based dockerfile where as the default is based
+on alpine linux.
+
+`docker build --squash -f dockerfiles/Dockerfile_stretch -t decred/dcrdata:dev-stretch .`
+
+Part of the build process is to copy all the source code over to the image and perform the following operations:
+
+1. go mod download
+2. go build
+
+### Developing dcrdata using a container
+Containers are a great way to develop any source code as they serve as a disposable runtime environment built specifically
+to the specifications of the application. If you have never developed code using containers there are some differences you will 
+need to get used to.
+
+1. Don't write code inside the container
+2. Attach a volume and write code from your editor on your docker host
+3. Attached volumes on a mac are a bit slower than linux/windows (when testing)
+4. Install everything in the container, don't muck up your docker host
+5. Resist the urge to run git commands from the container
+6. You can swap out the Golang runtimes just by using a different docker image
+
+When working in a container you want your source code from your docker host to be in the container.
+To do this you attach a volume to the container when running and the synchronization happens automatically.
+
+`docker run -ti --entrypoint=/bin/bash -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine`
+
+Notice in the above line that we changed the entrypoint.  This is to allow you to run commands in the container since the default
+container command is to run dcrdata.
+
+What this means is that you can run `go build` or `go test` inside the container
+Most times when developing you will only run the basic go commands in the container.  `go fmt`, `go build` and `go test`
+If you run `go fmt` you should notice that any formatting changes will also be reflected on the docker host as well.
+
+Aside from running go commands you probably also run the application itself after running go build. 
+
+When you run dcrdata you will need to use a config file or pass [environment variables](#using-configuration-environment-variables)
+
+With containers you can set these variables inside the container or at the [command line](https://docs.docker.com/engine/reference/run/#env-environment-variables).
+
+`docker run -ti --entrypoint=/bin/bash -e DCRDATA_LISTEN_URL=0.0.0.0:2222 -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine`
+
+There are minor differences when developing in a container but once you get used to them you will appreciate the power
+of consistent empheral environments. 
+
+### Container production usage
+We don't yet have a build system in place for creating production grade images of dcrdata.  However, you can still use the images for 
+testing purposes.
+
+Running these images shouldn't be that much different with the exception of a config file or a few more environment variables.
+You will also need to expose the port that dcrdata runs on `-p 2222:2222`.
+
+`docker run -ti -p 2222:2222 -e DCRDATA_LISTEN_URL=0.0.0.0:2222 --rm decred/dcrdata:dev-alpine`
+
+Please keep in mind these images have not been hardened so expect some security flaws to exist.  Pull requests welcomed!
+
+Note: In order to run drcdata will need the dcrd rpc cert to start.  You can attach a volume with the cert and use 
+the DCRDATA_DCRD_CERT env variable to set the location.  Or build a new container image with the cert built in.
 
 ## Installation
 
