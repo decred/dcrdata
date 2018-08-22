@@ -136,32 +136,6 @@
         });
     }
 
-    function barchartPlotter(e) {
-    var ctx = e.drawingContext;
-    var points = e.points;
-    var y_bottom = e.dygraph.toDomYCoord(0);
-
-    ctx.fillStyle = e.color
-
-    var min_sep = Infinity;
-    for (var i = 1; i < points.length; i++) {
-        var sep = points[i].canvasx - points[i - 1].canvasx;
-        if (sep < min_sep) min_sep = sep;
-    }
-    var bar_width = Math.floor(2.0 / 3 * min_sep);
-
-    for (var i = 0; i < points.length; i++) {
-        var p = points[i];
-        var center_x = p.canvasx;
-
-        ctx.fillRect(center_x - bar_width / 2, p.canvasy,
-            bar_width, y_bottom - p.canvasy);
-
-        ctx.strokeRect(center_x - bar_width / 2, p.canvasy,
-            bar_width, y_bottom - p.canvasy);
-        }
-    }
-
     app.register('charts', class extends Stimulus.Controller {
         static get targets() {
             return [
@@ -189,7 +163,6 @@
         }
 
         disconnect(){
-            d = undefined;
             if (this.chartsView != undefined) {
                 this.chartsView.destroy()
             }
@@ -335,7 +308,6 @@
 
         selectChart(e){
             var selection = this.chartSelectTarget.value
-            console.log("selection", selection, selectedChart)
             $(this.rollPeriodInputTarget).val(undefined)
             $(this.chartWrapperTarget).addClass('loading');
             if (selectedChart != selection) {

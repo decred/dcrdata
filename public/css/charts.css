@@ -1,6 +1,28 @@
-/* dygraph */
-.dygraph-label {
+.dygraph-legend {
+    position: absolute;
     font-size: 14px;
+    z-index: 10;
+    background: white;
+    line-height: normal;
+    text-align: left;
+    overflow: hidden;
+    padding: 4px !important;
+    border: 1px solid #000;
+    border-radius: 5px;
+    font-weight: bold;
+    width: fit-content !important;
+}
+.dygraph-rangesel-bgcanvas {
+    z-index: 0 !important;
+}
+.dygraph-rangesel-fgcanvas {
+    z-index: 0 !important;
+}
+.dygraph-rangesel-zoomhandle {
+    z-index: 0 !important;
+}
+.dygraph-axis-label {
+    z-index: 0 !important;
 }
 .modal {
     display:    none;
