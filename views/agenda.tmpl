@@ -1,8 +1,6 @@
 {{define "agenda"}}
 <!DOCTYPE html>
 <html lang="en">
-    <link href="/css/charts.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
     {{template "html-head" printf "Decred Vote Agenda Pages"}}
     <body class="{{ theme }}">
         {{template "navbar" .}}
@@ -81,7 +79,7 @@
                 {{with $v}}
                 <thead>
                     <tr>
-                        <td class="text-left">{{.Id}}</td>
+                        <td class="text-left">{{.ID}}</td>
                         <td class="text-left">{{.Description}}</td>
                         <td class="text-left">{{.Bits}}</td>
                         <td class="text-left">{{.IsAbstain}}</td>

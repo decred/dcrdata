@@ -1,3 +1,28 @@
+function barchartPlotter(e) {
+    var ctx = e.drawingContext;
+    var points = e.points;
+    var y_bottom = e.dygraph.toDomYCoord(0);
+    ctx.fillStyle = e.color;
+    var min_sep = Infinity;
+
+    for (var i = 1; i < points.length; i++) {
+        var sep = points[i].canvasx - points[i - 1].canvasx;
+        if (sep < min_sep) min_sep = sep;
+    }
+
+    var bar_width = Math.floor(2.0 / 3 * min_sep);
+    for (var i = 0; i < points.length; i++) {
+        var p = points[i];
+        var center_x = p.canvasx;
+
+        ctx.fillRect(center_x - bar_width / 2, p.canvasy,
+            bar_width, y_bottom - p.canvasy);
+
+        ctx.strokeRect(center_x - bar_width / 2, p.canvasy,
+            bar_width, y_bottom - p.canvasy);
+    }
+}
+
 (() => {
     
     var chartLayout = {
@@ -6,11 +31,12 @@
         fillGraph: true,
         colors: ['rgb(0,153,0)', 'orange', 'red'],
         stackedGraph: true,
-        legendFormatter: legendFormatter,
-        labelsSeparateLines: true
+        legendFormatter: agendasLegendFormatter,
+        labelsSeparateLines: true,
+        labelsKMB: true
     }
 
-    function legendFormatter(data) {
+    function agendasLegendFormatter(data) {
         if (data.x == null) return '';
         var html = this.getLabels()[0] + ': ' + data.xHTML
         var total = data.series.reduce((total,n) => {
@@ -23,36 +49,8 @@
         return html
     }
 
-    function darkenColor(colorStr) {
-        var color = Dygraph.toRGB_(colorStr);
-        color.r = Math.floor((255 + color.r) / 2);
-        color.g = Math.floor((255 + color.g) / 2);
-        color.b = Math.floor((255 + color.b) / 2);
-        return 'rgb(' + color.r + ',' + color.g + ',' + color.b + ')';
-    }
-
-    function barchartPlotter(e) {
-        var ctx = e.drawingContext;
-        var points = e.points;
-        var yBottom = e.dygraph.toDomYCoord(0);
-
-        ctx.fillStyle = darkenColor(e.color);
-
-        var minSep = Infinity;
-        for (var i = 1; i < points.length; i++) {
-            var sep = points[i].canvasx - points[i - 1].canvasx;
-            if (sep < minSep) minSep = sep;
-        }
-        var barWidth = Math.floor(2.0 / 3 * minSep);
-        points.forEach((p)=> {
-            var x = p.canvasx - barWidth / 2
-            var height = yBottom - p.canvasy
-            ctx.fillRect(x,p.canvasy,barWidth,height)
-            ctx.strokeRect(x,p.canvasy,barWidth,height)
-        })
-    }
-
     function cumulativeVoteChoicesData(d) {
+        if (!d.yes instanceof Array) return [[0,0,0]]
         return d.yes.map((n,i) => {
             return [
                 new Date(d.time[i]*1000),
@@ -64,6 +62,7 @@
     }
 
     function voteChoicesByBlockData(d) {
+        if (!d.yes instanceof Array) return [[0,0,0,0]]
         return d.yes.map((n,i) => {
             return [
                 d.height[i],
