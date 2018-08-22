@@ -195,6 +195,68 @@ cp sample-dcrdata.conf ~/.dcrdata/dcrdata.conf
 Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata --help`
 for a list of all options and their default values.
 
+### Using Configuration Environment Variables
+There will be times when you don't want to fuss with a config file or
+cannot use command line args such as when using docker, heroku, kubernetes or other cloud
+platform.  
+
+Almost all configuation items are avaiable to set via environment variables.
+To have a look at what you can set please see config.go source code and the config struct (line 68).
+
+Each config setting uses the env tag to specify the name of the environment variable.
+
+ie. `env:"USE_TESTNET"`
+
+So when starting dcrdata you can now use with environment variables `USE_TESTNET=true dcrdata`
+
+Config precedence:
+  1. Command line flags have top priority
+  2. Config file settings
+  3. Environment variables
+  4. default config embedded in source code
+
+Any variable that starts with USE, ENABLE, DISABLE or otherwise asks a question must be a true/false value.
+
+List of variables that can be set:
+
+|Description|Name|
+|-----------|----|
+|Path to application home directory| DCRDATA_APPDATA_DIR|
+|Path to configuration file|DCRDATA_CONFIG_FILE|
+|Directory to store data|DCRDATA_DATA_DIR|
+|Directory to log output|DCRDATA_LOG_DIR|
+|Folder for file outputs|DCRDATA_OUT_FOLDER|
+|Use the test network (default mainnet)|DCRDATA_USE_TESTNET|
+|Use the simulation test network (default mainnet)|DCRDATA_USE_SIMNET|
+|Logging level {trace, debug, info, warn, error, critical}|DCRDATA_LOG_LEVEL|
+|Easy way to set debuglevel to error|DCRDATA_QUIET|
+|Start HTTP profiler.|DCRDATA_ENABLE_HTTP_PROFILER|
+|URL path prefix for the HTTP profiler.| DCRDATA_HTTP_PROFILER_PREFIX|
+|File for CPU profiling.|DCRDATA_CPU_PROFILER_FILE|
+|Run with gops diagnostics agent listening. See github.com/google/gops for more information.|DCRDATA_USE_GOPS|
+|Protocol for API (http or https)|DCRDATA_ENABLE_HTTPS|
+|Listen address for API|DCRDATA_LISTEN_URL|
+|Use the RealIP to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order.|DCRDATA_USE_REAL_IP|
+|Set CacheControl in the HTTP response header|DCRDATA_MAX_CACHE_AGE|
+|Monitor mempool for new transactions, and report ticketfee info when new tickets are added.|DCRDATA_ENABLE_MEMPOOL_MONITOR|
+|The minimum time in seconds between mempool reports, regarless of number of new tickets seen.|DCRDATA_MEMPOOL_MIN_INTERVAL|
+|The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen.|DCRDATA_MEMPOOL_MAX_INTERVAL|
+|The number minimum number of new tickets that must be seen to trigger a new mempool report.|DCRDATA_MP_TRIGGER_TICKETS|
+|Dump to file the fees of all the tickets in mempool.|DCRDATA_ENABLE_DUMP_ALL_MP_TIX|
+|SQLite DB file name (default is dcrdata.sqlt.db)|DCRDATA_SQLITE_DB_FILE_NAME|
+|Run in "Full Mode" mode,  enables postgresql support|DCRDATA_ENABLE_FULL_MODE|
+|PostgreSQL DB name.|DCRDATA_PG_DB_NAME|
+|PostgreSQL DB user|DCRDATA_POSTGRES_USER|
+|PostgreSQL DB password.|DCRDATA_POSTGRES_PASS|
+port or UNIX socket (e.g. /run/postgresql).|DCRDATA_POSTGRES_HOST_URL|
+|Disable automatic dev fund balance query on new blocks.|DCRDATA_DISABLE_DEV_PREFETCH|
+|Sync to the best block and exit. Do not start the explorer or API.|DCRDATA_ENABLE_SYNC_N_QUIT|
+|Daemon RPC user name|DCRDATA_DCRD_USER|
+|Daemon RPC password|DCRDATA_DCRD_PASS|
+|Hostname/IP and port of dcrd RPC server|DCRDATA_DCRD_URL|
+|File containing the dcrd certificate file|DCRDATA_DCRD_CERT|
+|Disable TLS for the daemon RPC client *see source code|DCRDATA_DCRD_DISABLE_TLS|
+
 ### Indexing the Blockchain
 
 If dcrdata has not previously been run with the PostgreSQL database backend, it

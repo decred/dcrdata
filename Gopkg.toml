@@ -23,7 +23,9 @@
 #   non-go = false
 #   go-tests = true
 #   unused-packages = true
-
+[[constraint]]
+  name = "github.com/caarlos0/env"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/asdine/storm"
@@ -97,7 +99,7 @@
   branch = "master"
   name = "golang.org/x/net"
 
-  
+
 [[constraint]]
   name = "github.com/decred/slog"
   version = "1.0.0"

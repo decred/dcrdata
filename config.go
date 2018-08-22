@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	flags "github.com/btcsuite/go-flags"
+	"github.com/caarlos0/env"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
@@ -65,43 +66,43 @@ var (
 
 type config struct {
 	// General application behavior
-	HomeDir      string `short:"A" long:"appdata" description:"Path to application home directory"`
-	ConfigFile   string `short:"C" long:"configfile" description:"Path to configuration file"`
-	DataDir      string `short:"b" long:"datadir" description:"Directory to store data"`
-	LogDir       string `long:"logdir" description:"Directory to log output."`
-	OutFolder    string `short:"f" long:"outfolder" description:"Folder for file outputs"`
+	HomeDir      string `short:"A" long:"appdata" description:"Path to application home directory" env:"DCRDATA_APPDATA_DIR"`
+	ConfigFile   string `short:"C" long:"configfile" description:"Path to configuration file" env:"DCRDATA_CONFIG_FILE"`
+	DataDir      string `short:"b" long:"datadir" description:"Directory to store data" env:"DCRDATA_DATA_DIR"`
+	LogDir       string `long:"logdir" description:"Directory to log output." env:"DCRDATA_LOG_DIR"`
+	OutFolder    string `short:"f" long:"outfolder" description:"Folder for file outputs" env:"DCRDATA_OUT_FOLDER"`
 	ShowVersion  bool   `short:"V" long:"version" description:"Display version information and exit"`
-	TestNet      bool   `long:"testnet" description:"Use the test network (default mainnet)"`
-	SimNet       bool   `long:"simnet" description:"Use the simulation test network (default mainnet)"`
-	DebugLevel   string `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
-	Quiet        bool   `short:"q" long:"quiet" description:"Easy way to set debuglevel to error"`
-	HTTPProfile  bool   `long:"httpprof" short:"p" description:"Start HTTP profiler."`
-	HTTPProfPath string `long:"httpprofprefix" description:"URL path prefix for the HTTP profiler."`
-	CPUProfile   string `long:"cpuprofile" description:"File for CPU profiling."`
-	UseGops      bool   `short:"g" long:"gops" description:"Run with gops diagnostics agent listening. See github.com/google/gops for more information."`
+	TestNet      bool   `long:"testnet" description:"Use the test network (default mainnet)" env:"DCRDATA_USE_TESTNET"`
+	SimNet       bool   `long:"simnet" description:"Use the simulation test network (default mainnet)" env:"DCRDATA_USE_SIMNET"`
+	DebugLevel   string `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}" env:"DCRDATA_LOG_LEVEL"`
+	Quiet        bool   `short:"q" long:"quiet" description:"Easy way to set debuglevel to error" env:"DCRDATA_QUIET"`
+	HTTPProfile  bool   `long:"httpprof" short:"p" description:"Start HTTP profiler." env:"DCRDATA_ENABLE_HTTP_PROFILER"`
+	HTTPProfPath string `long:"httpprofprefix" description:"URL path prefix for the HTTP profiler." env:"DCRDATA_HTTP_PROFILER_PREFIX"`
+	CPUProfile   string `long:"cpuprofile" description:"File for CPU profiling." env:"DCRDATA_CPU_PROFILER_FILE"`
+	UseGops      bool   `short:"g" long:"gops" description:"Run with gops diagnostics agent listening. See github.com/google/gops for more information." env:"DCRDATA_USE_GOPS"`
 
 	// API
-	APIProto           string `long:"apiproto" description:"Protocol for API (http or https)"`
-	APIListen          string `long:"apilisten" description:"Listen address for API"`
+	APIProto           string `long:"apiproto" description:"Protocol for API (http or https)" env:"DCRDATA_ENABLE_HTTPS"`
+	APIListen          string `long:"apilisten" description:"Listen address for API" env:"DCRDATA_LISTEN_URL"`
 	IndentJSON         string `long:"indentjson" description:"String for JSON indentation (default is \"   \"), when indentation is requested via URL query."`
-	UseRealIP          bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order."`
-	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes."`
+	UseRealIP          bool   `long:"userealip" description:"Use the RealIP middleware from the pressly/chi/middleware package to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order." env:"DCRDATA_USE_REAL_IP"`
+	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
 
 	// Data I/O
-	MonitorMempool     bool   `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added."`
-	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen."`
-	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen."`
-	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report."`
-	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
-	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
+	MonitorMempool     bool   `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added." env:"DCRDATA_ENABLE_MEMPOOL_MONITOR"`
+	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
+	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MAX_INTERVAL"`
+	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report." env:"DCRDATA_MP_TRIGGER_TICKETS"`
+	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool." env:"DCRDATA_ENABLE_DUMP_ALL_MP_TIX"`
+	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)." env:"DCRDATA_SQLITE_DB_FILE_NAME"`
 
-	FullMode      bool   `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support"`
-	PGDBName      string `long:"pgdbname" description:"PostgreSQL DB name."`
-	PGUser        string `long:"pguser" description:"PostgreSQL DB user."`
-	PGPass        string `long:"pgpass" description:"PostgreSQL DB password."`
-	PGHost        string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)."`
-	NoDevPrefetch bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected."`
-	SyncAndQuit   bool   `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API."`
+	FullMode      bool   `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support" env:"DCRDATA_ENABLE_FULL_MODE"`
+	PGDBName      string `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
+	PGUser        string `long:"pguser" description:"PostgreSQL DB user." env:"DCRDATA_POSTGRES_USER"`
+	PGPass        string `long:"pgpass" description:"PostgreSQL DB password." env:"DCRDATA_POSTGRES_PASS"`
+	PGHost        string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)." env:"DCRDATA_POSTGRES_HOST_URL"`
+	NoDevPrefetch bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
+	SyncAndQuit   bool   `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
 
 	// WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
 	// SMTPUser     string `long:"smtpuser" description:"SMTP user name"`
@@ -111,11 +112,11 @@ type config struct {
 	// EmailSubject string `long:"emailsubj" description:"Email subject. (default \"dcrdataapi transaction notification\")"`
 
 	// RPC client options
-	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name"`
-	DcrdPass         string `long:"dcrdpass" description:"Daemon RPC password"`
-	DcrdServ         string `long:"dcrdserv" description:"Hostname/IP and port of dcrd RPC server to connect to (default localhost:9109, testnet: localhost:19109, simnet: localhost:19556)"`
-	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file"`
-	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
+	DcrdUser         string `long:"dcrduser" description:"Daemon RPC user name" env:"DCRDATA_DCRD_USER"`
+	DcrdPass         string `long:"dcrdpass" description:"Daemon RPC password" env:"DCRDATA_DCRD_PASS"`
+	DcrdServ         string `long:"dcrdserv" description:"Hostname/IP and port of dcrd RPC server to connect to (default localhost:9109, testnet: localhost:19109, simnet: localhost:19556)" env:"DCRDATA_DCRD_URL"`
+	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file" env:"DCRDATA_DCRD_CERT"`
+	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost" env:"DCRDATA_DCRD_DISABLE_TLS"`
 }
 
 var (
@@ -269,17 +270,22 @@ func loadConfig() (*config, error) {
 	loadConfigError := func(err error) (*config, error) {
 		return nil, err
 	}
-
 	// Default config.
 	cfg := defaultConfig
-
+	// Load environment variables into the config overriding the default config
+	err := env.Parse(&cfg)
+	if err != nil {
+		return loadConfigError(err)
+	}
 	// Pre-parse the command line options to see if an alternative config
 	// file or the version flag was specified.
+	// Override any environment variables with parsed command flags
 	preCfg := cfg
 	preParser := flags.NewParser(&preCfg, flags.HelpFlag|flags.PassDoubleDash)
-	_, err := preParser.Parse()
-	if err != nil {
-		e, ok := err.(*flags.Error)
+	_, flagerr := preParser.Parse()
+
+	if flagerr != nil {
+		e, ok := flagerr.(*flags.Error)
 		if !ok || e.Type != flags.ErrHelp {
 			preParser.WriteHelp(os.Stderr)
 		}
@@ -287,7 +293,7 @@ func loadConfig() (*config, error) {
 			preParser.WriteHelp(os.Stdout)
 			os.Exit(0)
 		}
-		return loadConfigError(err)
+		return loadConfigError(flagerr)
 	}
 
 	// Show the version and exit if the version flag was specified.
@@ -457,7 +463,6 @@ func loadConfig() (*config, error) {
 		parser.WriteHelp(os.Stderr)
 		return loadConfigError(err)
 	}
-
 	return &cfg, nil
 }
 
