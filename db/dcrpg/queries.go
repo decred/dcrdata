@@ -2288,6 +2288,16 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 			}
 
 			lockedIn, activated, hardForked := false, false, false
+
+			// THIS IS A TEMPORARY SOLUTION till activated, lockedIn and hardforked
+			// height values can be sent via an rpc method.
+			progress, ok := VotingMilestones[val.ID]
+			if ok {
+				lockedIn = (progress.LockedIn == tx.BlockHeight)
+				activated = (progress.Activated == tx.BlockHeight)
+				hardForked = (progress.HardForked == tx.BlockHeight)
+			}
+
 			err = prep.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight,
 				tx.BlockTime, lockedIn, activated, hardForked).Scan(&rowID)
 			if err != nil {

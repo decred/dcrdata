@@ -54,31 +54,6 @@
         });
         return html;
     }
-
-    function barchartPlotter(e) {
-        var ctx = e.drawingContext;
-        var points = e.points;
-        var y_bottom = e.dygraph.toDomYCoord(0);
-        ctx.fillStyle = e.color;
-        var min_sep = Infinity;
-
-        for (var i = 1; i < points.length; i++) {
-            var sep = points[i].canvasx - points[i - 1].canvasx;
-            if (sep < min_sep) min_sep = sep;
-        }
-
-        var bar_width = Math.floor(2.0 / 3 * min_sep);
-        for (var i = 0; i < points.length; i++) {
-            var p = points[i];
-            var center_x = p.canvasx;
-
-            ctx.fillRect(center_x - bar_width / 2, p.canvasy,
-                bar_width, y_bottom - p.canvasy);
-
-            ctx.strokeRect(center_x - bar_width / 2, p.canvasy,
-                bar_width, y_bottom - p.canvasy);
-            }               
-        } 
    
     function plotGraph(processedData, otherOptions){
         var commonOptions = {
@@ -88,6 +63,7 @@
             xlabel: 'Date',
             labelsSeparateLines: true,
             fillAlpha: 0.9,
+            labelsKMB: true
         }
 
         return new Dygraph(
@@ -115,8 +91,7 @@
                     legendFormatter: formatter,
                     plotter: barchartPlotter,
                     stackedGraph: true,
-                    fillGraph: false,
-                    labelsKMB: false
+                    fillGraph: false
                 }
 
                 _this.amountFlowGraphOptions = {
@@ -128,8 +103,7 @@
                     legendFormatter: customizedFormatter,
                     plotter: barchartPlotter,
                     stackedGraph: true,
-                    fillGraph: false,
-                    labelsKMB: false
+                    fillGraph: false
                 }
 
                 _this.unspentGraphOptions = {
@@ -141,8 +115,7 @@
                     legendFormatter: customizedFormatter,
                     stackedGraph: false,
                     visibility: [true],
-                    fillGraph: true,
-                    labelsKMB: true
+                    fillGraph: true
                 }
             })
         }
