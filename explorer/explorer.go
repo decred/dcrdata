@@ -277,7 +277,7 @@ func (exp *explorerUI) prePopulateChartsData() {
 	log.Info("Done Pre-populating the charts data")
 }
 
-func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
 
@@ -289,6 +289,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	newBlockData := &BlockBasic{
 		Height:         int64(bData.Height),
+		Hash:           blockData.Header.Hash,
 		Voters:         bData.Voters,
 		FreshStake:     bData.FreshStake,
 		Size:           int32(bData.Size),

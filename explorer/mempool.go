@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -17,10 +18,10 @@ import (
 const NumLatestMempoolTxns = 5
 
 func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
-	// Get the initial best block hash and time
-	lastBlockHash, _, lastBlockTime := exp.storeMempoolInfo()
+	// Get the initial best block hash, height, and time.
+	lastBlockHash, lastBlockHeight, lastBlockTime := exp.storeMempoolInfo()
 
-	// Process new transactions as they arrive
+	// Process new transactions as they arrive.
 	for {
 		ntx, ok := <-txChan
 		if !ok {
@@ -28,19 +29,19 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			return
 		}
 
-		// A nil tx is the signal to stop
+		// A nil tx is the signal to stop.
 		if ntx == nil {
 			return
 		}
 
-		// A tx with an empty hex is the new block signal
+		// A tx with an empty hex is the new block signal.
 		if ntx.Hex == "" {
-			lastBlockHash, _, lastBlockTime = exp.storeMempoolInfo()
+			lastBlockHash, lastBlockHeight, lastBlockTime = exp.storeMempoolInfo()
 			exp.wsHub.HubRelay <- sigMempoolUpdate
 			continue
 		}
 
-		// Ignore this tx if it was received before the last block
+		// Ignore this tx if it was received before the last block.
 		if ntx.Time < lastBlockTime {
 			continue
 		}
@@ -53,7 +54,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 
 		hash := msgTx.TxHash().String()
 
-		// If this is a vote, decode vote bits
+		// If this is a vote, decode vote bits.
 		var voteInfo *VoteInfo
 		if ok := stake.IsSSGen(msgTx); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, exp.ChainParams)
@@ -66,12 +67,12 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 						Height:   validation.Height,
 						Validity: validation.Validity,
 					},
-					Version:      version,
-					Bits:         bits,
-					Choices:      choices,
-					TicketSpent:  msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
-					ForLastBlock: voteForLastBlock(lastBlockHash, validation.Hash.String()),
+					Version:     version,
+					Bits:        bits,
+					Choices:     choices,
+					TicketSpent: msgTx.TxIn[1].PreviousOutPoint.Hash.String(),
 				}
+				voteInfo.ForLastBlock = voteInfo.VotesOnBlock(lastBlockHash)
 			}
 		}
 
@@ -89,29 +90,63 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		exp.MempoolData.Lock()
 		switch tx.Type {
 		case "Ticket":
+			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
+				exp.MempoolData.Unlock()
+				log.Debugf("Not broadcasting duplicate ticket notification: %s", hash)
+				continue // back to waiting for new tx signal
+			}
+			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Tickets = append([]MempoolTx{tx}, exp.MempoolData.Tickets...)
 			exp.MempoolData.NumTickets++
 		case "Vote":
-			addVoteIndex(tx.VoteInfo, exp.MempoolData.TicketIndexes)
+			// Votes on the next block may be recieve just prior to dcrdata
+			// actually processing the new block. Do not broadcast these ahead
+			// of the full update with the new block signal as the vote will be
+			// included in that update.
+			if tx.VoteInfo.Validation.Height > lastBlockHeight {
+				exp.MempoolData.Unlock()
+				log.Debug("Got a vote for a future block. Waiting to pull it "+
+					"out of mempool with new block signal. Vote: ", tx.Hash)
+				continue
+			}
+
+			// Maintain the list of unique stake txns encountered.
+			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
+				exp.MempoolData.Unlock()
+				log.Debugf("Not broadcasting duplicate vote notification: %s", hash)
+				continue // back to waiting for new tx signal
+			}
+			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Votes = append([]MempoolTx{tx}, exp.MempoolData.Votes...)
-			sort.Sort(byHeight(exp.MempoolData.Votes))
+			//sort.Sort(byHeight(exp.MempoolData.Votes))
 			exp.MempoolData.NumVotes++
+
 			// Multiple transactions can be in mempool from the same ticket.  We
 			// need to insure we do not double count these votes.
-			if tx.VoteInfo.ForLastBlock && !exp.MempoolData.VotingInfo.voted[tx.VoteInfo.TicketSpent] {
-				exp.MempoolData.VotingInfo.voted[tx.VoteInfo.TicketSpent] = true
-				exp.MempoolData.VotingInfo.TotalCollected++
-				if tx.VoteInfo.Validation.Validity {
-					exp.MempoolData.VotingInfo.Valids++
-				} else {
-					exp.MempoolData.VotingInfo.Invalids++
-				}
-				updateBlockValidity(&exp.MempoolData.VotingInfo)
+			tx.VoteInfo.setTicketIndex(exp.MempoolData.TicketIndexes)
+			votingInfo := &exp.MempoolData.VotingInfo
+			if tx.VoteInfo.ForLastBlock && !votingInfo.votedTickets[tx.VoteInfo.TicketSpent] {
+				votingInfo.votedTickets[tx.VoteInfo.TicketSpent] = true
+				votingInfo.TicketsVoted++
 			}
 		case "Regular":
+			// Maintain the list of unique regular txns encountered.
+			if _, found := exp.MempoolData.InvRegular[tx.Hash]; found {
+				exp.MempoolData.Unlock()
+				log.Debugf("Not broadcasting duplicate txns notification: %s", hash)
+				continue // back to waiting for new tx signal
+			}
+			exp.MempoolData.InvRegular[tx.Hash] = struct{}{}
 			exp.MempoolData.Transactions = append([]MempoolTx{tx}, exp.MempoolData.Transactions...)
 			exp.MempoolData.NumRegular++
 		case "Revocation":
+			// Maintain the list of unique stake txns encountered.
+			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
+				exp.MempoolData.Unlock()
+				log.Debugf("Not broadcasting duplicate revocation notification: %s", hash)
+				continue // back to waiting for new tx signal
+			}
+			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Revocations = append([]MempoolTx{tx}, exp.MempoolData.Revocations...)
 			exp.MempoolData.NumRevokes++
 		}
@@ -151,22 +186,28 @@ func (exp *explorerUI) StartMempoolMonitor(newTxChan chan *NewMempoolTx) {
 
 func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
 
+	// Store mempool data for template rendering
+	exp.MempoolData.Lock()
+	defer exp.MempoolData.Unlock()
+
 	defer func(start time.Time) {
-		log.Debugf("storeMempoolInfo() completed in %v",
-			time.Since(start))
+		log.Debugf("storeMempoolInfo() completed in %v", time.Since(start))
 	}(time.Now())
 
-	memtxs := exp.blockData.GetMempool()
-	if memtxs == nil {
-		log.Error("Could not get mempool transactions")
-		return
-	}
-
-	lastBlockHash, lastBlock, lastBlockTime = exp.getLastBlock()
-
-	// RPC succeeded, but mempool is empty
-	if len(memtxs) == 0 {
-		return
+	// Get mempool transactions and ensure block ID is correct
+	var memtxs []MempoolTx
+	for {
+		lastBlockHash0, _, _ := exp.getLastBlock()
+		memtxs = exp.blockData.GetMempool()
+		if memtxs == nil {
+			log.Error("Could not get mempool transactions")
+			return
+		}
+		lastBlockHash, lastBlock, lastBlockTime = exp.getLastBlock()
+		if lastBlockHash == lastBlockHash0 {
+			break
+		}
+		log.Warnf("Best block change while getting mempool. Repeating request.")
 	}
 
 	// Get the NumLatestMempoolTxns latest transactions in mempool
@@ -185,44 +226,59 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 
 	var totalOut float64
 	var totalSize int32
-	var votingInfo VotingInfo
+	votingInfo := VotingInfo{
+		MaxVotesPerBlock: exp.ChainParams.TicketsPerBlock,
+		votedTickets:     make(map[string]bool),
+	}
+	invRegular := make(map[string]struct{})
+	invStake := make(map[string]struct{})
 
-	lastBlockHash, lastBlock, lastBlockTime = exp.getLastBlock()
-
-	votingInfo.TotalNeeded = exp.ChainParams.TicketsPerBlock
-	votingInfo.Required = exp.ChainParams.StakeRewardProportion
-
-	votingInfo.voted = make(map[string]bool)
-
-	txindexes := make(map[int64]map[string]int)
+	// Initialize the BlockValidatorIndex, a map.
+	ticketSpendInds := make(BlockValidatorIndex)
 	for _, tx := range memtxs {
 		switch tx.Type {
 		case "Ticket":
+			if _, found := invStake[tx.Hash]; found {
+				continue
+			}
+			invStake[tx.Hash] = struct{}{}
 			tickets = append(tickets, tx)
 		case "Vote":
-			addVoteIndex(tx.VoteInfo, txindexes)
-			tx.VoteInfo.ForLastBlock = voteForLastBlock(lastBlockHash, tx.VoteInfo.Validation.Hash)
-			if tx.VoteInfo.ForLastBlock && !votingInfo.voted[tx.VoteInfo.TicketSpent] {
-				votingInfo.voted[tx.VoteInfo.TicketSpent] = true
-				votingInfo.TotalCollected++
-				if tx.VoteInfo.Validation.Validity {
-					votingInfo.Valids++
-				} else {
-					votingInfo.Invalids++
-				}
+			if _, found := invStake[tx.Hash]; found {
+				continue
 			}
+			invStake[tx.Hash] = struct{}{}
 			votes = append(votes, tx)
+
+			// Assign an index to this vote that is unique to the spent ticket +
+			// validated block.
+			tx.VoteInfo.setTicketIndex(ticketSpendInds)
+			// Determine if this vote is (in)validating the previous block.
+			tx.VoteInfo.ForLastBlock = tx.VoteInfo.VotesOnBlock(lastBlockHash)
+			// Update tally if this is for the previous block, the ticket has not
+			// yet been spent. Do not attempt to decide block validity.
+			if tx.VoteInfo.ForLastBlock && !votingInfo.votedTickets[tx.VoteInfo.TicketSpent] {
+				votingInfo.votedTickets[tx.VoteInfo.TicketSpent] = true
+				votingInfo.TicketsVoted++
+			}
 		case "Revocation":
+			if _, found := invStake[tx.Hash]; found {
+				continue
+			}
+			invStake[tx.Hash] = struct{}{}
 			revs = append(revs, tx)
 		default:
+			if _, found := invRegular[tx.Hash]; found {
+				continue
+			}
+			invRegular[tx.Hash] = struct{}{}
 			regular = append(regular, tx)
 		}
+
+		// Update mempool totals
 		totalOut += tx.TotalOut
 		totalSize += tx.Size
 	}
-	updateBlockValidity(&votingInfo)
-	exp.MempoolData.Lock()
-	defer exp.MempoolData.Unlock()
 
 	sort.Sort(byHeight(votes))
 
@@ -244,38 +300,50 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 		NumRevokes:         len(revs),
 		LatestTransactions: latest,
 		FormattedTotalSize: humanize.Bytes(uint64(totalSize)),
-		TicketIndexes:      txindexes,
+		TicketIndexes:      ticketSpendInds,
 		VotingInfo:         votingInfo,
+		InvRegular:         invRegular,
+		InvStake:           invStake,
 	}
 	return
 }
 
-// addVoteIndex assigns a unique index for a vote in a block if an index has not
-// already been assigned.  This index is used for sorting in views and counting
-// total unique votes for a block.
-func addVoteIndex(v *VoteInfo, txindexes map[int64]map[string]int) {
-	if idxs, ok := txindexes[v.Validation.Height]; ok {
+// setTicketIndex assigns the VoteInfo an index based on the block that the vote
+// is (in)validating and the spent ticket hash. The ticketSpendInds tracks
+// known combinations of target block and spent ticket hash. This index is used
+// for sorting in views and counting total unique votes for a block.
+func (v *VoteInfo) setTicketIndex(ticketSpendInds BlockValidatorIndex) {
+	// One-based indexing
+	startInd := 1
+	// Reference the sub-index for the block being (in)validated by this vote.
+	if idxs, ok := ticketSpendInds[v.Validation.Hash]; ok {
+		// If this ticket has been seen before voting on this block, set the
+		// known index. Otherwise, assign the next index in the series.
 		if idx, ok := idxs[v.TicketSpent]; ok {
 			v.MempoolTicketIndex = idx
 		} else {
-			idx := len(idxs) + 1
+			idx := len(idxs) + startInd
 			idxs[v.TicketSpent] = idx
 			v.MempoolTicketIndex = idx
 		}
 	} else {
-		idxs := make(map[string]int)
-		idxs[v.TicketSpent] = 1
-		txindexes[v.Validation.Height] = idxs
-		v.MempoolTicketIndex = 1
+		// First vote encountered for this block. Create new ticket sub-index.
+		ticketSpendInds[v.Validation.Hash] = TicketIndex{
+			v.TicketSpent: startInd,
+		}
+		v.MempoolTicketIndex = startInd
 	}
 }
 
-func voteForLastBlock(blockHash, validationHash string) bool {
-	return blockHash == validationHash && blockHash != ""
+// VotesOnBlock indicates if the vote is voting on the validity of block
+// specified by the given hash.
+func (v *VoteInfo) VotesOnBlock(blockHash string) bool {
+	return v.Validation.ForBlock(blockHash)
 }
 
-func updateBlockValidity(votingInfo *VotingInfo) {
-	votingInfo.BlockValid = votingInfo.Valids+votingInfo.Invalids >= votingInfo.TotalNeeded && votingInfo.Valids >= votingInfo.Required
+// ForBlock indicates if the validation choice is for the specified block.
+func (v *BlockValidation) ForBlock(blockHash string) bool {
+	return blockHash != "" && blockHash == v.Hash
 }
 
 // getLastBlock returns the last block hash, height and time
@@ -283,11 +351,8 @@ func (exp *explorerUI) getLastBlock() (lastBlockHash string, lastBlock int64, la
 	exp.NewBlockDataMtx.RLock()
 	lastBlock = exp.NewBlockData.Height
 	lastBlockTime = exp.NewBlockData.BlockTime
+	lastBlockHash = exp.NewBlockData.Hash
 	exp.NewBlockDataMtx.RUnlock()
-	lastBlockHash, err := exp.blockData.GetBlockHash(lastBlock)
-	if err != nil {
-		log.Warnf("Could not get bloch hash for last block")
-	}
 	return
 }
 
