@@ -197,7 +197,7 @@
                         </nav>
                     </div>
                     {{else}}
-                    <span class="fs12 nowrap text-right">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
+                    <span class="fs12 nowrap text-right list-display">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
                     {{end}}
                 </div>
                 <div class="list-display">
@@ -323,6 +323,8 @@
                             {{if lt $TxnCount 20}}disabled="disabled"{{end}}
                         >
                         <option {{if eq .Limit $TxnCount}}selected{{end}} value="{{len .Transactions}}">{{len .Transactions}}</option>
+                        <option {{if eq .Limit 100}}selected{{end}} value="100">100</option>
+                        <option {{if eq .Limit 1000}}selected{{end}} value="1000">1000</option>
                         </select>
                     </div>
                 </div>
@@ -338,12 +340,19 @@
         $(".jsonly").show()
         $('#list-display').hide()
 
-        $("#txntype").change(function(ev) {
+        $("#txntype").add("#pagesize").change(function(ev) {
+            var pagesize = "20"
+            var offset = "0"
+            if (ev.currentTarget.id.indexOf("pagesize") != -1){
+                pagesize = $("#pagesize option:selected").val()
+                offset = {{.Offset}}
+            }
+
             Turbolinks.visit(
                 window.location.pathname
-                + "?txntype="+ $(ev.currentTarget).val()
-                + "&n=20"
-                + "&start=0"
+                + "?txntype="+ $("#txntype option:selected").val()
+                + "&n=" + pagesize
+                + "&start=" + offset
             )
         })
 

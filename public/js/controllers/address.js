@@ -85,7 +85,7 @@
                 _this.typesGraphOptions = {
                     labels: ['Date', 'RegularTx', 'Tickets', 'Votes', 'RevokeTx'],
                     colors: ['#2971FF', '#41BF53', 'darkorange', '#FF0090'],
-                    ylabel: '# of Tx Types',
+                    ylabel: 'Number of Transactions by Type',
                     title: 'Transactions Types',
                     visibility: [true, true, true, true],
                     legendFormatter: formatter,
