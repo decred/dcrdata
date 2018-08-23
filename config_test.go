@@ -2,11 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/decred/dcrd/dcrutil"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/decred/dcrd/dcrutil"
 )
 
 func TestMain(m *testing.M) {

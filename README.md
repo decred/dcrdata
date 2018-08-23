@@ -201,13 +201,13 @@ cannot use command line args such as when using docker, heroku, kubernetes or ot
 platform.  
 
 Almost all configuation items are avaiable to set via environment variables.
-To have a look at what you can set please see config.go source code and the config struct (line 68).
+To have a look at what you can set please see config.go file and the config struct.
 
 Each config setting uses the env tag to specify the name of the environment variable.
 
-ie. `env:"USE_TESTNET"`
+ie. `env:"DCRDATA_USE_TESTNET"`
 
-So when starting dcrdata you can now use with environment variables `USE_TESTNET=true dcrdata`
+So when starting dcrdata you can now use with environment variables `DCRDATA_USE_TESTNET=true ./dcrdata`
 
 Config precedence:
   1. Command line flags have top priority
@@ -255,7 +255,7 @@ port or UNIX socket (e.g. /run/postgresql).|DCRDATA_POSTGRES_HOST_URL|
 |Daemon RPC password|DCRDATA_DCRD_PASS|
 |Hostname/IP and port of dcrd RPC server|DCRDATA_DCRD_URL|
 |File containing the dcrd certificate file|DCRDATA_DCRD_CERT|
-|Disable TLS for the daemon RPC client *see source code|DCRDATA_DCRD_DISABLE_TLS|
+|Disable TLS for the daemon RPC client|DCRDATA_DCRD_DISABLE_TLS|
 
 ### Indexing the Blockchain
 
