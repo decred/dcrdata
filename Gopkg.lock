@@ -90,6 +90,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:52bfb87fc34164f7f35ce3711e8bb4ba885f9de258c2ee538ad5d52e1f6b76c3"
+  name = "github.com/caarlos0/env"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "bc122c26dc2d72f6904a9e0cb940ca508660067c"
+
+[[projects]]
+  branch = "master"
   digest = "1:5716c51d611dd699ea9ec471febe2096535a24ba63bbde053e592d51fec40689"
   name = "github.com/chappjc/logrus-prefix"
   packages = ["."]
@@ -494,6 +502,7 @@
   input-imports = [
     "github.com/asdine/storm",
     "github.com/btcsuite/go-flags",
+    "github.com/caarlos0/env",
     "github.com/chappjc/logrus-prefix",
     "github.com/chappjc/trylock",
     "github.com/davecgh/go-spew/spew",
