@@ -117,6 +117,7 @@ body.loading .modal {
 .dygraph-title {
     font-weight: bold;
     z-index: 10;
+    font-size: 14px;
     text-align: center;
 }
 
