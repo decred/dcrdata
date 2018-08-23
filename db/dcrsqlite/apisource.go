@@ -908,6 +908,7 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.BlockBasic {
 	block := &explorer.BlockBasic{
 		Height:         data.Height,
+		Hash:           data.Hash,
 		Size:           data.Size,
 		Valid:          true, // we do not know this, TODO with DB v2
 		Voters:         data.Voters,
@@ -1016,7 +1017,6 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	// Explorer Block Info
 	block := &explorer.BlockInfo{
 		BlockBasic:            makeExplorerBlockBasic(data),
-		Hash:                  data.Hash,
 		Version:               data.Version,
 		Confirmations:         data.Confirmations,
 		StakeRoot:             data.StakeRoot,

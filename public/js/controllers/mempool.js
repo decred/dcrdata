@@ -18,12 +18,13 @@
     }
 
     function voteTxTableRow(tx) {
+        console.debug("new vote row: ", tx)
         return `<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
             <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
-            <td class="mono fs15"><span><a href="/block/${tx.vote_info.block_validation.height}">${tx.vote_info.block_validation.height}</a></span></td>
+            <td class="mono fs15"><span><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}</a></span></td>
+            <td class="mono fs15 last_block">${tx.vote_info.last_block?'True':'False'}</td>
             <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
             <td class="mono fs15">${tx.vote_info.vote_version}</td>
-            <td class="mono fs15 last_block">${tx.vote_info.last_block?'Valid':'Invalid'}</td>
             <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8, true)}</td>
             <td class="mono fs15">${tx.size} B</td>
             <td class="mono fs15 text-right" data-target="main.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
@@ -117,8 +118,8 @@
                 "ticketTransactions",
                 "revokeTransactions",
                 "regularTransactions",
-                "totalCollected",
-                "totalNeeded",
+                "ticketsVoted",
+                "maxVotesPerBlock",
                 "totalOut",
             ]
         }
@@ -157,12 +158,12 @@
             $(this.bestBlockTarget).text(m.block_height)
             $(this.bestBlockTarget).data("hash",m.block_hash)
             $(this.bestBlockTarget).attr("data-hash",m.block_hash)
-            $(this.bestBlockTarget).attr('href', '/block/' + m.block_height)
+            $(this.bestBlockTarget).attr('href', '/block/' + m.block_hash)
             $(this.bestBlockTimeTarget).data('age', m.block_time)
             $(this.bestBlockTimeTarget).attr('data-age', m.block_time)
             $(this.mempoolSizeTarget).text(m.formatted_size)
-            $(this.totalCollectedTarget).text(m.voting_info.total_votes_collected)
-            $(this.totalNeededTarget).text(m.voting_info.total_votes_required)
+            $(this.ticketsVoted).text(m.voting_info.tickets_voted)
+            $(this.maxVotesPerBlock).text(m.voting_info.max_votes_per_block)
             $(this.totalOutTarget).html(`${humanize.decimalParts(m.total, false, 8, true)}`);
             $(this.mempoolSizeTarget).text(m.formatted_size);
             this.labelVotes();
@@ -197,11 +198,11 @@
                 } else if (voteValidationHash != bestBlockHash) {
                     $(this).closest("tr").addClass("old-vote");
                     $(this).closest("tr").removeClass("upcoming-vote");
-                    $(this).find("td.last_block").text("Invalid");
+                    $(this).find("td.last_block").text("False");
                 } else {
                     $(this).closest("tr").removeClass("old-vote");
                     $(this).closest("tr").removeClass("upcoming-vote");
-                    $(this).find("td.last_block").text("Valid");
+                    $(this).find("td.last_block").text("True");
                 }
             })
         };
@@ -212,8 +213,8 @@
                 var heightA = parseInt($('td:nth-child(2)',a).text());
                 var heightB = parseInt($('td:nth-child(2)',b).text());
                 if (heightA == heightB) {
-                     var indexA = parseInt($('td:nth-child(3)',a).text());
-                     var indexB = parseInt($('td:nth-child(3)',b).text());
+                     var indexA = parseInt($('td:nth-child(4)',a).text());
+                     var indexB = parseInt($('td:nth-child(4)',b).text());
                      return (indexA - indexB);
                 } else {
                     return (heightB - heightA);

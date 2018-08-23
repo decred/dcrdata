@@ -31,6 +31,7 @@ const (
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
 	Height         int64  `json:"height"`
+	Hash           string `json:"hash"`
 	Size           int32  `json:"size"`
 	Valid          bool   `json:"valid"`
 	Voters         uint16 `json:"votes"`
@@ -184,7 +185,6 @@ type Vout struct {
 // BlockInfo models data for display on the block page
 type BlockInfo struct {
 	*BlockBasic
-	Hash                  string
 	Version               int32
 	Confirmations         int64
 	StakeRoot             string
@@ -331,33 +331,39 @@ type MempoolInfo struct {
 	Revocations  []MempoolTx `json:"revs"`
 }
 
+// TicketIndex is used to assign an index to a ticket hash.
+type TicketIndex map[string]int
+
+// BlockValidatorIndex keeps a list of arbitrary indexes for unique combinations
+// of block hash and the ticket being spent to validate the block, i.e.
+// map[validatedBlockHash]map[ticketHash]index.
+type BlockValidatorIndex map[string]TicketIndex
+
 // MempoolShort represents the mempool data sent as the mempool update
 type MempoolShort struct {
-	LastBlockHeight    int64                    `json:"block_height"`
-	LastBlockHash      string                   `json:"block_hash"`
-	LastBlockTime      int64                    `json:"block_time"`
-	TotalOut           float64                  `json:"total"`
-	TotalSize          int32                    `json:"size"`
-	NumTickets         int                      `json:"num_tickets"`
-	NumVotes           int                      `json:"num_votes"`
-	NumRegular         int                      `json:"num_regular"`
-	NumRevokes         int                      `json:"num_revokes"`
-	NumAll             int                      `json:"num_all"`
-	LatestTransactions []MempoolTx              `json:"latest"`
-	FormattedTotalSize string                   `json:"formatted_size"`
-	TicketIndexes      map[int64]map[string]int `json:"-"`
-	VotingInfo         VotingInfo               `json:"voting_info"`
+	LastBlockHeight    int64               `json:"block_height"`
+	LastBlockHash      string              `json:"block_hash"`
+	LastBlockTime      int64               `json:"block_time"`
+	TotalOut           float64             `json:"total"`
+	TotalSize          int32               `json:"size"`
+	NumTickets         int                 `json:"num_tickets"`
+	NumVotes           int                 `json:"num_votes"`
+	NumRegular         int                 `json:"num_regular"`
+	NumRevokes         int                 `json:"num_revokes"`
+	NumAll             int                 `json:"num_all"`
+	LatestTransactions []MempoolTx         `json:"latest"`
+	FormattedTotalSize string              `json:"formatted_size"`
+	TicketIndexes      BlockValidatorIndex `json:"-"`
+	VotingInfo         VotingInfo          `json:"voting_info"`
+	InvRegular         map[string]struct{} `json:"-"`
+	InvStake           map[string]struct{} `json:"-"`
 }
 
-// VotingInfo models data about the validity of the next block from mempool
+// VotingInfo models data about the validity of the next block from mempool.
 type VotingInfo struct {
-	Valids         uint16 `json:"choice_valid"`
-	Invalids       uint16 `json:"choice_invalid"`
-	TotalCollected uint16 `json:"total_votes_collected"`
-	TotalNeeded    uint16 `json:"total_votes_required"`
-	Required       uint16 `json:"total_choices_required"`
-	BlockValid     bool   `json:"block_valid"`
-	voted          map[string]bool
+	TicketsVoted     uint16 `json:"tickets_voted"`
+	MaxVotesPerBlock uint16 `json:"max_votes_per_block"`
+	votedTickets     map[string]bool
 }
 
 // ChainParams models simple data about the chain server's parameters used for some
