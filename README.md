@@ -1,3 +1,43 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [dcrdata](#dcrdata)
+  - [Repository overview](#repository-overview)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+    - [Build from Source](#build-from-source)
+    - [Runtime resources](#runtime-resources)
+  - [Updating](#updating)
+  - [Updating dependencies](#updating-dependencies)
+  - [Upgrading Instructions](#upgrading-instructions)
+  - [Getting Started](#getting-started)
+    - [Configuring PostgreSQL (IMPORTANT)](#configuring-postgresql-important)
+    - [Creating the Configuration File](#creating-the-configuration-file)
+    - [Using Configuration Environment Variables](#using-configuration-environment-variables)
+    - [Indexing the Blockchain](#indexing-the-blockchain)
+    - [Starting dcrdata](#starting-dcrdata)
+  - [System Hardware Requirements](#system-hardware-requirements)
+    - ["lite" Mode (SQLite only)](#lite-mode-sqlite-only)
+    - ["full" Mode (SQLite and PostgreSQL)](#full-mode-sqlite-and-postgresql)
+  - [dcrdata Daemon](#dcrdata-daemon)
+    - [Block Explorer](#block-explorer)
+    - [Insight API (EXPERIMENTAL)](#insight-api-experimental)
+    - [dcrdata API](#dcrdata-api)
+      - [Endpoint List](#endpoint-list)
+  - [Important Note About Mempool](#important-note-about-mempool)
+  - [Command Line Utilities](#command-line-utilities)
+    - [rebuilddb](#rebuilddb)
+    - [rebuilddb2](#rebuilddb2)
+    - [scanblocks](#scanblocks)
+  - [Helper Packages](#helper-packages)
+  - [Internal-use Packages](#internal-use-packages)
+  - [Plans](#plans)
+  - [Contributing](#contributing)
+  - [License](#license)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # dcrdata
 
 [![Build Status](https://img.shields.io/travis/decred/dcrdata.svg)](https://travis-ci.org/decred/dcrdata)
