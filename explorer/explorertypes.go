@@ -301,6 +301,8 @@ type HomeInfo struct {
 	CoinSupply            int64          `json:"coin_supply"`
 	StakeDiff             float64        `json:"sdiff"`
 	NextExpectedStakeDiff float64        `json:"next_expected_sdiff"`
+	NextExpectedBoundsMin float64        `json:"next_expected_min"`
+	NextExpectedBoundsMax float64        `json:"next_expected_max"`
 	IdxBlockInWindow      int            `json:"window_idx"`
 	IdxInRewardWindow     int            `json:"reward_idx"`
 	Difficulty            float64        `json:"difficulty"`

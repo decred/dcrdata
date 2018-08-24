@@ -32,6 +32,29 @@
                             <td><span data-target="homepageMempool.numVote" class="mono fs24">{{$.Mempool.NumVotes}}</span></td>
                         </tr>
                         <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET PRICE</td>
+                            <td class="mono vam fs24 fs14-decimal font-weight-bold">
+                                <span id="blocksdiff">
+                                    {{template "decimalParts" (float64AsDecimalParts .StakeDiff false)}}
+                                </span>
+                                <span class="pl-1 unit">DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">NEXT TICKET PRICE ESTIMATE</td>
+                            <td class="mono vam fs14-decimal">
+                                <div class="fs18 font-weight-bold">
+                                    <span>
+                                        {{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff false)}}
+                                    </span>
+                                    <span class="pl-1 unit font-weight-bold">DCR</span>
+                                </div>
+                                <div>
+                                    bounds: [{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMin false)}}<span class="pl-1 unit">DCR</span>, {{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMax false)}}<span class="pl-1 unit">DCR</span>]
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET WINDOW PROGRESS</td>
                             <td>
                                 <div class="row">
@@ -51,15 +74,6 @@
                                         </div>
                                     </div>
                                 </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET PRICE</td>
-                            <td class="mono vam fs24 fs14-decimal font-weight-bold">
-                                <span id="blocksdiff">
-                                    {{template "decimalParts" (float64AsDecimalParts .StakeDiff false)}}
-                                </span>
-                                <span class="pl-1 unit">DCR (next expected {{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff false)}} DCR) </span>
                             </td>
                         </tr>
                         <tr>
