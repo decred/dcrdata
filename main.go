@@ -280,6 +280,9 @@ func mainCore() error {
 		}
 	}
 
+	// SetAgendaDB Path
+	agendadb.SetDbPath(filepath.Join(cfg.DataDir, cfg.AgendaDBFileName))
+
 	// AgendaDB upgrade check
 	if err = agendadb.CheckForUpdates(dcrdClient); err != nil {
 		return fmt.Errorf("agendadb upgrade failed: %v", err)
