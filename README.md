@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/decred/dcrdata)](https://goreportcard.com/report/github.com/decred/dcrdata)
 [![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
 
-The dcrdata repository is a collection of golang packages and apps for [Decred](https://www.decred.org/) data collection, storage, and presentation.
+The dcrdata repository is a collection of go packages and apps for [Decred](https://www.decred.org/) data collection, storage, and presentation.
 
 - [dcrdata](#dcrdata)
   - [Repository overview](#repository-overview)
@@ -16,8 +16,8 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
     - [Developing dcrdata using a container](#developing-dcrdata-using-a-container)
     - [Container production usage](#container-production-usage)
   - [Installation](#installation)
-    - [Build from source for golang >= 1.11](#build-from-source-for-golang--111)
-    - [Build from source for golang < 1.11](#build-from-source-for-golang--111)
+    - [Building with go 1.11](#building-with-go-111)
+    - [Building with go 1.10](#building-with-go-110)
     - [Build from commit hash](#build-from-commit-hash)
     - [Runtime resources](#runtime-resources)
   - [Updating](#updating)
@@ -62,7 +62,7 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 │   ├── rebuilddb       rebuilddb utility, for SQLite backend. Not required.
 │   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not required.
 │   └── scanblocks      scanblocks utility. Not required.
-├── dcrdataapi          Package dcrdataapi for golang API clients.
+├── dcrdataapi          Package dcrdataapi for go API clients.
 ├── db
 │   ├── agendadb        Package agendadb is a basic PoS voting agenda database.
 │   ├── dbtypes         Package dbtypes with common data types.
@@ -89,7 +89,7 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 
 ## Requirements
 
-- [Go](http://golang.org) 1.10.x or 1.11.x.
+- [Go](http://go.org) 1.10.x or 1.11.x.
 - Running `dcrd` (>=1.3.0) synchronized to the current best block on the
   network. This is a strict requirement as testnet2 support is removed from
   dcrdata v3.0.0.
@@ -101,8 +101,8 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 The inclusion of a dockerfile in this repo means you can use docker for either development or production usage. Although
 at this time we are not publishing images to docker hub.
 
-When developing you can utilize containers for easily swapping out golang runtimes and overall complete project setup.
-You don't even need Golang installed on your system if using containers during development.
+When developing you can utilize containers for easily swapping out go runtimes and overall complete project setup.
+You don't even need go installed on your system if using containers during development.
 
 The first thing you need is [docker](https://docs.docker.com/install/). So once installed you can then download this repo
 and get started.
@@ -171,7 +171,7 @@ need to get used to.
 3. Attached volumes on a mac are a bit slower than linux/windows (when testing)
 4. Install everything in the container, don't muck up your docker host
 5. Resist the urge to run git commands from the container
-6. You can swap out the Golang runtimes just by using a different docker image
+6. You can swap out the go runtimes just by using a different docker image
 
 When working in a container you want your source code from your docker host to be in the container.
 To do this you attach a volume to the container when running and the synchronization happens automatically.
@@ -214,7 +214,7 @@ the DCRDATA_DCRD_CERT env variable to set the location. Or build a new container
 
 The following instructions assume a Unix-like shell (e.g. bash).
 
-- [Install Go](http://golang.org/doc/install)
+- [Install Go](http://go.org/doc/install)
 
 - Verify Go installation:
 
@@ -226,34 +226,41 @@ The following instructions assume a Unix-like shell (e.g. bash).
 
       git clone https://github.com/decred/dcrdata $GOPATH/src/github.com/decred/dcrdata
 
-Once Golang is installed and the dcrdata project is cloned proceed to the build steps.
+Once go is installed and the dcrdata project is cloned proceed to the build steps.
 
-### Build from source for golang >= 1.11
+### Building with go 1.11
 
-Golang 1.11 introduced a new [dependency management feature](https://github.com/golang/go/wiki/Modules) that
+Go 1.11 introduced a new [dependency management feature](https://github.com/go/go/wiki/Modules) that
 negates the use of third party tooling such as `dep`. Using `Go mod` will be the dependency managment tool of choice
 for dcrdata and other Decred projects going forward.
 
-Usage is simple and nothing is required except Golang 1.11.
+Usage is simple and nothing is required except go 1.11.
 
-1. `go build`
+1. `GO111MODULE=on go build`
 
-If you want to pre staging dependencies without building you can run
+If using `vgo` perform the following step:
 
-1. `go mod download`
+1. `vgo build`
 
-Golang's builtin dependency management resolution will start processing
+go's builtin dependency management resolution will start processing
 the source code and downloading dependencies on the fly and then update the `go.mod` and `go.sum` files automatically.
 
-### Build from source for golang < 1.11
+_Note_: The new GO111MODULE=on environment variable tells go to use the new module feature.
+
+### Building with go 1.10
+
+Before go 1.11 we depended on the dep tool and also [vgo](https://github.com/golang/vgo). You have the option of using either one of these tools for dependency management. We recommend vgo since the dependency management feature is
+the same across both versions.
+
+If using [vgo](https://github.com/golang/vgo) you can follow the same procedures as if you were [using go 1.11](#building-with-go-111) so there is no need to follow the `dep` steps below.
 
 Building with the `dep` dependency management tool.
 
 - Install `dep`, the dependency management tool. The current [released binary of
-  `dep`](https://github.com/golang/dep/releases) is recommended, but the latest
+  `dep`](https://github.com/go/dep/releases) is recommended, but the latest
   may be installed from git via:
 
-      go get -u -v github.com/golang/dep/cmd/dep
+      go get -u -v github.com/go/dep/cmd/dep
 
 - Fetch dependencies, and build the `dcrdata` executable.
 
@@ -262,7 +269,7 @@ Building with the `dep` dependency management tool.
       # build dcrdata executable in workspace:
       go build
 
-_Note_ we recommend upgrading to [Golang 1.11](#build-from-source-for-golang--111) or using the docker [container build instructions](#building-dcrdata-with-docker)
+_Note_ we recommend upgrading to [go 1.11](#building-with-go-111) or using the docker [container build instructions](#building-dcrdata-with-docker)
 
 ### Build from commit hash
 
@@ -305,7 +312,7 @@ necessary.
 
 ## Updating dependencies
 
-_NOTE_ This is only needed if using golang 1.10 or earlier since golang 1.11 has the `go mod` depedency management
+_NOTE_ This is only needed if using go 1.10 or earlier since go 1.11 has the `go mod` depedency management
 built in.
 
 `dep ensure -vendor-only` fetches project dependencies, without making changes
@@ -313,9 +320,9 @@ in manifest files `Gopkg.toml` and `Gopkg.lock`.
 
 Call `dep ensure` to update project dependencies when introduce new imports.
 
-For guides and reference materials about `dep`, see [the documentation](https://golang.github.io/dep).
+For guides and reference materials about `dep`, see [the documentation](https://go.github.io/dep).
 
-The following FAQ explains [the difference between `Gopkg.toml` and `Gopkg.lock` files](https://github.com/golang/dep/blob/master/docs/FAQ.md#what-is-the-difference-between-gopkgtoml-the-manifest-and-gopkglock-the-lock).
+The following FAQ explains [the difference between `Gopkg.toml` and `Gopkg.lock` files](https://github.com/go/dep/blob/master/docs/FAQ.md#what-is-the-difference-between-gopkgtoml-the-manifest-and-gopkglock-the-lock).
 
 ## Upgrading Instructions
 
@@ -731,7 +738,7 @@ comma-separated value (CSV) file.
 ## Helper Packages
 
 `package dcrdataapi` defines the data types, with json tags, used by the JSON
-API. This facilitates authoring of robust golang clients of the API.
+API. This facilitates authoring of robust go clients of the API.
 
 `package dbtypes` defines the data types used by the DB backends to model the
 block, transaction, and related blockchain data structures. Functions for
@@ -812,7 +819,7 @@ Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it
 Before committing any changes to the Gopkg.lock file, you must update `dep` to
 the latest version via:
 
-    go get -u github.com/golang/dep/cmd/dep
+    go get -u github.com/go/dep/cmd/dep
 
 **To update `dep` from the network, it is important to use the `-u` flag as
 shown above.**
