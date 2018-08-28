@@ -7,6 +7,44 @@
 
 The dcrdata repository is a collection of golang packages and apps for [Decred](https://www.decred.org/) data collection, storage, and presentation.
 
+- [dcrdata](#dcrdata)
+  - [Repository overview](#repository-overview)
+  - [Requirements](#requirements)
+  - [Docker Support](#docker-support)
+    - [Building the image](#building-the-image)
+    - [Developing dcrdata using a container](#developing-dcrdata-using-a-container)
+    - [Container Production usage](#container-production-usage)
+  - [Installation](#installation)
+    - [Build from Source](#build-from-source)
+    - [Runtime resources](#runtime-resources)
+  - [Updating](#updating)
+  - [Updating dependencies](#updating-dependencies)
+  - [Upgrading Instructions](#upgrading-instructions)
+  - [Getting Started](#getting-started)
+    - [Configuring PostgreSQL (IMPORTANT)](#configuring-postgresql-important)
+    - [Creating the Configuration File](#creating-the-configuration-file)
+    - [Using Configuration Environment Variables](#using-configuration-environment-variables)
+    - [Indexing the Blockchain](#indexing-the-blockchain)
+    - [Starting dcrdata](#starting-dcrdata)
+  - [System Hardware Requirements](#system-hardware-requirements)
+    - ["lite" Mode (SQLite only)](#lite-mode-sqlite-only)
+    - ["full" Mode (SQLite and PostgreSQL)](#full-mode-sqlite-and-postgresql)
+  - [dcrdata Daemon](#dcrdata-daemon)
+    - [Block Explorer](#block-explorer)
+    - [Insight API (EXPERIMENTAL)](#insight-api-experimental)
+    - [dcrdata API](#dcrdata-api)
+      - [Endpoint List](#endpoint-list)
+  - [Important Note About Mempool](#important-note-about-mempool)
+  - [Command Line Utilities](#command-line-utilities)
+    - [rebuilddb](#rebuilddb)
+    - [rebuilddb2](#rebuilddb2)
+    - [scanblocks](#scanblocks)
+  - [Helper Packages](#helper-packages)
+  - [Internal-use Packages](#internal-use-packages)
+  - [Plans](#plans)
+  - [Contributing](#contributing)
+  - [License](#license)
+
 ## Repository overview
 
 ```none
@@ -48,12 +86,99 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 
 ## Requirements
 
-* [Go](http://golang.org) 1.9.x or 1.10.x.
-* Running `dcrd` (>=1.3.0) synchronized to the current best block on the
+- [Go](http://golang.org) 1.9.x or 1.10.x.
+- Running `dcrd` (>=1.3.0) synchronized to the current best block on the
   network. This is a strict requirement as testnet2 support is removed from
   dcrdata v3.0.0.
-* (Optional) PostgreSQL 9.6+, if running in "full" mode. v10.x is recommended
+- (Optional) PostgreSQL 9.6+, if running in "full" mode. v10.x is recommended
   for improved dump/restore formats and utilities.
+
+## Docker support
+
+The inclusion of a dockerfile in this repo means you can use docker for either development or production usage. Although
+at this time we are not publishing images to docker hub.
+
+When developing you can utilize containers for easily swapping out golang runtimes and overall complete project setup.
+You don't even need Golang installed on your system if using containers during development.
+
+The first thing you need is [docker](https://docs.docker.com/install/). So once installed you can then download this repo
+and get started.
+
+### Building the image
+
+In order to use the dcrdata container image you need to build the image. This is accomplished by running docker build.
+
+`docker build --squash -t decred/dcrdata:dev-alpine .`
+
+Note: when building the `--squash` flag is an [experimental feature](https://docs.docker.com/engine/reference/commandline/image_build/) as of Docker 18.06. This means you must
+enable the eperimental features setting found under the daemon tab under windows and os x. On linux you can following
+the instructions [here](https://stackoverflow.com/questions/44346322/how-to-run-docker-with-experimental-functions-on-ubuntu-16-04)
+
+By default docker will build the container based on the Dockerfile found in the root of this directory.
+If you wish to use an ubuntu based container you can build from the ubuntu based dockerfile where as the default is based
+on alpine linux.
+
+`docker build --squash -f dockerfiles/Dockerfile_stretch -t decred/dcrdata:dev-stretch .`
+
+Part of the build process is to copy all the source code over to the image and perform the following operations:
+
+1. go mod download
+2. go build
+
+_Note_ if for any reason you run into build errors with docker try adding the `--no-cache` flag to trigger a rebuild of all the layers since docker does not rebuild layers that are cached.
+
+`docker build --no-cache --squash -t decred/dcrdata:dev-alpine .`
+
+### Developing dcrdata using a container
+
+Containers are a great way to develop any source code as they serve as a disposable runtime environment built specifically
+to the specifications of the application. If you have never developed code using containers there are some differences you will
+need to get used to.
+
+1. Don't write code inside the container
+2. Attach a volume and write code from your editor on your docker host
+3. Attached volumes on a mac are a bit slower than linux/windows (when testing)
+4. Install everything in the container, don't muck up your docker host
+5. Resist the urge to run git commands from the container
+6. You can swap out the Golang runtimes just by using a different docker image
+
+When working in a container you want your source code from your docker host to be in the container.
+To do this you attach a volume to the container when running and the synchronization happens automatically.
+
+`docker run -ti --entrypoint=/bin/bash -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine`
+
+Notice in the above line that we changed the entrypoint. This is to allow you to run commands in the container since the default
+container command is to run dcrdata.
+
+What this means is that you can run `go build` or `go test` inside the container
+Most times when developing you will only run the basic go commands in the container. `go fmt`, `go build` and `go test`
+If you run `go fmt` you should notice that any formatting changes will also be reflected on the docker host as well.
+
+Aside from running go commands you probably also run the application itself after running go build.
+
+When you run dcrdata you will need to use a config file or pass [environment variables](#using-configuration-environment-variables)
+
+With containers you can set these variables inside the container or at the [command line](https://docs.docker.com/engine/reference/run/#env-environment-variables).
+
+`docker run -ti --entrypoint=/bin/bash -e DCRDATA_LISTEN_URL=0.0.0.0:2222 -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine`
+
+There are minor differences when developing in a container but once you get used to them you will appreciate the power
+of consistent empheral environments.
+
+### Container production usage
+
+We don't yet have a build system in place for creating production grade images of dcrdata. However, you can still use the images for
+testing purposes.
+
+Running these images shouldn't be that much different with the exception of a config file or a few more environment variables.
+You will also need to expose the port that dcrdata runs on `-p 2222:2222`.
+
+`docker run -ti -p 2222:2222 -e DCRDATA_LISTEN_URL=0.0.0.0:2222 --rm decred/dcrdata:dev-alpine`
+
+Please keep in mind these images have not been hardened so expect some security flaws to exist. Pull requests welcomed!
+
+Note: In order to run drcdata will need the dcrd rpc cert to start. You can attach a volume with the cert and use
+the DCRDATA_DCRD_CERT env variable to set the location. Or build a new container image with the cert built in.
 
 ## Installation
 
@@ -61,24 +186,24 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 
 The following instructions assume a Unix-like shell (e.g. bash).
 
-* [Install Go](http://golang.org/doc/install)
+- [Install Go](http://golang.org/doc/install)
 
-* Verify Go installation:
+- Verify Go installation:
 
       go env GOROOT GOPATH
 
-* Ensure `$GOPATH/bin` is on your `$PATH`.
-* Install `dep`, the dependency management tool. The current [released binary of
+- Ensure `$GOPATH/bin` is on your `$PATH`.
+- Install `dep`, the dependency management tool. The current [released binary of
   `dep`](https://github.com/golang/dep/releases) is recommended, but the latest
   may be installed from git via:
 
       go get -u -v github.com/golang/dep/cmd/dep
 
-* Clone the dcrdata repository. It **must** be cloned into the following directory.
+- Clone the dcrdata repository. It **must** be cloned into the following directory.
 
       git clone https://github.com/decred/dcrdata $GOPATH/src/github.com/decred/dcrdata
 
-* Fetch dependencies, and build the `dcrdata` executable.
+- Fetch dependencies, and build the `dcrdata` executable.
 
       cd $GOPATH/src/github.com/decred/dcrdata
       dep ensure -vendor-only
@@ -105,9 +230,9 @@ The config file, logs, and data files are stored in the application data folder,
 which may be specified via the `-A/--appdata` and `-b/--datadir` settings.
 However, the location of the config file may be set with `-C/--configfile`. If
 encountering errors involving file system paths, check the permissions on these
-folders to ensure that *the user running dcrdata* is able to access these paths.
+folders to ensure that _the user running dcrdata_ is able to access these paths.
 
-The "public" and "views" folders *must* be in the same folder as the `dcrdata`
+The "public" and "views" folders _must_ be in the same folder as the `dcrdata`
 executable. Set read-only permissions as appropriate.
 
 ## Updating
@@ -133,9 +258,9 @@ For guides and reference materials about `dep`, see [the documentation](https://
 
 The following FAQ explains [the difference between `Gopkg.toml` and `Gopkg.lock` files](https://github.com/golang/dep/blob/master/docs/FAQ.md#what-is-the-difference-between-gopkgtoml-the-manifest-and-gopkglock-the-lock).
 
-## Upgrading Instructions 
+## Upgrading Instructions
 
-*__Only necessary while upgrading from v2.x or below.__*  The database scheme
+_**Only necessary while upgrading from v2.x or below.**_ The database scheme
 change from dcrdata v2.x to v3.x does not permit an automatic migration. The
 tables must be rebuilt from scratch:
 
@@ -150,15 +275,15 @@ CREATE DATABASE dcrdata OWNER dcrdata;
 
 -- grant all permissions to user dcrdata
 GRANT ALL PRIVILEGES ON DATABASE dcrdata to dcrdata;
- ```
+```
 
 2. Delete the dcrdata data folder (i.e. corresponding to the `datadir` setting).
    By default, `datadir` is in `{appdata}/data`:
 
-    * Linux:  `~/.dcrdata/data`
-    * Mac:  `~/Library/Application Support/Dcrdata/data`
-    * Windows:  `C:\Users\<your-username>\AppData\Local\Dcrdata\data` (`%localappdata%\Dcrdata\data`)
-  
+   - Linux: `~/.dcrdata/data`
+   - Mac: `~/Library/Application Support/Dcrdata/data`
+   - Windows: `C:\Users\<your-username>\AppData\Local\Dcrdata\data` (`%localappdata%\Dcrdata\data`)
+
 3. With dcrd synchronized to the network's best block, start dcrdata to begin
    the initial block data import.
 
@@ -196,9 +321,10 @@ Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata -
 for a list of all options and their default values.
 
 ### Using Configuration Environment Variables
+
 There will be times when you don't want to fuss with a config file or
 cannot use command line args such as when using docker, heroku, kubernetes or other cloud
-platform.  
+platform.
 
 Almost all configuation items are avaiable to set via environment variables.
 To have a look at what you can set please see config.go file and the config struct.
@@ -210,72 +336,73 @@ ie. `env:"DCRDATA_USE_TESTNET"`
 So when starting dcrdata you can now use with environment variables `DCRDATA_USE_TESTNET=true ./dcrdata`
 
 Config precedence:
-  1. Command line flags have top priority
-  2. Config file settings
-  3. Environment variables
-  4. default config embedded in source code
+
+1. Command line flags have top priority
+2. Config file settings
+3. Environment variables
+4. default config embedded in source code
 
 Any variable that starts with USE, ENABLE, DISABLE or otherwise asks a question must be a true/false value.
 
 List of variables that can be set:
 
-|Description|Name|
-|-----------|----|
-|Path to application home directory| DCRDATA_APPDATA_DIR|
-|Path to configuration file|DCRDATA_CONFIG_FILE|
-|Directory to store data|DCRDATA_DATA_DIR|
-|Directory to log output|DCRDATA_LOG_DIR|
-|Folder for file outputs|DCRDATA_OUT_FOLDER|
-|Use the test network (default mainnet)|DCRDATA_USE_TESTNET|
-|Use the simulation test network (default mainnet)|DCRDATA_USE_SIMNET|
-|Logging level {trace, debug, info, warn, error, critical}|DCRDATA_LOG_LEVEL|
-|Easy way to set debuglevel to error|DCRDATA_QUIET|
-|Start HTTP profiler.|DCRDATA_ENABLE_HTTP_PROFILER|
-|URL path prefix for the HTTP profiler.| DCRDATA_HTTP_PROFILER_PREFIX|
-|File for CPU profiling.|DCRDATA_CPU_PROFILER_FILE|
-|Run with gops diagnostics agent listening. See github.com/google/gops for more information.|DCRDATA_USE_GOPS|
-|Protocol for API (http or https)|DCRDATA_ENABLE_HTTPS|
-|Listen address for API|DCRDATA_LISTEN_URL|
-|Use the RealIP to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order.|DCRDATA_USE_REAL_IP|
-|Set CacheControl in the HTTP response header|DCRDATA_MAX_CACHE_AGE|
-|Monitor mempool for new transactions, and report ticketfee info when new tickets are added.|DCRDATA_ENABLE_MEMPOOL_MONITOR|
-|The minimum time in seconds between mempool reports, regarless of number of new tickets seen.|DCRDATA_MEMPOOL_MIN_INTERVAL|
-|The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen.|DCRDATA_MEMPOOL_MAX_INTERVAL|
-|The number minimum number of new tickets that must be seen to trigger a new mempool report.|DCRDATA_MP_TRIGGER_TICKETS|
-|Dump to file the fees of all the tickets in mempool.|DCRDATA_ENABLE_DUMP_ALL_MP_TIX|
-|SQLite DB file name (default is dcrdata.sqlt.db)|DCRDATA_SQLITE_DB_FILE_NAME|
-|Run in "Full Mode" mode,  enables postgresql support|DCRDATA_ENABLE_FULL_MODE|
-|PostgreSQL DB name.|DCRDATA_PG_DB_NAME|
-|PostgreSQL DB user|DCRDATA_POSTGRES_USER|
-|PostgreSQL DB password.|DCRDATA_POSTGRES_PASS|
-port or UNIX socket (e.g. /run/postgresql).|DCRDATA_POSTGRES_HOST_URL|
-|Disable automatic dev fund balance query on new blocks.|DCRDATA_DISABLE_DEV_PREFETCH|
-|Sync to the best block and exit. Do not start the explorer or API.|DCRDATA_ENABLE_SYNC_N_QUIT|
-|Daemon RPC user name|DCRDATA_DCRD_USER|
-|Daemon RPC password|DCRDATA_DCRD_PASS|
-|Hostname/IP and port of dcrd RPC server|DCRDATA_DCRD_URL|
-|File containing the dcrd certificate file|DCRDATA_DCRD_CERT|
-|Disable TLS for the daemon RPC client|DCRDATA_DCRD_DISABLE_TLS|
+| Description                                                                                                             | Name                           |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| Path to application home directory                                                                                      | DCRDATA_APPDATA_DIR            |
+| Path to configuration file                                                                                              | DCRDATA_CONFIG_FILE            |
+| Directory to store data                                                                                                 | DCRDATA_DATA_DIR               |
+| Directory to log output                                                                                                 | DCRDATA_LOG_DIR                |
+| Folder for file outputs                                                                                                 | DCRDATA_OUT_FOLDER             |
+| Use the test network (default mainnet)                                                                                  | DCRDATA_USE_TESTNET            |
+| Use the simulation test network (default mainnet)                                                                       | DCRDATA_USE_SIMNET             |
+| Logging level {trace, debug, info, warn, error, critical}                                                               | DCRDATA_LOG_LEVEL              |
+| Easy way to set debuglevel to error                                                                                     | DCRDATA_QUIET                  |
+| Start HTTP profiler.                                                                                                    | DCRDATA_ENABLE_HTTP_PROFILER   |
+| URL path prefix for the HTTP profiler.                                                                                  | DCRDATA_HTTP_PROFILER_PREFIX   |
+| File for CPU profiling.                                                                                                 | DCRDATA_CPU_PROFILER_FILE      |
+| Run with gops diagnostics agent listening. See github.com/google/gops for more information.                             | DCRDATA_USE_GOPS               |
+| Protocol for API (http or https)                                                                                        | DCRDATA_ENABLE_HTTPS           |
+| Listen address for API                                                                                                  | DCRDATA_LISTEN_URL             |
+| Use the RealIP to get the client's real IP from the X-Forwarded-For or X-Real-IP headers, in that order.                | DCRDATA_USE_REAL_IP            |
+| Set CacheControl in the HTTP response header                                                                            | DCRDATA_MAX_CACHE_AGE          |
+| Monitor mempool for new transactions, and report ticketfee info when new tickets are added.                             | DCRDATA_ENABLE_MEMPOOL_MONITOR |
+| The minimum time in seconds between mempool reports, regarless of number of new tickets seen.                           | DCRDATA_MEMPOOL_MIN_INTERVAL   |
+| The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen. | DCRDATA_MEMPOOL_MAX_INTERVAL   |
+| The number minimum number of new tickets that must be seen to trigger a new mempool report.                             | DCRDATA_MP_TRIGGER_TICKETS     |
+| Dump to file the fees of all the tickets in mempool.                                                                    | DCRDATA_ENABLE_DUMP_ALL_MP_TIX |
+| SQLite DB file name (default is dcrdata.sqlt.db)                                                                        | DCRDATA_SQLITE_DB_FILE_NAME    |
+| Run in "Full Mode" mode, enables postgresql support                                                                     | DCRDATA_ENABLE_FULL_MODE       |
+| PostgreSQL DB name.                                                                                                     | DCRDATA_PG_DB_NAME             |
+| PostgreSQL DB user                                                                                                      | DCRDATA_POSTGRES_USER          |
+| PostgreSQL DB password.                                                                                                 | DCRDATA_POSTGRES_PASS          |
+| port or UNIX socket (e.g. /run/postgresql).                                                                             | DCRDATA_POSTGRES_HOST_URL      |
+| Disable automatic dev fund balance query on new blocks.                                                                 | DCRDATA_DISABLE_DEV_PREFETCH   |
+| Sync to the best block and exit. Do not start the explorer or API.                                                      | DCRDATA_ENABLE_SYNC_N_QUIT     |
+| Daemon RPC user name                                                                                                    | DCRDATA_DCRD_USER              |
+| Daemon RPC password                                                                                                     | DCRDATA_DCRD_PASS              |
+| Hostname/IP and port of dcrd RPC server                                                                                 | DCRDATA_DCRD_URL               |
+| File containing the dcrd certificate file                                                                               | DCRDATA_DCRD_CERT              |
+| Disable TLS for the daemon RPC client                                                                                   | DCRDATA_DCRD_DISABLE_TLS       |
 
 ### Indexing the Blockchain
 
 If dcrdata has not previously been run with the PostgreSQL database backend, it
 is necessary to perform a bulk import of blockchain data and generate table
-indexes. *This will be done automatically by `dcrdata`* on a fresh startup.
+indexes. _This will be done automatically by `dcrdata`_ on a fresh startup.
 
 Alternatively (but not recommended), the PostgreSQL tables may also be generated
 with the `rebuilddb2` command line tool:
 
-* Create the dcrdata user and database in PostgreSQL (tables will be created automatically).
-* Set your PostgreSQL credentials and host in both `./cmd/rebuilddb2/rebuilddb2.conf`,
+- Create the dcrdata user and database in PostgreSQL (tables will be created automatically).
+- Set your PostgreSQL credentials and host in both `./cmd/rebuilddb2/rebuilddb2.conf`,
   and `dcrdata.conf` in the location specified by the `appdata` flag.
-* Run `./rebuilddb2` to bulk import data and index the tables.
-* In case of irrecoverable errors, such as detected schema changes without an
+- Run `./rebuilddb2` to bulk import data and index the tables.
+- In case of irrecoverable errors, such as detected schema changes without an
   upgrade path, the tables and their indexes may be dropped with `rebuilddb2 -D`.
 
 Note that dcrdata requires that
 [dcrd](https://docs.decred.org/getting-started/user-guides/dcrd-setup/) is
-running with some optional indexes enabled.  By default, these indexes are not
+running with some optional indexes enabled. By default, these indexes are not
 turned on when dcrd is installed. To enable them, set the following in
 dcrd.conf:
 
@@ -304,7 +431,7 @@ On subsequent launches, only blocks new to dcrdata are processed.
 ```
 
 Unlike dcrdata.conf, which must be placed in the `appdata` folder or explicitly
-set with `-C`, the "public" and "views" folders *must* be in the same folder as
+set with `-C`, the "public" and "views" folders _must_ be in the same folder as
 the `dcrdata` executable.
 
 ## System Hardware Requirements
@@ -318,9 +445,9 @@ you value your time and system performance.
 
 Minimum:
 
-* 1 CPU core
-* 2 GB RAM
-* HDD with 4GB free space
+- 1 CPU core
+- 2 GB RAM
+- HDD with 4GB free space
 
 ### "full" Mode (SQLite and PostgreSQL)
 
@@ -328,15 +455,15 @@ These specifications assume dcrdata and postgres are running on the same machine
 
 Minimum:
 
-* 1 CPU core
-* 4 GB RAM
-* HDD with 60GB free space
+- 1 CPU core
+- 4 GB RAM
+- HDD with 60GB free space
 
 Recommend:
 
-* 2+ CPU cores
-* 7+ GB RAM
-* SSD (NVMe preferred) with 60 GB free space
+- 2+ CPU cores
+- 7+ GB RAM
+- SSD (NVMe preferred) with 60 GB free space
 
 If PostgreSQL is running on a separate machine, the minimum "lite" mode
 requirements may be applied to the dcrdata machine, while the recommended
@@ -383,128 +510,128 @@ and `rates`.
 
 dcrdata has its own JSON HTTP API in addition to the experimental Insight API
 implementation. **dcrdata's API endpoints are prefixed with `/api`** (e.g.
-`http://localhost:7777/api/stake`).  The Insight API endpoints (not described in
+`http://localhost:7777/api/stake`). The Insight API endpoints (not described in
 this section) are prefixed with `/insight/api`.
 
 #### Endpoint List
 
-| Best block | Path | Type |
-| --- | --- | --- |
-| Summary | `/block/best` | `types.BlockDataBasic` |
-| Stake info |  `/block/best/pos` | `types.StakeInfoExtended` |
-| Header |  `/block/best/header` | `dcrjson.GetBlockHeaderVerboseResult` |
-| Hash |  `/block/best/hash` | `string` |
-| Height | `/block/best/height` | `int` |
-| Size | `/block/best/size` | `int32` |
-| Subsidy | `/block/best/subsidy` | `types.BlockSubsidies` |
-| Transactions | `/block/best/tx` | `types.BlockTransactions` |
-| Transactions Count | `/block/best/tx/count` | `types.BlockTransactionCounts` |
-| Verbose block result | `/block/best/verbose` | `dcrjson.GetBlockVerboseResult` |
+| Best block           | Path                   | Type                                  |
+| -------------------- | ---------------------- | ------------------------------------- |
+| Summary              | `/block/best`          | `types.BlockDataBasic`                |
+| Stake info           | `/block/best/pos`      | `types.StakeInfoExtended`             |
+| Header               | `/block/best/header`   | `dcrjson.GetBlockHeaderVerboseResult` |
+| Hash                 | `/block/best/hash`     | `string`                              |
+| Height               | `/block/best/height`   | `int`                                 |
+| Size                 | `/block/best/size`     | `int32`                               |
+| Subsidy              | `/block/best/subsidy`  | `types.BlockSubsidies`                |
+| Transactions         | `/block/best/tx`       | `types.BlockTransactions`             |
+| Transactions Count   | `/block/best/tx/count` | `types.BlockTransactionCounts`        |
+| Verbose block result | `/block/best/verbose`  | `dcrjson.GetBlockVerboseResult`       |
 
-| Block X (block index) | Path | Type |
-| --- | --- | --- |
-| Summary | `/block/X` | `types.BlockDataBasic` |
-| Stake info |  `/block/X/pos` | `types.StakeInfoExtended` |
-| Header |  `/block/X/header` | `dcrjson.GetBlockHeaderVerboseResult` |
-| Hash |  `/block/X/hash` | `string` |
-| Size | `/block/X/size` | `int32` |
-| Subsidy | `/block/best/subsidy` | `types.BlockSubsidies` |
-| Transactions | `/block/X/tx` | `types.BlockTransactions` |
-| Transactions Count | `/block/X/tx/count` | `types.BlockTransactionCounts` |
-| Verbose block result | `/block/X/verbose` | `dcrjson.GetBlockVerboseResult` |
+| Block X (block index) | Path                  | Type                                  |
+| --------------------- | --------------------- | ------------------------------------- |
+| Summary               | `/block/X`            | `types.BlockDataBasic`                |
+| Stake info            | `/block/X/pos`        | `types.StakeInfoExtended`             |
+| Header                | `/block/X/header`     | `dcrjson.GetBlockHeaderVerboseResult` |
+| Hash                  | `/block/X/hash`       | `string`                              |
+| Size                  | `/block/X/size`       | `int32`                               |
+| Subsidy               | `/block/best/subsidy` | `types.BlockSubsidies`                |
+| Transactions          | `/block/X/tx`         | `types.BlockTransactions`             |
+| Transactions Count    | `/block/X/tx/count`   | `types.BlockTransactionCounts`        |
+| Verbose block result  | `/block/X/verbose`    | `dcrjson.GetBlockVerboseResult`       |
 
-| Block H (block hash) | Path | Type |
-| --- | --- | --- |
-| Summary | `/block/hash/H` | `types.BlockDataBasic` |
-| Stake info |  `/block/hash/H/pos` | `types.StakeInfoExtended` |
-| Header |  `/block/hash/H/header` | `dcrjson.GetBlockHeaderVerboseResult` |
-| Height |  `/block/hash/H/height` | `int` |
-| Size | `/block/hash/H/size` | `int32` |
-| Subsidy | `/block/best/subsidy` | `types.BlockSubsidies` |
-| Transactions | `/block/hash/H/tx` | `types.BlockTransactions` |
-| Transactions count | `/block/hash/H/tx/count` | `types.BlockTransactionCounts` |
-| Verbose block result | `/block/hash/H/verbose` | `dcrjson.GetBlockVerboseResult` |
+| Block H (block hash) | Path                     | Type                                  |
+| -------------------- | ------------------------ | ------------------------------------- |
+| Summary              | `/block/hash/H`          | `types.BlockDataBasic`                |
+| Stake info           | `/block/hash/H/pos`      | `types.StakeInfoExtended`             |
+| Header               | `/block/hash/H/header`   | `dcrjson.GetBlockHeaderVerboseResult` |
+| Height               | `/block/hash/H/height`   | `int`                                 |
+| Size                 | `/block/hash/H/size`     | `int32`                               |
+| Subsidy              | `/block/best/subsidy`    | `types.BlockSubsidies`                |
+| Transactions         | `/block/hash/H/tx`       | `types.BlockTransactions`             |
+| Transactions count   | `/block/hash/H/tx/count` | `types.BlockTransactionCounts`        |
+| Verbose block result | `/block/hash/H/verbose`  | `dcrjson.GetBlockVerboseResult`       |
 
-| Block range (X < Y) | Path | Type |
-| --- | --- | --- |
-| Summary array for blocks on `[X,Y]` | `/block/range/X/Y` | `[]types.BlockDataBasic` |
-| Summary array with block index step `S` | `/block/range/X/Y/S` | `[]types.BlockDataBasic` |
-| Size (bytes) array | `/block/range/X/Y/size` | `[]int32` |
-| Size array with step `S` | `/block/range/X/Y/S/size` | `[]int32` |
+| Block range (X < Y)                     | Path                      | Type                     |
+| --------------------------------------- | ------------------------- | ------------------------ |
+| Summary array for blocks on `[X,Y]`     | `/block/range/X/Y`        | `[]types.BlockDataBasic` |
+| Summary array with block index step `S` | `/block/range/X/Y/S`      | `[]types.BlockDataBasic` |
+| Size (bytes) array                      | `/block/range/X/Y/size`   | `[]int32`                |
+| Size array with step `S`                | `/block/range/X/Y/S/size` | `[]int32`                |
 
-| Transaction T (transaction id) | Path | Type |
-| --- | --- | --- |
-| Transaction details | `/tx/T` | `types.Tx` |
-| Transaction details w/o block info | `/tx/trimmed/T` | `types.TrimmedTx` |
-| Inputs | `/tx/T/in` | `[]types.TxIn` |
-| Details for input at index `X` | `/tx/T/in/X` | `types.TxIn` |
-| Outputs | `/tx/T/out` | `[]types.TxOut` |
-| Details for output at index `X` | `/tx/T/out/X` | `types.TxOut` |
-| Vote info (ssgen transactions only) | `/tx/T/vinfo` | `types.VoteInfo` |
-| Serialized bytes of the transaction | `/tx/hex/T` | `string` |
-| Same as `/tx/trimmed/T` | `/tx/decoded/T` | `types.TrimmedTx` |
+| Transaction T (transaction id)      | Path            | Type              |
+| ----------------------------------- | --------------- | ----------------- |
+| Transaction details                 | `/tx/T`         | `types.Tx`        |
+| Transaction details w/o block info  | `/tx/trimmed/T` | `types.TrimmedTx` |
+| Inputs                              | `/tx/T/in`      | `[]types.TxIn`    |
+| Details for input at index `X`      | `/tx/T/in/X`    | `types.TxIn`      |
+| Outputs                             | `/tx/T/out`     | `[]types.TxOut`   |
+| Details for output at index `X`     | `/tx/T/out/X`   | `types.TxOut`     |
+| Vote info (ssgen transactions only) | `/tx/T/vinfo`   | `types.VoteInfo`  |
+| Serialized bytes of the transaction | `/tx/hex/T`     | `string`          |
+| Same as `/tx/trimmed/T`             | `/tx/decoded/T` | `types.TrimmedTx` |
 
-| Transactions (batch) | Path | Type |
-| --- | --- | --- |
-| Transaction details (POST body is JSON of `types.Txns`) | `/txs` | `[]types.Tx` |
-| Transaction details w/o block info | `/txs/trimmed` | `[]types.TrimmedTx` |
+| Transactions (batch)                                    | Path           | Type                |
+| ------------------------------------------------------- | -------------- | ------------------- |
+| Transaction details (POST body is JSON of `types.Txns`) | `/txs`         | `[]types.Tx`        |
+| Transaction details w/o block info                      | `/txs/trimmed` | `[]types.TrimmedTx` |
 
-| Address A | Path | Type |
-| --- | --- | --- |
-| Summary of last 10 transactions | `/address/A` | `types.Address` |
-| Number and value of spent and unspent outputs | `/address/A/totals` | `types.AddressTotals` |
-| Verbose transaction result for last <br> 10 transactions | `/address/A/raw` | `types.AddressTxRaw` |
-| Summary of last `N` transactions | `/address/A/count/N` | `types.Address` |
-| Verbose transaction result for last <br> `N` transactions | `/address/A/count/N/raw` | `types.AddressTxRaw` |
-| Summary of last `N` transactions, skipping `M` | `/address/A/count/N/skip/M` | `types.Address` |
-| Verbose transaction result for last <br> `N` transactions, skipping `M` | `/address/A/count/N/skip/Mraw` | `types.AddressTxRaw` |
+| Address A                                                               | Path                           | Type                  |
+| ----------------------------------------------------------------------- | ------------------------------ | --------------------- |
+| Summary of last 10 transactions                                         | `/address/A`                   | `types.Address`       |
+| Number and value of spent and unspent outputs                           | `/address/A/totals`            | `types.AddressTotals` |
+| Verbose transaction result for last <br> 10 transactions                | `/address/A/raw`               | `types.AddressTxRaw`  |
+| Summary of last `N` transactions                                        | `/address/A/count/N`           | `types.Address`       |
+| Verbose transaction result for last <br> `N` transactions               | `/address/A/count/N/raw`       | `types.AddressTxRaw`  |
+| Summary of last `N` transactions, skipping `M`                          | `/address/A/count/N/skip/M`    | `types.Address`       |
+| Verbose transaction result for last <br> `N` transactions, skipping `M` | `/address/A/count/N/skip/Mraw` | `types.AddressTxRaw`  |
 
-| Stake Difficulty (Ticket Price) | Path | Type |
-| --- | --- | --- |
-| Current sdiff and estimates | `/stake/diff` | `types.StakeDiff` |
-| Sdiff for block `X` | `/stake/diff/b/X` | `[]float64` |
-| Sdiff for block range `[X,Y] (X <= Y)` | `/stake/diff/r/X/Y` | `[]float64` |
-| Current sdiff separately | `/stake/diff/current` | `dcrjson.GetStakeDifficultyResult` |
-| Estimates separately | `/stake/diff/estimates` | `dcrjson.EstimateStakeDiffResult` |
+| Stake Difficulty (Ticket Price)        | Path                    | Type                               |
+| -------------------------------------- | ----------------------- | ---------------------------------- |
+| Current sdiff and estimates            | `/stake/diff`           | `types.StakeDiff`                  |
+| Sdiff for block `X`                    | `/stake/diff/b/X`       | `[]float64`                        |
+| Sdiff for block range `[X,Y] (X <= Y)` | `/stake/diff/r/X/Y`     | `[]float64`                        |
+| Current sdiff separately               | `/stake/diff/current`   | `dcrjson.GetStakeDifficultyResult` |
+| Estimates separately                   | `/stake/diff/estimates` | `dcrjson.EstimateStakeDiffResult`  |
 
-| Ticket Pool | Path | Type |
-| --- | --- | --- |
-| Current pool info (size, total value, and average price) | `/stake/pool` | `types.TicketPoolInfo` |
-| Current ticket pool, in a JSON object with a `"tickets"` key holding an array of ticket hashes | `/stake/pool/full` | `[]string` |
-| Pool info for block `X` | `/stake/pool/b/X` | `types.TicketPoolInfo` |
-| Full ticket pool at block height _or_ hash `H` | `/stake/pool/b/H/full` | `[]string` |
-| Pool info for block range `[X,Y] (X <= Y)` | `/stake/pool/r/X/Y?arrays=[true\|false]`<sup>*</sup> | `[]apitypes.TicketPoolInfo` |
+| Ticket Pool                                                                                    | Path                                                  | Type                        |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------- |
+| Current pool info (size, total value, and average price)                                       | `/stake/pool`                                         | `types.TicketPoolInfo`      |
+| Current ticket pool, in a JSON object with a `"tickets"` key holding an array of ticket hashes | `/stake/pool/full`                                    | `[]string`                  |
+| Pool info for block `X`                                                                        | `/stake/pool/b/X`                                     | `types.TicketPoolInfo`      |
+| Full ticket pool at block height _or_ hash `H`                                                 | `/stake/pool/b/H/full`                                | `[]string`                  |
+| Pool info for block range `[X,Y] (X <= Y)`                                                     | `/stake/pool/r/X/Y?arrays=[true\|false]`<sup>\*</sup> | `[]apitypes.TicketPoolInfo` |
 
 The full ticket pool endpoints accept the URL query `?sort=[true\|false]` for
-requesting the tickets array in lexicographical order.  If a sorted list or list
+requesting the tickets array in lexicographical order. If a sorted list or list
 with deterministic order is _not_ required, using `sort=false` will reduce
 server load and latency. However, be aware that the ticket order will be random,
 and will change each time the tickets are requested.
 
-<sup>*</sup>For the pool info block range endpoint that accepts the `arrays` url query,
+<sup>\*</sup>For the pool info block range endpoint that accepts the `arrays` url query,
 a value of `true` will put all pool values and pool sizes into separate arrays,
-rather than having a single array of pool info JSON objects.  This may make
+rather than having a single array of pool info JSON objects. This may make
 parsing more efficient for the client.
 
-| Vote and Agenda Info | Path | Type |
-| --- | --- | --- |
+| Vote and Agenda Info              | Path               | Type                        |
+| --------------------------------- | ------------------ | --------------------------- |
 | The current agenda and its status | `/stake/vote/info` | `dcrjson.GetVoteInfoResult` |
 
-| Mempool | Path | Type |
-| --- | --- | --- |
-| Ticket fee rate summary | `/mempool/sstx` | `apitypes.MempoolTicketFeeInfo` |
-| Ticket fee rate list (all) | `/mempool/sstx/fees` | `apitypes.MempoolTicketFees` |
-| Ticket fee rate list (N highest) | `/mempool/sstx/fees/N` | `apitypes.MempoolTicketFees` |
-| Detailed ticket list (fee, hash, size, age, etc.) | `/mempool/sstx/details` | `apitypes.MempoolTicketDetails` |
-| Detailed ticket list (N highest fee rates) | `/mempool/sstx/details/N`| `apitypes.MempoolTicketDetails` |
+| Mempool                                           | Path                      | Type                            |
+| ------------------------------------------------- | ------------------------- | ------------------------------- |
+| Ticket fee rate summary                           | `/mempool/sstx`           | `apitypes.MempoolTicketFeeInfo` |
+| Ticket fee rate list (all)                        | `/mempool/sstx/fees`      | `apitypes.MempoolTicketFees`    |
+| Ticket fee rate list (N highest)                  | `/mempool/sstx/fees/N`    | `apitypes.MempoolTicketFees`    |
+| Detailed ticket list (fee, hash, size, age, etc.) | `/mempool/sstx/details`   | `apitypes.MempoolTicketDetails` |
+| Detailed ticket list (N highest fee rates)        | `/mempool/sstx/details/N` | `apitypes.MempoolTicketDetails` |
 
-| Other | Path | Type |
-| --- | --- | --- |
-| Status | `/status` | `types.Status` |
-| Coin Supply | `/supply` | `types.CoinSupply` |
-| Endpoint list (always indented) | `/list` | `[]string` |
+| Other                           | Path      | Type               |
+| ------------------------------- | --------- | ------------------ |
+| Status                          | `/status` | `types.Status`     |
+| Coin Supply                     | `/supply` | `types.CoinSupply` |
+| Endpoint list (always indented) | `/list`   | `[]string`         |
 
-All JSON endpoints accept the URL query `indent=[true|false]`.  For example,
+All JSON endpoints accept the URL query `indent=[true|false]`. For example,
 `/stake/diff?indent=true`. By default, indentation is off. The characters to use
 for indentation may be specified with the `indentjson` string configuration
 option.
@@ -513,8 +640,8 @@ option.
 
 Although there is mempool data collection and serving, it is **very important**
 to keep in mind that the mempool in your node (dcrd) is not likely to be exactly
-the same as other nodes' mempool.  Also, your mempool is cleared out when you
-shutdown dcrd.  So, if you have recently (e.g. after the start of the current
+the same as other nodes' mempool. Also, your mempool is cleared out when you
+shutdown dcrd. So, if you have recently (e.g. after the start of the current
 ticket price window) started dcrd, your mempool _will_ be missing transactions
 that other nodes have.
 
@@ -545,7 +672,7 @@ comma-separated value (CSV) file.
 ## Helper Packages
 
 `package dcrdataapi` defines the data types, with json tags, used by the JSON
-API.  This facilitates authoring of robust golang clients of the API.
+API. This facilitates authoring of robust golang clients of the API.
 
 `package dbtypes` defines the data types used by the DB backends to model the
 block, transaction, and related blockchain data structures. Functions for
@@ -557,10 +684,10 @@ provided.
 
 `package stakedb` defines the `StakeDatabase` and `ChainMonitor` types for
 efficiently tracking live tickets, with the primary purpose of computing ticket
-pool value quickly.  It uses the `database.DB` type from
+pool value quickly. It uses the `database.DB` type from
 `github.com/decred/dcrd/database` with an ffldb storage backend from
-`github.com/decred/dcrd/database/ffldb`.  It also makes use of the `stake.Node`
-type from `github.com/decred/dcrd/blockchain/stake`.  The `ChainMonitor` type
+`github.com/decred/dcrd/database/ffldb`. It also makes use of the `stake.Node`
+type from `github.com/decred/dcrd/blockchain/stake`. The `ChainMonitor` type
 handles connecting new blocks and chain reorganization in response to notifications
 from dcrd.
 
@@ -575,27 +702,27 @@ the future.
 
 `blockdata` defines:
 
-* The `chainMonitor` type and its `BlockConnectedHandler()` method that handles
+- The `chainMonitor` type and its `BlockConnectedHandler()` method that handles
   block-connected notifications and triggers data collection and storage.
-* The `BlockData` type and methods for converting to API types.
-* The `blockDataCollector` type and its `Collect()` and `CollectHash()` methods
+- The `BlockData` type and methods for converting to API types.
+- The `blockDataCollector` type and its `Collect()` and `CollectHash()` methods
   that are called by the chain monitor when a new block is detected.
-* The `BlockDataSaver` interface required by `chainMonitor` for storage of
+- The `BlockDataSaver` interface required by `chainMonitor` for storage of
   collected data.
 
 `dcrpg` defines:
 
-* The `ChainDB` type, which is the primary exported type from `dcrpg`, providing
+- The `ChainDB` type, which is the primary exported type from `dcrpg`, providing
   an interface for a PostgreSQL database.
-* A large set of lower-level functions to perform a range of queries given a
+- A large set of lower-level functions to perform a range of queries given a
   `*sql.DB` instance and various parameters.
-* The internal package contains the raw SQL statements.
+- The internal package contains the raw SQL statements.
 
 `dcrsqlite` defines:
 
-* A `sql.DB` wrapper type (`DB`) with the necessary SQLite queries for
+- A `sql.DB` wrapper type (`DB`) with the necessary SQLite queries for
   storage and retrieval of block and stake data.
-* The `wiredDB` type, intended to satisfy the `DataSourceLite` interface used by
+- The `wiredDB` type, intended to satisfy the `DataSourceLite` interface used by
   the dcrdata app's API. The block header is not stored in the DB, so a RPC
   client is used by `wiredDB` to get it on demand. `wiredDB` also includes
   methods to resync the database file.
