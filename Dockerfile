@@ -1,4 +1,4 @@
-FROM golang:1.11rc1-alpine3.8
+FROM golang:1.11-alpine3.8
 RUN apk update && apk add vim tree lsof bash git gcc musl-dev
 ENV GOPATH=/home/decred/go
 ENV PATH=/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$GOPATH/bin

@@ -1,4 +1,4 @@
-FROM golang:1.11rc1
+FROM golang:1.11-stretch
 RUN apt-get update && apt-get install -y vim tree lsof
 ENV GOPATH=/home/decred/go
 ENV PATH=/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$GOPATH/bin
