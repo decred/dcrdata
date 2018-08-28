@@ -227,7 +227,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	}
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts", "sidechains",
-		"ticketpool", "stats"}
+		"ticketpool", "statistics"}
 
 	tempDefaults := []string{"extras"}
 
@@ -426,6 +426,8 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Get("/address/{x}", redirect("address"))
 
 	exp.Mux.Get("/decodetx", redirect("decodetx"))
+
+	exp.Mux.Get("/stats", redirect("statistics"))
 }
 
 // Simulate ticket purchase and re-investment over a full year for a given

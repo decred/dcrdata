@@ -565,7 +565,10 @@ func mainCore() error {
 	webMux.Get("/search", explore.Search)
 	webMux.Get("/charts", explore.Charts)
 	webMux.Get("/ticketpool", explore.Ticketpool)
-	webMux.Get("/stats", explore.StatsPage)
+	webMux.Get("/statistics", explore.StatsPage)
+	webMux.Get("/stats", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/statistics", http.StatusPermanentRedirect)
+	})
 
 	if usePG {
 		insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)

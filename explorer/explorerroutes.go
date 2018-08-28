@@ -1025,7 +1025,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	exp.MempoolData.RUnlock()
 
-	str, err := exp.templates.execTemplateToString("stats", struct {
+	str, err := exp.templates.execTemplateToString("statistics", struct {
 		Stats   StatsInfo
 		Version string
 		NetName string

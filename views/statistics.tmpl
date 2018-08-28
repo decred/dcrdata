@@ -1,4 +1,4 @@
-{{define "stats"}}
+{{define "statistics"}}
 <!DOCTYPE html>
 <html lang="en">
     {{ template "html-head" printf "Decred Statistics Page"}}
@@ -7,11 +7,6 @@
         {{ template "navbar" . }}
         {{with .Stats}}
         <div class="container">
-            <div class="row justify-content-between">
-                <div class="col-md-7 col-sm-6 d-flex">
-                    <h4 class="mb-2 stat-headers">Stats</h4>
-                </div>
-            </div>
             <div class="row">
                 <div style="width: 20%" class="col">
                     <h5 class="mb-2 stat-headers">Network Statistics</h5>
