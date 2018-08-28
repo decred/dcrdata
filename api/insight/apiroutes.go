@@ -83,12 +83,6 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	}
 }
 
-func writeText(w http.ResponseWriter, str string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, str)
-}
-
 // Insight API error response for a BAD REQUEST.  This means the request was
 // malformed in some way or the request HASH, ADDRESS, BLOCK was not valid.
 func writeInsightError(w http.ResponseWriter, str string) {
@@ -652,51 +646,45 @@ func (c *insightApiContext) getAddressBalance(w http.ResponseWriter, r *http.Req
 	writeJSON(w, addressInfo.TotalUnspent, c.getIndentQuery(r))
 }
 
-func (c *insightApiContext) getAddressTotalReceived(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
-		http.Error(w, http.StatusText(422), 422)
-		return
+func (c *insightApiContext) getSyncInfo(w http.ResponseWriter, r *http.Request) {
+
+	blockChainHeight, err := c.nodeClient.GetBlockCount()
+
+	// To insure JSON encodes an error properly as a string or no error as null
+	// its easiest to use a pointer to a string.
+	var errorString *string
+	if err != nil {
+		s := err.Error()
+		errorString = &s
+	} else {
+		errorString = nil
 	}
 
-	addressInfo := c.BlockData.ChainDB.GetAddressBalance(address, 20, 0)
-	if addressInfo == nil {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-	totalReceived := addressInfo.TotalSpent + addressInfo.TotalUnspent
+	height := c.BlockData.GetHeight()
 
-	writeText(w, strconv.Itoa(int(totalReceived)))
-}
+	syncPercentage := int((float64(height) / float64(blockChainHeight)) * 100)
 
-func (c *insightApiContext) getAddressUnconfirmedBalance(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
-		http.Error(w, http.StatusText(422), 422)
-		return
+	st := "syncing"
+	if syncPercentage == 100 {
+		st = "finished"
 	}
 
-	addressInfo := c.BlockData.ChainDB.GetAddressBalance(address, 20, 0)
-	if addressInfo == nil {
-		http.Error(w, http.StatusText(422), 422)
-		return
+	syncInfo := struct {
+		Status           string  `json:"status"`
+		BlockChainHeight int64   `json:"blockChainHeight"`
+		SyncPercentage   int     `json:"syncPercentage"`
+		Height           int     `json:"height"`
+		Error            *string `json:"error"`
+		Type             string  `json:"type"`
+	}{
+		st,
+		blockChainHeight,
+		syncPercentage,
+		height,
+		errorString,
+		"from RPC calls",
 	}
-	writeText(w, string(addressInfo.TotalUnspent))
-}
-
-func (c *insightApiContext) getAddressTotalSent(w http.ResponseWriter, r *http.Request) {
-	address := m.GetAddressCtx(r)
-	if address == "" {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-
-	addressInfo := c.BlockData.ChainDB.GetAddressBalance(address, 20, 0)
-	if addressInfo == nil {
-		http.Error(w, http.StatusText(422), 422)
-		return
-	}
-	writeText(w, strconv.Itoa(int(addressInfo.TotalSpent)))
+	writeJSON(w, syncInfo, c.getIndentQuery(r))
 }
 
 func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request) {
