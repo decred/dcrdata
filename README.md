@@ -13,7 +13,7 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
   - [Docker Support](#docker-support)
     - [Building the image](#building-the-image)
     - [Developing dcrdata using a container](#developing-dcrdata-using-a-container)
-    - [Container Production usage](#container-production-usage)
+    - [Container production usage](#container-production-usage)
   - [Installation](#installation)
     - [Build from Source](#build-from-source)
     - [Runtime resources](#runtime-resources)
@@ -86,14 +86,14 @@ The dcrdata repository is a collection of golang packages and apps for [Decred](
 
 ## Requirements
 
-- [Go](http://golang.org) 1.9.x or 1.10.x.
+- [Go](http://golang.org) 1.10.x or 1.11.x.
 - Running `dcrd` (>=1.3.0) synchronized to the current best block on the
   network. This is a strict requirement as testnet2 support is removed from
   dcrdata v3.0.0.
 - (Optional) PostgreSQL 9.6+, if running in "full" mode. v10.x is recommended
   for improved dump/restore formats and utilities.
 
-## Docker support
+## Docker Support
 
 The inclusion of a dockerfile in this repo means you can use docker for either development or production usage. Although
 at this time we are not publishing images to docker hub.
