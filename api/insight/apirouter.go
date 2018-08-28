@@ -58,6 +58,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 
 	// Status and Utility
 	mux.With(app.StatusInfoCtx).Get("/status", app.getStatusInfo)
+	mux.Get("/sync", app.getSyncInfo)
 	mux.With(app.NbBlocksCtx).Get("/utils/estimatefee", app.getEstimateFee)
 	mux.Get("/peer", app.GetPeerStatus)
 
