@@ -5,8 +5,6 @@
 {{template "html-head" printf "Decred Address %s" .Data.Address}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
-    {{$TxTime := .OldestTxTime}}
-    {{$IsLite := .IsLiteMode}}
     {{with .Data}}
     {{$heights := $.ConfirmHeight}}
     {{$TxnCount := .TxnCount}}
@@ -16,7 +14,7 @@
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
                 <div class="mono" data-target="address.addr"
-                    id="{{$TxTime}}" style="margin-bottom: 12px;">
+                    id="{{$.OldestTxTime}}" style="margin-bottom: 12px;">
                     {{.Address}}<a
                         id="qrcode-init"
                         href="javascript:showAddressQRCode('{{.Address}}');"
@@ -42,7 +40,7 @@
                 >
                     <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="List" name="list">
                     <input id="addr-btn" type="button" class="btn btn_sm" value="Charts"
-                    name="chart" {{if $IsLite}}disabled{{end}}>
+                    name="chart" {{if $.IsLiteMode}}disabled{{end}}>
                 </div> 
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">

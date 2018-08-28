@@ -81,7 +81,7 @@
             var _this = this
             $.getScript('/js/dygraphs.min.js', () => {
                 _this.typesGraphOptions = {
-                    labels: ['Date', 'SentTx (tx)', 'ReceivedTx (tx)', 'Tickets (sstx)', 'Votes (ssgen)', 'RevokedTx (ssrtx)'],
+                    labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
                     colors: ['#69D3F5', '#2971FF', '#41BF53', 'darkorange', '#FF0090'],
                     ylabel: 'Number of Transactions by Type',
                     title: 'Transactions Types',
