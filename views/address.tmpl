@@ -229,7 +229,7 @@
                                     <td class="text-right">{{.MergedTxnCount}}</td>
                                 {{else}}
                                     {{if ne .ReceivedTotal 0.0}}
-                                        <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal false)}}</td>
+                                        <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
                                     {{else}}
                                         {{if eq .SentTotal 0.0}}
                                         <td class="text-right">sstxcommitment</td>
@@ -245,9 +245,9 @@
                                 {{if ne .SentTotal 0.0}}
                                     {{if lt 0.0 .SentTotal}}
                                     {{if eq $txType "merged_debit"}}
-                                            <td class="text-right"> {{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
+                                            <td class="text-right"> {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
                                         {{else}}
-                                            <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal false)}}</td>
+                                            <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
                                         {{end}}
                                     {{else}}
                                         <td class="text-right">N/A</td>

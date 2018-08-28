@@ -145,8 +145,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			p := (float64(i) / float64(params.SubsidyReductionInterval)) * 100
 			return p
 		},
-		"float64AsDecimalParts": func(v float64, useCommas bool) []string {
-			clipped := fmt.Sprintf("%.8f", v)
+		"float64AsDecimalParts": func(v float64, numPlaces int, useCommas bool) []string {
+			format := "%." + strconv.Itoa(numPlaces) + "f"
+			clipped := fmt.Sprintf(format, v)
 			oldLength := len(clipped)
 			clipped = strings.TrimRight(clipped, "0")
 			trailingZeros := strings.Repeat("0", oldLength-len(clipped))
