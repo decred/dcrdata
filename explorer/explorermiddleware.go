@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+        "fmt"
 
 	"github.com/go-chi/chi"
 )
@@ -35,6 +36,19 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				return
 			}
 		} else {
+                        //Handle blocks which are in future time
+                        maxHeight := exp.blockData.GetHeight()
+                        if height > int64(maxHeight) {
+                        maturityTime := int(float64(height - int64(maxHeight) ) * exp.ChainParams.TargetTimePerBlock.Minutes())
+                        days := maturityTime / 1440
+                        hours := (maturityTime % 1440  ) / 60
+                        minutes := maturityTime % 60
+                        message := fmt.Sprintf("This block will arrive in approximately %d days, %d hour, %d min.",days,hours,minutes)
+                        log.Errorf("Block with height %d will arrive in future.", height)
+                        exp.StatusPage(w, defaultErrorCode, message, ErrorStatusType)
+                        return
+                        }
+
 			hash, err = exp.blockData.GetBlockHash(height)
 			if err != nil {
 				log.Errorf("GetBlockHeight(%d) failed: %v", height, err)
