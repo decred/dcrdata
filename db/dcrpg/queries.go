@@ -1288,6 +1288,37 @@ func RetrieveSideChainBlocks(db *sql.DB) (blocks []*dbtypes.BlockStatus, err err
 	return
 }
 
+// RetrieveSideChainTips retrieves the block chain status for all known side
+// chain tip blocks.
+func RetrieveSideChainTips(db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectSideChainTips)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		// NextHash is empty in all cases as these are chain tips.
+		var bs dbtypes.BlockStatus
+		err = rows.Scan(&bs.IsValid, &bs.Height, &bs.PrevHash, &bs.Hash)
+		if err != nil {
+			return
+		}
+
+		blocks = append(blocks, &bs)
+	}
+	return
+}
+
+// RetrieveBlockStatus retrieves the block chain status for the block with the
+// specified hash.
+func RetrieveBlockStatus(db *sql.DB, hash string) (bs dbtypes.BlockStatus, err error) {
+	err = db.QueryRow(internal.SelectBlockStatus, hash).Scan(&bs.IsValid,
+		&bs.IsMainchain, &bs.Height, &bs.PrevHash, &bs.Hash, &bs.NextHash)
+	return
+}
+
 func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, currentBlockHeight int64) ([]apitypes.AddressTxnOutput, error) {
 	stmt, err := db.Prepare(internal.SelectAddressUnspentWithTxn)
 	if err != nil {

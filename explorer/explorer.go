@@ -61,6 +61,7 @@ type explorerDataSourceLite interface {
 // explorerDataSource implements extra data retrieval functions that require a
 // faster solution than RPC, or additional functionality.
 type explorerDataSource interface {
+	BlockHeight(hash string) (int64, error)
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
@@ -71,6 +72,9 @@ type explorerDataSource interface {
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
 	GetTicketsPriceByHeight() (*dbtypes.ChartsData, error)
+	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
+	//SideChainTips() []*dbtypes.BlockStatus
+	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts
@@ -219,7 +223,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		return nil
 	}
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
-		"rawtx", "status", "parameters", "agenda", "agendas", "charts"}
+		"rawtx", "status", "parameters", "agenda", "agendas", "charts", "sidechains"}
 
 	tempDefaults := []string{"extras"}
 

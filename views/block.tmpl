@@ -9,10 +9,15 @@
         <div class="row justify-content-between">
             <div class="col-md-7 col-sm-6">
                 <h4 class="mb-2">
-                    Block #{{.Height}} {{ if gt .Confirmations 1 }}
-                        <span class="op60 fs12">( <span data-confirmation-block-height="{{$.ConfirmHeight}}">{{.Confirmations}}</span> confirmations)</span>
+                    Block #{{.Height}}
+                    {{ if not .MainChain }}
+                        <span class="sidechain-tag">(side chain)</span>
                     {{else}}
-                        <span class="op60 fs12">best block</span>
+                        {{ if gt .Confirmations 1 }}
+                            <span class="op60 fs12">( <span data-confirmation-block-height="{{$.ConfirmHeight}}">{{.Confirmations}}</span> confirmations)</span>
+                        {{else}}
+                            <span class="op60 fs12">best block</span>
+                        {{end}}
                     {{end}}
                     <a class="fs12" href="/api/block/{{.Height}}/verbose?indent=true" data-turbolinks="false">api</a>
                 </h4>
@@ -30,6 +35,10 @@
         <div class="row justify-content-between">
             <div class="col-md-7 col-sm-6 d-flex">
                 <table class="">
+                    {{if .MainChain}}<tr>
+                        <td class="text-right pr-2 lh1rem vam nowrap" title="Stakeholder (PoS) approved?">APPROVED</td>
+                        <td class="lh1rem">{{ if gt .Confirmations 1 }}{{.Valid}}{{else}}pending{{end}}</td>
+                    </tr>{{end}}
                     <tr>
                         <td class="text-right pr-2 lh1rem vam nowrap xs-w117">BLOCK HASH</td>
                         <td>
@@ -51,10 +60,17 @@
                     </tr>
                     {{else}}
                     <tr>
+                        {{if .MainChain}}
                         <td class="text-right pr-2 lh1rem vam nowrap"><a href="/mempool">NEXT BLOCK</a></td>
                         <td>
                             <span class="lh1rem">mempool</span>
                         </td>
+                        {{else}}
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">NEXT BLOCK</td>
+                        <td>
+                            <span class="lh1rem">N/A</span>
+                        </td>
+                        {{end}}
                     </tr>
                     {{end}}
                     <tr>

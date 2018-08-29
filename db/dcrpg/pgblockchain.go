@@ -338,6 +338,21 @@ func (pgb *ChainDB) DropTables() {
 	DropTables(pgb.db)
 }
 
+// SideChainBlocks retrieves all known side chain blocks.
+func (pgb *ChainDB) SideChainBlocks() ([]*dbtypes.BlockStatus, error) {
+	return RetrieveSideChainBlocks(pgb.db)
+}
+
+// SideChainTips retrieves the tip/head block for all known side chains.
+func (pgb *ChainDB) SideChainTips() ([]*dbtypes.BlockStatus, error) {
+	return RetrieveSideChainTips(pgb.db)
+}
+
+// BlockStatus retrieves the block chain status of the specified block.
+func (pgb *ChainDB) BlockStatus(hash string) (dbtypes.BlockStatus, error) {
+	return RetrieveBlockStatus(pgb.db, hash)
+}
+
 // HeightDB queries the DB for the best block height.
 func (pgb *ChainDB) HeightDB() (uint64, error) {
 	bestHeight, _, _, err := RetrieveBestBlockHeight(pgb.db)

@@ -105,12 +105,19 @@ const (
 	SelectSideChainBlocks = `SELECT is_valid, height, previous_hash, hash, block_chain.next_hash
 		FROM blocks
 		JOIN block_chain ON this_hash=hash
-		WHERE is_mainchain = FALSE;`
+		WHERE is_mainchain = FALSE
+		ORDER BY height DESC;`
 
 	SelectSideChainTips = `SELECT is_valid, height, previous_hash, hash
 		FROM blocks
 		JOIN block_chain ON this_hash=hash
-		WHERE is_mainchain = FALSE AND block_chain.next_hash='';`
+		WHERE is_mainchain = FALSE AND block_chain.next_hash=''
+		ORDER BY height DESC;`
+
+	SelectBlockStatus = `SELECT is_valid, is_mainchain, height, previous_hash, hash, block_chain.next_hash
+		FROM blocks
+		JOIN block_chain ON this_hash=hash
+		WHERE hash = $1;`
 
 	IndexBlocksTableOnHeight = `CREATE INDEX uix_block_height ON blocks(height);`
 

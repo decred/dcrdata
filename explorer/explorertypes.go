@@ -34,6 +34,7 @@ type BlockBasic struct {
 	Hash           string `json:"hash"`
 	Size           int32  `json:"size"`
 	Valid          bool   `json:"valid"`
+	MainChain      bool   `json:"mainchain"`
 	Voters         uint16 `json:"votes"`
 	Transactions   int    `json:"tx"`
 	FreshStake     uint8  `json:"tickets"`
