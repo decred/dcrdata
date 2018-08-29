@@ -524,3 +524,13 @@ type BlockDataBasic struct {
 	Time       int64   `json:"time,omitemtpy"`
 	NumTx      uint32  `json:"txlength,omitempty"`
 }
+
+// BlockStatus describes a block's status in the block chain.
+type BlockStatus struct {
+	IsValid     bool   `json:"is_valid"`
+	IsMainchain bool   `json:"is_mainchain"`
+	Height      uint32 `json:"height"`
+	PrevHash    string `json:"previous_hash"`
+	Hash        string `json:"hash"`
+	NextHash    string `json:"next_hash"`
+}

@@ -102,6 +102,16 @@ const (
 
 	UpdateBlockMainchain = `UPDATE blocks SET is_mainchain = $2 WHERE hash = $1 RETURNING previous_hash;`
 
+	SelectSideChainBlocks = `SELECT is_valid, height, previous_hash, hash, block_chain.next_hash
+		FROM blocks
+		JOIN block_chain ON this_hash=hash
+		WHERE is_mainchain = FALSE;`
+
+	SelectSideChainTips = `SELECT is_valid, height, previous_hash, hash
+		FROM blocks
+		JOIN block_chain ON this_hash=hash
+		WHERE is_mainchain = FALSE AND block_chain.next_hash='';`
+
 	IndexBlocksTableOnHeight = `CREATE INDEX uix_block_height ON blocks(height);`
 
 	DeindexBlocksTableOnHeight = `DROP INDEX uix_block_height;`
