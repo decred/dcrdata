@@ -70,8 +70,7 @@ type client struct {
 // an updated data (when a new block is added).
 type ticketPoolEvent struct {
 	sync.RWMutex
-	Active         bool
-	TimeSinceLastR time.Time
+	Active bool
 }
 
 var tpEvent = new(ticketPoolEvent)

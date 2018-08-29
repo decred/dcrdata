@@ -1354,33 +1354,10 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	return outputs, nil
 }
 
-// retrieveImmatureTickets fetches the immature tickets which should also be
-// part of the current the ticketpool txs.
-func retrieveImmatureTickets(db *sql.DB, bestBlock int64) (hashes []string, err error) {
-	rws, err := db.Query(internal.SelectImmatureTickets, bestBlock-255)
-	if err != nil {
-		return
-	}
-
-	for rws.Next() {
-		var txHash string
-		err = rws.Scan(&txHash)
-		if err != nil {
-			return
-		}
-		hashes = append(hashes, txHash)
-	}
-
-	return
-}
-
 // retrieveTicketsByDate fetches the tickets in the current ticketpool by the
 // purchase date.
-func retrieveTicketsByDate(db *sql.DB, bestBlock int64, hashes []string,
-	groupBy int64) (*dbtypes.PoolTicketsData, error) {
-	// Create the query statement and retrieve rows
-	rows, err := db.Query(internal.MakeRetrieveTicketTimesStatement(hashes,
-		internal.TicketsByDateTime, bestBlock), groupBy)
+func retrieveTicketsByDate(db *sql.DB, maturityBlock, groupBy int64) (*dbtypes.PoolTicketsData, error) {
+	rows, err := db.Query(internal.SelectTicketsByPurchaseDate, groupBy, maturityBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -1389,14 +1366,18 @@ func retrieveTicketsByDate(db *sql.DB, bestBlock int64, hashes []string,
 	for rows.Next() {
 		var immature, live, timestamp uint64
 		var price, total float64
-		err = rows.Scan(&timestamp, &price, &total, &immature, &live)
+		err = rows.Scan(&timestamp, &price, &immature, &live)
 		if err != nil {
 			return nil, fmt.Errorf("retrieveTicketsByDate %v", err)
 		}
+
 		tickets.Time = append(tickets.Time, timestamp)
 		tickets.Immature = append(tickets.Immature, immature)
 		tickets.Live = append(tickets.Live, live)
+
 		// Returns the average value of a ticket depending on the grouping mode used
+		price = price * 100000000
+		total = float64(live + immature)
 		tickets.Price = append(tickets.Price, dcrutil.Amount(price/total).ToCoin())
 	}
 
@@ -1405,35 +1386,35 @@ func retrieveTicketsByDate(db *sql.DB, bestBlock int64, hashes []string,
 
 // retrieveTicketByPrice fetches the tickets in the current ticketpool by the
 // purchase price.
-func retrieveTicketByPrice(db *sql.DB, bestBlock int64, hashes []string) (*dbtypes.PoolTicketsData, error) {
+func retrieveTicketByPrice(db *sql.DB, maturityBlock int64) (*dbtypes.PoolTicketsData, error) {
 	// Create the query statement and retrieve rows
-	rows, err := db.Query(internal.MakeRetrieveTicketTimesStatement(hashes,
-		internal.TicketsByPrice, bestBlock))
+	rows, err := db.Query(internal.SelectTicketsByPrice, maturityBlock)
 	if err != nil {
 		return nil, err
 	}
 
 	tickets := new(dbtypes.PoolTicketsData)
 	for rows.Next() {
-		var immature, live uint64
+		var live, immature uint64
 		var price float64
 		err = rows.Scan(&price, &immature, &live)
 		if err != nil {
 			return nil, fmt.Errorf("retrieveTicketByPrice %v", err)
 		}
-		tickets.Price = append(tickets.Price, dcrutil.Amount(price).ToCoin())
+
 		tickets.Immature = append(tickets.Immature, immature)
 		tickets.Live = append(tickets.Live, live)
+		tickets.Price = append(tickets.Price, price)
 	}
 
 	return tickets, nil
 }
 
-// retrieveTickesGroupedByType the count of tickets in the current ticketpool
+// retrieveTickesGroupedByType fetches the count of tickets in the current ticketpool
 // grouped by ticket type (inferred by their output counts).
-func retrieveTickesGroupedByType(db *sql.DB, hashes []string) (*dbtypes.PoolTicketsData, error) {
+func retrieveTickesGroupedByType(db *sql.DB) (*dbtypes.PoolTicketsData, error) {
 	var entry dbtypes.PoolTicketsData
-	err := db.QueryRow(internal.MakeRetrieveTicketTypeCountsStatement(hashes)).Scan(
+	err := db.QueryRow(internal.SelectTicketsByType).Scan(
 		&entry.Solo, &entry.Pooled, &entry.TxSplit,
 	)
 	if err != nil {

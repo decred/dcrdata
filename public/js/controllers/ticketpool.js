@@ -116,7 +116,7 @@ function barchartPlotter(e) {
         plotter: barchartPlotter,
         legendFormatter: legendFormatter,
         labelsSeparateLines: true,
-        ylabel: '# of Tickets',
+        ylabel: 'Number of Tickets',
         legend: 'follow'
     }
 

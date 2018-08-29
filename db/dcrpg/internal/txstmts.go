@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
 )
@@ -131,28 +130,14 @@ const (
 	SelectRegularTxByHash = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=0;`
 	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`
 
-	SelectImmatureTickets = `SELECT tx_hash FROM transactions WHERE block_height >= $1 and tx_type = 1;`
-
 	SelectAllTicketsBlockTime = `SELECT block_height, block_time FROM transactions WHERE tx_type = 1;`
 
-	retrieveTicketsByPrice = `SELECT t.sent,
-		SUM(CASE WHEN t.block_height >= %v THEN 1 ELSE 0 END) as immature,
-		SUM(CASE WHEN t.block_height < %v THEN 1 ELSE 0 END) as live
-		FROM transactions as t INNER JOIN (%s) as d(tx_hash) ON t.tx_hash = d.tx_hash
-		GROUP BY t.sent ORDER BY t.sent;`
-
-	retrieveTicketsByPurchaseDate = `SELECT (t.time/$1)*$1 as timestamp,
-		sum(t.sent) as price, count(*) as total,
-		SUM(CASE WHEN t.block_height >= %v THEN 1 ELSE 0 END) as immature,
-		SUM(CASE WHEN t.block_height < %v THEN 1 ELSE 0 END) as live
-		FROM transactions as t INNER JOIN (%s) as d(tx_hash) ON t.tx_hash = d.tx_hash
-		GROUP BY timestamp ORDER BY timestamp;`
-
-	retrieveTicketsByType = `SELECT
-		SUM(CASE WHEN t.num_vout = 3 THEN 1 ELSE 0 END) as solo,
-		SUM(CASE WHEN t.num_vout = 5 THEN 1 ELSE 0 END) as pooled,
-		SUM(CASE WHEN t.num_vout > 5 THEN 1 ELSE 0 END) as tixsplit
-		FROM transactions as t INNER JOIN (%s) as d(tx_hash) ON t.tx_hash = d.tx_hash;`
+	SelectTicketsByType = `SELECT
+		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
+		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled,
+		SUM(CASE WHEN num_vout > 5 THEN 1 ELSE 0 END) as tixsplit
+		FROM transactions WHERE tx_hash = ANY(SELECT tx_hash FROM tickets
+		WHERE pool_status=0 AND is_mainchain = TRUE) AND tx_type=1;`
 
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX uix_tx_block_in
 		ON transactions(block_hash, block_index, tree);`
@@ -223,39 +208,4 @@ func MakeTxInsertStatement(checked bool) string {
 		return upsertTxRow
 	}
 	return insertTxRow
-}
-
-// TicketGrouping indicates if tickets retrieved via
-// MakeRetrieveTicketTimesStatement should be grouped by date/time or by price.
-type TicketGrouping int
-
-const (
-	TicketsByDateTime TicketGrouping = iota
-	TicketsByPrice
-)
-
-// MakeRetrieveTicketStatement creates the statement to fetch data on the
-// provided ticket IDs grouped by either purchase time or purchase price. The
-// sinceBlock is used to specify at which height tickets should be considered
-// mature.
-func MakeRetrieveTicketTimesStatement(hashes []string, ticketGrouping TicketGrouping,
-	sinceBlock int64) string {
-	strHashes := `VALUES ('` + strings.Join(hashes, `'), ('`) + `')`
-	switch ticketGrouping {
-	case TicketsByDateTime:
-		return fmt.Sprintf(retrieveTicketsByPurchaseDate,
-			sinceBlock, sinceBlock, strHashes)
-	case TicketsByPrice:
-		return fmt.Sprintf(retrieveTicketsByPrice,
-			sinceBlock, sinceBlock, strHashes)
-	default:
-		return ""
-	}
-}
-
-// MakeRetrieveTicketTypeCountsStatement fetches the count of solo, pooled, or
-// otherwise split ticket purchases given the provided ticket IDs.
-func MakeRetrieveTicketTypeCountsStatement(hashes []string) string {
-	strHashes := `VALUES ('` + strings.Join(hashes, `'), ('`) + `')`
-	return fmt.Sprintf(retrieveTicketsByType, strHashes)
 }

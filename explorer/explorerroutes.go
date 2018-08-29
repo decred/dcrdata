@@ -239,7 +239,9 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 
 // Ticketpool is the page handler for the "/ticketpool" path
 func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
-	chartData, groupedTickets, err := exp.explorerSource.TicketPoolVisualization("all")
+	chartData, groupedTickets, err := exp.explorerSource.TicketPoolVisualization(
+		dbtypes.ChartGroupingFromStr("all"),
+	)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)

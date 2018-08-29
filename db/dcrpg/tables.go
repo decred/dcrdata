@@ -504,6 +504,16 @@ func DeindexTicketsTableOnTxDbID(db *sql.DB) (err error) {
 	return
 }
 
+func IndexTicketsTableOnPoolStatus(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexTicketsTableOnPoolStatus)
+	return
+}
+
+func DeindexTicketsTableOnPoolStatus(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexTicketsTableOnPoolStatus)
+	return
+}
+
 // Missed votes table indexes
 
 func IndexMissesTableOnHashes(db *sql.DB) (err error) {

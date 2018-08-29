@@ -93,7 +93,8 @@ type DataSourceAux interface {
 	VotesInBlock(hash string) (int16, error)
 	GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error)
-	TicketPoolByDateAndInterval(val string) ([]string, *dbtypes.PoolTicketsData, int64, error)
+	GetTicketPoolByDateAndInterval(int64, dbtypes.ChartGrouping) (*dbtypes.PoolTicketsData, error)
+	GetTicketPoolBlockMaturity() int64
 }
 
 // dcrdata application context used by all route handlers
@@ -724,8 +725,11 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request) {
-	tp := m.GetTpCtx(r)
-	_, tpData, _, err := c.AuxDataSource.TicketPoolByDateAndInterval(tp)
+	var tp = m.GetTpCtx(r)
+	var maturityBlock = c.AuxDataSource.GetTicketPoolBlockMaturity()
+
+	var tpData, err = c.AuxDataSource.GetTicketPoolByDateAndInterval(maturityBlock,
+		dbtypes.ChartGroupingFromStr(tp))
 	if err != nil {
 		apiLog.Errorf("Unable to get ticket pool by date %v", err)
 		http.Error(w, http.StatusText(422), 422)

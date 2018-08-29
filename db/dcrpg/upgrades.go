@@ -452,6 +452,12 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		if err = IndexVotesTableOnBlockHash(pgb.db); err != nil {
 			return false, fmt.Errorf("failed to index votes table on block_hash: %v", err)
 		}
+
+	case ticketsTableBlockTimeUpgrade:
+		log.Infof("Index the tickets table on Pool status...")
+		if err = IndexTicketsTableOnPoolStatus(pgb.db); err != nil {
+			return false, fmt.Errorf("failed to index tickets table: %v", err)
+		}
 	}
 
 	return true, nil

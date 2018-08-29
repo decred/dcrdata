@@ -64,7 +64,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				if len(msg.Message) > requestLimit {
 					log.Debug("Request size over limit")
 					webData.Message = "Request too large"
-					return
+					continue
 				}
 
 				switch msg.EventId {
@@ -115,7 +115,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 					tpEvent.Active = false
 
-					cData, gData, err := exp.explorerSource.TicketPoolVisualization(msg.Message)
+					cData, gData, err := exp.explorerSource.TicketPoolVisualization(
+						dbtypes.ChartGroupingFromStr(msg.Message),
+					)
 					if err != nil {
 						if strings.HasPrefix(err.Error(), "unknown interval") {
 							log.Debugf("Invalid ticket pool interval provided via getticketpooldata: %s", msg.Message)
@@ -138,7 +140,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
 						mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
 					} else {
-						log.Warn("No tickets exists in the mempool")
+						log.Debug("No tickets exists in the mempool")
 					}
 
 					var data = struct {
@@ -220,9 +222,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					})
 					exp.NewBlockDataMtx.RUnlock()
 
-					tpEvent.RLock()
+					tpEvent.Lock()
 					tpEvent.Active = true
-					tpEvent.RUnlock()
+					tpEvent.Unlock()
 
 					webData.Message = buff.String()
 				case sigMempoolUpdate:
