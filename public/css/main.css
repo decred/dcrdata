@@ -36,6 +36,11 @@
   content: "\e900";
 }
 
+/* layout */
+.container.main {
+  padding-bottom: 40px;
+}
+
 /*fonts*/
 @font-face {
   font-family: 'source-sans-pro-v9-latin-regular';
