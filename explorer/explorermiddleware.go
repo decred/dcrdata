@@ -30,9 +30,13 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 		var hash string
 		if err != nil {
 			hash = chi.URLParam(r, "blockhash")
-			height, err = exp.blockData.GetBlockHeight(hash)
+			if exp.liteMode {
+				height, err = exp.blockData.GetBlockHeight(hash)
+			} else {
+				height, err = exp.explorerSource.BlockHeight(hash)
+			}
 			if err != nil {
-				log.Errorf("GetBlockHeight(%s) failed: %v", hash, err)
+				log.Errorf("BlockHeight(%s) failed: %v", hash, err)
 				exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
 				return
 			}

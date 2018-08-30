@@ -590,6 +590,10 @@ body.darkBG .progress {
 #address-qrcode img {
   width: 280px;
 }
+.sidechain-tag {
+  color: red;
+  font-size: 14pt;
+}
 
 /*Typography*/
 .fs14-decimal .dot,

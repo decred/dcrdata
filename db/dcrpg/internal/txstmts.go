@@ -86,7 +86,7 @@ const (
 
 	SelectTxnsVinsVoutsByBlock = `SELECT vin_db_ids, vout_db_ids, is_mainchain
 		FROM transactions WHERE block_hash = $1;`
-		
+
 	SelectTxsVinsAndVoutsIDs = `SELECT tx_type, vin_db_ids, vout_db_ids FROM 
 		transactions WHERE block_height BETWEEN $1 AND $2;`
 

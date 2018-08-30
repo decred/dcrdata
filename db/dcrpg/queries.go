@@ -57,7 +57,8 @@ func RetrieveVoutIDByOutpoint(db *sql.DB, txHash string, voutIndex uint32) (id u
 }
 
 func RetrieveMissedVotesInBlock(db *sql.DB, blockHash string) (ticketHashes []string, err error) {
-	rows, err := db.Query(internal.SelectMissesInBlock, blockHash)
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectMissesInBlock, blockHash)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +79,8 @@ func RetrieveMissedVotesInBlock(db *sql.DB, blockHash string) (ticketHashes []st
 
 func RetrieveAllRevokesDbIDHashHeight(db *sql.DB) (ids []uint64,
 	hashes []string, heights []int64, vinDbIDs []uint64, err error) {
-	rows, err := db.Query(internal.SelectAllRevokes)
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectAllRevokes)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -104,7 +106,8 @@ func RetrieveAllRevokesDbIDHashHeight(db *sql.DB) (ids []uint64,
 
 func RetrieveAllVotesDbIDsHeightsTicketDbIDs(db *sql.DB) (ids []uint64, heights []int64,
 	ticketDbIDs []uint64, err error) {
-	rows, err := db.Query(internal.SelectAllVoteDbIDsHeightsTicketDbIDs)
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectAllVoteDbIDsHeightsTicketDbIDs)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -126,7 +129,8 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(db *sql.DB) (ids []uint64, heights 
 }
 
 func RetrieveUnspentTickets(db *sql.DB) (ids []uint64, hashes []string, err error) {
-	rows, err := db.Query(internal.SelectUnspentTickets)
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectUnspentTickets)
 	if err != nil {
 		return ids, hashes, err
 	}
@@ -164,7 +168,8 @@ func RetrieveTicketStatusByHash(db *sql.DB, ticketHash string) (id uint64, spend
 }
 
 func RetrieveTicketIDsByHashes(db *sql.DB, ticketHashes []string) (ids []uint64, err error) {
-	dbtx, err := db.Begin()
+	var dbtx *sql.Tx
+	dbtx, err = db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
@@ -712,7 +717,8 @@ func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64,
 
 func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspent,
 	totalSpent, totalUnspent, totalMergedSpent int64, err error) {
-	dbtx, err := db.Begin()
+	var dbtx *sql.Tx
+	dbtx, err = db.Begin()
 	if err != nil {
 		err = fmt.Errorf("unable to begin database transaction: %v", err)
 		return
@@ -892,7 +898,8 @@ func RetrieveAddressIDsByOutpoint(db *sql.DB, txHash string,
 } // Update Vin due to DCRD AMOUNTIN - END
 
 func RetrieveAllVinDbIDs(db *sql.DB) (vinDbIDs []uint64, err error) {
-	rows, err := db.Query(internal.SelectVinIDsALL)
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectVinIDsALL)
 	if err != nil {
 		return
 	}
@@ -986,7 +993,8 @@ func RetrieveSpendingTxByTxOut(db *sql.DB, txHash string,
 
 func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uint64,
 	txns []string, vinInds []uint32, voutInds []uint32, err error) {
-	rows, err := db.Query(internal.SelectSpendingTxsByPrevTx, fundingTxID)
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectSpendingTxsByPrevTx, fundingTxID)
 	if err != nil {
 		return
 	}
@@ -1178,7 +1186,8 @@ func RetrieveStakeTxByHash(db *sql.DB, txHash string) (id uint64, blockHash stri
 
 func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string,
 	blockInds []uint32, trees []int8, blockTimes []uint64, err error) {
-	rows, err := db.Query(internal.SelectTxsByBlockHash, blockHash)
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectTxsByBlockHash, blockHash)
 	if err != nil {
 		return
 	}
@@ -1257,9 +1266,60 @@ func RetrieveBlockChainDbID(db *sql.DB, hash string) (dbID uint64, err error) {
 	return
 }
 
-func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, currentBlockHeight int64) ([]apitypes.AddressTxnOutput, error) {
-	var outputs []apitypes.AddressTxnOutput
+// RetrieveSideChainBlocks retrieves the block chain status for all known side
+// chain blocks.
+func RetrieveSideChainBlocks(db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectSideChainBlocks)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
 
+	for rows.Next() {
+		var bs dbtypes.BlockStatus
+		err = rows.Scan(&bs.IsValid, &bs.Height, &bs.PrevHash, &bs.Hash, &bs.NextHash)
+		if err != nil {
+			return
+		}
+
+		blocks = append(blocks, &bs)
+	}
+	return
+}
+
+// RetrieveSideChainTips retrieves the block chain status for all known side
+// chain tip blocks.
+func RetrieveSideChainTips(db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectSideChainTips)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		// NextHash is empty in all cases as these are chain tips.
+		var bs dbtypes.BlockStatus
+		err = rows.Scan(&bs.IsValid, &bs.Height, &bs.PrevHash, &bs.Hash)
+		if err != nil {
+			return
+		}
+
+		blocks = append(blocks, &bs)
+	}
+	return
+}
+
+// RetrieveBlockStatus retrieves the block chain status for the block with the
+// specified hash.
+func RetrieveBlockStatus(db *sql.DB, hash string) (bs dbtypes.BlockStatus, err error) {
+	err = db.QueryRow(internal.SelectBlockStatus, hash).Scan(&bs.IsValid,
+		&bs.IsMainchain, &bs.Height, &bs.PrevHash, &bs.Hash, &bs.NextHash)
+	return
+}
+
+func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, currentBlockHeight int64) ([]apitypes.AddressTxnOutput, error) {
 	stmt, err := db.Prepare(internal.SelectAddressUnspentWithTxn)
 	if err != nil {
 		log.Error(err)
@@ -1271,9 +1331,9 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 		log.Error(err)
 		return nil, err
 	}
-
 	defer rows.Close()
 
+	var outputs []apitypes.AddressTxnOutput
 	for rows.Next() {
 		pkScript := []byte{}
 		var blockHeight, atoms int64
@@ -1333,17 +1393,11 @@ func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeigh
 // indexes and block heights funded by a specific transaction
 func RetrieveSpendingTxsByFundingTxWithBlockHeight(db *sql.DB,
 	fundingTxID string) (aSpendByFunHash []*apitypes.SpendByFundingHash, err error) {
-
-	rows, err := db.Query(internal.SelectSpendingTxsByPrevTxWithBlockHeight, fundingTxID)
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectSpendingTxsByPrevTxWithBlockHeight, fundingTxID)
 	if err != nil {
 		return
 	}
-
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
 
 	defer closeRows(rows)
 

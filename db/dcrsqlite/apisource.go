@@ -911,6 +911,7 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.Block
 		Hash:           data.Hash,
 		Size:           data.Size,
 		Valid:          true, // we do not know this, TODO with DB v2
+		MainChain:      true,
 		Voters:         data.Voters,
 		Transactions:   len(data.RawTx),
 		FreshStake:     data.FreshStake,

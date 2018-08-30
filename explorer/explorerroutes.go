@@ -70,6 +70,35 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// SideChains is the page handler for the "/side" path
+func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
+	sideBlocks, err := exp.explorerSource.SideChainBlocks()
+	if err != nil {
+		log.Errorf("Unable to get side chain blocks: %v", err)
+		exp.StatusPage(w, defaultErrorCode, "failed to retrieve side chain blocks", ErrorStatusType)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("sidechains", struct {
+		Data    []*dbtypes.BlockStatus
+		Version string
+		NetName string
+	}{
+		sideBlocks,
+		exp.Version,
+		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // Blocks is the page handler for the "/blocks" path
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	idx := exp.blockData.GetHeight()
@@ -149,6 +178,14 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		if err != nil && err != sql.ErrNoRows {
 			log.Warnf("Unable to retrieve missed votes for block %s: %v", hash, err)
 		}
+
+		var blockStatus dbtypes.BlockStatus
+		blockStatus, err = exp.explorerSource.BlockStatus(hash)
+		if err != nil && err != sql.ErrNoRows {
+			log.Warnf("Unable to retrieve chain status for block %s: %v", hash, err)
+		}
+		data.Valid = blockStatus.IsValid
+		data.MainChain = blockStatus.IsMainchain
 	}
 
 	pageData := struct {
