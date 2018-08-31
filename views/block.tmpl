@@ -11,7 +11,7 @@
                 <h4 class="mb-2">
                     Block #{{.Height}}
                     {{ if not .MainChain }}
-                        <span class="sidechain-tag">(side chain)</span>
+                        <span class="attention">(side chain)</span>
                     {{else}}
                         {{ if gt .Confirmations 1 }}
                             <span class="op60 fs12">( <span data-confirmation-block-height="{{$.ConfirmHeight}}">{{.Confirmations}}</span> confirmations)</span>
@@ -177,9 +177,15 @@
                             <tbody>
                                 <tr>
                                     <td class="break-word">
+                                    {{if $.Data.Nonce}}
                                         <span>
                                             <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
                                         </span>
+                                    {{else}}
+                                        <span title="The Genesis block coinbase transaction is invalid on mainnet.">
+                                            <span class="attention">&#9888;</span> <a class="hash" href="https://github.com/decred/dcrd/blob/2a18beb4d56fe59d614a7309308d84891a0cba96/chaincfg/genesis.go#L17-L53">{{.TxID}}</a>
+                                        </span>
+                                    {{end}}
                                     </td>
                                     <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</td>
                                     <td class="mono fs15">{{.FormattedSize}}</td>
