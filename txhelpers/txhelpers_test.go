@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/decred/dcrd/chaincfg"
+
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -211,5 +213,33 @@ func TestFilterHashSlice(t *testing.T) {
 
 	if HashInSlice(blackList[2], hashList) {
 		t.Errorf("filtered slice still has hash %v", blackList[2])
+	}
+}
+
+func TestGenesisTxHash(t *testing.T) {
+	// Mainnet
+	genesisTxHash := GenesisTxHash(&chaincfg.MainNetParams).String()
+	if genesisTxHash == "" {
+		t.Errorf("Failed to get genesis transaction hash for mainnet.")
+	}
+	t.Logf("Genesis transaction hash (mainnet): %s", genesisTxHash)
+
+	mainnetExpectedTxHash := "e7dfbceac9fccd6025c70a1dfa9302b3e7b5aa22fa51c98a69164ad403d60a2c"
+	if genesisTxHash != mainnetExpectedTxHash {
+		t.Errorf("Incorrect genesis transaction hash (mainnet). Expected %s, got %s",
+			mainnetExpectedTxHash, genesisTxHash)
+	}
+
+	// Simnet
+	genesisTxHash = GenesisTxHash(&chaincfg.SimNetParams).String()
+	if genesisTxHash == "" {
+		t.Errorf("Failed to get genesis transaction hash for simnet.")
+	}
+	t.Logf("Genesis transaction hash (mainnet): %s", genesisTxHash)
+
+	simnetExpectedTxHash := "a216ea043f0d481a072424af646787794c32bcefd3ed181a090319bbf8a37105"
+	if genesisTxHash != simnetExpectedTxHash {
+		t.Errorf("Incorrect genesis transaction hash (simnet). Expected %s, got %s",
+			mainnetExpectedTxHash, genesisTxHash)
 	}
 }
