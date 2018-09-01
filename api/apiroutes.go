@@ -725,13 +725,23 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request) {
-	var tp = m.GetTpCtx(r)
-	var maturityBlock = c.AuxDataSource.GetTicketPoolBlockMaturity()
+	if c.LiteMode {
+		// not available in lite mode
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
 
-	var tpData, err = c.AuxDataSource.GetTicketPoolByDateAndInterval(maturityBlock,
+	tp := m.GetTpCtx(r)
+	// default to day if no grouping was sent
+	if tp == "" {
+		tp = "day"
+	}
+
+	maturityBlock := c.AuxDataSource.GetTicketPoolBlockMaturity()
+	tpData, err := c.AuxDataSource.GetTicketPoolByDateAndInterval(maturityBlock,
 		dbtypes.ChartGroupingFromStr(tp))
 	if err != nil {
-		apiLog.Errorf("Unable to get ticket pool by date %v", err)
+		apiLog.Errorf("Unable to get ticket pool by date: %v", err)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}

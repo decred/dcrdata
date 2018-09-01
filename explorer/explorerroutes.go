@@ -248,16 +248,15 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var mp = dbtypes.PoolTicketsData{}
-	exp.MempoolData.Lock()
+	exp.MempoolData.RLock()
 	var mpData = exp.MempoolData
-	exp.MempoolData.Unlock()
 
 	if len(mpData.Tickets) > 0 {
 		mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
 		mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
 		mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
 	} else {
-		log.Warn("No tickets exists in the mempool")
+		log.Debug("No tickets exist in the mempool")
 	}
 
 	str, err := exp.templates.execTemplateToString("ticketpool", struct {
@@ -265,14 +264,16 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 		NetName     string
 		ChartData   []*dbtypes.PoolTicketsData
 		GroupedData *dbtypes.PoolTicketsData
-		Mempool     dbtypes.PoolTicketsData
+		Mempool     *dbtypes.PoolTicketsData
 	}{
 		exp.Version,
 		exp.NetName,
 		chartData,
 		groupedTickets,
-		mp,
+		&mp,
 	})
+
+	exp.MempoolData.RUnlock()
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)

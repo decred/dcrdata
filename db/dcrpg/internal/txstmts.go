@@ -133,11 +133,12 @@ const (
 	SelectAllTicketsBlockTime = `SELECT block_height, block_time FROM transactions WHERE tx_type = 1;`
 
 	SelectTicketsByType = `SELECT
-		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
-		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled,
-		SUM(CASE WHEN num_vout > 5 THEN 1 ELSE 0 END) as tixsplit
-		FROM transactions WHERE tx_hash = ANY(SELECT tx_hash FROM tickets
-		WHERE pool_status=0 AND is_mainchain = TRUE) AND tx_type=1;`
+		width_bucket(num_vout, array[3, 5, 6]) as ticket_bucket,
+		count(*)
+		FROM transactions JOIN tickets
+		ON transactions.id=purchase_tx_db_id WHERE pool_status=0
+		AND tickets.is_mainchain = TRUE GROUP BY ticket_bucket;`
+
 
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX uix_tx_block_in
 		ON transactions(block_hash, block_index, tree);`

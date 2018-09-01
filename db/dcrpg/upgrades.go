@@ -506,7 +506,7 @@ func (pgb *ChainDB) handleVinsTableMainchainupgrade() (int64, error) {
 
 		numUpd, err := pgb.upgradeVinsMainchainForMany(vinDbIDsBlk, areValid, areMainchain)
 		if err != nil {
-			log.Warnf("Unable to set valid/mainchain for vins: %v", err)
+			log.Warnf("unable to set valid/mainchain for vins: %v", err)
 		}
 		rowsUpdated += numUpd
 		if i%10000 == 0 {
@@ -517,10 +517,10 @@ func (pgb *ChainDB) handleVinsTableMainchainupgrade() (int64, error) {
 }
 
 func (pgb *ChainDB) handleTicketsBlockTimeUpgrade() (int64, error) {
-	log.Info(" - Retrieving all the ticket transactions with blocktime")
+	log.Info(" - Retrieving block times for all ticket transactions.")
 	ticketsBlockTime, err := retrieveTicketsTxsBlockTime(pgb.db)
 	if err != nil {
-		return 0, fmt.Errorf("Unable to retreive all a tickets block time: %v", err)
+		return 0, fmt.Errorf("unable to retrieve ticket block times: %v", err)
 	}
 
 	log.Info(" - Indexing the block_height to hasten the block_time update")
@@ -537,7 +537,7 @@ func (pgb *ChainDB) handleTicketsBlockTimeUpgrade() (int64, error) {
 		}
 	}()
 
-	log.Infof(" - Updating tickets data with its block time value ...")
+	log.Infof(" - Updating tickets table with block time values...")
 	var rowsUpdated int64
 	for _, timeData := range ticketsBlockTime {
 		results, err := pgb.db.Exec(internal.SetTicketBlockTimeByHeight,

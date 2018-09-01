@@ -60,7 +60,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				// handle received message according to event ID
 				var webData WebSocketMessage
-				//  If the request sent is past the limit exit the loop
+				//  If the request sent is past the limit continue to the next iteration.
 				if len(msg.Message) > requestLimit {
 					log.Debug("Request size over limit")
 					webData.Message = "Request too large"
@@ -129,9 +129,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 
-					exp.MempoolData.Lock()
+					exp.MempoolData.RLock()
 					var mpData = exp.MempoolData
-					exp.MempoolData.Unlock()
 
 					var mp = dbtypes.PoolTicketsData{}
 
@@ -142,15 +141,16 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					} else {
 						log.Debug("No tickets exists in the mempool")
 					}
+					exp.MempoolData.RUnlock()
 
 					var data = struct {
 						BarGraphs  []*dbtypes.PoolTicketsData
 						DonutChart *dbtypes.PoolTicketsData
-						Mempool    dbtypes.PoolTicketsData
+						Mempool    *dbtypes.PoolTicketsData
 					}{
 						cData,
 						gData,
-						mp,
+						&mp,
 					}
 
 					msg, err := json.Marshal(data)

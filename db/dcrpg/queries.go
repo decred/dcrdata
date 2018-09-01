@@ -1354,13 +1354,15 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	return outputs, nil
 }
 
-// retrieveTicketsByDate fetches the tickets in the current ticketpool by the
-// purchase date.
+// retrieveTicketsByDate fetches the tickets in the current ticketpool order by the
+// purchase date. The maturity block is needed to identify immature tickets.
+// The grouping interval size is specified in seconds.
 func retrieveTicketsByDate(db *sql.DB, maturityBlock, groupBy int64) (*dbtypes.PoolTicketsData, error) {
 	rows, err := db.Query(internal.SelectTicketsByPurchaseDate, groupBy, maturityBlock)
 	if err != nil {
 		return nil, err
 	}
+	defer closeRows(rows)
 
 	tickets := new(dbtypes.PoolTicketsData)
 	for rows.Next() {
@@ -1384,14 +1386,16 @@ func retrieveTicketsByDate(db *sql.DB, maturityBlock, groupBy int64) (*dbtypes.P
 	return tickets, nil
 }
 
-// retrieveTicketByPrice fetches the tickets in the current ticketpool by the
-// purchase price.
+// retrieveTicketByPrice fetches the tickets in the current ticketpool ordered by the
+// purchase price. The maturity block is needed to identify immature tickets.
+// The grouping interval size is specified in seconds.
 func retrieveTicketByPrice(db *sql.DB, maturityBlock int64) (*dbtypes.PoolTicketsData, error) {
 	// Create the query statement and retrieve rows
 	rows, err := db.Query(internal.SelectTicketsByPrice, maturityBlock)
 	if err != nil {
 		return nil, err
 	}
+	defer closeRows(rows)
 
 	tickets := new(dbtypes.PoolTicketsData)
 	for rows.Next() {
@@ -1411,14 +1415,33 @@ func retrieveTicketByPrice(db *sql.DB, maturityBlock int64) (*dbtypes.PoolTicket
 }
 
 // retrieveTickesGroupedByType fetches the count of tickets in the current ticketpool
-// grouped by ticket type (inferred by their output counts).
+// grouped by ticket type (inferred by their output counts). The grouping used
+// here i.e. solo, pooled and tixsplit is just a guessing based on commonly
+// structured ticket purchases.
 func retrieveTickesGroupedByType(db *sql.DB) (*dbtypes.PoolTicketsData, error) {
 	var entry dbtypes.PoolTicketsData
-	err := db.QueryRow(internal.SelectTicketsByType).Scan(
-		&entry.Solo, &entry.Pooled, &entry.TxSplit,
-	)
+	rows, err := db.Query(internal.SelectTicketsByType)
 	if err != nil {
-		return nil, fmt.Errorf("retrieveTickesGroupedByType %v", err)
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var txType, txTypeCount uint64
+		err = rows.Scan(&txType, &txTypeCount)
+
+		if err != nil {
+			return nil, fmt.Errorf("retrieveTickesGroupedByType %v", err)
+		}
+
+		switch txType {
+		case 1:
+			entry.Solo = txTypeCount
+		case 2:
+			entry.Pooled = txTypeCount
+		case 3:
+			entry.TxSplit = txTypeCount
+		}
 	}
 
 	return &entry, nil
@@ -1528,7 +1551,7 @@ func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit i
 // transactions in the transactions table. The Tx struct from this function
 // only contains the block height and the block time.
 func retrieveTicketsTxsBlockTime(db *sql.DB) ([]*dbtypes.Tx, error) {
-	var txsData = make([]*dbtypes.Tx, 0)
+	var txsData []*dbtypes.Tx
 
 	rows, err := db.Query(internal.SelectAllTicketsBlockTime)
 	if err != nil {

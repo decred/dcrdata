@@ -455,6 +455,9 @@
     });
 
     Mousetrap.bind('enter', function(e) {
+        if (targets.length < currentIndex) {
+            return
+        }
         var currentTarget = $(targets[currentIndex])
         if (currentTarget.is( "input")) {
             currentTarget.focus()

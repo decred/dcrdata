@@ -190,7 +190,7 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 	})
 
 	mux.Route("/ticketpool", func(r chi.Router) {
-		r.Get("/", http.NotFound)
+		r.Get("/", app.getTicketPoolByDate)
 		r.With(m.TicketPoolCtx).Get("/bydate/{tp}", app.getTicketPoolByDate)
 	})
 
