@@ -846,3 +846,10 @@ func TotalVout(vouts []dcrjson.Vout) dcrutil.Amount {
 	}
 	return total
 }
+
+// GenesisTxHash returns the hash of the single coinbase transaction in the
+// genesis block of the specified network. This transaction is hard coded, and
+// the pubkey script for its one output only decodes for simnet.
+func GenesisTxHash(params *chaincfg.Params) chainhash.Hash {
+	return params.GenesisBlock.Transactions[0].TxHash()
+}

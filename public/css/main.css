@@ -590,7 +590,7 @@ body.darkBG .progress {
 #address-qrcode img {
   width: 280px;
 }
-.sidechain-tag {
+.attention {
   color: red;
   font-size: 14pt;
 }
