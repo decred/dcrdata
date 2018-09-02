@@ -41,8 +41,9 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	blocks := exp.blockData.GetExplorerBlocks(height, height-5)
 
-	exp.NewBlockDataMtx.Lock()
+	// Lock for both MempoolData and ExtraInfo
 	exp.MempoolData.RLock()
+	exp.NewBlockDataMtx.RLock()
 
 	str, err := exp.templates.execTemplateToString("home", struct {
 		Info    *HomeInfo
@@ -57,8 +58,9 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		exp.Version,
 		exp.NetName,
 	})
-	exp.NewBlockDataMtx.Unlock()
+
 	exp.MempoolData.RUnlock()
+	exp.NewBlockDataMtx.RUnlock()
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -195,7 +197,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		NetName       string
 	}{
 		data,
-		exp.NewBlockData.Height - data.Confirmations,
+		exp.Height() - data.Confirmations,
 		exp.Version,
 		exp.NetName,
 	}
@@ -354,7 +356,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				// expiry in blocks - (number of blocks since ticket purchase -
 				// ticket maturity))
 				// C is the probability (chance)
+				exp.NewBlockDataMtx.RLock()
 				pVote := float64(exp.ChainParams.TicketsPerBlock) / float64(exp.ExtraInfo.PoolInfo.Size)
+				exp.NewBlockDataMtx.RUnlock()
 				tx.TicketInfo.Probability = 100 * (math.Pow(1-pVote,
 					float64(exp.ChainParams.TicketExpiry)-float64(blocksLive)))
 			}
@@ -368,7 +372,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		NetName       string
 	}{
 		tx,
-		exp.NewBlockData.Height - tx.Confirmations,
+		exp.Height() - tx.Confirmations,
 		exp.Version,
 		exp.NetName,
 	}
@@ -616,8 +620,9 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	addrData.TxnType = txnType.String()
 
 	confirmHeights := make([]int64, len(addrData.Transactions))
+	bdHeight := exp.Height()
 	for i, v := range addrData.Transactions {
-		confirmHeights[i] = exp.NewBlockData.Height - int64(v.Confirmations)
+		confirmHeights[i] = bdHeight - int64(v.Confirmations)
 	}
 
 	sort.Slice(addrData.Transactions, func(i, j int) bool {
