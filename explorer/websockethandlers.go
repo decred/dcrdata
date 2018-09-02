@@ -98,9 +98,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				case "getmempooltxs":
 					webData.EventId = msg.EventId + "Resp"
 
-					exp.MempoolData.Lock()
+					exp.MempoolData.RLock()
 					msg, err := json.Marshal(exp.MempoolData)
-					exp.MempoolData.Unlock()
+					exp.MempoolData.RUnlock()
 
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)
@@ -160,17 +160,17 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				enc := json.NewEncoder(buff)
 				switch sig {
 				case sigNewBlock:
-					exp.NewBlockDataMtx.Lock()
+					exp.NewBlockDataMtx.RLock()
 					enc.Encode(WebsocketBlock{
 						Block: exp.NewBlockData,
 						Extra: exp.ExtraInfo,
 					})
-					exp.NewBlockDataMtx.Unlock()
+					exp.NewBlockDataMtx.RUnlock()
 					webData.Message = buff.String()
 				case sigMempoolUpdate:
-					exp.MempoolData.Lock()
+					exp.MempoolData.RLock()
 					enc.Encode(exp.MempoolData.MempoolShort)
-					exp.MempoolData.Unlock()
+					exp.MempoolData.RUnlock()
 					webData.Message = buff.String()
 				case sigPingAndUserCount:
 					// ping and send user count
