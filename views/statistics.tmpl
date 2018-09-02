@@ -29,7 +29,7 @@
                     <div class="card">
                         <div class="card-header">Proof-Of-Work Difficulty</div>
                         <div class="card-body">
-                            <span class="mono lh1rem fs14-decimal fs18 stat-data">{{template "decimalParts" (float64AsDecimalParts .POWDiff true)}}</span>
+                            <span class="mono lh1rem fs14-decimal fs18 stat-data">{{template "decimalParts" (float64AsDecimalParts .POWDiff 8 true)}}</span>
                             </br>
                             <span class="stat-link"><a href="/charts">Show Chart</a></span>
                         </div>
@@ -101,7 +101,7 @@
                     <div width="45%" class="card">
                         <div class="card-header">Ticket Price</div>
                         <div class="card-body">
-                            <span  class="stat-data" id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts .TicketPrice false)}}</span>
+                            <span  class="stat-data" id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts .TicketPrice 8 false)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                         </div>
@@ -121,7 +121,7 @@
                     <div width="45%" class="card">
                         <div class="card-header">Ticket Pool Value</div>
                         <div class="card-body">
-                            <span id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts  .TicketPoolValue true)}}</span>
+                            <span id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts  .TicketPoolValue 8 true)}}</span>
                             </br>
                             <span class="stat-details stat-data">{{printf "%.2f" .TPVOfTotalSupplyPeecentage}}% of Total Suppy</span>
                         </div>
