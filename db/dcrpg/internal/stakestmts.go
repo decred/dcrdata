@@ -19,8 +19,7 @@ const (
 		pool_status INT2,
 		is_mainchain BOOLEAN,
 		spend_height INT4,
-		spend_tx_db_id INT8,
-		block_time INT8
+		spend_tx_db_id INT8
 	);`
 
 	// Insert
@@ -28,12 +27,12 @@ const (
 		tx_hash, block_hash, block_height, purchase_tx_db_id,
 		stakesubmission_address, is_multisig, is_split,
 		num_inputs, price, fee, spend_type, pool_status,
-		is_mainchain, block_time)
+		is_mainchain)
 	VALUES (
 		$1, $2, $3,	$4,
 		$5, $6, $7,
 		$8, $9, $10, $11, $12, 
-		$13, $14) `
+		$13) `
 	insertTicketRow = insertTicketRow0 + `RETURNING id;`
 	// insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
 	upsertTicketRow = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
@@ -62,15 +61,18 @@ const (
 		AND is_mainchain = true;`
 
 	SelectTicketsByPrice = `SELECT price,
-		SUM(CASE WHEN block_height >= $1 THEN 1 ELSE 0 END) as immature,
-		SUM(CASE WHEN block_height < $1 THEN 1 ELSE 0 END) as live FROM tickets
-		WHERE pool_status=0 AND is_mainchain=TRUE GROUP BY price ORDER BY price;`
+		SUM(CASE WHEN tickets.block_height >= $1 THEN 1 ELSE 0 END) as immature,
+		SUM(CASE WHEN tickets.block_height < $1 THEN 1 ELSE 0 END) as live
+		FROM tickets JOIN transactions ON purchase_tx_db_id=transactions.id
+		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
+		GROUP BY price ORDER BY price;`
 
-	SelectTicketsByPurchaseDate = `SELECT (block_time/$1)*$1 as timestamp,
+	SelectTicketsByPurchaseDate = `SELECT (transactions.block_time/$1)*$1 as timestamp,
 		SUM(price) as price,
-		SUM(CASE WHEN block_height >= $2 THEN 1 ELSE 0 END) as immature,
-		SUM(CASE WHEN block_height < $2 THEN 1 ELSE 0 END) as live
-		FROM tickets WHERE pool_status = 0 AND is_mainchain = TRUE
+		SUM(CASE WHEN tickets.block_height >= $2 THEN 1 ELSE 0 END) as immature,
+		SUM(CASE WHEN tickets.block_height < $2 THEN 1 ELSE 0 END) as live
+		FROM tickets JOIN transactions ON purchase_tx_db_id=transactions.id
+		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
 		GROUP BY timestamp ORDER BY timestamp;`
 
 	SelectTicketSpendTypeByBlock = `SELECT block_height, 
@@ -90,8 +92,6 @@ const (
 		WHERE purchase_tx_db_id = $1;`
 	SetTicketPoolStatusForTicketDbID = `UPDATE tickets SET pool_status = $2 WHERE id = $1;`
 	SetTicketPoolStatusForHash       = `UPDATE tickets SET pool_status = $2 WHERE tx_hash = $1;`
-
-	SetTicketBlockTimeByHeight = `UPDATE tickets SET block_time=$1 WHERE block_height=$2;`
 
 	UpdateTicketsMainchainAll = `UPDATE tickets
 		SET is_mainchain=b.is_mainchain

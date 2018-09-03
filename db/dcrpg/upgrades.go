@@ -203,9 +203,9 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		// Go on to next upgrade
 		fallthrough
 
-		// Upgrade from 3.5.1 --> 3.6.0
+		// Upgrade from 3.5.1 --> 3.5.2
 	case version.major == 3 && version.minor == 5 && version.patch == 1:
-		toVersion = TableVersion{3, 6, 0}
+		toVersion = TableVersion{3, 5, 2}
 
 		theseUpgrades := []TableUpgradeType{
 			{"tickets", ticketsTableBlockTimeUpgrade},
@@ -306,8 +306,8 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		tableReady = true
 		tableName, upgradeTypeStr = "agendas", "voting milestones"
 	case ticketsTableBlockTimeUpgrade:
-		tableReady, err = addTicketsColumnsForBlockTimeUpgrade(pgb.db)
-		tableName, upgradeTypeStr = "tickets", "block time"
+		tableReady = true
+		tableName, upgradeTypeStr = "tickets", "new index"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -400,7 +400,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("This an extremely I/O intensive operation on the database machine. It can take from 30-90 minutes.")
 		rowsUpdated, err = updateAllAddressesValidMainchain(pgb.db)
 
-	case votesTableBlockHashIndex:
+	case votesTableBlockHashIndex, ticketsTableBlockTimeUpgrade:
 		// no upgrade, just "reindex"
 	case vinsTxHistogramUpgrade, addressesTxHistogramUpgrade:
 		var height uint64
@@ -416,10 +416,6 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case agendasVotingMilestonesUpgrade:
 		log.Infof("Set the agendas voting milestones...")
 		rowsUpdated, err = pgb.handleAgendasVotingMilestonesUpgrade()
-
-	case ticketsTableBlockTimeUpgrade:
-		log.Infof("Starting tickets table block time upgrade ...")
-		rowsUpdated, err = pgb.handleTicketsBlockTimeUpgrade()
 
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
@@ -513,48 +509,6 @@ func (pgb *ChainDB) handleVinsTableMainchainupgrade() (int64, error) {
 			log.Debugf(" -- updated %d vins for %d of %d blocks", rowsUpdated, i+1, len(blockHashes))
 		}
 	}
-	return rowsUpdated, nil
-}
-
-func (pgb *ChainDB) handleTicketsBlockTimeUpgrade() (int64, error) {
-	log.Info(" - Retrieving block times for all ticket transactions.")
-	ticketsBlockTime, err := retrieveTicketsTxsBlockTime(pgb.db)
-	if err != nil {
-		return 0, fmt.Errorf("unable to retrieve ticket block times: %v", err)
-	}
-
-	log.Info(" - Indexing the block_height to hasten the block_time update")
-	_, err = pgb.db.Exec("CREATE INDEX xxxx_tickets ON tickets(block_height);")
-	if err != nil {
-		log.Warnf("failed to index block_height on tickets: %v ", err)
-	}
-
-	// drop the created index since its no longer need
-	defer func() {
-		_, err = pgb.db.Exec("DROP INDEX xxxx_tickets;")
-		if err != nil {
-			log.Warnf("failed to drop index xxxx_tickets: %v ", err)
-		}
-	}()
-
-	log.Infof(" - Updating tickets table with block time values...")
-	var rowsUpdated int64
-	for _, timeData := range ticketsBlockTime {
-		results, err := pgb.db.Exec(internal.SetTicketBlockTimeByHeight,
-			timeData.BlockTime, timeData.BlockHeight)
-		if err != nil {
-			log.Warnf("Unable to set block time for ticket at height %d : %v",
-				timeData.BlockHeight, err)
-		}
-
-		c, err := results.RowsAffected()
-		if err != nil {
-			log.Warnf("Unable to fetch rows affected: %v", err)
-		}
-
-		rowsUpdated += c
-	}
-
 	return rowsUpdated, nil
 }
 
@@ -961,14 +915,6 @@ func addAddressesColumnsForHistogramUpgrade(db *sql.DB) (bool, error) {
 		{"tx_type", "INT4", ""},
 	}
 	return addNewColumnsIfNotFound(db, "addresses", newColumns)
-}
-
-func addTicketsColumnsForBlockTimeUpgrade(db *sql.DB) (bool, error) {
-	// The new columns and their data types
-	newColumns := []newColumn{
-		{"block_time", "INT8", ""},
-	}
-	return addNewColumnsIfNotFound(db, "tickets", newColumns)
 }
 
 func addVinsColumnsForCoinSupply(db *sql.DB) (bool, error) {

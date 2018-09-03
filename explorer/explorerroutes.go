@@ -258,6 +258,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Debug("No tickets exist in the mempool")
 	}
+	exp.MempoolData.RUnlock()
 
 	str, err := exp.templates.execTemplateToString("ticketpool", struct {
 		Version     string
@@ -272,8 +273,6 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 		groupedTickets,
 		&mp,
 	})
-
-	exp.MempoolData.RUnlock()
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)

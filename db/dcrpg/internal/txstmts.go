@@ -130,15 +130,12 @@ const (
 	SelectRegularTxByHash = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=0;`
 	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`
 
-	SelectAllTicketsBlockTime = `SELECT block_height, block_time FROM transactions WHERE tx_type = 1;`
-
 	SelectTicketsByType = `SELECT
 		width_bucket(num_vout, array[3, 5, 6]) as ticket_bucket,
 		count(*)
 		FROM transactions JOIN tickets
 		ON transactions.id=purchase_tx_db_id WHERE pool_status=0
 		AND tickets.is_mainchain = TRUE GROUP BY ticket_bucket;`
-
 
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX uix_tx_block_in
 		ON transactions(block_hash, block_index, tree);`
