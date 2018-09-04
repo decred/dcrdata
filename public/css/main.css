@@ -598,6 +598,9 @@ body.darkBG .progress {
   background-color: rgba(151, 125, 163, 0.3);
   opacity: 0.5;
 }
+.grayed {
+  opacity: 0.5;
+}
 
 /*Typography*/
 .fs14-decimal .dot,
