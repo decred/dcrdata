@@ -360,6 +360,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		ConfirmHeight []int64
 		Version       string
 		NetName       string
+		OldestTxTime  int64
+		IsLiteMode    bool
 		ChartData     *dbtypes.ChartsData
 	}
 
@@ -401,6 +403,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
+
+	var oldestTxBlockTime int64
 
 	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
@@ -575,6 +579,14 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				NotFoundStatusType)
 			return
 		}
+
+		oldestTxBlockTime, err = exp.explorerSource.GetOldestTxBlockTime(address)
+		if err != nil {
+			log.Errorf("Unable to fetch oldest transactions block time %s: %v", address, err)
+			exp.StatusPage(w, defaultErrorCode, "oldest block time not found",
+				NotFoundStatusType)
+			return
+		}
 	}
 
 	// Set page parameters
@@ -606,6 +618,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	pageData := AddressPageData{
 		Data:          addrData,
 		ConfirmHeight: confirmHeights,
+		IsLiteMode:    exp.liteMode,
+		OldestTxTime:  oldestTxBlockTime,
 		Version:       exp.Version,
 		NetName:       exp.NetName,
 	}

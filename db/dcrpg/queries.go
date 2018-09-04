@@ -1579,6 +1579,14 @@ func closeRows(rows *sql.Rows) {
 	}
 }
 
+// retrieveOldestTxBlockTime helps choose the most appropriate address page
+// graph grouping to load by default depending on when the first transaction to
+// the specific address was made.
+func retrieveOldestTxBlockTime(db *sql.DB, addr string) (blockTime int64, err error) {
+	err = db.QueryRow(internal.SelectAddressOldestTxBlockTime, addr).Scan(&blockTime)
+	return
+}
+
 // retrieveTxHistoryByType fetches the transaction types count for all the
 // transactions associated with a given address for the given time interval.
 // The time interval is grouping records by week, month, year, day and all.
@@ -1597,14 +1605,15 @@ func retrieveTxHistoryByType(db *sql.DB, addr string,
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var blockTime, regularTx, tickets, votes, revokeTx uint64
-		err = rows.Scan(&blockTime, &regularTx, &tickets, &votes, &revokeTx)
+		var blockTime, sentRtx, receivedRtx, tickets, votes, revokeTx uint64
+		err = rows.Scan(&blockTime, &sentRtx, &receivedRtx, &tickets, &votes, &revokeTx)
 		if err != nil {
 			return nil, err
 		}
 
 		items.Time = append(items.Time, blockTime)
-		items.RegularTx = append(items.RegularTx, regularTx)
+		items.SentRtx = append(items.SentRtx, sentRtx)
+		items.ReceivedRtx = append(items.ReceivedRtx, receivedRtx)
 		items.Tickets = append(items.Tickets, tickets)
 		items.Votes = append(items.Votes, votes)
 		items.RevokeTx = append(items.RevokeTx, revokeTx)

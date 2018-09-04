@@ -13,7 +13,8 @@
         <div class="row">
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
-                <div class="mono" data-target="address.addr" style="margin-bottom: 12px;">
+                <div class="mono" data-target="address.addr"
+                    id="{{$.OldestTxTime}}" style="margin-bottom: 12px;">
                     {{.Address}}<a
                         id="qrcode-init"
                         href="javascript:showAddressQRCode('{{.Address}}');"
@@ -38,7 +39,8 @@
                     data-action="click->address#changeView"
                 >
                     <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="List" name="list">
-                    <input id="addr-btn" type="button" class="btn btn_sm" value="Charts" name="chart">
+                    <input id="addr-btn" type="button" class="btn btn_sm" value="Charts"
+                    name="chart" {{if $.IsLiteMode}}disabled{{end}}>
                 </div> 
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
@@ -157,6 +159,7 @@
                         <div
                             class="btn-group"
                             data-toggle="buttons"
+                            data-txcount="{{$TxnCount}}"
                             data-target="address.interval"
                             data-action="click->address#changeGraph"
                         >
@@ -164,7 +167,7 @@
                             <input id="chart-size" type="button" class="btn btn_sm month" value="Month" name="mo">
                             <input id="chart-size" type="button" class="btn btn_sm week" value="Week" name="wk">
                             <input id="chart-size" type="button" class="btn btn_sm day" value="Day" name="day">
-                            <input id="chart-size" type="button" class="btn btn_sm btn-active all" value="All Blocks" name="all">
+                            <input id="chart-size" type="button" class="btn btn_sm all btn-active" value="All Blocks" name="all">
                         </div>
                     </div>
                     <h5 class="mr-auto mb-0 list-display">History</h5>
@@ -197,7 +200,7 @@
                         </nav>
                     </div>
                     {{else}}
-                    <span class="fs12 nowrap text-right">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
+                    <span class="fs12 nowrap text-right list-display">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
                     {{end}}
                 </div>
                 <div class="list-display">
@@ -322,7 +325,14 @@
                             class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
                             {{if lt $TxnCount 20}}disabled="disabled"{{end}}
                         >
-                        <option {{if eq .Limit $TxnCount}}selected{{end}} value="{{len .Transactions}}">{{len .Transactions}}</option>
+                        {{$Txlen := len .Transactions}}
+                        {{if ge $TxnCount 20}}<option {{if eq $Txlen 20}}selected{{end}} value="20">20</option>{{end}}
+                        {{if ge $TxnCount 100}}<option {{if eq $Txlen 100}}selected{{end}} value="100">100</option>{{end}}
+                        {{if lt $TxnCount 1000}}
+                            {{if eq $TxnCount 20 100}}{{else}}<option {{if eq $Txlen $TxnCount}}selected{{end}}
+                                value="{{$TxnCount}}">{{$TxnCount}}</option>{{end}}
+                        {{end}}
+                        {{if ge $TxnCount 1000}}<option {{if eq $Txlen 1000}}selected{{end}} value="1000">1000</option>{{end}}
                         </select>
                     </div>
                 </div>
@@ -338,12 +348,19 @@
         $(".jsonly").show()
         $('#list-display').hide()
 
-        $("#txntype").change(function(ev) {
+        $("#txntype").add("#pagesize").change(function(ev) {
+            var pagesize = "20"
+            var offset = "0"
+            if (ev.currentTarget.id.indexOf("pagesize") != -1){
+                pagesize = $("#pagesize option:selected").val()
+                offset = {{.Offset}}
+            }
+
             Turbolinks.visit(
                 window.location.pathname
-                + "?txntype="+ $(ev.currentTarget).val()
-                + "&n=20"
-                + "&start=0"
+                + "?txntype="+ $("#txntype option:selected").val()
+                + "&n=" + pagesize
+                + "&start=" + offset
             )
         })
 

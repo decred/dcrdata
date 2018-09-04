@@ -469,6 +469,13 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 	return retrieveAgendaVoteChoices(pgb.db, agendaID, chartType)
 }
 
+// GetOldestTxBlockTime returns the block time of the oldest transaction made in
+// relation to the provided address. This helps provide more meaningful graphs
+// with the addresses history plotted.
+func (pgb *ChainDB) GetOldestTxBlockTime(addr string) (int64, error) {
+	return retrieveOldestTxBlockTime(pgb.db, addr)
+}
+
 // AddressTransactions retrieves a slice of *dbtypes.AddressRow for a given
 // address and transaction type (i.e. all, credit, or debit) from the DB. Only
 // the first N transactions starting from the offset element in the set of all
