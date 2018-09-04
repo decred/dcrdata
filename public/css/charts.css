@@ -153,6 +153,14 @@ body.loading .modal {
     -o-transform: rotate(-90deg);
     -ms-transform: rotate(-90deg);
 }
+#tickets_by_purchase_date .dygraph-ylabel {
+    color:#2971FF;
+    font-weight: bold;
+}
+#tickets_by_purchase_date .dygraph-y2label {
+    color:#ff0090;
+    font-weight: bold;
+}
 /* chart theme */
 .chart-wrapper {
     position: relative;

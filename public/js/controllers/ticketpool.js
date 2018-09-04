@@ -169,7 +169,7 @@ function barchartPlotter(e) {
                 legend: { position: 'bottom'},
                 title: {
                     display: true,
-                    text: 'Tickets Grouped by # of Outputs'
+                    text: 'Number of Ticket Outputs'
                 },
                 tooltips: {
                 callbacks: {
@@ -184,7 +184,7 @@ function barchartPlotter(e) {
             },
             type: "doughnut",
             data: {
-                labels: ["Solo", "VPS Tickets", "TixSplit"],
+                labels: ["Solo", "VSP Tickets", "TixSplit"],
                 datasets: [{
                     data: d,
                     label: 'Solo Tickets',
@@ -223,7 +223,8 @@ function barchartPlotter(e) {
                 }
                 var v = JSON.parse(evt);
                 mpl = v.Mempool
-                this.purchasesGraph.updateOptions({'file': purchasesGraphData(v.BarGraphs[0], mpl)});
+                this.purchasesGraph.updateOptions({'file': purchasesGraphData(v.BarGraphs[0], mpl), 
+                    dateWindow: getWindow(this.zoom)});
                 this.priceGraph.updateOptions({'file': priceGraphData(v.BarGraphs[1], mpl)});
 
                 this.outputsGraph.data.datasets[0].data = outputsGraphData(v.DonutChart);
