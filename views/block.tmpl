@@ -6,6 +6,7 @@
     {{ template "navbar" . }}
     <div class="container main" data-controller="main">
     {{with .Data}}
+        {{$Invalidated := and (gt .Confirmations 1) (not .Valid) }}
         <div class="row justify-content-between">
             <div class="col-md-7 col-sm-6">
                 <h4 class="mb-2">
@@ -37,7 +38,17 @@
                 <table class="">
                     {{if .MainChain}}<tr>
                         <td class="text-right pr-2 lh1rem vam nowrap" title="Stakeholder (PoS) approved?">APPROVED</td>
-                        <td class="lh1rem">{{ if gt .Confirmations 1 }}{{.Valid}}{{else}}pending{{end}}</td>
+                        <td class="lh1rem">
+                        {{ if gt .Confirmations 1 }}
+                            {{if $Invalidated}}
+                                <span class="attention" title="Regular (non-stake) transactions invalidated.">{{.Valid}}</span>
+                            {{else}}
+                                <span title="All transactions valid.">{{.Valid}}</span>
+                            {{end}}
+                        {{else}}
+                            pending
+                        {{end}}
+                        </td>
                     </tr>{{end}}
                     <tr>
                         <td class="text-right pr-2 lh1rem vam nowrap xs-w117">BLOCK HASH</td>
@@ -174,7 +185,7 @@
                                 <th class="text-right">Total DCR</th>
                                 <th>Size</th>
                             </thead>
-                            <tbody>
+                            <tbody {{if $Invalidated}}class="invalidated-tx" title="Regular transactions invalidated."{{end}}>
                                 <tr>
                                     <td class="break-word">
                                     {{if $.Data.Nonce}}
@@ -353,7 +364,7 @@
                             <th class="text-right">Fee</th>
                             <th>Size</th>
                         </thead>
-                        <tbody>
+                        <tbody {{if $Invalidated}}class="invalidated-tx" title="Regular transactions invalidated."{{end}}>
                             {{range .Tx}}
                             {{if eq .Coinbase false}}
                             <tr>
