@@ -774,6 +774,15 @@ func (db *wiredDB) GetSDiff(idx int) float64 {
 	return sdiff
 }
 
+func (db *wiredDB) GetDiff(idx int64) float64 {
+	sdiff, err := db.RetrieveDiff(idx)
+	if err != nil {
+		log.Errorf("Unable to retrieve difficulty: %v", err)
+		return -1
+	}
+	return sdiff
+}
+
 func (db *wiredDB) GetSDiffRange(idx0, idx1 int) []float64 {
 	sdiffs, err := db.RetrieveSDiffRange(int64(idx0), int64(idx1))
 	if err != nil {
@@ -946,59 +955,12 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
-	ByteSize := uint64(len(data.Hex) / 2)
-
-	if tx.Total < 50.0 {
-		tx.TxAmount = "xs"
-	} else if 50.0 <= tx.Total && tx.Total < 100.0 {
-		tx.TxAmount = "s"
-	} else if 100.0 <= tx.Total && tx.Total < 200.0 {
-		tx.TxAmount = "m"
-	} else if 200.0 <= tx.Total && tx.Total < 500.0 {
-		tx.TxAmount = "l"
-	} else if 500.0 <= tx.Total && tx.Total < 1000.0 {
-		tx.TxAmount = "xl"
-	} else if 1000.0 <= tx.Total {
-		tx.TxAmount = "xxl"
-	}
-
-	if ByteSize < 500 {
-		tx.ByteSize = "xs-size"
-	} else if 500 <= ByteSize && ByteSize < 1000 {
-		tx.ByteSize = "s-size"
-	} else if 1000 <= ByteSize && ByteSize < 2000 {
-		tx.ByteSize = "m-size"
-	} else if 2000 <= ByteSize && ByteSize < 10000 {
-		tx.ByteSize = "l-size"
-	} else if 10000 <= ByteSize && ByteSize < 50000 {
-		tx.ByteSize = "xl-size"
-	} else if 50000 <= ByteSize {
-		tx.ByteSize = "xxl-size"
-	}
-
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 	for _, i := range data.Vin {
 		if i.IsCoinBase() {
 			tx.Coinbase = true
 		}
 	}
-
-	FeeRate := tx.FeeRate.ToCoin()
-
-	if FeeRate < 0.001 {
-		tx.FeeRateSize = "lowest"
-	} else if 0.001 <= FeeRate && FeeRate < 0.01 {
-		tx.FeeRateSize = "low"
-	} else if 0.01 <= FeeRate && FeeRate < 0.1 {
-		tx.FeeRateSize = "moderate"
-	} else if 0.1 <= FeeRate && FeeRate < 0.5 {
-		tx.FeeRateSize = "moderate-high"
-	} else if 0.5 <= FeeRate && FeeRate < 1.0 {
-		tx.FeeRateSize = "high"
-	} else if 1.0 <= FeeRate {
-		tx.FeeRateSize = "very-high"
-	}
-
 	if stake.IsSSGen(msgTx) {
 		validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
@@ -1526,57 +1488,6 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 		}
 		var voteInfo *explorer.VoteInfo
 
-		_, Fee_Rate := txhelpers.TxFeeRate(msgTx)
-
-		FeeRate := Fee_Rate.ToCoin()
-		var FeeRateSize string
-
-		if FeeRate < 0.001 {
-			FeeRateSize = "lowest"
-		} else if 0.001 <= FeeRate && FeeRate < 0.01 {
-			FeeRateSize = "low"
-		} else if 0.01 <= FeeRate && FeeRate < 0.1 {
-			FeeRateSize = "moderate"
-		} else if 0.1 <= FeeRate && FeeRate < 0.5 {
-			FeeRateSize = "moderate-high"
-		} else if 0.5 <= FeeRate && FeeRate < 1.0 {
-			FeeRateSize = "high"
-		} else if 1.0 <= FeeRate {
-			FeeRateSize = "very-high"
-		}
-
-		var TxAmount string
-
-		if total < 50.0 {
-			TxAmount = "xs"
-		} else if 50.0 <= total && total < 100.0 {
-			TxAmount = "s"
-		} else if 100.0 <= total && total < 200.0 {
-			TxAmount = "m"
-		} else if 200.0 <= total && total < 500.0 {
-			TxAmount = "l"
-		} else if 500.0 <= total && total < 1000.0 {
-			TxAmount = "xl"
-		} else if 1000.0 <= total {
-			TxAmount = "xxl"
-		}
-
-		var ByteSize string
-
-		if tx.Size < 500 {
-			ByteSize = "xs-size"
-		} else if 500 <= tx.Size && tx.Size < 1000 {
-			ByteSize = "s-size"
-		} else if 1000 <= tx.Size && tx.Size < 2000 {
-			ByteSize = "m-size"
-		} else if 2000 <= tx.Size && tx.Size < 10000 {
-			ByteSize = "l-size"
-		} else if 10000 <= tx.Size && tx.Size < 50000 {
-			ByteSize = "xl-size"
-		} else if 50000 <= tx.Size {
-			ByteSize = "xxl-size"
-		}
-
 		if ok := stake.IsSSGen(msgTx); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, db.params)
 			if err != nil {
@@ -1597,15 +1508,12 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 			}
 		}
 		txs = append(txs, explorer.MempoolTx{
-			Hash:        hash,
-			Time:        tx.Time,
-			Size:        tx.Size,
-			TotalOut:    total,
-			TxAmount:    TxAmount,
-			FeeRateSize: FeeRateSize,
-			ByteSize:    ByteSize,
-			Type:        txhelpers.DetermineTxTypeString(msgTx),
-			VoteInfo:    voteInfo,
+			Hash:     hash,
+			Time:     tx.Time,
+			Size:     tx.Size,
+			TotalOut: total,
+			Type:     txhelpers.DetermineTxTypeString(msgTx),
+			VoteInfo: voteInfo,
 		})
 	}
 

@@ -43,59 +43,57 @@
 {{end}}
 
 {{define "navbar"}}
+<header>
 <div class="top-nav">
     <div class="container">
-        <div class="d-flex align-items-center flex-wrap">
-            <div class="d-flex align-items-center">
-                <div class="col-sm-auto" style="padding: 0 2px">
-                    <a href="/" class="no-underline"><img src="/images/logo.png" alt="dcr icon"></a>
-                </div>
-            </div>
-            <div class="col pl-2">
+        <div class="logo"><img src="/images/logo.png" alt="dcr-icon"></div>
+        <div class="right">
+            <div class="searchbox">
+                <img src="/images/search.png" alt="">
                 <form class="navbar-form" role="search" id="search-form" action="/search">
-                    <div class="input-group">
-                        <input
-                            tabindex="0"
-                            type="text"
-                            name="search"
-                            id="search"
-                            class="form-control top-search mousetrap"
-                            placeholder="Search for blocks, addresses or transactions"
-                        />
-                    </div>
+                    <input
+                        tabindex="0"
+                        type="text"
+                        class="hide"
+                        name="search"
+                        id="search"
+                        class="form-control top-search mousetrap"
+                        placeholder="Search for blocks, addresses or transactions"
+                    />
                 </form>
             </div>
             <nav role="navigation" id="hamburger-menu" data-turbolinks-permanent>
-                <div id="menuToggle">
-                    <input type="checkbox" id="menuToggleCheckbox"/>
-                    <span class="patty"></span>
-                    <span class="patty"></span>
-                    <span class="patty short"></span>
-                    <div id="menu">
-                        <a data-keynav-skip href="/" title="Home">Home</a>
-                        <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
-                        <a data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
-                        <a data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
-                        <a data-keynav-skip href="/charts" title="Decred charts">Charts</a>
-                        <a data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
-                        <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
-                        <a data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
-                        {{if eq .NetName "Mainnet"}}
-                           <a data-keynav-skip href="http://testnet.dcrdata.org/" title="Home">Switch To Testnet</a>
-                        {{else}}
-                           <a data-keynav-skip href="https://explorer.dcrdata.org/" title="Home">Switch To Mainnet</a>
-                        {{end}}
-                        <a data-keynav-skip data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>
-                        <a data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
-                            <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
-                        </a>
-                        <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>
-                    </div>
+            <div id="menuToggle">
+                <input type="checkbox" id="menuToggleCheckbox"/>
+                <span class="patty"></span>
+                <span class="patty"></span>
+                <span class="patty short"></span>
+                <div id="menu">
+                    <a data-keynav-skip href="/" title="Home">Home</a>
+                    <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
+                    <a data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
+                    <a data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
+                    <a data-keynav-skip href="/charts" title="Decred charts">Charts</a>
+                    <a data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
+                    <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
+                    <a data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
+                    {{if eq .NetName "Mainnet"}}
+                    <a data-keynav-skip href="http://testnet.dcrdata.org/" title="Home">Switch To Testnet</a>
+                    {{else}}
+                    <a data-keynav-skip href="https://explorer.dcrdata.org/" title="Home">Switch To Mainnet</a>
+                    {{end}}
+                    <a data-keynav-skip data-turbolinks="false" href="javascript:toggleSun()" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>
+                    <a data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
+                        <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
+                    </a>
+                    <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>
                 </div>
-            </nav>
+            </div>
+        </nav>
         </div>
     </div>
 </div>
+</header>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
     $(".jsonly").show()
@@ -828,16 +826,13 @@ const app = Stimulus.Application.start()
 
 {{define "decimalParts"}}
     {{if eq (len .) 4}}
-        <span class="int">{{ index . 0 }}.{{ index . 1 }}</span>
-        <span class="decimal lh15rem">{{ index . 2 }}</span>
-        <span class="decimal lh15rem trailing-zeroes">{{ index . 3 }}</span>
-    {{else}}
-        <span class="int">{{ index . 0 }}</span>
-        {{if (gt (len (index . 1)) 0) | (gt (len (index . 2)) 0)}}
-            <span class="dot">.</span>
-            <span class="decimal">{{ index . 1 }}
-                <span class="trailing-zeroes">{{ index . 2 }}</span>
-            </span>
-        {{end}}
+    <span class="int">{{ index . 0 }}.{{ index . 1 }}</span>{{if gt (len (index . 2)) 0}}<span class="decimal lh15rem">{{ index . 2 }}</span><span class="decimal lh15rem trailing-zeroes">{{ index . 3 }}</span>{{end}}
+    {{else}} 
+    <span class="int">{{index . 0}}</span>{{if gt (len (index . 1)) 0}}<span class="dot">.</span><span class="decimal lh15rem">{{index . 1 }}</span><span class="decimal lh15rem trailing-zeroes">{{index . 2}}</span>{{end}}
     {{end}}
+{{end}}
+
+{{define "fmtPercentage"}}
+    {{if gt . 0.0}}<span style="color:green">+{{printf "%.2f" .}} %</span>
+    {{else}}<span style="color:red">-{{printf "%.2f" .}} %</span>{{end}}
 {{end}}

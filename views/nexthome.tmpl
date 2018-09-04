@@ -6,8 +6,10 @@
     {{ template "navbar" . }}
     <div id="mainContainer" class="container" data-controller="main">
         <div class="row">
-            <div class="col-md-6 networkStatsWrapper font-weight-bold">
-                <h4 class="title" >{{.NetName}} Network Statistics</h4>
+            <div class="col-lg-6 networkStatsWrapper font-weight-bold">
+                <a class="no-underline" href="/statistics">
+                    <h3 class="title font-weight-bold" >{{.NetName}} Network Statistics</h3>
+                </a>
                 {{with .Info}}
                 <div class="statCard general">
                     <div class="row">
@@ -29,7 +31,7 @@
                         <div class="col-sm-4">
                             <div class="heading">Dev Reward</div>
                             <div id="bsubsidy_dev" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 2 true 2)}}
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
                                 <span class="subcount"></span>
                                 <span class="pl-1 unit lh15rem"> DCR</span>
                             </div>
@@ -63,29 +65,31 @@
                         <div class="col-sm-4">
                             <div class="heading">Total Locked DCR</div>
                             <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
+                                {{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 0 true)}}
                                 <span class="subcount"></span>
                                 <span class="pl-1 unit lh15rem">DCR</span>
                             </div>
                             <div class="subdata">
-                                <span class="count" id="pool_size_percentage">({{printf "%.2f" .PoolInfo.Percentage}}% of total supply)</span>
+                                <span class="count" id="pool_size_percentage">({{printf "%.2f" .PoolInfo.Percentage}} % of total supply)</span>
                             </div>
                         </div>
                         <div class="col-sm-4">
                             <div class="heading">PoS Reward</div>
                             <div id="bsubsidy_pos" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (divide .NBlockSubsidy.PoS 5)) 2 true 2)}}
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (divide .NBlockSubsidy.PoS 5)) 8 true 2)}}
                                 <span class="subcount"></span>
-                                <span class="pl-1 unit lh15rem"> DCR</span><span class="fs14 pl-1 unit lh15rem">/ticket</span>
+                                <span class="pl-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
                             </div>
                             <div class="subdata">
-                                <span id="ticket_reward" class="count green mono lh1rem">(+{{printf "%.2f" .TicketReward}}% per ~{{.RewardPeriod}})</span>
+                                <span id="ticket_reward" class="count">({{template "fmtPercentage" .TicketReward}} per ~{{.RewardPeriod}})</span>
                             </div>
                         </div>
                         <div class="col-sm-4">
-                            <div class="heading">Ticket Price</div>
+                            <div class="heading">
+                                <a class="no-underline" href="/charts#ticket-price">Ticket Price</a>
+                            </div>
                             <div id="coin_supply" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                {{template "decimalParts" (float64AsDecimalParts .StakeDiff 2 false 2)}}
+                                {{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}
                                 <span class="subcount"></span>
                                 <span class="pl-1 unit lh15rem">DCR</span>
                             </div>
@@ -102,24 +106,26 @@
                         <div class="col-12">
                             <span><img src="/images/mining.png" alt="mining"><p class="statcard-title">Mining</p></span>
                         </div>
-                        <div class="col-sm-5">
-                            <div class="heading">Difficulty</div>
+                        <div class="col-sm-4">
+                            <div class="heading">
+                                <a class="no-underline" href="/charts#pow-difficulty">Difficulty</a>
+                            </div>
                             <div id="difficulty" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                {{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}
+                                {{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}
                                 <span class="subcount"></span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
+                                <span class="pl-1 unit lh15rem">Mil</span>
                             </div>
                             <div class="subdata">
                                 <p class="count red"></p>
                                 <span class="currencyName"></span>
                             </div>
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-sm-4">
                             <div class="heading">PoW Reward</div>
                             <div id="bsubsidy_pow" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 2 true 2)}}
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}
                                 <span class="subcount"></span>
-                                <span class="pl-1 unit lh15rem"> DCR</span>
+                                <span class="pl-1 unit lh15rem">DCR</span>
                             </div>
                             <div class="subdata">
                                 <p class="count green"></p>
@@ -129,12 +135,12 @@
                         <div class="col-sm-4">
                             <div class="heading">Hashrate</div>
                             <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 2 false 2)}}
+                                {{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}
                                 <span class="subcount"></span>
-                                <span class="pl-1 unit lh15rem">Thrash/s</span>
+                                <span class="pl-1 unit lh15rem">Ph/s</span>
                             </div>
                             <div class="subdata">
-                                <span class="count">(+4.24% in 24h)</span>
+                                <span class="count">({{template "fmtPercentage" .HashRateChange}} in 24h)</span>
                                 <span class="currencyName"></span>
                             </div>
                         </div>
@@ -144,8 +150,10 @@
 
             </div>
 
-            <div class="col-md-6 decBlockchainWrapper">
-                <h4 class="title">Decred Blockchain</h4>
+            <div class="col-lg-6 decBlockchainWrapper">
+                <a class="no-underline" href="/blocks">
+                    <h3 class="title font-weight-bold">Decred Blockchain</h3>
+                </a>
                 <div class="row">
                     {{with .Mempool}}
                     <div class="col-lg-4 col-md-6 decredblockWrap">
@@ -170,13 +178,13 @@
                                             <div class="subdata">sent in {{.NumRegular}} transactions</div>
                                         </div>
                                         <div class="col-5" style="margin-left:6%;">
-                                            <img src="/images/tickets.png" alt="tickets" style="margin: 10% 10%;">
+                                            <img src="/images/votes.png" alt="votes" style="margin: 10% 10%;">
                                             <div class="data">
                                                 <p class="count">{{.NumVotes}}</p>
                                             </div>
                                         </div>
                                         <div class="col-6">
-                                            <img src="/images/staking.png" alt="staking" style="margin: 10% 10%;">
+                                            <img src="/images/staking.png" alt="tickets" style="margin: 10% 10%;">
                                             <div class="data">
                                                 <p class="count">{{.NumTickets}}</p>
                                             </div>
@@ -217,15 +225,15 @@
                                             <div class="subdata">sent in {{.Transactions}} transactions</div>
                                         </div>
                                         <div class="col-5" style="margin-left:6%;">
-                                            <img src="/images/tickets.png" alt="tickets" style="margin: 10% 10%;">
+                                            <img src="/images/votes.png" alt="votes" style="margin: 10% 10%;">
                                             <div class="data">
                                                 <p class="count">{{.Voters}}</p>
                                             </div>
                                         </div>
                                         <div class="col-6">
-                                            <img src="/images/staking.png" alt="staking" style="margin: 10% 10%;">
+                                            <img src="/images/staking.png" alt="tickets" style="margin: 10% 10%;">
                                             <div class="data">
-                                                <p class="count">{{len .Tickets}}</p>
+                                                <p class="count">{{.FreshStake}}</p>
                                             </div>
                                         </div>
                                         <div class="col-12">

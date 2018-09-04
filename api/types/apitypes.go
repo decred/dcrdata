@@ -5,7 +5,6 @@ package types
 
 import (
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
@@ -301,51 +300,6 @@ type BlockExplorerBasic struct {
 	StakeDiff   float64 `json:"sdiff"`
 	Time        int64   `json:"time"`
 	BlockExplorerExtraInfo
-}
-
-// BlockDataInfo models detailed information about block at height Height
-// for the block explorer.
-type BlockDataInfo struct {
-	*BlockExplorerBasic
-	Hash                  string
-	Version               int32
-	Confirmations         int64
-	StakeRoot             string
-	MerkleRoot            string
-	TxAvailable           bool
-	Tx                    []*TxBasic
-	Tickets               []*TxBasic
-	Revs                  []*TxBasic
-	Votes                 []*TxBasic
-	Misses                []string
-	Nonce                 uint32
-	VoteBits              uint16
-	FinalState            string
-	PoolSize              uint32
-	Bits                  string
-	SBits                 float64
-	Difficulty            float64
-	ExtraData             string
-	StakeVersion          uint32
-	PreviousHash          string
-	NextHash              string
-	TotalSent             float64
-	MiningFee             dcrutil.Amount
-	StakeValidationHeight int64
-}
-
-// TxBasic models data for transactions on the block page
-type TxBasic struct {
-	TxID          string
-	FormattedSize string
-	ByteSize      string
-	TxAmount      string
-	FeeRateSize   string
-	Total         float64
-	Fee           dcrutil.Amount
-	FeeRate       dcrutil.Amount
-	VoteInfo      *VoteInfo
-	Coinbase      bool
 }
 
 // BlockExplorerExtraInfo contains supplemental block metadata used by the

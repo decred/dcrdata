@@ -2,6 +2,7 @@ package dbtypes
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/wire"
@@ -82,4 +83,11 @@ func ChartGroupingToInterval(grouping ChartGrouping) (float64, error) {
 	default:
 		return -1, fmt.Errorf(`unknown chart grouping "%d"`, grouping)
 	}
+}
+
+// CalculateHashRate calculates the block chain from the difficulty value and
+// the targetTimePerBlock in seconds. The hashrate return is in form PentaHash
+// per second (PH/s).
+func CalculateHashRate(difficulty, targetTimePerBlock float64) float64 {
+	return ((difficulty * math.Pow(2, 32)) / targetTimePerBlock) / 1000000
 }

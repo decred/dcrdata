@@ -357,14 +357,6 @@ body.darkBG .progress {
   background: transparent !important;
 }
 
-#hamburger-menu {
-  flex: 0 40px;
-  z-index: 10;
-  width: 100%;
-  top: 0px;
-  right: 0px;
-  left: 0px;
-}
 #hamburger-menu a {
   display: block;
   padding: 0 20px;

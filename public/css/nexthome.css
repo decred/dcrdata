@@ -1,22 +1,14 @@
 @import url("https://fonts.googleapis.com/css?family=Inconsolata:400,700|Source+Sans+Pro:400,600");
-header {
-  height: 64px;
-  background-color: #ffffff;
-  height: 64px; }
   header .container {
     display: flex;
     justify-content: space-between;
     align-items: center;
     height: 64px; }
-  header img {
-    width: 40px; }
   header .right {
     display: flex;
     flex: 1;
     justify-content: flex-end;
     align-items: center; }
-    header .right * {
-      float: left; }
     header .right .searchbox {
       margin-right: 25px;
       cursor: pointer; }
@@ -214,6 +206,9 @@ body {
     margin-bottom: 20px;
     margin-right: 35px;}
     .networkStatsWrapper .statCard img {
+      margin-top: 4px;
+      margin-bottom: 12px;
+      margin-right: 12px;
       float: left; }
     .networkStatsWrapper .statCard p.statcard-title {
       font-family: "Source Sans Pro", sans-serif;
@@ -469,3 +464,59 @@ footer {
     width: 150px; } } 
 
 /*# sourceMappingURL=main.css.map */
+
+@media only screen and (max-width: 768px)  {
+  .container {
+    max-width: 85% !important;
+  }
+  .col-md-6 {
+    flex: 0 0 50%;
+    max-width: 100%;
+  }
+  .col-sm-4 {
+    flex: 0 0 33.333333%;
+    max-width: 33.333333%;
+  }
+  .col-lg-4 {
+    flex: 0 0 100%;
+    max-width: 33.333333%;
+  }
+  .networkStatsWrapper .statCard {
+    margin-right: 1% !important;
+    min-height: fit-content;
+  }
+  .dcr-icon {
+    width: 100px;
+  }
+  .dcr-icon-container {
+    width: 100px;
+  }
+}
+
+@media only screen and (max-width: 576px)  {
+  .networkStatsWrapper {
+    padding: 40px 0px;
+  }
+  .decBlockchainWrapper {
+    padding: 0px 0px;
+  }
+  .col-lg-4 {
+    flex: 0 0 100%;
+    max-width: 50%;
+  }
+  .col-sm-4 {
+    flex: 0 0 100%;
+    max-width: 100%;
+    padding-right: 0px;
+    padding-left: 0px;
+  }
+  .dcr-icon {
+    width: 60px;
+  }
+  .dcr-icon-container {
+    width: 60px;
+  }
+  .navbar-fixed-bottom{
+    font-size: 12px;
+  }
+}

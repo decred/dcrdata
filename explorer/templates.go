@@ -109,11 +109,18 @@ var toInt64 = func(v interface{}) int64 {
 	}
 }
 
+// standard golang package math in go1.9 doesn't support math.Round
+func Round(val float64, places int) (newVal float64) {
+	pow := math.Pow(10, float64(places))
+	digit := pow * val
+	newVal = math.Floor(digit) / pow
+	return
+}
+
 // boldNumPlaces defines the number of decimal places to be write with same font as the whole
 // number value of the float
 func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces ...int) []string {
-	sigFig := math.Pow(10, float64(numPlaces))
-	formattedVal := math.Round(v*sigFig) / sigFig
+	formattedVal := Round(v, numPlaces)
 	clipped := fmt.Sprintf("%."+strconv.Itoa(numPlaces)+"f", formattedVal)
 	oldLength := len(clipped)
 	clipped = strings.TrimRight(clipped, "0")
@@ -157,6 +164,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return a - b
 		},
 		"divide": func(n, d int64) int64 {
+			return n / d
+		},
+		"divideFloat": func(n float64, d float64) float64 {
 			return n / d
 		},
 		"multiply": func(a, b int64) int64 {

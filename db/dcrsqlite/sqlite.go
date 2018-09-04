@@ -66,6 +66,7 @@ type DB struct {
 	getStakeInfoWinnersSQL                                       string
 	getAllPoolValSize                                            string
 	getAllFeeInfoPerBlock                                        string
+	getLast24HrDifficulty                                        string
 }
 
 // NewDB creates a new DB instance with pre-generated sql statements from an
@@ -94,7 +95,7 @@ func NewDB(db *sql.DB) (*DB, error) {
 	d.getWinnersByHashSQL = fmt.Sprintf(`select height, winners from %s where hash = ?`,
 		TableNameSummaries)
 
-	d.getSDiffSQL = fmt.Sprintf(`select sdiff from %s where height = ?`,
+	d.getSDiffSQL = fmt.Sprintf(`select sdiff, diff from %s where height = ?`,
 		TableNameSummaries)
 	d.getSDiffRangeSQL = fmt.Sprintf(`select sdiff from %s where height between ? and ?`,
 		TableNameSummaries)
@@ -651,10 +652,17 @@ func (db *DB) RetrieveBlockSummaryByTimeRange(minTime, maxTime int64, limit int)
 	return blocks, nil
 }
 
+// RetrieveDiff returns the difficulty for block ind
+func (db *DB) RetrieveDiff(ind int64) (float64, error) {
+	var sdiff, diff float64
+	err := db.QueryRow(db.getSDiffSQL, ind).Scan(&sdiff, &diff)
+	return diff, err
+}
+
 // RetrieveSDiff returns the stake difficulty for block ind
 func (db *DB) RetrieveSDiff(ind int64) (float64, error) {
-	var sdiff float64
-	err := db.QueryRow(db.getSDiffSQL, ind).Scan(&sdiff)
+	var sdiff, diff float64
+	err := db.QueryRow(db.getSDiffSQL, ind).Scan(&sdiff, &diff)
 	return sdiff, err
 }
 
