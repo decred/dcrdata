@@ -64,17 +64,6 @@ type client struct {
 	newTxs []*MempoolTx
 }
 
-// ticketPoolEvent helps handles multiple requests sent by the clients that need
-// the same ticketpool data as a single request. Once ticketpool event is made
-// active, only once can the ticketpool event be handled till there exist
-// an updated data (when a new block is added).
-type ticketPoolEvent struct {
-	sync.RWMutex
-	Active bool
-}
-
-var tpEvent = new(ticketPoolEvent)
-
 type hubSignal int
 type hubSpoke chan hubSignal
 

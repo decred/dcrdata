@@ -106,15 +106,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					webData.Message = string(msg)
 
 				case "getticketpooldata":
-					// Ensures that multiple requests for the same update are
-					// treated as the single request.
-					if !tpEvent.Active {
-						log.Warn("ticketpool event has not updated data.")
-						break
-					}
-
-					tpEvent.Active = false
-
+					// TODO: Implement a cache to control websocket connections
+					// meant to serve the same data.
 					cData, gData, err := exp.explorerSource.TicketPoolVisualization(
 						dbtypes.ChartGroupingFromStr(msg.Message),
 					)
@@ -221,10 +214,6 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						Extra: exp.ExtraInfo,
 					})
 					exp.NewBlockDataMtx.RUnlock()
-
-					tpEvent.Lock()
-					tpEvent.Active = true
-					tpEvent.Unlock()
 
 					webData.Message = buff.String()
 				case sigMempoolUpdate:
