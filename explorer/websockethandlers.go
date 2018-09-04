@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/decred/dcrdata/db/dbtypes"
 	"golang.org/x/net/websocket"
 )
 
@@ -59,21 +60,22 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				// handle received message according to event ID
 				var webData WebSocketMessage
+				//  If the request sent is past the limit continue to the next iteration.
+				if len(msg.Message) > requestLimit {
+					log.Debug("Request size over limit")
+					webData.Message = "Request too large"
+					continue
+				}
+
 				switch msg.EventId {
 				case "decodetx":
-					webData.EventId = msg.EventId + "Resp"
-					if len(msg.Message) > requestLimit {
-						log.Debug("Request size over limit")
-						webData.Message = "Request too large"
-						break
-					}
 					log.Debugf("Received decodetx signal for hex: %.40s...", msg.Message)
 					tx, err := exp.blockData.DecodeRawTransaction(msg.Message)
 					if err == nil {
 						message, err := json.MarshalIndent(tx, "", "    ")
 						if err != nil {
 							log.Warn("Invalid JSON message: ", err)
-							webData.Message = fmt.Sprintf("Error: Could not encode JSON message")
+							webData.Message = "Error: Could not encode JSON message"
 							break
 						}
 						webData.Message = string(message)
@@ -81,13 +83,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						log.Debugf("Could not decode raw tx")
 						webData.Message = fmt.Sprintf("Error: %v", err)
 					}
+
 				case "sendtx":
-					webData.EventId = msg.EventId + "Resp"
-					if len(msg.Message) > requestLimit {
-						log.Debugf("Request size over limit")
-						webData.Message = "Request too large"
-						break
-					}
 					log.Debugf("Received sendtx signal for hex: %.40s...", msg.Message)
 					txid, err := exp.blockData.SendRawTransaction(msg.Message)
 					if err != nil {
@@ -95,19 +92,68 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					} else {
 						webData.Message = fmt.Sprintf("Transaction sent: %s", txid)
 					}
-				case "getmempooltxs":
-					webData.EventId = msg.EventId + "Resp"
 
+				case "getmempooltxs":
 					exp.MempoolData.RLock()
 					msg, err := json.Marshal(exp.MempoolData)
 					exp.MempoolData.RUnlock()
 
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)
-						webData.Message = fmt.Sprintf("Error: Could not encode JSON message")
+						webData.Message = "Error: Could not encode JSON message"
 						break
 					}
 					webData.Message = string(msg)
+
+				case "getticketpooldata":
+					// TODO: Implement a cache to control websocket connections
+					// meant to serve the same data.
+					cData, gData, err := exp.explorerSource.TicketPoolVisualization(
+						dbtypes.ChartGroupingFromStr(msg.Message),
+					)
+					if err != nil {
+						if strings.HasPrefix(err.Error(), "unknown interval") {
+							log.Debugf("Invalid ticket pool interval provided via getticketpooldata: %s", msg.Message)
+							webData.Message = "Error: " + err.Error()
+							break
+						}
+						log.Errorf("TicketPoolVisualization error: %v", err)
+						webData.Message = "Error: Failed to fetch ticketpool data"
+						break
+					}
+
+					exp.MempoolData.RLock()
+					var mpData = exp.MempoolData
+
+					var mp = dbtypes.PoolTicketsData{}
+
+					if len(mpData.Tickets) > 0 {
+						mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
+						mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
+						mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
+					} else {
+						log.Debug("No tickets exists in the mempool")
+					}
+					exp.MempoolData.RUnlock()
+
+					var data = struct {
+						BarGraphs  []*dbtypes.PoolTicketsData
+						DonutChart *dbtypes.PoolTicketsData
+						Mempool    *dbtypes.PoolTicketsData
+					}{
+						cData,
+						gData,
+						&mp,
+					}
+
+					msg, err := json.Marshal(data)
+					if err != nil {
+						log.Warn("Invalid JSON message: ", err)
+						webData.Message = "Error: Could not encode JSON message"
+						break
+					}
+					webData.Message = string(msg)
+
 				case "ping":
 					log.Tracef("We've been pinged: %.40s...", msg.Message)
 					continue
@@ -115,6 +161,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					log.Warnf("Unrecognized event ID: %v", msg.EventId)
 					continue
 				}
+
+				webData.EventId = msg.EventId + "Resp"
 
 				// send the response back on the websocket
 				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
@@ -166,6 +214,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						Extra: exp.ExtraInfo,
 					})
 					exp.NewBlockDataMtx.RUnlock()
+
 					webData.Message = buff.String()
 				case sigMempoolUpdate:
 					exp.MempoolData.RLock()

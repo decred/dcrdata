@@ -36,6 +36,7 @@ const (
 	vinsTxHistogramUpgrade
 	addressesTxHistogramUpgrade
 	agendasVotingMilestonesUpgrade
+	ticketsTableBlockTimeUpgrade
 )
 
 type TableUpgradeType struct {
@@ -186,12 +187,28 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		// Go on to next upgrade
 		fallthrough
 
-		// Upgrade from 3.5.0 --> 3.5.1
+	// Upgrade from 3.5.0 --> 3.5.1
 	case version.major == 3 && version.minor == 5 && version.patch == 0:
 		toVersion = TableVersion{3, 5, 1}
 
 		theseUpgrades := []TableUpgradeType{
 			{"agendas", agendasVotingMilestonesUpgrade},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
+		// Go on to next upgrade
+		fallthrough
+
+		// Upgrade from 3.5.1 --> 3.5.2
+	case version.major == 3 && version.minor == 5 && version.patch == 1:
+		toVersion = TableVersion{3, 5, 2}
+
+		theseUpgrades := []TableUpgradeType{
+			{"tickets", ticketsTableBlockTimeUpgrade},
 		}
 
 		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
@@ -288,6 +305,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		// migration between pg version 3.2.0 and 3.5.0.
 		tableReady = true
 		tableName, upgradeTypeStr = "agendas", "voting milestones"
+	case ticketsTableBlockTimeUpgrade:
+		tableReady = true
+		tableName, upgradeTypeStr = "tickets", "new index"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -380,7 +400,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("This an extremely I/O intensive operation on the database machine. It can take from 30-90 minutes.")
 		rowsUpdated, err = updateAllAddressesValidMainchain(pgb.db)
 
-	case votesTableBlockHashIndex:
+	case votesTableBlockHashIndex, ticketsTableBlockTimeUpgrade:
 		// no upgrade, just "reindex"
 	case vinsTxHistogramUpgrade, addressesTxHistogramUpgrade:
 		var height uint64
@@ -402,7 +422,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	}
 
 	if err != nil {
-		return false, fmt.Errorf(`%s upgrade of %s table ended prematurely after %d rows. `+
+		return false, fmt.Errorf(`%s upgrade of %s table ended prematurely after %d rows.`+
 			`Error: %v`, upgradeTypeStr, tableName, rowsUpdated, err)
 	}
 
@@ -427,6 +447,12 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("Indexing votes table on block hash...")
 		if err = IndexVotesTableOnBlockHash(pgb.db); err != nil {
 			return false, fmt.Errorf("failed to index votes table on block_hash: %v", err)
+		}
+
+	case ticketsTableBlockTimeUpgrade:
+		log.Infof("Index the tickets table on Pool status...")
+		if err = IndexTicketsTableOnPoolStatus(pgb.db); err != nil {
+			return false, fmt.Errorf("failed to index tickets table: %v", err)
 		}
 	}
 
@@ -476,7 +502,7 @@ func (pgb *ChainDB) handleVinsTableMainchainupgrade() (int64, error) {
 
 		numUpd, err := pgb.upgradeVinsMainchainForMany(vinDbIDsBlk, areValid, areMainchain)
 		if err != nil {
-			log.Warnf("Unable to set valid/mainchain for vins: %v", err)
+			log.Warnf("unable to set valid/mainchain for vins: %v", err)
 		}
 		rowsUpdated += numUpd
 		if i%10000 == 0 {
@@ -518,7 +544,6 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 		if err != nil {
 			return 0, err
 		}
-
 		rowsUpdated += c
 	}
 
@@ -889,7 +914,6 @@ func addAddressesColumnsForHistogramUpgrade(db *sql.DB) (bool, error) {
 	newColumns := []newColumn{
 		{"tx_type", "INT4", ""},
 	}
-
 	return addNewColumnsIfNotFound(db, "addresses", newColumns)
 }
 

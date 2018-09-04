@@ -528,6 +528,58 @@ func (pgb *ChainDB) AddressHistoryAll(address string, N, offset int64) ([]*dbtyp
 	return pgb.AddressHistory(address, N, offset, dbtypes.AddrTxnAll)
 }
 
+// GetTicketPoolBlockMaturity returns the block at which all tickets with height
+// greater than it are immature.
+func (pgb *ChainDB) GetTicketPoolBlockMaturity() int64 {
+	bestBlock := int64(pgb.stakeDB.Height())
+	return bestBlock - int64(pgb.chainParams.TicketMaturity)
+}
+
+// GetTicketPoolByDateAndInterval fetches the tickets ordered by the purchase date
+// interval provided and an error value.
+func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
+	interval dbtypes.ChartGrouping) (*dbtypes.PoolTicketsData, error) {
+	val, err := dbtypes.ChartGroupingToInterval(interval)
+	if err != nil {
+		return nil, err
+	}
+
+	return retrieveTicketsByDate(pgb.db, maturityBlock, int64(val))
+}
+
+// TicketPoolVisualization fetches the following ticketpool data: tickets
+// grouped on the specified interval, tickets grouped by price, and ticket
+// counts by ticket type (solo, pool, other split). The interval may be one of:
+// "mo", "wk", "day", or "all". The data is needed to populate the ticketpool
+// graphs. The data grouped by time and price are returned in a slice.
+func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.ChartGrouping) (
+	[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
+	var maturityBlock = pgb.GetTicketPoolBlockMaturity()
+
+	// Tickets grouped by time interval
+	ticketsByTime, err := pgb.GetTicketPoolByDateAndInterval(maturityBlock, interval)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Tickets grouped by price
+	ticketsByPrice, err := retrieveTicketByPrice(pgb.db, maturityBlock)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Return time- and price-grouped data in a slice
+	allTickets := []*dbtypes.PoolTicketsData{ticketsByTime, ticketsByPrice}
+
+	// Tickets grouped by type (solo, pool, other split)
+	grpTickets, err := retrieveTickesGroupedByType(pgb.db)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return allTickets, grpTickets, nil
+}
+
 // retrieveDevBalance retrieves a new DevFundBalance without regard to the cache
 func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
 	bb, hash, _, err := RetrieveBestBlockHeight(pgb.db)
@@ -1306,6 +1358,10 @@ func (pgb *ChainDB) IndexTicketsTable() error {
 	if err := IndexTicketsTableOnHashes(pgb.db); err != nil {
 		return err
 	}
+	log.Infof("Indexing tickets table on ticket pool status...")
+	if err := IndexTicketsTableOnPoolStatus(pgb.db); err != nil {
+		return err
+	}
 	log.Infof("Indexing tickets table on transaction Db ID...")
 	return IndexTicketsTableOnTxDbID(pgb.db)
 }
@@ -1315,6 +1371,10 @@ func (pgb *ChainDB) IndexTicketsTable() error {
 func (pgb *ChainDB) DeindexTicketsTable() error {
 	var errAny error
 	if err := DeindexTicketsTableOnHash(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
+	if err := DeindexTicketsTableOnPoolStatus(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
 	}

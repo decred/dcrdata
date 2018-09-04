@@ -237,6 +237,54 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// Ticketpool is the page handler for the "/ticketpool" path
+func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
+	chartData, groupedTickets, err := exp.explorerSource.TicketPoolVisualization(
+		dbtypes.ChartGroupingFromStr("all"),
+	)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+	var mp = dbtypes.PoolTicketsData{}
+	exp.MempoolData.RLock()
+	var mpData = exp.MempoolData
+
+	if len(mpData.Tickets) > 0 {
+		mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
+		mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
+		mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
+	} else {
+		log.Debug("No tickets exist in the mempool")
+	}
+	exp.MempoolData.RUnlock()
+
+	str, err := exp.templates.execTemplateToString("ticketpool", struct {
+		Version     string
+		NetName     string
+		ChartData   []*dbtypes.PoolTicketsData
+		GroupedData *dbtypes.PoolTicketsData
+		Mempool     *dbtypes.PoolTicketsData
+	}{
+		exp.Version,
+		exp.NetName,
+		chartData,
+		groupedTickets,
+		&mp,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // TxPage is the page handler for the "/tx" path
 func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// attempt to get tx hash string from URL path

@@ -24,6 +24,21 @@
 .dygraph-axis-label {
     z-index: 0 !important;
 }
+.tickets {
+    width:100%;
+    height:300px;
+    margin:0 auto;
+    font-size:14px;
+}
+.ticket_by_types {
+    margin-top: 7%;
+    font-size: 12px;
+}
+.doughnutGraph {
+    margin:0 auto;
+    width: 40%;
+    display: flex;
+}
 .modal {
     display:    none;
     position:   fixed;
@@ -58,9 +73,8 @@ body.loading .modal {
     border-style: solid;
     border-color: rgba(0, 0, 0, 0.50) !important;
     height: fit-content;
-  }
-
-  .btn-active, .btn:active {
+}
+.btn-active, .btn:active {
     background-color: hsl(195, 79%, 43%) !important;
     background-repeat: repeat-x;
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#56c5eb", endColorstr="#1798c4");
@@ -77,8 +91,7 @@ body.loading .modal {
     -webkit-font-smoothing: antialiased;
     border-style: solid;
     border-color: rgba(0, 0, 0, 0.15) !important;
-   }
-
+}
 .btn:focus, .btn:active {
     outline: none !important;
     box-shadow: none !important;
@@ -119,8 +132,8 @@ body.loading .modal {
     z-index: 10;
     font-size: 14px;
     text-align: center;
+    font-size: 14px;
 }
-
 .dygraph-xlabel {
     text-align: center;
 }
@@ -139,6 +152,14 @@ body.loading .modal {
     -moz-transform: rotate(-90deg);
     -o-transform: rotate(-90deg);
     -ms-transform: rotate(-90deg);
+}
+#tickets_by_purchase_date .dygraph-ylabel {
+    color:#2971FF;
+    font-weight: bold;
+}
+#tickets_by_purchase_date .dygraph-y2label {
+    color:#ff0090;
+    font-weight: bold;
 }
 /* chart theme */
 .chart-wrapper {
@@ -279,4 +300,27 @@ input ~ .checkmark {
     height: fit-content;
     font-size: 0.8em;
     margin-top: 5px;
+}
+.loader {
+    border: 10px solid #f3f3f3;
+    border-radius: 50%;
+    border-top: 10px solid #3498db;
+    width: 50px;
+    height: 50px;
+    display: block;
+    float: right;
+    margin: 20%;
+    -webkit-animation: spin 0.9s linear infinite; /* Safari */
+    animation: spin 0.9s linear infinite;
+}
+  
+/* Safari */
+@-webkit-keyframes spin {
+    0% { -webkit-transform: rotate(0deg); }
+    100% { -webkit-transform: rotate(360deg); }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

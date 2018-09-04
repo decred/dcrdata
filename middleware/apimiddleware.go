@@ -46,6 +46,7 @@ const (
 	ctxM
 	ctxChartType
 	ctxChartGrouping
+	ctxTp
 )
 
 type DataSource interface {
@@ -109,6 +110,17 @@ func GetMCtx(r *http.Request) int {
 		return -1
 	}
 	return M
+}
+
+// GetTpCtx retrieves the ctxTp data from the request context.
+// If the value is not set, an empty string is returned.
+func GetTpCtx(r *http.Request) string {
+	tp, ok := r.Context().Value(ctxTp).(string)
+	if !ok {
+		apiLog.Trace("ticket pool interval not set")
+		return ""
+	}
+	return tp
 }
 
 // GetRawHexTx retrieves the ctxRawHexTx data from the request context. If not
@@ -390,6 +402,16 @@ func MPathCtx(next http.Handler) http.Handler {
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxM, M)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// TicketPoolCtx returns a http.HandlerFunc that embeds the value at the url
+// part {tp} into the request context
+func TicketPoolCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tp := chi.URLParam(r, "tp")
+		ctx := context.WithValue(r.Context(), ctxTp, tp)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

@@ -40,7 +40,7 @@ var createTypeStatements = map[string]string{
 const (
 	tableMajor = 3
 	tableMinor = 5
-	tablePatch = 1
+	tablePatch = 2
 )
 
 // TODO eliminiate this map since we're actually versioning each table the same.
@@ -501,6 +501,16 @@ func IndexTicketsTableOnTxDbID(db *sql.DB) (err error) {
 
 func DeindexTicketsTableOnTxDbID(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexTicketsTableOnTxDbID)
+	return
+}
+
+func IndexTicketsTableOnPoolStatus(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexTicketsTableOnPoolStatus)
+	return
+}
+
+func DeindexTicketsTableOnPoolStatus(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexTicketsTableOnPoolStatus)
 	return
 }
 

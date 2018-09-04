@@ -60,6 +60,21 @@ const (
 	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1
 		AND is_mainchain = true;`
 
+	SelectTicketsByPrice = `SELECT price,
+		SUM(CASE WHEN tickets.block_height >= $1 THEN 1 ELSE 0 END) as immature,
+		SUM(CASE WHEN tickets.block_height < $1 THEN 1 ELSE 0 END) as live
+		FROM tickets JOIN transactions ON purchase_tx_db_id=transactions.id
+		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
+		GROUP BY price ORDER BY price;`
+
+	SelectTicketsByPurchaseDate = `SELECT (transactions.block_time/$1)*$1 as timestamp,
+		SUM(price) as price,
+		SUM(CASE WHEN tickets.block_height >= $2 THEN 1 ELSE 0 END) as immature,
+		SUM(CASE WHEN tickets.block_height < $2 THEN 1 ELSE 0 END) as live
+		FROM tickets JOIN transactions ON purchase_tx_db_id=transactions.id
+		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
+		GROUP BY timestamp ORDER BY timestamp;`
+
 	SelectTicketSpendTypeByBlock = `SELECT block_height, 
 		SUM(CASE WHEN spend_type = 0 THEN 1 ELSE 0 END) as unspent,
 		SUM(CASE WHEN spend_type = 1 THEN 1 ELSE 0 END) as revoked
@@ -98,6 +113,10 @@ const (
 	IndexTicketsTableOnTxDbID = `CREATE UNIQUE INDEX uix_ticket_ticket_db_id
 		ON tickets(purchase_tx_db_id);`
 	DeindexTicketsTableOnTxDbID = `DROP INDEX uix_ticket_ticket_db_id;`
+
+	IndexTicketsTableOnPoolStatus = `CREATE INDEX uix_tickets_pool_status ON 
+		tickets(pool_status);`
+	DeindexTicketsTableOnPoolStatus = `DROP INDEX uix_tickets_pool_status;`
 
 	DeleteTicketsDuplicateRows = `DELETE FROM tickets
 		WHERE id IN (SELECT id FROM (
@@ -264,7 +283,7 @@ const (
 	upsertAgendaRow = insertAgendaRow0 + `ON CONFLICT (agenda_id, agenda_vote_choice, tx_hash, block_height) DO UPDATE 
 		SET block_time = $5 RETURNING id;`
 
-	SelectAgendasAgendaVotesByTime = `SELECT (block_time/86400)*86400 as timestamp,
+	SelectAgendasAgendaVotesByTime = `SELECT block_time as timestamp,
 		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
 		COUNT(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) as abstain,
 		COUNT(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) as no,

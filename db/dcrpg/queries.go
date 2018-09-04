@@ -1354,6 +1354,99 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	return outputs, nil
 }
 
+// retrieveTicketsByDate fetches the tickets in the current ticketpool order by the
+// purchase date. The maturity block is needed to identify immature tickets.
+// The grouping interval size is specified in seconds.
+func retrieveTicketsByDate(db *sql.DB, maturityBlock, groupBy int64) (*dbtypes.PoolTicketsData, error) {
+	rows, err := db.Query(internal.SelectTicketsByPurchaseDate, groupBy, maturityBlock)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	tickets := new(dbtypes.PoolTicketsData)
+	for rows.Next() {
+		var immature, live, timestamp uint64
+		var price, total float64
+		err = rows.Scan(&timestamp, &price, &immature, &live)
+		if err != nil {
+			return nil, fmt.Errorf("retrieveTicketsByDate %v", err)
+		}
+
+		tickets.Time = append(tickets.Time, timestamp)
+		tickets.Immature = append(tickets.Immature, immature)
+		tickets.Live = append(tickets.Live, live)
+
+		// Returns the average value of a ticket depending on the grouping mode used
+		price = price * 100000000
+		total = float64(live + immature)
+		tickets.Price = append(tickets.Price, dcrutil.Amount(price/total).ToCoin())
+	}
+
+	return tickets, nil
+}
+
+// retrieveTicketByPrice fetches the tickets in the current ticketpool ordered by the
+// purchase price. The maturity block is needed to identify immature tickets.
+// The grouping interval size is specified in seconds.
+func retrieveTicketByPrice(db *sql.DB, maturityBlock int64) (*dbtypes.PoolTicketsData, error) {
+	// Create the query statement and retrieve rows
+	rows, err := db.Query(internal.SelectTicketsByPrice, maturityBlock)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	tickets := new(dbtypes.PoolTicketsData)
+	for rows.Next() {
+		var live, immature uint64
+		var price float64
+		err = rows.Scan(&price, &immature, &live)
+		if err != nil {
+			return nil, fmt.Errorf("retrieveTicketByPrice %v", err)
+		}
+
+		tickets.Immature = append(tickets.Immature, immature)
+		tickets.Live = append(tickets.Live, live)
+		tickets.Price = append(tickets.Price, price)
+	}
+
+	return tickets, nil
+}
+
+// retrieveTickesGroupedByType fetches the count of tickets in the current ticketpool
+// grouped by ticket type (inferred by their output counts). The grouping used
+// here i.e. solo, pooled and tixsplit is just a guessing based on commonly
+// structured ticket purchases.
+func retrieveTickesGroupedByType(db *sql.DB) (*dbtypes.PoolTicketsData, error) {
+	var entry dbtypes.PoolTicketsData
+	rows, err := db.Query(internal.SelectTicketsByType)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var txType, txTypeCount uint64
+		err = rows.Scan(&txType, &txTypeCount)
+
+		if err != nil {
+			return nil, fmt.Errorf("retrieveTickesGroupedByType %v", err)
+		}
+
+		switch txType {
+		case 1:
+			entry.Solo = txTypeCount
+		case 2:
+			entry.Pooled = txTypeCount
+		case 3:
+			entry.TxSplit = txTypeCount
+		}
+	}
+
+	return &entry, nil
+}
+
 // RetrieveAddressTxnsOrdered will get all transactions for addresses provided
 // and return them sorted by time in descending order. It will also return a
 // short list of recently (defined as greater than recentBlockHeight) confirmed
@@ -1444,8 +1537,7 @@ func RetrieveBlockSummaryByTimeRange(db *sql.DB, minTime, maxTime int64, limit i
 	for rows.Next() {
 		var dbBlock dbtypes.BlockDataBasic
 		if err = rows.Scan(&dbBlock.Hash, &dbBlock.Height, &dbBlock.Size, &dbBlock.Time, &dbBlock.NumTx); err != nil {
-			fmt.Println(err)
-			log.Errorf("Unable to scan for block fields")
+			log.Errorf("Unable to scan for block fields: %v", err)
 		}
 		blocks = append(blocks, dbBlock)
 	}
