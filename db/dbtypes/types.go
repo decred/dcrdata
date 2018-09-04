@@ -369,28 +369,29 @@ type AddressRow struct {
 // ChartsData defines the fields that store the values needed to plot the charts
 // on the frontend.
 type ChartsData struct {
-	TimeStr    []string  `json:"timestr,omitempty"`
-	Difficulty []float64 `json:"difficulty,omitempty"`
-	Time       []uint64  `json:"time,omitempty"`
-	Value      []uint64  `json:"value,omitempty"`
-	Size       []uint64  `json:"size,omitempty"`
-	ChainSize  []uint64  `json:"chainsize,omitempty"`
-	Count      []uint64  `json:"count,omitempty"`
-	SizeF      []float64 `json:"sizef,omitempty"`
-	ValueF     []float64 `json:"valuef,omitempty"`
-	Unspent    []uint64  `json:"unspent,omitempty"`
-	Revoked    []uint64  `json:"revoked,omitempty"`
-	Height     []uint64  `json:"height,omitempty"`
-	Pooled     []uint64  `json:"pooled,omitempty"`
-	Solo       []uint64  `json:"solo,omitempty"`
-	RegularTx  []uint64  `json:"regularTx,omitempty"`
-	Tickets    []uint64  `json:"tickets,omitempty"`
-	Votes      []uint64  `json:"votes,omitempty"`
-	RevokeTx   []uint64  `json:"revokeTx,omitempty"`
-	Amount     []float64 `json:"amount,omitempty"`
-	Received   []float64 `json:"received,omitempty"`
-	Sent       []float64 `json:"sent,omitempty"`
-	Net        []float64 `json:"net,omitempty"`
+	TimeStr     []string  `json:"timestr,omitempty"`
+	Difficulty  []float64 `json:"difficulty,omitempty"`
+	Time        []uint64  `json:"time,omitempty"`
+	Value       []uint64  `json:"value,omitempty"`
+	Size        []uint64  `json:"size,omitempty"`
+	ChainSize   []uint64  `json:"chainsize,omitempty"`
+	Count       []uint64  `json:"count,omitempty"`
+	SizeF       []float64 `json:"sizef,omitempty"`
+	ValueF      []float64 `json:"valuef,omitempty"`
+	Unspent     []uint64  `json:"unspent,omitempty"`
+	Revoked     []uint64  `json:"revoked,omitempty"`
+	Height      []uint64  `json:"height,omitempty"`
+	Pooled      []uint64  `json:"pooled,omitempty"`
+	Solo        []uint64  `json:"solo,omitempty"`
+	SentRtx     []uint64  `json:"sentRtx,omitempty"`
+	ReceivedRtx []uint64  `json:"receivedRtx,omitempty"`
+	Tickets     []uint64  `json:"tickets,omitempty"`
+	Votes       []uint64  `json:"votes,omitempty"`
+	RevokeTx    []uint64  `json:"revokeTx,omitempty"`
+	Amount      []float64 `json:"amount,omitempty"`
+	Received    []float64 `json:"received,omitempty"`
+	Sent        []float64 `json:"sent,omitempty"`
+	Net         []float64 `json:"net,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)

@@ -3,7 +3,7 @@
         var p = []
 
         d.time.map((n, i) => {
-            p.push([new Date(n*1000), d.regularTx[i], d.tickets[i], d.votes[i], d.revokeTx[i]])
+            p.push([new Date(n*1000), d.sentRtx[i], d.receivedRtx[i], d.tickets[i], d.votes[i], d.revokeTx[i]])
         });
         return p
     }
@@ -34,23 +34,22 @@
     }
 
     function formatter(data) {
-        if (data.x == null) return '';
-        var html = this.getLabels()[0] + ': ' + data.xHTML;
+        var html = this.getLabels()[0] + ': ' + ((data.xHTML==undefined) ? '': data.xHTML);
         data.series.map(function(series){
-            var l = `<span style="color: ` + series.color + ';">' +series.labelHTML;
-            html += '<br>' + series.dashHTML  + l + ': ' + series.y +'</span>';
+            if (series.color==undefined) return '';
+            var l = `<span style="color: ` + series.color + ';"> ' + series.labelHTML;
+            html += '<br>' + series.dashHTML  + l + ': ' + (isNaN(series.y) ? '': series.y) + '</span>';
         });
         return html;
     }
 
     function customizedFormatter(data) {
-        if (data.x == null) return '';
-        var html = this.getLabels()[0] + ': ' + data.xHTML;
+        var html = this.getLabels()[0] + ': ' + ((data.xHTML==undefined) ? '': data.xHTML);
         data.series.map(function(series){
-            if (isNaN(series.y)) return '';
+            if (series.color==undefined) return '';
             if (series.y === 0 && series.labelHTML.includes('Net')) return '';
-            var l = `<span style="color: ` + series.color + ';">' +series.labelHTML;
-            html += '<br>' + series.dashHTML  + l + ': ' + series.y +' DCR</span>';
+            var l = `<span style="color: ` + series.color + ';"> ' + series.labelHTML;
+            html += '<br>' + series.dashHTML  + l + ': ' + (isNaN(series.y) ? '': series.y + ' DCR') + '</span> ';
         });
         return html;
     }
@@ -61,7 +60,6 @@
             showRangeSelector: true,
             legend: 'follow',
             xlabel: 'Date',
-            labelsSeparateLines: true,
             fillAlpha: 0.9,
             labelsKMB: true
         }
@@ -83,11 +81,11 @@
             var _this = this
             $.getScript('/js/dygraphs.min.js', () => {
                 _this.typesGraphOptions = {
-                    labels: ['Date', 'RegularTx', 'Tickets', 'Votes', 'RevokeTx'],
-                    colors: ['#2971FF', '#41BF53', 'darkorange', '#FF0090'],
-                    ylabel: '# of Tx Types',
+                    labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
+                    colors: ['#69D3F5', '#2971FF', '#41BF53', 'darkorange', '#FF0090'],
+                    ylabel: 'Number of Transactions by Type',
                     title: 'Transactions Types',
-                    visibility: [true, true, true, true],
+                    visibility: [true, true, true, true, true],
                     legendFormatter: formatter,
                     plotter: barchartPlotter,
                     stackedGraph: true,
@@ -139,7 +137,6 @@
                 $('#no-bal').removeClass('d-hide');
                 $('#history-chart').addClass('d-hide');
                 $('body').removeClass('loading');
-                _this.disableBtnsIfNotApplicable()
                 return
             }
 
@@ -179,7 +176,6 @@
                     }
                     _this.updateFlow()
                     _this.xVal = _this.graph.xAxisExtremes()
-                    _this.disableBtnsIfNotApplicable()
 
                     $('body').removeClass('loading');
                 }
@@ -187,8 +183,11 @@
         }
 
         changeView() {
-            $('body').addClass('loading');
             var _this = this
+            _this.disableBtnsIfNotApplicable()
+
+            $('body').addClass('loading');
+
             var divHide = 'list'
             var divShow = _this.btns
 
@@ -228,7 +227,7 @@
         }
 
         disableBtnsIfNotApplicable(){
-            var val = this.xVal[0]
+            var val = parseInt(this.addrTarget.id)
             var d = new Date()
 
             var pastYear = d.getFullYear() - 1;
@@ -236,20 +235,32 @@
             var pastWeek = d.getDate() - 7
             var pastDay = d.getDate() - 1
 
+            this.enabledButtons = []
             var setApplicableBtns = (className, ts) => {
-                var isApplicable = (val > Number(new Date(ts))) ||
+                var isDisabled = (val > Number(new Date(ts))) ||
                     (this.options === 'unspent' && this.unspent == "0")
                 var zoomElem = this.zoomTarget.getElementsByClassName(className)[0]
-                zoomElem.disabled = isApplicable
+                zoomElem.disabled = isDisabled
 
                 var intervalElem = this.intervalTarget.getElementsByClassName(className)[0]
-                intervalElem.disabled = isApplicable
+                intervalElem.disabled = isDisabled
+
+                if (className !== "year" && !isDisabled){
+                    this.enabledButtons.push(className)
+                }
             }
 
             setApplicableBtns('year', new Date().setFullYear(pastYear))
             setApplicableBtns('month', new Date().setMonth(pastMonth))
             setApplicableBtns('week', new Date().setDate(pastWeek))
             setApplicableBtns('day', new Date().setDate(pastDay))
+
+            if (parseInt(this.intervalTarget.dataset.txcount) < 20) {
+                this.enabledButtons[0] = "all"
+            }
+
+            $("input#chart-size").removeClass("btn-active")
+            $("input#chart-size." + this.enabledButtons[0]).addClass("btn-active");
         }
 
         get options(){

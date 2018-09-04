@@ -120,13 +120,17 @@ const (
 	SetAddressMainchainForVinIDs = `UPDATE addresses SET valid_mainchain=$1
 		WHERE is_funding = FALSE AND tx_vin_vout_row_id=$2;`
 
-	// rtx defines Regular transactions, ssTx defines tickets, ssGen defines votes
-	// and ssRtx defines Revocation transactions
+	SelectAddressOldestTxBlockTime = `SELECT block_time FROM addresses WHERE
+		address=$1 ORDER BY block_time DESC LIMIT 1;`
+
+	// Rtx defines Regular transactions grouped into (SentRtx and ReceivedRtx),
+	// SSTx defines tickets, SSGen defines votes and SSRtx defines Revocation transactions
 	SelectAddressTxTypesByAddress = `SELECT (block_time/$1)*$1 as timestamp,
-		COUNT(CASE WHEN tx_type = 0 THEN 1 ELSE NULL END) as rtx,
-		COUNT(CASE WHEN tx_type = 1 THEN 1 ELSE NULL END) as ssTx,
-		COUNT(CASE WHEN tx_type = 2 THEN 1 ELSE NULL END) as ssGen,
-		COUNT(CASE WHEN tx_type = 3 THEN 1 ELSE NULL END) as ssRtx
+		COUNT(CASE WHEN tx_type = 0 AND is_funding = false THEN 1 ELSE NULL END) as SentRtx,
+		COUNT(CASE WHEN tx_type = 0 AND is_funding = true THEN 1 ELSE NULL END) as ReceivedRtx,
+		COUNT(CASE WHEN tx_type = 1 THEN 1 ELSE NULL END) as SSTx,
+		COUNT(CASE WHEN tx_type = 2 THEN 1 ELSE NULL END) as SSGen,
+		COUNT(CASE WHEN tx_type = 3 THEN 1 ELSE NULL END) as SSRtx
 		FROM addresses WHERE address=$2 GROUP BY timestamp ORDER BY timestamp;`
 
 	SelectAddressAmountFlowByAddress = `SELECT (block_time/$1)*$1 as timestamp,
