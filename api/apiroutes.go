@@ -740,8 +740,9 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 	var err error
 	interval := dbtypes.ChartGroupingFromStr(tp)
 
-	barCharts, donutChart, ok := explorer.GetTicketPoolData(interval)
+	barCharts, _, ok := explorer.GetTicketPoolData(interval)
 	if !ok {
+		var donutChart *dbtypes.PoolTicketsData
 		// The db queries are fast enough that it makes sense to call TicketPoolVisualization
 		// here even though it returns a lot of data not needed by this request.
 		barCharts, donutChart, err = c.AuxDataSource.TicketPoolVisualization(interval)

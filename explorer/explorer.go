@@ -91,10 +91,10 @@ func GetChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 	return
 }
 
-// ticketPoolGraphsCache persists the latest ticketpool data accessed.
+// ticketPoolGraphsCache persists the latest ticketpool data queried from the db.
 var ticketPoolGraphsCache = &ticketPoolDataCache{
-	BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData, 0),
-	DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData, 0),
+	BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData),
+	DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData),
 }
 
 // GetTicketPoolData is a thread-safe way to access the ticketpool graphs data
@@ -110,15 +110,14 @@ func GetTicketPoolData(interval dbtypes.ChartGrouping) (barGraphs []*dbtypes.Poo
 }
 
 // cleanUpTicketPoolData provides a thread-safe way to clean up/invalidate the ticketspool
-// cache data. This function should only be called once when a new block has been
-// added.
+// cache data. This function should be called when a new block has been added.
 func cleanUpTicketPoolData() {
 	ticketPoolGraphsCache.Lock()
 	defer ticketPoolGraphsCache.Unlock()
 
 	ticketPoolGraphsCache = &ticketPoolDataCache{
-		BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData, 0),
-		DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData, 0),
+		BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData),
+		DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData),
 	}
 }
 
@@ -129,10 +128,8 @@ func UpdateTicketPoolData(interval dbtypes.ChartGrouping, barGraphs []*dbtypes.P
 	ticketPoolGraphsCache.Lock()
 	defer ticketPoolGraphsCache.Unlock()
 
-	ticketPoolGraphsCache.BarGraphsCache = map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData{
-		interval: barGraphs}
-	ticketPoolGraphsCache.DonutGraphCache = map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData{
-		interval: donutcharts}
+	ticketPoolGraphsCache.BarGraphsCache[interval] = barGraphs
+	ticketPoolGraphsCache.DonutGraphCache[interval] = donutcharts
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction

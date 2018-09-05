@@ -110,7 +110,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					interval := dbtypes.ChartGroupingFromStr(msg.Message)
 
 					cData, gData, ok := GetTicketPoolData(interval)
-					// If cached data matched the needed data, no need to make another request.
+					// If cached data matched the needed data, no need to query the db.
 					if !ok {
 						cData, gData, err =
 							exp.explorerSource.TicketPoolVisualization(interval)
@@ -223,9 +223,6 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						Extra: exp.ExtraInfo,
 					})
 					exp.NewBlockDataMtx.RUnlock()
-
-					// drops the outdated data in the ticketpool cache.
-					cleanUpTicketPoolData()
 
 					webData.Message = buff.String()
 				case sigMempoolUpdate:
