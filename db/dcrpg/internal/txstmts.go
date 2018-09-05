@@ -63,14 +63,17 @@ const (
 	);`
 
 	SelectTxByHash = `SELECT id, block_hash, block_index, tree
-		FROM transactions WHERE tx_hash = $1;`
+		FROM transactions
+		WHERE tx_hash = $1
+		ORDER BY is_mainchain DESC, is_valid DESC;`
 	SelectTxsByBlockHash = `SELECT id, tx_hash, block_index, tree, block_time
 		FROM transactions WHERE block_hash = $1;`
 
-	SelectTxBlockTimeByHash = `SELECT block_time FROM transactions where tx_hash = $1 
-		ORDER BY block_time DESC LIMIT 1;`
-
-	SelectTxIDHeightByHash = `SELECT id, block_height FROM transactions WHERE tx_hash = $1;`
+	SelectTxBlockTimeByHash = `SELECT block_time
+		FROM transactions
+		WHERE tx_hash = $1
+		ORDER BY is_mainchain DESC, is_valid DESC, block_time DESC
+		LIMIT 1;`
 
 	SelectTxsPerDay = `SELECT to_timestamp(time)::date as date, count(*) FROM transactions
 		GROUP BY date ORDER BY date;`
@@ -79,7 +82,9 @@ const (
 		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry, 
 		size, spent, sent, fees, num_vin, vin_db_ids, num_vout, vout_db_ids,
 		is_valid, is_mainchain
-		FROM transactions WHERE tx_hash = $1;`
+		FROM transactions WHERE tx_hash = $1
+		ORDER BY is_mainchain DESC, is_valid DESC, block_time DESC
+		LIMIT 1;`
 
 	SelectTxnsVinsByBlock = `SELECT vin_db_ids, is_valid, is_mainchain
 		FROM transactions WHERE block_hash = $1;`
@@ -87,8 +92,9 @@ const (
 	SelectTxnsVinsVoutsByBlock = `SELECT vin_db_ids, vout_db_ids, is_mainchain
 		FROM transactions WHERE block_hash = $1;`
 
-	SelectTxsVinsAndVoutsIDs = `SELECT tx_type, vin_db_ids, vout_db_ids FROM 
-		transactions WHERE block_height BETWEEN $1 AND $2;`
+	SelectTxsVinsAndVoutsIDs = `SELECT tx_type, vin_db_ids, vout_db_ids
+		FROM transactions
+		WHERE block_height BETWEEN $1 AND $2;`
 
 	UpdateRegularTxnsValidMainchainByBlock = `UPDATE transactions
 		SET is_valid=$1, is_mainchain=$2 
@@ -127,9 +133,6 @@ const (
 		) b
 		WHERE block_hash = b.hash;`
 
-	SelectRegularTxByHash = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=0;`
-	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`
-
 	SelectTicketsByType = `SELECT
 		width_bucket(num_vout, array[3, 5, 6]) as ticket_bucket,
 		count(*)
@@ -160,7 +163,7 @@ const (
 	// RetrieveVoutValue = `SELECT vouts[$2].value FROM transactions WHERE id = $1;`
 
 	DeleteTxDuplicateRows = `DELETE FROM transactions
-	WHERE id IN (SELECT id FROM (
+		WHERE id IN (SELECT id FROM (
 			SELECT id, ROW_NUMBER()
 			OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
 			FROM transactions) t

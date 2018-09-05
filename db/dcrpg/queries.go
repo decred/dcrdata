@@ -1169,21 +1169,6 @@ func RetrieveTxBlockTimeByHash(db *sql.DB, txHash string) (blockTime uint64, err
 	return
 }
 
-func RetrieveTxIDHeightByHash(db *sql.DB, txHash string) (id uint64, blockHeight int64, err error) {
-	err = db.QueryRow(internal.SelectTxIDHeightByHash, txHash).Scan(&id, &blockHeight)
-	return
-}
-
-func RetrieveRegularTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, err error) {
-	err = db.QueryRow(internal.SelectRegularTxByHash, txHash).Scan(&id, &blockHash, &blockInd)
-	return
-}
-
-func RetrieveStakeTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, err error) {
-	err = db.QueryRow(internal.SelectStakeTxByHash, txHash).Scan(&id, &blockHash, &blockInd)
-	return
-}
-
 func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string,
 	blockInds []uint32, trees []int8, blockTimes []uint64, err error) {
 	var rows *sql.Rows
