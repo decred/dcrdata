@@ -77,6 +77,7 @@ type explorerDataSource interface {
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	GetOldestTxBlockTime(addr string) (int64, error)
 	TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error)
+	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts

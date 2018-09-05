@@ -329,8 +329,19 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 	}
 
-	if !exp.liteMode {
-		// For any coinbase transactions look up the total block fees to include as part of the inputs
+	var blocks []*dbtypes.BlockStatus
+	var blockInds []uint32
+	if exp.liteMode {
+		blocks = append(blocks, &dbtypes.BlockStatus{
+			Hash:        tx.BlockHash,
+			Height:      uint32(tx.BlockHeight),
+			IsMainchain: true,
+			IsValid:     true,
+		})
+		blockInds = []uint32{tx.BlockIndex}
+	} else {
+		// For any coinbase transactions look up the total block fees to include
+		// as part of the inputs.
 		if tx.Type == "Coinbase" {
 			data := exp.blockData.GetExplorerBlock(tx.BlockHash)
 			if data == nil {
@@ -339,6 +350,16 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				tx.BlockMiningFee = int64(data.MiningFee)
 			}
 		}
+
+		// Details on all the blocks containing this transaction
+		var err error
+		blocks, blockInds, err = exp.explorerSource.TransactionBlocks(tx.TxID)
+		if err != nil {
+			log.Errorf("Unable to retrieve blocks for transaction %s: %v", hash, err)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+			return
+		}
+
 		// For each output of this transaction, look up any spending transactions,
 		// and the index of the spending transaction input.
 		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
@@ -421,16 +442,20 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				tx.TicketInfo.Probability = 100 * (math.Pow(1-pVote,
 					float64(exp.ChainParams.TicketExpiry)-float64(blocksLive)))
 			}
-		}
-	}
+		} // tx.IsTicket()
+	} // !exp.liteMode
 
 	pageData := struct {
 		Data          *TxInfo
+		Blocks        []*dbtypes.BlockStatus
+		BlockInds     []uint32
 		ConfirmHeight int64
 		Version       string
 		NetName       string
 	}{
 		tx,
+		blocks,
+		blockInds,
 		exp.Height() - tx.Confirmations,
 		exp.Version,
 		exp.NetName,
