@@ -527,17 +527,6 @@ func mainCore() error {
 	default:
 	}
 
-	quitCleanUpTicker := make(chan int)
-	defer func() {
-		// safely exit the clean up ticker
-		quitCleanUpTicker <- 1
-	}()
-
-	// Instantiates the ticketpool data cache and set it with the current
-	// block height. Also Lazily cleans up the invalid data in the tickepool
-	// cache when a new block is added.
-	go explore.CleanUpTicketPoolData(quitCleanUpTicker)
-
 	// Start web API
 	app := api.NewContext(dcrdClient, activeChain, &baseDB, auxDB, cfg.IndentJSON)
 	// Start notification hander to keep /status up-to-date

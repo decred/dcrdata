@@ -199,6 +199,11 @@ out:
 			log.Errorf("New DB height (%d) and stored block data (%d, %d) not consistent.",
 				height, bdHeight, summary.Height)
 
+			// Instantiates the ticketpool data cache and set it with the current
+			// block height. Also Lazily cleans up the invalid data in the tickepool
+			// cache when a new block is added.
+			explorer.CleanUpTicketPoolData(int64(bdHeight))
+
 		case _, ok := <-quit:
 			if !ok {
 				log.Debugf("Got quit signal. Exiting block connected handler for STATUS monitor.")

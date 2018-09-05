@@ -31,7 +31,6 @@ import (
 )
 
 const (
-	cleanUpTickerInterval        = 5
 	maxExplorerRows              = 400
 	minExplorerRows              = 20
 	defaultAddressRows     int64 = 20
@@ -93,7 +92,10 @@ func GetChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 }
 
 // ticketPoolGraphsCache persists the latest ticketpool data queried from the db.
-var ticketPoolGraphsCache = new(ticketPoolDataCache)
+var ticketPoolGraphsCache = &ticketPoolDataCache{
+	BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData),
+	DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData),
+}
 
 // GetTicketPoolData is a thread-safe way to access the ticketpool graphs data
 // stored in the cache.
@@ -110,30 +112,19 @@ func GetTicketPoolData(interval dbtypes.ChartGrouping) (barGraphs []*dbtypes.Poo
 // CleanUpTicketPoolData provides a thread-safe way to clean up/invalidate the
 // ticketpool cache data. It resets the ticketpool cache data and sets the
 // current block height. Check for invalid data every cleanUpTickerInterval.
-func (exp *explorerUI) CleanUpTicketPoolData(quit chan int) {
-	ticker := time.NewTicker(time.Duration(cleanUpTickerInterval) * time.Second)
-	for {
-		select {
-		case <-ticker.C:
-			height := exp.Height()
-			// if data is updated do not proceed
-			if ticketPoolGraphsCache.Height == height {
-				continue
-			}
+func CleanUpTicketPoolData(height int64) {
+	// if data is updated do not proceed
+	if ticketPoolGraphsCache.Height == height {
+		return
+	}
 
-			ticketPoolGraphsCache.Lock()
-			defer ticketPoolGraphsCache.Unlock()
+	ticketPoolGraphsCache.Lock()
+	defer ticketPoolGraphsCache.Unlock()
 
-			ticketPoolGraphsCache = &ticketPoolDataCache{
-				Height:          height,
-				BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData),
-				DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData),
-			}
-		case <-quit:
-			log.Debug("Stopping the ticketpool cleanUp")
-			ticker.Stop()
-		default:
-		}
+	ticketPoolGraphsCache = &ticketPoolDataCache{
+		Height:          height,
+		BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData),
+		DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData),
 	}
 }
 
@@ -142,16 +133,11 @@ func (exp *explorerUI) CleanUpTicketPoolData(quit chan int) {
 // stacking calls to update the cache.
 func UpdateTicketPoolData(interval dbtypes.ChartGrouping, barGraphs []*dbtypes.PoolTicketsData,
 	donutcharts *dbtypes.PoolTicketsData) {
-	isLocking := ticketPoolGraphsCache.updating.TryLock()
-
 	ticketPoolGraphsCache.Lock()
 	defer ticketPoolGraphsCache.Unlock()
 
-	if !isLocking {
-		ticketPoolGraphsCache.updating.Unlock()
-		ticketPoolGraphsCache.BarGraphsCache[interval] = barGraphs
-		ticketPoolGraphsCache.DonutGraphCache[interval] = donutcharts
-	}
+	ticketPoolGraphsCache.BarGraphsCache[interval] = barGraphs
+	ticketPoolGraphsCache.DonutGraphCache[interval] = donutcharts
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction

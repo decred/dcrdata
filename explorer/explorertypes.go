@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/chappjc/trylock"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -67,8 +66,7 @@ type ChartDataCounter struct {
 // fetching the same information.
 type ticketPoolDataCache struct {
 	sync.RWMutex
-	Height   int64
-	updating trylock.Mutex
+	Height int64
 	// BarGraphsCache persists data for the Ticket purchase distribution chart
 	// and Ticket Price Distribution chart
 	BarGraphsCache map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData
