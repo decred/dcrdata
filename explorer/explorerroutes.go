@@ -580,12 +580,15 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		oldestTxBlockTime, err = exp.explorerSource.GetOldestTxBlockTime(address)
-		if err != nil {
-			log.Errorf("Unable to fetch oldest transactions block time %s: %v", address, err)
-			exp.StatusPage(w, defaultErrorCode, "oldest block time not found",
-				NotFoundStatusType)
-			return
+		// If there are transactions, check the oldest transaction's time.
+		if len(addrData.Transactions) > 0 {
+			oldestTxBlockTime, err = exp.explorerSource.GetOldestTxBlockTime(address)
+			if err != nil {
+				log.Errorf("Unable to fetch oldest transactions block time %s: %v", address, err)
+				exp.StatusPage(w, defaultErrorCode, "oldest block time not found",
+					NotFoundStatusType)
+				return
+			}
 		}
 	}
 
