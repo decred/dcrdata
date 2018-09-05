@@ -111,23 +111,23 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
 	return template.FuncMap{
-		"add": func(a int64, b int64) int64 {
+		"add": func(a, b int64) int64 {
 			return a + b
 		},
-		"subtract": func(a int64, b int64) int64 {
+		"subtract": func(a, b int64) int64 {
 			return a - b
 		},
-		"divide": func(n int64, d int64) int64 {
+		"divide": func(n, d int64) int64 {
 			return n / d
 		},
-		"multiply": func(a int64, b int64) int64 {
+		"multiply": func(a, b int64) int64 {
 			return a * b
 		},
 		"timezone": func() string {
 			t, _ := time.Now().Zone()
 			return t
 		},
-		"percentage": func(a int64, b int64) float64 {
+		"percentage": func(a, b int64) float64 {
 			return (float64(a) / float64(b)) * 100
 		},
 		"int64": toInt64,
@@ -197,7 +197,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			zeros := strings.Repeat("0", 8-len(dec))
 			return []string{integer, dec, zeros}
 		},
-		"remaining": func(idx int, max int64, t int64) string {
+		"remaining": func(idx int, max, t int64) string {
 			x := (max - int64(idx)) * t
 			allsecs := int(time.Duration(x).Seconds())
 			str := ""

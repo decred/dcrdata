@@ -31,7 +31,17 @@
                     <tr>
                         <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">INCLUDED IN BLOCK</td>
                         <td>
-                             <a href="/block/{{.BlockHeight}}" class="fs18">{{.BlockHeight}}</a>
+                        {{range $i, $b := $.Blocks}}
+                        {{$blockInd := index $.BlockInds $i}}
+                        {{$validMainchain := and $b.IsValid $b.IsMainchain}}
+                            <a href="/block/{{$b.Hash}}?ind={{$blockInd}}"
+                                {{if not $validMainchain}}
+                                class="fs18 grayed" title="Mainchain: {{$b.IsMainchain}}&#xA;Valid: {{$b.IsValid}}"
+                                {{else}}
+                                class="fs18"
+                                {{end}}>
+                                {{$b.Height}}</a>{{if lt (add (int64 $i) 1) (len $.Blocks)}}, {{end}}
+                        {{end}}
                         </td>
                     </tr>
                 {{end}}
