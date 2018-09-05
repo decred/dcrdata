@@ -594,6 +594,13 @@ body.darkBG .progress {
   color: red;
   font-size: 14pt;
 }
+.invalidated-tx {
+  background-color: rgba(151, 125, 163, 0.3);
+  opacity: 0.5;
+}
+.grayed {
+  opacity: 0.5;
+}
 
 /*Typography*/
 .fs14-decimal .dot,

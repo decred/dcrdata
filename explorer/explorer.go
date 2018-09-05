@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	maxExplorerRows              = 2000
+	maxExplorerRows              = 400
 	minExplorerRows              = 20
 	defaultAddressRows     int64 = 20
 	MaxAddressRows         int64 = 1000

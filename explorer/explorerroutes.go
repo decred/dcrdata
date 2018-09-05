@@ -128,6 +128,17 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !exp.liteMode {
+		for _, s := range summaries {
+			blockStatus, err := exp.explorerSource.BlockStatus(s.Hash)
+			if err != nil && err != sql.ErrNoRows {
+				log.Warnf("Unable to retrieve chain status for block %s: %v", s.Hash, err)
+			}
+			s.Valid = blockStatus.IsValid
+			s.MainChain = blockStatus.IsMainchain
+		}
+	}
+
 	str, err := exp.templates.execTemplateToString("explorer", struct {
 		Data      []*BlockBasic
 		BestBlock int
