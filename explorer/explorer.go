@@ -91,6 +91,50 @@ func GetChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 	return
 }
 
+// ticketPoolGraphsCache persists the latest ticketpool data accessed.
+var ticketPoolGraphsCache = &ticketPoolDataCache{
+	BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData, 0),
+	DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData, 0),
+}
+
+// GetTicketPoolData is a thread-safe way to access the ticketpool graphs data
+// stored in the cache.
+func GetTicketPoolData(interval dbtypes.ChartGrouping) (barGraphs []*dbtypes.PoolTicketsData,
+	donutChart *dbtypes.PoolTicketsData, isFound bool) {
+	ticketPoolGraphsCache.RLock()
+	defer ticketPoolGraphsCache.RUnlock()
+
+	barGraphs, isFound = ticketPoolGraphsCache.BarGraphsCache[interval]
+	donutChart = ticketPoolGraphsCache.DonutGraphCache[interval]
+	return
+}
+
+// cleanUpTicketPoolData provides a thread-safe way to clean up/invalidate the ticketspool
+// cache data. This function should only be called once when a new block has been
+// added.
+func cleanUpTicketPoolData() {
+	ticketPoolGraphsCache.Lock()
+	defer ticketPoolGraphsCache.Unlock()
+
+	ticketPoolGraphsCache = &ticketPoolDataCache{
+		BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData, 0),
+		DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData, 0),
+	}
+}
+
+// UpdateTicketPoolData updates the ticket pool cache with the latest data fetched.
+// This is a thread-safe way to update ticket pool cache data.
+func UpdateTicketPoolData(interval dbtypes.ChartGrouping, barGraphs []*dbtypes.PoolTicketsData,
+	donutcharts *dbtypes.PoolTicketsData) {
+	ticketPoolGraphsCache.Lock()
+	defer ticketPoolGraphsCache.Unlock()
+
+	ticketPoolGraphsCache.BarGraphsCache = map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData{
+		interval: barGraphs}
+	ticketPoolGraphsCache.DonutGraphCache = map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData{
+		interval: donutcharts}
+}
+
 // TicketStatusText generates the text to display on the explorer's transaction
 // page for the "POOL STATUS" field.
 func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) string {

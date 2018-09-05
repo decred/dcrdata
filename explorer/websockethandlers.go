@@ -106,20 +106,29 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					webData.Message = string(msg)
 
 				case "getticketpooldata":
-					// TODO: Implement a cache to control websocket connections
-					// meant to serve the same data.
-					cData, gData, err := exp.explorerSource.TicketPoolVisualization(
-						dbtypes.ChartGroupingFromStr(msg.Message),
-					)
-					if err != nil {
-						if strings.HasPrefix(err.Error(), "unknown interval") {
-							log.Debugf("Invalid ticket pool interval provided via getticketpooldata: %s", msg.Message)
-							webData.Message = "Error: " + err.Error()
+					var err error
+					interval := dbtypes.ChartGroupingFromStr(msg.Message)
+
+					cData, gData, ok := GetTicketPoolData(interval)
+					// If cached data matched the needed data, no need to make another request.
+					if !ok {
+						cData, gData, err =
+							exp.explorerSource.TicketPoolVisualization(interval)
+						if err != nil {
+							if strings.HasPrefix(err.Error(), "unknown interval") {
+								log.Debugf("invalid ticket pool interval "+
+									"provided via getticketpooldata: %s",
+									msg.Message)
+								webData.Message = "Error: " + err.Error()
+								break
+							}
+							log.Errorf("TicketPoolVisualization error: %v", err)
+							webData.Message = "Error: failed to fetch ticketpool data"
 							break
 						}
-						log.Errorf("TicketPoolVisualization error: %v", err)
-						webData.Message = "Error: Failed to fetch ticketpool data"
-						break
+
+						// Update the newly fetched data to the ticket pool cache.
+						UpdateTicketPoolData(interval, cData, gData)
 					}
 
 					exp.MempoolData.RLock()
@@ -214,6 +223,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						Extra: exp.ExtraInfo,
 					})
 					exp.NewBlockDataMtx.RUnlock()
+
+					// drops the outdated data in the ticketpool cache.
+					cleanUpTicketPoolData()
 
 					webData.Message = buff.String()
 				case sigMempoolUpdate:

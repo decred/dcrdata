@@ -61,6 +61,18 @@ type ChartDataCounter struct {
 	Data map[string]*dbtypes.ChartsData
 }
 
+// ticketPoolDataCache stores the most recent ticketpool graphs information
+// fetched to minimize the possibility of making multiple queries to the db
+// fetching the same information.
+type ticketPoolDataCache struct {
+	sync.RWMutex
+	// BarGraphsCache persists data for the Ticket purchase distribution chart
+	// and Ticket Price Distribution chart
+	BarGraphsCache map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData
+	// DonutGraphCache persist data for the Number of tickets outputs pie chart.
+	DonutGraphCache map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData
+}
+
 // AddressTx models data for transactions on the address page
 type AddressTx struct {
 	TxID           string

@@ -93,8 +93,8 @@ type DataSourceAux interface {
 	VotesInBlock(hash string) (int16, error)
 	GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error)
-	GetTicketPoolByDateAndInterval(int64, dbtypes.ChartGrouping) (*dbtypes.PoolTicketsData, error)
-	GetTicketPoolBlockMaturity() int64
+	TicketPoolVisualization(interval dbtypes.ChartGrouping) (
+		[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -737,16 +737,24 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 		tp = "day"
 	}
 
-	maturityBlock := c.AuxDataSource.GetTicketPoolBlockMaturity()
-	tpData, err := c.AuxDataSource.GetTicketPoolByDateAndInterval(maturityBlock,
-		dbtypes.ChartGroupingFromStr(tp))
-	if err != nil {
-		apiLog.Errorf("Unable to get ticket pool by date: %v", err)
-		http.Error(w, http.StatusText(422), 422)
-		return
+	var err error
+	interval := dbtypes.ChartGroupingFromStr(tp)
+
+	barCharts, donutChart, ok := explorer.GetTicketPoolData(interval)
+	if !ok {
+		// The db queries are fast enough that it makes sense to call TicketPoolVisualization
+		// here even though it returns a lot of data not needed by this request.
+		barCharts, donutChart, err = c.AuxDataSource.TicketPoolVisualization(interval)
+		if err != nil {
+			apiLog.Errorf("Unable to get ticket pool by date: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		explorer.UpdateTicketPoolData(interval, barCharts, donutChart)
 	}
 
-	writeJSON(w, tpData, c.getIndentQuery(r))
+	// Ticket Purchases distribution graph data is always the first in the barCharts array.
+	writeJSON(w, barCharts[0], c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {

@@ -250,14 +250,20 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 
 // Ticketpool is the page handler for the "/ticketpool" path
 func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
-	chartData, groupedTickets, err := exp.explorerSource.TicketPoolVisualization(
-		dbtypes.ChartGroupingFromStr("all"),
-	)
-	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
-		return
+	var err error
+	interval := dbtypes.ChartGroupingFromStr("all")
+
+	barGraphs, donutChart, ok := GetTicketPoolData(interval)
+	if !ok {
+		barGraphs, donutChart, err = exp.explorerSource.TicketPoolVisualization(interval)
+		if err != nil {
+			log.Errorf("Template execute failure: %v", err)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+			return
+		}
+		UpdateTicketPoolData(interval, barGraphs, donutChart)
 	}
+
 	var mp = dbtypes.PoolTicketsData{}
 	exp.MempoolData.RLock()
 	var mpData = exp.MempoolData
@@ -280,8 +286,8 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	}{
 		exp.Version,
 		exp.NetName,
-		chartData,
-		groupedTickets,
+		barGraphs,
+		donutChart,
 		&mp,
 	})
 
