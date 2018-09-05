@@ -1199,6 +1199,35 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	return
 }
 
+// RetrieveTxnsBlocks retrieves for the specified transaction hash the following
+// data for each block containing the transactions: block_hash, block_index,
+// is_valid, is_mainchain.
+func RetrieveTxnsBlocks(db *sql.DB, txHash string) (blockHashes []string, blockHeights, blockIndexes []uint32, areValid, areMainchain []bool, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectTxsBlocks, txHash)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var hash string
+		var height, idx uint32
+		var isValid, isMainchain bool
+		err = rows.Scan(&height, &hash, &idx, &isValid, &isMainchain)
+		if err != nil {
+			break
+		}
+
+		blockHeights = append(blockHeights, height)
+		blockHashes = append(blockHashes, hash)
+		blockIndexes = append(blockIndexes, idx)
+		areValid = append(areValid, isValid)
+		areMainchain = append(areMainchain, isMainchain)
+	}
+	return
+}
+
 // RetrieveBlockHash retrieves the hash of the block at the given height, if it
 // exists (be sure to check error against sql.ErrNoRows!). WARNING: this returns
 // the most recently added block at this height, but there may be others.

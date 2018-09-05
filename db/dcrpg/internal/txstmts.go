@@ -96,6 +96,11 @@ const (
 		FROM transactions
 		WHERE block_height BETWEEN $1 AND $2;`
 
+	SelectTxsBlocks = `SELECT block_height, block_hash, block_index, is_valid, is_mainchain
+		FROM transactions
+		WHERE tx_hash = $1
+		ORDER BY is_valid DESC, is_mainchain DESC, block_height DESC;`
+
 	UpdateRegularTxnsValidMainchainByBlock = `UPDATE transactions
 		SET is_valid=$1, is_mainchain=$2 
 		WHERE block_hash=$3 and tree=0;`
