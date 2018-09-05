@@ -188,9 +188,6 @@ func (wsh *WebsocketHub) run() {
 			switch hubSignal {
 			case sigNewBlock:
 				log.Infof("Signaling new block to %d websocket clients.", len(wsh.clients))
-
-				// drops the outdated data in the ticketpool cache.
-				cleanUpTicketPoolData()
 			case sigPingAndUserCount:
 				log.Tracef("Signaling ping/user count to %d websocket clients.", len(wsh.clients))
 			case sigMempoolUpdate:

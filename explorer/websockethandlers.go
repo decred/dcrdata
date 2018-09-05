@@ -106,12 +106,12 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					webData.Message = string(msg)
 
 				case "getticketpooldata":
-					var err error
 					interval := dbtypes.ChartGroupingFromStr(msg.Message)
 
 					cData, gData, ok := GetTicketPoolData(interval)
 					// If cached data matched the needed data, no need to query the db.
 					if !ok {
+						var err error
 						cData, gData, err =
 							exp.explorerSource.TicketPoolVisualization(interval)
 						if err != nil {
