@@ -66,6 +66,12 @@ func (d *DevFundBalance) Balance() *explorer.AddressBalance {
 	return d.AddressBalance
 }
 
+// ticketPoolSync helps to manage the calls made to fetch ticket pool data from
+// the db via ticketPoolVisualization method.
+type ticketPoolSync struct {
+	updating trylock.Mutex
+}
+
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
@@ -83,6 +89,7 @@ type ChainDB struct {
 	devPrefetch        bool
 	InBatchSync        bool
 	InReorg            bool
+	tpSync             *ticketPoolSync
 }
 
 // ChainDBRPC provides an interface for storing and manipulating extracted and
@@ -257,6 +264,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		unspentTicketCache: unspentTicketCache,
 		DevFundBalance:     new(DevFundBalance),
 		devPrefetch:        devPrefetch,
+		tpSync:             new(ticketPoolSync),
 	}, nil
 }
 
@@ -571,12 +579,31 @@ func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
 	return retrieveTicketsByDate(pgb.db, maturityBlock, int64(val))
 }
 
-// TicketPoolVisualization fetches the following ticketpool data: tickets
+// TicketPoolVisualization helps block consecutive access to the ticketPoolVisualization
+// method till the first request is resolved.
+func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.ChartGrouping) (
+	[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
+
+	for {
+		if pgb.tpSync.updating.TryLock() {
+			defer pgb.tpSync.updating.Unlock()
+			// check if after the first request was handled, the consecutive request
+			// response data was also processed and stored in the cache.
+			barcharts, donutCharts, ok := explorer.GetTicketPoolData(interval)
+			if ok {
+				return barcharts, donutCharts, nil
+			}
+			return pgb.ticketPoolVisualization(interval)
+		}
+	}
+}
+
+// ticketPoolVisualization fetches the following ticketpool data: tickets
 // grouped on the specified interval, tickets grouped by price, and ticket
 // counts by ticket type (solo, pool, other split). The interval may be one of:
 // "mo", "wk", "day", or "all". The data is needed to populate the ticketpool
 // graphs. The data grouped by time and price are returned in a slice.
-func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.ChartGrouping) (
+func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.ChartGrouping) (
 	[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
 	var maturityBlock = pgb.GetTicketPoolBlockMaturity()
 

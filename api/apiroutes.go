@@ -93,8 +93,8 @@ type DataSourceAux interface {
 	VotesInBlock(hash string) (int16, error)
 	GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error)
-	GetTicketPoolByDateAndInterval(int64, dbtypes.ChartGrouping) (*dbtypes.PoolTicketsData, error)
-	GetTicketPoolBlockMaturity() int64
+	TicketPoolVisualization(interval dbtypes.ChartGrouping) (
+		[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -198,6 +198,11 @@ out:
 			c.statusMtx.Unlock()
 			log.Errorf("New DB height (%d) and stored block data (%d, %d) not consistent.",
 				height, bdHeight, summary.Height)
+
+			// Instantiates the ticketpool data cache and set it with the current
+			// block height. Also Lazily cleans up the invalid data in the tickepool
+			// cache when a new block is added.
+			explorer.CleanUpTicketPoolData(int64(bdHeight))
 
 		case _, ok := <-quit:
 			if !ok {
@@ -737,16 +742,25 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 		tp = "day"
 	}
 
-	maturityBlock := c.AuxDataSource.GetTicketPoolBlockMaturity()
-	tpData, err := c.AuxDataSource.GetTicketPoolByDateAndInterval(maturityBlock,
-		dbtypes.ChartGroupingFromStr(tp))
-	if err != nil {
-		apiLog.Errorf("Unable to get ticket pool by date: %v", err)
-		http.Error(w, http.StatusText(422), 422)
-		return
+	interval := dbtypes.ChartGroupingFromStr(tp)
+
+	barCharts, _, ok := explorer.GetTicketPoolData(interval)
+	if !ok {
+		var err error
+		var donutChart *dbtypes.PoolTicketsData
+		// The db queries are fast enough that it makes sense to call TicketPoolVisualization
+		// here even though it returns a lot of data not needed by this request.
+		barCharts, donutChart, err = c.AuxDataSource.TicketPoolVisualization(interval)
+		if err != nil {
+			apiLog.Errorf("Unable to get ticket pool by date: %v", err)
+			http.Error(w, http.StatusText(422), 422)
+			return
+		}
+		explorer.UpdateTicketPoolData(interval, barCharts, donutChart)
 	}
 
-	writeJSON(w, tpData, c.getIndentQuery(r))
+	// Ticket Purchases distribution graph data is always the first in the barCharts array.
+	writeJSON(w, barCharts[0], c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
