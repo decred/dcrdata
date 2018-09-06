@@ -1,9 +1,9 @@
 package internal
 
 const (
-	insertAddressRow0 = `INSERT INTO addresses (address, matching_tx_hash, tx_hash,
+	insertAddressRow0 = `INSERT INTO addresses (address, matching_tx_hash, matching_tx_index, tx_hash,
 		tx_vin_vout_index, tx_vin_vout_row_id, value, block_time, is_funding, valid_mainchain, tx_type)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) `
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) `
 
 	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
 
@@ -37,11 +37,12 @@ const (
 		is_funding BOOLEAN,
 		tx_vin_vout_index INT4,
 		tx_vin_vout_row_id INT8,
-		tx_type INT4
+		tx_type INT4,
+		matching_tx_index INT4
 		);`
 
 	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, valid_mainchain,
-		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
+		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding, matching_tx_index`
 
 	SelectAddressAllByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses WHERE address=$1 ORDER BY block_time DESC;`
 	SelectAddressRecvCount    = `SELECT COUNT(*) FROM addresses WHERE address=$1 AND valid_mainchain = TRUE;`
@@ -143,8 +144,8 @@ const (
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses WHERE address=$1 AND
 	    tx_vin_vout_row_id=$2 AND is_funding = TRUE;`
 
-	SetAddressFundingForMatchingTxHash = `UPDATE addresses SET matching_tx_hash=$1
-		WHERE tx_hash=$2 AND is_funding = TRUE AND tx_vin_vout_index=$3;`
+	SetAddressFundingForMatchingTxHash = `UPDATE addresses SET matching_tx_hash=$1, matching_tx_index=$2
+		WHERE tx_hash=$3 AND is_funding = TRUE AND tx_vin_vout_index=$4;`
 
 	SetAddressMainchainForVoutIDs = `UPDATE addresses SET valid_mainchain=$1
 		WHERE is_funding = TRUE AND tx_vin_vout_row_id=$2;`
@@ -224,6 +225,15 @@ const (
 
 	SetTxTypeOnAddressesByVinAndVoutIDs = `UPDATE addresses SET tx_type=$1 WHERE
 		tx_vin_vout_row_id=$2 AND is_funding=$3;`
+
+	UpdateMatchingFundingTxIdFromVins = `UPDATE addresses SET matching_tx_index=tx_index
+		FROM vins WHERE matching_tx_hash=vins.tx_hash AND addresses.tx_hash=prev_tx_hash
+		AND addresses.tx_vin_vout_index=prev_tx_index AND matching_tx_hash !=''
+		AND is_funding=true AND addresses.id >= $1 AND addresses.id < $2;`
+
+	UpdateMatchingSpendingTxIdFromVins = `UPDATE addresses SET matching_tx_index=vins.prev_tx_index
+		FROM vins WHERE vins.id=tx_vin_vout_row_id AND is_funding=false AND matching_tx_hash != ''
+		AND addresses.id >= $1 AND addresses.id < $2;`
 
 	IndexBlockTimeOnTableAddress   = `CREATE INDEX block_time_index ON addresses (block_time);`
 	DeindexBlockTimeOnTableAddress = `DROP INDEX block_time_index;`

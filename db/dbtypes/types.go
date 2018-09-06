@@ -1,6 +1,7 @@
 package dbtypes
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -357,6 +358,7 @@ type AddressRow struct {
 	// MatchingTxHash provides the relationship between spending tx inputs and
 	// funding tx outputs.
 	MatchingTxHash   string
+	MatchingTxIndex  sql.NullInt64
 	IsFunding        bool
 	TxBlockTime      uint64
 	TxHash           string

@@ -515,7 +515,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 	// Insert the new spending tx
 	var isFunding bool
 	sqlStmt := internal.MakeAddressRowInsertStatement(checked)
-	err = tx.QueryRow(sqlStmt, newAddr, fundingTxHash, spendingTxHash,
+	err = tx.QueryRow(sqlStmt, newAddr, fundingTxHash, fundingTxVoutIndex, spendingTxHash,
 		spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
 		validMainchain, txType).Scan(&rowID)
 	if err != nil {
@@ -525,7 +525,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 	// Update the matchingTxHash for the funding tx output. matchingTxHash here
 	// is the hash of the funding tx.
 	res, err := tx.Exec(internal.SetAddressFundingForMatchingTxHash,
-		spendingTxHash, fundingTxHash, fundingTxVoutIndex)
+		spendingTxHash, spendingTxVinIndex, fundingTxHash, fundingTxVoutIndex)
 	if err != nil || res == nil {
 		return 0, fmt.Errorf("SetAddressFundingForMatchingTxHash: %v", err)
 	}
@@ -867,7 +867,7 @@ func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.
 		// Scan values in order of columns listed in internal.addrsColumnNames
 		err = rows.Scan(&id, &addr.Address, &addr.MatchingTxHash, &txHash,
 			&addr.ValidMainChain, &txVinIndex, &blockTime, &vinDbID,
-			&addr.Value, &addr.IsFunding)
+			&addr.Value, &addr.IsFunding, &addr.MatchingTxIndex)
 		if err != nil {
 			return
 		}
@@ -2344,7 +2344,7 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, [
 func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint64, error) {
 	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck)
 	var id uint64
-	err := db.QueryRow(sqlStmt, dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
+	err := db.QueryRow(sqlStmt, dbA.Address, dbA.MatchingTxHash, dbA.MatchingTxIndex, dbA.TxHash,
 		dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
 		dbA.IsFunding, dbA.ValidMainChain, dbA.TxType).Scan(&id)
 	return id, err
@@ -2378,7 +2378,7 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 	ids := make([]uint64, 0, len(dbAs))
 	for _, dbA := range dbAs {
 		var id uint64
-		err := stmt.QueryRow(dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
+		err := stmt.QueryRow(dbA.Address, dbA.MatchingTxHash, dbA.MatchingTxIndex, dbA.TxHash,
 			dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
 			dbA.IsFunding, dbA.ValidMainChain, dbA.TxType).Scan(&id)
 		if err != nil {

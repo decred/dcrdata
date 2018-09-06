@@ -40,7 +40,7 @@ var createTypeStatements = map[string]string{
 const (
 	tableMajor = 3
 	tableMinor = 5
-	tablePatch = 3
+	tablePatch = 4
 )
 
 // TODO eliminiate this map since we're actually versioning each table the same.

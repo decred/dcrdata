@@ -142,7 +142,7 @@
                             </td>
                         </tr>
                     {{end}}
-                    
+
                     {{if and (and (eq .Mature "True")  (ne .TicketInfo.SpendStatus "Voted")) (eq .TicketInfo.PoolStatus "live")}}
                         {{if ge .TicketInfo.TicketExpiry .TicketInfo.TicketLiveBlocks}}
                             <tr>
@@ -265,7 +265,7 @@
                 </thead>
                 <tbody>
                     {{range .Vin}}
-                    <tr>
+                    <tr {{if and (eq $.HighlightInOut "in") (eq $.HighlightInOutID .Index)}} class="matching-hash" {{end}}>
                         <td class="break-word mono fs13">
                             <div class="outpoint">
                             {{if .Coinbase}}
@@ -273,7 +273,7 @@
                             {{else if .Stakebase}}
                                 Stakebase: {{ .Stakebase }}
                             {{else}}
-                                <a data-keynav-priority href="/tx/{{.Txid}}">{{.Txid}}:{{.Vout}}</a>
+                                <a data-keynav-priority href="/tx/{{.Txid}}/out/{{.Vout}}">{{.Txid}}:{{.Vout}}</a>
                             {{end}}
                             </div>
                         </td>
@@ -304,7 +304,7 @@
                             <td></td>
                             <td></td>
                             <td class="mono fs13 text-right">{{template "decimalParts" (amountAsDecimalParts .BlockMiningFee false)}}</td>
-                        </tr>        
+                        </tr>
                     {{end}}
                 </tbody>
             </table>
@@ -320,7 +320,7 @@
                 </thead>
                 <tbody>
                     {{range $i, $v := .Vout}}
-                    <tr>
+                    <tr {{if and (eq $.HighlightInOut "out") (eq $.HighlightInOutID .Index)}} class="matching-hash" {{end}}>
                         <td class="break-word mono fs13 addressAndScriptData">
                             {{range .Addresses}}
                                 <div class="address sm-fullwidth"><a href="/address/{{.}}" data-keynav-priority>{{.}}</a></div>
@@ -343,7 +343,7 @@
                         </td>
                         <td class="text-left fs13">{{with $spending := (index $.Data.SpendingTxns $i) }}
                             {{if $spending.Hash}}
-                                <a href="/tx/{{$spending.Hash}}">{{$v.Spent}}</a>
+                                <a href="/tx/{{$spending.Hash}}/in/{{$spending.Index}}">{{$v.Spent}}</a>
                             {{else}}
                                 {{if gt $v.Amount 0.0}}
                                 {{$v.Spent}}

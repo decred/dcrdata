@@ -1180,6 +1180,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 			},
 			Addresses:       addresses,
 			FormattedAmount: humanize.Commaf(ValueIn.ToCoin()),
+			Index:           uint32(i),
 		})
 	}
 	tx.Vin = inputs
@@ -1233,6 +1234,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 			OP_RETURN:       opReturn,
 			Type:            vout.ScriptPubKey.Type,
 			Spent:           txout == nil,
+			Index:           vout.N,
 		})
 	}
 	tx.Vout = outputs

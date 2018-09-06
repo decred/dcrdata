@@ -69,6 +69,7 @@ type AddressTx struct {
 	SentTotal      float64
 	IsFunding      bool
 	MatchedTx      string
+	MatchedTxIndex int64
 	BlockTime      uint64
 	MergedTxnCount uint64 `json:",omitempty"`
 }
@@ -165,6 +166,7 @@ type Vin struct {
 	*dcrjson.Vin
 	Addresses       []string
 	FormattedAmount string
+	Index           uint32
 }
 
 // Vout models basic data about a tx output for display
@@ -175,6 +177,7 @@ type Vout struct {
 	Type            string
 	Spent           bool
 	OP_RETURN       string
+	Index           uint32
 }
 
 // BlockInfo models data for display on the block page
@@ -397,6 +400,9 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 			TxID:      addrOut.TxHash,
 			MatchedTx: addrOut.MatchingTxHash,
 			IsFunding: addrOut.IsFunding,
+		}
+		if addrOut.MatchingTxIndex.Valid {
+			tx.MatchedTxIndex = addrOut.MatchingTxIndex.Int64
 		}
 
 		if addrOut.IsFunding {

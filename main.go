@@ -558,6 +558,7 @@ func mainCore() error {
 	webMux.Get("/parameters", explore.ParametersPage)
 	webMux.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
 	webMux.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)
+	webMux.With(explorer.TransactionHashCtx,explorer.TransactionIoIndexCtx).Get("/tx/{txid}/{inout}/{inoutid}", explore.TxPage)
 	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)
 	webMux.Get("/agendas", explore.AgendasPage)
 	webMux.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)

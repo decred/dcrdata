@@ -38,6 +38,7 @@ const (
 	agendasVotingMilestonesUpgrade
 	ticketsTableBlockTimeUpgrade
 	addressesTableValidMainchainPatch
+	addressesTableMatchingTxIndexUpgrade
 )
 
 type TableUpgradeType struct {
@@ -234,7 +235,24 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		}
 
 		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.5.3 --> 3.5.4
+	case version.major == 3 && version.minor == 5 && version.patch == 3:
+		toVersion = TableVersion{3, 5, 4}
+
+		theseUpgrades := []TableUpgradeType{
+			{"addresses", addressesTableMatchingTxIndexUpgrade},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
+		// Go on to next upgrade
 		// fallthrough
+
 		// or be done
 
 	default:
@@ -328,6 +346,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case addressesTableValidMainchainPatch:
 		tableReady = true
 		tableName, upgradeTypeStr = "addresses", "patch valid_mainchain value"
+	case addressesTableMatchingTxIndexUpgrade:
+		tableReady, err = addAddressesColumnsForMatchingTxIndexUpgrade(pgb.db)
+		tableName, upgradeTypeStr = "addresses", "matching tx index column"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -441,6 +462,10 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("Patching valid_mainchain in the addresses table...")
 		rowsUpdated, err = updateAddressesValidMainchainPatch(pgb.db)
 
+	case addressesTableMatchingTxIndexUpgrade:
+		log.Infof("Set the matching tx index in address table...")
+		rowsUpdated, err = pgb.handleAddressesMatchingTxIndexUpgrade()
+
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
 	}
@@ -506,6 +531,45 @@ func (pgb *ChainDB) handleAgendasVotingMilestonesUpgrade() (int64, error) {
 		}
 	}
 	return rowsUpdated, nil
+}
+func (pgb *ChainDB) handleAddressesMatchingTxIndexUpgrade() (int64, error) {
+	// Go through all vins and assign matching_tx_index to all addresses table
+	// entries
+	var maxId, i, j, c int64
+	err := pgb.db.QueryRow(`SELECT max(id) as maxid from addresses;`).Scan(&maxId)
+	if err != nil || maxId == 0 {
+		return 0, fmt.Errorf("No Address entries found: %v", err)
+	}
+
+	for i <= maxId {
+		j = i + 100000
+		log.Infof("Updating address table entries %v to %v of %v", i, j, maxId)
+
+		result, err := pgb.db.Exec(internal.UpdateMatchingFundingTxIdFromVins, i, j)
+		if err != nil {
+			return 0, fmt.Errorf("Error Updating Records: %v", err)
+		}
+		count, err := result.RowsAffected()
+		c += count
+
+		if err != nil {
+			return 0, fmt.Errorf("Error Updating Records: %v", err)
+		}
+
+		result, err = pgb.db.Exec(internal.UpdateMatchingSpendingTxIdFromVins, i, j)
+		if err != nil {
+			return 0, fmt.Errorf("Error Updating Records: %v", err)
+		}
+		count, err = result.RowsAffected()
+		c += count
+
+		if err != nil {
+			return 0, fmt.Errorf("Error Updating Records: %v", err)
+		}
+
+		i = j
+	}
+	return c, nil
 }
 
 func (pgb *ChainDB) handleVinsTableMainchainupgrade() (int64, error) {
@@ -901,7 +965,7 @@ type newColumn struct {
 func addNewColumnsIfNotFound(db *sql.DB, table string, newColumns []newColumn) (bool, error) {
 	for ic := range newColumns {
 		var isRowFound bool
-		err := db.QueryRow(`SELECT EXISTS( SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS 
+		err := db.QueryRow(`SELECT EXISTS( SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS
 			WHERE table_name = $1 AND column_name = $2 );`, table, newColumns[ic].Name).Scan(&isRowFound)
 		if err != nil {
 			return false, err
@@ -1004,6 +1068,14 @@ func addAddressesColumnsForMainchain(db *sql.DB) (bool, error) {
 	// The new columns and their data types
 	newColumns := []newColumn{
 		{"valid_mainchain", "BOOLEAN", ""}, // no default because this takes forever and we'll check for "true"
+	}
+	return addNewColumnsIfNotFound(db, "addresses", newColumns)
+}
+
+func addAddressesColumnsForMatchingTxIndexUpgrade(db *sql.DB) (bool, error) {
+	//Add new column for matching tx index entry
+	newColumns := []newColumn{
+		{"matching_tx_index", "INT4", ""},
 	}
 	return addNewColumnsIfNotFound(db, "addresses", newColumns)
 }
