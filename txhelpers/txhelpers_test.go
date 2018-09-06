@@ -15,7 +15,7 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrdata/semver"
+	"github.com/decred/dcrdata/v3/semver"
 )
 
 type TxGetter struct {

@@ -6,7 +6,7 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 )
 
 // InsightAddress models an address transactions

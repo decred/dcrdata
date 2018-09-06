@@ -8,7 +8,7 @@ import (
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
-	apitypes "github.com/decred/dcrdata/api/types"
+	apitypes "github.com/decred/dcrdata/v3/api/types"
 )
 
 // TxConverter converts dcrd-tx to insight tx

@@ -3,8 +3,8 @@ package dcrsqlite
 import (
 	"testing"
 
-	"github.com/decred/dcrdata/testutil"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrdata/v3/testutil"
 )
 
 func TestIsZeroHashP2PHKAddress(t *testing.T) {

@@ -14,9 +14,9 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types"
-	"github.com/decred/dcrdata/stakedb"
-	"github.com/decred/dcrdata/txhelpers"
+	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/stakedb"
+	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
 // BlockData contains all the data collected by a Collector and stored
@@ -91,7 +91,7 @@ func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 		FreshStake:             b.Header.FreshStake,
 		StakeDiff:              b.Header.SBits,
 		BlockExplorerExtraInfo: extra,
-		Time: b.Header.Time,
+		Time:                   b.Header.Time,
 	}
 }
 

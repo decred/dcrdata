@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	m "github.com/decred/dcrdata/middleware"
+	m "github.com/decred/dcrdata/v3/middleware"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rs/cors"
@@ -204,7 +204,7 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 	// 	buf.WriteTo(os.Stdout)
 
 	// 	fmt.Println(docgen.MarkdownRoutesDoc(mux, docgen.MarkdownOpts{
-	// 		ProjectPath: "github.com/decred/dcrdata",
+	// 		ProjectPath: "github.com/decred/dcrdata/v3",
 	// 		Intro:       "dcrdata HTTP router directory",
 	// 	}))
 	// 	return

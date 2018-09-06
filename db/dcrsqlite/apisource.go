@@ -21,13 +21,13 @@ import (
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types"
-	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/explorer"
-	"github.com/decred/dcrdata/mempool"
-	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/stakedb"
-	"github.com/decred/dcrdata/txhelpers"
+	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
+	"github.com/decred/dcrdata/v3/explorer"
+	"github.com/decred/dcrdata/v3/mempool"
+	"github.com/decred/dcrdata/v3/rpcutils"
+	"github.com/decred/dcrdata/v3/stakedb"
+	"github.com/decred/dcrdata/v3/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -1356,7 +1356,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 }
 
 // IsZeroHashP2PHKAddress checks if the given address is the dummy (zero pubkey
-// hash) address. See https://github.com/decred/dcrdata/issues/358 for details.
+// hash) address. See https://github.com/decred/dcrdata/v3/issues/358 for details.
 func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
 	zeroed := [20]byte{}
 	// expecting DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg address for mainnet
