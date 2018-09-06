@@ -685,7 +685,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	if err != nil {
 		return nil, nil, err
 	}
-	if fresh {
+	if fresh || len(addressRows) == 0 {
 		return addressRows, &balanceInfo, nil
 	}
 
@@ -860,6 +860,13 @@ func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
 	addrData, _, err := pgb.addressInfo(addr, count, skip, txnType)
 	if err != nil {
 		return nil, err
+	}
+	// No transactions found. Not an error.
+	if addrData == nil {
+		return &apitypes.Address{
+			Address:      addr,
+			Transactions: make([]*apitypes.AddressTxShort, 0), // not nil for JSON formatting
+		}, nil
 	}
 
 	// Convert each explorer.AddressTx to apitypes.AddressTxShort

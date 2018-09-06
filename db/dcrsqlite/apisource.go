@@ -821,8 +821,15 @@ func (db *wiredDB) GetAddressTransactionsWithSkip(addr string, count, skip int) 
 		return nil
 	}
 	txs, err := db.client.SearchRawTransactionsVerbose(address, skip, count, false, true, nil)
+	if err != nil && err.Error() == "-32603: No Txns available" {
+		log.Debugf("GetAddressTransactionsWithSkip: No transactions found for address %s: %v", addr, err)
+		return &apitypes.Address{
+			Address:      addr,
+			Transactions: make([]*apitypes.AddressTxShort, 0), // not nil for JSON formatting
+		}
+	}
 	if err != nil {
-		log.Warnf("GetAddressTransactions failed for address %s: %v", addr, err)
+		log.Errorf("GetAddressTransactionsWithSkip failed for address %s: %v", addr, err)
 		return nil
 	}
 	tx := make([]*apitypes.AddressTxShort, 0, len(txs))
@@ -1262,7 +1269,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(maxcount), true, true, nil)
 	if err != nil && err.Error() == "-32603: No Txns available" {
-		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+		log.Debugf("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
 
 		if !ValidateNetworkAddress(addr, db.params) {
 			log.Warnf("Address %s is not valid for this network", address)
@@ -1273,7 +1280,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 			MaxTxLimit: maxcount,
 		}
 	} else if err != nil {
-		log.Warnf("GetAddressTransactionsRaw failed for address %s: %v", addr, err)
+		log.Warnf("GetExplorerAddress: SearchRawTransactionsVerbose failed for address %s: %v", addr, err)
 		return nil
 	}
 
