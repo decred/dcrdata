@@ -17,13 +17,13 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/rpcclient"
-	apitypes "github.com/decred/dcrdata/api/types"
-	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/explorer"
-	m "github.com/decred/dcrdata/middleware"
-	notify "github.com/decred/dcrdata/notification"
-	"github.com/decred/dcrdata/txhelpers"
-	appver "github.com/decred/dcrdata/version"
+	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
+	"github.com/decred/dcrdata/v3/explorer"
+	m "github.com/decred/dcrdata/v3/middleware"
+	notify "github.com/decred/dcrdata/v3/notification"
+	"github.com/decred/dcrdata/v3/txhelpers"
+	appver "github.com/decred/dcrdata/v3/version"
 )
 
 // DataSourceLite specifies an interface for collecting data from the built-in

@@ -16,9 +16,9 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrdata/db/agendadb"
-	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/v3/db/agendadb"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
+	"github.com/decred/dcrdata/v3/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
 

@@ -20,9 +20,9 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/api/types"
-	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/txhelpers"
+	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/rpcutils"
+	"github.com/decred/dcrdata/v3/txhelpers"
 	"github.com/oleiade/lane"
 )
 

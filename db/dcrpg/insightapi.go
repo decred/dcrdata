@@ -6,11 +6,11 @@ package dcrpg
 import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
-	apitypes "github.com/decred/dcrdata/api/types"
-	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/explorer"
-	"github.com/decred/dcrdata/rpcutils"
-	"github.com/decred/dcrdata/txhelpers"
+	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
+	"github.com/decred/dcrdata/v3/explorer"
+	"github.com/decred/dcrdata/v3/rpcutils"
+	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
 // GetRawTransaction gets a dcrjson.TxRawResult for the specified transaction

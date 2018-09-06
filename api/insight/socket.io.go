@@ -13,8 +13,8 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/blockdata"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/v3/blockdata"
+	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
 var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString

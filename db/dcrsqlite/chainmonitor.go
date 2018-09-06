@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/v3/blockdata"
 )
 
 // ReorgData contains the information from a reoranization notification

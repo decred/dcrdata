@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/decred/dcrdata/db/dcrpg/internal"
+	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
 )
 
 var createTableStatements = map[string]string{

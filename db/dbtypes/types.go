@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/decred/dcrdata/db/dbtypes/internal"
+	"github.com/decred/dcrdata/v3/db/dbtypes/internal"
 )
 
 // Tickets have 6 states, 5 possible fates:

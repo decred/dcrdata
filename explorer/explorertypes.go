@@ -12,9 +12,9 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrdata/db/agendadb"
-	"github.com/decred/dcrdata/db/dbtypes"
-	"github.com/decred/dcrdata/txhelpers"
+	"github.com/decred/dcrdata/v3/db/agendadb"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
+	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
 // statusType defines the various status types supported by the system.
@@ -261,7 +261,7 @@ type AddressInfo struct {
 
 	// IsDummyAddress is true when the address is the dummy address typically
 	// used for unspendable ticket change outputs. See
-	// https://github.com/decred/dcrdata/issues/358 for details.
+	// https://github.com/decred/dcrdata/v3/issues/358 for details.
 	IsDummyAddress bool
 }
 
