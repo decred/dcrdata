@@ -78,8 +78,14 @@ body {
   padding-bottom: 2.1rem;
   background: #F3F5F6;
 }
+body .grayed {
+  color: rgba(33, 37, 41, 0.5);
+}
 a {
   color: #2e75ff;
+}
+a.grayed {
+  color: rgba(46, 117, 255, 0.75) !important;
 }
 h4 {
   margin-top: 10px;
@@ -127,9 +133,16 @@ body.darkBG {
   background: #3B3F45;
   color: #fdfdfd;
 }
+body.darkBG .grayed {
+  color: rgba(253, 253, 253, 0.5);
+}
 body.darkBG a,
 body.darkBG a:hover {
   color: #94ffca;
+}
+body.darkBG a.grayed,
+body.darkBG a.grayed:hover {
+  color: rgba(148, 255, 202, 0.75) !important;
 }
 body.darkBG .table thead th {
   vertical-align: bottom;

@@ -1169,21 +1169,6 @@ func RetrieveTxBlockTimeByHash(db *sql.DB, txHash string) (blockTime uint64, err
 	return
 }
 
-func RetrieveTxIDHeightByHash(db *sql.DB, txHash string) (id uint64, blockHeight int64, err error) {
-	err = db.QueryRow(internal.SelectTxIDHeightByHash, txHash).Scan(&id, &blockHeight)
-	return
-}
-
-func RetrieveRegularTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, err error) {
-	err = db.QueryRow(internal.SelectRegularTxByHash, txHash).Scan(&id, &blockHash, &blockInd)
-	return
-}
-
-func RetrieveStakeTxByHash(db *sql.DB, txHash string) (id uint64, blockHash string, blockInd uint32, err error) {
-	err = db.QueryRow(internal.SelectStakeTxByHash, txHash).Scan(&id, &blockHash, &blockInd)
-	return
-}
-
 func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string,
 	blockInds []uint32, trees []int8, blockTimes []uint64, err error) {
 	var rows *sql.Rows
@@ -1211,6 +1196,35 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 		blockTimes = append(blockTimes, blockTime)
 	}
 
+	return
+}
+
+// RetrieveTxnsBlocks retrieves for the specified transaction hash the following
+// data for each block containing the transactions: block_hash, block_index,
+// is_valid, is_mainchain.
+func RetrieveTxnsBlocks(db *sql.DB, txHash string) (blockHashes []string, blockHeights, blockIndexes []uint32, areValid, areMainchain []bool, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectTxsBlocks, txHash)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var hash string
+		var height, idx uint32
+		var isValid, isMainchain bool
+		err = rows.Scan(&height, &hash, &idx, &isValid, &isMainchain)
+		if err != nil {
+			break
+		}
+
+		blockHeights = append(blockHeights, height)
+		blockHashes = append(blockHashes, hash)
+		blockIndexes = append(blockIndexes, idx)
+		areValid = append(areValid, isValid)
+		areMainchain = append(areMainchain, isMainchain)
+	}
 	return
 }
 

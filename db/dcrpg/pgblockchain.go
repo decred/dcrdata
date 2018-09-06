@@ -353,6 +353,30 @@ func (pgb *ChainDB) BlockStatus(hash string) (dbtypes.BlockStatus, error) {
 	return RetrieveBlockStatus(pgb.db, hash)
 }
 
+// TransactionBlocks retrieves the blocks in which the specified transaction
+// appears, along with the index of the transaction in each of the blocks. The
+// next and previous block hashes are NOT SET in each BlockStatus.
+func (pgb *ChainDB) TransactionBlocks(txHash string) ([]*dbtypes.BlockStatus, []uint32, error) {
+	hashes, heights, inds, valids, mainchains, err := RetrieveTxnsBlocks(pgb.db, txHash)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	blocks := make([]*dbtypes.BlockStatus, len(hashes))
+
+	for i := range hashes {
+		blocks[i] = &dbtypes.BlockStatus{
+			IsValid:     valids[i],
+			IsMainchain: mainchains[i],
+			Height:      heights[i],
+			Hash:        hashes[i],
+			// Next and previous hash not set
+		}
+	}
+
+	return blocks, inds, nil
+}
+
 // HeightDB queries the DB for the best block height.
 func (pgb *ChainDB) HeightDB() (uint64, error) {
 	bestHeight, _, _, err := RetrieveBestBlockHeight(pgb.db)
