@@ -560,19 +560,18 @@ func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
 func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.ChartGrouping) (
 	[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
 
-	isLocking := pgb.tpSync.updating.TryLock()
-
-	if isLocking {
-		defer pgb.tpSync.updating.Unlock()
-		// check if after the first request handled, the consecutive request response
-		// data was also processed and stored in the cache.
-		barcharts, donutCharts, ok := explorer.GetTicketPoolData(interval)
-		if ok {
-			return barcharts, donutCharts, nil
+	for {
+		if pgb.tpSync.updating.TryLock() {
+			defer pgb.tpSync.updating.Unlock()
+			// check if after the first request was handled, the consecutive request
+			// response data was also processed and stored in the cache.
+			barcharts, donutCharts, ok := explorer.GetTicketPoolData(interval)
+			if ok {
+				return barcharts, donutCharts, nil
+			}
+			return pgb.ticketPoolVisualization(interval)
 		}
-		return pgb.ticketPoolVisualization(interval)
 	}
-	return nil, nil, nil
 }
 
 // ticketPoolVisualization fetches the following ticketpool data: tickets
