@@ -76,69 +76,26 @@ type explorerDataSource interface {
 	//SideChainTips() []*dbtypes.BlockStatus
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	GetOldestTxBlockTime(addr string) (int64, error)
-	TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error)
+	TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)
 }
 
-// cacheChartsData holds the prepopulated data that is used to draw the charts
-var cacheChartsData = new(ChartDataCounter)
+// chartDataCounter is a data cache for the historical charts.
+type chartDataCounter struct {
+	sync.RWMutex
+	Data map[string]*dbtypes.ChartsData
+}
 
-// GetChartTypeData is a thread-safe way to access the chart type data.
-func GetChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
+// cacheChartsData holds the prepopulated data that is used to draw the charts
+var cacheChartsData chartDataCounter
+
+// ChartTypeData is a thread-safe way to access chart data of the given type.
+func ChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 	cacheChartsData.RLock()
 	defer cacheChartsData.RUnlock()
 
 	data, ok = cacheChartsData.Data[chartType]
 	return
-}
-
-// ticketPoolGraphsCache persists the latest ticketpool data queried from the db.
-var ticketPoolGraphsCache = &ticketPoolDataCache{
-	BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData),
-	DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData),
-}
-
-// GetTicketPoolData is a thread-safe way to access the ticketpool graphs data
-// stored in the cache.
-func GetTicketPoolData(interval dbtypes.ChartGrouping) (barGraphs []*dbtypes.PoolTicketsData,
-	donutChart *dbtypes.PoolTicketsData, isFound bool) {
-	ticketPoolGraphsCache.RLock()
-	defer ticketPoolGraphsCache.RUnlock()
-
-	barGraphs, isFound = ticketPoolGraphsCache.BarGraphsCache[interval]
-	donutChart = ticketPoolGraphsCache.DonutGraphCache[interval]
-	return
-}
-
-// CleanUpTicketPoolData provides a thread-safe way to clean up/invalidate the
-// ticketpool cache data. It resets the ticketpool cache data and sets the
-// current block height. Check for invalid data every cleanUpTickerInterval.
-func CleanUpTicketPoolData(height int64) {
-	// if data is updated do not proceed
-	if ticketPoolGraphsCache.Height == height {
-		return
-	}
-
-	ticketPoolGraphsCache.Lock()
-	defer ticketPoolGraphsCache.Unlock()
-
-	ticketPoolGraphsCache = &ticketPoolDataCache{
-		Height:          height,
-		BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData),
-		DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData),
-	}
-}
-
-// UpdateTicketPoolData updates the ticket pool cache with the latest data fetched.
-// This is a thread-safe way to update ticket pool cache data. TryLock helps avoid
-// stacking calls to update the cache.
-func UpdateTicketPoolData(interval dbtypes.ChartGrouping, barGraphs []*dbtypes.PoolTicketsData,
-	donutcharts *dbtypes.PoolTicketsData) {
-	ticketPoolGraphsCache.Lock()
-	defer ticketPoolGraphsCache.Unlock()
-
-	ticketPoolGraphsCache.BarGraphsCache[interval] = barGraphs
-	ticketPoolGraphsCache.DonutGraphCache[interval] = donutcharts
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction

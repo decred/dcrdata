@@ -1428,11 +1428,11 @@ func retrieveTicketByPrice(db *sql.DB, maturityBlock int64) (*dbtypes.PoolTicket
 	return tickets, nil
 }
 
-// retrieveTickesGroupedByType fetches the count of tickets in the current ticketpool
-// grouped by ticket type (inferred by their output counts). The grouping used
-// here i.e. solo, pooled and tixsplit is just a guessing based on commonly
-// structured ticket purchases.
-func retrieveTickesGroupedByType(db *sql.DB) (*dbtypes.PoolTicketsData, error) {
+// retrieveTicketsGroupedByType fetches the count of tickets in the current
+// ticketpool grouped by ticket type (inferred by their output counts). The
+// grouping used here i.e. solo, pooled and tixsplit is just a guessing based on
+// commonly structured ticket purchases.
+func retrieveTicketsGroupedByType(db *sql.DB) (*dbtypes.PoolTicketsData, error) {
 	var entry dbtypes.PoolTicketsData
 	rows, err := db.Query(internal.SelectTicketsByType)
 	if err != nil {
@@ -1445,7 +1445,7 @@ func retrieveTickesGroupedByType(db *sql.DB) (*dbtypes.PoolTicketsData, error) {
 		err = rows.Scan(&txType, &txTypeCount)
 
 		if err != nil {
-			return nil, fmt.Errorf("retrieveTickesGroupedByType %v", err)
+			return nil, fmt.Errorf("retrieveTicketsGroupedByType %v", err)
 		}
 
 		switch txType {

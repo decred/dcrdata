@@ -106,50 +106,43 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					webData.Message = string(msg)
 
 				case "getticketpooldata":
+					// Retrieve chart data on the given interval.
 					interval := dbtypes.ChartGroupingFromStr(msg.Message)
-
-					cData, gData, ok := GetTicketPoolData(interval)
-					// If cached data matched the needed data, no need to query the db.
-					if !ok {
-						var err error
-						cData, gData, err =
-							exp.explorerSource.TicketPoolVisualization(interval)
-						if err != nil {
-							if strings.HasPrefix(err.Error(), "unknown interval") {
-								log.Debugf("invalid ticket pool interval "+
-									"provided via getticketpooldata: %s",
-									msg.Message)
-								webData.Message = "Error: " + err.Error()
-								break
-							}
-							log.Errorf("TicketPoolVisualization error: %v", err)
-							webData.Message = "Error: failed to fetch ticketpool data"
+					// Chart height is returned since the cache may be stale,
+					// although it is automatically updated by the first caller
+					// who requests data from a stale cache.
+					cData, gData, chartHeight, err := exp.explorerSource.TicketPoolVisualization(interval)
+					if err != nil {
+						if strings.HasPrefix(err.Error(), "unknown interval") {
+							log.Debugf("invalid ticket pool interval provided "+
+								"via TicketPoolVisualization: %s", msg.Message)
+							webData.Message = "Error: " + err.Error()
 							break
 						}
-
-						// Update the newly fetched data to the ticket pool cache.
-						UpdateTicketPoolData(interval, cData, gData)
+						log.Errorf("TicketPoolVisualization error: %v", err)
+						webData.Message = "Error: failed to fetch ticketpool data"
+						break
 					}
 
+					var mp dbtypes.PoolTicketsData
+
 					exp.MempoolData.RLock()
-					var mpData = exp.MempoolData
-
-					var mp = dbtypes.PoolTicketsData{}
-
-					if len(mpData.Tickets) > 0 {
-						mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
-						mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
-						mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
+					if len(exp.MempoolData.Tickets) > 0 {
+						mp.Time = append(mp.Time, uint64(exp.MempoolData.Tickets[0].Time))
+						mp.Price = append(mp.Price, exp.MempoolData.Tickets[0].TotalOut)
+						mp.Mempool = append(mp.Mempool, uint64(len(exp.MempoolData.Tickets)))
 					} else {
 						log.Debug("No tickets exists in the mempool")
 					}
 					exp.MempoolData.RUnlock()
 
 					var data = struct {
-						BarGraphs  []*dbtypes.PoolTicketsData
-						DonutChart *dbtypes.PoolTicketsData
-						Mempool    *dbtypes.PoolTicketsData
+						ChartHeight uint64
+						BarGraphs   []*dbtypes.PoolTicketsData
+						DonutChart  *dbtypes.PoolTicketsData
+						Mempool     *dbtypes.PoolTicketsData
 					}{
+						chartHeight,
 						cData,
 						gData,
 						&mp,

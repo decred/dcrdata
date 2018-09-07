@@ -221,7 +221,7 @@ function barchartPlotter(e) {
                 if (evt === "") {
                     return
                 }
-                var v = JSON.parse(evt);
+                var v = JSON.parse(evt).ticket_pool_data;
                 mpl = v.Mempool
                 this.purchasesGraph.updateOptions({'file': purchasesGraphData(v.BarGraphs[0], mpl), 
                     dateWindow: getWindow(this.zoom)});
@@ -256,7 +256,7 @@ function barchartPlotter(e) {
                     $("body").removeClass("loading");
                 },
                 success: function(data) {
-                    _this.purchasesGraph.updateOptions({'file': purchasesGraphData(data, mpl)});
+                    _this.purchasesGraph.updateOptions({'file': purchasesGraphData(data.ticket_pool_data, mpl)});
                     $("body").removeClass("loading");
                 }
             });
