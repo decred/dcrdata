@@ -25,6 +25,7 @@ import (
 const (
 	defaultErrorCode    = "Something went wrong..."
 	defaultErrorMessage = "Try refreshing this page... it usually fixes things"
+	fullModeRequired    = "full-functionality mode required for this page"
 )
 
 // netName returns the name used when referring to a decred network.
@@ -250,14 +251,25 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 
 // Ticketpool is the page handler for the "/ticketpool" path
 func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
-	chartData, groupedTickets, err := exp.explorerSource.TicketPoolVisualization(
-		dbtypes.ChartGroupingFromStr("all"),
-	)
-	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+	if exp.liteMode {
+		exp.StatusPage(w, fullModeRequired,
+			"Ticketpool page cannot run in lite mode", NotSupportedStatusType)
 		return
 	}
+	interval := dbtypes.AllChartGrouping
+
+	barGraphs, donutChart, ok := GetTicketPoolData(interval)
+	if !ok {
+		var err error
+		barGraphs, donutChart, err = exp.explorerSource.TicketPoolVisualization(interval)
+		if err != nil {
+			log.Errorf("Template execute failure: %v", err)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+			return
+		}
+		UpdateTicketPoolData(interval, barGraphs, donutChart)
+	}
+
 	var mp = dbtypes.PoolTicketsData{}
 	exp.MempoolData.RLock()
 	var mpData = exp.MempoolData
@@ -280,8 +292,8 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	}{
 		exp.Version,
 		exp.NetName,
-		chartData,
-		groupedTickets,
+		barGraphs,
+		donutChart,
 		&mp,
 	})
 
@@ -782,7 +794,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 // Charts handles the charts displays showing the various charts plotted.
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
-		exp.StatusPage(w, "full-functionality mode required for this page",
+		exp.StatusPage(w, fullModeRequired,
 			"Charts page cannot run in lite mode", NotSupportedStatusType)
 		return
 	}
@@ -940,7 +952,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 // AgendaPage is the page handler for the "/agenda" path
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
-		exp.StatusPage(w, "Activate full-functionality mode",
+		exp.StatusPage(w, fullModeRequired,
 			"Agenda page cannot run in lite mode.", NotSupportedStatusType)
 		return
 	}
