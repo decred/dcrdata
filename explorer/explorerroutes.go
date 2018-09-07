@@ -258,16 +258,11 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	}
 	interval := dbtypes.AllChartGrouping
 
-	barGraphs, donutChart, ok := GetTicketPoolData(interval)
-	if !ok {
-		var err error
-		barGraphs, donutChart, err = exp.explorerSource.TicketPoolVisualization(interval)
-		if err != nil {
-			log.Errorf("Template execute failure: %v", err)
-			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
-			return
-		}
-		UpdateTicketPoolData(interval, barGraphs, donutChart)
+	barGraphs, donutChart, height, err := exp.explorerSource.TicketPoolVisualization(interval)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
 	}
 
 	var mp = dbtypes.PoolTicketsData{}
@@ -284,14 +279,16 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RUnlock()
 
 	str, err := exp.templates.execTemplateToString("ticketpool", struct {
-		Version     string
-		NetName     string
-		ChartData   []*dbtypes.PoolTicketsData
-		GroupedData *dbtypes.PoolTicketsData
-		Mempool     *dbtypes.PoolTicketsData
+		Version      string
+		NetName      string
+		ChartsHeight uint64
+		ChartData    []*dbtypes.PoolTicketsData
+		GroupedData  *dbtypes.PoolTicketsData
+		Mempool      *dbtypes.PoolTicketsData
 	}{
 		exp.Version,
 		exp.NetName,
+		height,
 		barGraphs,
 		donutChart,
 		&mp,

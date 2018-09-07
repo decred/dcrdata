@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -66,10 +67,55 @@ func (d *DevFundBalance) Balance() *explorer.AddressBalance {
 	return d.AddressBalance
 }
 
-// ticketPoolSync helps to manage the calls made to fetch ticket pool data from
-// the db via ticketPoolVisualization method.
-type ticketPoolSync struct {
-	updating trylock.Mutex
+// ticketPoolDataCache stores the most recent ticketpool graphs information
+// fetched to minimize the possibility of making multiple queries to the db
+// fetching the same information.
+type ticketPoolDataCache struct {
+	sync.RWMutex
+	Height map[dbtypes.ChartGrouping]uint64
+	// BarGraphsCache persists data for the Ticket purchase distribution chart
+	// and Ticket Price Distribution chart
+	BarGraphsCache map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData
+	// DonutGraphCache persist data for the Number of tickets outputs pie chart.
+	DonutGraphCache map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData
+}
+
+// ticketPoolGraphsCache persists the latest ticketpool data queried from the db.
+var ticketPoolGraphsCache = &ticketPoolDataCache{
+	Height:          make(map[dbtypes.ChartGrouping]uint64),
+	BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData),
+	DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData),
+}
+
+// TicketPoolData is a thread-safe way to access the ticketpool graphs data
+// stored in the cache.
+func TicketPoolData(interval dbtypes.ChartGrouping, height uint64) (barGraphs []*dbtypes.PoolTicketsData,
+	donutChart *dbtypes.PoolTicketsData, actualHeight uint64, intervalFound, isStale bool) {
+	ticketPoolGraphsCache.RLock()
+	defer ticketPoolGraphsCache.RUnlock()
+
+	var found bool
+	barGraphs, intervalFound = ticketPoolGraphsCache.BarGraphsCache[interval]
+	donutChart, found = ticketPoolGraphsCache.DonutGraphCache[interval]
+	intervalFound = intervalFound && found
+
+	actualHeight = ticketPoolGraphsCache.Height[interval]
+	isStale = ticketPoolGraphsCache.Height[interval] != height
+
+	return
+}
+
+// UpdateTicketPoolData updates the ticket pool cache with the latest data fetched.
+// This is a thread-safe way to update ticket pool cache data. TryLock helps avoid
+// stacking calls to update the cache.
+func UpdateTicketPoolData(interval dbtypes.ChartGrouping, barGraphs []*dbtypes.PoolTicketsData,
+	donutcharts *dbtypes.PoolTicketsData, height uint64) {
+	ticketPoolGraphsCache.Lock()
+	defer ticketPoolGraphsCache.Unlock()
+
+	ticketPoolGraphsCache.Height[interval] = height
+	ticketPoolGraphsCache.BarGraphsCache[interval] = barGraphs
+	ticketPoolGraphsCache.DonutGraphCache[interval] = donutcharts
 }
 
 // ChainDB provides an interface for storing and manipulating extracted
@@ -89,7 +135,7 @@ type ChainDB struct {
 	devPrefetch        bool
 	InBatchSync        bool
 	InReorg            bool
-	tpSync             *ticketPoolSync
+	tpUpdatePermission map[dbtypes.ChartGrouping]*trylock.Mutex
 }
 
 // ChainDBRPC provides an interface for storing and manipulating extracted and
@@ -251,6 +297,12 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		unspentTicketCache.SetN(unspentTicketHashes, unspentTicketDbIDs)
 	}
 
+	// For each chart grouping type create a non-blocking updater mutex.
+	tpUpdatePermissions := make(map[dbtypes.ChartGrouping]*trylock.Mutex)
+	for g := range dbtypes.ChartGroupings {
+		tpUpdatePermissions[g] = new(trylock.Mutex)
+	}
+
 	return &ChainDB{
 		db:                 db,
 		chainParams:        params,
@@ -264,7 +316,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		unspentTicketCache: unspentTicketCache,
 		DevFundBalance:     new(DevFundBalance),
 		devPrefetch:        devPrefetch,
-		tpSync:             new(ticketPoolSync),
+		tpUpdatePermission: tpUpdatePermissions,
 	}, nil
 }
 
@@ -579,23 +631,64 @@ func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
 	return retrieveTicketsByDate(pgb.db, maturityBlock, int64(val))
 }
 
-// TicketPoolVisualization helps block consecutive access to the ticketPoolVisualization
-// method till the first request is resolved.
-func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.ChartGrouping) (
-	[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
-
-	for {
-		if pgb.tpSync.updating.TryLock() {
-			defer pgb.tpSync.updating.Unlock()
-			// check if after the first request was handled, the consecutive request
-			// response data was also processed and stored in the cache.
-			barcharts, donutCharts, ok := explorer.GetTicketPoolData(interval)
-			if ok {
-				return barcharts, donutCharts, nil
-			}
-			return pgb.ticketPoolVisualization(interval)
-		}
+// TicketPoolVisualization helps block consecutive and duplicate DB queries for
+// the requested ticket pool chart data. If the data for the given interval is
+// cached and fresh, it is returned. If the cached data is stale and there are
+// no queries running to update the cache for the given interval, this launches
+// a query and updates the cache. If there is no cached data for the interval,
+// this will launch a new query for the data if one is not already running, and
+// if one is running, it will wait for the query to complete.
+func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error) {
+	// Attempt to retrieve data for the current block from cache.
+	heightSeen := pgb.Height() // current block seen *by the ChainDB*
+	barcharts, donutCharts, height, intervalFound, stale := TicketPoolData(interval, heightSeen)
+	if intervalFound && !stale {
+		// The cache was fresh.
+		return barcharts, donutCharts, height, nil
 	}
+
+	// Cache is stale or empty. Attempt to gain updater status.
+	if !pgb.tpUpdatePermission[interval].TryLock() {
+		// Another goroutine is running db query to get the updated data.
+		if !intervalFound {
+			// Do not even have stale data. Must wait for the DB update to
+			// complete to get any data at all. Use a blocking call on the
+			// updater lock even though we are not going to actually do an
+			// update ourselves so we do not block the cache while waiting.
+			pgb.tpUpdatePermission[interval].Lock()
+			defer pgb.tpUpdatePermission[interval].Unlock()
+			// Try again to pull it from cache now that the update is completed.
+			heightSeen = pgb.Height()
+			barcharts, donutCharts, height, intervalFound, stale = TicketPoolData(interval, heightSeen)
+			// We waited for the updater of this interval, so it should be found
+			// at this point. If not, this is an error.
+			if !intervalFound {
+				log.Errorf("Charts data for interval %v failed to update.", interval)
+				return nil, nil, 0, fmt.Errorf("no charts data available")
+			}
+			if stale {
+				log.Warnf("Charts data for interval %v updated, but still stale.", interval)
+			}
+		}
+		// else return the stale data instead of waiting.
+
+		return barcharts, donutCharts, height, nil
+	}
+	// This goroutine is now the cache updater.
+	defer pgb.tpUpdatePermission[interval].Unlock()
+
+	// Retrieve chart data for best block in DB.
+	var err error
+	barcharts, donutCharts, height, err = pgb.ticketPoolVisualization(interval)
+	if err != nil {
+		log.Errorf("Failed to fetch ticket pool data: %v", err)
+		return nil, nil, 0, err
+	}
+
+	// Update the cache with the new ticket pool data.
+	UpdateTicketPoolData(interval, barcharts, donutCharts, height)
+
+	return barcharts, donutCharts, height, nil
 }
 
 // ticketPoolVisualization fetches the following ticketpool data: tickets
@@ -603,32 +696,45 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.ChartGrouping) (
 // counts by ticket type (solo, pool, other split). The interval may be one of:
 // "mo", "wk", "day", or "all". The data is needed to populate the ticketpool
 // graphs. The data grouped by time and price are returned in a slice.
-func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.ChartGrouping) (
-	[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error) {
-	var maturityBlock = pgb.GetTicketPoolBlockMaturity()
+func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.ChartGrouping) (byTimeAndPrice []*dbtypes.PoolTicketsData, byInputs *dbtypes.PoolTicketsData, height uint64, err error) {
+	// Ensure DB height is the same before and after queries since they are not
+	// atomic. Initial height:
+	height = pgb.Height()
 
-	// Tickets grouped by time interval
-	ticketsByTime, err := pgb.GetTicketPoolByDateAndInterval(maturityBlock, interval)
-	if err != nil {
-		return nil, nil, err
+	for {
+		// Latest block where mature tickets may have been mined.
+		maturityBlock := pgb.GetTicketPoolBlockMaturity()
+
+		// Tickets grouped by time interval
+		ticketsByTime, err := pgb.GetTicketPoolByDateAndInterval(maturityBlock, interval)
+		if err != nil {
+			return nil, nil, 0, err
+		}
+
+		// Tickets grouped by price
+		ticketsByPrice, err := retrieveTicketByPrice(pgb.db, maturityBlock)
+		if err != nil {
+			return nil, nil, 0, err
+		}
+
+		// Return time- and price-grouped data in a slice
+		byTimeAndPrice = []*dbtypes.PoolTicketsData{ticketsByTime, ticketsByPrice}
+
+		// Tickets grouped by number of inputs.
+		byInputs, err = retrieveTicketsGroupedByType(pgb.db)
+		if err != nil {
+			return nil, nil, 0, err
+		}
+
+		heightEnd := pgb.Height()
+		if heightEnd == height {
+			break
+		}
+		// otherwise try again to ensure charts are consistent.
+		height = heightEnd
 	}
 
-	// Tickets grouped by price
-	ticketsByPrice, err := retrieveTicketByPrice(pgb.db, maturityBlock)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Return time- and price-grouped data in a slice
-	allTickets := []*dbtypes.PoolTicketsData{ticketsByTime, ticketsByPrice}
-
-	// Tickets grouped by type (solo, pool, other split)
-	grpTickets, err := retrieveTickesGroupedByType(pgb.db)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return allTickets, grpTickets, nil
+	return
 }
 
 // retrieveDevBalance retrieves a new DevFundBalance without regard to the cache

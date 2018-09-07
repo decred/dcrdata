@@ -94,7 +94,7 @@ type DataSourceAux interface {
 	GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error)
 	TicketPoolVisualization(interval dbtypes.ChartGrouping) (
-		[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error)
+		[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -198,11 +198,6 @@ out:
 			c.statusMtx.Unlock()
 			log.Errorf("New DB height (%d) and stored block data (%d, %d) not consistent.",
 				height, bdHeight, summary.Height)
-
-			// Instantiates the ticketpool data cache and set it with the current
-			// block height. Also Lazily cleans up the invalid data in the tickepool
-			// cache when a new block is added.
-			explorer.CleanUpTicketPoolData(int64(bdHeight))
 
 		case _, ok := <-quit:
 			if !ok {
@@ -742,25 +737,26 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 		tp = "day"
 	}
 
+	// The db queries are fast enough that it makes sense to call
+	// TicketPoolVisualization here even though it returns a lot of data not
+	// needed by this request.
 	interval := dbtypes.ChartGroupingFromStr(tp)
-
-	barCharts, _, ok := explorer.GetTicketPoolData(interval)
-	if !ok {
-		var err error
-		var donutChart *dbtypes.PoolTicketsData
-		// The db queries are fast enough that it makes sense to call TicketPoolVisualization
-		// here even though it returns a lot of data not needed by this request.
-		barCharts, donutChart, err = c.AuxDataSource.TicketPoolVisualization(interval)
-		if err != nil {
-			apiLog.Errorf("Unable to get ticket pool by date: %v", err)
-			http.Error(w, http.StatusText(422), 422)
-			return
-		}
-		explorer.UpdateTicketPoolData(interval, barCharts, donutChart)
+	barCharts, _, height, err := c.AuxDataSource.TicketPoolVisualization(interval)
+	if err != nil {
+		apiLog.Errorf("Unable to get ticket pool by date: %v", err)
+		http.Error(w, http.StatusText(422), 422)
+		return
 	}
 
-	// Ticket Purchases distribution graph data is always the first in the barCharts array.
-	writeJSON(w, barCharts[0], c.getIndentQuery(r))
+	tpResponse := struct {
+		Height     uint64                   `json:"height"`
+		PoolByDate *dbtypes.PoolTicketsData `json:"ticket_pool_data"`
+	}{
+		height,
+		barCharts[0], // purchase time distribution
+	}
+
+	writeJSON(w, tpResponse, c.getIndentQuery(r))
 }
 
 func (c *appContext) getBlockSize(w http.ResponseWriter, r *http.Request) {
@@ -1213,7 +1209,7 @@ func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	chartData, ok := explorer.GetChartTypeData("ticket-price")
+	chartData, ok := explorer.ChartTypeData("ticket-price")
 	if !ok {
 		http.NotFound(w, r)
 		log.Warnf(`No data matching "ticket-price" chart Type was found`)
@@ -1222,14 +1218,14 @@ func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, chartData, c.getIndentQuery(r))
 }
 
-func (c *appContext) getChartTypeData(w http.ResponseWriter, r *http.Request) {
+func (c *appContext) ChartTypeData(w http.ResponseWriter, r *http.Request) {
 	if c.LiteMode {
 		http.Error(w, "not available in lite mode", 422)
 		return
 	}
 
 	chartType := m.GetChartTypeCtx(r)
-	chartData, ok := explorer.GetChartTypeData(chartType)
+	chartData, ok := explorer.ChartTypeData(chartType)
 	if !ok {
 		http.NotFound(w, r)
 		log.Warnf(`No data matching "%s" chart Type was found`, chartType)
