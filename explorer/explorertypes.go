@@ -207,6 +207,7 @@ type BlockInfo struct {
 	TotalSent             float64
 	MiningFee             dcrutil.Amount
 	StakeValidationHeight int64
+	AllTxs                uint32
 }
 
 // AddressTransactions collects the transactions for an address as AddressTx
@@ -438,8 +439,8 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 
 // WebsocketBlock wraps the new block info for use in the websocket
 type WebsocketBlock struct {
-	Block *BlockBasic `json:"block"`
-	Extra *HomeInfo   `json:"extra"`
+	Block *BlockInfo `json:"block"`
+	Extra *HomeInfo  `json:"extra"`
 }
 
 // TicketPoolInfo describes the live ticket pool

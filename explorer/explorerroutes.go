@@ -112,7 +112,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 
 	blocks := exp.blockData.GetExplorerFullBlocks(height, height-11)
 
-	exp.NewBlockDataMtx.Lock()
+	exp.NewBlockDataMtx.RLock()
 	exp.MempoolData.RLock()
 
 	str, err := exp.templates.execTemplateToString("nexthome", struct {
@@ -128,7 +128,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 		exp.Version,
 		exp.NetName,
 	})
-	exp.NewBlockDataMtx.Unlock()
+	exp.NewBlockDataMtx.RUnlock()
 	exp.MempoolData.RUnlock()
 
 	if err != nil {

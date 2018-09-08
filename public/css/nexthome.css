@@ -3,31 +3,28 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 64px; }
+    height: 50px; }
   header .right {
     display: flex;
     flex: 1;
     justify-content: flex-end;
     align-items: center; }
     header .right .searchbox {
-      margin-right: 25px;
+      margin-right: 10px;
       cursor: pointer; }
       header .right .searchbox img {
         height: 20px;
         width: 20px;
-        margin: 2.5px;
-        margin-right: 10px; }
+        margin: 2.5px;}
       header .right .searchbox input {
-        height: 25px;
-        width: 250px;
         font-family: "Source Sans Pro", sans-serif;
-        font-size: 12px;
         border: none;
         border-bottom: 1px solid #c3cad1;
         transition: 0.2s ease-out; }
       header .right .searchbox input.hide {
         width: 0px !important; }
     header .right .searchbox.full {
+      width: 95%;
       flex: 1;
       margin-left: 5%; }
       header .right .searchbox.full input {
@@ -88,7 +85,6 @@ body {
     margin-bottom: 20px; }
   .decBlockchainWrapper .title {
     font-family: "Source Sans Pro", sans-serif;
-    color: #2970FF;
     font-size: 20px;
     margin-bottom: 30px; }
   .decBlockchainWrapper .decredblockWrap.fade {
@@ -148,13 +144,16 @@ body {
           display: flex;
           flex-direction: row;
           align-items: flex-end;
-          margin-left: 10px; }
+          margin-left: 10px;
+          font-size: 16px;
+          line-height: 29px;
+          margin-left: 6px; }
           .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block .data p {
             margin: 0px; }
-          .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block .data {
-            font-size: 16px;
-            line-height: 29px;
-            margin-left: 6px; }
+          .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block .data span:first-child {
+          display: flex;
+          flex-direction: row;
+          align-items: flex-end; }
         .decBlockchainWrapper .decredblockWrap .decredblock .info-block .expanded-block .subdata {
           font-family: "Source Sans Pro", sans-serif;
           font-size: 12px;
@@ -193,11 +192,10 @@ body {
     padding: 60px 0px; }
   .networkStatsWrapper .title {
     font-family: "Source Sans Pro", sans-serif;
-    color: #2970FF;
     font-size: 20px;
     margin-bottom: 30px; }
   .networkStatsWrapper .statCard {
-    height:30%;
+    height: 28.3%;
     max-height: 200px;
     background: white;
     padding:15px 35px;
@@ -225,6 +223,10 @@ body {
       display: flex;
       flex-direction: row;
       align-items: flex-end; }
+      .networkStatsWrapper .statCard .data span:first-child {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-end; }
       .networkStatsWrapper .statCard .data p {
         margin: 0px; }
       .networkStatsWrapper .statCard span {
@@ -450,20 +452,19 @@ footer {
 .blockRewardsWrapper,
 .proofofstakeWrapper {
   padding-right: 50px; }
-
+.info-block .expanded-block .row .col-12 img {
+    margin-right: 3%;
+    margin-top: 2%;
+    height: 20px; }
 @media (min-width: 1400px) {
   .container {
     max-width: 1280px !important; } }
 @media (min-width: 800px) {
-  header .right .searchbox input {
-    width: 200px; }
   header .right .searchbox.full input {
     flex: 1; } }
 @media (max-width: 600px) {
   header .right .searchbox input {
     width: 150px; } } 
-
-/*# sourceMappingURL=main.css.map */
 
 @media only screen and (max-width: 768px)  {
   .container {

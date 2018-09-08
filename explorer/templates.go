@@ -14,9 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrd/dcrutil"
-
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/dcrutil"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -109,18 +108,17 @@ var toInt64 = func(v interface{}) int64 {
 	}
 }
 
-// standard golang package math in go1.9 doesn't support math.Round
-func Round(val float64, places int) (newVal float64) {
-	pow := math.Pow(10, float64(places))
-	digit := pow * val
-	newVal = math.Floor(digit) / pow
-	return
-}
-
-// boldNumPlaces defines the number of decimal places to be write with same font as the whole
-// number value of the float
+// float64Formatting formats a float64 value into multiple strings depending on whether
+// boldNumPlaces is provided or not. boldNumPlaces defines the number of decimal
+// places to be written with same font as the whole number value of the float.
+// If boldNumPlaces is provided the returned slice should have at least four items
+// otherwise it should have at least three items. i.e. if v is set to 342.12132000,
+// numplaces is set to 8 and boldNumPlaces is set to 2 the following should be returned
+// []string{"342", "12", "132", "000"}. If its not set the returned slice should be
+// []string{"342", "12132", "000"}.
 func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces ...int) []string {
-	formattedVal := Round(v, numPlaces)
+	pow := math.Pow(10, float64(numPlaces))
+	formattedVal := math.Round(v*pow) / pow
 	clipped := fmt.Sprintf("%."+strconv.Itoa(numPlaces)+"f", formattedVal)
 	oldLength := len(clipped)
 	clipped = strings.TrimRight(clipped, "0")
@@ -166,7 +164,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"divide": func(n, d int64) int64 {
 			return n / d
 		},
-		"divideFloat": func(n float64, d float64) float64 {
+		"divideFloat": func(n, d float64) float64 {
 			return n / d
 		},
 		"multiply": func(a, b int64) int64 {

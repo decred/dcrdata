@@ -38,7 +38,11 @@
 
 /* layout */
 .container.main {
-  padding-bottom: 40px;
+  padding: 20px;
+}
+.row .col-md-4 table {
+  margin: auto;
+  margin-right: 0px;
 }
 
 /*fonts*/
@@ -429,7 +433,7 @@ body.darkBG .progress {
 #menu {
   position: absolute;
   width: 273px;
-  margin: -34px 0 0 -243px;
+  margin: -42px 0 0 -243px;
   padding: 20px 0px;
   padding-top: 42px;
   background: #fff;

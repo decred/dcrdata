@@ -774,8 +774,9 @@ func (db *wiredDB) GetSDiff(idx int) float64 {
 	return sdiff
 }
 
-func (db *wiredDB) GetDiff(idx int64) float64 {
-	sdiff, err := db.RetrieveDiff(idx)
+// DifficultyInLast24Hrs fetches the difficulty value in the last 24hrs.
+func (db *wiredDB) DifficultyInLast24Hrs(timestamp int64) float64 {
+	sdiff, err := db.RetrieveDiff(timestamp)
 	if err != nil {
 		log.Errorf("Unable to retrieve difficulty: %v", err)
 		return -1
@@ -1047,9 +1048,11 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		return nil
 	}
 
+	b := makeExplorerBlockBasic(data)
+
 	// Explorer Block Info
 	block := &explorer.BlockInfo{
-		BlockBasic:            makeExplorerBlockBasic(data),
+		BlockBasic:            b,
 		Version:               data.Version,
 		Confirmations:         data.Confirmations,
 		StakeRoot:             data.StakeRoot,
@@ -1066,6 +1069,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		PreviousHash:          data.PreviousHash,
 		NextHash:              data.NextHash,
 		StakeValidationHeight: db.params.StakeValidationHeight,
+		AllTxs:                (uint32(b.Voters) + uint32(b.Transactions) + uint32(b.FreshStake)),
 	}
 
 	votes := make([]*explorer.TxBasic, 0, block.Voters)
