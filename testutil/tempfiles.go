@@ -16,8 +16,7 @@ const (
 func TempFolderPath() string {
 	testDir, err := filepath.Abs(DefaultDataDirname)
 	if err != nil {
-		ReportTestIsNotAbleToTest(
-			"Failed to produce DB-test folder path", err)
+		ReportTestIsNotAbleToTest("Failed to produce DB-test folder path: %v", err)
 	}
 	return testDir
 }
@@ -34,8 +33,7 @@ func ResetTempFolder(testSubFolder *string) string {
 	err := os.RemoveAll(testFolderPath)
 	// Failed to clear test-files
 	if err != nil {
-		ReportTestIsNotAbleToTest(
-			"Failed to clear temp folder: %v", err)
+		ReportTestIsNotAbleToTest("Failed to clear temp folder: %v", err)
 	}
 	return testFolderPath
 }
@@ -46,8 +44,8 @@ func FilePathInsideTempDir(pathInsideTempFolder string) string {
 	targetPath := filepath.Join(tempDir, pathInsideTempFolder)
 	targetPath, err := filepath.Abs(targetPath)
 	if err != nil {
-		ReportTestIsNotAbleToTest(
-			"Failed to build a path: "+pathInsideTempFolder, err)
+		ReportTestIsNotAbleToTest("Failed to build path %s: %v",
+			pathInsideTempFolder, err)
 	}
 	return targetPath
 }
