@@ -20,11 +20,8 @@ DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
 testrepo () {
   TMPFILE=$(mktemp)
 
-  # Check lockfile
-  dep ensure -no-vendor -dry-run
-
-  # All good, so run for real
-  dep ensure
+  # Dependencies
+  dep ensure -vendor-only
 
   # Check linters
   gometalinter --vendor --disable-all --deadline=10m \
