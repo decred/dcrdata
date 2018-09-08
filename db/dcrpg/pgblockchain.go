@@ -629,7 +629,9 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	log.Infof("Caching address receive count for address %s: "+
 		"count = %d at block %d.", address,
 		balanceInfo.NumSpent+balanceInfo.NumUnspent, bestBlock)
+	totals.Lock()
 	totals.balance[address] = balanceInfo
+	totals.Unlock()
 
 	return addressRows, &balanceInfo, nil
 }
