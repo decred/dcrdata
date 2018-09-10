@@ -1124,35 +1124,35 @@ func RetrieveFullTxByHash(db *sql.DB, txHash string) (id uint64,
 
 // RetrieveDbTxsByHash retrieves all the rows of the transactions table,
 // including the primary keys/ids, for the given transaction hash.
-// func RetrieveDbTxsByHash(db *sql.DB, txHash string) (ids []uint64, dbTxs []*dbtypes.Tx, err error) {
-// 	var rows *sql.Rows
-// 	rows, err = db.Query(internal.SelectFullTxsByHash, txHash)
-// 	if err != nil {
-// 		return
-// 	}
-// 	defer closeRows(rows)
+func RetrieveDbTxsByHash(db *sql.DB, txHash string) (ids []uint64, dbTxs []*dbtypes.Tx, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectFullTxsByHash, txHash)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
 
-// 	for rows.Next() {
-// 		var id uint64
-// 		var dbTx dbtypes.Tx
-// 		vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
-// 		voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
+	for rows.Next() {
+		var id uint64
+		var dbTx dbtypes.Tx
+		vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
+		voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
 
-// 		err = rows.Scan(&id,
-// 			&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
-// 			&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
-// 			&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
-// 			&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs,
-// 			&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
-// 		if err != nil {
-// 			break
-// 		}
+		err = rows.Scan(&id,
+			&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
+			&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
+			&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
+			&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs,
+			&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
+		if err != nil {
+			break
+		}
 
-// 		ids = append(ids, id)
-// 		dbTxs = append(dbTxs, &dbTx)
-// 	}
-// 	return
-// }
+		ids = append(ids, id)
+		dbTxs = append(dbTxs, &dbTx)
+	}
+	return
+}
 
 // RetrieveTxnsVinsByBlock retrieves for all the transactions in the specified
 // block the vin_db_ids arrays, is_valid, and is_mainchain.

@@ -513,6 +513,13 @@ func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, []i
 	return blockTransactions, blockInds, trees, err
 }
 
+// Transaction retrieves all rows from the transactions table for the given
+// transaction hash.
+func (pgb *ChainDB) Transaction(txHash string) ([]*dbtypes.Tx, error) {
+	_, dbTxs, err := RetrieveDbTxsByHash(pgb.db, txHash)
+	return dbTxs, err
+}
+
 // BlockMissedVotes retrieves the ticket IDs for all missed votes in the
 // specified block, and an error value.
 func (pgb *ChainDB) BlockMissedVotes(blockHash string) ([]string, error) {
