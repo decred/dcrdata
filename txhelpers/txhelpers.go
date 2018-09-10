@@ -776,6 +776,42 @@ func DetermineTxTypeString(msgTx *wire.MsgTx) string {
 	}
 }
 
+// TxTypeToString returns a string representation of the provided transaction
+// type, which corresponds to the txn types defined for stake.TxType type.
+func TxTypeToString(txType int) string {
+	switch stake.TxType(txType) {
+	case stake.TxTypeSSGen:
+		return "Vote"
+	case stake.TxTypeSStx:
+		return "Ticket"
+	case stake.TxTypeSSRtx:
+		return "Revocation"
+	default:
+		return "Regular"
+	}
+}
+
+// TxIsTicket indicates if the transaction type is a ticket (sstx).
+func TxIsTicket(txType int) bool {
+	return stake.TxType(txType) == stake.TxTypeSStx
+}
+
+// TxIsTicket indicates if the transaction type is a vote (ssgen).
+func TxIsVote(txType int) bool {
+	return stake.TxType(txType) == stake.TxTypeSSGen
+}
+
+// TxIsTicket indicates if the transaction type is a revocation (ssrtx).
+func TxIsRevoke(txType int) bool {
+	return stake.TxType(txType) == stake.TxTypeSSRtx
+}
+
+// TxIsTicket indicates if the transaction type is a regular (non-stake)
+// transaction.
+func TxIsRegular(txType int) bool {
+	return stake.TxType(txType) == stake.TxTypeRegular
+}
+
 // IsStakeTx indicates if the input MsgTx is a stake transaction.
 func IsStakeTx(msgTx *wire.MsgTx) bool {
 	switch stake.DetermineTxType(msgTx) {

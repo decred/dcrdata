@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -316,10 +317,67 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	}
 	tx := exp.blockData.GetExplorerTx(hash)
 	if tx == nil {
-		log.Errorf("Unable to get transaction %s", hash)
-		exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
-		return
-	}
+		if exp.liteMode {
+			log.Errorf("Unable to get transaction %s", hash)
+			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
+			return
+		}
+		dbTxs, err := exp.explorerSource.Transaction(hash)
+		if err != nil {
+			log.Errorf("Unable to retrieve transaction details for %s.", hash)
+			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
+			return
+		}
+		if dbTxs == nil {
+			exp.StatusPage(w, defaultErrorCode, "that transaction has not been recorded", NotFoundStatusType)
+			return
+		}
+
+		// take the first one
+		dbTx0 := dbTxs[0]
+		fees := dcrutil.Amount(dbTx0.Fees)
+		confirms := exp.Height() - dbTx0.BlockHeight + 1
+		tx = &TxInfo{
+			TxBasic: &TxBasic{
+				TxID:          hash,
+				FormattedSize: humanize.Bytes(uint64(dbTx0.Size)),
+				Total:         dcrutil.Amount(dbTx0.Sent).ToCoin(),
+				Fee:           fees,
+				FeeRate:       dcrutil.Amount((1000 * int64(fees)) / int64(dbTx0.Size)),
+				// VoteInfo TODO - check votes table
+				Coinbase: dbTx0.BlockIndex == 0,
+			},
+			// SpendingTxns filled below
+			Type: txhelpers.TxTypeToString(int(dbTx0.TxType)),
+			// Vins TODO - lookup in vins table
+			// Vouts TODO - lookup in vouts table
+			BlockHeight:   dbTx0.BlockHeight,
+			BlockIndex:    dbTx0.BlockIndex,
+			BlockHash:     dbTx0.BlockHash,
+			Confirmations: confirms,
+			Time:          dbTx0.Time,
+			FormattedTime: time.Unix(dbTx0.Time, 0).Format("2006-01-02 15:04:05"),
+		}
+
+		if tx.Coinbase || tx.IsVote() {
+			tx.Maturity = int64(exp.ChainParams.CoinbaseMaturity)
+			if tx.IsVote() {
+				tx.Maturity++ // TODO why as elsewhere for votes?
+			}
+			if tx.Confirmations >= int64(exp.ChainParams.CoinbaseMaturity) {
+				tx.Mature = "True"
+			} else if tx.IsVote() {
+				tx.VoteFundsLocked = "True"
+			}
+		}
+
+		if tx.IsTicket() {
+			tx.TicketInfo.TicketMaturity = int64(exp.ChainParams.TicketMaturity)
+			if tx.Confirmations >= tx.TicketInfo.TicketMaturity {
+				tx.Mature = "True"
+			}
+		}
+	} // tx == nil
 
 	// Set ticket-related parameters for both full and lite mode
 	if tx.IsTicket() {
@@ -340,6 +398,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 	var blocks []*dbtypes.BlockStatus
 	var blockInds []uint32
+	var hasValidMainchain bool
 	if exp.liteMode {
 		blocks = append(blocks, &dbtypes.BlockStatus{
 			Hash:        tx.BlockHash,
@@ -367,6 +426,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("Unable to retrieve blocks for transaction %s: %v", hash, err)
 			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 			return
+		}
+
+		// See if any of these blocks are mainchain and stakeholder-approved
+		// (a.k.a. valid).
+		for ib := range blocks {
+			if blocks[ib].IsValid && blocks[ib].IsMainchain {
+				hasValidMainchain = true
+				break
+			}
 		}
 
 		// For each output of this transaction, look up any spending transactions,
@@ -455,16 +523,18 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	} // !exp.liteMode
 
 	pageData := struct {
-		Data          *TxInfo
-		Blocks        []*dbtypes.BlockStatus
-		BlockInds     []uint32
-		ConfirmHeight int64
-		Version       string
-		NetName       string
+		Data              *TxInfo
+		Blocks            []*dbtypes.BlockStatus
+		BlockInds         []uint32
+		HasValidMainchain bool
+		ConfirmHeight     int64
+		Version           string
+		NetName           string
 	}{
 		tx,
 		blocks,
 		blockInds,
+		hasValidMainchain,
 		exp.Height() - tx.Confirmations,
 		exp.Version,
 		exp.NetName,

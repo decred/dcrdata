@@ -44,6 +44,11 @@
                         {{end}}
                         </td>
                     </tr>
+                    {{if not $.HasValidMainchain}}
+                    <tr>
+                        <span class="attention">This transaction is not included in a stakeholder-approved mainchain block.</span>
+                    </tr>
+                    {{end}}
                 {{end}}
                 {{if or (eq .Type "Vote") (eq .Type "Revocation")}}
                     {{range .Vin}}

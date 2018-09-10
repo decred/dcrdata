@@ -78,6 +78,7 @@ type explorerDataSource interface {
 	GetOldestTxBlockTime(addr string) (int64, error)
 	TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)
+	Transaction(txHash string) ([]*dbtypes.Tx, error)
 }
 
 // chartDataCounter is a data cache for the historical charts.
