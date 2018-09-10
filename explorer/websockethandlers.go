@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/decred/dcrdata/db/dbtypes"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"golang.org/x/net/websocket"
 )
 
