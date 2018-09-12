@@ -18,7 +18,7 @@ const (
 		SELECT id FROM inserting
 		UNION  ALL
 		SELECT id FROM addresses
-		WHERE  address = $1 AND is_funding = TRUE AND tx_vin_vout_row_id = $5
+		WHERE  address = $1 AND is_funding = $8 AND tx_vin_vout_row_id = $5
 		LIMIT  1;`
 
 	// SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
@@ -173,6 +173,45 @@ const (
 	SelectAddressUnspentAmountByAddress = `SELECT (block_time/$1)*$1 as timestamp,
 		SUM(value) as unspent FROM addresses WHERE address=$2 AND is_funding=TRUE
 		AND matching_tx_hash ='' GROUP BY timestamp ORDER BY timestamp;`
+
+	// The SelectAddressesGloballyInvalid and UpdateAddressesGloballyInvalid
+	// queries are used to patch a bug in new block handling that neglected to
+	// set valid_mainchain=false for the previous block when the new block's
+	// vote bits invalidate the previous block. This pertains to dcrpg 3.5.x.
+
+	// SelectAddressesGloballyInvalid selects the row ids of the addresses table
+	// corresponding to transactions that should have valid_mainchain set to
+	// false according to the transactions table. Should is defined as any
+	// occurence of a given transaction (hash) being flagged as is_valid AND
+	// is_mainchain.
+	SelectAddressesGloballyInvalid = `SELECT id
+		FROM addresses
+		JOIN
+			(  -- globally_invalid transactions with no (is_valid && is_mainchain)=true occurrence
+				SELECT tx_hash
+				FROM
+				(
+					SELECT bool_or(is_valid AND is_mainchain) AS any_valid, tx_hash
+					FROM transactions
+					GROUP BY tx_hash
+				) AS foo
+				WHERE any_valid=FALSE
+			) AS globally_invalid
+		ON globally_invalid.tx_hash = addresses.tx_hash `
+
+	// UpdateAddressesGloballyInvalid sets valid_mainchain=false on address rows
+	// identified by the SelectAddressesGloballyInvalid query (ids of
+	// globally_invalid subquery table) as requiring this flag set, but which do
+	// not already have it set (incorrectly_valid).
+	UpdateAddressesGloballyInvalid = `UPDATE addresses SET valid_mainchain=false
+		FROM (
+			SELECT id FROM
+			(
+				` + SelectAddressesGloballyInvalid + `
+			) AS invalid_ids
+			WHERE invalid_ids.valid_mainchain=true
+		) AS incorrectly_valid
+		WHERE incorrectly_valid.id=addresses.id;`
 
 	UpdateValidMainchainFromTransactions = `UPDATE addresses
 		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean
