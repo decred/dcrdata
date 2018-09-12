@@ -724,30 +724,47 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 		return
 	}
 
-	var nu, tu sql.NullInt64
-	err = dbtx.QueryRow(internal.SelectAddressUnspentCountANDValue, address).
-		Scan(&nu, &tu)
+	// Query for spent and unspent totals
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectAddressSpentUnspentCountAndValue, address)
 	if err != nil && err != sql.ErrNoRows {
 		if errRoll := dbtx.Rollback(); errRoll != nil {
 			log.Errorf("Rollback failed: %v", errRoll)
 		}
-		err = fmt.Errorf("unable to QueryRow for unspent amount: %v", err)
+		err = fmt.Errorf("unable to Query for spent and unspent amounts: %v", err)
 		return
 	}
-	numUnspent, totalUnspent = nu.Int64, tu.Int64
+	if err == sql.ErrNoRows {
+		return
+	}
 
-	var ns, ts sql.NullInt64
-	err = dbtx.QueryRow(internal.SelectAddressSpentCountANDValue, address).
-		Scan(&ns, &ts)
-	if err != nil && err != sql.ErrNoRows {
-		if errRoll := dbtx.Rollback(); errRoll != nil {
-			log.Errorf("Rollback failed: %v", errRoll)
+	for rows.Next() {
+		var count, totalValue int64
+		var noMatchingTx, isFunding bool
+		err = rows.Scan(&count, &totalValue, &isFunding, &noMatchingTx)
+		if err != nil {
+			break
 		}
-		err = fmt.Errorf("unable to QueryRow for spent amount: %v", err)
-		return
-	}
-	numSpent, totalSpent = ns.Int64, ts.Int64
 
+		// Unspent == funding with no matching transaction
+		if isFunding && noMatchingTx {
+			numUnspent = count
+			totalUnspent = totalValue
+		}
+		// Spent == spending (but ensure a matching transaction is set)
+		if !isFunding {
+			if noMatchingTx {
+				log.Errorf("Found spending transactions with matching_tx_hash"+
+					" unset for %s!", address)
+				continue
+			}
+			numSpent = count
+			totalSpent = totalValue
+		}
+	}
+	closeRows(rows)
+
+	// Query for spending transaction count, repeated transaction hashes merged.
 	var nms sql.NullInt64
 	err = dbtx.QueryRow(internal.SelectAddressesMergedSpentCount, address).
 		Scan(&nms)
