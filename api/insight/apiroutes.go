@@ -283,7 +283,7 @@ func (c *insightApiContext) broadcastTransactionRaw(w http.ResponseWriter, r *ht
 
 	// Respond with hash of broadcasted transaction
 	txidJSON := struct {
-		TxidHash string `json:"rawtx"`
+		TxidHash string `json:"txid"`
 	}{
 		txid,
 	}
