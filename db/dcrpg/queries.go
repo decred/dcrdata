@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -1706,6 +1707,8 @@ func UpdateTicketsMainchain(db *sql.DB, blockHash string, isMainchain bool) (int
 // UpdateAddressesMainchainByIDs sets the valid_mainchain column for the
 // addresses specified by their vin (spending) or vout (funding) row IDs.
 func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt64Array, isValidMainchain bool) (numSpendingRows, numFundingRows int64, err error) {
+	// Spending/vins: Set valid_mainchain for the is_funding=false addresses
+	// table rows using the vins row ids.
 	var numUpdated int64
 	for iTxn := range vinsBlk {
 		for _, vin := range vinsBlk[iTxn] {
@@ -1718,6 +1721,8 @@ func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt6
 		}
 	}
 
+	// Funding/vouts: Set valid_mainchain for the is_funding=true addresses
+	// table rows using the vouts row ids.
 	for iTxn := range voutsBlk {
 		for _, vout := range voutsBlk[iTxn] {
 			numUpdated, err = sqlExec(db, internal.SetAddressMainchainForVoutIDs,
@@ -1731,16 +1736,17 @@ func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt6
 	return
 }
 
-// UpdateLastBlock updates the is_valid column of the block specified by the row
-// id for the blocks table.
-func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
+// UpdateLastBlockValid updates the is_valid column of the block specified by
+// the row id for the blocks table.
+func UpdateLastBlockValid(db *sql.DB, blockDbID uint64, isValid bool) error {
 	numRows, err := sqlExec(db, internal.UpdateLastBlockValid,
 		"failed to update last block validity: ", blockDbID, isValid)
 	if err != nil {
 		return err
 	}
 	if numRows != 1 {
-		return fmt.Errorf("UpdateLastBlock failed to update exactly 1 row (%d)", numRows)
+		return fmt.Errorf("UpdateLastBlockValid failed to update exactly 1 row"+
+			"(%d)", numRows)
 	}
 	return nil
 }
@@ -1770,14 +1776,18 @@ func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) err
 	return nil
 }
 
-// UpdateLastAddressesValid sets valid_mainchain as specified for addresses
-// table rows pertaining to transactions found in the given block.
+// UpdateLastAddressesValid sets valid_mainchain as specified by isValid for
+// addresses table rows pertaining to regular (non-stake) transactions found in
+// the given block.
 func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) error {
+	// Get the row ids of all vins and vouts of regular txns in this block.
 	onlyRegularTxns := true
 	vinDbIDsBlk, voutDbIDsBlk, _, err := RetrieveTxnsVinsVoutsByBlock(db, blockHash, onlyRegularTxns)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve vin data for block %s: %v", blockHash, err)
 	}
+	// Using vins and vouts row ids, update the valid_mainchain colume of the
+	// rows of the address table referring to these vins and vouts.
 	numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(db,
 		vinDbIDsBlk, voutDbIDsBlk, isValid)
 	if err != nil {
@@ -2172,7 +2182,8 @@ func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64
 	err = db.QueryRow(internal.MakeVinInsertStatement(checked),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
 		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree,
-		dbVin.ValueIn, dbVin.IsValid, dbVin.IsMainchain, dbVin.Time, dbVin.TxType).Scan(&id)
+		dbVin.ValueIn, dbVin.IsValid, dbVin.IsMainchain, dbVin.Time,
+		dbVin.TxType).Scan(&id)
 	return
 }
 
