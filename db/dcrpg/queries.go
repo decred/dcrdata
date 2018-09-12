@@ -1121,6 +1121,38 @@ func RetrieveFullTxByHash(db *sql.DB, txHash string) (id uint64,
 	return
 }
 
+// RetrieveDbTxsByHash retrieves all the rows of the transactions table,
+// including the primary keys/ids, for the given transaction hash.
+// func RetrieveDbTxsByHash(db *sql.DB, txHash string) (ids []uint64, dbTxs []*dbtypes.Tx, err error) {
+// 	var rows *sql.Rows
+// 	rows, err = db.Query(internal.SelectFullTxsByHash, txHash)
+// 	if err != nil {
+// 		return
+// 	}
+// 	defer closeRows(rows)
+
+// 	for rows.Next() {
+// 		var id uint64
+// 		var dbTx dbtypes.Tx
+// 		vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
+// 		voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
+
+// 		err = rows.Scan(&id,
+// 			&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
+// 			&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
+// 			&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
+// 			&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs,
+// 			&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
+// 		if err != nil {
+// 			break
+// 		}
+
+// 		ids = append(ids, id)
+// 		dbTxs = append(dbTxs, &dbTx)
+// 	}
+// 	return
+// }
+
 // RetrieveTxnsVinsByBlock retrieves for all the transactions in the specified
 // block the vin_db_ids arrays, is_valid, and is_mainchain.
 func RetrieveTxnsVinsByBlock(db *sql.DB, blockHash string) (vinDbIDs []dbtypes.UInt64Array,
@@ -1150,10 +1182,14 @@ func RetrieveTxnsVinsByBlock(db *sql.DB, blockHash string) (vinDbIDs []dbtypes.U
 
 // RetrieveTxnsVinsVoutsByBlock retrieves for all the transactions in the
 // specified block the vin_db_ids and vout_db_ids arrays.
-func RetrieveTxnsVinsVoutsByBlock(db *sql.DB, blockHash string) (vinDbIDs, voutDbIDs []dbtypes.UInt64Array,
+func RetrieveTxnsVinsVoutsByBlock(db *sql.DB, blockHash string, onlyRegular bool) (vinDbIDs, voutDbIDs []dbtypes.UInt64Array,
 	areMainchain []bool, err error) {
+	stmt := internal.SelectTxnsVinsVoutsByBlock
+	if onlyRegular {
+		stmt = internal.SelectRegularTxnsVinsVoutsByBlock
+	}
 	var rows *sql.Rows
-	rows, err = db.Query(internal.SelectTxnsVinsVoutsByBlock, blockHash)
+	rows, err = db.Query(stmt, blockHash)
 	if err != nil {
 		return
 	}
@@ -1667,14 +1703,14 @@ func UpdateTicketsMainchain(db *sql.DB, blockHash string, isMainchain bool) (int
 	return numRows, nil
 }
 
-// UpdateAddressesMainchainByIDs sets the is_mainchain column for the addresses
-// specified by their vin (spending) or vout (funding) row IDs.
-func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt64Array, isMainchain bool) (numSpendingRows, numFundingRows int64, err error) {
+// UpdateAddressesMainchainByIDs sets the valid_mainchain column for the
+// addresses specified by their vin (spending) or vout (funding) row IDs.
+func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt64Array, isValidMainchain bool) (numSpendingRows, numFundingRows int64, err error) {
 	var numUpdated int64
 	for iTxn := range vinsBlk {
 		for _, vin := range vinsBlk[iTxn] {
 			numUpdated, err = sqlExec(db, internal.SetAddressMainchainForVinIDs,
-				"failed to update spending addresses is_mainchain: ", isMainchain, vin)
+				"failed to update spending addresses is_mainchain: ", isValidMainchain, vin)
 			if err != nil {
 				return
 			}
@@ -1685,7 +1721,7 @@ func UpdateAddressesMainchainByIDs(db *sql.DB, vinsBlk, voutsBlk []dbtypes.UInt6
 	for iTxn := range voutsBlk {
 		for _, vout := range voutsBlk[iTxn] {
 			numUpdated, err = sqlExec(db, internal.SetAddressMainchainForVoutIDs,
-				"failed to update funding addresses is_mainchain: ", isMainchain, vout)
+				"failed to update funding addresses is_mainchain: ", isValidMainchain, vout)
 			if err != nil {
 				return
 			}
@@ -1732,6 +1768,24 @@ func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) err
 	}
 
 	return nil
+}
+
+// UpdateLastAddressesValid sets valid_mainchain as specified for addresses
+// table rows pertaining to transactions found in the given block.
+func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) error {
+	onlyRegularTxns := true
+	vinDbIDsBlk, voutDbIDsBlk, _, err := RetrieveTxnsVinsVoutsByBlock(db, blockHash, onlyRegularTxns)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve vin data for block %s: %v", blockHash, err)
+	}
+	numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(db,
+		vinDbIDsBlk, voutDbIDsBlk, isValid)
+	if err != nil {
+		log.Errorf("Failed to set addresses rows in block %s as sidechain: %v", blockHash, err)
+	}
+	addrsUpdated := numAddrSpending + numAddrFunding
+	log.Debugf("Rows of addresses table updated: %d", addrsUpdated)
+	return err
 }
 
 func RetrieveBestBlockHeight(db *sql.DB) (height uint64, hash string, id uint64, err error) {

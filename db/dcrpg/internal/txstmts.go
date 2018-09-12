@@ -96,6 +96,9 @@ const (
 		FROM transactions
 		WHERE block_height BETWEEN $1 AND $2;`
 
+	SelectRegularTxnsVinsVoutsByBlock = `SELECT vin_db_ids, vout_db_ids, is_mainchain
+		FROM transactions WHERE block_hash = $1 AND tree = 0;`
+
 	SelectTxsBlocks = `SELECT block_height, block_hash, block_index, is_valid, is_mainchain
 		FROM transactions
 		WHERE tx_hash = $1

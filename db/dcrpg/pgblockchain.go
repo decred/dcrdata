@@ -1613,7 +1613,8 @@ func (pgb *ChainDB) ExistsIndexAddressesVoutIDAddress() (bool, error) {
 
 func (pgb *ChainDB) SetVinsMainchainByBlock(blockHash string) (int64, []dbtypes.UInt64Array, []dbtypes.UInt64Array, error) {
 	// Get vins DB IDs for the block
-	vinDbIDsBlk, voutDbIDsBlk, areMainchain, err := RetrieveTxnsVinsVoutsByBlock(pgb.db, blockHash)
+	onlyRegularTxns := false
+	vinDbIDsBlk, voutDbIDsBlk, areMainchain, err := RetrieveTxnsVinsVoutsByBlock(pgb.db, blockHash, onlyRegularTxns)
 	if err != nil {
 		return 0, nil, nil, fmt.Errorf("unable to retrieve vin data for block %s: %v", blockHash, err)
 	}
@@ -1705,7 +1706,7 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		numAddrSpending, numAddrFunding, err := UpdateAddressesMainchainByIDs(pgb.db,
 			vinDbIDsBlk, voutDbIDsBlk, false)
 		if err != nil {
-			log.Errorf("Failed to addresses rows in block %s as sidechain: %v",
+			log.Errorf("Failed to set addresses rows in block %s as sidechain: %v",
 				tipHash, err)
 		}
 		addrsUpdated += numAddrSpending + numAddrFunding
@@ -1888,6 +1889,12 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 				return
 			}
 
+			// Update addresses table for last block's regular transactions
+			err = UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
+			if err != nil {
+				log.Error("UpdateLastAddressesValid:", err)
+				return
+			}
 		}
 	}
 
