@@ -184,7 +184,7 @@ const (
 	// false according to the transactions table. Should is defined as any
 	// occurence of a given transaction (hash) being flagged as is_valid AND
 	// is_mainchain.
-	SelectAddressesGloballyInvalid = `SELECT id
+	SelectAddressesGloballyInvalid = `SELECT id, valid_mainchain
 		FROM addresses
 		JOIN
 			(  -- globally_invalid transactions with no (is_valid && is_mainchain)=true occurrence
@@ -213,6 +213,10 @@ const (
 		) AS incorrectly_valid
 		WHERE incorrectly_valid.id=addresses.id;`
 
+	// UpdateValidMainchainFromTransactions sets valid_mainchain in all rows of
+	// the addresses table according to the transactions table, unlike
+	// UpdateAddressesGloballyInvalid that does it selectively for only the
+	// incorrectly set addresses table rows.  This is much slower.
 	UpdateValidMainchainFromTransactions = `UPDATE addresses
 		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean
 		FROM transactions AS tr
