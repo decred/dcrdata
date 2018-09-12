@@ -4,6 +4,7 @@
 package insight
 
 import (
+	"encoding/json"
 	"regexp"
 	"sync"
 
@@ -19,15 +20,53 @@ import (
 
 var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
 
-// SocketServer wraps the socket.io server with the watched address list
+type roomSubscriptionCounter struct {
+	*sync.RWMutex
+	c map[string]int
+}
+
+// SocketServer wraps the socket.io server with the watched address list.
 type SocketServer struct {
 	socketio.Server
 	params           *chaincfg.Params
-	watchedAddresses map[string]int
-	addressesMtx     *sync.RWMutex
+	watchedAddresses roomSubscriptionCounter
 }
 
-// NewSocketServer creates and returns new instance of the SocketServer
+// InsightSocketVout represents a single vout for the Insight "vout" JSON object
+// that appears in a "tx" message from the "inv" room.
+type InsightSocketVout struct {
+	Address string
+	Value   int64
+}
+
+// MarshalJSON implements json.Marshaler so that an InsightSocketVout will
+// marshal to JSON like:
+//	{
+//	  "DsZQaCQES5vh3JmcyyFokJYz3aSw8Sm1dsQ": 13741789
+//	}
+func (v *InsightSocketVout) MarshalJSON() ([]byte, error) {
+	vout := map[string]int64{
+		v.Address: v.Value,
+	}
+	return json.Marshal(vout)
+}
+
+// WebSocketTx models the JSON data sent as the tx event in the inv room.
+type WebSocketTx struct {
+	Hash     string              `json:"txid"`
+	Size     int                 `json:"size"`
+	TotalOut int64               `json:"valueOut"`
+	Vouts    []InsightSocketVout `json:"vout,omitempty"`
+}
+
+// NewTx models data from the notification handler
+type NewTx struct {
+	Hex   string
+	Vouts []dcrjson.Vout
+}
+
+// NewSocketServer constructs a new SocketServer, registering handlers for the
+// "connection", "disconnection", and "subscribe" events.
 func NewSocketServer(newTxChan chan *NewTx, params *chaincfg.Params) (*SocketServer, error) {
 	server, err := socketio.NewServer(nil)
 	if err != nil {
@@ -35,26 +74,39 @@ func NewSocketServer(newTxChan chan *NewTx, params *chaincfg.Params) (*SocketSer
 		return nil, err
 	}
 
-	addrMtx := new(sync.RWMutex)
-	addrs := make(map[string]int)
+	// Each address subscription uses its own room, which has the same name as
+	// the address. The number of subscribers for each room is tracked.
+	addrs := roomSubscriptionCounter{
+		RWMutex: new(sync.RWMutex),
+		c:       make(map[string]int),
+	}
+
 	server.On("connection", func(so socketio.Socket) {
 		apiLog.Debug("New socket.io connection")
+		// New connections automatically join the inv and sync rooms.
 		so.Join("inv")
 		so.Join("sync")
+
+		// Disconnection decrements or deletes the subscriber counter for each
+		// address room to which the client was subscribed.
 		so.On("disconnection", func() {
 			apiLog.Debug("socket.io client disconnected")
-			addrMtx.Lock()
+			addrs.Lock()
 			for _, str := range so.Rooms() {
-				if c, ok := addrs[str]; ok {
+				if c, ok := addrs.c[str]; ok {
 					if c == 1 {
-						delete(addrs, str)
+						delete(addrs.c, str)
 					} else {
-						addrs[str]--
+						addrs.c[str]--
 					}
 				}
 			}
-			addrMtx.Unlock()
+			addrs.Unlock()
 		})
+
+		// Subscription to a room checks the room name is as expected for an
+		// address (TODO: do this better), joins the room, and increments the
+		// room's subscriber count.
 		so.On("subscribe", func(room string) {
 			if len(room) > 64 || !isAlphaNumeric(room) {
 				return
@@ -64,9 +116,9 @@ func NewSocketServer(newTxChan chan *NewTx, params *chaincfg.Params) (*SocketSer
 					so.Join(room)
 					apiLog.Debugf("socket.io client joining room: %s", room)
 
-					addrMtx.Lock()
-					addrs[room]++
-					addrMtx.Unlock()
+					addrs.Lock()
+					addrs.c[room]++
+					addrs.Unlock()
 				}
 			}
 		})
@@ -80,7 +132,6 @@ func NewSocketServer(newTxChan chan *NewTx, params *chaincfg.Params) (*SocketSer
 		Server:           *server,
 		params:           params,
 		watchedAddresses: addrs,
-		addressesMtx:     addrMtx,
 	}
 	go sockServ.sendNewTx(newTxChan)
 	return &sockServ, nil
@@ -104,42 +155,31 @@ func (soc *SocketServer) sendNewTx(newTxChan chan *NewTx) {
 			continue
 		}
 		hash := msgTx.TxHash().String()
-		vouts := make(map[string]int64)
+		var vouts []InsightSocketVout
 		var total int64
 		for i, v := range msgTx.TxOut {
 			total += v.Value
 			if len(ntx.Vouts[i].ScriptPubKey.Addresses) != 0 {
-				soc.addressesMtx.RLock()
+				soc.watchedAddresses.RLock()
 				for _, address := range ntx.Vouts[i].ScriptPubKey.Addresses {
-					if _, ok := soc.watchedAddresses[address]; ok {
+					if _, ok := soc.watchedAddresses.c[address]; ok {
 						soc.BroadcastTo(address, address, hash)
 					}
-					vouts[address] = v.Value
+					vouts = append(vouts, InsightSocketVout{
+						Address: address,
+						Value:   v.Value,
+					})
 				}
-				soc.addressesMtx.RUnlock()
+				soc.watchedAddresses.RUnlock()
 			}
 		}
 		tx := WebSocketTx{
 			Hash:     hash,
 			Size:     len(ntx.Hex) / 2,
 			TotalOut: total,
-			Vout:     vouts,
+			Vouts:    vouts,
 		}
 		apiLog.Tracef("Sending new websocket tx %s", hash)
 		soc.BroadcastTo("inv", "tx", tx)
 	}
-}
-
-// WebSocketTx models the json data send as the tx event in the inv room
-type WebSocketTx struct {
-	Hash     string           `json:"txid"`
-	Size     int              `json:"size"`
-	TotalOut int64            `json:"valueOut"`
-	Vout     map[string]int64 `json:"vout,omitempty"`
-}
-
-// NewTx models data from the notification handler
-type NewTx struct {
-	Hex   string
-	Vouts []dcrjson.Vout
 }
