@@ -20,7 +20,12 @@ import (
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
-var requiredChainServerAPI = semver.NewSemver(3, 0, 0)
+// Any of the following dcrd RPC API versions are deemed compatible with
+// dcrdata.
+var compatibleChainServerAPIs = []semver.Semver{
+	semver.NewSemver(3, 0, 0),
+	semver.NewSemver(4, 0, 0), // bumped for removal of createrawssgen, not used by dcrdata
+}
 
 // ConnectNodeRPC attempts to create a new websocket connection to a dcrd node,
 // with the given credentials and optional notification handlers.
@@ -75,10 +80,12 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool,
 	dcrdVer := ver["dcrdjsonrpcapi"]
 	nodeVer = semver.NewSemver(dcrdVer.Major, dcrdVer.Minor, dcrdVer.Patch)
 
-	if !semver.Compatible(requiredChainServerAPI, nodeVer) {
+	// Check if the dcrd RPC API version is compatible with dcrdata.
+	isApiCompat := semver.AnyCompatible(compatibleChainServerAPIs, nodeVer)
+	if !isApiCompat {
 		return nil, nodeVer, fmt.Errorf("Node JSON-RPC server does not have "+
-			"a compatible API version. Advertises %v but require %v",
-			nodeVer, requiredChainServerAPI)
+			"a compatible API version. Advertises %v but requires one of: %v",
+			nodeVer, compatibleChainServerAPIs)
 	}
 
 	return dcrdClient, nodeVer, nil
