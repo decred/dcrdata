@@ -6,6 +6,8 @@ package explorer
 
 import (
 	"database/sql"
+	"encoding/hex"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -16,7 +18,9 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrdata/v3/db/agendadb"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/txhelpers"
@@ -357,6 +361,87 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			Confirmations: confirms,
 			Time:          dbTx0.Time,
 			FormattedTime: time.Unix(dbTx0.Time, 0).Format("2006-01-02 15:04:05"),
+		}
+
+		// Retrieve vouts from DB
+		vouts, err := exp.explorerSource.VoutsForTx(dbTx0)
+		if err != nil {
+			log.Errorf("Failed to retrieve all vout details for transaction %s: %v",
+				dbTx0.TxID, err)
+		}
+		for iv := range vouts {
+			// Check pkScript for OP_RETURN
+			var opReturn string
+			asm, _ := txscript.DisasmString(vouts[iv].ScriptPubKey)
+			if strings.Contains(asm, "OP_RETURN") {
+				opReturn = asm
+			}
+			// Determine if the outpoint is spent
+			spendingTx, _, _, err := exp.explorerSource.SpendingTransaction(hash, vouts[iv].TxIndex)
+			if err != nil {
+				log.Errorf("SpendingTransaction failed for outpoint %s:%d: %v",
+					hash, vouts[iv].TxIndex, err)
+			}
+			amount := dcrutil.Amount(int64(vouts[iv].Value)).ToCoin()
+			tx.Vout = append(tx.Vout, Vout{
+				Addresses:       vouts[iv].ScriptPubKeyData.Addresses,
+				Amount:          amount,
+				FormattedAmount: humanize.Commaf(amount),
+				Type:            txhelpers.TxTypeToString(int(vouts[iv].TxType)),
+				Spent:           spendingTx != "",
+				OP_RETURN:       opReturn,
+			})
+		}
+
+		// Retrieve vins from DB
+		vins, prevPkScripts, scriptVersions, err := exp.explorerSource.VinsForTx(dbTx0)
+		if err != nil {
+			log.Errorf("Failed to retrieve all vin details for transaction %s: %v",
+				dbTx0.TxID, err)
+		}
+
+		// Convert to explorer.Vin from dbtypes.VinTxProperty
+		for iv := range vins {
+			// Decode all addresses from previous outpoint's pkScript
+			var addresses []string
+			pkScriptsStr, err := hex.DecodeString(prevPkScripts[iv])
+			if err != nil {
+				log.Errorf("Failed to decode pkgScript: %v", err)
+			}
+			_, scrAddrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersions[iv],
+				pkScriptsStr, exp.ChainParams)
+			if err != nil {
+				log.Errorf("Failed to decode pkScript: %v", err)
+			} else {
+				for ia := range scrAddrs {
+					addresses = append(addresses, scrAddrs[ia].EncodeAddress())
+				}
+			}
+
+			// If the scriptsig does not decode or disassemble, oh well.
+			asm, _ := txscript.DisasmString(vins[iv].ScriptHex)
+
+			txIndex := vins[iv].TxIndex
+			amount := dcrutil.Amount(vins[iv].ValueIn).ToCoin()
+			tx.Vin = append(tx.Vin, Vin{
+				Vin: &dcrjson.Vin{
+					Coinbase:    fmt.Sprint(txIndex == 0 && tx.Coinbase),
+					Stakebase:   fmt.Sprint(txIndex == 0 && tx.IsVote()),
+					Txid:        hash,
+					Vout:        vins[iv].PrevTxIndex,
+					Tree:        dbTx0.Tree,
+					Sequence:    vins[iv].Sequence,
+					AmountIn:    amount,
+					BlockHeight: uint32(tx.BlockHeight),
+					BlockIndex:  tx.BlockIndex,
+					ScriptSig: &dcrjson.ScriptSig{
+						Asm: asm,
+						Hex: hex.EncodeToString(vins[iv].ScriptHex),
+					},
+				},
+				Addresses:       addresses,
+				FormattedAmount: humanize.Commaf(amount),
+			})
 		}
 
 		if tx.Coinbase || tx.IsVote() {
