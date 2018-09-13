@@ -30,6 +30,18 @@ func Compatible(required, actual Semver) bool {
 	}
 }
 
+// AnyCompatible checks if the version is compatible with any versions in a
+// slice of versions.
+func AnyCompatible(compatible []Semver, actual Semver) (isApiCompat bool) {
+	for _, v := range compatible {
+		if Compatible(v, actual) {
+			isApiCompat = true
+			break
+		}
+	}
+	return
+}
+
 func (s Semver) String() string {
 	return fmt.Sprintf("%d.%d.%d", s.major, s.minor, s.patch)
 }
