@@ -47,8 +47,13 @@ func IsUniqueIndex(db *sql.DB, indexName string) (isUnique bool, err error) {
 	return
 }
 
-func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, err error) {
-	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&pkScript)
+func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, ver uint16, err error) {
+	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&pkScript, &ver)
+	return
+}
+
+func RetrievePkScriptByOutpoint(db *sql.DB, txHash string, voutIndex uint32) (pkScript []byte, ver uint16, err error) {
+	err = db.QueryRow(internal.SelectPkScriptByOutpoint, txHash, voutIndex).Scan(&pkScript, &ver)
 	return
 }
 
@@ -960,10 +965,50 @@ func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVou
 	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
 	var blockTime uint64
 	var isValid, isMainchain bool
+	var txType uint32
 	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
 		Scan(&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn, &txType)
 	return
+}
+
+func RetrieveVinsByIDs(db *sql.DB, vinDbIDs []uint64) ([]dbtypes.VinTxProperty, error) {
+	vins := make([]dbtypes.VinTxProperty, len(vinDbIDs))
+	for i, id := range vinDbIDs {
+		vin := &vins[i]
+		err := db.QueryRow(internal.SelectAllVinInfoByID, id).Scan(&vin.TxID,
+			&vin.TxIndex, &vin.TxTree, &vin.IsValid, &vin.IsMainchain,
+			&vin.Time, &vin.PrevTxHash, &vin.PrevTxIndex, &vin.PrevTxTree,
+			&vin.ValueIn, &vin.TxType)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return vins, nil
+}
+
+func RetrieveVoutsByIDs(db *sql.DB, voutDbIDs []uint64) ([]dbtypes.Vout, error) {
+	vouts := make([]dbtypes.Vout, len(voutDbIDs))
+	for i, id := range voutDbIDs {
+		vout := &vouts[i]
+		var id0 uint64
+		var reqSigs uint32
+		var scriptType, addresses string
+		err := db.QueryRow(internal.SelectVoutByID, id).Scan(&id0, &vout.TxHash,
+			&vout.TxIndex, &vout.TxTree, &vout.Value, &vout.Version,
+			&vout.ScriptPubKey, &reqSigs, &scriptType, &addresses)
+		if err != nil {
+			return nil, err
+		}
+		// Parse the addresses array
+		replacer := strings.NewReplacer("{", "", "}", "")
+		addresses = replacer.Replace(addresses)
+
+		vout.ScriptPubKeyData.ReqSigs = reqSigs
+		vout.ScriptPubKeyData.Type = scriptType
+		vout.ScriptPubKeyData.Addresses = strings.Split(addresses, ",")
+	}
+	return vouts, nil
 }
 
 func RetrieveFundingTxByTxIn(db *sql.DB, txHash string, vinIndex uint32) (id uint64, tx string, err error) {
