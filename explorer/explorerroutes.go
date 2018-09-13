@@ -1000,20 +1000,28 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	var stats StatsInfo
 	exp.MempoolData.RLock()
 	stats.TotalSupply = exp.ExtraInfo.CoinSupply
+	if exp.NetName == "Mainnet" {
+		stats.UltimateSupply = 15000000 * 100000000
+		stats.TotalSupplyPercentage = float64(stats.TotalSupply) / float64(stats.UltimateSupply) * 100
+	}
 	stats.DevFunds = exp.ExtraInfo.DevFund
 	stats.DevAddress = exp.ExtraInfo.DevAddress
 	stats.POWDiff = exp.ExtraInfo.Difficulty
-	stats.BlockReward = exp.ExtraInfo.NBlockSubsidy.Total
+	stats.BlockReward = exp.blockData.BlockSubsidy(int64(exp.blockData.GetHeight()), 5).Total
+	stats.NextBlockReward = exp.ExtraInfo.NBlockSubsidy.Total
 	stats.POWReward = exp.ExtraInfo.NBlockSubsidy.PoW
 	stats.POSReward = exp.ExtraInfo.NBlockSubsidy.PoS
 	stats.DevFundReward = exp.ExtraInfo.NBlockSubsidy.Dev
 	stats.VotesInMempool = exp.MempoolData.NumVotes
 	stats.TicketsInMempool = exp.MempoolData.NumTickets
 	stats.TicketPrice = exp.ExtraInfo.StakeDiff
+	stats.NextEstimatedTicketPrice = exp.ExtraInfo.NextExpectedStakeDiff
 	stats.TicketPoolSize = exp.ExtraInfo.PoolInfo.Size
 	stats.TicketPoolValue = exp.ExtraInfo.PoolInfo.Value
-	stats.TPVOfTotalSupplyPeecentage = stats.TicketPoolValue / float64(stats.TotalSupply) * 100
+	stats.TPVOfTotalSupplyPeecentage = exp.ExtraInfo.PoolInfo.Percentage
 	stats.TicketsROI = exp.ExtraInfo.TicketReward
+	stats.RewardPeriod = exp.ExtraInfo.RewardPeriod
+	stats.ASR = exp.ExtraInfo.ASR
 	stats.IdxBlockInWindow = exp.ExtraInfo.IdxBlockInWindow
 	stats.WindowSize = exp.ExtraInfo.Params.WindowSize
 	stats.BlockTime = exp.ExtraInfo.Params.BlockTime

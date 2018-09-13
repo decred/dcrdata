@@ -536,22 +536,28 @@ func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
 
 // StatsInfo represents the all data for the stats page
 type StatsInfo struct {
+	UltimateSupply             int64
 	TotalSupply                int64
+	TotalSupplyPercentage      float64
 	DevFunds                   int64
 	DevAddress                 string
 	POWDiff                    float64
 	HashRate                   float64
 	BlockReward                int64
+	NextBlockReward            int64
 	POWReward                  int64
 	POSReward                  int64
 	DevFundReward              int64
 	VotesInMempool             int
 	TicketsInMempool           int
 	TicketPrice                float64
+	NextEstimatedTicketPrice   float64
 	TicketPoolSize             uint32
 	TicketPoolValue            float64
 	TPVOfTotalSupplyPeecentage float64
 	TicketsROI                 float64
+	RewardPeriod               string
+	ASR                        float64
 	IdxBlockInWindow           int
 	WindowSize                 int64
 	BlockTime                  int64

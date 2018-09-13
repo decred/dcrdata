@@ -947,12 +947,19 @@ body.darkBG .keynav-target {
 .card{
   background-color: #FFFFFF;
   box-shadow: 0 4px 8px 0 #E6EAED;
-  width: 225px;
-  height: 180px;
+  width: 250px;
+  height: 220px;
   margin: auto;
   margin-bottom: 20px;
   margin-left: 20px;
   float: left;
+  padding-bottom: 10px;
+  border-radius: 10px;
+  transition: all .2s ease-in-out;
+}
+.card :hover{
+  overflow: hidden;
+  white-space: normal;
 }
 .card-header{
   text-transform: uppercase;
@@ -960,12 +967,15 @@ body.darkBG .keynav-target {
   color: #8997A5;
   text-align: center;
   font-style: bold;
-  font-size: 14px;
+  font-size: 16px;
 }
 .card-body{
   background-color: #FFFFFF;
   color: #3D5873;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .stat-headers{
   color: #3D5873;
@@ -979,6 +989,8 @@ body.darkBG .keynav-target {
 .stat-data{
   font-style: bold;
   color: #3D5873;
+  margin: auto;
+  font-size: 25px;
 }
 .stat-details{
   color: #C4CBD2;
