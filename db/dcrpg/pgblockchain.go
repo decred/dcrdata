@@ -1677,12 +1677,15 @@ func (pgb *ChainDB) VinsForTx(dbTx *dbtypes.Tx) ([]dbtypes.VinTxProperty, []stri
 	for _, id := range dbTx.VinDbIds {
 		pkScript, ver, err := RetrievePkScriptByID(pgb.db, id)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, fmt.Errorf("RetrievePkScriptByID: %v", err)
 		}
 		prevPkScripts = append(prevPkScripts, hex.EncodeToString(pkScript))
 		versions = append(versions, ver)
 	}
 	vins, err := RetrieveVinsByIDs(pgb.db, dbTx.VinDbIds)
+	if err != nil {
+		err = fmt.Errorf("RetrieveVinsByIDs: %v", err)
+	}
 	return vins, prevPkScripts, versions, err
 }
 

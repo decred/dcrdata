@@ -7,7 +7,6 @@ package explorer
 import (
 	"database/sql"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -351,8 +350,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				// VoteInfo TODO - check votes table
 				Coinbase: dbTx0.BlockIndex == 0,
 			},
-			// SpendingTxns filled below
-			Type: txhelpers.TxTypeToString(int(dbTx0.TxType)),
+			SpendingTxns: make([]TxInID, len(dbTx0.VoutDbIds)), // SpendingTxns filled below
+			Type:         txhelpers.TxTypeToString(int(dbTx0.TxType)),
 			// Vins TODO - lookup in vins table
 			// Vouts TODO - lookup in vouts table
 			BlockHeight:   dbTx0.BlockHeight,
@@ -363,11 +362,18 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			FormattedTime: time.Unix(dbTx0.Time, 0).Format("2006-01-02 15:04:05"),
 		}
 
+		// Coinbase transactions are regular, but call them coinbase for the page.
+		if tx.Coinbase {
+			tx.Type = "Coinbase"
+		}
+
 		// Retrieve vouts from DB
 		vouts, err := exp.explorerSource.VoutsForTx(dbTx0)
 		if err != nil {
 			log.Errorf("Failed to retrieve all vout details for transaction %s: %v",
 				dbTx0.TxID, err)
+			exp.StatusPage(w, defaultErrorCode, "VoutsForTx failed", ErrorStatusType)
+			return
 		}
 		for iv := range vouts {
 			// Check pkScript for OP_RETURN
@@ -378,8 +384,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			}
 			// Determine if the outpoint is spent
 			spendingTx, _, _, err := exp.explorerSource.SpendingTransaction(hash, vouts[iv].TxIndex)
-			if err != nil {
-				log.Errorf("SpendingTransaction failed for outpoint %s:%d: %v",
+			if err != nil && err != sql.ErrNoRows {
+				log.Warnf("SpendingTransaction failed for outpoint %s:%d: %v",
 					hash, vouts[iv].TxIndex, err)
 			}
 			amount := dcrutil.Amount(int64(vouts[iv].Value)).ToCoin()
@@ -398,6 +404,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Errorf("Failed to retrieve all vin details for transaction %s: %v",
 				dbTx0.TxID, err)
+			exp.StatusPage(w, defaultErrorCode, "VinsForTx failed", ErrorStatusType)
+			return
 		}
 
 		// Convert to explorer.Vin from dbtypes.VinTxProperty
@@ -423,10 +431,18 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 			txIndex := vins[iv].TxIndex
 			amount := dcrutil.Amount(vins[iv].ValueIn).ToCoin()
+			var coinbase, stakebase string
+			if txIndex == 0 {
+				if tx.Coinbase {
+					coinbase = hex.EncodeToString(txhelpers.CoinbaseScript)
+				} else if tx.IsVote() {
+					stakebase = hex.EncodeToString(txhelpers.CoinbaseScript)
+				}
+			}
 			tx.Vin = append(tx.Vin, Vin{
 				Vin: &dcrjson.Vin{
-					Coinbase:    fmt.Sprint(txIndex == 0 && tx.Coinbase),
-					Stakebase:   fmt.Sprint(txIndex == 0 && tx.IsVote()),
+					Coinbase:    coinbase,
+					Stakebase:   stakebase,
 					Txid:        hash,
 					Vout:        vins[iv].PrevTxIndex,
 					Tree:        dbTx0.Tree,
@@ -454,6 +470,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			} else if tx.IsVote() {
 				tx.VoteFundsLocked = "True"
 			}
+			coinbaseMaturityInHours := exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.Maturity)
+			tx.MaturityTimeTill = coinbaseMaturityInHours * (1 - float64(tx.Confirmations)/float64(tx.Maturity))
 		}
 
 		if tx.IsTicket() {

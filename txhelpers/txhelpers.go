@@ -32,6 +32,9 @@ var (
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
 
+var CoinbaseFlags = "/dcrd/"
+var CoinbaseScript = append([]byte{0x00, 0x00}, []byte(CoinbaseFlags)...)
+
 // RawTransactionGetter is an interface satisfied by rpcclient.Client, and
 // required by functions that would otherwise require a rpcclient.Client just
 // for GetRawTransaction.

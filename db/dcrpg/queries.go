@@ -48,12 +48,12 @@ func IsUniqueIndex(db *sql.DB, indexName string) (isUnique bool, err error) {
 }
 
 func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, ver uint16, err error) {
-	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&pkScript, &ver)
+	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&ver, &pkScript)
 	return
 }
 
 func RetrievePkScriptByOutpoint(db *sql.DB, txHash string, voutIndex uint32) (pkScript []byte, ver uint16, err error) {
-	err = db.QueryRow(internal.SelectPkScriptByOutpoint, txHash, voutIndex).Scan(&pkScript, &ver)
+	err = db.QueryRow(internal.SelectPkScriptByOutpoint, txHash, voutIndex).Scan(&ver, &pkScript)
 	return
 }
 
@@ -1180,18 +1180,22 @@ func RetrieveDbTxsByHash(db *sql.DB, txHash string) (ids []uint64, dbTxs []*dbty
 	for rows.Next() {
 		var id uint64
 		var dbTx dbtypes.Tx
-		vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
-		voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
+		var vinids, voutids dbtypes.UInt64Array
+		// vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
+		// voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
 
 		err = rows.Scan(&id,
 			&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
 			&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
 			&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
-			&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs,
+			&dbTx.Fees, &dbTx.NumVin, &vinids, &dbTx.NumVout, &voutids,
 			&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
 		if err != nil {
 			break
 		}
+
+		dbTx.VinDbIds = vinids
+		dbTx.VoutDbIds = voutids
 
 		ids = append(ids, id)
 		dbTxs = append(dbTxs, &dbTx)

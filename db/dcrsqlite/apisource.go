@@ -1132,7 +1132,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	}
 	txraw, err := db.client.GetRawTransactionVerbose(txhash)
 	if err != nil {
-		log.Errorf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
+		log.Warnf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
 		return nil
 	}
 	msgTx, err := txhelpers.MsgTxFromHex(txraw.Hex)
