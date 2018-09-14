@@ -53,7 +53,7 @@
         });
         return html;
     }
-   
+
     function plotGraph(processedData, otherOptions){
         var commonOptions = {
             digitsAfterDecimal: 8,
@@ -145,37 +145,43 @@
                 url: '/api/address/' + _this.addr + '/' + graphType +'/'+ interval,
                 beforeSend: function() {},
                 success: function(data) {
-                    var newData = []
-                    var options = {}
+                    if(data.length) {
+                        var newData = []
+                        var options = {}
 
-                    switch(graphType){
-                        case 'types':
-                            newData = txTypesFunc(data)
-                            options = _this.typesGraphOptions
-                            break
+                        switch(graphType){
+                            case 'types':
+                                newData = txTypesFunc(data)
+                                options = _this.typesGraphOptions
+                                break
 
-                        case 'amountflow':
-                            newData = amountFlowFunc(data)
-                            options = _this.amountFlowGraphOptions
-                            $('#toggle-charts').removeClass('d-hide');
-                            break
+                            case 'amountflow':
+                                newData = amountFlowFunc(data)
+                                options = _this.amountFlowGraphOptions
+                                $('#toggle-charts').removeClass('d-hide');
+                                break
 
-                        case 'unspent':
-                            newData = unspentAmountFunc(data)
-                            options = _this.unspentGraphOptions
-                            break
+                            case 'unspent':
+                                newData = unspentAmountFunc(data)
+                                options = _this.unspentGraphOptions
+                                break
+                        }
+
+                        if (_this.graph == undefined) {
+                            _this.graph = plotGraph(newData, options)
+                        } else {
+                            _this.graph.updateOptions({
+                                ...{'file': newData},
+                                ...options})
+                            _this.graph.resetZoom()
+                        }
+                        _this.updateFlow()
+                        _this.xVal = _this.graph.xAxisExtremes()
+                    }else{
+                        $('#no-bal').removeClass('d-hide');
+                        $('#history-chart').addClass('d-hide');
+                        $('#toggle-charts').removeClass('d-hide');
                     }
-
-                    if (_this.graph == undefined) {
-                        _this.graph = plotGraph(newData, options)
-                    } else {
-                        _this.graph.updateOptions({
-                            ...{'file': newData},
-                            ...options})
-                        _this.graph.resetZoom()
-                    }
-                    _this.updateFlow()
-                    _this.xVal = _this.graph.xAxisExtremes()
 
                     $('body').removeClass('loading');
                 }

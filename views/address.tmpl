@@ -33,15 +33,15 @@
                   This a is dummy address, typically used for unspendable ticket change outputs.<br/>
                   <br/>
                 {{end}}
-                <div class="btn-group mr-auto mb-0 align-bottom address-btn" 
-                    data-toggle="buttons" 
-                    data-target="address.btns" 
+                <div class="btn-group mr-auto mb-0 align-bottom address-btn"
+                    data-toggle="buttons"
+                    data-target="address.btns"
                     data-action="click->address#changeView"
                 >
                     <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="List" name="list">
                     <input id="addr-btn" type="button" class="btn btn_sm" value="Charts"
                     name="chart" {{if $.IsLiteMode}}disabled{{end}}>
-                </div> 
+                </div>
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
                 <table>
@@ -295,7 +295,7 @@
                     <div
                         id="txntype-wrapper"
                         class="d-flex align-items-center justify-content-end"
-                    > 
+                    >
                         <label class="mb-0 mr-1" for="txntype">Type</label>
                         <select
                             name="txntype"
@@ -338,12 +338,12 @@
                 </div>
                 <div class="chart-display d-hide">
                     <div id="history-chart" style="width:100%; height:500px; margin-top:20 auto;"></div>
-                    <h5 id="no-bal" class="mt-2 bal-d" style="margin:7% auto 0 auto;">There are no transactions to display.</h5>
+                    <h5 id="no-bal" class="mt-2 bal-d" style="margin:7% auto 0 auto;">There are no confirmed transactions to display.</h5>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script>
         $(".jsonly").show()
         $('#list-display').hide()
