@@ -318,13 +318,19 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", NotFoundStatusType)
 		return
 	}
+
+	// Initially try to get the transaction information from the "lite" mode
+	// data source, which relies on RPCs to dcrd.
 	tx := exp.blockData.GetExplorerTx(hash)
+	// If dcrd has no information about the transaction, pull the transaction
+	// details from the full mode database.
 	if tx == nil {
 		if exp.liteMode {
 			log.Errorf("Unable to get transaction %s", hash)
 			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
 			return
 		}
+		// Search for occurrences of the transaction in the database.
 		dbTxs, err := exp.explorerSource.Transaction(hash)
 		if err != nil {
 			log.Errorf("Unable to retrieve transaction details for %s.", hash)
@@ -336,10 +342,11 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// take the first one
+		// Take the first one. The query order should put valid at the top of
+		// the list. Regardless of order, the transaction web page will link to
+		// all occurrences of the transaction.
 		dbTx0 := dbTxs[0]
 		fees := dcrutil.Amount(dbTx0.Fees)
-		confirms := exp.Height() - dbTx0.BlockHeight + 1
 		tx = &TxInfo{
 			TxBasic: &TxBasic{
 				TxID:          hash,
@@ -352,12 +359,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			},
 			SpendingTxns: make([]TxInID, len(dbTx0.VoutDbIds)), // SpendingTxns filled below
 			Type:         txhelpers.TxTypeToString(int(dbTx0.TxType)),
-			// Vins TODO - lookup in vins table
-			// Vouts TODO - lookup in vouts table
+			// Vins - looked-up in vins table
+			// Vouts - looked-up in vouts table
 			BlockHeight:   dbTx0.BlockHeight,
 			BlockIndex:    dbTx0.BlockIndex,
 			BlockHash:     dbTx0.BlockHash,
-			Confirmations: confirms,
+			Confirmations: exp.Height() - dbTx0.BlockHeight + 1,
 			Time:          dbTx0.Time,
 			FormattedTime: time.Unix(dbTx0.Time, 0).Format("2006-01-02 15:04:05"),
 		}
@@ -367,7 +374,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			tx.Type = "Coinbase"
 		}
 
-		// Retrieve vouts from DB
+		// Retrieve vouts from DB.
 		vouts, err := exp.explorerSource.VoutsForTx(dbTx0)
 		if err != nil {
 			log.Errorf("Failed to retrieve all vout details for transaction %s: %v",
@@ -375,6 +382,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			exp.StatusPage(w, defaultErrorCode, "VoutsForTx failed", ErrorStatusType)
 			return
 		}
+
+		// Convert to explorer.Vout, getting spending information from DB.
 		for iv := range vouts {
 			// Check pkScript for OP_RETURN
 			var opReturn string
@@ -399,7 +408,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		// Retrieve vins from DB
+		// Retrieve vins from DB.
 		vins, prevPkScripts, scriptVersions, err := exp.explorerSource.VinsForTx(dbTx0)
 		if err != nil {
 			log.Errorf("Failed to retrieve all vin details for transaction %s: %v",
@@ -408,9 +417,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Convert to explorer.Vin from dbtypes.VinTxProperty
+		// Convert to explorer.Vin from dbtypes.VinTxProperty.
 		for iv := range vins {
-			// Decode all addresses from previous outpoint's pkScript
+			// Decode all addresses from previous outpoint's pkScript.
 			var addresses []string
 			pkScriptsStr, err := hex.DecodeString(prevPkScripts[iv])
 			if err != nil {
@@ -460,6 +469,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
+		// For coinbase and stakebase, get maturity status.
 		if tx.Coinbase || tx.IsVote() {
 			tx.Maturity = int64(exp.ChainParams.CoinbaseMaturity)
 			if tx.IsVote() {
@@ -474,15 +484,17 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			tx.MaturityTimeTill = coinbaseMaturityInHours * (1 - float64(tx.Confirmations)/float64(tx.Maturity))
 		}
 
+		// For ticket purchase, get status and maturity blocks, but compute
+		// details in normal code branch below.
 		if tx.IsTicket() {
 			tx.TicketInfo.TicketMaturity = int64(exp.ChainParams.TicketMaturity)
 			if tx.Confirmations >= tx.TicketInfo.TicketMaturity {
 				tx.Mature = "True"
 			}
 		}
-	} // tx == nil
+	} // tx == nil (not found by dcrd)
 
-	// Set ticket-related parameters for both full and lite mode
+	// Set ticket-related parameters for both full and lite mode.
 	if tx.IsTicket() {
 		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
 		tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) *
@@ -499,6 +511,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 	}
 
+	// In full mode, create list of blocks in which the transaction was mined,
+	// and get additional ticket details and pool status.
 	var blocks []*dbtypes.BlockStatus
 	var blockInds []uint32
 	var hasValidMainchain bool
