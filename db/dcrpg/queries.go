@@ -47,8 +47,8 @@ func IsUniqueIndex(db *sql.DB, indexName string) (isUnique bool, err error) {
 	return
 }
 
-func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, err error) {
-	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&pkScript)
+func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, ver uint16, err error) {
+	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&ver, &pkScript)
 	return
 }
 
@@ -936,9 +936,10 @@ func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVou
 	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
 	var blockTime uint64
 	var isValid, isMainchain bool
+	var txType uint32
 	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
 		Scan(&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn, &txType)
 	return
 }
 
