@@ -25,7 +25,7 @@ func openDB() (func() error, error) {
 		DBName: "dcrdata",
 	}
 	var err error
-	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams)
+	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true)
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close
@@ -62,7 +62,7 @@ func TestStuff(t *testing.T) {
 	testTxBlockTree := wire.TxTreeRegular
 
 	// Test number of spent outputs / spending transactions
-	spendingTxns, err := db.SpendingTransactions(testTx)
+	spendingTxns, _, _, err := db.SpendingTransactions(testTx)
 	if err != nil {
 		t.Error("SpendingTransactions", err)
 	}
@@ -74,7 +74,7 @@ func TestStuff(t *testing.T) {
 	}
 
 	// Test a certain spending transaction is as expected
-	spendingTx, err := db.SpendingTransaction(testTx, voutInd)
+	spendingTx, _, _, err := db.SpendingTransaction(testTx, voutInd)
 	if err != nil {
 		t.Error("SpendingTransaction", err)
 	}
