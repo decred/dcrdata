@@ -47,8 +47,13 @@ func IsUniqueIndex(db *sql.DB, indexName string) (isUnique bool, err error) {
 	return
 }
 
-func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, err error) {
-	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&pkScript)
+func RetrievePkScriptByID(db *sql.DB, id uint64) (pkScript []byte, ver uint16, err error) {
+	err = db.QueryRow(internal.SelectPkScriptByID, id).Scan(&ver, &pkScript)
+	return
+}
+
+func RetrievePkScriptByOutpoint(db *sql.DB, txHash string, voutIndex uint32) (pkScript []byte, ver uint16, err error) {
+	err = db.QueryRow(internal.SelectPkScriptByOutpoint, txHash, voutIndex).Scan(&ver, &pkScript)
 	return
 }
 
@@ -960,10 +965,50 @@ func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVou
 	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
 	var blockTime uint64
 	var isValid, isMainchain bool
+	var txType uint32
 	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
 		Scan(&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
+			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn, &txType)
 	return
+}
+
+func RetrieveVinsByIDs(db *sql.DB, vinDbIDs []uint64) ([]dbtypes.VinTxProperty, error) {
+	vins := make([]dbtypes.VinTxProperty, len(vinDbIDs))
+	for i, id := range vinDbIDs {
+		vin := &vins[i]
+		err := db.QueryRow(internal.SelectAllVinInfoByID, id).Scan(&vin.TxID,
+			&vin.TxIndex, &vin.TxTree, &vin.IsValid, &vin.IsMainchain,
+			&vin.Time, &vin.PrevTxHash, &vin.PrevTxIndex, &vin.PrevTxTree,
+			&vin.ValueIn, &vin.TxType)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return vins, nil
+}
+
+func RetrieveVoutsByIDs(db *sql.DB, voutDbIDs []uint64) ([]dbtypes.Vout, error) {
+	vouts := make([]dbtypes.Vout, len(voutDbIDs))
+	for i, id := range voutDbIDs {
+		vout := &vouts[i]
+		var id0 uint64
+		var reqSigs uint32
+		var scriptType, addresses string
+		err := db.QueryRow(internal.SelectVoutByID, id).Scan(&id0, &vout.TxHash,
+			&vout.TxIndex, &vout.TxTree, &vout.Value, &vout.Version,
+			&vout.ScriptPubKey, &reqSigs, &scriptType, &addresses)
+		if err != nil {
+			return nil, err
+		}
+		// Parse the addresses array
+		replacer := strings.NewReplacer("{", "", "}", "")
+		addresses = replacer.Replace(addresses)
+
+		vout.ScriptPubKeyData.ReqSigs = reqSigs
+		vout.ScriptPubKeyData.Type = scriptType
+		vout.ScriptPubKeyData.Addresses = strings.Split(addresses, ",")
+	}
+	return vouts, nil
 }
 
 func RetrieveFundingTxByTxIn(db *sql.DB, txHash string, vinIndex uint32) (id uint64, tx string, err error) {
@@ -1124,35 +1169,39 @@ func RetrieveFullTxByHash(db *sql.DB, txHash string) (id uint64,
 
 // RetrieveDbTxsByHash retrieves all the rows of the transactions table,
 // including the primary keys/ids, for the given transaction hash.
-// func RetrieveDbTxsByHash(db *sql.DB, txHash string) (ids []uint64, dbTxs []*dbtypes.Tx, err error) {
-// 	var rows *sql.Rows
-// 	rows, err = db.Query(internal.SelectFullTxsByHash, txHash)
-// 	if err != nil {
-// 		return
-// 	}
-// 	defer closeRows(rows)
+func RetrieveDbTxsByHash(db *sql.DB, txHash string) (ids []uint64, dbTxs []*dbtypes.Tx, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectFullTxsByHash, txHash)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
 
-// 	for rows.Next() {
-// 		var id uint64
-// 		var dbTx dbtypes.Tx
-// 		vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
-// 		voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
+	for rows.Next() {
+		var id uint64
+		var dbTx dbtypes.Tx
+		var vinids, voutids dbtypes.UInt64Array
+		// vinDbIDs := dbtypes.UInt64Array(dbTx.VinDbIds)
+		// voutDbIDs := dbtypes.UInt64Array(dbTx.VoutDbIds)
 
-// 		err = rows.Scan(&id,
-// 			&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
-// 			&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
-// 			&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
-// 			&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs,
-// 			&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
-// 		if err != nil {
-// 			break
-// 		}
+		err = rows.Scan(&id,
+			&dbTx.BlockHash, &dbTx.BlockHeight, &dbTx.BlockTime, &dbTx.Time,
+			&dbTx.TxType, &dbTx.Version, &dbTx.Tree, &dbTx.TxID, &dbTx.BlockIndex,
+			&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
+			&dbTx.Fees, &dbTx.NumVin, &vinids, &dbTx.NumVout, &voutids,
+			&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
+		if err != nil {
+			break
+		}
 
-// 		ids = append(ids, id)
-// 		dbTxs = append(dbTxs, &dbTx)
-// 	}
-// 	return
-// }
+		dbTx.VinDbIds = vinids
+		dbTx.VoutDbIds = voutids
+
+		ids = append(ids, id)
+		dbTxs = append(dbTxs, &dbTx)
+	}
+	return
+}
 
 // RetrieveTxnsVinsByBlock retrieves for all the transactions in the specified
 // block the vin_db_ids arrays, is_valid, and is_mainchain.

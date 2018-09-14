@@ -63,7 +63,7 @@ const (
 			transactions.is_valid=TRUE AND
 			transactions.is_mainchain=TRUE
 		WHERE prev_tx_hash=$1 AND vins.is_valid=TRUE AND vins.is_mainchain=TRUE;`
-	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins
+	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index, tx_tree FROM vins
 		WHERE prev_tx_hash=$1 AND prev_tx_index=$2;`
 	SelectFundingTxsByTx        = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`
 	SelectFundingTxByTxIn       = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1 AND tx_index=$2;`
@@ -154,9 +154,10 @@ const (
 	SelectAddressByTxHash = `SELECT script_addresses, value FROM vouts
 		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`
 
-	SelectPkScriptByID     = `SELECT pkscript FROM vouts WHERE id=$1;`
-	SelectVoutIDByOutpoint = `SELECT id FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
-	SelectVoutByID         = `SELECT * FROM vouts WHERE id=$1;`
+	SelectPkScriptByID       = `SELECT version, pkscript FROM vouts WHERE id=$1;`
+	SelectPkScriptByOutpoint = `SELECT version, pkscript FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
+	SelectVoutIDByOutpoint   = `SELECT id FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
+	SelectVoutByID           = `SELECT * FROM vouts WHERE id=$1;`
 
 	RetrieveVoutValue  = `SELECT value FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	RetrieveVoutValues = `SELECT value, tx_index, tx_tree FROM vouts WHERE tx_hash=$1;`

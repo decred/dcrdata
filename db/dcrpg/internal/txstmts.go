@@ -86,6 +86,13 @@ const (
 		ORDER BY is_mainchain DESC, is_valid DESC, block_time DESC
 		LIMIT 1;`
 
+	SelectFullTxsByHash = `SELECT id, block_hash, block_height, block_time, 
+		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry, 
+		size, spent, sent, fees, num_vin, vin_db_ids, num_vout, vout_db_ids,
+		is_valid, is_mainchain
+		FROM transactions WHERE tx_hash = $1
+		ORDER BY is_mainchain DESC, is_valid DESC, block_time DESC;`
+
 	SelectTxnsVinsByBlock = `SELECT vin_db_ids, is_valid, is_mainchain
 		FROM transactions WHERE block_hash = $1;`
 

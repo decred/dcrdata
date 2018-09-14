@@ -7,6 +7,7 @@ package dcrpg
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"runtime"
@@ -511,6 +512,13 @@ func (pgb *ChainDB) SpendingTransaction(fundingTxID string,
 func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, []int8, error) {
 	_, blockTransactions, blockInds, trees, _, err := RetrieveTxsByBlockHash(pgb.db, blockHash)
 	return blockTransactions, blockInds, trees, err
+}
+
+// Transaction retrieves all rows from the transactions table for the given
+// transaction hash.
+func (pgb *ChainDB) Transaction(txHash string) ([]*dbtypes.Tx, error) {
+	_, dbTxs, err := RetrieveDbTxsByHash(pgb.db, txHash)
+	return dbTxs, err
 }
 
 // BlockMissedVotes retrieves the ticket IDs for all missed votes in the
@@ -1659,6 +1667,32 @@ func (pgb *ChainDB) setVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 	}
 
 	return rowsUpdated, nil
+}
+
+// VinsForTx returns a slice of dbtypes.VinTxProperty values for each vin
+// referenced by the transaction dbTx.
+func (pgb *ChainDB) VinsForTx(dbTx *dbtypes.Tx) ([]dbtypes.VinTxProperty, []string, []uint16, error) {
+	var prevPkScripts []string
+	var versions []uint16
+	for _, id := range dbTx.VinDbIds {
+		pkScript, ver, err := RetrievePkScriptByID(pgb.db, id)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("RetrievePkScriptByID: %v", err)
+		}
+		prevPkScripts = append(prevPkScripts, hex.EncodeToString(pkScript))
+		versions = append(versions, ver)
+	}
+	vins, err := RetrieveVinsByIDs(pgb.db, dbTx.VinDbIds)
+	if err != nil {
+		err = fmt.Errorf("RetrieveVinsByIDs: %v", err)
+	}
+	return vins, prevPkScripts, versions, err
+}
+
+// VoutsForTx returns a slice of dbtypes.Vout values for each vout referenced by
+// the transaction dbTx.
+func (pgb *ChainDB) VoutsForTx(dbTx *dbtypes.Tx) ([]dbtypes.Vout, error) {
+	return RetrieveVoutsByIDs(pgb.db, dbTx.VoutDbIds)
 }
 
 func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {

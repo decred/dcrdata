@@ -6,16 +6,20 @@ package explorer
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"io"
 	"math"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrdata/v3/db/agendadb"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/txhelpers"
@@ -314,14 +318,183 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", NotFoundStatusType)
 		return
 	}
-	tx := exp.blockData.GetExplorerTx(hash)
-	if tx == nil {
-		log.Errorf("Unable to get transaction %s", hash)
-		exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
-		return
-	}
 
-	// Set ticket-related parameters for both full and lite mode
+	// Initially try to get the transaction information from the "lite" mode
+	// data source, which relies on RPCs to dcrd.
+	tx := exp.blockData.GetExplorerTx(hash)
+	// If dcrd has no information about the transaction, pull the transaction
+	// details from the full mode database.
+	if tx == nil {
+		if exp.liteMode {
+			log.Errorf("Unable to get transaction %s", hash)
+			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
+			return
+		}
+		// Search for occurrences of the transaction in the database.
+		dbTxs, err := exp.explorerSource.Transaction(hash)
+		if err != nil {
+			log.Errorf("Unable to retrieve transaction details for %s.", hash)
+			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
+			return
+		}
+		if dbTxs == nil {
+			exp.StatusPage(w, defaultErrorCode, "that transaction has not been recorded", NotFoundStatusType)
+			return
+		}
+
+		// Take the first one. The query order should put valid at the top of
+		// the list. Regardless of order, the transaction web page will link to
+		// all occurrences of the transaction.
+		dbTx0 := dbTxs[0]
+		fees := dcrutil.Amount(dbTx0.Fees)
+		tx = &TxInfo{
+			TxBasic: &TxBasic{
+				TxID:          hash,
+				FormattedSize: humanize.Bytes(uint64(dbTx0.Size)),
+				Total:         dcrutil.Amount(dbTx0.Sent).ToCoin(),
+				Fee:           fees,
+				FeeRate:       dcrutil.Amount((1000 * int64(fees)) / int64(dbTx0.Size)),
+				// VoteInfo TODO - check votes table
+				Coinbase: dbTx0.BlockIndex == 0,
+			},
+			SpendingTxns: make([]TxInID, len(dbTx0.VoutDbIds)), // SpendingTxns filled below
+			Type:         txhelpers.TxTypeToString(int(dbTx0.TxType)),
+			// Vins - looked-up in vins table
+			// Vouts - looked-up in vouts table
+			BlockHeight:   dbTx0.BlockHeight,
+			BlockIndex:    dbTx0.BlockIndex,
+			BlockHash:     dbTx0.BlockHash,
+			Confirmations: exp.Height() - dbTx0.BlockHeight + 1,
+			Time:          dbTx0.Time,
+			FormattedTime: time.Unix(dbTx0.Time, 0).Format("2006-01-02 15:04:05"),
+		}
+
+		// Coinbase transactions are regular, but call them coinbase for the page.
+		if tx.Coinbase {
+			tx.Type = "Coinbase"
+		}
+
+		// Retrieve vouts from DB.
+		vouts, err := exp.explorerSource.VoutsForTx(dbTx0)
+		if err != nil {
+			log.Errorf("Failed to retrieve all vout details for transaction %s: %v",
+				dbTx0.TxID, err)
+			exp.StatusPage(w, defaultErrorCode, "VoutsForTx failed", ErrorStatusType)
+			return
+		}
+
+		// Convert to explorer.Vout, getting spending information from DB.
+		for iv := range vouts {
+			// Check pkScript for OP_RETURN
+			var opReturn string
+			asm, _ := txscript.DisasmString(vouts[iv].ScriptPubKey)
+			if strings.Contains(asm, "OP_RETURN") {
+				opReturn = asm
+			}
+			// Determine if the outpoint is spent
+			spendingTx, _, _, err := exp.explorerSource.SpendingTransaction(hash, vouts[iv].TxIndex)
+			if err != nil && err != sql.ErrNoRows {
+				log.Warnf("SpendingTransaction failed for outpoint %s:%d: %v",
+					hash, vouts[iv].TxIndex, err)
+			}
+			amount := dcrutil.Amount(int64(vouts[iv].Value)).ToCoin()
+			tx.Vout = append(tx.Vout, Vout{
+				Addresses:       vouts[iv].ScriptPubKeyData.Addresses,
+				Amount:          amount,
+				FormattedAmount: humanize.Commaf(amount),
+				Type:            txhelpers.TxTypeToString(int(vouts[iv].TxType)),
+				Spent:           spendingTx != "",
+				OP_RETURN:       opReturn,
+			})
+		}
+
+		// Retrieve vins from DB.
+		vins, prevPkScripts, scriptVersions, err := exp.explorerSource.VinsForTx(dbTx0)
+		if err != nil {
+			log.Errorf("Failed to retrieve all vin details for transaction %s: %v",
+				dbTx0.TxID, err)
+			exp.StatusPage(w, defaultErrorCode, "VinsForTx failed", ErrorStatusType)
+			return
+		}
+
+		// Convert to explorer.Vin from dbtypes.VinTxProperty.
+		for iv := range vins {
+			// Decode all addresses from previous outpoint's pkScript.
+			var addresses []string
+			pkScriptsStr, err := hex.DecodeString(prevPkScripts[iv])
+			if err != nil {
+				log.Errorf("Failed to decode pkgScript: %v", err)
+			}
+			_, scrAddrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersions[iv],
+				pkScriptsStr, exp.ChainParams)
+			if err != nil {
+				log.Errorf("Failed to decode pkScript: %v", err)
+			} else {
+				for ia := range scrAddrs {
+					addresses = append(addresses, scrAddrs[ia].EncodeAddress())
+				}
+			}
+
+			// If the scriptsig does not decode or disassemble, oh well.
+			asm, _ := txscript.DisasmString(vins[iv].ScriptHex)
+
+			txIndex := vins[iv].TxIndex
+			amount := dcrutil.Amount(vins[iv].ValueIn).ToCoin()
+			var coinbase, stakebase string
+			if txIndex == 0 {
+				if tx.Coinbase {
+					coinbase = hex.EncodeToString(txhelpers.CoinbaseScript)
+				} else if tx.IsVote() {
+					stakebase = hex.EncodeToString(txhelpers.CoinbaseScript)
+				}
+			}
+			tx.Vin = append(tx.Vin, Vin{
+				Vin: &dcrjson.Vin{
+					Coinbase:    coinbase,
+					Stakebase:   stakebase,
+					Txid:        hash,
+					Vout:        vins[iv].PrevTxIndex,
+					Tree:        dbTx0.Tree,
+					Sequence:    vins[iv].Sequence,
+					AmountIn:    amount,
+					BlockHeight: uint32(tx.BlockHeight),
+					BlockIndex:  tx.BlockIndex,
+					ScriptSig: &dcrjson.ScriptSig{
+						Asm: asm,
+						Hex: hex.EncodeToString(vins[iv].ScriptHex),
+					},
+				},
+				Addresses:       addresses,
+				FormattedAmount: humanize.Commaf(amount),
+			})
+		}
+
+		// For coinbase and stakebase, get maturity status.
+		if tx.Coinbase || tx.IsVote() {
+			tx.Maturity = int64(exp.ChainParams.CoinbaseMaturity)
+			if tx.IsVote() {
+				tx.Maturity++ // TODO why as elsewhere for votes?
+			}
+			if tx.Confirmations >= int64(exp.ChainParams.CoinbaseMaturity) {
+				tx.Mature = "True"
+			} else if tx.IsVote() {
+				tx.VoteFundsLocked = "True"
+			}
+			coinbaseMaturityInHours := exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.Maturity)
+			tx.MaturityTimeTill = coinbaseMaturityInHours * (1 - float64(tx.Confirmations)/float64(tx.Maturity))
+		}
+
+		// For ticket purchase, get status and maturity blocks, but compute
+		// details in normal code branch below.
+		if tx.IsTicket() {
+			tx.TicketInfo.TicketMaturity = int64(exp.ChainParams.TicketMaturity)
+			if tx.Confirmations >= tx.TicketInfo.TicketMaturity {
+				tx.Mature = "True"
+			}
+		}
+	} // tx == nil (not found by dcrd)
+
+	// Set ticket-related parameters for both full and lite mode.
 	if tx.IsTicket() {
 		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
 		tx.TicketInfo.TicketPoolSize = int64(exp.ChainParams.TicketPoolSize) *
@@ -338,8 +511,11 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
 	}
 
+	// In full mode, create list of blocks in which the transaction was mined,
+	// and get additional ticket details and pool status.
 	var blocks []*dbtypes.BlockStatus
 	var blockInds []uint32
+	var hasValidMainchain bool
 	if exp.liteMode {
 		blocks = append(blocks, &dbtypes.BlockStatus{
 			Hash:        tx.BlockHash,
@@ -367,6 +543,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("Unable to retrieve blocks for transaction %s: %v", hash, err)
 			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 			return
+		}
+
+		// See if any of these blocks are mainchain and stakeholder-approved
+		// (a.k.a. valid).
+		for ib := range blocks {
+			if blocks[ib].IsValid && blocks[ib].IsMainchain {
+				hasValidMainchain = true
+				break
+			}
 		}
 
 		// For each output of this transaction, look up any spending transactions,
@@ -455,16 +640,18 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	} // !exp.liteMode
 
 	pageData := struct {
-		Data          *TxInfo
-		Blocks        []*dbtypes.BlockStatus
-		BlockInds     []uint32
-		ConfirmHeight int64
-		Version       string
-		NetName       string
+		Data              *TxInfo
+		Blocks            []*dbtypes.BlockStatus
+		BlockInds         []uint32
+		HasValidMainchain bool
+		ConfirmHeight     int64
+		Version           string
+		NetName           string
 	}{
 		tx,
 		blocks,
 		blockInds,
+		hasValidMainchain,
 		exp.Height() - tx.Confirmations,
 		exp.Version,
 		exp.NetName,
