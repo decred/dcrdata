@@ -1,11 +1,14 @@
 package dbtypes
 
 import (
+	"encoding/hex"
 	"fmt"
+	"net/http"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v3/txhelpers"
+	"github.com/saintfish/chardet"
 )
 
 // MsgBlockToDBBlock creates a dbtypes.Block from a wire.MsgBlock
@@ -82,4 +85,33 @@ func ChartGroupingToInterval(grouping ChartGrouping) (float64, error) {
 	default:
 		return -1, fmt.Errorf(`unknown chart grouping "%d"`, grouping)
 	}
+}
+
+// DetectCharset first extracts data in bytes from the provided hex string.
+// From the extracted bytes, it establishes the possible file encoding used,
+// Language, applicable charset and confidence value on how the system expects
+// the detected values to be true. Its also returns the extracted data in bytes.
+func DetectCharset(hexString string) (*CharsetType, error) {
+	charSet := new(CharsetType)
+	v := []byte(hexString)
+
+	dst := make([]byte, hex.DecodedLen(len(v)))
+	_, err := hex.Decode(dst, v)
+	if err != nil {
+		return nil, fmt.Errorf("detecting contentType failed: %v", err)
+	}
+
+	charSet.Data = dst
+	charSet.ContentType = http.DetectContentType(dst)
+
+	result, err := chardet.NewTextDetector().DetectBest(dst)
+	if err != nil {
+		return nil, fmt.Errorf("detecting charset failed: %v", err)
+	}
+
+	charSet.Charset = result.Charset
+	charSet.Language = result.Language
+	charSet.Confidence = uint32(result.Confidence)
+
+	return charSet, nil
 }

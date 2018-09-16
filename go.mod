@@ -53,6 +53,7 @@ require (
 	github.com/pkg/errors v0.8.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/cors v1.5.0
+	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
 	github.com/sirupsen/logrus v1.0.5
 	github.com/smartystreets/assertions v0.0.0-20180820201707-7c9eb446e3cf // indirect
@@ -67,4 +68,5 @@ require (
 	google.golang.org/appengine v1.1.0 // indirect
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
+	gopkg.in/iconv.v1 v1.1.1
 )

@@ -78,6 +78,19 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 	}
 }
 
+// CharsetType defines the resultset returned after a detecting the underlying
+// encoded information. ContentType defines the encoded text content type.
+// Language defines shortform of the possible language detected in the text, e.g.
+// en is used to represent English. Confidence defines the possible accuracy
+// found after detecting the encrypted for the passed string text.
+type CharsetType struct {
+	ContentType string
+	Language    string
+	Charset     string
+	Confidence  uint32
+	Data        []byte
+}
+
 // ChartGrouping defines the possible ways that a graph's axis can be grouped
 // according to all, year, month, week or day grouping.
 type ChartGrouping int8
