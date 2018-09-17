@@ -37,7 +37,6 @@ const (
 	addressesTxHistogramUpgrade
 	agendasVotingMilestonesUpgrade
 	ticketsTableBlockTimeUpgrade
-	addressesTableValidMainchainPatch
 )
 
 type TableUpgradeType struct {
@@ -204,28 +203,12 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		// Go on to next upgrade
 		fallthrough
 
-	// Upgrade from 3.5.1 --> 3.5.2
+		// Upgrade from 3.5.1 --> 3.5.2
 	case version.major == 3 && version.minor == 5 && version.patch == 1:
 		toVersion = TableVersion{3, 5, 2}
 
 		theseUpgrades := []TableUpgradeType{
 			{"tickets", ticketsTableBlockTimeUpgrade},
-		}
-
-		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
-		if !isSuccess {
-			return isSuccess, er
-		}
-
-		// Go on to next upgrade
-		fallthrough
-
-	// Upgrade from 3.5.2 --> 3.5.3
-	case version.major == 3 && version.minor == 5 && version.patch == 2:
-		toVersion = TableVersion{3, 5, 3}
-
-		theseUpgrades := []TableUpgradeType{
-			{"addresses", addressesTableValidMainchainPatch},
 		}
 
 		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
@@ -325,9 +308,6 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case ticketsTableBlockTimeUpgrade:
 		tableReady = true
 		tableName, upgradeTypeStr = "tickets", "new index"
-	case addressesTableValidMainchainPatch:
-		tableReady = true
-		tableName, upgradeTypeStr = "addresses", "patch valid_mainchain value"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -434,12 +414,8 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		rowsUpdated, err = pgb.handleTxTypeHistogramUpgrade(height, tableUpgrade)
 
 	case agendasVotingMilestonesUpgrade:
-		log.Infof("Setting the agendas voting milestones...")
+		log.Infof("Set the agendas voting milestones...")
 		rowsUpdated, err = pgb.handleAgendasVotingMilestonesUpgrade()
-
-	case addressesTableValidMainchainPatch:
-		log.Infof("Patching valid_mainchain in the addresses table...")
-		rowsUpdated, err = updateAddressesValidMainchainPatch(pgb.db)
 
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
@@ -735,14 +711,6 @@ func updateAllTxnsValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
 // rows according to their corresponding transaction.
 func updateAllAddressesValidMainchain(db *sql.DB) (rowsUpdated int64, err error) {
 	return sqlExec(db, internal.UpdateValidMainchainFromTransactions,
-		"failed to update addresses rows valid_mainchain status")
-}
-
-// updateAddressesValidMainchainPatch selectively sets valid_mainchain for
-// addresses table rows that are set incorrectly according to their
-// corresponding transaction.
-func updateAddressesValidMainchainPatch(db *sql.DB) (rowsUpdated int64, err error) {
-	return sqlExec(db, internal.UpdateAddressesGloballyInvalid,
 		"failed to update addresses rows valid_mainchain status")
 }
 

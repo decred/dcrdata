@@ -204,6 +204,7 @@ type BlockInfo struct {
 	TotalSent             float64
 	MiningFee             dcrutil.Amount
 	StakeValidationHeight int64
+	AllTxs                uint32
 }
 
 // AddressTransactions collects the transactions for an address as AddressTx
@@ -309,6 +310,10 @@ type HomeInfo struct {
 	NBlockSubsidy         BlockSubsidy   `json:"subsidy"`
 	Params                ChainParams    `json:"params"`
 	PoolInfo              TicketPoolInfo `json:"pool_info"`
+	TotalLockedDCR        float64        `json:"total_locked_dcr"`
+	HashRate              float64        `json:"hash_rate"`
+	// HashRateChange defines the hashrate change in 24hrs
+	HashRateChange float64 `json:"hash_rate_change"`
 }
 
 // BlockSubsidy is an implementation of dcrjson.GetBlockSubsidyResult
@@ -431,8 +436,8 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 
 // WebsocketBlock wraps the new block info for use in the websocket
 type WebsocketBlock struct {
-	Block *BlockBasic `json:"block"`
-	Extra *HomeInfo   `json:"extra"`
+	Block *BlockInfo `json:"block"`
+	Extra *HomeInfo  `json:"extra"`
 }
 
 // TicketPoolInfo describes the live ticket pool

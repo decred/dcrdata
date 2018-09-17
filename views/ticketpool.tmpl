@@ -6,7 +6,7 @@
 
     {{template "navbar" . }}
 
-    <div class="container" data-controller="ticketpool">
+    <div class="container main" data-controller="ticketpool">
       <div>
         <h2 style="text-align: center; margin-top: 0px">Ticket Pool Visualization</h2>
         <p style="text-align: center; margin-bottom: 5px">
@@ -38,7 +38,7 @@
 
       <br>
       <div id="tickets_by_type_doughnut" class="doughnutGraph">
-        <canvas id="doughnutGraph" width="250" height="210"
+        <canvas id="doughnutGraph" width="220" height="180"
                 chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'">
         </canvas>
 

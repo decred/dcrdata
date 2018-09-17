@@ -102,6 +102,41 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// NextHome is the page handler for the "/nexthome" path
+func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
+	height := exp.blockData.GetHeight()
+
+	blocks := exp.blockData.GetExplorerFullBlocks(height, height-11)
+
+	exp.NewBlockDataMtx.RLock()
+	exp.MempoolData.RLock()
+
+	str, err := exp.templates.execTemplateToString("nexthome", struct {
+		Info    *HomeInfo
+		Mempool *MempoolInfo
+		Blocks  []*BlockInfo
+		Version string
+		NetName string
+	}{
+		exp.ExtraInfo,
+		exp.MempoolData,
+		blocks,
+		exp.Version,
+		exp.NetName,
+	})
+	exp.NewBlockDataMtx.RUnlock()
+	exp.MempoolData.RUnlock()
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // Blocks is the page handler for the "/blocks" path
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	idx := exp.blockData.GetHeight()
