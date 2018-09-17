@@ -2,13 +2,76 @@
 <!DOCTYPE html>
 <html lang="en">
 {{ template "html-head" "Decred Block Explorer by dcrdata.org"}}
+
+      <script src="/js/jquery.js"></script>
+      <script>
+      // For dyanamic transactions, tickets, votes, revoke bar display
+
+        var ticketbar = "<span class='bar-ticket'>&nbsp;</span>";
+        var votesbar = "<span class='bar-votes'>&nbsp;</span>";
+        var novotesbar = "<span class='no-bar-votes'>&nbsp;</span>";
+        var revokebar = "<span class='bar-revoke'>&nbsp;</span>";
+        var transactionsbar = "<span class='bar-transactions'>&nbsp;</span>";
+        var output = ""; // generic starting output for render area
+
+        /*
+        * Renders a single bar or more
+        * gets quantity of bars and height id.
+        * height is used for area of output
+        */
+        function renderTransactionsBar(quantity, height) {
+          output = "";
+          var i;
+          for (i = 0; i < quantity; i++) {
+            output += transactionsbar;
+            console.log("hit");
+          }
+
+          $("#transactions-area-"+height).html(output);
+        }
+
+        function renderTickets(quantity, height) {
+          output = "";
+          var i;
+          for (i = 0; i < quantity; i++) {
+            output += ticketbar;
+          }
+
+          $("#tickets-area-"+height).html(output);
+        }
+
+        function renderVotes(quantity,height) {
+          output = "";
+          var i;
+          for (i = 0; i < quantity; i++) {
+            output += votesbar;
+          }
+
+          if (quantity == 0) {
+            output = novotesbar;
+          }
+
+          $("#votes-area-"+height).html(output);
+        }
+
+        function renderRevocations(quantity, height) {
+          output = "";
+          var i;
+          for (i = 0; i < quantity; i++) {
+            output += revokebar;
+            console.log("hit");
+          }
+
+          $("#revoke-area-"+height).html(output);
+        }
+      </script>
 <body>
     {{ template "navbar" . }}
     <div id="mainContainer" class="container" data-controller="main">
         <div class="row">
             <div class="col-lg-6 networkStatsWrapper font-weight-bold">
                 <a class="no-underline" href="/statistics">
-                    <h3 class="title font-weight-bold" >{{.NetName}} Network Statistics</h3>
+                    <h3 class="title font-weight-bold" >{{.NetName}} Network Satatistics</h3>
                 </a>
                 {{with .Info}}
                 <div class="statCard general">
@@ -128,7 +191,8 @@
 
             <div class="col-lg-6 decBlockchainWrapper">
                 <a class="no-underline" href="/blocks">
-                    <h3 class="title font-weight-bold">Decred Blockchain</h3>
+                    <h3 class="title font-weight-bold">Decred Blockchain</h3><br />
+                    <a href="#">Switch view</a>
                 </a>
                 <div class="row">
                     {{with .Mempool}}
@@ -178,6 +242,36 @@
                     {{range .Blocks}}
                     <div class="block-info col-lg-4 col-md-6 decredblockWrap">
                         <div class="decredblock">
+                            <div style="position:relative;z-index:33;">
+                                <div>
+                                  <div class="box-1" class="boxes">
+                                    <span id="transactions-area-{{.Height}}"></span>
+                                  </div>
+
+                                  <div class="box-2" class="boxes">
+                                    <span id="tickets-area-{{.Height}}"></span>
+                                  </div>
+
+                                  <div class="box-3" class="boxes">
+                                    <span id="votes-area-{{.Height}}"></span>
+                                  </div>
+
+                                  <div class="box-4" class="boxes">
+                                    <span id="revoke-area-{{.Height}}"></span>
+                                  </div>
+                                </div>
+
+                                <script>
+                                // For dyanamic transactions, tickets, votes, revoke bar display
+                                  $(function() {
+                                      renderTransactionsBar({{.AllTxs}},{{.Height}});
+                                      renderTickets({{.FreshStake}},{{.Height}});
+                                      renderVotes({{.Voters}},{{.Height}});
+                                      renderRevocations({{.Revocations}},{{.Height}});
+                                  });
+                                </script>
+
+                            </div>
                             <div class="palette one" style="width:10%; left:0%;"></div>
                             <div class="palette two" style="width:20%; left:10%;"></div>
                             <div class="palette three" style="width:30%; left:30%;"></div>
@@ -187,7 +281,7 @@
                                 <span id="block-height" class="color-code">{{.Height}}</span>
                                 <span class="row timespan" style="right:1.5rem;">
                                     <span id="block-age" data-target="main.age" data-age="{{.BlockTime}}"></span>
-                                    <span style="margin-left:.2rem;">ago</span>
+                                    <span style="margin-left:.2rem;"> ago</span>
                                 </span>
                                 <div class="expanded-block">
                                     <div class="row">

@@ -242,6 +242,77 @@ body {
       .networkStatsWrapper .statCard .subdata span {
         font-size: 12px;}
 
+.boxes {
+  display: inline;
+}
+
+.box-1 {
+  display: inline-block;
+  width: 47px;
+  overflow: hidden;
+  height: 24px;
+}
+
+.box-2 {
+  display: inline-block;
+  width: 44px;
+  overflow: hidden;
+  height: 24px;
+}
+
+.box-3 {
+  display: inline-block;
+  width: 46px;
+  overflow: hidden;
+  height: 24px;
+}
+
+.box-4 {
+  display: inline-block;
+  overflow: hidden;
+  width: 25px;
+  height: 24px;
+}
+
+.bar-transactions {
+  display: inline-block;
+  background-color: #b6b6b6;
+  height: 24px;
+  width:2px;
+}
+
+.bar-ticket {
+  display: inline-block;
+  background-color: #6ddb6d;
+  width:4px;
+  height: 24px;
+  margin-left: 1px;
+}
+
+.bar-votes {
+  display: inline-block;
+  background-color: #6d92db;
+  min-width:6px;
+  height: 24px;
+  margin-left: 3px;
+}
+
+.no-bar-votes {
+  display: inline-block;
+  background-color: red;
+  min-width:6px;
+  height: 24px;
+  margin-left: 3px;
+}
+
+.bar-revoke {
+  display: inline-block;
+  background-color: #ffb600;
+  width:4px;
+  height: 24px;
+  margin-left: 2px;
+}
+
 .showmore {
   background: white;
   display: flex;
@@ -464,7 +535,7 @@ footer {
     flex: 1; } }
 @media (max-width: 600px) {
   header .right .searchbox input {
-    width: 150px; } } 
+    width: 150px; } }
 
 @media only screen and (max-width: 768px)  {
   .container {
