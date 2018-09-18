@@ -78,16 +78,21 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 	}
 }
 
-// CharsetType defines the resultset returned after a detecting the underlying
+// CharsetData defines the resultset returned after detecting the underlying
 // encoded information. ContentType defines the encoded text content type.
 // Language defines shortform of the possible language detected in the text, e.g.
-// en is used to represent English. Confidence defines the possible accuracy
-// found after detecting the encrypted for the passed string text.
-type CharsetType struct {
-	ContentType string
-	Language    string
-	Charset     string
-	Confidence  uint32
+// "en" is used to represent "English". Confidence defines the possible accuracy
+// found after detecting the encrypted for the passed string text. HexStr defines
+// the actual hexstring with the data. ContentType, language, charset and confidence
+// have been made private because they may not be needed outside dbtypes package.
+// If text decoding was successful, HexStr value should be the decoded string
+// otherwise it should be the original hex encoded string.
+type CharsetData struct {
+	contentType string
+	language    string
+	charset     string
+	confidence  uint32
+	HexStr      string
 	Data        []byte
 }
 
