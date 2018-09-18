@@ -1000,10 +1000,8 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	var stats StatsInfo
 	exp.MempoolData.RLock()
 	stats.TotalSupply = exp.ExtraInfo.CoinSupply
-	if exp.NetName == "Mainnet" {
-		stats.UltimateSupply = 15000000 * 100000000
-		stats.TotalSupplyPercentage = float64(stats.TotalSupply) / float64(stats.UltimateSupply) * 100
-	}
+	stats.UltimateSupply = txhelpers.UltimateSubsidy(exp.ChainParams)
+	stats.TotalSupplyPercentage = float64(stats.TotalSupply) / float64(stats.UltimateSupply) * 100
 	stats.DevFunds = exp.ExtraInfo.DevFund
 	stats.DevAddress = exp.ExtraInfo.DevAddress
 	stats.POWDiff = exp.ExtraInfo.Difficulty
