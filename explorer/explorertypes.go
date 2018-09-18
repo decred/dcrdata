@@ -539,15 +539,15 @@ type StatsInfo struct {
 	UltimateSupply             int64
 	TotalSupply                int64
 	TotalSupplyPercentage      float64
-	DevFunds                   int64
-	DevAddress                 string
-	POWDiff                    float64
+	ProjectFunds               int64
+	ProjectAddress             string
+	PoWDiff                    float64
 	HashRate                   float64
 	BlockReward                int64
 	NextBlockReward            int64
-	POWReward                  int64
-	POSReward                  int64
-	DevFundReward              int64
+	PoWReward                  int64
+	PoSReward                  int64
+	ProjectFundReward          int64
 	VotesInMempool             int
 	TicketsInMempool           int
 	TicketPrice                float64

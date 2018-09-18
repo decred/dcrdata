@@ -56,7 +56,7 @@ type explorerDataSourceLite interface {
 	TxHeight(txid string) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
-	GetDifficulty() (float64, error)
+	Difficulty() (float64, error)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a

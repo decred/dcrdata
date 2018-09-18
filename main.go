@@ -565,9 +565,9 @@ func mainCore() error {
 	webMux.Get("/search", explore.Search)
 	webMux.Get("/charts", explore.Charts)
 	webMux.Get("/ticketpool", explore.Ticketpool)
-	webMux.Get("/statistics", explore.StatsPage)
-	webMux.Get("/stats", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/statistics", http.StatusPermanentRedirect)
+	webMux.Get("/stats", explore.StatsPage)
+	webMux.Get("/statistics", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/stats", http.StatusPermanentRedirect)
 	})
 
 	if usePG {

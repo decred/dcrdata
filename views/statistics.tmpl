@@ -25,17 +25,17 @@
                     <div class="card">
                         <div class="card-header">Project Fund</div>
                         <div class="card-body">
-                            <span class="stat-data">{{ template "decimalParts" (amountAsDecimalParts .DevFunds true)}}</span>
+                            <span class="stat-data">{{ template "decimalParts" (amountAsDecimalParts .ProjectFunds true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             </br>
-                            <span class="stat-link"><a href="/address/{{.DevAddress}}">Show Address</a></span>
+                            <span class="stat-link"><a href="/address/{{.ProjectAddress}}">Show Address</a></span>
                         </div>
                     </div>
                     <div class="card">
                         <div class="card-header">Proof-Of-Work Difficulty</div>
                         <div class="card-body">
-                            <span class="stat-data">{{template "decimalParts" (float64AsDecimalParts .POWDiff 8 true)}}</span>
+                            <span class="stat-data">{{template "decimalParts" (float64AsDecimalParts .PoWDiff 8 true)}}</span>
                             </br>
                             <span class="stat-link"><a href="/charts">Show Chart</a></span>
                         </div>
@@ -90,7 +90,7 @@
                     <div class="card">
                         <div class="card-header">Proof-Of-Work Reward</div>
                         <div class="card-body">
-                            <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .POWReward true)}}</span>
+                            <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .PoWReward true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                         </div>
@@ -98,7 +98,7 @@
                     <div class="card">
                         <div class="card-header">Project Fund Subsidy</div>
                         <div class="card-body">
-                            <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .DevFundReward true)}}</span>
+                            <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .ProjectFundReward true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                         </div>
@@ -159,7 +159,7 @@
                     <div class="card">
                         <div class="card-header">Proof-Of-Stake Reward</div>
                         <div class="card-body">
-                            <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts ( divide .POSReward 5) true)}}</span>
+                            <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts ( divide .PoSReward 5) true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR per ticket</span>
                         </div>
@@ -193,6 +193,7 @@
                     </div>
                 </div>
             </div>
+        </div>
         {{end}}
         {{template "footer" . }}
     </body>

@@ -1486,7 +1486,7 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 	return txs
 }
 
-// TxHeight gives the block height of the transaction id specified
+// TxHeight gives the block height of the transaction id specified.
 func (db *wiredDB) TxHeight(txid string) (height int64) {
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
@@ -1502,8 +1502,8 @@ func (db *wiredDB) TxHeight(txid string) (height int64) {
 	return
 }
 
-//GetDifficulty returns the difficulty
-func (db *wiredDB) GetDifficulty() (float64, error) {
+// Difficulty returns the difficulty.
+func (db *wiredDB) Difficulty() (float64, error) {
 	diff, err := db.client.GetDifficulty()
 	if err != nil {
 		log.Error("GetDifficulty failed")
