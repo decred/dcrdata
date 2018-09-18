@@ -38,6 +38,7 @@ const (
 	agendasVotingMilestonesUpgrade
 	ticketsTableBlockTimeUpgrade
 	addressesTableValidMainchainPatch
+	addressesTableMatchingTxHashPatch
 )
 
 type TableUpgradeType struct {
@@ -234,6 +235,22 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		}
 
 		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.5.3 --> 3.5.4
+	case version.major == 3 && version.minor == 5 && version.patch == 3:
+		toVersion = TableVersion{3, 5, 4}
+
+		theseUpgrades := []TableUpgradeType{
+			{"addresses", addressesTableMatchingTxHashPatch},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
+		// Go on to next upgrade
 		// fallthrough
 		// or be done
 
@@ -328,6 +345,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case addressesTableValidMainchainPatch:
 		tableReady = true
 		tableName, upgradeTypeStr = "addresses", "patch valid_mainchain value"
+	case addressesTableMatchingTxHashPatch:
+		tableReady = true
+		tableName, upgradeTypeStr = "addresses", "patch matching_tx_hash value"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -441,11 +461,15 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("Patching valid_mainchain in the addresses table...")
 		rowsUpdated, err = updateAddressesValidMainchainPatch(pgb.db)
 
+	case addressesTableMatchingTxHashPatch:
+		log.Infof("Patching matching_tx_hash in the addresses table...")
+		rowsUpdated, err = updateAddressesMatchingTxHashPatch(pgb.db)
+
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
 	}
 
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return false, fmt.Errorf(`%s upgrade of %s table ended prematurely after %d rows.`+
 			`Error: %v`, upgradeTypeStr, tableName, rowsUpdated, err)
 	}
@@ -744,6 +768,14 @@ func updateAllAddressesValidMainchain(db *sql.DB) (rowsUpdated int64, err error)
 func updateAddressesValidMainchainPatch(db *sql.DB) (rowsUpdated int64, err error) {
 	return sqlExec(db, internal.UpdateAddressesGloballyInvalid,
 		"failed to update addresses rows valid_mainchain status")
+}
+
+// updateAddressesMatchingTxHashPatch selectively sets matching_tx_hash and
+// matching_tx_index for addresses table rows that are set incorrectly according
+// to their corresponding transaction.
+func updateAddressesMatchingTxHashPatch(db *sql.DB) (rowsUpdated int64, err error) {
+	return sqlExec(db, internal.UpdateAddressesFundingMatchingHash,
+		"failed to update addresses rows matching_tx_hash")
 }
 
 // handleBlocksTableMainchainUpgrade sets is_mainchain=true for all blocks in

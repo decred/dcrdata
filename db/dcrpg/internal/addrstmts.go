@@ -217,14 +217,13 @@ const (
 	// UpdateAddressesFundingMatchingHash sets matching_tx_hash as per the vins
 	// table. This is needed to fix partially updated addresses table entries
 	// that were affected by stake invalidation.
-	UpdateAddressesFundingMatchingHash = `UPDATE addresses
-		SET matching_tx_hash=vins.tx_hash -- this patch is before matching_tx_index
+	UpdateAddressesFundingMatchingHash = `UPDATE addresses SET matching_tx_hash=vins.tx_hash, matching_tx_index=vins.tx_index
 		FROM vins
 		WHERE addresses.tx_hash=vins.prev_tx_hash
 		AND addresses.tx_vin_vout_index=vins.prev_tx_index
 		AND is_funding=TRUE
 		AND is_valid=TRUE
-		AND matching_tx_hash!=vins.tx_hash;`
+		AND (matching_tx_hash!=vins.tx_hash OR matching_tx_index!=vins.tx_index);`
 
 	// UpdateValidMainchainFromTransactions sets valid_mainchain in all rows of
 	// the addresses table according to the transactions table, unlike
