@@ -227,12 +227,13 @@ const (
 		tx_vin_vout_row_id=$2 AND is_funding=$3;`
 
 	UpdateMatchingFundingTxIdFromVins = `UPDATE addresses SET matching_tx_index=tx_index
-		FROM vins WHERE matching_tx_hash=vins.tx_hash AND addresses.tx_hash=prev_tx_hash
-		AND addresses.tx_vin_vout_index=prev_tx_index AND matching_tx_hash !=''
+		FROM vins WHERE addresses.tx_hash=prev_tx_hash
+		AND addresses.tx_vin_vout_index=prev_tx_index
+		AND vins.is_valid=addresses.valid_mainchain
 		AND is_funding=true AND addresses.id >= $1 AND addresses.id < $2;`
 
 	UpdateMatchingSpendingTxIdFromVins = `UPDATE addresses SET matching_tx_index=vins.prev_tx_index
-		FROM vins WHERE vins.id=tx_vin_vout_row_id AND is_funding=false AND matching_tx_hash != ''
+		FROM vins WHERE vins.id=tx_vin_vout_row_id AND is_funding=false
 		AND addresses.id >= $1 AND addresses.id < $2;`
 
 	IndexBlockTimeOnTableAddress   = `CREATE INDEX block_time_index ON addresses (block_time);`
