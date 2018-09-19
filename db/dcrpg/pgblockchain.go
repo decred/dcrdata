@@ -2035,7 +2035,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// unset initially, later set by insertAddrSpendingTxUpdateMatchedFunding (called
 			// by SetSpendingForFundingOP below, and other places).
 			dba.TxBlockTime = uint64(tx.BlockTime)
-			dba.IsFunding = true
+			dba.IsFunding = true // from vouts
 			dba.ValidMainChain = isMainchain && isValid
 
 			// Funding tx hash, vout id, value, and address are already assigned
@@ -2059,7 +2059,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		return txRes
 	}
 
-	// Check the new vins and update matching_tx_hash in addresses table.
+	// Check the new vins, inserting spending address rows, and (if
+	// updateAddressesSpendingInfo) update matching_tx_hash in corresponding
+	// funding rows.
 	for it, tx := range dbTransactions {
 		// vins array for this transaction
 		txVins := dbTxVins[it]
@@ -2079,12 +2081,13 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			spendingTxHash := vin.TxID
 			spendingTxIndex := vin.TxIndex
 			validMainchain := tx.IsValidBlock && tx.IsMainchainBlock
-			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
+			numAddressRowsSet, err := InsertSpendingAddressRow(pgb.db,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree),
-				spendingTxHash, spendingTxIndex, uint64(tx.BlockTime), vinDbID,
-				pgb.dupChecks, updateExistingRecords, validMainchain, vin.TxType)
+				spendingTxHash, spendingTxIndex, vinDbID, pgb.dupChecks,
+				updateExistingRecords, validMainchain, vin.TxType, updateAddressesSpendingInfo,
+				uint64(tx.BlockTime))
 			if err != nil {
-				log.Errorf("SetSpendingForFundingOP: %v", err)
+				log.Errorf("InsertSpendingAddressRow: %v", err)
 			}
 			txRes.numAddresses += numAddressRowsSet
 		}
@@ -2155,13 +2158,60 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 	return
 }
 
-// UpdateSpendingInfoInAllAddresses completely rebuilds the spending transaction
-// info columns of the address table. This is intended to be use after syncing
+// InsertSpendingUpdateFundingAllAddresses inserts new spending transaction
+// input data and completely rebuilds the matching transaction columns for
+// funding rows of the addresses table. This is intended to be use after syncing
 // all other tables and creating their indexes, particularly the indexes on the
 // vins table, and the addresses table index on the funding tx columns. This can
 // be used instead of using updateAddressesSpendingInfo=true with storeTxns,
 // which will update these addresses table columns too, but much more slowly for
 // a number of reasons (that are well worth investigating BTW!).
+func (pgb *ChainDB) InsertSpendingUpdateFundingAllAddresses() (int64, error) {
+	// Get the full list of vinDbIDs
+	allVinDbIDs, err := RetrieveAllVinDbIDs(pgb.db)
+	if err != nil {
+		log.Errorf("RetrieveAllVinDbIDs: %v", err)
+		return 0, err
+	}
+
+	updatesPerDBTx := 500
+
+	log.Infof("Updating spending tx info for %d addresses...", len(allVinDbIDs))
+	var numAddresses int64
+	for i := 0; i < len(allVinDbIDs); i += updatesPerDBTx {
+		//for i, vinDbID := range allVinDbIDs {
+		if i%100000 == 0 {
+			endRange := i + 100000 - 1
+			if endRange > len(allVinDbIDs) {
+				endRange = len(allVinDbIDs)
+			}
+			log.Infof("Updating from vins %d to %d...", i, endRange)
+		}
+
+		var numAddressRowsSet int64
+		endChunk := i + updatesPerDBTx
+		if endChunk > len(allVinDbIDs) {
+			endChunk = len(allVinDbIDs)
+		}
+		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db,
+			allVinDbIDs[i:endChunk])
+		if err != nil {
+			log.Errorf("SetSpendingForVinDbIDs: %v", err)
+			continue
+		}
+		numAddresses += numAddressRowsSet
+	}
+
+	return numAddresses, err
+}
+
+// UpdateSpendingInfoInAllAddresses completely rebuilds the matching transaction
+// columns for funding rows of the addresses table. This is intended to be use
+// after syncing all other tables and creating their indexes, particularly the
+// indexes on the vins table, and the addresses table index on the funding tx
+// columns. This can be used instead of using updateAddressesSpendingInfo=true
+// with storeTxns, which will update these addresses table columns too, but much
+// more slowly for a number of reasons (that are well worth investigating BTW!).
 func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Get the full list of vinDbIDs
 	allVinDbIDs, err := RetrieveAllVinDbIDs(pgb.db)
@@ -2206,9 +2256,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.Progr
 			timeStart = time.Now()
 		}
 
-		checked := false
-		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db,
-			allVinDbIDs[i:endChunk], checked, true)
+		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db, allVinDbIDs[i:endChunk])
 		if err != nil {
 			log.Errorf("SetSpendingForVinDbIDs: %v", err)
 			continue
@@ -2216,7 +2264,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.Progr
 		numAddresses += numAddressRowsSet
 	}
 
-	// Signal the completion of the sync
+	// Signal the completion of the sync to the status page.
 	if barLoad != nil {
 		barLoad <- &dbtypes.ProgressBarLoad{
 			From:  int64(totalVinIbIDs),
