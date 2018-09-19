@@ -35,6 +35,7 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	}
 	height, err := db.SyncChainDB(client, quit, updateAllAddresses,
 		updateAllVotes, newIndexes)
+	log.Debugf("SyncChainDB quit at height %d, err: %v", height, err)
 	res <- dbtypes.SyncResult{
 		Height: height,
 		Error:  err,
@@ -144,6 +145,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// the above channel when it is done connecting it.
 		block, err := client.UpdateToBlock(ib)
 		if err != nil {
+			log.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
 			return ib - 1, fmt.Errorf("UpdateToBlock (%d) failed: %v", ib, err)
 		}
 
