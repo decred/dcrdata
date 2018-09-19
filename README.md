@@ -10,18 +10,17 @@ The dcrdata repository is a collection of Go packages and apps for [Decred](http
 - [dcrdata](#dcrdata)
   - [Repository overview](#repository-overview)
   - [Requirements](#requirements)
-  - [Docker support](#docker-support)
+  - [Docker Support](#docker-support)
     - [Building the image](#building-the-image)
-    - [Building Dcrdata with docker](#building-dcrdata-with-docker)
+    - [Building dcrdata with docker](#building-dcrdata-with-docker)
     - [Developing dcrdata using a container](#developing-dcrdata-using-a-container)
     - [Container production usage](#container-production-usage)
   - [Installation](#installation)
-    - [Building with go 1.11](#building-with-go-111)
-    - [Building with go 1.10](#building-with-go-110)
-    - [Build from commit hash](#build-from-commit-hash)
+    - [Building with Go 1.11](#building-with-go-111)
+    - [Building with Go 1.10](#building-with-go-110)
+    - [Setting build version flags](#setting-build-version-flags)
     - [Runtime resources](#runtime-resources)
   - [Updating](#updating)
-  - [Updating dependencies](#updating-dependencies)
   - [Upgrading Instructions](#upgrading-instructions)
   - [Getting Started](#getting-started)
     - [Configuring PostgreSQL (IMPORTANT)](#configuring-postgresql-important)
@@ -98,117 +97,124 @@ The dcrdata repository is a collection of Go packages and apps for [Decred](http
 
 ## Docker Support
 
-The inclusion of a dockerfile in this repo means you can use docker for either development or production usage. Although
-at this time we are not publishing images to docker hub.
+The inclusion of a dockerfile in this repository means you can use Docker for
+either development or production usage. Although at this time, official images
+are not published to docker hub.
 
-When developing you can utilize containers for easily swapping out Go runtimes and overall complete project setup.
-You don't even need go installed on your system if using containers during development.
+When developing you can utilize containers for easily swapping out Go versions
+and overall project setup. You don't even need go installed on your system if
+using containers during development.
 
-The first thing you need is [docker](https://docs.docker.com/install/). So once installed you can then download this repo
-and get started.
+Once [Docker](https://docs.docker.com/install/) is installed, you can then
+download this repository and follow the build instructions below.
 
 ### Building the image
 
-In order to use the dcrdata container image you need to build the image. This is accomplished by running docker build.
+In order to use a dcrdata container you need to build an image. This is
+accomplished by running `docker build`:
 
 `docker build --squash -t decred/dcrdata:dev-alpine .`
 
-Note: when building the `--squash` flag is an [experimental feature](https://docs.docker.com/engine/reference/commandline/image_build/) as of Docker 18.06. This means you must
-enable the eperimental features setting found under the daemon tab under windows and os x. On linux you can follow
-the instructions [here.](https://stackoverflow.com/questions/44346322/how-to-run-docker-with-experimental-functions-on-ubuntu-16-04)
+Note: The `--squash` flag is an [experimental
+feature](https://docs.docker.com/engine/reference/commandline/image_build/) as
+of Docker 18.06. This means you must enable experimental features. On Windows
+and OS/X, look under the "Daemon" settings tab. On Linux, [enable the setting
+manually](https://github.com/docker/cli/blob/master/experimental/README.md).
 
-By default docker will build the container based on the Dockerfile found in the root of this directory.
-If you wish to use an ubuntu based container you can build from the ubuntu based dockerfile where as the default is based
-on alpine linux.
+By default docker will build the container based on the Dockerfile found in the
+root of this directory. If you wish to use an ubuntu based container you can
+build from the ubuntu based dockerfile where as the default is based on alpine
+linux.
 
 `docker build --squash -f dockerfiles/Dockerfile_stretch -t decred/dcrdata:dev-stretch .`
 
-Part of the build process is to copy all the source code over to the image and perform the following operations:
-
-1. go mod download
-2. go build
-
-_Note_: if for any reason you run into build errors with docker try adding the `--no-cache` flag to trigger a rebuild of all the layers since docker does not rebuild layers that are cached.
+Part of the build process is to copy all the source code over to the image,
+download all dependencies, and build dcrdata. If you run into build errors with
+docker try adding the `--no-cache` flag to trigger a rebuild of all the layers
+since docker does not rebuild cached layers.
 
 `docker build --no-cache --squash -t decred/dcrdata:dev-alpine .`
 
-### Building Dcrdata with docker
+### Building dcrdata with docker
 
-There are many use cases for using containers. Aside from running dcrdata in a container you can also build dcrdata
-inside a container and copy the binary over to bare metal or other system.
+In addition to running dcrdata in a container, you can also build dcrdata inside
+a container and copy the executable to another system. To do this, you must have
+the dcrdata docker image or [build it from source](#building-the-image).
 
-In order to do this you must have the dcrdata image or [build from source](#building-the-image). At this time we recommend only building from source.
+The default container image we use to build is based on amd64 Alpine Linux. To
+create a binary targeting different operating systems or architectures it is
+necessary to [set the `GOOS` and `GOARCH` environment
+variables](https://golang.org/doc/install/source#environment).
 
-_Note_: keep in mind the default container image we use to build was based off of alpine linux. So the binary that was just created will only run on similar linux platorms unless you set the environment variables for [cross compiling](https://dave.cheney.net/2015/08/22/cross-compilation-with-go-1-5).
+From the repository source folder, do the following to build the Docker image,
+and compile dcrdata into your current directory:
 
-Once the dcrdata image exist on your system just build dcrdata like so:
-
-- `git clone https://github.com/decred/dcrdata`
-- `cd dcrdata`
-- `docker build --squash -t decred/dcrdata:dev-alpine .` [Only build the container image if neccessary](#building-the-image)
+- `docker build --squash -t decred/dcrdata:dev-alpine .` [Only build the container image if necessary](#building-the-image)
 - `docker run --entrypoint="" -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine go build`
 
-Once complete the dcrdata binary should be in your current directory
+This mounts your current working directory (host machine) on a volume inside the
+container so that the build output will be on the host file system.
 
-Building for other platorms is accomplished via setting environment variables:
+Build for other platforms as follows:
 
 `docker run -e GOOS=darwin -e GOARCH=amd64 --entrypoint="" -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine go build`
 
 `docker run -e GOOS=windows -e GOARCH=amd64 --entrypoint="" -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine go build`
 
-_Note_: if you want to run these in the background add a `-d` after the docker run `docker run -d -e GOOS=windows -e GOARCH=amd64 --entrypoint="" ...`
-
-Since we are mounting a volume inside the container the built dcrdata file should be in your current working directory.
-
 ### Developing dcrdata using a container
 
-Containers are a great way to develop any source code as they serve as a disposable runtime environment built specifically
-to the specifications of the application. If you have never developed code using containers there are some differences you will
-need to get used to.
+Containers are a great way to develop any source code as they serve as a
+disposable runtime environment built specifically to the specifications of the
+application. If you have never developed code using containers there are some
+differences you will need to get used to.
 
-1. Don't write code inside the container
-2. Attach a volume and write code from your editor on your docker host
-3. Attached volumes on a mac are a bit slower than linux/windows (when testing)
-4. Install everything in the container, don't muck up your docker host
-5. Resist the urge to run git commands from the container
-6. You can swap out the Go runtimes just by using a different docker image
+1. Don't write code inside the container.
+2. Attach a volume and write code from your editor on your docker host.
+3. Attached volumes on a mac are a bit slower than linux/windows (when testing).
+4. Install everything in the container, don't muck up your docker host.
+5. Resist the urge to run git commands from the container.
+6. You can swap out the Go version just by using a different docker image.
 
-When working in a container you want your source code from your docker host to be in the container.
-To do this you attach a volume to the container when running and the synchronization happens automatically.
+When working in a container you want your source code from your docker host to
+be in the container. To do this you attach a volume to the container when
+running and the synchronization happens automatically.
 
 `docker run -ti --entrypoint="" -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine /bin/bash`
 
-_Note_: in the above line that we changed the entrypoint. This is to allow you to run commands in the container since the default container command is to run dcrdata. We also added /bin/bash at the end so the container executes this by default.
+_Note_: Changing `entrypoint` allows you to run commands in the container since
+the default container command runs dcrdata. We also added /bin/bash at the
+end so the container executes this by default.
 
-What this means is that you can run `go build` or `go test` inside the container
-Most times when developing you will only run the basic go commands in the container. `go fmt`, `go build` and `go test`
-If you run `go fmt` you should notice that any formatting changes will also be reflected on the docker host as well.
+You can now run `go build` or `go test` inside the container. If you run `go fmt`
+you should notice that any formatting changes will also be reflected on the
+docker host as well.
 
-Aside from running go commands you probably also run the application itself after running go build.
-
-When you run dcrdata you will need to use a config file or pass [environment variables](#using-configuration-environment-variables)
-
-With containers you can set these variables inside the container or at the [command line](https://docs.docker.com/engine/reference/run/#env-environment-variables).
+To run dcrdata in the container, it may be convenient to use [environment
+variables](#using-configuration-environment-variables) to configure dcrdata.
+The variables may be set inside the container or on the [command line](https://docs.docker.com/engine/reference/run/#env-environment-variables).
+For example,
 
 `docker run -ti --entrypoint=/bin/bash -e DCRDATA_LISTEN_URL=0.0.0.0:2222 -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine`
 
-There are minor differences when developing in a container but once you get used to them you will appreciate the power
-of consistency of empheral environments.
+There are minor differences when developing in a container but once you get used
+to them you will appreciate the power of consistency of ephemeral environments.
 
 ### Container production usage
 
-We don't yet have a build system in place for creating production grade images of dcrdata. However, you can still use the images for
-testing purposes.
+We don't yet have a build system in place for creating production grade images
+of dcrdata. However, you can still use the images for testing purposes.
 
-Running these images shouldn't be that much different with the exception of a config file or a few more environment variables.
-You will also need to expose the port that dcrdata runs on `-p 2222:2222`.
+In addition to configuring dcrdata, it is also necessary to map the TCP port on
+which dcrdata listens for connections `-p 2222:2222`.
 
 `docker run -ti -p 2222:2222 -e DCRDATA_LISTEN_URL=0.0.0.0:2222 --rm decred/dcrdata:dev-alpine`
 
-Please keep in mind these images have not been hardened so expect some security flaws to exist. Pull requests welcomed!
+Please keep in mind these images have not been hardened so this is not
+recommended for production.
 
-Note: In order to run drcdata will need the dcrd rpc cert to start. You can attach a volume with the cert and use
-the DCRDATA_DCRD_CERT env variable to set the location. Or build a new container image with the cert built in.
+Note: The TLS certificate for dcrd's RPC server may be needed in the container.
+Either build a new container image with the certificate, or attach a volume
+containing the certificate to the container.
 
 ## Installation
 
@@ -222,70 +228,57 @@ The following instructions assume a Unix-like shell (e.g. bash).
 
 - Ensure `$GOPATH/bin` is on your `$PATH`.
 
-- Clone the dcrdata repository. It **must** be cloned into the following directory.
+- Clone the dcrdata repository. It is conventional to put it under `GOPATH`, but
+  this is no longer necessary with go module.
 
       git clone https://github.com/decred/dcrdata $GOPATH/src/github.com/decred/dcrdata
 
-Once go is installed and the dcrdata project is cloned proceed to the build steps.
+- Install a C compiler. The sqlite driver uses cgo, which requires a C compiler
+  (e.g. gcc) to compile the sources. On Windows this is easily handled with
+  MSYS2 ([download](http://www.msys2.org/) and install MinGW-w64 gcc packages).
 
-### Building with go 1.11
+### Building with Go 1.11
 
-Go 1.11 introduced a new [dependency management feature](https://github.com/golang/go/wiki/Modules) that
-negates the use of third party tooling such as `dep`. Using `go mod` will be the dependency managment tool of choice
-for dcrdata and other Decred projects going forward.
+Go 1.11 introduced [modules](https://github.com/golang/go/wiki/Modules), a new
+dependency management approach, that obviates the need for third party tooling
+such as `dep`.
 
-Usage is simple and nothing is required except go 1.11.
+Usage is simple and nothing is required except Go 1.11. If building in a folder
+under `GOPATH`, it is necessary to explicitly build with modules enabled:
 
-1. `GO111MODULE=on go build`
+    GO111MODULE=on go build
 
-If using `vgo` perform the following step:
+If building outside of `GOPATH`, modules are automatically enabled, and `go
+build` is sufficient.
 
-1. `vgo build`
+The go tool will process the source code and automatically download
+dependencies. If the dependencies are configured correctly, there will be no
+modifications to the `go.mod` and `go.sum` files.
 
-go's builtin dependency management resolution will start processing
-the source code and downloading dependencies on the fly and then update the `go.mod` and `go.sum` files automatically.
+### Building with Go 1.10
 
-_Note_: The new GO111MODULE=on environment variable tells Go to use the new module feature.
+Module-enabled builds with Go 1.10 require the
+[vgo](https://github.com/golang/vgo) command. Follow the same procedures as if
+you were [using go 1.11](#building-with-go-111), but replacing `go` with `vgo`.
 
-### Building with go 1.10
+**NOTE:** The `dep` tool is no longer supported. If you must use Go 1.10,
+install and use `vgo`. If possible, upgrade to [go 1.11](#building-with-go-111)
+or using the docker [container build instructions](#building-dcrdata-with-docker).
 
-Before Go 1.11 we depended on the dep tool and also [vgo](https://github.com/golang/vgo). You have the option of using either one of these tools for dependency management. We recommend vgo since the dependency management feature is
-the same across both versions.
+### Setting build version flags
 
-If using [vgo](https://github.com/golang/vgo) you can follow the same procedures as if you were [using go 1.11](#building-with-go-111) so there is no need to follow the `dep` steps below.
+By default, dcrdata the version string will be postfixed with "-pre+dev".  For
+example, `dcrdata version 3.1.0-pre+dev (Go version go1.11)`.  However, it may
+be desireable to set the "pre" and "dev" values to different strings, such as
+"beta" or the actual commit hash.  To set these values, build with the
+`-ldflags` switch as follows:
 
-Building with the `dep` dependency management tool.
-
-- Install `dep`, the dependency management tool. The current [released binary of
-  `dep`](https://github.com/golang/dep/releases) is recommended, but the latest
-  may be installed from git via:
-
-      go get -u -v github.com/go/dep/cmd/dep
-
-- Fetch dependencies, and build the `dcrdata` executable.
-
-      cd $GOPATH/src/github.com/decred/dcrdata
-      dep ensure -vendor-only
-      # build dcrdata executable in workspace:
-      go build
-
-_Note_ we recommend upgrading to [go 1.11](#building-with-go-111) or using the docker [container build instructions](#building-dcrdata-with-docker)
-
-### Build from commit hash
-
-In addition to the instructions above you can also build with the git commit hash appended to the version, set it as follows:
-
-```bash
-go build -ldflags "-X github.com/decred/dcrdata/version.CommitHash=`git describe --abbrev=8 --long | awk -F "-" '{print $(NF-1)"-"$NF}'`"
+```sh
+go build -ldflags "-X github.com/decred/dcrdata/v3/version.appPreRelease=beta -X github.com/decred/dcrdata/v3/version.appBuild=`git rev-parse --short HEAD`"
 ```
 
-The sqlite driver uses cgo, which requires a C compiler (e.g. gcc) to compile
-the C sources. On Windows this is easily handled with MSYS2
-([download](http://www.msys2.org/) and install MinGW-w64 gcc packages).
+This produces a string like `dcrdata version 3.1.0-beta+86cc62a (Go version go1.11)`.
 
-Tip: If you receive other build errors, it may be due to "vendor" directories
-left by dep builds of dependencies such as dcrwallet. You may safely delete
-vendor folders and run `dep ensure -vendor-only` again.
 
 ### Runtime resources
 
@@ -304,25 +297,10 @@ First, update the repository (assuming you have `master` checked out):
 
     cd $GOPATH/src/github.com/decred/dcrdata
     git pull origin master
-    dep ensure -vendor-only
     go build
 
 Look carefully for errors with `git pull`, and reset locally modified files if
 necessary.
-
-## Updating dependencies
-
-_NOTE_ This is only needed if using Go 1.10 or earlier since Go 1.11 has the `go mod` depedency management
-built in.
-
-`dep ensure -vendor-only` fetches project dependencies, without making changes
-in manifest files `Gopkg.toml` and `Gopkg.lock`.
-
-Call `dep ensure` to update project dependencies when introduce new imports.
-
-For guides and reference materials about `dep`, see [the documentation](https://golang.github.io/dep).
-
-The following FAQ explains [the difference between `Gopkg.toml` and `Gopkg.lock` files](https://github.com/golang/dep/blob/master/docs/FAQ.md#what-is-the-difference-between-gopkgtoml-the-manifest-and-gopkglock-the-lock).
 
 ## Upgrading Instructions
 
@@ -408,7 +386,8 @@ Config precedence:
 3. Environment variables
 4. default config embedded in source code
 
-Any variable that starts with USE, ENABLE, DISABLE or otherwise asks a question must be a true/false value.
+Any variable that starts with USE, ENABLE, DISABLE or otherwise asks a question
+must be a true/false value.
 
 List of variables that can be set:
 
