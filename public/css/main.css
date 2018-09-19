@@ -953,6 +953,6 @@ body.darkBG .keynav-target {
 .old-vote {
   background-color: #ff3d001f;
 }
-.upcoming-vote {
+.upcoming-vote, .matching-hash {
   background: #0078ff1c;
 }

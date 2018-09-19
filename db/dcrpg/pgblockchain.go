@@ -981,7 +981,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 
 	var numUnconfirmed int64
 
-	for _, txn := range addrInfo.Transactions {
+	for i, txn := range addrInfo.Transactions {
 		_, dbTx, err := RetrieveDbTxByHash(pgb.db, txn.TxID)
 		if err != nil {
 			return err
@@ -997,6 +997,36 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 			txn.Confirmations = 0
 		}
 		txn.FormattedTime = time.Unix(dbTx.BlockTime, 0).Format("2006-01-02 15:04:05")
+
+		// Get the funding or spending transaction matching index if there is a
+		// matching tx hash already present.  During the next database
+		// restructuring we may want to consider including matching tx index
+		// along with matching tx hash in the addresses table.
+		if txn.MatchedTx != `` {
+			if !txn.IsFunding {
+				// Lookup by the database row id
+				idx, err := RetrieveFundingOutpointIndxByVinID(pgb.db, dbTx.VinDbIds[txn.InOutID])
+
+				if err != nil {
+					log.Warnf("Matched Transaction Lookup failed for %s:%d: id: %d:  %v",
+						txn.TxID, txn.InOutID, txn.InOutID, err)
+				} else {
+					addrInfo.Transactions[i].MatchedTxIndex = idx
+				}
+
+			} else {
+				// Lookup by the matching tx hash and matching tx index
+				_, _, idx, _, err := RetrieveSpendingTxByTxOut(pgb.db, txn.TxID, txn.InOutID)
+
+				if err != nil {
+					log.Warnf("Matched Transaction Lookup failed for %s:%d: %v",
+						txn.TxID, txn.InOutID, err)
+				} else {
+					addrInfo.Transactions[i].MatchedTxIndex = idx
+				}
+
+			}
+		}
 	}
 
 	addrInfo.NumUnconfirmed = numUnconfirmed

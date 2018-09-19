@@ -1047,6 +1047,11 @@ func RetrieveFundingTxsByTx(db *sql.DB, txHash string) ([]uint64, []*dbtypes.Tx,
 	return ids, txs, err
 }
 
+func RetrieveFundingOutpointIndxByVinID(db *sql.DB, id uint64) (idx uint32, err error) {
+	err = db.QueryRow(internal.SelectFundingOutpointIndxByVinID, id).Scan(&idx)
+	return
+}
+
 func RetrieveSpendingTxByTxOut(db *sql.DB, txHash string,
 	voutIndex uint32) (id uint64, tx string, vin uint32, tree int8, err error) {
 	err = db.QueryRow(internal.SelectSpendingTxByPrevOut,
@@ -1149,6 +1154,8 @@ func RetrieveDbTxByHash(db *sql.DB, txHash string) (id uint64, dbTx *dbtypes.Tx,
 		&dbTx.Locktime, &dbTx.Expiry, &dbTx.Size, &dbTx.Spent, &dbTx.Sent,
 		&dbTx.Fees, &dbTx.NumVin, &vinDbIDs, &dbTx.NumVout, &voutDbIDs,
 		&dbTx.IsValidBlock, &dbTx.IsMainchainBlock)
+	dbTx.VinDbIds = vinDbIDs
+	dbTx.VoutDbIds = voutDbIDs
 	return
 }
 

@@ -227,7 +227,7 @@
                             {{range $i, $v := .Transactions}}
                             <tr>
                                 {{with $v}}
-                                <td><a href="/tx/{{.TxID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
+                                <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
                                 {{if eq $txType "merged_debit"}}
                                     <td class="text-right">{{.MergedTxnCount}}</td>
                                 {{else}}
@@ -238,7 +238,7 @@
                                         <td class="text-right">sstxcommitment</td>
                                         {{else}}
                                             {{if ne .MatchedTx ""}}
-                                            <td class="text-right"><a href="/tx/{{.MatchedTx}}" class="hash">source</a></td>
+                                            <td class="text-right"><a href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}" class="matchhash">source</a></td>
                                             {{else}}
                                             <td class="text-right">N/A</td>
                                             {{end}}
@@ -257,7 +257,7 @@
                                     {{end}}
                                 {{else}}
                                     {{if ne .MatchedTx ""}}
-                                        <td><a href="/tx/{{.MatchedTx}}" class="hash">spent</a></td>
+                                        <td><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}" class="matchhash">spent</a></td>
                                     {{else}}
                                         <td>unspent</td>
                                     {{end}}
@@ -385,6 +385,22 @@
                 opacity: 0
             })
             .html("")
+        }
+        $('.matchhash').hover(function() {
+            hashHighLight( $(this).attr('href'), true);
+        },function() {
+            hashHighLight( $(this).attr('href'), false);
+        });
+
+        function hashHighLight(matchHash, hoverOn) {
+            $('.hash').each(function() {
+                var thisHash =$(this).attr('href');
+                if(thisHash == matchHash && hoverOn) {
+                    $(this).addClass("matching-hash");
+                }else{
+                    $(this).removeClass("matching-hash");
+                }
+            })
         }
 
         $('input[type=button]').on('click', function(){

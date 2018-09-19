@@ -20,6 +20,8 @@ const (
 	ctxBlockIndex
 	ctxBlockHash
 	ctxTxHash
+	ctxTxInOut
+	ctxTxInOutId
 	ctxAddress
 	ctxAgendaId
 )
@@ -83,15 +85,6 @@ func getBlockHeightCtx(r *http.Request) int64 {
 	return idx
 }
 
-func getTxIDCtx(r *http.Request) string {
-	hash, ok := r.Context().Value(ctxTxHash).(string)
-	if !ok {
-		log.Trace("Txid not set")
-		return ""
-	}
-	return hash
-}
-
 func getAgendaIDCtx(r *http.Request) string {
 	hash, ok := r.Context().Value(ctxAgendaId).(string)
 	if !ok {
@@ -106,6 +99,17 @@ func TransactionHashCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		txid := chi.URLParam(r, "txid")
 		ctx := context.WithValue(r.Context(), ctxTxHash, txid)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// TransactionIoIndexCtx embeds "inout" and "inoutid" into the request context
+func TransactionIoIndexCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inout := chi.URLParam(r, "inout")
+		inoutid := chi.URLParam(r, "inoutid")
+		ctx := context.WithValue(r.Context(), ctxTxInOut, inout)
+		ctx = context.WithValue(ctx, ctxTxInOutId, inoutid)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
