@@ -319,17 +319,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inout, ok := r.Context().Value(ctxTxInOut).(string)
-	if !ok {
-		inout = ""
+	inout, _ := r.Context().Value(ctxTxInOut).(string)
+	if inout != "in" && inout != "out" && inout != "" {
+		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", NotFoundStatusType)
+		return
 	}
-
-	ioid, ok := r.Context().Value(ctxTxInOutId).(string)
-	var inoutid int64
-	inoutid, err := strconv.ParseInt(ioid, 10, 0)
-	if !ok || err != nil {
-		inoutid = 0
-	}
+	ioid, _ := r.Context().Value(ctxTxInOutId).(string)
+	inoutid, _ := strconv.ParseInt(ioid, 10, 0)
 
 	tx := exp.blockData.GetExplorerTx(hash)
 	// If dcrd has no information about the transaction, pull the transaction

@@ -64,7 +64,7 @@ const (
 			transactions.is_mainchain=TRUE
 		WHERE prev_tx_hash=$1 AND vins.is_valid=TRUE AND vins.is_mainchain=TRUE;`
 	SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index, tx_tree FROM vins
-		WHERE prev_tx_hash=$1 AND prev_tx_index=$2;`
+		WHERE prev_tx_hash=$1 AND prev_tx_index=$2 ORDER BY is_valid DESC, is_mainchain DESC, block_time DESC;`
 	SelectFundingTxsByTx        = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`
 	SelectFundingTxByTxIn       = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1 AND tx_index=$2;`
 	SelectFundingOutpointByTxIn = `SELECT id, prev_tx_hash, prev_tx_index, prev_tx_tree FROM vins

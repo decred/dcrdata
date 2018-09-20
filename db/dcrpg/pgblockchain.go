@@ -1016,7 +1016,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 
 			} else {
 				// Lookup by the matching tx hash and matching tx index
-				_, _, idx, _, err := RetrieveSpendingTxByTxOut(pgb.db, txn.TxID, txn.InOutID)
+				_, idx, _, err := pgb.SpendingTransaction(txn.TxID, txn.InOutID)
 
 				if err != nil {
 					log.Warnf("Matched Transaction Lookup failed for %s:%d: %v",
@@ -1024,7 +1024,6 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 				} else {
 					addrInfo.Transactions[i].MatchedTxIndex = idx
 				}
-
 			}
 		}
 	}
