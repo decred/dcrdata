@@ -112,10 +112,10 @@ var toInt64 = func(v interface{}) int64 {
 // boldNumPlaces is provided or not. boldNumPlaces defines the number of decimal
 // places to be written with same font as the whole number value of the float.
 // If boldNumPlaces is provided the returned slice should have at least four items
-// otherwise it should have at least three items. i.e. if v is set to 342.12132000,
-// numplaces is set to 8 and boldNumPlaces is set to 2 the following should be returned
-// []string{"342", "12", "132", "000"}. If its not set the returned slice should be
-// []string{"342", "12132", "000"}.
+// otherwise it should have at least three items. i.e. given v is to 342.12132000,
+// numplaces is 8 and boldNumPlaces is set to 2 the following should be returned
+// []string{"342", "12", "132", "000"}. If boldNumPlace is not set the returned
+// slice should be []string{"342", "12132", "000"}.
 func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces ...int) []string {
 	pow := math.Pow(10, float64(numPlaces))
 	formattedVal := math.Round(v*pow) / pow

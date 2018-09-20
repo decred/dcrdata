@@ -66,7 +66,8 @@ type DB struct {
 	getStakeInfoWinnersSQL                                       string
 	getAllPoolValSize                                            string
 	getAllFeeInfoPerBlock                                        string
-	getLast24hrsDifficulty                                       string
+	// returns difficulty in 24hrs or immediately after 24hrs.
+	getDifficulty string
 }
 
 // NewDB creates a new DB instance with pre-generated sql statements from an
@@ -97,7 +98,7 @@ func NewDB(db *sql.DB) (*DB, error) {
 
 	d.getSDiffSQL = fmt.Sprintf(`SELECT sdiff FROM %s WHERE height = ?`,
 		TableNameSummaries)
-	d.getLast24hrsDifficulty = fmt.Sprintf(`SELECT diff FROM %s WHERE time >= ? ORDER BY time limit 1`,
+	d.getDifficulty = fmt.Sprintf(`SELECT diff FROM %s WHERE time >= ? ORDER BY time LIMIT 1`,
 		TableNameSummaries)
 	d.getSDiffRangeSQL = fmt.Sprintf(`SELECT sdiff FROM %s WHERE height BETWEEN ? AND ?`,
 		TableNameSummaries)
@@ -654,10 +655,10 @@ func (db *DB) RetrieveBlockSummaryByTimeRange(minTime, maxTime int64, limit int)
 	return blocks, nil
 }
 
-// RetrieveDiff returns the difficulty at the last 24 hr timestamp.
+// RetrieveDiff returns the difficulty in the last 24hrs or immediately after 24hrs.
 func (db *DB) RetrieveDiff(timestamp int64) (float64, error) {
 	var diff float64
-	err := db.QueryRow(db.getLast24hrsDifficulty, timestamp).Scan(&diff)
+	err := db.QueryRow(db.getDifficulty, timestamp).Scan(&diff)
 	return diff, err
 }
 

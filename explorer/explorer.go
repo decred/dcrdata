@@ -56,7 +56,7 @@ type explorerDataSourceLite interface {
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
 	GetExplorerFullBlocks(start int, end int) []*BlockInfo
-	DifficultyInLast24Hrs(timestamp int64) float64
+	RetreiveDifficulty(timestamp int64) float64
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -319,7 +319,10 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// last 24hr timestamp
 	timestamp := time.Now().Add(-24 * time.Hour).Unix()
-	last24hrDifficulty := exp.blockData.DifficultyInLast24Hrs(timestamp)
+	// RetreiveDifficulty fetches the difficulty using the last 24hr timestamp,
+	// whereby the difficulty can have a timestamp equal to the last 24hrs timestamp
+	// or that is immediately greater than the 24hr timestamp.
+	last24hrDifficulty := exp.blockData.RetreiveDifficulty(timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
 	stakePerc := blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
 

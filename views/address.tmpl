@@ -49,7 +49,7 @@
                         <td id="{{.Balance.TotalUnspent}}" class="pr-2 lh1rem vam text-right xs-w91"
                             data-target="address.unspent">TOTAL UNSPENT</td>
                         {{if .Fullmode}}
-                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
+                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end rm-spacing">
                                 {{if .Balance}}
                                     {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="pl-1 unit">DCR</span>
                                 {{else}}
@@ -67,7 +67,7 @@
                     <tr>
                         <td class="text-right pr-2">RECEIVED</td>
                         {{if .Fullmode}}
-                            <td class="mono nowrap text-right">
+                            <td class="mono nowrap text-right rm-spacing justify-content-end">
                                 {{if .Balance}}
                                     {{$received := add .Balance.TotalSpent .Balance.TotalUnspent}}
                                     {{template "decimalParts" (amountAsDecimalParts $received true)}}<span class="pl-1 unit">DCR</span>
@@ -86,7 +86,7 @@
                     <tr>
                         <td class="text-right pr-2">SPENT</td>
                         {{if .Fullmode}}
-                            <td class="mono nowrap text-right">
+                            <td class="mono nowrap text-right rm-spacing justify-content-end">
                                 {{if .Balance}}
                                     {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="pl-1 unit">DCR</span>
                                 {{else}}
@@ -232,7 +232,9 @@
                                     <td class="text-right">{{.MergedTxnCount}}</td>
                                 {{else}}
                                     {{if ne .ReceivedTotal 0.0}}
-                                        <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+                                        <td class="text-right fs15">
+                                        <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</span>
+                                        </td>
                                     {{else}}
                                         {{if eq .SentTotal 0.0}}
                                         <td class="text-right">sstxcommitment</td>
@@ -248,12 +250,16 @@
                                 {{if ne .SentTotal 0.0}}
                                     {{if lt 0.0 .SentTotal}}
                                     {{if eq $txType "merged_debit"}}
-                                            <td class="text-right"> {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+                                            <td class="text-right fs15"> 
+                                            <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</span>
+                                            </td>
                                         {{else}}
-                                            <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+                                            <td class="fs15">
+                                            <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</span>
+                                            </td>
                                         {{end}}
                                     {{else}}
-                                        <td class="text-right">N/A</td>
+                                        <td class="text-right fs15">N/A</td>
                                     {{end}}
                                 {{else}}
                                     {{if ne .MatchedTx ""}}

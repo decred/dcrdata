@@ -774,8 +774,9 @@ func (db *wiredDB) GetSDiff(idx int) float64 {
 	return sdiff
 }
 
-// DifficultyInLast24Hrs fetches the difficulty value in the last 24hrs.
-func (db *wiredDB) DifficultyInLast24Hrs(timestamp int64) float64 {
+// RetreiveDifficulty fetches the difficulty value in the last 24hrs or
+// immediately after 24hrs.
+func (db *wiredDB) RetreiveDifficulty(timestamp int64) float64 {
 	sdiff, err := db.RetrieveDiff(timestamp)
 	if err != nil {
 		log.Errorf("Unable to retrieve difficulty: %v", err)

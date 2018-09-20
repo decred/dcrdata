@@ -106,7 +106,11 @@
                         <tbody>
                             <tr>
                                 <td class="mono text-right pr-2 nowrap p03rem0">BaseSubsidy</td>
-                                <td class="mono">{{template "decimalParts" (amountAsDecimalParts .Params.BaseSubsidy true)}} DCR</td>
+                                <td class="mono fs13">
+                                    <span class="rm-spacing">{{template "decimalParts" (amountAsDecimalParts .Params.BaseSubsidy true)}}
+                                    <span class="pl-1 unit lh15rem">DCR</span>
+                                    </span>
+                                </td>
                                 <td>Starting subsidy amount for mined blocks</td>
                             </tr>
                             <tr>

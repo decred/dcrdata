@@ -783,9 +783,11 @@ body.darkBG .keynav-target {
   vertical-align: middle;
 }
 #connection div {
-  background-color: orange;
-  width: 10px;
-  height: 10px;
+  background-image: url("/images/abstain.svg");
+  background-size: 15px 15px;
+  background-position: center;
+  width: 9px;
+  height: 9px;
   display: inline-block;
   border-radius: 10px;
   margin-left: 5px;
@@ -794,12 +796,12 @@ body.darkBG .keynav-target {
   -webkit-animation-timing-function: linear;
 }
 #connection.connected div {
-  background-color: #63df1e;
+  background-image: url("/images/connected.svg");
   -webkit-box-shadow: rgba(0, 255, 0, 0.5) 0px 0px 5px;
   -webkit-animation-name: glowGreen;
 }
 #connection.disconnected div {
-  background-color: red;
+  background-image: url("/images/disconnected.svg");
   -webkit-box-shadow: rgba(255, 0, 0, 0.5) 0px 0px 5px;
   -webkit-animation-name: glowRed;
 }
@@ -951,4 +953,57 @@ body.darkBG .keynav-target {
 }
 .upcoming-vote, .matching-hash {
   background: #0078ff1c;
+}
+
+.mb-3 tbody tr td .fs14-decimal {
+  display: flex;
+  flex-direction: row;
+}
+
+.mb-3 tbody tr td .fs14-decimal span {
+  display: flex;
+  flex-direction: row;
+}
+
+.mb-3 tbody tr td .fs14-decimal.fs18 span.int {
+  line-height: 1.3rem;
+}
+.mb-3 tbody tr td .fs18 .fs14-decimal span span.int {
+  line-height: 1.3rem;
+}
+.mb-3 tbody tr td div span .fs14-decimal span.int {
+  line-height: 1.3rem;
+}
+.rm-spacing {
+  display: flex;
+  flex-direction: row;
+}
+.rm-spacing-tb{
+  display: flex;
+  flex-direction: row;
+  display:inline-flex;
+}
+.fs28 span.rm-spacing .int {
+  line-height: 1.1rem;
+}
+.fs13 span.rm-spacing .int {
+  line-height: 1.5rem;
+}
+.fs16 span.rm-spacing .int {
+  line-height: 1.5rem;
+}
+.fs15 span.rm-spacing .int {
+  line-height: 1.6rem;
+}
+.fs28 span.rm-spacing-tb .int {
+  line-height: 1.1rem;
+}
+.fs13 span.rm-spacing-tb .int {
+  line-height: 1.5rem;
+}
+.fs16 span.rm-spacing-tb .int {
+  line-height: 1.5rem;
+}
+.fs15 span.rm-spacing-tb .int {
+  line-height: 1.6rem;
 }

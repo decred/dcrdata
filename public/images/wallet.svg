@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 15.48">
+  <defs>
+    <style>
+      .cls-1 {
+        opacity: 0.75;
+      }
+
+      .cls-2 {
+        fill: #8997a5;
+      }
+
+      .cls-3 {
+        fill: #c4cbd2;
+        opacity: 0.5;
+      }
+
+      .cls-4 {
+        fill: #8795a2;
+      }
+    </style>
+  </defs>
+  <g id="Symbol_46_1" data-name="Symbol 46 – 1" transform="translate(-361 -115.1)">
+    <g id="Symbol_45" data-name="Symbol 45" transform="translate(361 115.1)">
+      <g id="XMLID_12_" class="cls-1" transform="translate(0 0)">
+        <path id="XMLID_18_" class="cls-2" d="M433,20.5Z" transform="translate(-433 -19.24)"/>
+        <path id="XMLID_17_" class="cls-3" d="M434.53,21.62h13.86v-.99a1.577,1.577,0,0,0-1.53-1.53H434.53A1.549,1.549,0,0,0,433,20.36,1.561,1.561,0,0,0,434.53,21.62Z" transform="translate(-433 -19.1)"/>
+        <path id="XMLID_16_" class="cls-2" d="M433,20.592Z" transform="translate(-433 -19.242)"/>
+        <path id="XMLID_15_" class="cls-2" d="M433,20.6Z" transform="translate(-433 -19.25)"/>
+        <path id="XMLID_14_" class="cls-4" d="M449.38,21.76H434.53A1.549,1.549,0,0,1,433,20.5h0v.09h0v.09h0V33.19a1.577,1.577,0,0,0,1.53,1.53h14.94A1.577,1.577,0,0,0,451,33.19V31.57a3.24,3.24,0,0,1,0-6.48V23.47A1.584,1.584,0,0,0,449.38,21.76Z" transform="translate(-433 -19.24)"/>
+        <path id="XMLID_13_" class="cls-3" d="M449.4,29.33a3.914,3.914,0,0,0,3.93,3.93V25.4A3.914,3.914,0,0,0,449.4,29.33Z" transform="translate(-435.33 -19.73)"/>
+      </g>
+    </g>
+  </g>
+</svg>

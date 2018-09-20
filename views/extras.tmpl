@@ -47,12 +47,12 @@
 <div class="top-nav">
     <div class="container">
         <div class="logo">
-            <a class="no-underline" href="/"><img src="/images/logo.png" alt="dcr-icon"></a>
+            <a class="no-underline" href="/"><img src="/images/logo-2018.svg" alt="dcr-icon" style="width:100px;"></a>
         </div>
         <div class="right">
             <div class="searchbox">
                 <form class="navbar-form" role="search" id="search-form" action="/search">
-                    <img src="/images/search.png" alt="search-icon">
+                    <img class="img-size" src="/images/search.svg" alt="search-icon">
                     <input
                         tabindex="0"
                         type="text"
@@ -225,7 +225,6 @@
             $("#decode_header").text("Sent tx");
             $("#decoded_tx").text(evt);
         })
-
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
@@ -609,7 +608,7 @@ const app = Stimulus.Application.start()
     <span class="decimal lh15rem trailing-zeroes">{{ index . 3 }}</span>{{end}}
     {{else}} 
     <span class="int">{{index . 0}}</span>
-    {{if gt (len (index . 1)) 0}}<span class="dot">.</span>
+    {{if gt (len (index . 1)) 0}}<span class="decimal lh15rem dot">.</span>
     <span class="decimal lh15rem">{{index . 1 }}</span>
     <span class="decimal lh15rem trailing-zeroes">{{index . 2}}</span>{{end}}
     {{end}}

@@ -14,7 +14,7 @@
                 <div class="statCard general">
                     <div class="row">
                         <div class="col-12">
-                            <span><img src="/images/general.png" alt="general"><p class="statcard-title">General</p></span>
+                            <span><img class="img-size" src="/images/general.svg" alt="general"><p class="statcard-title">General</p></span>
                         </div>
                         <div class="col-sm-4">
                             <div class="heading">Available Supply (of 21 mil)</div>
@@ -51,7 +51,7 @@
                 <div class="statCard general">
                     <div class="row">
                         <div class="col-12">
-                            <span><img src="/images/staking.png" alt="staking"><p class="statcard-title">Staking</p></span>
+                            <span><img class="img-size" src="/images/staking.svg" alt="staking"><p class="statcard-title">Staking</p></span>
                         </div>
                         <div class="col-sm-4">
                             <div class="heading">Total Locked DCR</div>
@@ -92,7 +92,7 @@
                 <div class="statCard general">
                     <div class="row">
                         <div class="col-12">
-                            <span><img src="/images/mining.png" alt="mining"><p class="statcard-title">Mining</p></span>
+                            <span><img class="img-size" src="/images/mining.svg" alt="mining"><p class="statcard-title">Mining</p></span>
                         </div>
                         <div class="col-sm-4">
                             <div class="heading">
@@ -144,7 +144,7 @@
                                 <div class="expanded-block">
                                     <div class="row">
                                         <div class="col-12" style="margin-left:6%;">
-                                            <img src="/images/amount.png" alt="amount" style="margin-right:3%;">
+                                            <img class="img-size" src="/images/transactions.svg" alt="amount" style="margin-right:3%;">
                                             <div class="data mono lh1rem fs14-decimal fs24">
                                                 <span id="mempool-total-sent">
                                                     {{template "decimalParts" (float64AsDecimalParts .TotalOut 2 false 2)}}
@@ -154,13 +154,13 @@
                                             <div id="mempool-tx-count" class="subdata">sent in {{.NumAll}} transactions</div>
                                         </div>
                                         <div class="col-5" style="margin-left:6%;">
-                                            <img src="/images/votes.png" alt="votes" style="margin: 10% 10%;">
+                                            <img class="img-size" src="/images/votes.svg" alt="votes" style="margin: 2% 10%;">
                                             <div class="data">
                                                 <p id="mempool-votes" class="count">{{.NumVotes}}</p>
                                             </div>
                                         </div>
                                         <div class="col-6">
-                                            <img src="/images/staking.png" alt="tickets" style="margin: 10% 10%;">
+                                            <img class="img-size" src="/images/staking.svg" alt="tickets" style="margin: 2% 10%;">
                                             <div class="data">
                                                 <p id="mempool-tickets" class="count">{{.NumTickets}}</p>
                                             </div>
@@ -192,7 +192,7 @@
                                 <div class="expanded-block">
                                     <div class="row">
                                         <div class="col-12" style="margin-left:6%;">
-                                            <img src="/images/amount.png" alt="amount">
+                                            <img class="img-size" src="/images/transactions.svg" alt="amount">
                                             <div class="data mono lh1rem fs14-decimal fs24">
                                                 <span id="total-sent">
                                                     {{template "decimalParts" (float64AsDecimalParts .TotalSent 2 false 2)}}
@@ -202,13 +202,13 @@
                                             <div id="tx-count" class="subdata">sent in {{.AllTxs}} transactions</div>
                                         </div>
                                         <div class="col-5" style="margin-left:6%;">
-                                            <img src="/images/votes.png" alt="votes" style="margin: 10% 10%;">
+                                            <img class="img-size" src="/images/votes.svg" alt="votes" style="margin: 2% 10%;">
                                             <div class="data">
                                                 <p id="votes" class="count">{{.Voters}}</p>
                                             </div>
                                         </div>
                                         <div class="col-6">
-                                            <img src="/images/staking.png" alt="tickets" style="margin: 10% 10%;">
+                                            <img class="img-size" src="/images/staking.svg" alt="tickets" style="margin: 2% 10%;">
                                             <div class="data">
                                                 <p id="tickets" class="count">{{.FreshStake}}</p>
                                             </div>
