@@ -145,7 +145,7 @@
                 url: '/api/address/' + _this.addr + '/' + graphType +'/'+ interval,
                 beforeSend: function() {},
                 success: function(data) {
-                    if(data.length) {
+                    if(!_.isEmpty(data)) {
                         var newData = []
                         var options = {}
 
