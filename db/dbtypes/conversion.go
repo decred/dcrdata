@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -106,7 +105,8 @@ func ChartGroupingToInterval(grouping ChartGrouping) (float64, error) {
 // From the extracted bytes; it establishes the possible encoding used,
 // Language, applicable charset and confidence value in percentage by how much
 // the system expects the detected values to be true. Its also returns the
-// extracted data in bytes.
+// extracted data in bytes. This function is suitable for detecting OP_RETURNs
+// charset in testnet, simnet and all other environments except in mainnet.
 func DetectCharset(hexString string) (*CharsetData, error) {
 	if len(hexString) == 0 {
 		return nil, fmt.Errorf("hex string to be decoded should not be empty")
@@ -118,7 +118,7 @@ func DetectCharset(hexString string) (*CharsetData, error) {
 	dst := make([]byte, hex.DecodedLen(len(v)))
 	_, err := hex.Decode(dst, v)
 	if err != nil {
-		return nil, fmt.Errorf("converting hex to bytes failed: %v", err)
+		return charSet, fmt.Errorf("converting hex to bytes failed: %v", err)
 	}
 
 	charSet.Data = dst
@@ -129,27 +129,32 @@ func DetectCharset(hexString string) (*CharsetData, error) {
 	if err != nil {
 		// do not quit if an error occurs
 		log.Printf("detecting charset data failed: %v", err)
+	} else {
+		charSet.charset = strings.ToLower(result.Charset)
+		charSet.language = result.Language
+		charSet.confidence = uint32(result.Confidence)
 	}
-
-	charSet.charset = strings.ToLower(result.Charset)
-	charSet.language = result.Language
-	charSet.confidence = uint32(result.Confidence)
 
 	return charSet, nil
 }
 
 // Decode tries to resolve the bytes in the respective formats into more meaningful
-// textual data.
+// textual data. This methods works flawlessly on most encodings that majorly use
+// ASCII text. Its not recommended to use this method directly when decoding
+// OP_RETURN texts encoded in the mainnet since most of the OP_RETURNs are hashes
+// that record anchor points to more data stored in dcrtime. This function is
+// suitable for decoding OP_RETURNs in testnet, simnet and all other environments
+// except in mainnet.
 func (chars *CharsetData) Decode() (*CharsetData, error) {
 	if len(chars.HexStr) == 0 {
 		return nil, fmt.Errorf("hex string to be decoded should not be empty")
 	}
 
 	// Do not implement further decoding; if no data in bytes is available,
-	// charset was not detected and the confidence value is lest than 25%.
-	// 25% is just an estimate of the current acceptable confidence that
-	// ensures that further decoding MAY return acceptable data.
-	if len(chars.Data) == 0 || len(chars.charset) == 0 || chars.confidence < 25 {
+	// charset was not detected and the confidence value is less than 20%.
+	// 20% is just an estimate of the current acceptable confidence that
+	// ensures further processing MAY return acceptable data.
+	if len(chars.Data) == 0 || len(chars.charset) == 0 || chars.confidence < 20 {
 		return chars, nil
 	}
 
@@ -163,6 +168,8 @@ func (chars *CharsetData) Decode() (*CharsetData, error) {
 
 	// handle windows charset encoding
 	switch chars.charset {
+	case "windows-1251":
+		encodingFormat = charmap.Windows1251
 	case "windows-1252":
 		encodingFormat = charmap.Windows1252
 	case "windows-1253":
@@ -172,6 +179,7 @@ func (chars *CharsetData) Decode() (*CharsetData, error) {
 	case "windows-1255":
 		encodingFormat = charmap.Windows1255
 	case "windows-1256":
+		encodingFormat = charmap.Windows1256
 	case "shift_jis", "shift-jis":
 		encodingFormat = japanese.ShiftJIS
 	case "gb-18030", "gb18030":
@@ -212,21 +220,12 @@ func (chars *CharsetData) Decode() (*CharsetData, error) {
 		return nil, fmt.Errorf("charset found: (%s) is not yet supported", chars.charset)
 	}
 
-	decodedStr, err := transformEncoding(bytes.NewReader(chars.Data), encodingFormat.NewDecoder())
-	if err == nil {
-		chars.HexStr = decodedStr
-	} else {
-		log.Printf("failed to decode the text: error %v", err)
+	// decodes the bytes with the provided decoder type
+	ret, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader(chars.Data), encodingFormat.NewDecoder()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode the text: error %v", err)
 	}
 
-	return nil, nil
-}
-
-func transformEncoding(rawReader io.Reader, trans transform.Transformer) (string, error) {
-	ret, err := ioutil.ReadAll(transform.NewReader(rawReader, trans))
-	if err == nil {
-		return string(ret), nil
-	} else {
-		return "", err
-	}
+	chars.HexStr = string(ret)
+	return chars, nil
 }

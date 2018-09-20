@@ -20,10 +20,11 @@ require (
 	github.com/decred/dcrd/dcrec/edwards v0.0.0-20180817010327-36f61d8ebd7a // indirect
 	github.com/decred/dcrd/dcrjson v1.0.0
 	github.com/decred/dcrd/dcrutil v1.1.1
-	github.com/decred/dcrd/gcs v1.0.2 // indirect
 	github.com/decred/dcrd/rpcclient v1.0.1
 	github.com/decred/dcrd/txscript v1.0.1
 	github.com/decred/dcrd/wire v1.1.0
+	github.com/decred/dcrdata v2.1.3+incompatible // indirect
+	github.com/decred/dcrwallet v1.2.2 // indirect
 	github.com/decred/dcrwallet/wallet v1.0.0
 	github.com/decred/slog v1.0.0
 	github.com/dgraph-io/badger v1.5.3
@@ -69,5 +70,4 @@ require (
 	google.golang.org/appengine v1.1.0 // indirect
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
-	gopkg.in/iconv.v1 v1.1.1
 )
