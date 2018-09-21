@@ -319,8 +319,14 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initially try to get the transaction information from the "lite" mode
-	// data source, which relies on RPCs to dcrd.
+	inout, _ := r.Context().Value(ctxTxInOut).(string)
+	if inout != "in" && inout != "out" && inout != "" {
+		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", NotFoundStatusType)
+		return
+	}
+	ioid, _ := r.Context().Value(ctxTxInOutId).(string)
+	inoutid, _ := strconv.ParseInt(ioid, 10, 0)
+
 	tx := exp.blockData.GetExplorerTx(hash)
 	// If dcrd has no information about the transaction, pull the transaction
 	// details from the full mode database.
@@ -647,6 +653,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		ConfirmHeight     int64
 		Version           string
 		NetName           string
+		HighlightInOut    string
+		HighlightInOutID  int64
 	}{
 		tx,
 		blocks,
@@ -655,6 +663,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		exp.Height() - tx.Confirmations,
 		exp.Version,
 		exp.NetName,
+		inout,
+		inoutid,
 	}
 
 	str, err := exp.templates.execTemplateToString("tx", pageData)
@@ -907,7 +917,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				NotFoundStatusType)
 			return
 		}
-
 
 	}
 

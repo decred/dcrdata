@@ -901,7 +901,7 @@ type newColumn struct {
 func addNewColumnsIfNotFound(db *sql.DB, table string, newColumns []newColumn) (bool, error) {
 	for ic := range newColumns {
 		var isRowFound bool
-		err := db.QueryRow(`SELECT EXISTS( SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS 
+		err := db.QueryRow(`SELECT EXISTS( SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS
 			WHERE table_name = $1 AND column_name = $2 );`, table, newColumns[ic].Name).Scan(&isRowFound)
 		if err != nil {
 			return false, err
