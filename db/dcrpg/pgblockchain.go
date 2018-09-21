@@ -861,8 +861,7 @@ func (pgb *ChainDB) addressBalance(address string) (*explorer.AddressBalance, er
 	}
 
 	if !fresh {
-		var numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent int64
-		numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent, err =
+		numSpent, numUnspent, amtSpent, amtUnspent, numMergedSpent, err :=
 			RetrieveAddressSpentUnspent(pgb.db, address)
 		if err != nil {
 			return nil, err
@@ -871,9 +870,9 @@ func (pgb *ChainDB) addressBalance(address string) (*explorer.AddressBalance, er
 			Address:        address,
 			NumSpent:       numSpent,
 			NumUnspent:     numUnspent,
-			NumMergedSpent: totalMergedSpent,
-			TotalSpent:     totalSpent,
-			TotalUnspent:   totalUnspent,
+			NumMergedSpent: numMergedSpent,
+			TotalSpent:     amtSpent,
+			TotalUnspent:   amtUnspent,
 		}
 
 		totals.balance[address] = balanceInfo
@@ -941,8 +940,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		}
 	} else {
 		log.Debugf("Obtaining balance via DB query.")
-		var numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent int64
-		numSpent, numUnspent, totalSpent, totalUnspent, totalMergedSpent, err =
+		numSpent, numUnspent, amtSpent, amtUnspent, numMergedSpent, err :=
 			RetrieveAddressSpentUnspent(pgb.db, address)
 		if err != nil {
 			return nil, nil, err
@@ -951,9 +949,9 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 			Address:        address,
 			NumSpent:       numSpent,
 			NumUnspent:     numUnspent,
-			NumMergedSpent: totalMergedSpent,
-			TotalSpent:     totalSpent,
-			TotalUnspent:   totalUnspent,
+			NumMergedSpent: numMergedSpent,
+			TotalSpent:     amtSpent,
+			TotalUnspent:   amtUnspent,
 		}
 	}
 
@@ -2445,9 +2443,9 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllTickets() (int64, error) {
 
 	// Revokes
 
-	revokeIDs, _, revokeHeights, vinDbIDs, err := RetrieveAllRevokesDbIDHashHeight(pgb.db)
+	revokeIDs, _, revokeHeights, vinDbIDs, err := RetrieveAllRevokes(pgb.db)
 	if err != nil {
-		log.Errorf("RetrieveAllRevokesDbIDHashHeight: %v", err)
+		log.Errorf("RetrieveAllRevokes: %v", err)
 		return 0, err
 	}
 
