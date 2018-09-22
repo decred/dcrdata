@@ -159,13 +159,6 @@ func mainCore() error {
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer baseDB.Close()
 
-	// Allow Ctrl-C to halt startup
-	select {
-	case <-quit:
-		return nil
-	default:
-	}
-
 	// PostgreSQL
 	var auxDB *dcrpg.ChainDBRPC
 	var newPGIndexes, updateAllAddresses, updateAllVotes bool
@@ -212,13 +205,6 @@ func mainCore() error {
 		if !idxExists || err != nil {
 			updateAllAddresses = true
 		}
-	}
-
-	// Allow Ctrl-C to halt startup
-	select {
-	case <-quit:
-		return nil
-	default:
 	}
 
 	_, height, err := dcrdClient.GetBestBlock()
@@ -299,13 +285,6 @@ func mainCore() error {
 		}
 	}
 
-	// Allow Ctrl-C to halt startup
-	select {
-	case <-quit:
-		return nil
-	default:
-	}
-
 	// SetAgendaDB Path
 	agendadb.SetDbPath(filepath.Join(cfg.DataDir, cfg.AgendaDBFileName))
 
@@ -380,13 +359,6 @@ func mainCore() error {
 
 		// Wait for the results
 		return waitForSync(sqliteSyncRes, pgSyncRes, usePG, quit)
-	}
-
-	// Allow Ctrl-C to halt startup
-	select {
-	case <-quit:
-		return nil
-	default:
 	}
 
 	baseDBHeight, auxDBHeight, err := getSyncd(updateAllAddresses,
@@ -499,6 +471,13 @@ func mainCore() error {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
 	}
 
+	// Allow Ctrl-C to halt startup
+	select {
+	case <-quit:
+		return nil
+	default:
+	}
+
 	explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
 	// blockdata collector
@@ -560,12 +539,6 @@ func mainCore() error {
 			notify.NtfnChans.NewTxChan, quit, &wg, newTicketLimit, mini, maxi, mpi)
 		wg.Add(1)
 		go mpm.TxHandler(dcrdClient)
-	}
-
-	select {
-	case <-quit:
-		return nil
-	default:
 	}
 
 	// Start web API
