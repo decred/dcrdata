@@ -177,7 +177,7 @@ func (pgb *ChainDB) GetAddressUTXO(address string) []apitypes.AddressTxnOutput {
 		log.Error(err)
 		return nil
 	}
-	txnOutput, err := RetrieveAddressTxnOutputWithTransaction(pgb.db, address, int64(blockHeight))
+	txnOutput, err := RetrieveAddressUTXOs(pgb.db, address, int64(blockHeight))
 	if err != nil {
 		log.Error(err)
 		return nil
