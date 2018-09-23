@@ -126,6 +126,27 @@ func mainCore() error {
 		return fmt.Errorf("expected network %s, got %s", activeNet.Net, curnet)
 	}
 
+	// Ctrl-C to shut down.
+	// Nothing should be sent the quit channel.  It should only be closed.
+	quit := make(chan struct{})
+	// Only accept a single CTRL+C
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	// Start waiting for the interrupt signal
+	go func() {
+		<-c
+		// Close the channel so multiple goroutines can get the message
+		log.Infof("CTRL+C hit.  Closing goroutines.")
+		close(quit)
+		for {
+			select {
+			case <-c:
+			}
+			log.Info("Shutdown signaled.  Already shutting down...")
+		}
+	}()
+
 	// Sqlite output
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
@@ -185,22 +206,6 @@ func mainCore() error {
 			updateAllAddresses = true
 		}
 	}
-
-	// Ctrl-C to shut down.
-	// Nothing should be sent the quit channel.  It should only be closed.
-	quit := make(chan struct{})
-	// Only accept a single CTRL+C
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-
-	// Start waiting for the interrupt signal
-	go func() {
-		<-c
-		signal.Stop(c)
-		// Close the channel so multiple goroutines can get the message
-		log.Infof("CTRL+C hit.  Closing goroutines.")
-		close(quit)
-	}()
 
 	_, height, err := dcrdClient.GetBestBlock()
 	if err != nil {
@@ -311,6 +316,13 @@ func mainCore() error {
 	blockDataSavers = append(blockDataSavers, &baseDB)
 	mempoolSavers = append(mempoolSavers, baseDB.MPC)
 
+	// Allow Ctrl-C to halt startup
+	select {
+	case <-quit:
+		return nil
+	default:
+	}
+
 	// Create the explorer system
 	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, version.Version(), !cfg.NoDevPrefetch)
 	if explore == nil {
@@ -348,6 +360,7 @@ func mainCore() error {
 		// Wait for the results
 		return waitForSync(sqliteSyncRes, pgSyncRes, usePG, quit)
 	}
+
 	baseDBHeight, auxDBHeight, err := getSyncd(updateAllAddresses,
 		updateAllVotes, newPGIndexes, fetchToHeight)
 	if err != nil {
@@ -458,6 +471,13 @@ func mainCore() error {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
 	}
 
+	// Allow Ctrl-C to halt startup
+	select {
+	case <-quit:
+		return nil
+	default:
+	}
+
 	explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
 	// blockdata collector
@@ -521,12 +541,6 @@ func mainCore() error {
 		go mpm.TxHandler(dcrdClient)
 	}
 
-	select {
-	case <-quit:
-		return nil
-	default:
-	}
-
 	// Start web API
 	app := api.NewContext(dcrdClient, activeChain, &baseDB, auxDB, cfg.IndentJSON)
 	// Start notification hander to keep /status up-to-date
@@ -558,7 +572,7 @@ func mainCore() error {
 	webMux.Get("/parameters", explore.ParametersPage)
 	webMux.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
 	webMux.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)
-	webMux.With(explorer.TransactionHashCtx,explorer.TransactionIoIndexCtx).Get("/tx/{txid}/{inout}/{inoutid}", explore.TxPage)
+	webMux.With(explorer.TransactionHashCtx, explorer.TransactionIoIndexCtx).Get("/tx/{txid}/{inout}/{inoutid}", explore.TxPage)
 	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)
 	webMux.Get("/agendas", explore.AgendasPage)
 	webMux.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)
