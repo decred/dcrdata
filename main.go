@@ -212,6 +212,8 @@ func mainCore() error {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
 
+	var blocksBehind int64
+
 	// When in lite mode, baseDB should get blocks without having to coordinate
 	// with auxDB. Setting fetchToHeight to a large number allows this.
 	var fetchToHeight = int64(math.MaxInt32)
@@ -252,7 +254,7 @@ func mainCore() error {
 		}
 
 		// How far auxDB is behind the node
-		blocksBehind := height - lastBlockPG
+		blocksBehind = height - lastBlockPG
 		if blocksBehind < 0 {
 			return fmt.Errorf("Node is still syncing. Node height = %d, "+
 				"DB height = %d", height, heightDB)
@@ -333,72 +335,6 @@ func mainCore() error {
 	defer explore.StopMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
 	blockDataSavers = append(blockDataSavers, explore)
-
-	// Sync up with the blockchain
-	getSyncd := func(updateAddys, updateVotes, newPGInds bool,
-		fetchHeight int64) (int64, int64, error) {
-		// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
-		// info DB (sqlite). Results are returned over channels:
-		sqliteSyncRes := make(chan dbtypes.SyncResult)
-		pgSyncRes := make(chan dbtypes.SyncResult)
-
-		// Synchronization between DBs via rpcutils.BlockGate
-		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
-
-		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them, but
-		// it has to get a notification channel first to receive them. The BlockGate
-		// will provide this for blocks after fetchHeight.
-		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeight)
-
-		// Now that stakedb is either catching up or waiting for a block, start the
-		// auxDB sync, which is the master block getter, retrieving and making
-		// available blocks to the baseDB. In return, baseDB maintains a
-		// StakeDatabase at the best block's height.
-		go auxDB.SyncChainDBAsync(pgSyncRes, smartClient, quit,
-			updateAddys, updateVotes, newPGInds)
-
-		// Wait for the results
-		return waitForSync(sqliteSyncRes, pgSyncRes, usePG, quit)
-	}
-
-	baseDBHeight, auxDBHeight, err := getSyncd(updateAllAddresses,
-		updateAllVotes, newPGIndexes, fetchToHeight)
-	if err != nil {
-		return err
-	}
-
-	if usePG {
-		// After sync and indexing, must use upsert statement, which checks for
-		// duplicate entries and updates instead of erroring. SyncChainDB should set
-		// this on successful sync, but do it again anyway.
-		auxDB.EnableDuplicateCheckOnInsert(true)
-	}
-
-	// The sync routines may have lengthy tasks, such as table indexing, that
-	// follow main sync loop. Before enabling the chain monitors, ensure the DBs
-	// are at the node's best block.
-	updateAllAddresses, updateAllVotes, newPGIndexes = false, false, false
-	_, height, err = dcrdClient.GetBestBlock()
-	if err != nil {
-		return fmt.Errorf("unable to get block from node: %v", err)
-	}
-	for baseDBHeight < height {
-		fetchToHeight = auxDBHeight + 1
-		baseDBHeight, _, err = getSyncd(updateAllAddresses, updateAllVotes,
-			newPGIndexes, fetchToHeight)
-		if err != nil {
-			return err
-		}
-		_, height, err = dcrdClient.GetBestBlock()
-		if err != nil {
-			return fmt.Errorf("unable to get block from node: %v", err)
-		}
-	}
-	log.Infof("All ready, at height %d.", baseDBHeight)
-
-	if cfg.SyncAndQuit {
-		return nil
-	}
 
 	// Register for notifications from dcrd
 	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
@@ -541,17 +477,43 @@ func mainCore() error {
 		go mpm.TxHandler(dcrdClient)
 	}
 
+	select {
+	case <-quit:
+		return nil
+	default:
+	}
+
+	wireDBheight := baseDB.GetHeight()
+
+	// The blockchain syncing status page should be displayed, if the following conditions
+	// are met fully; Syncing status limit is not set, or set to a value less than 2 or
+	// set to a value greater than 5,000. 5,000 is the max value that can be set by the user
+	// in dcrdata.conf file. It could also be displayed if the blocks behind the current
+	// height are more than the set status limit. On initial dcrdata startup syncing should
+	// be displayed by default. (the tables should have a minimum height of 1000)
+	switch {
+	case height < 1000 || wireDBheight < 1000:
+		explore.SyncStatus = true
+
+	case cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000:
+		explore.SyncStatus = true
+
+	case uint64(blocksBehind) > cfg.SyncStatusLimit:
+		explore.SyncStatus = true
+	}
+
 	// Start web API
 	app := api.NewContext(dcrdClient, activeChain, &baseDB, auxDB, cfg.IndentJSON)
 	// Start notification hander to keep /status up-to-date
 	wg.Add(1)
 	go app.StatusNtfnHandler(&wg, quit)
 	// Initial setting of db_height. Subsequently, Store() will send this.
-	notify.NtfnChans.UpdateStatusDBHeight <- uint32(baseDB.GetHeight())
+	notify.NtfnChans.UpdateStatusDBHeight <- uint32(wireDBheight)
 
 	apiMux := api.NewAPIRouter(app, cfg.UseRealIP)
 
 	webMux := chi.NewRouter()
+	webMux.Use(explore.SyncStatusPageActivation)
 	webMux.Get("/", explore.Home)
 	webMux.Get("/nexthome", explore.NextHome)
 	webMux.Get("/ws", explore.RootWebsocket)
@@ -563,6 +525,7 @@ func mainCore() error {
 	FileServer(webMux, "/css", http.Dir("./public/css"), cacheControlMaxAge)
 	FileServer(webMux, "/fonts", http.Dir("./public/fonts"), cacheControlMaxAge)
 	FileServer(webMux, "/images", http.Dir("./public/images"), cacheControlMaxAge)
+
 	webMux.NotFound(explore.NotFound)
 	webMux.Mount("/api", apiMux.Mux)
 
@@ -605,6 +568,76 @@ func mainCore() error {
 		log.Criticalf("listenAndServeProto: %v", err)
 		close(quit)
 	}
+
+	log.Infof("Starting blockchain sync... %v", cfg.HTTPProfPath)
+
+	// Sync up with the blockchain after the web server has loaded.
+	getSyncd := func(updateAddys, updateVotes, newPGInds bool,
+		fetchHeight int64) (int64, int64, error) {
+		// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
+		// info DB (sqlite). Results are returned over channels:
+		sqliteSyncRes := make(chan dbtypes.SyncResult)
+		pgSyncRes := make(chan dbtypes.SyncResult)
+
+		// Synchronization between DBs via rpcutils.BlockGate
+		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
+
+		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them, but
+		// it has to get a notification channel first to receive them. The BlockGate
+		// will provide this for blocks after fetchHeight.
+		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeight)
+
+		// Now that stakedb is either catching up or waiting for a block, start the
+		// auxDB sync, which is the master block getter, retrieving and making
+		// available blocks to the baseDB. In return, baseDB maintains a
+		// StakeDatabase at the best block's height.
+		go auxDB.SyncChainDBAsync(pgSyncRes, smartClient, quit,
+			updateAddys, updateVotes, newPGInds)
+
+		// Wait for the results
+		return waitForSync(sqliteSyncRes, pgSyncRes, usePG, quit)
+	}
+
+	baseDBHeight, auxDBHeight, err := getSyncd(updateAllAddresses,
+		updateAllVotes, newPGIndexes, fetchToHeight)
+	if err != nil {
+		return err
+	}
+
+	if usePG {
+		// After sync and indexing, must use upsert statement, which checks for
+		// duplicate entries and updates instead of erroring. SyncChainDB should set
+		// this on successful sync, but do it again anyway.
+		auxDB.EnableDuplicateCheckOnInsert(true)
+	}
+
+	// The sync routines may have lengthy tasks, such as table indexing, that
+	// follow main sync loop. Before enabling the chain monitors, ensure the DBs
+	// are at the node's best block.
+	updateAllAddresses, updateAllVotes, newPGIndexes = false, false, false
+	_, height, err = dcrdClient.GetBestBlock()
+	if err != nil {
+		return fmt.Errorf("unable to get block from node: %v", err)
+	}
+
+	for baseDBHeight < height {
+		fetchToHeight = auxDBHeight + 1
+		baseDBHeight, _, err = getSyncd(updateAllAddresses, updateAllVotes,
+			newPGIndexes, fetchToHeight)
+		if err != nil {
+			return err
+		}
+		_, height, err = dcrdClient.GetBestBlock()
+		if err != nil {
+			return fmt.Errorf("unable to get block from node: %v", err)
+		}
+	}
+
+	log.Infof("All ready, at height %d.", baseDBHeight)
+
+	// Deactivate displaying the sync status page after the db sync was
+	// completed successfully.
+	explore.SyncStatus = false
 
 	// Wait for notification handlers to quit
 	wg.Wait()

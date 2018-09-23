@@ -139,6 +139,7 @@ type explorerUI struct {
 	explorerSource  explorerDataSource
 	liteMode        bool
 	devPrefetch     bool
+	SyncStatus      bool // if blockchain sync status page is activated or not.
 	templates       templates
 	wsHub           *WebsocketHub
 	NewBlockDataMtx sync.RWMutex

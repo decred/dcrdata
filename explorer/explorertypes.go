@@ -26,6 +26,7 @@ const (
 	NotSupportedStatusType   statusType = "Not Supported"
 	NotImplementedStatusType statusType = "Not Implemented"
 	DeprecatedStatusType     statusType = "Deprecated"
+	BlockchainSyncingType    statusType = "Blocks Syncing"
 )
 
 // BlockBasic models data for the explorer's explorer page

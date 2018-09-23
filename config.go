@@ -104,7 +104,8 @@ type config struct {
 	PGPass        string `long:"pgpass" description:"PostgreSQL DB password."`
 	PGHost        string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)."`
 	NoDevPrefetch bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected."`
-	SyncAndQuit   bool   `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API."`
+
+	SyncStatusLimit uint64 `long:"sync-status-limit" description:"Defines the threshold past which only the syncing status page can be served on the running web server. If not set it defaults to 2."`
 
 	// WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
 	// SMTPUser     string `long:"smtpuser" description:"SMTP user name"`

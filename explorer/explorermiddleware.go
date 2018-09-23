@@ -66,6 +66,22 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
+// SyncStatusPageActivation serves only  the syncing status page till its
+// deactivated. This page is served for all the possible routes supported till
+// background syncing is done.
+func (exp *explorerUI) SyncStatusPageActivation(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if exp.SyncStatus {
+			exp.StatusPage(w, "Database Update Running. Please Wait...",
+				"blockchain syncing is running", BlockchainSyncingType)
+			return
+		} else {
+			// Pass the token to the next middleware handler
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
 func getBlockHashCtx(r *http.Request) string {
 	hash, ok := r.Context().Value(ctxBlockHash).(string)
 	if !ok {
