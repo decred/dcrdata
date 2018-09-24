@@ -231,6 +231,9 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					enc.Encode(clientData.newTxs)
 					clientData.RUnlock()
 					webData.Message = buff.String()
+				case sigSyncStatus:
+					enc.Encode(dbtypes.SyncStatus())
+					webData.Message = buff.String()
 				}
 
 				ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))

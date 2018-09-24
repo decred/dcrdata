@@ -103,6 +103,8 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		db.EnableDuplicateCheckOnInsert(true)
 	}
 
+	var timeStart time.Time
+
 	// Start rebuilding
 	startHeight := lastBlock + 1
 	for ib := startHeight; ib <= nodeHeight; ib++ {
@@ -123,6 +125,14 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 					endRangeBlock = nodeHeight
 				}
 				log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
+
+				// fullMode is definately running so no need to check.
+				timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
+				timeToComplete := int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock))
+
+				dbtypes.SyncStatusUpdate(ib, nodeHeight, timeToComplete, "initial-load", "")
+
+				timeStart = time.Now()
 			}
 		}
 		select {

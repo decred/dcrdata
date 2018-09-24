@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/decred/dcrdata/v3/db/dbtypes/internal"
 )
@@ -90,6 +91,11 @@ const (
 	DayChartGrouping
 	UnknownGrouping
 )
+
+// blockchainSyncStatus defines the status update displayed on the syncing status page
+// when new blocks are being appended into the db. The use of a map allows displaying
+// multiple progress bars depending on the specific sync types expected to run successfully.
+var blockchainSyncStatus = new(syncStatus)
 
 // ChartGroupings helps maping a given chart grouping to its standard string value.
 var ChartGroupings = map[ChartGrouping]string{
@@ -548,4 +554,55 @@ type BlockStatus struct {
 	PrevHash    string `json:"previous_hash"`
 	Hash        string `json:"hash"`
 	NextHash    string `json:"next_hash"`
+}
+
+// syncStatus makes it possible to update the user on the progress of the
+// blockchain db syncing that is running in the background after new blocks
+// were detected.
+type syncStatus struct {
+	sync.RWMutex
+	Update map[string]*SyncStatusInfo
+}
+
+// SyncStatusInfo defines information for a single update type.
+type SyncStatusInfo struct {
+	From       int64
+	To         int64
+	Msg        string // used to display notifications about the background process
+	Time       int64  // defines estimated time to completing the sync
+	UpdateType string
+}
+
+// SyncStatusUpdate defines a thread-safe way to update the sync status updates.
+func SyncStatusUpdate(from, to, timeToComplete int64, updateType, msg string) {
+	blockchainSyncStatus.Lock()
+	defer blockchainSyncStatus.Unlock()
+	val := &SyncStatusInfo{
+		From:       from,
+		To:         to,
+		Msg:        msg,
+		Time:       timeToComplete,
+		UpdateType: updateType,
+	}
+
+	if len(blockchainSyncStatus.Update) == 0 {
+		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{
+			updateType: val,
+		}
+	} else {
+		blockchainSyncStatus.Update[updateType] = val
+	}
+}
+
+// SyncStatus defines a thread-safe way to read the sync status updates
+func SyncStatus() []*SyncStatusInfo {
+	blockchainSyncStatus.RLock()
+	defer blockchainSyncStatus.RUnlock()
+
+	updates := make([]*SyncStatusInfo, 0)
+	for _, v := range blockchainSyncStatus.Update {
+		updates = append(updates, v)
+	}
+
+	return updates
 }

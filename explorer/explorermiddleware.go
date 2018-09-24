@@ -73,7 +73,7 @@ func (exp *explorerUI) SyncStatusPageActivation(next http.Handler) http.Handler 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp.SyncStatus {
 			exp.StatusPage(w, "Database Update Running. Please Wait...",
-				"blockchain syncing is running", BlockchainSyncingType)
+				"Blockchain sync is running. Please wait ...", BlockchainSyncingType)
 			return
 		} else {
 			// Pass the token to the next middleware handler

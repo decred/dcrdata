@@ -151,7 +151,7 @@ func mainCore() error {
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
 	baseDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
-		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir)
+		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir, !usePG)
 	defer cleanupDB()
 	if err != nil {
 		return fmt.Errorf("Unable to initialize SQLite database: %v", err)
@@ -207,7 +207,7 @@ func mainCore() error {
 		}
 	}
 
-	_, height, err := dcrdClient.GetBestBlock()
+	blockHash, height, err := dcrdClient.GetBestBlock()
 	if err != nil {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
@@ -247,17 +247,32 @@ func mainCore() error {
 			if err != nil {
 				return fmt.Errorf("RewindStakeDB failed: %v", err)
 			}
-			if stakedbHeight != lastBlockPG {
+			// stakedbHeight is always rewinded to height of zero even when lastBlockPG is -1
+			if stakedbHeight != lastBlockPG && stakedbHeight > 0 {
 				return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d",
 					stakedbHeight, lastBlockPG)
 			}
 		}
 
+		block, err := dcrdClient.GetBlockHeader(blockHash)
+		if err != nil {
+			return fmt.Errorf("unable to fetch the block from the node: %v", err)
+		}
+
+		// If one block takes on average 5 minutes to mine, calculate the new
+		// blocks that can be mined in the elaspedTime.
+		elapsedTime := time.Since(block.Timestamp).Minutes()
+		expectedHeight := int64(elapsedTime / 5)
+
+		if height > expectedHeight {
+			expectedHeight = height
+		}
+
 		// How far auxDB is behind the node
-		blocksBehind = height - lastBlockPG
+		blocksBehind = expectedHeight - lastBlockPG
 		if blocksBehind < 0 {
 			return fmt.Errorf("Node is still syncing. Node height = %d, "+
-				"DB height = %d", height, heightDB)
+				"DB height = %d", expectedHeight, heightDB)
 		}
 		if blocksBehind > 7500 {
 			log.Warnf("Setting PSQL sync to rebuild address table after large "+
@@ -334,6 +349,32 @@ func mainCore() error {
 	defer explore.StopWebsocketHub()
 	defer explore.StopMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
+	wireDBheight := baseDB.GetHeight() // sqlite base db
+
+	var auxDBheight int
+	if usePG {
+		auxDBheight = auxDB.GetHeight() // pg db
+	}
+
+	// The blockchain syncing status page should be displayed; if the following
+	// conditions are met fully; Syncing status limit is not set, or set to a
+	// value less than 2 or set to a value greater than 5,000. 5,000 is the max
+	// value that can be set by the user in dcrdata.conf file as "sync-status-limit".
+	// It could also be displayed if the blocks behind the current height are
+	// more than the set status limit. On initial dcrdata startup syncing should
+	// be displayed by default. (If the height is less than 40,000, initial
+	// startup must have been run)
+	switch {
+	case (usePG && auxDBheight < 40000) || wireDBheight < 40000: //on initial system start up
+		explore.SyncStatus = true
+
+	case cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000: // incorrect value set
+		explore.SyncStatus = true
+
+	case uint64(blocksBehind) > cfg.SyncStatusLimit: // more blocks are behind the set sync status user value
+		explore.SyncStatus = true
+	}
+
 	blockDataSavers = append(blockDataSavers, explore)
 
 	// Register for notifications from dcrd
@@ -398,23 +439,29 @@ func mainCore() error {
 
 	// Initial data summary for web ui. stakedb must be at the same height, so
 	// we get do this before starting the monitors.
-	blockData, msgBlock, err := collector.Collect()
-	if err != nil {
-		return fmt.Errorf("Block data collection for initial summary failed: %v",
-			err.Error())
-	}
-	if err = explore.Store(blockData, msgBlock); err != nil {
-		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
-	}
+	collectDataSummary := func() error {
+		blockData, msgBlock, err := collector.Collect()
+		if err != nil {
+			return fmt.Errorf("Block data collection for initial summary failed: %v",
+				err.Error())
+		}
+		if err = explore.Store(blockData, msgBlock); err != nil {
+			return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
+		}
 
-	// Allow Ctrl-C to halt startup
-	select {
-	case <-quit:
+		explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 		return nil
-	default:
 	}
 
-	explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
+	// do not collect the data summary if the sync status page has been activated.
+	if !explore.SyncStatus {
+		if err := collectDataSummary(); err != nil {
+			return err
+		}
+	} else {
+		// Initiate the sync status monitor
+		explore.StartSyncingStatusMonitor()
+	}
 
 	// blockdata collector
 	wg.Add(2)
@@ -481,25 +528,6 @@ func mainCore() error {
 	case <-quit:
 		return nil
 	default:
-	}
-
-	wireDBheight := baseDB.GetHeight()
-
-	// The blockchain syncing status page should be displayed, if the following conditions
-	// are met fully; Syncing status limit is not set, or set to a value less than 2 or
-	// set to a value greater than 5,000. 5,000 is the max value that can be set by the user
-	// in dcrdata.conf file. It could also be displayed if the blocks behind the current
-	// height are more than the set status limit. On initial dcrdata startup syncing should
-	// be displayed by default. (the tables should have a minimum height of 1000)
-	switch {
-	case height < 1000 || wireDBheight < 1000:
-		explore.SyncStatus = true
-
-	case cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000:
-		explore.SyncStatus = true
-
-	case uint64(blocksBehind) > cfg.SyncStatusLimit:
-		explore.SyncStatus = true
 	}
 
 	// Start web API
@@ -638,6 +666,13 @@ func mainCore() error {
 	}
 
 	log.Infof("All ready, at height %d.", baseDBHeight)
+
+	// collect the data now it it was not collected earlier
+	if explore.SyncStatus {
+		if err := collectDataSummary(); err != nil {
+			return err
+		}
+	}
 
 	// Deactivate displaying the sync status page after the db sync was
 	// completed successfully.

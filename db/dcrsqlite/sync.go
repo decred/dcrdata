@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/rpcutils"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
@@ -157,6 +158,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	// the next block in line.
 	var bypassWaitChan bool
 
+	var timeStart time.Time
+
 	for i := startHeight; i <= height; i++ {
 		// check for quit signal
 		select {
@@ -237,6 +240,16 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 				}
 				log.Infof("Scanning blocks %d to %d (%d live)...",
 					i, endRangeBlock, numLive)
+
+				// if liteMode is running, update the blockchain sync status.
+				if db.liteMode {
+					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
+					timeToComplete := int64(timeTakenPerBlock * float64(height-endRangeBlock))
+
+					dbtypes.SyncStatusUpdate(i, height, timeToComplete, "initial-load", "")
+
+					timeStart = time.Now()
+				}
 			}
 		}
 

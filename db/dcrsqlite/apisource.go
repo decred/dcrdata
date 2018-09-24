@@ -40,15 +40,17 @@ type wiredDB struct {
 	params   *chaincfg.Params
 	sDB      *stakedb.StakeDatabase
 	waitChan chan chainhash.Hash
+	liteMode bool
 }
 
 func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string) (wiredDB, func() error) {
+	p *chaincfg.Params, datadir string, isLiteMode bool) (wiredDB, func() error) {
 	wDB := wiredDB{
 		DBDataSaver: &DBDataSaver{DB, statusC},
 		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
 		params:      p,
+		liteMode:    isLiteMode,
 	}
 
 	var err error
@@ -75,14 +77,14 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
 func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string) (wiredDB, func() error, error) {
+	p *chaincfg.Params, datadir string, isLiteMode bool) (wiredDB, func() error, error) {
 	// Create the sqlite.DB
 	DB, err := NewDB(db)
 	if err != nil || DB == nil {
 		return wiredDB{}, func() error { return nil }, err
 	}
 	// Create the wiredDB
-	wDB, cleanup := newWiredDB(DB, statusC, cl, p, datadir)
+	wDB, cleanup := newWiredDB(DB, statusC, cl, p, datadir, isLiteMode)
 	if wDB.sDB == nil {
 		err = fmt.Errorf("failed to create StakeDatabase")
 	}
@@ -92,13 +94,13 @@ func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
 // InitWiredDB creates a new wiredDB from a file containing the data for a
 // sql.DB. The other parameters are same as those for NewWiredDB.
 func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string) (wiredDB, func() error, error) {
+	p *chaincfg.Params, datadir string, isLiteMode bool) (wiredDB, func() error, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
 		return wiredDB{}, func() error { return nil }, err
 	}
 
-	wDB, cleanup := newWiredDB(db, statusC, cl, p, datadir)
+	wDB, cleanup := newWiredDB(db, statusC, cl, p, datadir, isLiteMode)
 	if wDB.sDB == nil {
 		err = fmt.Errorf("failed to create StakeDatabase")
 	}

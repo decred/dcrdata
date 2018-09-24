@@ -32,6 +32,7 @@ import (
 const (
 	maxExplorerRows              = 400
 	minExplorerRows              = 20
+	syncStatusInterval           = 10 * time.Second
 	defaultAddressRows     int64 = 20
 	MaxAddressRows         int64 = 1000
 	MaxUnconfirmedPossible int64 = 1000
@@ -250,7 +251,9 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
-	if !exp.liteMode {
+	// Do not fetch charts updates when on liteMode or when blockchain syncing
+	// is running in the background.
+	if !exp.liteMode && !exp.SyncStatus {
 		exp.prePopulateChartsData()
 	}
 
@@ -261,6 +264,36 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	go exp.wsHub.run()
 
 	return exp
+}
+
+// RetrieveUpdates retrieves all the updates that could not be fetched because
+// sync status update was running in the background.
+func (exp *explorerUI) RetrieveUpdates() {
+	if !exp.liteMode {
+		exp.prePopulateChartsData()
+	}
+
+}
+
+// StartSyncingStatusMonitor fires up the sync status monitor. It signals the
+// websocket to check for updates after syncStatusInterval.
+func (exp *explorerUI) StartSyncingStatusMonitor() {
+	stop := make(chan bool)
+	go func() {
+		timer := time.NewTicker(syncStatusInterval)
+		for {
+			select {
+			case <-timer.C:
+				if !exp.SyncStatus {
+					stop <- exp.SyncStatus
+				}
+				exp.wsHub.HubRelay <- sigSyncStatus
+
+			case <-stop:
+				timer.Stop()
+			}
+		}
+	}()
 }
 
 // Height returns the height of the current block data.
@@ -308,7 +341,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Update the charts data after every five blocks or if no charts data
 	// exists yet.
-	if !exp.liteMode && bData.Height%5 == 0 || len(cacheChartsData.Data) == 0 {
+	if !exp.liteMode && bData.Height%5 == 0 || len(cacheChartsData.Data) == 0 || !exp.SyncStatus {
 		go exp.prePopulateChartsData()
 	}
 
