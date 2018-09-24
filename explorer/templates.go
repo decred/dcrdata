@@ -117,6 +117,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"subtract": func(a int64, b int64) int64 {
 			return a - b
 		},
+		"floatsubtract": func(a float64, b float64) float64 {
+			return a - b
+		},
 		"divide": func(n int64, d int64) int64 {
 			return n / d
 		},
