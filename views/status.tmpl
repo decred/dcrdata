@@ -15,6 +15,18 @@
                 <h5>{{.Message}}</h5>
             {{end}}
         </div>
+        {{if eq .StatusType "Blocks Syncing"}}
+        <div class="progress" style="height:30px;">
+            <div
+                class="progress-bar"
+                id="sync-window-progess-bar"
+                role="progressbar"
+                style="height:auto; width:30%;"
+            >
+            <span class="nowrap pl-1">block <span id="window_block_index" >30% (remaining 2hr 30min 12sec)</span>
+            </div>
+        </div>
+        {{end}}
     </div>
 {{ template "footer" . }}
 </body>

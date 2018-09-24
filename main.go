@@ -514,8 +514,10 @@ func mainCore() error {
 
 	webMux := chi.NewRouter()
 	webMux.Use(explore.SyncStatusPageActivation)
-	webMux.Get("/", explore.Home)
-	webMux.Get("/nexthome", explore.NextHome)
+	webMux.With(explore.SyncStatusPageActivation).Group(func(r chi.Router) {
+		r.Get("/", explore.Home)
+		r.Get("/nexthome", explore.NextHome)
+	})
 	webMux.Get("/ws", explore.RootWebsocket)
 	webMux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./public/images/favicon.ico")
@@ -526,50 +528,52 @@ func mainCore() error {
 	FileServer(webMux, "/fonts", http.Dir("./public/fonts"), cacheControlMaxAge)
 	FileServer(webMux, "/images", http.Dir("./public/images"), cacheControlMaxAge)
 
-	webMux.NotFound(explore.NotFound)
-	webMux.Mount("/api", apiMux.Mux)
+	webMux.With(explore.SyncStatusPageActivation).Group(func(r chi.Router) {
+		r.NotFound(explore.NotFound)
+		r.Mount("/api", apiMux.Mux)
 
-	webMux.Mount("/explorer", explore.Mux)
-	webMux.Get("/blocks", explore.Blocks)
-	webMux.Get("/side", explore.SideChains)
-	webMux.Get("/mempool", explore.Mempool)
-	webMux.Get("/parameters", explore.ParametersPage)
-	webMux.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
-	webMux.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)
-	webMux.With(explorer.TransactionHashCtx, explorer.TransactionIoIndexCtx).Get("/tx/{txid}/{inout}/{inoutid}", explore.TxPage)
-	webMux.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)
-	webMux.Get("/agendas", explore.AgendasPage)
-	webMux.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)
-	webMux.Get("/decodetx", explore.DecodeTxPage)
-	webMux.Get("/search", explore.Search)
-	webMux.Get("/charts", explore.Charts)
-	webMux.Get("/ticketpool", explore.Ticketpool)
+		r.Mount("/explorer", explore.Mux)
+		r.Get("/blocks", explore.Blocks)
+		r.Get("/side", explore.SideChains)
+		r.Get("/mempool", explore.Mempool)
+		r.Get("/parameters", explore.ParametersPage)
+		r.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
+		r.With(explorer.TransactionHashCtx).Get("/tx/{txid}", explore.TxPage)
+		r.With(explorer.TransactionHashCtx, explorer.TransactionIoIndexCtx).Get("/tx/{txid}/{inout}/{inoutid}", explore.TxPage)
+		r.With(explorer.AddressPathCtx).Get("/address/{address}", explore.AddressPage)
+		r.Get("/agendas", explore.AgendasPage)
+		r.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)
+		r.Get("/decodetx", explore.DecodeTxPage)
+		r.Get("/search", explore.Search)
+		r.Get("/charts", explore.Charts)
+		r.Get("/ticketpool", explore.Ticketpool)
 
-	if usePG {
-		insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
-		insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
-		webMux.Mount("/insight/api", insightMux.Mux)
+		if usePG {
+			insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
+			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
+			r.Mount("/insight/api", insightMux.Mux)
 
-		if insightSocketServer != nil {
-			webMux.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
+			if insightSocketServer != nil {
+				r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
+			}
 		}
-	}
 
-	// HTTP profiler
-	if cfg.HTTPProfile {
-		profPath := cfg.HTTPProfPath
-		log.Warnf("Starting the HTTP profiler on path %s.", profPath)
-		// http pprof uses http.DefaultServeMux
-		http.Handle("/", http.RedirectHandler(profPath+"/debug/pprof/", http.StatusSeeOther))
-		webMux.Mount(profPath, http.StripPrefix(profPath, http.DefaultServeMux))
-	}
+		// HTTP profiler
+		if cfg.HTTPProfile {
+			profPath := cfg.HTTPProfPath
+			log.Warnf("Starting the HTTP profiler on path %s.", profPath)
+			// http pprof uses http.DefaultServeMux
+			http.Handle("/", http.RedirectHandler(profPath+"/debug/pprof/", http.StatusSeeOther))
+			r.Mount(profPath, http.StripPrefix(profPath, http.DefaultServeMux))
+		}
+	})
 
 	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
 		log.Criticalf("listenAndServeProto: %v", err)
 		close(quit)
 	}
 
-	log.Infof("Starting blockchain sync... %v", cfg.HTTPProfPath)
+	log.Infof("Starting blockchain sync...")
 
 	// Sync up with the blockchain after the web server has loaded.
 	getSyncd := func(updateAddys, updateVotes, newPGInds bool,

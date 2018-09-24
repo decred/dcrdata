@@ -116,7 +116,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 
 		if (ib-1)%rescanLogBlockChunk == 0 || ib == startHeight {
 			if ib == 0 {
-				log.Infof("Scanning genesis block.")
+				log.Infof("Scanning genesis block into auxiliary chain db.")
 			} else {
 				endRangeBlock := rescanLogBlockChunk * (1 + (ib-1)/rescanLogBlockChunk)
 				if endRangeBlock > nodeHeight {
