@@ -9,10 +9,10 @@
         <div class="container">
             <div class="row">
                 <div style="width: 20%" class="col">
-                    <h5 class="mb-2 stat-headers">Network Statistics</h5>
+                    <h5 class="mb-2 stat-headers">Network Stats</h5>
                     <div class="card">
-                        <div class="card-header">Total Supply</div>
-                        <div class="card-body">
+                        <div class="card-header network-statistics">Total Supply</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .TotalSupply true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
@@ -23,26 +23,26 @@
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header">Project Fund</div>
-                        <div class="card-body">
+                        <div class="card-header network-statistics">Project Fund</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data">{{ template "decimalParts" (amountAsDecimalParts .ProjectFunds true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             </br>
-                            <span class="stat-link"><a href="/address/{{.ProjectAddress}}">Show Address</a></span>
+                            <span class="stat-link"><a href="/address/{{.ProjectAddress}}">show address</a></span>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header">Proof-Of-Work Difficulty</div>
-                        <div class="card-body">
-                            <span class="stat-data">{{template "decimalParts" (float64AsDecimalParts .PoWDiff 8 true)}}</span>
+                        <div class="card-header network-statistics">Proof-of-Work Difficulty</div>
+                        <div class="card-body card-body-padding-top">
+                            <span class="stat-data">{{template "decimalParts" (float64AsDecimalParts .PoWDiff 0 true)}}</span>
                             </br>
-                            <span class="stat-link"><a href="/charts">Show Chart</a></span>
+                            <span class="stat-link"><a href="/charts">show chart</a></span>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header">Hash Rate</div>
-                        <div class="card-body">
+                        <div class="card-header network-statistics">Hash Rate</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data">{{printf "%.2f" .HashRate}}</span>
                         </br>
                         <span class="stat-details">PHash/s</span>
@@ -53,8 +53,8 @@
                 <div style="width: 20%" class="col">
                     <h5 class="mb-2 stat-headers">Block Rewards</h5>
                     <div width="45%" class="card">
-                        <div class="card-header">Block Reward Adjustment</div>
-                        <div class="card-body" style="width: 100%;">
+                        <div class="card-header block-rewards">Block Reward Adjustment</div>
+                        <div class="card-body card-body-padding-top" style="width: 100%;">
                             <div class="row">
                                 <div style="margin: auto" class="col-11 col-lg-8">
                                     <div class="progress" style="max-width: 330px">
@@ -72,32 +72,33 @@
                                 </div>
                             </div>
                             </br>
-                        <span class="stat-details">{{.IdxInRewardWindow}} of {{.RewardWindowSize}} ({{remaining .IdxInRewardWindow .RewardWindowSize .BlockTime}})</span>
+                        <span class="stat-details">block {{.IdxInRewardWindow}} of {{.RewardWindowSize}}<br />
+                           ({{remaining .IdxInRewardWindow .RewardWindowSize .BlockTime}})</span>
                         </br>
-                        <span class="stat-details">Curent Block Reward: {{template "decimalParts" (amountAsDecimalParts .BlockReward true)}}</span>
+                        <span class="stat-details">Curent {{template "decimalParts" (amountAsDecimalParts .BlockReward true)}} DCR</span>
                         </br>
-                        <span class="stat-details">Next Block Reward: {{template "decimalParts" (amountAsDecimalParts .NextBlockReward true)}}</span>
+                        <span class="stat-details">Next {{template "decimalParts" (amountAsDecimalParts .NextBlockReward true)}} DCR</span>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header">Block Reward</div>
-                        <div class="card-body">
+                        <div class="card-header block-rewards" style="padding-left:6px">Block Reward</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .BlockReward true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header">Proof-Of-Work Reward</div>
-                        <div class="card-body">
+                        <div class="card-header block-rewards">Proof-Of-Work Reward</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .PoWReward true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header">Project Fund Subsidy</div>
-                        <div class="card-body">
+                        <div class="card-header block-rewards">Project Fund Subsidy</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .ProjectFundReward true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
@@ -106,49 +107,50 @@
                 </div>
 
                 <div class="col-6" style="width: 50%;">
-                    <h5 class="mb-2 stat-headers">Proof-Of-Stake Statistics</h5>
+                    <h5 class="mb-2 stat-headers">Proof-of-Stake Stats</h5>
                     <div width="45%" class="card">
-                        <div class="card-header">Votes In Mempool</div>
-                        <div class="card-body">
+                        <div class="card-header proof-of-stake">Votes In Mempool</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data" id="bsubsidy_total">{{.VotesInMempool}}</span>
                             </br>
                                 <span class="stat-details unit">Vote{{if gt .VotesInMempool 1}}s{{end}}</span>
                         </div>
                     </div>
                     <div width="45%" class="card">
-                        <div class="card-header">Tickets In Mempool</div>
-                        <div class="card-body">
+                        <div class="card-header proof-of-stake">Tickets In Mempool</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data" id="bsubsidy_total">{{.TicketsInMempool}}</span>
                             </br>
                             <span class="stat-details unit">Ticket{{if gt .TicketsInMempool 1}}s{{end}}</span>
                         </div>
                     </div>
                     <div width="45%" class="card">
-                        <div class="card-header">Ticket Price</div>
-                        <div class="card-body">
+                        <div class="card-header proof-of-stake">Ticket Price</div>
+                        <div class="card-body card-body-padding-top">
                             <span  class="stat-data" id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts .TicketPrice 8 false)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                         </div>
                     </div>
                     <div width="45%" class="card">
-                        <div class="card-header">Ticket ROI</div>
-                        <div class="card-body">
+                        <div class="card-header proof-of-stake">Ticket ROI</div>
+                        <div class="card-body card-body-padding-top">
                             <span  class="stat-data" id="bsubsidy_total">+{{printf "%.2f" .TicketsROI}}%</span>
                             </br>
                             <span class="stat-details">per ~{{.RewardPeriod}}</span>
+                            </br>
                             <span class="stat-details" title="Annual Stake Rewards">({{printf "%.2f" .ASR}}% / year)</span>
                         </div>
                     </div>
                     <div width="45%" class="card">
-                        <div class="card-header">Ticket Pool Size</div>
-                        <div class="card-body">
+                        <div class="card-header proof-of-stake">Ticket Pool Size</div>
+                        <div class="card-body card-body-padding-top">
                             <span  class="stat-data" id="bsubsidy_total">{{.TicketPoolSize}}</span>
                         </div>
                     </div>
                     <div width="45%" class="card">
-                        <div class="card-header">Ticket Pool Value</div>
-                        <div class="card-body">
+                        <div class="card-header proof-of-stake">Ticket Pool Value</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data" id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts  .TicketPoolValue 8 true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
@@ -157,16 +159,16 @@
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header">Proof-Of-Stake Reward</div>
-                        <div class="card-body">
+                        <div class="card-header proof-of-stake">Proof-Of-Stake Reward</div>
+                        <div class="card-body card-body-padding-top">
                             <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts ( divide .PoSReward 5) true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR per ticket</span>
                         </div>
                     </div>
                     <div width="45%" class="card">
-                        <div class="card-header">Ticket Window Progress</div>
-                        <div class="card-body" style="width: 100%;">
+                        <div class="card-header proof-of-stake">Ticket Window Adjustment</div>
+                        <div class="card-body card-body-padding-top" style="width: 100%;">
                             <div class="row">
                                 <div style="margin: auto" class="col-11 col-lg-8">
                                     <div class="progress">
@@ -184,7 +186,8 @@
                                 </div>
                             </div>
                             </br>
-                            <span class="stat-details">{{.IdxBlockInWindow}} of {{.WindowSize}} ({{remaining .IdxBlockInWindow .WindowSize .BlockTime}})</span>
+                            <span class="stat-details">{{.IdxBlockInWindow}} of {{.WindowSize}}</br>
+                              ({{remaining .IdxBlockInWindow .WindowSize .BlockTime}})</span>
                             </br>
                             <span class="stat-details">Curent Ticket Price: {{template "decimalParts" (float64AsDecimalParts .TicketPrice 8 false)}}</span>
                             </br>

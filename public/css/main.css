@@ -993,6 +993,18 @@ body.darkBG .keynav-target {
   font-size: 25px;
 }
 .stat-details{
-  color: #C4CBD2;
+  color: #96A0A9;
   font-size: 14px;
+}
+.card-body-padding-top {
+  padding-top: 2.3em;
+}
+.block-rewards {
+  background-color: #A1C6E7;
+}
+.proof-of-stake {
+  background-color: #E7C1A1;
+}
+.network-statistics {
+  background-color: #A1E7D9
 }
