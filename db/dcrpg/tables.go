@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -40,7 +41,7 @@ var createTypeStatements = map[string]string{
 const (
 	tableMajor = 3
 	tableMinor = 5
-	tablePatch = 3
+	tablePatch = 4
 )
 
 // TODO eliminiate this map since we're actually versioning each table the same.

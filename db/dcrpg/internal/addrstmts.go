@@ -8,7 +8,8 @@ const (
 	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
 
 	UpsertAddressRow = insertAddressRow0 + `ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE
-		SET block_time = $7, valid_mainchain = $9 RETURNING id;`
+		SET matching_tx_hash = $2, tx_hash = $3, tx_vin_vout_index = $4,
+		block_time = $7, valid_mainchain = $9 RETURNING id;`
 	InsertAddressRowReturnID = `WITH inserting AS (` +
 		insertAddressRow0 +
 		`ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE
@@ -181,6 +182,18 @@ const (
 			WHERE invalid_ids.valid_mainchain=true
 		) AS incorrectly_valid
 		WHERE incorrectly_valid.id=addresses.id;`
+
+	// UpdateAddressesFundingMatchingHash sets matching_tx_hash as per the vins
+	// table. This is needed to fix partially updated addresses table entries
+	// that were affected by stake invalidation.
+	UpdateAddressesFundingMatchingHash = `UPDATE addresses SET matching_tx_hash=vins.tx_hash -- , matching_tx_index=vins.tx_index
+		FROM vins
+		WHERE addresses.tx_hash=vins.prev_tx_hash
+		AND addresses.tx_vin_vout_index=vins.prev_tx_index
+		AND is_funding=TRUE
+		AND is_valid=TRUE
+		AND matching_tx_hash!=vins.tx_hash;`
+	// AND (matching_tx_hash!=vins.tx_hash OR matching_tx_index!=vins.tx_index);`
 
 	// UpdateValidMainchainFromTransactions sets valid_mainchain in all rows of
 	// the addresses table according to the transactions table, unlike
