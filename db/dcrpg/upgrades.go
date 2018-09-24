@@ -770,9 +770,9 @@ func updateAddressesValidMainchainPatch(db *sql.DB) (rowsUpdated int64, err erro
 		"failed to update addresses rows valid_mainchain status")
 }
 
-// updateAddressesMatchingTxHashPatch selectively sets matching_tx_hash and
-// matching_tx_index for addresses table rows that are set incorrectly according
-// to their corresponding transaction.
+// updateAddressesMatchingTxHashPatch selectively sets matching_tx_hash for
+// addresses table rows that are set incorrectly according to their
+// corresponding transaction.
 func updateAddressesMatchingTxHashPatch(db *sql.DB) (rowsUpdated int64, err error) {
 	return sqlExec(db, internal.UpdateAddressesFundingMatchingHash,
 		"failed to update addresses rows matching_tx_hash")
