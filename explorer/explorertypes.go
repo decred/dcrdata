@@ -553,11 +553,12 @@ type StatsInfo struct {
 	TicketPrice                float64
 	NextEstimatedTicketPrice   float64
 	TicketPoolSize             uint32
+	TicketPoolSizePerToTarget  float64
 	TicketPoolValue            float64
 	TPVOfTotalSupplyPeecentage float64
 	TicketsROI                 float64
 	RewardPeriod               string
-	ASR                        float64
+	APR                        float64
 	IdxBlockInWindow           int
 	WindowSize                 int64
 	BlockTime                  int64
