@@ -573,8 +573,6 @@ The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP 
 
 To call the REST API, use the `/insight/api` path prefix. To call the Websocket API, use the `/insight/socket.io` path prefix.
 
-The following endpoints are not implemented: `status`, `sync`, `peer`, `email`,
-and `rates`.
 
 #### Endpoint List
 
