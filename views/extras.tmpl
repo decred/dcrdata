@@ -47,20 +47,19 @@
 <div class="top-nav">
     <div class="container">
         <div class="logo">
-            <a class="no-underline" href="/"><img src="/images/logo-2018.svg" alt="dcr-icon" style="width:100px;"></a>
+            <a class="no-underline" href="/"><img src="/images/logo-2018.svg" alt="dcr-icon"></a>
         </div>
         <div class="right">
-            <div class="searchbox">
-                <form class="navbar-form" role="search" id="search-form" action="/search">
+            <div class="searchbox full">
+                <form class="navbar-form" role="search" id="search-form" action="/search" style="display: flex;">
                     <img class="img-size" src="/images/search.svg" alt="search-icon">
                     <input
                         tabindex="0"
                         type="text"
-                        class="hide"
                         name="search"
                         id="search"
-                        class="form-control top-search mousetrap"
                         placeholder="Search for blocks, addresses or transactions"
+                        autofocus="true"
                     />
                 </form>
             </div>
@@ -372,11 +371,6 @@
 </script>
 
 <script>
-    $(".searchbox img").click(function(){
-        $(".searchbox input").toggleClass("hide");
-        $(".right .searchbox").toggleClass("full")
-    });
-    
     if (!ws) {
         createWebSocket(window.location)
     }

@@ -10,7 +10,6 @@
     justify-content: flex-end;
     align-items: center; }
     header .right .searchbox {
-      margin-right: 10px;
       cursor: pointer; }
       header .right .searchbox img {
         height: 20px;
@@ -26,7 +25,7 @@
     header .right .searchbox.full {
       width: 95%;
       flex: 1;
-      margin-left: 5%; }
+      margin: 2%; }
       header .right .searchbox.full input {
         width: 95%; }
     header .right .switch {
@@ -461,7 +460,9 @@ footer {
     height: 20px; }
 @media (min-width: 1400px) {
   .container {
-    max-width: 1280px !important; } }
+    max-width: 1280px !important; }
+    .container .logo a img {
+      width:100px !important; } }
 @media (min-width: 800px) {
   header .right .searchbox.full input {
     flex: 1; }}
@@ -472,6 +473,9 @@ footer {
 @media only screen and (max-width: 768px)  {
   .container {
     max-width: 85% !important;
+  }
+  .container .logo a img {
+    width:70px !important;
   }
   .col-md-6 {
     flex: 0 0 50%;

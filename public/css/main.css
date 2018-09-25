@@ -964,7 +964,6 @@ body.darkBG .keynav-target {
   display: flex;
   flex-direction: row;
 }
-
 .mb-3 tbody tr td .fs14-decimal.fs18 span.int {
   line-height: 1.3rem;
 }
