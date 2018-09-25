@@ -13,19 +13,19 @@
                     <div class="card">
                         <div class="card-header network-statistics">Total Supply</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .TotalSupply true)}}</span>
+                            <span class="stat-data no-decimal">{{template "decimalParts" (amountAsDecimalParts .TotalSupply true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             {{if .TotalSupplyPercentage}}
                             </br>
-                            <span class="stat-details">{{printf "%.2f" .TotalSupplyPercentage}}% mined of {{template "decimalParts" (amountAsDecimalParts .UltimateSupply true)}}</span>
+                            <span class="stat-details no-decimal">{{printf "%.2f" .TotalSupplyPercentage}}% mined of {{template "decimalParts" (amountAsDecimalParts .UltimateSupply true)}}</span>
                             {{end}}
                         </div>
                     </div>
                     <div class="card">
                         <div class="card-header network-statistics">Proof-of-Work Difficulty</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data">{{template "decimalParts" (float64AsDecimalParts .PoWDiff 0 true)}}</span>
+                            <span class="stat-data no-decimal">{{template "decimalParts" (float64AsDecimalParts .PoWDiff 0 true)}}</span>
                             </br>
                             <span class="stat-link"><a href="/charts">show chart</a></span>
                         </div>
@@ -41,7 +41,7 @@
                     <div class="card">
                         <div class="card-header network-statistics">Project Fund</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data">{{ template "decimalParts" (amountAsDecimalParts .ProjectFunds true)}}</span>
+                            <span class="stat-data no-decimal">{{ template "decimalParts" (amountAsDecimalParts .ProjectFunds true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             </br>
@@ -56,7 +56,7 @@
                         <div class="card-header block-rewards">Block Reward Adjustment</div>
                         <div class="card-body card-body-padding-top" style="width: 100%;">
                             <div class="row">
-                                <div style="margin: auto" class="col-11 col-lg-8">
+                                <div style="margin: auto" class="col-12 col-lg-12">
                                     <div class="progress" style="max-width: 330px">
                                         <div
                                             class="progress-bar"
@@ -134,7 +134,7 @@
                         <div class="card-header proof-of-stake">Ticket Price Adjustment</div>
                         <div class="card-body card-body-padding-top" style="width: 100%;">
                             <div class="row">
-                                <div style="margin: auto" class="col-11 col-lg-8">
+                                <div style="margin: auto" class="col-12 col-lg-12">
                                     <div class="progress">
                                         <div
                                             class="progress-bar"
@@ -193,7 +193,7 @@
                     <div width="45%" class="card">
                         <div class="card-header proof-of-stake">Ticket Pool Value</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data" id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts  .TicketPoolValue 8 true)}}</span>
+                            <span class="stat-data no-decimal" id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts  .TicketPoolValue 8 true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             </br>
