@@ -53,21 +53,21 @@ The dcrdata repository is a collection of Go packages and apps for
 ```none
 ../dcrdata              The dcrdata daemon.
 ├── api                 Package blockdata implements dcrdata's own HTTP API.
-│   ├── insight         Package insight implements the Insight API.
-│   └── types           Package types includes the exported structures used by
+│   ├── insight         Package insight implements the Insight API.
+│   └── types           Package types includes the exported structures used by
 |                         the dcrdata and Insight APIs.
 ├── blockdata           Package blockdata is the primary data collection and
 |                         storage hub, and chain monitor.
 ├── cmd
-│   ├── rebuilddb       rebuilddb utility, for SQLite backend. Not required.
-│   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not required.
-│   └── scanblocks      scanblocks utility. Not required.
+│   ├── rebuilddb       rebuilddb utility, for SQLite backend. Not required.
+│   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not required.
+│   └── scanblocks      scanblocks utility. Not required.
 ├── dcrdataapi          Package dcrdataapi for Go API clients.
 ├── db
-│   ├── agendadb        Package agendadb is a basic PoS voting agenda database.
-│   ├── dbtypes         Package dbtypes with common data types.
-│   ├── dcrpg           Package dcrpg providing PostgreSQL backend.
-│   └── dcrsqlite       Package dcrsqlite providing SQLite backend.
+│   ├── agendadb        Package agendadb is a basic PoS voting agenda database.
+│   ├── dbtypes         Package dbtypes with common data types.
+│   ├── dcrpg           Package dcrpg providing PostgreSQL backend.
+│   └── dcrsqlite       Package dcrsqlite providing SQLite backend.
 ├── dev                 Shell scripts for maintenance and deployment.
 ├── explorer            Package explorer, powering the block explorer.
 ├── mempool             Package mempool for monitoring mempool for transactions,
@@ -540,21 +540,46 @@ default in a reduced functionality ("lite") mode that does not require
 PostgreSQL. To enable the PostgreSQL backend (and the expanded functionality),
 dcrdata may be started with the `--pg` switch.
 
+## APIs
+
+The dcrdata block explorer is exposed by two APIs: a Decred implementation of the [Insight API](https://github.com/bitpay/insight-api) (EXPERIMENTAL), and its own JSON HTTP API. The Insight API uses the path prefix `/insight/api`. The dcrdata API uses the path prefix `/api`.
+
 ### Insight API (EXPERIMENTAL)
 
-The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP
-at the `/insight/api` URL path prefix, and via WebSocket at the
-`/insight/socket.io` URL path prefix.
+The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP via REST or WebSocket. 
 
-The following endpoints are not implemented: `status`, `sync`, `peer`, `email`,
-and `rates`.
+To call the REST API, use the `/insight/api` path prefix. To call the Websocket API, use the `/insight/socket.io` path prefix.
 
+
+#### Endpoint List
+
+| Method           | Path                   | 
+| -------------------- | ---------------------- | 
+| Block              | `/block/{hash}`          |  
+| Block index          | `/block-index/{height}`      |  
+| Raw block (hash)               | `/rawblock/{hash}`   | 
+| Raw block (height)                | `/rawblock/{height}`     |  
+| Raw summaries               | `/blocks (URL query params: limit, blockDate, ...) `   |              
+| Transaction                 | `/tx/{hash}`     |  
+| Raw transaction              | `/rawtx/{hash}`  | 
+| Address         | `/addr/{address}`       | 
+| Address Props   | `/balance, totalReceived, totalSent, /totalSent, unconfirmedBalance` |  
+| UTXOs | `/addr/{address}/utxo`  |  
+| Multi-address UTXOs | `/addrs/{address0, address1, etc}/utxo`  |  
+| POST-variant of multi-address UTXOs | ``  |                     
+| Transactions by block | `/txs/?block={hash}`  |   
+| Transactions by address | `/txs/?address={address}`  |   
+| Transactions for multiple addresses | `/addrs/{addr0, addr1, ...}/txs (params: from, to)`  |   
+| POST-variant for ^^ | `(includes params: noAsm, noScriptSig, noSpent)`  |  
+| Transaction broadcast | `/tx/send (raw tx in POST params) `  | 
+| Sync status (dcrdata) | `/sync`  |  
+| Sync status (dcrd) | `/peer`  |  
+| Decred network status | `/status(with each possible value for the q param)`  |  
+| Estimate fee | `/estimatefee (params: nbBlocks)`  |  
 ### dcrdata API
 
-dcrdata has its own JSON HTTP API in addition to the experimental Insight API
-implementation. **dcrdata's API endpoints are prefixed with `/api`** (e.g.
-`http://localhost:7777/api/stake`). The Insight API endpoints (not described in
-this section) are prefixed with `/insight/api`.
+The dcrdata API is a REST API accessible via HTTP. To call the dcrdata API, use the `/api` path prefix.
+
 
 #### Endpoint List
 
