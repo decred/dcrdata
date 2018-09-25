@@ -43,8 +43,7 @@ type TxShort struct {
 	Vout     []Vout        `json:"vout"`
 }
 
-// TrimmedTx models data to resemble to result of the decoderawtransaction
-// call
+// TrimmedTx models data to resemble to result of the decoderawtransaction RPC.
 type TrimmedTx struct {
 	TxID     string        `json:"txid"`
 	Version  int32         `json:"version"`
@@ -98,6 +97,13 @@ type Vout struct {
 	N                   uint32       `json:"n"`
 	Version             uint16       `json:"version"`
 	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey"`
+	Spend               *TxInputID   `json:"spend,omitempty"`
+}
+
+// TxInputID specifies a transaction input as hash:vin_index.
+type TxInputID struct {
+	Hash  string `json:"hash"`
+	Index uint32 `json:"vin_index"`
 }
 
 // ScriptPubKey is the result of decodescript(ScriptPubKeyHex)
