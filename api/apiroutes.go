@@ -5,6 +5,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -413,6 +415,50 @@ func (c *appContext) getVoteInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, voteVersionInfo, c.getIndentQuery(r))
 }
 
+// setOutputSpends retrieves spending transaction information for each output of
+// the specified transaction. This sets the vouts[i].Spend fields for each
+// output that is spent. For unspent outputs, the Spend field remains a nil
+// pointer.
+func (c *appContext) setOutputSpends(txid string, vouts []apitypes.Vout) error {
+	if c.LiteMode {
+		apiLog.Warnf("Not setting spending transaction data in lite mode.")
+		return nil
+	}
+
+	// For each output of this transaction, look up any spending transactions,
+	// and the index of the spending transaction input.
+	spendHashes, spendVinInds, voutInds, err := c.AuxDataSource.SpendingTransactions(txid)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("unable to get spending transaction info for outputs of %s", txid)
+	}
+	if len(voutInds) > len(vouts) {
+		return fmt.Errorf("invalid spending transaction data for %s", txid)
+	}
+	for i, vout := range voutInds {
+		if int(vout) >= len(vouts) {
+			return fmt.Errorf("invalid spending transaction data (%s:%d)", txid, vout)
+		}
+		vouts[vout].Spend = &apitypes.TxInputID{
+			Hash:  spendHashes[i],
+			Index: spendVinInds[i],
+		}
+	}
+	return nil
+}
+
+// setTxSpends retrieves spending transaction information for each output of the
+// given transaction. This sets the tx.Vout[i].Spend fields for each output that
+// is spent. For unspent outputs, the Spend field remains a nil pointer.
+func (c *appContext) setTxSpends(tx *apitypes.Tx) error {
+	return c.setOutputSpends(tx.TxID, tx.Vout)
+}
+
+// setTrimmedTxSpends is like setTxSpends except that it operates on a TrimmedTx
+// instead of a Tx.
+func (c *appContext) setTrimmedTxSpends(tx *apitypes.TrimmedTx) error {
+	return c.setOutputSpends(tx.TxID, tx.Vout)
+}
+
 func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 	txid := m.GetTxIDCtx(r)
 	if txid == "" {
@@ -425,6 +471,21 @@ func (c *appContext) getTransaction(w http.ResponseWriter, r *http.Request) {
 		apiLog.Errorf("Unable to get transaction %s", txid)
 		http.Error(w, http.StatusText(422), 422)
 		return
+	}
+
+	// Look up any spending transactions for each output of this transaction.
+	// This is only done in full mode, and when the client requests spends with
+	// the URL query ?spends=true.
+	spendParam := r.URL.Query().Get("spends")
+	withSpends := spendParam == "1" || strings.EqualFold(spendParam, "true")
+
+	if withSpends && !c.LiteMode {
+		if err := c.setTxSpends(tx); err != nil {
+			apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %v", txid, err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError),
+				http.StatusInternalServerError)
+			return
+		}
 	}
 
 	writeJSON(w, tx, c.getIndentQuery(r))
@@ -456,6 +517,21 @@ func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Look up any spending transactions for each output of this transaction.
+	// This is only done in full mode, and when the client requests spends with
+	// the URL query ?spends=true.
+	spendParam := r.URL.Query().Get("spends")
+	withSpends := spendParam == "1" || strings.EqualFold(spendParam, "true")
+
+	if withSpends && !c.LiteMode {
+		if err := c.setTrimmedTxSpends(tx); err != nil {
+			apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %v", txid, err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError),
+				http.StatusInternalServerError)
+			return
+		}
+	}
+
 	writeJSON(w, tx, c.getIndentQuery(r))
 }
 
@@ -466,6 +542,12 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Look up any spending transactions for each output of this transaction.
+	// This is only done in full mode, and when the client requests spends with
+	// the URL query ?spends=true.
+	spendParam := r.URL.Query().Get("spends")
+	withSpends := spendParam == "1" || strings.EqualFold(spendParam, "true")
+
 	txns := make([]*apitypes.Tx, 0, len(txids))
 	for i := range txids {
 		tx := c.BlockData.GetRawTransaction(txids[i])
@@ -474,6 +556,17 @@ func (c *appContext) getTransactions(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(422), 422)
 			return
 		}
+
+		if withSpends && !c.LiteMode {
+			if err := c.setTxSpends(tx); err != nil {
+				apiLog.Errorf("Unable to get spending transaction info for outputs of %s: %v",
+					txids[i], err)
+				http.Error(w, http.StatusText(http.StatusInternalServerError),
+					http.StatusInternalServerError)
+				return
+			}
+		}
+
 		txns = append(txns, tx)
 	}
 
