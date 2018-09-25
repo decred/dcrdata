@@ -1014,3 +1014,29 @@ body.darkBG .keynav-target {
 .network-statistics {
   background-color: #A1E7D9;
 }
+
+@media screen and (max-width: 1200px) {
+   .stat-headers {
+     margin-left: -146px;
+   }
+}
+
+@media screen and (max-width: 926px) {
+   .stat-headers {
+     margin-left: -25px;
+   }
+
+   #proof-stake-header {
+     margin-left: 0px;
+   }
+}
+
+@media screen and (max-width: 570px) {
+   .stat-headers {
+     margin-left: 0px;
+   }
+
+   #proof-stake-header {
+     margin-left: 38px;
+   }
+}

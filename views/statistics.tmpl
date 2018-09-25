@@ -71,12 +71,14 @@
                                     </div>
                                 </div>
                             </div>
-                        <span class="stat-details">block {{.IdxInRewardWindow}} of {{.RewardWindowSize}}<br />
-                           ({{remaining .IdxInRewardWindow .RewardWindowSize .BlockTime}})</span>
-                        </br>
-                        <span class="stat-details">Curent {{template "decimalParts" (amountAsDecimalParts .BlockReward true)}} DCR</span>
-                        </br>
-                        <span class="stat-details">Next {{template "decimalParts" (amountAsDecimalParts .NextBlockReward true)}} DCR</span>
+                            <span class="stat-details">block {{.IdxInRewardWindow}} of {{.RewardWindowSize}}<br />
+                               ({{remaining .IdxInRewardWindow .RewardWindowSize .BlockTime}})</span>
+                            </br>
+                            <div style="text-align:left;margin-left:33px;">
+                              <span class="stat-details">Curent {{template "decimalParts" (amountAsDecimalParts .BlockReward true)}} DCR</span>
+                              </br>
+                              <span class="stat-details">Next  (est.) {{template "decimalParts" (amountAsDecimalParts .NextBlockReward true)}} DCR</span>
+                            </div>
                         </div>
                     </div>
                     <div class="card">
@@ -93,6 +95,9 @@
                             <span class="stat-data">{{template "decimalParts" (amountAsDecimalParts .PoWReward true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR per block</span>
+                            </br>
+                            <span class="stat-details unit" style="margin-left: 10px;">can be lower if less than 5 votes are mined
+                            </span>
                         </div>
                     </div>
                     <div class="card">
@@ -105,7 +110,8 @@
                     </div>
                 </div>
                 <div class="col-6" style="width: 50%;">
-                    <h5 class="mb-2 stat-headers">Proof-of-Stake Stats</h5>
+                    <h5 id="proof-stake-header"
+                        class="mb-2 stat-headers">Proof-of-Stake Stats</h5>
                     <div width="45%" class="card">
                         <div class="card-header proof-of-stake">Tickets In Mempool</div>
                         <div class="card-body card-body-padding-top">
@@ -149,13 +155,14 @@
                                     </div>
                                 </div>
                             </div>
-                            </br>
                             <span class="stat-details">{{.IdxBlockInWindow}} of {{.WindowSize}}</br>
                               ({{remaining .IdxBlockInWindow .WindowSize .BlockTime}})</span>
                             </br>
-                            <span class="stat-details">Curent: {{template "decimalParts" (float64AsDecimalParts .TicketPrice 8 false)}}</span>
-                            </br>
-                            <span class="stat-details">Next Estimate: {{template "decimalParts" (float64AsDecimalParts .NextEstimatedTicketPrice 8 false)}}</span>
+                            <div style="text-align:left;margin-left:34px;">
+                              <span class="stat-details">Curent: {{template "decimalParts" (float64AsDecimalParts .TicketPrice 8 false)}} DCR</span>
+                              </br>
+                              <span class="stat-details">Next: {{template "decimalParts" (float64AsDecimalParts .NextEstimatedTicketPrice 8 false)}} DCR</span>
+                            </div>
                         </div>
                     </div>
                     <div class="card">
@@ -169,9 +176,17 @@
                     <div width="45%" class="card">
                         <div class="card-header proof-of-stake">Ticket Rewards</div>
                         <div class="card-body card-body-padding-top">
-                            <span  class="stat-data" id="bsubsidy_total">+{{printf "%.2f" .TicketsROI}}%</span>
+                            <span  class="stat-data" id="bsubsidy_total"
+                                   data-toggle="tooltip"
+                                   title="Price based on continous re-staking and variable ticket price.">
+                                    +{{printf "%.2f" .TicketsROI}}%
+                            </span>
                             </br>
-                            <span class="stat-details">per ~{{.RewardPeriod}}</span>
+                            <span class="stat-details"
+                                  data-toggle="tooltip"
+                                  title="Price based on continous re-staking and variable ticket price.">
+                                    per ticket, ~{{.RewardPeriod}} to vote
+                            </span>
                             </br>
                             <span class="stat-details" title="Annual Stake Rewards">({{printf "%.2f" .APR}}% / year)</span>
                             </br>
@@ -184,9 +199,9 @@
                             <span class="stat-data" id="bsubsidy_total">{{intComma .TicketPoolSize}}</span>
                             </br>
                             {{if ge .TicketPoolSizePerToTarget 100.0}}
-                            <span class="stat-details">+{{printf "%.2f" (floatsubtract .TicketPoolSizePerToTarget 100.0)}}% above target 40960</span>
+                            <span class="stat-details">+{{printf "%.2f" (floatsubtract .TicketPoolSizePerToTarget 100.0)}}% above target 40,960</span>
                             {{else}}
-                            <span class="stat-details">-{{printf "%.2f" (floatsubtract 100.0 .TicketPoolSizePerToTarget)}}% below target 40960</span>
+                            <span class="stat-details">-{{printf "%.2f" (floatsubtract 100.0 .TicketPoolSizePerToTarget)}}% below target 40,960</span>
                             {{end}}
                         </div>
                     </div>
@@ -197,7 +212,7 @@
                             </br>
                             <span class="stat-details unit">DCR</span>
                             </br>
-                            <span class="stat-details">{{printf "%.2f" .TPVOfTotalSupplyPeecentage}}% of Total Suppy</span>
+                            <span class="stat-details">{{printf "%.2f" .TPVOfTotalSupplyPeecentage}}% of total supply</span>
                         </div>
                     </div>
                 </div>
@@ -205,7 +220,13 @@
         </div>
         {{end}}
         {{template "footer" . }}
-    </body>
 
+        <!-- enable tool tips-->
+        <script>
+          $(document).ready(function(){
+              $('[data-toggle="tooltip"]').tooltip();
+          });
+        </script>
+    </body>
 </html>
 {{end}}
