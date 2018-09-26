@@ -39,6 +39,7 @@ const (
 	ticketsTableBlockTimeUpgrade
 	addressesTableValidMainchainPatch
 	addressesTableMatchingTxHashPatch
+	addressesTableBlockTimeSortedIndex
 )
 
 type TableUpgradeType struct {
@@ -251,6 +252,22 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		}
 
 		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.5.4 --> 3.5.5
+	case version.major == 3 && version.minor == 5 && version.patch == 4:
+		toVersion = TableVersion{3, 5, 5}
+
+		theseUpgrades := []TableUpgradeType{
+			{"addresses", addressesTableBlockTimeSortedIndex},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
+		// Go on to next upgrade
 		// fallthrough
 		// or be done
 
@@ -348,6 +365,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case addressesTableMatchingTxHashPatch:
 		tableReady = true
 		tableName, upgradeTypeStr = "addresses", "patch matching_tx_hash value"
+	case addressesTableBlockTimeSortedIndex:
+		tableReady = true
+		tableName, upgradeTypeStr = "addresses", "reindex"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -440,7 +460,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("This an extremely I/O intensive operation on the database machine. It can take from 30-90 minutes.")
 		rowsUpdated, err = updateAllAddressesValidMainchain(pgb.db)
 
-	case votesTableBlockHashIndex, ticketsTableBlockTimeUpgrade:
+	case votesTableBlockHashIndex, ticketsTableBlockTimeUpgrade, addressesTableBlockTimeSortedIndex:
 		// no upgrade, just "reindex"
 	case vinsTxHistogramUpgrade, addressesTxHistogramUpgrade:
 		var height uint64
@@ -501,6 +521,12 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("Index the tickets table on Pool status...")
 		if err = IndexTicketsTableOnPoolStatus(pgb.db); err != nil {
 			return false, fmt.Errorf("failed to index tickets table: %v", err)
+		}
+
+	case addressesTableBlockTimeSortedIndex:
+		log.Infof("Reindex the addresses table on block_time (sorted)...")
+		if err = pgb.ReindexAddressesBlockTime(); err != nil {
+			return false, fmt.Errorf("failed to reindex addresses table: %v", err)
 		}
 	}
 
