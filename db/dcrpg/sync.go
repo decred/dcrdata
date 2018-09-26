@@ -112,11 +112,10 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		dbtypes.SyncStatusUpdate(0, 0, 0, dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
 	}
 
-	var timeStart time.Time
+	timeStart := time.Now()
 
 	// Start rebuilding
 	startHeight := lastBlock + 1
-
 	for ib := startHeight; ib <= nodeHeight; ib++ {
 		// check for quit signal
 		select {
@@ -140,7 +139,8 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 				timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
 				timeToComplete := int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock))
 
-				dbtypes.SyncStatusUpdate(ib, nodeHeight, timeToComplete, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+				dbtypes.SyncStatusUpdate(ib, nodeHeight, timeToComplete,
+					dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
 				timeStart = time.Now()
 			}
@@ -282,6 +282,8 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	// After sync and indexing, must use upsert statement, which checks for
 	// duplicate entries and updates instead of throwing and error and panicing.
 	db.EnableDuplicateCheckOnInsert(true)
+
+	dbtypes.SyncStatusUpdateOtherMsg(dbtypes.AddressesTableSync, "sync complete")
 
 	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
 		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)

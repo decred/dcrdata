@@ -259,8 +259,8 @@ func mainCore() error {
 			return fmt.Errorf("unable to fetch the block from the node: %v", err)
 		}
 
-		// If one block takes on average 5 minutes to mine, calculate the new
-		// blocks that can be mined in the elaspedTime.
+		// If one block takes on average 5 minutes to mine, get the new blocks
+		// count that can be mined in the elaspedTime.
 		elapsedTime := time.Since(block.Timestamp).Minutes()
 		expectedHeight := int64(elapsedTime / 5)
 
@@ -356,22 +356,24 @@ func mainCore() error {
 		auxDBheight = auxDB.GetHeight() // pg db
 	}
 
-	// The blockchain syncing status page should be displayed; if the following
-	// conditions are met fully; Syncing status limit is not set, or set to a
-	// value less than 2 or set to a value greater than 5,000. 5,000 is the max
-	// value that can be set by the user in dcrdata.conf file as "sync-status-limit".
-	// It could also be displayed if the blocks behind the current height are
-	// more than the set status limit. On initial dcrdata startup syncing should
-	// be displayed by default. (If the height is less than 40,000, initial
-	// startup must have been run)
+	// The blockchain syncing status page should be displayed; if Syncing status
+	// limit is not set, or set to a value less than 2 or to a value greater
+	// than 5000. 5000 is the max value that can be set by the user in
+	// dcrdata.conf file as "sync-status-limit". It could also be displayed if
+	// the blocks behind the current height are more than the set status limit.
+	// On initial dcrdata startup syncing should be displayed by default.
+	// (If height is less than 40,000, initial startup from scratch must have been run)
 	switch {
-	case (usePG && auxDBheight < 40000) || wireDBheight < 40000: //on initial system start up
+	// on initial system start up
+	case (usePG && auxDBheight < 40000) || wireDBheight < 40000:
 		explore.SyncStatus = true
 
-	case cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000: // incorrect value set
+	 // incorrect value set
+	case cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000:
 		explore.SyncStatus = true
 
-	case uint64(blocksBehind) > cfg.SyncStatusLimit: // more blocks are behind the set sync status user value
+	// more blocks are behind the set sync status user value.
+	case uint64(blocksBehind) > cfg.SyncStatusLimit:
 		explore.SyncStatus = true
 	}
 
@@ -398,11 +400,10 @@ func mainCore() error {
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
 
-	// collectBlocksAfterSyncing setup monitors that keep checking updates exists. Since when
-	// syncing page is running no other page that can be displayed. This goroutine
-	// should not be allowed to run as they unnecessarily slow down the syncing process.
+	// collectBlocksAfterSyncing setup monitors that keep checking if updates exists,
+	// since when syncing page was running no other page that can be displayed
+	// thus no monitorss that were running.
 	collectBlocksAfterSyncing := func() error {
-
 		// Blockchain monitor for the collector
 		addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 		// On reorg, only update web UI since dcrsqlite's own reorg handler will
@@ -677,6 +678,8 @@ func mainCore() error {
 		if err := collectBlocksAfterSyncing(); err != nil {
 			return err
 		}
+
+		explore.RetrieveUpdates()
 	}
 
 	// Deactivate displaying the sync status page after the db sync was

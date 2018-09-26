@@ -3,21 +3,26 @@
         var progressVal = data.Change
         var timeRemaining = humanizeTime(data.Time) // time is in secs
         var htmlString = data.Msg.length > 0 ? `<p style="font-size:14px;">`+data.Msg+`</p>`:  ""
+        var notifStr = data.OtherMsg.length > 0 ? `<span style="font-size:11px;">notification : <i>`+data.OtherMsg+`</i></span>`: ""
 
         var remainingStr = "pending";
         if (progressVal > 0) {
-            remainingStr = "remaining approx.  "+timeRemaining;
+            remainingStr = data.Time > 0 ? "remaining approx.  "+timeRemaining: "0sec";
         }
 
         if (progressVal === 100) {
             remainingStr = "done";
         }
 
-        return (htmlString+`<div class="progress" style="height:30px;border-radius:5px;margin-bottom:2%;">
+        if (data.OtherMsg === "sync complete") {
+            notifStr = ""
+        }
+
+        return (htmlString+`<div class="progress" style="height:30px;border-radius:5px;">
                     <div class="progress-bar sync-progress-bar" role="progressbar" style="height:auto; width:`+progressVal+`%;">
                     <span class="nowrap pl-1 font-weight-bold">Progress `+progressVal+`% (`+remainingStr+`)</span>
                     </div>
-                </div>`)
+                </div>`+ notifStr)
     }
 
     function humanizeTime(secs) {
@@ -44,17 +49,17 @@
             ws.registerEvtHandler("blockchainSync", (evt) => {
                 var d = JSON.parse(evt);
                 var i;
-                var totalChange = 0
 
                 for (i = 0; i < d.length; i ++) {
                     var v = d[i]
-                    totalChange += v.Change
-                    $("#"+v.UpdateType).html(buildProgressBar(v));
-                }
 
-                if (totalChange/v.length == 100){
-                    $(".alert.alert-info h5").html("Blockchain sync is complete. Redirecting to home in 30secs.");
-                    setInterval(() => Turbolinks.visit("/"), 30000);
+                    $("#"+v.UpdateType).html(buildProgressBar(v));
+
+                    if (v.OtherMsg === "sync complete"){
+                        $(".alert.alert-info h5").html("Blockchain sync is complete. Redirecting to home in 30secs.");
+                        setInterval(() => Turbolinks.visit("/"), 30000);
+                        return
+                    }
                 }
             })
         }

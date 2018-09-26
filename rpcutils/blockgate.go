@@ -278,6 +278,7 @@ func (g *BlockGate) WaitForHeight(height int64) chan chainhash.Hash {
 	if height < 0 {
 		return nil
 	}
+
 	waitChain := make(chan chainhash.Hash, 1)
 	g.heightWaiters[height] = append(g.heightWaiters[height], waitChain)
 	if height <= g.fetchToHeight {

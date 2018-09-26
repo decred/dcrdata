@@ -151,6 +151,10 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		return startHeight, nil
 	}
 
+	if db.liteMode {
+		dbtypes.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+	}
+
 	// Start at next block we don't have in every DB
 	startHeight++
 
@@ -159,7 +163,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	// the next block in line.
 	var bypassWaitChan bool
 
-	var timeStart time.Time
+	timeStart := time.Now()
 
 	for i := startHeight; i <= height; i++ {
 		// check for quit signal
@@ -189,7 +193,6 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 				log.Infof("Rescan cancelled at height %d.", i)
 				return i - 1, nil
 			}
-
 			block, err = blockGetter.Block(blockhash)
 			if err != nil {
 				return i - 1, fmt.Errorf("blockGetter.Block failed (%s): %v", blockhash, err)
@@ -199,7 +202,6 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			db.waitChan = blockGetter.WaitForHeight(i + 1)
 		}
 
-		// Fetch the current value of stakedb
 		stakeDBHeight = int64(db.sDB.Height())
 		blockHeight := block.Height()
 
@@ -215,8 +217,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		// If the current block's height fetched earlier, using the notification
 		// waitChan is not greater than the current stakedb height, bypass the waitChan
 		// to fetch the blocks directly till we find a block whose height is greater
-		// than the stakedb height. Blocks whose height is less than the stakedb
-		// height exists in the other dbs so skip to the next iteration.
+		// than the stakedb height. For blocks whose height is less than the stakedb
+		// height, they exists in the other dbs so skip to the next iteration.
 		bypassWaitChan = (blockHeight != i)
 		if bypassWaitChan {
 			// subtraction kicks in here because of blockGetter.WaitForHeight(i + 1).
@@ -224,11 +226,6 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			// because of (i+1) in the function above when waitChan kicks in.
 			i--
 			continue
-		}
-
-		if db.liteMode {
-			// Add the various updates that should run on successful sync.
-			dbtypes.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 		}
 
 		numLive := db.sDB.PoolSize()
@@ -252,7 +249,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
 					timeToComplete := int64(timeTakenPerBlock * float64(height-endRangeBlock))
 
-					dbtypes.SyncStatusUpdate(i, height, timeToComplete, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+					dbtypes.SyncStatusUpdate(i, height, timeToComplete,
+						dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
 					timeStart = time.Now()
 				}
@@ -325,6 +323,12 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		if _, height, err = db.client.GetBestBlock(); err != nil {
 			return i, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
+	}
+
+	if db.liteMode {
+		dbtypes.SyncStatusUpdate(height, height, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+
+		dbtypes.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, "sync complete")
 	}
 
 	log.Infof("Rescan finished successfully at height %d.", height)

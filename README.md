@@ -360,6 +360,24 @@ cp sample-dcrdata.conf ~/.dcrdata/dcrdata.conf
 Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata --help`
 for a list of all options and their default values.
 
+### View dcrdata page soonest possible after startup
+
+By default on dcrdata startup, syncing runs for all the blocks behind the current
+best block height. Syncing status page with the syncing progress is the only
+page that will run if `sync-status-limit` is not set in `dcrdata.conf` file.
+
+When set with a value greater than 2 and less than 5000, all dcrdata pages will be
+active on startup if and only if, the number of blocks behind the current best block
+are less than the set `sync-status-limit` value.
+
+For Example: If `sync-status-limit` is set to 1000, all dcrdata pages will be active
+if only less than 1000 blocks need to be sync'd on startup otherwise only the sync status
+page will be accesible till the syncing is complete.
+
+```
+sync-status-limit=1000
+```
+
 ### Using Configuration Environment Variables
 
 There will be times when you don't want to fuss with a config file or cannot use

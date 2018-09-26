@@ -1012,3 +1012,6 @@ body.darkBG .keynav-target {
 .sync-progress-bar span {
   vertical-align: -webkit-baseline-middle;
 }
+.container div.sync-progress {
+  margin-bottom:2%;
+}

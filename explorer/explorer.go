@@ -269,14 +269,17 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 // RetrieveUpdates retrieves all the updates that could not be fetched because
 // sync status update was running in the background.
 func (exp *explorerUI) RetrieveUpdates() {
+	// Send the one last signal so that the frontend can recieve final
+	// confirmation that syncing is done and home page auto reload should happen.
+	exp.wsHub.HubRelay <- sigSyncStatus
+
 	if !exp.liteMode {
 		exp.prePopulateChartsData()
 	}
-
 }
 
 // StartSyncingStatusMonitor fires up the sync status monitor. It signals the
-// websocket to check for updates after syncStatusInterval.
+// websocket to check for updates after every syncStatusInterval.
 func (exp *explorerUI) StartSyncingStatusMonitor() {
 	stop := make(chan bool)
 	go func() {

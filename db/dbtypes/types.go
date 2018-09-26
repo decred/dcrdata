@@ -1,3 +1,5 @@
+// Copyright (c) 2018, The Decred developers
+// See LICENSE for details.
 package dbtypes
 
 import (
@@ -94,17 +96,16 @@ const (
 )
 
 // blockchainSyncStatus defines the status update displayed on the syncing status page
-// when new blocks are being appended into the db. The use of a map allows displaying
-// multiple progress bars depending on the specific sync types expected to run successfully.
+// when new blocks are being appended into the db.
 var blockchainSyncStatus = new(syncStatus)
 
 const (
-	// InitialDBLoad is the sync where data is first loaded from the chain db into
+	// InitialDBLoad is a sync where data is first loaded from the chain db into
 	// the respective dbs currently supported. Runs on both liteMode and fullMode.
 	InitialDBLoad = "initial-load"
-	// AddressesTableSync is sync that runs immediately after initialDBLoad. Data
-	// previously loaded into vins and vouts table sync'd with the addresses pg table.
-	// Runs only in fullMode
+	// AddressesTableSync is a sync that runs immediately after initialDBLoad. Data
+	// previously loaded into vins table is sync'd with the addresses table.
+	// Runs only in fullMode.
 	AddressesTableSync = "addresses-sync"
 )
 
@@ -569,7 +570,7 @@ type BlockStatus struct {
 
 // syncStatus makes it possible to update the user on the progress of the
 // blockchain db syncing that is running in the background after new blocks
-// were detected.
+// were detected on system startup.
 type syncStatus struct {
 	sync.RWMutex
 	Update map[string]*SyncStatusInfo
@@ -577,9 +578,15 @@ type syncStatus struct {
 
 // SyncStatusInfo defines information for a single update type.
 type SyncStatusInfo struct {
-	Change     float64 // percentage change
-	Msg        string  // used to display notifications about the background process
-	Time       int64   // defines estimated time to completing the sync
+	// percentage change
+	Change float64
+	// used to display the main message about the currect sync.
+	Msg string
+	// displays any other information about the current main sync. This value
+	// may include but not limited to; db indexing, deleting duplicates etc.
+	OtherMsg string
+	// defines estimated time to completing the sync
+	Time       int64
 	UpdateType string
 }
 
@@ -606,6 +613,29 @@ func SyncStatusUpdate(from, to, timeToComplete int64, updateType, msg string) {
 		}
 	} else {
 		blockchainSyncStatus.Update[updateType] = val
+	}
+}
+
+// SyncStatusUpdateOtherMsg is a thread-safe way to update the otherMsg field.
+// This field helps define other tasks that may run in the background and have
+// no feasible way to determine how long they will take to run, e.g its pretty
+// hard to determine how long a given index will take. So it will be indicated
+// just as a task running the background till completion without a progress bar.
+func SyncStatusUpdateOtherMsg(updateType, otherMsg string) {
+	blockchainSyncStatus.Lock()
+	defer blockchainSyncStatus.Unlock()
+
+	val := &SyncStatusInfo{
+		OtherMsg:   otherMsg,
+		UpdateType: updateType,
+	}
+
+	if len(blockchainSyncStatus.Update) == 0 {
+		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{
+			updateType: val,
+		}
+	} else {
+		blockchainSyncStatus.Update[updateType].OtherMsg = otherMsg
 	}
 }
 
