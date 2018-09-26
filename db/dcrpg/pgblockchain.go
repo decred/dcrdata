@@ -2064,7 +2064,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		return txRes
 	}
 
-	// If processing stake tree, insert tickets, votes, misses
+	// If processing stake tree, insert tickets, votes, and misses. Also update
+	// pool status and spending information in tickets table pertaining to the
+	// new votes, revokes, misses, and expires.
 	if txTree == wire.TxTreeStake {
 		// Tickets: Insert new (unspent) tickets
 		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, *TxDbIDs, pgb.dupChecks)
@@ -2084,18 +2086,6 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			unspentTicketCache = pgb.unspentTicketCache
 		}
 
-		// Get information for transactions spending tickets (votes and
-		// revokes), and the ticket DB row IDs themselves. Also return tickets
-		// table row IDs for newly spent tickets, if we are updating them as we
-		// go (SetSpendingForTickets).
-		spendingTxDbIDs, spendTypes, spentTicketHashes, ticketDbIDs, err :=
-			pgb.CollectTicketSpendDBInfo(dbTransactions, *TxDbIDs, msgBlock.MsgBlock)
-		if err != nil {
-			log.Error("CollectTicketSpendDBInfo:", err)
-			txRes.err = err
-			return txRes
-		}
-
 		// Votes: insert votes and misses (tickets that did not vote when
 		// called). Return the ticket hash of all misses, which may include
 		// revokes at this point. Unrevoked misses are identified when updating
@@ -2113,7 +2103,19 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 
 		if updateTicketsSpendingInfo {
-			// Get a consistent view of the stake node at its present height
+			// Get information for transactions spending tickets (votes and
+			// revokes), and the ticket DB row IDs themselves. Also return
+			// tickets table row IDs for newly spent tickets, if we are updating
+			// them as we go (SetSpendingForTickets).
+			spendingTxDbIDs, spendTypes, spentTicketHashes, ticketDbIDs, err :=
+				pgb.CollectTicketSpendDBInfo(dbTransactions, *TxDbIDs, msgBlock.MsgBlock)
+			if err != nil {
+				log.Error("CollectTicketSpendDBInfo:", err)
+				txRes.err = err
+				return txRes
+			}
+
+			// Get a consistent view of the stake node at its present height.
 			pgb.stakeDB.LockStakeNode()
 
 			// Classify and record the height of each ticket spend (vote or
@@ -2133,7 +2135,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 					// Revoke reason
 					h, err0 := chainhash.NewHashFromStr(spentTicketHashes[iv])
 					if err0 != nil {
-						log.Warnf("Invalid hash %v", spentTicketHashes[iv])
+						log.Errorf("Invalid hash %v", spentTicketHashes[iv])
+						continue // no info about spent ticket!
 					}
 					expired := pgb.stakeDB.BestNode.ExistsExpiredTicket(*h)
 					if !expired {
@@ -2148,13 +2151,12 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			_, err = SetSpendingForTickets(pgb.db, ticketDbIDs, spendingTxDbIDs,
 				blockHeights, spendTypes, poolStatuses)
 			if err != nil {
-				log.Warn("SetSpendingForTickets:", err)
+				log.Error("SetSpendingForTickets:", err)
 			}
 
 			// Unspent not-live tickets are also either expired or missed.
 
 			// Missed but not revoked
-			//var unspentMissedTicketDbIDs []uint64
 			var unspentMissedTicketHashes []string
 			var missStatuses []dbtypes.TicketPoolStatus
 			unspentMisses := make(map[string]struct{})
@@ -2162,7 +2164,6 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			for miss := range missesHashIDs {
 				if _, ok := revokes[miss]; !ok {
 					// unrevoked miss
-					//unspentMissedTicketDbIDs = append(unspentMissedTicketDbIDs, missedTicketID)
 					unspentMissedTicketHashes = append(unspentMissedTicketHashes, miss)
 					unspentMisses[miss] = struct{}{}
 					missStatuses = append(missStatuses, dbtypes.PoolStatusMissed)
@@ -2193,13 +2194,13 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 				}
 			}
 
-			// Release the stake node
+			// Release the stake node.
 			pgb.stakeDB.UnlockStakeNode()
 
-			// Update status of the the unspent expired and missed tickets
+			// Update status of the unspent expired and missed tickets.
 			numUnrevokedMisses, err := SetPoolStatusForTicketsByHash(pgb.db, unspentEnM, missStatuses)
 			if err != nil {
-				log.Warnf("SetPoolStatusForTicketsByHash: %v", err)
+				log.Errorf("SetPoolStatusForTicketsByHash: %v", err)
 			} else if numUnrevokedMisses > 0 {
 				log.Tracef("Noted %d unrevoked newly-missed tickets.", numUnrevokedMisses)
 			}
@@ -2228,7 +2229,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 	}
 
-	// Insert each new AddressRow, absent MatchingTxHash (spending txn).
+	// Insert each new AddressRow, absent MatchingTxHash (spending txn since
+	// these new address rows are *funding*).
 	_, err = InsertAddressRows(pgb.db, dbAddressRowsFlat, pgb.dupChecks)
 	if err != nil {
 		log.Error("InsertAddressRows:", err)
@@ -2236,6 +2238,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		return txRes
 	}
 
+	// Defer update of addresses table spending info for a batch process if
+	// requested.
 	if !updateAddressesSpendingInfo {
 		return txRes
 	}
@@ -2257,10 +2261,13 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// Insert spending txn data in addresses table, and updated spend
 			// status for the previous outpoints' rows in the same table.
 			vinDbID := tx.VinDbIds[iv]
+			spendingTxHash := vin.TxID
+			spendingTxIndex := vin.TxIndex
+			validMainchain := tx.IsValidBlock && tx.IsMainchainBlock
 			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
-				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree), vin.TxID,
-				vin.TxIndex, uint64(tx.BlockTime), vinDbID, pgb.dupChecks,
-				tx.IsValidBlock && tx.IsMainchainBlock, vin.TxType)
+				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree),
+				spendingTxHash, spendingTxIndex, uint64(tx.BlockTime), vinDbID,
+				pgb.dupChecks, validMainchain, vin.TxType)
 			if err != nil {
 				log.Errorf("SetSpendingForFundingOP: %v", err)
 			}
@@ -2324,7 +2331,7 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 		t, err0 := pgb.unspentTicketCache.TxnDbID(ticketHash,
 			spendType != dbtypes.TicketVoted) // expire cache entry unless a vote
 		if err0 != nil {
-			err = fmt.Errorf("failed to retrieve ticket DB ID: %v", err0)
+			err = fmt.Errorf("failed to retrieve ticket %s DB ID: %v", ticketHash, err0)
 			return
 		}
 		ticketDbIDs = append(ticketDbIDs, t)
