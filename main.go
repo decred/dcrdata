@@ -398,44 +398,49 @@ func mainCore() error {
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
 
-	// Blockchain monitor for the collector
-	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
-	// On reorg, only update web UI since dcrsqlite's own reorg handler will
-	// deal with patching up the block info database.
-	reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
-	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
-		reorgBlockDataSavers, quit, &wg, addrMap,
-		notify.NtfnChans.ConnectChan, notify.NtfnChans.RecvTxBlockChan,
-		notify.NtfnChans.ReorgChanBlockData)
+	// collectBlocksAfterSyncing setup monitors that keep checking updates exists. Since when
+	// syncing page is running no other page that can be displayed. This goroutine
+	// should not be allowed to run as they unnecessarily slow down the syncing process.
+	collectBlocksAfterSyncing := func() error {
 
-	// Blockchain monitor for the stake DB
-	sdbChainMonitor := baseDB.NewStakeDBChainMonitor(quit, &wg,
-		notify.NtfnChans.ConnectChanStakeDB, notify.NtfnChans.ReorgChanStakeDB)
+		// Blockchain monitor for the collector
+		addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
+		// On reorg, only update web UI since dcrsqlite's own reorg handler will
+		// deal with patching up the block info database.
+		reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
+		wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
+			reorgBlockDataSavers, quit, &wg, addrMap,
+			notify.NtfnChans.ConnectChan, notify.NtfnChans.RecvTxBlockChan,
+			notify.NtfnChans.ReorgChanBlockData)
 
-	// Blockchain monitor for the wired sqlite DB
-	wiredDBChainMonitor := baseDB.NewChainMonitor(collector, quit, &wg,
-		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
+		// Blockchain monitor for the stake DB
+		sdbChainMonitor := baseDB.NewStakeDBChainMonitor(quit, &wg,
+			notify.NtfnChans.ConnectChanStakeDB, notify.NtfnChans.ReorgChanStakeDB)
 
-	var auxDBChainMonitor *dcrpg.ChainMonitor
-	auxDBBlockConnectedSync := func(*chainhash.Hash) {}
-	if usePG {
-		// Blockchain monitor for the aux (PG) DB
-		auxDBChainMonitor = auxDB.NewChainMonitor(quit, &wg,
-			notify.NtfnChans.ConnectChanDcrpgDB, notify.NtfnChans.ReorgChanDcrpgDB)
-		if auxDBChainMonitor == nil {
-			return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
+		// Blockchain monitor for the wired sqlite DB
+		wiredDBChainMonitor := baseDB.NewChainMonitor(collector, quit, &wg,
+			notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
+
+		var auxDBChainMonitor *dcrpg.ChainMonitor
+		auxDBBlockConnectedSync := func(*chainhash.Hash) {}
+		if usePG {
+			// Blockchain monitor for the aux (PG) DB
+			auxDBChainMonitor = auxDB.NewChainMonitor(quit, &wg,
+				notify.NtfnChans.ConnectChanDcrpgDB, notify.NtfnChans.ReorgChanDcrpgDB)
+			if auxDBChainMonitor == nil {
+				return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
+			}
+			auxDBBlockConnectedSync = auxDBChainMonitor.BlockConnectedSync
 		}
-		auxDBBlockConnectedSync = auxDBChainMonitor.BlockConnectedSync
-	}
 
-	// Setup the synchronous handler functions called by the collectionQueue via
-	// OnBlockConnected.
-	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
-		sdbChainMonitor.BlockConnectedSync,     // 1. Stake DB for pool info
-		wsChainMonitor.BlockConnectedSync,      // 2. blockdata for regular block data collection and storage
-		wiredDBChainMonitor.BlockConnectedSync, // 3. dcrsqlite for sqlite DB reorg handling
-		auxDBBlockConnectedSync,
-	})
+		// Setup the synchronous handler functions called by the collectionQueue via
+		// OnBlockConnected.
+		collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
+			sdbChainMonitor.BlockConnectedSync,     // 1. Stake DB for pool info
+			wsChainMonitor.BlockConnectedSync,      // 2. blockdata for regular block data collection and storage
+			wiredDBChainMonitor.BlockConnectedSync, // 3. dcrsqlite for sqlite DB reorg handling
+			auxDBBlockConnectedSync,
+		})
 
 	// Initial data summary for web ui. stakedb must be at the same height, so
 	// we get do this before starting the monitors.
@@ -450,78 +455,78 @@ func mainCore() error {
 		}
 
 		explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
+
+		// blockdata collector
+		wg.Add(2)
+		go wsChainMonitor.BlockConnectedHandler()
+		// The blockdata reorg handler disables collection during reorg, leaving
+		// dcrsqlite to do the switch, except for the last block which gets
+		// collected and stored via reorgBlockDataSavers.
+		go wsChainMonitor.ReorgHandler()
+
+		// StakeDatabase
+		wg.Add(2)
+		go sdbChainMonitor.BlockConnectedHandler()
+		go sdbChainMonitor.ReorgHandler()
+
+		// dcrsqlite does not handle new blocks except during reorg
+		wg.Add(2)
+		go wiredDBChainMonitor.BlockConnectedHandler()
+		go wiredDBChainMonitor.ReorgHandler()
+
+		if usePG {
+			// dcrsqlite does not handle new blocks except during reorg
+			wg.Add(2)
+			go auxDBChainMonitor.BlockConnectedHandler()
+			go auxDBChainMonitor.ReorgHandler()
+		}
+
+		if cfg.MonitorMempool {
+			mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
+			if mpoolCollector == nil {
+				return fmt.Errorf("Failed to create mempool data collector")
+			}
+
+			mpData, err := mpoolCollector.Collect()
+			if err != nil {
+				return fmt.Errorf("Mempool info collection failed while gathering"+
+					" initial data: %v", err.Error())
+			}
+
+			// Store initial MP data
+			if err = baseDB.MPC.StoreMPData(mpData, time.Now()); err != nil {
+				return fmt.Errorf("Failed to store initial mempool data (wiredDB): %v",
+					err.Error())
+			}
+
+			// Setup monitor
+			mpi := &mempool.MempoolInfo{
+				CurrentHeight:               mpData.GetHeight(),
+				NumTicketPurchasesInMempool: mpData.GetNumTickets(),
+				NumTicketsSinceStatsReport:  0,
+				LastCollectTime:             time.Now(),
+			}
+
+			newTicketLimit := int32(cfg.MPTriggerTickets)
+			mini := time.Duration(cfg.MempoolMinInterval) * time.Second
+			maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
+
+			mpm := mempool.NewMempoolMonitor(mpoolCollector, mempoolSavers,
+				notify.NtfnChans.NewTxChan, quit, &wg, newTicketLimit, mini, maxi, mpi)
+			wg.Add(1)
+			go mpm.TxHandler(dcrdClient)
+		}
 		return nil
 	}
 
 	// do not collect the data summary if the sync status page has been activated.
 	if !explore.SyncStatus {
-		if err := collectDataSummary(); err != nil {
+		if err := collectBlocksAfterSyncing(); err != nil {
 			return err
 		}
 	} else {
 		// Initiate the sync status monitor
 		explore.StartSyncingStatusMonitor()
-	}
-
-	// blockdata collector
-	wg.Add(2)
-	go wsChainMonitor.BlockConnectedHandler()
-	// The blockdata reorg handler disables collection during reorg, leaving
-	// dcrsqlite to do the switch, except for the last block which gets
-	// collected and stored via reorgBlockDataSavers.
-	go wsChainMonitor.ReorgHandler()
-
-	// StakeDatabase
-	wg.Add(2)
-	go sdbChainMonitor.BlockConnectedHandler()
-	go sdbChainMonitor.ReorgHandler()
-
-	// dcrsqlite does not handle new blocks except during reorg
-	wg.Add(2)
-	go wiredDBChainMonitor.BlockConnectedHandler()
-	go wiredDBChainMonitor.ReorgHandler()
-
-	if usePG {
-		// dcrsqlite does not handle new blocks except during reorg
-		wg.Add(2)
-		go auxDBChainMonitor.BlockConnectedHandler()
-		go auxDBChainMonitor.ReorgHandler()
-	}
-
-	if cfg.MonitorMempool {
-		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
-		if mpoolCollector == nil {
-			return fmt.Errorf("Failed to create mempool data collector")
-		}
-
-		mpData, err := mpoolCollector.Collect()
-		if err != nil {
-			return fmt.Errorf("Mempool info collection failed while gathering"+
-				" initial data: %v", err.Error())
-		}
-
-		// Store initial MP data
-		if err = baseDB.MPC.StoreMPData(mpData, time.Now()); err != nil {
-			return fmt.Errorf("Failed to store initial mempool data (wiredDB): %v",
-				err.Error())
-		}
-
-		// Setup monitor
-		mpi := &mempool.MempoolInfo{
-			CurrentHeight:               mpData.GetHeight(),
-			NumTicketPurchasesInMempool: mpData.GetNumTickets(),
-			NumTicketsSinceStatsReport:  0,
-			LastCollectTime:             time.Now(),
-		}
-
-		newTicketLimit := int32(cfg.MPTriggerTickets)
-		mini := time.Duration(cfg.MempoolMinInterval) * time.Second
-		maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
-
-		mpm := mempool.NewMempoolMonitor(mpoolCollector, mempoolSavers,
-			notify.NtfnChans.NewTxChan, quit, &wg, newTicketLimit, mini, maxi, mpi)
-		wg.Add(1)
-		go mpm.TxHandler(dcrdClient)
 	}
 
 	select {
@@ -667,9 +672,9 @@ func mainCore() error {
 
 	log.Infof("All ready, at height %d.", baseDBHeight)
 
-	// collect the data now it it was not collected earlier
+	// collect the data now it was not collected earlier. Set up the monitors too.
 	if explore.SyncStatus {
-		if err := collectDataSummary(); err != nil {
+		if err := collectBlocksAfterSyncing(); err != nil {
 			return err
 		}
 	}

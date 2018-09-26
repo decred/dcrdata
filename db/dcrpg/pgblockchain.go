@@ -2365,15 +2365,17 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 	}
 
 	updatesPerDBTx := 500
+	totalVinIbIDs := len(allVinDbIDs)
 
-	log.Infof("Updating spending tx info for %d addresses...", len(allVinDbIDs))
+	var timeStart time.Time
+
+	log.Infof("Updating spending tx info for %d addresses...", totalVinIbIDs)
 	var numAddresses int64
-	for i := 0; i < len(allVinDbIDs); i += updatesPerDBTx {
-		//for i, vinDbID := range allVinDbIDs {
+	for i := 0; i < totalVinIbIDs; i += updatesPerDBTx {
 		if i%100000 == 0 {
 			endRange := i + 100000 - 1
-			if endRange > len(allVinDbIDs) {
-				endRange = len(allVinDbIDs)
+			if endRange > totalVinIbIDs {
+				endRange = totalVinIbIDs
 			}
 			log.Infof("Updating from vins %d to %d...", i, endRange)
 		}
@@ -2387,9 +2389,19 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 		numAddresses += numAddressRowsSet*/
 		var numAddressRowsSet int64
 		endChunk := i + updatesPerDBTx
-		if endChunk > len(allVinDbIDs) {
-			endChunk = len(allVinDbIDs)
+		if endChunk > totalVinIbIDs {
+			endChunk = totalVinIbIDs
 		}
+
+		// fullMode is definately running so no need to check.
+		timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endChunk-i))
+		timeToComplete := int64(timeTakenPerBlock * float64(totalVinIbIDs-endChunk))
+
+		dbtypes.SyncStatusUpdate(int64(i), int64(totalVinIbIDs), timeToComplete,
+			dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
+
+		timeStart = time.Now()
+
 		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db,
 			allVinDbIDs[i:endChunk])
 		if err != nil {
@@ -2427,6 +2439,10 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 		}
 		numAddresses += numAddressRowsSet */
 	}
+
+	// Signal the completion of the sync
+	dbtypes.SyncStatusUpdate(int64(totalVinIbIDs), int64(totalVinIbIDs), 0,
+		dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
 
 	return numAddresses, err
 }

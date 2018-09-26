@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	rescanLogBlockChunk = 1000
+	rescanLogBlockChunk      = 1000
+	InitialLoadSyncStatusMsg = "(LiteMode) Syncing Stake and Blocks(sqlite) DBs"
 )
 
 // DBHeights returns the best block heights of: SQLite database tables (block
@@ -225,6 +226,11 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			continue
 		}
 
+		if db.liteMode {
+			// Add the various updates that should run on successful sync.
+			dbtypes.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+		}
+
 		numLive := db.sDB.PoolSize()
 		//liveTickets := db.sDB.BestNode.LiveTickets()
 		// TODO: winning tickets
@@ -246,7 +252,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
 					timeToComplete := int64(timeTakenPerBlock * float64(height-endRangeBlock))
 
-					dbtypes.SyncStatusUpdate(i, height, timeToComplete, "initial-load", "")
+					dbtypes.SyncStatusUpdate(i, height, timeToComplete, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
 					timeStart = time.Now()
 				}

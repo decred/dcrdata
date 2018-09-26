@@ -1006,3 +1006,9 @@ body.darkBG .keynav-target {
 .fs15 span.rm-spacing-tb .int {
   line-height: 1.6rem;
 }
+.sync-progress-bar {
+  animation: glowGreen 3000ms infinite;
+}
+.sync-progress-bar span {
+  vertical-align: -webkit-baseline-middle;
+}

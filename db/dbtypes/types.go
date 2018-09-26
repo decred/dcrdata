@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -96,6 +97,16 @@ const (
 // when new blocks are being appended into the db. The use of a map allows displaying
 // multiple progress bars depending on the specific sync types expected to run successfully.
 var blockchainSyncStatus = new(syncStatus)
+
+const (
+	// InitialDBLoad is the sync where data is first loaded from the chain db into
+	// the respective dbs currently supported. Runs on both liteMode and fullMode.
+	InitialDBLoad = "initial-load"
+	// AddressesTableSync is sync that runs immediately after initialDBLoad. Data
+	// previously loaded into vins and vouts table sync'd with the addresses pg table.
+	// Runs only in fullMode
+	AddressesTableSync = "addresses-sync"
+)
 
 // ChartGroupings helps maping a given chart grouping to its standard string value.
 var ChartGroupings = map[ChartGrouping]string{
@@ -566,10 +577,9 @@ type syncStatus struct {
 
 // SyncStatusInfo defines information for a single update type.
 type SyncStatusInfo struct {
-	From       int64
-	To         int64
-	Msg        string // used to display notifications about the background process
-	Time       int64  // defines estimated time to completing the sync
+	Change     float64 // percentage change
+	Msg        string  // used to display notifications about the background process
+	Time       int64   // defines estimated time to completing the sync
 	UpdateType string
 }
 
@@ -577,9 +587,14 @@ type SyncStatusInfo struct {
 func SyncStatusUpdate(from, to, timeToComplete int64, updateType, msg string) {
 	blockchainSyncStatus.Lock()
 	defer blockchainSyncStatus.Unlock()
+
+	percentage := 0.0
+	if to > 0 {
+		percentage = math.Floor((float64(from)/float64(to))*10000) / 100
+	}
+
 	val := &SyncStatusInfo{
-		From:       from,
-		To:         to,
+		Change:     percentage,
 		Msg:        msg,
 		Time:       timeToComplete,
 		UpdateType: updateType,

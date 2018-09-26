@@ -16,7 +16,9 @@ import (
 )
 
 const (
-	rescanLogBlockChunk = 500
+	rescanLogBlockChunk      = 500
+	InitialLoadSyncStatusMsg = "(FullMode) Syncing Stake, Blocks(sqlite) and Auxiliary(psql) DBs"
+	AddressesSyncStatusMsg   = "(FullMode) Syncing addresses table with spending info"
 )
 
 // SyncChainDBAsync is like SyncChainDB except it also takes a result channel on
@@ -103,10 +105,18 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		db.EnableDuplicateCheckOnInsert(true)
 	}
 
+	// Add the various updates that should run on successful sync.
+	dbtypes.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+	// check if bulk update is enabled.
+	if updateAllAddresses {
+		dbtypes.SyncStatusUpdate(0, 0, 0, dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
+	}
+
 	var timeStart time.Time
 
 	// Start rebuilding
 	startHeight := lastBlock + 1
+
 	for ib := startHeight; ib <= nodeHeight; ib++ {
 		// check for quit signal
 		select {
@@ -130,7 +140,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 				timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
 				timeToComplete := int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock))
 
-				dbtypes.SyncStatusUpdate(ib, nodeHeight, timeToComplete, "initial-load", "")
+				dbtypes.SyncStatusUpdate(ib, nodeHeight, timeToComplete, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
 				timeStart = time.Now()
 			}
@@ -208,6 +218,9 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 	}
+
+	// Signal the end of the sync
+	dbtypes.SyncStatusUpdate(nodeHeight, nodeHeight, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
 	speedReport()
 
