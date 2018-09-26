@@ -121,10 +121,12 @@ const (
 		WHERE address=$1 AND valid_mainchain = TRUE
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
-	SelectAddressLimitNByAddressSubQry = `WITH these AS (SELECT ` + addrsColumnNames +
-		` FROM addresses WHERE address=$1 AND valid_mainchain = TRUE)
-		SELECT * FROM these
-		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+	// SelectAddressLimitNByAddressSubQry was used in certain cases prior to
+	// sorting the block_time_index.
+	// SelectAddressLimitNByAddressSubQry = `WITH these AS (SELECT ` + addrsColumnNames +
+	// 	` FROM addresses WHERE address=$1 AND valid_mainchain = TRUE)
+	// 	SELECT * FROM these
+	// 	ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressMergedDebitView = `SELECT tx_hash, valid_mainchain, block_time, sum(value), COUNT(*)
 		FROM addresses

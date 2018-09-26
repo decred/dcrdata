@@ -594,13 +594,7 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	case dbtypes.AddrTxnCredit:
 		addrFunc = RetrieveAddressCreditTxns
 	case dbtypes.AddrTxnAll:
-		// The organization address occurs very frequently, so use the regular
-		// (non sub-query) select as it is much more efficient.
-		if address == pgb.devAddress {
-			addrFunc = RetrieveAddressTxnsAlt
-		} else {
-			addrFunc = RetrieveAddressTxns
-		}
+		addrFunc = RetrieveAddressTxns
 	case dbtypes.AddrTxnDebit:
 		addrFunc = RetrieveAddressDebitTxns
 
