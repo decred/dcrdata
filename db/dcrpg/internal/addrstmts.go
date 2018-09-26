@@ -118,11 +118,13 @@ const (
 		ORDER BY addresses.block_time DESC;`
 
 	SelectAddressLimitNByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses
-	    WHERE address=$1 AND valid_mainchain = TRUE ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+		WHERE address=$1 AND valid_mainchain = TRUE
+		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressLimitNByAddressSubQry = `WITH these AS (SELECT ` + addrsColumnNames +
 		` FROM addresses WHERE address=$1 AND valid_mainchain = TRUE)
-		SELECT * FROM these ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+		SELECT * FROM these
+		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressMergedDebitView = `SELECT tx_hash, valid_mainchain, block_time, sum(value), COUNT(*)
 		FROM addresses
@@ -238,7 +240,8 @@ const (
 	SetTxTypeOnAddressesByVinAndVoutIDs = `UPDATE addresses SET tx_type=$1 WHERE
 		tx_vin_vout_row_id=$2 AND is_funding=$3;`
 
-	IndexBlockTimeOnTableAddress   = `CREATE INDEX block_time_index ON addresses (block_time);`
+	IndexBlockTimeOnTableAddress = `CREATE INDEX block_time_index
+		ON addresses (block_time DESC NULLS LAST);`
 	DeindexBlockTimeOnTableAddress = `DROP INDEX block_time_index;`
 
 	IndexMatchingTxHashOnTableAddress = `CREATE INDEX matching_tx_hash_index
