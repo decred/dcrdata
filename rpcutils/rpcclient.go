@@ -239,6 +239,28 @@ func GetBlockByHash(blockhash *chainhash.Hash, client *rpcclient.Client) (*dcrut
 	return block, nil
 }
 
+// SideChains gets a slice of known side chain tips. This corresponds to the
+// results of the getchaintips node RPC where the block tip "status" is either
+// "valid-headers" or "valid-fork".
+func SideChains(client *rpcclient.Client) ([]dcrjson.GetChainTipsResult, error) {
+	tips, err := client.GetChainTips()
+	if err != nil {
+		return nil, err
+	}
+
+	return sideChainTips(tips), nil
+}
+
+func sideChainTips(allTips []dcrjson.GetChainTipsResult) (sideTips []dcrjson.GetChainTipsResult) {
+	for i := range allTips {
+		switch allTips[i].Status {
+		case "valid-headers", "valid-fork":
+			sideTips = append(sideTips, allTips[i])
+		}
+	}
+	return
+}
+
 // GetTransactionVerboseByID get a transaction by transaction id
 func GetTransactionVerboseByID(client *rpcclient.Client, txid string) (*dcrjson.TxRawResult, error) {
 	txhash, err := chainhash.NewHashFromStr(txid)
