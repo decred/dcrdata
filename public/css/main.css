@@ -1,4 +1,4 @@
-﻿/*icons*/
+/*icons*/
 @font-face {
   font-family: 'icomoon';
   src:  url('/fonts/icomoon.eot?g003m6');
@@ -997,6 +997,12 @@ body.darkBG .keynav-target {
 }
 .no-decimal .decimal {
   display: none;
+}
+.two-decimal .decimal {
+  display: inline-block;
+  vertical-align: bottom;
+  width: 25px;
+  overflow: hidden;
 }
 .stat-details {
   color: #96A0A9;

@@ -13,7 +13,7 @@
                     <div class="card">
                         <div class="card-header network-statistics">Total Supply</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data no-decimal">{{template "decimalParts" (amountAsDecimalParts .TotalSupply true)}}</span>
+                            <span class="stat-data two-decimal">{{template "decimalParts" (amountAsDecimalParts .TotalSupply true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             {{if .TotalSupplyPercentage}}
@@ -41,7 +41,7 @@
                     <div class="card">
                         <div class="card-header network-statistics">Project Fund</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data no-decimal">{{ template "decimalParts" (amountAsDecimalParts .ProjectFunds true)}}</span>
+                            <span class="stat-data two-decimal">{{ template "decimalParts" (amountAsDecimalParts .ProjectFunds true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             </br>
