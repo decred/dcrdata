@@ -220,6 +220,7 @@ func (t *TicketTxnIDGetter) TxnDbID(txid string, expire bool) (uint64, error) {
 		}
 		return dbID, nil
 	}
+	// Cache miss. Get the row id by hash from the tickets table.
 	return RetrieveTicketIDByHash(t.db, txid)
 }
 
@@ -2016,7 +2017,7 @@ type MsgBlockPG struct {
 	Validators     []string
 }
 
-// storeTxns stores the transactions of a given block
+// storeTxns stores the transactions of a given block.
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isValid, isMainchain bool,
 	updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
@@ -2102,9 +2103,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
-		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db,
-			dbTransactions, *TxDbIDs, unspentTicketCache, msgBlock,
-			pgb.dupChecks, pgb.chainParams)
+		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions,
+			*TxDbIDs, unspentTicketCache, msgBlock, pgb.dupChecks, pgb.chainParams)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err
@@ -2115,7 +2115,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// Get information for transactions spending tickets (votes and
 			// revokes), and the ticket DB row IDs themselves. Also return
 			// tickets table row IDs for newly spent tickets, if we are updating
-			// them as we go (SetSpendingForTickets).
+			// them as we go (SetSpendingForTickets). CollectTicketSpendDBInfo
+			// uses ChainDB's ticket DB row ID cache, and immediately expires
+			// any found entries.
 			spendingTxDbIDs, spendTypes, spentTicketHashes, ticketDbIDs, err :=
 				pgb.CollectTicketSpendDBInfo(dbTransactions, *TxDbIDs, msgBlock.MsgBlock)
 			if err != nil {
@@ -2337,8 +2339,7 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 		ticketHashes = append(ticketHashes, ticketHash)
 
 		// ticket's row ID in *tickets* table
-		t, err0 := pgb.unspentTicketCache.TxnDbID(ticketHash,
-			spendType != dbtypes.TicketVoted) // expire cache entry unless a vote
+		t, err0 := pgb.unspentTicketCache.TxnDbID(ticketHash, true) // expire all cache entries
 		if err0 != nil {
 			err = fmt.Errorf("failed to retrieve ticket %s DB ID: %v", ticketHash, err0)
 			return
