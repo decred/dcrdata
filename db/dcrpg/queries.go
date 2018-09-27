@@ -1126,11 +1126,6 @@ func RetrieveAllAddressTxns(db *sql.DB, address string) ([]uint64, []*dbtypes.Ad
 
 func RetrieveAddressTxns(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(db, address, N, offset,
-		internal.SelectAddressLimitNByAddressSubQry, false)
-}
-
-func RetrieveAddressTxnsAlt(db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
-	return retrieveAddressTxns(db, address, N, offset,
 		internal.SelectAddressLimitNByAddress, false)
 }
 

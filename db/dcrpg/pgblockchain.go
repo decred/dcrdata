@@ -594,13 +594,7 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 	case dbtypes.AddrTxnCredit:
 		addrFunc = RetrieveAddressCreditTxns
 	case dbtypes.AddrTxnAll:
-		// The organization address occurs very frequently, so use the regular
-		// (non sub-query) select as it is much more efficient.
-		if address == pgb.devAddress {
-			addrFunc = RetrieveAddressTxnsAlt
-		} else {
-			addrFunc = RetrieveAddressTxns
-		}
+		addrFunc = RetrieveAddressTxns
 	case dbtypes.AddrTxnDebit:
 		addrFunc = RetrieveAddressDebitTxns
 
@@ -1586,10 +1580,25 @@ func (pgb *ChainDB) DeindexTicketsTable() error {
 	return errAny
 }
 
+func errIsNotExist(err error) bool {
+	return strings.Contains(err.Error(), "does not exist")
+}
+
 func warnUnlessNotExists(err error) {
-	if !strings.Contains(err.Error(), "does not exist") {
+	if !errIsNotExist(err) {
 		log.Warn(err)
 	}
+}
+
+// ReindexAddressesBlockTime rebuilds the addresses(block_time) index.
+func (pgb *ChainDB) ReindexAddressesBlockTime() error {
+	log.Infof("Reindexing addresses table on block time...")
+	err := DeindexBlockTimeOnTableAddress(pgb.db)
+	if err != nil && !errIsNotExist(err) {
+		log.Errorf("Failed to drop index addresses index on block_time: %v", err)
+		return err
+	}
+	return IndexBlockTimeOnTableAddress(pgb.db)
 }
 
 // IndexAddressTable creates the indexes on the address table on the vout ID,
