@@ -282,6 +282,10 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 // previous block (msgBlock.WinningTickets are the lottery winners to be mined
 // in the next block).
 //
+// The TicketTxnIDGetter is used to get the spent tickets' row IDs. The get
+// function, TxnDbID, is called with the expire argument set to false, so that
+// subsequent cache lookups by other consumers will succeed.
+//
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
 func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 	fTx *TicketTxnIDGetter, msgBlock *MsgBlockPG, checked bool, params *chaincfg.Params) ([]uint64,
@@ -349,7 +353,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 
 		var ticketTxDbID sql.NullInt64
 		if fTx != nil {
-			t, err := fTx.TxnDbID(stakeSubmissionTxHash, true)
+			t, err := fTx.TxnDbID(stakeSubmissionTxHash, false)
 			if err != nil {
 				_ = voteStmt.Close() // try, but we want the QueryRow error back
 				if errRoll := dbtx.Rollback(); errRoll != nil {
