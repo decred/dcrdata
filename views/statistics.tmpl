@@ -13,7 +13,7 @@
                     <div class="card">
                         <div class="card-header network-statistics">Total Supply</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data two-decimal">{{template "decimalParts" (amountAsDecimalParts .TotalSupply true)}}</span>
+                            <span id="total-supply-card" class="stat-data two-decimal">{{template "decimalParts" (amountAsDecimalParts .TotalSupply true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             {{if .TotalSupplyPercentage}}
@@ -41,7 +41,8 @@
                     <div class="card">
                         <div class="card-header network-statistics">Project Fund</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data two-decimal">{{ template "decimalParts" (amountAsDecimalParts .ProjectFunds true)}}</span>
+                            <span id="project-fund-card"
+                                  class="stat-data two-decimal">{{ template "decimalParts" (amountAsDecimalParts .ProjectFunds true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             </br>
@@ -221,11 +222,15 @@
         {{end}}
         {{template "footer" . }}
 
-        <!-- enable tool tips-->
         <script>
+          // enable tool tips
           $(document).ready(function(){
               $('[data-toggle="tooltip"]').tooltip();
           });
+
+          // reduce to two decimal places
+          $("#total-supply-card .decimal").html($("#total-supply-card .decimal").html().substring(0, 2));
+          $("#project-fund-card .decimal").html($("#project-fund-card .decimal").html().substring(0, 2));
         </script>
     </body>
 </html>
