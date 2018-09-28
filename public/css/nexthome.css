@@ -3,7 +3,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 50px; }
+    height: 40px; }
   header .right {
     display: flex;
     flex: 1;
@@ -14,7 +14,7 @@
       header .right .searchbox img {
         height: 20px;
         width: 20px;
-        margin: 2.5px;}
+        margin: auto 5px 0px;}
       header .right .searchbox input {
         font-family: "Source Sans Pro", sans-serif;
         border: none;
