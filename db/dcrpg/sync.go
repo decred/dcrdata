@@ -11,14 +11,15 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/rpcutils"
 )
 
 const (
 	rescanLogBlockChunk      = 500
-	InitialLoadSyncStatusMsg = "(FullMode) Syncing Stake, Blocks(sqlite) and Auxiliary(psql) DBs"
-	AddressesSyncStatusMsg   = "(FullMode) Syncing addresses table with spending info"
+	InitialLoadSyncStatusMsg = "(Full Mode) Syncing Stake, Blocks(sqlite) and Auxiliary(psql) DBs."
+	AddressesSyncStatusMsg   = "Syncing addresses table with spending info."
 )
 
 // SyncChainDBAsync is like SyncChainDB except it also takes a result channel on
@@ -106,10 +107,10 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	}
 
 	// Add the various updates that should run on successful sync.
-	dbtypes.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+	explorer.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 	// check if bulk update is enabled.
 	if updateAllAddresses {
-		dbtypes.SyncStatusUpdate(0, 0, 0, dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
+		explorer.SyncStatusUpdate(0, 0, 0, dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
 	}
 
 	timeStart := time.Now()
@@ -139,7 +140,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 				timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
 				timeToComplete := int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock))
 
-				dbtypes.SyncStatusUpdate(ib, nodeHeight, timeToComplete,
+				explorer.SyncStatusUpdate(ib, nodeHeight, timeToComplete,
 					dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
 				timeStart = time.Now()
@@ -220,7 +221,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	}
 
 	// Signal the end of the sync
-	dbtypes.SyncStatusUpdate(nodeHeight, nodeHeight, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+	explorer.SyncStatusUpdate(nodeHeight, nodeHeight, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
 	speedReport()
 
@@ -283,7 +284,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	// duplicate entries and updates instead of throwing and error and panicing.
 	db.EnableDuplicateCheckOnInsert(true)
 
-	dbtypes.SyncStatusUpdateOtherMsg(dbtypes.AddressesTableSync, "sync complete")
+	explorer.SyncStatusUpdateOtherMsg(dbtypes.AddressesTableSync, "sync complete")
 
 	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
 		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)

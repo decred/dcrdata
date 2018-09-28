@@ -232,7 +232,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					clientData.RUnlock()
 					webData.Message = buff.String()
 				case sigSyncStatus:
-					enc.Encode(dbtypes.SyncStatus())
+					enc.Encode(SyncStatus())
 					webData.Message = buff.String()
 				}
 

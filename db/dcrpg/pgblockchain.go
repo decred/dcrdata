@@ -1986,7 +1986,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 	updatesPerDBTx := 500
 	totalVinIbIDs := len(allVinDbIDs)
 
-	var timeStart time.Time
+	timeStart := time.Now()
 
 	log.Infof("Updating spending tx info for %d addresses...", totalVinIbIDs)
 	var numAddresses int64
@@ -1999,13 +1999,6 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 			log.Infof("Updating from vins %d to %d...", i, endRange)
 		}
 
-		/*var numAddressRowsSet int64
-		numAddressRowsSet, err = SetSpendingForVinDbID(pgb.db, vinDbID)
-		if err != nil {
-			log.Errorf("SetSpendingForFundingOP: %v", err)
-			continue
-		}
-		numAddresses += numAddressRowsSet*/
 		var numAddressRowsSet int64
 		endChunk := i + updatesPerDBTx
 		if endChunk > totalVinIbIDs {
@@ -2016,7 +2009,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 		timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endChunk-i))
 		timeToComplete := int64(timeTakenPerBlock * float64(totalVinIbIDs-endChunk))
 
-		dbtypes.SyncStatusUpdate(int64(i), int64(totalVinIbIDs), timeToComplete,
+		explorer.SyncStatusUpdate(int64(i), int64(totalVinIbIDs), timeToComplete,
 			dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
 
 		timeStart = time.Now()
@@ -2028,39 +2021,10 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 			continue
 		}
 		numAddresses += numAddressRowsSet
-
-		/* // Get the funding and spending tx info for the vin
-		prevoutHash, prevoutVoutInd, _, txHash, txIndex, _, erri :=
-			RetrieveVinByID(pgb.db, vinDbID)
-		if erri != nil {
-			if erri == sql.ErrNoRows {
-				log.Warnf("No funding transaction found for vin DB ID %d", vinDbID)
-				continue
-			}
-			log.Error("RetrieveFundingOutpointByTxIn:", erri)
-			continue
-		}
-
-		// skip coinbase inputs
-		if bytes.Equal(zeroHashStringBytes, []byte(txHash)) {
-			continue
-		}
-
-		// Set the spending tx for the address rows with a matching funding tx
-		var numAddressRowsSet int64
-		numAddressRowsSet, err = SetSpendingForFundingOP(pgb.db,
-			prevoutHash, prevoutVoutInd, // funding
-			0, txHash, txIndex, vinDbID) // spending
-		// DANGER!!!! missing txDbID above
-		if err != nil {
-			log.Errorf("SetSpendingForFundingOP: %v", err)
-			continue
-		}
-		numAddresses += numAddressRowsSet */
 	}
 
 	// Signal the completion of the sync
-	dbtypes.SyncStatusUpdate(int64(totalVinIbIDs), int64(totalVinIbIDs), 0,
+	explorer.SyncStatusUpdate(int64(totalVinIbIDs), int64(totalVinIbIDs), 0,
 		dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
 
 	return numAddresses, err

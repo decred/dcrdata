@@ -1,6 +1,6 @@
 (() => {
     function buildProgressBar(data){
-        var progressVal = data.Change
+        var progressVal = data.PercentComplete
         var timeRemaining = humanizeTime(data.Time) // time is in secs
         var htmlString = data.Msg.length > 0 ? `<p style="font-size:14px;">`+data.Msg+`</p>`:  ""
         var notifStr = data.OtherMsg.length > 0 ? `<span style="font-size:11px;">notification : <i>`+data.OtherMsg+`</i></span>`: ""

@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/rpcutils"
 	"github.com/decred/dcrdata/v3/txhelpers"
@@ -17,7 +18,7 @@ import (
 
 const (
 	rescanLogBlockChunk      = 1000
-	InitialLoadSyncStatusMsg = "(LiteMode) Syncing Stake and Blocks(sqlite) DBs"
+	InitialLoadSyncStatusMsg = "(Lite Mode) Syncing Stake and Blocks(sqlite) DBs"
 )
 
 // DBHeights returns the best block heights of: SQLite database tables (block
@@ -152,7 +153,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	}
 
 	if db.liteMode {
-		dbtypes.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+		explorer.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 	}
 
 	// Start at next block we don't have in every DB
@@ -249,7 +250,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
 					timeToComplete := int64(timeTakenPerBlock * float64(height-endRangeBlock))
 
-					dbtypes.SyncStatusUpdate(i, height, timeToComplete,
+					explorer.SyncStatusUpdate(i, height, timeToComplete,
 						dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
 					timeStart = time.Now()
@@ -326,9 +327,9 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	}
 
 	if db.liteMode {
-		dbtypes.SyncStatusUpdate(height, height, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+		explorer.SyncStatusUpdate(height, height, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
-		dbtypes.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, "sync complete")
+		explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, "sync complete")
 	}
 
 	log.Infof("Rescan finished successfully at height %d.", height)

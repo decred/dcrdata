@@ -368,12 +368,12 @@ func mainCore() error {
 	case (usePG && auxDBheight < 40000) || wireDBheight < 40000:
 		explore.SyncStatus = true
 
-	 // incorrect value set
+		// incorrect value set
 	case cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000:
 		explore.SyncStatus = true
 
 	// more blocks are behind the set sync status user value.
-	case uint64(blocksBehind) > cfg.SyncStatusLimit:
+	case blocksBehind > cfg.SyncStatusLimit:
 		explore.SyncStatus = true
 	}
 
@@ -672,6 +672,10 @@ func mainCore() error {
 	}
 
 	log.Infof("All ready, at height %d.", baseDBHeight)
+
+	if cfg.SyncAndQuit {
+		return nil
+	}
 
 	// collect the data now it was not collected earlier. Set up the monitors too.
 	if explore.SyncStatus {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"math"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -28,6 +29,10 @@ const (
 	DeprecatedStatusType     statusType = "Deprecated"
 	BlockchainSyncingType    statusType = "Blocks Syncing"
 )
+
+// blockchainSyncStatus defines the status update displayed on the syncing status page
+// when new blocks are being appended into the db.
+var blockchainSyncStatus = new(syncStatus)
 
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
@@ -535,4 +540,91 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 // GetAgendaInfo gets the all info for the specified agenda ID.
 func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
 	return agendadb.GetAgendaInfo(agendaId)
+}
+
+
+// syncStatus makes it possible to update the user on the progress of the
+// blockchain db syncing that is running in the background after new blocks
+// were detected on system startup. Update is a map whose keys are the various
+// update types that are expected to run for a successful blockchain sync. A map
+// is needed so that we can track updates of a given type.
+type syncStatus struct {
+	sync.RWMutex
+	Update map[string]*SyncStatusInfo
+}
+
+// SyncStatusInfo defines information for a single update type.
+type SyncStatusInfo struct {
+	// percentage complete
+	PercentComplete float64
+	// used to display the main message about the currect sync.
+	Msg string
+	// displays any other information about the current main sync. This value
+	// may include but not limited to; db indexing, deleting duplicates etc.
+	OtherMsg string
+	// defines estimated time to completing the sync
+	Time       int64
+	UpdateType string
+}
+
+// SyncStatusUpdate a thread-safe way to store the sync status for the update type.
+func SyncStatusUpdate(from, to, timeToComplete int64, updateType, msg string) {
+	blockchainSyncStatus.Lock()
+	defer blockchainSyncStatus.Unlock()
+
+	percentage := 0.0
+	if to > 0 {
+		percentage = math.Floor((float64(from)/float64(to))*10000) / 100
+	}
+
+	val := &SyncStatusInfo{
+		PercentComplete: percentage,
+		Msg:               msg,
+		Time:              timeToComplete,
+		UpdateType:        updateType,
+	}
+
+	if len(blockchainSyncStatus.Update) == 0 {
+		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{
+			updateType: val,
+		}
+	} else {
+		blockchainSyncStatus.Update[updateType] = val
+	}
+}
+
+// SyncStatusUpdateOtherMsg is a thread-safe way to update the otherMsg field.
+// This field helps define other tasks that may run in the background and have
+// no feasible way to determine how long they will take to run, e.g its pretty
+// hard to determine how long a given index will take. So it will be indicated
+// just as a task running the background till completion without a progress bar.
+func SyncStatusUpdateOtherMsg(updateType, otherMsg string) {
+	blockchainSyncStatus.Lock()
+	defer blockchainSyncStatus.Unlock()
+
+	val := &SyncStatusInfo{
+		OtherMsg:   otherMsg,
+		UpdateType: updateType,
+	}
+
+	if len(blockchainSyncStatus.Update) == 0 {
+		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{
+			updateType: val,
+		}
+	} else {
+		blockchainSyncStatus.Update[updateType].OtherMsg = otherMsg
+	}
+}
+
+// SyncStatus defines a thread-safe way to read the sync status updates
+func SyncStatus() []*SyncStatusInfo {
+	blockchainSyncStatus.RLock()
+	defer blockchainSyncStatus.RUnlock()
+
+	updates := make([]*SyncStatusInfo, 0)
+	for _, v := range blockchainSyncStatus.Update {
+		updates = append(updates, v)
+	}
+
+	return updates
 }
