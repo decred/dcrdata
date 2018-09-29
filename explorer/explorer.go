@@ -103,6 +103,34 @@ func ChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 	return
 }
 
+// isSyncExplorerUpdate helps determine when the explorer should be updated
+// when the blockchain sync is running in the background and no explorer page
+// view restriction on the running webserver is activated.
+// explore.DisplaySyncStatusPage must be false for this to used.
+var isSyncExplorerUpdate = new(syncUpdateExplorer)
+
+type syncUpdateExplorer struct {
+	sync.RWMutex
+	Status bool
+}
+
+// SetSyncExplorerUpdateStatus is a thread-safe way to set when the explorer
+// should be updated with the latest blocks synced.
+func SetSyncExplorerUpdateStatus(status bool) {
+	isSyncExplorerUpdate.Lock()
+	defer isSyncExplorerUpdate.Unlock()
+
+	isSyncExplorerUpdate.Status = status
+}
+
+// SyncExplorerUpdateStatus is thread-safe to check the current set explorer update status.
+func SyncExplorerUpdateStatus() bool {
+	isSyncExplorerUpdate.RLock()
+	defer isSyncExplorerUpdate.RUnlock()
+
+	return isSyncExplorerUpdate.Status
+}
+
 // TicketStatusText generates the text to display on the explorer's transaction
 // page for the "POOL STATUS" field.
 func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) string {
@@ -140,7 +168,6 @@ type explorerUI struct {
 	explorerSource  explorerDataSource
 	liteMode        bool
 	devPrefetch     bool
-	SyncStatus      bool // if blockchain sync status page is activated or not.
 	templates       templates
 	wsHub           *WebsocketHub
 	NewBlockDataMtx sync.RWMutex
@@ -150,6 +177,9 @@ type explorerUI struct {
 	ChainParams     *chaincfg.Params
 	Version         string
 	NetName         string
+	// DisplaySyncStatusPage helps activate when sync status page is the
+	// only page that can be accessed on the running webserver.
+	DisplaySyncStatusPage bool
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -253,7 +283,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	// Do not fetch charts updates when on liteMode or when blockchain syncing
 	// is running in the background.
-	if !exp.liteMode && !exp.SyncStatus {
+	isSyncRunning := exp.DisplaySyncStatusPage || SyncExplorerUpdateStatus()
+	if !exp.liteMode && !isSyncRunning {
 		exp.prePopulateChartsData()
 	}
 
@@ -287,8 +318,8 @@ func (exp *explorerUI) StartSyncingStatusMonitor() {
 		for {
 			select {
 			case <-timer.C:
-				if !exp.SyncStatus {
-					stop <- exp.SyncStatus
+				if !exp.DisplaySyncStatusPage {
+					stop <- exp.DisplaySyncStatusPage
 				}
 				exp.wsHub.HubRelay <- sigSyncStatus
 
@@ -341,10 +372,11 @@ func (exp *explorerUI) prePopulateChartsData() {
 
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	bData := blockData.ToBlockExplorerSummary()
+	isSyncRunning := exp.DisplaySyncStatusPage || SyncExplorerUpdateStatus()
 
 	// Update the charts data after every five blocks or if no charts data
-	// exists yet.
-	if !exp.liteMode && bData.Height%5 == 0 || len(cacheChartsData.Data) == 0 || !exp.SyncStatus {
+	// exists yet. Do not Update the charts data if blockchain sync is running.
+	if !isSyncRunning && bData.Height%5 == 0 || (len(cacheChartsData.Data) == 0 && !exp.liteMode) {
 		go exp.prePopulateChartsData()
 	}
 

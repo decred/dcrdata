@@ -191,7 +191,10 @@ func (wsh *WebsocketHub) run() {
 
 			switch hubSignal {
 			case sigNewBlock:
-				log.Infof("Signaling new block to %d websocket clients.", clientsCount)
+				// do not log when explorer update status is active.
+				if !SyncExplorerUpdateStatus() {
+					log.Infof("Signaling new block to %d websocket clients.", clientsCount)
+				}
 			case sigPingAndUserCount:
 				log.Tracef("Signaling ping/user count to %d websocket clients.", clientsCount)
 			case sigMempoolUpdate:

@@ -26,6 +26,7 @@ The dcrdata repository is a collection of Go packages and apps for
   - [Getting Started](#getting-started)
     - [Configuring PostgreSQL (IMPORTANT)](#configuring-postgresql-important)
     - [Creating the Configuration File](#creating-the-configuration-file)
+    - [View dcrdata page soonest possible after startup](#view-dcrdata-page-soonest-possible-after-startup)
     - [Using Configuration Environment Variables](#using-configuration-environment-variables)
     - [Indexing the Blockchain](#indexing-the-blockchain)
     - [Starting dcrdata](#starting-dcrdata)
@@ -377,6 +378,12 @@ page will be accesible till the syncing is complete.
 ```
 sync-status-limit=1000
 ```
+
+_Its recommended that you avoid setting `sync-status-limit` as a value larger than
+1000 especially if your machine struggles handling dcrdata normal load. Setting a
+larger value might worsen your situation especially when you try to load processor
+intensive pages like ticketpool._
+
 
 ### Using Configuration Environment Variables
 

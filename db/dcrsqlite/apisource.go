@@ -33,24 +33,27 @@ import (
 
 // wiredDB is intended to satisfy DataSourceLite interface. The block header is
 // not stored in the DB, so the RPC client is used to get it on demand.
+// updateStatusSync is set to true when system is run on lite mode, then
+// wireDB is responsible of sending the sync status updates of the blockchain
+// sync that is running then.
 type wiredDB struct {
 	*DBDataSaver
-	MPC      *mempool.MempoolDataCache
-	client   *rpcclient.Client
-	params   *chaincfg.Params
-	sDB      *stakedb.StakeDatabase
-	waitChan chan chainhash.Hash
-	liteMode bool
+	MPC              *mempool.MempoolDataCache
+	client           *rpcclient.Client
+	params           *chaincfg.Params
+	sDB              *stakedb.StakeDatabase
+	waitChan         chan chainhash.Hash
+	updateStatusSync bool
 }
 
 func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string, isLiteMode bool) (wiredDB, func() error) {
+	p *chaincfg.Params, datadir string, isSyncUpdate bool) (wiredDB, func() error) {
 	wDB := wiredDB{
-		DBDataSaver: &DBDataSaver{DB, statusC},
-		MPC:         new(mempool.MempoolDataCache),
-		client:      cl,
-		params:      p,
-		liteMode:    isLiteMode,
+		DBDataSaver:      &DBDataSaver{DB, statusC},
+		MPC:              new(mempool.MempoolDataCache),
+		client:           cl,
+		params:           p,
+		updateStatusSync: isSyncUpdate,
 	}
 
 	var err error
@@ -77,14 +80,14 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
 func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string, isLiteMode bool) (wiredDB, func() error, error) {
+	p *chaincfg.Params, datadir string, updateStatusSync bool) (wiredDB, func() error, error) {
 	// Create the sqlite.DB
 	DB, err := NewDB(db)
 	if err != nil || DB == nil {
 		return wiredDB{}, func() error { return nil }, err
 	}
 	// Create the wiredDB
-	wDB, cleanup := newWiredDB(DB, statusC, cl, p, datadir, isLiteMode)
+	wDB, cleanup := newWiredDB(DB, statusC, cl, p, datadir, updateStatusSync)
 	if wDB.sDB == nil {
 		err = fmt.Errorf("failed to create StakeDatabase")
 	}
@@ -94,13 +97,13 @@ func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
 // InitWiredDB creates a new wiredDB from a file containing the data for a
 // sql.DB. The other parameters are same as those for NewWiredDB.
 func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string, isLiteMode bool) (wiredDB, func() error, error) {
+	p *chaincfg.Params, datadir string, updateStatusSync bool) (wiredDB, func() error, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
 		return wiredDB{}, func() error { return nil }, err
 	}
 
-	wDB, cleanup := newWiredDB(db, statusC, cl, p, datadir, isLiteMode)
+	wDB, cleanup := newWiredDB(db, statusC, cl, p, datadir, updateStatusSync)
 	if wDB.sDB == nil {
 		err = fmt.Errorf("failed to create StakeDatabase")
 	}
@@ -162,7 +165,8 @@ func (db *wiredDB) CheckConnectivity() error {
 // SyncDBAsync is like SyncDB except it also takes a result channel where the
 // caller should wait to receive the result.
 func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
-	quit chan struct{}, blockGetter rpcutils.BlockGetter, fetchToHeight int64) {
+	quit chan struct{}, blockGetter rpcutils.BlockGetter, fetchToHeight int64,
+	updateExplorer ...chan *chainhash.Hash) {
 	// Ensure the db is working
 	if err := db.CheckConnectivity(); err != nil {
 		res <- dbtypes.SyncResult{
@@ -176,8 +180,17 @@ func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 		log.Debugf("Setting block gate height to %d", fetchToHeight)
 		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight))
 	}
+
 	go func() {
-		height, err := db.resyncDB(quit, blockGetter, fetchToHeight)
+		var height int64
+		var err error
+
+		if len(updateExplorer) == 0 {
+			height, err = db.resyncDB(quit, blockGetter, fetchToHeight, nil)
+		} else {
+			height, err = db.resyncDB(quit, blockGetter, fetchToHeight, updateExplorer[0])
+		}
+
 		res <- dbtypes.SyncResult{
 			Height: height,
 			Error:  err,
@@ -198,7 +211,7 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{},
 		log.Debugf("Setting block gate height to %d", fetchToHeight)
 		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight))
 	}
-	return db.resyncDB(quit, blockGetter, fetchToHeight)
+	return db.resyncDB(quit, blockGetter, fetchToHeight, nil)
 }
 
 func (db *wiredDB) GetStakeDB() *stakedb.StakeDatabase {

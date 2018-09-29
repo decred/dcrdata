@@ -10,8 +10,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
-	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
+	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/rpcutils"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
@@ -89,7 +89,7 @@ func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHei
 }
 
 func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter,
-	fetchToHeight int64) (int64, error) {
+	fetchToHeight int64, updateExplorer chan *chainhash.Hash) (int64, error) {
 	// Determine if we're in lite mode, when we are the "master" who sets the
 	// pace rather than waiting on other consumers to get done with the stakedb.
 	master := blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil
@@ -152,7 +152,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		return startHeight, nil
 	}
 
-	if db.liteMode {
+	if db.updateStatusSync {
 		explorer.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 	}
 
@@ -165,7 +165,6 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	var bypassWaitChan bool
 
 	timeStart := time.Now()
-
 	for i := startHeight; i <= height; i++ {
 		// check for quit signal
 		select {
@@ -245,8 +244,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 				log.Infof("Scanning blocks %d to %d (%d live)...",
 					i, endRangeBlock, numLive)
 
-				// if liteMode is running, update the blockchain sync status.
-				if db.liteMode {
+				// if updateStatusSync is set to true then this is the only way that sync progress will be updated.
+				if db.updateStatusSync {
 					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
 					timeToComplete := int64(timeTakenPerBlock * float64(height-endRangeBlock))
 
@@ -324,9 +323,14 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		if _, height, err = db.client.GetBestBlock(); err != nil {
 			return i, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
+
+		// if updating explore is activated, update it at intervals of 200 blocks.
+		if i%200 == 0 &&  explorer.SyncExplorerUpdateStatus() && updateExplorer != nil && db.updateStatusSync {
+			updateExplorer <- &blockhash
+		}
 	}
 
-	if db.liteMode {
+	if db.updateStatusSync {
 		explorer.SyncStatusUpdate(height, height, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
 		explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, "sync complete")

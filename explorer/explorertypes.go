@@ -6,9 +6,9 @@ package explorer
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"sync"
-	"math"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -542,7 +542,6 @@ func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
 	return agendadb.GetAgendaInfo(agendaId)
 }
 
-
 // syncStatus makes it possible to update the user on the progress of the
 // blockchain db syncing that is running in the background after new blocks
 // were detected on system startup. Update is a map whose keys are the various
@@ -579,17 +578,19 @@ func SyncStatusUpdate(from, to, timeToComplete int64, updateType, msg string) {
 
 	val := &SyncStatusInfo{
 		PercentComplete: percentage,
-		Msg:               msg,
-		Time:              timeToComplete,
-		UpdateType:        updateType,
+		Msg:             msg,
+		Time:            timeToComplete,
+		UpdateType:      updateType,
 	}
 
 	if len(blockchainSyncStatus.Update) == 0 {
-		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{
-			updateType: val,
-		}
+		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{updateType: val}
 	} else {
-		blockchainSyncStatus.Update[updateType] = val
+		if _, ok := blockchainSyncStatus.Update[updateType]; ok {
+			blockchainSyncStatus.Update[updateType] = val
+		} else {
+			blockchainSyncStatus.Update = map[string]*SyncStatusInfo{updateType: val}
+		}
 	}
 }
 
@@ -608,11 +609,13 @@ func SyncStatusUpdateOtherMsg(updateType, otherMsg string) {
 	}
 
 	if len(blockchainSyncStatus.Update) == 0 {
-		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{
-			updateType: val,
-		}
+		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{updateType: val}
 	} else {
-		blockchainSyncStatus.Update[updateType].OtherMsg = otherMsg
+		if _, ok := blockchainSyncStatus.Update[updateType]; ok {
+			blockchainSyncStatus.Update[updateType].OtherMsg = otherMsg
+		} else {
+			blockchainSyncStatus.Update = map[string]*SyncStatusInfo{updateType: val}
+		}
 	}
 }
 

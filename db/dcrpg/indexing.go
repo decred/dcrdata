@@ -301,7 +301,7 @@ func (pgb *ChainDB) ExistsIndexAddressesVoutIDAddress() (bool, error) {
 	return ExistsIndex(pgb.db, "uix_addresses_vout_id")
 }
 
-// DeindexAll drops all of the indexes in all tables
+// DeindexAll drops indexes in most tables.
 func (pgb *ChainDB) DeindexAll() error {
 	allDeIndexes := []deIndexingInfo{
 		// blocks table
@@ -355,7 +355,7 @@ func (pgb *ChainDB) DeindexAll() error {
 	return err
 }
 
-// IndexAll creates all of the indexes in all tables
+// IndexAll creates indexes in most tables.
 func (pgb *ChainDB) IndexAll() error {
 	allIndexes := []indexingInfo{
 		// blocks table
@@ -407,8 +407,8 @@ func (pgb *ChainDB) IndexAll() error {
 	return nil
 }
 
-// IndexTicketsTable creates the indexes on the tickets table on ticket hash and
-// tx DB ID columns, separately.
+// IndexTicketsTable creates indexes in the tickets table on ticket hash,
+// ticket pool status and tx DB ID columns.
 func (pgb *ChainDB) IndexTicketsTable() error {
 	ticketsTableIndexes := []indexingInfo{
 		indexingInfo{Msg: "ticket hash", IndexFunc: IndexTicketsTableOnHashes},
@@ -430,8 +430,8 @@ func (pgb *ChainDB) IndexTicketsTable() error {
 	return nil
 }
 
-// DeindexTicketsTable drops the ticket hash and tx DB ID column indexes for the
-// tickets table.
+// DeindexTicketsTable drops indexes in the tickets table on ticket hash,
+// ticket pool status and tx DB ID columns.
 func (pgb *ChainDB) DeindexTicketsTable() error {
 	ticketsTablesDeIndexes := []deIndexingInfo{
 		deIndexingInfo{DeindexTicketsTableOnHash},
@@ -471,7 +471,7 @@ func (pgb *ChainDB) ReindexAddressesBlockTime() error {
 }
 
 // IndexAddressTable creates the indexes on the address table on the vout ID,
-// block_time, matching_tx_hash and address columns, separately.
+// block_time, matching_tx_hash and address columns.
 func (pgb *ChainDB) IndexAddressTable() error {
 	addressesTableIndexes := []indexingInfo{
 		indexingInfo{Msg: "address", IndexFunc: IndexAddressTableOnAddress},
@@ -481,7 +481,7 @@ func (pgb *ChainDB) IndexAddressTable() error {
 	}
 
 	for _, val := range addressesTableIndexes {
-		logMsg := "Indexing addresses table on  " + val.Msg + "..."
+		logMsg := "Indexing addresses table on " + val.Msg + "..."
 		log.Info(logMsg)
 		if err := val.IndexFunc(pgb.db); err != nil {
 			return err
