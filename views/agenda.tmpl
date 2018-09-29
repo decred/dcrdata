@@ -5,7 +5,7 @@
     <body class="{{ theme }}">
         {{template "navbar" .}}
         {{with .Ai}}
-        <div class="container">
+        <div class="container main">
             <div class="row justify-content-between">
                 <div class="col-md-7 col-sm-6 d-flex">
                     <h4 class="mb-2">{{.Id}}
@@ -39,19 +39,19 @@
                     <table class="">
                         <tr>
                             <td class="text-right lh1rem pr-2 xs-w117">Status</td>
-                            <td class="lh1rem" style="min-width: 178px;">
+                            <td class="lh1rem">
                                 <span class="hash break-word  lh1rem">{{.Status}}</span>
                             </td>
                         </tr>
                         <tr>
                             <td class="text-right lh1rem pr-2 xs-w117">QuorumProgress</td>
-                            <td class="lh1rem" style="min-width: 178px;">
+                            <td class="lh1rem">
                                 <span class="hash break-word  lh1rem">{{.QuorumProgress}}</span>
                             </td>
                         </tr>
                         <tr>
                             <td class="text-right lh1rem pr-2 xs-w117">VoteVersion</td>
-                            <td class="lh1rem" style="min-width: 178px;">
+                            <td class="lh1rem">
                                 <span class="hash break-word  lh1rem">{{.VoteVersion}}</span>
                             </td>
                              <tr>
@@ -97,7 +97,6 @@
                     data-target="agenda.cumulativeVoteChoices"
                     style="width:100%; height:400px; margin:0 auto;"
                 ></div>
-                <br>
                 <br>
                 <div
                     data-target="agenda.voteChoicesByBlock"

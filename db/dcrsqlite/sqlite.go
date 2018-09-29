@@ -66,6 +66,8 @@ type DB struct {
 	getStakeInfoWinnersSQL                                       string
 	getAllPoolValSize                                            string
 	getAllFeeInfoPerBlock                                        string
+	// returns difficulty in 24hrs or immediately after 24hrs.
+	getDifficulty string
 }
 
 // NewDB creates a new DB instance with pre-generated sql statements from an
@@ -79,29 +81,31 @@ func NewDB(db *sql.DB) (*DB, error) {
 	}
 
 	// Ticket pool queries
-	d.getPoolSQL = fmt.Sprintf(`select hash, poolsize, poolval, poolavg, winners`+
-		` from %s where height = ?`, TableNameSummaries)
-	d.getPoolByHashSQL = fmt.Sprintf(`select height, poolsize, poolval, poolavg, winners`+
-		` from %s where hash = ?`, TableNameSummaries)
-	d.getPoolRangeSQL = fmt.Sprintf(`select height, hash, poolsize, poolval, poolavg, winners `+
-		`from %s where height between ? and ?`, TableNameSummaries)
-	d.getPoolValSizeRangeSQL = fmt.Sprintf(`select poolsize, poolval `+
-		`from %s where height between ? and ?`, TableNameSummaries)
-	d.getAllPoolValSize = fmt.Sprintf(`select distinct poolsize, poolval, time `+
-		`from %s order by time`, TableNameSummaries)
-	d.getWinnersSQL = fmt.Sprintf(`select hash, winners from %s where height = ?`,
+	d.getPoolSQL = fmt.Sprintf(`SELECT hash, poolsize, poolval, poolavg, winners`+
+		` FROM %s WHERE height = ?`, TableNameSummaries)
+	d.getPoolByHashSQL = fmt.Sprintf(`SELECT height, poolsize, poolval, poolavg, winners`+
+		` FROM %s WHERE hash = ?`, TableNameSummaries)
+	d.getPoolRangeSQL = fmt.Sprintf(`SELECT height, hash, poolsize, poolval, poolavg, winners `+
+		`FROM %s WHERE height BETWEEN ? AND ?`, TableNameSummaries)
+	d.getPoolValSizeRangeSQL = fmt.Sprintf(`SELECT poolsize, poolval `+
+		`FROM %s WHERE height BETWEEN ? AND ?`, TableNameSummaries)
+	d.getAllPoolValSize = fmt.Sprintf(`SELECT distinct poolsize, poolval, time `+
+		`FROM %s ORDER BY time`, TableNameSummaries)
+	d.getWinnersSQL = fmt.Sprintf(`SELECT hash, winners FROM %s WHERE height = ?`,
 		TableNameSummaries)
-	d.getWinnersByHashSQL = fmt.Sprintf(`select height, winners from %s where hash = ?`,
+	d.getWinnersByHashSQL = fmt.Sprintf(`SELECT height, winners FROM %s WHERE hash = ?`,
 		TableNameSummaries)
 
-	d.getSDiffSQL = fmt.Sprintf(`select sdiff from %s where height = ?`,
+	d.getSDiffSQL = fmt.Sprintf(`SELECT sdiff FROM %s WHERE height = ?`,
 		TableNameSummaries)
-	d.getSDiffRangeSQL = fmt.Sprintf(`select sdiff from %s where height between ? and ?`,
+	d.getDifficulty = fmt.Sprintf(`SELECT diff FROM %s WHERE time >= ? ORDER BY time LIMIT 1`,
+		TableNameSummaries)
+	d.getSDiffRangeSQL = fmt.Sprintf(`SELECT sdiff FROM %s WHERE height BETWEEN ? AND ?`,
 		TableNameSummaries)
 
 	// Block queries
-	d.getBlockSQL = fmt.Sprintf(`select * from %s where height = ?`, TableNameSummaries)
-	d.getBlockByHashSQL = fmt.Sprintf(`select * from %s where hash = ?`, TableNameSummaries)
+	d.getBlockSQL = fmt.Sprintf(`SELECT * FROM %s WHERE height = ?`, TableNameSummaries)
+	d.getBlockByHashSQL = fmt.Sprintf(`SELECT * FROM %s WHERE hash = ?`, TableNameSummaries)
 	d.getLatestBlockSQL = fmt.Sprintf(`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`,
 		TableNameSummaries)
 	d.insertBlockSQL = fmt.Sprintf(`
@@ -110,23 +114,23 @@ func NewDB(db *sql.DB) (*DB, error) {
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameSummaries)
 
-	d.getBlockSizeRangeSQL = fmt.Sprintf(`select size from %s where height between ? and ?`,
+	d.getBlockSizeRangeSQL = fmt.Sprintf(`SELECT size FROM %s WHERE height BETWEEN ? AND ?`,
 		TableNameSummaries)
-	d.getBlockByTimeRangeSQL = fmt.Sprintf(`select * from %s where time between ? and ? ORDER BY time LIMIT ?`,
+	d.getBlockByTimeRangeSQL = fmt.Sprintf(`SELECT * FROM %s WHERE time BETWEEN ? AND ? ORDER BY time LIMIT ?`,
 		TableNameSummaries)
-	d.getBlockByTimeSQL = fmt.Sprintf(`select * from %s where time = ?`,
+	d.getBlockByTimeSQL = fmt.Sprintf(`SELECT * FROM %s WHERE time = ?`,
 		TableNameSummaries)
 
-	d.getBestBlockHashSQL = fmt.Sprintf(`select hash from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
-	d.getBestBlockHeightSQL = fmt.Sprintf(`select height from %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
+	d.getBestBlockHashSQL = fmt.Sprintf(`SELECT hash FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
+	d.getBestBlockHeightSQL = fmt.Sprintf(`SELECT height FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 
-	d.getBlockHashSQL = fmt.Sprintf(`select hash from %s where height = ?`, TableNameSummaries)
-	d.getBlockHeightSQL = fmt.Sprintf(`select height from %s where hash = ?`, TableNameSummaries)
+	d.getBlockHashSQL = fmt.Sprintf(`SELECT hash FROM %s WHERE height = ?`, TableNameSummaries)
+	d.getBlockHeightSQL = fmt.Sprintf(`SELECT height FROM %s WHERE hash = ?`, TableNameSummaries)
 
 	// Stake info queries
-	d.getStakeInfoExtendedSQL = fmt.Sprintf(`select * from %s where height = ?`,
+	d.getStakeInfoExtendedSQL = fmt.Sprintf(`SELECT * FROM %s WHERE height = ?`,
 		TableNameStakeInfo)
-	d.getStakeInfoWinnersSQL = fmt.Sprintf(`select winners from %s where height = ?`,
+	d.getStakeInfoWinnersSQL = fmt.Sprintf(`SELECT winners FROM %s WHERE height = ?`,
 		TableNameStakeInfo)
 	d.getLatestStakeInfoExtendedSQL = fmt.Sprintf(
 		`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameStakeInfo)
@@ -651,7 +655,14 @@ func (db *DB) RetrieveBlockSummaryByTimeRange(minTime, maxTime int64, limit int)
 	return blocks, nil
 }
 
-// RetrieveSDiff returns the stake difficulty for block ind
+// RetrieveDiff returns the difficulty in the last 24hrs or immediately after 24hrs.
+func (db *DB) RetrieveDiff(timestamp int64) (float64, error) {
+	var diff float64
+	err := db.QueryRow(db.getDifficulty, timestamp).Scan(&diff)
+	return diff, err
+}
+
+// RetrieveSDiff returns the stake difficulty for block at the specified chain height.
 func (db *DB) RetrieveSDiff(ind int64) (float64, error) {
 	var sdiff float64
 	err := db.QueryRow(db.getSDiffSQL, ind).Scan(&sdiff)

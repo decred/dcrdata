@@ -774,6 +774,17 @@ func (db *wiredDB) GetSDiff(idx int) float64 {
 	return sdiff
 }
 
+// RetreiveDifficulty fetches the difficulty value in the last 24hrs or
+// immediately after 24hrs.
+func (db *wiredDB) RetreiveDifficulty(timestamp int64) float64 {
+	sdiff, err := db.RetrieveDiff(timestamp)
+	if err != nil {
+		log.Errorf("Unable to retrieve difficulty: %v", err)
+		return -1
+	}
+	return sdiff
+}
+
 func (db *wiredDB) GetSDiffRange(idx0, idx1 int) []float64 {
 	sdiffs, err := db.RetrieveSDiffRange(int64(idx0), int64(idx1))
 	if err != nil {
@@ -1015,6 +1026,22 @@ func (db *wiredDB) GetExplorerBlocks(start int, end int) []*explorer.BlockBasic 
 	return summaries
 }
 
+func (db *wiredDB) GetExplorerFullBlocks(start int, end int) []*explorer.BlockInfo {
+	if start < end {
+		return nil
+	}
+	summaries := make([]*explorer.BlockInfo, 0, start-end)
+	for i := start; i > end; i-- {
+		data := db.GetBlockVerbose(i, true)
+		block := new(explorer.BlockInfo)
+		if data != nil {
+			block = db.GetExplorerBlock(data.Hash)
+		}
+		summaries = append(summaries, block)
+	}
+	return summaries
+}
+
 func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	data := db.GetBlockVerboseByHash(hash, true)
 	if data == nil {
@@ -1022,9 +1049,11 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		return nil
 	}
 
+	b := makeExplorerBlockBasic(data)
+
 	// Explorer Block Info
 	block := &explorer.BlockInfo{
-		BlockBasic:            makeExplorerBlockBasic(data),
+		BlockBasic:            b,
 		Version:               data.Version,
 		Confirmations:         data.Confirmations,
 		StakeRoot:             data.StakeRoot,
@@ -1041,6 +1070,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		PreviousHash:          data.PreviousHash,
 		NextHash:              data.NextHash,
 		StakeValidationHeight: db.params.StakeValidationHeight,
+		AllTxs:                (uint32(b.Voters) + uint32(b.Transactions) + uint32(b.FreshStake)),
 	}
 
 	votes := make([]*explorer.TxBasic, 0, block.Voters)

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #c4cbd2;
+      }
+
+      .cls-2 {
+        fill: #8997a5;
+      }
+    </style>
+  </defs>
+  <g id="Symbol_33_2" data-name="Symbol 33 – 2" transform="translate(-163 -226)">
+    <path id="XMLID_12_" class="cls-1" d="M3.375,339.665H2.25V338H1.125v1.665H0v1.125H3.375Z" transform="translate(163 -96.79)"/>
+    <path id="XMLID_11_" class="cls-1" d="M2.25,127.835v-1.71H3.375V125H0v1.125H1.125v1.71H2.25Z" transform="translate(163 106.625)"/>
+    <path id="XMLID_10_" class="cls-2" d="M2.25,194.75H3.375V188H0v6.75H2.25Z" transform="translate(163 46.46)"/>
+    <path id="XMLID_9_" class="cls-1" d="M109.125,263v1.665H108v1.125h3.375v-1.125H110.25V263Z" transform="translate(59.86 -25.165)"/>
+    <path id="XMLID_8_" class="cls-1" d="M108,51.125h1.125v1.71h1.125v-1.71h1.125V50H108Z" transform="translate(59.86 178.25)"/>
+    <path id="XMLID_7_" class="cls-2" d="M109.125,113H108v6.75h3.375V113h-2.25Z" transform="translate(59.86 118.085)"/>
+    <path id="XMLID_6_" class="cls-1" d="M216,214.665v1.125h3.375v-1.125H218.25V213h-1.125v1.665Z" transform="translate(-43.28 22.585)"/>
+    <path id="XMLID_5_" class="cls-1" d="M218.25,2.835V1.125h1.125V0H216V1.125h1.125v1.71h1.125Z" transform="translate(-43.28 226)"/>
+    <path id="XMLID_4_" class="cls-2" d="M218.25,69.75h1.125V63H216v6.75h2.25Z" transform="translate(-43.28 165.835)"/>
+    <path id="XMLID_3_" class="cls-1" d="M326.125,288v1.665H325v1.125h3.375v-1.125H327.25V288h-1.125Z" transform="translate(-147.375 -49.04)"/>
+    <path id="XMLID_2_" class="cls-1" d="M325,76.125h1.125v1.71h1.125v-1.71h1.125V75H325Z" transform="translate(-147.375 154.375)"/>
+    <path id="XMLID_1_" class="cls-2" d="M326.125,138H325v6.75h3.375V138h-2.25Z" transform="translate(-147.375 94.21)"/>
+  </g>
+</svg>

@@ -8,8 +8,18 @@ var humanize = (function() {
     return Math.round(value * multiplier) / multiplier
   }
   return {
-    decimalParts: function(v, useCommas, precision, asString) {
-      if (!precision || precision > 8) {
+    fmtPercentage: function(val) {
+      var sign = "+"
+      var color = "green"
+      if (val < 1 ){
+        sign = ""
+        color = "red"
+      }
+      sign = sign + val.toFixed(2)
+      return '<span style="color:'+color+';">' +sign+ " % </span>"
+    },
+    decimalParts: function(v, useCommas, precision, asString, lgDecimals) {
+      if (isNaN(precision) || precision > 8) {
         precision = 8
       }
       var formattedVal = parseFloat(v).toFixed(precision)
@@ -27,11 +37,21 @@ var humanize = (function() {
       }
       var decimalVals = decimal.slice(0,decimal.length - numTrailingZeros)
       var trailingZeros = (numTrailingZeros == 0) ? "" : decimal.slice(-(numTrailingZeros))
-      var htmlString = "<span class='int'>"+int+"</span>"+
-      "<span class='dot'>.</span>"+
-      "<span class='decimal'>"+decimalVals+
-         "<span class='trailing-zeroes'>"+trailingZeros+"</span>"+
-       "</span>"
+
+      var htmlString = "<span class='int'>"+int+"</span>"
+
+      if (precision !== 0){
+        htmlString = htmlString +
+        "<span class='decimal lh15rem dot'>.</span>"+
+        "<span class='decimal lh15rem'>"+decimalVals+"</span>"+
+        "<span class='decimal lh15rem trailing-zeroes'>"+trailingZeros+"</span>"
+      }
+
+      if (!isNaN(lgDecimals) && lgDecimals > 0) {
+        htmlString = "<span class='int'>"+int+"."+decimalVals.substring(0, lgDecimals) +"</span>"+
+        "<span class='decimal lh15rem'>"+decimalVals.substring(lgDecimals, decimalVals.length)+"</span>"+
+        "<span class='decimal lh15rem trailing-zeroes'>"+trailingZeros+"</span>"
+      }
       if (asString) {
         return htmlString
       }

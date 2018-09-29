@@ -1,0 +1,16 @@
+<svg id="Group_660" data-name="Group 660" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20.576 18">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #8795a2;
+      }
+
+      .cls-2 {
+        fill: #c4cbd2;
+      }
+    </style>
+  </defs>
+  <path id="XMLID_5_" class="cls-1" d="M1.45,278.856H17.542v-.01l.452.005L20.576,275H16.72v1.9H13.131a3.427,3.427,0,0,0-5.676,0H3.866V275H2.581L0,278.861l1.45-.005Z" transform="translate(0 -260.861)"/>
+  <path id="XMLID_2_" class="cls-2" d="M78.794,16.041a3.427,3.427,0,0,1,5.676,0h3.589V0h-3V.021a3.424,3.424,0,1,1-6.848,0V0H75.2V16.041ZM81.627,5.152A3.846,3.846,0,1,1,77.781,9,3.846,3.846,0,0,1,81.627,5.152Z" transform="translate(-71.334)"/>
+  <circle id="XMLID_1_" class="cls-1" cx="3.846" cy="3.846" r="3.846" transform="translate(4.857 8.996) rotate(-45)"/>
+</svg>

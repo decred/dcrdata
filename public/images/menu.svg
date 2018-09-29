@@ -1,0 +1,14 @@
+<svg id="Group_16" data-name="Group 16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 13.333">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #091440;
+      }
+    </style>
+  </defs>
+  <g id="XMLID_1_">
+    <path id="XMLID_4_" class="cls-1" d="M32.5,31v2.2h18V31Z" transform="translate(-32.5 -31)"/>
+    <path id="XMLID_3_" class="cls-1" d="M32.5,40.433V41.5h18V39.3h-18Z" transform="translate(-32.5 -33.767)"/>
+    <path id="XMLID_2_" class="cls-1" d="M32.5,48.733v1.133H44.47V47.6H32.5Z" transform="translate(-32.5 -36.533)"/>
+  </g>
+</svg>
