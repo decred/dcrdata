@@ -233,7 +233,7 @@
                     $(v).text("0");
                 }
                 $(v).text(
-                    newBlock.block.height - $(v).data('confirmation-block-height')
+                    "(" + newBlock.block.height - $(v).data('confirmation-block-height') + " confirmations)"
                 )
             })
 

@@ -12,9 +12,9 @@
                 Transaction
                 <span class="fs15">
                 {{if eq .Confirmations 0}}
-                    <strong data-confirmation-block-height="{{$.ConfirmHeight}}">( unconfirmed )</strong>
+                    <strong data-confirmation-block-height="{{$.ConfirmHeight}}">(unconfirmed)</strong>
                 {{else}}
-                    (<span data-confirmation-block-height="{{$.ConfirmHeight}}">{{.Confirmations}}</span> confirmations )
+                    <span data-confirmation-block-height="{{$.ConfirmHeight}}">({{.Confirmations}} confirmations)</span>
                 {{end}}
                 </span>
             </h4>
