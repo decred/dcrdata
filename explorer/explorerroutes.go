@@ -30,6 +30,7 @@ const (
 	defaultErrorCode    = "Something went wrong..."
 	defaultErrorMessage = "Try refreshing this page... it usually fixes things"
 	fullModeRequired    = "full-functionality mode required for this page"
+	unminedBlock        = "Future Block"
 )
 
 // netName returns the name used when referring to a decred network.

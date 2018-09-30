@@ -280,7 +280,7 @@
             }
             //handling statuspage for future block 
             if($("#futureblock").length ){
-                location.reload(true);
+                Turbolinks.visit(window.location);
             }
         };
         ws.registerEvtHandler("newblock", updateBlockData);
