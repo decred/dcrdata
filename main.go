@@ -323,6 +323,28 @@ func mainCore() error {
 	default:
 	}
 
+	// Trigger a reorg notification if the hash of the best block is not the same as the hash at the same height on dcrd
+	func() {
+		bestBlock := baseDB.GetBestBlockSummary()
+		dcrdHash, err := dcrdClient.GetBlockHash(int64(bestBlock.Height))
+		if err != nil{
+			return
+		}
+		if bestBlock.Hash == dcrdHash.String() {
+			return
+		}
+		dcrdBlockHeight, err := baseDB.GetBlockHeight(dcrdHash.String())
+		if err != nil {
+			return
+		}
+		bestBlockHash, err := chainhash.NewHashFromStr(bestBlock.Hash)
+		if err != nil {
+			return
+		}
+		notify.Reorganize(bestBlockHash, int32(bestBlock.Height), dcrdHash, int32(dcrdBlockHeight))
+
+	}()
+
 	// Create the explorer system
 	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, version.Version(), !cfg.NoDevPrefetch)
 	if explore == nil {
