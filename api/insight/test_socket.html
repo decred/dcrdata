@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+      <meta charset="utf-8"/>
+  </head>
+  <body>
+    <div id="updates"></div>
+    <script src="http://localhost:7777/js/socket.io.slim.js"></script>
+    <script>
+        var socket = io('http://localhost:7777', {path: '/insight/socket.io', transports: ['websocket'], upgrade: false});
+        
+        var updates = document.getElementById('updates')
+        
+        var update = function(str) {
+            var pr = document.createElement('p')
+            pr.textContent = str
+            updates.appendChild(pr)
+        }
+
+        socket.on('connect', function() {
+            update('Connected');
+        })
+
+        socket.on('tx', function(data) {
+            update("New transaction received: " + JSON.stringify(data, null, 4))
+        })
+
+        socket.on('block', function(data) {
+            update("New block received: " + JSON.stringify(data, null, 4))
+        })
+
+        socket.on('status', function(data) {
+            update("Status: " + JSON.stringify(data, null, 4))
+        })
+    </script>
+  </body>
+</html>

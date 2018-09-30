@@ -1,4 +1,4 @@
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016, 2018 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,13 +9,19 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/btcsuite/btclog"
-	"github.com/dcrdata/dcrdata/blockdata"
-	"github.com/dcrdata/dcrdata/dcrsqlite"
-	"github.com/dcrdata/dcrdata/mempool"
-	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/dcrdata/dcrdata/stakedb"
-	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrdata/api"
+	"github.com/decred/dcrdata/api/insight"
+	"github.com/decred/dcrdata/blockdata"
+	"github.com/decred/dcrdata/db/dcrpg"
+	"github.com/decred/dcrdata/db/dcrsqlite"
+	"github.com/decred/dcrdata/explorer"
+	"github.com/decred/dcrdata/mempool"
+	"github.com/decred/dcrdata/middleware"
+	notify "github.com/decred/dcrdata/notification"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/stakedb"
+	"github.com/decred/slog"
 	"github.com/jrick/logrotate/rotator"
 )
 
@@ -41,39 +47,53 @@ var (
 	// backendLog is the logging backend used to create all subsystem loggers.
 	// The backend must not be used before the log rotator has been initialized,
 	// or data races and/or nil pointer dereferences will occur.
-	backendLog = btclog.NewBackend(logWriter{})
+	backendLog = slog.NewBackend(logWriter{})
 
 	// logRotator is one of the logging outputs.  It should be closed on
 	// application shutdown.
 	logRotator *rotator.Rotator
 
-	sqliteLog    = backendLog.Logger("DSQL")
-	stakedbLog   = backendLog.Logger("SKDB")
-	blockdataLog = backendLog.Logger("BLKD")
-	clientLog    = backendLog.Logger("RPCC")
-	mempoolLog   = backendLog.Logger("MEMP")
-	apiLog       = backendLog.Logger("JAPI")
-	log          = backendLog.Logger("DATD")
+	notifyLog     = backendLog.Logger("NTFN")
+	sqliteLog     = backendLog.Logger("SQLT")
+	postgresqlLog = backendLog.Logger("PSQL")
+	stakedbLog    = backendLog.Logger("SKDB")
+	BlockdataLog  = backendLog.Logger("BLKD")
+	clientLog     = backendLog.Logger("RPCC")
+	mempoolLog    = backendLog.Logger("MEMP")
+	expLog        = backendLog.Logger("EXPR")
+	apiLog        = backendLog.Logger("JAPI")
+	log           = backendLog.Logger("DATD")
+	iapiLog       = backendLog.Logger("IAPI")
 )
 
 // Initialize package-global logger variables.
 func init() {
 	dcrsqlite.UseLogger(sqliteLog)
+	dcrpg.UseLogger(postgresqlLog)
 	stakedb.UseLogger(stakedbLog)
-	blockdata.UseLogger(blockdataLog)
-	dcrrpcclient.UseLogger(clientLog)
+	blockdata.UseLogger(BlockdataLog)
+	rpcclient.UseLogger(clientLog)
 	rpcutils.UseLogger(clientLog)
 	mempool.UseLogger(mempoolLog)
+	explorer.UseLogger(expLog)
+	api.UseLogger(apiLog)
+	insight.UseLogger(iapiLog)
+	middleware.UseLogger(apiLog)
+	notify.UseLogger(notifyLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
-var subsystemLoggers = map[string]btclog.Logger{
-	"DSQL": sqliteLog,
+var subsystemLoggers = map[string]slog.Logger{
+	"NTFN": notifyLog,
+	"SQLT": sqliteLog,
+	"PSQL": postgresqlLog,
 	"SKDB": stakedbLog,
-	"BLKD": blockdataLog,
+	"BLKD": BlockdataLog,
 	"RPCC": clientLog,
 	"MEMP": mempoolLog,
+	"EXPR": expLog,
 	"JAPI": apiLog,
+	"IAPI": iapiLog,
 	"DATD": log,
 }
 
@@ -107,7 +127,7 @@ func setLogLevel(subsystemID string, logLevel string) {
 	}
 
 	// Defaults to info if the log level is invalid.
-	level, _ := btclog.LevelFromString(logLevel)
+	level, _ := slog.LevelFromString(logLevel)
 	logger.SetLevel(level)
 }
 

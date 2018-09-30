@@ -8,14 +8,15 @@ import (
 	"sync"
 	"time"
 
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
-	"github.com/dcrdata/dcrdata/stakedb"
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/wire"
+	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/stakedb"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 // BlockData contains all the data collected by a Collector and stored
@@ -27,8 +28,10 @@ type BlockData struct {
 	CurrentStakeDiff dcrjson.GetStakeDifficultyResult
 	EstStakeDiff     dcrjson.EstimateStakeDiffResult
 	PoolInfo         apitypes.TicketPoolInfo
+	ExtraInfo        apitypes.BlockExplorerExtraInfo
 	PriceWindowNum   int
 	IdxBlockInWindow int
+	WinningTickets   []string
 }
 
 // ToStakeInfoExtended returns an apitypes.StakeInfoExtended object from the
@@ -74,16 +77,34 @@ func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 	}
 }
 
+// ToBlockExplorerSummary returns a BlockExplorerBasic
+func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
+	t := time.Unix(b.Header.Time, 0)
+	ftime := t.Format("2006-01-02 15:04:05")
+	extra := b.ExtraInfo
+	extra.FormattedTime = ftime
+	return apitypes.BlockExplorerBasic{
+		Height:                 b.Header.Height,
+		Size:                   b.Header.Size,
+		Voters:                 b.Header.Voters,
+		Revocations:            b.Header.Revocations,
+		FreshStake:             b.Header.FreshStake,
+		StakeDiff:              b.Header.SBits,
+		BlockExplorerExtraInfo: extra,
+		Time: b.Header.Time,
+	}
+}
+
 // Collector models a structure for the source of the blockdata
 type Collector struct {
 	mtx          sync.Mutex
-	dcrdChainSvr *dcrrpcclient.Client
+	dcrdChainSvr *rpcclient.Client
 	netParams    *chaincfg.Params
 	stakeDB      *stakedb.StakeDatabase
 }
 
 // NewCollector creates a new Collector.
-func NewCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params,
+func NewCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Params,
 	stakeDB *stakedb.StakeDatabase) *Collector {
 	return &Collector{
 		mtx:          sync.Mutex{},
@@ -96,7 +117,7 @@ func NewCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params,
 // CollectAPITypes uses CollectBlockInfo to collect block data, then organizes
 // it into the BlockDataBasic and StakeInfoExtended and dcrdataapi types.
 func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBasic, *apitypes.StakeInfoExtended) {
-	blockDataBasic, feeInfoBlock, _, err := t.CollectBlockInfo(hash)
+	blockDataBasic, feeInfoBlock, _, _, _, err := t.CollectBlockInfo(hash)
 	if err != nil {
 		return nil, nil
 	}
@@ -119,29 +140,38 @@ func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBa
 // the block data required by Collect() that is specific to the block with the
 // given hash.
 func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataBasic,
-	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult, error) {
+	*dcrjson.FeeInfoBlock, *dcrjson.GetBlockHeaderVerboseResult,
+	*apitypes.BlockExplorerExtraInfo, *wire.MsgBlock, error) {
 	msgBlock, err := t.dcrdChainSvr.GetBlock(hash)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	height := msgBlock.Header.Height
 	block := dcrutil.NewBlock(msgBlock)
-
+	txLen := len(block.Transactions())
+	coinSupply, err := t.dcrdChainSvr.GetCoinSupply()
+	if err != nil {
+		log.Error("GetCoinSupply failed: ", err)
+	}
+	nbSubsidy, err := t.dcrdChainSvr.GetBlockSubsidy(int64(msgBlock.Header.Height)+1, 5)
+	if err != nil {
+		log.Errorf("GetBlockSubsidy for %d failed: %v", msgBlock.Header.Height, err)
+	}
 	// Ticket pool info (value, size, avg)
 	var ticketPoolInfo *apitypes.TicketPoolInfo
 	var found bool
 	if ticketPoolInfo, found = t.stakeDB.PoolInfo(*hash); !found {
 		log.Infof("Unable to find block (%s) in pool info cache, trying best block.", hash.String())
-		tpi, sdbHeight := t.stakeDB.PoolInfoBest()
-		if sdbHeight != height {
-			log.Warnf("Collected block height %d != stake db height %d. Pool info "+
-				"will not match the rest of this block's data.", height, sdbHeight)
+		ticketPoolInfo = t.stakeDB.PoolInfoBest()
+		if ticketPoolInfo.Height != height {
+			log.Warnf("Collected block height %d != stake db height %d. Pool "+
+				"info will not match the rest of this block's data.",
+				height, ticketPoolInfo.Height)
 		}
-		ticketPoolInfo = &tpi
 	}
 
 	// Fee info
-	feeInfoBlock := txhelpers.FeeRateInfoBlock(block, t.dcrdChainSvr)
+	feeInfoBlock := txhelpers.FeeRateInfoBlock(block)
 	if feeInfoBlock == nil {
 		log.Error("FeeInfoBlock failed")
 	}
@@ -153,7 +183,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 
 	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(hash)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 
 	// Output
@@ -166,12 +196,16 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 		Time:       header.Timestamp.Unix(),
 		PoolInfo:   *ticketPoolInfo,
 	}
-
-	return blockdata, feeInfoBlock, blockHeaderResults, err
+	extrainfo := &apitypes.BlockExplorerExtraInfo{
+		TxLen:            txLen,
+		CoinSupply:       int64(coinSupply),
+		NextBlockSubsidy: nbSubsidy,
+	}
+	return blockdata, feeInfoBlock, blockHeaderResults, extrainfo, msgBlock, err
 }
 
 // CollectHash collects chain data at the block with the specified hash.
-func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, error) {
+func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBlock, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -183,9 +217,9 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, error) {
 	}(time.Now())
 
 	// Info specific to the block hash
-	blockDataBasic, feeInfoBlock, blockHeaderVerbose, err := t.CollectBlockInfo(hash)
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, msgBlock, err := t.CollectBlockInfo(hash)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Number of peer connection to chain server
@@ -204,15 +238,16 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, error) {
 		CurrentStakeDiff: dcrjson.GetStakeDifficultyResult{CurrentStakeDifficulty: blockDataBasic.StakeDiff},
 		EstStakeDiff:     dcrjson.EstimateStakeDiffResult{},
 		PoolInfo:         blockDataBasic.PoolInfo,
+		ExtraInfo:        *extra,
 		PriceWindowNum:   int(height / winSize),
 		IdxBlockInWindow: int(height%winSize) + 1,
 	}
 
-	return blockdata, err
+	return blockdata, msgBlock, err
 }
 
 // Collect collects chain data at the current best block.
-func (t *Collector) Collect() (*BlockData, error) {
+func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
 	t.mtx.Lock()
@@ -241,13 +276,13 @@ func (t *Collector) Collect() (*BlockData, error) {
 	case bbs = <-toch:
 	case <-time.After(time.Second * 10):
 		log.Errorf("Timeout waiting for dcrd.")
-		return nil, errors.New("Timeout")
+		return nil, nil, errors.New("Timeout")
 	}
 
 	// Stake difficulty
 	stakeDiff, err := t.dcrdChainSvr.GetStakeDifficulty()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// estimatestakediff
@@ -258,9 +293,9 @@ func (t *Collector) Collect() (*BlockData, error) {
 	}
 
 	// Info specific to the block hash
-	blockDataBasic, feeInfoBlock, blockHeaderVerbose, err := t.CollectBlockInfo(bbs.hash)
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, msgBlock, err := t.CollectBlockInfo(bbs.hash)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Number of peer connection to chain server
@@ -278,10 +313,11 @@ func (t *Collector) Collect() (*BlockData, error) {
 		FeeInfo:          *feeInfoBlock,
 		CurrentStakeDiff: *stakeDiff,
 		EstStakeDiff:     *estStakeDiff,
+		ExtraInfo:        *extra,
 		PoolInfo:         blockDataBasic.PoolInfo,
 		PriceWindowNum:   int(height / winSize),
 		IdxBlockInWindow: int(height%winSize) + 1,
 	}
 
-	return blockdata, err
+	return blockdata, msgBlock, err
 }

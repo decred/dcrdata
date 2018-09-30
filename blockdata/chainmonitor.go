@@ -1,14 +1,16 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
 package blockdata
 
 import (
+	"reflect"
 	"sync"
 
-	"github.com/dcrdata/dcrdata/txhelpers"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/txhelpers"
 )
 
 // ReorgData contains the information from a reoranization notification
@@ -17,6 +19,7 @@ type ReorgData struct {
 	OldChainHeight int32
 	NewChainHead   chainhash.Hash
 	NewChainHeight int32
+	WG             *sync.WaitGroup
 }
 
 // for getblock, ticketfeeinfo, estimatestakediff, etc.
@@ -160,14 +163,14 @@ out:
 			// relevant for the best block.
 			if chainHeight != height {
 				log.Infof("Behind on our collection...")
-				blockData, err = p.collector.CollectHash(hash)
+				blockData, _, err = p.collector.CollectHash(hash)
 				if err != nil {
 					log.Errorf("blockdata.CollectHash(hash) failed: %v", err.Error())
 					release()
 					break keepon
 				}
 			} else {
-				blockData, err = p.collector.Collect()
+				blockData, _, err = p.collector.Collect()
 				if err != nil {
 					log.Errorf("blockdata.Collect() failed: %v", err.Error())
 					release()
@@ -178,12 +181,19 @@ out:
 			// Store block data with each saver
 			savers := p.dataSavers
 			if reorg {
-				savers = p.reorgDataSavers
+				// This check should be redundant with check above.
+				if reorgData.NewChainHead.IsEqual(hash) {
+					savers = p.reorgDataSavers
+				} else {
+					savers = nil
+				}
 			}
 			for _, s := range savers {
 				if s != nil {
 					// save data to wherever the saver wants to put it
-					s.Store(blockData)
+					if err = s.Store(blockData, msgBlock); err != nil {
+						log.Errorf("(%v).Store failed: %v", reflect.TypeOf(s), err)
+					}
 				}
 			}
 
@@ -199,7 +209,9 @@ out:
 
 }
 
-// ReorgHandler receives notification of a chain reorganization
+// ReorgHandler receives notification of a chain reorganization. A
+// reorganization is handled in blockdata by setting the reorganizing flag so
+// that block data is not collected as the new chain is connected.
 func (p *chainMonitor) ReorgHandler() {
 	defer p.wg.Done()
 out:
@@ -232,6 +244,8 @@ out:
 				newHash, newHeight)
 			log.Infof("Reorganize started in blockdata. OLD head block %v at height %d.",
 				oldHash, oldHeight)
+
+			reorgData.WG.Done()
 
 		case _, ok := <-p.quit:
 			if !ok {

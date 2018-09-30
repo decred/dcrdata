@@ -1,185 +1,394 @@
 {{define "block"}}
 <!DOCTYPE html>
 <html lang="en">
-{{template "html-head" printf "Decred Block %d" .Height}}
-<body>
-
-    {{template "navbar"}}
-
-    <div class="container">
-        <h4>Block #{{.Height}}  <span style="font-size: 12px;"><a href="/api/block/{{.Height}}/verbose?indent=true">view raw</a></span></span></h4>
-
-        <div class="row">
-            <div class="col-md-4">
-                <table class="table table-sm flush-left">
-                    <tr>
-                        <td>Hash</td>
-                        <td><span class="hash collapse">{{.Hash}}</span></td>
-                    </tr>
-                    <tr>
-                        <td>Height</td>
-                        <td>{{.Height}}</td>
-                    </tr>
-                    <tr>
-                        <td>Size</td>
-                        <td>{{.Size}} B</td>
-                    </tr>
-                    <tr>
-                        <td>Confirmations</td>
-                        <td>{{.Confirmations}}</td>
-                    </tr>
-                    <tr>
-                        <td>Time ({{timezone}})</td>
-                        <td>{{.Time | getTime}}</td>
-                    </tr>
-                    <tr>
-                        <td>Difficulty</td>
-                        <td>{{printf "%12.2f" .Difficulty}}</td>
-                    </tr>
-                    <tr>
-                        <td>POS Difficulty(Sbits)</td>
-                        <td>{{.SBits}}</td>
-                    </tr>
-                    <tr>
-                        <td>Total Sent in Block</td>
-                        <td>{{$ | totalSentInBlock}}</td>
+{{template "html-head" printf "Decred Block %d" .Data.Height}}
+<body class="{{ theme }}">
+    {{ template "navbar" . }}
+    <div class="container main" data-controller="main">
+    {{with .Data}}
+        {{$Invalidated := and (gt .Confirmations 1) (not .Valid) }}
+        <div class="row justify-content-between">
+            <div class="col-md-7 col-sm-6">
+                <h4 class="mb-2">
+                    Block #{{.Height}}
+                    {{ if not .MainChain }}
+                        <span class="attention">(side chain)</span>
+                    {{else}}
+                        {{ if gt .Confirmations 1 }}
+                            <span class="op60 fs12">( <span data-confirmation-block-height="{{$.ConfirmHeight}}">{{.Confirmations}}</span> confirmations)</span>
+                        {{else}}
+                            <span class="op60 fs12">best block</span>
+                        {{end}}
+                    {{end}}
+                    <a class="fs12" href="/api/block/{{.Height}}/verbose?indent=true" data-turbolinks="false">api</a>
+                </h4>
+            </div>
+            <div class="col-md-5 col-sm-6 d-flex">
+                <table>
+                    <tr class="h2rem">
+                        <td class="pr-2 lh1rem vam text-right xs-w117 w120">TOTAL SENT</td>
+                        <td class="fs28 mono fs16-decimal d-flex align-items-center">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 false)}}<span class="pl-1 unit">DCR</span></td>
                     </tr>
                 </table>
             </div>
+        </div>
 
-            <div class="col-md-4">
-                <table class="table table-sm flush-left">
+        <div class="row justify-content-between">
+            <div class="col-md-7 col-sm-6 d-flex">
+                <table class="">
+                    {{if .MainChain}}<tr>
+                        <td class="text-right pr-2 lh1rem vam nowrap" title="Stakeholder (PoS) approved?">APPROVED</td>
+                        <td class="lh1rem">
+                        {{ if gt .Confirmations 1 }}
+                            {{if $Invalidated}}
+                                <span class="attention" title="Regular (non-stake) transactions invalidated.">{{.Valid}}</span>
+                            {{else}}
+                                <span title="All transactions valid.">{{.Valid}}</span>
+                            {{end}}
+                        {{else}}
+                            pending
+                        {{end}}
+                        </td>
+                    </tr>{{end}}
                     <tr>
-                        <td>Previous Block Hash</td>
-                        <td><a class="hash collapse" href="/explorer/block/{{.PreviousHash}}">{{.PreviousHash}}</a></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap xs-w117">BLOCK HASH</td>
+                        <td>
+                            <span class="hash break-word lh1rem">{{.Hash}}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a data-keynav-priority href="/block/{{.PreviousHash}}">PREV BLOCK</a></td>
+                        <td>
+                            <span class="hash break-word lh1rem">{{.PreviousHash}}</span>
+                        </td>
                     </tr>
                     {{if .NextHash}}
                     <tr>
-                        <td>Next Block Hash</td>
-                        <td><span class="hash collapse"><a href="/explorer/block/{{.NextHash}}">{{.NextHash}}</a></td>
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a data-preserve-keynav-index="true" href="/block/{{.NextHash}}">NEXT BLOCK</a></td>
+                        <td>
+                            <span class="hash break-word lh1rem">{{.NextHash}}</span>
+                        </td>
+                    </tr>
+                    {{else}}
+                    <tr>
+                        {{if .MainChain}}
+                        <td class="text-right pr-2 lh1rem vam nowrap"><a href="/mempool">NEXT BLOCK</a></td>
+                        <td>
+                            <span class="lh1rem">mempool</span>
+                        </td>
+                        {{else}}
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">NEXT BLOCK</td>
+                        <td>
+                            <span class="lh1rem">N/A</span>
+                        </td>
+                        {{end}}
                     </tr>
                     {{end}}
                     <tr>
-                        <td>Transactions</td>
-                        <td><a href="#transactions">{{.RawTx | len}}</a></td>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">BLOCK VERSION</td>
+                        <td class="lh1rem">{{.Version}}</td>
                     </tr>
                     <tr>
-                        <td>Votes</td>
-                        <td><a href="#stake-transactions">{{.Voters}}</a></td>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0" >STAKE VERSION</td>
+                        <td class="lh1rem">{{.StakeVersion}}</td>
                     </tr>
                     <tr>
-                        <td>Tickets</td>
-                        <td><a href="#stake-transactions">{{.FreshStake}}</a></td>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">VOTE BITS</td>
+                        <td class="lh1rem">{{.VoteBits}}</td>
                     </tr>
                     <tr>
-                        <td>Revocations</td>
-                        <td><a href="#stake-transactions">{{.Revocations}}</a></td>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">FINAL STATE</td>
+                        <td class="lh1rem">{{.FinalState}}</td>
                     </tr>
                     <tr>
-                        <td>Merkle Root</td>
-                        <td><span class="hash collapse" >{{.MerkleRoot}}</span></td>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">NONCE</td>
+                        <td class="lh1rem">{{.Nonce}}</td>
                     </tr>
                     <tr>
-                        <td>Stake Root</td>
-                        <td><span class="hash collapse" >{{.StakeRoot}}</span></td>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">MERKLE ROOT</td>
+                        <td><span class="lh1rem hash break-word">{{.MerkleRoot}}</span></td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0">STAKE ROOT</td>
+                        <td><span class="lh1rem hash break-word">{{.StakeRoot}}</span></td>
                     </tr>
                 </table>
             </div>
 
-            <div class="col-md-4">
-                <table class="table table-sm flush-left">
+            <div class="col-md-5 col-sm-6 d-flex">
+                <table class="">
                     <tr>
-                        <td>Block Verison</td>
-                        <td>{{.Version}}</span>
+                        <td class="text-right lh1rem pr-2 xs-w117">TIME</td>
+                        <td class="lh1rem" style="min-width: 178px;">
+                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.BlockTime}}"></span> ago)</span>
+                        </td>
                     </tr>
                     <tr>
-                        <td>Stake Version</td>
-                        <td>{{.StakeVersion}}</td>
+                        <td class="text-right pr-2 lh1rem xs-w117">SIZE</td>
+                        <td class="mono" title="{{intComma .Size}} Bytes">{{.FormattedBytes}}</td>
                     </tr>
                     <tr>
-                        <td>Vote Bits</td>
-                        <td>{{.VoteBits}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117"><a href="#votes" data-keynav-skip>VOTES</a></td>
+                        <td class="lh1rem">
+                            {{.Voters}}
+                        </td>
                     </tr>
                     <tr>
-                        <td>Final State</td>
-                        <td><span class="hash collapse" >{{.FinalState}}</span></td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">
+                            {{if gt .FreshStake  0 }}<a href="#tickets" data-keynav-skip>TICKETS</a>{{else}}TICKETS{{end}}
+                        </td>
+                        <td class="lh1rem">
+                            {{.FreshStake}}
+                        </td>
                     </tr>
                     <tr>
-                        <td>Pool Size</td>
-                        <td>{{.PoolSize}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Revocations  0 }}<a href="#revocations" data-keynav-skip>REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
+                        <td class="lh1rem">
+                            {{.Revocations}}
+                        </td>
                     </tr>
                     <tr>
-                        <td>Nonce</td>
-                        <td>{{.Nonce}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Transactions  0 }}<a href="#transactions" data-keynav-skip>TRANSACTIONS</a>{{else}}TRANSACTIONS{{end}}</td>
+                        <td class="lh1rem">
+                            {{.Transactions}}
+                        </td>
                     </tr>
                     <tr>
-                        <td>Bits</td>
-                        <td>{{.Bits}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">TICKET PRICE</td>
+                        <td class="lh1rem">
+                            {{template "decimalParts" (float64AsDecimalParts .SBits 8 false)}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0 p03rem0 xs-w91">POOL SIZE</td>
+                        <td class="lh1rem">{{.PoolSize}}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0 xs-w91">POW DIFFICULTY</td>
+                        <td class="lh1rem">
+                            {{template "decimalParts" (float64AsDecimalParts .Difficulty 8 true)}}
+                        </td>
                     </tr>
                 </table>
             </div>
         </div>
 
-
         <div class="row">
-            <div class="col-md-12">
-                <h4 id="stake-transactions"><span>Stake Transactions</span></h4>
-                <table class="table table-sm striped">
-                    <thead>
-                        <th>Transactions ID</th>
-                        <th>Total Value</th>
-                        <th>Size</th>
-                        <th>Type</th>
-                    </thead>
-                    <tbody>
-                        {{ range .RawSTxWithTypes}}
-                        <tr>
-                            <td>
-                                <span>
-                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
-                                </span>
-                            </td>
-                            <td>{{ .Vout | getTotalFromBlock | getAmount}}</td>
-                            <td>{{.Hex | size}} B</td>
-                            <td>{{.TxType}}</td>
-                        </tr>
-                        {{end}}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="row">
+            <span class="anchor" id="coinbase"></span>
             <div class="col-sm-12">
-                <h4 id="transactions"><span>Transactions</span></h4>
+                <h4><span>Block Reward</span></h4>
+                {{range .Tx}}
+                    {{if eq .Coinbase true}}
+                        <table class="table table-sm striped">
+                            <thead>
+                                <th>Transaction ID</th>
+                                <th class="text-right">Total DCR</th>
+                                <th>Size</th>
+                            </thead>
+                            <tbody {{if $Invalidated}}class="invalidated-tx" title="Regular transactions invalidated."{{end}}>
+                                <tr>
+                                    <td class="break-word">
+                                    {{if $.Data.Nonce}}
+                                        <span>
+                                            <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
+                                        </span>
+                                    {{else}}
+                                        <span title="The Genesis block coinbase transaction is invalid on mainnet.">
+                                            <span class="attention">&#9888;</span> <a class="hash" href="https://github.com/decred/dcrd/blob/2a18beb4d56fe59d614a7309308d84891a0cba96/chaincfg/genesis.go#L17-L53">{{.TxID}}</a>
+                                        </span>
+                                    {{end}}
+                                    </td>
+                                    <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</td>
+                                    <td class="mono fs15">{{.FormattedSize}}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    {{end}}
+                {{end}}
+            </div>
+        </div>
+
+        <div class="row">
+            <span class="anchor" id="votes"></span>
+            <div class="col-md-12">
+                <h4><span>Votes</span></h4>
+                {{if not .Votes}}
+                    <table class="table table-sm striped">
+                            <tr>
+                                <td>No votes in this block. 
+                                    {{if lt .Height .StakeValidationHeight}}
+                                        (Voting starts at block {{.StakeValidationHeight}}.)
+                                    {{end}}
+                                </td>
+                            </tr>
+                    </table>
+                {{else}}
+                    <table class="table table-sm striped">
+                        <thead>
+                            <th>Transactions ID</th>
+                            <th>Vote Version</th>
+                            <th>Last Block</th>
+                            <th class="text-right">Total DCR</th>
+                            <th class="text-right">Size</th>
+                        </thead>
+                        <tbody>
+                            {{range .Votes}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash lh1rem" href="/tx/{{.TxID}}">{{.TxID}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15">{{.VoteInfo.Version}}</td>
+                                <td>{{if .VoteInfo.Validation.Validity}}Valid{{else}}Invalid{{end}}</td>
+                                <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</td>
+                                <td class="mono fs15 text-right">{{.FormattedSize}}</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                {{end}}
+            </div>
+        </div>
+
+        {{if ge .Height .StakeValidationHeight}}
+        {{if .Misses}}
+        <div class="row">
+            <span class="anchor" id="misses"></span>
+            <div class="col-md-12">
+                <h4><span>Missed Votes</span></h4>
                 <table class="table table-sm striped">
                     <thead>
-                        <th>Transactions ID</th>
-                        <th>Total Value</th>
-                        <th>Size</th>
+                        <th>Ticket ID</th>
                     </thead>
                     <tbody>
-                        {{ range .RawTx}}
+                        {{range .Misses}}
                         <tr>
-                            <td>
+                            <td class="break-word">
                                 <span>
-                                    <a class="hash" href="/explorer/tx/{{.Txid}}">{{.Txid}}</a>
+                                    <a class="hash lh1rem" href="/tx/{{.}}">{{.}}</a>
                                 </span>
                             </td>
-                            <td>{{ .Vout | getTotalFromBlock | getAmount}}</td>
-                            <td>{{.Hex | size}} B</td>
                         </tr>
                         {{end}}
                     </tbody>
                 </table>
             </div>
         </div>
+        {{end}}
+        {{end}}
 
+        <div class="row">
+            <span class="anchor" id="tickets"></span>
+            <div class="col-md-12">
+                <h4><span>Tickets</span></h4>
+                {{if not .Tickets}}
+                <table class="table table-sm striped">
+                    <tr>
+                        <td>No tickets mined this block.</td>
+                    </tr>
+                </table>
+                {{else}}
+                    <table class="table table-sm striped">
+                        <thead>
+                            <th>Transaction ID</th>
+                            <th class="text-right">Total DCR</th>
+                            <th class="text-right">Fee</th>
+                            <th>Size</th>
+                        </thead>
+                        <tbody>
+                        {{ range .Tickets}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
+                                    </span>
+                                </td>
+                                <td class="text-right dcr mono fs15">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</td>
+                                <td class="mono fs15 text-right">{{.Fee}}</td>
+                                <td class="mono fs15">{{.FormattedSize}}</td>
+                            </tr>
+                        {{end}}
+                        </tbody>
+                    </table>
+                {{end}}
+            </div>
+        </div>
+
+        {{if .Revocations}}
+        <div class="row">
+            <span class="achor" id="revocations"></span>
+            <div class="col-md-12">
+                <h4><span>Revocations</span></h4>
+                <table class="table table-sm striped">
+                    <thead>
+                        <th>Transaction ID</th>
+                        <th class="text-right">Total DCR</th>
+                        <th class="text-right">Fee</th>
+                        <th>Size</th>
+                    </thead>
+                    <tbody>
+                        {{ range .Revs}}
+                        <tr>
+                            <td class="break-word">
+                                <span>
+                                    <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
+                                </span>
+                            </td>
+                            <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</td>
+                            <td class="mono fs15 text-right">{{.Fee}}</td>
+                            <td class="mono fs15">{{.FormattedSize}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {{end}}
+
+        <div class="row">
+            <span class="anchor" id="transactions"></span>
+            <div class="col-sm-12">
+                <h4><span>Transactions</span></h4>
+                {{if not .TxAvailable}}
+                <table class="table table-sm striped">
+                    <tr>
+                        <td>No standard transactions mined this block.</td>
+                    </tr>
+                </table>
+                {{else}}
+                    <table class="table table-sm striped">
+                        <thead>
+                            <th>Transaction ID</th>
+                            <th class="text-right">Total DCR</th>
+                            <th class="text-right">Fee</th>
+                            <th>Size</th>
+                        </thead>
+                        <tbody {{if $Invalidated}}class="invalidated-tx" title="Regular transactions invalidated."{{end}}>
+                            {{range .Tx}}
+                            {{if eq .Coinbase false}}
+                            <tr>
+                                <td class="break-word">
+                                    <span>
+                                        <a class="hash" href="/tx/{{.TxID}}">{{.TxID}}</a>
+                                    </span>
+                                </td>
+                                <td class="mono fs15 text-right">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</td>
+                                <td class="mono fs15 text-right">{{.Fee}}</td>
+                                <td class="mono fs15">{{.FormattedSize}}</td>
+                            </tr>
+                            {{end}}
+                            {{end}}
+                        </tbody>
+                    </table>
+                {{end}}
+            </div>
+        </div> 
+    {{end}}
     </div>
 </div>
 
-{{template "footer"}}
-
+{{ template "footer" . }}
 </body>
 </html>
 {{ end }}

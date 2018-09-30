@@ -8,9 +8,10 @@ package main
 import (
 	"sync"
 
-	"github.com/dcrdata/dcrdata/blockdata"
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/wire"
+	apitypes "github.com/decred/dcrdata/api/types"
+	"github.com/decred/dcrdata/blockdata"
 )
 
 // BlockDataToMemdb models the block data and block data basic as maps
@@ -38,7 +39,7 @@ func NewBlockDataToMemdb(m ...*sync.Mutex) *BlockDataToMemdb {
 }
 
 // Store writes blockdata.BlockData to memdb
-func (s *BlockDataToMemdb) Store(data *blockdata.BlockData) error {
+func (s *BlockDataToMemdb) Store(data *blockdata.BlockData, _ *wire.MsgBlock) error {
 	if s.mtx != nil {
 		s.mtx.Lock()
 		defer s.mtx.Unlock()

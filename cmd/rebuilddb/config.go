@@ -9,8 +9,8 @@ import (
 
 	flags "github.com/btcsuite/go-flags"
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrutil"
-	"github.com/decred/dcrwallet/netparams"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/netparams"
 )
 
 const (
@@ -84,7 +84,7 @@ var (
 	}
 )
 
-// cleanAndExpandPath expands environement variables and leading ~ in the
+// cleanAndExpandPath expands environment variables and leading ~ in the
 // passed path, cleans the result, and returns it.
 func cleanAndExpandPath(path string) string {
 	// Expand initial ~ to OS specific home directory.
@@ -179,8 +179,8 @@ func loadConfig() (*config, error) {
 	activeNet = &netparams.MainNetParams
 	activeChain = &chaincfg.MainNetParams
 	if cfg.TestNet {
-		activeNet = &netparams.TestNet2Params
-		activeChain = &chaincfg.TestNet2Params
+		activeNet = &netparams.TestNet3Params
+		activeChain = &chaincfg.TestNet3Params
 		numNets++
 	}
 	if cfg.SimNet {

@@ -1,0 +1,233 @@
+{{define "home"}}
+<!DOCTYPE html>
+<html lang="en">
+
+{{ template "html-head" "Decred Block Explorer by dcrdata.org"}}
+
+<body class="{{ theme }}"> 
+    {{ template "navbar" . }}
+    <div class="container main" data-controller="main">
+
+        <div class="row" data-controller="homepageMempool">
+
+            <div class="col-md-6">
+
+                <h3 class="mt-2">{{.NetName}} Chain State</h3>
+
+                {{with .Info}}
+                <div>
+                    <table class="mb-3 col">
+                        <tr class="h2rem">
+                            <td class="text-right pr-2 p03rem0 w142 lh1rem">TOTAL SUPPLY</td>
+                            <td class="fs24 mono lh1rem fs14-decimal">
+                                <span id="coin_supply">{{template "decimalParts" (amountAsDecimalParts .CoinSupply true)}}</span><span class="pl-1 unit">DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKETS IN MEMPOOL</td>
+                            <td><span data-target="homepageMempool.numTicket" class="mono fs24">{{$.Mempool.NumTickets}}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">VOTES IN MEMPOOL</td>
+                            <td><span data-target="homepageMempool.numVote" class="mono fs24">{{$.Mempool.NumVotes}}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET PRICE</td>
+                            <td class="mono vam fs24 fs14-decimal font-weight-bold">
+                                <span id="blocksdiff">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false)}}</span><span class="pl-1 unit">DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">NEXT TICKET PRICE ESTIMATE</td>
+                            <td class="mono vam fs14-decimal">
+                                <span class="fs24 font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 8 false)}}<span class="pl-1 unit font-weight-bold">DCR</span></span>, 
+                                <span class="fs18">bounds: [{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMin 2 false)}}, {{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMax 2 false)}}]</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET WINDOW PROGRESS</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-11 col-lg-8">
+                                        <div class="progress" style="max-width: 330px">
+                                            <div
+                                                class="progress-bar"
+                                                id="pos-window-progess-bar"
+                                                role="progressbar"
+                                                style="width: {{ticketWindowProgress .IdxBlockInWindow}}%;"
+                                                aria-valuenow="{{.IdxBlockInWindow}}"
+                                                aria-valuemin="0"
+                                                aria-valuemax="{{.Params.WindowSize}}"
+                                            >
+                                            <span class="nowrap pl-1">block <span id="window_block_index" >{{.IdxBlockInWindow}}</span> of {{.Params.WindowSize}} ({{remaining .IdxBlockInWindow .Params.WindowSize .Params.BlockTime}})</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET REWARD</td>
+                            <td class="mono vam fs24 fs14-decimal">+<span id="ticket_reward">{{printf "%.2f" .TicketReward}}</span>% <span class="mono lh1rem fs18">per ~{{.RewardPeriod}}</span>  <span class="mono lh1rem fs18" title="Annual Stake Rewards">({{printf "%.2f" .ASR}}% / year)</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL SIZE</td>
+                            <td>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_size">{{intComma .PoolInfo.Size}}</span> (<span id="target_percent">{{printf "%.2f" .PoolInfo.PercentTarget}}</span>% of target <span>{{intComma .PoolInfo.Target}}</span>)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL VALUE</td>
+                            <td>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="pool_value">{{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 8 true)}}</span><span class="unit"> DCR<br>(<span id="pool_size_percentage">{{printf "%.2f" .PoolInfo.Percentage}}</span>% of total supply)</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">BLOCK REWARD ADJUSTMENT PROGRESS</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-11 col-lg-8">
+                                        <div class="progress" style="max-width: 330px">
+                                            <div
+                                                class="progress-bar"
+                                                id="pow-window-progess-bar"
+                                                role="progressbar"
+                                                style="width: {{rewardAdjustmentProgress .IdxInRewardWindow}}%;"
+                                                aria-valuenow="{{.IdxInRewardWindow}}"
+                                                aria-valuemin="0"
+                                                aria-valuemax="{{.Params.RewardWindowSize}}"
+                                            >
+                                            <span id="powreward" class="nowrap pl-1">block <span id="reward_block_index" >{{.IdxInRewardWindow}}</span> of {{.Params.RewardWindowSize}} ({{remaining .IdxInRewardWindow .Params.RewardWindowSize .Params.BlockTime}})</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1">BLOCK REWARD</td>
+                            <td>
+                                <div class="mono lh1rem p03rem0 fs14-decimal fs24">
+                                    <span id="bsubsidy_total">{{template "decimalParts" (amountAsDecimalParts .NBlockSubsidy.Total true)}}</span><span class="unit"> DCR</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem">POW</td>
+                            <td>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_pow">{{template "decimalParts" (amountAsDecimalParts .NBlockSubsidy.PoW true)}}</span><span class="unit"> DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem">POS</td>
+                            <td>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_pos">{{template "decimalParts" (amountAsDecimalParts ( divide .NBlockSubsidy.PoS 5) true)}}</span><span class="unit"> DCR</span><span class="fs14"> / ticket</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem">PROJECT</td>
+                            <td>
+                                <div class="mono lh1rem fs14-decimal fs18"><span id="bsubsidy_dev">{{template "decimalParts" (amountAsDecimalParts .NBlockSubsidy.Dev true)}}</span><span class="unit"> DCR</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">PROOF OF WORK DIFFICULTY</td>
+                            <td class="mono lh1rem p03rem0">
+                                <span id="difficulty" class="fs24 fs14-decimal">
+                                    {{template "decimalParts" (float64AsDecimalParts .Difficulty 8 true)}}
+                                </span>
+                            </td>
+                        </tr>
+                        {{if .DevFund}}
+                        <tr>
+                            <td class="text-right pr-2 lh1rem"><a href="/address/{{.DevAddress}}">PROJECT FUND</a></td>
+                            <td>
+                                <span id="dev_fund" class="mono lh1rem fs14-decimal fs18">{{template "decimalParts" (amountAsDecimalParts .DevFund true)}}</span><span class="unit"> DCR</span>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </table>
+                </div>
+                {{end}}
+
+            </div>
+
+            <div class="col-md-6">
+
+                <div class="d-flex align-items-center">
+                    <h4>Latest Transactions</h4> <a href="/mempool" class="pl-2 keyboard-target" data-keynav-priority><small>see more ...</small></a>
+                </div>
+
+                <div class="mb-3 flex-table">
+                    <div class="d-flex justify-content-end header">
+                        <span class="lh1rem mr-auto">Hash</span>
+                        <span style="flex: 0 0 65px" class="lh1rem text-right ml-1">Type</span>
+                        <span style="flex: 0 0 105px" class="lh1rem text-right ml-1">Total Sent</span>
+                        <span style="flex: 0 0 50px" class="lh1rem text-right ml-1">Size</span>
+                        <span style="flex: 0 0 62px" class="lh1rem text-right ml-1">Age</span>
+                    </div>
+                    <div data-target="homepageMempool.transactions" class="transactions md-height-rows rows">
+                    {{range .Mempool.LatestTransactions}}
+                        <div class="d-flex flex-table-row">
+                            <a class="hash truncate-hash keyboard-target" style="flex: 1 1 auto" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
+                            <span style="flex: 0 0 65px" class="mono text-right ml-1">{{.Type}}</span>
+                            <span style="flex: 0 0 105px" class="mono text-right ml-1">{{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}</span>
+                            <span style="flex: 0 0 50px" class="mono text-right ml-1">{{.Size}} B</span>
+                            <span style="flex: 0 0 62px" class="mono text-right ml-1" data-target="main.age" data-age="{{.Time}}"></span>
+                        </div>
+                    {{end}}
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center">
+                    <h4>Latest Blocks</h4> <a href="/blocks" class="pl-2 keyboard-target"><small>see more ...</small></a>
+                </div>
+
+                <table class="table striped table-responsive full-width" id="explorertable">
+                    <thead>
+                        <tr>
+                            <th>Height</th>
+                            <th>
+                                <span class="d-none d-lg-inline">Transactions</span>
+                                <span class="d-lg-none">Txn</span>
+                            </th>
+                            <th>Vote<span class="d-none d-lg-inline">s</span></th>
+                            <th>Ticket<span class="d-none d-lg-inline">s</span></th>
+                            <th>
+                                <span class="d-none d-lg-inline">Revocations</span>
+                                <span class="d-lg-none">Revoke</span>
+                            </th>
+                            <th>Size</th>
+                            <th>Age</th>
+                            <th>Time ({{timezone}})</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Blocks}}
+                        <tr id="{{.Height}}">
+                            <td><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
+                            <td>{{.Transactions}}</td>
+                            <td>{{.Voters}}</td>
+                            <td>{{.FreshStake}}</td>
+                            <td>{{.Revocations}}</td>
+                            <td>{{.FormattedBytes}}</td>
+                            <td data-target="main.age" data-age="{{.BlockTime}}"></td>
+                            <td>{{.FormattedTime}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- end wrapper -->
+
+    {{  template "footer" . }}
+
+</body>
+</html>
+{{end}}

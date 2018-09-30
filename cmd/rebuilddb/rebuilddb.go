@@ -7,16 +7,18 @@ import (
 	"runtime/pprof"
 	"sync"
 
-	"github.com/btcsuite/btclog"
-	"github.com/dcrdata/dcrdata/dcrsqlite"
-	"github.com/dcrdata/dcrdata/rpcutils"
-	"github.com/decred/dcrrpcclient"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrdata/db/dcrsqlite"
+	"github.com/decred/dcrdata/rpcutils"
+	"github.com/decred/dcrdata/stakedb"
+	"github.com/decred/slog"
 )
 
 var (
-	backendLog      *btclog.Backend
-	rpcclientLogger btclog.Logger
-	sqliteLogger    btclog.Logger
+	backendLog      *slog.Backend
+	rpcclientLogger slog.Logger
+	sqliteLogger    slog.Logger
+	stakedbLogger   slog.Logger
 )
 
 func init() {
@@ -25,11 +27,13 @@ func init() {
 		fmt.Printf("Unable to start logger: %v", err)
 		os.Exit(1)
 	}
-	backendLog = btclog.NewBackend(log.Writer())
+	backendLog = slog.NewBackend(log.Writer())
 	rpcclientLogger = backendLog.Logger("RPC")
-	dcrrpcclient.UseLogger(rpcclientLogger)
+	rpcclient.UseLogger(rpcclientLogger)
 	sqliteLogger = backendLog.Logger("DSQL")
 	dcrsqlite.UseLogger(rpcclientLogger)
+	stakedbLogger = backendLog.Logger("SKDB")
+	stakedb.UseLogger(stakedbLogger)
 }
 
 func mainCore() int {
@@ -74,7 +78,8 @@ func mainCore() int {
 	// Sqlite output
 	dbInfo := dcrsqlite.DBInfo{FileName: cfg.DBFileName}
 	//sqliteDB, err := dcrsqlite.InitDB(&dbInfo)
-	sqliteDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo, nil, client, activeChain)
+	sqliteDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo, nil, client,
+		activeChain, "rebuild_data")
 	defer cleanupDB()
 	if err != nil {
 		log.Errorf("Unable to initialize SQLite database: %v", err)
@@ -96,21 +101,21 @@ func mainCore() int {
 		// Close the channel so multiple goroutines can get the message
 		log.Infof("CTRL+C hit.  Closing goroutines. Please wait.")
 		close(quit)
-		return
 	}()
 
 	// Resync db
 	var waitSync sync.WaitGroup
 	waitSync.Add(1)
 	//go sqliteDB.SyncDB(&waitSync, quit)
-	err = sqliteDB.SyncDBWithPoolValue(&waitSync, quit)
+	var height int64
+	height, err = sqliteDB.SyncDB(&waitSync, quit, nil, 0)
 	if err != nil {
 		log.Error(err)
 	}
 
 	waitSync.Wait()
 
-	log.Print("Done!")
+	log.Printf("Done at height %d!", height)
 
 	return 0
 }

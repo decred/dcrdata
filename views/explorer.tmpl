@@ -3,33 +3,47 @@
 <html lang="en">
 
 {{template "html-head" "Decred Blocks"}}
-
-<body>
-
-    <!-- Fixed navbar -->
-    {{template "navbar"}}
-
-    <div class="container">
+<body class="{{ theme }}">
+    {{template "navbar" . }}
+    <div class="container main" data-controller="main">
         <h4><span>Blocks</span></h4>
-
-        <div class="row fs12">
+        <div class="row fs13">
             <div class="col d-flex justify-content-between">
-                <a id="prev" class="no-underline" href="/explorer">◄ Older</a>
-                <p id="best" class="hidden">{{.BestBlock}}</p>
-                <a id="next" class="no-underline" href="/explorer">Newer ►</a>
+                {{ if ge (index .Data 0).Height .Rows }}
+                <a
+                    id="prev"
+                    class="no-underline"
+                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    data-keynav-priority
+                >◄ Older</a>
+                {{end}}
+                {{ if lt (index .Data 0).Height .BestBlock }}
+                 <a
+                    id="next"
+                    class="no-underline"
+                    href="/blocks?height={{ add (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    data-preserve-keynav-index="true"
+                >Newer ►</a>
+                {{end}}
             </div>
         </div>
 
         <div class="row">
             <div class="col-md-12">
-                <table class="table striped">
+                <table class="table striped table-responsive" id="explorertable">
                     <thead>
                         <tr>
                             <th>Height</th>
-                            <th>Votes</th>
-                            <th>Tickets</th>
-                            <th>Transactions</th>
-                            <th>Revocations</th>
+                            <th>
+                                <span class="d-none d-md-inline">Transactions</span>
+                                <span class="d-md-none">Txn</span>
+                            </th>
+                            <th>Vote<span class="d-none d-md-inline">s</span></th>
+                            <th>Ticket<span class="d-none d-md-inline">s</span></th>
+                            <th>
+                                <span class="d-none d-md-inline">Revocations</span>
+                                <span class="d-md-none">Revoke</span>
+                            </th>
                             <th>Size</th>
                             <th>Age</th>
                             <th>Time ({{timezone}})</th>
@@ -37,15 +51,15 @@
                     </thead>
                     <tbody>
                     {{range .Data}}
-                        <tr id="{{.Height}}">
-                            <td><a href="/explorer/block/{{.Hash}}" class="height">{{.Height}}</a></td>
+                        <tr id="{{ .Height }}">
+                            <td><a href="/block/{{.Height}}" class="fs16 height">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
+                            <td {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>
-                            <td>{{len .Tx}}</td>
                             <td>{{.Revocations}}</td>
-                            <td>{{.Size}} B</td>
-                            <td class="age">{{.Time}}</td>
-                            <td>{{.Time | getTime}}</td>
+                            <td>{{.FormattedBytes}}</td>
+                            <td data-target="main.age" data-age="{{.BlockTime}}"></td>
+                            <td>{{.FormattedTime}}</td>
                         </tr>
                     {{end}}
                     </tbody>
@@ -54,70 +68,7 @@
         </div>
     </div>
 
-    <script>
-        function timeSince(date) {
-            var seconds = Math.floor(((new Date().getTime()/1000) - date))
-            var interval = Math.floor(seconds / 31536000);
-
-            if (interval >= 1) {
-                var months = Math.floor((seconds - interval * 31536000) / 2592000)
-                return interval + "y" + " "+ months + "mo";
-            }
-            interval = Math.floor(seconds / 2592000);
-            if (interval >= 1) {
-                return interval + "mo" + " "+ Math.floor((seconds - interval * 2592000) / 86400) + "d";
-            }
-            interval = Math.floor(seconds / 86400);
-            if (interval >= 1) {
-                var s = "";
-                if (interval > 1) {
-                    s = "s"
-                }
-                return interval + "d" + " "+ Math.floor((seconds - interval * 86400) / 3600) + "h";
-            }
-            interval = Math.floor(seconds / 3600);
-            if (interval >= 1) {
-                return interval + "h" + " "+ Math.floor((seconds - interval * 3600) / 60) + "m";
-            }
-            interval = Math.floor(seconds / 60);
-            if (interval >= 1) {
-                return interval + "m" + " " + (seconds - interval * 60) + "s";
-            }
-            return Math.floor(seconds) + "s";
-        }
-        var ages = document.getElementsByClassName("age");
-        var age_times = [];
-        for (var i = 0; i < ages.length; i++) {
-            age_times[i] = new Date(parseInt(ages[i].innerText));
-            ages[i].innerText = timeSince(age_times[i]);
-        }
-        var heights = document.getElementsByClassName("height");
-        var first = parseInt(heights[0].innerText);
-        var last = parseInt(heights[heights.length-1].innerText);
-        var numBlocks = first - last + 1
-        function updateTime() {
-            for (var i = 0; i < ages.length; i++) {
-                ages[i].innerText = timeSince(age_times[i]);
-            }
-        }
-        setInterval(updateTime, 30000);
-        var prev = document.getElementById("prev");
-        var next = document.getElementById("next");
-        prev.addEventListener('click', function(event) {
-            event.preventDefault();
-            window.location.href = prev.href + '?height='+ (first-numBlocks).toString() + "&rows=" + (numBlocks).toString();
-        }, false);
-        next.addEventListener('click', function(event) {
-            event.preventDefault();
-            window.location.href = next.href + '?height='+ (first+numBlocks).toString() + "&rows=" + (numBlocks).toString();
-        }, false);
-        var best = document.getElementById("best");
-        if (parseInt(best.innerText) == first) {
-            next.className = "hidden"
-        }
-    </script>
-
-{{template "footer"}}
+{{ template "footer" . }}
 
 </body>
 </html>

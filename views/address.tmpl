@@ -1,44 +1,401 @@
 {{define "address"}}
 <!DOCTYPE html>
 <html lang="en">
-{{template "html-head" printf "Decred Address %s" .Address}}
-<body>
 
-    {{template "navbar"}}
-
-    <div class="container">
+{{template "html-head" printf "Decred Address %s" .Data.Address}}
+<body class="{{ theme }}">
+    {{template "navbar" . }}
+    {{with .Data}}
+    {{$heights := $.ConfirmHeight}}
+    {{$TxnCount := .TxnCount}}
+    {{$txType := .TxnType}}
+    <div class="container main" data-controller="address">
         <div class="row">
-            <div class="col-md-12">
-
+            <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
-                <p>{{.Address}}</p>
-
-                <h4>Transactions</h4>
-                <table class="table table-sm striped">
-                    <thead>
-                        <th>Transactions ID</th>
-                        <th>Total Value</th>
-                        <th>Time</th>
-                        <th>Confirmations</th>
-                        <th>Size</th>
-                    </thead>
-                    <tbody>
-                        {{range .Transactions}}
-                        <tr>
-                            <td><a href="../tx/{{.TxID}}" class="hash collapse">{{.TxID}}</a></td>
-                            <td>{{.Value | getAmount}}</td>
-                            <td>{{.Time | getTime }}</td>
-                            <td>{{.Confirmations}}</td>
-                            <td>{{.Size}} B</td>
-                        </tr>
+                <div class="mono" data-target="address.addr"
+                    id="{{$.OldestTxTime}}" style="margin-bottom: 12px;">
+                    {{.Address}}<a
+                        id="qrcode-init"
+                        href="javascript:showAddressQRCode('{{.Address}}');"
+                        class="dcricon-qrcode jsonly no-underline color-inherit p10"
+                    ></a>
+                </div>
+                <div class="row">
+                    <a href="javascript:hideAddressQRCode();"
+                        id="address-qrcode"
+                        class="col opacity-transition d-block"
+                        style="opacity: 0">
+                    </a>
+                </div>
+                {{if .IsDummyAddress}}
+                  <br/>
+                  This a is dummy address, typically used for unspendable ticket change outputs.<br/>
+                  <br/>
+                {{end}}
+                <div class="btn-group mr-auto mb-0 align-bottom address-btn" 
+                    data-toggle="buttons" 
+                    data-target="address.btns" 
+                    data-action="click->address#changeView"
+                >
+                    <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="List" name="list">
+                    <input id="addr-btn" type="button" class="btn btn_sm" value="Charts"
+                    name="chart" {{if $.IsLiteMode}}disabled{{end}}>
+                </div> 
+            </div>
+            <div class="col-md-4 col-sm-6 d-flex pb-3">
+                <table>
+                    <tr  class="h2rem">
+                        <td id="{{.Balance.TotalUnspent}}" class="pr-2 lh1rem vam text-right xs-w91"
+                            data-target="address.unspent">TOTAL UNSPENT</td>
+                        {{if .Fullmode}}
+                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
+                                {{if .Balance}}
+                                    {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="pl-1 unit">DCR</span>
+                                {{else}}
+                                <span class="pl-1 unit">0.000000000 DCR</span>
+                                {{end}}
+                            </td>
+                        {{else}}
+                            {{if ge .KnownTransactions .MaxTxLimit}}
+                            <td class="fs28 mono nowrap d-flex align-items-center justify-content-end">unavailable</td>
+                            {{else}}
+                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">{{.AmountUnspent.ToCoin}}</td>
+                            {{end}}
                         {{end}}
-                    </tbody>
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2">RECEIVED</td>
+                        {{if .Fullmode}}
+                            <td class="mono nowrap text-right">
+                                {{if .Balance}}
+                                    {{$received := add .Balance.TotalSpent .Balance.TotalUnspent}}
+                                    {{template "decimalParts" (amountAsDecimalParts $received true)}}<span class="pl-1 unit">DCR</span>
+                                {{else}}
+                                <span class="pl-1 unit">0.000000000 DCR</span>
+                                {{end}}
+                            </td>
+                        {{else}}
+                            {{if ge .KnownTransactions .MaxTxLimit}}
+                            <td class="mono nowrap text-right">unavailable</td>
+                            {{else}}
+                            <td class="mono nowrap text-right">{{.AmountReceived.ToCoin}}</td>
+                            {{end}}
+                        {{end}}
+                    </tr>
+                    <tr>
+                        <td class="text-right pr-2">SPENT</td>
+                        {{if .Fullmode}}
+                            <td class="mono nowrap text-right">
+                                {{if .Balance}}
+                                    {{template "decimalParts" (amountAsDecimalParts .Balance.TotalSpent true)}}<span class="pl-1 unit">DCR</span>
+                                {{else}}
+                                <span class="pl-1 unit">0.000000000 DCR</span>
+                                {{end}}
+                            </td>
+                        {{else}}
+                            {{if ge .KnownTransactions .MaxTxLimit}}
+                            <td class="mono nowrap text-right">unavailable</td>
+                            {{else}}
+                            <td class="mono nowrap text-right">{{.AmountSent.ToCoin}}</td>
+                            {{end}}
+                        {{end}}
+                    </tr>
+                    {{if ne .NumUnconfirmed 0}}
+                        <tr>
+                            <td class="text-right pr-2">UNCONFIRMED</td>
+                            <td class="mono nowrap text-right">
+                                {{.NumUnconfirmed}} transaction{{if gt .NumUnconfirmed 0}}s{{end}}
+                            </td>
+                        </tr>
+                    {{end}}
                 </table>
             </div>
         </div>
-    </div>
 
-    {{template "footer"}}
+        <div class="row">
+            <div class="col">
+                <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
+                    <div class="chart-display row d-hide" style="width:100%; margin:.7rem 0 0 -15px !important;">
+                        <select
+                            id="selectBox"
+                            class="chart-display mr-auto chart-box d-hide"
+                            data-target="address.options"
+                            data-action="change->address#changeGraph"
+                        >
+                            <option value="types" selected>Transaction Types</option>
+                            <option value="amountflow">Sent and Received</option>
+                            <option value="unspent">Total Unspent</option>
+                        </select>
+                        <div id="toggle-charts" class="row t-charts d-hide" data-target="address.flow"
+                            data-action="change->address#updateFlow">
+                            <label class="customcheck">Sent
+                                <input type="checkbox" value="1">
+                                <span class="checkmark sent"></span>
+                            </label>
+                            <label class="customcheck">Received
+                                <input type="checkbox" checked="checked">
+                                <span class="checkmark received" value="0"></span>
+                            </label>
+                            <label class="customcheck">Net
+                                <input type="checkbox" value="2">
+                                <span class="checkmark net"></span>
+                            </label>
+                        </div>
+                        <label style="margin: 0 1% 0 .0rem;">Zoom </label>
+                        <div
+                            class="btn-group"
+                            data-toggle="buttons"
+                            data-target="address.zoom"
+                            data-action="click->address#onZoom"
+                        >
+                            <input id="chart-zoom" type="button" class="btn btn_sm btn-active all" value="All Time" name="0">
+                            <input id="chart-zoom" type="button" class="btn btn_sm year" value="Year" name="3.154e+10">
+                            <input id="chart-zoom" type="button" class="btn btn_sm month" value="Month" name="2.628e+9">
+                            <input id="chart-zoom" type="button" class="btn btn_sm week" value="Week" name="6.048e+8">
+                            <input id="chart-zoom" type="button" class="btn btn_sm day" value="Day" name="8.64e+7">
+                        </div>
+                        <label style="margin: 0 1% 0 2%;">Group By </label>
+                        <div
+                            class="btn-group"
+                            data-toggle="buttons"
+                            data-txcount="{{$TxnCount}}"
+                            data-target="address.interval"
+                            data-action="click->address#changeGraph"
+                        >
+                            <input id="chart-size" type="button" class="btn btn_sm year" value="Year" name="yr">
+                            <input id="chart-size" type="button" class="btn btn_sm month" value="Month" name="mo">
+                            <input id="chart-size" type="button" class="btn btn_sm week" value="Week" name="wk">
+                            <input id="chart-size" type="button" class="btn btn_sm day" value="Day" name="day">
+                            <input id="chart-size" type="button" class="btn btn_sm all btn-active" value="All Blocks" name="all">
+                        </div>
+                    </div>
+                    <h5 class="mr-auto mb-0 list-display">History</h5>
+                    {{if lt .NumTransactions $TxnCount}}
+                    <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
+                        <span class="fs12 nowrap text-right">
+                            {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma $TxnCount}} transactions
+                            {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
+                            <sup>*</sup>
+                            {{end}}
+                        </span>
+                        <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
+                            <ul class="pagination mb-0 pagination-sm">
+                                <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{$txType}}"
+                                        id="prev"
+                                    >Previous</a>
+                                </li>
+                                <li class="page-item {{if lt (subtract $TxnCount .Offset) (add .Limit 1)}}disabled{{end}}">
+                                    <a
+                                        class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{$txType}}"
+                                        id="next">
+                                        Next
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                    {{else}}
+                    <span class="fs12 nowrap text-right list-display">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
+                    {{end}}
+                </div>
+                <div class="list-display">
+                    {{if .Transactions}}
+                    <table class="table table-mono-cells table-sm striped" style="width: 100%;">
+                        <thead>
+                            <th>Input/Output ID</th>
+                            {{if eq $txType "merged_debit"}}
+                                <th># of Input(s)</th>
+                            {{else}}
+                                <th class="text-right">Credit DCR</th>
+                            {{end}}
+                            {{if eq $txType "merged_debit"}}
+                                <th class="text-center">Debit DCR</th>
+                            {{else}}
+                                <th>Debit DCR</th>
+                            {{end}}
+                            <th>Time UTC</th>
+                            <th>Age</th>
+                            <th>Confirms</th>
+                            <th>Size</th>
+                        </thead>
+                        <tbody>
+                            {{range $i, $v := .Transactions}}
+                            <tr>
+                                {{with $v}}
+                                <td><a href="/tx/{{.TxID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
+                                {{if eq $txType "merged_debit"}}
+                                    <td class="text-right">{{.MergedTxnCount}}</td>
+                                {{else}}
+                                    {{if ne .ReceivedTotal 0.0}}
+                                        <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</td>
+                                    {{else}}
+                                        {{if eq .SentTotal 0.0}}
+                                        <td class="text-right">sstxcommitment</td>
+                                        {{else}}
+                                            {{if ne .MatchedTx ""}}
+                                            <td class="text-right"><a href="/tx/{{.MatchedTx}}" class="hash">source</a></td>
+                                            {{else}}
+                                            <td class="text-right">N/A</td>
+                                            {{end}}
+                                        {{end}}
+                                    {{end}}
+                                {{end}}
+                                {{if ne .SentTotal 0.0}}
+                                    {{if lt 0.0 .SentTotal}}
+                                    {{if eq $txType "merged_debit"}}
+                                            <td class="text-right"> {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+                                        {{else}}
+                                            <td>{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</td>
+                                        {{end}}
+                                    {{else}}
+                                        <td class="text-right">N/A</td>
+                                    {{end}}
+                                {{else}}
+                                    {{if ne .MatchedTx ""}}
+                                        <td><a href="/tx/{{.MatchedTx}}" class="hash">spent</a></td>
+                                    {{else}}
+                                        <td>unspent</td>
+                                    {{end}}
+                                {{end}}
+                                <td>
+                                    {{if eq .Confirmations 0}}
+                                        Unconfirmed
+                                    {{else}}
+                                        {{.FormattedTime}}
+                                    {{end}}
+                                </td>
+                                <td>
+                                {{if eq .Time 0}}
+                                    N/A
+                                {{else}}
+                                    <span data-controller="main" data-target="main.age" data-age="{{.Time}}"></span>
+                                {{end}}
+                                </td>
+                                <td data-confirmation-block-height="{{index $.ConfirmHeight $i}}">{{.Confirmations}}</td>
+                                <td class="text-right">{{.FormattedSize}}</td>
+                                {{end}}
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                    {{else}}
+                    <table class="table table-mono-cells table-sm striped">
+                        <tr>
+                            <td>
+                                No transactions found for this address.
+                            </td>
+                        </tr>
+                    </table>
+                    {{end}}
+                    <div
+                        id="txntype-wrapper"
+                        class="d-flex align-items-center justify-content-end"
+                    > 
+                        <label class="mb-0 mr-1" for="txntype">Type</label>
+                        <select
+                            name="txntype"
+                            id="txntype"
+                            class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if not .Fullmode}}disabled{{end}}"
+                            {{if not .Fullmode}}disabled="disabled"{{end}}
+                        >
+                            <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
+                            <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
+                            <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
+                            <option {{if eq $txType "merged_debit"}}selected{{end}} value="merged_debit">Merged Debits</option>
+                        </select>
+                    </div>
+                    {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
+                    <div>
+                        *Limit of {{.MaxTxLimit}} transactions shown in lite mode.
+                    </div>
+                    {{end}}
+                    <div
+                        id="pagesize-wrapper"
+                        class="hidden d-flex align-items-center justify-content-end"
+                    >
+                        <label class="mb-0 mr-1" for="pagesize">Page size</label>
+                        <select
+                            name="pagesize"
+                            id="pagesize"
+                            class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
+                            {{if lt $TxnCount 20}}disabled="disabled"{{end}}
+                        >
+                        {{$Txlen := len .Transactions}}
+                        {{if ge $TxnCount 20}}<option {{if eq $Txlen 20}}selected{{end}} value="20">20</option>{{end}}
+                        {{if ge $TxnCount 100}}<option {{if eq $Txlen 100}}selected{{end}} value="100">100</option>{{end}}
+                        {{if lt $TxnCount 1000}}
+                            {{if eq $TxnCount 20 100}}{{else}}<option {{if eq $Txlen $TxnCount}}selected{{end}}
+                                value="{{$TxnCount}}">{{$TxnCount}}</option>{{end}}
+                        {{end}}
+                        {{if ge $TxnCount 1000}}<option {{if eq $Txlen 1000}}selected{{end}} value="1000">1000</option>{{end}}
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-display d-hide">
+                    <div id="history-chart" style="width:100%; height:500px; margin-top:20 auto;"></div>
+                    <h5 id="no-bal" class="mt-2 bal-d" style="margin:7% auto 0 auto;">There are no transactions to display.</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        $(".jsonly").show()
+        $('#list-display').hide()
+
+        $("#txntype").add("#pagesize").change(function(ev) {
+            var pagesize = "20"
+            var offset = "0"
+            if (ev.currentTarget.id.indexOf("pagesize") != -1){
+                pagesize = $("#pagesize option:selected").val()
+                offset = {{.Offset}}
+            }
+
+            Turbolinks.visit(
+                window.location.pathname
+                + "?txntype="+ $("#txntype option:selected").val()
+                + "&n=" + pagesize
+                + "&start=" + offset
+            )
+        })
+
+        function showAddressQRCode() {
+            var $qrcode = $("#address-qrcode")
+            $.getScript(
+                "/js/qrcode.min.js",
+                function() {
+                    new QRCode($qrcode[0], {{.Address}});
+                    $qrcode.css({
+                        margin: "0px 0px 12px",
+                        opacity: 1
+                })
+                $("#qrcode-init").hide()
+            })
+        }
+
+        function hideAddressQRCode() {
+            $("#qrcode-init").show()
+            $("#address-qrcode").css({
+                margin: "0",
+                opacity: 0
+            })
+            .html("")
+        }
+
+        $('input[type=button]').on('click', function(){
+            $('input#'+this.id).removeClass('btn-active');
+            $(this).toggleClass('btn-active');
+        });
+
+    </script>
+    {{end}}
+    {{ template "footer" . }}
+    <div class="modal"></div>
 
 </body>
 </html>

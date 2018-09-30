@@ -9,11 +9,13 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dcrdata/dcrdata/semver"
+	"github.com/decred/dcrd/chaincfg"
+
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrdata/semver"
 )
 
 type TxGetter struct {
@@ -87,15 +89,9 @@ func LoadTestBlockAndSSTX(t *testing.T) (*dcrutil.Block, []*dcrutil.Tx) {
 }
 
 func TestFeeRateInfoBlock(t *testing.T) {
-	block, allTxRead := LoadTestBlockAndSSTX(t)
+	block, _ := LoadTestBlockAndSSTX(t)
 
-	txGetter := new(TxGetter)
-	txGetter.txLookup = make(map[chainhash.Hash]*dcrutil.Tx)
-	for _, tx := range allTxRead {
-		txGetter.txLookup[*tx.Hash()] = tx
-	}
-
-	fib := FeeRateInfoBlock(block, txGetter)
+	fib := FeeRateInfoBlock(block)
 	t.Log(*fib)
 
 	fibExpected := dcrjson.FeeInfoBlock{
@@ -114,15 +110,9 @@ func TestFeeRateInfoBlock(t *testing.T) {
 }
 
 func TestFeeInfoBlock(t *testing.T) {
-	block, allTxRead := LoadTestBlockAndSSTX(t)
+	block, _ := LoadTestBlockAndSSTX(t)
 
-	txGetter := new(TxGetter)
-	txGetter.txLookup = make(map[chainhash.Hash]*dcrutil.Tx)
-	for _, tx := range allTxRead {
-		txGetter.txLookup[*tx.Hash()] = tx
-	}
-
-	fib := FeeInfoBlock(block, txGetter)
+	fib := FeeInfoBlock(block)
 	t.Log(*fib)
 
 	fibExpected := dcrjson.FeeInfoBlock{
@@ -153,7 +143,7 @@ func TxToWriter(tx *dcrutil.Tx, w io.Writer) error {
 
 // ConnectNodeRPC attempts to create a new websocket connection to a dcrd node,
 // with the given credentials and optional notification handlers.
-func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclient.Client, semver.Semver, error) {
+func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*rpcclient.Client, semver.Semver, error) {
 	var dcrdCerts []byte
 	var err error
 	var nodeVer semver.Semver
@@ -165,7 +155,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclie
 
 	}
 
-	connCfgDaemon := &dcrrpcclient.ConnConfig{
+	connCfgDaemon := &rpcclient.ConnConfig{
 		Host:         host,
 		Endpoint:     "ws", // websocket
 		User:         user,
@@ -174,7 +164,7 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclie
 		DisableTLS:   disableTLS,
 	}
 
-	dcrdClient, err := dcrrpcclient.New(connCfgDaemon, nil)
+	dcrdClient, err := rpcclient.New(connCfgDaemon, nil)
 	if err != nil {
 		return nil, nodeVer, fmt.Errorf("Failed to start dcrd RPC client: %s", err.Error())
 	}
@@ -182,11 +172,74 @@ func ConnectNodeRPC(host, user, pass, cert string, disableTLS bool) (*dcrrpcclie
 	// Ensure the RPC server has a compatible API version.
 	ver, err := dcrdClient.Version()
 	if err != nil {
-		return nil, nodeVer, fmt.Errorf("Unable to get node RPC version")
+		return nil, nodeVer, fmt.Errorf("unable to get node RPC version")
 	}
 
 	dcrdVer := ver["dcrdjsonrpcapi"]
 	nodeVer = semver.NewSemver(dcrdVer.Major, dcrdVer.Minor, dcrdVer.Patch)
 
 	return dcrdClient, nodeVer, nil
+}
+
+func TestFilterHashSlice(t *testing.T) {
+	var hashList, blackList []chainhash.Hash
+	var h *chainhash.Hash
+
+	h, _ = chainhash.NewHashFromStr("8e5b17d75d1845f90940d07ac8338d0919f1cbd8e12e943c972322c628b47416")
+	hashList = append(hashList, *h)
+	h, _ = chainhash.NewHashFromStr("3365991083571c527bd3c81bd7374b6f06c17e67b50671067e78371e0511d1d5") // ***
+	hashList = append(hashList, *h)
+	h, _ = chainhash.NewHashFromStr("fd1a252947ee2ba7be5d0b197952640bdd74066a2a36f3c00beca34dbd3ac8ad")
+	hashList = append(hashList, *h)
+
+	h, _ = chainhash.NewHashFromStr("7ea06b193187dc028b6266ce49f4c942b3d57b4572991b527b5abd9ade4974b8")
+	blackList = append(blackList, *h)
+	h, _ = chainhash.NewHashFromStr("0839e25863e4d04b099d945d57180283e8be217ce6d7bc589c289bc8a1300804")
+	blackList = append(blackList, *h)
+	h, _ = chainhash.NewHashFromStr("3365991083571c527bd3c81bd7374b6f06c17e67b50671067e78371e0511d1d5") // *** [2]
+	blackList = append(blackList, *h)
+	h, _ = chainhash.NewHashFromStr("3edbc5318c36049d5fa70e6b04ef69b02d68e98c4739390c50220509a9803e26")
+	blackList = append(blackList, *h)
+	h, _ = chainhash.NewHashFromStr("37e032ece5ef4bda7b86c8b410476f3399d1ab48863d7d6279a66bea1e3876ab")
+	blackList = append(blackList, *h)
+
+	t.Logf("original: %v", hashList)
+
+	hashList = FilterHashSlice(hashList, func(h chainhash.Hash) bool {
+		return HashInSlice(h, blackList)
+	})
+
+	t.Logf("filtered: %v", hashList)
+
+	if HashInSlice(blackList[2], hashList) {
+		t.Errorf("filtered slice still has hash %v", blackList[2])
+	}
+}
+
+func TestGenesisTxHash(t *testing.T) {
+	// Mainnet
+	genesisTxHash := GenesisTxHash(&chaincfg.MainNetParams).String()
+	if genesisTxHash == "" {
+		t.Errorf("Failed to get genesis transaction hash for mainnet.")
+	}
+	t.Logf("Genesis transaction hash (mainnet): %s", genesisTxHash)
+
+	mainnetExpectedTxHash := "e7dfbceac9fccd6025c70a1dfa9302b3e7b5aa22fa51c98a69164ad403d60a2c"
+	if genesisTxHash != mainnetExpectedTxHash {
+		t.Errorf("Incorrect genesis transaction hash (mainnet). Expected %s, got %s",
+			mainnetExpectedTxHash, genesisTxHash)
+	}
+
+	// Simnet
+	genesisTxHash = GenesisTxHash(&chaincfg.SimNetParams).String()
+	if genesisTxHash == "" {
+		t.Errorf("Failed to get genesis transaction hash for simnet.")
+	}
+	t.Logf("Genesis transaction hash (mainnet): %s", genesisTxHash)
+
+	simnetExpectedTxHash := "a216ea043f0d481a072424af646787794c32bcefd3ed181a090319bbf8a37105"
+	if genesisTxHash != simnetExpectedTxHash {
+		t.Errorf("Incorrect genesis transaction hash (simnet). Expected %s, got %s",
+			mainnetExpectedTxHash, genesisTxHash)
+	}
 }

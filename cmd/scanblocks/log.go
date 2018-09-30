@@ -8,8 +8,8 @@ import (
 
 	"github.com/shiena/ansicolor"
 	// "github.com/mattn/go-colorable"
-	"github.com/Sirupsen/logrus"
 	prefix_fmt "github.com/chappjc/logrus-prefix"
+	"github.com/sirupsen/logrus"
 )
 
 var logFILE *os.File
@@ -22,7 +22,8 @@ const logFile = "scanblocks.log"
 // InitLogger starts the logger
 func InitLogger() error {
 	logFilePath, _ := filepath.Abs(logFile)
-	logFILE, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND,
+	var err error
+	logFILE, err = os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND,
 		0664)
 	if err != nil {
 		return fmt.Errorf("Error opening log file: %v", err)
@@ -30,7 +31,11 @@ func InitLogger() error {
 
 	logrus.SetOutput(io.MultiWriter(logFILE, os.Stdout))
 	logrus.SetLevel(logrus.DebugLevel)
-	logrus.SetFormatter(&prefix_fmt.TextFormatter{ForceColors: true})
+	logrus.SetFormatter(&prefix_fmt.TextFormatter{
+		ForceColors:     true,
+		ForceFormatting: true,
+		FullTimestamp:   true,
+	})
 	//logrus.SetOutput(ansicolor.NewAnsiColorWriter(os.Stdout))
 	//logrus.SetOutput(colorable.NewColorableStdout())
 
@@ -38,6 +43,8 @@ func InitLogger() error {
 	log.Level = logrus.DebugLevel
 	log.Formatter = &prefix_fmt.TextFormatter{
 		ForceColors:     true,
+		ForceFormatting: true,
+		FullTimestamp:   true,
 		TimestampFormat: "02 Jan 06 15:04.00 -0700",
 	}
 

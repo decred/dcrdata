@@ -17,31 +17,21 @@
 // Based on ws_events_dispatcher.js by Ismael Celis
 
 var MessageSocket = function(uri) {
+  this.uri = uri;
   // create a new WebSocket connection
-  var ws = new WebSocket(uri);
+  console.log("new MessageSocket", uri);
 
   // register an event handler
   var handlers = {};
+  this.handlers = handlers;
   this.registerEvtHandler = function(eventID, handler) {
     handlers[eventID] = handlers[eventID] || [];
     handlers[eventID].push(handler);
     return this;
   };
-
-  // send a message back to the server
-  this.send = function(eventID, message) {
-    var payload = JSON.stringify({
-      event: eventID,
-      message: message
-    });
-    ws.send(payload);
+  this.deregisterEvtHandlers = function(eventID, handlerName) {
+    handlers[eventID] = []
     return this;
-  };
-
-  // unmarshall message, and forward the message to registered handlers
-  ws.onmessage = function(evt) {
-    var json = JSON.parse(evt.data);
-    forward(json.event, json.message);
   };
 
   // forward a message for the named event to the right handlers
@@ -56,14 +46,50 @@ var MessageSocket = function(uri) {
     }
   };
 
-  // Stub out standard functions
-  ws.onclose = function() {
-    forward("close", null);
-  };
-  ws.onopen = function() {
-    forward("open", null);
-  };
-  ws.onerror = function(evt) {
-    forward("error", evt);
-  };
+  this.connect = function() {
+    var ws = new WebSocket(this.uri);
+    this.ws = ws
+    console.log("WS",ws);
+    this.close = function(reason) {
+      console.log("close, reason:", reason, handlers)
+      clearTimeout(pinger);
+      handlers = {};
+      ws.close()
+    }
+
+    // send a message back to the server
+    var send = function(eventID, message) {
+      var payload = JSON.stringify({
+        event: eventID,
+        message: message
+      });
+      console.log("send", payload)
+      ws.send(payload);
+      return this;
+    };
+    this.send = send;
+
+    // unmarshall message, and forward the message to registered handlers
+    ws.onmessage = function(evt) {
+      var json = JSON.parse(evt.data);
+      forward(json.event, json.message);
+    };
+
+    // Stub out standard functions
+    ws.onclose = function() {
+      forward("close", null);
+    };
+    ws.onopen = function() {
+      forward("open", null);
+    };
+    ws.onerror = function(evt) {
+      forward("error", evt);
+    };
+
+    // Start ping pong
+    var pinger = setInterval(function () {
+      send("ping","sup");
+    }, 7000);
+  }
+
 };

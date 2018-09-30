@@ -14,13 +14,13 @@ import (
 	"sync"
 	"time"
 
-	apitypes "github.com/dcrdata/dcrdata/dcrdataapi"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
-	"github.com/decred/dcrrpcclient"
-	"github.com/decred/dcrutil"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	apitypes "github.com/decred/dcrdata/api/types"
 )
 
 // NewTx models data for a new transaction
@@ -110,7 +110,7 @@ func (tix ByAbsoluteFee) Less(i, j int) bool {
 // mechanism used by main. The newTxChan contains a chain hash for the
 // transaction from the notificiation, or a zero value hash indicating it was
 // from a Ticker or manually triggered.
-func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
+func (p *mempoolMonitor) TxHandler(client *rpcclient.Client) {
 	defer p.wg.Done()
 	for {
 		select {
@@ -154,8 +154,8 @@ func (p *mempoolMonitor) TxHandler(client *dcrrpcclient.Client) {
 				// txHeight = tx.MsgTx().TxIn[0].BlockHeight // uh, no
 			case stake.TxTypeSSGen:
 				// Vote
-				voteHash := &tx.MsgTx().TxIn[1].PreviousOutPoint.Hash
-				log.Tracef("Received vote %v for ticket %v", tx.Hash(), voteHash)
+				ticketHash := &tx.MsgTx().TxIn[1].PreviousOutPoint.Hash
+				log.Tracef("Received vote %v for ticket %v", tx.Hash(), ticketHash)
 				// TODO: Show subsidy for this vote (Vout[2] - Vin[1] ?)
 				continue
 			case stake.TxTypeSSRtx:
@@ -284,6 +284,7 @@ type Stakelimitfeeinfo struct {
 type MempoolData struct {
 	Height            uint32
 	NumTickets        uint32
+	NumVotes          uint32
 	NewTickets        uint32
 	Ticketfees        *dcrjson.TicketFeeInfoResult
 	MinableFees       *MinableFeeInfo
@@ -295,19 +296,19 @@ func (m *MempoolData) GetHeight() uint32 {
 	return m.Height
 }
 
-// GetNumTickets returns the mempool height and number of tickets
+// GetNumTickets returns number of tickets
 func (m *MempoolData) GetNumTickets() uint32 {
 	return m.NumTickets
 }
 
 type mempoolDataCollector struct {
 	mtx          sync.Mutex
-	dcrdChainSvr *dcrrpcclient.Client
+	dcrdChainSvr *rpcclient.Client
 	activeChain  *chaincfg.Params
 }
 
 // NewMempoolDataCollector creates a new mempoolDataCollector.
-func NewMempoolDataCollector(dcrdChainSvr *dcrrpcclient.Client, params *chaincfg.Params) *mempoolDataCollector {
+func NewMempoolDataCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Params) *mempoolDataCollector {
 	return &mempoolDataCollector{
 		mtx:          sync.Mutex{},
 		dcrdChainSvr: dcrdChainSvr,
@@ -334,6 +335,15 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 	// Get a map of ticket hashes to getrawmempool results
 	// mempoolTickets[ticketHashes[0].String()].Fee
 	mempoolTickets, err := c.GetRawMempoolVerbose(dcrjson.GRMTickets)
+	if err != nil {
+		return nil, err
+	}
+
+	mempoolVotes, err := c.GetRawMempoolVerbose(dcrjson.GRMVotes)
+	if err != nil {
+		return nil, err
+	}
+	numVotes := len(mempoolVotes)
 
 	// Fee info
 	var numFeeWindows, numFeeBlocks uint32 = 0, 0
@@ -421,6 +431,7 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 		NumTickets:        feeInfo.FeeInfoMempool.Number,
 		Ticketfees:        feeInfo,
 		MinableFees:       mineables,
+		NumVotes:          uint32(numVotes),
 		AllTicketsDetails: allTicketsDetails,
 	}
 
@@ -703,6 +714,11 @@ func (s *MempoolFeeDumper) StoreMPData(data *MempoolData, timestamp time.Time) e
 		data.MinableFees.allFees,
 		time.Now().UTC().Format(time.RFC822)},
 		"", "    ")
+
+	if err != nil {
+		log.Errorf("Failed to Marshal mempool data: %v", err)
+		return err
+	}
 
 	s.file = *fp
 	_, err = fmt.Fprintln(&s.file, string(j))

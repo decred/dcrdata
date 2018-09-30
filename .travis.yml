@@ -1,16 +1,25 @@
 language: go
 go:
-  - 1.8.x
-  - 1.9.x
-sudo: false
-before_install:
-  - gotools=golang.org/x/tools
-install:
-  - go get -v github.com/Masterminds/glide
-  - glide install
-  - go get -v $gotools/cmd/cover
-  - go get -v github.com/bradfitz/goimports
-  - go get -v github.com/golang/lint/golint
+  - "1.x"
+
+addons:
+  apt:
+    packages:
+    - xz-utils
+
+sudo: required
+services:
+  - docker
+
+env:
+  - GOVERSION=1.9
+  - GOVERSION=1.10
+
+install: true
+
+cache:
+  directories:
+    - ~/.cache
+
 script:
-  - export PATH=$PATH:$GOPATH/bin
-  - go install $(glide nv)
+  - ./run_tests.sh $GOVERSION
