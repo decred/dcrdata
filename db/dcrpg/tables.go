@@ -337,7 +337,7 @@ func (pgb *ChainDB) DeleteDuplicates() error {
 	var err error
 	for _, val := range allDuplicates {
 		msg := fmt.Sprintf("Finding and removing duplicate %s entries...", val.TableName)
-		explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, msg)
+		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, msg)
 		log.Info(msg)
 
 		var numRemoved int64
@@ -346,11 +346,11 @@ func (pgb *ChainDB) DeleteDuplicates() error {
 		}
 
 		msg = fmt.Sprintf("Removed %d duplicate %s entries.", numRemoved, val.TableName)
-		explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, msg)
+		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, msg)
 		log.Info(msg)
 	}
 	// signal task is done
-	explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, "")
+	explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, "")
 	return nil
 }
 
@@ -381,7 +381,7 @@ func (pgb *ChainDB) DeleteDuplicatesRecovery() error {
 	var err error
 	for _, val := range allDuplicates {
 		msg := fmt.Sprintf("Finding and removing duplicate %s entries...", val.TableName)
-		explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, msg)
+		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, msg)
 		log.Info(msg)
 
 		var numRemoved int64
@@ -390,10 +390,10 @@ func (pgb *ChainDB) DeleteDuplicatesRecovery() error {
 		}
 
 		msg = fmt.Sprintf("Removed %d duplicate %s entries.", numRemoved, val.TableName)
-		explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, msg)
+		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, msg)
 		log.Info(msg)
 	}
 	// signal task is done
-	explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, "")
+	explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, "")
 	return nil
 }

@@ -156,7 +156,7 @@ func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) 
 // on the ChainDBRPC receiver.
 func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
-	updateAllVotes, newIndexes bool, updateExplorer ...chan *chainhash.Hash) {
+	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash) {
 	// Allowing db to be nil simplifies logic in caller.
 	if db == nil {
 		res <- dbtypes.SyncResult{
@@ -165,13 +165,8 @@ func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		}
 		return
 	}
-	if len(updateExplorer) == 0 {
-		db.ChainDB.SyncChainDBAsync(res, client, quit, updateAllAddresses,
-			updateAllVotes, newIndexes)
-	} else {
-		db.ChainDB.SyncChainDBAsync(res, client, quit, updateAllAddresses,
-			updateAllVotes, newIndexes, updateExplorer[0])
-	}
+	db.ChainDB.SyncChainDBAsync(res, client, quit, updateAllAddresses,
+		updateAllVotes, newIndexes, updateExplorer)
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid

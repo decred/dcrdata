@@ -400,10 +400,10 @@ func (pgb *ChainDB) IndexAll() error {
 			return err
 		}
 
-		explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, logMsg)
+		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, logMsg)
 	}
 	// signal task is done
-	explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, "")
+	explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, "")
 	return nil
 }
 
@@ -423,10 +423,10 @@ func (pgb *ChainDB) IndexTicketsTable() error {
 			return err
 		}
 
-		explorer.SyncStatusUpdateOtherMsg(dbtypes.AddressesTableSync, logMsg)
+		explorer.SyncStatusUpdateBarSubtitle(dbtypes.AddressesTableSync, logMsg)
 	}
 	// signal task is done
-	explorer.SyncStatusUpdateOtherMsg(dbtypes.AddressesTableSync, "")
+	explorer.SyncStatusUpdateBarSubtitle(dbtypes.AddressesTableSync, "")
 	return nil
 }
 
@@ -487,10 +487,10 @@ func (pgb *ChainDB) IndexAddressTable() error {
 			return err
 		}
 
-		explorer.SyncStatusUpdateOtherMsg(dbtypes.AddressesTableSync, logMsg)
+		explorer.SyncStatusUpdateBarSubtitle(dbtypes.AddressesTableSync, logMsg)
 	}
 	// signal task is done
-	explorer.SyncStatusUpdateOtherMsg(dbtypes.AddressesTableSync, "")
+	explorer.SyncStatusUpdateBarSubtitle(dbtypes.AddressesTableSync, "")
 	return nil
 }
 

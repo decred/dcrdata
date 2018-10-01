@@ -28,7 +28,7 @@ const (
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
-	updateAllVotes, newIndexes bool, updateExplorer ...chan *chainhash.Hash) {
+	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash) {
 	if db == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
@@ -36,19 +36,13 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		}
 		return
 	}
-	var height int64
-	var err error
 
-	if len(updateExplorer) == 0 {
-		height, err = db.SyncChainDB(client, quit, updateAllAddresses,
-			updateAllVotes, newIndexes, nil)
-	} else {
-		height, err = db.SyncChainDB(client, quit, updateAllAddresses,
-			updateAllVotes, newIndexes, updateExplorer[0])
-	}
+	height, err := db.SyncChainDB(client, quit, updateAllAddresses,
+		updateAllVotes, newIndexes, updateExplorer)
 	if err != nil {
 		log.Debugf("SyncChainDB quit at height %d, err: %v", height, err)
 	}
+
 	res <- dbtypes.SyncResult{
 		Height: height,
 		Error:  err,
@@ -231,7 +225,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 
 		// if updating explorer is activated, update it at intervals of 20
-		if ib%20 == 0 && explorer.SyncExplorerUpdateStatus() && updateExplorer != nil && !updateAllAddresses {
+		if updateExplorer != nil && ib%20 == 0 && explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
 			log.Infof("Updating the explorer with information for block %v", ib)
 			updateExplorer <- blockHash
 		}
@@ -301,11 +295,11 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	// duplicate entries and updates instead of throwing and error and panicing.
 	db.EnableDuplicateCheckOnInsert(true)
 
-	updateType := dbtypes.InitialDBLoad
+	barID := dbtypes.InitialDBLoad
 	if updateAllAddresses {
-		updateType = dbtypes.AddressesTableSync
+		barID = dbtypes.AddressesTableSync
 	}
-	explorer.SyncStatusUpdateOtherMsg(updateType, "sync complete")
+	explorer.SyncStatusUpdateBarSubtitle(barID, "sync complete")
 
 	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
 		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)

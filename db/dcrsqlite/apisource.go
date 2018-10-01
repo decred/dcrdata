@@ -47,13 +47,13 @@ type wiredDB struct {
 }
 
 func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string, isSyncUpdate bool) (wiredDB, func() error) {
+	p *chaincfg.Params, datadir string, updateStatusDuringSync bool) (wiredDB, func() error) {
 	wDB := wiredDB{
 		DBDataSaver:      &DBDataSaver{DB, statusC},
 		MPC:              new(mempool.MempoolDataCache),
 		client:           cl,
 		params:           p,
-		updateStatusSync: isSyncUpdate,
+		updateStatusSync: updateStatusDuringSync,
 	}
 
 	var err error
@@ -166,7 +166,7 @@ func (db *wiredDB) CheckConnectivity() error {
 // caller should wait to receive the result.
 func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 	quit chan struct{}, blockGetter rpcutils.BlockGetter, fetchToHeight int64,
-	updateExplorer ...chan *chainhash.Hash) {
+	updateExplorer chan *chainhash.Hash) {
 	// Ensure the db is working
 	if err := db.CheckConnectivity(); err != nil {
 		res <- dbtypes.SyncResult{
@@ -182,15 +182,7 @@ func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 	}
 
 	go func() {
-		var height int64
-		var err error
-
-		if len(updateExplorer) == 0 {
-			height, err = db.resyncDB(quit, blockGetter, fetchToHeight, nil)
-		} else {
-			height, err = db.resyncDB(quit, blockGetter, fetchToHeight, updateExplorer[0])
-		}
-
+		height, err := db.resyncDB(quit, blockGetter, fetchToHeight, updateExplorer)
 		res <- dbtypes.SyncResult{
 			Height: height,
 			Error:  err,

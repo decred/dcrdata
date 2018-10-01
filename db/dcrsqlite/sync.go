@@ -159,7 +159,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	// Start at next block we don't have in every DB
 	startHeight++
 
-	// bypassWaitChan define if the wait channel should be bypassed since we did
+	// bypassWaitChan defines if the wait channel should be bypassed since we did
 	// not connect to the stakedb block thereby triggering the notification for
 	// the next block in line.
 	var bypassWaitChan bool
@@ -333,7 +333,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	if db.updateStatusSync {
 		explorer.SyncStatusUpdate(height, height, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
 
-		explorer.SyncStatusUpdateOtherMsg(dbtypes.InitialDBLoad, "sync complete")
+		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, "sync complete")
 	}
 
 	log.Infof("Rescan finished successfully at height %d.", height)

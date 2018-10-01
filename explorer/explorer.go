@@ -111,7 +111,7 @@ var isSyncExplorerUpdate = new(syncUpdateExplorer)
 
 type syncUpdateExplorer struct {
 	sync.RWMutex
-	Status bool
+	DoStatusUpdate bool
 }
 
 // SetSyncExplorerUpdateStatus is a thread-safe way to set when the explorer
@@ -120,7 +120,7 @@ func SetSyncExplorerUpdateStatus(status bool) {
 	isSyncExplorerUpdate.Lock()
 	defer isSyncExplorerUpdate.Unlock()
 
-	isSyncExplorerUpdate.Status = status
+	isSyncExplorerUpdate.DoStatusUpdate = status
 }
 
 // SyncExplorerUpdateStatus is thread-safe to check the current set explorer update status.
@@ -128,7 +128,7 @@ func SyncExplorerUpdateStatus() bool {
 	isSyncExplorerUpdate.RLock()
 	defer isSyncExplorerUpdate.RUnlock()
 
-	return isSyncExplorerUpdate.Status
+	return isSyncExplorerUpdate.DoStatusUpdate
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction
@@ -177,8 +177,8 @@ type explorerUI struct {
 	ChainParams     *chaincfg.Params
 	Version         string
 	NetName         string
-	// DisplaySyncStatusPage helps activate when sync status page is the
-	// only page that can be accessed on the running webserver.
+	// DisplaySyncStatusPage indicates if the sync status page is the only web
+	// page that should be accessible during DB synchronization.
 	DisplaySyncStatusPage bool
 }
 
@@ -300,7 +300,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 // RetrieveUpdates retrieves all the updates that could not be fetched because
 // sync status update was running in the background.
 func (exp *explorerUI) RetrieveUpdates() {
-	// Send the one last signal so that the frontend can recieve final
+	// Send the one last signal so that the websocket can send the final
 	// confirmation that syncing is done and home page auto reload should happen.
 	exp.wsHub.HubRelay <- sigSyncStatus
 
@@ -325,6 +325,7 @@ func (exp *explorerUI) StartSyncingStatusMonitor() {
 
 			case <-stop:
 				timer.Stop()
+				return
 			}
 		}
 	}()
@@ -375,7 +376,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	isSyncRunning := exp.DisplaySyncStatusPage || SyncExplorerUpdateStatus()
 
 	// Update the charts data after every five blocks or if no charts data
-	// exists yet. Do not Update the charts data if blockchain sync is running.
+	// exists yet. Do not update the charts data if blockchain sync is running.
 	if !isSyncRunning && bData.Height%5 == 0 || (len(cacheChartsData.Data) == 0 && !exp.liteMode) {
 		go exp.prePopulateChartsData()
 	}

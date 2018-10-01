@@ -26,10 +26,10 @@ The dcrdata repository is a collection of Go packages and apps for
   - [Getting Started](#getting-started)
     - [Configuring PostgreSQL (IMPORTANT)](#configuring-postgresql-important)
     - [Creating the Configuration File](#creating-the-configuration-file)
-    - [View dcrdata page soonest possible after startup](#view-dcrdata-page-soonest-possible-after-startup)
     - [Using Configuration Environment Variables](#using-configuration-environment-variables)
     - [Indexing the Blockchain](#indexing-the-blockchain)
     - [Starting dcrdata](#starting-dcrdata)
+    - [Running the Web Interface During Synchronization](#running-the-web-interface-during-synchronization)
   - [System Hardware Requirements](#system-hardware-requirements)
     - ["lite" Mode (SQLite only)](#lite-mode-sqlite-only)
     - ["full" Mode (SQLite and PostgreSQL)](#full-mode-sqlite-and-postgresql)
@@ -361,30 +361,6 @@ cp sample-dcrdata.conf ~/.dcrdata/dcrdata.conf
 Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata --help`
 for a list of all options and their default values.
 
-### View dcrdata page soonest possible after startup
-
-By default on dcrdata startup, syncing runs for all the blocks behind the current
-best block height. Syncing status page with the syncing progress is the only
-page that will run if `sync-status-limit` is not set in `dcrdata.conf` file.
-
-When set with a value greater than 2 and less than 5000, all dcrdata pages will be
-active on startup if and only if, the number of blocks behind the current best block
-are less than the set `sync-status-limit` value.
-
-For Example: If `sync-status-limit` is set to 1000, all dcrdata pages will be active
-if only less than 1000 blocks need to be sync'd on startup otherwise only the sync status
-page will be accesible till the syncing is complete.
-
-```
-sync-status-limit=1000
-```
-
-_Its recommended that you avoid setting `sync-status-limit` as a value larger than
-1000 especially if your machine struggles handling dcrdata normal load. Setting a
-larger value might worsen your situation especially when you try to load processor
-intensive pages like ticketpool._
-
-
 ### Using Configuration Environment Variables
 
 There will be times when you don't want to fuss with a config file or cannot use
@@ -501,6 +477,29 @@ On subsequent launches, only blocks new to dcrdata are processed.
 Unlike dcrdata.conf, which must be placed in the `appdata` folder or explicitly
 set with `-C`, the "public" and "views" folders _must_ be in the same folder as
 the `dcrdata` executable.
+
+### Running the Web Interface During Synchronization
+
+By default on dcrdata startup, syncing runs for all the blocks behind the current
+best block height. Syncing status page with the syncing progress is the only
+page that will run if `sync-status-limit` is not set in `dcrdata.conf` file.
+
+When set with a value greater than 2 and less than 5000, all dcrdata pages will be
+active on startup if and only if, the number of blocks behind the current best block
+are less than the set `sync-status-limit` value.
+
+For Example: If `sync-status-limit` is set to 1000, all dcrdata pages will be active
+if only less than 1000 blocks need to be sync'd on startup otherwise only the sync status
+page will be accesible till the syncing is complete.
+
+```
+sync-status-limit=1000
+```
+
+_It is recommended that you avoid setting `sync-status-limit` as a value larger than
+1000 especially if your machine struggles handling dcrdata normal load. Setting a
+larger value might worsen your situation especially when you try to load processor
+intensive pages like ticketpool._
 
 ## System Hardware Requirements
 

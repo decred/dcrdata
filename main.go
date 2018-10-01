@@ -247,7 +247,7 @@ func mainCore() error {
 			if err != nil {
 				return fmt.Errorf("RewindStakeDB failed: %v", err)
 			}
-			// stakedbHeight is always rewinded to height of zero even when lastBlockPG is -1
+			// stakedbHeight is always rewinded to a height of zero even when lastBlockPG is -1.
 			if stakedbHeight != lastBlockPG && stakedbHeight > 0 {
 				return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d",
 					stakedbHeight, lastBlockPG)
@@ -354,7 +354,7 @@ func mainCore() error {
 		auxDBheight = auxDB.GetHeight() // pg db
 	}
 
-	// The blockchain syncing status page should be displayed; if Syncing status
+	// The blockchain syncing status page should be displayed; if syncing status
 	// limit is not set, or set to a value less than 2 or to a value greater
 	// than 5000. 5000 is the max value that can be set by the user in
 	// dcrdata.conf file as "sync-status-limit". It could also be displayed if
@@ -366,7 +366,7 @@ func mainCore() error {
 	case (usePG && auxDBheight < 40000) || wireDBheight < 40000:
 		explore.DisplaySyncStatusPage = true
 
-		// incorrect value set
+	// incorrect value set
 	case cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000:
 		explore.DisplaySyncStatusPage = true
 
@@ -382,8 +382,7 @@ func mainCore() error {
 	if cerr != nil {
 		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
 	}
-	// now create and start the monitors that respond to the notification chans
-
+	
 	// Create the insight socket server and add it to block savers if in pg mode
 	var insightSocketServer *insight.SocketServer
 	if usePG {
@@ -398,66 +397,53 @@ func mainCore() error {
 	// latestBlockHash receives the block hash of the latest block to be sync'd
 	// in dcrdata. This may not necessarily be the latest block in the blockchain
 	// but it is the latest block to be sync'd according to dcrdata. This block
-	// hash is sent when blockchain syncing is happening simulatneoulsy as the
-	// running webserver servers the normal pages on initial dcrdata startup.
+	// hash is sent if the webserver is providing the full explorer functionality
+	// during blockchain syncing.
 	latestBlockHash := make(chan *chainhash.Hash)
 
-	// Initiate the sync status monitor if the sync status is activated else
-	// initiate the goroutine that handle storing blocks needed for the explorer
-	// pages
+	// Initiate the sync status monitor if the sync status is activated or else
+	// initiate the goroutine that handles storing blocks needed for the explorer
+	// pages.
 	if explore.DisplaySyncStatusPage {
 		explore.StartSyncingStatusMonitor()
 
 	} else {
 		// set that blocks freshly sync'd to to be stored for the explorer pages
-		// till the sync is done
+		// till the sync is done.
 		explorer.SetSyncExplorerUpdateStatus(true)
 
 		// This goroutines updates the blocks needed on the explorer pages. It
-		// only runs when the status sync page is not the defualt page that a user
+		// only runs when the status sync page is not the default page that a user
 		// can view on the running webserver but the syncing of blocks behind the
 		// best block is happening in the background. No new blocks monitor from
-		// dcrd will be initiated till the best block from dcrd is in sync with
+		// dcrd will be initiated until the best block from dcrd is in sync with
 		// the best block from dcrdata.
 		go func() {
-			// After the sync on initial startup is complete this goroutine is no
-			// longer needed, so kill it.
-			defer runtime.Goexit()
-
-			isStatusSyncingDisabled := make(chan bool)
-			for {
-				select {
-				case hash := <-latestBlockHash:
-					// checks if updates should be sent to the explorer. If its been
-					// deactivated it sends a notification to signal that this
-					// goroutine is no longer needed.
-					if !explorer.SyncExplorerUpdateStatus() {
-						isStatusSyncingDisabled <- true
-						continue
-					}
-
-					// fetch the blockdata using its block hash.
-					d, _, err := collector.CollectHash(hash)
-					if err != nil {
-						log.Warnf("failed to fetch blockdata for (%s) hash. error: %v",
-							hash.String(), err)
-						continue
-					}
-
-					// store the blockdata fetch for the explorer pages
-					if err = explore.Store(d, nil); err != nil {
-						log.Warnf("failed to store (%s) hash's blockdata for the explorer pages error: %v",
-							hash.String(), err)
-					}
-
-				case <-isStatusSyncingDisabled:
+			for hash := range latestBlockHash {
+				// checks if updates should be sent to the explorer. If its been
+				// deactivated it breaks the loop.
+				if !explorer.SyncExplorerUpdateStatus() {
 					break
+				}
+
+				// fetch the blockdata using its block hash.
+				d, msgBlock, err := collector.CollectHash(hash)
+				if err != nil {
+					log.Warnf("failed to fetch blockdata for (%s) hash. error: %v",
+						hash.String(), err)
+					continue
+				}
+
+				// store the blockdata fetch for the explorer pages
+				if err = explore.Store(d, msgBlock); err != nil {
+					log.Warnf("failed to store (%s) hash's blockdata for the explorer pages error: %v",
+						hash.String(), err)
 				}
 			}
 		}()
 
-		// store the first block in the explorer. It should correspond with the
-		// that is currently in sync in all the dcrdata dbs
+		// stores the first block in the explorer. It should correspond with the
+		// block that is currently in sync in all the dcrdata dbs
 		loadHeight := wireDBheight
 		if usePG && (auxDBheight < wireDBheight) {
 			loadHeight = auxDBheight
@@ -468,7 +454,7 @@ func mainCore() error {
 		loadBlockHash, err := dcrdClient.GetBlockHash(int64(loadHeight))
 		if err != nil {
 			return fmt.Errorf("failed to fetch the block at height (%d), dcrdata dbs must be corrupted",
-			loadHeight)
+				loadHeight)
 		}
 
 		// Signal the goroutine to load this block hash's data.
@@ -489,7 +475,6 @@ func mainCore() error {
 	apiMux := api.NewAPIRouter(app, cfg.UseRealIP)
 
 	webMux := chi.NewRouter()
-	webMux.Use(explore.SyncStatusPageActivation)
 	webMux.With(explore.SyncStatusPageActivation).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
 		r.Get("/nexthome", explore.NextHome)

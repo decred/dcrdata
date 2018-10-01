@@ -66,9 +66,9 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 	})
 }
 
-// SyncStatusPageActivation serves only the syncing status page till its
+// SyncStatusPageActivation serves only the syncing status page until its
 // deactivated when DisplaySyncStatusPage is set to false. This page is served
-// for all the possible routes supported till background syncing is done.
+// for all the possible routes supported until the background syncing is done.
 func (exp *explorerUI) SyncStatusPageActivation(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp.DisplaySyncStatusPage {

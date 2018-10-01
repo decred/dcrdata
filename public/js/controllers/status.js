@@ -2,8 +2,8 @@
     function buildProgressBar(data){
         var progressVal = data.PercentComplete
         var timeRemaining = humanizeTime(data.Time) // time is in secs
-        var htmlString = data.Msg.length > 0 ? `<p style="font-size:14px;">`+data.Msg+`</p>`:  ""
-        var notifStr = data.OtherMsg.length > 0 ? `<span style="font-size:11px;">notification : <i>`+data.OtherMsg+`</i></span>`: ""
+        var htmlString = data.BarMsg.length > 0 ? `<p style="font-size:14px;">`+data.BarMsg+`</p>`:  ""
+        var notifStr = data.BarSubtitle.length > 0 ? `<span style="font-size:11px;">notification : <i>`+data.BarSubtitle+`</i></span>`: ""
 
         var remainingStr = "pending";
         if (progressVal > 0) {
@@ -14,7 +14,7 @@
             remainingStr = "done";
         }
 
-        if (data.OtherMsg === "sync complete") {
+        if (data.BarSubtitle === "sync complete") {
             notifStr = ""
         }
 
@@ -53,9 +53,9 @@
                 for (i = 0; i < d.length; i ++) {
                     var v = d[i]
 
-                    $("#"+v.UpdateType).html(buildProgressBar(v));
+                    $("#"+v.ProgressBarID).html(buildProgressBar(v));
 
-                    if (v.OtherMsg === "sync complete"){
+                    if (v.BarSubtitle === "sync complete"){
                         $(".alert.alert-info h5").html("Blockchain sync is complete. Redirecting to home in 30secs.");
                         setInterval(() => Turbolinks.visit("/"), 30000);
                         return

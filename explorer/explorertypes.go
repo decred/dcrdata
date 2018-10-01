@@ -543,31 +543,31 @@ func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
 }
 
 // syncStatus makes it possible to update the user on the progress of the
-// blockchain db syncing that is running in the background after new blocks
-// were detected on system startup. Update is a map whose keys are the various
-// update types that are expected to run for a successful blockchain sync. A map
-// is needed so that we can track updates of a given type.
+// blockchain db syncing that is running after new blocks were detected on
+// system startup. ProgressBars is an array whose every entry is one of the
+// progress bars data that will be displayed on the sync status page.
 type syncStatus struct {
 	sync.RWMutex
-	Update map[string]*SyncStatusInfo
+	ProgressBars []SyncStatusInfo
 }
 
-// SyncStatusInfo defines information for a single update type.
+// SyncStatusInfo defines information for a single progress bar.
 type SyncStatusInfo struct {
-	// percentage complete
+	// PercentComplete is the percentage of sync complete for a given progress bar.
 	PercentComplete float64
-	// used to display the main message about the currect sync.
-	Msg string
-	// displays any other information about the current main sync. This value
-	// may include but not limited to; db indexing, deleting duplicates etc.
-	OtherMsg string
-	// defines estimated time to completing the sync
-	Time       int64
-	UpdateType string
+	// BarMsg holds the main bar message about the currect sync.
+	BarMsg string
+	// BarSubtitle holds any other information about the current main sync. This
+	// value may include but not limited to; db indexing, deleting duplicates etc.
+	BarSubtitle string
+	// Time is the estimated time in seconds to the sync should be complete.
+	Time int64
+	// ProgressBarID is the given entry progress bar id needed on the UI page.
+	ProgressBarID string
 }
 
-// SyncStatusUpdate a thread-safe way to store the sync status for the update type.
-func SyncStatusUpdate(from, to, timeToComplete int64, updateType, msg string) {
+// SyncStatusUpdate a thread-safe way to store the sync status for a progress id.
+func SyncStatusUpdate(from, to, timeToComplete int64, barID, msg string) {
 	blockchainSyncStatus.Lock()
 	defer blockchainSyncStatus.Unlock()
 
@@ -576,58 +576,61 @@ func SyncStatusUpdate(from, to, timeToComplete int64, updateType, msg string) {
 		percentage = math.Floor((float64(from)/float64(to))*10000) / 100
 	}
 
-	val := &SyncStatusInfo{
+	val := SyncStatusInfo{
 		PercentComplete: percentage,
-		Msg:             msg,
+		BarMsg:          msg,
 		Time:            timeToComplete,
-		UpdateType:      updateType,
+		ProgressBarID:   barID,
 	}
 
-	if len(blockchainSyncStatus.Update) == 0 {
-		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{updateType: val}
+	if len(blockchainSyncStatus.ProgressBars) == 0 {
+		// first entry
+		blockchainSyncStatus.ProgressBars = []SyncStatusInfo{val}
 	} else {
-		if _, ok := blockchainSyncStatus.Update[updateType]; ok {
-			blockchainSyncStatus.Update[updateType] = val
-		} else {
-			blockchainSyncStatus.Update = map[string]*SyncStatusInfo{updateType: val}
+		for i, v := range blockchainSyncStatus.ProgressBars {
+			if v.ProgressBarID == barID {
+				blockchainSyncStatus.ProgressBars[i] = val
+				return
+			}
 		}
+		// new entry
+		blockchainSyncStatus.ProgressBars = append(blockchainSyncStatus.ProgressBars, val)
 	}
 }
 
-// SyncStatusUpdateOtherMsg is a thread-safe way to update the otherMsg field.
+// SyncStatusUpdateBarSubtitle is a thread-safe way to update the BarSubtitle field.
 // This field helps define other tasks that may run in the background and have
 // no feasible way to determine how long they will take to run, e.g its pretty
 // hard to determine how long a given index will take. So it will be indicated
-// just as a task running the background till completion without a progress bar.
-func SyncStatusUpdateOtherMsg(updateType, otherMsg string) {
+// just as a task running the background until completion without a progress bar.
+func SyncStatusUpdateBarSubtitle(barID, subtitle string) {
 	blockchainSyncStatus.Lock()
 	defer blockchainSyncStatus.Unlock()
 
-	val := &SyncStatusInfo{
-		OtherMsg:   otherMsg,
-		UpdateType: updateType,
+	val := SyncStatusInfo{
+		BarSubtitle:   subtitle,
+		ProgressBarID: barID,
 	}
 
-	if len(blockchainSyncStatus.Update) == 0 {
-		blockchainSyncStatus.Update = map[string]*SyncStatusInfo{updateType: val}
+	if len(blockchainSyncStatus.ProgressBars) == 0 {
+		// first entry
+		blockchainSyncStatus.ProgressBars = []SyncStatusInfo{val}
 	} else {
-		if _, ok := blockchainSyncStatus.Update[updateType]; ok {
-			blockchainSyncStatus.Update[updateType].OtherMsg = otherMsg
-		} else {
-			blockchainSyncStatus.Update = map[string]*SyncStatusInfo{updateType: val}
+		for i, v := range blockchainSyncStatus.ProgressBars {
+			if v.ProgressBarID == barID {
+				blockchainSyncStatus.ProgressBars[i].BarSubtitle = subtitle
+				return
+			}
 		}
+		// new entry
+		blockchainSyncStatus.ProgressBars = append(blockchainSyncStatus.ProgressBars, val)
 	}
 }
 
 // SyncStatus defines a thread-safe way to read the sync status updates
-func SyncStatus() []*SyncStatusInfo {
+func SyncStatus() []SyncStatusInfo {
 	blockchainSyncStatus.RLock()
 	defer blockchainSyncStatus.RUnlock()
 
-	updates := make([]*SyncStatusInfo, 0)
-	for _, v := range blockchainSyncStatus.Update {
-		updates = append(updates, v)
-	}
-
-	return updates
+	return blockchainSyncStatus.ProgressBars
 }

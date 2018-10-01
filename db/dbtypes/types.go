@@ -97,10 +97,12 @@ const (
 const (
 	// InitialDBLoad is a sync where data is first loaded from the chain db into
 	// the respective dbs currently supported. Runs on both liteMode and fullMode.
+	// InitialDBLoad value references the first progress bar id on the status page.
 	InitialDBLoad = "initial-load"
 	// AddressesTableSync is a sync that runs immediately after initialDBLoad. Data
 	// previously loaded into vins table is sync'd with the addresses table.
-	// Runs only in fullMode.
+	// Runs only in fullMode. AddressesTableSync value references the second
+	// progress bar id on the status page.
 	AddressesTableSync = "addresses-sync"
 )
 
