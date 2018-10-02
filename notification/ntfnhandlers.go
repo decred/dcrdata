@@ -126,6 +126,70 @@ func (q *collectionQueue) ProcessBlocks() {
 	}
 }
 
+// Reorganize handles the OnReorganization notification by sending reorg data to monitors
+var Reorganize = func(oldHash *chainhash.Hash, oldHeight int32,
+	newHash *chainhash.Hash, newHeight int32) {
+	wg := new(sync.WaitGroup)
+	// Send reorg data to dcrsqlite's monitor
+	wg.Add(1)
+	select {
+	case NtfnChans.ReorgChanWiredDB <- &dcrsqlite.ReorgData{
+		OldChainHead:   *oldHash,
+		OldChainHeight: oldHeight,
+		NewChainHead:   *newHash,
+		NewChainHeight: newHeight,
+		WG:             wg,
+	}:
+	default:
+		wg.Done()
+	}
+
+	// Send reorg data to blockdata's monitor (so that it stops collecting)
+	wg.Add(1)
+	select {
+	case NtfnChans.ReorgChanBlockData <- &blockdata.ReorgData{
+		OldChainHead:   *oldHash,
+		OldChainHeight: oldHeight,
+		NewChainHead:   *newHash,
+		NewChainHeight: newHeight,
+		WG:             wg,
+	}:
+	default:
+		wg.Done()
+	}
+
+	// Send reorg data to stakedb's monitor
+	wg.Add(1)
+	select {
+	case NtfnChans.ReorgChanStakeDB <- &stakedb.ReorgData{
+		OldChainHead:   *oldHash,
+		OldChainHeight: oldHeight,
+		NewChainHead:   *newHash,
+		NewChainHeight: newHeight,
+		WG:             wg,
+	}:
+	default:
+		wg.Done()
+	}
+	wg.Wait()
+
+	// Send reorg data to ChainDB's monitor
+	wg.Add(1)
+	select {
+	case NtfnChans.ReorgChanDcrpgDB <- &dcrpg.ReorgData{
+		OldChainHead:   *oldHash,
+		OldChainHeight: oldHeight,
+		NewChainHead:   *newHash,
+		NewChainHeight: newHeight,
+		WG:             wg,
+	}:
+	default:
+		wg.Done()
+	}
+	wg.Wait()
+}
+
+
 // MakeNodeNtfnHandlers defines the dcrd notification handlers
 func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) {
 	blockQueue := NewCollectionQueue()
@@ -146,67 +210,7 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 				height: int64(height),
 			}
 		},
-		OnReorganization: func(oldHash *chainhash.Hash, oldHeight int32,
-			newHash *chainhash.Hash, newHeight int32) {
-			wg := new(sync.WaitGroup)
-			// Send reorg data to dcrsqlite's monitor
-			wg.Add(1)
-			select {
-			case NtfnChans.ReorgChanWiredDB <- &dcrsqlite.ReorgData{
-				OldChainHead:   *oldHash,
-				OldChainHeight: oldHeight,
-				NewChainHead:   *newHash,
-				NewChainHeight: newHeight,
-				WG:             wg,
-			}:
-			default:
-				wg.Done()
-			}
-
-			// Send reorg data to blockdata's monitor (so that it stops collecting)
-			wg.Add(1)
-			select {
-			case NtfnChans.ReorgChanBlockData <- &blockdata.ReorgData{
-				OldChainHead:   *oldHash,
-				OldChainHeight: oldHeight,
-				NewChainHead:   *newHash,
-				NewChainHeight: newHeight,
-				WG:             wg,
-			}:
-			default:
-				wg.Done()
-			}
-
-			// Send reorg data to stakedb's monitor
-			wg.Add(1)
-			select {
-			case NtfnChans.ReorgChanStakeDB <- &stakedb.ReorgData{
-				OldChainHead:   *oldHash,
-				OldChainHeight: oldHeight,
-				NewChainHead:   *newHash,
-				NewChainHeight: newHeight,
-				WG:             wg,
-			}:
-			default:
-				wg.Done()
-			}
-			wg.Wait()
-
-			// Send reorg data to ChainDB's monitor
-			wg.Add(1)
-			select {
-			case NtfnChans.ReorgChanDcrpgDB <- &dcrpg.ReorgData{
-				OldChainHead:   *oldHash,
-				OldChainHeight: oldHeight,
-				NewChainHead:   *newHash,
-				NewChainHeight: newHeight,
-				WG:             wg,
-			}:
-			default:
-				wg.Done()
-			}
-			wg.Wait()
-		},
+		OnReorganization: Reorganize,
 
 		OnWinningTickets: func(blockHash *chainhash.Hash, blockHeight int64,
 			tickets []*chainhash.Hash) {
