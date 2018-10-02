@@ -252,7 +252,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return
 		},
 		"TimeConversion": func(a uint64) (result string) {
-			dateTime := time.Unix(int64(a), 0)
+			dateTime := time.Unix(int64(a), 0).UTC()
 			result = dateTime.Format("2006-01-02 15:04:05 MST")
 			return
 		},
