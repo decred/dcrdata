@@ -387,8 +387,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	difficulty := blockData.Header.Difficulty
 	bdHeight := newBlockData.Height
 
-	// last 24hr timestamp
-	timestamp := time.Now().Add(-24 * time.Hour).Unix()
+	// use the latest block's blocktime to get the last 24hr timestamp
+	timestamp := newBlockData.BlockTime - 86400
 	// RetreiveDifficulty fetches the difficulty using the last 24hr timestamp,
 	// whereby the difficulty can have a timestamp equal to the last 24hrs timestamp
 	// or that is immediately greater than the 24hr timestamp.
