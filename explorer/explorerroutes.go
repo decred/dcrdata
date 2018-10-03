@@ -1098,13 +1098,18 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	switch sType {
-	case NotFoundStatusType:
-		w.WriteHeader(http.StatusNotFound)
-	case ErrorStatusType:
-		w.WriteHeader(http.StatusInternalServerError)
-	default:
-		w.WriteHeader(http.StatusServiceUnavailable)
+	if code == unminedBlock {
+		w.WriteHeader(http.StatusOK)
+	} else {
+
+		switch sType {
+		case NotFoundStatusType:
+			w.WriteHeader(http.StatusNotFound)
+		case ErrorStatusType:
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
 	}
 	io.WriteString(w, str)
 }
