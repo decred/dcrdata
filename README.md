@@ -548,34 +548,8 @@ The dcrdata block explorer is exposed by two APIs: a Decred implementation of th
 
 The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP via REST or WebSocket. 
 
-To call the REST API, use the `/insight/api` path prefix. To call the Websocket API, use the `/insight/socket.io` path prefix.
+See the [Insight API documentation](../api/Insight_API_documentation.md) for further details.
 
-
-#### Endpoint List
-
-| Method           | Path                   | 
-| -------------------- | ---------------------- | 
-| Block              | `/block/{hash}`          |  
-| Block index          | `/block-index/{height}`      |  
-| Raw block (hash)               | `/rawblock/{hash}`   | 
-| Raw block (height)                | `/rawblock/{height}`     |  
-| Raw summaries               | `/blocks (URL query params: limit, blockDate, ...) `   |              
-| Transaction                 | `/tx/{hash}`     |  
-| Raw transaction              | `/rawtx/{hash}`  | 
-| Address         | `/addr/{address}`       | 
-| Address Props   | `/balance, totalReceived, totalSent, /totalSent, unconfirmedBalance` |  
-| UTXOs | `/addr/{address}/utxo`  |  
-| Multi-address UTXOs | `/addrs/{address0, address1, etc}/utxo`  |  
-| POST-variant of multi-address UTXOs | ``  |                     
-| Transactions by block | `/txs/?block={hash}`  |   
-| Transactions by address | `/txs/?address={address}`  |   
-| Transactions for multiple addresses | `/addrs/{addr0, addr1, ...}/txs (params: from, to)`  |   
-| POST-variant for ^^ | `(includes params: noAsm, noScriptSig, noSpent)`  |  
-| Transaction broadcast | `/tx/send (raw tx in POST params) `  | 
-| Sync status (dcrdata) | `/sync`  |  
-| Sync status (dcrd) | `/peer`  |  
-| Decred network status | `/status(with each possible value for the q param)`  |  
-| Estimate fee | `/estimatefee (params: nbBlocks)`  |  
 ### dcrdata API
 
 The dcrdata API is a REST API accessible via HTTP. To call the dcrdata API, use the `/api` path prefix.
