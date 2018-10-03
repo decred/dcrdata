@@ -472,6 +472,7 @@ type NewMempoolTx struct {
 // ExtendedChainParams represents the data of ChainParams
 type ExtendedChainParams struct {
 	Params               *chaincfg.Params
+	MaximumBlockSize     int
 	ActualTicketPoolSize int64
 	AddressPrefix        []AddrPrefix
 }
