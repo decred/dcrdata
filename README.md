@@ -548,7 +548,7 @@ The dcrdata block explorer is exposed by two APIs: a Decred implementation of th
 
 The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP via REST or WebSocket. 
 
-See the [Insight API documentation](../api/Insight_API_documentation.md) for further details.
+See the [Insight API documentation](api/Insight_API_documentation.md) for further details.
 
 ### dcrdata API
 
