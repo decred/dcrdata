@@ -155,11 +155,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 
 	if barLoad != nil && db.updateStatusSync {
 		barLoad <- &dbtypes.ProgressBarLoad{
-			From:      0,
-			To:        0,
-			Timestamp: 0,
-			Msg:       InitialLoadSyncStatusMsg,
-			BarID:     dbtypes.InitialDBLoad,
+			Msg:   InitialLoadSyncStatusMsg,
+			BarID: dbtypes.InitialDBLoad,
 		}
 	}
 
@@ -346,12 +343,11 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 
 	if barLoad != nil && db.updateStatusSync {
 		barLoad <- &dbtypes.ProgressBarLoad{
-			From:      height,
-			To:        height,
-			Timestamp: 0,
-			Msg:       InitialLoadSyncStatusMsg,
-			BarID:     dbtypes.InitialDBLoad,
-			Subtitle:  "sync complete",
+			From:     height,
+			To:       height,
+			Msg:      InitialLoadSyncStatusMsg,
+			BarID:    dbtypes.InitialDBLoad,
+			Subtitle: "sync complete",
 		}
 	}
 

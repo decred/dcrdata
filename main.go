@@ -354,17 +354,6 @@ func mainCore() error {
 		auxDBheight = auxDB.GetHeight() // pg db
 	}
 
-	// The blockchain syncing status page should be displayed; if the blocks
-	// behind the current height are more than the set status limit. On initial
-	// dcrdata startup syncing should be displayed by default. (If height is
-	// less than 40,000, initial startup from scratch must have been run)
-	displaySyncStatusPage := blocksBehind > cfg.SyncStatusLimit ||
-		(usePG && auxDBheight < 40000) || wireDBheight < 40000
-
-	explore.NewBlockDataMtx.Lock()
-	explore.DisplaySyncStatusPage = displaySyncStatusPage
-	explore.NewBlockDataMtx.Unlock()
-
 	// barLoad is used to send sync status updates from a given function or method
 	// to SyncStatusUpdate function via websocket.
 	barLoad := make(chan *dbtypes.ProgressBarLoad)
@@ -376,14 +365,20 @@ func mainCore() error {
 	// during blockchain syncing.
 	latestBlockHash := make(chan *chainhash.Hash)
 
+	// The blockchain syncing status page should be displayed; if the blocks
+	// behind the current height are more than the set status limit. On initial
+	// dcrdata startup syncing should be displayed by default. (If height is
+	// less than 40,000, initial startup from scratch must have been run)
+	displaySyncStatusPage := blocksBehind > cfg.SyncStatusLimit ||
+		(usePG && auxDBheight < 40000) || wireDBheight < 40000
+
+	// Set the displaySyncStatusPage value.
+	explore.SetDisplaySyncStatusPage(displaySyncStatusPage)
+
 	// Initiate the sync status monitor and SyncStatusUpdate goroutine if the
 	// sync status is activated or else initiate the goroutine that handles
 	// storing blocks needed for the explorer pages.
 	if displaySyncStatusPage {
-		// Starts a goroutine that fetches the raw updates, process them and
-		// set them as the latest sync status progress updates.
-		go explore.SyncStatusUpdate(barLoad)
-
 		// Starts a goroutine that signals the websocket to check and send to
 		// the frontend the latest sync status progress updates.
 		explore.StartSyncingStatusMonitor()
@@ -441,6 +436,32 @@ func mainCore() error {
 		latestBlockHash <- loadBlockHash
 	}
 
+	// Starts a goroutine that fetches the raw updates, process them and
+	// set them as the latest sync status progress updates. The goroutine exits
+	// when no sync is running.
+	explore.SyncStatusUpdate(barLoad)
+
+	blockDataSavers = append(blockDataSavers, explore)
+
+	// Register for notifications from dcrd
+	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
+	if cerr != nil {
+		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
+	}
+
+	// Create the insight socket server and add it to block savers if in pg mode.
+	// Since insightSocketServer is added into the url before even the sync starts,
+	// this implementation cannot be moved to initiateHandlersAndCollectBlocks function.
+	var insightSocketServer *insight.SocketServer
+	if usePG {
+		insightSocketServer, err = insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
+		if err == nil {
+			blockDataSavers = append(blockDataSavers, insightSocketServer)
+		} else {
+			return fmt.Errorf("Could not create Insight socket.io server: %v", err)
+		}
+	}
+
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
 
@@ -488,6 +509,16 @@ func mainCore() error {
 		r.Get("/search", explore.Search)
 		r.Get("/charts", explore.Charts)
 		r.Get("/ticketpool", explore.Ticketpool)
+
+		if usePG {
+			insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
+			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
+			r.Mount("/insight/api", insightMux.Mux)
+
+			if insightSocketServer != nil {
+				r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
+			}
+		}
 
 		// HTTP profiler
 		if cfg.HTTPProfile {
@@ -582,11 +613,8 @@ func mainCore() error {
 		explore.RetrieveUpdates()
 	}
 
-	explore.NewBlockDataMtx.Lock()
 	// Deactivate displaying the sync status page after the db sync was completed.
-	explore.DisplaySyncStatusPage = false
-
-	explore.NewBlockDataMtx.Unlock()
+	explore.SetDisplaySyncStatusPage(false)
 
 	// Set that newly sync'd blocks should no longer be stored in the explorer.
 	// Monitors that fetch the latest updates from dcrd will be launched next.
@@ -596,32 +624,6 @@ func mainCore() error {
 	// for new blocks, change in the mempool and handle chain reorg. It also
 	// initiates data collection for the explorer.
 	initiateHandlersAndCollectBlocks := func() error {
-		blockDataSavers = append(blockDataSavers, explore)
-
-		// Register for notifications from dcrd
-		cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
-		if cerr != nil {
-			return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
-		}
-
-		// Create the insight socket server and add it to block savers if in pg mode
-		if usePG {
-			insightSocketServer, err := insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
-			if err == nil {
-				blockDataSavers = append(blockDataSavers, insightSocketServer)
-			} else {
-				return fmt.Errorf("Could not create Insight socket.io server: %v", err)
-			}
-
-			insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
-			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
-			explore.Mux.Mount("/insight/api", insightMux.Mux)
-
-			if insightSocketServer != nil {
-				explore.Mux.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
-			}
-		}
-
 		// Blockchain monitor for the collector
 		addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 		// On reorg, only update web UI since dcrsqlite's own reorg handler will
@@ -668,6 +670,7 @@ func mainCore() error {
 			return fmt.Errorf("Block data collection for initial summary failed: %v",
 				err.Error())
 		}
+
 		if err = explore.Store(blockData, msgBlock); err != nil {
 			return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
 		}
@@ -734,6 +737,10 @@ func mainCore() error {
 			wg.Add(1)
 			go mpm.TxHandler(dcrdClient)
 		}
+
+		// Wait for notification handlers to quit
+		wg.Wait()
+
 		return nil
 	}
 
@@ -745,9 +752,6 @@ func mainCore() error {
 	if err := initiateHandlersAndCollectBlocks(); err != nil {
 		return err
 	}
-
-	// Wait for notification handlers to quit
-	wg.Wait()
 
 	return nil
 }

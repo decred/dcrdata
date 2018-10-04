@@ -354,7 +354,7 @@ func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) erro
 	}
 	// Signal task is done
 	if barLoad != nil {
-		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: " "}
 	}
 	return nil
 }
@@ -402,9 +402,9 @@ func (pgb *ChainDB) DeleteDuplicatesRecovery(barLoad chan *dbtypes.ProgressBarLo
 		}
 		log.Info(msg)
 	}
-	// signal task is done
+	// Signal task is done
 	if barLoad != nil {
-		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: " "}
 	}
 	return nil
 }

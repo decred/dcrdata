@@ -117,20 +117,14 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	if barLoad != nil {
 		// Add the various updates that should run on successful sync.
 		barLoad <- &dbtypes.ProgressBarLoad{
-			From:      0,
-			To:        0,
-			Timestamp: 0,
-			Msg:       InitialLoadSyncStatusMsg,
-			BarID:     dbtypes.InitialDBLoad,
+			Msg:   InitialLoadSyncStatusMsg,
+			BarID: dbtypes.InitialDBLoad,
 		}
 		// Addresses table sync should only run if bulk update is enabled.
 		if updateAllAddresses {
 			barLoad <- &dbtypes.ProgressBarLoad{
-				From:      0,
-				To:        0,
-				Timestamp: 0,
-				Msg:       AddressesSyncStatusMsg,
-				BarID:     dbtypes.AddressesTableSync,
+				Msg:   AddressesSyncStatusMsg,
+				BarID: dbtypes.AddressesTableSync,
 			}
 		}
 	}
@@ -168,7 +162,6 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 						Msg:       InitialLoadSyncStatusMsg,
 						BarID:     dbtypes.InitialDBLoad,
 					}
-
 					timeStart = time.Now()
 				}
 			}
@@ -256,11 +249,10 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	// Signal the end of the initial load sync
 	if barLoad != nil {
 		barLoad <- &dbtypes.ProgressBarLoad{
-			From:      nodeHeight,
-			To:        nodeHeight,
-			Timestamp: 0,
-			Msg:       InitialLoadSyncStatusMsg,
-			BarID:     dbtypes.InitialDBLoad,
+			From:  nodeHeight,
+			To:    nodeHeight,
+			Msg:   InitialLoadSyncStatusMsg,
+			BarID: dbtypes.InitialDBLoad,
 		}
 	}
 

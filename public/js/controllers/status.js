@@ -1,9 +1,10 @@
 (() => {
     function buildProgressBar(data){
-        var progressVal = data.PercentComplete
-        var timeRemaining = humanizeTime(data.Time) // time is in secs
-        var htmlString = data.BarMsg.length > 0 ? `<p style="font-size:14px;">`+data.BarMsg+`</p>`:  ""
-        var notifStr = data.BarSubtitle.length > 0 ? `<span style="font-size:11px;">notification : <i>`+data.BarSubtitle+`</i></span>`: ""
+        var progressVal = data.PercentComplete;
+        var timeRemaining = humanizeTime(data.Time); // time is in secs
+        var htmlString = data.BarMsg.length > 0 ? `<p style="font-size:14px;">`+data.BarMsg+`</p>`:  "";
+        var subtitle = data.BarSubtitle.trim()
+        var notifStr = subtitle.length > 0 ? `<span style="font-size:11px;">notification : <i>`+subtitle+`</i></span>`: "";
 
         var remainingStr = "pending";
         if (progressVal > 0) {
@@ -14,7 +15,7 @@
             remainingStr = "done";
         }
 
-        if (data.BarSubtitle === "sync complete") {
+        if (subtitle === "sync complete") {
             notifStr = ""
         }
 

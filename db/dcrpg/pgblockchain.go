@@ -2032,11 +2032,10 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.Progr
 	// Signal the completion of the sync
 	if barLoad != nil {
 		barLoad <- &dbtypes.ProgressBarLoad{
-			From:      int64(totalVinIbIDs),
-			To:        int64(totalVinIbIDs),
-			Msg:       AddressesSyncStatusMsg,
-			BarID:     dbtypes.AddressesTableSync,
-			Timestamp: 0,
+			From:  int64(totalVinIbIDs),
+			To:    int64(totalVinIbIDs),
+			Msg:   AddressesSyncStatusMsg,
+			BarID: dbtypes.AddressesTableSync,
 		}
 	}
 

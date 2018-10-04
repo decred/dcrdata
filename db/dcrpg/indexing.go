@@ -239,7 +239,7 @@ func DeindexMissesTableOnHash(db *sql.DB) (err error) {
 	return
 }
 
-// agendas
+// Agendas table indexes
 
 func IndexAgendasTableOnBlockTime(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAgendasTableOnBlockTime)
@@ -403,9 +403,9 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: logMsg}
 		}
 	}
-	// signal task is done
+	// Signal task is done
 	if barLoad != nil {
-		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: " "}
 	}
 	return nil
 }
@@ -427,12 +427,12 @@ func (pgb *ChainDB) IndexTicketsTable(barLoad chan *dbtypes.ProgressBarLoad) err
 		}
 
 		if barLoad != nil {
-			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: logMsg}
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.AddressesTableSync, Subtitle: logMsg}
 		}
 	}
-	// signal task is done
+	// Signal task is done.
 	if barLoad != nil {
-		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.AddressesTableSync, Subtitle: " "}
 	}
 	return nil
 }
@@ -495,12 +495,12 @@ func (pgb *ChainDB) IndexAddressTable(barLoad chan *dbtypes.ProgressBarLoad) err
 		}
 
 		if barLoad != nil {
-			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: logMsg}
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.AddressesTableSync, Subtitle: logMsg}
 		}
 	}
-	// signal task is done
+	// Signal task is done.
 	if barLoad != nil {
-		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.AddressesTableSync, Subtitle: " "}
 	}
 	return nil
 }
