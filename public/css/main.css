@@ -1019,3 +1019,106 @@ body.darkBG .keynav-target {
   max-width: 600px;
   margin: 0px auto 2% auto;
 }
+
+/*Stats Page*/
+.card {
+  background-color: #FFFFFF;
+  box-shadow: 0 4px 8px 0 #E6EAED;
+  width: 250px;
+  height: 220px;
+  margin: auto;
+  margin-bottom: 20px;
+  margin-left: 20px;
+  float: left;
+  padding-bottom: 10px;
+  border-radius: 10px;
+  transition: all .2s ease-in-out;
+}
+.card :hover {
+  overflow: hidden;
+  white-space: normal;
+}
+.card-header {
+  text-transform: uppercase;
+  background-color: #E6EAED;
+  color: #8997A5;
+  text-align: center;
+  font-style: bold;
+  font-size: 16px;
+}
+.card-body {
+  background-color: #FFFFFF;
+  color: #3D5873;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stat-headers {
+  color: #3D5873;
+  text-align: center;
+  font-size: 30px;
+}
+.stat-link {
+  color: #2970FF;
+  font-size: 14px;
+}
+.stat-data {
+  font-style: bold;
+  color: #3D5873;
+  margin: auto;
+  font-size: 25px;
+}
+.no-decimal .dot {
+  display: none;
+}
+.no-decimal .decimal {
+  display: none;
+}
+.decimal {
+  margin-left: -2px;
+  margin-right: 0px;
+}
+.stat-details {
+  color: #96A0A9;
+  font-size: 14px;
+}
+.card-body-padding-top {
+  padding-top: 2.3em;
+}
+.block-rewards {
+  background-color: #A1C6E7;
+}
+.proof-of-stake {
+  background-color: #E7C1A1;
+}
+.network-statistics {
+  background-color: #A1E7D9;
+}
+
+@media screen and (max-width: 1200px) {
+   .stat-headers {
+     margin-left: -146px;
+   }
+}
+
+@media screen and (max-width: 926px) {
+   .stat-headers {
+     margin-left: -25px;
+   }
+
+   #proof-stake-header {
+     margin-left: 0px;
+   }
+}
+
+@media screen and (max-width: 570px) {
+   .stat-headers {
+     margin-left: 0px;
+   }
+
+   #proof-stake-header {
+     margin-left: 38px;
+   }
+}
+/*end Stats page */

@@ -161,6 +161,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"subtract": func(a, b int64) int64 {
 			return a - b
 		},
+		"floatsubtract": func(a float64, b float64) float64 {
+			return a - b
+		},
 		"divide": func(n, d int64) int64 {
 			return n / d
 		},
@@ -227,6 +230,35 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 				str += fmt.Sprintf("%ds ", allsecs)
 			}
 			return str + "remaining"
+		},
+
+		"amountAsDecimalPartsTrimmed": func(v int64, numPlaces int64, useCommas bool) []string {
+			amt := strconv.FormatInt(v, 10)
+			if len(amt) <= 8 {
+				dec := strings.TrimRight(amt, "0")
+				trailingZeros := ""
+				leadingZeros := strings.Repeat("0", 8-len(amt))
+				if ((8 - len(amt)) > 2) {
+					leadingZeros = "00"
+				}
+				return []string{"0", leadingZeros + dec, trailingZeros}
+			}
+			integer := amt[:len(amt)-8]
+			if useCommas {
+				integerAsInt64, err := strconv.ParseInt(integer, 10, 64)
+				if err != nil {
+					log.Errorf("amountAsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
+					integer = "ERROR"
+					dec := "VALUE"
+					zeros := ""
+					return []string{integer, dec, zeros}
+				}
+				integer = humanize.Comma(integerAsInt64)
+			}
+			dec := strings.TrimRight(amt[len(amt)-8:], "0")
+			dec = string(dec[0:numPlaces])
+			zeros := ""
+			return []string{integer, dec, zeros}
 		},
 		"TimeDurationFormat": func(duration time.Duration) (formatedDuration string) {
 			durationhr := int(duration.Minutes() / 60)
