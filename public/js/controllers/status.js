@@ -56,8 +56,8 @@
                     $("#"+v.ProgressBarID).html(buildProgressBar(v));
 
                     if (v.BarSubtitle === "sync complete"){
-                        $(".alert.alert-info h5").html("Blockchain sync is complete. Redirecting to home in 30secs.");
-                        setInterval(() => Turbolinks.visit("/"), 30000);
+                        $(".alert.alert-info h5").html("Blockchain sync is complete. Redirecting to home in 20 secs.");
+                        setInterval(() => Turbolinks.visit("/"), 20000);
                         return
                     }
                 }

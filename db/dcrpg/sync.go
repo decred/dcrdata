@@ -18,8 +18,8 @@ import (
 
 const (
 	rescanLogBlockChunk      = 500
-	InitialLoadSyncStatusMsg = "(Full Mode) Syncing Stake, Blocks(sqlite) and Auxiliary(psql) DBs."
-	AddressesSyncStatusMsg   = "Syncing addresses table with spending info."
+	InitialLoadSyncStatusMsg = "(Full Mode) Syncing stake, base and Auxiliary DBs..."
+	AddressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
 
 // SyncChainDBAsync is like SyncChainDB except it also takes a result channel on
@@ -41,6 +41,8 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		updateAllVotes, newIndexes, updateExplorer)
 	if err != nil {
 		log.Debugf("SyncChainDB quit at height %d, err: %v", height, err)
+	} else {
+		log.Debugf("SyncChainDB completed at height %d.", height)
 	}
 
 	res <- dbtypes.SyncResult{
@@ -141,7 +143,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 				}
 				log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
 
-				// fullMode is definately running so no need to check.
+				// Full mode is definitely running so no need to check.
 				timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
 				timeToComplete := int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock))
 
@@ -224,7 +226,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 
-		// if updating explorer is activated, update it at intervals of 20
+		// If updating explorer is activated, update it at intervals of 20
 		if updateExplorer != nil && ib%20 == 0 && explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
 			log.Infof("Updating the explorer with information for block %v", ib)
 			updateExplorer <- blockHash

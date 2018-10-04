@@ -18,7 +18,7 @@ import (
 
 const (
 	rescanLogBlockChunk      = 1000
-	InitialLoadSyncStatusMsg = "(Lite Mode) Syncing Stake and Blocks(sqlite) DBs"
+	InitialLoadSyncStatusMsg = "(Lite Mode) Syncing stake and base DBs..."
 )
 
 // DBHeights returns the best block heights of: SQLite database tables (block
@@ -159,9 +159,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	// Start at next block we don't have in every DB
 	startHeight++
 
-	// bypassWaitChan defines if the wait channel should be bypassed since we did
-	// not connect to the stakedb block thereby triggering the notification for
-	// the next block in line.
+	// bypassWaitChan is set to true when the waitChan channel isn't expected to
+	// return notification for the next block already requested.
 	var bypassWaitChan bool
 
 	timeStart := time.Now()
@@ -213,15 +212,19 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 				return i - 1, err
 			}
 		}
-
-		// If the current block's height fetched earlier, using the notification
-		// waitChan is not greater than the current stakedb height, bypass the waitChan
-		// to fetch the blocks directly till we find a block whose height is greater
-		// than the stakedb height. For blocks whose height is less than the stakedb
-		// height, they exists in the other dbs so skip to the next iteration.
+		// If the current block has a height that is less than or equal to the
+		// stakedb best block height, the current block isn't added to stakedb.
+		// For waitChan to return a notification for the next block, the current
+		// block has to be added into the stakedb, if not added the waitChan blocks.
+		// When the blockheight is not greater than stakedb height(blockHeight != i)
+		// bypassWaitChan is set to true indicating that waitChan will be bypassed
+		// and the next block will be fetched directly via an RPC method until when
+		// the current blockheight is greater than the stakedb height(blockHeight == i).
+		// For blocks whose height is less than the stakedb height, they already
+		// exists in the wire db so skip to the next iteration.
 		bypassWaitChan = (blockHeight != i)
 		if bypassWaitChan {
-			// subtraction kicks in here because of blockGetter.WaitForHeight(i + 1).
+			// Subtraction kicks in here because of blockGetter.WaitForHeight(i + 1).
 			// Here we want consecutive blocks to be fetched without skipping any
 			// because of (i+1) in the function above when waitChan kicks in.
 			i--
@@ -244,7 +247,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 				log.Infof("Scanning blocks %d to %d (%d live)...",
 					i, endRangeBlock, numLive)
 
-				// if updateStatusSync is set to true then this is the only way that sync progress will be updated.
+				// If updateStatusSync is set to true then this is the only way that sync progress will be updated.
 				if db.updateStatusSync {
 					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
 					timeToComplete := int64(timeTakenPerBlock * float64(height-endRangeBlock))
@@ -319,13 +322,13 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			return i - 1, fmt.Errorf("Unable to store stake info in database: %v", err)
 		}
 
-		// update height, the end condition for the loop
+		// Update height, the end condition for the loop
 		if _, height, err = db.client.GetBestBlock(); err != nil {
 			return i, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 
-		// if updating explore is activated, update it at intervals of 200 blocks.
-		if i%200 == 0 &&  explorer.SyncExplorerUpdateStatus() && updateExplorer != nil && db.updateStatusSync {
+		// If updating explore is activated, update it at intervals of 200 blocks.
+		if updateExplorer != nil && i%200 == 0 && explorer.SyncExplorerUpdateStatus() && db.updateStatusSync {
 			updateExplorer <- &blockhash
 		}
 	}

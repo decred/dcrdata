@@ -10,9 +10,9 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
+	"github.com/decred/dcrdata/v3/explorer"
 )
 
 var createTableStatements = map[string]string{
@@ -349,7 +349,7 @@ func (pgb *ChainDB) DeleteDuplicates() error {
 		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, msg)
 		log.Info(msg)
 	}
-	// signal task is done
+	// Signal task is done
 	explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, "")
 	return nil
 }

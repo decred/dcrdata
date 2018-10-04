@@ -2005,7 +2005,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 			endChunk = totalVinIbIDs
 		}
 
-		// fullMode is definately running so no need to check.
+		// Full mode is definitely running so no need to check.
 		timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endChunk-i))
 		timeToComplete := int64(timeTakenPerBlock * float64(totalVinIbIDs-endChunk))
 

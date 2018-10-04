@@ -247,7 +247,7 @@ func mainCore() error {
 			if err != nil {
 				return fmt.Errorf("RewindStakeDB failed: %v", err)
 			}
-			// stakedbHeight is always rewinded to a height of zero even when lastBlockPG is -1.
+			// stakedbHeight is always rewound to a height of zero even when lastBlockPG is -1.
 			if stakedbHeight != lastBlockPG && stakedbHeight > 0 {
 				return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d",
 					stakedbHeight, lastBlockPG)
@@ -354,45 +354,16 @@ func mainCore() error {
 		auxDBheight = auxDB.GetHeight() // pg db
 	}
 
-	// The blockchain syncing status page should be displayed; if syncing status
-	// limit is not set, or set to a value less than 2 or to a value greater
-	// than 5000. 5000 is the max value that can be set by the user in
-	// dcrdata.conf file as "sync-status-limit". It could also be displayed if
-	// the blocks behind the current height are more than the set status limit.
-	// On initial dcrdata startup syncing should be displayed by default.
-	// (If height is less than 40,000, initial startup from scratch must have been run)
-	switch {
-	// on initial system start up
-	case (usePG && auxDBheight < 40000) || wireDBheight < 40000:
-		explore.DisplaySyncStatusPage = true
+	// The blockchain syncing status page should be displayed; if the blocks
+	// behind the current height are more than the set status limit. On initial
+	// dcrdata startup syncing should be displayed by default. (If height is
+	// less than 40,000, initial startup from scratch must have been run)
+	displaySyncStatusPage := blocksBehind > cfg.SyncStatusLimit ||
+		(usePG && auxDBheight < 40000) || wireDBheight < 40000
 
-	// incorrect value set
-	case cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000:
-		explore.DisplaySyncStatusPage = true
-
-	// more blocks are behind the set sync status user value.
-	case blocksBehind > cfg.SyncStatusLimit:
-		explore.DisplaySyncStatusPage = true
-	}
-
-	blockDataSavers = append(blockDataSavers, explore)
-
-	// Register for notifications from dcrd
-	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
-	if cerr != nil {
-		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
-	}
-	
-	// Create the insight socket server and add it to block savers if in pg mode
-	var insightSocketServer *insight.SocketServer
-	if usePG {
-		insightSocketServer, err = insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
-		if err == nil {
-			blockDataSavers = append(blockDataSavers, insightSocketServer)
-		} else {
-			return fmt.Errorf("Could not create Insight socket.io server: %v", err)
-		}
-	}
+	explore.NewBlockDataMtx.Lock()
+	explore.DisplaySyncStatusPage = displaySyncStatusPage
+	explore.NewBlockDataMtx.Unlock()
 
 	// latestBlockHash receives the block hash of the latest block to be sync'd
 	// in dcrdata. This may not necessarily be the latest block in the blockchain
@@ -404,11 +375,10 @@ func mainCore() error {
 	// Initiate the sync status monitor if the sync status is activated or else
 	// initiate the goroutine that handles storing blocks needed for the explorer
 	// pages.
-	if explore.DisplaySyncStatusPage {
+	if displaySyncStatusPage {
 		explore.StartSyncingStatusMonitor()
-
 	} else {
-		// set that blocks freshly sync'd to to be stored for the explorer pages
+		// Set that blocks freshly sync'd to to be stored for the explorer pages
 		// till the sync is done.
 		explorer.SetSyncExplorerUpdateStatus(true)
 
@@ -420,13 +390,13 @@ func mainCore() error {
 		// the best block from dcrdata.
 		go func() {
 			for hash := range latestBlockHash {
-				// checks if updates should be sent to the explorer. If its been
+				// Checks if updates should be sent to the explorer. If its been
 				// deactivated it breaks the loop.
 				if !explorer.SyncExplorerUpdateStatus() {
 					break
 				}
 
-				// fetch the blockdata using its block hash.
+				// Setch the blockdata using its block hash.
 				d, msgBlock, err := collector.CollectHash(hash)
 				if err != nil {
 					log.Warnf("failed to fetch blockdata for (%s) hash. error: %v",
@@ -434,7 +404,7 @@ func mainCore() error {
 					continue
 				}
 
-				// store the blockdata fetch for the explorer pages
+				// Store the blockdata fetch for the explorer pages
 				if err = explore.Store(d, msgBlock); err != nil {
 					log.Warnf("failed to store (%s) hash's blockdata for the explorer pages error: %v",
 						hash.String(), err)
@@ -442,14 +412,14 @@ func mainCore() error {
 			}
 		}()
 
-		// stores the first block in the explorer. It should correspond with the
+		// Stores the first block in the explorer. It should correspond with the
 		// block that is currently in sync in all the dcrdata dbs
 		loadHeight := wireDBheight
 		if usePG && (auxDBheight < wireDBheight) {
 			loadHeight = auxDBheight
 		}
 
-		// fetches the first block hash whose blockdata will be loaded in the
+		// Fetches the first block hash whose blockdata will be loaded in the
 		// explorer for it pages.
 		loadBlockHash, err := dcrdClient.GetBlockHash(int64(loadHeight))
 		if err != nil {
@@ -606,15 +576,18 @@ func mainCore() error {
 		return nil
 	}
 
-	// collect the data now it was not collected earlier. Set up the monitors too.
-	if explore.DisplaySyncStatusPage {
+	// Collect the data now it was not collected earlier. Set up the monitors too.
+	if displaySyncStatusPage {
 		explore.RetrieveUpdates()
 	}
 
+	explore.NewBlockDataMtx.Lock()
 	// Deactivate displaying the sync status page after the db sync was completed.
 	explore.DisplaySyncStatusPage = false
 
-	// set that newly sync'd blocks should no longer be stored in the explorer.
+	explore.NewBlockDataMtx.Unlock()
+
+	// Set that newly sync'd blocks should no longer be stored in the explorer.
 	// Monitors that fetch the latest updates from dcrd will be launched next.
 	explorer.SetSyncExplorerUpdateStatus(false)
 
@@ -622,6 +595,25 @@ func mainCore() error {
 	// for new blocks, change in the mempool and handle chain reorg. It also
 	// initiates data collection for the explorer.
 	initiateHandlersAndCollectBlocks := func() error {
+		blockDataSavers = append(blockDataSavers, explore)
+
+		// Register for notifications from dcrd
+		cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
+		if cerr != nil {
+			return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
+		}
+
+		// Create the insight socket server and add it to block savers if in pg mode
+		var insightSocketServer *insight.SocketServer
+		if usePG {
+			insightSocketServer, err = insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
+			if err == nil {
+				blockDataSavers = append(blockDataSavers, insightSocketServer)
+			} else {
+				return fmt.Errorf("Could not create Insight socket.io server: %v", err)
+			}
+		}
+
 		// Blockchain monitor for the collector
 		addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 		// On reorg, only update web UI since dcrsqlite's own reorg handler will

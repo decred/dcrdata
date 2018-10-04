@@ -71,6 +71,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 // for all the possible routes supported until the background syncing is done.
 func (exp *explorerUI) SyncStatusPageActivation(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		exp.NewBlockDataMtx.RLock()
 		if exp.DisplaySyncStatusPage {
 			exp.StatusPage(w, "Database Update Running. Please Wait...",
 				"Blockchain sync is running. Please wait ...", BlockchainSyncingType)
@@ -79,6 +80,8 @@ func (exp *explorerUI) SyncStatusPageActivation(next http.Handler) http.Handler 
 			// Pass the token to the next middleware handler
 			next.ServeHTTP(w, r)
 		}
+
+		exp.NewBlockDataMtx.RunLock()
 	})
 }
 

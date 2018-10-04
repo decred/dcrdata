@@ -191,7 +191,7 @@ func (wsh *WebsocketHub) run() {
 
 			switch hubSignal {
 			case sigNewBlock:
-				// do not log when explorer update status is active.
+				// Do not log when explorer update status is active.
 				if !SyncExplorerUpdateStatus() {
 					log.Infof("Signaling new block to %d websocket clients.", clientsCount)
 				}
@@ -215,7 +215,7 @@ func (wsh *WebsocketHub) run() {
 				if hubSignal == sigNewTx {
 					break
 				}
-				// signal or unregister the client
+				// Signal or unregister the client
 				select {
 				case *client <- hubSignal:
 				default:

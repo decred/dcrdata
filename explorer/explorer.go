@@ -283,10 +283,14 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	// Do not fetch charts updates when on liteMode or when blockchain syncing
 	// is running in the background.
+	exp.NewBlockDataMtx.RLock()
+
 	isSyncRunning := exp.DisplaySyncStatusPage || SyncExplorerUpdateStatus()
 	if !exp.liteMode && !isSyncRunning {
 		exp.prePopulateChartsData()
 	}
+
+	exp.NewBlockDataMtx.RUnlock()
 
 	exp.addRoutes()
 
@@ -318,11 +322,14 @@ func (exp *explorerUI) StartSyncingStatusMonitor() {
 		for {
 			select {
 			case <-timer.C:
+				exp.NewBlockDataMtx.RLock()
+
 				if !exp.DisplaySyncStatusPage {
 					stop <- exp.DisplaySyncStatusPage
 				}
 				exp.wsHub.HubRelay <- sigSyncStatus
 
+				exp.NewBlockDataMtx.RUnlock()
 			case <-stop:
 				timer.Stop()
 				return
@@ -373,6 +380,10 @@ func (exp *explorerUI) prePopulateChartsData() {
 
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	bData := blockData.ToBlockExplorerSummary()
+
+	// Lock for explorerUI's NewBlockData and ExtraInfo
+	exp.NewBlockDataMtx.Lock()
+
 	isSyncRunning := exp.DisplaySyncStatusPage || SyncExplorerUpdateStatus()
 
 	// Update the charts data after every five blocks or if no charts data
@@ -395,9 +406,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	last24hrDifficulty := exp.blockData.RetreiveDifficulty(timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
 	stakePerc := blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
-
-	// Lock for explorerUI's NewBlockData and ExtraInfo
-	exp.NewBlockDataMtx.Lock()
 
 	// Update all ExtraInfo with latest data
 	exp.NewBlockData = newBlockData

@@ -33,9 +33,8 @@ import (
 
 // wiredDB is intended to satisfy DataSourceLite interface. The block header is
 // not stored in the DB, so the RPC client is used to get it on demand.
-// updateStatusSync is set to true when system is run on lite mode, then
-// wireDB is responsible of sending the sync status updates of the blockchain
-// sync that is running then.
+// updateStatusSync should be true when another object is not responsible for
+// relaying updates on the sync status (e.g. when in explorer's lite mode).
 type wiredDB struct {
 	*DBDataSaver
 	MPC              *mempool.MempoolDataCache
