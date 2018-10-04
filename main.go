@@ -231,7 +231,8 @@ func mainCore() error {
 		}
 
 		// Allow wiredDB/stakedb to catch up to the auxDB, but after
-		// fetchToHeight, stakedb must receive block signals from auxDB.
+		// fetchToHeight, wiredDB must receive block signals from auxDB, and
+		// stakedb must send connect signals to auxDB.
 		fetchToHeight = lastBlockPG + 1
 
 		// Aux DB height and stakedb height must be equal. StakeDatabase will
