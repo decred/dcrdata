@@ -162,11 +162,16 @@ func (db *wiredDB) CheckConnectivity() error {
 }
 
 // SyncDBAsync is like SyncDB except it also takes a result channel where the
-// caller should wait to receive the result.
+// caller should wait to receive the result. When a slave BlockGetter is in use,
+// fetchToHeight is used to indicate at what height the MasterBlockGetter will
+// start sending blocks for processing. e.g. When an auxiliary DB owns the
+// MasterBlockGetter, fetchToHeight should be one past the best block in the aux
+// DB, thus putting wiredDB sync into "catch up" mode where it just pulls blocks
+// from RPC until it matches the auxDB height and coordination begins.
 func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 	quit chan struct{}, blockGetter rpcutils.BlockGetter, fetchToHeight int64,
 	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
-	// Ensure the db is working
+	// Ensure the db is working.
 	if err := db.CheckConnectivity(); err != nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
@@ -176,10 +181,15 @@ func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 	}
 	// Set the first height at which the smart client should wait for the block.
 	if !(blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil) {
+		// Set the first block notification to come on the waitChan to
+		// fetchToHeight, which as described above should be set as the first
+		// block to be processed (and relayed to this BlockGetter) by the
+		// auxiliary DB sync function. e.g. (*ChainDB).SyncChainDB.
 		log.Debugf("Setting block gate height to %d", fetchToHeight)
 		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight))
 	}
-
+	// Begin sync in a goroutine, and return the result when done on the
+	// provided channel.
 	go func() {
 		height, err := db.resyncDB(quit, blockGetter, fetchToHeight, updateExplorer, barLoad)
 		res <- dbtypes.SyncResult{
@@ -189,9 +199,11 @@ func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 	}()
 }
 
+// SyncDB is like SyncDBAsync, except it uses synchronous execution (the call to
+// resyncDB is a blocking call).
 func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{},
 	blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
-	// Ensure the db is working
+	// Ensure the db is working.
 	defer wg.Done()
 	if err := db.CheckConnectivity(); err != nil {
 		return -1, fmt.Errorf("CheckConnectivity failed: %v", err)

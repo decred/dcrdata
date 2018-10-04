@@ -226,31 +226,34 @@ func mainCore() error {
 			if err != sql.ErrNoRows {
 				return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
 			}
+			// lastBlockPG of 0 implies genesis is already processed.
 			lastBlockPG = -1
 		}
 
-		// Allow stakedb to catch up to the auxDB, but after fetchToHeight,
-		// stakedb must receive block signals from auxDB.
+		// Allow wiredDB/stakedb to catch up to the auxDB, but after
+		// fetchToHeight, stakedb must receive block signals from auxDB.
 		fetchToHeight = lastBlockPG + 1
 
-		// PG height and StakeDatabase height must be equal. StakeDatabase will
-		// catch up automatically if it is behind, but we must manually rewind
-		// it here if it is ahead of PG.
+		// Aux DB height and stakedb height must be equal. StakeDatabase will
+		// catch up automatically if it is behind, but we must rewind it here if
+		// it is ahead of auxDB. For auxDB to receive notification from
+		// StakeDatabase when the requried blocks are connected, the
+		// StakeDatabase must be at the same height or lower than auxDB.
 		stakedbHeight := int64(baseDB.GetStakeDB().Height())
 		fromHeight := stakedbHeight
 		if uint64(stakedbHeight) > heightDB {
 			// rewind stakedb and log at intervals of 200
 			if stakedbHeight == fromHeight || stakedbHeight%200 == 0 {
-				log.Infof("Rewinding StakeDatabase from %d to %d.", stakedbHeight, lastBlockPG)
+				log.Infof("Rewinding StakeDatabase from %d to %d.", stakedbHeight, heightDB)
 			}
-			stakedbHeight, err = baseDB.RewindStakeDB(lastBlockPG, quit)
+			stakedbHeight, err = baseDB.RewindStakeDB(int64(heightDB), quit)
 			if err != nil {
 				return fmt.Errorf("RewindStakeDB failed: %v", err)
 			}
 			// stakedbHeight is always rewound to a height of zero even when lastBlockPG is -1.
-			if stakedbHeight != lastBlockPG && stakedbHeight > 0 {
+			if stakedbHeight != int64(heightDB) {
 				return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d",
-					stakedbHeight, lastBlockPG)
+					stakedbHeight, heightDB)
 			}
 		}
 
@@ -539,7 +542,7 @@ func mainCore() error {
 
 	// Sync up with the blockchain after the web server has loaded.
 	getSyncd := func(updateAddys, updateVotes, newPGInds bool,
-		fetchHeight int64) (int64, int64, error) {
+		fetchHeightInBaseDB int64) (int64, int64, error) {
 		// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
 		// info DB (sqlite). Results are returned over channels:
 		sqliteSyncRes := make(chan dbtypes.SyncResult)
@@ -550,8 +553,8 @@ func mainCore() error {
 
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them, but
 		// it has to get a notification channel first to receive them. The BlockGate
-		// will provide this for blocks after fetchHeight.
-		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeight,
+		// will provide this for blocks after fetchHeightInBaseDB.
+		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeightInBaseDB,
 			latestBlockHash, barLoad)
 
 		// Now that stakedb is either catching up or waiting for a block, start the
