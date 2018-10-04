@@ -435,11 +435,16 @@ func loadConfig() (*config, error) {
 		log.Warnf("%v. Disabling balance prefetch (--no-dev-prefetch).", err)
 	}
 
-	// sync-status-limit value should not be set to a value less than 2 or to a
-	// value greater than 5000. 5000 is the max value that can be set by the user
-	// in dcrdata.conf file.
-	if cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000 {
-		return nil, fmt.Errorf("sync-status-limit should not be set to a value less than 2 or more than 5000")
+	// Check if sync-status-limit value has been set. If its equal to zero then
+	// it hasn't been set.
+	if cfg.SyncStatusLimit != 0 {
+		// sync-status-limit value should not be set to a value less than 2 or to a
+		// value greater than 5000. 5000 is the max value that can be set by the user
+		// in dcrdata.conf file.
+		if cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000 {
+			return nil, fmt.Errorf("sync-status-limit should not be set to a value "+
+				"less than 2 or more than 5000")
+		}
 	}
 
 	// Set the host names and ports to the default if the user does not specify

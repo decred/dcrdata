@@ -365,6 +365,10 @@ func mainCore() error {
 	explore.DisplaySyncStatusPage = displaySyncStatusPage
 	explore.NewBlockDataMtx.Unlock()
 
+	// barLoad is used to send sync status updates from a given function or method
+	// to SyncStatusUpdate function via websocket.
+	barLoad := make(chan *dbtypes.ProgressBarLoad)
+
 	// latestBlockHash receives the block hash of the latest block to be sync'd
 	// in dcrdata. This may not necessarily be the latest block in the blockchain
 	// but it is the latest block to be sync'd according to dcrdata. This block
@@ -372,10 +376,16 @@ func mainCore() error {
 	// during blockchain syncing.
 	latestBlockHash := make(chan *chainhash.Hash)
 
-	// Initiate the sync status monitor if the sync status is activated or else
-	// initiate the goroutine that handles storing blocks needed for the explorer
-	// pages.
+	// Initiate the sync status monitor and SyncStatusUpdate goroutine if the
+	// sync status is activated or else initiate the goroutine that handles
+	// storing blocks needed for the explorer pages.
 	if displaySyncStatusPage {
+		// Starts a goroutine that fetches the raw updates, process them and
+		// set them as the latest sync status progress updates.
+		go explore.SyncStatusUpdate(barLoad)
+
+		// Starts a goroutine that signals the websocket to check and send to
+		// the frontend the latest sync status progress updates.
 		explore.StartSyncingStatusMonitor()
 	} else {
 		// Set that blocks freshly sync'd to to be stored for the explorer pages
@@ -479,16 +489,6 @@ func mainCore() error {
 		r.Get("/charts", explore.Charts)
 		r.Get("/ticketpool", explore.Ticketpool)
 
-		if usePG {
-			insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
-			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
-			r.Mount("/insight/api", insightMux.Mux)
-
-			if insightSocketServer != nil {
-				r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
-			}
-		}
-
 		// HTTP profiler
 		if cfg.HTTPProfile {
 			profPath := cfg.HTTPProfPath
@@ -520,14 +520,15 @@ func mainCore() error {
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them, but
 		// it has to get a notification channel first to receive them. The BlockGate
 		// will provide this for blocks after fetchHeight.
-		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeight, latestBlockHash)
+		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeight,
+			latestBlockHash, barLoad)
 
 		// Now that stakedb is either catching up or waiting for a block, start the
 		// auxDB sync, which is the master block getter, retrieving and making
 		// available blocks to the baseDB. In return, baseDB maintains a
 		// StakeDatabase at the best block's height.
 		go auxDB.SyncChainDBAsync(pgSyncRes, smartClient, quit,
-			updateAddys, updateVotes, newPGInds, latestBlockHash)
+			updateAddys, updateVotes, newPGInds, latestBlockHash, barLoad)
 
 		// Wait for the results
 		return waitForSync(sqliteSyncRes, pgSyncRes, usePG, quit)
@@ -604,13 +605,20 @@ func mainCore() error {
 		}
 
 		// Create the insight socket server and add it to block savers if in pg mode
-		var insightSocketServer *insight.SocketServer
 		if usePG {
-			insightSocketServer, err = insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
+			insightSocketServer, err := insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
 			if err == nil {
 				blockDataSavers = append(blockDataSavers, insightSocketServer)
 			} else {
 				return fmt.Errorf("Could not create Insight socket.io server: %v", err)
+			}
+
+			insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
+			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
+			explore.Mux.Mount("/insight/api", insightMux.Mux)
+
+			if insightSocketServer != nil {
+				explore.Mux.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
 			}
 		}
 

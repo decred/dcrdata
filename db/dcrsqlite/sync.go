@@ -89,7 +89,8 @@ func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHei
 }
 
 func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter,
-	fetchToHeight int64, updateExplorer chan *chainhash.Hash) (int64, error) {
+	fetchToHeight int64, updateExplorer chan *chainhash.Hash,
+	barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Determine if we're in lite mode, when we are the "master" who sets the
 	// pace rather than waiting on other consumers to get done with the stakedb.
 	master := blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil
@@ -152,8 +153,14 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		return startHeight, nil
 	}
 
-	if db.updateStatusSync {
-		explorer.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+	if barLoad != nil && db.updateStatusSync {
+		barLoad <- &dbtypes.ProgressBarLoad{
+			From:      0,
+			To:        0,
+			Timestamp: 0,
+			Msg:       InitialLoadSyncStatusMsg,
+			BarID:     dbtypes.InitialDBLoad,
+		}
 	}
 
 	// Start at next block we don't have in every DB
@@ -248,12 +255,16 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 					i, endRangeBlock, numLive)
 
 				// If updateStatusSync is set to true then this is the only way that sync progress will be updated.
-				if db.updateStatusSync {
+				if barLoad != nil && db.updateStatusSync {
 					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
-					timeToComplete := int64(timeTakenPerBlock * float64(height-endRangeBlock))
 
-					explorer.SyncStatusUpdate(i, height, timeToComplete,
-						dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+					barLoad <- &dbtypes.ProgressBarLoad{
+						From:      i,
+						To:        height,
+						Timestamp: int64(timeTakenPerBlock * float64(height-endRangeBlock)), //timeToComplete
+						Msg:       InitialLoadSyncStatusMsg,
+						BarID:     dbtypes.InitialDBLoad,
+					}
 
 					timeStart = time.Now()
 				}
@@ -333,10 +344,15 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		}
 	}
 
-	if db.updateStatusSync {
-		explorer.SyncStatusUpdate(height, height, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
-
-		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, "sync complete")
+	if barLoad != nil && db.updateStatusSync {
+		barLoad <- &dbtypes.ProgressBarLoad{
+			From:      height,
+			To:        height,
+			Timestamp: 0,
+			Msg:       InitialLoadSyncStatusMsg,
+			BarID:     dbtypes.InitialDBLoad,
+			Subtitle:  "sync complete",
+		}
 	}
 
 	log.Infof("Rescan finished successfully at height %d.", height)

@@ -165,7 +165,7 @@ func (db *wiredDB) CheckConnectivity() error {
 // caller should wait to receive the result.
 func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 	quit chan struct{}, blockGetter rpcutils.BlockGetter, fetchToHeight int64,
-	updateExplorer chan *chainhash.Hash) {
+	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
 	// Ensure the db is working
 	if err := db.CheckConnectivity(); err != nil {
 		res <- dbtypes.SyncResult{
@@ -181,7 +181,7 @@ func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 	}
 
 	go func() {
-		height, err := db.resyncDB(quit, blockGetter, fetchToHeight, updateExplorer)
+		height, err := db.resyncDB(quit, blockGetter, fetchToHeight, updateExplorer, barLoad)
 		res <- dbtypes.SyncResult{
 			Height: height,
 			Error:  err,
@@ -202,7 +202,7 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{},
 		log.Debugf("Setting block gate height to %d", fetchToHeight)
 		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight))
 	}
-	return db.resyncDB(quit, blockGetter, fetchToHeight, nil)
+	return db.resyncDB(quit, blockGetter, fetchToHeight, nil, nil)
 }
 
 func (db *wiredDB) GetStakeDB() *stakedb.StakeDatabase {

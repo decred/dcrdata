@@ -81,7 +81,7 @@ func (exp *explorerUI) SyncStatusPageActivation(next http.Handler) http.Handler 
 			next.ServeHTTP(w, r)
 		}
 
-		exp.NewBlockDataMtx.RunLock()
+		exp.NewBlockDataMtx.RUnlock()
 	})
 }
 

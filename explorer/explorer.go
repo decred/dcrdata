@@ -103,34 +103,6 @@ func ChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 	return
 }
 
-// isSyncExplorerUpdate helps determine when the explorer should be updated
-// when the blockchain sync is running in the background and no explorer page
-// view restriction on the running webserver is activated.
-// explore.DisplaySyncStatusPage must be false for this to used.
-var isSyncExplorerUpdate = new(syncUpdateExplorer)
-
-type syncUpdateExplorer struct {
-	sync.RWMutex
-	DoStatusUpdate bool
-}
-
-// SetSyncExplorerUpdateStatus is a thread-safe way to set when the explorer
-// should be updated with the latest blocks synced.
-func SetSyncExplorerUpdateStatus(status bool) {
-	isSyncExplorerUpdate.Lock()
-	defer isSyncExplorerUpdate.Unlock()
-
-	isSyncExplorerUpdate.DoStatusUpdate = status
-}
-
-// SyncExplorerUpdateStatus is thread-safe to check the current set explorer update status.
-func SyncExplorerUpdateStatus() bool {
-	isSyncExplorerUpdate.RLock()
-	defer isSyncExplorerUpdate.RUnlock()
-
-	return isSyncExplorerUpdate.DoStatusUpdate
-}
-
 // TicketStatusText generates the text to display on the explorer's transaction
 // page for the "POOL STATUS" field.
 func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) string {
@@ -184,6 +156,61 @@ type explorerUI struct {
 
 func (exp *explorerUI) reloadTemplates() error {
 	return exp.templates.reloadTemplates()
+}
+
+// SyncStatusUpdate receives the raw progress updates calculates the percentage
+// and updates the blockchainSyncStatus.ProgressBars.
+func (exp *explorerUI) SyncStatusUpdate(barLoad chan *dbtypes.ProgressBarLoad) {
+	// when this method is run check if it should be running in the first place.
+	exp.NewBlockDataMtx.RLock()
+	if exp.DisplaySyncStatusPage {
+		return
+	}
+	exp.NewBlockDataMtx.RUnlock()
+
+	for bar := range barLoad {
+		blockchainSyncStatus.Lock()
+
+		// For consecutive iteraions check when the sync status page is deactivated.
+		exp.NewBlockDataMtx.RLock()
+		if exp.DisplaySyncStatusPage {
+			return
+		}
+		exp.NewBlockDataMtx.RUnlock()
+
+		percentage := 0.0
+		if bar.To > 0 {
+			percentage = math.Floor((float64(bar.From)/float64(bar.To))*10000) / 100
+		}
+
+		val := SyncStatusInfo{
+			PercentComplete: percentage,
+			BarMsg:          bar.Msg,
+			Time:            bar.Timestamp,
+			ProgressBarID:   bar.BarID,
+			BarSubtitle:     bar.Subtitle,
+		}
+
+		if len(blockchainSyncStatus.ProgressBars) == 0 {
+			// first entry
+			blockchainSyncStatus.ProgressBars = []SyncStatusInfo{val}
+		} else {
+			for i, v := range blockchainSyncStatus.ProgressBars {
+				if v.ProgressBarID == bar.BarID {
+					if len(bar.Subtitle) > 0 && bar.Timestamp == 0 {
+						// Handle case scenario when only subtitle should be updated.
+						blockchainSyncStatus.ProgressBars[i].BarSubtitle = bar.Subtitle
+					} else {
+						blockchainSyncStatus.ProgressBars[i] = val
+					}
+					return
+				}
+			}
+			// new entry
+			blockchainSyncStatus.ProgressBars = append(blockchainSyncStatus.ProgressBars, val)
+		}
+		blockchainSyncStatus.Unlock()
+	}
 }
 
 // See reloadsig*.go for an exported method

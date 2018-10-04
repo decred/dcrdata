@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
 )
@@ -356,7 +355,7 @@ func (pgb *ChainDB) DeindexAll() error {
 }
 
 // IndexAll creates indexes in most tables.
-func (pgb *ChainDB) IndexAll() error {
+func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allIndexes := []indexingInfo{
 		// blocks table
 		indexingInfo{Msg: "blocks table on hash", IndexFunc: IndexBlockTableOnHash},
@@ -400,16 +399,20 @@ func (pgb *ChainDB) IndexAll() error {
 			return err
 		}
 
-		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, logMsg)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: logMsg}
+		}
 	}
 	// signal task is done
-	explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, "")
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+	}
 	return nil
 }
 
 // IndexTicketsTable creates indexes in the tickets table on ticket hash,
 // ticket pool status and tx DB ID columns.
-func (pgb *ChainDB) IndexTicketsTable() error {
+func (pgb *ChainDB) IndexTicketsTable(barLoad chan *dbtypes.ProgressBarLoad) error {
 	ticketsTableIndexes := []indexingInfo{
 		indexingInfo{Msg: "ticket hash", IndexFunc: IndexTicketsTableOnHashes},
 		indexingInfo{Msg: "ticket pool status", IndexFunc: IndexTicketsTableOnPoolStatus},
@@ -423,10 +426,14 @@ func (pgb *ChainDB) IndexTicketsTable() error {
 			return err
 		}
 
-		explorer.SyncStatusUpdateBarSubtitle(dbtypes.AddressesTableSync, logMsg)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: logMsg}
+		}
 	}
 	// signal task is done
-	explorer.SyncStatusUpdateBarSubtitle(dbtypes.AddressesTableSync, "")
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+	}
 	return nil
 }
 
@@ -472,7 +479,7 @@ func (pgb *ChainDB) ReindexAddressesBlockTime() error {
 
 // IndexAddressTable creates the indexes on the address table on the vout ID,
 // block_time, matching_tx_hash and address columns.
-func (pgb *ChainDB) IndexAddressTable() error {
+func (pgb *ChainDB) IndexAddressTable(barLoad chan *dbtypes.ProgressBarLoad) error {
 	addressesTableIndexes := []indexingInfo{
 		indexingInfo{Msg: "address", IndexFunc: IndexAddressTableOnAddress},
 		indexingInfo{Msg: "matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
@@ -487,10 +494,14 @@ func (pgb *ChainDB) IndexAddressTable() error {
 			return err
 		}
 
-		explorer.SyncStatusUpdateBarSubtitle(dbtypes.AddressesTableSync, logMsg)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: logMsg}
+		}
 	}
 	// signal task is done
-	explorer.SyncStatusUpdateBarSubtitle(dbtypes.AddressesTableSync, "")
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+	}
 	return nil
 }
 

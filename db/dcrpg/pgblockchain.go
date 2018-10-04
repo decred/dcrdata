@@ -156,7 +156,8 @@ func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) 
 // on the ChainDBRPC receiver.
 func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
-	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash) {
+	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash,
+	barLoad chan *dbtypes.ProgressBarLoad) {
 	// Allowing db to be nil simplifies logic in caller.
 	if db == nil {
 		res <- dbtypes.SyncResult{
@@ -166,7 +167,7 @@ func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		return
 	}
 	db.ChainDB.SyncChainDBAsync(res, client, quit, updateAllAddresses,
-		updateAllVotes, newIndexes, updateExplorer)
+		updateAllVotes, newIndexes, updateExplorer, barLoad)
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
@@ -1975,7 +1976,7 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 // be used instead of using updateAddressesSpendingInfo=true with storeTxns,
 // which will update these addresses table columns too, but much more slowly for
 // a number of reasons (that are well worth investigating BTW!).
-func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
+func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Get the full list of vinDbIDs
 	allVinDbIDs, err := RetrieveAllVinDbIDs(pgb.db)
 	if err != nil {
@@ -2005,14 +2006,19 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 			endChunk = totalVinIbIDs
 		}
 
-		// Full mode is definitely running so no need to check.
-		timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endChunk-i))
-		timeToComplete := int64(timeTakenPerBlock * float64(totalVinIbIDs-endChunk))
+		if barLoad != nil {
+			// Full mode is definitely running so no need to check.
+			timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endChunk-i))
+			barLoad <- &dbtypes.ProgressBarLoad{
+				From:      int64(i),
+				To:        int64(totalVinIbIDs),
+				Msg:       AddressesSyncStatusMsg,
+				BarID:     dbtypes.AddressesTableSync,
+				Timestamp: int64(timeTakenPerBlock * float64(totalVinIbIDs-endChunk)),
+			}
 
-		explorer.SyncStatusUpdate(int64(i), int64(totalVinIbIDs), timeToComplete,
-			dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
-
-		timeStart = time.Now()
+			timeStart = time.Now()
+		}
 
 		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db,
 			allVinDbIDs[i:endChunk])
@@ -2024,8 +2030,15 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 	}
 
 	// Signal the completion of the sync
-	explorer.SyncStatusUpdate(int64(totalVinIbIDs), int64(totalVinIbIDs), 0,
-		dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{
+			From:      int64(totalVinIbIDs),
+			To:        int64(totalVinIbIDs),
+			Msg:       AddressesSyncStatusMsg,
+			BarID:     dbtypes.AddressesTableSync,
+			Timestamp: 0,
+		}
+	}
 
 	return numAddresses, err
 }

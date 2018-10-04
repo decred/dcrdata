@@ -18,7 +18,7 @@ import (
 
 const (
 	rescanLogBlockChunk      = 500
-	InitialLoadSyncStatusMsg = "(Full Mode) Syncing stake, base and Auxiliary DBs..."
+	InitialLoadSyncStatusMsg = "(Full Mode) Syncing stake, base and auxiliary DBs..."
 	AddressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
 
@@ -28,7 +28,8 @@ const (
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
-	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash) {
+	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash,
+	barLoad chan *dbtypes.ProgressBarLoad) {
 	if db == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
@@ -38,7 +39,7 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	}
 
 	height, err := db.SyncChainDB(client, quit, updateAllAddresses,
-		updateAllVotes, newIndexes, updateExplorer)
+		updateAllVotes, newIndexes, updateExplorer, barLoad)
 	if err != nil {
 		log.Debugf("SyncChainDB quit at height %d, err: %v", height, err)
 	} else {
@@ -57,7 +58,7 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // example, closing the channel on SIGINT.
 func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan struct{},
 	updateAllAddresses, updateAllVotes, newIndexes bool,
-	updateExplorer chan *chainhash.Hash) (int64, error) {
+	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Note that we are doing a batch blockchain sync
 	db.InBatchSync = true
 	defer func() { db.InBatchSync = false }()
@@ -113,11 +114,25 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		db.EnableDuplicateCheckOnInsert(true)
 	}
 
-	// Add the various updates that should run on successful sync.
-	explorer.SyncStatusUpdate(0, 0, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
-	// Addresses table sync should only run if bulk update is enabled.
-	if updateAllAddresses {
-		explorer.SyncStatusUpdate(0, 0, 0, dbtypes.AddressesTableSync, AddressesSyncStatusMsg)
+	if barLoad != nil {
+		// Add the various updates that should run on successful sync.
+		barLoad <- &dbtypes.ProgressBarLoad{
+			From:      0,
+			To:        0,
+			Timestamp: 0,
+			Msg:       InitialLoadSyncStatusMsg,
+			BarID:     dbtypes.InitialDBLoad,
+		}
+		// Addresses table sync should only run if bulk update is enabled.
+		if updateAllAddresses {
+			barLoad <- &dbtypes.ProgressBarLoad{
+				From:      0,
+				To:        0,
+				Timestamp: 0,
+				Msg:       AddressesSyncStatusMsg,
+				BarID:     dbtypes.AddressesTableSync,
+			}
+		}
 	}
 
 	timeStart := time.Now()
@@ -143,14 +158,19 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 				}
 				log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
 
-				// Full mode is definitely running so no need to check.
-				timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
-				timeToComplete := int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock))
+				if barLoad != nil {
+					// Full mode is definitely running so no need to check.
+					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
+					barLoad <- &dbtypes.ProgressBarLoad{
+						From:      ib,
+						To:        nodeHeight,
+						Timestamp: int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock)),
+						Msg:       InitialLoadSyncStatusMsg,
+						BarID:     dbtypes.InitialDBLoad,
+					}
 
-				explorer.SyncStatusUpdate(ib, nodeHeight, timeToComplete,
-					dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
-
-				timeStart = time.Now()
+					timeStart = time.Now()
+				}
 			}
 		}
 		select {
@@ -234,7 +254,15 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	}
 
 	// Signal the end of the initial load sync
-	explorer.SyncStatusUpdate(nodeHeight, nodeHeight, 0, dbtypes.InitialDBLoad, InitialLoadSyncStatusMsg)
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{
+			From:      nodeHeight,
+			To:        nodeHeight,
+			Timestamp: 0,
+			Msg:       InitialLoadSyncStatusMsg,
+			BarID:     dbtypes.InitialDBLoad,
+		}
+	}
 
 	speedReport()
 
@@ -243,20 +271,20 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// identical transactions are included in multiple blocks. This happens
 		// when a block is invalidated and the transactions are subsequently
 		// re-mined in another block. Remove these before indexing.
-		if err = db.DeleteDuplicates(); err != nil {
+		if err = db.DeleteDuplicates(barLoad); err != nil {
 			return 0, err
 		}
 
 		// Create indexes
-		if err = db.IndexAll(); err != nil {
+		if err = db.IndexAll(barLoad); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
 		// Only reindex addresses and tickets tables here if not doing it below
 		if !updateAllAddresses {
-			err = db.IndexAddressTable()
+			err = db.IndexAddressTable(barLoad)
 		}
 		if !updateAllVotes {
-			err = db.IndexTicketsTable()
+			err = db.IndexTicketsTable(barLoad)
 		}
 	}
 
@@ -265,13 +293,13 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// Remove existing indexes not on funding txns
 		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
 		log.Infof("Populating spending tx info in address table...")
-		numAddresses, err := db.UpdateSpendingInfoInAllAddresses()
+		numAddresses, err := db.UpdateSpendingInfoInAllAddresses(barLoad)
 		if err != nil {
 			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
 		}
 		// Index addresses table
 		log.Infof("Updated %d rows of address table", numAddresses)
-		if err = db.IndexAddressTable(); err != nil {
+		if err = db.IndexAddressTable(barLoad); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
 		}
 	}
@@ -288,7 +316,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 		// Index tickets table
 		log.Infof("Updated %d rows of address table", numTicketsUpdated)
-		if err = db.IndexTicketsTable(); err != nil {
+		if err = db.IndexTicketsTable(barLoad); err != nil {
 			log.Errorf("IndexTicketsTable FAILED: %v", err)
 		}
 	}
@@ -297,11 +325,13 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	// duplicate entries and updates instead of throwing and error and panicing.
 	db.EnableDuplicateCheckOnInsert(true)
 
-	barID := dbtypes.InitialDBLoad
-	if updateAllAddresses {
-		barID = dbtypes.AddressesTableSync
+	if barLoad != nil {
+		barID := dbtypes.InitialDBLoad
+		if updateAllAddresses {
+			barID = dbtypes.AddressesTableSync
+		}
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: barID, Subtitle: "sync complete"}
 	}
-	explorer.SyncStatusUpdateBarSubtitle(barID, "sync complete")
 
 	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
 		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)

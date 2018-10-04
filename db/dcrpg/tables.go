@@ -12,7 +12,6 @@ import (
 
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
-	"github.com/decred/dcrdata/v3/explorer"
 )
 
 var createTableStatements = map[string]string{
@@ -321,7 +320,7 @@ func TableVersions(db *sql.DB) map[string]TableVersion {
 	return versions
 }
 
-func (pgb *ChainDB) DeleteDuplicates() error {
+func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allDuplicates := []dropDuplicatesInfo{
 		// Remove duplicate vins
 		dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
@@ -337,7 +336,9 @@ func (pgb *ChainDB) DeleteDuplicates() error {
 	var err error
 	for _, val := range allDuplicates {
 		msg := fmt.Sprintf("Finding and removing duplicate %s entries...", val.TableName)
-		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, msg)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
+		}
 		log.Info(msg)
 
 		var numRemoved int64
@@ -346,15 +347,19 @@ func (pgb *ChainDB) DeleteDuplicates() error {
 		}
 
 		msg = fmt.Sprintf("Removed %d duplicate %s entries.", numRemoved, val.TableName)
-		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, msg)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
+		}
 		log.Info(msg)
 	}
 	// Signal task is done
-	explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, "")
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+	}
 	return nil
 }
 
-func (pgb *ChainDB) DeleteDuplicatesRecovery() error {
+func (pgb *ChainDB) DeleteDuplicatesRecovery(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allDuplicates := []dropDuplicatesInfo{
 		// Remove duplicate vins
 		dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
@@ -381,7 +386,9 @@ func (pgb *ChainDB) DeleteDuplicatesRecovery() error {
 	var err error
 	for _, val := range allDuplicates {
 		msg := fmt.Sprintf("Finding and removing duplicate %s entries...", val.TableName)
-		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, msg)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
+		}
 		log.Info(msg)
 
 		var numRemoved int64
@@ -390,10 +397,14 @@ func (pgb *ChainDB) DeleteDuplicatesRecovery() error {
 		}
 
 		msg = fmt.Sprintf("Removed %d duplicate %s entries.", numRemoved, val.TableName)
-		explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, msg)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
+		}
 		log.Info(msg)
 	}
 	// signal task is done
-	explorer.SyncStatusUpdateBarSubtitle(dbtypes.InitialDBLoad, "")
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: ""}
+	}
 	return nil
 }

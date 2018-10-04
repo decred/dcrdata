@@ -6,7 +6,6 @@ package explorer
 
 import (
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 
@@ -542,6 +541,34 @@ func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
 	return agendadb.GetAgendaInfo(agendaId)
 }
 
+// isSyncExplorerUpdate helps determine when the explorer should be updated
+// when the blockchain sync is running in the background and no explorer page
+// view restriction on the running webserver is activated.
+// explore.DisplaySyncStatusPage must be false for this to used.
+var isSyncExplorerUpdate = new(syncUpdateExplorer)
+
+type syncUpdateExplorer struct {
+	sync.RWMutex
+	DoStatusUpdate bool
+}
+
+// SetSyncExplorerUpdateStatus is a thread-safe way to set when the explorer
+// should be updated with the latest blocks synced.
+func SetSyncExplorerUpdateStatus(status bool) {
+	isSyncExplorerUpdate.Lock()
+	defer isSyncExplorerUpdate.Unlock()
+
+	isSyncExplorerUpdate.DoStatusUpdate = status
+}
+
+// SyncExplorerUpdateStatus is thread-safe to check the current set explorer update status.
+func SyncExplorerUpdateStatus() bool {
+	isSyncExplorerUpdate.RLock()
+	defer isSyncExplorerUpdate.RUnlock()
+
+	return isSyncExplorerUpdate.DoStatusUpdate
+}
+
 // syncStatus makes it possible to update the user on the progress of the
 // blockchain db syncing that is running after new blocks were detected on
 // system startup. ProgressBars is an array whose every entry is one of the
@@ -564,67 +591,6 @@ type SyncStatusInfo struct {
 	Time int64
 	// ProgressBarID is the given entry progress bar id needed on the UI page.
 	ProgressBarID string
-}
-
-// SyncStatusUpdate a thread-safe way to store the sync status for a progress id.
-func SyncStatusUpdate(from, to, timeToComplete int64, barID, msg string) {
-	blockchainSyncStatus.Lock()
-	defer blockchainSyncStatus.Unlock()
-
-	percentage := 0.0
-	if to > 0 {
-		percentage = math.Floor((float64(from)/float64(to))*10000) / 100
-	}
-
-	val := SyncStatusInfo{
-		PercentComplete: percentage,
-		BarMsg:          msg,
-		Time:            timeToComplete,
-		ProgressBarID:   barID,
-	}
-
-	if len(blockchainSyncStatus.ProgressBars) == 0 {
-		// first entry
-		blockchainSyncStatus.ProgressBars = []SyncStatusInfo{val}
-	} else {
-		for i, v := range blockchainSyncStatus.ProgressBars {
-			if v.ProgressBarID == barID {
-				blockchainSyncStatus.ProgressBars[i] = val
-				return
-			}
-		}
-		// new entry
-		blockchainSyncStatus.ProgressBars = append(blockchainSyncStatus.ProgressBars, val)
-	}
-}
-
-// SyncStatusUpdateBarSubtitle is a thread-safe way to update the BarSubtitle field.
-// This field helps define other tasks that may run in the background and have
-// no feasible way to determine how long they will take to run, e.g its pretty
-// hard to determine how long a given index will take. So it will be indicated
-// just as a task running the background until completion without a progress bar.
-func SyncStatusUpdateBarSubtitle(barID, subtitle string) {
-	blockchainSyncStatus.Lock()
-	defer blockchainSyncStatus.Unlock()
-
-	val := SyncStatusInfo{
-		BarSubtitle:   subtitle,
-		ProgressBarID: barID,
-	}
-
-	if len(blockchainSyncStatus.ProgressBars) == 0 {
-		// first entry
-		blockchainSyncStatus.ProgressBars = []SyncStatusInfo{val}
-	} else {
-		for i, v := range blockchainSyncStatus.ProgressBars {
-			if v.ProgressBarID == barID {
-				blockchainSyncStatus.ProgressBars[i].BarSubtitle = subtitle
-				return
-			}
-		}
-		// new entry
-		blockchainSyncStatus.ProgressBars = append(blockchainSyncStatus.ProgressBars, val)
-	}
 }
 
 // SyncStatus defines a thread-safe way to read the sync status updates
