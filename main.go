@@ -369,8 +369,11 @@ func mainCore() error {
 	// behind the current height are more than the set status limit. On initial
 	// dcrdata startup syncing should be displayed by default. (If height is
 	// less than 40,000, initial startup from scratch must have been run)
+	// The sync status page should also be displayed when updateAllAddresses and
+	// newPGIndexes are set to true.
 	displaySyncStatusPage := blocksBehind > cfg.SyncStatusLimit ||
-		(usePG && auxDBheight < 40000) || wireDBheight < 40000
+		(usePG && auxDBheight < 40000) || wireDBheight < 40000 ||
+		updateAllAddresses || newPGIndexes
 
 	// Set the displaySyncStatusPage value.
 	explore.SetDisplaySyncStatusPage(displaySyncStatusPage)
@@ -633,7 +636,7 @@ func mainCore() error {
 	// The following block configures and starts handlers that monitor for new
 	// blocks, change in the mempool and handle chain reorg. It also initiates
 	// data collection for the explorer.
-	initiateHandlersAndCollectBlocks := func() error {
+	{
 		// Blockchain monitor for the collector
 		addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 		// On reorg, only update web UI since dcrsqlite's own reorg handler will
@@ -750,17 +753,6 @@ func mainCore() error {
 
 		// Wait for notification handlers to quit
 		wg.Wait()
-
-		return nil
-	}
-
-	// Mempool and dbs reorgs monitors need not run before blockchain syncing
-	// completes. If started before syncing completes, they should be blocked
-	// till the syncing is complete, since no update received then is readily
-	// usable without corrupting the dbs. They will also be piling unnecessary
-	// pressure on the underlying hardware's processing power.
-	if err := initiateHandlersAndCollectBlocks(); err != nil {
-		return err
 	}
 
 	// Register for notifications from dcrd

@@ -41,6 +41,21 @@
             .join("  ");
     }
 
+    function doNotification() {
+        var newBlockNtfn = new Notify('Blockchain Sync Complete', {
+            body: 'Redirecting to home in 20 secs.',
+            tag: 'blockheight',
+            image: '/images/dcrdata144x128.png',
+            icon: '/images/dcrdata144x128.png',
+            notifyShow: onShowNotification,
+            notifyClose: onCloseNotification,
+            notifyClick: onClickNotification,
+            notifyError: onErrorNotification,
+            timeout: 10
+        });
+        newBlockNtfn.show();
+    }
+
     app.register("status", class extends Stimulus.Controller {
         static get targets() {
             return [ "statusSyncing" ]
@@ -57,6 +72,10 @@
                     $("#"+v.progress_bar_id).html(buildProgressBar(v));
 
                     if (v.subtitle === "sync complete"){
+                        if (!Notify.needsPermission) {
+                            doNotification();
+                        }
+
                         $(".alert.alert-info h5").html("Blockchain sync is complete. Redirecting to home in 20 secs.");
                         setInterval(() => Turbolinks.visit("/"), 20000);
                         return

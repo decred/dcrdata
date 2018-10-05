@@ -163,10 +163,6 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	// Start at next block we don't have in every DB
 	startHeight++
 
-	// bypassWaitChan is set to true when the waitChan channel isn't expected to
-	// return notification for the next block already requested.
-	var bypassWaitChan bool
-
 	timeStart := time.Now()
 	for i := startHeight; i <= height; i++ {
 		// check for quit signal
@@ -180,7 +176,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		// Either fetch the block or wait for a signal that it is ready
 		var block *dcrutil.Block
 		var blockhash chainhash.Hash
-		if master || i < fetchToHeight || bypassWaitChan {
+		if master || i < fetchToHeight {
 			// Not coordinating with blockGetter for this block
 			var h *chainhash.Hash
 			block, h, err = db.getBlock(i)
@@ -205,34 +201,13 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			db.waitChan = blockGetter.WaitForHeight(i + 1)
 		}
 
-		stakeDBHeight = int64(db.sDB.Height())
-		blockHeight := block.Height()
-
-		// A block whose height is less than or equal the stakedb height should
-		// be ignored. Only blocks greater than the stakedb height should be
-		// considered.
-		if blockHeight > stakeDBHeight {
+		if i > stakeDBHeight {
+			if i != int64(db.sDB.Height()+1) {
+				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", i, db.sDB.Height()))
+			}
 			if err = db.sDB.ConnectBlock(block); err != nil {
 				return i - 1, err
 			}
-		}
-		// If the current block has a height that is less than or equal to the
-		// stakedb best block height, the current block isn't added to stakedb.
-		// For waitChan to return a notification for the next block, the current
-		// block has to be added into the stakedb, if not added the waitChan blocks.
-		// When the blockheight is not greater than stakedb height(blockHeight != i)
-		// bypassWaitChan is set to true indicating that waitChan will be bypassed
-		// and the next block will be fetched directly via an RPC method until when
-		// the current blockheight is greater than the stakedb height(blockHeight == i).
-		// For blocks whose height is less than the stakedb height, they already
-		// exists in the wire db so skip to the next iteration.
-		bypassWaitChan = (blockHeight != i)
-		if bypassWaitChan {
-			// Subtraction kicks in here because of blockGetter.WaitForHeight(i + 1).
-			// Here we want consecutive blocks to be fetched without skipping any
-			// because of (i+1) in the function above when waitChan kicks in.
-			i--
-			continue
 		}
 
 		numLive := db.sDB.PoolSize()
