@@ -442,7 +442,7 @@ func loadConfig() (*config, error) {
 		// value greater than 5000. 5000 is the max value that can be set by the user
 		// in dcrdata.conf file.
 		if cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000 {
-			return nil, fmt.Errorf("sync-status-limit should not be set to a value "+
+			return nil, fmt.Errorf("sync-status-limit should not be set to a value " +
 				"less than 2 or more than 5000")
 		}
 	}

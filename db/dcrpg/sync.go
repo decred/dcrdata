@@ -22,6 +22,75 @@ const (
 	AddressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
 
+/////////// Coordinated synchronization of base DB and auxiliary DB. ///////////
+//
+// In full mode, a challenge is to keep base and aux DBs syncing at the same
+// height. One of the main reasons is that there is one StakeDatabase, which is
+// shared between the two, and both DBs need access to it for each height.
+//
+// rpcutils.BlockGetter is an interface with basic accessor methods like Block
+// and WaitForHash that can request current data and channels for future data,
+// but do not update the state of the object. The rpcutils.MasterBlockGetter is
+// an interface that embeds the regular BlockGetter, adding with functions that
+// can change state and signal to the BlockGetters, such as UpdateToHeight,
+// which will get the block via RPC and signal to all channels configured for
+// that block.
+//
+// In full mode, ChainDB has the MasterBlockGetter and wiredDB has the
+// BlockGetter. The way ChainDB is in charge of requesting blocks on demand from
+// RPC without getting ahead of wiredDB during sync is that StakeDatabase has a
+// very similar coordination mechanism (WaitForHeight).
+//
+// 1. In main, we make a new `rpcutils.BlockGate`, a concrete type that
+//    implements `MasterBlockGetter` and thus `BlockGetter` too.  This
+//    "smart client" is provided to `baseDB` (a `wiredDB`) as a `BlockGetter`,
+//    and to `auxDB` (a `ChainDB`) as a `MasterBlockGetter`.
+//
+// 2. `baseDB` makes a channel using `BlockGetter.WaitForHeight` and starts
+//    waiting for the current block to come across the channel.
+//
+// 3. `auxDB` makes a channel using `StakeDatabase.WaitForHeight`, which
+//    instructs the shared stake DB to send notification when it connects the
+//    specified block. `auxDB` does not start waiting for the signal yet.
+//
+// 4. `auxDB` requests that the same current block be retrieved via RPC using
+//    `MasterBlockGetter.UpdateToBlock`.
+//
+// 5. `auxDB` immediately begins waiting for the signal that `StakeDatabase` has
+//    connected the block.
+//
+// 6. The call to `UpdateToBlock` causes the underlying (shared) smartClient to
+//    send a signal on all channels registered for that block.
+//
+// 7. `baseDB`gets notification on the channel and retrieves the block (which
+//    the channel signaled is now available) via `BlockGetter.Block`.
+//
+// 8. Before connecting the block in the `StakeDatabase`, `baseDB` gets a new
+//    channel for the following (i+1) block, so that when `auxDB` requests it
+//    later the channel will be registered already.
+//
+// 9. `baseDB` connects the block in `StakeDatabase`.
+//
+// 10. `StakeDatabase` signals to all waiters (`auxDB`, see 5) that the stake db
+//    is ready at the needed height.
+//
+// 11. `baseDB` finishes block data processing/storage and goes back to 2. for
+//    the next block.
+//
+// 12. Concurrent with `baseDB` processing in 11., `auxDB` receives the
+//    notification from `StakeDatabase` sent in 10. and continues block data
+//    processing/storage.  When done processing, `auxDB` goes back to step 3.
+//    for the next block.  As with the previous iteration, it sets the pace with
+//    `UpdateToBlock`.
+//
+// With the above approach, (a) the DBs share a single StakeDatabase, (b) the
+// DBs are in sync (tightly coupled), (c) there is ample opportunity for
+// concurrent computations, and (d) the shared blockGetter (as a
+// MasterBlockGetter in auxDB, and a BlockGetter in baseDB) makes it so a given
+// block will only be fetched via RPC ONCE and stored for the BlockGetters that
+// are waiting for the block.
+////////////////////////////////////////////////////////////////////////////////
+
 // SyncChainDBAsync is like SyncChainDB except it also takes a result channel on
 // which the caller should wait to receive the result. As such, this method
 // should be called as a goroutine or it will hang on send if the channel is
