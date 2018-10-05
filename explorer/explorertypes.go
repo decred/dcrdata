@@ -26,7 +26,12 @@ const (
 	NotSupportedStatusType   statusType = "Not Supported"
 	NotImplementedStatusType statusType = "Not Implemented"
 	DeprecatedStatusType     statusType = "Deprecated"
+	BlockchainSyncingType    statusType = "Blocks Syncing"
 )
+
+// blockchainSyncStatus defines the status update displayed on the syncing status page
+// when new blocks are being appended into the db.
+var blockchainSyncStatus = new(syncStatus)
 
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
@@ -534,4 +539,64 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 // GetAgendaInfo gets the all info for the specified agenda ID.
 func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
 	return agendadb.GetAgendaInfo(agendaId)
+}
+
+// isSyncExplorerUpdate helps determine when the explorer should be updated
+// when the blockchain sync is running in the background and no explorer page
+// view restriction on the running webserver is activated.
+// explore.DisplaySyncStatusPage must be false for this to used.
+var isSyncExplorerUpdate = new(syncUpdateExplorer)
+
+type syncUpdateExplorer struct {
+	sync.RWMutex
+	DoStatusUpdate bool
+}
+
+// SetSyncExplorerUpdateStatus is a thread-safe way to set when the explorer
+// should be updated with the latest blocks synced.
+func SetSyncExplorerUpdateStatus(status bool) {
+	isSyncExplorerUpdate.Lock()
+	defer isSyncExplorerUpdate.Unlock()
+
+	isSyncExplorerUpdate.DoStatusUpdate = status
+}
+
+// SyncExplorerUpdateStatus is thread-safe to check the current set explorer update status.
+func SyncExplorerUpdateStatus() bool {
+	isSyncExplorerUpdate.RLock()
+	defer isSyncExplorerUpdate.RUnlock()
+
+	return isSyncExplorerUpdate.DoStatusUpdate
+}
+
+// syncStatus makes it possible to update the user on the progress of the
+// blockchain db syncing that is running after new blocks were detected on
+// system startup. ProgressBars is an array whose every entry is one of the
+// progress bars data that will be displayed on the sync status page.
+type syncStatus struct {
+	sync.RWMutex
+	ProgressBars []SyncStatusInfo
+}
+
+// SyncStatusInfo defines information for a single progress bar.
+type SyncStatusInfo struct {
+	// PercentComplete is the percentage of sync complete for a given progress bar.
+	PercentComplete float64 `json:"percentage_complete"`
+	// BarMsg holds the main bar message about the currect sync.
+	BarMsg string `json:"bar_msg"`
+	// BarSubtitle holds any other information about the current main sync. This
+	// value may include but not limited to; db indexing, deleting duplicates etc.
+	BarSubtitle string `json:"subtitle"`
+	// Time is the estimated time in seconds to the sync should be complete.
+	Time int64 `json:"seconds_to_complete"`
+	// ProgressBarID is the given entry progress bar id needed on the UI page.
+	ProgressBarID string `json:"progress_bar_id"`
+}
+
+// SyncStatus defines a thread-safe way to read the sync status updates
+func SyncStatus() []SyncStatusInfo {
+	blockchainSyncStatus.RLock()
+	defer blockchainSyncStatus.RUnlock()
+
+	return blockchainSyncStatus.ProgressBars
 }

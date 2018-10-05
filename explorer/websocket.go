@@ -26,6 +26,7 @@ const (
 	sigMempoolUpdate
 	sigPingAndUserCount
 	sigNewTx
+	sigSyncStatus
 )
 
 // WebSocketMessage represents the JSON object used to send and received typed
@@ -41,6 +42,7 @@ var eventIDs = map[hubSignal]string{
 	sigMempoolUpdate:    "mempool",
 	sigPingAndUserCount: "ping",
 	sigNewTx:            "newtx",
+	sigSyncStatus:       "blockchainSync",
 }
 
 // WebsocketHub and its event loop manage all websocket client connections.
@@ -185,19 +187,25 @@ func (wsh *WebsocketHub) run() {
 		select {
 		case hubSignal := <-wsh.HubRelay:
 			var newtx *MempoolTx
+			clientsCount := len(wsh.clients)
+
 			switch hubSignal {
 			case sigNewBlock:
-				log.Infof("Signaling new block to %d websocket clients.", len(wsh.clients))
+				// Do not log when explorer update status is active.
+				if !SyncExplorerUpdateStatus() {
+					log.Infof("Signaling new block to %d websocket clients.", clientsCount)
+				}
 			case sigPingAndUserCount:
-				log.Tracef("Signaling ping/user count to %d websocket clients.", len(wsh.clients))
+				log.Tracef("Signaling ping/user count to %d websocket clients.", clientsCount)
 			case sigMempoolUpdate:
-				if len(wsh.clients) > 0 {
-					log.Infof("Signaling mempool update to %d websocket clients.", len(wsh.clients))
+				if clientsCount > 0 {
+					log.Infof("Signaling mempool update to %d websocket clients.", clientsCount)
 				}
 			case sigNewTx:
 				newtx = <-wsh.NewTxChan
 				log.Tracef("Received new tx %s", newtx.Hash)
 				wsh.MaybeSendTxns(newtx)
+			case sigSyncStatus:
 			default:
 				log.Errorf("Unknown hub signal: %v", hubSignal)
 				break events
@@ -207,7 +215,7 @@ func (wsh *WebsocketHub) run() {
 				if hubSignal == sigNewTx {
 					break
 				}
-				// signal or unregister the client
+				// Signal or unregister the client
 				select {
 				case *client <- hubSignal:
 				default:

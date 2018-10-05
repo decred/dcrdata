@@ -1,3 +1,6 @@
+// Copyright (c) 2018, The Decred developers
+// See LICENSE for details.
+
 package dbtypes
 
 import (
@@ -90,6 +93,29 @@ const (
 	DayChartGrouping
 	UnknownGrouping
 )
+
+const (
+	// InitialDBLoad is a sync where data is first loaded from the chain db into
+	// the respective dbs currently supported. Runs on both liteMode and fullMode.
+	// InitialDBLoad value references the first progress bar id on the status page.
+	InitialDBLoad = "initial-load"
+	// AddressesTableSync is a sync that runs immediately after initialDBLoad. Data
+	// previously loaded into vins table is sync'd with the addresses table.
+	// Runs only in fullMode. AddressesTableSync value references the second
+	// progress bar id on the status page.
+	AddressesTableSync = "addresses-sync"
+)
+
+// ProgressBarLoad contains the raw data needed to populate the status sync updates.
+// It is used to update the status sync through a channel.
+type ProgressBarLoad struct {
+	From      int64
+	To        int64
+	Msg       string
+	Subtitle  string
+	BarID     string
+	Timestamp int64
+}
 
 // ChartGroupings helps maping a given chart grouping to its standard string value.
 var ChartGroupings = map[ChartGrouping]string{
