@@ -558,10 +558,12 @@ func mainCore() error {
 		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeightInBaseDB,
 			latestBlockHash, barLoad)
 
-		// Now that stakedb is either catching up or waiting for a block, start the
-		// auxDB sync, which is the master block getter, retrieving and making
-		// available blocks to the baseDB. In return, baseDB maintains a
-		// StakeDatabase at the best block's height.
+		// Now that stakedb is either catching up or waiting for a block, start
+		// the auxDB sync, which is the master block getter, retrieving and
+		// making available blocks to the baseDB. In return, baseDB maintains a
+		// StakeDatabase at the best block's height. For a detailed description
+		// on how the DBs' synchronization is coordinated, see the documents in
+		// db/dcrpg/sync.go.
 		go auxDB.SyncChainDBAsync(pgSyncRes, smartClient, quit,
 			updateAddys, updateVotes, newPGInds, latestBlockHash, barLoad)
 
