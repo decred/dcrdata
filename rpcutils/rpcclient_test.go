@@ -86,3 +86,31 @@ func TestSideChainTips(t *testing.T) {
 		t.Errorf("Incorrect side chain tips.\nGot:\n\t%v\nExpected:\n\t%v", tips, sideTips)
 	}
 }
+
+func TestReverseStringSlice(t *testing.T) {
+	// Even length slice
+	s0 := []string{"a", "b", "c", "d"}
+	ref0 := []string{"d", "c", "b", "a"}
+
+	reverseStringSlice(s0)
+	if !reflect.DeepEqual(s0, ref0) {
+		t.Errorf("reverseStringSlice failed. Got %v, expected %v.", s0, ref0)
+	}
+
+	// Odd length slice
+	s1 := []string{"a", "b", "c", "d", "e"}
+	ref1 := []string{"e", "d", "c", "b", "a"}
+
+	reverseStringSlice(s1)
+	if !reflect.DeepEqual(s1, ref1) {
+		t.Errorf("reverseStringSlice failed. Got %v, expected %v.", s1, ref1)
+	}
+
+	// nil slice
+	var s2, ref2 []string
+
+	reverseStringSlice(s2)
+	if !reflect.DeepEqual(s2, ref2) {
+		t.Errorf("reverseStringSlice failed. Got %v, expected %v.", s2, ref2)
+	}
+}

@@ -95,7 +95,7 @@ func mainCore() int {
 			Difficulty: diffRatio,
 			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
 			Time:       header.Timestamp.Unix(),
-			PoolInfo: apitypes.TicketPoolInfo{
+			PoolInfo: &apitypes.TicketPoolInfo{
 				Size: header.PoolSize,
 			},
 		}

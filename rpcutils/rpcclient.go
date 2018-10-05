@@ -134,9 +134,8 @@ func BuildBlockHeaderVerbose(header *wire.BlockHeader, params *chaincfg.Params,
 }
 
 // GetBlockHeaderVerbose creates a *dcrjson.GetBlockHeaderVerboseResult for the
-// block index specified by idx via an RPC connection to a chain server.
-func GetBlockHeaderVerbose(client *rpcclient.Client, params *chaincfg.Params,
-	idx int64) *dcrjson.GetBlockHeaderVerboseResult {
+// block at height idx via an RPC connection to a chain server.
+func GetBlockHeaderVerbose(client *rpcclient.Client, idx int64) *dcrjson.GetBlockHeaderVerboseResult {
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
@@ -152,10 +151,27 @@ func GetBlockHeaderVerbose(client *rpcclient.Client, params *chaincfg.Params,
 	return blockHeaderVerbose
 }
 
+// GetBlockHeaderVerboseByString creates a *dcrjson.GetBlockHeaderVerboseResult
+// for the block specified by hash via an RPC connection to a chain server.
+func GetBlockHeaderVerboseByString(client *rpcclient.Client, hash string) *dcrjson.GetBlockHeaderVerboseResult {
+	blockhash, err := chainhash.NewHashFromStr(hash)
+	if err != nil {
+		log.Errorf("Invalid block hash %s: %v", blockhash, err)
+		return nil
+	}
+
+	blockHeaderVerbose, err := client.GetBlockHeaderVerbose(blockhash)
+	if err != nil {
+		log.Errorf("GetBlockHeaderVerbose(%v) failed: %v", blockhash, err)
+		return nil
+	}
+
+	return blockHeaderVerbose
+}
+
 // GetBlockVerbose creates a *dcrjson.GetBlockVerboseResult for the block index
 // specified by idx via an RPC connection to a chain server.
-func GetBlockVerbose(client *rpcclient.Client, params *chaincfg.Params,
-	idx int64, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+func GetBlockVerbose(client *rpcclient.Client, idx int64, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	blockhash, err := client.GetBlockHash(idx)
 	if err != nil {
 		log.Errorf("GetBlockHash(%d) failed: %v", idx, err)
@@ -173,8 +189,7 @@ func GetBlockVerbose(client *rpcclient.Client, params *chaincfg.Params,
 
 // GetBlockVerboseByHash creates a *dcrjson.GetBlockVerboseResult for the
 // specified block hash via an RPC connection to a chain server.
-func GetBlockVerboseByHash(client *rpcclient.Client, params *chaincfg.Params,
-	hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+func GetBlockVerboseByHash(client *rpcclient.Client, hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	blockhash, err := chainhash.NewHashFromStr(hash)
 	if err != nil {
 		log.Errorf("Invalid block hash %s", hash)
@@ -259,6 +274,50 @@ func sideChainTips(allTips []dcrjson.GetChainTipsResult) (sideTips []dcrjson.Get
 		}
 	}
 	return
+}
+
+// SideChainFull gets all of the blocks in the side chain with the specified tip
+// block hash. The last block is not mainchain, but it's previous block is.
+func SideChainFull(client *rpcclient.Client, tipHash string) ([]string, error) {
+	// Do not assume specified tip hash is even side chain.
+	var sideChain []string
+
+	hash := tipHash
+	for {
+		header := GetBlockHeaderVerboseByString(client, hash)
+		if header == nil {
+			return nil, fmt.Errorf("GetBlockHeaderVerboseByString failed for block %s", hash)
+		}
+
+		// Main chain blocks have Confirmations != -1.
+		if header.Confirmations != -1 {
+			// The passed block is main chain, not a side chain tip.
+			if hash == tipHash {
+				return nil, fmt.Errorf("tip block is not on a side chain")
+			}
+			// This previous block is the main/side common ancestor.
+			break
+		}
+
+		// This was another side chain block.
+		sideChain = append(sideChain, hash)
+
+		// On to previous block
+		hash = header.PreviousHash
+	}
+
+	// Reverse side chain order so that last element is tip.
+	reverseStringSlice(sideChain)
+
+	return sideChain, nil
+}
+
+func reverseStringSlice(s []string) {
+	N := len(s)
+	for i := 0; i <= (N/2)-1; i++ {
+		j := N - 1 - i
+		s[i], s[j] = s[j], s[i]
+	}
 }
 
 // GetTransactionVerboseByID get a transaction by transaction id

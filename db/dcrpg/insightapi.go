@@ -113,15 +113,13 @@ func (pgb *ChainDBRPC) GetTransactionHex(txid string) string {
 // GetBlockVerboseByHash returns a *dcrjson.GetBlockVerboseResult for the
 // specified block hash, optionally with transaction details.
 func (pgb *ChainDBRPC) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerboseByHash(pgb.Client, pgb.chainParams,
-		hash, verboseTx)
+	return rpcutils.GetBlockVerboseByHash(pgb.Client, hash, verboseTx)
 }
 
 // GetTransactionsForBlockByHash returns a *apitypes.BlockTransactions for the
 // block with the specified hash.
 func (pgb *ChainDBRPC) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
-	blockVerbose := rpcutils.GetBlockVerboseByHash(
-		pgb.Client, pgb.chainParams, hash, false)
+	blockVerbose := rpcutils.GetBlockVerboseByHash(pgb.Client, hash, false)
 
 	return makeBlockTransactions(blockVerbose)
 }

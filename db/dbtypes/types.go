@@ -575,3 +575,9 @@ type BlockStatus struct {
 	Hash        string `json:"hash"`
 	NextHash    string `json:"next_hash"`
 }
+
+// SideChain represents blocks of a side chain, in ascending height order.
+type SideChain struct {
+	Hashes  []string
+	Heights []int64
+}
