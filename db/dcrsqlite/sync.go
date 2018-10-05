@@ -176,7 +176,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		}
 		return startHeight, nil
 	}
-	
+
 	if barLoad != nil && db.updateStatusSync {
 		barLoad <- &dbtypes.ProgressBarLoad{
 			Msg:   InitialLoadSyncStatusMsg,
