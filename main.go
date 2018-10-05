@@ -443,12 +443,6 @@ func mainCore() error {
 
 	blockDataSavers = append(blockDataSavers, explore)
 
-	// Register for notifications from dcrd
-	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
-	if cerr != nil {
-		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
-	}
-
 	// Create the insight socket server and add it to block savers if in pg mode.
 	// Since insightSocketServer is added into the url before even the sync starts,
 	// this implementation cannot be moved to initiateHandlersAndCollectBlocks function.
@@ -490,9 +484,22 @@ func mainCore() error {
 	FileServer(webMux, "/fonts", http.Dir("./public/fonts"), cacheControlMaxAge)
 	FileServer(webMux, "/images", http.Dir("./public/images"), cacheControlMaxAge)
 
+	// SyncStatusApiResponse returns a json response when the sync status page is running.
+	webMux.With(explore.SyncStatusApiResponse).Group(func(r chi.Router) {
+		r.Mount("/api", apiMux.Mux)
+		if usePG {
+			insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
+			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
+			r.Mount("/insight/api", insightMux.Mux)
+
+			if insightSocketServer != nil {
+				r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
+			}
+		}
+	})
+
 	webMux.With(explore.SyncStatusPageActivation).Group(func(r chi.Router) {
 		r.NotFound(explore.NotFound)
-		r.Mount("/api", apiMux.Mux)
 
 		r.Mount("/explorer", explore.Mux)
 		r.Get("/blocks", explore.Blocks)
@@ -509,16 +516,6 @@ func mainCore() error {
 		r.Get("/search", explore.Search)
 		r.Get("/charts", explore.Charts)
 		r.Get("/ticketpool", explore.Ticketpool)
-
-		if usePG {
-			insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
-			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
-			r.Mount("/insight/api", insightMux.Mux)
-
-			if insightSocketServer != nil {
-				r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
-			}
-		}
 
 		// HTTP profiler
 		if cfg.HTTPProfile {
@@ -620,9 +617,22 @@ func mainCore() error {
 	// Monitors that fetch the latest updates from dcrd will be launched next.
 	explorer.SetSyncExplorerUpdateStatus(false)
 
-	// initiateHandlersAndCollectBlocks configures and starts handlers that monitor
-	// for new blocks, change in the mempool and handle chain reorg. It also
-	// initiates data collection for the explorer.
+	// Monitors for new blocks, transactions, and reorgs should not run before
+	// blockchain syncing and DB indexing completes. If started before then, the
+	// DBs will not be prepared to process the notified events. For example, if
+	// dcrd notifies of block 200000 while dcrdata has only reached 1000 in
+	// batch synchronization, trying to process that block will be impossible as
+	// the entire chain before it is not yet processed. Similarly, if we have
+	// already registered for notifications with dcrd but the monitors below are
+	// not started, notifications will fill up the channels, only to be
+	// processed after sync. This is also incorrect since dcrd might notify of a
+	// bew block 200000, but the batch sync will process that block on its own,
+	// causing this to be a duplicate block by the time the monitors begin
+	// pulling data out of the full channels.
+
+	// The following block configures and starts handlers that monitor for new
+	// blocks, change in the mempool and handle chain reorg. It also initiates
+	// data collection for the explorer.
 	initiateHandlersAndCollectBlocks := func() error {
 		// Blockchain monitor for the collector
 		addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
@@ -751,6 +761,12 @@ func mainCore() error {
 	// pressure on the underlying hardware's processing power.
 	if err := initiateHandlersAndCollectBlocks(); err != nil {
 		return err
+	}
+
+	// Register for notifications from dcrd
+	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
+	if cerr != nil {
+		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
 	}
 
 	return nil

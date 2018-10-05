@@ -581,16 +581,16 @@ type syncStatus struct {
 // SyncStatusInfo defines information for a single progress bar.
 type SyncStatusInfo struct {
 	// PercentComplete is the percentage of sync complete for a given progress bar.
-	PercentComplete float64
+	PercentComplete float64 `json:"percentage_complete"`
 	// BarMsg holds the main bar message about the currect sync.
-	BarMsg string
+	BarMsg string `json:"bar_msg"`
 	// BarSubtitle holds any other information about the current main sync. This
 	// value may include but not limited to; db indexing, deleting duplicates etc.
-	BarSubtitle string
+	BarSubtitle string `json:"subtitle"`
 	// Time is the estimated time in seconds to the sync should be complete.
-	Time int64
+	Time int64 `json:"seconds_to_complete"`
 	// ProgressBarID is the given entry progress bar id needed on the UI page.
-	ProgressBarID string
+	ProgressBarID string `json:"progress_bar_id"`
 }
 
 // SyncStatus defines a thread-safe way to read the sync status updates

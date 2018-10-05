@@ -74,7 +74,19 @@ func (exp *explorerUI) SyncStatusPageActivation(next http.Handler) http.Handler 
 		if exp.DisplaySyncStatusPage() {
 			exp.StatusPage(w, "Database Update Running. Please Wait...",
 				"Blockchain sync is running. Please wait ...", BlockchainSyncingType)
-			return
+		} else {
+			// Pass the token to the next middleware handler
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
+// SyncStatusApiResponse returns a json response back instead of a web page when
+// display sync status is active for the api endpoints supported.
+func (exp *explorerUI) SyncStatusApiResponse(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if exp.DisplaySyncStatusPage() {
+			exp.HandleApiRequestsOnSync(w, r)
 		} else {
 			// Pass the token to the next middleware handler
 			next.ServeHTTP(w, r)

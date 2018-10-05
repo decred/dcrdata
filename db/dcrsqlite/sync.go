@@ -338,6 +338,10 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		// If updating explore is activated, update it at intervals of 200 blocks.
 		if updateExplorer != nil && i%200 == 0 && explorer.SyncExplorerUpdateStatus() && db.updateStatusSync {
 			updateExplorer <- &blockhash
+			select {
+			case db.updateStatusChan <- uint32(summaryHeight):
+			default:
+			}
 		}
 	}
 
