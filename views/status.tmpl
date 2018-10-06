@@ -5,7 +5,7 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
 
-    <div class="container">
+    <div class="container" data-controller="status">
         <br/>
         <div class="alert alert-info">
             {{if eq .StatusType "Not Found"}}
@@ -15,6 +15,12 @@
                 <h5>{{.Message}}</h5>
             {{end}}
         </div>
+        <div id="initial-load" class="sync-progress">
+        {{if eq .StatusType "Blocks Syncing"}}
+            <img src="/images/loader.gif" style="margin: 0px auto;display: block;"/>
+        {{end}}
+        </div>
+        <div id="addresses-sync" class="sync-progress"></div>
     </div>
 {{ template "footer" . }}
 </body>

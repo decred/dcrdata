@@ -32,6 +32,7 @@ import (
 const (
 	maxExplorerRows              = 400
 	minExplorerRows              = 20
+	syncStatusInterval           = 10 * time.Second
 	defaultAddressRows     int64 = 20
 	MaxAddressRows         int64 = 1000
 	MaxUnconfirmedPossible int64 = 1000
@@ -148,10 +149,64 @@ type explorerUI struct {
 	ChainParams     *chaincfg.Params
 	Version         string
 	NetName         string
+	// displaySyncStatusPage indicates if the sync status page is the only web
+	// page that should be accessible during DB synchronization.
+	displaySyncStatusPage bool
 }
 
 func (exp *explorerUI) reloadTemplates() error {
 	return exp.templates.reloadTemplates()
+}
+
+// SyncStatusUpdate receives the raw progress updates calculates the percentage
+// and updates the blockchainSyncStatus.ProgressBars.
+func (exp *explorerUI) SyncStatusUpdate(barLoad chan *dbtypes.ProgressBarLoad) {
+	// This goroutine should just be blocked if no sync is running but it should
+	// never exit so that sync processes running never get blocked after writing
+	// data to a channel.
+	go func() {
+		for bar := range barLoad {
+			// updates should only be sent when displaySyncStatus is active
+			// otherwise ignore them.
+			if !exp.DisplaySyncStatusPage() {
+				continue
+			}
+
+			percentage := 0.0
+			if bar.To > 0 {
+				percentage = math.Floor((float64(bar.From)/float64(bar.To))*10000) / 100
+			}
+
+			val := SyncStatusInfo{
+				PercentComplete: percentage,
+				BarMsg:          bar.Msg,
+				Time:            bar.Timestamp,
+				ProgressBarID:   bar.BarID,
+				BarSubtitle:     bar.Subtitle,
+			}
+
+			if len(blockchainSyncStatus.ProgressBars) == 0 {
+				// first entry
+				blockchainSyncStatus.ProgressBars = []SyncStatusInfo{val}
+			} else {
+				for i, v := range blockchainSyncStatus.ProgressBars {
+					if v.ProgressBarID == bar.BarID {
+						if len(bar.Subtitle) > 0 && bar.Timestamp == 0 {
+							// Handle case scenario when only subtitle should be updated.
+							blockchainSyncStatus.ProgressBars[i].BarSubtitle = bar.Subtitle
+						} else {
+							blockchainSyncStatus.ProgressBars[i] = val
+						}
+						// break doesn't work with if statements thus goto was used.
+						goto end
+					}
+				}
+				// new entry
+				blockchainSyncStatus.ProgressBars = append(blockchainSyncStatus.ProgressBars, val)
+			}
+		end:
+		}
+	}()
 }
 
 // See reloadsig*.go for an exported method
@@ -249,7 +304,10 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
-	if !exp.liteMode {
+	// Do not fetch charts updates when on liteMode or when blockchain syncing
+	// is running in the background.
+	isSyncRunning := exp.DisplaySyncStatusPage() || SyncExplorerUpdateStatus()
+	if !exp.liteMode && !isSyncRunning {
 		exp.prePopulateChartsData()
 	}
 
@@ -260,6 +318,49 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	go exp.wsHub.run()
 
 	return exp
+}
+
+// RetrieveUpdates retrieves all the updates that could not be fetched because
+// sync status update was running in the background.
+func (exp *explorerUI) RetrieveUpdates() {
+	// Send the one last signal so that the websocket can send the final
+	// confirmation that syncing is done and home page auto reload should happen.
+	exp.wsHub.HubRelay <- sigSyncStatus
+
+	if !exp.liteMode {
+		exp.prePopulateChartsData()
+	}
+}
+
+// StartSyncingStatusMonitor fires up the sync status monitor. It signals the
+// websocket to check for updates after every syncStatusInterval.
+func (exp *explorerUI) StartSyncingStatusMonitor() {
+	go func() {
+		timer := time.NewTicker(syncStatusInterval)
+		for {
+			select {
+			case <-timer.C:
+				if !exp.DisplaySyncStatusPage() {
+					timer.Stop()
+				}
+				exp.wsHub.HubRelay <- sigSyncStatus
+			}
+		}
+	}()
+}
+
+// DisplaySyncStatusPage is a thread-safe way to fetch the displaySyncStatusPage.
+func (exp *explorerUI) DisplaySyncStatusPage() bool {
+	exp.NewBlockDataMtx.RLock()
+	defer exp.NewBlockDataMtx.RUnlock()
+	return exp.displaySyncStatusPage
+}
+
+// SetDisplaySyncStatusPage is a thread-safe way to update the displaySyncStatusPage.
+func (exp *explorerUI) SetDisplaySyncStatusPage(displayStatus bool) {
+	exp.NewBlockDataMtx.Lock()
+	defer exp.NewBlockDataMtx.Unlock()
+	exp.displaySyncStatusPage = displayStatus
 }
 
 // Height returns the height of the current block data.
@@ -305,9 +406,11 @@ func (exp *explorerUI) prePopulateChartsData() {
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	bData := blockData.ToBlockExplorerSummary()
 
+	isSyncRunning := exp.DisplaySyncStatusPage() || SyncExplorerUpdateStatus()
+
 	// Update the charts data after every five blocks or if no charts data
-	// exists yet.
-	if !exp.liteMode && bData.Height%5 == 0 || len(cacheChartsData.Data) == 0 {
+	// exists yet. Do not update the charts data if blockchain sync is running.
+	if !isSyncRunning && bData.Height%5 == 0 || (len(cacheChartsData.Data) == 0 && !exp.liteMode) {
 		go exp.prePopulateChartsData()
 	}
 
@@ -317,8 +420,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	difficulty := blockData.Header.Difficulty
 	bdHeight := newBlockData.Height
 
-	// last 24hr timestamp
-	timestamp := time.Now().Add(-24 * time.Hour).Unix()
+	// use the latest block's blocktime to get the last 24hr timestamp
+	timestamp := newBlockData.BlockTime - 86400
 	// RetreiveDifficulty fetches the difficulty using the last 24hr timestamp,
 	// whereby the difficulty can have a timestamp equal to the last 24hrs timestamp
 	// or that is immediately greater than the 24hr timestamp.

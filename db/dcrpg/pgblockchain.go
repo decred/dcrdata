@@ -156,7 +156,8 @@ func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) 
 // on the ChainDBRPC receiver.
 func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
-	updateAllVotes, newIndexes bool) {
+	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash,
+	barLoad chan *dbtypes.ProgressBarLoad) {
 	// Allowing db to be nil simplifies logic in caller.
 	if db == nil {
 		res <- dbtypes.SyncResult{
@@ -166,7 +167,7 @@ func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		return
 	}
 	db.ChainDB.SyncChainDBAsync(res, client, quit, updateAllAddresses,
-		updateAllVotes, newIndexes)
+		updateAllVotes, newIndexes, updateExplorer, barLoad)
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
@@ -1275,387 +1276,6 @@ func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
 	return data, nil
 }
 
-func (pgb *ChainDB) DeleteDuplicates() error {
-	var err error
-	// Remove duplicate vins
-	log.Info("Finding and removing duplicate vins entries...")
-	var numVinsRemoved int64
-	if numVinsRemoved, err = pgb.DeleteDuplicateVins(); err != nil {
-		return fmt.Errorf("dcrpg.DeleteDuplicateVins failed: %v", err)
-	}
-	log.Infof("Removed %d duplicate vins entries.", numVinsRemoved)
-
-	// Remove duplicate vouts
-	log.Info("Finding and removing duplicate vouts entries before indexing...")
-	var numVoutsRemoved int64
-	if numVoutsRemoved, err = pgb.DeleteDuplicateVouts(); err != nil {
-		return fmt.Errorf("dcrpg.DeleteDuplicateVouts failed: %v", err)
-	}
-	log.Infof("Removed %d duplicate vouts entries.", numVoutsRemoved)
-
-	// Remove duplicate transactions
-	log.Info("Finding and removing duplicate transactions entries before indexing...")
-	var numTxnsRemoved int64
-	if numTxnsRemoved, err = pgb.DeleteDuplicateTxns(); err != nil {
-		return fmt.Errorf("dcrpg.DeleteDuplicateTxns failed: %v", err)
-	}
-	log.Infof("Removed %d duplicate transactions entries.", numTxnsRemoved)
-
-	// TODO: remove entries from addresses table that reference removed
-	// vins/vouts.
-
-	return err
-}
-
-func (pgb *ChainDB) DeleteDuplicatesRecovery() error {
-	var err error
-	// Remove duplicate vins
-	log.Info("Finding and removing duplicate vins entries...")
-	var numVinsRemoved int64
-	if numVinsRemoved, err = pgb.DeleteDuplicateVins(); err != nil {
-		return fmt.Errorf("dcrpg.DeleteDuplicateVins failed: %v", err)
-	}
-	log.Infof("Removed %d duplicate vins entries.", numVinsRemoved)
-
-	// Remove duplicate vouts
-	log.Info("Finding and removing duplicate vouts entries before indexing...")
-	var numVoutsRemoved int64
-	if numVoutsRemoved, err = pgb.DeleteDuplicateVouts(); err != nil {
-		return fmt.Errorf("dcrpg.DeleteDuplicateVouts failed: %v", err)
-	}
-	log.Infof("Removed %d duplicate vouts entries.", numVoutsRemoved)
-
-	// TODO: remove entries from addresses table that reference removed
-	// vins/vouts.
-
-	// Remove duplicate transactions
-	log.Info("Finding and removing duplicate transactions entries before indexing...")
-	var numTxnsRemoved int64
-	if numTxnsRemoved, err = pgb.DeleteDuplicateTxns(); err != nil {
-		return fmt.Errorf("dcrpg.DeleteDuplicateTxns failed: %v", err)
-	}
-	log.Infof("Removed %d duplicate transactions entries.", numTxnsRemoved)
-
-	// Remove duplicate tickets
-	log.Info("Finding and removing duplicate tickets entries before indexing...")
-	if numTxnsRemoved, err = pgb.DeleteDuplicateTickets(); err != nil {
-		return fmt.Errorf("dcrpg.DeleteDuplicateTickets failed: %v", err)
-	}
-	log.Infof("Removed %d duplicate tickets entries.", numTxnsRemoved)
-
-	// Remove duplicate votes
-	log.Info("Finding and removing duplicate votes entries before indexing...")
-	if numTxnsRemoved, err = pgb.DeleteDuplicateVotes(); err != nil {
-		return fmt.Errorf("dcrpg.DeleteDuplicateVotes failed: %v", err)
-	}
-	log.Infof("Removed %d duplicate votes entries.", numTxnsRemoved)
-
-	// Remove duplicate misses
-	log.Info("Finding and removing duplicate misses entries before indexing...")
-	if numTxnsRemoved, err = pgb.DeleteDuplicateMisses(); err != nil {
-		return fmt.Errorf("dcrpg.DeleteDuplicateMisses failed: %v", err)
-	}
-	log.Infof("Removed %d duplicate misses entries.", numTxnsRemoved)
-
-	return err
-}
-
-func (pgb *ChainDB) DeleteDuplicateVins() (int64, error) {
-	return DeleteDuplicateVins(pgb.db)
-}
-
-func (pgb *ChainDB) DeleteDuplicateVouts() (int64, error) {
-	return DeleteDuplicateVouts(pgb.db)
-}
-
-func (pgb *ChainDB) DeleteDuplicateTxns() (int64, error) {
-	return DeleteDuplicateTxns(pgb.db)
-}
-
-func (pgb *ChainDB) DeleteDuplicateTickets() (int64, error) {
-	return DeleteDuplicateTickets(pgb.db)
-}
-
-func (pgb *ChainDB) DeleteDuplicateVotes() (int64, error) {
-	return DeleteDuplicateVotes(pgb.db)
-}
-
-func (pgb *ChainDB) DeleteDuplicateMisses() (int64, error) {
-	return DeleteDuplicateMisses(pgb.db)
-}
-
-// DeindexAll drops all of the indexes in all tables
-func (pgb *ChainDB) DeindexAll() error {
-	var err, errAny error
-	if err = DeindexBlockTableOnHash(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexBlockTableOnHeight(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexTransactionTableOnHashes(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexTransactionTableOnBlockIn(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexVinTableOnVins(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexVinTableOnPrevOuts(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexVoutTableOnTxHashIdx(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexBlockTimeOnTableAddress(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexMatchingTxHashOnTableAddress(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexAddressTableOnAddress(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexAddressTableOnVoutID(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexAddressTableOnTxHash(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = pgb.DeindexTicketsTable(); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexVotesTableOnCandidate(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexVotesTableOnBlockHash(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexVotesTableOnHash(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexVotesTableOnVoteVersion(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexMissesTableOnHash(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexAgendasTableOnBlockTime(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err = DeindexAgendasTableOnAgendaID(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	return errAny
-}
-
-// IndexAll creates all of the indexes in all tables
-func (pgb *ChainDB) IndexAll() error {
-	log.Infof("Indexing blocks table on hash...")
-	if err := IndexBlockTableOnHash(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing blocks table on height...")
-	if err := IndexBlockTableOnHeight(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing transactions table on tx/block hashes...")
-	if err := IndexTransactionTableOnHashes(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing transactions table on block id/indx...")
-	if err := IndexTransactionTableOnBlockIn(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing vins table on txin...")
-	if err := IndexVinTableOnVins(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing vins table on prevouts...")
-	if err := IndexVinTableOnPrevOuts(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing vouts table on tx hash and index...")
-	if err := IndexVoutTableOnTxHashIdx(pgb.db); err != nil {
-		return err
-	}
-	// log.Infof("Indexing vouts table on tx hash...")
-	// if err := IndexVoutTableOnTxHash(pgb.db); err != nil {
-	// 	return err
-	// }
-	log.Infof("Indexing votes table on candidate block...")
-	if err := IndexVotesTableOnCandidate(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing votes table on block hash...")
-	if err := IndexVotesTableOnBlockHash(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing votes table on block+tx hash...")
-	if err := IndexVotesTableOnHashes(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing votes table on vote version...")
-	if err := IndexVotesTableOnVoteVersion(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing misses table...")
-	if err := IndexMissesTableOnHashes(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing agendas table on Block Time...")
-	if err := IndexAgendasTableOnBlockTime(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing agendas table on Agenda ID...")
-	if err := IndexAgendasTableOnAgendaID(pgb.db); err != nil {
-		return err
-	}
-	// Not indexing the address table on vout ID or address here. See
-	// IndexAddressTable to create those indexes.
-	log.Infof("Indexing addresses table on tx hash...")
-	if err := IndexAddressTableOnTxHash(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing addresses table on matching tx hash...")
-	if err := IndexMatchingTxHashOnTableAddress(pgb.db); err != nil {
-		return err
-	}
-
-	log.Infof("Indexing addresses table on block time...")
-	return IndexBlockTimeOnTableAddress(pgb.db)
-}
-
-// IndexTicketsTable creates the indexes on the tickets table on ticket hash and
-// tx DB ID columns, separately.
-func (pgb *ChainDB) IndexTicketsTable() error {
-	log.Infof("Indexing tickets table on ticket hash...")
-	if err := IndexTicketsTableOnHashes(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing tickets table on ticket pool status...")
-	if err := IndexTicketsTableOnPoolStatus(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing tickets table on transaction Db ID...")
-	return IndexTicketsTableOnTxDbID(pgb.db)
-}
-
-// DeindexTicketsTable drops the ticket hash and tx DB ID column indexes for the
-// tickets table.
-func (pgb *ChainDB) DeindexTicketsTable() error {
-	var errAny error
-	if err := DeindexTicketsTableOnHash(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err := DeindexTicketsTableOnPoolStatus(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err := DeindexTicketsTableOnTxDbID(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	return errAny
-}
-
-func errIsNotExist(err error) bool {
-	return strings.Contains(err.Error(), "does not exist")
-}
-
-func warnUnlessNotExists(err error) {
-	if !errIsNotExist(err) {
-		log.Warn(err)
-	}
-}
-
-// ReindexAddressesBlockTime rebuilds the addresses(block_time) index.
-func (pgb *ChainDB) ReindexAddressesBlockTime() error {
-	log.Infof("Reindexing addresses table on block time...")
-	err := DeindexBlockTimeOnTableAddress(pgb.db)
-	if err != nil && !errIsNotExist(err) {
-		log.Errorf("Failed to drop index addresses index on block_time: %v", err)
-		return err
-	}
-	return IndexBlockTimeOnTableAddress(pgb.db)
-}
-
-// IndexAddressTable creates the indexes on the address table on the vout ID,
-// block_time, matching_tx_hash and address columns, separately.
-func (pgb *ChainDB) IndexAddressTable() error {
-	log.Infof("Indexing addresses table on address...")
-	if err := IndexAddressTableOnAddress(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing addresses table on matching tx hash...")
-	if err := IndexMatchingTxHashOnTableAddress(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing addresses table on block time...")
-	if err := IndexBlockTimeOnTableAddress(pgb.db); err != nil {
-		return err
-	}
-	log.Infof("Indexing addresses table on vout Db ID...")
-	return IndexAddressTableOnVoutID(pgb.db)
-}
-
-// DeindexAddressTable drops the vin ID, block_time, matching_tx_hash
-// and address column indexes for the address table.
-func (pgb *ChainDB) DeindexAddressTable() error {
-	var errAny error
-	if err := DeindexAddressTableOnAddress(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err := DeindexMatchingTxHashOnTableAddress(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err := DeindexBlockTimeOnTableAddress(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	if err := DeindexAddressTableOnVoutID(pgb.db); err != nil {
-		warnUnlessNotExists(err)
-		errAny = err
-	}
-	return errAny
-}
-
-func (pgb *ChainDB) ExistsIndexVinOnVins() (bool, error) {
-	return ExistsIndex(pgb.db, "uix_vin")
-}
-
-func (pgb *ChainDB) ExistsIndexVoutOnTxHashIdx() (bool, error) {
-	return ExistsIndex(pgb.db, "uix_vout_txhash_ind")
-}
-
-func (pgb *ChainDB) ExistsIndexAddressesVoutIDAddress() (bool, error) {
-	return ExistsIndex(pgb.db, "uix_addresses_vout_id")
-}
-
 func (pgb *ChainDB) SetVinsMainchainByBlock(blockHash string) (int64, []dbtypes.UInt64Array, []dbtypes.UInt64Array, error) {
 	// Get vins DB IDs for the block
 	onlyRegularTxns := false
@@ -2356,7 +1976,7 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 // be used instead of using updateAddressesSpendingInfo=true with storeTxns,
 // which will update these addresses table columns too, but much more slowly for
 // a number of reasons (that are well worth investigating BTW!).
-func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
+func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Get the full list of vinDbIDs
 	allVinDbIDs, err := RetrieveAllVinDbIDs(pgb.db)
 	if err != nil {
@@ -2365,31 +1985,41 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 	}
 
 	updatesPerDBTx := 500
+	totalVinIbIDs := len(allVinDbIDs)
 
-	log.Infof("Updating spending tx info for %d addresses...", len(allVinDbIDs))
+	timeStart := time.Now()
+
+	log.Infof("Updating spending tx info for %d addresses...", totalVinIbIDs)
 	var numAddresses int64
-	for i := 0; i < len(allVinDbIDs); i += updatesPerDBTx {
-		//for i, vinDbID := range allVinDbIDs {
+	for i := 0; i < totalVinIbIDs; i += updatesPerDBTx {
 		if i%100000 == 0 {
 			endRange := i + 100000 - 1
-			if endRange > len(allVinDbIDs) {
-				endRange = len(allVinDbIDs)
+			if endRange > totalVinIbIDs {
+				endRange = totalVinIbIDs
 			}
 			log.Infof("Updating from vins %d to %d...", i, endRange)
 		}
 
-		/*var numAddressRowsSet int64
-		numAddressRowsSet, err = SetSpendingForVinDbID(pgb.db, vinDbID)
-		if err != nil {
-			log.Errorf("SetSpendingForFundingOP: %v", err)
-			continue
-		}
-		numAddresses += numAddressRowsSet*/
 		var numAddressRowsSet int64
 		endChunk := i + updatesPerDBTx
-		if endChunk > len(allVinDbIDs) {
-			endChunk = len(allVinDbIDs)
+		if endChunk > totalVinIbIDs {
+			endChunk = totalVinIbIDs
 		}
+
+		if barLoad != nil {
+			// Full mode is definitely running so no need to check.
+			timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endChunk-i))
+			barLoad <- &dbtypes.ProgressBarLoad{
+				From:      int64(i),
+				To:        int64(totalVinIbIDs),
+				Msg:       AddressesSyncStatusMsg,
+				BarID:     dbtypes.AddressesTableSync,
+				Timestamp: int64(timeTakenPerBlock * float64(totalVinIbIDs-endChunk)),
+			}
+
+			timeStart = time.Now()
+		}
+
 		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db,
 			allVinDbIDs[i:endChunk])
 		if err != nil {
@@ -2397,35 +2027,16 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses() (int64, error) {
 			continue
 		}
 		numAddresses += numAddressRowsSet
+	}
 
-		/* // Get the funding and spending tx info for the vin
-		prevoutHash, prevoutVoutInd, _, txHash, txIndex, _, erri :=
-			RetrieveVinByID(pgb.db, vinDbID)
-		if erri != nil {
-			if erri == sql.ErrNoRows {
-				log.Warnf("No funding transaction found for vin DB ID %d", vinDbID)
-				continue
-			}
-			log.Error("RetrieveFundingOutpointByTxIn:", erri)
-			continue
+	// Signal the completion of the sync
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{
+			From:  int64(totalVinIbIDs),
+			To:    int64(totalVinIbIDs),
+			Msg:   AddressesSyncStatusMsg,
+			BarID: dbtypes.AddressesTableSync,
 		}
-
-		// skip coinbase inputs
-		if bytes.Equal(zeroHashStringBytes, []byte(txHash)) {
-			continue
-		}
-
-		// Set the spending tx for the address rows with a matching funding tx
-		var numAddressRowsSet int64
-		numAddressRowsSet, err = SetSpendingForFundingOP(pgb.db,
-			prevoutHash, prevoutVoutInd, // funding
-			0, txHash, txIndex, vinDbID) // spending
-		// DANGER!!!! missing txDbID above
-		if err != nil {
-			log.Errorf("SetSpendingForFundingOP: %v", err)
-			continue
-		}
-		numAddresses += numAddressRowsSet */
 	}
 
 	return numAddresses, err

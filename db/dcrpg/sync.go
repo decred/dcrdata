@@ -12,12 +12,84 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
+	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/rpcutils"
 )
 
 const (
-	rescanLogBlockChunk = 500
+	rescanLogBlockChunk      = 500
+	InitialLoadSyncStatusMsg = "(Full Mode) Syncing stake, base and auxiliary DBs..."
+	AddressesSyncStatusMsg   = "Syncing addresses table with spending info..."
 )
+
+/////////// Coordinated synchronization of base DB and auxiliary DB. ///////////
+//
+// In full mode, a challenge is to keep base and aux DBs syncing at the same
+// height. One of the main reasons is that there is one StakeDatabase, which is
+// shared between the two, and both DBs need access to it for each height.
+//
+// rpcutils.BlockGetter is an interface with basic accessor methods like Block
+// and WaitForHash that can request current data and channels for future data,
+// but do not update the state of the object. The rpcutils.MasterBlockGetter is
+// an interface that embeds the regular BlockGetter, adding with functions that
+// can change state and signal to the BlockGetters, such as UpdateToHeight,
+// which will get the block via RPC and signal to all channels configured for
+// that block.
+//
+// In full mode, ChainDB has the MasterBlockGetter and wiredDB has the
+// BlockGetter. The way ChainDB is in charge of requesting blocks on demand from
+// RPC without getting ahead of wiredDB during sync is that StakeDatabase has a
+// very similar coordination mechanism (WaitForHeight).
+//
+// 1. In main, we make a new `rpcutils.BlockGate`, a concrete type that
+//    implements `MasterBlockGetter` and thus `BlockGetter` too.  This
+//    "smart client" is provided to `baseDB` (a `wiredDB`) as a `BlockGetter`,
+//    and to `auxDB` (a `ChainDB`) as a `MasterBlockGetter`.
+//
+// 2. `baseDB` makes a channel using `BlockGetter.WaitForHeight` and starts
+//    waiting for the current block to come across the channel.
+//
+// 3. `auxDB` makes a channel using `StakeDatabase.WaitForHeight`, which
+//    instructs the shared stake DB to send notification when it connects the
+//    specified block. `auxDB` does not start waiting for the signal yet.
+//
+// 4. `auxDB` requests that the same current block be retrieved via RPC using
+//    `MasterBlockGetter.UpdateToBlock`.
+//
+// 5. `auxDB` immediately begins waiting for the signal that `StakeDatabase` has
+//    connected the block.
+//
+// 6. The call to `UpdateToBlock` causes the underlying (shared) smartClient to
+//    send a signal on all channels registered for that block.
+//
+// 7. `baseDB`gets notification on the channel and retrieves the block (which
+//    the channel signaled is now available) via `BlockGetter.Block`.
+//
+// 8. Before connecting the block in the `StakeDatabase`, `baseDB` gets a new
+//    channel for the following (i+1) block, so that when `auxDB` requests it
+//    later the channel will be registered already.
+//
+// 9. `baseDB` connects the block in `StakeDatabase`.
+//
+// 10. `StakeDatabase` signals to all waiters (`auxDB`, see 5) that the stake db
+//    is ready at the needed height.
+//
+// 11. `baseDB` finishes block data processing/storage and goes back to 2. for
+//    the next block.
+//
+// 12. Concurrent with `baseDB` processing in 11., `auxDB` receives the
+//    notification from `StakeDatabase` sent in 10. and continues block data
+//    processing/storage.  When done processing, `auxDB` goes back to step 3.
+//    for the next block.  As with the previous iteration, it sets the pace with
+//    `UpdateToBlock`.
+//
+// With the above approach, (a) the DBs share a single StakeDatabase, (b) the
+// DBs are in sync (tightly coupled), (c) there is ample opportunity for
+// concurrent computations, and (d) the shared blockGetter (as a
+// MasterBlockGetter in auxDB, and a BlockGetter in baseDB) makes it so a given
+// block will only be fetched via RPC ONCE and stored for the BlockGetters that
+// are waiting for the block.
+////////////////////////////////////////////////////////////////////////////////
 
 // SyncChainDBAsync is like SyncChainDB except it also takes a result channel on
 // which the caller should wait to receive the result. As such, this method
@@ -25,7 +97,8 @@ const (
 // unbuffered.
 func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
-	updateAllVotes, newIndexes bool) {
+	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash,
+	barLoad chan *dbtypes.ProgressBarLoad) {
 	if db == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
@@ -33,9 +106,15 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		}
 		return
 	}
+
 	height, err := db.SyncChainDB(client, quit, updateAllAddresses,
-		updateAllVotes, newIndexes)
-	log.Debugf("SyncChainDB quit at height %d, err: %v", height, err)
+		updateAllVotes, newIndexes, updateExplorer, barLoad)
+	if err != nil {
+		log.Debugf("SyncChainDB quit at height %d, err: %v", height, err)
+	} else {
+		log.Debugf("SyncChainDB completed at height %d.", height)
+	}
+
 	res <- dbtypes.SyncResult{
 		Height: height,
 		Error:  err,
@@ -47,7 +126,8 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
 func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan struct{},
-	updateAllAddresses, updateAllVotes, newIndexes bool) (int64, error) {
+	updateAllAddresses, updateAllVotes, newIndexes bool,
+	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Note that we are doing a batch blockchain sync
 	db.InBatchSync = true
 	defer func() { db.InBatchSync = false }()
@@ -103,6 +183,23 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		db.EnableDuplicateCheckOnInsert(true)
 	}
 
+	if barLoad != nil {
+		// Add the various updates that should run on successful sync.
+		barLoad <- &dbtypes.ProgressBarLoad{
+			Msg:   InitialLoadSyncStatusMsg,
+			BarID: dbtypes.InitialDBLoad,
+		}
+		// Addresses table sync should only run if bulk update is enabled.
+		if updateAllAddresses {
+			barLoad <- &dbtypes.ProgressBarLoad{
+				Msg:   AddressesSyncStatusMsg,
+				BarID: dbtypes.AddressesTableSync,
+			}
+		}
+	}
+
+	timeStart := time.Now()
+
 	// Start rebuilding
 	startHeight := lastBlock + 1
 	for ib := startHeight; ib <= nodeHeight; ib++ {
@@ -116,13 +213,26 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 
 		if (ib-1)%rescanLogBlockChunk == 0 || ib == startHeight {
 			if ib == 0 {
-				log.Infof("Scanning genesis block.")
+				log.Infof("Scanning genesis block into auxiliary chain db.")
 			} else {
 				endRangeBlock := rescanLogBlockChunk * (1 + (ib-1)/rescanLogBlockChunk)
 				if endRangeBlock > nodeHeight {
 					endRangeBlock = nodeHeight
 				}
 				log.Infof("Processing blocks %d to %d...", ib, endRangeBlock)
+
+				if barLoad != nil {
+					// Full mode is definitely running so no need to check.
+					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
+					barLoad <- &dbtypes.ProgressBarLoad{
+						From:      ib,
+						To:        nodeHeight,
+						Timestamp: int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock)),
+						Msg:       InitialLoadSyncStatusMsg,
+						BarID:     dbtypes.InitialDBLoad,
+					}
+					timeStart = time.Now()
+				}
 			}
 		}
 		select {
@@ -197,6 +307,22 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		if nodeHeight, err = client.NodeHeight(); err != nil {
 			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
+
+		// If updating explorer is activated, update it at intervals of 20
+		if updateExplorer != nil && ib%20 == 0 && explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
+			log.Infof("Updating the explorer with information for block %v", ib)
+			updateExplorer <- blockHash
+		}
+	}
+
+	// Signal the end of the initial load sync
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{
+			From:  nodeHeight,
+			To:    nodeHeight,
+			Msg:   InitialLoadSyncStatusMsg,
+			BarID: dbtypes.InitialDBLoad,
+		}
 	}
 
 	speedReport()
@@ -206,20 +332,20 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// identical transactions are included in multiple blocks. This happens
 		// when a block is invalidated and the transactions are subsequently
 		// re-mined in another block. Remove these before indexing.
-		if err = db.DeleteDuplicates(); err != nil {
+		if err = db.DeleteDuplicates(barLoad); err != nil {
 			return 0, err
 		}
 
 		// Create indexes
-		if err = db.IndexAll(); err != nil {
+		if err = db.IndexAll(barLoad); err != nil {
 			return nodeHeight, fmt.Errorf("IndexAll failed: %v", err)
 		}
 		// Only reindex addresses and tickets tables here if not doing it below
 		if !updateAllAddresses {
-			err = db.IndexAddressTable()
+			err = db.IndexAddressTable(barLoad)
 		}
 		if !updateAllVotes {
-			err = db.IndexTicketsTable()
+			err = db.IndexTicketsTable(barLoad)
 		}
 	}
 
@@ -228,13 +354,13 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// Remove existing indexes not on funding txns
 		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
 		log.Infof("Populating spending tx info in address table...")
-		numAddresses, err := db.UpdateSpendingInfoInAllAddresses()
+		numAddresses, err := db.UpdateSpendingInfoInAllAddresses(barLoad)
 		if err != nil {
 			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
 		}
 		// Index addresses table
 		log.Infof("Updated %d rows of address table", numAddresses)
-		if err = db.IndexAddressTable(); err != nil {
+		if err = db.IndexAddressTable(barLoad); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
 		}
 	}
@@ -251,7 +377,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 		// Index tickets table
 		log.Infof("Updated %d rows of address table", numTicketsUpdated)
-		if err = db.IndexTicketsTable(); err != nil {
+		if err = db.IndexTicketsTable(barLoad); err != nil {
 			log.Errorf("IndexTicketsTable FAILED: %v", err)
 		}
 	}
@@ -259,6 +385,14 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	// After sync and indexing, must use upsert statement, which checks for
 	// duplicate entries and updates instead of throwing and error and panicing.
 	db.EnableDuplicateCheckOnInsert(true)
+
+	if barLoad != nil {
+		barID := dbtypes.InitialDBLoad
+		if updateAllAddresses {
+			barID = dbtypes.AddressesTableSync
+		}
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: barID, Subtitle: "sync complete"}
+	}
 
 	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
 		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)

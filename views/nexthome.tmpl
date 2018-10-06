@@ -18,7 +18,7 @@
                         </div>
                         <div class="col-sm-4">
                             <div class="heading">Available Supply (of 21 mil)</div>
-                            <div id="coin-supply" class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
                                 <span id="coin-supply">
                                     {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
                                 </span>
@@ -113,7 +113,7 @@
                         <div class="col-sm-4">
                             <div class="heading">Hashrate</div>
                             <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}<span>
+                                <span id="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
                                 <span class="pl-1 unit lh15rem">Ph/s</span>
                             </div>
                             <div class="subdata">

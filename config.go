@@ -106,6 +106,8 @@ type config struct {
 	NoDevPrefetch bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected."`
 	SyncAndQuit   bool   `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API."`
 
+	SyncStatusLimit int64 `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000."`
+
 	// WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
 	// SMTPUser     string `long:"smtpuser" description:"SMTP user name"`
 	// SMTPPass     string `long:"smtppass" description:"SMTP password"`
@@ -431,6 +433,18 @@ func loadConfig() (*config, error) {
 	if !cfg.NoDevPrefetch && err != nil {
 		cfg.NoDevPrefetch = true
 		log.Warnf("%v. Disabling balance prefetch (--no-dev-prefetch).", err)
+	}
+
+	// Check if sync-status-limit value has been set. If its equal to zero then
+	// it hasn't been set.
+	if cfg.SyncStatusLimit != 0 {
+		// sync-status-limit value should not be set to a value less than 2 or to a
+		// value greater than 5000. 5000 is the max value that can be set by the user
+		// in dcrdata.conf file.
+		if cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000 {
+			return nil, fmt.Errorf("sync-status-limit should not be set to a value " +
+				"less than 2 or more than 5000")
+		}
 	}
 
 	// Set the host names and ports to the default if the user does not specify

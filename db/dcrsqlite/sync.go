@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -10,12 +11,15 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
+	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/rpcutils"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
 const (
-	rescanLogBlockChunk = 1000
+	rescanLogBlockChunk      = 1000
+	InitialLoadSyncStatusMsg = "(Lite Mode) Syncing stake and base DBs..."
 )
 
 // DBHeights returns the best block heights of: SQLite database tables (block
@@ -86,18 +90,19 @@ func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHei
 }
 
 func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter,
-	fetchToHeight int64) (int64, error) {
+	fetchToHeight int64, updateExplorer chan *chainhash.Hash,
+	barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Determine if we're in lite mode, when we are the "master" who sets the
 	// pace rather than waiting on other consumers to get done with the stakedb.
 	master := blockGetter == nil || blockGetter.(*rpcutils.BlockGate) == nil
 
-	// Get chain servers's best block
+	// Get chain servers's best block.
 	_, height, err := db.client.GetBestBlock()
 	if err != nil {
 		return -1, fmt.Errorf("GetBestBlock failed: %v", err)
 	}
 
-	// Time this function
+	// Time this function.
 	defer func(start time.Time, perr *error) {
 		if *perr == nil {
 			log.Infof("resyncDBWithPoolValue completed in %v", time.Since(start))
@@ -106,7 +111,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		log.Errorf("resyncDBWithPoolValue failed: %v", err)
 	}(time.Now(), &err)
 
-	// Check and report heights of the DBs
+	// Check and report heights of the DBs. startHeight is the lowest of the
+	// heights, and may be -1 with an empty SQLite DB.
 	startHeight, summaryHeight, stakeInfoHeight, stakeDBHeight, err := db.DBHeights()
 	if err != nil {
 		return -1, fmt.Errorf("DBHeights failed: %v", err)
@@ -123,7 +129,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	}
 	log.Info("Current best block (stakedb):         ", stakeDBHeight)
 
-	// Attempt to rewind stake database, if needed
+	// Attempt to rewind stake database, if needed, forcing it to the lowest DB
+	// height (or 0 if the lowest DB height is -1).
 	if stakeDBHeight > startHeight && stakeDBHeight > 0 {
 		if startHeight < 0 || stakeDBHeight > 2*startHeight {
 			return -1, fmt.Errorf("delete stake db (ffldb_stake) and try again")
@@ -136,8 +143,29 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		}
 	}
 
-	if fetchToHeight < stakeDBHeight && !master {
-		return startHeight, fmt.Errorf("fetchToHeight may not be less than stakedb height")
+	// When coordinating with an external MasterBlockGetter, do not start beyond
+	// fetchToHeight, which is intended to indicate where the MasterBlockGetter
+	// will be relaying blocks, and potentially relying on stakedb block
+	// connection notifications that are triggered in this function.
+	if !master {
+		// stakedb height may not be larger than fetchToHeight if there is an
+		// external MasterBlockGetter since it is likely to require notification
+		// of block connection in stakedb starting at height fetchToHeight.
+		if fetchToHeight < stakeDBHeight {
+			return startHeight, fmt.Errorf("fetchToHeight may not be less than stakedb height")
+		}
+
+		// Start at the next block we don't have in both SQLite and stakedb, but
+		// do not start beyond fetchToHeight if there is an external
+		// MasterBlockGetter, the owner of which should already be configured to
+		// send the block at fetchToHeight over the waitChan (e.g. the call to
+		// UpdateToBlock in (*ChainDB).SyncChainDB).
+		if fetchToHeight > startHeight {
+			startHeight++
+		}
+	} else {
+		// Begin at the next block not in all DBs.
+		startHeight++
 	}
 
 	// At least this many blocks to check (another may come in before finishing)
@@ -149,9 +177,14 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		return startHeight, nil
 	}
 
-	// Start at next block we don't have in every DB
-	startHeight++
+	if barLoad != nil && db.updateStatusSync {
+		barLoad <- &dbtypes.ProgressBarLoad{
+			Msg:   InitialLoadSyncStatusMsg,
+			BarID: dbtypes.InitialDBLoad,
+		}
+	}
 
+	timeStart := time.Now()
 	for i := startHeight; i <= height; i++ {
 		// check for quit signal
 		select {
@@ -189,6 +222,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			db.waitChan = blockGetter.WaitForHeight(i + 1)
 		}
 
+		// Advance stakedb height, which should always be less than or equal to
+		// SQLite height, as enforced by the rewinding code in this function.
 		if i > stakeDBHeight {
 			if i != int64(db.sDB.Height()+1) {
 				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", i, db.sDB.Height()))
@@ -198,22 +233,41 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			}
 		}
 
-		numLive := db.sDB.PoolSize()
-		//liveTickets := db.sDB.BestNode.LiveTickets()
-		// TODO: winning tickets
-		//winningTickets := db.sDB.BestNode.Winners()
-
 		if (i-1)%rescanLogBlockChunk == 0 && i-1 != startHeight || i == startHeight {
 			if i == 0 {
-				log.Infof("Scanning genesis block.")
+				log.Infof("Scanning genesis block into stakedb and sqlite block db.")
 			} else {
 				endRangeBlock := rescanLogBlockChunk * (1 + (i-1)/rescanLogBlockChunk)
 				if endRangeBlock > height {
 					endRangeBlock = height
 				}
 				log.Infof("Scanning blocks %d to %d (%d live)...",
-					i, endRangeBlock, numLive)
+					i, endRangeBlock, db.sDB.PoolSize())
+
+				// If updateStatusSync is set to true then this is the only way that sync progress will be updated.
+				if barLoad != nil && db.updateStatusSync {
+					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
+
+					barLoad <- &dbtypes.ProgressBarLoad{
+						From:      i,
+						To:        height,
+						Timestamp: int64(timeTakenPerBlock * float64(height-endRangeBlock)), //timeToComplete
+						Msg:       InitialLoadSyncStatusMsg,
+						BarID:     dbtypes.InitialDBLoad,
+					}
+
+					timeStart = time.Now()
+				}
 			}
+		}
+
+		// If SQLite is ahead, go to next block (stakedb may be catching up).
+		if i <= summaryHeight && i <= stakeInfoHeight {
+			// update height, the end condition for the loop
+			if _, height, err = db.client.GetBestBlock(); err != nil {
+				return i - 1, fmt.Errorf("GetBestBlock failed: %v", err)
+			}
+			continue
 		}
 
 		var tpi *apitypes.TicketPoolInfo
@@ -242,6 +296,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			PoolInfo:   *tpi,
 		}
 
+		// Allow different summaryHeight and stakeInfoHeight values to be
+		// handled, although this should never happen.
 		if i > summaryHeight {
 			if err = db.StoreBlockSummary(&blockSummary); err != nil {
 				return i - 1, fmt.Errorf("Unable to store block summary in database: %v", err)
@@ -278,9 +334,28 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			return i - 1, fmt.Errorf("Unable to store stake info in database: %v", err)
 		}
 
-		// update height, the end condition for the loop
+		// Update height, the end condition for the loop
 		if _, height, err = db.client.GetBestBlock(); err != nil {
 			return i, fmt.Errorf("GetBestBlock failed: %v", err)
+		}
+
+		// If updating explore is activated, update it at intervals of 200 blocks.
+		if updateExplorer != nil && i%200 == 0 && explorer.SyncExplorerUpdateStatus() && db.updateStatusSync {
+			updateExplorer <- &blockhash
+			select {
+			case db.updateStatusChan <- uint32(summaryHeight):
+			default:
+			}
+		}
+	}
+
+	if barLoad != nil && db.updateStatusSync {
+		barLoad <- &dbtypes.ProgressBarLoad{
+			From:     height,
+			To:       height,
+			Msg:      InitialLoadSyncStatusMsg,
+			BarID:    dbtypes.InitialDBLoad,
+			Subtitle: "sync complete",
 		}
 	}
 

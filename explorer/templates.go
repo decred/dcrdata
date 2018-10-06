@@ -251,8 +251,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			result = int(a) * b
 			return
 		},
-		"TimeConversion": func(a uint64) (result time.Time) {
-			result = time.Unix(int64(a), 0)
+		"TimeConversion": func(a uint64) (result string) {
+			dateTime := time.Unix(int64(a), 0).UTC()
+			result = dateTime.Format("2006-01-02 15:04:05 MST")
 			return
 		},
 		"theme": func() string {

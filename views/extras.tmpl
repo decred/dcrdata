@@ -232,9 +232,8 @@
                 if (isNaN($(v).text())) {
                     $(v).text("0");
                 }
-                $(v).text(
-                    newBlock.block.height - $(v).data('confirmation-block-height')
-                )
+                var confirmations = newBlock.block.height - $(v).data('confirmation-block-height');
+                $(v).text("(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")")
             })
 
             // block summary data
@@ -593,6 +592,7 @@ const app = Stimulus.Application.start()
 <script src="/js/controllers/charts.js" data-turbolinks-eval="false"></script>
 <script src="/js/controllers/address.js" data-turbolinks-eval="false"></script>
 <script src="/js/controllers/ticketpool.js" data-turbolinks-eval="false"></script>
+<script src="/js/controllers/status.js" data-turbolinks-eval="false"></script>
 {{end}}
 
 {{define "decimalParts"}}

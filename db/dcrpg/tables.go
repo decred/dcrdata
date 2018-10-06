@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
 )
 
@@ -29,6 +30,13 @@ var createTableStatements = map[string]string{
 var createTypeStatements = map[string]string{
 	"vin_t":  internal.CreateVinType,
 	"vout_t": internal.CreateVoutType,
+}
+
+// dropDuplicatesInfo defines a minimalistic structure that can be used to
+// append information needed to delete duplicates in a given table.
+type dropDuplicatesInfo struct {
+	TableName    string
+	DropDupsFunc func() (int64, error)
 }
 
 // The tables are versioned as follows. The major version is the same for all
@@ -312,239 +320,91 @@ func TableVersions(db *sql.DB) map[string]TableVersion {
 	return versions
 }
 
-// Vins table indexes
+func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {
+	allDuplicates := []dropDuplicatesInfo{
+		// Remove duplicate vins
+		dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
+		// Remove duplicate vouts
+		dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
+		// Remove duplicate transactions
+		dropDuplicatesInfo{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
 
-func IndexVinTableOnVins(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexVinTableOnVins)
-	return
+		// TODO: remove entries from addresses table that reference removed
+		// vins/vouts.
+	}
+
+	var err error
+	for _, val := range allDuplicates {
+		msg := fmt.Sprintf("Finding and removing duplicate %s entries...", val.TableName)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
+		}
+		log.Info(msg)
+
+		var numRemoved int64
+		if numRemoved, err = val.DropDupsFunc(); err != nil {
+			return fmt.Errorf("delete %s duplicate failed: %v", val.TableName, err)
+		}
+
+		msg = fmt.Sprintf("Removed %d duplicate %s entries.", numRemoved, val.TableName)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
+		}
+		log.Info(msg)
+	}
+	// Signal task is done
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: " "}
+	}
+	return nil
 }
 
-func IndexVinTableOnPrevOuts(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexVinTableOnPrevOuts)
-	return
-}
+func (pgb *ChainDB) DeleteDuplicatesRecovery(barLoad chan *dbtypes.ProgressBarLoad) error {
+	allDuplicates := []dropDuplicatesInfo{
+		// Remove duplicate vins
+		dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
 
-func DeindexVinTableOnVins(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexVinTableOnVins)
-	return
-}
+		// Remove duplicate vouts
+		dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
 
-func DeindexVinTableOnPrevOuts(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexVinTableOnPrevOuts)
-	return
-}
+		// TODO: remove entries from addresses table that reference removed
+		// vins/vouts.
 
-// Transactions table indexes
+		// Remove duplicate transactions
+		dropDuplicatesInfo{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
 
-func IndexTransactionTableOnHashes(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexTransactionTableOnHashes)
-	return
-}
+		// Remove duplicate tickets
+		dropDuplicatesInfo{TableName: "tickets", DropDupsFunc: pgb.DeleteDuplicateTickets},
 
-func DeindexTransactionTableOnHashes(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexTransactionTableOnHashes)
-	return
-}
+		// Remove duplicate votes
+		dropDuplicatesInfo{TableName: "votes", DropDupsFunc: pgb.DeleteDuplicateVotes},
 
-func IndexTransactionTableOnBlockIn(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexTransactionTableOnBlockIn)
-	return
-}
+		// Remove duplicate misses
+		dropDuplicatesInfo{TableName: "misses", DropDupsFunc: pgb.DeleteDuplicateMisses},
+	}
 
-func DeindexTransactionTableOnBlockIn(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexTransactionTableOnBlockIn)
-	return
-}
+	var err error
+	for _, val := range allDuplicates {
+		msg := fmt.Sprintf("Finding and removing duplicate %s entries...", val.TableName)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
+		}
+		log.Info(msg)
 
-// Blocks table indexes
+		var numRemoved int64
+		if numRemoved, err = val.DropDupsFunc(); err != nil {
+			return fmt.Errorf("delete %s duplicate failed: %v", val.TableName, err)
+		}
 
-func IndexBlockTableOnHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexBlockTableOnHash)
-	return
-}
-
-func IndexBlockTableOnHeight(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexBlocksTableOnHeight)
-	return
-}
-
-func DeindexBlockTableOnHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexBlockTableOnHash)
-	return
-}
-
-func DeindexBlockTableOnHeight(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexBlocksTableOnHeight)
-	return
-}
-
-// Vouts table indexes
-
-func IndexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexVoutTableOnTxHashIdx)
-	return
-}
-
-func DeindexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexVoutTableOnTxHashIdx)
-	return
-}
-
-// Addresses table indexes
-func IndexBlockTimeOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexBlockTimeOnTableAddress)
-	return
-}
-
-func DeindexBlockTimeOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexBlockTimeOnTableAddress)
-	return
-}
-
-func IndexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexMatchingTxHashOnTableAddress)
-	return
-}
-
-func DeindexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexMatchingTxHashOnTableAddress)
-	return
-}
-
-func IndexAddressTableOnAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAddressTableOnAddress)
-	return
-}
-
-func DeindexAddressTableOnAddress(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAddressTableOnAddress)
-	return
-}
-
-func IndexAddressTableOnVoutID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAddressTableOnVoutID)
-	return
-}
-
-func DeindexAddressTableOnVoutID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAddressTableOnVoutID)
-	return
-}
-
-func IndexAddressTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAddressTableOnTxHash)
-	return
-}
-
-func DeindexAddressTableOnTxHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAddressTableOnTxHash)
-	return
-}
-
-// Votes table indexes
-
-func IndexVotesTableOnHashes(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexVotesTableOnHashes)
-	return
-}
-
-func DeindexVotesTableOnHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexVotesTableOnHashes)
-	return
-}
-
-func IndexVotesTableOnBlockHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexVotesTableOnBlockHash)
-	return
-}
-
-func DeindexVotesTableOnBlockHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexVotesTableOnBlockHash)
-	return
-}
-
-func IndexVotesTableOnCandidate(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexVotesTableOnCandidate)
-	return
-}
-
-func DeindexVotesTableOnCandidate(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexVotesTableOnCandidate)
-	return
-}
-
-func IndexVotesTableOnVoteVersion(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexVotesTableOnVoteVersion)
-	return
-}
-
-func DeindexVotesTableOnVoteVersion(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexVotesTableOnVoteVersion)
-	return
-}
-
-// Tickets table indexes
-
-func IndexTicketsTableOnHashes(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexTicketsTableOnHashes)
-	return
-}
-
-func DeindexTicketsTableOnHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexTicketsTableOnHashes)
-	return
-}
-
-func IndexTicketsTableOnTxDbID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexTicketsTableOnTxDbID)
-	return
-}
-
-func DeindexTicketsTableOnTxDbID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexTicketsTableOnTxDbID)
-	return
-}
-
-func IndexTicketsTableOnPoolStatus(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexTicketsTableOnPoolStatus)
-	return
-}
-
-func DeindexTicketsTableOnPoolStatus(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexTicketsTableOnPoolStatus)
-	return
-}
-
-// Missed votes table indexes
-
-func IndexMissesTableOnHashes(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexMissesTableOnHashes)
-	return
-}
-
-func DeindexMissesTableOnHash(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexMissesTableOnHashes)
-	return
-}
-
-// agendas
-
-func IndexAgendasTableOnBlockTime(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAgendasTableOnBlockTime)
-	return
-}
-
-func DeindexAgendasTableOnBlockTime(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAgendasTableOnBlockTime)
-	return
-}
-
-func IndexAgendasTableOnAgendaID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAgendasTableOnAgendaID)
-	return
-}
-
-func DeindexAgendasTableOnAgendaID(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAgendasTableOnAgendaID)
-	return
+		msg = fmt.Sprintf("Removed %d duplicate %s entries.", numRemoved, val.TableName)
+		if barLoad != nil {
+			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: msg}
+		}
+		log.Info(msg)
+	}
+	// Signal task is done
+	if barLoad != nil {
+		barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: " "}
+	}
+	return nil
 }

@@ -153,7 +153,7 @@ func mainCore() error {
 	}
 
 	if cfg.DuplicateEntryRecovery {
-		return db.DeleteDuplicatesRecovery()
+		return db.DeleteDuplicatesRecovery(nil)
 	}
 
 	// Ctrl-C to shut down.
@@ -360,20 +360,20 @@ func mainCore() error {
 	speedReport()
 
 	if reindexing || cfg.ForceReindex {
-		if err = db.DeleteDuplicates(); err != nil {
+		if err = db.DeleteDuplicates(nil); err != nil {
 			return err
 		}
 
 		// Create indexes
-		if err = db.IndexAll(); err != nil {
+		if err = db.IndexAll(nil); err != nil {
 			return fmt.Errorf("IndexAll failed: %v", err)
 		}
 		// Only reindex address table here if we do not do it below
 		if cfg.AddrSpendInfoOnline {
-			err = db.IndexAddressTable()
+			err = db.IndexAddressTable(nil)
 		}
 		if !cfg.TicketSpendInfoBatch {
-			err = db.IndexTicketsTable()
+			err = db.IndexTicketsTable(nil)
 		}
 	}
 
@@ -382,13 +382,13 @@ func mainCore() error {
 		_ = db.DeindexAddressTable() // ignore errors for non-existent indexes
 		db.EnableDuplicateCheckOnInsert(false)
 		log.Infof("Populating spending tx info in address table...")
-		numAddresses, err := db.UpdateSpendingInfoInAllAddresses()
+		numAddresses, err := db.UpdateSpendingInfoInAllAddresses(nil)
 		if err != nil {
 			log.Errorf("UpdateSpendingInfoInAllAddresses FAILED: %v", err)
 		}
 		// Index address table
 		log.Infof("Updated %d rows of address table", numAddresses)
-		if err = db.IndexAddressTable(); err != nil {
+		if err = db.IndexAddressTable(nil); err != nil {
 			log.Errorf("IndexAddressTable FAILED: %v", err)
 		}
 	}
@@ -404,7 +404,7 @@ func mainCore() error {
 		}
 		// Index tickets table
 		log.Infof("Updated %d rows of address table", numTicketsUpdated)
-		if err = db.IndexTicketsTable(); err != nil {
+		if err = db.IndexTicketsTable(nil); err != nil {
 			log.Errorf("IndexTicketsTable FAILED: %v", err)
 		}
 	}

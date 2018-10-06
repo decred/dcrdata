@@ -7,6 +7,8 @@ package explorer
 import (
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -1137,6 +1139,11 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 		w.WriteHeader(http.StatusNotFound)
 	case ErrorStatusType:
 		w.WriteHeader(http.StatusInternalServerError)
+	// When blockchain sync is running status 202 is used to imply that the other
+	// requests apart from serving the status sync page have been received and
+	// accepted but cannot be processed now till the sync is complete.
+	case BlockchainSyncingType:
+		w.WriteHeader(http.StatusAccepted)
 	default:
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
@@ -1262,5 +1269,48 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// HandleApiRequestsOnSync is a handler that handles all API request when the
+// sync status pages is running.
+func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Request) {
+	var complete int
+	dataFetched := SyncStatus()
+
+	syncStatus := "in progress"
+	if len(dataFetched) == complete {
+		syncStatus = "complete"
+	}
+
+	for _, v := range dataFetched {
+		if v.PercentComplete == 100 {
+			complete++
+		}
+	}
+	stageRunning := complete + 1
+	if stageRunning > len(dataFetched) {
+		stageRunning = len(dataFetched)
+	}
+
+	data, err := json.Marshal(struct {
+		Message string           `json:"message"`
+		Stage   int              `json:"stage"`
+		Stages  []SyncStatusInfo `json:"stages"`
+	}{
+		fmt.Sprintf("blockchain sync is %s.", syncStatus),
+		stageRunning,
+		dataFetched,
+	})
+
+	str := string(data)
+	statusCode := http.StatusAccepted
+	if err != nil {
+		str = fmt.Sprintf("error occurred while process the API response: %v", err)
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
 	io.WriteString(w, str)
 }
