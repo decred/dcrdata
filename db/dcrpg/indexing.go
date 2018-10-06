@@ -395,12 +395,12 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 	for _, val := range allIndexes {
 		logMsg := "Indexing " + val.Msg + "..."
 		log.Infof(logMsg)
-		if err := val.IndexFunc(pgb.db); err != nil {
-			return err
-		}
-
 		if barLoad != nil {
 			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: logMsg}
+		}
+
+		if err := val.IndexFunc(pgb.db); err != nil {
+			return err
 		}
 	}
 	// Signal task is done
@@ -422,12 +422,12 @@ func (pgb *ChainDB) IndexTicketsTable(barLoad chan *dbtypes.ProgressBarLoad) err
 	for _, val := range ticketsTableIndexes {
 		logMsg := "Indexing tickets table on " + val.Msg + "..."
 		log.Info(logMsg)
-		if err := val.IndexFunc(pgb.db); err != nil {
-			return err
-		}
-
 		if barLoad != nil {
 			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.AddressesTableSync, Subtitle: logMsg}
+		}
+
+		if err := val.IndexFunc(pgb.db); err != nil {
+			return err
 		}
 	}
 	// Signal task is done.
@@ -490,12 +490,12 @@ func (pgb *ChainDB) IndexAddressTable(barLoad chan *dbtypes.ProgressBarLoad) err
 	for _, val := range addressesTableIndexes {
 		logMsg := "Indexing addresses table on " + val.Msg + "..."
 		log.Info(logMsg)
-		if err := val.IndexFunc(pgb.db); err != nil {
-			return err
-		}
-
 		if barLoad != nil {
 			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.AddressesTableSync, Subtitle: logMsg}
+		}
+
+		if err := val.IndexFunc(pgb.db); err != nil {
+			return err
 		}
 	}
 	// Signal task is done.
