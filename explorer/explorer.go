@@ -569,7 +569,7 @@ func (exp *explorerUI) addRoutes() {
 
 	exp.Mux.Get("/decodetx", redirect("decodetx"))
 
-    exp.Mux.Get("/stats", redirect("statistics"))
+	exp.Mux.Get("/stats", redirect("statistics"))
 }
 
 // Simulate ticket purchase and re-investment over a full year for a given
