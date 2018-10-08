@@ -1428,62 +1428,62 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 
 // StatsPage is the page handler for the "/stats" path
 func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
- exp.MempoolData.RLock()
- exp.NewBlockDataMtx.RLock()
- hashRatePlaceHolder, err := exp.blockData.Difficulty()
- if err != nil {
-	 log.Errorf("Failed to get Difficulty: %v", err)
- }
- stats := StatsInfo{
-	 TotalSupply:                exp.ExtraInfo.CoinSupply,
-	 UltimateSupply:             txhelpers.UltimateSubsidy(exp.ChainParams),
-	 TotalSupplyPercentage:      float64(exp.ExtraInfo.CoinSupply) / float64(txhelpers.UltimateSubsidy(exp.ChainParams)) * 100,
-	 ProjectFunds:               exp.ExtraInfo.DevFund,
-	 ProjectAddress:             exp.ExtraInfo.DevAddress,
-	 PoWDiff:                    exp.ExtraInfo.Difficulty,
-	 BlockReward:                exp.blockData.BlockSubsidy(int64(exp.blockData.GetHeight()), 5).Total,
-	 NextBlockReward:            exp.ExtraInfo.NBlockSubsidy.Total,
-	 PoWReward:                  exp.ExtraInfo.NBlockSubsidy.PoW,
-	 PoSReward:                  exp.ExtraInfo.NBlockSubsidy.PoS,
-	 ProjectFundReward:          exp.ExtraInfo.NBlockSubsidy.Dev,
-	 VotesInMempool:             exp.MempoolData.NumVotes,
-	 TicketsInMempool:           exp.MempoolData.NumTickets,
-	 TicketPrice:                exp.ExtraInfo.StakeDiff,
-	 NextEstimatedTicketPrice:   exp.ExtraInfo.NextExpectedStakeDiff,
-	 TicketPoolSize:             exp.ExtraInfo.PoolInfo.Size,
-	 TicketPoolSizePerToTarget:  (float64(exp.ExtraInfo.PoolInfo.Size) / 40960) * 100,
-	 TicketPoolValue:            exp.ExtraInfo.PoolInfo.Value,
-	 TPVOfTotalSupplyPeecentage: exp.ExtraInfo.PoolInfo.Percentage,
-	 TicketsROI:                 exp.ExtraInfo.TicketReward,
-	 RewardPeriod:               exp.ExtraInfo.RewardPeriod,
-	 ASR:                        exp.ExtraInfo.ASR,
-	 APR:                        exp.ExtraInfo.ASR,
-	 IdxBlockInWindow:           exp.ExtraInfo.IdxBlockInWindow,
-	 WindowSize:                 exp.ExtraInfo.Params.WindowSize,
-	 BlockTime:                  exp.ExtraInfo.Params.BlockTime,
-	 IdxInRewardWindow:          exp.ExtraInfo.IdxInRewardWindow,
-	 RewardWindowSize:           exp.ExtraInfo.Params.RewardWindowSize,
-	 HashRate:                   hashRatePlaceHolder * math.Pow(2, 32) / exp.ChainParams.TargetTimePerBlock.Seconds() / (1 * math.Pow(10, 15)),
- }
- exp.MempoolData.RUnlock()
- exp.NewBlockDataMtx.RUnlock()
+	exp.MempoolData.RLock()
+	exp.NewBlockDataMtx.RLock()
+	hashRatePlaceHolder, err := exp.blockData.Difficulty()
+	if err != nil {
+		log.Errorf("Failed to get Difficulty: %v", err)
+	}
+	stats := StatsInfo{
+		TotalSupply:                exp.ExtraInfo.CoinSupply,
+		UltimateSupply:             txhelpers.UltimateSubsidy(exp.ChainParams),
+		TotalSupplyPercentage:      float64(exp.ExtraInfo.CoinSupply) / float64(txhelpers.UltimateSubsidy(exp.ChainParams)) * 100,
+		ProjectFunds:               exp.ExtraInfo.DevFund,
+		ProjectAddress:             exp.ExtraInfo.DevAddress,
+		PoWDiff:                    exp.ExtraInfo.Difficulty,
+		BlockReward:                exp.blockData.BlockSubsidy(int64(exp.blockData.GetHeight()), 5).Total,
+		NextBlockReward:            exp.ExtraInfo.NBlockSubsidy.Total,
+		PoWReward:                  exp.ExtraInfo.NBlockSubsidy.PoW,
+		PoSReward:                  exp.ExtraInfo.NBlockSubsidy.PoS,
+		ProjectFundReward:          exp.ExtraInfo.NBlockSubsidy.Dev,
+		VotesInMempool:             exp.MempoolData.NumVotes,
+		TicketsInMempool:           exp.MempoolData.NumTickets,
+		TicketPrice:                exp.ExtraInfo.StakeDiff,
+		NextEstimatedTicketPrice:   exp.ExtraInfo.NextExpectedStakeDiff,
+		TicketPoolSize:             exp.ExtraInfo.PoolInfo.Size,
+		TicketPoolSizePerToTarget:  (float64(exp.ExtraInfo.PoolInfo.Size) / 40960) * 100,
+		TicketPoolValue:            exp.ExtraInfo.PoolInfo.Value,
+		TPVOfTotalSupplyPeecentage: exp.ExtraInfo.PoolInfo.Percentage,
+		TicketsROI:                 exp.ExtraInfo.TicketReward,
+		RewardPeriod:               exp.ExtraInfo.RewardPeriod,
+		ASR:                        exp.ExtraInfo.ASR,
+		APR:                        exp.ExtraInfo.ASR,
+		IdxBlockInWindow:           exp.ExtraInfo.IdxBlockInWindow,
+		WindowSize:                 exp.ExtraInfo.Params.WindowSize,
+		BlockTime:                  exp.ExtraInfo.Params.BlockTime,
+		IdxInRewardWindow:          exp.ExtraInfo.IdxInRewardWindow,
+		RewardWindowSize:           exp.ExtraInfo.Params.RewardWindowSize,
+		HashRate:                   hashRatePlaceHolder * math.Pow(2, 32) / exp.ChainParams.TargetTimePerBlock.Seconds() / (1 * math.Pow(10, 15)),
+	}
+	exp.MempoolData.RUnlock()
+	exp.NewBlockDataMtx.RUnlock()
 
- str, err := exp.templates.execTemplateToString("statistics", struct {
-	 Stats   StatsInfo
-	 Version string
-	 NetName string
- }{
-	 stats,
-	 exp.Version,
-	 exp.NetName,
- })
+	str, err := exp.templates.execTemplateToString("statistics", struct {
+		Stats   StatsInfo
+		Version string
+		NetName string
+	}{
+		stats,
+		exp.Version,
+		exp.NetName,
+	})
 
- if err != nil {
-	 log.Errorf("Template execute failure: %v", err)
-	 exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
-	 return
- }
- w.Header().Set("Content-Type", "text/html")
- w.WriteHeader(http.StatusOK)
- io.WriteString(w, str)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
 }
