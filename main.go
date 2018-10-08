@@ -711,6 +711,12 @@ func mainCore() error {
 	// blocks, change in the mempool and handle chain reorg. It also initiates
 	// data collection for the explorer.
 	{
+		// Register notifications from dcrd.
+		cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
+		if cerr != nil {
+			return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
+		}
+
 		// Blockchain monitor for the collector
 		addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
 		// On reorg, only update web UI since dcrsqlite's own reorg handler will
@@ -834,13 +840,7 @@ func mainCore() error {
 		wg.Wait()
 	}
 
-	// Register for notifications from dcrd
-	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
-	if cerr != nil {
-		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
-	}
-
-	return err
+	return nil
 }
 
 func main() {
