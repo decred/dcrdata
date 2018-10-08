@@ -151,37 +151,40 @@ func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces .
 	return []string{integer, dec[:places], dec[places:], trailingZeros}
 }
 
-func amountAsDecimalPartsTrimmed(v int64, numPlaces int64, useCommas bool) []string {
+func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
 	amt := strconv.FormatInt(v, 10)
+	intpart := v / 1e8
+	decpart := v % 1e8
+
 	if len(amt) <= 8 {
-		dec := strings.TrimRight(amt, "0")
-		trailingZeros := ""
-		leadingZeros := strings.Repeat("0", 8-len(amt))
+		right := strings.TrimRight(amt, "0")
+		left := ""
+		tail := strings.Repeat("0", 8-len(amt))
 		if (8 - len(amt)) > 2 {
-			leadingZeros = "00"
+			tail = "00"
 		}
-		return []string{"0", leadingZeros + dec, trailingZeros}
+		return []string{"0", left + right, tail}
 	}
-	integer := amt[:len(amt)-8]
+
+	left := strconv.FormatInt(intpart, 10)
+	rightTail := fmt.Sprintf("%08d", decpart)
+	right := strings.TrimRight(rightTail, "0")
+	right = string(right[0:numPlaces])
+	tail := ""
+
 	if useCommas {
-		integerAsInt64, err := strconv.ParseInt(integer, 10, 64)
+		integerAsInt64, err := strconv.ParseInt(left, 10, 64)
 		if err != nil {
 			log.Errorf("amountAsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
-			integer = "ERROR"
-			dec := "VALUE"
-			zeros := ""
-			return []string{integer, dec, zeros}
+			left = "ERROR"
+			right = "VALUE"
+			tail = ""
+			return []string{left, right, tail}
 		}
-		integer = humanize.Comma(integerAsInt64)
+		left = humanize.Comma(integerAsInt64)
 	}
-	dec := strings.TrimRight(amt[len(amt)-8:], "0")
-	dec = string(dec[0:numPlaces])
-	zeros := ""
-	return []string{integer, dec, zeros}
-}
 
-func amountAsDecimalPartsTrimmed1(v int64, numPlaces int64, useCommas bool) int64 {
-	return 3333
+	return []string{left, right, tail}
 }
 
 func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
