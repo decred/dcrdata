@@ -34,10 +34,10 @@ Below are the implemented Insight API endpoints and associated methods.
     + [/addrs/txs/](#addrstxs)
     + [/addrs/txs/ (POST)](#addrstxs-post)
   * [Status and Utility](#status-and-utility)
-    + [/sync/](#sync)
-    + [/peer/](#peer)
-    + [/status/](#status)
-    + [/estimatefee/](#estimatefee)
+    + [/sync](#sync)
+    + [/peer](#peer)
+    + [/status](#status)
+    + [/estimatefee](#estimatefee)
 
 
 ## Blocks 
@@ -90,7 +90,7 @@ Methods that work with blocks.
 
 **URL:**  ```GET /block-index/{height}```
 
-**Description:** Retrieves height of block by block height.
+**Description:** Retrieves hash of a block by block height.
 
 **Parameters:**
 
@@ -165,7 +165,7 @@ Methods that work with blocks.
 
 ### /blocks/
 
-**URL:**  ```GET /blocks?limit=N&blockDate=YYYY-MM-DD```
+**URL:**  ```GET /blocks```
 
 **Description:** Retrieves summaries of blocks by time. 
 
@@ -174,7 +174,7 @@ Methods that work with blocks.
 | Parameter           | Type                   | Description                   | 
 | -------------------- | ---------------------- | ---------------------- |
 | limit              | `"int64"`  |  (optional) Maximum number of blocks to return. If `limit` is not specified (or set to '0'), blocks for the  24 hours after `blockDate` will be returned.   |  
-| blockDate              | `"int64"`      |  (optional) Date to start searching for blocks (YYYY-MM-DD). If `blockDate` is not specified, blockDate defaults to current time.      |  
+| blockDate              | `"int64"`      |  (optional) Date to start searching for blocks (YYYY-MM-DD). If `blockDate` is not specified, blockDate defaults to current date.      |  
 
 **Request Example:**
 
@@ -307,7 +307,7 @@ Methods that work with transactions.
 
 ### /txs/ (block) 
 
-**URL:**  ```GET /txs?block={hash}``` 
+**URL:**  ```GET /txs``` 
 
 **Description:** Retrieves all transactions in a block by block hash.
 
@@ -405,7 +405,7 @@ Methods that work with transactions.
 
 ### /txs/ (address)
 
-**URL:**  ```GET /txs?address={address}```
+**URL:**  ```GET /txs```
 
 **Description:** Retrieves all transactions by address. Transactions are returned by time in descending order.
 
@@ -481,15 +481,15 @@ Methods that work with transactions.
 
 ### /tx/send/ (POST)
 
-**URL:**  ```POST /tx/send {"rawtx":[RAWTXDATA]"}``` **REVIEW**
+**URL:**  ```POST /tx/send ``` 
 
-**Description:** Broadcasts transaction to network (**REVIEW**).
+**Description:** Broadcasts transaction to network.
 
 **Parameters:**
 
 | Parameter           | Type                   |  Description                   | 
 | -------------------- | ---------------------- | ---------------------- | 
-| rawtx              | `string`      |   `Signed transaction as hex string`       |  
+| rawtx              | `string`      |   Signed transaction as hex string       |  
 
 
 **Request Example:**
@@ -505,7 +505,7 @@ curl -X POST \
 **Request Response:**
 ```
 {
-    "rawtx": "18a4eeed058c2266512863d03f79651cd38d94d6d682ae3f1e4aad0178c6998f"
+    "txid": "18a4eeed058c2266512863d03f79651cd38d94d6d682ae3f1e4aad0178c6998f"
 }
 ```
 <br/>
@@ -516,19 +516,18 @@ Methods that work with addresses.
 
 ### /addr/
 
-**URL:**  ```GET /addr/{address}?noTxList=1&from=N&to=M```
+**URL:**  ```GET /addr/{address}```
 
-**Description:** Retrieves addresses in range `N` to `M`**REVIEW WORDING** 
-```NOTE: from @pappacarp comment, suggested format: [:addr][?noTxList=1][&from=&to=]```
+**Description:** Retrieves transactions by addresses. Can optionally return transactions from `N` to `M`.
 
 **Parameters:**
 
 | Parameter           | Type                   |  Description                   | 
 | -------------------- | ---------------------- | ---------------------- | 
 | hash              | `string`      |   Address    |  
-| N              | `int64`      |   (optional) Address start **REVIEW/SUGGEST ALTERNATIVE**       |  
-| M              | `int64`      |   (optional) Address end **REVIEW/SUGGEST ALTERNATIVE**       |  
-| noTxList              | `boolean`      |   (optional) If `noTxList` = '0', response includes a `noTxList`. If `noTxList` = '1', response will not include a `noTxList`      |  
+| N              | `int64`      |   (optional) Starting transaction index    |  
+| M              | `int64`      |   (optional) Ending transaction index    |  
+| noTxList              | `boolean`      |   (optional) If `noTxList` = '1', response will not include a list of txids     |  
 
 **Request Example:**
 
@@ -558,7 +557,7 @@ Methods that work with addresses.
 
 **URL:**  ```GET /addr/{address}/balance```
 
-**Description:** Retrieves address balance.
+**Description:** Retrieves address balance in atoms (the smallest unit of Decred; 1 DCR = 100,000,000 atoms).
 
 **Parameters:**
 
@@ -582,7 +581,7 @@ Methods that work with addresses.
 
 **URL:**  ```GET /addr/{address}/totalSent```
 
-**Description:** Retrieves total amount sent from an address. **REVIEW. Is it from?** 
+**Description:** Retrieves total amount sent from an address in atoms (the smallest unit of Decred; 1 DCR = 100,000,000 atoms)
 
 **Parameters:**
 
@@ -645,12 +644,12 @@ Methods that work with addresses.
 **Request Response:**
 
 ```
-0
+1581
 ```
 
 <br/>
 
-### /addr/utxo/
+### /addr/utxo
 
 **URL:**  ```GET /addr/{address}/utxo```
 
@@ -662,7 +661,6 @@ Methods that work with addresses.
 | -------------------- | ---------------------- | ---------------------- | 
 | address              | `string`      |   Address |  
 
-**REVIEW: in POSTMAN, seeing this additional parameter `noCache`. Do we want to document here? /addr/Dsbb8DHHwWMkxSSgfAj9czC44VVKXZPWAmg/utxo?noCache=1**
 
 **Request Example:**
 
@@ -696,7 +694,7 @@ Methods that work with addresses.
 
 <br/>
 
-### /addrs/utxo/
+### /addrs/utxo
 
 **URL:**  ```GET /addrs/{addr0, addr1, ...}/utxo```
 
@@ -733,9 +731,9 @@ Methods that work with addresses.
 
 ### /addrs/utxo (POST)
 
-**URL:**  ```POST /addrs/{"addrs":"[ADDR1],[ADDR2]"}/utxo``` **REVIEW.** 
+**URL:**  ```POST /addrs/utxo``` 
 
-**Description:** Broadcasts Unspent Transaction Outputs (UTXO) for multiple addresses.**REVIEW**
+**Description:** Retrieves Unspent Transaction Outputs (UTXO) for multiple addresses.
 
 **Parameters:**
 
@@ -785,19 +783,19 @@ https://alpha.dcrdata.org/insight/api/addrs/utxo \
 <br/>
 
 
-### /addrs/txs/ 
+### /addrs/txs 
 
-**URL:**  ```GET /addrs/{"addrs":"[ADDR1],[ADDR2]",..}/txs ``` **REVIEW.** 
+**URL:**  ```GET /addrs/{addr0, addr1, ...}/txs ``` 
 
-**Description:** Retrieves transactions for multiple addresses. Transactions are ordered sequentially from oldest to newest. For example, setting `from` = '2' and `to` = '5', will return transactions three through six for each address. **REVIEW**
+**Description:** Retrieves transactions for multiple addresses. Transactions are sorted in descending order, from the most recent to the oldest. For example, setting `from` = '2' and `to` = '5', will return the second most recent transaction to the fifth most recent transaction for each address provided. 
 
 **Parameters:**
 
 | Parameter           | Type                   |  Description                   | 
 | -------------------- | ---------------------- | ---------------------- | 
 | address              | `string`      |   Address |  
-| from              | `int64`      |   (optional) Starting transaction index **REVIEW WORDING** |  
-| to              | `int64`      |   (optional) Ending transaction index **REVIEW WORDING** |  
+| from              | `int64`      |   (optional) Starting transaction index  |  
+| to              | `int64`      |   (optional) Ending transaction index |  
 
 **Request Example:**
 
@@ -969,20 +967,20 @@ https://alpha.dcrdata.org/insight/api/addrs/utxo \
 
 ### /addrs/txs/ (POST)
 
-**URL:**  ```POST /addrs/{"addrs":"[ADDR1],[ADDR2]",...}/txs``` **REVIEW.** 
+**URL:**  ```POST /addrs/txs```
 
-**Description:** Broadcasts transactions for multiple addresses.**REVIEW**
+**Description:** Retrieves transactions for multiple addresses.
 
 **Parameters:**
 
 | Parameter           | Type                   |  Description                   | 
 | -------------------- | ---------------------- | ---------------------- | 
 | address              | `string`      |   Address |  
-| from              | `int64`      |   (optional) Starting transaction index **REVIEW WORDING** |  
-| to              | `int64`      |   (optional) Starting transaction index **REVIEW WORDING**|  
-| noScriptSig              | `boolean`      |   (Optional) If `noScriptSig` = '1', omits ScriptSig from all inputs **REVIEW WORDING**  |  
-| noSpent              | `boolean`      |   (Optional) If `noSpent` = '1', omits spend information per output **REVIEW WORDING**  |  
-| noAsm              | `boolean`      |   (Optional) If `noAsm` = '1', omits script asm from results **REVIEW WORDING** |  
+| from              | `int64`      |   (optional) Starting transaction index|  
+| to              | `int64`      |   (optional) Ending transaction index|  
+| noScriptSig              | `boolean`      |   (Optional) If `noScriptSig` = '1', omits ScriptSig from all inputs |  
+| noSpent              | `boolean`      |   (Optional) If `noSpent` = '1', omits spend information per output |  
+| noAsm              | `boolean`      |   (Optional) If `noAsm` = '1', omits script asm from results |  
 
 
 **Request Example:**
@@ -1102,9 +1100,9 @@ Methods that provide utilities or relay network status.
 
 ### /sync/
 
-**URL:**  ```GET /sync/```
+**URL:**  ```GET /sync```
 
-**Description:** Syncs with historical blockchain data. **REVIEW WORDING**
+**Description:** Retrieves status of dcrdata's synchronization with the connected node (dcrd).
 
 
 **Request Example:**
@@ -1128,9 +1126,9 @@ Methods that provide utilities or relay network status.
 
 ### /peer/
 
-**URL:**  ```GET /peer/```
+**URL:**  ```GET /peer```
 
-**Description:** Retrieves Peer-to-Peer (P2P) data sync status.  **REVIEW WORDING**
+**Description:** Retrieves Peer-to-Peer (P2P) data sync status.  
 
 **Request Example:**
 
@@ -1150,7 +1148,7 @@ Methods that provide utilities or relay network status.
 
 ### /status/
 
-**URL:**  ```GET /status?q=xxx```
+**URL:**  ```GET /status```
 
 **Description:** Retrieves status of Decred network. If `q` is set to a parameter from the table below, only that parameter is returned. If `q` is not specified, all status parameters are returned. 
 
@@ -1177,15 +1175,15 @@ GET /status?q=getDifficulty
 
 ### /estimatefee/
 
-**URL:**  ```GET /status?nbBlocks=N```
+**URL:**  ```GET /estimatefee```
 
-**Description:** Retrieves estimate of transaction fee. **REVIEW**
+**Description:** Retrieves estimate of transaction fee. 
 
 **Parameters:**
 
 | Parameter           | Type                   |  Description                   | 
 | -------------------- | ---------------------- | ---------------------- | 
-| N             | `int64`      |   (optional) Number of blocks **REVIEW. What does nbBlocks mean here?**    |  
+| N             | `int64`      |   (optional) Number of blocks into the future that the transaction can be mined in (validated)  |  
 
 **Request Example:**
 
