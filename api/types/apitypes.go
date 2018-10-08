@@ -285,8 +285,15 @@ type BlockDataBasic struct {
 	StakeDiff  float64 `json:"sdiff,omitemtpy"`
 	Time       int64   `json:"time,omitemtpy"`
 	NumTx      uint32  `json:"txlength,omitempty"`
-	//TicketPoolInfo
-	PoolInfo TicketPoolInfo `json:"ticket_pool,omitempty"`
+	// TicketPoolInfo may be nil for side chain blocks.
+	PoolInfo *TicketPoolInfo `json:"ticket_pool,omitempty"`
+}
+
+// NewBlockDataBasic constructs a *BlockDataBasic with pointer fields allocated.
+func NewBlockDataBasic() *BlockDataBasic {
+	return &BlockDataBasic{
+		PoolInfo: new(TicketPoolInfo),
+	}
 }
 
 // BlockExplorerBasic models primary information about block at height Height
@@ -346,7 +353,15 @@ type StakeInfoExtended struct {
 	StakeDiff        float64              `json:"stakediff"`
 	PriceWindowNum   int                  `json:"window_number"`
 	IdxBlockInWindow int                  `json:"window_block_index"`
-	PoolInfo         TicketPoolInfo       `json:"ticket_pool"`
+	PoolInfo         *TicketPoolInfo      `json:"ticket_pool"`
+}
+
+// NewStakeInfoExtended constructs a *StakeInfoExtended with pointer fields
+// allocated.
+func NewStakeInfoExtended() *StakeInfoExtended {
+	return &StakeInfoExtended{
+		PoolInfo: new(TicketPoolInfo),
+	}
 }
 
 // StakeInfoExtendedEstimates is similar to StakeInfoExtended but includes stake
@@ -356,7 +371,7 @@ type StakeInfoExtendedEstimates struct {
 	StakeDiff        StakeDiff            `json:"stakediff"`
 	PriceWindowNum   int                  `json:"window_number"`
 	IdxBlockInWindow int                  `json:"window_block_index"`
-	PoolInfo         TicketPoolInfo       `json:"ticket_pool"`
+	PoolInfo         *TicketPoolInfo      `json:"ticket_pool"`
 }
 
 // MempoolTicketFeeInfo models statistical ticket fee info at block height

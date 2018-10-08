@@ -302,7 +302,7 @@ func (m *MempoolData) GetNumTickets() uint32 {
 }
 
 type mempoolDataCollector struct {
-	mtx          sync.Mutex
+	sync.Mutex
 	dcrdChainSvr *rpcclient.Client
 	activeChain  *chaincfg.Params
 }
@@ -310,7 +310,6 @@ type mempoolDataCollector struct {
 // NewMempoolDataCollector creates a new mempoolDataCollector.
 func NewMempoolDataCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Params) *mempoolDataCollector {
 	return &mempoolDataCollector{
-		mtx:          sync.Mutex{},
 		dcrdChainSvr: dcrdChainSvr,
 		activeChain:  params,
 	}
@@ -320,8 +319,8 @@ func NewMempoolDataCollector(dcrdChainSvr *rpcclient.Client, params *chaincfg.Pa
 func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 	// In case of a very fast block, make sure previous call to collect is not
 	// still running, or dcrd may be mad.
-	t.mtx.Lock()
-	defer t.mtx.Unlock()
+	t.Lock()
+	defer t.Unlock()
 
 	// Time this function
 	defer func(start time.Time) {

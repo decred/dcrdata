@@ -240,7 +240,9 @@ func (db *wiredDB) GetChainParams() *chaincfg.Params {
 func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
 	hash, err := db.RetrieveBlockHash(idx)
 	if err != nil {
-		log.Errorf("Unable to get block hash for block number %d: %v", idx, err)
+		if err != sql.ErrNoRows {
+			log.Errorf("Unable to get block hash for block number %d: %v", idx, err)
+		}
 		return "", err
 	}
 	return hash, nil
@@ -249,22 +251,24 @@ func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
 func (db *wiredDB) GetBlockHeight(hash string) (int64, error) {
 	height, err := db.RetrieveBlockHeight(hash)
 	if err != nil {
-		log.Errorf("Unable to get block height for hash %s: %v", hash, err)
+		if err != sql.ErrNoRows {
+			log.Errorf("Unable to get block height for hash %s: %v", hash, err)
+		}
 		return -1, err
 	}
 	return height, nil
 }
 
 func (db *wiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
-	return rpcutils.GetBlockHeaderVerbose(db.client, db.params, int64(idx))
+	return rpcutils.GetBlockHeaderVerbose(db.client, int64(idx))
 }
 
 func (db *wiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerbose(db.client, db.params, int64(idx), verboseTx)
+	return rpcutils.GetBlockVerbose(db.client, int64(idx), verboseTx)
 }
 
 func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, verboseTx)
+	return rpcutils.GetBlockVerboseByHash(db.client, hash, verboseTx)
 }
 
 func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
@@ -297,13 +301,13 @@ func (db *wiredDB) BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSu
 }
 
 func (db *wiredDB) GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions {
-	blockVerbose := rpcutils.GetBlockVerbose(db.client, db.params, idx, false)
+	blockVerbose := rpcutils.GetBlockVerbose(db.client, idx, false)
 
 	return makeBlockTransactions(blockVerbose)
 }
 
 func (db *wiredDB) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
-	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, false)
+	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, hash, false)
 
 	return makeBlockTransactions(blockVerbose)
 }

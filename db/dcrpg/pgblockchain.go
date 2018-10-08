@@ -181,6 +181,62 @@ func (db *ChainDBRPC) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	return db.ChainDB.Store(blockData, msgBlock)
 }
 
+// MissingSideChainBlocks identifies side chain blocks that are missing from the
+// DB. Side chains known to dcrd are listed via the getchaintips RPC. Each block
+// presence in the postgres DB is checked, and any missing block is returned in
+// a SideChain along with a count of the total number of missing blocks.
+func (db *ChainDBRPC) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error) {
+	// First get the side chain tips (head blocks).
+	tips, err := rpcutils.SideChains(db.Client)
+	if err != nil {
+		return nil, 0, fmt.Errorf("unable to get chain tips from node: %v", err)
+	}
+	nSideChains := len(tips)
+
+	// Build a list of all the blocks in each side chain that are not
+	// already in the database.
+	blocksToStore := make([]dbtypes.SideChain, nSideChains)
+	var nSideChainBlocks int
+	for it := range tips {
+		sideHeight := tips[it].Height
+		log.Debugf("Getting full side chain with tip %s at %d.", tips[it].Hash, sideHeight)
+
+		sideChain, err := rpcutils.SideChainFull(db.Client, tips[it].Hash)
+		if err != nil {
+			return nil, 0, fmt.Errorf("unable to get side chain blocks for chain tip %s: %v",
+				tips[it].Hash, err)
+		}
+
+		// For each block in the side chain, check if it already stored.
+		for is := range sideChain {
+			// Check for the block hash in the DB.
+			sideHeightDB, err := db.BlockHeight(sideChain[is])
+			if err == sql.ErrNoRows {
+				// This block is NOT already in the DB.
+				blocksToStore[it].Hashes = append(blocksToStore[it].Hashes, sideChain[is])
+				blocksToStore[it].Heights = append(blocksToStore[it].Heights, sideHeight)
+				nSideChainBlocks++
+			} else if err == nil {
+				// This block is already in the DB.
+				log.Tracef("Found block %s in postgres at height %d.",
+					sideChain[is], sideHeightDB)
+				if sideHeight != sideHeightDB {
+					log.Errorf("Side chain block height %d, expected %d.",
+						sideHeightDB, sideHeight)
+				}
+			} else /* err != nil && err != sql.ErrNoRows */ {
+				// Unexpected error
+				log.Debugf("Failed to retrieve block %s.", sideChain[is])
+			}
+
+			// Next block
+			sideHeight--
+		}
+	}
+
+	return blocksToStore, nSideChainBlocks, nil
+}
+
 // addressCounter provides a cache for address balances.
 type addressCounter struct {
 	sync.RWMutex
@@ -1183,6 +1239,8 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 		return nil
 	}
 	// New blocks stored this way are considered valid and part of mainchain.
+	// When adding side chain blocks manually, call StoreBlock directly with
+	// appropriate flags for isMainchain and isValid, and nil winningTickets.
 	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets, true, true, true, true)
 	return err
 }
@@ -1446,10 +1504,19 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	// Convert the wire.MsgBlock to a dbtypes.Block
 	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams)
 
-	// Get the previous winners (stake DB pool info cache have this info)
+	// Get the previous winners (stake DB pool info cache has this info). If the
+	// previous block is side chain, stakedb will not have the
+	// winners/validators. Since Validators are only used to identify misses in
+	// InsertVotes, we will leave the Validators empty and assume there are no
+	// misses. If this block becomes main chain at some point via a
+	// reorganization, its table entries will be updated appropriately, which
+	// will include inserting any misses since the stakeDB will then include the
+	// block, thus allowing the winning tickets to be known at that time.
+	// TODO: Somehow verify reorg operates as described when switching manually
+	// imported side chain blocks over to main chain.
 	prevBlockHash := msgBlock.Header.PrevBlock
 	var winners []string
-	if !bytes.Equal(zeroHash[:], prevBlockHash[:]) {
+	if isMainchain && !bytes.Equal(zeroHash[:], prevBlockHash[:]) {
 		tpi, found := pgb.stakeDB.PoolInfo(prevBlockHash)
 		if !found {
 			err = fmt.Errorf("stakedb.PoolInfo failed for block %s", msgBlock.BlockHash())
@@ -1532,6 +1599,23 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	lastBlockHash := msgBlock.Header.PrevBlock
 	// Only update if last was not genesis, which is not in the table (implied).
 	if lastBlockHash != zeroHash {
+		// Ensure previous block has the same main/sidechain status. If the
+		// current block being added is side chain, do not invalidate the
+		// mainchain block or any of its components, or update the block_chain
+		// table to point to this block.
+		blockStatus, errB := pgb.BlockStatus(lastBlockHash.String())
+		if errB != nil {
+			log.Errorf("Unable to determine status of previous block %v: %v",
+				lastBlockHash, errB)
+			return // do not return an error, but this should not happen
+		}
+		if blockStatus.IsMainchain != isMainchain {
+			log.Debugf("Previous block %v on a different branch (main=%v)"+
+				" from current block (main=%v). Not updating previous block's data.",
+				lastBlockHash, blockStatus.IsMainchain, isMainchain)
+			return
+		}
+
 		// Attempt to find the row id of the block hash in cache.
 		lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
 		if !ok {
@@ -1654,6 +1738,16 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	// [tx_i][addr_j], transactions paying to different numbers of addresses.
 	dbAddressRows := make([][]dbtypes.AddressRow, len(dbTransactions))
 	var totalAddressRows int
+
+	// For a side chain block, set Validators to an empty slice so that there
+	// will be no misses even if there are less than 5 votes. Any Validators
+	// that do not match a spent ticket hash in InsertVotes are considered
+	// misses. By listing no required validators, there are no misses. For side
+	// chain blocks, this is acceptable and necessary because the misses table
+	// does not record the block hash or main/side chain status.
+	if !isMainchain {
+		msgBlock.Validators = []string{}
+	}
 
 	var err error
 	for it, dbtx := range dbTransactions {

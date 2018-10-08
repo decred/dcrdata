@@ -270,16 +270,15 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			continue
 		}
 
-		var tpi *apitypes.TicketPoolInfo
-		var found bool
-		if tpi, found = db.sDB.PoolInfo(blockhash); !found {
+		tpi, found := db.sDB.PoolInfo(blockhash)
+		if !found {
 			if i != 0 {
-				log.Warnf("Unable to find block (%s) in pool info cache. Resync is malfunctioning!", blockhash.String())
+				log.Warnf("Unable to find block (%v) in pool info cache. Resync is malfunctioning!", blockhash)
 			}
 			tpi = db.sDB.PoolInfoBest()
 			if int64(tpi.Height) != i {
-				log.Errorf("Collected block height %d != stake db height %d. Pool info "+
-					"will not match the rest of this block's data.", tpi.Height, i)
+				log.Errorf("Ticket pool info not available for block %v.", blockhash)
+				tpi = nil
 			}
 		}
 
@@ -293,7 +292,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			Difficulty: diffRatio,
 			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
 			Time:       header.Timestamp.Unix(),
-			PoolInfo:   *tpi,
+			PoolInfo:   tpi,
 		}
 
 		// Allow different summaryHeight and stakeInfoHeight values to be

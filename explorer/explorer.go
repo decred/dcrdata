@@ -427,7 +427,6 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	// or that is immediately greater than the 24hr timestamp.
 	last24hrDifficulty := exp.blockData.RetreiveDifficulty(timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
-	stakePerc := blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
 
 	// Lock for explorerUI's NewBlockData and ExtraInfo
 	exp.NewBlockDataMtx.Lock()
@@ -449,13 +448,19 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	exp.ExtraInfo.NBlockSubsidy.PoS = blockData.ExtraInfo.NextBlockSubsidy.PoS
 	exp.ExtraInfo.NBlockSubsidy.PoW = blockData.ExtraInfo.NextBlockSubsidy.PoW
 	exp.ExtraInfo.NBlockSubsidy.Total = blockData.ExtraInfo.NextBlockSubsidy.Total
-	exp.ExtraInfo.PoolInfo.Size = blockData.PoolInfo.Size
-	exp.ExtraInfo.PoolInfo.Value = blockData.PoolInfo.Value
-	exp.ExtraInfo.PoolInfo.ValAvg = blockData.PoolInfo.ValAvg
-	exp.ExtraInfo.PoolInfo.Percentage = stakePerc * 100
 
-	exp.ExtraInfo.PoolInfo.PercentTarget = 100 * float64(blockData.PoolInfo.Size) /
-		float64(exp.ChainParams.TicketPoolSize*exp.ChainParams.TicketsPerBlock)
+	// If BlockData contains non-nil PoolInfo copy values and compute actual
+	// percentage of DCR supply staked. Otherwise, use a sensible percentage.
+	stakePerc := 45.0
+	if blockData.PoolInfo != nil {
+		stakePerc = blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
+		exp.ExtraInfo.PoolInfo.Size = blockData.PoolInfo.Size
+		exp.ExtraInfo.PoolInfo.Value = blockData.PoolInfo.Value
+		exp.ExtraInfo.PoolInfo.ValAvg = blockData.PoolInfo.ValAvg
+		exp.ExtraInfo.PoolInfo.Percentage = stakePerc * 100
+		exp.ExtraInfo.PoolInfo.PercentTarget = 100 * float64(blockData.PoolInfo.Size) /
+			float64(exp.ChainParams.TicketPoolSize*exp.ChainParams.TicketsPerBlock)
+	}
 
 	posSubsPerVote := dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin() /
 		float64(exp.ChainParams.TicketsPerBlock)
