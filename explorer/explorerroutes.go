@@ -1162,6 +1162,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	actualTicketPoolSize := int64(cp.TicketPoolSize * cp.TicketsPerBlock)
 	ecp := ExtendedChainParams{
 		Params:               cp,
+		MaximumBlockSize:     cp.MaximumBlockSizes[0],
 		AddressPrefix:        addrPrefix,
 		ActualTicketPoolSize: actualTicketPoolSize,
 	}
