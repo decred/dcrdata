@@ -1097,7 +1097,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-        switch sType {
+	switch sType {
 	case NotFoundStatusType:
 		w.WriteHeader(http.StatusNotFound)
 	case FutureBlockStatusType:
