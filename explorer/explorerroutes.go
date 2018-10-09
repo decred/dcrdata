@@ -30,7 +30,6 @@ const (
 	defaultErrorCode    = "Something went wrong..."
 	defaultErrorMessage = "Try refreshing this page... it usually fixes things"
 	fullModeRequired    = "full-functionality mode required for this page"
-	unminedBlock        = "Future Block"
 )
 
 // netName returns the name used when referring to a decred network.
@@ -1097,19 +1096,16 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 		str = "Something went very wrong if you can see this, try refreshing"
 	}
 
-	w.Header().Set("Content-Type", "text/html")
-	if code == unminedBlock {
+	w.Header().Set("Content-Type", "text/html"
+        switch sType {
+	case NotFoundStatusType:
+		w.WriteHeader(http.StatusNotFound)
+	case FutureBlockStatusType:
 		w.WriteHeader(http.StatusOK)
-	} else {
-
-		switch sType {
-		case NotFoundStatusType:
-			w.WriteHeader(http.StatusNotFound)
-		case ErrorStatusType:
-			w.WriteHeader(http.StatusInternalServerError)
-		default:
-			w.WriteHeader(http.StatusServiceUnavailable)
-		}
+	case ErrorStatusType:
+		w.WriteHeader(http.StatusInternalServerError)
+	default:
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	io.WriteString(w, str)
 }
