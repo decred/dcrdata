@@ -1177,13 +1177,13 @@ GET /status?q=getDifficulty
 
 **URL:**  ```GET /estimatefee```
 
-**Description:** Retrieves estimate of transaction fee. 
+**Description:** Retrieves an estimate of the fee required for a transaction to be included within a certain number of blocks (nbBlocks). If `nbBlocks` is not specified, it defaults to 2. 
 
 **Parameters:**
 
 | Parameter           | Type                   |  Description                   | 
 | -------------------- | ---------------------- | ---------------------- | 
-| N             | `int64`      |   (optional) Number of blocks into the future that the transaction can be mined in (validated)  |  
+| N             | `int64`      |   (optional) Number of blocks within which the transaction should be mined |  
 
 **Request Example:**
 
