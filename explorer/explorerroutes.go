@@ -42,7 +42,7 @@ func netName(chainParams *chaincfg.Params) string {
 	return strings.Title(chainParams.Name)
 }
 
-// Home is the page handler for the "/" path
+// Home is the page handler for the "/" path.
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	height := exp.blockData.GetHeight()
 
@@ -79,7 +79,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// SideChains is the page handler for the "/side" path
+// SideChains is the page handler for the "/side" path.
 func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	sideBlocks, err := exp.explorerSource.SideChainBlocks()
 	if err != nil {
@@ -108,7 +108,37 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// NextHome is the page handler for the "/nexthome" path
+// DisapprovedBlocks is the page handler for the "/rejects" path.
+func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request) {
+	disapprovedBlocks, err := exp.explorerSource.DisapprovedBlocks()
+	if err != nil {
+		log.Errorf("Unable to get stakeholder disapproved blocks: %v", err)
+		exp.StatusPage(w, defaultErrorCode,
+			"failed to retrieve stakeholder disapproved blocks", ErrorStatusType)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("rejects", struct {
+		Data    []*dbtypes.BlockStatus
+		Version string
+		NetName string
+	}{
+		disapprovedBlocks,
+		exp.Version,
+		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// NextHome is the page handler for the "/nexthome" path.
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	height := exp.blockData.GetHeight()
 
@@ -143,7 +173,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Blocks is the page handler for the "/blocks" path
+// Blocks is the page handler for the "/blocks" path.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	idx := exp.blockData.GetHeight()
 
@@ -205,17 +235,18 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Block is the page handler for the "/block" path
+// Block is the page handler for the "/block" path.
 func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
+	// Retrieve the block specified on the path.
 	hash := getBlockHashCtx(r)
-
 	data := exp.blockData.GetExplorerBlock(hash)
 	if data == nil {
 		log.Errorf("Unable to get block %s", hash)
 		exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
 		return
 	}
-	// Checking if there exists any regular non-Coinbase transactions in the block.
+
+	// Check if there are any regular non-coinbase transactions in the block.
 	var count int
 	data.TxAvailable = true
 	for _, i := range data.Tx {
@@ -227,6 +258,8 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.TxAvailable = false
 	}
 
+	// In full mode, retrieve missed votes, main/side chain status, and
+	// stakeholder approval.
 	if !exp.liteMode {
 		var err error
 		data.Misses, err = exp.explorerSource.BlockMissedVotes(hash)
@@ -266,7 +299,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Mempool is the page handler for the "/mempool" path
+// Mempool is the page handler for the "/mempool" path.
 func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RLock()
 	str, err := exp.templates.execTemplateToString("mempool", struct {
@@ -290,7 +323,7 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Ticketpool is the page handler for the "/ticketpool" path
+// Ticketpool is the page handler for the "/ticketpool" path.
 func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
@@ -346,7 +379,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// TxPage is the page handler for the "/tx" path
+// TxPage is the page handler for the "/tx" path.
 func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// attempt to get tx hash string from URL path
 	hash, ok := r.Context().Value(ctxTxHash).(string)
@@ -716,7 +749,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// AddressPage is the page handler for the "/address" path
+// AddressPage is the page handler for the "/address" path.
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
 	type AddressPageData struct {
@@ -1059,7 +1092,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 
 // Search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
-// redirects to the appropriate page or displays an error
+// redirects to the appropriate page or displays an error.
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	searchStr := r.URL.Query().Get("search")
 	if searchStr == "" {
@@ -1068,7 +1101,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Attempt to get a block hash by calling GetBlockHash to see if the value
-	// is a block index and then redirect to the block page if it is
+	// is a block index and then redirect to the block page if it is.
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
 	if err == nil {
 		_, err = exp.blockData.GetBlockHash(idx)
@@ -1081,21 +1114,21 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call GetExplorerAddress to see if the value is an address hash and
-	// then redirect to the address page if it is
+	// then redirect to the address page if it is.
 	address := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
 
-	// Check if the value is a valid hash
+	// Check if the value is a valid hash.
 	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
 		exp.StatusPage(w, "search failed", "Couldn't find any address "+searchStr, NotFoundStatusType)
 		return
 	}
 
 	// Attempt to get a block index by calling GetBlockHeight to see if the
-	// value is a block hash and then redirect to the block page if it is
+	// value is a block hash and then redirect to the block page if it is.
 	_, err = exp.blockData.GetBlockHeight(searchStr)
 	if err == nil {
 		http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
@@ -1103,7 +1136,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call GetExplorerTx to see if the value is a transaction hash and then
-	// redirect to the tx page if it is
+	// redirect to the tx page if it is.
 	tx := exp.blockData.GetExplorerTx(searchStr)
 	if tx != nil {
 		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
@@ -1139,9 +1172,9 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 		w.WriteHeader(http.StatusNotFound)
 	case ErrorStatusType:
 		w.WriteHeader(http.StatusInternalServerError)
-	// When blockchain sync is running status 202 is used to imply that the other
-	// requests apart from serving the status sync page have been received and
-	// accepted but cannot be processed now till the sync is complete.
+	// When blockchain sync is running, status 202 is used to imply that the
+	// other requests apart from serving the status sync page have been received
+	// and accepted but cannot be processed now till the sync is complete.
 	case BlockchainSyncingType:
 		w.WriteHeader(http.StatusAccepted)
 	default:
@@ -1150,12 +1183,12 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 	io.WriteString(w, str)
 }
 
-// NotFound wraps StatusPage to display a 404 page
+// NotFound wraps StatusPage to display a 404 page.
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, NotFoundStatusType)
 }
 
-// ParametersPage is the page handler for the "/parameters" path
+// ParametersPage is the page handler for the "/parameters" path.
 func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	cp := exp.ChainParams
 	addrPrefix := AddressPrefixes(cp)
@@ -1187,7 +1220,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// AgendaPage is the page handler for the "/agenda" path
+// AgendaPage is the page handler for the "/agenda" path.
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
@@ -1200,7 +1233,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 			"the agenda ID given seems to not exist", NotFoundStatusType)
 	}
 
-	// Attempt to get agendaid string from URL path
+	// Attempt to get agendaid string from URL path.
 	agendaid := getAgendaIDCtx(r)
 	agendaInfo, err := GetAgendaInfo(agendaid)
 	if err != nil {
@@ -1244,7 +1277,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// AgendasPage is the page handler for the "/agendas" path
+// AgendasPage is the page handler for the "/agendas" path.
 func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	agendas, err := agendadb.GetAllAgendas()
 	if err != nil {

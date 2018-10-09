@@ -514,6 +514,7 @@ func mainCore() error {
 		r.Mount("/explorer", explore.Mux)
 		r.Get("/blocks", explore.Blocks)
 		r.Get("/side", explore.SideChains)
+		r.Get("/rejects", explore.DisapprovedBlocks)
 		r.Get("/mempool", explore.Mempool)
 		r.Get("/parameters", explore.ParametersPage)
 		r.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
