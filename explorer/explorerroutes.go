@@ -1305,13 +1305,11 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 	})
 
 	str := string(data)
-	statusCode := http.StatusAccepted
 	if err != nil {
-		str = fmt.Sprintf("error occurred while process the API response: %v", err)
-		statusCode = http.StatusServiceUnavailable
+		str = fmt.Sprintf("error occurred while processing the API response: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
+	w.WriteHeader(http.StatusServiceUnavailable)
 	io.WriteString(w, str)
 }
