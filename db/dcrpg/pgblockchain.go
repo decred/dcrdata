@@ -1609,10 +1609,14 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 				lastBlockHash, errB)
 			return // do not return an error, but this should not happen
 		}
+		// Do not update previous block data if it is not the blockchain branch.
 		if blockStatus.IsMainchain != isMainchain {
-			log.Debugf("Previous block %v on a different branch (main=%v)"+
-				" from current block (main=%v). Not updating previous block's data.",
-				lastBlockHash, blockStatus.IsMainchain, isMainchain)
+			// A main chain block should never have a side chain parent.
+			if isMainchain {
+				log.Errorf("Previous block %v on a different branch (main=%v)"+
+					" from current block (main=%v). Not updating previous block's data.",
+					lastBlockHash, blockStatus.IsMainchain, isMainchain)
+			}
 			return
 		}
 

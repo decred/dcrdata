@@ -652,12 +652,22 @@ func (db *wiredDB) GetSummaryByHash(hash string) *apitypes.BlockDataBasic {
 	return blockSummary
 }
 
+// GetBestBlockSummary retrieves data for teh best block in the DB. If there are
+// no blocks in the table (yet), a nil pointer is returned.
 func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
+	// Attempt to retrieve height of best block in DB.
 	dbBlkHeight, err := db.GetBlockSummaryHeight()
 	if err != nil {
 		log.Errorf("GetBlockSummaryHeight failed: %v", err)
 		return nil
 	}
+
+	// Empty table is not an error.
+	if dbBlkHeight == -1 {
+		return nil
+	}
+
+	// Retrieve the block data.
 	blockSummary, err := db.RetrieveBlockSummary(dbBlkHeight)
 	if err != nil {
 		log.Errorf("Unable to retrieve block %d summary: %v", dbBlkHeight, err)
