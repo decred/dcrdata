@@ -48,7 +48,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			if height > maxHeight {
 				expectedTime := time.Duration(height-maxHeight) * exp.ChainParams.TargetTimePerBlock
 				message := fmt.Sprintf("This block is expected to arrive in approximately in %v. ", expectedTime)
-				exp.StatusPage(w, unminedBlock, message, NotFoundStatusType)
+				exp.StatusPage(w, defaultErrorCode, message, FutureBlockStatusType)
 				return
 			}
 
