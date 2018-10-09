@@ -1104,6 +1104,11 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 		w.WriteHeader(http.StatusOK)
 	case ErrorStatusType:
 		w.WriteHeader(http.StatusInternalServerError)
+	// When blockchain sync is running status 202 is used to imply that the other
+	// requests apart from serving the status sync page have been received and
+	// accepted but cannot be processed now till the sync is complete.
+	case BlockchainSyncingType:
+		w.WriteHeader(http.StatusAccepted)
 	default:
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
