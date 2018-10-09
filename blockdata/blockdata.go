@@ -161,18 +161,28 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 		log.Errorf("GetBlockSubsidy for %d failed: %v", msgBlock.Header.Height, err)
 	}
 
+	// Block header
+	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(hash)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+	isSideChain := blockHeaderResults.Confirmations == -1
+
 	// Ticket pool info (value, size, avg)
 	var ticketPoolInfo *apitypes.TicketPoolInfo
 	var found bool
 	if ticketPoolInfo, found = t.stakeDB.PoolInfo(*hash); !found {
-		log.Infof("Unable to find block (%v) in pool info cache, trying best block.", hash)
+		// If unable to get ticket pool info for this block, stakedb does
+		// not have it. This is expected for side chain blocks, so do not
+		// log in that case.
+		if !isSideChain {
+			log.Infof("Unable to find block (%v) in pool info cache, trying best block.", hash)
+		}
 		ticketPoolInfo = t.stakeDB.PoolInfoBest()
 		if ticketPoolInfo.Height != height {
-			// If unable to get ticket pool info for this block, stakedb does
-			// not have it. This may be the case for side chain blocks. Warn but
-			// do not error so that these blocks may be recorded without ticket
-			// pool information.
-			log.Warnf("Ticket pool info not available for block %v.", hash)
+			if !isSideChain {
+				log.Warnf("Ticket pool info not available for block %v.", hash)
+			}
 			ticketPoolInfo = nil
 		}
 	}
@@ -187,12 +197,6 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 	header := msgBlock.Header
 	diff := txhelpers.GetDifficultyRatio(header.Bits, t.netParams)
 	sdiff := dcrutil.Amount(header.SBits).ToCoin()
-
-	// Block header
-	blockHeaderResults, err := t.dcrdChainSvr.GetBlockHeaderVerbose(hash)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
 
 	// Output
 	blockdata := &apitypes.BlockDataBasic{
