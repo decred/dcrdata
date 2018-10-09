@@ -1,0 +1,73 @@
+{{define "explorer"}}
+<!DOCTYPE html>
+<html lang="en">
+
+{{template "html-head" "Decred Blocks Windows"}}
+<body class="{{ theme }}">
+    {{template "navbar" . }}
+    <div class="container main" data-controller="main">
+        <h4><span>Block Windows</span></h4>
+        <div class="row fs13">
+            <div class="col d-flex justify-content-between">
+                {{ if ge (index .Data 0).height .Rows }}
+                <a
+                    id="prev"
+                    class="no-underline"
+                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    data-keynav-priority
+                >◄ Older</a>
+                {{end}}
+                {{ if lt (index .Data 0).height 1 }}
+                 <a
+                    id="next"
+                    class="no-underline"
+                    href="/blocks?height={{ add (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    data-preserve-keynav-index="true"
+                >Newer ►</a>
+                {{end}}
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <table class="table striped table-responsive" id="explorertable">
+                    <thead>
+                        <tr>
+                            <th>Height</th>
+                            <th>
+                                <span class="d-none d-md-inline">Transactions</span>
+                                <span class="d-md-none">Txn</span>
+                            </th>
+                            <th>Vote<span class="d-none d-md-inline">s</span></th>
+                            <th>Ticket<span class="d-none d-md-inline">s</span></th>
+                            <th>
+                                <span class="d-none d-md-inline">Revocations</span>
+                                <span class="d-md-none">Revoke</span>
+                            </th>
+                            <th>Size</th>
+                            <th>Difficulty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {{range .Data}}
+                        <tr id="{{ .height }}">
+                            <td><a href="/block/{{.height}}" class="fs16 height">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
+                            <td>{{.txs}}</td>
+                            <td>{{.votes}}</td>
+                            <td>{{.tickets}}</td>
+                            <td>{{.revocations}}</td>
+                            <td>{{.FormattedSize}}</td>
+                            <td>{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .difficulty) 0 true)}</td>
+                        </tr>
+                    {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+{{ template "footer" . }}
+
+</body>
+</html>
+{{ end }}

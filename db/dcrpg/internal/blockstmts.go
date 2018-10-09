@@ -92,6 +92,11 @@ const (
 	// SelectBlocksTicketsPrice selects the ticket price and difficulty for the first block in a stake difficulty window.
 	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty FROM blocks WHERE height % $1 = 0 ORDER BY time;`
 
+	SelectWindowsByLimit = `SELECT (height/?)*? AS window_start, difficulty, SUM(num_rtx) AS txs,
+		SUM(fresh_stake) AS tickets, SUM(voters) AS votes, SUM(revocations) AS revocations, 
+		SUM(sbits) AS size FROM blocks GROUP BY window_start, difficulty
+		ORDER BY window_start DESC LIMIT ? OFFSET ?;`
+
 	SelectBlocksBlockSize = `SELECT time, size, numtx, height FROM blocks ORDER BY time;`
 
 	SelectBlocksPreviousHash = `SELECT previous_hash FROM blocks WHERE hash = $1;`

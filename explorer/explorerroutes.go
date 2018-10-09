@@ -173,7 +173,60 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Blocks is the page handler for the "/blocks" path.
+// Windows is the page handler for the "/windows" path
+func (exp *explorerUI) Windows(w http.ResponseWriter, r *http.Request) {
+	if exp.liteMode {
+		exp.StatusPage(w, fullModeRequired,
+			"Windows page cannot run in lite mode.", NotSupportedStatusType)
+	}
+	auxDBHeight := int(exp.Height())
+
+	height, err := strconv.Atoi(r.URL.Query().Get("height"))
+	if err != nil || height > auxDBHeight {
+		height = auxDBHeight
+	}
+
+	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
+	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
+		rows = minExplorerRows
+	}
+	limit := uint64(rows)
+	offset := uint64(height)/ uint64(exp.ChainParams.StakeDiffWindowSize)
+
+	windows, err := exp.explorerSource.WindowBlocks(limit, offset)
+	if err != nil {
+		log.Errorf("Unable to get window blocks: height=%d&rows=%d: error: %v ", height, rows, err)
+		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", NotFoundStatusType)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("windows", struct {
+		Data    []*dbtypes.BlocksGroupedInfo
+		WindowSize   int64
+		Rows    int
+		Version string
+		NetName string
+	}{
+		windows,
+		exp.ChainParams.StakeDiffWindowSize,
+		len(windows),
+		exp.Version,
+		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+
+}
+
+// Blocks is the page handler for the "/blocks" path
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	idx := exp.blockData.GetHeight()
 
@@ -183,7 +236,6 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-
 	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
 		rows = minExplorerRows
 	}

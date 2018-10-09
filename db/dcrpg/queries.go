@@ -16,7 +16,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-
+	humanize "github.com/dustin/go-humanize"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
@@ -549,6 +549,40 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(db *sql.DB) (ids []uint64, heights 
 		ticketDbIDs = append(ticketDbIDs, ticketDbID)
 	}
 	return
+}
+
+// retrieveWindowBlocks fetches chunks of windows using the limit and offset provided
+// for a window size of chaincfg.Params.StakeDiffWindowSize.
+func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
+	offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	rows, err := db.Query(internal.SelectWindowsByLimit, windowSize, windowSize, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveWindowBlocks failed: error: %v", err)
+	}
+
+	data := make([]*dbtypes.BlocksGroupedInfo, 0)
+	for rows.Next() {
+		var height uint64
+		var size, votes, txs, revocations, tickets uint16
+		var difficulty float64
+
+		err = rows.Scan(&height, &difficulty, &txs, &tickets, &votes, &revocations, &size)
+		if err != nil {
+			return nil, err
+		}
+
+		data = append(data, &dbtypes.BlocksGroupedInfo{
+			StartHeight:   height,
+			Voters:        votes,
+			Transactions:  txs,
+			FreshStake:    tickets,
+			Revocations:   revocations,
+			Difficulty:    difficulty,
+			FormattedSize: humanize.Bytes(uint64(size)),
+		})
+	}
+
+	return data, nil
 }
 
 // RetrieveUnspentTickets gets all unspent tickets.
