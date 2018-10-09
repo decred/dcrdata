@@ -429,7 +429,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 	// Close prepared statement. Ignore errors as we'll Commit regardless.
 	_ = voteStmt.Close()
 
-	if len(ids)+len(misses) != 5 {
+	// If the validators are available, miss accounting should be accurate.
+	if len(msgBlock.Validators) > 0 && len(ids)+len(misses) != 5 {
 		fmt.Println(misses)
 		fmt.Println(voteTxs)
 		_ = dbtx.Rollback()
