@@ -978,9 +978,9 @@ https://alpha.dcrdata.org/insight/api/addrs/utxo \
 | address              | `string`      |   Address |  
 | from              | `int64`      |   (optional) Starting transaction index|  
 | to              | `int64`      |   (optional) Ending transaction index|  
-| noScriptSig              | `boolean`      |   (Optional) If `noScriptSig` = '1', omits ScriptSig from all inputs |  
-| noSpent              | `boolean`      |   (Optional) If `noSpent` = '1', omits spend information per output |  
-| noAsm              | `boolean`      |   (Optional) If `noAsm` = '1', omits script asm from results |  
+| noScriptSig              | `boolean`      |   (optional) If `noScriptSig` = '1', omits ScriptSig from all inputs |  
+| noSpent              | `boolean`      |   (optional) If `noSpent` = '1', omits spend information per output |  
+| noAsm              | `boolean`      |   (optional) If `noAsm` = '1', omits script asm from results |  
 
 
 **Request Example:**
