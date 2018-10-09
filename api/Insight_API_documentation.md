@@ -21,7 +21,7 @@ Below are the implemented Insight API endpoints and associated methods.
     + [/rawtx/](#rawtx)
     + [/txs/ (block)](#txs-block)
     + [/txs/ (address)](#txs-address)
-    + [/tx/send (POST)/](#txsend-post)
+    + [/tx/send/ (POST)](#txsend-post)
   * [Addresses](#addresses)
     + [/addr/](#addr)
     + [/addr/ (balance)](#addr-balance)
@@ -30,7 +30,7 @@ Below are the implemented Insight API endpoints and associated methods.
     + [/addr/ (unconfirmedBalance)](#addr-unconfirmedbalance)
     + [/addr/utxo/](#addrutxo)
     + [/addrs/utxo/](#addrsutxo)
-    + [/addrs/utxo (POST)](#addrsutxo-post)
+    + [/addrs/utxo/ (POST)](#addrsutxo-post)
     + [/addrs/txs/](#addrstxs)
     + [/addrs/txs/ (POST)](#addrstxs-post)
   * [Status and Utility](#status-and-utility)
@@ -413,7 +413,7 @@ Methods that work with transactions.
 
 | Parameter           | Type                   |  Description                   | 
 | -------------------- | ---------------------- | ---------------------- | 
-| hash              | `string`      |   Address    |  
+| address              | `string`      |   Address    |  
 
 **Request Example:**
 
@@ -524,9 +524,9 @@ Methods that work with addresses.
 
 | Parameter           | Type                   |  Description                   | 
 | -------------------- | ---------------------- | ---------------------- | 
-| hash              | `string`      |   Address    |  
-| N              | `int64`      |   (optional) Starting transaction index    |  
-| M              | `int64`      |   (optional) Ending transaction index    |  
+| address              | `string`      |   Address    |  
+| from              | `int64`      |   (optional) Starting transaction index    |  
+| to              | `int64`      |   (optional) Ending transaction index    |  
 | noTxList              | `boolean`      |   (optional) If `noTxList` = '1', response will not include a list of txids     |  
 
 **Request Example:**
@@ -1183,7 +1183,7 @@ GET /status?q=getDifficulty
 
 | Parameter           | Type                   |  Description                   | 
 | -------------------- | ---------------------- | ---------------------- | 
-| N             | `int64`      |   (optional) Number of blocks within which the transaction should be mined |  
+| nbBlocks             | `int64`      |   (optional) Number of blocks within which the transaction should be mined |  
 
 **Request Example:**
 
