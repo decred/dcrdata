@@ -1096,7 +1096,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 		str = "Something went very wrong if you can see this, try refreshing"
 	}
 
-	w.Header().Set("Content-Type", "text/html"
+	w.Header().Set("Content-Type", "text/html")
         switch sType {
 	case NotFoundStatusType:
 		w.WriteHeader(http.StatusNotFound)
