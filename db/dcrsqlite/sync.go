@@ -111,13 +111,13 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		log.Errorf("resyncDBWithPoolValue failed: %v", err)
 	}(time.Now(), &err)
 
-	// Check and report heights of the DBs. startHeight is the lowest of the
+	// Check and report heights of the DBs. dbHeight is the lowest of the
 	// heights, and may be -1 with an empty SQLite DB.
-	startHeight, summaryHeight, stakeInfoHeight, stakeDBHeight, err := db.DBHeights()
+	dbHeight, summaryHeight, stakeInfoHeight, stakeDBHeight, err := db.DBHeights()
 	if err != nil {
 		return -1, fmt.Errorf("DBHeights failed: %v", err)
 	}
-	if startHeight < -1 {
+	if dbHeight < -1 {
 		panic("invalid starting height")
 	}
 
@@ -131,17 +131,23 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 
 	// Attempt to rewind stake database, if needed, forcing it to the lowest DB
 	// height (or 0 if the lowest DB height is -1).
-	if stakeDBHeight > startHeight && stakeDBHeight > 0 {
-		if startHeight < 0 || stakeDBHeight > 2*startHeight {
+	if stakeDBHeight > dbHeight && stakeDBHeight > 0 {
+		if dbHeight < 0 || stakeDBHeight > 2*dbHeight {
 			return -1, fmt.Errorf("delete stake db (ffldb_stake) and try again")
 		}
-		log.Infof("Rewinding stake node from %d to %d", stakeDBHeight, startHeight)
-		// rewind best node in ticket db
-		stakeDBHeight, err = db.RewindStakeDB(startHeight, quit)
+		log.Infof("Rewinding stake node from %d to %d", stakeDBHeight, dbHeight)
+		// Rewind best node in ticket DB to larger of lowest DB height or zero.
+		stakeDBHeight, err = db.RewindStakeDB(dbHeight, quit)
 		if err != nil {
-			return startHeight, fmt.Errorf("RewindStakeDB failed: %v", err)
+			return dbHeight, fmt.Errorf("RewindStakeDB failed: %v", err)
 		}
 	}
+
+	// Start syncing at or after DB height depending on whether an external
+	// MasterBlockGetter is already configured to relay the current best block,
+	// in which case we receive and discard it to maintain synchronization with
+	// the auxiliary DB.
+	startHeight := dbHeight
 
 	// When coordinating with an external MasterBlockGetter, do not start beyond
 	// fetchToHeight, which is intended to indicate where the MasterBlockGetter
@@ -169,12 +175,14 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	}
 
 	// At least this many blocks to check (another may come in before finishing)
-	minBlocksToCheck := height - startHeight
+	minBlocksToCheck := height - dbHeight
 	if minBlocksToCheck < 1 {
 		if minBlocksToCheck < 0 {
-			return startHeight, fmt.Errorf("chain server behind DBs")
+			return dbHeight, fmt.Errorf("chain server behind DBs")
 		}
-		return startHeight, nil
+		// dbHeight == height
+		log.Infof("SQLite already synchronized with node at height %d.", height)
+		return height, nil
 	}
 
 	if barLoad != nil && db.updateStatusSync {
