@@ -282,9 +282,9 @@ func loadConfig() (*config, error) {
 	if err != nil {
 		return loadConfigError(err)
 	}
-	// Pre-parse the command line options to see if an alternative config
-	// file or the version flag was specified.
-	// Override any environment variables with parsed command flags
+	// Pre-parse the command line options to see if an alternative config file
+	// or the version flag was specified. Override any environment variables
+	// with parsed command line flags.
 	preCfg := cfg
 	preParser := flags.NewParser(&preCfg, flags.HelpFlag|flags.PassDoubleDash)
 	_, flagerr := preParser.Parse()
@@ -308,6 +308,16 @@ func loadConfig() (*config, error) {
 		fmt.Printf("%s version %s (Go version %s)\n", appName,
 			version.Version(), runtime.Version())
 		os.Exit(0)
+	}
+
+	// If a non-default appdata folder is specified on the command line, it may
+	// be necessary adjust the config file location. If the the config file
+	// location was not specified on the command line, the default location
+	// should be under the non-default appdata directory. However, if the config
+	// file was specified on the command line, it should be used regardless of
+	// the appdata directory.
+	if defaultHomeDir != preCfg.HomeDir && defaultConfigFile == preCfg.ConfigFile {
+		preCfg.ConfigFile = filepath.Join(preCfg.HomeDir, defaultConfigFilename)
 	}
 
 	// Load additional config from file.
@@ -364,6 +374,19 @@ func loadConfig() (*config, error) {
 		err := fmt.Errorf(str, funcName, err)
 		fmt.Fprintln(os.Stderr, err)
 		return nil, err
+	}
+
+	// If a non-default appdata folder is specified, it may be necessary to
+	// adjust the DataDir and LogDir. If these other paths are their defaults,
+	// they should be modifed to look under the non-default appdata directory.
+	// If they are not their defaults, the user-specified values should be used.
+	if defaultHomeDir != cfg.HomeDir {
+		if defaultDataDir == cfg.DataDir {
+			cfg.DataDir = filepath.Join(cfg.HomeDir, defaultDataDirname)
+		}
+		if defaultLogDir == cfg.LogDir {
+			cfg.LogDir = filepath.Join(cfg.HomeDir, defaultLogDirname)
+		}
 	}
 
 	// Warn about missing config file after the final command line parse
