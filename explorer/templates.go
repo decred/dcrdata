@@ -167,9 +167,9 @@ func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
 	}
 
 	left := strconv.FormatInt(intpart, 10)
-	rightTail := fmt.Sprintf("%08d", decpart)
-	right := strings.TrimRight(rightTail, "0")
+	right := fmt.Sprintf("%08d", decpart)
 	right = string(right[0:numPlaces])
+
 	tail := ""
 
 	if useCommas {

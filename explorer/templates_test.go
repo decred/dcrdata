@@ -13,7 +13,7 @@ func TestAmountAsDecimalPartsTrimmed(t *testing.T) {
 	}{
 		{314159000, 2, false},
 		{76543210000, 2, false},
-		{76643210000, 2, false},
+		{766432100000, 2, true},
 		{654321000, 1, false},
 		{987654321, 8, false},
 		{987654321, 2, false},
@@ -21,6 +21,7 @@ func TestAmountAsDecimalPartsTrimmed(t *testing.T) {
 		{9076543200000, 2, false},
 		{907654320, 7, false},
 		{1234590700, 2, false},
+		{100000000, 2, false},
 	}
 
 	expected := []struct {
@@ -28,7 +29,7 @@ func TestAmountAsDecimalPartsTrimmed(t *testing.T) {
 	}{
 		{"3", "14", ""},
 		{"765", "43", ""},
-		{"766", "43", ""},
+		{"7,664", "32", ""},
 		{"6", "5", ""},
 		{"9", "87654321", ""},
 		{"9", "87", ""},
@@ -36,6 +37,7 @@ func TestAmountAsDecimalPartsTrimmed(t *testing.T) {
 		{"90765", "43", ""},
 		{"9", "0765432", ""},
 		{"12", "34", ""},
+		{"1", "00", ""},
 	}
 
 	for i := range in {
