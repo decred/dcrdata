@@ -75,7 +75,7 @@ type explorerDataSource interface {
 	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
 	GetTicketsPriceByHeight() (*dbtypes.ChartsData, error)
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
-	//SideChainTips() []*dbtypes.BlockStatus
+	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	GetOldestTxBlockTime(addr string) (int64, error)
 	TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
@@ -291,8 +291,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		return nil
 	}
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
-		"rawtx", "status", "parameters", "agenda", "agendas", "charts", "sidechains",
-		"ticketpool", "nexthome"}
+		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
+		"sidechains", "rejects", "ticketpool", "nexthome"}
 
 	tempDefaults := []string{"extras"}
 

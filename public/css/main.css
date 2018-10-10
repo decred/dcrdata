@@ -94,6 +94,9 @@ a.grayed {
 h4 {
   margin-top: 10px;
 }
+h4 img {
+  height: 50px;
+}
 
 /**testnet theme**/
 body.theme-testnet .top-nav,

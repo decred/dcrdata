@@ -467,6 +467,11 @@ func (pgb *ChainDB) SideChainTips() ([]*dbtypes.BlockStatus, error) {
 	return RetrieveSideChainTips(pgb.db)
 }
 
+// DisapprovedBlocks retrieves all blocks disapproved by stakeholder votes.
+func (pgb *ChainDB) DisapprovedBlocks() ([]*dbtypes.BlockStatus, error) {
+	return RetrieveDisapprovedBlocks(pgb.db)
+}
+
 // BlockStatus retrieves the block chain status of the specified block.
 func (pgb *ChainDB) BlockStatus(hash string) (dbtypes.BlockStatus, error) {
 	return RetrieveBlockStatus(pgb.db, hash)

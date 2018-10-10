@@ -2471,6 +2471,28 @@ func RetrieveSideChainTips(db *sql.DB) (blocks []*dbtypes.BlockStatus, err error
 	return
 }
 
+// RetrieveDisapprovedBlocks retrieves the block chain status for all blocks
+// that had their regular transactions invalidated by stakeholder disapproval.
+func RetrieveDisapprovedBlocks(db *sql.DB) (blocks []*dbtypes.BlockStatus, err error) {
+	var rows *sql.Rows
+	rows, err = db.Query(internal.SelectDisapprovedBlocks)
+	if err != nil {
+		return
+	}
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var bs dbtypes.BlockStatus
+		err = rows.Scan(&bs.IsMainchain, &bs.Height, &bs.PrevHash, &bs.Hash, &bs.NextHash)
+		if err != nil {
+			return
+		}
+
+		blocks = append(blocks, &bs)
+	}
+	return
+}
+
 // RetrieveBlockStatus retrieves the block chain status for the block with the
 // specified hash.
 func RetrieveBlockStatus(db *sql.DB, hash string) (bs dbtypes.BlockStatus, err error) {
