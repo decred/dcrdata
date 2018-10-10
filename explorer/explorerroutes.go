@@ -242,6 +242,9 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.Valid = blockStatus.IsValid
 		data.MainChain = blockStatus.IsMainchain
 	}
+	for _, i := range data.Tx {
+		data.TotalFees += i.Fee
+	}
 
 	pageData := struct {
 		Data          *BlockInfo

@@ -211,6 +211,7 @@ type BlockInfo struct {
 	NextHash              string
 	TotalSent             float64
 	MiningFee             dcrutil.Amount
+	TotalFees             dcrutil.Amount
 	StakeValidationHeight int64
 	AllTxs                uint32
 }
