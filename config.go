@@ -318,6 +318,9 @@ func loadConfig() (*config, error) {
 	// the appdata directory.
 	if defaultHomeDir != preCfg.HomeDir && defaultConfigFile == preCfg.ConfigFile {
 		preCfg.ConfigFile = filepath.Join(preCfg.HomeDir, defaultConfigFilename)
+		// Update the defaultConfig to avoid an error if the config file in this
+		// "new default" location does not exist.
+		defaultConfig.ConfigFile = preCfg.ConfigFile
 	}
 
 	// Load additional config from file.
