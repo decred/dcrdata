@@ -237,7 +237,7 @@ func mainCore() error {
 		// Aux DB height and stakedb height must be equal. StakeDatabase will
 		// catch up automatically if it is behind, but we must rewind it here if
 		// it is ahead of auxDB. For auxDB to receive notification from
-		// StakeDatabase when the requried blocks are connected, the
+		// StakeDatabase when the required blocks are connected, the
 		// StakeDatabase must be at the same height or lower than auxDB.
 		stakedbHeight := int64(baseDB.GetStakeDB().Height())
 		fromHeight := stakedbHeight

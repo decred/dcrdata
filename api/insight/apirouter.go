@@ -24,9 +24,9 @@ type ApiMux struct {
 const APIVersion = 0
 
 // NewInsightApiRouter returns a new HTTP path router, ApiMux, for the Insight
-// API.
-func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
-	// Create a limiter struct.
+// API, app.
+func NewInsightApiRouter(app *insightApiContext, useRealIP bool) ApiMux {
+	// Create a rate limiter struct.
 	limiter := tollbooth.NewLimiter(1, nil)
 
 	// chi router
@@ -34,7 +34,7 @@ func NewInsightApiRouter(app *insightApiContext, userRealIP bool) ApiMux {
 
 	mux.Use(tollbooth_chi.LimitHandler(limiter))
 
-	if userRealIP {
+	if useRealIP {
 		mux.Use(middleware.RealIP)
 	}
 

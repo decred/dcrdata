@@ -31,7 +31,7 @@ func InitTestDB(targetDBFile string) *DB {
 	return db //is not nil
 }
 
-var reusableEmptyDB *DB = nil
+var reusableEmptyDB *DB
 
 // ObtainReusableEmptyDB returns a single reusable instance of an empty DB. The instance
 // is created once during the first call. All the subsequent calls will return

@@ -21,9 +21,9 @@ func TempFolderPath() string {
 	return testDir
 }
 
-// Ensures we run our test in a clean room. Removes all files created by any of
-// these tests in the temp directory.
-// Returns the test folder path
+// ResetTempFolder ensures we run our test in a clean room. Removes all files
+// created by any previous tests in the temp directory. Returns the full test
+// folder path.
 func ResetTempFolder(testSubFolder *string) string {
 	testFolderPath := TempFolderPath()
 	// Clear all test files when testSubFolder is not specified

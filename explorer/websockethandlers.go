@@ -17,6 +17,8 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// ErrWsClosed is the error message text used websocket Conn.Close tries to
+// close an already closed connection.
 var ErrWsClosed = "use of closed network connection"
 
 // RootWebsocket is the websocket handler for all pages

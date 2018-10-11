@@ -931,13 +931,11 @@ func logDBResult(res sql.Result) error {
 	return nil
 }
 
-// splitToArray splits a string into array of strings using the ";" character as
-// the separator.
+// splitToArray splits a string into multiple strings using ";" to delimit.
 func splitToArray(str string) []string {
 	if str == "" {
 		// Return a non-nil empty slice.
 		return []string{}
-	} else {
-		return strings.Split(str, ";")
 	}
+	return strings.Split(str, ";")
 }

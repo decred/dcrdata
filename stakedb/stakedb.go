@@ -207,7 +207,7 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 	// Advance ticket pool DB to tip. If there is an error, attempt recovery by
 	// rewinding back to the height-1 of the last successful advancement.
 	log.Infof("Attempting to advance ticket pool DB to tip via diffs...")
-	if err, stopHeight := sDB.PoolDB.AdvanceToTip(); err != nil {
+	if stopHeight, err := sDB.PoolDB.AdvanceToTip(); err != nil {
 		log.Infof("Failed to advance pool. Rewinding to %d", stopHeight-1)
 		if err = sDB.Rewind(stopHeight-1, true); err != nil {
 			return nil, err
@@ -293,7 +293,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	}
 
 	log.Infof("Advancing ticket pool DB to tip via diffs...")
-	if err, height = sDB.PoolDB.AdvanceToTip(); err != nil {
+	if height, err = sDB.PoolDB.AdvanceToTip(); err != nil {
 		// Try to close but ignore any error
 		_ = sDB.Close()
 		return nil, height, fmt.Errorf("failed to advance ticket pool DB to tip: %v", err)
@@ -611,7 +611,8 @@ func (db *StakeDatabase) applyDiff(poolDiff PoolDiff) {
 	db.liveTicketMtx.Unlock()
 }
 
-// undoDiff is like applyDiff except it swaps In and Out in specifed PoolDiff.
+// undoDiff is like applyDiff except it swaps In and Out in the specified
+// PoolDiff.
 func (db *StakeDatabase) undoDiff(poolDiff PoolDiff) {
 	db.applyDiff(PoolDiff{
 		In:  poolDiff.Out,

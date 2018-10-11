@@ -584,9 +584,9 @@ func RetrieveTicketIDByHash(db *sql.DB, ticketHash string) (id uint64, err error
 
 // RetrieveTicketStatusByHash gets the spend status and ticket pool status for
 // the given ticket hash.
-func RetrieveTicketStatusByHash(db *sql.DB, ticketHash string) (id uint64, spend_status dbtypes.TicketSpendType,
-	pool_status dbtypes.TicketPoolStatus, err error) {
-	err = db.QueryRow(internal.SelectTicketStatusByHash, ticketHash).Scan(&id, &spend_status, &pool_status)
+func RetrieveTicketStatusByHash(db *sql.DB, ticketHash string) (id uint64, spendStatus dbtypes.TicketSpendType,
+	poolStatus dbtypes.TicketPoolStatus, err error) {
+	err = db.QueryRow(internal.SelectTicketStatusByHash, ticketHash).Scan(&id, &spendStatus, &poolStatus)
 	return
 }
 
@@ -783,8 +783,8 @@ func SetPoolStatusForTickets(db *sql.DB, ticketDbIDs []uint64, poolStatuses []db
 	return totalTicketsUpdated, dbtx.Commit()
 }
 
-// SetPoolStatusForTickets sets the ticket pool status for the tickets specified
-// by ticket purchase transaction hash.
+// SetPoolStatusForTicketsByHash sets the ticket pool status for the tickets
+// specified by ticket purchase transaction hash.
 func SetPoolStatusForTicketsByHash(db *sql.DB, tickets []string,
 	poolStatuses []dbtypes.TicketPoolStatus) (int64, error) {
 	if len(tickets) == 0 {
@@ -1088,7 +1088,7 @@ func RetrieveAddressUTXOs(db *sql.DB, address string, currentBlockHeight int64) 
 // short list of recently (defined as greater than recentBlockHeight) confirmed
 // transactions that can be used to validate mempool status.
 func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeight int64) (txs []string, recenttxs []string) {
-	var tx_hash string
+	var txHash string
 	var height int64
 	stmt, err := db.Prepare(internal.SelectAddressesAllTxn)
 	if err != nil {
@@ -1105,14 +1105,14 @@ func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeigh
 	defer closeRows(rows)
 
 	for rows.Next() {
-		err = rows.Scan(&tx_hash, &height)
+		err = rows.Scan(&txHash, &height)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		txs = append(txs, tx_hash)
+		txs = append(txs, txHash)
 		if height > recentBlockHeight {
-			recenttxs = append(recenttxs, tx_hash)
+			recenttxs = append(recenttxs, txHash)
 		}
 	}
 	return
@@ -1617,8 +1617,8 @@ func RetrieveSpendingTxByTxOut(db *sql.DB, txHash string,
 	return
 }
 
-// RetrieveSpendingTxByTxOut gets info on all spending transaction inputs
-// funding transaction specified by hash.
+// RetrieveSpendingTxsByFundingTx gets info on all spending transaction inputs
+// for the given funding transaction specified by DB row ID.
 func RetrieveSpendingTxsByFundingTx(db *sql.DB, fundingTxID string) (dbIDs []uint64,
 	txns []string, vinInds []uint32, voutInds []uint32, err error) {
 	var rows *sql.Rows
@@ -2568,13 +2568,13 @@ func RetrieveTicketsPriceByHeight(db *sql.DB, val int64) (*dbtypes.ChartsData, e
 	return items, nil
 }
 
-func RetrievePreviousHashByBlockHash(db *sql.DB, hash string) (previous_hash string, err error) {
-	err = db.QueryRow(internal.SelectBlocksPreviousHash, hash).Scan(&previous_hash)
+func RetrievePreviousHashByBlockHash(db *sql.DB, hash string) (previousHash string, err error) {
+	err = db.QueryRow(internal.SelectBlocksPreviousHash, hash).Scan(&previousHash)
 	return
 }
 
-func SetMainchainByBlockHash(db *sql.DB, hash string, isMainchain bool) (previous_hash string, err error) {
-	err = db.QueryRow(internal.UpdateBlockMainchain, hash, isMainchain).Scan(&previous_hash)
+func SetMainchainByBlockHash(db *sql.DB, hash string, isMainchain bool) (previousHash string, err error) {
+	err = db.QueryRow(internal.UpdateBlockMainchain, hash, isMainchain).Scan(&previousHash)
 	return
 }
 
@@ -2780,7 +2780,7 @@ func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) error 
 }
 
 // UpdateBlockNext sets the next block's hash for the specified row of the
-// block_chain table.
+// block_chain table specified by DB row ID.
 func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
 	res, err := db.Exec(internal.UpdateBlockNext, blockDbID, next)
 	if err != nil {
@@ -2796,8 +2796,8 @@ func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
 	return nil
 }
 
-// UpdateBlockNext sets the next block's hash for the block in the block_chain
-// table specified by hash.
+// UpdateBlockNextByHash sets the next block's hash for the block in the
+// block_chain table specified by hash.
 func UpdateBlockNextByHash(db *sql.DB, this, next string) error {
 	res, err := db.Exec(internal.UpdateBlockNextByHash, this, next)
 	if err != nil {

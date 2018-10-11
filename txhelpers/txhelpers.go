@@ -799,17 +799,17 @@ func TxIsTicket(txType int) bool {
 	return stake.TxType(txType) == stake.TxTypeSStx
 }
 
-// TxIsTicket indicates if the transaction type is a vote (ssgen).
+// TxIsVote indicates if the transaction type is a vote (ssgen).
 func TxIsVote(txType int) bool {
 	return stake.TxType(txType) == stake.TxTypeSSGen
 }
 
-// TxIsTicket indicates if the transaction type is a revocation (ssrtx).
+// TxIsRevoke indicates if the transaction type is a revocation (ssrtx).
 func TxIsRevoke(txType int) bool {
 	return stake.TxType(txType) == stake.TxTypeSSRtx
 }
 
-// TxIsTicket indicates if the transaction type is a regular (non-stake)
+// TxIsRegular indicates if the transaction type is a regular (non-stake)
 // transaction.
 func TxIsRegular(txType int) bool {
 	return stake.TxType(txType) == stake.TxTypeRegular
