@@ -611,7 +611,8 @@ func (db *StakeDatabase) applyDiff(poolDiff PoolDiff) {
 	db.liveTicketMtx.Unlock()
 }
 
-// undoDiff is like applyDiff except it swaps In and Out in specifed PoolDiff.
+// undoDiff is like applyDiff except it swaps In and Out in the specified
+// PoolDiff.
 func (db *StakeDatabase) undoDiff(poolDiff PoolDiff) {
 	db.applyDiff(PoolDiff{
 		In:  poolDiff.Out,

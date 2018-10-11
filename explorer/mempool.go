@@ -99,7 +99,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			exp.MempoolData.Tickets = append([]MempoolTx{tx}, exp.MempoolData.Tickets...)
 			exp.MempoolData.NumTickets++
 		case "Vote":
-			// Votes on the next block may be recieve just prior to dcrdata
+			// Votes on the next block may be received just prior to dcrdata
 			// actually processing the new block. Do not broadcast these ahead
 			// of the full update with the new block signal as the vote will be
 			// included in that update.
