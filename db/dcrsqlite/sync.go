@@ -185,6 +185,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		return height, nil
 	}
 
+	// Initialize the progress bars on the sync status page.
 	if barLoad != nil && db.updateStatusSync {
 		barLoad <- &dbtypes.ProgressBarLoad{
 			Msg:   InitialLoadSyncStatusMsg,
@@ -231,7 +232,8 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		}
 
 		// Advance stakedb height, which should always be less than or equal to
-		// SQLite height, as enforced by the rewinding code in this function.
+		// SQLite height, except when SQLite is empty since stakedb always has
+		// genesis, as enforced by the rewinding code in this function.
 		if i > stakeDBHeight {
 			if i != int64(db.sDB.Height()+1) {
 				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", i, db.sDB.Height()))
@@ -240,6 +242,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 				return i - 1, err
 			}
 		}
+		stakeDBHeight = int64(db.sDB.Height()) // i
 
 		if (i-1)%rescanLogBlockChunk == 0 && i-1 != startHeight || i == startHeight {
 			if i == 0 {
@@ -273,7 +276,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		if i <= summaryHeight && i <= stakeInfoHeight {
 			// update height, the end condition for the loop
 			if _, height, err = db.client.GetBestBlock(); err != nil {
-				return i - 1, fmt.Errorf("GetBestBlock failed: %v", err)
+				return i - 1, fmt.Errorf("rpcclient.GetBestBlock failed: %v", err)
 			}
 			continue
 		}
@@ -281,13 +284,13 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		tpi, found := db.sDB.PoolInfo(blockhash)
 		if !found {
 			if i != 0 {
-				log.Warnf("Unable to find block (%v) in pool info cache. Resync is malfunctioning!", blockhash)
+				log.Errorf("Unable to find block (%v) in pool info cache. Resync is malfunctioning!", blockhash)
 			}
 			tpi = db.sDB.PoolInfoBest()
-			if int64(tpi.Height) != i {
-				log.Errorf("Ticket pool info not available for block %v.", blockhash)
-				tpi = nil
-			}
+		}
+		if int64(tpi.Height) != i {
+			log.Errorf("Ticket pool info not available for block %v.", blockhash)
+			tpi = nil
 		}
 
 		header := block.MsgBlock().Header
@@ -309,12 +312,13 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			if err = db.StoreBlockSummary(&blockSummary); err != nil {
 				return i - 1, fmt.Errorf("Unable to store block summary in database: %v", err)
 			}
+			summaryHeight = i
 		}
 
 		if i <= stakeInfoHeight {
 			// update height, the end condition for the loop
 			if _, height, err = db.client.GetBestBlock(); err != nil {
-				return i - 1, fmt.Errorf("GetBestBlock failed: %v", err)
+				return i - 1, fmt.Errorf("rpcclient.GetBestBlock failed: %v", err)
 			}
 			continue
 		}
@@ -340,19 +344,20 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		if err = db.StoreStakeInfoExtended(&si); err != nil {
 			return i - 1, fmt.Errorf("Unable to store stake info in database: %v", err)
 		}
-
-		// Update height, the end condition for the loop
-		if _, height, err = db.client.GetBestBlock(); err != nil {
-			return i, fmt.Errorf("GetBestBlock failed: %v", err)
-		}
+		stakeInfoHeight = i
 
 		// If updating explore is activated, update it at intervals of 200 blocks.
 		if updateExplorer != nil && i%200 == 0 && explorer.SyncExplorerUpdateStatus() && db.updateStatusSync {
 			updateExplorer <- &blockhash
 			select {
-			case db.updateStatusChan <- uint32(summaryHeight):
+			case db.updateStatusChan <- uint32(i):
 			default:
 			}
+		}
+
+		// Update height, the end condition for the loop.
+		if _, height, err = db.client.GetBestBlock(); err != nil {
+			return i, fmt.Errorf("rpcclient.GetBestBlock failed: %v", err)
 		}
 	}
 
@@ -367,6 +372,19 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	}
 
 	log.Infof("Rescan finished successfully at height %d.", height)
+
+	_, summaryHeight, stakeInfoHeight, stakeDBHeight, err = db.DBHeights()
+	if err != nil {
+		return -1, fmt.Errorf("DBHeights failed: %v", err)
+	}
+
+	log.Debug("New best block (chain server):    ", height)
+	log.Debug("New best block (sqlite block DB): ", summaryHeight)
+	if stakeInfoHeight != summaryHeight {
+		log.Error("New best block (sqlite stake DB): ", stakeInfoHeight)
+		return -1, fmt.Errorf("SQLite database (dcrdata.sqlt.db) is corrupted")
+	}
+	log.Debug("New best block (stakedb):         ", stakeDBHeight)
 
 	return height, nil
 }
