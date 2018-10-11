@@ -275,13 +275,26 @@ func loadConfig() (*config, error) {
 	loadConfigError := func(err error) (*config, error) {
 		return nil, err
 	}
-	// Default config.
+
+	// Default config
 	cfg := defaultConfig
-	// Load environment variables into the config overriding the default config
+	defaultConfigNow := defaultConfig
+
+	// Load settings from environment variables.
 	err := env.Parse(&cfg)
 	if err != nil {
 		return loadConfigError(err)
 	}
+
+	// If appdata was specified but not the config file, change the config file
+	// path, and record this as the new default config file location.
+	if defaultHomeDir != cfg.HomeDir && defaultConfigNow.ConfigFile == cfg.ConfigFile {
+		cfg.ConfigFile = filepath.Join(cfg.HomeDir, defaultConfigFilename)
+		// Update the defaultConfig to avoid an error if the config file in this
+		// "new default" location does not exist.
+		defaultConfigNow.ConfigFile = cfg.ConfigFile
+	}
+
 	// Pre-parse the command line options to see if an alternative config file
 	// or the version flag was specified. Override any environment variables
 	// with parsed command line flags.
@@ -316,11 +329,11 @@ func loadConfig() (*config, error) {
 	// should be under the non-default appdata directory. However, if the config
 	// file was specified on the command line, it should be used regardless of
 	// the appdata directory.
-	if defaultHomeDir != preCfg.HomeDir && defaultConfigFile == preCfg.ConfigFile {
+	if defaultHomeDir != preCfg.HomeDir && defaultConfigNow.ConfigFile == preCfg.ConfigFile {
 		preCfg.ConfigFile = filepath.Join(preCfg.HomeDir, defaultConfigFilename)
 		// Update the defaultConfig to avoid an error if the config file in this
 		// "new default" location does not exist.
-		defaultConfig.ConfigFile = preCfg.ConfigFile
+		defaultConfigNow.ConfigFile = preCfg.ConfigFile
 	}
 
 	// Load additional config from file.
@@ -328,9 +341,11 @@ func loadConfig() (*config, error) {
 	// Config file name for logging.
 	configFile := "NONE (defaults)"
 	parser := flags.NewParser(&cfg, flags.Default)
+
+	// Do not error default config file is missing.
 	if _, err := os.Stat(preCfg.ConfigFile); os.IsNotExist(err) {
 		// Non-default config file must exist
-		if defaultConfig.ConfigFile != preCfg.ConfigFile {
+		if defaultConfigNow.ConfigFile != preCfg.ConfigFile {
 			fmt.Fprintln(os.Stderr, err)
 			return loadConfigError(err)
 		}
