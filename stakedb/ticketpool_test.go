@@ -84,7 +84,7 @@ func TestTicketPoolTraverseFull(t *testing.T) {
 	}
 
 	t.Log("Advancing cursor to tip (applying all diffs and building pool map).")
-	if err, _ = p.AdvanceToTip(); err != nil {
+	if _, err = p.AdvanceToTip(); err != nil {
 		t.Errorf("failed to advance pool to tip: %v", err)
 	}
 
