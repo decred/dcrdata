@@ -604,7 +604,7 @@ func mainCore() error {
 
 	for baseDBHeight < height {
 		fetchToHeight = auxDBHeight + 1
-		baseDBHeight, _, err = getSyncd(updateAllAddresses, updateAllVotes,
+		baseDBHeight, auxDBHeight, err = getSyncd(updateAllAddresses, updateAllVotes,
 			newPGIndexes, fetchToHeight)
 		if err != nil {
 			return err
