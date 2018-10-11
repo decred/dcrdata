@@ -10,6 +10,14 @@
         <div class="alert alert-info">
             {{if eq .StatusType "Not Found"}}
                 <h5>No matching page, block, address or transaction that could be found</h5>
+                <h5>{{.Message}}</h5>
+            {{else if eq .StatusType "Wrong Network"}}
+                <h5>{{.Message}}</h5>
+                {{if eq .NetName "Mainnet"}}
+                    <h5><a href="http://testnet.dcrdata.org/">Switch to Testnet</a></h5>
+                {{else}}
+                    <h5><a href="http://explorer.dcrdata.org/">Switch to Mainnet</a></h5>
+                {{end}}
             {{else}}
                 {{if eq .StatusType "Future Block"}}
                     <h5 id="futureblock">{{.Message}}</h5>

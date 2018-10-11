@@ -30,6 +30,7 @@ const (
 	ExpStatusDeprecated     expStatus = "Deprecated"
 	ExpStatusSyncing        expStatus = "Blocks Syncing"
 	ExpStatusDBTimeout      expStatus = "Database Timeout"
+	WrongNetworkStatusType  expStatus = "Wrong Network"
 )
 
 // blockchainSyncStatus defines the status update displayed on the syncing status page

@@ -1507,12 +1507,15 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check to see if the value is an address, and redirect to the address page
-	// if it is. Ignore the error as the passed data is expected to fail
-	// validation or have other issues.
-	address, _ := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
+	// Call GetExplorerAddress to see if the value is an address hash and
+	// then redirect to the address page if it is.
+	address, err := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
+		return
+	}
+	if err != nil {
+		exp.StatusPage(w, "search failed", err.Error()+", You can find it by switching here", WrongNetworkStatusType)
 		return
 	}
 	if !exp.liteMode {
