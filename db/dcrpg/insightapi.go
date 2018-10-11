@@ -69,7 +69,9 @@ func (pgb *ChainDB) RetrieveAddressSpentUnspent(address string) (int64, int64, i
 	return RetrieveAddressSpentUnspent(pgb.db, address)
 }
 
-// Update Vin due to DCRD AMOUNTIN - START
+// RetrieveAddressIDsByOutpoint fetches all address row IDs for a given outpoint
+// (txHash:voutIndex). TODO: Update the vin due to the issue with amountin
+// invalid for unconfirmed txns.
 func (pgb *ChainDB) RetrieveAddressIDsByOutpoint(txHash string,
 	voutIndex uint32) ([]uint64, []string, int64, error) {
 	return RetrieveAddressIDsByOutpoint(pgb.db, txHash, voutIndex)

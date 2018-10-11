@@ -68,7 +68,7 @@ func GetBlockStepCtx(r *http.Request) int {
 	return step
 }
 
-// GetBlockStepCtx retrieves the ctxBlockIndex0 data from the request context.
+// GetBlockIndex0Ctx retrieves the ctxBlockIndex0 data from the request context.
 // If not set, the return value is -1.
 func GetBlockIndex0Ctx(r *http.Request) int {
 	idx, ok := r.Context().Value(ctxBlockIndex0).(int)
