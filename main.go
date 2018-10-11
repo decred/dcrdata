@@ -530,7 +530,11 @@ func mainCore() error {
 	wg.Add(1)
 	go app.StatusNtfnHandler(&wg, quit)
 	// Initial setting of db_height. Subsequently, Store() will send this.
-	notify.NtfnChans.UpdateStatusDBHeight <- uint32(baseDB.GetHeight())
+	wireDBheight := baseDB.GetHeight() // sqlite base db
+	if wireDBheight >= 0 {
+		// Do not sent 4294967295 = uint32(-1) if there are no blocks.
+		notify.NtfnChans.UpdateStatusDBHeight <- uint32(wireDBheight)
+	}
 
 	apiMux := api.NewAPIRouter(app, cfg.UseRealIP)
 

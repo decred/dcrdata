@@ -94,7 +94,6 @@ const (
 	SelectRegularTxnsVinsVoutsByBlock = `SELECT vin_db_ids, vout_db_ids, is_mainchain
 		FROM transactions WHERE block_hash = $1 AND tree = 0;`
 
-
 	UpdateRegularTxnsValidMainchainByBlock = `UPDATE transactions
 		SET is_valid=$1, is_mainchain=$2 
 		WHERE block_hash=$3 and tree=0;`

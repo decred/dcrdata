@@ -591,7 +591,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-
 	}
 
 	// Set page parameters
