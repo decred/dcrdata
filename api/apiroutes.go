@@ -179,7 +179,7 @@ out:
 
 			summary := c.BlockData.GetBestBlockSummary()
 			if summary == nil {
-				log.Errorf("BlockData summary is nil")
+				log.Errorf("BlockData summary is nil for height %d.", height)
 				break keepon
 			}
 

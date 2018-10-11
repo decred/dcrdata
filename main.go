@@ -472,7 +472,10 @@ func mainCore() error {
 	wg.Add(1)
 	go app.StatusNtfnHandler(&wg, quit)
 	// Initial setting of DBHeight. Subsequently, Store() will send this.
-	notify.NtfnChans.UpdateStatusDBHeight <- uint32(wireDBheight)
+	if wireDBheight >= 0 {
+		// Do not sent 4294967295 = uint32(-1) if there are no blocks.
+		notify.NtfnChans.UpdateStatusDBHeight <- uint32(wireDBheight)
+	}
 
 	// Configure the URL path to http handler router for the API.
 	apiMux := api.NewAPIRouter(app, cfg.UseRealIP)
