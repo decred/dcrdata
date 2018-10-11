@@ -22,15 +22,19 @@ import (
 type expStatus string
 
 const (
-	ExpStatusError          expStatus = "Error"
-	ExpStatusNotFound       expStatus = "Not Found"
-	ExpStatusFutureBlock    expStatus = "Future Block"
-	ExpStatusNotSupported   expStatus = "Not Supported"
-	ExpStatusNotImplemented expStatus = "Not Implemented"
-	ExpStatusWrongNetwork   expStatus = "Wrong Network"
-	ExpStatusDeprecated     expStatus = "Deprecated"
-	ExpStatusSyncing        expStatus = "Blocks Syncing"
-	ExpStatusDBTimeout      expStatus = "Database Timeout"
+	ExpStatusError                expStatus = "Error"
+	ExpStatusNotFound             expStatus = "Not Found"
+	ExpStatusFutureBlock          expStatus = "Future Block"
+	ExpStatusNotSupported         expStatus = "Not Supported"
+	ExpStatusNotImplemented       expStatus = "Not Implemented"
+	ExpStatusWrongNetwork         expStatus = "Wrong Network"
+	ExpStatusDeprecated           expStatus = "Deprecated"
+	ExpStatusSyncing              expStatus = "Blocks Syncing"
+	ExpStatusDBTimeout            expStatus = "Database Timeout"
+	WrongNetworkStatusType        expStatus = "Wrong Network"
+	WrongNetworkStatusType        expStatus = "Wrong Network"
+	BitcoinWrongNetworkStatusType expStatus = "Bitcoin Wrong Network"
+	P2PkAddressStatusTypes        expStatus = "P2PK Address Type"
 )
 
 // blockchainSyncStatus defines the status update displayed on the syncing status page

@@ -16,6 +16,7 @@ import (
 	"math/big"
 	"sort"
 	"strconv"
+	"strings
 	"sync"
 
 	"github.com/decred/dcrd/blockchain"
@@ -906,4 +907,29 @@ func TotalVout(vouts []dcrjson.Vout) dcrutil.Amount {
 // the pubkey script for its one output only decodes for simnet.
 func GenesisTxHash(params *chaincfg.Params) chainhash.Hash {
 	return params.GenesisBlock.Transactions[0].TxHash()
+}
+
+// AddressVerification returns the an error whenever an address string
+// does't meet the requirements.
+func AddressVerification(address string, netName string) error {
+	// checks for P2Pk type addresses
+	if strings.HasPrefix(address, "Dk") || strings.HasPrefix(address, "Tk") || strings.HasPrefix(address, "Sk") {
+		return fmt.Errorf("P2PK address detected")
+	}
+	addr, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		fmt.Printf("Invalid address %s: %v", address, err)
+
+		// This is here to detect a bitcoin type address
+		if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3")) && len(address) >= 25 && len(address) <= 34 {
+			return fmt.Errorf("Possible Bitcoin address detected.")
+		}
+		return err
+	}
+
+	// Dectection of when an address belonging to a different network is inputed
+	if strings.ToLower(addr.Net().Name) != strings.ToLower(netName) {
+		return fmt.Errorf("Wrong Network. You pasted a %s address on %v", addr.Net().Name, netName)
+	}
+	return nil
 }

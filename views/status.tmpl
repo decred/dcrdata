@@ -10,6 +10,33 @@
         <div class="alert alert-info">
             {{if eq .StatusType "Not Found"}}
                 <h5>No matching page, block, address or transaction that could be found</h5>
+                <h5>{{.Message}}</h5>
+            {{else if eq .StatusType "Wrong Network"}}
+                {{if redirectToTestnet .NetName .Message}}
+                    <h5>
+                        {{.Message}}.
+                        {{if ne .AdditionalInfo ""}}
+                            You can <a href="https://testnet.dcrdata.org/search?search={{.AdditionalInfo}}">switch to testnet here.</a>
+                        {{end}}
+                    </h5>
+                {{else if redirectToMainnet .NetName .Message}}
+                    <h5>{{.Message}}. 
+                        {{if ne .AdditionalInfo ""}}
+                            You can <a href="https://explorer.dcrdata.org/search?search={{.AdditionalInfo}}">switch to mainnet here.</a>
+                        {{end}}
+                    </h5>
+                {{else}}
+                    <h5>{{.Message}}</h5>
+                {{end}}
+            {{else if eq .StatusType "Bitcoin Wrong Network"}}
+                <h5>{{.Message}}. You can <a href="https://insight.bitpay.com">find that here.</a></h5>
+            {{else if eq .StatusType "P2PK Address Type"}}
+                {{$P2PKHAddr := PKAddr2PKHAddr .AdditionalInfo}}
+                <h5>{{.Message}}. 
+                    {{if and (ne .AdditionalInfo "") (ne $P2PKHAddr "")}}
+                        You can <a href="https://explorer.dcrdata.org/search?search={{$P2PKHAddr}}">convert to P2PKH and search here.</a>
+                    {{end}}
+                </h5>
             {{else}}
                 {{if eq .StatusType "Future Block"}}
                     <h5 id="futureblock">{{.Message}}</h5>

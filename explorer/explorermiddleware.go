@@ -42,7 +42,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			}
 			if err != nil {
 				log.Errorf("BlockHeight(%s) failed: %v", hash, err)
-				exp.StatusPage(w, defaultErrorCode, "could not find that block", ExpStatusNotFound)
+				exp.StatusPage(w, defaultErrorCode, "could not find that block", hash, ExpStatusNotFound)
 				return
 			}
 		} else {
@@ -64,7 +64,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			if height > maxHeight {
 				expectedTime := time.Duration(height-maxHeight) * exp.ChainParams.TargetTimePerBlock
 				message := fmt.Sprintf("This block is expected to arrive in approximately in %v. ", expectedTime)
-				exp.StatusPage(w, defaultErrorCode, message, ExpStatusFutureBlock)
+				exp.StatusPage(w, defaultErrorCode, message, string(expectedTime), ExpStatusFutureBlock)
 				return
 			}
 
@@ -77,7 +77,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				}
 				if err != nil {
 					log.Errorf("%s(%d) failed: %v", f, height, err)
-					exp.StatusPage(w, defaultErrorCode, "could not find that block", ExpStatusNotFound)
+					exp.StatusPage(w, defaultErrorCode, "could not find that block", string(height), ExpStatusNotFound)
 					return
 				}
 			}
@@ -96,7 +96,7 @@ func (exp *explorerUI) SyncStatusPageActivation(next http.Handler) http.Handler 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp.DisplaySyncStatusPage() {
 			exp.StatusPage(w, "Database Update Running. Please Wait...",
-				"Blockchain sync is running. Please wait ...", ExpStatusSyncing)
+				"Blockchain sync is running. Please wait ...", "", ExpStatusSyncing)
 		} else {
 			// Pass the token to the next middleware handler
 			next.ServeHTTP(w, r)
