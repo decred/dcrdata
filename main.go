@@ -711,9 +711,9 @@ func mainCore() error {
 	// causing this to be a duplicate block by the time the monitors begin
 	// pulling data out of the full channels.
 
-	// The configures and starts handlers that monitor for new blocks, change in
-	// the mempool and handle chain reorg. It also initiates data collection for
-	// the explorer.
+	// The following configures and starts handlers that monitor for new blocks,
+	// changes in the mempool, and handle chain reorg. It also initiates data
+	// collection for the explorer.
 
 	// Register notifications from dcrd.
 	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
