@@ -98,13 +98,14 @@ type config struct {
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
 	AgendaDBFileName   string `long:"agendadbfile" description:"Agenda DB file name (default is agendas.db)."`
 
-	FullMode      bool   `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support"`
-	PGDBName      string `long:"pgdbname" description:"PostgreSQL DB name."`
-	PGUser        string `long:"pguser" description:"PostgreSQL DB user."`
-	PGPass        string `long:"pgpass" description:"PostgreSQL DB password."`
-	PGHost        string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)."`
-	NoDevPrefetch bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected."`
-	SyncAndQuit   bool   `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API."`
+	FullMode         bool   `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support"`
+	PGDBName         string `long:"pgdbname" description:"PostgreSQL DB name."`
+	PGUser           string `long:"pguser" description:"PostgreSQL DB user."`
+	PGPass           string `long:"pgpass" description:"PostgreSQL DB password."`
+	PGHost           string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)."`
+	NoDevPrefetch    bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected."`
+	SyncAndQuit      bool   `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API."`
+	ImportSideChains bool   `long:"import-side-chains" description:"Enable startup import of side chains retrieved from dcrd via getchaintips."`
 
 	SyncStatusLimit int64 `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000."`
 
@@ -468,6 +469,12 @@ func loadConfig() (*config, error) {
 
 	log.Infof("Log folder:  %s", cfg.LogDir)
 	log.Infof("Config file: %s", configFile)
+
+	// If import-sidechains is true, but not running in full mode, warn the user
+	// that side chain import cannot be performed.
+	if !cfg.FullMode && cfg.ImportSideChains {
+		log.Warn("Unable to import side chains in lite mode!")
+	}
 
 	// Disable dev balance prefetch if network has invalid script.
 	_, err = dbtypes.DevSubsidyAddress(activeChain)
