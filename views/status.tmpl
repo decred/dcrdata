@@ -10,12 +10,9 @@
         <div class="alert alert-info">
             {{if eq .StatusType "Not Found"}}
                 <h5>No matching page, block, address or transaction that could be found</h5>
+                <h5>{{.Message}}</h5>
             {{else}}
-                {{if eq .StatusType "Future Block"}}
-                    <h5 id="futureblock">{{.Message}}</h5>
-                {{else}}
-                    <h5>{{.Message}}</h5>
-                {{end}}
+                <h5>{{.Message}}</h5>
             {{end}}
         </div>
         <div id="initial-load" class="sync-progress">

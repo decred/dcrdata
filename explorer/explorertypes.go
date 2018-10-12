@@ -23,7 +23,6 @@ type statusType string
 const (
 	ErrorStatusType          statusType = "Error"
 	NotFoundStatusType       statusType = "Not Found"
-	FutureBlockStatusType    statusType = "Future Block"
 	NotSupportedStatusType   statusType = "Not Supported"
 	NotImplementedStatusType statusType = "Not Implemented"
 	DeprecatedStatusType     statusType = "Deprecated"

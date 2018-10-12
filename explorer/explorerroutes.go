@@ -1137,8 +1137,6 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 	switch sType {
 	case NotFoundStatusType:
 		w.WriteHeader(http.StatusNotFound)
-	case FutureBlockStatusType:
-		w.WriteHeader(http.StatusOK)
 	case ErrorStatusType:
 		w.WriteHeader(http.StatusInternalServerError)
 	// When blockchain sync is running status 202 is used to imply that the other
