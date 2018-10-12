@@ -625,7 +625,7 @@ func mainCore() error {
 
 	// Ensure all side chains known by dcrd are also present in the auxiliary DB
 	// and import them if they are not already there.
-	if usePG {
+	if usePG && cfg.ImportSideChains {
 		// First identify the side chain blocks that are missing from the DB.
 		log.Infof("Retrieving side chain blocks from dcrd.")
 		sideChainBlocksToStore, nSideChainBlocks, err := auxDB.MissingSideChainBlocks()

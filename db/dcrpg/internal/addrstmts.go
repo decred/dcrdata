@@ -189,7 +189,7 @@ const (
 	// SelectAddressesGloballyInvalid selects the row ids of the addresses table
 	// corresponding to transactions that should have valid_mainchain set to
 	// false according to the transactions table. Should is defined as any
-	// occurence of a given transaction (hash) being flagged as is_valid AND
+	// occurrence of a given transaction (hash) being flagged as is_valid AND
 	// is_mainchain.
 	SelectAddressesGloballyInvalid = `SELECT id, valid_mainchain
 		FROM addresses
