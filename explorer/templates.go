@@ -152,26 +152,49 @@ func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces .
 }
 
 func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
+
+	// Filter numPlaces to only allow up to 8 decimal places trimming (eg. 1.12345678)
+	if numPlaces > 8 {
+		numPlaces = 8
+	}
+
+	// Separate values passed in into int.dec parts.
 	amt := strconv.FormatInt(v, 10)
 	intpart := v / 1e8
 	decpart := v % 1e8
 
+	// For shorter values sent from system
 	if len(amt) <= 8 {
-		right := strings.TrimRight(amt, "0")
-		left := ""
-		tail := strings.Repeat("0", 8-len(amt))
+		rightWithTail := fmt.Sprintf("%08d", decpart)
+		if len(rightWithTail) > int(numPlaces) {
+			rightWithTail = rightWithTail[0:numPlaces]
+		}
+
+		right := strings.TrimRight(rightWithTail, "0")
+		tail := strings.TrimPrefix(rightWithTail, right)
+
+		// Do not leave value as 1. if it is case with nothing trailing
 		if (8 - len(amt)) > 2 {
 			tail = "00"
 		}
-		return []string{"0", left + right, tail}
+
+		return []string{"0", right, tail}
 	}
 
+	// Format left side.
 	left := strconv.FormatInt(intpart, 10)
-	right := fmt.Sprintf("%08d", decpart)
-	right = string(right[0:numPlaces])
+	rightWithTail := fmt.Sprintf("%08d", decpart)
 
-	tail := ""
+	// Reduce precision according to numPlaces.
+	if len(rightWithTail) > int(numPlaces) {
+		rightWithTail = rightWithTail[0:numPlaces]
+	}
 
+	// Separate trailing zeros.
+	right := strings.TrimRight(rightWithTail, "0")
+	tail := strings.TrimPrefix(rightWithTail, right)
+
+	// Add commas (eg. 3,444.33)
 	if useCommas {
 		integerAsInt64, err := strconv.ParseInt(left, 10, 64)
 		if err != nil {
