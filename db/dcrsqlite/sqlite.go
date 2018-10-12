@@ -493,7 +493,7 @@ func (db *DB) RetrievePoolValAndSizeRange(ind0, ind1 int64) ([]float64, []float6
 	}
 
 	if len(poolsizes) != int(N) {
-		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(poolsizes), N)
+		log.Warnf("RetrievePoolValAndSizeRange: Retrieved pool values (%d) not expected number (%d)", len(poolsizes), N)
 	}
 
 	return poolvals, poolsizes, nil
@@ -534,7 +534,7 @@ func (db *DB) RetrieveAllPoolValAndSize() (*dbtypes.ChartsData, error) {
 	}
 
 	if len(chartsData.Time) < 1 {
-		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(chartsData.Time), 1)
+		log.Warnf("RetrieveAllPoolValAndSize: Retrieved pool values (%d) not expected number (%d)", len(chartsData.Time), 1)
 	}
 
 	return chartsData, nil
@@ -577,7 +577,7 @@ func (db *DB) RetrieveBlockFeeInfo() (*dbtypes.ChartsData, error) {
 	}
 
 	if len(chartsData.Count) < 1 {
-		log.Warnf("Retrieved pool values (%d) not expected number (%d)", len(chartsData.Count), 1)
+		log.Warnf("RetrieveBlockFeeInfo: Retrieved pool values (%d) not expected number (%d)", len(chartsData.Count), 1)
 	}
 
 	return chartsData, nil
