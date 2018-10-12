@@ -35,6 +35,7 @@ The dcrdata repository is a collection of Go packages and apps for
     - ["full" Mode (SQLite and PostgreSQL)](#full-mode-sqlite-and-postgresql)
   - [dcrdata Daemon](#dcrdata-daemon)
     - [Block Explorer](#block-explorer)
+  - [APIs](#apis)
     - [Insight API (EXPERIMENTAL)](#insight-api-experimental)
     - [dcrdata API](#dcrdata-api)
       - [Endpoint List](#endpoint-list)
@@ -415,6 +416,7 @@ List of variables that can be set:
 | The number minimum number of new tickets that must be seen to trigger a new mempool report.                              | DCRDATA_MP_TRIGGER_TICKETS     |
 | Dump to file the fees of all the tickets in mempool.                                                                     | DCRDATA_ENABLE_DUMP_ALL_MP_TIX |
 | SQLite DB file name (default is dcrdata.sqlt.db)                                                                         | DCRDATA_SQLITE_DB_FILE_NAME    |
+| Voting agendas DB file name (default is agendas.db)                                                                      | DCRDATA_AGENDA_DB_FILE_NAME    |
 | Run in "Full Mode" mode, enables postgresql support                                                                      | DCRDATA_ENABLE_FULL_MODE       |
 | PostgreSQL DB name.                                                                                                      | DCRDATA_PG_DB_NAME             |
 | PostgreSQL DB user                                                                                                       | DCRDATA_POSTGRES_USER          |
@@ -422,6 +424,7 @@ List of variables that can be set:
 | port or UNIX socket (e.g. /run/postgresql).                                                                              | DCRDATA_POSTGRES_HOST_URL      |
 | Disable automatic dev fund balance query on new blocks.                                                                  | DCRDATA_DISABLE_DEV_PREFETCH   |
 | Sync to the best block and exit. Do not start the explorer or API.                                                       | DCRDATA_ENABLE_SYNC_N_QUIT     |
+| (experimental) Import side chain blocks from dcrd via the getchaintips RPC.                                              | DCRDATA_IMPORT_SIDE_CHAINS     |
 | Daemon RPC user name                                                                                                     | DCRDATA_DCRD_USER              |
 | Daemon RPC password                                                                                                      | DCRDATA_DCRD_PASS              |
 | Hostname/IP and port of dcrd RPC server                                                                                  | DCRDATA_DCRD_URL               |
