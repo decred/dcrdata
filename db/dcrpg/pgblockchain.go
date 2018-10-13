@@ -1607,92 +1607,10 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 
 	// Update last block in db with this block's hash as it's next. Also update
 	// isValid flag in last block if votes in this block invalidated it.
-	lastBlockHash := msgBlock.Header.PrevBlock
-	// Only update if last was not genesis, which is not in the table (implied).
-	if lastBlockHash != zeroHash {
-		// Ensure previous block has the same main/sidechain status. If the
-		// current block being added is side chain, do not invalidate the
-		// mainchain block or any of its components, or update the block_chain
-		// table to point to this block.
-		if !isMainchain { // only check when current block is side chain
-			_, lastIsMainchain, errB := pgb.BlockFlags(lastBlockHash.String())
-			if errB != nil {
-				log.Errorf("Unable to determine status of previous block %v: %v",
-					lastBlockHash, errB)
-				return // do not return an error, but this should not happen
-			}
-			// Do not update previous block data if it is not the same blockchain
-			// branch. i.e. A side chain block does not invalidate a main chain block.
-			if lastIsMainchain != isMainchain {
-				log.Debugf("Previous block %v is on the main chain, while current "+
-					"block %v is on a side chain. Not updating main chain parent.",
-					lastBlockHash, msgBlock.BlockHash())
-				return
-			}
-		}
-
-		// Attempt to find the row id of the block hash in cache.
-		lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
-		if !ok {
-			log.Debugf("The previous block %s for block %s not found in cache, "+
-				"looking it up.", lastBlockHash, msgBlock.BlockHash())
-			lastBlockDbID, err = RetrieveBlockChainDbID(pgb.db, lastBlockHash.String())
-			if err != nil {
-				log.Criticalf("Unable to locate block %s in block_chain table: %v",
-					lastBlockHash, err)
-				return
-			}
-		}
-
-		// Was the previous block invalidated? Update it's is_valid flag in the
-		// blocks table if needed.
-		lastIsValid := dbBlock.VoteBits&1 != 0
-		if !lastIsValid {
-			log.Infof("Setting last block %s as INVALID", lastBlockHash)
-			err = UpdateLastBlockValid(pgb.db, lastBlockDbID, lastIsValid)
-			if err != nil {
-				log.Error("UpdateLastBlock:", err)
-				return
-			}
-		}
-
-		// Update the previous block's next block hash in the block_chain table.
-		err = UpdateBlockNext(pgb.db, lastBlockDbID, dbBlock.Hash)
-		if err != nil {
-			log.Error("UpdateBlockNext:", err)
-			return
-		}
-
-		// If the previous block is invalidated by this one, flag all the vins,
-		// transactions, and addresses table rows from the previous block's
-		// transactions as invalid. Do nothing otherwise since blocks'
-		// transactions are initially added as valid.
-		if !lastIsValid {
-			// Update the is_valid flag in the transactions from the previous block.
-			err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid, isMainchain)
-			if err != nil {
-				log.Error("UpdateLastVins:", err)
-				return
-			}
-
-			// Update last block's regular transactions.
-			_, _, err = UpdateTransactionsValid(pgb.db, lastBlockHash.String(), lastIsValid)
-			if err != nil {
-				log.Error("UpdateTransactionsValid:", err)
-				return
-			}
-
-			// Update addresses table for last block's regular transactions.
-			err = UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
-			if err != nil {
-				log.Error("UpdateLastAddressesValid:", err)
-				return
-			}
-
-			// NOTE: Updating the tickets, votes, and misses tables is not
-			// necessary since the stake tree is not subject to stakeholder
-			// approval.
-		}
+	err = pgb.UpdateLastBlock(msgBlock, isMainchain)
+	if err != nil && err != sql.ErrNoRows {
+		err = fmt.Errorf("InsertBlockPrevNext: %v", err)
+		return
 	}
 
 	// If not in batch sync, lazy update the dev fund balance
@@ -1714,6 +1632,94 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	}
 
 	return
+}
+
+func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) error {
+	// Only update if last was not genesis, which is not in the table (implied).
+	lastBlockHash := msgBlock.Header.PrevBlock
+	if lastBlockHash == zeroHash {
+		return nil
+	}
+
+	// Ensure previous block has the same main/sidechain status. If the
+	// current block being added is side chain, do not invalidate the
+	// mainchain block or any of its components, or update the block_chain
+	// table to point to this block.
+	blockStatus, err := pgb.BlockStatus(lastBlockHash.String())
+	if err != nil {
+		log.Errorf("Unable to determine status of previous block %v: %v",
+			lastBlockHash, err)
+		return nil // do not return an error, but this should not happen
+	}
+	// Do not update previous block data if it is not the blockchain branch.
+	if blockStatus.IsMainchain != isMainchain {
+		// A main chain block should never have a side chain parent.
+		if isMainchain {
+			log.Errorf("Previous block %v on a different branch (main=%v)"+
+				" from current block (main=%v). Not updating previous block's data.",
+				lastBlockHash, blockStatus.IsMainchain, isMainchain)
+		}
+		return nil
+	}
+
+	// Attempt to find the row id of the block hash in cache.
+	lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
+	if !ok {
+		log.Debugf("The previous block %s for block %s not found in cache, "+
+			"looking it up.", lastBlockHash, msgBlock.BlockHash())
+		lastBlockDbID, err = RetrieveBlockChainDbID(pgb.db, lastBlockHash.String())
+		if err != nil {
+			return fmt.Errorf("unable to locate block %s in block_chain table: %v",
+				lastBlockHash, err)
+		}
+	}
+
+	// Was the previous block invalidated? Update it's is_valid flag in the
+	// blocks table if needed.
+	lastIsValid := msgBlock.Header.VoteBits&1 != 0
+	if !lastIsValid {
+		log.Infof("Setting last block %s as INVALID", lastBlockHash)
+		err := UpdateLastBlockValid(pgb.db, lastBlockDbID, lastIsValid)
+		if err != nil {
+			return fmt.Errorf("UpdateLastBlockValid: %v", err)
+		}
+	}
+
+	// Update the previous block's next block hash in the block_chain table.
+	err = UpdateBlockNext(pgb.db, lastBlockDbID, msgBlock.BlockHash().String())
+	if err != nil {
+		return fmt.Errorf("UpdateBlockNext: %v", err)
+	}
+
+	// If the previous block is invalidated by this one, flag all the vins,
+	// transactions, and addresses table rows from the previous block's
+	// transactions as invalid. Do nothing otherwise since blocks'
+	// transactions are initially added as valid.
+	if !lastIsValid {
+		// Update the is_valid flag in the transactions from the previous block.
+		err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid, isMainchain)
+		if err != nil {
+			return fmt.Errorf("UpdateLastVins: %v", err)
+		}
+
+		// Update last block's regular transactions.
+		_, _, err = UpdateTransactionsValid(pgb.db, lastBlockHash.String(), lastIsValid)
+		if err != nil {
+			return fmt.Errorf("UpdateTransactionsValid: %v", err)
+		}
+
+		// Update addresses table for last block's regular transactions.
+		err = UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
+		if err != nil {
+			return fmt.Errorf("UpdateLastAddressesValid: %v", err)
+		}
+
+		// NOTE: Updating the tickets, votes, and misses tables is not
+		// necessary since the stake tree is not subject to stakeholder
+		// approval.
+	}
+
+	return nil
 }
 
 // storeTxnsResult is the type of object sent back from the goroutines wrapping
