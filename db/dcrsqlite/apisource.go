@@ -1333,6 +1333,12 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 }
 
 func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, error) {
+
+	// This is here to detect a bitcoin type address
+	if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3")) && len(address) >= 26 {
+		return nil, fmt.Errorf("You may have pasted a Bitcoin address type on a Decred Explorer")
+	}
+
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", address, err)
@@ -1358,9 +1364,12 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(maxcount), true, true, nil)
+
+	// Dectection of when an address belonging to a different network is inputed
 	if addr.Net().Name != db.params.Name {
 		return nil, fmt.Errorf("You pasted a %s address on %v", addr.Net().Name, db.params.Name)
 	}
+
 	if err != nil && err.Error() == "-32603: No Txns available" {
 		log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
 
