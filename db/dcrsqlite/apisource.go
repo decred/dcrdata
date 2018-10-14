@@ -1336,7 +1336,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 
 	// This is here to detect a bitcoin type address
 	if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3")) && len(address) >= 26 {
-		return nil, fmt.Errorf("You may have pasted a Bitcoin address type on a Decred Explorer")
+		return nil, fmt.Errorf("Looks like you are searching for a bitcoin address")
 	}
 
 	addr, err := dcrutil.DecodeAddress(address)

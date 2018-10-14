@@ -1515,7 +1515,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		exp.StatusPage(w, "search failed", err.Error()+", You can find it by switching here", WrongNetworkStatusType)
+		exp.StatusPage(w, "search failed", err.Error()+", you can ", WrongNetworkStatusType)
 		return
 	}
 	if !exp.liteMode {
