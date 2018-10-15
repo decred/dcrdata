@@ -1358,8 +1358,20 @@ func retrieveTxHistoryByUnspentAmount(db *sql.DB, addr string,
 
 // --- vins and vouts tables ---
 
-func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64, err error) {
-	err = db.QueryRow(internal.MakeVinInsertStatement(checked),
+// InsertVin either inserts, attempts to insert, or upserts the given vin data
+// into the vins table. If checked=false, an unconditional insert as attempted,
+// which may result in a violation of a unique index constraint (error). If
+// checked=true, a constraint violation may be handled in one of two ways:
+// update the conflicting row (upsert), or do nothing. In all cases, the id of
+// the new/updated/conflicting row is returned. The updateOnConflict argumenet
+// may be omitted, in which case an upsert will be favored over no nothing, but
+// only if checked=true.
+func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool, updateOnConflict ...bool) (id uint64, err error) {
+	doUpsert := true
+	if len(updateOnConflict) > 0 {
+		doUpsert = updateOnConflict[0]
+	}
+	err = db.QueryRow(internal.MakeVinInsertStatement(checked, doUpsert),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
 		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree,
 		dbVin.ValueIn, dbVin.IsValid, dbVin.IsMainchain, dbVin.Time,
@@ -1367,13 +1379,18 @@ func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64
 	return
 }
 
-func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool) ([]uint64, error) {
+// InsertVins is like InsertVin, except that it operates on a slice of vin data.
+func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool, updateOnConflict ...bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	stmt, err := dbtx.Prepare(internal.MakeVinInsertStatement(checked))
+	doUpsert := true
+	if len(updateOnConflict) > 0 {
+		doUpsert = updateOnConflict[0]
+	}
+	stmt, err := dbtx.Prepare(internal.MakeVinInsertStatement(checked, doUpsert))
 	if err != nil {
 		log.Errorf("Vin INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
@@ -1404,8 +1421,20 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool) ([]
 	return ids, dbtx.Commit()
 }
 
-func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool) (uint64, error) {
-	insertStatement := internal.MakeVoutInsertStatement(checked)
+// InsertVout either inserts, attempts to insert, or upserts the given vout data
+// into the vouts table. If checked=false, an unconditional insert as attempted,
+// which may result in a violation of a unique index constraint (error). If
+// checked=true, a constraint violation may be handled in one of two ways:
+// update the conflicting row (upsert), or do nothing. In all cases, the id of
+// the new/updated/conflicting row is returned. The updateOnConflict argumenet
+// may be omitted, in which case an upsert will be favored over no nothing, but
+// only if checked=true.
+func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool, updateOnConflict ...bool) (uint64, error) {
+	doUpsert := true
+	if len(updateOnConflict) > 0 {
+		doUpsert = updateOnConflict[0]
+	}
+	insertStatement := internal.MakeVoutInsertStatement(checked, doUpsert)
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbVout.TxHash, dbVout.TxIndex, dbVout.TxTree,
@@ -1416,14 +1445,20 @@ func InsertVout(db *sql.DB, dbVout *dbtypes.Vout, checked bool) (uint64, error) 
 	return id, err
 }
 
-func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool) ([]uint64, []dbtypes.AddressRow, error) {
+// InsertVouts is like InsertVout, except that it operates on a slice of vout
+// data.
+func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConflict ...bool) ([]uint64, []dbtypes.AddressRow, error) {
 	// All inserts in atomic DB transaction
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	stmt, err := dbtx.Prepare(internal.MakeVoutInsertStatement(checked))
+	doUpsert := true
+	if len(updateOnConflict) > 0 {
+		doUpsert = updateOnConflict[0]
+	}
+	stmt, err := dbtx.Prepare(internal.MakeVoutInsertStatement(checked, doUpsert))
 	if err != nil {
 		log.Errorf("Vout INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back

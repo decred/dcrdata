@@ -1244,15 +1244,27 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
-// and part of mainchain.
+// and part of mainchain. Store should not be used for batch block processing;
+// instead, use StoreBlock and specify appropriate flags.
 func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+	// This function must handle being run when pgb is nil (not constructed).
 	if pgb == nil {
 		return nil
 	}
-	// New blocks stored this way are considered valid and part of mainchain.
-	// When adding side chain blocks manually, call StoreBlock directly with
-	// appropriate flags for isMainchain and isValid, and nil winningTickets.
-	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets, true, true, true, true)
+
+	// New blocks stored this way are considered valid and part of mainchain,
+	// warranting updates to existing records. When adding side chain blocks
+	// manually, call StoreBlock directly with appropriate flags for isValid,
+	// isMainchain, and updateExistingRecords, and nil winningTickets.
+	isValid, isMainChain, updateExistingRecords := true, true, true
+
+	// Since Store should not be used in batch block processing, addresses and
+	// tickets spending information is updated.
+	updateAddressesSpendingInfo, updateTicketsSpendingInfo := true, true
+	
+	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets,
+		isValid, isMainChain, updateExistingRecords,
+		updateAddressesSpendingInfo, updateTicketsSpendingInfo)
 	return err
 }
 
@@ -1509,9 +1521,10 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 }
 
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
-// The number of vins, and vouts stored are also returned.
+// The number of vins and vouts stored are returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
-	isValid, isMainchain, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) (numVins int64, numVouts int64, err error) {
+	isValid, isMainchain, updateExistingRecords, updateAddressesSpendingInfo,
+	updateTicketsSpendingInfo bool) (numVins int64, numVouts int64, err error) {
 	// Convert the wire.MsgBlock to a dbtypes.Block
 	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams)
 
@@ -1536,7 +1549,8 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		winners = tpi.Winners
 	}
 
-	// Wrap the message block
+	// Wrap the message block with newly winning tickets and the tickets
+	// expected to vote in this block (on the previous block).
 	MsgBlockPG := &MsgBlockPG{
 		MsgBlock:       msgBlock,
 		WinningTickets: winningTickets,
@@ -1554,6 +1568,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	go func() {
 		resChanReg <- pgb.storeTxns(MsgBlockPG, wire.TxTreeRegular,
 			pgb.chainParams, &dbBlock.TxDbIDs, isValid, isMainchain,
+			updateExistingRecords,
 			updateAddressesSpendingInfo, updateTicketsSpendingInfo)
 	}()
 
@@ -1562,6 +1577,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	go func() {
 		resChanStake <- pgb.storeTxns(MsgBlockPG, wire.TxTreeStake,
 			pgb.chainParams, &dbBlock.STxDbIDs, isValid, isMainchain,
+			updateExistingRecords,
 			updateAddressesSpendingInfo, updateTicketsSpendingInfo)
 	}()
 
@@ -1586,7 +1602,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	numVins = errStk.numVins + errReg.numVins
 	numVouts = errStk.numVouts + errReg.numVouts
 
-	// Store the block now that it has all it's transaction PK IDs
+	// Store the block now that it has all if its transaction row IDs.
 	var blockDbID uint64
 	blockDbID, err = InsertBlock(pgb.db, dbBlock, isValid, isMainchain, pgb.dupChecks)
 	if err != nil {
@@ -1595,9 +1611,13 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	}
 	pgb.lastBlock[msgBlock.BlockHash()] = blockDbID
 
+	// Update best block height and hash.
 	pgb.bestBlock = int64(dbBlock.Height)
 	pgb.bestBlockHash = dbBlock.Hash
 
+	// Insert the block in the block_chain table with the previous block hash
+	// and an empty string for the next block hash, which may be updated when a
+	// new block extends this chain.
 	err = InsertBlockPrevNext(pgb.db, blockDbID, dbBlock.Hash,
 		dbBlock.PreviousHash, "")
 	if err != nil && err != sql.ErrNoRows {
@@ -1605,8 +1625,12 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		return
 	}
 
-	// Update last block in db with this block's hash as it's next. Also update
-	// isValid flag in last block if votes in this block invalidated it.
+	// Update the previous block's next block hash in the block_chain table with
+	// this block's hash as it is next. If the current block's votes
+	// invalidated/disapproved the previous block, also update the is_valid
+	// columns for the previous block's entries in the following tables: blocks,
+	// vins, addresses, and transactions. If updateExistingRecords=false, this
+	// excludes vins, ...
 	err = pgb.UpdateLastBlock(msgBlock, isMainchain)
 	if err != nil && err != sql.ErrNoRows {
 		err = fmt.Errorf("InsertBlockPrevNext: %v", err)
@@ -1696,13 +1720,13 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 	// transactions as invalid. Do nothing otherwise since blocks'
 	// transactions are initially added as valid.
 	if !lastIsValid {
-		// Update the is_valid flag in the transactions from the previous block.
+		// Update the is_valid flag for the last block's vins.
 		err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid, isMainchain)
 		if err != nil {
 			return fmt.Errorf("UpdateLastVins: %v", err)
 		}
 
-		// Update last block's regular transactions.
+		// Update the is_valid flag for the last block's regular transactions.
 		_, _, err = UpdateTransactionsValid(pgb.db, lastBlockHash.String(), lastIsValid)
 		if err != nil {
 			return fmt.Errorf("UpdateTransactionsValid: %v", err)
@@ -1745,7 +1769,7 @@ type MsgBlockPG struct {
 // storeTxns stores the transactions of a given block.
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isValid, isMainchain bool,
-	updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
+	updateExistingRecords, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block, transaction tree, and network, extract the
 	// transactions, vins, and vouts.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
@@ -1774,7 +1798,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	for it, dbtx := range dbTransactions {
 		// Insert vouts, and collect AddressRows to add to address table for
 		// each output.
-		dbtx.VoutDbIds, dbAddressRows[it], err = InsertVouts(pgb.db, dbTxVouts[it], pgb.dupChecks)
+		dbtx.VoutDbIds, dbAddressRows[it], err = InsertVouts(pgb.db,
+			dbTxVouts[it], pgb.dupChecks, updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVouts:", err)
 			txRes.err = err
@@ -1787,7 +1812,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 
 		// Insert vins
-		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it], pgb.dupChecks)
+		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it], pgb.dupChecks,
+			updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVins:", err)
 			txRes.err = err
