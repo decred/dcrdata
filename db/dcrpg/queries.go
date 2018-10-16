@@ -203,13 +203,15 @@ func DeleteDuplicateMisses(db *sql.DB) (int64, error) {
 // transactions, extracts the tickets, and inserts the tickets into the
 // database. Outputs are a slice of DB row IDs of the inserted tickets, and an
 // error.
-func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked bool) ([]uint64, []*dbtypes.Tx, error) {
+func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, updateExistingRecords bool) ([]uint64, []*dbtypes.Tx, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	stmt, err := dbtx.Prepare(internal.MakeTicketInsertStatement(checked))
+	// Prepare ticket insert statement, optionally updating a row if it conflicts
+	// with the unique index on (tx_hash, block_hash).
+	stmt, err := dbtx.Prepare(internal.MakeTicketInsertStatement(checked, updateExistingRecords))
 	if err != nil {
 		log.Errorf("Ticket INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
@@ -287,8 +289,8 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked b
 // subsequent cache lookups by other consumers will succeed.
 //
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
-func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
-	fTx *TicketTxnIDGetter, msgBlock *MsgBlockPG, checked bool, params *chaincfg.Params) ([]uint64,
+func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *TicketTxnIDGetter,
+	msgBlock *MsgBlockPG, checked, updateExistingRecords bool, params *chaincfg.Params) ([]uint64,
 	[]*dbtypes.Tx, []string, []uint64, map[string]uint64, error) {
 	// Choose only SSGen txns
 	msgTxs := msgBlock.STransactions
@@ -310,13 +312,15 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 		return nil, nil, nil, nil, nil, nil
 	}
 
-	// Start DB transaction and prepare vote insert statement
+	// Start DB transaction.
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, nil, nil, nil, nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	voteInsert := internal.MakeVoteInsertStatement(checked)
+	// Prepare vote insert statement, optionally updating a row if it conflicts
+	// with the unique index on (tx_hash, block_hash).
+	voteInsert := internal.MakeVoteInsertStatement(checked, updateExistingRecords)
 	voteStmt, err := dbtx.Prepare(voteInsert)
 	if err != nil {
 		log.Errorf("Votes INSERT prepare: %v", err)
@@ -324,11 +328,22 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 		return nil, nil, nil, nil, nil, err
 	}
 
-	prep, err := dbtx.Prepare(internal.MakeAgendaInsertStatement(checked))
+	// Prepare agenda status insert statement.
+	agendaStmt, err := dbtx.Prepare(internal.MakeAgendaInsertStatement(checked))
 	if err != nil {
 		log.Errorf("Agendas INSERT prepare: %v", err)
+		_ = voteStmt.Close()
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, nil, nil, nil, nil, err
+	}
+
+	bail := func() {
+		// Already up a creek. Just log any Rollback error.
+		_ = voteStmt.Close()
+		_ = agendaStmt.Close()
+		if errRoll := dbtx.Rollback(); errRoll != nil {
+			log.Errorf("Rollback failed: %v", errRoll)
+		}
 	}
 
 	// Insert each vote, and build list of missed votes equal to
@@ -344,30 +359,27 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 		voteVersion := stake.SSGenVersion(msgTx)
 		validBlock, voteBits, err := txhelpers.SSGenVoteBlockValid(msgTx)
 		if err != nil {
+			bail()
 			return nil, nil, nil, nil, nil, err
 		}
 
+		voteReward := dcrutil.Amount(msgTx.TxIn[0].ValueIn).ToCoin()
 		stakeSubmissionAmount := dcrutil.Amount(msgTx.TxIn[1].ValueIn).ToCoin()
 		stakeSubmissionTxHash := msgTx.TxIn[1].PreviousOutPoint.Hash.String()
 		spentTicketHashes = append(spentTicketHashes, stakeSubmissionTxHash)
 
-		var ticketTxDbID sql.NullInt64
+		// Lookup the row ID in the transactions table for the ticket purchase.
+		var ticketTxDbID uint64
 		if fTx != nil {
-			t, err := fTx.TxnDbID(stakeSubmissionTxHash, false)
+			ticketTxDbID, err = fTx.TxnDbID(stakeSubmissionTxHash, false)
 			if err != nil {
-				_ = voteStmt.Close() // try, but we want the QueryRow error back
-				if errRoll := dbtx.Rollback(); errRoll != nil {
-					log.Errorf("Rollback failed: %v", errRoll)
-				}
+				bail()
 				return nil, nil, nil, nil, nil, err
 			}
-			ticketTxDbID.Int64 = int64(t)
 		}
-		spentTicketDbIDs = append(spentTicketDbIDs, uint64(ticketTxDbID.Int64))
+		spentTicketDbIDs = append(spentTicketDbIDs, ticketTxDbID)
 
-		voteReward := dcrutil.Amount(msgTx.TxIn[0].ValueIn).ToCoin()
-
-		// delete spent ticket from missed list
+		// Remove the spent ticket from missed list.
 		for im := range misses {
 			if misses[im] == stakeSubmissionTxHash {
 				misses[im] = misses[len(misses)-1]
@@ -376,16 +388,38 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 			}
 		}
 
+		// votes table insert
+		var id uint64
+		err = voteStmt.QueryRow(
+			tx.BlockHeight, tx.TxID, tx.BlockHash, candidateBlockHash,
+			voteVersion, voteBits, validBlock.Validity,
+			stakeSubmissionTxHash, ticketTxDbID, stakeSubmissionAmount,
+			voteReward, tx.IsMainchainBlock).Scan(&id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			bail()
+			return nil, nil, nil, nil, nil, err
+		}
+		ids = append(ids, id)
+
+		// agendas table, not modified if not updating existing records.
+		if checked && !updateExistingRecords {
+			continue // rest of loop deals with agendas table
+		}
+
 		_, _, _, choices, err := txhelpers.SSGenVoteChoices(msgTx, params)
 		if err != nil {
+			bail()
 			return nil, nil, nil, nil, nil, err
 		}
 
-		// agendas
 		var rowID uint64
 		for _, val := range choices {
 			index, err := dbtypes.ChoiceIndexFromStr(val.Choice.Id)
 			if err != nil {
+				bail()
 				return nil, nil, nil, nil, nil, err
 			}
 
@@ -400,34 +434,18 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 				hardForked = (progress.HardForked == tx.BlockHeight)
 			}
 
-			err = prep.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight,
+			err = agendaStmt.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight,
 				tx.BlockTime, lockedIn, activated, hardForked).Scan(&rowID)
 			if err != nil {
+				bail()
 				return nil, nil, nil, nil, nil, err
 			}
 		}
-
-		var id uint64
-		err = voteStmt.QueryRow(
-			tx.BlockHeight, tx.TxID, tx.BlockHash, candidateBlockHash,
-			voteVersion, voteBits, validBlock.Validity,
-			stakeSubmissionTxHash, ticketTxDbID, stakeSubmissionAmount,
-			voteReward, tx.IsMainchainBlock).Scan(&id)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				continue
-			}
-			_ = voteStmt.Close() // try, but we want the QueryRow error back
-			if errRoll := dbtx.Rollback(); errRoll != nil {
-				log.Errorf("Rollback failed: %v", errRoll)
-			}
-			return nil, nil, nil, nil, nil, err
-		}
-		ids = append(ids, id)
 	}
 
-	// Close prepared statement. Ignore errors as we'll Commit regardless.
+	// Close prepared statements. Ignore errors as we'll Commit regardless.
 	_ = voteStmt.Close()
+	_ = agendaStmt.Close()
 
 	// If the validators are available, miss accounting should be accurate.
 	if len(msgBlock.Validators) > 0 && len(ids)+len(misses) != 5 {
@@ -437,16 +455,20 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64,
 		panic(fmt.Sprintf("votes (%d) + misses (%d) != 5", len(ids), len(misses)))
 	}
 
-	// Store missed tickets
+	// Store missed tickets.
 	missHashMap := make(map[string]uint64)
 	if len(misses) > 0 {
-		stmtMissed, err := dbtx.Prepare(internal.MakeMissInsertStatement(checked))
+		// Insert misses, optionally updating a row if it conflicts with the
+		// unique index on (ticket_hash, block_hash).
+		stmtMissed, err := dbtx.Prepare(internal.MakeMissInsertStatement(checked, updateExistingRecords))
 		if err != nil {
 			log.Errorf("Miss INSERT prepare: %v", err)
 			_ = dbtx.Rollback() // try, but we want the Prepare error back
 			return nil, nil, nil, nil, nil, err
 		}
 
+		// Insert the miss in the misses table, and store the row ID of the
+		// new/existing/updated miss.
 		blockHash := msgBlock.BlockHash().String()
 		for i := range misses {
 			var id uint64
@@ -896,8 +918,8 @@ func setSpendingForTickets(dbtx *sql.Tx, ticketDbIDs, spendDbIDs []uint64,
 
 // InsertAddressRow inserts an AddressRow (input or output), returning the row
 // ID in the addresses table of the inserted data.
-func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint64, error) {
-	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck)
+func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck, updateExistingRecords bool) (uint64, error) {
+	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords)
 	var id uint64
 	err := db.QueryRow(sqlStmt, dbA.Address, dbA.MatchingTxHash, dbA.TxHash,
 		dbA.TxVinVoutIndex, dbA.VinVoutDbID, dbA.Value, dbA.TxBlockTime,
@@ -907,7 +929,7 @@ func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck bool) (uint6
 
 // InsertAddressRows inserts multiple transaction inputs or outputs for certain
 // addresses ([]AddressRow). The row IDs of the inserted data are returned.
-func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([]uint64, error) {
+func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateExistingRecords bool) ([]uint64, error) {
 	// Create the address table if it does not exist
 	tableName := "addresses"
 	if haveTable, _ := TableExists(db, tableName); !haveTable {
@@ -921,7 +943,7 @@ func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck bool) ([
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck)
+	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords)
 
 	stmt, err := dbtx.Prepare(sqlStmt)
 	if err != nil {
@@ -1758,9 +1780,16 @@ func RetrieveVoutsByIDs(db *sql.DB, voutDbIDs []uint64) ([]dbtypes.Vout, error) 
 	return vouts, nil
 }
 
-// SetSpendingForVinDbIDs updates rows of the addresses table with spending
-// information from the rows of the vins table specified by vinDbIDs.
-func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, error) {
+// SetSpendingForVinDbIDs updates the addresses table with spending information
+// from the rows of the vins table specified by vinDbIDs. This includes
+// inserting the spending transaction information into the addresses table, and
+// setting the matched tx info for corresponding funding tx rows of the
+// addresses table. If checked=true, the unique index constraints are checked on
+// insert, with updateExisting indicating if conflicting rows should be updated
+// (or left alone). When setting the corresponding funding tx rows,
+// updateExisting=false also prevents modifications to the matching tx hash
+// unless it was not set previously (empty string).
+func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64, checked, updateExisting bool) ([]int64, int64, error) {
 	// Get funding details for vin and set them in the address table.
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -1807,11 +1836,11 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		}
 
 		// Set the spending tx info (addresses table) for the vin DB ID
-		addressRowsUpdated[iv], err = insertSpendingTxByPrptStmt(dbtx,
-			prevOutHash, prevOutVoutInd, prevOutTree,
-			txHash, txVinInd, vinDbID, false, isValid && isMainchain, txType)
+		addressRowsUpdated[iv], err = insertAddrSpendingTxUpdateMatchedFunding(dbtx,
+			prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID,
+			checked, updateExisting, isValid && isMainchain, txType)
 		if err != nil {
-			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
+			return addressRowsUpdated, 0, fmt.Errorf(`insertAddrSpendingTxUpdateMatchedFunding: `+
 				`%v + %v (rollback)`, err, bail())
 		}
 
@@ -1824,9 +1853,16 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 	return addressRowsUpdated, totalUpdated, dbtx.Commit()
 }
 
-// SetSpendingForVinDbID updates a row of the addresses table with spending
-// information from a rows of the vins table specified by vinDbID.
-func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
+// SetSpendingForVinDbID updates the addresses table with spending information
+// from a rows of the vins table specified by vinDbID. This includes inserting
+// the spending transaction information into the addresses table, and setting
+// the matched tx info for corresponding funding tx rows of the addresses table.
+// If checked=true, the unique index constraints are checked on insert, with
+// updateExisting indicating if conflicted rows should be updated (or left
+// alone). When setting the corresponding funding tx rows, updateExisting=false
+// also prevents modifications to the matching tx hash unless it was not set
+// previously (empty string).
+func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64, checked, updateExisting bool) (int64, error) {
 	// get funding details for vin and set them in the address table
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -1854,8 +1890,9 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	}
 
 	// Insert the spending tx info (addresses table) for the vin DB ID
-	N, err := insertSpendingTxByPrptStmt(dbtx, prevOutHash, prevOutVoutInd,
-		prevOutTree, txHash, txVinInd, vinDbID, false, isValid && isMainchain, txType)
+	N, err := insertAddrSpendingTxUpdateMatchedFunding(dbtx,
+		prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID,
+		checked, updateExisting, isValid && isMainchain, txType)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -1869,7 +1906,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
 	spendingTxVinIndex uint32, spendingTXBlockTime, vinDbID uint64,
-	checked, isValidMainchain bool, txType int16) (int64, error) {
+	checked, updateExisting, isValidMainchain bool, txType int16) (int64, error) {
 
 	// Only allow atomic transactions to happen
 	dbtx, err := db.Begin()
@@ -1877,9 +1914,10 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
 	}
 
-	c, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex,
-		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, checked,
-		isValidMainchain, txType, spendingTXBlockTime)
+	c, err := insertAddrSpendingTxUpdateMatchedFunding(dbtx,
+		fundingTxHash, fundingTxVoutIndex, fundingTxTree,
+		spendingTxHash, spendingTxVinIndex, vinDbID,
+		checked, updateExisting, isValidMainchain, txType, spendingTXBlockTime)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -1888,13 +1926,19 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	return c, dbtx.Commit()
 }
 
-// insertSpendingTxByPrptStmt inserts into the addresses table a new spending
-// transaction corresponding to a vin specified by the row ID vinDbID, and
-// updates the spending information for the corresponding funding row in the
-// addresses table.
-func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
-	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32,
-	vinDbID uint64, checked, validMainchain bool, txType int16, blockT ...uint64) (int64, error) {
+// insertAddrSpendingTxUpdateMatchedFunding inserts into the addresses table a
+// new spending transaction corresponding to a vin specified by the row ID
+// vinDbID, and updates the spending information for the corresponding funding
+// row in the addresses table. When checked=true, the column constraints on the
+// addresses are checked for conflicts, with updateExisting further indicating
+// if a conflict should be handled by an upsert (or do nothing). Further,
+// updateExisting=false also indicates that the matching tx hash for the funding
+// tx outpoint should only be set if the matching tx was not previously set (is
+// the empty string), while updateExisting=true indicates that the matching tx
+// hash should be set/updated unconditionally.
+func insertAddrSpendingTxUpdateMatchedFunding(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
+	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64,
+	checked, updateExisting, validMainchain bool, txType int16, blockT ...uint64) (int64, error) {
 	var addr string
 	var value, rowID, blockTime uint64
 
@@ -1904,7 +1948,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 		fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&addr, &value)
 	switch err {
 	case sql.ErrNoRows, nil:
-		// If no row found or error is nil, continue
+		// If no row found or error is nil, continue.
 	default:
 		return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
 	}
@@ -1914,20 +1958,20 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 	addr = replacer.Replace(addr)
 	newAddr := strings.Split(addr, ",")[0]
 
-	// Check if the block time was passed
+	// Check if the block time is provided.
 	if len(blockT) > 0 {
 		blockTime = blockT[0]
 	} else {
-		// fetch the block time from the tx table
+		// Fetch the block time from the tx table.
 		err = tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
 		if err != nil {
 			return 0, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
 		}
 	}
 
-	// Insert the new spending tx
+	// Insert/update the new spending tx, or retrieve ID of existing row.
 	var isFunding bool
-	sqlStmt := internal.MakeAddressRowInsertStatement(checked)
+	sqlStmt := internal.MakeAddressRowInsertStatement(checked, updateExisting)
 	err = tx.QueryRow(sqlStmt, newAddr, fundingTxHash, spendingTxHash,
 		spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
 		validMainchain, txType).Scan(&rowID)
@@ -1935,12 +1979,18 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 		return 0, fmt.Errorf("InsertAddressRow: %v", err)
 	}
 
-	// Update the matchingTxHash for the funding tx output. matchingTxHash here
-	// is the hash of the funding tx.
-	res, err := tx.Exec(internal.SetAddressFundingForMatchingTxHash,
-		spendingTxHash, fundingTxHash, fundingTxVoutIndex)
+	// Update the matching tx hash for the funding tx outpoint (funding
+	// hash:index). The matching tx hash is the spending transaction.
+	// Unless updateExisting=true, only assign matching tx hash if it is still
+	// unassigned (empty string).
+	matchingStmt := internal.AssignMatchingTxHashForOutpoint
+	if updateExisting {
+		// Update matching tx hash even if it was already set.
+		matchingStmt = internal.SetAddressMatchingTxHashForOutpoint
+	}
+	res, err := tx.Exec(matchingStmt, spendingTxHash, fundingTxHash, fundingTxVoutIndex)
 	if err != nil || res == nil {
-		return 0, fmt.Errorf("SetAddressFundingForMatchingTxHash: %v", err)
+		return 0, fmt.Errorf("SetAddressMatchingTxHashForFundingTx: %v", err)
 	}
 
 	return res.RowsAffected()
@@ -1950,7 +2000,7 @@ func insertSpendingTxByPrptStmt(tx *sql.Tx, fundingTxHash string, fundingTxVoutI
 // need to get the funding (previous output) tx info, and then update the
 // corresponding row in the addresses table with the spending tx info.
 func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
-	spendingTxHash string, spendingTxVinIndex uint32, checked, isValidMainchain bool,
+	spendingTxHash string, spendingTxVinIndex uint32, checked, updateExisting, isValidMainchain bool,
 	txType int16) (int64, error) {
 	// get funding details for vin and set them in the address table
 	dbtx, err := db.Begin()
@@ -1975,8 +2025,9 @@ func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
 	}
 
 	// Insert the spending tx info (addresses table) for the vin DB ID
-	N, err := insertSpendingTxByPrptStmt(dbtx, fundingTxHash, fundingTxVoutIndex,
-		tree, spendingTxHash, spendingTxVinIndex, vinDbID, checked, isValidMainchain, txType)
+	N, err := insertAddrSpendingTxUpdateMatchedFunding(dbtx, fundingTxHash, fundingTxVoutIndex,
+		tree, spendingTxHash, spendingTxVinIndex, vinDbID, checked,
+		updateExisting, isValidMainchain, txType)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -2073,8 +2124,8 @@ func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtype
 
 // --- transactions table ---
 
-func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {
-	insertStatement := internal.MakeTxInsertStatement(checked)
+func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked, updateExistingRecords bool) (uint64, error) {
+	insertStatement := internal.MakeTxInsertStatement(checked, updateExistingRecords)
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbTx.BlockHash, dbTx.BlockHeight, dbTx.BlockTime, dbTx.Time,
@@ -2086,13 +2137,13 @@ func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked bool) (uint64, error) {
 	return id, err
 }
 
-func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked bool) ([]uint64, error) {
+func InsertTxns(db *sql.DB, dbTxns []*dbtypes.Tx, checked, updateExistingRecords bool) ([]uint64, error) {
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	stmt, err := dbtx.Prepare(internal.MakeTxInsertStatement(checked))
+	stmt, err := dbtx.Prepare(internal.MakeTxInsertStatement(checked, updateExistingRecords))
 	if err != nil {
 		log.Errorf("Transaction INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back

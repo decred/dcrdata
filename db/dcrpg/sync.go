@@ -292,8 +292,12 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 
 		// Store data from this block in the database
-		numVins, numVouts, err := db.StoreBlock(block.MsgBlock(), winners, true,
-			true, !updateAllAddresses, !updateAllVotes)
+		isValid, isMainchain := true, true
+		// updateExisting is ignored if dupCheck=false, but true since this is
+		// processing main chain blocks.
+		updateExisting := true
+		numVins, numVouts, err := db.StoreBlock(block.MsgBlock(), winners, isValid,
+			isMainchain, updateExisting, !updateAllAddresses, !updateAllVotes)
 		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
@@ -309,7 +313,8 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 
 		// If updating explorer is activated, update it at intervals of 20
-		if updateExplorer != nil && ib%20 == 0 && explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
+		if updateExplorer != nil && ib%20 == 0 &&
+			explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
 			log.Infof("Updating the explorer with information for block %v", ib)
 			updateExplorer <- blockHash
 		}

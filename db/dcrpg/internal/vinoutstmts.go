@@ -37,7 +37,7 @@ const (
 
 	// UpsertVinRow is an upsert (insert or update on conflict), returning the
 	// inserted/updated vin row id.
-	UpsertVinRow = insertVinRow + `ON CONFLICT ON CONSTRAINT uix_vin DO UPDATE
+	UpsertVinRow = insertVinRow + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
 		SET is_valid = $8, is_mainchain = $9, block_time = $10,
 			prev_tx_hash = $4, prev_tx_index = $5, prev_tx_tree = $6
 		RETURNING id;`
@@ -49,7 +49,7 @@ const (
 	// which would have performance consequences. The row is not locked.
 	InsertVinRowOnConflictDoNothing = `WITH inserting AS (` +
 		insertVinRow +
-		`	ON CONFLICT ON CONSTRAINT uix_vin DO NOTHING -- no lock on row
+		`	ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING -- no lock on row
 			RETURNING id
 		)
 		SELECT id FROM inserting
@@ -162,7 +162,7 @@ const (
 
 	// UpsertVoutRow is an upsert (insert or update on conflict), returning the
 	// inserted/updated vout row id.
-	UpsertVoutRow = insertVoutRow + `ON CONFLICT ON CONSTRAINT uix_vout_txhash_ind DO UPDATE
+	UpsertVoutRow = insertVoutRow + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
 		SET version = $5 RETURNING id;`
 
 	// InsertVoutRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
@@ -172,14 +172,13 @@ const (
 	// which would have performance consequences. The row is not locked.
 	InsertVoutRowOnConflictDoNothing = `WITH inserting AS (` +
 		insertVoutRow +
-		`	ON CONFLICT ON CONSTRAINT uix_vout_txhash_ind DO UPDATE
-			SET tx_hash = NULL WHERE FALSE
+		`	ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING -- no lock on row
 			RETURNING id
 		)
 		SELECT id FROM inserting
 		UNION  ALL
 		SELECT id FROM vouts
-		WHERE  tx_hash = $1 AND tx_index = $2 AND tx_tree = $3
+		WHERE  tx_hash = $1 AND tx_index = $2 AND tx_tree = $3 -- only executed if no INSERT
 		LIMIT  1;`
 
 	// DeleteVoutDuplicateRows removes rows that would violate the unique index
@@ -191,6 +190,12 @@ const (
 				FROM vouts) t
 			WHERE t.rnum > 1);`
 
+	// IndexVoutTableOnTxHashIdx creates the unique index uix_vout_txhash_ind on
+	// (tx_hash, tx_index, tx_tree).
+	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX uix_vout_txhash_ind
+		ON vouts(tx_hash, tx_index, tx_tree);`
+	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
+
 	SelectAddressByTxHash = `SELECT script_addresses, value FROM vouts
 		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`
 
@@ -201,10 +206,6 @@ const (
 
 	RetrieveVoutValue  = `SELECT value FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	RetrieveVoutValues = `SELECT value, tx_index, tx_tree FROM vouts WHERE tx_hash=$1;`
-
-	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX uix_vout_txhash_ind
-		ON vouts(tx_hash, tx_index, tx_tree);`
-	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
 
 	CreateVoutType = `CREATE TYPE vout_t AS (
 		value INT8,

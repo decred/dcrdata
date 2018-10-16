@@ -644,7 +644,7 @@ func mainCore() error {
 			nSideChainBlocks, nSideChains)
 		var sideChainsStored, sideChainBlocksStored int
 		for _, sideChain := range sideChainBlocksToStore {
-			// Process this side chain only if there are block in it that need
+			// Process this side chain only if there are blocks in it that need
 			// to be stored.
 			if len(sideChain.Hashes) == 0 {
 				continue
@@ -669,14 +669,43 @@ func mainCore() error {
 					continue
 				}
 
+				// SQLite / base DB
+				log.Debugf("Importing block %s (height %d) into base DB.",
+					blockHash, msgBlock.Header.Height)
+
+				blockDataSummary, stakeInfoSummaryExtended := collector.CollectAPITypes(blockHash)
+				if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
+					log.Error("Failed to collect data for reorg.")
+					continue
+				}
+				if err = baseDB.StoreBlockSummary(blockDataSummary); err != nil {
+					log.Errorf("Failed to store block summary data: %v", err)
+				}
+				if err = baseDB.StoreStakeInfoExtended(stakeInfoSummaryExtended); err != nil {
+					log.Errorf("Failed to store stake info data: %v", err)
+				}
+
+				// PostgreSQL / aux DB
+				log.Debugf("Importing block %s (height %d) into aux DB.",
+					blockHash, msgBlock.Header.Height)
+
+				// Stake invalidation is always handled by subsequent block, so
+				// add the block as valid. These are all side chain blocks.
+				isValid, isMainchain := true, false
+
+				// Existing DB records might be for mainchain and/or valid
+				// blocks, so these imported blocks should not data in rows that
+				// are conflicting as per the different table constraints and
+				// unique indexes.
+				updateExistingRecords := false
+
 				// Store data in the aux (dcrpg) DB.
-				isValid, isMainchain := true, false // invalidation handled by subsequent block
 				_, _, err = auxDB.StoreBlock(msgBlock, blockData.WinningTickets,
-					isValid, isMainchain, true, true)
+					isValid, isMainchain, updateExistingRecords, true, true)
 				if err != nil {
 					// If data collection succeeded, but storage fails, bail out
 					// to diagnose the DB trouble.
-					return fmt.Errorf("ChainDBRPC.Store failed: %v", err)
+					return fmt.Errorf("ChainDBRPC.StoreBlock failed: %v", err)
 				}
 
 				sideChainBlocksStored++
