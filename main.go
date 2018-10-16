@@ -206,7 +206,7 @@ func mainCore() error {
 		}
 	}
 
-	blockHash, height, err := dcrdClient.GetBestBlock()
+	blockHash, nodeHeight, err := dcrdClient.GetBestBlock()
 	if err != nil {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
@@ -267,7 +267,7 @@ func mainCore() error {
 
 		// Since mining a block take approximately ChainParams.TargetTimePerBlock then the
 		// expected height of the best block from dcrd now should be this.
-		expectedHeight := int64(elapsedTime/float64(activeChain.TargetTimePerBlock)) + height
+		expectedHeight := int64(elapsedTime/float64(activeChain.TargetTimePerBlock)) + nodeHeight
 
 		// How far auxDB is behind the node
 		blocksBehind = expectedHeight - lastBlockPG
@@ -594,32 +594,37 @@ func mainCore() error {
 	}
 
 	// The sync routines may have lengthy tasks, such as table indexing, that
-	// follow main sync loop. Before enabling the chain monitors, ensure the DBs
-	// are at the node's best block.
-	updateAllAddresses, updateAllVotes, newPGIndexes = false, false, false
-	_, height, err = dcrdClient.GetBestBlock()
-	if err != nil {
-		return fmt.Errorf("unable to get block from node: %v", err)
-	}
-
-	for baseDBHeight < height {
-		fetchToHeight = auxDBHeight + 1
-		baseDBHeight, auxDBHeight, err = getSyncd(updateAllAddresses, updateAllVotes,
-			newPGIndexes, fetchToHeight)
-		if err != nil {
-			return err
-		}
-		_, height, err = dcrdClient.GetBestBlock()
+	// follow main sync loop. Before enabling the chain monitors, again ensure
+	// the DBs are at the node's best block.
+	ensureSync := func() error {
+		updateAllAddresses, updateAllVotes, newPGIndexes = false, false, false
+		_, height, err := dcrdClient.GetBestBlock()
 		if err != nil {
 			return fmt.Errorf("unable to get block from node: %v", err)
 		}
-	}
 
-	log.Infof("All ready, at height %d.", baseDBHeight)
+		for baseDBHeight < height {
+			fetchToHeight = auxDBHeight + 1
+			baseDBHeight, auxDBHeight, err = getSyncd(updateAllAddresses, updateAllVotes,
+				newPGIndexes, fetchToHeight)
+			if err != nil {
+				return err
+			}
+			_, height, err = dcrdClient.GetBestBlock()
+			if err != nil {
+				return fmt.Errorf("unable to get block from node: %v", err)
+			}
+		}
+		return nil
+	}
+	if err = ensureSync(); err != nil {
+		return err
+	}
 
 	// Exits immediately after the sync completes if SyncAndQuit is to true
 	// because all we needed then was the blockchain sync be completed successfully.
 	if cfg.SyncAndQuit {
+		log.Infof("All ready, at height %d.", baseDBHeight)
 		return nil
 	}
 
@@ -627,7 +632,8 @@ func mainCore() error {
 	// and import them if they are not already there.
 	if usePG && cfg.ImportSideChains {
 		// First identify the side chain blocks that are missing from the DB.
-		log.Infof("Retrieving side chain blocks from dcrd.")
+		log.Infof("Initial sync complete, at height %d. "+
+			"Now retrieving side chain blocks from dcrd...", baseDBHeight)
 		sideChainBlocksToStore, nSideChainBlocks, err := auxDB.MissingSideChainBlocks()
 		if err != nil {
 			return fmt.Errorf("unable to determine missing side chain blocks: %v", err)
@@ -717,7 +723,14 @@ func mainCore() error {
 		auxDB.InBatchSync = false
 		log.Infof("Successfully added %d blocks from %d side chains into dcrpg DB.",
 			sideChainBlocksStored, sideChainsStored)
+
+		// That may have taken a while, check again for new blocks from network.
+		if err = ensureSync(); err != nil {
+			return err
+		}
 	}
+
+	log.Infof("All ready, at height %d.", baseDBHeight)
 
 	// Collect the data now it was not collected earlier. Set up the monitors too.
 	if displaySyncStatusPage {
