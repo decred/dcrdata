@@ -159,27 +159,8 @@ func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
 	}
 
 	// Separate values passed in into int.dec parts.
-	amt := strconv.FormatInt(v, 10)
 	intpart := v / 1e8
 	decpart := v % 1e8
-
-	// For shorter values sent from system
-	if len(amt) <= 8 {
-		rightWithTail := fmt.Sprintf("%08d", decpart)
-		if len(rightWithTail) > int(numPlaces) {
-			rightWithTail = rightWithTail[0:numPlaces]
-		}
-
-		right := strings.TrimRight(rightWithTail, "0")
-		tail := strings.TrimPrefix(rightWithTail, right)
-
-		// Do not leave value as 1. if it is case with nothing trailing
-		if (8 - len(amt)) > 2 {
-			tail = "00"
-		}
-
-		return []string{"0", right, tail}
-	}
 
 	// Format left side.
 	left := strconv.FormatInt(intpart, 10)
@@ -194,8 +175,20 @@ func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
 	right := strings.TrimRight(rightWithTail, "0")
 	tail := strings.TrimPrefix(rightWithTail, right)
 
+	// For shorter values sent from system
+	amt := strconv.FormatInt(v, 10)
+	if len(amt) <= 8 {
+		left = "0"
+
+		// Do not leave value as 1. if it is case with nothing trailing
+		if (len(right)) == 0 {
+			tail = "00"
+		}
+
+	}
+
 	// Add commas (eg. 3,444.33)
-	if useCommas {
+	if useCommas && (len(left) > 3) {
 		integerAsInt64, err := strconv.ParseInt(left, 10, 64)
 		if err != nil {
 			log.Errorf("amountAsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
