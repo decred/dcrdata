@@ -28,10 +28,12 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
+// Status page strings
 const (
 	defaultErrorCode    = "Something went wrong..."
-	defaultErrorMessage = "Try refreshing this page... it usually fixes things"
-	fullModeRequired    = "full-functionality mode required for this page"
+	defaultErrorMessage = "Try refreshing... it usually fixes things."
+	fullModeRequired    = "Full-functionality mode is required for this page."
+	wrongNetwork        = "Wrong Network"
 )
 
 // netName returns the name used when referring to a decred network.
@@ -806,10 +808,18 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
 	if exp.liteMode {
-		addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		if strings.HasPrefix(err.Error(), "wrong network") {
+			exp.StatusPage(w, wrongNetwork, "That address is not valid for "+exp.NetName, NotSupportedStatusType)
+			return
+		}
+		if err != nil {
+			log.Errorf("Unable to get address %s: %v", address, err)
+			exp.StatusPage(w, defaultErrorCode, "Unexpected issue locating data for that address.", ErrorStatusType)
+			return
+		}
 		if addrData == nil {
-			log.Errorf("Unable to get address %s", address)
-			exp.StatusPage(w, defaultErrorCode, "could not find that address", NotFoundStatusType)
+			exp.StatusPage(w, defaultErrorCode, "Unknown issue locating data for that address.", NotFoundStatusType)
 			return
 		}
 	} else {
@@ -1096,7 +1106,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	searchStr := r.URL.Query().Get("search")
 	if searchStr == "" {
-		exp.StatusPage(w, "search failed", "Nothing was searched for", NotFoundStatusType)
+		exp.StatusPage(w, "search failed", "Empty search string!", NotSupportedStatusType)
 		return
 	}
 
@@ -1113,17 +1123,18 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call GetExplorerAddress to see if the value is an address hash and
-	// then redirect to the address page if it is.
-	address := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
+	// Call GetExplorerAddress to see if the value is an address hash and then
+	// redirect to the address page if it is. Ignore the error as the passed
+	// data is expected to fail validation or have other issues.
+	address, _ := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
 
-	// Check if the value is a valid hash.
+	// Remaining possibilities are hashes, so verify the string is a hash.
 	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
-		exp.StatusPage(w, "search failed", "Couldn't find any address "+searchStr, NotFoundStatusType)
+		exp.StatusPage(w, "search failed", "Search string is not a valid hash or address: "+searchStr, NotFoundStatusType)
 		return
 	}
 
@@ -1142,12 +1153,12 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
-	exp.StatusPage(w, "search failed", "Could not find any transaction or block "+searchStr, NotFoundStatusType)
+	exp.StatusPage(w, "search failed", "The search string does not match any address, block, or transaction: "+searchStr, NotFoundStatusType)
 }
 
 // StatusPage provides a page for displaying status messages and exception
 // handling without redirecting.
-func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message string, sType statusType) {
+func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, sType statusType) {
 	str, err := exp.templates.execTemplateToString("status", struct {
 		StatusType statusType
 		Code       string
@@ -1177,6 +1188,8 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 	// and accepted but cannot be processed now till the sync is complete.
 	case BlockchainSyncingType:
 		w.WriteHeader(http.StatusAccepted)
+	case NotSupportedStatusType:
+		w.WriteHeader(http.StatusUnprocessableEntity)
 	default:
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}

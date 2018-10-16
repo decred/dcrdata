@@ -1307,46 +1307,44 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	return tx
 }
 
-func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *explorer.AddressInfo {
+func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, error) {
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
-		log.Infof("Invalid address %s: %v", address, err)
-		return nil
+		return nil, err
 	}
 
-	{
-		// Short circuit the transaction and balance queries if the provided address
-		// is the zero pubkey hash address commonly used for zero value
-		// sstxchange-tagged outputs.
-		isDummyAddress := IsZeroHashP2PHKAddress(address, db.params)
-		if isDummyAddress {
-			return &explorer.AddressInfo{
-				Address:         address,
-				Balance:         new(explorer.AddressBalance),
-				UnconfirmedTxns: new(explorer.AddressTransactions),
-				IsDummyAddress:  true,
-				Fullmode:        true,
-			}
-		}
+	// Short circuit the transaction and balance queries if the provided address
+	// is the zero pubkey hash address commonly used for zero value
+	// sstxchange-tagged outputs.
+	isDummyAddress := IsZeroHashP2PHKAddress(address, db.params)
+	if isDummyAddress {
+		return &explorer.AddressInfo{
+			Address:         address,
+			Balance:         new(explorer.AddressBalance),
+			UnconfirmedTxns: new(explorer.AddressTransactions),
+			IsDummyAddress:  true,
+			Fullmode:        true,
+		}, nil
+	}
+
+	// Handle invalid address.
+	if !ValidateNetworkAddress(addr, db.params) {
+		return nil, fmt.Errorf("wrong network: address %s is not valid for %v",
+			address, db.params.Name)
 	}
 
 	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(maxcount), true, true, nil)
 	if err != nil && err.Error() == "-32603: No Txns available" {
-		log.Debugf("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
-
-		if !ValidateNetworkAddress(addr, db.params) {
-			log.Warnf("Address %s is not valid for this network", address)
-			return nil
-		}
+		log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
 		return &explorer.AddressInfo{
 			Address:    address,
 			MaxTxLimit: maxcount,
-		}
+		}, nil
 	} else if err != nil {
-		log.Warnf("GetExplorerAddress: SearchRawTransactionsVerbose failed for address %s: %v", addr, err)
-		return nil
+		return nil, fmt.Errorf("SearchRawTransactionsVerbose failed for address %s: %v",
+			addr, err)
 	}
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
@@ -1416,7 +1414,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		KnownTransactions: numberMaxOfTx,
 		KnownFundingTxns:  numReceiving,
 		KnownSpendingTxns: numSpending,
-	}
+	}, nil
 }
 
 // IsZeroHashP2PHKAddress checks if the given address is the dummy (zero pubkey
