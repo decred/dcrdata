@@ -92,7 +92,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		case "Ticket":
 			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
 				exp.MempoolData.Unlock()
-				log.Debugf("Not broadcasting duplicate ticket notification: %s", hash)
+				log.Tracef("Not broadcasting duplicate ticket notification: %s", hash)
 				continue // back to waiting for new tx signal
 			}
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
@@ -105,7 +105,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			// included in that update.
 			if tx.VoteInfo.Validation.Height > lastBlockHeight {
 				exp.MempoolData.Unlock()
-				log.Debug("Got a vote for a future block. Waiting to pull it "+
+				log.Trace("Got a vote for a future block. Waiting to pull it "+
 					"out of mempool with new block signal. Vote: ", tx.Hash)
 				continue
 			}
@@ -113,7 +113,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			// Maintain the list of unique stake txns encountered.
 			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
 				exp.MempoolData.Unlock()
-				log.Debugf("Not broadcasting duplicate vote notification: %s", hash)
+				log.Tracef("Not broadcasting duplicate vote notification: %s", hash)
 				continue // back to waiting for new tx signal
 			}
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
@@ -133,7 +133,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			// Maintain the list of unique regular txns encountered.
 			if _, found := exp.MempoolData.InvRegular[tx.Hash]; found {
 				exp.MempoolData.Unlock()
-				log.Debugf("Not broadcasting duplicate txns notification: %s", hash)
+				log.Tracef("Not broadcasting duplicate txns notification: %s", hash)
 				continue // back to waiting for new tx signal
 			}
 			exp.MempoolData.InvRegular[tx.Hash] = struct{}{}
@@ -143,7 +143,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			// Maintain the list of unique stake txns encountered.
 			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
 				exp.MempoolData.Unlock()
-				log.Debugf("Not broadcasting duplicate revocation notification: %s", hash)
+				log.Tracef("Not broadcasting duplicate revocation notification: %s", hash)
 				continue // back to waiting for new tx signal
 			}
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}

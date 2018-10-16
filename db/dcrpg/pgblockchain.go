@@ -199,7 +199,7 @@ func (db *ChainDBRPC) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error)
 	var nSideChainBlocks int
 	for it := range tips {
 		sideHeight := tips[it].Height
-		log.Debugf("Getting full side chain with tip %s at %d.", tips[it].Hash, sideHeight)
+		log.Tracef("Getting full side chain with tip %s at %d.", tips[it].Hash, sideHeight)
 
 		sideChain, err := rpcutils.SideChainFull(db.Client, tips[it].Hash)
 		if err != nil {

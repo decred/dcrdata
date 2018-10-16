@@ -640,8 +640,11 @@ func mainCore() error {
 		// to get ticket pool info.
 
 		// Collect and store data for each side chain.
-		log.Infof("Importing %d blocks from %d side chains...",
+		log.Infof("Importing %d new block(s) from %d known side chains...",
 			nSideChainBlocks, nSideChains)
+		// Disable recomputing project fund balance, and clearing address
+		// balance and counts cache.
+		auxDB.InBatchSync = true
 		var sideChainsStored, sideChainBlocksStored int
 		for _, sideChain := range sideChainBlocksToStore {
 			// Process this side chain only if there are blocks in it that need
@@ -711,6 +714,7 @@ func mainCore() error {
 				sideChainBlocksStored++
 			}
 		}
+		auxDB.InBatchSync = false
 		log.Infof("Successfully added %d blocks from %d side chains into dcrpg DB.",
 			sideChainBlocksStored, sideChainsStored)
 	}
