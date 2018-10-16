@@ -39,7 +39,7 @@ type PoolInfoCache struct {
 // the internal map.
 func NewPoolInfoCache(size int) *PoolInfoCache {
 	return &PoolInfoCache{
-		poolInfo:    make(map[chainhash.Hash]*apitypes.TicketPoolInfo),
+		poolInfo:    make(map[chainhash.Hash]*apitypes.TicketPoolInfo, size),
 		expireQueue: lane.NewQueue(),
 		maxSize:     size,
 	}
@@ -150,6 +150,7 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 
 	stakeDBPath := filepath.Join(dataDir, DefaultStakeDbName)
 	if err = sDB.Open(stakeDBPath); err != nil {
+		_ = poolDB.Close()
 		return nil, err
 	}
 
@@ -172,6 +173,8 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 	}
 	for heightStakeDB > heightTicketPool {
 		if err = sDB.DisconnectBlock(true); err != nil {
+			_ = sDB.Close()
+			_ = poolDB.Close()
 			return nil, fmt.Errorf("failed to disconnect block: %v", err)
 		}
 		heightStakeDB, heightTicketPool = int64(sDB.Height()), sDB.PoolDB.Tip()
@@ -187,6 +190,8 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 	}
 
 	if heightTicketPool != heightStakeDB {
+		_ = sDB.Close()
+		_ = poolDB.Close()
 		return nil, fmt.Errorf("unable to return stake DB height (%d) to ticket pool height (%d)",
 			heightStakeDB, heightTicketPool)
 	}
@@ -194,10 +199,14 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 	// Rewind back to specified height
 	for toHeight < heightStakeDB {
 		if err = sDB.DisconnectBlock(true); err != nil {
+			_ = sDB.Close()
+			_ = poolDB.Close()
 			return nil, fmt.Errorf("failed to disconnect block: %v", err)
 		}
 		heightStakeDB, heightTicketPool = int64(sDB.Height()), sDB.PoolDB.Tip()
 		if heightTicketPool != heightStakeDB {
+			_ = sDB.Close()
+			_ = poolDB.Close()
 			return nil, fmt.Errorf("failed to disconnect block: "+
 				"stake DB height (%d) != ticket pool height (%d)",
 				heightStakeDB, heightTicketPool)
@@ -210,6 +219,8 @@ func LoadAndRecover(client *rpcclient.Client, params *chaincfg.Params,
 	if stopHeight, err := sDB.PoolDB.AdvanceToTip(); err != nil {
 		log.Infof("Failed to advance pool. Rewinding to %d", stopHeight-1)
 		if err = sDB.Rewind(stopHeight-1, true); err != nil {
+			_ = sDB.Close()
+			_ = poolDB.Close()
 			return nil, err
 		}
 	}
@@ -263,6 +274,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 			log.Warnf("The ticket DB format has changed in v2.1. Did you upgrade?")
 			// Try to close but ignore any error
 			_ = sDB.Close()
+			_ = poolDB.Close()
 			return nil, heightTicketPool, fmt.Errorf("Remove %s and start dcrdata again.",
 				filepath.Join(dataDir, DefaultTicketPoolDbFolder))
 		}
@@ -271,6 +283,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 			if err = sDB.DisconnectBlock(true); err != nil {
 				// Try to close but ignore any error
 				_ = sDB.Close()
+				_ = poolDB.Close()
 				return nil, heightTicketPool, fmt.Errorf("failed to disconnect block: %v", err)
 			}
 			heightStakeDB, heightTicketPool = int64(sDB.Height()), sDB.PoolDB.Tip()
@@ -286,6 +299,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 			}
 			// Try to close but ignore any error
 			_ = sDB.Close()
+			_ = poolDB.Close()
 			return nil, height,
 				fmt.Errorf("unable to return stake DB height (%d) to ticket pool height (%d)",
 					heightStakeDB, heightTicketPool)
@@ -296,6 +310,7 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	if height, err = sDB.PoolDB.AdvanceToTip(); err != nil {
 		// Try to close but ignore any error
 		_ = sDB.Close()
+		_ = poolDB.Close()
 		return nil, height, fmt.Errorf("failed to advance ticket pool DB to tip: %v", err)
 	}
 
