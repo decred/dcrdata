@@ -35,6 +35,7 @@ var blockchainSyncStatus = new(syncStatus)
 
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
+	Window         int64  `json:"window"`
 	Height         int64  `json:"height"`
 	Hash           string `json:"hash"`
 	Size           int32  `json:"size"`

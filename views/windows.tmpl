@@ -8,9 +8,9 @@
     <div class="container main" data-controller="main">
         <h4><span>Windows</span></h4>
         {{ $windowsCount := (int64 (len .Data)) }}
-        {{ $topWindow := (int64 (index .Data 0).Window) }}
         <div class="mb-1 fs13">
             {{if gt $windowsCount 0}}
+            {{ $topWindow := (int64 (index .Data 0).Window) }}
             <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
                 <span class="fs12 nowrap text-right">
                     {{intComma (add $.OffsetWindow 1)}} &mdash; {{intComma (add $.OffsetWindow $windowsCount)}} of {{ intComma (add .BestWindow 1) }} windows

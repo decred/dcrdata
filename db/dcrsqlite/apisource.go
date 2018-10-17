@@ -955,8 +955,9 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 	return txarray
 }
 
-func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.BlockBasic {
+func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *explorer.BlockBasic {
 	block := &explorer.BlockBasic{
+		Window:         (data.Height / params.StakeDiffWindowSize) + 1,
 		Height:         data.Height,
 		Hash:           data.Hash,
 		Size:           data.Size,
@@ -1051,7 +1052,7 @@ func (db *wiredDB) GetExplorerBlocks(start int, end int) []*explorer.BlockBasic 
 		data := db.GetBlockVerbose(i, true)
 		block := new(explorer.BlockBasic)
 		if data != nil {
-			block = makeExplorerBlockBasic(data)
+			block = makeExplorerBlockBasic(data, db.params)
 		}
 		summaries = append(summaries, block)
 	}
@@ -1081,7 +1082,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		return nil
 	}
 
-	b := makeExplorerBlockBasic(data)
+	b := makeExplorerBlockBasic(data, db.params)
 
 	// Explorer Block Info
 	block := &explorer.BlockInfo{

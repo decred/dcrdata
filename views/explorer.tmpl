@@ -11,7 +11,7 @@
         <div class="mb-1 fs13">
             {{if gt $blocksCount 0}}
             {{ $topBlock := ((index .Data 0).Height) }}
-        {{ $Offset := (subtract .BestBlock $topBlock) }}
+            {{ $Offset := (subtract .BestBlock $topBlock) }}
             <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
                 <span class="fs12 nowrap text-right">
                     {{intComma (add $Offset 1)}} &mdash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} blocks
@@ -46,6 +46,7 @@
                     <thead>
                         <tr>
                             <th>Height</th>
+                            <th>Window</th>
                             <th>
                                 <span class="d-none d-md-inline">Transactions</span>
                                 <span class="d-md-none">Txn</span>
@@ -65,6 +66,7 @@
                     {{range .Data}}
                         <tr id="{{ .Height }}">
                             <td><a href="/block/{{.Height}}" class="fs16 height">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
+                            <td>{{.Window}}</td>
                             <td {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>
