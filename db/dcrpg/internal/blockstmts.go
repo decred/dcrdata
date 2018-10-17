@@ -119,6 +119,10 @@ const (
 		JOIN block_chain ON this_hash=hash
 		WHERE hash = $1;`
 
+	SelectBlockFlags = `SELECT is_valid, is_mainchain
+		FROM blocks
+		WHERE hash = $1;`
+
 	SelectDisapprovedBlocks = `SELECT is_mainchain, height, previous_hash, hash, block_chain.next_hash
 		FROM blocks
 		JOIN block_chain ON this_hash=hash

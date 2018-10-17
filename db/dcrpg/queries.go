@@ -984,6 +984,7 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 		err = fmt.Errorf("unable to begin database transaction: %v", err)
 		return
 	}
+	log.Debug("RetrieveAddressSpentUnspent", address)
 
 	// Query for spent and unspent totals.
 	var rows *sql.Rows
@@ -996,6 +997,7 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 		return
 	}
 	if err == sql.ErrNoRows {
+		_ = dbtx.Commit()
 		return
 	}
 
@@ -1042,7 +1044,7 @@ func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspe
 		log.Debug("Merged debit spent count is not valid")
 	}
 
-	err = dbtx.Rollback()
+	err = dbtx.Commit()
 	return
 }
 
@@ -1056,11 +1058,12 @@ func RetrieveAddressUTXOs(db *sql.DB, address string, currentBlockHeight int64) 
 	}
 
 	rows, err := stmt.Query(address)
+	// _ = stmt.Close() // or does Rows.Close() do it?
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
-	defer rows.Close()
+	defer closeRows(rows)
 
 	var outputs []apitypes.AddressTxnOutput
 	for rows.Next() {
@@ -1097,11 +1100,11 @@ func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeigh
 	}
 
 	rows, err := stmt.Query(pq.Array(addresses))
+	// _ = stmt.Close() // or does Rows.Close do it?
 	if err != nil {
 		log.Error(err)
 		return nil, nil
 	}
-
 	defer closeRows(rows)
 
 	for rows.Next() {
@@ -2498,6 +2501,12 @@ func RetrieveDisapprovedBlocks(db *sql.DB) (blocks []*dbtypes.BlockStatus, err e
 func RetrieveBlockStatus(db *sql.DB, hash string) (bs dbtypes.BlockStatus, err error) {
 	err = db.QueryRow(internal.SelectBlockStatus, hash).Scan(&bs.IsValid,
 		&bs.IsMainchain, &bs.Height, &bs.PrevHash, &bs.Hash, &bs.NextHash)
+	return
+}
+
+// RetrieveBlockFlags retrieves the block's is_valid and is_mainchain flags.
+func RetrieveBlockFlags(db *sql.DB, hash string) (isValid bool, isMainchain bool, err error) {
+	err = db.QueryRow(internal.SelectBlockFlags, hash).Scan(&isValid, &isMainchain)
 	return
 }
 

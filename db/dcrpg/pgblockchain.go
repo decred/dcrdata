@@ -278,6 +278,7 @@ func (t *TicketTxnIDGetter) TxnDbID(txid string, expire bool) (uint64, error) {
 		return dbID, nil
 	}
 	// Cache miss. Get the row id by hash from the tickets table.
+	log.Debugf("Cache miss for %s.", txid)
 	return RetrieveTicketIDByHash(t.db, txid)
 }
 
@@ -475,6 +476,11 @@ func (pgb *ChainDB) DisapprovedBlocks() ([]*dbtypes.BlockStatus, error) {
 // BlockStatus retrieves the block chain status of the specified block.
 func (pgb *ChainDB) BlockStatus(hash string) (dbtypes.BlockStatus, error) {
 	return RetrieveBlockStatus(pgb.db, hash)
+}
+
+// BlockFlags retrieves the block's isValid and isMainchain flags.
+func (pgb *ChainDB) BlockFlags(hash string) (bool, bool, error) {
+	return RetrieveBlockFlags(pgb.db, hash)
 }
 
 // TransactionBlocks retrieves the blocks in which the specified transaction
@@ -1608,21 +1614,21 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		// current block being added is side chain, do not invalidate the
 		// mainchain block or any of its components, or update the block_chain
 		// table to point to this block.
-		blockStatus, errB := pgb.BlockStatus(lastBlockHash.String())
-		if errB != nil {
-			log.Errorf("Unable to determine status of previous block %v: %v",
-				lastBlockHash, errB)
-			return // do not return an error, but this should not happen
-		}
-		// Do not update previous block data if it is not the blockchain branch.
-		if blockStatus.IsMainchain != isMainchain {
-			// A main chain block should never have a side chain parent.
-			if isMainchain {
-				log.Errorf("Previous block %v on a different branch (main=%v)"+
-					" from current block (main=%v). Not updating previous block's data.",
-					lastBlockHash, blockStatus.IsMainchain, isMainchain)
+		if !isMainchain { // only check when current block is side chain
+			_, lastIsMainchain, errB := pgb.BlockFlags(lastBlockHash.String())
+			if errB != nil {
+				log.Errorf("Unable to determine status of previous block %v: %v",
+					lastBlockHash, errB)
+				return // do not return an error, but this should not happen
 			}
-			return
+			// Do not update previous block data if it is not the same blockchain
+			// branch. i.e. A side chain block does not invalidate a main chain block.
+			if lastIsMainchain != isMainchain {
+				log.Debugf("Previous block %v is on the main chain, while current "+
+					"block %v is on a side chain. Not updating main chain parent.",
+					lastBlockHash, msgBlock.BlockHash())
+				return
+			}
 		}
 
 		// Attempt to find the row id of the block hash in cache.
@@ -1931,8 +1937,20 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// Release the stake node.
 			pgb.stakeDB.UnlockStakeNode()
 
+			// Locate the row IDs of the unspent expired and missed tickets. Do
+			// not expire the cache entry.
+			unspentEnMRowIDs := make([]uint64, len(unspentEnM))
+			for iu := range unspentEnM {
+				t, err0 := unspentTicketCache.TxnDbID(unspentEnM[iu], false)
+				if err0 != nil {
+					txRes.err = fmt.Errorf("failed to retrieve ticket %s DB ID: %v", unspentEnM[iu], err0)
+					return txRes
+				}
+				unspentEnMRowIDs[iu] = t
+			}
+
 			// Update status of the unspent expired and missed tickets.
-			numUnrevokedMisses, err := SetPoolStatusForTicketsByHash(pgb.db, unspentEnM, missStatuses)
+			numUnrevokedMisses, err := SetPoolStatusForTickets(pgb.db, unspentEnMRowIDs, missStatuses)
 			if err != nil {
 				log.Errorf("SetPoolStatusForTicketsByHash: %v", err)
 			} else if numUnrevokedMisses > 0 {
