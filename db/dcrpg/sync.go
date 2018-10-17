@@ -301,16 +301,6 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// Total transactions is the sum of regular and stake transactions
 		totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
 
-		// If this was likely the last call to StoreBlock, synchronously update
-		// the project fund and clear the general address balance cache. This
-		// may run twice if a new block is mined during this update, before the
-		// final node height check at the end of the loop.
-		if ib == nodeHeight {
-			if err = db.FreshenAddressCaches(false); err != nil {
-				log.Warnf("FreshenAddressCaches: %v", err)
-			}
-		}
-
 		// If updating explorer is activated, update it at intervals of 20
 		if updateExplorer != nil && ib%20 == 0 &&
 			explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
@@ -322,6 +312,12 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		if nodeHeight, err = client.NodeHeight(); err != nil {
 			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
+	}
+
+	// After the last call to StoreBlock, synchronously update the project fund
+	// and clear the general address balance cache.
+	if err = db.FreshenAddressCaches(false); err != nil {
+		log.Warnf("FreshenAddressCaches: %v", err)
 	}
 
 	// Signal the end of the initial load sync
