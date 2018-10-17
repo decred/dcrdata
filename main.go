@@ -357,16 +357,18 @@ func mainCore() error {
 		auxDBheight = auxDB.GetHeight() // pg db
 	}
 
-	// barLoad is used to send sync status updates from a given function or method
-	// to SyncStatusUpdate function via websocket.
-	barLoad := make(chan *dbtypes.ProgressBarLoad)
+	// barLoad is used to send sync status updates from a given function or
+	// method to SyncStatusUpdate function via websocket. Sends do not need to
+	// block, so this is buffered.
+	barLoad := make(chan *dbtypes.ProgressBarLoad, 2)
 
 	// latestBlockHash receives the block hash of the latest block to be sync'd
-	// in dcrdata. This may not necessarily be the latest block in the blockchain
-	// but it is the latest block to be sync'd according to dcrdata. This block
-	// hash is sent if the webserver is providing the full explorer functionality
-	// during blockchain syncing.
-	latestBlockHash := make(chan *chainhash.Hash)
+	// in dcrdata. This may not necessarily be the latest block in the
+	// blockchain but it is the latest block to be sync'd according to dcrdata.
+	// This block hash is sent if the webserver is providing the full explorer
+	// functionality during blockchain syncing. Sends do not need to block, so
+	// this is buffered.
+	latestBlockHash := make(chan *chainhash.Hash, 2)
 
 	// The blockchain syncing status page should be displayed; if the blocks
 	// behind the current height are more than the set status limit. On initial
@@ -438,7 +440,7 @@ func mainCore() error {
 				loadHeight)
 		}
 
-		// Signal the goroutine to load this block hash's data.
+		// Signal to load this block's data into the explorer.
 		latestBlockHash <- loadBlockHash
 	}
 
@@ -563,7 +565,9 @@ func mainCore() error {
 
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them,
 		// but it has to get a notification channel first to receive them. The
-		// BlockGate will provide this for blocks after fetchHeightInBaseDB.
+		// BlockGate will provide this for blocks after fetchHeightInBaseDB. In
+		// full mode, baseDB will be configured not to send progress updates or
+		// chain data to the explorer pages since auxDB will do it.
 		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeightInBaseDB,
 			latestBlockHash, barLoad)
 
