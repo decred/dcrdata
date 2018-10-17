@@ -285,12 +285,6 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 		winners := tpi.Winners
 
-		// If this is likely to be the last call to StoreBlock, allow
-		// possibly-repetative code, such as the dev balance update.
-		if ib == nodeHeight {
-			db.InBatchSync = false
-		}
-
 		// Store data from this block in the database
 		isValid, isMainchain := true, true
 		// updateExisting is ignored if dupCheck=false, but true since this is
@@ -307,9 +301,14 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// Total transactions is the sum of regular and stake transactions
 		totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
 
-		// Update height, the end condition for the loop
-		if nodeHeight, err = client.NodeHeight(); err != nil {
-			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
+		// If this was likely the last call to StoreBlock, synchronously update
+		// the project fund and clear the general address balance cache. This
+		// may run twice if a new block is mined during this update, before the
+		// final node height check at the end of the loop.
+		if ib == nodeHeight {
+			if err = db.FreshenAddressCaches(false); err != nil {
+				log.Warnf("FreshenAddressCaches: %v", err)
+			}
 		}
 
 		// If updating explorer is activated, update it at intervals of 20
@@ -317,6 +316,11 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 			explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
 			log.Infof("Updating the explorer with information for block %v", ib)
 			updateExplorer <- blockHash
+		}
+
+		// Update height, the end condition for the loop
+		if nodeHeight, err = client.NodeHeight(); err != nil {
+			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
 	}
 

@@ -831,6 +831,37 @@ func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
 	return balance, err
 }
 
+// FreshenAddressCaches resets the address balance cache, and prefetches the
+// project fund balance if devPrefetch is enabled and not mid-reorg.
+func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool) error {
+	pgb.addressCounts.Lock()
+	pgb.addressCounts.validHeight = pgb.bestBlock
+	pgb.addressCounts.balance = map[string]explorer.AddressBalance{}
+	pgb.addressCounts.Unlock()
+
+	// Lazy update of DevFundBalance
+	if pgb.devPrefetch && !pgb.InReorg {
+		updateBalance := func() error {
+			log.Infof("Pre-fetching project fund balance at height %d...", pgb.bestBlock)
+			if _, err := pgb.UpdateDevBalance(); err != nil {
+				return fmt.Errorf("Failed to update project fund balance: %v", err)
+			}
+			return nil
+		}
+		if lazyProjectFund {
+			go func() {
+				runtime.Gosched()
+				if err := updateBalance(); err != nil {
+					log.Error(err)
+				}
+			}()
+			return nil
+		}
+		return updateBalance()
+	}
+	return nil
+}
+
 // UpdateDevBalance forcibly updates the cached development/project fund balance
 // via DB queries. The bool output inidcates if the cached balance was updated
 // (if it was stale).
@@ -1642,19 +1673,8 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 
 	// If not in batch sync, lazy update the dev fund balance
 	if !pgb.InBatchSync {
-		pgb.addressCounts.Lock()
-		pgb.addressCounts.validHeight = int64(msgBlock.Header.Height)
-		pgb.addressCounts.balance = map[string]explorer.AddressBalance{}
-		pgb.addressCounts.Unlock()
-
-		// Lazy update of DevFundBalance
-		if pgb.devPrefetch && !pgb.InReorg {
-			go func() {
-				runtime.Gosched()
-				if _, err = pgb.UpdateDevBalance(); err != nil {
-					log.Errorf("Failed to update development fund balance: %v", err)
-				}
-			}()
+		if err = pgb.FreshenAddressCaches(true); err != nil {
+			log.Warnf("FreshenAddressCaches: %v", err)
 		}
 	}
 
