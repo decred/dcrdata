@@ -280,7 +280,7 @@ func (t *TicketTxnIDGetter) TxnDbID(txid string, expire bool) (uint64, error) {
 		return dbID, nil
 	}
 	// Cache miss. Get the row id by hash from the tickets table.
-	log.Debugf("Cache miss for %s.", txid)
+	log.Tracef("Cache miss for %s.", txid)
 	return RetrieveTicketIDByHash(t.db, txid)
 }
 
@@ -1698,26 +1698,21 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 	// current block being added is side chain, do not invalidate the
 	// mainchain block or any of its components, or update the block_chain
 	// table to point to this block.
-	blockStatus, err := pgb.BlockStatus(lastBlockHash.String())
-	if err != nil {
-		log.Errorf("Unable to determine status of previous block %v: %v",
-			lastBlockHash, err)
-		return nil // do not return an error, but this should not happen
-	}
-	// Do not update previous block data if it is not the same blockchain
-	// branch. i.e. A side chain block does not invalidate a main chain block.
-	if blockStatus.IsMainchain != isMainchain {
-		// A main chain block should never have a side chain parent.
-		if isMainchain {
-			log.Errorf("Previous block %v on a different branch (main=%v)"+
-				" from current block (main=%v). Not updating previous block's data.",
-				lastBlockHash, blockStatus.IsMainchain, isMainchain)
-		} else {
+	if !isMainchain { // only check when current block is side chain
+		_, lastIsMainchain, err := pgb.BlockFlags(lastBlockHash.String())
+		if err != nil {
+			log.Errorf("Unable to determine status of previous block %v: %v",
+				lastBlockHash, err)
+			return nil // do not return an error, but this should not happen
+		}
+		// Do not update previous block data if it is not the same blockchain
+		// branch. i.e. A side chain block does not invalidate a main chain block.
+		if lastIsMainchain != isMainchain {
 			log.Debugf("Previous block %v is on the main chain, while current "+
 				"block %v is on a side chain. Not updating main chain parent.",
 				lastBlockHash, msgBlock.BlockHash())
+			return nil
 		}
-		return nil
 	}
 
 	// Attempt to find the row id of the block hash in cache.
@@ -1725,6 +1720,7 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 	if !ok {
 		log.Debugf("The previous block %s for block %s not found in cache, "+
 			"looking it up.", lastBlockHash, msgBlock.BlockHash())
+		var err error
 		lastBlockDbID, err = RetrieveBlockChainDbID(pgb.db, lastBlockHash.String())
 		if err != nil {
 			return fmt.Errorf("unable to locate block %s in block_chain table: %v",
@@ -1733,7 +1729,7 @@ func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) e
 	}
 
 	// Update the previous block's next block hash in the block_chain table.
-	err = UpdateBlockNext(pgb.db, lastBlockDbID, msgBlock.BlockHash().String())
+	err := UpdateBlockNext(pgb.db, lastBlockDbID, msgBlock.BlockHash().String())
 	if err != nil {
 		return fmt.Errorf("UpdateBlockNext: %v", err)
 	}
