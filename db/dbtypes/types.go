@@ -117,8 +117,7 @@ type ProgressBarLoad struct {
 	Timestamp int64
 }
 
-// BlocksGroupedInfo contains the grouped information about the fetched window,
-// day or month. This is another way of listing blocks view.
+// BlocksGroupedInfo contains the grouped information about the fetched window.
 type BlocksGroupedInfo struct {
 	Window        int64
 	StartBlock    int64

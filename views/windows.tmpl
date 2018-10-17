@@ -9,26 +9,33 @@
         <h4><span>Windows</span></h4>
         {{ $windowsCount := (int64 (len .Data)) }}
         {{ $topWindow := (int64 (index .Data 0).Window) }}
-        <div class="row fs13">
+        <div class="mb-1 fs13">
             {{if gt $windowsCount 0}}
-            <div class="col d-flex justify-content-between">
-                {{if gt (index .Data (subtract $windowsCount 1)).Window 1}}
-                <a
-                    id="prev"
-                    class="no-underline"
-                    href="/windows?offset={{ add .OffsetWindow .Limit }}&rows={{.Limit}}"
-                    data-keynav-priority
-                >◄ Older</a>
-                {{end}}
-                {{if le $topWindow .BestWindow}}
-                 <a
-                    id="next"
-                    class="no-underline"
-                    href="/windows?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
-                    data-preserve-keynav-index="true"
-                >Newer ►</a>
-                {{end}}
+            <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
+                <span class="fs12 nowrap text-right">
+                    {{intComma (add $.OffsetWindow 1)}} &mdash; {{intComma (add $.OffsetWindow $windowsCount)}} of {{ intComma (add .BestWindow 1) }} windows
+                </span>
+                <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2">
+                    <ul class="pagination mb-0 pagination-sm">
+                        <li class="page-item {{if le (index .Data (subtract $windowsCount 1)).Window 1}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/windows?offset={{ add .OffsetWindow .Limit }}&rows={{.Limit}}"
+                                id="prev"
+                            >Previous</a>
+                        </li>
+                        <li class="page-item {{if gt $topWindow .BestWindow}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/windows?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
+                                id="next"
+                            > Next</a>
+                        </li>
+                    </ul>
+                </nav>
             </div>
+            {{else}}
+            <span class="fs12 nowrap text-right list-display">no confirmed windows found</span>
             {{end}}
         </div>
 
@@ -55,12 +62,12 @@
                         <tr id="{{.StartBlock}}">
                             <td>
                                 <span>{{.Window}}</span>
-                                {{if lt .BlocksCount $.WindowSize}}<span class="incomplete-window">({{.BlocksCount}}/{{$.WindowSize}}) </span>{{end}}
+                                {{$blocksCount := (.BlocksCount)}}
+                                {{if lt .BlocksCount $.WindowSize}}{{$blocksCount = (subtract .BlocksCount 1)}} <span>({{$blocksCount}}/{{$.WindowSize}}) </span>{{end}}
                             </td>
                             <td>
-                                <a class="fs16 height" href="/blocks?height={{add .StartBlock .BlocksCount}}&rows={{$.Limit}}&start_block={{.StartBlock}}">
-                                    {{ add .StartBlock .BlocksCount }}
-                                </a>
+                                {{$nextEndBlock := (add .StartBlock $blocksCount)}}
+                                <a class="fs16 height" href="/block/{{$nextEndBlock}}">{{$nextEndBlock}}</a>
                             </td>
                             <td>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>

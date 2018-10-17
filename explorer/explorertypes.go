@@ -29,14 +29,6 @@ const (
 	BlockchainSyncingType    statusType = "Blocks Syncing"
 )
 
-// listViewType defines the various blocks list views supported in the frontend.
-type listViewType string
-
-const (
-	Blocks listViewType = "blocks"
-	Windows listViewType = "windows"
-)
-
 // blockchainSyncStatus defines the status update displayed on the syncing status page
 // when new blocks are being appended into the db.
 var blockchainSyncStatus = new(syncStatus)

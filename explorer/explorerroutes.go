@@ -231,45 +231,18 @@ func (exp *explorerUI) Windows(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Blocks is the page handler for the "/blocks" and the "/Window" path.
-// "/Window" lists blocks only belonging to a specific window while
-// "/blocks" lists all blocks between the given limit and the offset.
+// Blocks is the page handler for the "/blocks" path.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
-	idx := exp.blockData.GetHeight()
+	bestBlockHeight := exp.blockData.GetHeight()
 
 	height, err := strconv.Atoi(r.URL.Query().Get("height"))
-	if err != nil || height > idx {
-		height = idx
+	if err != nil || height > bestBlockHeight {
+		height = bestBlockHeight
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
 	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
 		rows = minExplorerRows
-	}
-
-	var startBlock int
-
-	if !exp.liteMode {
-		startBlock, err = strconv.Atoi(r.URL.Query().Get("start_block"))
-		if err != nil {
-			startBlock = 0
-		}
-	}
-
-	// if fetching blocks for a given window do not fetch more than needed.
-	// Height should never be less than the start block value.
-	if startBlock > 0 {
-		blocksToBeFetched := height - startBlock
-
-		if rows > blocksToBeFetched {
-			rows = blocksToBeFetched
-		}
-
-		if height < startBlock {
-			height = startBlock
-		}
-
-		idx = startBlock + int(exp.ChainParams.StakeDiffWindowSize)
 	}
 
 	oldestBlock := height - rows + 1
@@ -296,21 +269,17 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("explorer", struct {
-		Data       []*BlockBasic
-		BestBlock  int
-		Rows       int
-		Version    string
-		NetName    string
-		StartBlock int
-		Window     int
+		Data      []*BlockBasic
+		BestBlock int64
+		Rows      int64
+		Version   string
+		NetName   string
 	}{
 		summaries,
-		idx,
-		rows,
+		int64(bestBlockHeight),
+		int64(rows),
 		exp.Version,
 		exp.NetName,
-		startBlock,
-		(startBlock / int(exp.ChainParams.StakeDiffWindowSize)),
 	})
 
 	if err != nil {

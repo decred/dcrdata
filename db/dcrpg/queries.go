@@ -574,7 +574,6 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
 			return nil, err
 		}
 
-		// Windows starts from 1-144, 145 - 288 etc
 		data = append(data, &dbtypes.BlocksGroupedInfo{
 			Window:        (startBlock/windowSize + 1),
 			StartBlock:    startBlock,

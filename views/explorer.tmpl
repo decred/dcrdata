@@ -7,33 +7,42 @@
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
         {{ $blocksCount := (len .Data) }}
-        <h4><span>{{if gt .StartBlock 0}}Window {{.Window}}{{end}} Blocks</span></h4>
-        <div class="row fs13">
+        <h4>Blocks</h4>
+        <div class="mb-1 fs13">
             {{if gt $blocksCount 0}}
-            <div class="col d-flex justify-content-between">
-                {{ if ge (index .Data 0).Height .Rows }}
-                <a
-                    id="prev"
-                    class="no-underline"
-                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 $blocksCount) }}&rows={{.Rows}}{{if gt .StartBlock 0}}&start_block={{.StartBlock}}{{end}}"
-                    data-keynav-priority
-                >◄ Older</a>
-                {{end}}
-                {{ if lt (index .Data 0).Height .BestBlock }}
-                 <a
-                    id="next"
-                    class="no-underline"
-                    href="/blocks?height={{ add (index .Data 0).Height (int64 $blocksCount) }}&rows={{.Rows}}{{if gt .StartBlock 0}}&start_block={{.StartBlock}}{{end}}"
-                    data-preserve-keynav-index="true"
-                >Newer ►</a>
-                {{end}}
+            {{ $topBlock := ((index .Data 0).Height) }}
+        {{ $Offset := (subtract .BestBlock $topBlock) }}
+            <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
+                <span class="fs12 nowrap text-right">
+                    {{intComma (add $Offset 1)}} &mdash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} blocks
+                </span>
+                <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2">
+                    <ul class="pagination mb-0 pagination-sm">
+                        <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/blocks?height={{ subtract $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
+                                id="prev"
+                            >Previous</a>
+                        </li>
+                        <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/blocks?height={{ add $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
+                                id="next"
+                            > Next</a>
+                        </li>
+                    </ul>
+                </nav>
             </div>
+            {{else}}
+            <span class="fs12 nowrap text-right list-display">no confirmed blocks found</span>
             {{end}}
         </div>
 
         <div class="row">
             <div class="col-md-12">
-                <table class="table striped table-responsive" id="{{if eq .StartBlock 0}}explorertable{{end}}">
+                <table class="table striped table-responsive" id="explorertable">
                     <thead>
                         <tr>
                             <th>Height</th>

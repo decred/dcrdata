@@ -696,9 +696,7 @@ func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
 	return retrieveTicketsByDate(pgb.db, maturityBlock, int64(val))
 }
 
-// WindowBlocks retrieves the blocks at the respective stakebase windows starting
-// point. The transactions count, total votes, revocation txs and sizes are summed
-// for the whole stakebase window size.
+// WindowBlocks retrieves the blocks at the respective stakebase windows interval.
 func(pgb *ChainDB) WindowBlocks(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
 	return retrieveWindowBlocks(pgb.db, pgb.chainParams.StakeDiffWindowSize, limit, offset)
 }
