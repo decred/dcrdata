@@ -1,4 +1,4 @@
-{{define "explorer"}}
+{{define "windows"}}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -6,58 +6,71 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
-        <h4><span>Block Windows</span></h4>
+        <h4><span>Windows</span></h4>
+        {{ $windowsCount := (int64 (len .Data)) }}
+        {{ $topWindow := (int64 (index .Data 0).Window) }}
         <div class="row fs13">
+            {{if gt $windowsCount 0}}
             <div class="col d-flex justify-content-between">
-                {{ if ge (index .Data 0).height .Rows }}
+                {{if gt (index .Data (subtract $windowsCount 1)).Window 1}}
                 <a
                     id="prev"
                     class="no-underline"
-                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    href="/windows?offset={{ add .OffsetWindow .Limit }}&rows={{.Limit}}"
                     data-keynav-priority
                 >◄ Older</a>
                 {{end}}
-                {{ if lt (index .Data 0).height 1 }}
+                {{if le $topWindow .BestWindow}}
                  <a
                     id="next"
                     class="no-underline"
-                    href="/blocks?height={{ add (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    href="/windows?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
                     data-preserve-keynav-index="true"
                 >Newer ►</a>
                 {{end}}
             </div>
+            {{end}}
         </div>
 
         <div class="row">
             <div class="col-md-12">
-                <table class="table striped table-responsive" id="explorertable">
+                <table class="table striped table-responsive">
                     <thead>
                         <tr>
-                            <th>Height</th>
-                            <th>
-                                <span class="d-none d-md-inline">Transactions</span>
-                                <span class="d-md-none">Txn</span>
-                            </th>
-                            <th>Vote<span class="d-none d-md-inline">s</span></th>
-                            <th>Ticket<span class="d-none d-md-inline">s</span></th>
-                            <th>
-                                <span class="d-none d-md-inline">Revocations</span>
-                                <span class="d-md-none">Revoke</span>
-                            </th>
-                            <th>Size</th>
+                            <th>Window</th>
+                            <th>End Block</th>
+                            <th>Transactions</th>
+                            <th>Votes</th>
+                            <th>Tickets</th>
+                            <th>Revocations</th>
+                            <th>Total Size</th>
                             <th>Difficulty</th>
+                            <th>Ticket Price (DCR)</th>
+                            <th>Age</th>
+                            <th>Start Time ({{timezone}})</th>
                         </tr>
                     </thead>
                     <tbody>
                     {{range .Data}}
-                        <tr id="{{ .height }}">
-                            <td><a href="/block/{{.height}}" class="fs16 height">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
-                            <td>{{.txs}}</td>
-                            <td>{{.votes}}</td>
-                            <td>{{.tickets}}</td>
-                            <td>{{.revocations}}</td>
+                        <tr id="{{.StartBlock}}">
+                            <td>
+                                <span>{{.Window}}</span>
+                                {{if lt .BlocksCount $.WindowSize}}<span class="incomplete-window">({{.BlocksCount}}/{{$.WindowSize}}) </span>{{end}}
+                            </td>
+                            <td>
+                                <a class="fs16 height" href="/blocks?height={{add .StartBlock .BlocksCount}}&rows={{$.Limit}}&start_block={{.StartBlock}}">
+                                    {{ add .StartBlock .BlocksCount }}
+                                </a>
+                            </td>
+                            <td>{{.Transactions}}</td>
+                            <td>{{.Voters}}</td>
+                            <td>{{.FreshStake}}</td>
+                            <td>{{.Revocations}}</td>
                             <td>{{.FormattedSize}}</td>
-                            <td>{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .difficulty) 0 true)}</td>
+                            <td>{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
+                            <td>{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .TicketPrice) 2 false)}}</td>
+                            <td data-target="main.age" data-age="{{.StartTime}}"></td>
+                            <td>{{.FormattedTime}}</td>
                         </tr>
                     {{end}}
                     </tbody>

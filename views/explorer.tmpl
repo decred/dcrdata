@@ -6,14 +6,16 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
-        <h4><span>Blocks</span></h4>
+        {{ $blocksCount := (len .Data) }}
+        <h4><span>{{if gt .StartBlock 0}}Window {{.Window}}{{end}} Blocks</span></h4>
         <div class="row fs13">
+            {{if gt $blocksCount 0}}
             <div class="col d-flex justify-content-between">
                 {{ if ge (index .Data 0).Height .Rows }}
                 <a
                     id="prev"
                     class="no-underline"
-                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 $blocksCount) }}&rows={{.Rows}}{{if gt .StartBlock 0}}&start_block={{.StartBlock}}{{end}}"
                     data-keynav-priority
                 >◄ Older</a>
                 {{end}}
@@ -21,16 +23,17 @@
                  <a
                     id="next"
                     class="no-underline"
-                    href="/blocks?height={{ add (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
+                    href="/blocks?height={{ add (index .Data 0).Height (int64 $blocksCount) }}&rows={{.Rows}}{{if gt .StartBlock 0}}&start_block={{.StartBlock}}{{end}}"
                     data-preserve-keynav-index="true"
                 >Newer ►</a>
                 {{end}}
             </div>
+            {{end}}
         </div>
 
         <div class="row">
             <div class="col-md-12">
-                <table class="table striped table-responsive" id="explorertable">
+                <table class="table striped table-responsive" id="{{if eq .StartBlock 0}}explorertable{{end}}">
                     <thead>
                         <tr>
                             <th>Height</th>

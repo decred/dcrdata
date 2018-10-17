@@ -179,37 +179,43 @@ func (exp *explorerUI) Windows(w http.ResponseWriter, r *http.Request) {
 		exp.StatusPage(w, fullModeRequired,
 			"Windows page cannot run in lite mode.", NotSupportedStatusType)
 	}
-	auxDBHeight := int(exp.Height())
 
-	height, err := strconv.Atoi(r.URL.Query().Get("height"))
-	if err != nil || height > auxDBHeight {
-		height = auxDBHeight
+	offsetWindow, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
+	if err != nil {
+		offsetWindow = 0
 	}
 
-	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
+	bestWindow := uint64(exp.Height() / exp.ChainParams.StakeDiffWindowSize)
+	if offsetWindow > bestWindow {
+		offsetWindow = bestWindow
+	}
+
+	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
 	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
 		rows = minExplorerRows
 	}
-	limit := uint64(rows)
-	offset := uint64(height)/ uint64(exp.ChainParams.StakeDiffWindowSize)
 
-	windows, err := exp.explorerSource.WindowBlocks(limit, offset)
+	windows, err := exp.explorerSource.WindowBlocks(rows, offsetWindow)
 	if err != nil {
-		log.Errorf("Unable to get window blocks: height=%d&rows=%d: error: %v ", height, rows, err)
-		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", NotFoundStatusType)
+		log.Errorf("Unable to get windows: offset=%d&rows=%d: error: %v ", offsetWindow, rows, err)
+		exp.StatusPage(w, defaultErrorCode, "could not find those windows", NotFoundStatusType)
 		return
 	}
 
 	str, err := exp.templates.execTemplateToString("windows", struct {
-		Data    []*dbtypes.BlocksGroupedInfo
+		Data         []*dbtypes.BlocksGroupedInfo
 		WindowSize   int64
-		Rows    int
-		Version string
-		NetName string
+		BestWindow   int64
+		OffsetWindow int64
+		Limit        int64
+		Version      string
+		NetName      string
 	}{
 		windows,
 		exp.ChainParams.StakeDiffWindowSize,
-		len(windows),
+		int64(bestWindow),
+		int64(offsetWindow),
+		int64(rows),
 		exp.Version,
 		exp.NetName,
 	})
@@ -223,10 +229,11 @@ func (exp *explorerUI) Windows(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
-
 }
 
-// Blocks is the page handler for the "/blocks" path
+// Blocks is the page handler for the "/blocks" and the "/Window" path.
+// "/Window" lists blocks only belonging to a specific window while
+// "/blocks" lists all blocks between the given limit and the offset.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	idx := exp.blockData.GetHeight()
 
@@ -238,6 +245,31 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
 	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
 		rows = minExplorerRows
+	}
+
+	var startBlock int
+
+	if !exp.liteMode {
+		startBlock, err = strconv.Atoi(r.URL.Query().Get("start_block"))
+		if err != nil {
+			startBlock = 0
+		}
+	}
+
+	// if fetching blocks for a given window do not fetch more than needed.
+	// Height should never be less than the start block value.
+	if startBlock > 0 {
+		blocksToBeFetched := height - startBlock
+
+		if rows > blocksToBeFetched {
+			rows = blocksToBeFetched
+		}
+
+		if height < startBlock {
+			height = startBlock
+		}
+
+		idx = startBlock + int(exp.ChainParams.StakeDiffWindowSize)
 	}
 
 	oldestBlock := height - rows + 1
@@ -264,17 +296,21 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("explorer", struct {
-		Data      []*BlockBasic
-		BestBlock int
-		Rows      int
-		Version   string
-		NetName   string
+		Data       []*BlockBasic
+		BestBlock  int
+		Rows       int
+		Version    string
+		NetName    string
+		StartBlock int
+		Window     int
 	}{
 		summaries,
 		idx,
 		rows,
 		exp.Version,
 		exp.NetName,
+		startBlock,
+		(startBlock / int(exp.ChainParams.StakeDiffWindowSize)),
 	})
 
 	if err != nil {

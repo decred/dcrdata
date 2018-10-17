@@ -10,17 +10,18 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-	humanize "github.com/dustin/go-humanize"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
 	"github.com/decred/dcrdata/v3/txhelpers"
+	humanize "github.com/dustin/go-humanize"
 
 	"github.com/lib/pq"
 )
@@ -555,30 +556,38 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(db *sql.DB) (ids []uint64, heights 
 // for a window size of chaincfg.Params.StakeDiffWindowSize.
 func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
 	offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
-	rows, err := db.Query(internal.SelectWindowsByLimit, windowSize, windowSize, limit, offset)
+	rows, err := db.Query(internal.SelectWindowsByLimit, windowSize, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("retrieveWindowBlocks failed: error: %v", err)
 	}
 
 	data := make([]*dbtypes.BlocksGroupedInfo, 0)
 	for rows.Next() {
-		var height uint64
-		var size, votes, txs, revocations, tickets uint16
+		var size uint64
 		var difficulty float64
+		var votes, txs, revocations, tickets uint16
+		var startBlock, sbits, timestamp, count int64
 
-		err = rows.Scan(&height, &difficulty, &txs, &tickets, &votes, &revocations, &size)
+		err = rows.Scan(&startBlock, &difficulty, &txs, &tickets, &votes,
+			&revocations, &size, &sbits, &timestamp, &count)
 		if err != nil {
 			return nil, err
 		}
 
+		// Windows starts from 1-144, 145 - 288 etc
 		data = append(data, &dbtypes.BlocksGroupedInfo{
-			StartHeight:   height,
+			Window:        (startBlock/windowSize + 1),
+			StartBlock:    startBlock,
 			Voters:        votes,
 			Transactions:  txs,
 			FreshStake:    tickets,
 			Revocations:   revocations,
+			BlocksCount:   count,
 			Difficulty:    difficulty,
-			FormattedSize: humanize.Bytes(uint64(size)),
+			FormattedSize: humanize.Bytes(size),
+			TicketPrice:   sbits,
+			StartTime:     timestamp,
+			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),
 		})
 	}
 

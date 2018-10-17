@@ -120,14 +120,18 @@ type ProgressBarLoad struct {
 // BlocksGroupedInfo contains the grouped information about the fetched window,
 // day or month. This is another way of listing blocks view.
 type BlocksGroupedInfo struct {
-	// height at the start of the; window, day, month etc
-	StartHeight   uint64  `json:"height"`
-	Voters        uint16  `json:"votes"`
-	Transactions  uint16  `json:"txs"`
-	FreshStake    uint16  `json:"tickets"`
-	Revocations   uint16  `json:"revocations"`
-	Difficulty    float64 `json:"difficulty"`
-	FormattedSize string  `json:"size"`
+	Window        int64
+	StartBlock    int64
+	Voters        uint16
+	Transactions  uint16
+	FreshStake    uint16
+	Revocations   uint16
+	BlocksCount   int64
+	Difficulty    float64
+	TicketPrice   int64
+	StartTime     int64
+	FormattedTime string
+	FormattedSize string
 }
 
 // ChartGroupings helps maping a given chart grouping to its standard string value.

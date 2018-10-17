@@ -1019,3 +1019,7 @@ body.darkBG .keynav-target {
   max-width: 600px;
   margin: 0px auto 2% auto;
 }
+.incomplete-window {
+  font-size: 10px;
+  font-weight: bold;
+}
