@@ -679,20 +679,22 @@ func mainCore() error {
 				}
 
 				// SQLite / base DB
-				log.Debugf("Importing block %s (height %d) into base DB.",
-					blockHash, msgBlock.Header.Height)
+				// TODO: Make hash the primary key instead of height, otherwise
+				// the main chain block will be overwritten.
+				// log.Debugf("Importing block %s (height %d) into base DB.",
+				// 	blockHash, msgBlock.Header.Height)
 
-				blockDataSummary, stakeInfoSummaryExtended := collector.CollectAPITypes(blockHash)
-				if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
-					log.Error("Failed to collect data for reorg.")
-					continue
-				}
-				if err = baseDB.StoreBlockSummary(blockDataSummary); err != nil {
-					log.Errorf("Failed to store block summary data: %v", err)
-				}
-				if err = baseDB.StoreStakeInfoExtended(stakeInfoSummaryExtended); err != nil {
-					log.Errorf("Failed to store stake info data: %v", err)
-				}
+				// blockDataSummary, stakeInfoSummaryExtended := collector.CollectAPITypes(blockHash)
+				// if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
+				// 	log.Error("Failed to collect data for reorg.")
+				// 	continue
+				// }
+				// if err = baseDB.StoreBlockSummary(blockDataSummary); err != nil {
+				// 	log.Errorf("Failed to store block summary data: %v", err)
+				// }
+				// if err = baseDB.StoreStakeInfoExtended(stakeInfoSummaryExtended); err != nil {
+				// 	log.Errorf("Failed to store stake info data: %v", err)
+				// }
 
 				// PostgreSQL / aux DB
 				log.Debugf("Importing block %s (height %d) into aux DB.",
