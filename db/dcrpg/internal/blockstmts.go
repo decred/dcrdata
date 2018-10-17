@@ -100,7 +100,7 @@ const (
 		SUM(revocations) AS revocations,
 		SUM(size) AS size,
 		MAX(sbits) AS sbits,
-		MAX(time) AS time,
+		MIN(time) AS time,
 		COUNT(*) AS blocks_count
 		FROM blocks
 		GROUP BY window_start
