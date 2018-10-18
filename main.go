@@ -715,7 +715,7 @@ func mainCore() error {
 				updateExistingRecords := false
 
 				// Store data in the aux (dcrpg) DB.
-				_, _, err = auxDB.StoreBlock(msgBlock, blockData.WinningTickets,
+				_, _, _, err = auxDB.StoreBlock(msgBlock, blockData.WinningTickets,
 					isValid, isMainchain, updateExistingRecords, true, true)
 				if err != nil {
 					// If data collection succeeded, but storage fails, bail out

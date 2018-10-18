@@ -139,7 +139,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	}
 
 	// Total and rate statistics
-	var totalTxs, totalVins, totalVouts int64
+	var totalTxs, totalVins, totalVouts, totalAddresses int64
 	var lastTxs, lastVins, lastVouts int64
 	tickTime := 20 * time.Second
 	ticker := time.NewTicker(tickTime)
@@ -290,13 +290,14 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		// updateExisting is ignored if dupCheck=false, but true since this is
 		// processing main chain blocks.
 		updateExisting := true
-		numVins, numVouts, err := db.StoreBlock(block.MsgBlock(), winners, isValid,
+		numVins, numVouts, numAddresses, err := db.StoreBlock(block.MsgBlock(), winners, isValid,
 			isMainchain, updateExisting, !updateAllAddresses, !updateAllVotes)
 		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins
 		totalVouts += numVouts
+		totalAddresses += numAddresses
 
 		// Total transactions is the sum of regular and stake transactions
 		totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
@@ -399,8 +400,8 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		barLoad <- &dbtypes.ProgressBarLoad{BarID: barID, Subtitle: "sync complete"}
 	}
 
-	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
-		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)
+	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs, %d addresses",
+		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts, totalAddresses)
 
 	return nodeHeight, err
 }

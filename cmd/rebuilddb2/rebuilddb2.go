@@ -337,7 +337,7 @@ func mainCore() error {
 
 		var numVins, numVouts int64
 		isValid, isMainchain, updateExistingRecords := true, true, true
-		numVins, numVouts, err = db.StoreBlock(block.MsgBlock(), winners,
+		numVins, numVouts, _, err = db.StoreBlock(block.MsgBlock(), winners,
 			isValid, isMainchain, updateExistingRecords,
 			cfg.AddrSpendInfoOnline, !cfg.TicketSpendInfoBatch)
 		if err != nil {
