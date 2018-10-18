@@ -6,6 +6,7 @@ package dcrpg
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -616,7 +617,10 @@ func RetrieveTicketStatusByHash(db *sql.DB, ticketHash string) (id uint64, spend
 // table for the given ticket purchase transaction hashes.
 func RetrieveTicketIDsByHashes(db *sql.DB, ticketHashes []string) (ids []uint64, err error) {
 	var dbtx *sql.Tx
-	dbtx, err = db.Begin()
+	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
+		Isolation: sql.LevelDefault,
+		ReadOnly:  true,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
@@ -930,28 +934,21 @@ func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck, updateExist
 // InsertAddressRows inserts multiple transaction inputs or outputs for certain
 // addresses ([]AddressRow). The row IDs of the inserted data are returned.
 func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateExistingRecords bool) ([]uint64, error) {
-	// Create the address table if it does not exist
-	tableName := "addresses"
-	if haveTable, _ := TableExists(db, tableName); !haveTable {
-		if err := CreateTable(db, tableName); err != nil {
-			log.Errorf("Failed to create table %s: %v", tableName, err)
-		}
-	}
-
+	// Begin a new transaction.
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords)
-
-	stmt, err := dbtx.Prepare(sqlStmt)
+	// Prepare the addresses row insert statement.
+	stmt, err := dbtx.Prepare(internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords))
 	if err != nil {
 		log.Errorf("AddressRow INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
 
+	// Insert each addresses table row, storing the inserted row IDs.
 	ids := make([]uint64, 0, len(dbAs))
 	for _, dbA := range dbAs {
 		var id uint64
@@ -1001,7 +998,10 @@ func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64,
 func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspent,
 	amtSpent, amtUnspent, numMergedSpent int64, err error) {
 	var dbtx *sql.Tx
-	dbtx, err = db.Begin()
+	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
+		Isolation: sql.LevelDefault,
+		ReadOnly:  true,
+	})
 	if err != nil {
 		err = fmt.Errorf("unable to begin database transaction: %v", err)
 		return
