@@ -1911,7 +1911,7 @@ func setSpendingForFundingOP(dbtx *sql.Tx, fundingTxHash string, fundingTxVoutIn
 // corresponding funding tx row.
 func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string,
 	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
-	spendingTxVinIndex uint32, vinDbID uint64, checked, updateExisting, isValidMainchain bool,
+	spendingTxVinIndex uint32, vinDbID uint64, utxoData *UTXOData, checked, updateExisting, isValidMainchain bool,
 	txType int16, updateFundingRow bool, spendingTXBlockTime uint64) (int64, error) {
 	// Only allow atomic transactions to happen
 	dbtx, err := db.Begin()
@@ -1920,8 +1920,8 @@ func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string,
 	}
 
 	c, err := insertSpendingAddressRow(dbtx, fundingTxHash, fundingTxVoutIndex,
-		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, checked, updateExisting,
-		isValidMainchain, txType, updateFundingRow, spendingTXBlockTime)
+		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, utxoData, checked,
+		updateExisting, isValidMainchain, txType, updateFundingRow, spendingTXBlockTime)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -1935,25 +1935,33 @@ func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string,
 // table row corresponding to the previous outpoint.
 func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64,
-	checked, updateExisting, validMainchain bool, txType int16, updateFundingRow bool, blockT ...uint64) (int64, error) {
+	utxoData *UTXOData, checked, updateExisting, validMainchain bool, txType int16, updateFundingRow bool, blockT ...uint64) (int64, error) {
 
 	// Select id, address and value from the matching funding tx.
 	// A maximum of one row and a minimum of none are expected.
 	var addr string
 	var value uint64
-	err := tx.QueryRow(internal.SelectAddressByTxHash,
-		fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&addr, &value)
-	switch err {
-	case sql.ErrNoRows, nil:
-		// If no row found or error is nil, continue.
-	default:
-		return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
-	}
+	if utxoData == nil {
+		// The addresses column of the vouts table contains an array of
+		// addresses that the pkScript pays to (i.e. >1 for multisig).
+		var addrArray string
+		err := tx.QueryRow(internal.SelectAddressByTxHash,
+			fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&addrArray, &value)
+		switch err {
+		case sql.ErrNoRows, nil:
+			// If no row found or error is nil, continue
+		default:
+			return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
+		}
 
-	// Get first address in list.  TODO: actually handle bare multisig.
-	replacer := strings.NewReplacer("{", "", "}", "")
-	addr = replacer.Replace(addr)
-	newAddr := strings.Split(addr, ",")[0]
+		// Get first address in list.  TODO: actually handle bare multisig.
+		replacer := strings.NewReplacer("{", "", "}", "")
+		addrArray = replacer.Replace(addrArray)
+		addr = strings.Split(addrArray, ",")[0]
+	} else {
+		addr = utxoData.Address
+		value = uint64(utxoData.Value)
+	}
 
 	// Check if the block time was provided.
 	var blockTime uint64
@@ -1961,7 +1969,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		blockTime = blockT[0]
 	} else {
 		// Fetch the block time from the tx table.
-		err = tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
+		err := tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
 		if err != nil {
 			return 0, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
 		}
@@ -1971,7 +1979,7 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 	var isFunding bool
 	var rowID uint64
 	sqlStmt := internal.MakeAddressRowInsertStatement(checked, updateExisting)
-	err = tx.QueryRow(sqlStmt, newAddr, fundingTxHash, spendingTxHash,
+	err := tx.QueryRow(sqlStmt, addr, fundingTxHash, spendingTxHash,
 		spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
 		validMainchain, txType).Scan(&rowID)
 	if err != nil {

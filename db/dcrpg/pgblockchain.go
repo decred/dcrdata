@@ -119,6 +119,57 @@ func UpdateTicketPoolData(interval dbtypes.ChartGrouping, barGraphs []*dbtypes.P
 	ticketPoolGraphsCache.DonutGraphCache[interval] = donutcharts
 }
 
+// UTXOData stores an address and value paid to an address by a transaction
+// output.
+type UTXOData struct {
+	Address string
+	Value   int64
+}
+
+type utxoStore struct {
+	sync.Mutex
+	c map[string]map[uint32]*UTXOData
+}
+
+func newUtxoStore(prealloc int) utxoStore {
+	return utxoStore{
+		c: make(map[string]map[uint32]*UTXOData, prealloc),
+	}
+}
+
+func (u *utxoStore) Get(txHash string, txIndex uint32) (*UTXOData, bool) {
+	u.Lock()
+	defer u.Unlock()
+	utxoData, ok := u.c[txHash][txIndex]
+	if ok {
+		u.c[txHash][txIndex] = nil
+		delete(u.c[txHash], txIndex)
+		if len(u.c[txHash]) == 0 {
+			delete(u.c, txHash)
+		}
+	}
+	return utxoData, ok
+}
+
+func (u *utxoStore) Set(txHash string, txIndex uint32, addr string, val int64) {
+	u.Lock()
+	defer u.Unlock()
+	txUTXOVals, ok := u.c[txHash]
+	if !ok {
+		u.c[txHash] = map[uint32]*UTXOData{
+			txIndex: &UTXOData{
+				Address: addr,
+				Value:   val,
+			},
+		}
+	} else {
+		txUTXOVals[txIndex] = &UTXOData{
+			Address: addr,
+			Value:   val,
+		}
+	}
+}
+
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
@@ -137,6 +188,7 @@ type ChainDB struct {
 	InBatchSync        bool
 	InReorg            bool
 	tpUpdatePermission map[dbtypes.ChartGrouping]*trylock.Mutex
+	utxoCache          utxoStore
 }
 
 // ChainDBRPC provides an interface for storing and manipulating extracted and
@@ -379,6 +431,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		DevFundBalance:     new(DevFundBalance),
 		devPrefetch:        devPrefetch,
 		tpUpdatePermission: tpUpdatePermissions,
+		utxoCache:          newUtxoStore(2e4),
 	}, nil
 }
 
@@ -2044,6 +2097,9 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// Funding tx hash, vout id, value, and address are already assigned
 			// by InsertVouts. Only the block time and is_funding was needed.
 			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
+
+			// Cache the data for this UTXO.
+			pgb.utxoCache.Set(tx.TxID, dba.TxVinVoutIndex, dba.Address, int64(dba.Value))
 		}
 	}
 
@@ -2079,9 +2135,15 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			spendingTxHash := vin.TxID
 			spendingTxIndex := vin.TxIndex
 			validMainchain := tx.IsValidBlock && tx.IsMainchainBlock
+			// Attempt to retrieve cached data for this now-spent TXO. A
+			// successful get will delete the entry from the cache.
+			utxoData, ok := pgb.utxoCache.Get(vin.PrevTxHash, vin.PrevTxIndex)
+			if !ok {
+				log.Debugf("Data for that utxo (%s:%d) wasn't cached!", vin.PrevTxHash, vin.PrevTxIndex)
+			}
 			numAddressRowsSet, err := InsertSpendingAddressRow(pgb.db,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree),
-				spendingTxHash, spendingTxIndex, vinDbID, pgb.dupChecks,
+				spendingTxHash, spendingTxIndex, vinDbID, utxoData, pgb.dupChecks,
 				updateExistingRecords, validMainchain, vin.TxType, updateAddressesSpendingInfo,
 				uint64(tx.BlockTime))
 			if err != nil {
