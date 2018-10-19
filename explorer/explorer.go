@@ -321,13 +321,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	return exp
 }
 
-// RetrieveUpdates retrieves all the updates that could not be fetched because
-// sync status update was running in the background.
-func (exp *explorerUI) RetrieveUpdates() {
-	// Send the one last signal so that the websocket can send the final
-	// confirmation that syncing is done and home page auto reload should happen.
-	exp.wsHub.HubRelay <- sigSyncStatus
-
+// PrepareCharts pre-polulates charts data when in full mode.
+func (exp *explorerUI) PrepareCharts() {
 	if !exp.liteMode {
 		exp.prePopulateChartsData()
 	}
@@ -361,6 +356,11 @@ func (exp *explorerUI) DisplaySyncStatusPage() bool {
 func (exp *explorerUI) SetDisplaySyncStatusPage(displayStatus bool) {
 	exp.NewBlockDataMtx.Lock()
 	defer exp.NewBlockDataMtx.Unlock()
+	if displayStatus == false {
+		// Send the one last signal so that the websocket can send the final
+		// confirmation that syncing is done and home page auto reload should happen.
+		exp.wsHub.HubRelay <- sigSyncStatus
+	}
 	exp.displaySyncStatusPage = displayStatus
 }
 

@@ -738,11 +738,6 @@ func mainCore() error {
 
 	log.Infof("All ready, at height %d.", baseDBHeight)
 
-	// Collect the data now it was not collected earlier. Set up the monitors too.
-	if displaySyncStatusPage {
-		explore.RetrieveUpdates()
-	}
-
 	// Deactivate displaying the sync status page after the db sync was completed.
 	explore.SetDisplaySyncStatusPage(false)
 
@@ -766,12 +761,6 @@ func mainCore() error {
 	// The following configures and starts handlers that monitor for new blocks,
 	// changes in the mempool, and handle chain reorg. It also initiates data
 	// collection for the explorer.
-
-	// Register notifications from dcrd.
-	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
-	if cerr != nil {
-		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
-	}
 
 	// Blockchain monitor for the collector
 	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
@@ -824,7 +813,19 @@ func mainCore() error {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
 	}
 
-	explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
+	// Register notifications from dcrd.
+	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
+	if cerr != nil {
+		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
+	}
+
+	// After this final node sync check, the monitors will handle new blocks.
+	// TODO: make this not racy at all by having sync stop at specified block.
+	if err = ensureSync(); err != nil {
+		return err
+	}
+
+	// Start the monitors' event handlers.
 
 	// blockdata collector handlers
 	wg.Add(2)
@@ -850,6 +851,8 @@ func mainCore() error {
 		go auxDBChainMonitor.BlockConnectedHandler()
 		go auxDBChainMonitor.ReorgHandler()
 	}
+
+	explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
 	if cfg.MonitorMempool {
 		// Create the mempool data collector.
@@ -890,6 +893,10 @@ func mainCore() error {
 		wg.Add(1)
 		go mpm.TxHandler(dcrdClient)
 	}
+
+	// Pre-populate charts data now that blocks are sync'd and new-block
+	// monitors are running.
+	explore.PrepareCharts()
 
 	// Wait for notification handlers to quit.
 	wg.Wait()
