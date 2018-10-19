@@ -119,24 +119,28 @@ func UpdateTicketPoolData(interval dbtypes.ChartGrouping, barGraphs []*dbtypes.P
 	ticketPoolGraphsCache.DonutGraphCache[interval] = donutcharts
 }
 
-// UTXOData stores an address and value paid to an address by a transaction
-// output.
+// UTXOData stores an address and value associated with a transaction output.
 type UTXOData struct {
 	Address string
 	Value   int64
 }
 
+// utxoStore provides a UTXOData cache with thread-safe get/set methods.
 type utxoStore struct {
 	sync.Mutex
 	c map[string]map[uint32]*UTXOData
 }
 
+// newUtxoStore constructs a new utxoStore.
 func newUtxoStore(prealloc int) utxoStore {
 	return utxoStore{
 		c: make(map[string]map[uint32]*UTXOData, prealloc),
 	}
 }
 
+// Get attempts to locate UTXOData for the specified outpoint. If the data is
+// not in the cache, a nil pointer and false are returned. If the data is
+// located, the data and true are returned, and the data is evicted from cache.
 func (u *utxoStore) Get(txHash string, txIndex uint32) (*UTXOData, bool) {
 	u.Lock()
 	defer u.Unlock()
@@ -151,6 +155,8 @@ func (u *utxoStore) Get(txHash string, txIndex uint32) (*UTXOData, bool) {
 	return utxoData, ok
 }
 
+// Set stores the address and amount in a UTXOData entry in the cache for the
+// given outpoint.
 func (u *utxoStore) Set(txHash string, txIndex uint32, addr string, val int64) {
 	u.Lock()
 	defer u.Unlock()
