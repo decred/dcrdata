@@ -556,7 +556,7 @@ After dcrdata syncs with the blockchain server via RPC, by default it will begin
 listening for HTTP connections on `http://127.0.0.1:7777/`. This means it starts
 a web server listening on IPv4 localhost, port 7777. Both the interface and port
 are configurable. The block explorer and the JSON APIs are both provided by the
-server on this port. See [JSON REST API](#json-rest-api) for details.
+server on this port.
 
 Note that while dcrdata can be started with HTTPS support, it is recommended to
 employ a reverse proxy such as Nginx ("engine x"). See sample-nginx.conf for an
@@ -573,7 +573,7 @@ The dcrdata block explorer is exposed by two APIs: a Decred implementation of th
 
 ### Insight API (EXPERIMENTAL)
 
-The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP via REST or WebSocket. 
+The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP via REST or WebSocket.
 
 See the [Insight API documentation](api/Insight_API_documentation.md) for further details.
 
