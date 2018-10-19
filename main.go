@@ -206,7 +206,7 @@ func mainCore() error {
 		}
 	}
 
-	blockHash, height, err := dcrdClient.GetBestBlock()
+	blockHash, nodeHeight, err := dcrdClient.GetBestBlock()
 	if err != nil {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
@@ -267,7 +267,7 @@ func mainCore() error {
 
 		// Since mining a block take approximately ChainParams.TargetTimePerBlock then the
 		// expected height of the best block from dcrd now should be this.
-		expectedHeight := int64(elapsedTime/float64(activeChain.TargetTimePerBlock)) + height
+		expectedHeight := int64(elapsedTime/float64(activeChain.TargetTimePerBlock)) + nodeHeight
 
 		// How far auxDB is behind the node
 		blocksBehind = expectedHeight - lastBlockPG
@@ -357,16 +357,18 @@ func mainCore() error {
 		auxDBheight = auxDB.GetHeight() // pg db
 	}
 
-	// barLoad is used to send sync status updates from a given function or method
-	// to SyncStatusUpdate function via websocket.
-	barLoad := make(chan *dbtypes.ProgressBarLoad)
+	// barLoad is used to send sync status updates from a given function or
+	// method to SyncStatusUpdate function via websocket. Sends do not need to
+	// block, so this is buffered.
+	barLoad := make(chan *dbtypes.ProgressBarLoad, 2)
 
 	// latestBlockHash receives the block hash of the latest block to be sync'd
-	// in dcrdata. This may not necessarily be the latest block in the blockchain
-	// but it is the latest block to be sync'd according to dcrdata. This block
-	// hash is sent if the webserver is providing the full explorer functionality
-	// during blockchain syncing.
-	latestBlockHash := make(chan *chainhash.Hash)
+	// in dcrdata. This may not necessarily be the latest block in the
+	// blockchain but it is the latest block to be sync'd according to dcrdata.
+	// This block hash is sent if the webserver is providing the full explorer
+	// functionality during blockchain syncing. Sends do not need to block, so
+	// this is buffered.
+	latestBlockHash := make(chan *chainhash.Hash, 2)
 
 	// The blockchain syncing status page should be displayed; if the blocks
 	// behind the current height are more than the set status limit. On initial
@@ -438,7 +440,7 @@ func mainCore() error {
 				loadHeight)
 		}
 
-		// Signal the goroutine to load this block hash's data.
+		// Signal to load this block's data into the explorer.
 		latestBlockHash <- loadBlockHash
 	}
 
@@ -563,7 +565,9 @@ func mainCore() error {
 
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them,
 		// but it has to get a notification channel first to receive them. The
-		// BlockGate will provide this for blocks after fetchHeightInBaseDB.
+		// BlockGate will provide this for blocks after fetchHeightInBaseDB. In
+		// full mode, baseDB will be configured not to send progress updates or
+		// chain data to the explorer pages since auxDB will do it.
 		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeightInBaseDB,
 			latestBlockHash, barLoad)
 
@@ -594,32 +598,37 @@ func mainCore() error {
 	}
 
 	// The sync routines may have lengthy tasks, such as table indexing, that
-	// follow main sync loop. Before enabling the chain monitors, ensure the DBs
-	// are at the node's best block.
-	updateAllAddresses, updateAllVotes, newPGIndexes = false, false, false
-	_, height, err = dcrdClient.GetBestBlock()
-	if err != nil {
-		return fmt.Errorf("unable to get block from node: %v", err)
-	}
-
-	for baseDBHeight < height {
-		fetchToHeight = auxDBHeight + 1
-		baseDBHeight, auxDBHeight, err = getSyncd(updateAllAddresses, updateAllVotes,
-			newPGIndexes, fetchToHeight)
-		if err != nil {
-			return err
-		}
-		_, height, err = dcrdClient.GetBestBlock()
+	// follow main sync loop. Before enabling the chain monitors, again ensure
+	// the DBs are at the node's best block.
+	ensureSync := func() error {
+		updateAllAddresses, updateAllVotes, newPGIndexes = false, false, false
+		_, height, err := dcrdClient.GetBestBlock()
 		if err != nil {
 			return fmt.Errorf("unable to get block from node: %v", err)
 		}
-	}
 
-	log.Infof("All ready, at height %d.", baseDBHeight)
+		for baseDBHeight < height {
+			fetchToHeight = auxDBHeight + 1
+			baseDBHeight, auxDBHeight, err = getSyncd(updateAllAddresses, updateAllVotes,
+				newPGIndexes, fetchToHeight)
+			if err != nil {
+				return err
+			}
+			_, height, err = dcrdClient.GetBestBlock()
+			if err != nil {
+				return fmt.Errorf("unable to get block from node: %v", err)
+			}
+		}
+		return nil
+	}
+	if err = ensureSync(); err != nil {
+		return err
+	}
 
 	// Exits immediately after the sync completes if SyncAndQuit is to true
 	// because all we needed then was the blockchain sync be completed successfully.
 	if cfg.SyncAndQuit {
+		log.Infof("All ready, at height %d.", baseDBHeight)
 		return nil
 	}
 
@@ -627,7 +636,8 @@ func mainCore() error {
 	// and import them if they are not already there.
 	if usePG && cfg.ImportSideChains {
 		// First identify the side chain blocks that are missing from the DB.
-		log.Infof("Retrieving side chain blocks from dcrd.")
+		log.Infof("Initial sync complete, at height %d. "+
+			"Now retrieving side chain blocks from dcrd...", baseDBHeight)
 		sideChainBlocksToStore, nSideChainBlocks, err := auxDB.MissingSideChainBlocks()
 		if err != nil {
 			return fmt.Errorf("unable to determine missing side chain blocks: %v", err)
@@ -640,11 +650,14 @@ func mainCore() error {
 		// to get ticket pool info.
 
 		// Collect and store data for each side chain.
-		log.Infof("Importing %d blocks from %d side chains...",
+		log.Infof("Importing %d new block(s) from %d known side chains...",
 			nSideChainBlocks, nSideChains)
+		// Disable recomputing project fund balance, and clearing address
+		// balance and counts cache.
+		auxDB.InBatchSync = true
 		var sideChainsStored, sideChainBlocksStored int
 		for _, sideChain := range sideChainBlocksToStore {
-			// Process this side chain only if there are block in it that need
+			// Process this side chain only if there are blocks in it that need
 			// to be stored.
 			if len(sideChain.Hashes) == 0 {
 				continue
@@ -669,22 +682,61 @@ func mainCore() error {
 					continue
 				}
 
+				// SQLite / base DB
+				// TODO: Make hash the primary key instead of height, otherwise
+				// the main chain block will be overwritten.
+				// log.Debugf("Importing block %s (height %d) into base DB.",
+				// 	blockHash, msgBlock.Header.Height)
+
+				// blockDataSummary, stakeInfoSummaryExtended := collector.CollectAPITypes(blockHash)
+				// if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
+				// 	log.Error("Failed to collect data for reorg.")
+				// 	continue
+				// }
+				// if err = baseDB.StoreBlockSummary(blockDataSummary); err != nil {
+				// 	log.Errorf("Failed to store block summary data: %v", err)
+				// }
+				// if err = baseDB.StoreStakeInfoExtended(stakeInfoSummaryExtended); err != nil {
+				// 	log.Errorf("Failed to store stake info data: %v", err)
+				// }
+
+				// PostgreSQL / aux DB
+				log.Debugf("Importing block %s (height %d) into aux DB.",
+					blockHash, msgBlock.Header.Height)
+
+				// Stake invalidation is always handled by subsequent block, so
+				// add the block as valid. These are all side chain blocks.
+				isValid, isMainchain := true, false
+
+				// Existing DB records might be for mainchain and/or valid
+				// blocks, so these imported blocks should not data in rows that
+				// are conflicting as per the different table constraints and
+				// unique indexes.
+				updateExistingRecords := false
+
 				// Store data in the aux (dcrpg) DB.
-				isValid, isMainchain := true, false // invalidation handled by subsequent block
 				_, _, err = auxDB.StoreBlock(msgBlock, blockData.WinningTickets,
-					isValid, isMainchain, true, true)
+					isValid, isMainchain, updateExistingRecords, true, true)
 				if err != nil {
 					// If data collection succeeded, but storage fails, bail out
 					// to diagnose the DB trouble.
-					return fmt.Errorf("ChainDBRPC.Store failed: %v", err)
+					return fmt.Errorf("ChainDBRPC.StoreBlock failed: %v", err)
 				}
 
 				sideChainBlocksStored++
 			}
 		}
+		auxDB.InBatchSync = false
 		log.Infof("Successfully added %d blocks from %d side chains into dcrpg DB.",
 			sideChainBlocksStored, sideChainsStored)
+
+		// That may have taken a while, check again for new blocks from network.
+		if err = ensureSync(); err != nil {
+			return err
+		}
 	}
+
+	log.Infof("All ready, at height %d.", baseDBHeight)
 
 	// Collect the data now it was not collected earlier. Set up the monitors too.
 	if displaySyncStatusPage {

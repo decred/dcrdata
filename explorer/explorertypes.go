@@ -25,6 +25,7 @@ const (
 	NotFoundStatusType       statusType = "Not Found"
 	NotSupportedStatusType   statusType = "Not Supported"
 	NotImplementedStatusType statusType = "Not Implemented"
+	WrongNetworkStatusType   statusType = "Wrong Network"
 	DeprecatedStatusType     statusType = "Deprecated"
 	BlockchainSyncingType    statusType = "Blocks Syncing"
 )

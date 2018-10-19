@@ -277,7 +277,10 @@ func sideChainTips(allTips []dcrjson.GetChainTipsResult) (sideTips []dcrjson.Get
 }
 
 // SideChainFull gets all of the blocks in the side chain with the specified tip
-// block hash. The last block is not mainchain, but it's previous block is.
+// block hash. The first block in the slice is the lowest height block in the
+// side chain, and its previous block is the main/side common ancestor, which is
+// not included in the slice since it is main chain. The last block in the slice
+// is thus the side chain tip.
 func SideChainFull(client *rpcclient.Client, tipHash string) ([]string, error) {
 	// Do not assume specified tip hash is even side chain.
 	var sideChain []string

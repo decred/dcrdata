@@ -1,7 +1,9 @@
 package internal
 
+// The folloiwng statements are for the tickets, votes, and misses tables.
+
 const (
-	// Tickets
+	// tickets table
 
 	CreateTicketsTable = `CREATE TABLE IF NOT EXISTS tickets (  
 		id SERIAL PRIMARY KEY,
@@ -22,8 +24,8 @@ const (
 		spend_tx_db_id INT8
 	);`
 
-	// Insert
-	insertTicketRow0 = `INSERT INTO tickets (
+	// insertTicketRow is the basis for several ticket insert/upsert statements.
+	insertTicketRow = `INSERT INTO tickets (
 		tx_hash, block_hash, block_height, purchase_tx_db_id,
 		stakesubmission_address, is_multisig, is_split,
 		num_inputs, price, fee, spend_type, pool_status,
@@ -33,32 +35,81 @@ const (
 		$5, $6, $7,
 		$8, $9, $10, $11, $12, 
 		$13) `
-	insertTicketRow = insertTicketRow0 + `RETURNING id;`
-	// insertTicketRowChecked = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
-	upsertTicketRow = insertTicketRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
-		SET is_mainchain = $13 RETURNING id;`
-	insertTicketRowReturnId = `WITH ins AS (` +
-		insertTicketRow0 +
-		`ON CONFLICT (tx_hash, block_hash) DO UPDATE
-		SET tx_hash = NULL WHERE FALSE
-		RETURNING id
-		)
-	SELECT id FROM ins
-	UNION  ALL
-	SELECT id FROM tickets
-	WHERE  tx_hash = $1 AND block_hash = $2
-	LIMIT  1;`
 
-	SelectTicketsInBlock         = `SELECT * FROM tickets WHERE block_hash = $1;`
-	SelectTicketsTxDbIDsInBlock  = `SELECT purchase_tx_db_id FROM tickets WHERE block_hash = $1;`
-	SelectTicketsForAddress      = `SELECT * FROM tickets WHERE stakesubmission_address = $1;`
+	// InsertTicketRow inserts a new ticket row without checking for unique
+	// index conflicts. This should only be used before the unique indexes are
+	// created or there may be constraint violations (errors).
+	InsertTicketRow = insertTicketRow + `RETURNING id;`
+
+	// UpsertTicketRow is an upsert (insert or update on conflict), returning
+	// the inserted/updated ticket row id. is_mainchain is updated as this might
+	// be a reorganization.
+	UpsertTicketRow = insertTicketRow + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
+		SET is_mainchain = $13 RETURNING id;`
+
+	// InsertTicketRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
+	// conflict with tickets' unique tx index, while returning the row id of
+	// either the inserted row or the existing row that causes the conflict. The
+	// complexity of this statement is necessary to avoid an unnecessary UPSERT,
+	// which would have performance consequences. The row is not locked.
+	InsertTicketRowOnConflictDoNothing = `WITH ins AS (` +
+		insertTicketRow +
+		`	ON CONFLICT (tx_hash, block_hash) DO NOTHING -- no lock on row
+			RETURNING id
+		)
+		SELECT id FROM ins
+		UNION  ALL
+		SELECT id FROM tickets
+		WHERE  tx_hash = $1 AND block_hash = $2 -- only executed if no INSERT
+		LIMIT  1;`
+
+	// DeleteTicketsDuplicateRows removes rows that would violate the unique
+	// index uix_ticket_hashes_index. This should be run prior to creating the
+	// index.
+	DeleteTicketsDuplicateRows = `DELETE FROM tickets
+		WHERE id IN (SELECT id FROM (
+				SELECT id, ROW_NUMBER()
+				OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
+				FROM tickets) t
+			WHERE t.rnum > 1);`
+
+	// Indexes
+
+	// IndexTicketsTableOnHashes creates the unique index
+	// uix_ticket_hashes_index on (tx_hash, block_hash).
+	IndexTicketsTableOnHashes = `CREATE UNIQUE INDEX uix_ticket_hashes_index
+		ON tickets(tx_hash, block_hash);`
+	DeindexTicketsTableOnHashes = `DROP INDEX uix_ticket_hashes_index;`
+
+	// IndexTicketsTableOnTxDbID creates the unique index that ensures only one
+	// row in the tickets table may refer to a certain row of the transactions
+	// table. This is not the same as being unique on transaction hash, since
+	// the transactions table also has a unique constraint is on (tx_hash,
+	// block_hash) that allows a transaction appearing in multiple blocks (e.g.
+	// side chains and/or invalidated blocks) to have multiple rows in the
+	// transactions table.
+	IndexTicketsTableOnTxDbID = `CREATE UNIQUE INDEX uix_ticket_ticket_db_id
+		ON tickets(purchase_tx_db_id);`
+	DeindexTicketsTableOnTxDbID = `DROP INDEX uix_ticket_ticket_db_id;`
+
+	IndexTicketsTableOnPoolStatus = `CREATE INDEX uix_tickets_pool_status ON 
+		tickets(pool_status);`
+	DeindexTicketsTableOnPoolStatus = `DROP INDEX uix_tickets_pool_status;`
+
+	SelectTicketsInBlock        = `SELECT * FROM tickets WHERE block_hash = $1;`
+	SelectTicketsTxDbIDsInBlock = `SELECT purchase_tx_db_id FROM tickets WHERE block_hash = $1;`
+	SelectTicketsForAddress     = `SELECT * FROM tickets WHERE stakesubmission_address = $1;`
+
+	forTxHashMainchainFirst    = ` WHERE tx_hash = $1 ORDER BY is_mainchain DESC;`
+	SelectTicketIDHeightByHash = `SELECT id, block_height FROM tickets` + forTxHashMainchainFirst
+	SelectTicketIDByHash       = `SELECT id FROM tickets` + forTxHashMainchainFirst
+	SelectTicketStatusByHash   = `SELECT id, spend_type, pool_status FROM tickets` + forTxHashMainchainFirst
+
+	SelectUnspentTickets = `SELECT id, tx_hash FROM tickets
+		WHERE spend_type = 0 AND is_mainchain = true;`
+
 	SelectTicketsForPriceAtLeast = `SELECT * FROM tickets WHERE price >= $1;`
 	SelectTicketsForPriceAtMost  = `SELECT * FROM tickets WHERE price <= $1;`
-	SelectTicketIDHeightByHash   = `SELECT id, block_height FROM tickets WHERE tx_hash = $1 ORDER BY is_mainchain DESC;`
-	SelectTicketIDByHash         = `SELECT id FROM tickets WHERE tx_hash = $1 ORDER BY is_mainchain DESC;`
-	SelectTicketStatusByHash     = `SELECT id, spend_type, pool_status FROM tickets WHERE tx_hash = $1 ORDER BY is_mainchain DESC;`
-	SelectUnspentTickets         = `SELECT id, tx_hash FROM tickets WHERE spend_type = 0 OR spend_type = -1
-		AND is_mainchain = true;`
 
 	SelectTicketsByPrice = `SELECT price,
 		SUM(CASE WHEN tickets.block_height >= $1 THEN 1 ELSE 0 END) as immature,
@@ -80,7 +131,8 @@ const (
 		SUM(CASE WHEN spend_type = 1 THEN 1 ELSE 0 END) as revoked
 		FROM tickets GROUP BY block_height ORDER BY block_height;`
 
-	// Update
+	// Updates
+
 	SetTicketSpendingInfoForHash = `UPDATE tickets
 		SET spend_type = $5, spend_height = $3, spend_tx_db_id = $4, pool_status = $6
 		WHERE tx_hash = $1 and block_hash = $2;`
@@ -105,27 +157,7 @@ const (
 		SET is_mainchain=$1 
 		WHERE block_hash=$2;`
 
-	// Index
-	IndexTicketsTableOnHashes = `CREATE UNIQUE INDEX uix_ticket_hashes_index
-		ON tickets(tx_hash, block_hash);`
-	DeindexTicketsTableOnHashes = `DROP INDEX uix_ticket_hashes_index;`
-
-	IndexTicketsTableOnTxDbID = `CREATE UNIQUE INDEX uix_ticket_ticket_db_id
-		ON tickets(purchase_tx_db_id);`
-	DeindexTicketsTableOnTxDbID = `DROP INDEX uix_ticket_ticket_db_id;`
-
-	IndexTicketsTableOnPoolStatus = `CREATE INDEX uix_tickets_pool_status ON 
-		tickets(pool_status);`
-	DeindexTicketsTableOnPoolStatus = `DROP INDEX uix_tickets_pool_status;`
-
-	DeleteTicketsDuplicateRows = `DELETE FROM tickets
-		WHERE id IN (SELECT id FROM (
-				SELECT id, ROW_NUMBER()
-				OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
-				FROM tickets) t
-			WHERE t.rnum > 1);`
-
-	// Votes
+	// votes table
 
 	CreateVotesTable = `CREATE TABLE IF NOT EXISTS votes (
 		id SERIAL PRIMARY KEY,
@@ -143,8 +175,8 @@ const (
 		is_mainchain BOOLEAN
 	);`
 
-	// Insert
-	insertVoteRow0 = `INSERT INTO votes (
+	// insertVoteRow is the basis for several vote insert/upsert statements.
+	insertVoteRow = `INSERT INTO votes (
 		height, tx_hash,
 		block_hash, candidate_block_hash,
 		version, vote_bits, block_valid,
@@ -156,38 +188,47 @@ const (
 		$5, $6, $7,
 		$8, $9, $10, $11,
 		$12) `
-	insertVoteRow = insertVoteRow0 + `RETURNING id;`
-	// insertVoteRowChecked = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO NOTHING RETURNING id;`
-	upsertVoteRow = insertVoteRow0 + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
+
+	// InsertVoteRow inserts a new vote row without checking for unique index
+	// conflicts. This should only be used before the unique indexes are created
+	// or there may be constraint violations (errors).
+	InsertVoteRow = insertVoteRow + `RETURNING id;`
+
+	// UpsertVoteRow is an upsert (insert or update on conflict), returning the
+	// inserted/updated vote row id. is_mainchain is updated as this might be a
+	// reorganization.
+	UpsertVoteRow = insertVoteRow + `ON CONFLICT (tx_hash, block_hash) DO UPDATE 
 		SET is_mainchain = $12 RETURNING id;`
-	insertVoteRowReturnId = `WITH ins AS (` +
-		insertVoteRow0 +
-		`ON CONFLICT (tx_hash, block_hash) DO UPDATE
-		SET tx_hash = NULL WHERE FALSE
-		RETURNING id
+
+	// InsertVoteRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
+	// conflict with votes' unique tx index, while returning the row id of
+	// either the inserted row or the existing row that causes the conflict. The
+	// complexity of this statement is necessary to avoid an unnecessary UPSERT,
+	// which would have performance consequences. The row is not locked.
+	InsertVoteRowOnConflictDoNothing = `WITH ins AS (` +
+		insertVoteRow +
+		`	ON CONFLICT (tx_hash, block_hash) DO NOTHING -- no lock on row
+			RETURNING id
 		)
-	SELECT id FROM ins
-	UNION  ALL
-	SELECT id FROM votes
-	WHERE  tx_hash = $2 AND block_hash = $3
-	LIMIT  1;`
+		SELECT id FROM ins
+		UNION  ALL
+		SELECT id FROM votes
+		WHERE  tx_hash = $2 AND block_hash = $3 -- only executed if no INSERT
+		LIMIT  1;`
 
-	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
-	SelectAllVoteDbIDsHeightsTicketDbIDs  = `SELECT id, height, ticket_tx_db_id FROM votes;`
+	// DeleteVotesDuplicateRows removes rows that would violate the unique index
+	// uix_votes_hashes_index. This should be run prior to creating the index.
+	DeleteVotesDuplicateRows = `DELETE FROM votes
+		WHERE id IN (SELECT id FROM (
+				SELECT id, ROW_NUMBER()
+				OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
+				FROM votes) t
+			WHERE t.rnum > 1);`
 
-	UpdateVotesMainchainAll = `UPDATE votes
-		SET is_mainchain=b.is_mainchain
-		FROM (
-			SELECT hash, is_mainchain
-			FROM blocks
-		) b
-		WHERE block_hash = b.hash;`
+	// Indexes
 
-	UpdateVotesMainchainByBlock = `UPDATE votes
-		SET is_mainchain=$1 
-		WHERE block_hash=$2;`
-
-	// Index
+	// IndexVotesTableOnHashes creates the unique index uix_votes_hashes_index
+	// on (tx_hash, block_hash).
 	IndexVotesTableOnHashes = `CREATE UNIQUE INDEX uix_votes_hashes_index
 		ON votes(tx_hash, block_hash);`
 	DeindexVotesTableOnHashes = `DROP INDEX uix_votes_hashes_index;`
@@ -204,14 +245,22 @@ const (
 		ON votes(version);`
 	DeindexVotesTableOnVoteVersion = `DROP INDEX uix_votes_vote_version;`
 
-	DeleteVotesDuplicateRows = `DELETE FROM votes
-		WHERE id IN (SELECT id FROM (
-				SELECT id, ROW_NUMBER()
-				OVER (partition BY tx_hash, block_hash ORDER BY id) AS rnum
-				FROM votes) t
-			WHERE t.rnum > 1);`
+	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
+	SelectAllVoteDbIDsHeightsTicketDbIDs  = `SELECT id, height, ticket_tx_db_id FROM votes;`
 
-	// Misses
+	UpdateVotesMainchainAll = `UPDATE votes
+		SET is_mainchain=b.is_mainchain
+		FROM (
+			SELECT hash, is_mainchain
+			FROM blocks
+		) b
+		WHERE block_hash = b.hash;`
+
+	UpdateVotesMainchainByBlock = `UPDATE votes
+		SET is_mainchain=$1 
+		WHERE block_hash=$2;`
+
+	// misses table
 
 	CreateMissesTable = `CREATE TABLE IF NOT EXISTS misses (
 		id SERIAL PRIMARY KEY,
@@ -221,34 +270,41 @@ const (
 		ticket_hash TEXT NOT NULL
 	);`
 
-	// Insert
-	insertMissRow0 = `INSERT INTO misses (
+	// insertMissRow is the basis for several miss insert/upsert statements.
+	insertMissRow = `INSERT INTO misses (
 		height, block_hash, candidate_block_hash, ticket_hash)
 	VALUES (
 		$1, $2, $3, $4) `
-	insertMissRow = insertMissRow0 + `RETURNING id;`
-	// insertVoteRowChecked = insertMissRow0 + `ON CONFLICT (ticket_hash, block_hash) DO NOTHING RETURNING id;`
-	upsertMissRow = insertMissRow0 + `ON CONFLICT (ticket_hash, block_hash) DO UPDATE 
+
+	// InsertMissRow inserts a new misss row without checking for unique index
+	// conflicts. This should only be used before the unique indexes are created
+	// or there may be constraint violations (errors).
+	InsertMissRow = insertMissRow + `RETURNING id;`
+
+	// UpsertMissRow is an upsert (insert or update on conflict), returning
+	// the inserted/updated miss row id.
+	UpsertMissRow = insertMissRow + `ON CONFLICT (ticket_hash, block_hash) DO UPDATE 
 		SET ticket_hash = $4, block_hash = $2 RETURNING id;`
-	insertMissRowReturnId = `WITH ins AS (` +
-		insertMissRow0 +
-		`ON CONFLICT (ticket_hash, block_hash) DO UPDATE
-		SET ticket_hash = NULL WHERE FALSE
-		RETURNING id
+
+	// InsertMissRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
+	// conflict with misses' unique tx index, while returning the row id of
+	// either the inserted row or the existing row that causes the conflict. The
+	// complexity of this statement is necessary to avoid an unnecessary UPSERT,
+	// which would have performance consequences. The row is not locked.
+	InsertMissRowOnConflictDoNothing = `WITH ins AS (` +
+		insertMissRow +
+		`	ON CONFLICT (ticket_hash, block_hash) DO NOTHING -- no lock on row
+			RETURNING id
 		)
-	SELECT id FROM ins
-	UNION  ALL
-	SELECT id FROM misses
-	WHERE  ticket_hash = $4 AND block_hash = $2
-	LIMIT  1;`
+		SELECT id FROM ins
+		UNION  ALL
+		SELECT id FROM misses
+		WHERE  block_hash = $2 AND ticket_hash = $4 -- only executed if no INSERT
+		LIMIT  1;`
 
-	SelectMissesInBlock = `SELECT ticket_hash FROM misses WHERE block_hash = $1;`
-
-	// Index
-	IndexMissesTableOnHashes = `CREATE UNIQUE INDEX uix_misses_hashes_index
-		ON misses(ticket_hash, block_hash);`
-	DeindexMissesTableOnHashes = `DROP INDEX uix_misses_hashes_index;`
-
+	// DeleteMissesDuplicateRows removes rows that would violate the unique
+	// index uix_misses_hashes_index. This should be run prior to creating the
+	// index.
 	DeleteMissesDuplicateRows = `DELETE FROM misses
 		WHERE id IN (SELECT id FROM (
 				SELECT id, ROW_NUMBER()
@@ -256,9 +312,16 @@ const (
 				FROM misses) t
 			WHERE t.rnum > 1);`
 
-	// Revokes?
+	// IndexMissesTableOnHashes creates the unique index uix_misses_hashes_index
+	// on (ticket_hash, block_hash).
+	IndexMissesTableOnHashes = `CREATE UNIQUE INDEX uix_misses_hashes_index
+		ON misses(ticket_hash, block_hash);`
+	DeindexMissesTableOnHashes = `DROP INDEX uix_misses_hashes_index;`
 
-	// Agendas
+	SelectMissesInBlock = `SELECT ticket_hash FROM misses WHERE block_hash = $1;`
+
+	// agendas table
+
 	CreateAgendasTable = `CREATE TABLE IF NOT EXISTS agendas (
 		id SERIAL PRIMARY KEY,
 		agenda_id TEXT,
@@ -272,71 +335,101 @@ const (
 	);`
 
 	// Insert
-	insertAgendaRow0 = `INSERT INTO agendas (
+	insertAgendaRow = `INSERT INTO agendas (
 		agenda_id, agenda_vote_choice,
 		tx_hash, block_height, block_time,
 		locked_in, activated, hard_forked)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
 
-	insertAgendaRow = insertAgendaRow0 + `RETURNING id;`
+	InsertAgendaRow = insertAgendaRow + `RETURNING id;`
 
-	upsertAgendaRow = insertAgendaRow0 + `ON CONFLICT (agenda_id, agenda_vote_choice, tx_hash, block_height) DO UPDATE 
+	UpsertAgendaRow = insertAgendaRow + `ON CONFLICT (agenda_id, agenda_vote_choice, tx_hash, block_height) DO UPDATE 
 		SET block_time = $5 RETURNING id;`
 
-	SelectAgendasAgendaVotesByTime = `SELECT block_time as timestamp,
-		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
-		COUNT(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) as abstain,
-		COUNT(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) as no,
-		count(*) as total FROM agendas WHERE agenda_id = $4 and
-		block_height <= (select block_height from agendas where locked_in = true and agenda_id = $4 limit 1)
-		GROUP BY timestamp ORDER BY timestamp;`
-
-	SelectAgendasAgendaVotesByHeight = `SELECT block_height,
-		COUNT(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) as yes,
-		COUNT(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) as abstain,
-		COUNT(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) as no,
-		count(*) as total FROM agendas WHERE agenda_id = $4 and
-		block_height <= (select block_height from agendas where locked_in = true and agenda_id = $4 limit 1)
-		GROUP BY block_height ORDER BY block_height;`
-
-	SelectAgendasLockedIn   = `select block_height from agendas where locked_in = true and agenda_id = $1 limit 1;`
-	SelectAgendasHardForked = `select block_height from agendas where hard_forked = true and agenda_id = $1 limit 1;`
-	SelectAgendasActivated  = `select block_height from agendas where activated = true and agenda_id = $1 limit 1;`
+	// IndexAgendasTableOnAgendaID creates the unique index
+	// uix_agendas_agenda_id on (agenda_id, agenda_vote_choice, tx_hash,
+	// block_height).
+	IndexAgendasTableOnAgendaID = `CREATE UNIQUE INDEX uix_agendas_agenda_id
+		ON agendas(agenda_id, agenda_vote_choice, tx_hash, block_height);`
+	DeindexAgendasTableOnAgendaID = `DROP INDEX uix_agendas_agenda_id;`
 
 	IndexAgendasTableOnBlockTime = `CREATE INDEX uix_agendas_block_time
 		ON agendas(block_time);`
 	DeindexAgendasTableOnBlockTime = `DROP INDEX uix_agendas_block_time;`
 
-	IndexAgendasTableOnAgendaID = `CREATE UNIQUE INDEX uix_agendas_agenda_id
-		ON agendas(agenda_id, agenda_vote_choice, tx_hash, block_height);`
+	agendaLockinBlock              = `SELECT block_height FROM agendas WHERE locked_in = true AND agenda_id = $4 LIMIT 1`
+	SelectAgendasAgendaVotesByTime = `SELECT block_time AS timestamp,
+			count(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) AS yes,
+			count(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) AS abstain,
+			count(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
+			count(*) AS total
+		 FROM agendas
+		WHERE agenda_id = $4
+		  AND block_height <= (` + agendaLockinBlock + `)
+		GROUP BY timestamp ORDER BY timestamp;`
 
-	DeindexAgendasTableOnAgendaID = `DROP INDEX uix_agendas_agenda_id;`
+	SelectAgendasAgendaVotesByHeight = `SELECT block_height,
+			count(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) AS yes,
+			count(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) AS abstain,
+			count(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
+			count(*) AS total
+		 FROM agendas
+		WHERE agenda_id = $4
+		  AND block_height <= (` + agendaLockinBlock + `);`
+
+	SelectAgendasLockedIn   = `SELECT block_height FROM agendas WHERE locked_in = true AND agenda_id = $1 LIMIT 1;`
+	SelectAgendasHardForked = `SELECT block_height FROM agendas WHERE hard_forked = true AND agenda_id = $1 LIMIT 1;`
+	SelectAgendasActivated  = `SELECT block_height FROM agendas WHERE activated = true AND agenda_id = $1 LIMIT 1;`
 )
 
-func MakeTicketInsertStatement(checked bool) string {
-	if checked {
-		return upsertTicketRow
+// MakeTicketInsertStatement returns the appropriate tickets insert statement
+// for the desired conflict checking and handling behavior. For checked=false,
+// no ON CONFLICT checks will be performed, and the value of updateOnConflict is
+// ignored. This should only be used prior to creating the unique indexes as
+// these constraints will cause an errors if an inserted row violates a
+// constraint. For updateOnConflict=true, an upsert statement will be provided
+// that UPDATEs the conflicting row. For updateOnConflict=false, the statement
+// will either insert or do nothing, and return the inserted (new) or
+// conflicting (unmodified) row id.
+func MakeTicketInsertStatement(checked, updateOnConflict bool) string {
+	if !checked {
+		return InsertTicketRow
 	}
-	return insertTicketRow
+	if updateOnConflict {
+		return UpsertTicketRow
+	}
+	return InsertTicketRowOnConflictDoNothing
 }
 
-func MakeVoteInsertStatement(checked bool) string {
-	if checked {
-		return upsertVoteRow
+// MakeTicketInsertStatement returns the appropriate votes insert statement for
+// the desired conflict checking and handling behavior. See the description of
+// MakeTicketInsertStatement for details.
+func MakeVoteInsertStatement(checked, updateOnConflict bool) string {
+	if !checked {
+		return InsertVoteRow
 	}
-	return insertVoteRow
+	if updateOnConflict {
+		return UpsertVoteRow
+	}
+	return InsertVoteRowOnConflictDoNothing
 }
 
-func MakeMissInsertStatement(checked bool) string {
-	if checked {
-		return upsertMissRow
+// MakeTicketInsertStatement returns the appropriate misses insert statement for
+// the desired conflict checking and handling behavior. See the description of
+// MakeTicketInsertStatement for details.
+func MakeMissInsertStatement(checked, updateOnConflict bool) string {
+	if !checked {
+		return InsertMissRow
 	}
-	return insertMissRow
+	if updateOnConflict {
+		return UpsertMissRow
+	}
+	return InsertMissRowOnConflictDoNothing
 }
 
 func MakeAgendaInsertStatement(checked bool) string {
 	if checked {
-		return upsertAgendaRow
+		return UpsertAgendaRow
 	}
-	return insertAgendaRow
+	return InsertAgendaRow
 }

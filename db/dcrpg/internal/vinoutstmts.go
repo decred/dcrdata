@@ -26,16 +26,40 @@ const (
 		tx_type INT4
 	);`
 
-	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree,
+	// insertVinRow is the basis for several vinvs insert/upsert statements.
+	insertVinRow = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree,
 		value_in, is_valid, is_mainchain, block_time, tx_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) `
-	InsertVinRow = InsertVinRow0 + `RETURNING id;`
-	// InsertVinRowChecked = InsertVinRow0 +
-	// 	`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
-	UpsertVinRow = InsertVinRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
+
+	// InsertVinRow inserts a new vin row without checking for unique index
+	// conflicts. This should only be used before the unique indexes are created
+	// or there may be constraint violations (errors).
+	InsertVinRow = insertVinRow + `RETURNING id;`
+
+	// UpsertVinRow is an upsert (insert or update on conflict), returning the
+	// inserted/updated vin row id.
+	UpsertVinRow = insertVinRow + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
 		SET is_valid = $8, is_mainchain = $9, block_time = $10,
 			prev_tx_hash = $4, prev_tx_index = $5, prev_tx_tree = $6
 		RETURNING id;`
 
+	// InsertVinRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
+	// conflict with vins' unique tx index, while returning the row id of either
+	// the inserted row or the existing row that causes the conflict. The
+	// complexity of this statement is necessary to avoid an unnecessary UPSERT,
+	// which would have performance consequences. The row is not locked.
+	InsertVinRowOnConflictDoNothing = `WITH inserting AS (` +
+		insertVinRow +
+		`	ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING -- no lock on row
+			RETURNING id
+		)
+		SELECT id FROM inserting
+		UNION  ALL
+		SELECT id FROM vins
+		WHERE  tx_hash = $1 AND tx_index = $2 AND tx_tree = $3 -- only executed if no INSERT
+		LIMIT  1;`
+
+	// DeleteVinsDuplicateRows removes rows that would violate the unique index
+	// uix_vin. This should be run prior to creating the index.
 	DeleteVinsDuplicateRows = `DELETE FROM vins
 		WHERE id IN (SELECT id FROM (
 				SELECT id, ROW_NUMBER()
@@ -126,31 +150,51 @@ const (
 		script_addresses TEXT[]
 	);`
 
-	insertVoutRow0 = `INSERT INTO vouts (tx_hash, tx_index, tx_tree, value,
+	// insertVinRow is the basis for several vout insert/upsert statements.
+	insertVoutRow = `INSERT INTO vouts (tx_hash, tx_index, tx_tree, value,
 		version, pkscript, script_req_sigs, script_type, script_addresses)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
-	insertVoutRow = insertVoutRow0 + `RETURNING id;`
-	//insertVoutRowChecked  = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
-	upsertVoutRow = insertVoutRow0 + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
-		SET version = $5 RETURNING id;`
-	insertVoutRowReturnId = `WITH inserting AS (` +
-		insertVoutRow0 +
-		`ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
-		SET tx_hash = NULL WHERE FALSE
-		RETURNING id
-		)
-	 SELECT id FROM inserting
-	 UNION  ALL
-	 SELECT id FROM vouts
-	 WHERE  tx_hash = $1 AND tx_index = $2 AND tx_tree = $3
-	 LIMIT  1;`
 
+	// InsertVoutRow inserts a new vout row without checking for unique index
+	// conflicts. This should only be used before the unique indexes are created
+	// or there may be constraint violations (errors).
+	InsertVoutRow = insertVoutRow + `RETURNING id;`
+
+	// UpsertVoutRow is an upsert (insert or update on conflict), returning the
+	// inserted/updated vout row id.
+	UpsertVoutRow = insertVoutRow + `ON CONFLICT (tx_hash, tx_index, tx_tree) DO UPDATE
+		SET version = $5 RETURNING id;`
+
+	// InsertVoutRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
+	// conflict with vouts' unique tx index, while returning the row id of
+	// either the inserted row or the existing row that causes the conflict. The
+	// complexity of this statement is necessary to avoid an unnecessary UPSERT,
+	// which would have performance consequences. The row is not locked.
+	InsertVoutRowOnConflictDoNothing = `WITH inserting AS (` +
+		insertVoutRow +
+		`	ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING -- no lock on row
+			RETURNING id
+		)
+		SELECT id FROM inserting
+		UNION  ALL
+		SELECT id FROM vouts
+		WHERE  tx_hash = $1 AND tx_index = $2 AND tx_tree = $3 -- only executed if no INSERT
+		LIMIT  1;`
+
+	// DeleteVoutDuplicateRows removes rows that would violate the unique index
+	// uix_vout_txhash_ind. This should be run prior to creating the index.
 	DeleteVoutDuplicateRows = `DELETE FROM vouts
 		WHERE id IN (SELECT id FROM (
 				SELECT id, ROW_NUMBER()
 				OVER (partition BY tx_hash, tx_index, tx_tree ORDER BY id) AS rnum
 				FROM vouts) t
 			WHERE t.rnum > 1);`
+
+	// IndexVoutTableOnTxHashIdx creates the unique index uix_vout_txhash_ind on
+	// (tx_hash, tx_index, tx_tree).
+	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX uix_vout_txhash_ind
+		ON vouts(tx_hash, tx_index, tx_tree);`
+	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
 
 	SelectAddressByTxHash = `SELECT script_addresses, value FROM vouts
 		WHERE tx_hash = $1 AND tx_index = $2 AND tx_tree = $3;`
@@ -163,10 +207,6 @@ const (
 	RetrieveVoutValue  = `SELECT value FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	RetrieveVoutValues = `SELECT value, tx_index, tx_tree FROM vouts WHERE tx_hash=$1;`
 
-	IndexVoutTableOnTxHashIdx = `CREATE UNIQUE INDEX uix_vout_txhash_ind
-		ON vouts(tx_hash, tx_index, tx_tree);`
-	DeindexVoutTableOnTxHashIdx = `DROP INDEX uix_vout_txhash_ind;`
-
 	CreateVoutType = `CREATE TYPE vout_t AS (
 		value INT8,
 		version INT2,
@@ -177,11 +217,23 @@ const (
 	);`
 )
 
-func MakeVinInsertStatement(checked bool) string {
-	if checked {
+// MakeVinInsertStatement returns the appropriate vins insert statement for the
+// desired conflict checking and handling behavior. For checked=false, no ON
+// CONFLICT checks will be performed, and the value of updateOnConflict is
+// ignored. This should only be used prior to creating the unique indexes as
+// these constraints will cause an errors if an inserted row violates a
+// constraint. For updateOnConflict=true, an upsert statement will be provided
+// that UPDATEs the conflicting row. For updateOnConflict=false, the statement
+// will either insert or do nothing, and return the inserted (new) or
+// conflicting (unmodified) row id.
+func MakeVinInsertStatement(checked, updateOnConflict bool) string {
+	if !checked {
+		return InsertVinRow
+	}
+	if updateOnConflict {
 		return UpsertVinRow
 	}
-	return InsertVinRow
+	return InsertVinRowOnConflictDoNothing
 }
 
 var (
@@ -200,11 +252,23 @@ func MakeVinCopyInStatement() string {
 	return vinCopyStmt
 }
 
-func MakeVoutInsertStatement(checked bool) string {
-	if checked {
-		return upsertVoutRow
+// MakeVoutInsertStatement returns the appropriate vouts insert statement for
+// the desired conflict checking and handling behavior. For checked=false, no ON
+// CONFLICT checks will be performed, and the value of updateOnConflict is
+// ignored. This should only be used prior to creating the unique indexes as
+// these constraints will cause an errors if an inserted row violates a
+// constraint. For updateOnConflict=true, an upsert statement will be provided
+// that UPDATEs the conflicting row. For updateOnConflict=false, the statement
+// will either insert or do nothing, and return the inserted (new) or
+// conflicting (unmodified) row id.
+func MakeVoutInsertStatement(checked, updateOnConflict bool) string {
+	if !checked {
+		return InsertVoutRow
 	}
-	return insertVoutRow
+	if updateOnConflict {
+		return UpsertVoutRow
+	}
+	return InsertVoutRowOnConflictDoNothing
 }
 
 func makeARRAYOfVouts(vouts []*dbtypes.Vout) string {
