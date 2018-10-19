@@ -321,7 +321,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	return exp
 }
 
-// PrepareCharts pre-polulates charts data when in full mode.
+// PrepareCharts pre-populates charts data when in full mode.
 func (exp *explorerUI) PrepareCharts() {
 	if !exp.liteMode {
 		exp.prePopulateChartsData()
