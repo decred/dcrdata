@@ -176,6 +176,16 @@ func (u *utxoStore) Set(txHash string, txIndex uint32, addr string, val int64) {
 	}
 }
 
+// Size returns the size of the utxo cache in number of UTXOs.
+func (u *utxoStore) Size() (sz int) {
+	u.Lock()
+	defer u.Unlock()
+	for _, m := range u.c {
+		sz += len(m)
+	}
+	return
+}
+
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
@@ -1672,6 +1682,10 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 			updateExistingRecords,
 			updateAddressesSpendingInfo, updateTicketsSpendingInfo)
 	}()
+
+	if dbBlock.Height%5000 == 0 {
+		log.Debugf("UTXO cache size: %d", pgb.utxoCache.Size())
+	}
 
 	errReg := <-resChanReg
 	errStk := <-resChanStake
