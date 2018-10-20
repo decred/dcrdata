@@ -6,6 +6,7 @@ package dcrpg
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -616,7 +617,10 @@ func RetrieveTicketStatusByHash(db *sql.DB, ticketHash string) (id uint64, spend
 // table for the given ticket purchase transaction hashes.
 func RetrieveTicketIDsByHashes(db *sql.DB, ticketHashes []string) (ids []uint64, err error) {
 	var dbtx *sql.Tx
-	dbtx, err = db.Begin()
+	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
+		Isolation: sql.LevelDefault,
+		ReadOnly:  true,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
@@ -930,28 +934,21 @@ func InsertAddressRow(db *sql.DB, dbA *dbtypes.AddressRow, dupCheck, updateExist
 // InsertAddressRows inserts multiple transaction inputs or outputs for certain
 // addresses ([]AddressRow). The row IDs of the inserted data are returned.
 func InsertAddressRows(db *sql.DB, dbAs []*dbtypes.AddressRow, dupCheck, updateExistingRecords bool) ([]uint64, error) {
-	// Create the address table if it does not exist
-	tableName := "addresses"
-	if haveTable, _ := TableExists(db, tableName); !haveTable {
-		if err := CreateTable(db, tableName); err != nil {
-			log.Errorf("Failed to create table %s: %v", tableName, err)
-		}
-	}
-
+	// Begin a new transaction.
 	dbtx, err := db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("unable to begin database transaction: %v", err)
 	}
 
-	sqlStmt := internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords)
-
-	stmt, err := dbtx.Prepare(sqlStmt)
+	// Prepare the addresses row insert statement.
+	stmt, err := dbtx.Prepare(internal.MakeAddressRowInsertStatement(dupCheck, updateExistingRecords))
 	if err != nil {
 		log.Errorf("AddressRow INSERT prepare: %v", err)
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, err
 	}
 
+	// Insert each addresses table row, storing the inserted row IDs.
 	ids := make([]uint64, 0, len(dbAs))
 	for _, dbA := range dbAs {
 		var id uint64
@@ -1001,7 +998,10 @@ func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64,
 func RetrieveAddressSpentUnspent(db *sql.DB, address string) (numSpent, numUnspent,
 	amtSpent, amtUnspent, numMergedSpent int64, err error) {
 	var dbtx *sql.Tx
-	dbtx, err = db.Begin()
+	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
+		Isolation: sql.LevelDefault,
+		ReadOnly:  true,
+	})
 	if err != nil {
 		err = fmt.Errorf("unable to begin database transaction: %v", err)
 		return
@@ -1780,16 +1780,10 @@ func RetrieveVoutsByIDs(db *sql.DB, voutDbIDs []uint64) ([]dbtypes.Vout, error) 
 	return vouts, nil
 }
 
-// SetSpendingForVinDbIDs updates the addresses table with spending information
-// from the rows of the vins table specified by vinDbIDs. This includes
-// inserting the spending transaction information into the addresses table, and
-// setting the matched tx info for corresponding funding tx rows of the
-// addresses table. If checked=true, the unique index constraints are checked on
-// insert, with updateExisting indicating if conflicting rows should be updated
-// (or left alone). When setting the corresponding funding tx rows,
-// updateExisting=false also prevents modifications to the matching tx hash
-// unless it was not set previously (empty string).
-func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64, checked, updateExisting bool) ([]int64, int64, error) {
+// SetSpendingForVinDbIDs updates rows of the addresses table with spending
+// information from the rows of the vins table specified by vinDbIDs. This does
+// not insert the spending transaction into the addresses table.
+func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, error) {
 	// Get funding details for vin and set them in the address table.
 	dbtx, err := db.Begin()
 	if err != nil {
@@ -1797,7 +1791,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64, checked, updateExisti
 	}
 
 	var vinGetStmt *sql.Stmt
-	vinGetStmt, err = dbtx.Prepare(internal.SelectAllVinInfoByID)
+	vinGetStmt, err = dbtx.Prepare(internal.SelectVinVoutPairByID)
 	if err != nil {
 		log.Errorf("Vin SELECT prepare failed: %v", err)
 		// Already up a creek. Just return error from Prepare.
@@ -1815,32 +1809,27 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64, checked, updateExisti
 	var totalUpdated int64
 
 	for iv, vinDbID := range vinDbIDs {
-		// Get the funding tx outpoint (vins table) for the vin DB ID
+		// Get the funding tx outpoint from the vins table.
 		var prevOutHash, txHash string
 		var prevOutVoutInd, txVinInd uint32
-		var prevOutTree, txTree int8
-		var valueIn, blockTime int64
-		var isValid, isMainchain bool
-		var txType int16
 		err = vinGetStmt.QueryRow(vinDbID).Scan(
-			&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn, &txType)
+			&txHash, &txVinInd, &prevOutHash, &prevOutVoutInd)
 		if err != nil {
-			return addressRowsUpdated, 0, fmt.Errorf(`SelectAllVinInfoByID: `+
+			return addressRowsUpdated, 0, fmt.Errorf(`SelectVinVoutPairByID: `+
 				`%v + %v (rollback)`, err, bail())
 		}
 
-		// skip coinbase inputs
+		// Skip coinbase inputs.
 		if bytes.Equal(zeroHashStringBytes, []byte(prevOutHash)) {
 			continue
 		}
 
-		// Set the spending tx info (addresses table) for the vin DB ID
-		addressRowsUpdated[iv], err = insertAddrSpendingTxUpdateMatchedFunding(dbtx,
-			prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID,
-			checked, updateExisting, isValid && isMainchain, txType)
+		// Set the spending tx info (addresses table) for the funding transaction
+		// rows indicated by the vin DB ID.
+		addressRowsUpdated[iv], err = setSpendingForFundingOP(dbtx,
+			prevOutHash, prevOutVoutInd, txHash, txVinInd)
 		if err != nil {
-			return addressRowsUpdated, 0, fmt.Errorf(`insertAddrSpendingTxUpdateMatchedFunding: `+
+			return addressRowsUpdated, 0, fmt.Errorf(`insertSpendingTxByPrptStmt: `+
 				`%v + %v (rollback)`, err, bail())
 		}
 
@@ -1853,46 +1842,35 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64, checked, updateExisti
 	return addressRowsUpdated, totalUpdated, dbtx.Commit()
 }
 
-// SetSpendingForVinDbID updates the addresses table with spending information
-// from a rows of the vins table specified by vinDbID. This includes inserting
-// the spending transaction information into the addresses table, and setting
-// the matched tx info for corresponding funding tx rows of the addresses table.
-// If checked=true, the unique index constraints are checked on insert, with
-// updateExisting indicating if conflicted rows should be updated (or left
-// alone). When setting the corresponding funding tx rows, updateExisting=false
-// also prevents modifications to the matching tx hash unless it was not set
-// previously (empty string).
-func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64, checked, updateExisting bool) (int64, error) {
-	// get funding details for vin and set them in the address table
+// SetSpendingForVinDbIDs updates rows of the addresses table with spending
+// information from the row of the vins table specified by vinDbID. This does
+// not insert the spending transaction into the addresses table.
+func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
+	// Get funding details for the vin and set them in the address table.
 	dbtx, err := db.Begin()
 	if err != nil {
 		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
 	}
 
-	// Get the funding tx outpoint (vins table) for the vin DB ID
+	// Get the funding tx outpoint from the vins table.
 	var prevOutHash, txHash string
 	var prevOutVoutInd, txVinInd uint32
-	var prevOutTree, txTree int8
-	var isValid, isMainchain bool
-	var valueIn, blockTime int64
-	var txType int16
-	err = dbtx.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&txHash, &txVinInd, &txTree, &isValid, &isMainchain, &blockTime,
-			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn, &txType)
+	err = dbtx.QueryRow(internal.SelectVinVoutPairByID, vinDbID).
+		Scan(&txHash, &txVinInd, &prevOutHash, &prevOutVoutInd)
 	if err != nil {
-		return 0, fmt.Errorf(`SetSpendingForVinDbID: %v + %v `+
+		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
 			`(rollback)`, err, dbtx.Rollback())
 	}
 
-	// skip coinbase inputs
+	// Skip coinbase inputs.
 	if bytes.Equal(zeroHashStringBytes, []byte(prevOutHash)) {
 		return 0, dbtx.Rollback()
 	}
 
-	// Insert the spending tx info (addresses table) for the vin DB ID
-	N, err := insertAddrSpendingTxUpdateMatchedFunding(dbtx,
-		prevOutHash, prevOutVoutInd, prevOutTree, txHash, txVinInd, vinDbID,
-		checked, updateExisting, isValid && isMainchain, txType)
+	// Set the spending tx info (addresses table) for the funding transaction
+	// rows indicated by the vin DB ID.
+	N, err := setSpendingForFundingOP(dbtx, prevOutHash, prevOutVoutInd,
+		txHash, txVinInd)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -1901,23 +1879,49 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64, checked, updateExisting b
 	return N, dbtx.Commit()
 }
 
-// SetSpendingForFundingOP inserts a new spending tx row and updates any
-// corresponding funding tx row.
-func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
-	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
-	spendingTxVinIndex uint32, spendingTXBlockTime, vinDbID uint64,
-	checked, updateExisting, isValidMainchain bool, txType int16) (int64, error) {
+// SetSpendingForFundingOP updates funding rows of the addresses table with the
+// provided spending transaction output info.
+func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string, fundingTxVoutIndex uint32,
+	spendingTxHash string, _ /*spendingTxVinIndex*/ uint32) (int64, error) {
+	// Update the matchingTxHash for the funding tx output. matchingTxHash here
+	// is the hash of the funding tx.
+	res, err := db.Exec(internal.SetAddressMatchingTxHashForOutpoint,
+		spendingTxHash, fundingTxHash, fundingTxVoutIndex)
+	if err != nil || res == nil {
+		return 0, fmt.Errorf("SetAddressMatchingTxHashForOutpoint: %v", err)
+	}
 
+	return res.RowsAffected()
+}
+
+func setSpendingForFundingOP(dbtx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
+	spendingTxHash string, _ /*spendingTxVinIndex*/ uint32) (int64, error) {
+	// Update the matchingTxHash for the funding tx output. matchingTxHash here
+	// is the hash of the funding tx.
+	res, err := dbtx.Exec(internal.SetAddressMatchingTxHashForOutpoint,
+		spendingTxHash, fundingTxHash, fundingTxVoutIndex)
+	if err != nil || res == nil {
+		return 0, fmt.Errorf("SetAddressMatchingTxHashForOutpoint: %v", err)
+	}
+
+	return res.RowsAffected()
+}
+
+// InsertSpendingAddressRow inserts a new spending tx row, and updates any
+// corresponding funding tx row.
+func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string,
+	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
+	spendingTxVinIndex uint32, vinDbID uint64, utxoData *UTXOData, checked, updateExisting, isValidMainchain bool,
+	txType int16, updateFundingRow bool, spendingTXBlockTime uint64) (int64, error) {
 	// Only allow atomic transactions to happen
 	dbtx, err := db.Begin()
 	if err != nil {
 		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
 	}
 
-	c, err := insertAddrSpendingTxUpdateMatchedFunding(dbtx,
-		fundingTxHash, fundingTxVoutIndex, fundingTxTree,
-		spendingTxHash, spendingTxVinIndex, vinDbID,
-		checked, updateExisting, isValidMainchain, txType, spendingTXBlockTime)
+	c, err := insertSpendingAddressRow(dbtx, fundingTxHash, fundingTxVoutIndex,
+		fundingTxTree, spendingTxHash, spendingTxVinIndex, vinDbID, utxoData, checked,
+		updateExisting, isValidMainchain, txType, updateFundingRow, spendingTXBlockTime)
 	if err != nil {
 		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
 			err, dbtx.Rollback())
@@ -1926,114 +1930,68 @@ func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string,
 	return c, dbtx.Commit()
 }
 
-// insertAddrSpendingTxUpdateMatchedFunding inserts into the addresses table a
-// new spending transaction corresponding to a vin specified by the row ID
-// vinDbID, and updates the spending information for the corresponding funding
-// row in the addresses table. When checked=true, the column constraints on the
-// addresses are checked for conflicts, with updateExisting further indicating
-// if a conflict should be handled by an upsert (or do nothing). Further,
-// updateExisting=false also indicates that the matching tx hash for the funding
-// tx outpoint should only be set if the matching tx was not previously set (is
-// the empty string), while updateExisting=true indicates that the matching tx
-// hash should be set/updated unconditionally.
-func insertAddrSpendingTxUpdateMatchedFunding(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
+// insertSpendingAddressRow inserts a new row in the addresses table for a new
+// transaction input, and updates the spending information for the addresses
+// table row corresponding to the previous outpoint.
+func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64,
-	checked, updateExisting, validMainchain bool, txType int16, blockT ...uint64) (int64, error) {
-	var addr string
-	var value, rowID, blockTime uint64
+	utxoData *UTXOData, checked, updateExisting, validMainchain bool, txType int16, updateFundingRow bool, blockT ...uint64) (int64, error) {
 
 	// Select id, address and value from the matching funding tx.
 	// A maximum of one row and a minimum of none are expected.
-	err := tx.QueryRow(internal.SelectAddressByTxHash,
-		fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&addr, &value)
-	switch err {
-	case sql.ErrNoRows, nil:
-		// If no row found or error is nil, continue.
-	default:
-		return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
+	var addr string
+	var value uint64
+	if utxoData == nil {
+		// The addresses column of the vouts table contains an array of
+		// addresses that the pkScript pays to (i.e. >1 for multisig).
+		var addrArray string
+		err := tx.QueryRow(internal.SelectAddressByTxHash,
+			fundingTxHash, fundingTxVoutIndex, fundingTxTree).Scan(&addrArray, &value)
+		switch err {
+		case sql.ErrNoRows, nil:
+			// If no row found or error is nil, continue
+		default:
+			return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
+		}
+
+		// Get first address in list.  TODO: actually handle bare multisig.
+		replacer := strings.NewReplacer("{", "", "}", "")
+		addrArray = replacer.Replace(addrArray)
+		addr = strings.Split(addrArray, ",")[0]
+	} else {
+		addr = utxoData.Address
+		value = uint64(utxoData.Value)
 	}
 
-	// Get first address in list.  TODO: actually handle bare multisig
-	replacer := strings.NewReplacer("{", "", "}", "")
-	addr = replacer.Replace(addr)
-	newAddr := strings.Split(addr, ",")[0]
-
-	// Check if the block time is provided.
+	// Check if the block time was provided.
+	var blockTime uint64
 	if len(blockT) > 0 {
 		blockTime = blockT[0]
 	} else {
 		// Fetch the block time from the tx table.
-		err = tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
+		err := tx.QueryRow(internal.SelectTxBlockTimeByHash, spendingTxHash).Scan(&blockTime)
 		if err != nil {
 			return 0, fmt.Errorf("SelectTxBlockTimeByHash: %v", err)
 		}
 	}
 
-	// Insert/update the new spending tx, or retrieve ID of existing row.
+	// Insert the new spending tx input row.
 	var isFunding bool
+	var rowID uint64
 	sqlStmt := internal.MakeAddressRowInsertStatement(checked, updateExisting)
-	err = tx.QueryRow(sqlStmt, newAddr, fundingTxHash, spendingTxHash,
+	err := tx.QueryRow(sqlStmt, addr, fundingTxHash, spendingTxHash,
 		spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
 		validMainchain, txType).Scan(&rowID)
 	if err != nil {
 		return 0, fmt.Errorf("InsertAddressRow: %v", err)
 	}
 
-	// Update the matching tx hash for the funding tx outpoint (funding
-	// hash:index). The matching tx hash is the spending transaction.
-	// Unless updateExisting=true, only assign matching tx hash if it is still
-	// unassigned (empty string).
-	matchingStmt := internal.AssignMatchingTxHashForOutpoint
-	if updateExisting {
-		// Update matching tx hash even if it was already set.
-		matchingStmt = internal.SetAddressMatchingTxHashForOutpoint
+	if updateFundingRow {
+		// Update the matching funding addresses row with the spending info.
+		return setSpendingForFundingOP(tx, fundingTxHash, fundingTxVoutIndex,
+			spendingTxHash, spendingTxVinIndex)
 	}
-	res, err := tx.Exec(matchingStmt, spendingTxHash, fundingTxHash, fundingTxVoutIndex)
-	if err != nil || res == nil {
-		return 0, fmt.Errorf("SetAddressMatchingTxHashForFundingTx: %v", err)
-	}
-
-	return res.RowsAffected()
-}
-
-// SetSpendingByVinID is for when you got a new spending tx (vin entry) and you
-// need to get the funding (previous output) tx info, and then update the
-// corresponding row in the addresses table with the spending tx info.
-func SetSpendingByVinID(db *sql.DB, vinDbID uint64, spendingTxDbID uint64,
-	spendingTxHash string, spendingTxVinIndex uint32, checked, updateExisting, isValidMainchain bool,
-	txType int16) (int64, error) {
-	// get funding details for vin and set them in the address table
-	dbtx, err := db.Begin()
-	if err != nil {
-		return 0, fmt.Errorf(`unable to begin database transaction: %v`, err)
-	}
-
-	// Get the funding tx outpoint (vins table) for the vin DB ID
-	var fundingTxHash string
-	var fundingTxVoutIndex uint32
-	var tree int8
-	err = dbtx.QueryRow(internal.SelectFundingOutpointByVinID, vinDbID).
-		Scan(&fundingTxHash, &fundingTxVoutIndex, &tree)
-	if err != nil {
-		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
-			`(rollback)`, err, dbtx.Rollback())
-	}
-
-	// skip coinbase inputs
-	if bytes.Equal(zeroHashStringBytes, []byte(fundingTxHash)) {
-		return 0, dbtx.Rollback()
-	}
-
-	// Insert the spending tx info (addresses table) for the vin DB ID
-	N, err := insertAddrSpendingTxUpdateMatchedFunding(dbtx, fundingTxHash, fundingTxVoutIndex,
-		tree, spendingTxHash, spendingTxVinIndex, vinDbID, checked,
-		updateExisting, isValidMainchain, txType)
-	if err != nil {
-		return 0, fmt.Errorf(`RowsAffected: %v + %v (rollback)`,
-			err, dbtx.Rollback())
-	}
-
-	return N, dbtx.Commit()
+	return 0, nil
 }
 
 // retrieveCoinSupply fetches the coin supply data from the vins table.

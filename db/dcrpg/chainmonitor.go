@@ -226,7 +226,7 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 		// also considered valid unless invalidated by the next block
 		// (invalidation of previous handled inside StoreBlock).
 		isValid, isMainChain, updateExisting := true, true, true
-		_, _, err := p.db.StoreBlock(msgBlock, winners, isValid, isMainChain,
+		_, _, _, err := p.db.StoreBlock(msgBlock, winners, isValid, isMainChain,
 			updateExisting, true, true)
 		if err != nil {
 			return int32(p.db.Height()), p.db.Hash(),
