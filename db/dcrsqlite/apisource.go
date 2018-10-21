@@ -956,8 +956,9 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 }
 
 func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *explorer.BlockBasic {
+	index := dbtypes.CalculateWindowIndex(data.Height, params.StakeDiffWindowSize)
 	block := &explorer.BlockBasic{
-		Window:         (data.Height / params.StakeDiffWindowSize) + 1,
+		WindowIndx:     index,
 		Height:         data.Height,
 		Hash:           data.Hash,
 		Size:           data.Size,

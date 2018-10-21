@@ -6,30 +6,30 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
-        <h4><span>Windows</span></h4>
+        <h4>Windows</h4><h6>A window is a range of {{$.WindowSize}} blocks or approximately 12hrs. After each window mining; difficulty and ticket price are adjusted.</h6>
         {{ $windowsCount := (int64 (len .Data)) }}
         <div class="mb-1 fs13">
             {{if gt $windowsCount 0}}
-            {{ $topWindow := (int64 (index .Data 0).Window) }}
+            {{ $topWindow := (int64 (index .Data 0).WindowIndx) }}
             <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
                 <span class="fs12 nowrap text-right">
                     {{intComma (add $.OffsetWindow 1)}} &mdash; {{intComma (add $.OffsetWindow $windowsCount)}} of {{ intComma (add .BestWindow 1) }} windows
                 </span>
                 <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2">
                     <ul class="pagination mb-0 pagination-sm">
-                        <li class="page-item {{if le (index .Data (subtract $windowsCount 1)).Window 1}}disabled{{end}}">
+                        <li class="page-item {{if le (index .Data (subtract $windowsCount 1)).WindowIndx 1}}disabled{{end}}">
                             <a
                                 class="page-link"
                                 href="/windows?offset={{ add .OffsetWindow .Limit }}&rows={{.Limit}}"
                                 id="prev"
-                            >Previous</a>
+                            >Oldest</a>
                         </li>
                         <li class="page-item {{if gt $topWindow .BestWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
                                 href="/windows?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
                                 id="next"
-                            > Next</a>
+                            > Newest</a>
                         </li>
                     </ul>
                 </nav>
@@ -44,7 +44,7 @@
                 <table class="table striped table-responsive">
                     <thead>
                         <tr>
-                            <th>Window</th>
+                            <th>Window Index</th>
                             <th>End Block</th>
                             <th>Transactions</th>
                             <th>Votes</th>
@@ -59,15 +59,14 @@
                     </thead>
                     <tbody>
                     {{range .Data}}
-                        <tr id="{{.StartBlock}}">
+                        <tr id="{{.EndBlock}}">
                             <td>
-                                <span>{{.Window}}</span>
+                                <span>{{.WindowIndx}}</span>
                                 {{$blocksCount := (.BlocksCount)}}
                                 {{if lt .BlocksCount $.WindowSize}}{{$blocksCount = (subtract .BlocksCount 1)}} <span>({{$blocksCount}}/{{$.WindowSize}}) </span>{{end}}
                             </td>
                             <td>
-                                {{$nextEndBlock := (add .StartBlock $blocksCount)}}
-                                <a class="fs16 height" href="/block/{{$nextEndBlock}}">{{$nextEndBlock}}</a>
+                                <a class="fs16 height" href="/blocks?height={{.EndBlock}}&rows=20">{{.EndBlock}}</a>
                             </td>
                             <td>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>

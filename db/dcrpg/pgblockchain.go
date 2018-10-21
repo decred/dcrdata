@@ -697,6 +697,9 @@ func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
 }
 
 // WindowBlocks retrieves the blocks at the respective stakebase windows interval.
+// The term "window" is used here to describe the group of blocks whose count is
+// defined by chainParams.StakeDiffWindowSize. During this chainParams.StakeDiffWindowSize
+// block interval the ticket price and the difficulty value is constant.
 func(pgb *ChainDB) WindowBlocks(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
 	return retrieveWindowBlocks(pgb.db, pgb.chainParams.StakeDiffWindowSize, limit, offset)
 }

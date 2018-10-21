@@ -22,7 +22,6 @@ import (
 	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
 	"github.com/decred/dcrdata/v3/txhelpers"
 	humanize "github.com/dustin/go-humanize"
-
 	"github.com/lib/pq"
 )
 
@@ -563,27 +562,29 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
 
 	data := make([]*dbtypes.BlocksGroupedInfo, 0)
 	for rows.Next() {
-		var size uint64
 		var difficulty float64
-		var votes, txs, revocations, tickets uint16
 		var startBlock, sbits, timestamp, count int64
+		var blockSize, votes, txs, revocations, tickets uint64
 
 		err = rows.Scan(&startBlock, &difficulty, &txs, &tickets, &votes,
-			&revocations, &size, &sbits, &timestamp, &count)
+			&revocations, &blockSize, &sbits, &timestamp, &count)
 		if err != nil {
 			return nil, err
 		}
 
+		endBlock := startBlock + windowSize
+		index := dbtypes.CalculateWindowIndex(endBlock, windowSize)
+
 		data = append(data, &dbtypes.BlocksGroupedInfo{
-			Window:        (startBlock/windowSize + 1),
-			StartBlock:    startBlock,
+			WindowIndx:    index, //window index at the endblock
+			EndBlock:      endBlock,
 			Voters:        votes,
 			Transactions:  txs,
 			FreshStake:    tickets,
 			Revocations:   revocations,
 			BlocksCount:   count,
 			Difficulty:    difficulty,
-			FormattedSize: humanize.Bytes(size),
+			FormattedSize: humanize.Bytes(blockSize),
 			TicketPrice:   sbits,
 			StartTime:     timestamp,
 			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),

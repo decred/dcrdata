@@ -23,14 +23,14 @@
                                 class="page-link"
                                 href="/blocks?height={{ subtract $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
                                 id="prev"
-                            >Previous</a>
+                            >Oldest</a>
                         </li>
                         <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
                             <a
                                 class="page-link"
                                 href="/blocks?height={{ add $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
                                 id="next"
-                            > Next</a>
+                            > Newest</a>
                         </li>
                     </ul>
                 </nav>
@@ -45,8 +45,8 @@
                 <table class="table striped table-responsive" id="explorertable">
                     <thead>
                         <tr>
+                            <th>Window Index</th>
                             <th>Height</th>
-                            <th>Window</th>
                             <th>
                                 <span class="d-none d-md-inline">Transactions</span>
                                 <span class="d-md-none">Txn</span>
@@ -65,8 +65,8 @@
                     <tbody>
                     {{range .Data}}
                         <tr id="{{ .Height }}">
+                            <td>{{.WindowIndx}}</td>
                             <td><a href="/block/{{.Height}}" class="fs16 height">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
-                            <td>{{.Window}}</td>
                             <td {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>
                             <td>{{.FreshStake}}</td>

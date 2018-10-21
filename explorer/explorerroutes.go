@@ -173,8 +173,8 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Windows is the page handler for the "/windows" path
-func (exp *explorerUI) Windows(w http.ResponseWriter, r *http.Request) {
+// StakeDiffWindows is the page handler for the "/windows" path
+func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
 			"Windows page cannot run in lite mode.", NotSupportedStatusType)
@@ -191,14 +191,18 @@ func (exp *explorerUI) Windows(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
+	if err != nil || rows < minExplorerRows {
 		rows = minExplorerRows
+	}
+
+	if rows > maxExplorerRows {
+		rows = maxExplorerRows
 	}
 
 	windows, err := exp.explorerSource.WindowBlocks(rows, offsetWindow)
 	if err != nil {
-		log.Errorf("Unable to get windows: offset=%d&rows=%d: error: %v ", offsetWindow, rows, err)
-		exp.StatusPage(w, defaultErrorCode, "could not find those windows", NotFoundStatusType)
+		log.Errorf("The specified windows are invalid. offset=%d&rows=%d: error: %v ", offsetWindow, rows, err)
+		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", NotFoundStatusType)
 		return
 	}
 

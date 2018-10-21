@@ -117,14 +117,17 @@ type ProgressBarLoad struct {
 	Timestamp int64
 }
 
-// BlocksGroupedInfo contains the grouped information about the fetched window.
+// BlocksGroupedInfo contains the data about a stake difficulty (ticket price) window,
+// including intrinsic properties (e.g. window index, ticket price, start block, etc.),
+// and aggregate transaction counts (e.g. number of votes, regular transactions,
+// new tickets, etc.)
 type BlocksGroupedInfo struct {
-	Window        int64
-	StartBlock    int64
-	Voters        uint16
-	Transactions  uint16
-	FreshStake    uint16
-	Revocations   uint16
+	WindowIndx    int64
+	EndBlock      int64
+	Voters        uint64
+	Transactions  uint64
+	FreshStake    uint64
+	Revocations   uint64
 	BlocksCount   int64
 	Difficulty    float64
 	TicketPrice   int64
