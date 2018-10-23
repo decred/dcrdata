@@ -378,8 +378,8 @@ type VotingInfo struct {
 	votedTickets     map[string]bool
 }
 
-// ChainParams models simple data about the chain server's parameters used for some
-// info on the front page
+// ChainParams models simple data about the chain server's parameters used for
+// some info on the front page.
 type ChainParams struct {
 	WindowSize       int64 `json:"window_size"`
 	RewardWindowSize int64 `json:"reward_window_size"`

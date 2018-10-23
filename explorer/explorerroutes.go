@@ -52,7 +52,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	// Lock for both MempoolData and ExtraInfo
 	exp.MempoolData.RLock()
-	exp.NewBlockDataMtx.RLock()
+	exp.pageData.RLock()
 
 	str, err := exp.templates.execTemplateToString("home", struct {
 		Info    *HomeInfo
@@ -61,7 +61,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Version string
 		NetName string
 	}{
-		exp.ExtraInfo,
+		exp.pageData.HomeInfo,
 		exp.MempoolData,
 		blocks,
 		exp.Version,
@@ -69,7 +69,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	})
 
 	exp.MempoolData.RUnlock()
-	exp.NewBlockDataMtx.RUnlock()
+	exp.pageData.RUnlock()
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -146,7 +146,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 
 	blocks := exp.blockData.GetExplorerFullBlocks(height, height-11)
 
-	exp.NewBlockDataMtx.RLock()
+	exp.pageData.RLock()
 	exp.MempoolData.RLock()
 
 	str, err := exp.templates.execTemplateToString("nexthome", struct {
@@ -156,13 +156,13 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 		Version string
 		NetName string
 	}{
-		exp.ExtraInfo,
+		exp.pageData.HomeInfo,
 		exp.MempoolData,
 		blocks,
 		exp.Version,
 		exp.NetName,
 	})
-	exp.NewBlockDataMtx.RUnlock()
+	exp.pageData.RUnlock()
 	exp.MempoolData.RUnlock()
 
 	if err != nil {
@@ -341,14 +341,12 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var mp = dbtypes.PoolTicketsData{}
+	var mp dbtypes.PoolTicketsData
 	exp.MempoolData.RLock()
-	var mpData = exp.MempoolData
-
-	if len(mpData.Tickets) > 0 {
-		mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
-		mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
-		mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
+	if len(exp.MempoolData.Tickets) > 0 {
+		mp.Time = append(mp.Time, uint64(exp.MempoolData.Tickets[0].Time))
+		mp.Price = append(mp.Price, exp.MempoolData.Tickets[0].TotalOut)
+		mp.Mempool = append(mp.Mempool, uint64(len(exp.MempoolData.Tickets)))
 	} else {
 		log.Debug("No tickets exist in the mempool")
 	}
@@ -708,11 +706,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				// expiry in blocks - (number of blocks since ticket purchase -
 				// ticket maturity))
 				// C is the probability (chance)
-				exp.NewBlockDataMtx.RLock()
-				pVote := float64(exp.ChainParams.TicketsPerBlock) / float64(exp.ExtraInfo.PoolInfo.Size)
-				exp.NewBlockDataMtx.RUnlock()
-				tx.TicketInfo.Probability = 100 * (math.Pow(1-pVote,
-					float64(exp.ChainParams.TicketExpiry)-float64(blocksLive)))
+				exp.pageData.RLock()
+				pVote := float64(exp.ChainParams.TicketsPerBlock) / float64(exp.pageData.HomeInfo.PoolInfo.Size)
+				exp.pageData.RUnlock()
+
+				remainingBlocksLive := float64(exp.ChainParams.TicketExpiry) - float64(blocksLive)
+				tx.TicketInfo.Probability = 100 * math.Pow(1-pVote, remainingBlocksLive)
 			}
 		} // tx.IsTicket()
 	} // !exp.liteMode

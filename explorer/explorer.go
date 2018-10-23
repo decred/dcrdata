@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -135,24 +136,29 @@ func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) str
 	}
 }
 
+type pageData struct {
+	sync.RWMutex
+	BlockInfo *BlockInfo
+	HomeInfo  *HomeInfo
+}
+
 type explorerUI struct {
-	Mux             *chi.Mux
-	blockData       explorerDataSourceLite
-	explorerSource  explorerDataSource
-	liteMode        bool
-	devPrefetch     bool
-	templates       templates
-	wsHub           *WebsocketHub
-	NewBlockDataMtx sync.RWMutex
-	NewBlockData    *BlockInfo
-	ExtraInfo       *HomeInfo
-	MempoolData     *MempoolInfo
-	ChainParams     *chaincfg.Params
-	Version         string
-	NetName         string
+	Mux              *chi.Mux
+	blockData        explorerDataSourceLite
+	explorerSource   explorerDataSource
+	liteMode         bool
+	devPrefetch      bool
+	templates        templates
+	wsHub            *WebsocketHub
+	pageData         *pageData
+	MempoolData      *MempoolInfo
+	ChainParams      *chaincfg.Params
+	Version          string
+	NetName          string
+	MeanVotingBlocks int64
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
-	displaySyncStatusPage bool
+	displaySyncStatusPage atomic.Value
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -263,6 +269,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	params := exp.blockData.GetChainParams()
 	exp.ChainParams = params
 	exp.NetName = netName(exp.ChainParams)
+	exp.MeanVotingBlocks = txhelpers.CalcMeanVotingBlocks(params)
 
 	// Development subsidy address of the current network
 	devSubsidyAddress, err := dbtypes.DevSubsidyAddress(params)
@@ -271,21 +278,23 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	}
 	log.Debugf("Organization address: %s", devSubsidyAddress)
 
-	// Set default static values for ExtraInfo
-	exp.ExtraInfo = &HomeInfo{
-		DevAddress: devSubsidyAddress,
-		Params: ChainParams{
-			WindowSize:       exp.ChainParams.StakeDiffWindowSize,
-			RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
-			BlockTime:        exp.ChainParams.TargetTimePerBlock.Nanoseconds(),
-			MeanVotingBlocks: txhelpers.CalcMeanVotingBlocks(params),
-		},
-		PoolInfo: TicketPoolInfo{
-			Target: exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
+	exp.pageData = &pageData{
+		BlockInfo: new(BlockInfo),
+		HomeInfo: &HomeInfo{
+			DevAddress: devSubsidyAddress,
+			Params: ChainParams{
+				WindowSize:       exp.ChainParams.StakeDiffWindowSize,
+				RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
+				BlockTime:        exp.ChainParams.TargetTimePerBlock.Nanoseconds(),
+				MeanVotingBlocks: exp.MeanVotingBlocks,
+			},
+			PoolInfo: TicketPoolInfo{
+				Target: exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
+			},
 		},
 	}
 
-	log.Infof("Mean Voting Blocks calculated: %d", exp.ExtraInfo.Params.MeanVotingBlocks)
+	log.Infof("Mean Voting Blocks calculated: %d", exp.pageData.HomeInfo.Params.MeanVotingBlocks)
 
 	noTemplateError := func(err error) *explorerUI {
 		log.Errorf("Unable to create new html template: %v", err)
@@ -347,28 +356,25 @@ func (exp *explorerUI) StartSyncingStatusMonitor() {
 
 // DisplaySyncStatusPage is a thread-safe way to fetch the displaySyncStatusPage.
 func (exp *explorerUI) DisplaySyncStatusPage() bool {
-	exp.NewBlockDataMtx.RLock()
-	defer exp.NewBlockDataMtx.RUnlock()
-	return exp.displaySyncStatusPage
+	display, ok := exp.displaySyncStatusPage.Load().(bool)
+	return ok && display
 }
 
 // SetDisplaySyncStatusPage is a thread-safe way to update the displaySyncStatusPage.
 func (exp *explorerUI) SetDisplaySyncStatusPage(displayStatus bool) {
-	exp.NewBlockDataMtx.Lock()
-	defer exp.NewBlockDataMtx.Unlock()
 	if displayStatus == false {
 		// Send the one last signal so that the websocket can send the final
 		// confirmation that syncing is done and home page auto reload should happen.
 		exp.wsHub.HubRelay <- sigSyncStatus
 	}
-	exp.displaySyncStatusPage = displayStatus
+	exp.displaySyncStatusPage.Store(displayStatus)
 }
 
 // Height returns the height of the current block data.
 func (exp *explorerUI) Height() int64 {
-	exp.NewBlockDataMtx.RLock()
-	defer exp.NewBlockDataMtx.RUnlock()
-	return exp.NewBlockData.Height
+	exp.pageData.RLock()
+	defer exp.pageData.RUnlock()
+	return exp.pageData.BlockInfo.Height
 }
 
 // prePopulateChartsData should run in the background the first time the system
@@ -415,75 +421,87 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		go exp.prePopulateChartsData()
 	}
 
-	// Returns the Block with some more data needed for the full block visualization.
+	// Retrieve block data for the passed block hash.
 	newBlockData := exp.blockData.GetExplorerBlock(msgBlock.BlockHash().String())
-	targetTimePerBlock := float64(exp.ChainParams.TargetTimePerBlock)
-	difficulty := blockData.Header.Difficulty
-	bdHeight := newBlockData.Height
 
-	// use the latest block's blocktime to get the last 24hr timestamp
+	// Use the latest block's blocktime to get the last 24hr timestamp.
 	timestamp := newBlockData.BlockTime - 86400
+	targetTimePerBlock := float64(exp.ChainParams.TargetTimePerBlock)
 	// RetreiveDifficulty fetches the difficulty using the last 24hr timestamp,
-	// whereby the difficulty can have a timestamp equal to the last 24hrs timestamp
-	// or that is immediately greater than the 24hr timestamp.
+	// whereby the difficulty can have a timestamp equal to the last 24hrs
+	// timestamp or that is immediately greater than the 24hr timestamp.
 	last24hrDifficulty := exp.blockData.RetreiveDifficulty(timestamp)
 	last24HrHashRate := dbtypes.CalculateHashRate(last24hrDifficulty, targetTimePerBlock)
 
-	// Lock for explorerUI's NewBlockData and ExtraInfo
-	exp.NewBlockDataMtx.Lock()
+	difficulty := blockData.Header.Difficulty
+	hashrate := dbtypes.CalculateHashRate(difficulty, targetTimePerBlock)
 
-	// Update all ExtraInfo with latest data
-	exp.NewBlockData = newBlockData
-	exp.ExtraInfo.HashRate = dbtypes.CalculateHashRate(difficulty, targetTimePerBlock)
-	exp.ExtraInfo.HashRateChange = 100 * (exp.ExtraInfo.HashRate - last24HrHashRate) / last24HrHashRate
-
-	exp.ExtraInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
-	exp.ExtraInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
-	exp.ExtraInfo.NextExpectedStakeDiff = blockData.EstStakeDiff.Expected
-	exp.ExtraInfo.NextExpectedBoundsMin = blockData.EstStakeDiff.Min
-	exp.ExtraInfo.NextExpectedBoundsMax = blockData.EstStakeDiff.Max
-	exp.ExtraInfo.IdxBlockInWindow = blockData.IdxBlockInWindow
-	exp.ExtraInfo.IdxInRewardWindow = int(bdHeight % exp.ChainParams.SubsidyReductionInterval)
-	exp.ExtraInfo.Difficulty = difficulty
-	exp.ExtraInfo.NBlockSubsidy.Dev = blockData.ExtraInfo.NextBlockSubsidy.Developer
-	exp.ExtraInfo.NBlockSubsidy.PoS = blockData.ExtraInfo.NextBlockSubsidy.PoS
-	exp.ExtraInfo.NBlockSubsidy.PoW = blockData.ExtraInfo.NextBlockSubsidy.PoW
-	exp.ExtraInfo.NBlockSubsidy.Total = blockData.ExtraInfo.NextBlockSubsidy.Total
-
-	// If BlockData contains non-nil PoolInfo copy values and compute actual
-	// percentage of DCR supply staked. Otherwise, use a sensible percentage.
+	// If BlockData contains non-nil PoolInfo, compute actual percentage of DCR
+	// supply staked.
 	stakePerc := 45.0
 	if blockData.PoolInfo != nil {
 		stakePerc = blockData.PoolInfo.Value / dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin()
-		exp.ExtraInfo.PoolInfo.Size = blockData.PoolInfo.Size
-		exp.ExtraInfo.PoolInfo.Value = blockData.PoolInfo.Value
-		exp.ExtraInfo.PoolInfo.ValAvg = blockData.PoolInfo.ValAvg
-		exp.ExtraInfo.PoolInfo.Percentage = stakePerc * 100
-		exp.ExtraInfo.PoolInfo.PercentTarget = 100 * float64(blockData.PoolInfo.Size) /
-			float64(exp.ChainParams.TicketPoolSize*exp.ChainParams.TicketsPerBlock)
+	}
+	// Simulate the annual staking rate
+	ASR, _ := exp.simulateASR(1000, false, stakePerc,
+		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(),
+		float64(newBlockData.Height),
+		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
+
+	// Update pageData with block data and chain (home) info.
+	p := exp.pageData
+	p.Lock()
+
+	// Store current block data.
+	p.BlockInfo = newBlockData
+
+	// Update HomeInfo.
+	p.HomeInfo.HashRate = hashrate
+	p.HomeInfo.HashRateChange = 100 * (hashrate - last24HrHashRate) / last24HrHashRate
+	p.HomeInfo.CoinSupply = blockData.ExtraInfo.CoinSupply
+	p.HomeInfo.StakeDiff = blockData.CurrentStakeDiff.CurrentStakeDifficulty
+	p.HomeInfo.NextExpectedStakeDiff = blockData.EstStakeDiff.Expected
+	p.HomeInfo.NextExpectedBoundsMin = blockData.EstStakeDiff.Min
+	p.HomeInfo.NextExpectedBoundsMax = blockData.EstStakeDiff.Max
+	p.HomeInfo.IdxBlockInWindow = blockData.IdxBlockInWindow
+	p.HomeInfo.IdxInRewardWindow = int(newBlockData.Height % exp.ChainParams.SubsidyReductionInterval)
+	p.HomeInfo.Difficulty = difficulty
+	p.HomeInfo.NBlockSubsidy.Dev = blockData.ExtraInfo.NextBlockSubsidy.Developer
+	p.HomeInfo.NBlockSubsidy.PoS = blockData.ExtraInfo.NextBlockSubsidy.PoS
+	p.HomeInfo.NBlockSubsidy.PoW = blockData.ExtraInfo.NextBlockSubsidy.PoW
+	p.HomeInfo.NBlockSubsidy.Total = blockData.ExtraInfo.NextBlockSubsidy.Total
+
+	// If BlockData contains non-nil PoolInfo, copy values.
+	p.HomeInfo.PoolInfo = TicketPoolInfo{}
+	if blockData.PoolInfo != nil {
+		tpTarget := exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock
+		p.HomeInfo.PoolInfo = TicketPoolInfo{
+			Size:          blockData.PoolInfo.Size,
+			Value:         blockData.PoolInfo.Value,
+			ValAvg:        blockData.PoolInfo.ValAvg,
+			Percentage:    stakePerc * 100,
+			PercentTarget: 100 * float64(blockData.PoolInfo.Size) / float64(tpTarget),
+			Target:        tpTarget,
+		}
 	}
 
 	posSubsPerVote := dcrutil.Amount(blockData.ExtraInfo.NextBlockSubsidy.PoS).ToCoin() /
 		float64(exp.ChainParams.TicketsPerBlock)
-	exp.ExtraInfo.TicketReward = 100 * posSubsPerVote /
+	p.HomeInfo.TicketReward = 100 * posSubsPerVote /
 		blockData.CurrentStakeDiff.CurrentStakeDifficulty
 
 	// The actual reward of a ticket needs to also take into consideration the
 	// ticket maturity (time from ticket purchase until its eligible to vote)
 	// and coinbase maturity (time after vote until funds distributed to ticket
 	// holder are available to use).
-	avgSSTxToSSGenMaturity := exp.ExtraInfo.Params.MeanVotingBlocks +
+	avgSSTxToSSGenMaturity := exp.MeanVotingBlocks +
 		int64(exp.ChainParams.TicketMaturity) +
 		int64(exp.ChainParams.CoinbaseMaturity)
-	exp.ExtraInfo.RewardPeriod = fmt.Sprintf("%.2f days", float64(avgSSTxToSSGenMaturity)*
+	p.HomeInfo.RewardPeriod = fmt.Sprintf("%.2f days", float64(avgSSTxToSSGenMaturity)*
 		exp.ChainParams.TargetTimePerBlock.Hours()/24)
+	p.HomeInfo.ASR = ASR
 
-	exp.ExtraInfo.ASR, _ = exp.simulateASR(1000, false, stakePerc,
-		dcrutil.Amount(blockData.ExtraInfo.CoinSupply).ToCoin(),
-		float64(bdHeight),
-		blockData.CurrentStakeDiff.CurrentStakeDifficulty)
-
-	exp.NewBlockDataMtx.Unlock()
+	p.Unlock()
 
 	if !exp.liteMode && exp.devPrefetch {
 		go exp.updateDevFundBalance()
@@ -499,7 +517,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 		}
 	}()
 
-	log.Debugf("Got new block %d for the explorer.", bdHeight)
+	log.Debugf("Got new block %d for the explorer.", newBlockData.Height)
 
 	return nil
 }
@@ -515,9 +533,9 @@ func (exp *explorerUI) updateDevFundBalance() {
 
 	devBalance, err := exp.explorerSource.DevBalance()
 	if err == nil && devBalance != nil {
-		exp.NewBlockDataMtx.Lock()
-		exp.ExtraInfo.DevFund = devBalance.TotalUnspent
-		exp.NewBlockDataMtx.Unlock()
+		exp.pageData.Lock()
+		exp.pageData.HomeInfo.DevFund = devBalance.TotalUnspent
+		exp.pageData.Unlock()
 	} else {
 		log.Errorf("explorerUI.updateDevFundBalance failed: %v", err)
 	}
@@ -595,7 +613,7 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 
 	TheoreticalTicketPrice := func(blocknum float64) float64 {
 		ProjectedCoinsCirculating := MaxCoinSupplyAtBlock(blocknum) * CoinAdjustmentFactor * CurrentStakePercent
-		TicketPoolSize := (float64(exp.ExtraInfo.Params.MeanVotingBlocks) + float64(exp.ChainParams.TicketMaturity) +
+		TicketPoolSize := (float64(exp.MeanVotingBlocks) + float64(exp.ChainParams.TicketMaturity) +
 			float64(exp.ChainParams.CoinbaseMaturity)) * float64(exp.ChainParams.TicketsPerBlock)
 		return ProjectedCoinsCirculating / TicketPoolSize
 
@@ -632,7 +650,7 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 			TicketPrice, StakeRewardAtBlock(simblock))
 
 		// Move forward to average vote
-		simblock += (float64(exp.ChainParams.TicketMaturity) + float64(exp.ExtraInfo.Params.MeanVotingBlocks))
+		simblock += (float64(exp.ChainParams.TicketMaturity) + float64(exp.MeanVotingBlocks))
 		ReturnTable += fmt.Sprintf("%8d  %9.2f %8.1f %9.2f %9.2f    VOTE\n",
 			int64(simblock), DCRBalance, TicketsPurchased,
 			(TheoreticalTicketPrice(simblock) * TicketAdjustmentFactor), StakeRewardAtBlock(simblock))
