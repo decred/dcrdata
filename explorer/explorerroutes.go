@@ -245,8 +245,12 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
+	if err != nil || rows < minExplorerRows {
 		rows = minExplorerRows
+	}
+
+	if rows > maxExplorerRows {
+		rows = maxExplorerRows
 	}
 
 	oldestBlock := height - rows + 1

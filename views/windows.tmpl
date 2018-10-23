@@ -12,22 +12,38 @@
             {{if gt $windowsCount 0}}
             {{ $topWindow := (int64 (index .Data 0).WindowIndx) }}
             <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
+                {{$oldest := (add .OffsetWindow $windowsCount)}}
+                {{$lastWindow := (add .BestWindow 1)}}
                 <span class="fs12 nowrap text-right">
-                    {{intComma (add $.OffsetWindow 1)}} &mdash; {{intComma (add $.OffsetWindow $windowsCount)}} of {{ intComma (add .BestWindow 1) }} windows
+                    {{intComma (add .OffsetWindow 1)}} &mdash; {{intComma $oldest}} of {{ intComma $lastWindow }} windows
                 </span>
                 <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2">
                     <ul class="pagination mb-0 pagination-sm">
-                        <li class="page-item {{if le (index .Data (subtract $windowsCount 1)).WindowIndx 1}}disabled{{end}}">
+                        <li class="page-item {{if ge $oldest $lastWindow}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/windows?offset={{subtract $lastWindow .Limit}}&rows={{.Limit}}"
+                                id="prev"
+                            >Oldest</a>
+                        </li>
+                        <li class="page-item {{if ge $oldest $lastWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
                                 href="/windows?offset={{ add .OffsetWindow .Limit }}&rows={{.Limit}}"
                                 id="prev"
-                            >Oldest</a>
+                            >Older</a>
                         </li>
                         <li class="page-item {{if gt $topWindow .BestWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
                                 href="/windows?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
+                                id="next"
+                            > Newer</a>
+                        </li>
+                        <li class="page-item {{if lt .OffsetWindow $windowsCount}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/windows?offset=0&rows={{.Limit}}"
                                 id="next"
                             > Newest</a>
                         </li>
@@ -83,9 +99,46 @@
                 </table>
             </div>
         </div>
+        <div
+            class="hidden d-flex align-items-center justify-content-end"
+            style="margin-bottom: 2%;"
+        >
+            {{$pendingWindows := 0}}
+            {{if gt $windowsCount 0}}
+                 {{ $pendingWindows = (int64 (index .Data 0).WindowIndx) }}
+            {{end}}
+            <label class="mb-0 mr-1" for="windows-pagesize">Page size</label>
+            <select
+                name="windows-pagesize"
+                id="windows-pagesize"
+                class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pendingWindows 20}}disabled{{end}}"
+                {{if lt $pendingWindows 20}}disabled="disabled"{{end}}
+            >
+            {{if ge $pendingWindows 20}}<option {{if eq $windowsCount 20}}selected{{end}} value="20">20</option>{{end}}
+            {{if ge $pendingWindows 30}}<option {{if eq $windowsCount 30}}selected{{end}} value="30">30</option>{{end}}
+            {{if ge $pendingWindows 50}}<option {{if eq $windowsCount 50}}selected{{end}} value="50">50</option>{{end}}
+            {{if eq $windowsCount 20 30 50}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}}</option>{{end}}
+            </select>
+        </div>
     </div>
 
 {{ template "footer" . }}
+
+<script>
+    $("#windows-pagesize").change(function(ev) {
+        var pagesize = "20"
+        var offset = {{$.OffsetWindow}}
+        if (ev.currentTarget.id.indexOf("windows-pagesize") != -1){
+            pagesize = $("#windows-pagesize option:selected").val()
+        }
+
+        Turbolinks.visit(
+            window.location.pathname
+            + "?offset="+ offset 
+            + "&rows=" + pagesize
+        )
+    })
+</script>
 
 </body>
 </html>
