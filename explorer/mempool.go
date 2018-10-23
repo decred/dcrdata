@@ -185,11 +185,6 @@ func (exp *explorerUI) StartMempoolMonitor(newTxChan chan *NewMempoolTx) {
 }
 
 func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
-
-	// Store mempool data for template rendering
-	exp.MempoolData.Lock()
-	defer exp.MempoolData.Unlock()
-
 	defer func(start time.Time) {
 		log.Debugf("storeMempoolInfo() completed in %v", time.Since(start))
 	}(time.Now())
@@ -281,6 +276,11 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 	}
 
 	sort.Sort(byHeight(votes))
+	formattedSize := humanize.Bytes(uint64(totalSize))
+
+	// Store mempool data for template rendering
+	exp.MempoolData.Lock()
+	defer exp.MempoolData.Unlock()
 
 	exp.MempoolData.Transactions = regular
 	exp.MempoolData.Tickets = tickets
@@ -299,12 +299,13 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 		NumRegular:         len(regular),
 		NumRevokes:         len(revs),
 		LatestTransactions: latest,
-		FormattedTotalSize: humanize.Bytes(uint64(totalSize)),
+		FormattedTotalSize: formattedSize,
 		TicketIndexes:      ticketSpendInds,
 		VotingInfo:         votingInfo,
 		InvRegular:         invRegular,
 		InvStake:           invStake,
 	}
+
 	return
 }
 
@@ -348,11 +349,11 @@ func (v *BlockValidation) ForBlock(blockHash string) bool {
 
 // getLastBlock returns the last block hash, height and time
 func (exp *explorerUI) getLastBlock() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
-	exp.NewBlockDataMtx.RLock()
-	lastBlock = exp.NewBlockData.Height
-	lastBlockTime = exp.NewBlockData.BlockTime
-	lastBlockHash = exp.NewBlockData.Hash
-	exp.NewBlockDataMtx.RUnlock()
+	exp.pageData.RLock()
+	defer exp.pageData.RUnlock()
+	lastBlock = exp.pageData.BlockInfo.Height
+	lastBlockTime = exp.pageData.BlockInfo.BlockTime
+	lastBlockHash = exp.pageData.BlockInfo.Hash
 	return
 }
 

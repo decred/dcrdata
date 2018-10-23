@@ -127,7 +127,6 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 					var mp dbtypes.PoolTicketsData
-
 					exp.MempoolData.RLock()
 					if len(exp.MempoolData.Tickets) > 0 {
 						mp.Time = append(mp.Time, uint64(exp.MempoolData.Tickets[0].Time))
@@ -212,12 +211,12 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				enc := json.NewEncoder(buff)
 				switch sig {
 				case sigNewBlock:
-					exp.NewBlockDataMtx.RLock()
+					exp.pageData.RLock()
 					enc.Encode(WebsocketBlock{
-						Block: exp.NewBlockData,
-						Extra: exp.ExtraInfo,
+						Block: exp.pageData.BlockInfo,
+						Extra: exp.pageData.HomeInfo,
 					})
-					exp.NewBlockDataMtx.RUnlock()
+					exp.pageData.RUnlock()
 
 					webData.Message = buff.String()
 				case sigMempoolUpdate:
