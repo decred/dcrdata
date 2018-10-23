@@ -93,14 +93,15 @@ func CalculateHashRate(difficulty, targetTimePerBlock float64) float64 {
 }
 
 // CalculateWindowIndex calculates the window index from the quotient of a block
-// height and the chainParams.StakeDiffWindowSize. A window being a group of
-// blocks whose count is defined by chainParams.StakeDiffWindowSize, the first
-// window starts from block 1 to block 144 instead of block 0 to block 143.
-// To obtain the accurate window index value, we should add 1 to the quotient
-// obtained by dividing the block height with the chainParams.StakeDiffWindowSize
-// value; if the float precision is greater than zero. The precision is equal to
-// zero only when the block height value is divisible by the window size.
+// height and the chainParams.StakeDiffWindowSize.
 func CalculateWindowIndex(height, stakeDiffWindowSize int64) int64 {
+	// A window being a group of blocks whose count is defined by
+	// chainParams.StakeDiffWindowSize, the first window starts from block 1 to
+	// block 144 instead of block 0 to block 143. To obtain the accurate window
+	// index value, we should add 1 to the quotient obtained by dividing the block
+	// height with the chainParams.StakeDiffWindowSize value; if the float precision
+	// is greater than zero. The precision is equal to zero only when the block
+	// height value is divisible by the window size.
 	windowVal := float64(height) / float64(stakeDiffWindowSize)
 	index := int64(windowVal)
 	if windowVal != math.Floor(windowVal) || windowVal == 0 {

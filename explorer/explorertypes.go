@@ -35,7 +35,6 @@ var blockchainSyncStatus = new(syncStatus)
 
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
-	WindowIndx     int64  `json:"windowIndex"`
 	Height         int64  `json:"height"`
 	Hash           string `json:"hash"`
 	Size           int32  `json:"size"`
@@ -43,6 +42,7 @@ type BlockBasic struct {
 	MainChain      bool   `json:"mainchain"`
 	Voters         uint16 `json:"votes"`
 	Transactions   int    `json:"tx"`
+	WindowIndx     int64  `json:"windowIndex"`
 	FreshStake     uint8  `json:"tickets"`
 	Revocations    uint32 `json:"revocations"`
 	BlockTime      int64  `json:"time"`

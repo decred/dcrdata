@@ -83,7 +83,7 @@ type explorerDataSource interface {
 	Transaction(txHash string) ([]*dbtypes.Tx, error)
 	VinsForTx(*dbtypes.Tx) (vins []dbtypes.VinTxProperty, prevPkScripts []string, scriptVersions []uint16, err error)
 	VoutsForTx(*dbtypes.Tx) ([]dbtypes.Vout, error)
-	WindowBlocks(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
+	PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 }
 
 // chartDataCounter is a data cache for the historical charts.

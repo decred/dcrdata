@@ -173,7 +173,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// StakeDiffWindows is the page handler for the "/windows" path
+// StakeDiffWindows is the page handler for the "/pos-intervals" path
 func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
@@ -199,7 +199,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		rows = maxExplorerRows
 	}
 
-	windows, err := exp.explorerSource.WindowBlocks(rows, offsetWindow)
+	windows, err := exp.explorerSource.PosIntervals(rows, offsetWindow)
 	if err != nil {
 		log.Errorf("The specified windows are invalid. offset=%d&rows=%d: error: %v ", offsetWindow, rows, err)
 		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", NotFoundStatusType)
@@ -277,17 +277,19 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("explorer", struct {
-		Data      []*BlockBasic
-		BestBlock int64
-		Rows      int64
-		Version   string
-		NetName   string
+		Data       []*BlockBasic
+		BestBlock  int64
+		Rows       int64
+		Version    string
+		NetName    string
+		WindowSize int64
 	}{
 		summaries,
 		int64(bestBlockHeight),
 		int64(rows),
 		exp.Version,
 		exp.NetName,
+		exp.ChainParams.StakeDiffWindowSize,
 	})
 
 	if err != nil {

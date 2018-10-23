@@ -564,10 +564,10 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
 	for rows.Next() {
 		var difficulty float64
 		var startBlock, sbits, timestamp, count int64
-		var blockSize, votes, txs, revocations, tickets uint64
+		var blockSizes, votes, txs, revocations, tickets uint64
 
 		err = rows.Scan(&startBlock, &difficulty, &txs, &tickets, &votes,
-			&revocations, &blockSize, &sbits, &timestamp, &count)
+			&revocations, &blockSizes, &sbits, &timestamp, &count)
 		if err != nil {
 			return nil, err
 		}
@@ -584,9 +584,10 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
 			Revocations:   revocations,
 			BlocksCount:   count,
 			Difficulty:    difficulty,
-			FormattedSize: humanize.Bytes(blockSize),
 			TicketPrice:   sbits,
 			StartTime:     timestamp,
+			Size:          int64(blockSizes),
+			FormattedSize: humanize.Bytes(blockSizes),
 			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),
 		})
 	}

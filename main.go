@@ -516,7 +516,7 @@ func mainCore() error {
 
 		r.Mount("/explorer", explore.Mux)
 		r.Get("/blocks", explore.Blocks)
-		r.Get("/windows", explore.StakeDiffWindows)
+		r.Get("/pos-intervals", explore.StakeDiffWindows)
 		r.Get("/side", explore.SideChains)
 		r.Get("/rejects", explore.DisapprovedBlocks)
 		r.Get("/mempool", explore.Mempool)

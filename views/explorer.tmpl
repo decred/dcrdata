@@ -6,7 +6,7 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
-        {{ $blocksCount := (len .Data) }}
+        {{ $blocksCount := (len $.Data) }}
         <h4>Blocks</h4>
         <div class="mb-1 fs13">
             {{if gt $blocksCount 0}}
@@ -18,17 +18,31 @@
                 </span>
                 <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2">
                     <ul class="pagination mb-0 pagination-sm">
+                         <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/blocks?height={{subtract .Rows 1}}&rows={{.Rows}}"
+                                id="prev"
+                            >Oldest</a>
+                        </li>
                         <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
                             <a
                                 class="page-link"
                                 href="/blocks?height={{ subtract $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
                                 id="prev"
-                            >Oldest</a>
+                            >Older</a>
                         </li>
                         <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
                             <a
                                 class="page-link"
                                 href="/blocks?height={{ add $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
+                                id="next"
+                            > Newer</a>
+                        </li>
+                         <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/blocks?height={{.BestBlock}}&rows={{.Rows}}"
                                 id="next"
                             > Newest</a>
                         </li>
@@ -45,7 +59,7 @@
                 <table class="table striped table-responsive" id="explorertable">
                     <thead>
                         <tr>
-                            <th>Window Index</th>
+                            <th>Ticket Price Window No.</th>
                             <th>Height</th>
                             <th>
                                 <span class="d-none d-md-inline">Transactions</span>
@@ -80,10 +94,47 @@
                 </table>
             </div>
         </div>
+        <div
+            class="hidden d-flex align-items-center justify-content-end"
+            style="margin-bottom: 2%;"
+        >
+            {{$pendingBlocks := 0}}
+            {{if gt $blocksCount 0}}
+                 {{ $pendingBlocks = ((index .Data 0).Height) }}
+            {{end}}
+            <label class="mb-0 mr-1" for="blocks-pagesize">Page size</label>
+            <select
+                name="blocks-pagesize"
+                id="blocks-pagesize"
+                class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $blocksCount 20}}disabled{{end}}"
+                {{if lt $blocksCount 20}}disabled="disabled"{{end}}
+            >
+            {{if ge $pendingBlocks 20}}<option {{if eq $blocksCount 20}}selected{{end}} value="20">20</option>{{end}}
+            {{if ge $pendingBlocks 30}}<option {{if eq $blocksCount 30}}selected{{end}} value="30">30</option>{{end}}
+            {{if ge $pendingBlocks 50}}<option {{if eq $blocksCount 50}}selected{{end}} value="50">50</option>{{end}}
+            {{if ge $pendingBlocks .WindowSize}}<option {{if eq $blocksCount .WindowSize}}selected{{end}} value="{{.WindowSize}}">{{.WindowSize}}</option>{{end}}
+            {{if eq $pendingBlocks 20 30 50}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}}</option>{{end}}
+            </select>
+        </div>
     </div>
 
 {{ template "footer" . }}
 
+<script>
+    $("#blocks-pagesize").change(function(ev) {
+        var pagesize = "20"
+        var height = {{$pendingBlocks}}
+        if (ev.currentTarget.id.indexOf("blocks-pagesize") != -1){
+            pagesize = $("#blocks-pagesize option:selected").val()
+        }
+
+        Turbolinks.visit(
+            window.location.pathname
+            + "?height="+ height
+            + "&rows=" + pagesize
+        )
+    })
+</script>
 </body>
 </html>
 {{ end }}

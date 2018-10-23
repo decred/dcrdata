@@ -122,18 +122,21 @@ type ProgressBarLoad struct {
 // and aggregate transaction counts (e.g. number of votes, regular transactions,
 // new tickets, etc.)
 type BlocksGroupedInfo struct {
+	// intrinsic properties
 	WindowIndx    int64
 	EndBlock      int64
-	Voters        uint64
-	Transactions  uint64
-	FreshStake    uint64
-	Revocations   uint64
-	BlocksCount   int64
 	Difficulty    float64
 	TicketPrice   int64
 	StartTime     int64
+	Size          int64
 	FormattedTime string
 	FormattedSize string
+	// Aggregate properties
+	Voters       uint64
+	Transactions uint64
+	FreshStake   uint64
+	Revocations  uint64
+	BlocksCount  int64
 }
 
 // ChartGroupings helps maping a given chart grouping to its standard string value.

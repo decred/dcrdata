@@ -6,7 +6,7 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
-        <h4>Windows</h4><h6>A window is a range of {{$.WindowSize}} blocks or approximately 12hrs. After each window mining; difficulty and ticket price are adjusted.</h6>
+        <h4>Windows</h4><h6>A window is a range of {{$.WindowSize}} blocks or approximately 12hrs. Difficulty and ticket price are adjusted for every new window.</h6>
         {{ $windowsCount := (int64 (len .Data)) }}
         <div class="mb-1 fs13">
             {{if gt $windowsCount 0}}
@@ -22,28 +22,28 @@
                         <li class="page-item {{if ge $oldest $lastWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/windows?offset={{subtract $lastWindow .Limit}}&rows={{.Limit}}"
+                                href="/pos-intervals?offset={{subtract $lastWindow .Limit}}&rows={{.Limit}}"
                                 id="prev"
                             >Oldest</a>
                         </li>
                         <li class="page-item {{if ge $oldest $lastWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/windows?offset={{ add .OffsetWindow .Limit }}&rows={{.Limit}}"
+                                href="/pos-intervals?offset={{ add .OffsetWindow .Limit }}&rows={{.Limit}}"
                                 id="prev"
                             >Older</a>
                         </li>
                         <li class="page-item {{if gt $topWindow .BestWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/windows?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
+                                href="/pos-intervals?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
                                 id="next"
                             > Newer</a>
                         </li>
                         <li class="page-item {{if lt .OffsetWindow $windowsCount}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/windows?offset=0&rows={{.Limit}}"
+                                href="/pos-intervals?offset=0&rows={{.Limit}}"
                                 id="next"
                             > Newest</a>
                         </li>
@@ -60,7 +60,7 @@
                 <table class="table striped table-responsive">
                     <thead>
                         <tr>
-                            <th>Window Index</th>
+                            <th>Ticket Price Window No.</th>
                             <th>End Block</th>
                             <th>Transactions</th>
                             <th>Votes</th>
