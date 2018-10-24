@@ -176,9 +176,7 @@ func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
 	tail := strings.TrimPrefix(rightWithTail, right)
 
 	// For shorter values sent from system
-	amt := strconv.FormatInt(v, 10)
-	if len(amt) <= 8 {
-		left = "0"
+	if intpart == 0 {
 
 		// Do not leave value as 1. if it is case with nothing trailing
 		if (len(right)) == 0 {
