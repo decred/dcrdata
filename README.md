@@ -812,7 +812,7 @@ See the GitHub issue tracker and the [project milestones](https://github.com/dec
 Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it:
 
 1. Fork the repo.
-2. Create a branch for your work (`git branch -b cool-stuff`).
+2. Create a branch for your work (`git checkout -b cool-stuff`).
 3. Code something great.
 4. Commit and push to your repo.
 5. Create a [pull request](https://github.com/decred/dcrdata/compare).
