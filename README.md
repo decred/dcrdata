@@ -645,15 +645,15 @@ The dcrdata API is a REST API accessible via HTTP. To call the dcrdata API, use 
 | Transaction details (POST body is JSON of `types.Txns`) | `/txs`         | `[]types.Tx`        |
 | Transaction details w/o block info                      | `/txs/trimmed` | `[]types.TrimmedTx` |
 
-| Address A                                                               | Path                           | Type                  |
-| ----------------------------------------------------------------------- | ------------------------------ | --------------------- |
-| Summary of last 10 transactions                                         | `/address/A`                   | `types.Address`       |
-| Number and value of spent and unspent outputs                           | `/address/A/totals`            | `types.AddressTotals` |
-| Verbose transaction result for last <br> 10 transactions                | `/address/A/raw`               | `types.AddressTxRaw`  |
-| Summary of last `N` transactions                                        | `/address/A/count/N`           | `types.Address`       |
-| Verbose transaction result for last <br> `N` transactions               | `/address/A/count/N/raw`       | `types.AddressTxRaw`  |
-| Summary of last `N` transactions, skipping `M`                          | `/address/A/count/N/skip/M`    | `types.Address`       |
-| Verbose transaction result for last <br> `N` transactions, skipping `M` | `/address/A/count/N/skip/Mraw` | `types.AddressTxRaw`  |
+| Address A                                                               | Path                            | Type                  |
+| ----------------------------------------------------------------------- | ------------------------------- | --------------------- |
+| Summary of last 10 transactions                                         | `/address/A`                    | `types.Address`       |
+| Number and value of spent and unspent outputs                           | `/address/A/totals`             | `types.AddressTotals` |
+| Verbose transaction result for last <br> 10 transactions                | `/address/A/raw`                | `types.AddressTxRaw`  |
+| Summary of last `N` transactions                                        | `/address/A/count/N`            | `types.Address`       |
+| Verbose transaction result for last <br> `N` transactions               | `/address/A/count/N/raw`        | `types.AddressTxRaw`  |
+| Summary of last `N` transactions, skipping `M`                          | `/address/A/count/N/skip/M`     | `types.Address`       |
+| Verbose transaction result for last <br> `N` transactions, skipping `M` | `/address/A/count/N/skip/M/raw` | `types.AddressTxRaw`  |
 
 | Stake Difficulty (Ticket Price)        | Path                    | Type                               |
 | -------------------------------------- | ----------------------- | ---------------------------------- |
