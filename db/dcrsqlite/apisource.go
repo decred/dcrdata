@@ -1333,15 +1333,17 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 }
 
 func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, error) {
-
-	// This is here to detect a bitcoin type address
-	if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3")) && len(address) >= 26 {
-		return nil, fmt.Errorf("Looks like you are searching for a bitcoin address")
-	}
-
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", address, err)
+		if strings.HasPrefix(address, "Dk") || strings.HasPrefix(address, "Tk") || strings.HasPrefix(address, "Sk") {
+			return nil, fmt.Errorf("Looks like you are searching for an address of type P2PK")
+		}
+
+		// This is here to detect a bitcoin type address
+		if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3")) && len(address) >= 25 && len(address) <= 34 {
+			return nil, fmt.Errorf("Looks like you are searching for a bitcoin address")
+		}
 		return nil, nil
 	}
 

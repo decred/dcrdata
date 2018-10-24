@@ -1515,7 +1515,11 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		exp.StatusPage(w, "search failed", err.Error()+", you can ", WrongNetworkStatusType)
+		if err.Error() == "Looks like you are searching for an address of type P2PK" {
+			exp.StatusPage(w, "search failed", err.Error(), NotFoundStatusType)
+			return
+		}
+		exp.StatusPage(w, "search failed", err.Error(), WrongNetworkStatusType)
 		return
 	}
 	if !exp.liteMode {

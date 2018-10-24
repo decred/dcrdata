@@ -12,13 +12,15 @@
                 <h5>No matching page, block, address or transaction that could be found</h5>
                 <h5>{{.Message}}</h5>
             {{else if eq .StatusType "Wrong Network"}}
-                {{if eq .Message "Looks like you are searching for a bitcoin address, you can "}}
-                    <h5>{{.Message}}<a href="https://insight.bitpay.com">find that here.</a></h5>
+                {{if eq .Message "Looks like you are searching for a bitcoin address"}}
+                    <h5>{{.Message}}, you can <a href="https://insight.bitpay.com">find that here.</a></h5>
                 {{else}}
-                    {{if eq .NetName "Mainnet"}}
-                        <h5>{{.Message}}<a href="http://testnet.dcrdata.org/">switch to testnet here.</a></h5>
+                    {{if redirectToTestnet .NetName .Message}}
+                        <h5>{{.Message}}, you can <a href="http://testnet.dcrdata.org/">switch to testnet here.</a></h5>
+                    {{else if redirectToMainnet .NetName .Message}}
+                        <h5>{{.Message}}, you can <a href="http://explorer.dcrdata.org/">switch to mainnet here.</a></h5>
                     {{else}}
-                        <h5>{{.Message}}<a href="http://explorer.dcrdata.org/">switch to mainnet here.</a></h5>
+                        <h5>{{.Message}}</h5>
                     {{end}}
                 {{end}}
             {{else}}

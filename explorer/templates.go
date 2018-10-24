@@ -393,5 +393,17 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return hash[hashLen:]
 		},
+		"redirectToMainnet": func(netName string, message string) bool {
+			if netName != "Mainnet" && strings.Contains(message, "mainnet") {
+				return true
+			}
+			return false
+		},
+		"redirectToTestnet": func(netName string, message string) bool {
+			if netName != "Testnet" && strings.Contains(message, "testnet") {
+				return true
+			}
+			return false
+		},
 	}
 }
