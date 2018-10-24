@@ -175,16 +175,6 @@ func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
 	right := strings.TrimRight(rightWithTail, "0")
 	tail := strings.TrimPrefix(rightWithTail, right)
 
-	// For shorter values sent from system
-	if intpart == 0 {
-
-		// Do not leave value as 1. if it is case with nothing trailing
-		if (len(right)) == 0 {
-			tail = "00"
-		}
-
-	}
-
 	// Add commas (eg. 3,444.33)
 	if useCommas && (len(left) > 3) {
 		integerAsInt64, err := strconv.ParseInt(left, 10, 64)
