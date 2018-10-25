@@ -222,6 +222,9 @@
         }
 
         onZoom(){
+            if (this.graph == undefined) {
+                return
+            }
             $('body').addClass('loading');
             this.graph.resetZoom();
             if (this.zoom > 0 && this.zoom < this.xVal[1]) {
