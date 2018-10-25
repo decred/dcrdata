@@ -28,6 +28,7 @@ const (
 	WrongNetworkStatusType   statusType = "Wrong Network"
 	DeprecatedStatusType     statusType = "Deprecated"
 	BlockchainSyncingType    statusType = "Blocks Syncing"
+	FutureBlockStatusType    statusType = "Future Block"
 )
 
 // blockchainSyncStatus defines the status update displayed on the syncing status page

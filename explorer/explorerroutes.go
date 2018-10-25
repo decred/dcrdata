@@ -1190,6 +1190,8 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, s
 		w.WriteHeader(http.StatusAccepted)
 	case NotSupportedStatusType:
 		w.WriteHeader(http.StatusUnprocessableEntity)
+	case FutureBlockStatusType:
+		w.WriteHeader(http.StatusOK)
 	default:
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
