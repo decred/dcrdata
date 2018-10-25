@@ -201,10 +201,8 @@ func (db *wiredDB) SyncDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
 
 // SyncDB is like SyncDBAsync, except it uses synchronous execution (the call to
 // resyncDB is a blocking call).
-func (db *wiredDB) SyncDB(ctx context.Context, wg *sync.WaitGroup,
-	blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
+func (db *wiredDB) SyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
 	// Ensure the db is working.
-	defer wg.Done()
 	if err := db.CheckConnectivity(); err != nil {
 		return -1, fmt.Errorf("CheckConnectivity failed: %v", err)
 	}

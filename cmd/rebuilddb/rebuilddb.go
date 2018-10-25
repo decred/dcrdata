@@ -1,11 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"runtime/pprof"
-	"sync"
 
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrdata/v3/db/dcrsqlite"
@@ -88,32 +88,26 @@ func mainCore() int {
 	defer sqliteDB.Close()
 
 	// Ctrl-C to shut down.
-	// Nothing should be sent the quit channel.  It should only be closed.
-	quit := make(chan struct{})
-	// Only accept a single CTRL+C
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
-	// Start waiting for the interrupt signal
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Start waiting for the interrupt signal.
 	go func() {
 		<-c
-		signal.Stop(c)
-		// Close the channel so multiple goroutines can get the message
-		log.Infof("CTRL+C hit.  Closing goroutines. Please wait.")
-		close(quit)
+		cancel()
+		for range c {
+			log.Info("Shutdown signaled. Already shutting down...")
+		}
 	}()
 
 	// Resync db
-	var waitSync sync.WaitGroup
-	waitSync.Add(1)
-	//go sqliteDB.SyncDB(&waitSync, quit)
 	var height int64
-	height, err = sqliteDB.SyncDB(&waitSync, quit, nil, 0)
+	height, err = sqliteDB.SyncDB(ctx, nil, 0)
 	if err != nil {
 		log.Error(err)
 	}
-
-	waitSync.Wait()
 
 	log.Printf("Done at height %d!", height)
 
