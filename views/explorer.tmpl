@@ -29,12 +29,13 @@
                     {{if ge $pendingBlocks 20}}<option {{if eq $blocksCount 20}}selected{{end}} value="20">20</option>{{end}}
                     {{if ge $pendingBlocks 30}}<option {{if eq $blocksCount 30}}selected{{end}} value="30">30</option>{{end}}
                     {{if ge $pendingBlocks 50}}<option {{if eq $blocksCount 50}}selected{{end}} value="50">50</option>{{end}}
+                    {{if ge $pendingBlocks 100}}<option {{if eq $blocksCount 100}}selected{{end}} value="100">100</option>{{end}}
                     {{if ge $pendingBlocks .WindowSize}}<option {{if eq $blocksCount .WindowSize}}selected{{end}} value="{{.WindowSize}}">{{.WindowSize}}</option>{{end}}
                     {{if eq $blocksCount 20 30 50}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}}</option>{{end}}
                     </select>
                 </span>
                 <span class="fs12 nowrap text-right">
-                    {{intComma (add $Offset 1)}} &mdash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} blocks
+                    {{intComma (add $Offset 1)}} &mdash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} rows
                 </span>
                 <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2">
                     <ul class="pagination mb-0 pagination-sm">
@@ -80,7 +81,7 @@
                 <table class="table striped table-responsive" id="explorertable">
                     <thead>
                         <tr>
-                            <th>Ticket Price Window No.</th>
+                            <th>Ticket Price Window #</th>
                             <th>Height</th>
                             <th>
                                 <span class="d-none d-md-inline">Transactions</span>
@@ -115,9 +116,11 @@
                 </table>
             </div>
         </div>
+        {{if gt (len $.Data) 20}}
         <div style="margin-bottom:5%;">
             {{template  "blocksPagination" .}}
         </div>
+        {{end}}
     </div>
 
 {{ template "footer" . }}
