@@ -43,6 +43,7 @@ type BlockBasic struct {
 	MainChain      bool   `json:"mainchain"`
 	Voters         uint16 `json:"votes"`
 	Transactions   int    `json:"tx"`
+	WindowIndx     int64  `json:"windowIndex"`
 	FreshStake     uint8  `json:"tickets"`
 	Revocations    uint32 `json:"revocations"`
 	BlockTime      int64  `json:"time"`

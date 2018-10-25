@@ -175,19 +175,84 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// StakeDiffWindows is the page handler for the "/ticketpricewindows" path
+func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) {
+	if exp.liteMode {
+		exp.StatusPage(w, fullModeRequired,
+			"Windows page cannot run in lite mode.", NotSupportedStatusType)
+	}
+
+	offsetWindow, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
+	if err != nil {
+		offsetWindow = 0
+	}
+
+	bestWindow := uint64(exp.Height() / exp.ChainParams.StakeDiffWindowSize)
+	if offsetWindow > bestWindow {
+		offsetWindow = bestWindow
+	}
+
+	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
+	if err != nil || rows < minExplorerRows {
+		rows = minExplorerRows
+	}
+
+	if rows > maxExplorerRows {
+		rows = maxExplorerRows
+	}
+
+	windows, err := exp.explorerSource.PosIntervals(rows, offsetWindow)
+	if err != nil {
+		log.Errorf("The specified windows are invalid. offset=%d&rows=%d: error: %v ", offsetWindow, rows, err)
+		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", NotFoundStatusType)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("windows", struct {
+		Data         []*dbtypes.BlocksGroupedInfo
+		WindowSize   int64
+		BestWindow   int64
+		OffsetWindow int64
+		Limit        int64
+		Version      string
+		NetName      string
+	}{
+		windows,
+		exp.ChainParams.StakeDiffWindowSize,
+		int64(bestWindow),
+		int64(offsetWindow),
+		int64(rows),
+		exp.Version,
+		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // Blocks is the page handler for the "/blocks" path.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
-	idx := exp.blockData.GetHeight()
+	bestBlockHeight := exp.blockData.GetHeight()
 
 	height, err := strconv.Atoi(r.URL.Query().Get("height"))
-	if err != nil || height > idx {
-		height = idx
+	if err != nil || height > bestBlockHeight {
+		height = bestBlockHeight
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-
-	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
+	if err != nil || rows < minExplorerRows {
 		rows = minExplorerRows
+	}
+
+	if rows > maxExplorerRows {
+		rows = maxExplorerRows
 	}
 
 	oldestBlock := height - rows + 1
@@ -214,17 +279,19 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("explorer", struct {
-		Data      []*BlockBasic
-		BestBlock int
-		Rows      int
-		Version   string
-		NetName   string
+		Data       []*BlockBasic
+		BestBlock  int64
+		Rows       int64
+		Version    string
+		NetName    string
+		WindowSize int64
 	}{
 		summaries,
-		idx,
-		rows,
+		int64(bestBlockHeight),
+		int64(rows),
 		exp.Version,
 		exp.NetName,
+		exp.ChainParams.StakeDiffWindowSize,
 	})
 
 	if err != nil {

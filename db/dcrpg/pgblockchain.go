@@ -773,6 +773,14 @@ func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
 	return retrieveTicketsByDate(pgb.db, maturityBlock, int64(val))
 }
 
+// PosIntervals retrieves the blocks at the respective stakebase windows interval.
+// The term "window" is used here to describe the group of blocks whose count is
+// defined by chainParams.StakeDiffWindowSize. During this chainParams.StakeDiffWindowSize
+// block interval the ticket price and the difficulty value is constant.
+func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	return retrieveWindowBlocks(pgb.db, pgb.chainParams.StakeDiffWindowSize, limit, offset)
+}
+
 // TicketPoolVisualization helps block consecutive and duplicate DB queries for
 // the requested ticket pool chart data. If the data for the given interval is
 // cached and fresh, it is returned. If the cached data is stale and there are

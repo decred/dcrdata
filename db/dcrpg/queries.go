@@ -11,18 +11,18 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
-
 	apitypes "github.com/decred/dcrdata/v3/api/types"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
 	"github.com/decred/dcrdata/v3/txhelpers"
-
+	humanize "github.com/dustin/go-humanize"
 	"github.com/lib/pq"
 )
 
@@ -572,6 +572,50 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(db *sql.DB) (ids []uint64, heights 
 		ticketDbIDs = append(ticketDbIDs, ticketDbID)
 	}
 	return
+}
+
+// retrieveWindowBlocks fetches chunks of windows using the limit and offset provided
+// for a window size of chaincfg.Params.StakeDiffWindowSize.
+func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
+	offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	rows, err := db.Query(internal.SelectWindowsByLimit, windowSize, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveWindowBlocks failed: error: %v", err)
+	}
+
+	data := make([]*dbtypes.BlocksGroupedInfo, 0)
+	for rows.Next() {
+		var difficulty float64
+		var startBlock, sbits, timestamp, count int64
+		var blockSizes, votes, txs, revocations, tickets uint64
+
+		err = rows.Scan(&startBlock, &difficulty, &txs, &tickets, &votes,
+			&revocations, &blockSizes, &sbits, &timestamp, &count)
+		if err != nil {
+			return nil, err
+		}
+
+		endBlock := startBlock + windowSize
+		index := dbtypes.CalculateWindowIndex(endBlock, windowSize)
+
+		data = append(data, &dbtypes.BlocksGroupedInfo{
+			WindowIndx:    index, //window index at the endblock
+			EndBlock:      endBlock,
+			Voters:        votes,
+			Transactions:  txs,
+			FreshStake:    tickets,
+			Revocations:   revocations,
+			BlocksCount:   count,
+			Difficulty:    difficulty,
+			TicketPrice:   sbits,
+			StartTime:     timestamp,
+			Size:          int64(blockSizes),
+			FormattedSize: humanize.Bytes(blockSizes),
+			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	return data, nil
 }
 
 // RetrieveUnspentTickets gets all unspent tickets.

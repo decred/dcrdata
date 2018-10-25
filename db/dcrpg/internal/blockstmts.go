@@ -110,6 +110,21 @@ const (
 	// first block in a stake difficulty window.
 	SelectBlocksTicketsPrice = `SELECT sbits, time, difficulty FROM blocks WHERE height % $1 = 0 ORDER BY time;`
 
+	SelectWindowsByLimit = `SELECT (height/$1)*$1 AS window_start,
+		MAX(difficulty) AS difficulty,
+		SUM(num_rtx) AS txs,
+		SUM(fresh_stake) AS tickets,
+		SUM(voters) AS votes,
+		SUM(revocations) AS revocations,
+		SUM(size) AS size,
+		MAX(sbits) AS sbits,
+		MIN(time) AS time,
+		COUNT(*) AS blocks_count
+		FROM blocks
+		GROUP BY window_start
+		ORDER BY window_start DESC
+		LIMIT $2 OFFSET $3;`
+
 	SelectBlocksBlockSize = `SELECT time, size, numtx, height FROM blocks ORDER BY time;`
 
 	SelectBlocksPreviousHash = `SELECT previous_hash FROM blocks WHERE hash = $1;`
