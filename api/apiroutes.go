@@ -5,6 +5,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -139,7 +140,7 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 
 // StatusNtfnHandler keeps the appContext's Status up-to-date with changes in
 // node and DB status.
-func (c *appContext) StatusNtfnHandler(wg *sync.WaitGroup, quit chan struct{}) {
+func (c *appContext) StatusNtfnHandler(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 out:
 	for {
@@ -201,11 +202,9 @@ out:
 			log.Errorf("New DB height (%d) and stored block data (%d, %d) not consistent.",
 				height, bdHeight, summary.Height)
 
-		case _, ok := <-quit:
-			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler for STATUS monitor.")
-				break out
-			}
+		case <-ctx.Done():
+			log.Debugf("Got quit signal. Exiting block connected handler for STATUS monitor.")
+			break out
 		}
 	}
 }

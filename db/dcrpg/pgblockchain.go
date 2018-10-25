@@ -6,6 +6,7 @@ package dcrpg
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -189,6 +190,7 @@ func (u *utxoStore) Size() (sz int) {
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
+	ctx                context.Context
 	db                 *sql.DB
 	chainParams        *chaincfg.Params
 	devAddress         string
@@ -222,10 +224,9 @@ func NewChainDBRPC(chaindb *ChainDB, cl *rpcclient.Client) (*ChainDBRPC, error) 
 
 // SyncChainDBAsync calls (*ChainDB).SyncChainDBAsync after a nil pointer check
 // on the ChainDBRPC receiver.
-func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
-	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
-	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash,
-	barLoad chan *dbtypes.ProgressBarLoad) {
+func (db *ChainDBRPC) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
+	client rpcutils.MasterBlockGetter, updateAllAddresses, updateAllVotes, newIndexes bool,
+	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
 	// Allowing db to be nil simplifies logic in caller.
 	if db == nil {
 		res <- dbtypes.SyncResult{
@@ -234,7 +235,7 @@ func (db *ChainDBRPC) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		}
 		return
 	}
-	db.ChainDB.SyncChainDBAsync(res, client, quit, updateAllAddresses,
+	db.ChainDB.SyncChainDBAsync(ctx, res, client, updateAllAddresses,
 		updateAllVotes, newIndexes, updateExplorer, barLoad)
 }
 
@@ -385,6 +386,20 @@ func NewTicketTxnIDGetter(db *sql.DB) *TicketTxnIDGetter {
 // DBInfo holds the PostgreSQL database connection information.
 type DBInfo struct {
 	Host, Port, User, Pass, DBName string
+}
+
+// NewChainDBWithCancel constructs a cancellation-capable ChainDB for the given
+// connection and Decred network parameters. By default, duplicate row checks on
+// insertion are enabled.
+func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Params,
+	stakeDB *stakedb.StakeDatabase, devPrefetch bool) (*ChainDB, error) {
+	chainDB, err := NewChainDB(dbi, params, stakeDB, devPrefetch)
+	if err != nil {
+		return nil, err
+	}
+
+	chainDB.ctx = context.Background()
+	return chainDB, nil
 }
 
 // NewChainDB constructs a ChainDB for the given connection and Decred network

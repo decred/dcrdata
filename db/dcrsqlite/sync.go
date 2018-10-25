@@ -5,6 +5,7 @@
 package dcrsqlite
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -61,7 +62,7 @@ func (db *wiredDB) initWaitChan(waitChan chan chainhash.Hash) {
 // should abort. If the specified height is greater than the current stake DB
 // height, RewindStakeDB will exit without error, returning the current stake DB
 // height and a nil error.
-func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHeight int64, err error) {
+func (db *wiredDB) RewindStakeDB(ctx context.Context, toHeight int64) (stakeDBHeight int64, err error) {
 	// rewind best node in ticket db
 	stakeDBHeight = int64(db.sDB.Height())
 	if toHeight < 0 {
@@ -75,7 +76,7 @@ func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHei
 		}
 		// check for quit signal
 		select {
-		case <-quit:
+		case <-ctx.Done():
 			log.Infof("Rewind cancelled at height %d.", stakeDBHeight)
 			return
 		default:
@@ -89,7 +90,7 @@ func (db *wiredDB) RewindStakeDB(toHeight int64, quit chan struct{}) (stakeDBHei
 	return
 }
 
-func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter,
+func (db *wiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter,
 	fetchToHeight int64, updateExplorer chan *chainhash.Hash,
 	barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Determine if we're in lite mode, when we are the "master" who sets the
@@ -137,7 +138,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 		}
 		log.Infof("Rewinding stake node from %d to %d", stakeDBHeight, dbHeight)
 		// Rewind best node in ticket DB to larger of lowest DB height or zero.
-		stakeDBHeight, err = db.RewindStakeDB(dbHeight, quit)
+		stakeDBHeight, err = db.RewindStakeDB(ctx, dbHeight)
 		if err != nil {
 			return dbHeight, fmt.Errorf("RewindStakeDB failed: %v", err)
 		}
@@ -197,7 +198,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 	for i := startHeight; i <= height; i++ {
 		// check for quit signal
 		select {
-		case <-quit:
+		case <-ctx.Done():
 			log.Infof("Rescan cancelled at height %d.", i)
 			return i - 1, nil
 		default:
@@ -218,7 +219,7 @@ func (db *wiredDB) resyncDB(quit chan struct{}, blockGetter rpcutils.BlockGetter
 			// Wait for this block to become available in the MasterBlockGetter
 			select {
 			case blockhash = <-db.waitChan:
-			case <-quit:
+			case <-ctx.Done():
 				log.Infof("Rescan cancelled at height %d.", i)
 				return i - 1, nil
 			}

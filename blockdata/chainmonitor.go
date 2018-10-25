@@ -5,6 +5,7 @@
 package blockdata
 
 import (
+	"context"
 	"reflect"
 	"sync"
 
@@ -24,10 +25,10 @@ type ReorgData struct {
 
 // for getblock, ticketfeeinfo, estimatestakediff, etc.
 type chainMonitor struct {
+	ctx             context.Context
 	collector       *Collector
 	dataSavers      []BlockDataSaver
 	reorgDataSavers []BlockDataSaver
-	quit            chan struct{}
 	wg              *sync.WaitGroup
 	watchaddrs      map[string]txhelpers.TxAction
 	blockChan       chan *chainhash.Hash
@@ -44,18 +45,16 @@ type chainMonitor struct {
 	reorganizing bool
 }
 
-// NewChainMonitor creates a new chainMonitor
-func NewChainMonitor(collector *Collector,
-	savers []BlockDataSaver, reorgSavers []BlockDataSaver,
-	quit chan struct{}, wg *sync.WaitGroup,
-	addrs map[string]txhelpers.TxAction, blockChan chan *chainhash.Hash,
-	recvTxBlockChan chan *txhelpers.BlockWatchedTx,
+// NewChainMonitor creates a new chainMonitor.
+func NewChainMonitor(ctx context.Context, collector *Collector, savers []BlockDataSaver,
+	reorgSavers []BlockDataSaver, wg *sync.WaitGroup, addrs map[string]txhelpers.TxAction,
+	blockChan chan *chainhash.Hash, recvTxBlockChan chan *txhelpers.BlockWatchedTx,
 	reorgChan chan *ReorgData) *chainMonitor {
 	return &chainMonitor{
+		ctx:             ctx,
 		collector:       collector,
 		dataSavers:      savers,
 		reorgDataSavers: reorgSavers,
-		quit:            quit,
 		wg:              wg,
 		watchaddrs:      addrs,
 		blockChan:       blockChan,
@@ -199,11 +198,9 @@ out:
 
 			release()
 
-		case _, ok := <-p.quit:
-			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler.")
-				break out
-			}
+		case <-p.ctx.Done():
+			log.Debugf("Got quit signal. Exiting block connected handler.")
+			break out
 		}
 	}
 
@@ -247,11 +244,9 @@ out:
 
 			reorgData.WG.Done()
 
-		case _, ok := <-p.quit:
-			if !ok {
-				log.Debugf("Got quit signal. Exiting reorg notification handler.")
-				break out
-			}
+		case <-p.ctx.Done():
+			log.Debugf("Got quit signal. Exiting reorg notification handler.")
+			break out
 		}
 	}
 }

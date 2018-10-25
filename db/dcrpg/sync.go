@@ -1,9 +1,11 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
 package dcrpg
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -95,10 +97,9 @@ const (
 // which the caller should wait to receive the result. As such, this method
 // should be called as a goroutine or it will hang on send if the channel is
 // unbuffered.
-func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
-	client rpcutils.MasterBlockGetter, quit chan struct{}, updateAllAddresses,
-	updateAllVotes, newIndexes bool, updateExplorer chan *chainhash.Hash,
-	barLoad chan *dbtypes.ProgressBarLoad) {
+func (db *ChainDB) SyncChainDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
+	client rpcutils.MasterBlockGetter, updateAllAddresses, updateAllVotes, newIndexes bool,
+	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
 	if db == nil {
 		res <- dbtypes.SyncResult{
 			Height: -1,
@@ -107,7 +108,7 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 		return
 	}
 
-	height, err := db.SyncChainDB(client, quit, updateAllAddresses,
+	height, err := db.SyncChainDB(ctx, client, updateAllAddresses,
 		updateAllVotes, newIndexes, updateExplorer, barLoad)
 	if err != nil {
 		log.Debugf("SyncChainDB quit at height %d, err: %v", height, err)
@@ -125,7 +126,7 @@ func (db *ChainDB) SyncChainDBAsync(res chan dbtypes.SyncResult,
 // RPC client. The table indexes may be force-dropped and recreated by setting
 // newIndexes to true. The quit channel is used to break the sync loop. For
 // example, closing the channel on SIGINT.
-func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan struct{},
+func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockGetter,
 	updateAllAddresses, updateAllVotes, newIndexes bool,
 	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Note that we are doing a batch blockchain sync
@@ -205,7 +206,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	for ib := startHeight; ib <= nodeHeight; ib++ {
 		// check for quit signal
 		select {
-		case <-quit:
+		case <-ctx.Done():
 			log.Infof("Rescan cancelled at height %d.", ib)
 			return ib - 1, nil
 		default:
@@ -263,7 +264,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		var blockHash *chainhash.Hash
 		select {
 		case blockHash = <-waitChan:
-		case <-quit:
+		case <-ctx.Done():
 			log.Infof("Rescan cancelled at height %d.", ib)
 			return ib - 1, nil
 		}
