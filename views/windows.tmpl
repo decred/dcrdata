@@ -7,13 +7,32 @@
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
         <h4>Windows</h4><h6>A window is a range of {{$.WindowSize}} blocks or approximately 12hrs. Difficulty and ticket price are adjusted for every new window.</h6>
-        {{ $windowsCount := (int64 (len .Data)) }}
+        {{$pendingWindows := 0}}
+        {{if gt (int64 (len .Data)) 0}}{{$pendingWindows = (int64 (index .Data 0).WindowIndx)}}{{end}}
+
+        {{block "windowsPagination" .}}
+        {{$windowsCount := (int64 (len .Data))}}
         <div class="mb-1 fs13">
             {{if gt $windowsCount 0}}
-            {{ $topWindow := (int64 (index .Data 0).WindowIndx) }}
+            {{$topWindow := (int64 (index .Data 0).WindowIndx)}}
+            {{$pendingWindows := (int64 (index .Data 0).WindowIndx)}}
             <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
                 {{$oldest := (add .OffsetWindow $windowsCount)}}
                 {{$lastWindow := (add .BestWindow 1)}}
+                <span class="fs12 nowrap text-right">
+                    <label class="mb-0 mr-1" for="windows-pagesize">Page size</label>
+                    <select
+                        name="windows-pagesize"
+                        id="windows-pagesize"
+                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pendingWindows 20}}disabled{{end}}"
+                        {{if lt $pendingWindows 20}}disabled="disabled"{{end}}
+                    >
+                    {{if ge $pendingWindows 20}}<option {{if eq $windowsCount 20}}selected{{end}} value="20">20</option>{{end}}
+                    {{if ge $pendingWindows 30}}<option {{if eq $windowsCount 30}}selected{{end}} value="30">30</option>{{end}}
+                    {{if ge $pendingWindows 50}}<option {{if eq $windowsCount 50}}selected{{end}} value="50">50</option>{{end}}
+                    {{if eq $windowsCount 20 30 50}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}}</option>{{end}}
+                    </select>
+                </span>
                 <span class="fs12 nowrap text-right">
                     {{intComma (add .OffsetWindow 1)}} &mdash; {{intComma $oldest}} of {{ intComma $lastWindow }} windows
                 </span>
@@ -22,28 +41,28 @@
                         <li class="page-item {{if ge $oldest $lastWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/pos-intervals?offset={{subtract $lastWindow .Limit}}&rows={{.Limit}}"
+                                href="/diffwindows?offset={{subtract $lastWindow .Limit}}&rows={{.Limit}}"
                                 id="prev"
                             >Oldest</a>
                         </li>
                         <li class="page-item {{if ge $oldest $lastWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/pos-intervals?offset={{ add .OffsetWindow .Limit }}&rows={{.Limit}}"
+                                href="/diffwindows?offset={{ add .OffsetWindow .Limit }}&rows={{.Limit}}"
                                 id="prev"
                             >Older</a>
                         </li>
                         <li class="page-item {{if gt $topWindow .BestWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/pos-intervals?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
+                                href="/diffwindows?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
                                 id="next"
                             > Newer</a>
                         </li>
                         <li class="page-item {{if lt .OffsetWindow $windowsCount}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/pos-intervals?offset=0&rows={{.Limit}}"
+                                href="/diffwindows?offset=0&rows={{.Limit}}"
                                 id="next"
                             > Newest</a>
                         </li>
@@ -54,6 +73,7 @@
             <span class="fs12 nowrap text-right list-display">no confirmed windows found</span>
             {{end}}
         </div>
+        {{end}}
 
         <div class="row">
             <div class="col-md-12">
@@ -99,26 +119,8 @@
                 </table>
             </div>
         </div>
-        <div
-            class="hidden d-flex align-items-center justify-content-end"
-            style="margin-bottom: 2%;"
-        >
-            {{$pendingWindows := 0}}
-            {{if gt $windowsCount 0}}
-                 {{ $pendingWindows = (int64 (index .Data 0).WindowIndx) }}
-            {{end}}
-            <label class="mb-0 mr-1" for="windows-pagesize">Page size</label>
-            <select
-                name="windows-pagesize"
-                id="windows-pagesize"
-                class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pendingWindows 20}}disabled{{end}}"
-                {{if lt $pendingWindows 20}}disabled="disabled"{{end}}
-            >
-            {{if ge $pendingWindows 20}}<option {{if eq $windowsCount 20}}selected{{end}} value="20">20</option>{{end}}
-            {{if ge $pendingWindows 30}}<option {{if eq $windowsCount 30}}selected{{end}} value="30">30</option>{{end}}
-            {{if ge $pendingWindows 50}}<option {{if eq $windowsCount 50}}selected{{end}} value="50">50</option>{{end}}
-            {{if eq $windowsCount 20 30 50}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}}</option>{{end}}
-            </select>
+        <div style="margin-bottom:5%;">
+            {{template "windowsPagination" .}}
         </div>
     </div>
 

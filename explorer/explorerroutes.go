@@ -173,7 +173,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// StakeDiffWindows is the page handler for the "/pos-intervals" path
+// StakeDiffWindows is the page handler for the "/diffwindows" path
 func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
