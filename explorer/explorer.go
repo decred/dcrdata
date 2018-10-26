@@ -58,6 +58,7 @@ type explorerDataSourceLite interface {
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
 	GetExplorerFullBlocks(start int, end int) []*BlockInfo
+	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
 }
 
@@ -303,7 +304,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	}
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
-		"sidechains", "rejects", "ticketpool", "nexthome", "windows"}
+		"sidechains", "rejects", "ticketpool", "nexthome", "statistics",
+		"windows"}
 
 	tempDefaults := []string{"extras"}
 
@@ -566,6 +568,8 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Get("/address/{x}", redirect("address"))
 
 	exp.Mux.Get("/decodetx", redirect("decodetx"))
+
+	exp.Mux.Get("/stats", redirect("statistics"))
 }
 
 // Simulate ticket purchase and re-investment over a full year for a given

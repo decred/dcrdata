@@ -151,6 +151,46 @@ func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces .
 	return []string{integer, dec[:places], dec[places:], trailingZeros}
 }
 
+func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
+
+	// Filter numPlaces to only allow up to 8 decimal places trimming (eg. 1.12345678)
+	if numPlaces > 8 {
+		numPlaces = 8
+	}
+
+	// Separate values passed in into int.dec parts.
+	intpart := v / 1e8
+	decpart := v % 1e8
+
+	// Format left side.
+	left := strconv.FormatInt(intpart, 10)
+	rightWithTail := fmt.Sprintf("%08d", decpart)
+
+	// Reduce precision according to numPlaces.
+	if len(rightWithTail) > int(numPlaces) {
+		rightWithTail = rightWithTail[0:numPlaces]
+	}
+
+	// Separate trailing zeros.
+	right := strings.TrimRight(rightWithTail, "0")
+	tail := strings.TrimPrefix(rightWithTail, right)
+
+	// Add commas (eg. 3,444.33)
+	if useCommas && (len(left) > 3) {
+		integerAsInt64, err := strconv.ParseInt(left, 10, 64)
+		if err != nil {
+			log.Errorf("amountAsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
+			left = "ERROR"
+			right = "VALUE"
+			tail = ""
+			return []string{left, right, tail}
+		}
+		left = humanize.Comma(integerAsInt64)
+	}
+
+	return []string{left, right, tail}
+}
+
 func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
@@ -159,6 +199,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return a + b
 		},
 		"subtract": func(a, b int64) int64 {
+			return a - b
+		},
+		"floatsubtract": func(a, b float64) float64 {
 			return a - b
 		},
 		"divide": func(n, d int64) int64 {
@@ -228,6 +271,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return str + "remaining"
 		},
+		"amountAsDecimalPartsTrimmed": amountAsDecimalPartsTrimmed,
 		"TimeDurationFormat": func(duration time.Duration) (formatedDuration string) {
 			durationhr := int(duration.Minutes() / 60)
 			durationmin := int(duration.Minutes()) % 60

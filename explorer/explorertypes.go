@@ -544,6 +544,39 @@ func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
 	return agendadb.GetAgendaInfo(agendaId)
 }
 
+// StatsInfo represents all of the data for the stats page.
+type StatsInfo struct {
+	UltimateSupply             int64
+	TotalSupply                int64
+	TotalSupplyPercentage      float64
+	ProjectFunds               int64
+	ProjectAddress             string
+	PoWDiff                    float64
+	HashRate                   float64
+	BlockReward                int64
+	NextBlockReward            int64
+	PoWReward                  int64
+	PoSReward                  int64
+	ProjectFundReward          int64
+	VotesInMempool             int
+	TicketsInMempool           int
+	TicketPrice                float64
+	NextEstimatedTicketPrice   float64
+	TicketPoolSize             uint32
+	TicketPoolSizePerToTarget  float64
+	TicketPoolValue            float64
+	TPVOfTotalSupplyPeecentage float64
+	TicketsROI                 float64
+	RewardPeriod               string
+	ASR                        float64
+	APR                        float64
+	IdxBlockInWindow           int
+	WindowSize                 int64
+	BlockTime                  int64
+	IdxInRewardWindow          int
+	RewardWindowSize           int64
+}
+
 // isSyncExplorerUpdate helps determine when the explorer should be updated
 // when the blockchain sync is running in the background and no explorer page
 // view restriction on the running webserver is activated.

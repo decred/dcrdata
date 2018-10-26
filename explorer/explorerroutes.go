@@ -50,7 +50,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	blocks := exp.blockData.GetExplorerBlocks(height, height-5)
 
-	// Lock for both MempoolData and ExtraInfo
+	// Lock for both MempoolData and pageData.HomeInfo
 	exp.MempoolData.RLock()
 	exp.pageData.RLock()
 
@@ -1423,5 +1423,75 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusServiceUnavailable)
+	io.WriteString(w, str)
+}
+
+// StatsPage is the page handler for the "/stats" path
+func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
+	// Get current PoW difficulty.
+	powDiff, err := exp.blockData.Difficulty()
+	if err != nil {
+		log.Errorf("Failed to get Difficulty: %v", err)
+	}
+
+	// Subsidies
+	ultSubsidy := txhelpers.UltimateSubsidy(exp.ChainParams)
+	blockSubsidy := exp.blockData.BlockSubsidy(int64(exp.blockData.GetHeight()),
+		exp.ChainParams.TicketsPerBlock)
+
+	exp.MempoolData.RLock()
+	exp.pageData.RLock()
+	stats := StatsInfo{
+		TotalSupply:              exp.pageData.HomeInfo.CoinSupply,
+		UltimateSupply:           ultSubsidy,
+		TotalSupplyPercentage:    float64(exp.pageData.HomeInfo.CoinSupply) / float64(ultSubsidy) * 100,
+		ProjectFunds:             exp.pageData.HomeInfo.DevFund,
+		ProjectAddress:           exp.pageData.HomeInfo.DevAddress,
+		PoWDiff:                  exp.pageData.HomeInfo.Difficulty,
+		BlockReward:              blockSubsidy.Total,
+		NextBlockReward:          exp.pageData.HomeInfo.NBlockSubsidy.Total,
+		PoWReward:                exp.pageData.HomeInfo.NBlockSubsidy.PoW,
+		PoSReward:                exp.pageData.HomeInfo.NBlockSubsidy.PoS,
+		ProjectFundReward:        exp.pageData.HomeInfo.NBlockSubsidy.Dev,
+		VotesInMempool:           exp.MempoolData.NumVotes,
+		TicketsInMempool:         exp.MempoolData.NumTickets,
+		TicketPrice:              exp.pageData.HomeInfo.StakeDiff,
+		NextEstimatedTicketPrice: exp.pageData.HomeInfo.NextExpectedStakeDiff,
+		TicketPoolSize:           exp.pageData.HomeInfo.PoolInfo.Size,
+		TicketPoolSizePerToTarget: float64(exp.pageData.HomeInfo.PoolInfo.Size) /
+			float64(exp.ChainParams.TicketPoolSize*exp.ChainParams.TicketsPerBlock) * 100,
+		TicketPoolValue:            exp.pageData.HomeInfo.PoolInfo.Value,
+		TPVOfTotalSupplyPeecentage: exp.pageData.HomeInfo.PoolInfo.Percentage,
+		TicketsROI:                 exp.pageData.HomeInfo.TicketReward,
+		RewardPeriod:               exp.pageData.HomeInfo.RewardPeriod,
+		ASR:                        exp.pageData.HomeInfo.ASR,
+		APR:                        exp.pageData.HomeInfo.ASR,
+		IdxBlockInWindow:           exp.pageData.HomeInfo.IdxBlockInWindow,
+		WindowSize:                 exp.pageData.HomeInfo.Params.WindowSize,
+		BlockTime:                  exp.pageData.HomeInfo.Params.BlockTime,
+		IdxInRewardWindow:          exp.pageData.HomeInfo.IdxInRewardWindow,
+		RewardWindowSize:           exp.pageData.HomeInfo.Params.RewardWindowSize,
+		HashRate:                   powDiff * math.Pow(2, 32) / exp.ChainParams.TargetTimePerBlock.Seconds() / math.Pow(10, 15),
+	}
+	exp.MempoolData.RUnlock()
+	exp.pageData.RUnlock()
+
+	str, err := exp.templates.execTemplateToString("statistics", struct {
+		Stats   StatsInfo
+		Version string
+		NetName string
+	}{
+		stats,
+		exp.Version,
+		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
 }
