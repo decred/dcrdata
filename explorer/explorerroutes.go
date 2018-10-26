@@ -875,7 +875,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	var addrData *AddressInfo
 	if exp.liteMode {
 		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
-		if strings.HasPrefix(err.Error(), "wrong network") {
+		if err != nil && strings.HasPrefix(err.Error(), "wrong network") {
 			exp.StatusPage(w, wrongNetwork, "That address is not valid for "+exp.NetName, NotSupportedStatusType)
 			return
 		}
