@@ -264,7 +264,7 @@
             setApplicableBtns('week', new Date().setDate(pastWeek))
             setApplicableBtns('day', new Date().setDate(pastDay))
 
-            if (parseInt(this.intervalTarget.dataset.txcount) < 20) {
+            if (parseInt(this.intervalTarget.dataset.txcount) < 20 || this.enabledButtons.length === 0) {
                 this.enabledButtons[0] = "all"
             }
 
