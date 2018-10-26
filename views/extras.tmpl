@@ -572,6 +572,7 @@
         scrollPosition = [window.scrollX, window.scrollY]
         Turbolinks.visit(window.location, { action: 'replace' })
         if(!ws){
+            console.log("ws is closed after Turbolinks.visit")
             createWebSocket(window.location)
         }
     }
