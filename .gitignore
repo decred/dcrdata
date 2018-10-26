@@ -38,3 +38,4 @@ dcrdata-testdata-gitlfs
 dcrdata-testdata
 .vendor-new
 v3
+tmp/runner-build
