@@ -139,6 +139,8 @@
             $(document).trigger("nightMode", { nightMode: true })
         }
     }
+
+
     document.addEventListener("turbolinks:before-render", function(event) {
         if (darkEnabled()) {
             toggleToDarkClasses(event.data.newBody)
@@ -236,12 +238,13 @@
 
             var currentTxHash = $('#spanTxID').data('tx-page-txid');
             if(currentTxHash) { // we are on the tx page
-                if((b.Tx.filter(function (tx) {
+                Turbolinks.reload()
+                /*if((b.Tx.filter(function (tx) {
                     return tx.TxID === currentTxHash
                 })).length > 0){
                     // the current tx is in the received block
                     Turbolinks.visit(window.location)
-                }
+                }*/
             }else {
                 var confirms = $('[data-confirmation-block-height]');
                 $.each(confirms, function(i, v) {
@@ -562,6 +565,17 @@
     });
 
     $("#keynav-toggle .text").text(keyNavEnabled() ? "Disable Hot Keys":"Enable Hot Keys" )
+
+    var scrollPosition
+
+    Turbolinks.reload = function () {
+        scrollPosition = [window.scrollX, window.scrollY]
+        Turbolinks.visit(window.location, { action: 'replace' })
+        if(!ws){
+            createWebSocket(window.location)
+        }
+    }
+
     document.addEventListener("turbolinks:load", function(e){
         closeMenu(e)
         if (keyNavEnabled()) {
@@ -569,6 +583,11 @@
             keyNav(e, true)
         } else {
             $(".top-search").focus()
+        }
+
+        if (scrollPosition) {
+            window.scrollTo.apply(window, scrollPosition)
+            scrollPosition = null
         }
     })
 
