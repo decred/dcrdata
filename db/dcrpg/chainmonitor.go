@@ -225,8 +225,9 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 		// New blocks stored this way are considered part of mainchain. They are
 		// also considered valid unless invalidated by the next block
 		// (invalidation of previous handled inside StoreBlock).
-		isValid, isMainChain := true, true
-		_, _, err := p.db.StoreBlock(msgBlock, winners, isValid, isMainChain, true, true)
+		isValid, isMainChain, updateExisting := true, true, true
+		_, _, _, err := p.db.StoreBlock(msgBlock, winners, isValid, isMainChain,
+			updateExisting, true, true)
 		if err != nil {
 			return int32(p.db.Height()), p.db.Hash(),
 				fmt.Errorf("error connecting block %v", p.sideChain[i])

@@ -6,33 +6,82 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
-        <h4><span>Blocks</span></h4>
-        <div class="row fs13">
-            <div class="col d-flex justify-content-between">
-                {{ if ge (index .Data 0).Height .Rows }}
-                <a
-                    id="prev"
-                    class="no-underline"
-                    href="/blocks?height={{ subtract (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
-                    data-keynav-priority
-                >◄ Older</a>
-                {{end}}
-                {{ if lt (index .Data 0).Height .BestBlock }}
-                 <a
-                    id="next"
-                    class="no-underline"
-                    href="/blocks?height={{ add (index .Data 0).Height (int64 (len .Data)) }}&rows={{.Rows}}"
-                    data-preserve-keynav-index="true"
-                >Newer ►</a>
-                {{end}}
+        <h4>Blocks</h4>
+        {{$pendingBlocks := 0}}
+        {{if gt (len $.Data) 0}}{{$pendingBlocks = ((index .Data 0).Height)}}{{end}}
+
+        {{block "blocksPagination" .}}
+        {{$blocksCount := (len $.Data)}}
+        <div class="mb-1 fs13">
+            {{if gt $blocksCount 0}}
+            {{$topBlock := ((index .Data 0).Height)}}
+            {{$Offset := (subtract .BestBlock $topBlock)}}
+            {{$pendingBlocks := ((index .Data 0).Height)}}
+            <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
+                <span class="fs12 nowrap text-right">
+                    <label class="mb-0 mr-1" for="blocks-pagesize">Page size</label>
+                    <select
+                        id="blocks-pagesize"
+                        name="blocks-pagesize"
+                        class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $blocksCount 20}}disabled{{end}}"
+                        {{if lt $blocksCount 20}}disabled="disabled"{{end}}
+                    >
+                    {{if ge $pendingBlocks 20}}<option {{if eq $blocksCount 20}}selected{{end}} value="20">20</option>{{end}}
+                    {{if ge $pendingBlocks 30}}<option {{if eq $blocksCount 30}}selected{{end}} value="30">30</option>{{end}}
+                    {{if ge $pendingBlocks 50}}<option {{if eq $blocksCount 50}}selected{{end}} value="50">50</option>{{end}}
+                    {{if ge $pendingBlocks 100}}<option {{if eq $blocksCount 100}}selected{{end}} value="100">100</option>{{end}}
+                    {{if ge $pendingBlocks .WindowSize}}<option {{if eq $blocksCount .WindowSize}}selected{{end}} value="{{.WindowSize}}">{{.WindowSize}}</option>{{end}}
+                    {{if eq $blocksCount 20 30 50}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}}</option>{{end}}
+                    </select>
+                </span>
+                <span class="fs12 nowrap text-right">
+                    {{intComma (add $Offset 1)}} &mdash; {{intComma (add $Offset .Rows)}} of {{intComma (add .BestBlock 1) }} rows
+                </span>
+                <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2">
+                    <ul class="pagination mb-0 pagination-sm">
+                        <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/blocks?height={{subtract .Rows 1}}&rows={{.Rows}}"
+                                id="prev"
+                            >Oldest</a>
+                        </li>
+                        <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/blocks?height={{ subtract $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
+                                id="prev"
+                            >Older</a>
+                        </li>
+                        <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/blocks?height={{ add $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
+                                id="next"
+                            > Newer</a>
+                        </li>
+                         <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/blocks?height={{.BestBlock}}&rows={{.Rows}}"
+                                id="next"
+                            > Newest</a>
+                        </li>
+                    </ul>
+                </nav>
             </div>
+            {{else}}
+            <span class="fs12 nowrap text-right list-display">no confirmed blocks found</span>
+            {{end}}
         </div>
+        {{end}}
 
         <div class="row">
             <div class="col-md-12">
                 <table class="table striped table-responsive" id="explorertable">
                     <thead>
                         <tr>
+                            <th>Ticket Price Window #</th>
                             <th>Height</th>
                             <th>
                                 <span class="d-none d-md-inline">Transactions</span>
@@ -52,6 +101,7 @@
                     <tbody>
                     {{range .Data}}
                         <tr id="{{ .Height }}">
+                            <td>{{.WindowIndx}}</td>
                             <td><a href="/block/{{.Height}}" class="fs16 height">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
                             <td {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>
@@ -66,10 +116,30 @@
                 </table>
             </div>
         </div>
+        {{if gt (len $.Data) 20}}
+        <div style="margin-bottom:5%;">
+            {{template  "blocksPagination" .}}
+        </div>
+        {{end}}
     </div>
 
 {{ template "footer" . }}
 
+<script>
+    $("#blocks-pagesize").change(function(ev) {
+        var pagesize = "20"
+        var height = {{$pendingBlocks}}
+        if (ev.currentTarget.id.indexOf("blocks-pagesize") != -1){
+            pagesize = $("#blocks-pagesize option:selected").val()
+        }
+
+        Turbolinks.visit(
+            window.location.pathname
+            + "?height="+ height
+            + "&rows=" + pagesize
+        )
+    })
+</script>
 </body>
 </html>
 {{ end }}

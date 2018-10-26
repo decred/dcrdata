@@ -68,18 +68,18 @@ func mainCore() error {
 	}
 
 	if cfg.UseGops {
-		// Start gops diagnostic agent, without shutdown cleanup
+		// Start gops diagnostic agent, with shutdown cleanup.
 		if err = agent.Listen(agent.Options{}); err != nil {
 			return err
 		}
 		defer agent.Close()
 	}
 
-	// Start with version info
+	// Display app version.
 	log.Infof("%s version %v (Go version %s)", version.AppName,
 		version.Version(), runtime.Version())
 
-	// PostgreSQL
+	// PostgreSQL backend is enabled via FullMode config option (--pg switch).
 	usePG := cfg.FullMode
 	if usePG {
 		log.Info(`Running in full-functionality mode with PostgreSQL backend enabled.`)
@@ -87,12 +87,10 @@ func mainCore() error {
 		log.Info(`Running in "Lite" mode with only SQLite backend and limited functionality.`)
 	}
 
-	// Connect to dcrd RPC server using websockets
-
-	// Set up the notification handler to deliver blocks through a channel.
+	// Setup the notification handlers.
 	notify.MakeNtfnChans(cfg.MonitorMempool, usePG)
 
-	// Daemon client connection
+	// Connect to dcrd RPC server using a websocket.
 	ntfnHandlers, collectionQueue := notify.MakeNodeNtfnHandlers()
 	dcrdClient, nodeVer, err := connectNodeRPC(cfg, ntfnHandlers)
 	if err != nil || dcrdClient == nil {
@@ -100,7 +98,8 @@ func mainCore() error {
 	}
 
 	defer func() {
-		// Closing these channels should be unnecessary if quit was handled right
+		// The individial hander's loops should close the notifications channels
+		// on quit, but do it here too to be sure.
 		notify.CloseNtfnChans()
 
 		if dcrdClient != nil {
@@ -112,7 +111,7 @@ func mainCore() error {
 		time.Sleep(250 * time.Millisecond)
 	}()
 
-	// Display connected network
+	// Display connected network (e.g. mainnet, testnet, simnet).
 	curnet, err := dcrdClient.GetCurrentNet()
 	if err != nil {
 		return fmt.Errorf("Unable to get current network from dcrd: %v", err)
@@ -159,7 +158,7 @@ func mainCore() error {
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer baseDB.Close()
 
-	// PostgreSQL
+	// Auxiliary DB (currently PostgreSQL)
 	var auxDB *dcrpg.ChainDBRPC
 	var newPGIndexes, updateAllAddresses, updateAllVotes bool
 	if usePG {
@@ -207,7 +206,7 @@ func mainCore() error {
 		}
 	}
 
-	blockHash, height, err := dcrdClient.GetBestBlock()
+	blockHash, nodeHeight, err := dcrdClient.GetBestBlock()
 	if err != nil {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
@@ -218,7 +217,7 @@ func mainCore() error {
 	// with auxDB. Setting fetchToHeight to a large number allows this.
 	var fetchToHeight = int64(math.MaxInt32)
 	if usePG {
-		// Get the last block added to the aux DB
+		// Get the last block added to the aux DB.
 		var heightDB uint64
 		heightDB, err = auxDB.HeightDB()
 		lastBlockPG := int64(heightDB)
@@ -238,12 +237,12 @@ func mainCore() error {
 		// Aux DB height and stakedb height must be equal. StakeDatabase will
 		// catch up automatically if it is behind, but we must rewind it here if
 		// it is ahead of auxDB. For auxDB to receive notification from
-		// StakeDatabase when the requried blocks are connected, the
+		// StakeDatabase when the required blocks are connected, the
 		// StakeDatabase must be at the same height or lower than auxDB.
 		stakedbHeight := int64(baseDB.GetStakeDB().Height())
 		fromHeight := stakedbHeight
 		if uint64(stakedbHeight) > heightDB {
-			// rewind stakedb and log at intervals of 200
+			// Rewind stakedb and log at intervals of 200 blocks.
 			if stakedbHeight == fromHeight || stakedbHeight%200 == 0 {
 				log.Infof("Rewinding StakeDatabase from %d to %d.", stakedbHeight, heightDB)
 			}
@@ -268,7 +267,7 @@ func mainCore() error {
 
 		// Since mining a block take approximately ChainParams.TargetTimePerBlock then the
 		// expected height of the best block from dcrd now should be this.
-		expectedHeight := int64(elapsedTime/float64(activeChain.TargetTimePerBlock)) + height
+		expectedHeight := int64(elapsedTime/float64(activeChain.TargetTimePerBlock)) + nodeHeight
 
 		// How far auxDB is behind the node
 		blocksBehind = expectedHeight - lastBlockPG
@@ -290,7 +289,7 @@ func mainCore() error {
 		// PG gets winning tickets out of baseDB's pool info cache, so it must
 		// be big enough to hold the needed blocks' info, and charged with the
 		// data from disk. The cache is updated on each block connect.
-		tpcSize := int(blocksBehind) + 20
+		tpcSize := int(blocksBehind) + 200
 		log.Debugf("Setting ticket pool cache capacity to %d blocks", tpcSize)
 		err = baseDB.GetStakeDB().SetPoolCacheCapacity(tpcSize)
 		if err != nil {
@@ -304,7 +303,7 @@ func mainCore() error {
 		}
 	}
 
-	// SetAgendaDB Path
+	// Set the path to the AgendaDB file.
 	agendadb.SetDbPath(filepath.Join(cfg.DataDir, cfg.AgendaDBFileName))
 
 	// AgendaDB upgrade check
@@ -318,7 +317,7 @@ func mainCore() error {
 		return fmt.Errorf("Failed to create block data collector")
 	}
 
-	// Build a slice of each required saver type for each data source
+	// Build a slice of each required saver type for each data source.
 	var blockDataSavers []blockdata.BlockDataSaver
 	var mempoolSavers []mempool.MempoolDataSaver
 	if usePG {
@@ -335,14 +334,14 @@ func mainCore() error {
 	blockDataSavers = append(blockDataSavers, &baseDB)
 	mempoolSavers = append(mempoolSavers, baseDB.MPC)
 
-	// Allow Ctrl-C to halt startup
+	// Allow Ctrl-C to halt startup here.
 	select {
 	case <-quit:
 		return nil
 	default:
 	}
 
-	// Create the explorer system
+	// Create the explorer system.
 	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, version.Version(), !cfg.NoDevPrefetch)
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
@@ -358,16 +357,18 @@ func mainCore() error {
 		auxDBheight = auxDB.GetHeight() // pg db
 	}
 
-	// barLoad is used to send sync status updates from a given function or method
-	// to SyncStatusUpdate function via websocket.
-	barLoad := make(chan *dbtypes.ProgressBarLoad)
+	// barLoad is used to send sync status updates from a given function or
+	// method to SyncStatusUpdate function via websocket. Sends do not need to
+	// block, so this is buffered.
+	barLoad := make(chan *dbtypes.ProgressBarLoad, 2)
 
 	// latestBlockHash receives the block hash of the latest block to be sync'd
-	// in dcrdata. This may not necessarily be the latest block in the blockchain
-	// but it is the latest block to be sync'd according to dcrdata. This block
-	// hash is sent if the webserver is providing the full explorer functionality
-	// during blockchain syncing.
-	latestBlockHash := make(chan *chainhash.Hash)
+	// in dcrdata. This may not necessarily be the latest block in the
+	// blockchain but it is the latest block to be sync'd according to dcrdata.
+	// This block hash is sent if the webserver is providing the full explorer
+	// functionality during blockchain syncing. Sends do not need to block, so
+	// this is buffered.
+	latestBlockHash := make(chan *chainhash.Hash, 2)
 
 	// The blockchain syncing status page should be displayed; if the blocks
 	// behind the current height are more than the set status limit. On initial
@@ -439,7 +440,7 @@ func mainCore() error {
 				loadHeight)
 		}
 
-		// Signal the goroutine to load this block hash's data.
+		// Signal to load this block's data into the explorer.
 		latestBlockHash <- loadBlockHash
 	}
 
@@ -450,9 +451,10 @@ func mainCore() error {
 
 	blockDataSavers = append(blockDataSavers, explore)
 
-	// Create the insight socket server and add it to block savers if in pg mode.
-	// Since insightSocketServer is added into the url before even the sync starts,
-	// this implementation cannot be moved to initiateHandlersAndCollectBlocks function.
+	// Create the Insight socket.io server, and add it to block savers if in
+	// full/pg mode. Since insightSocketServer is added into the url before even
+	// the sync starts, this implementation cannot be moved to
+	// initiateHandlersAndCollectBlocks function.
 	var insightSocketServer *insight.SocketServer
 	if usePG {
 		insightSocketServer, err = insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
@@ -466,16 +468,20 @@ func mainCore() error {
 	// WaitGroup for the monitor goroutines
 	var wg sync.WaitGroup
 
-	// Start web API
+	// Start dcrdata's JSON web API.
 	app := api.NewContext(dcrdClient, activeChain, &baseDB, auxDB, cfg.IndentJSON)
-	// Start notification hander to keep /status up-to-date
+	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
 	go app.StatusNtfnHandler(&wg, quit)
-	// Initial setting of db_height. Subsequently, Store() will send this.
-	notify.NtfnChans.UpdateStatusDBHeight <- uint32(wireDBheight)
+	// Initial setting of DBHeight. Subsequently, Store() will send this.
+	if wireDBheight >= 0 {
+		// Do not sent 4294967295 = uint32(-1) if there are no blocks.
+		notify.NtfnChans.UpdateStatusDBHeight <- uint32(wireDBheight)
+	}
 
+	// Configure the URL path to http handler router for the API.
 	apiMux := api.NewAPIRouter(app, cfg.UseRealIP)
-
+	// Configure the explorer web pages router.
 	webMux := chi.NewRouter()
 	webMux.With(explore.SyncStatusPageActivation).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
@@ -493,7 +499,9 @@ func mainCore() error {
 
 	// SyncStatusApiResponse returns a json response when the sync status page is running.
 	webMux.With(explore.SyncStatusApiResponse).Group(func(r chi.Router) {
+		// Mount the dcrdata's REST API.
 		r.Mount("/api", apiMux.Mux)
+		// Setup and mount the Insight API.
 		if usePG {
 			insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
 			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
@@ -510,7 +518,9 @@ func mainCore() error {
 
 		r.Mount("/explorer", explore.Mux)
 		r.Get("/blocks", explore.Blocks)
+		r.Get("/ticketpricewindows", explore.StakeDiffWindows)
 		r.Get("/side", explore.SideChains)
+		r.Get("/rejects", explore.DisapprovedBlocks)
 		r.Get("/mempool", explore.Mempool)
 		r.Get("/parameters", explore.ParametersPage)
 		r.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
@@ -534,6 +544,7 @@ func mainCore() error {
 		}
 	})
 
+	// Start the web server.
 	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
 		log.Criticalf("listenAndServeProto: %v", err)
 		close(quit)
@@ -541,20 +552,23 @@ func mainCore() error {
 
 	log.Infof("Starting blockchain sync...")
 
-	// Sync up with the blockchain after the web server has loaded.
+	// Coordinate the sync of both sqlite and auxiliary DBs with the network.
+	// This closure captures the RPC client and the quit channel.
 	getSyncd := func(updateAddys, updateVotes, newPGInds bool,
 		fetchHeightInBaseDB int64) (int64, int64, error) {
-		// Simultaneously synchronize the ChainDB (PostgreSQL) and the block/stake
-		// info DB (sqlite). Results are returned over channels:
+		// Simultaneously synchronize the ChainDB (PostgreSQL) and the
+		// block/stake info DB (sqlite). Results are returned over channels:
 		sqliteSyncRes := make(chan dbtypes.SyncResult)
 		pgSyncRes := make(chan dbtypes.SyncResult)
 
 		// Synchronization between DBs via rpcutils.BlockGate
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
-		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them, but
-		// it has to get a notification channel first to receive them. The BlockGate
-		// will provide this for blocks after fetchHeightInBaseDB.
+		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them,
+		// but it has to get a notification channel first to receive them. The
+		// BlockGate will provide this for blocks after fetchHeightInBaseDB. In
+		// full mode, baseDB will be configured not to send progress updates or
+		// chain data to the explorer pages since auxDB will do it.
 		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeightInBaseDB,
 			latestBlockHash, barLoad)
 
@@ -567,7 +581,7 @@ func mainCore() error {
 		go auxDB.SyncChainDBAsync(pgSyncRes, smartClient, quit,
 			updateAddys, updateVotes, newPGInds, latestBlockHash, barLoad)
 
-		// Wait for the results
+		// Wait for the results from both of these DBs.
 		return waitForSync(sqliteSyncRes, pgSyncRes, usePG, quit)
 	}
 
@@ -579,45 +593,151 @@ func mainCore() error {
 
 	if usePG {
 		// After sync and indexing, must use upsert statement, which checks for
-		// duplicate entries and updates instead of erroring. SyncChainDB should set
-		// this on successful sync, but do it again anyway.
+		// duplicate entries and updates instead of erroring. SyncChainDB should
+		// set this on successful sync, but do it again anyway.
 		auxDB.EnableDuplicateCheckOnInsert(true)
 	}
 
 	// The sync routines may have lengthy tasks, such as table indexing, that
-	// follow main sync loop. Before enabling the chain monitors, ensure the DBs
-	// are at the node's best block.
-	updateAllAddresses, updateAllVotes, newPGIndexes = false, false, false
-	_, height, err = dcrdClient.GetBestBlock()
-	if err != nil {
-		return fmt.Errorf("unable to get block from node: %v", err)
-	}
-
-	for baseDBHeight < height {
-		fetchToHeight = auxDBHeight + 1
-		baseDBHeight, _, err = getSyncd(updateAllAddresses, updateAllVotes,
-			newPGIndexes, fetchToHeight)
-		if err != nil {
-			return err
-		}
-		_, height, err = dcrdClient.GetBestBlock()
+	// follow main sync loop. Before enabling the chain monitors, again ensure
+	// the DBs are at the node's best block.
+	ensureSync := func() error {
+		updateAllAddresses, updateAllVotes, newPGIndexes = false, false, false
+		_, height, err := dcrdClient.GetBestBlock()
 		if err != nil {
 			return fmt.Errorf("unable to get block from node: %v", err)
 		}
-	}
 
-	log.Infof("All ready, at height %d.", baseDBHeight)
+		for baseDBHeight < height {
+			fetchToHeight = auxDBHeight + 1
+			baseDBHeight, auxDBHeight, err = getSyncd(updateAllAddresses, updateAllVotes,
+				newPGIndexes, fetchToHeight)
+			if err != nil {
+				return err
+			}
+			_, height, err = dcrdClient.GetBestBlock()
+			if err != nil {
+				return fmt.Errorf("unable to get block from node: %v", err)
+			}
+		}
+		return nil
+	}
+	if err = ensureSync(); err != nil {
+		return err
+	}
 
 	// Exits immediately after the sync completes if SyncAndQuit is to true
 	// because all we needed then was the blockchain sync be completed successfully.
 	if cfg.SyncAndQuit {
+		log.Infof("All ready, at height %d.", baseDBHeight)
 		return nil
 	}
 
-	// Collect the data now it was not collected earlier. Set up the monitors too.
-	if displaySyncStatusPage {
-		explore.RetrieveUpdates()
+	// Ensure all side chains known by dcrd are also present in the auxiliary DB
+	// and import them if they are not already there.
+	if usePG && cfg.ImportSideChains {
+		// First identify the side chain blocks that are missing from the DB.
+		log.Infof("Initial sync complete, at height %d. "+
+			"Now retrieving side chain blocks from dcrd...", baseDBHeight)
+		sideChainBlocksToStore, nSideChainBlocks, err := auxDB.MissingSideChainBlocks()
+		if err != nil {
+			return fmt.Errorf("unable to determine missing side chain blocks: %v", err)
+		}
+		nSideChains := len(sideChainBlocksToStore)
+
+		// Importing side chain blocks involves only the aux (postgres) DBs
+		// since dcrsqlite does not track side chain blocks, and stakedb only
+		// supports mainchain. TODO: Get stakedb to work with side chain blocks
+		// to get ticket pool info.
+
+		// Collect and store data for each side chain.
+		log.Infof("Importing %d new block(s) from %d known side chains...",
+			nSideChainBlocks, nSideChains)
+		// Disable recomputing project fund balance, and clearing address
+		// balance and counts cache.
+		auxDB.InBatchSync = true
+		var sideChainsStored, sideChainBlocksStored int
+		for _, sideChain := range sideChainBlocksToStore {
+			// Process this side chain only if there are blocks in it that need
+			// to be stored.
+			if len(sideChain.Hashes) == 0 {
+				continue
+			}
+			sideChainsStored++
+
+			// Collect and store data for each block in this side chain.
+			for _, hash := range sideChain.Hashes {
+				// Validate the block hash.
+				blockHash, err := chainhash.NewHashFromStr(hash)
+				if err != nil {
+					log.Errorf("Invalid block hash %s: %v.", hash, err)
+					continue
+				}
+
+				// Collect block data.
+				blockData, msgBlock, err := collector.CollectHash(blockHash)
+				if err != nil {
+					// Do not quit if unable to collect side chain block data.
+					log.Errorf("Unable to collect data for side chain block %s: %v.",
+						hash, err)
+					continue
+				}
+
+				// SQLite / base DB
+				// TODO: Make hash the primary key instead of height, otherwise
+				// the main chain block will be overwritten.
+				// log.Debugf("Importing block %s (height %d) into base DB.",
+				// 	blockHash, msgBlock.Header.Height)
+
+				// blockDataSummary, stakeInfoSummaryExtended := collector.CollectAPITypes(blockHash)
+				// if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
+				// 	log.Error("Failed to collect data for reorg.")
+				// 	continue
+				// }
+				// if err = baseDB.StoreBlockSummary(blockDataSummary); err != nil {
+				// 	log.Errorf("Failed to store block summary data: %v", err)
+				// }
+				// if err = baseDB.StoreStakeInfoExtended(stakeInfoSummaryExtended); err != nil {
+				// 	log.Errorf("Failed to store stake info data: %v", err)
+				// }
+
+				// PostgreSQL / aux DB
+				log.Debugf("Importing block %s (height %d) into aux DB.",
+					blockHash, msgBlock.Header.Height)
+
+				// Stake invalidation is always handled by subsequent block, so
+				// add the block as valid. These are all side chain blocks.
+				isValid, isMainchain := true, false
+
+				// Existing DB records might be for mainchain and/or valid
+				// blocks, so these imported blocks should not data in rows that
+				// are conflicting as per the different table constraints and
+				// unique indexes.
+				updateExistingRecords := false
+
+				// Store data in the aux (dcrpg) DB.
+				_, _, _, err = auxDB.StoreBlock(msgBlock, blockData.WinningTickets,
+					isValid, isMainchain, updateExistingRecords, true, true)
+				if err != nil {
+					// If data collection succeeded, but storage fails, bail out
+					// to diagnose the DB trouble.
+					return fmt.Errorf("ChainDBRPC.StoreBlock failed: %v", err)
+				}
+
+				sideChainBlocksStored++
+			}
+		}
+		auxDB.InBatchSync = false
+		log.Infof("Successfully added %d blocks from %d side chains into dcrpg DB.",
+			sideChainBlocksStored, sideChainsStored)
+
+		// That may have taken a while, check again for new blocks from network.
+		if err = ensureSync(); err != nil {
+			return err
+		}
 	}
+
+	log.Infof("All ready, at height %d.", baseDBHeight)
 
 	// Deactivate displaying the sync status page after the db sync was completed.
 	explore.SetDisplaySyncStatusPage(false)
@@ -639,133 +759,148 @@ func mainCore() error {
 	// causing this to be a duplicate block by the time the monitors begin
 	// pulling data out of the full channels.
 
-	// The following block configures and starts handlers that monitor for new
-	// blocks, change in the mempool and handle chain reorg. It also initiates
-	// data collection for the explorer.
-	{
-		// Blockchain monitor for the collector
-		addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
-		// On reorg, only update web UI since dcrsqlite's own reorg handler will
-		// deal with patching up the block info database.
-		reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
-		wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
-			reorgBlockDataSavers, quit, &wg, addrMap,
-			notify.NtfnChans.ConnectChan, notify.NtfnChans.RecvTxBlockChan,
-			notify.NtfnChans.ReorgChanBlockData)
+	// The following configures and starts handlers that monitor for new blocks,
+	// changes in the mempool, and handle chain reorg. It also initiates data
+	// collection for the explorer.
 
-		// Blockchain monitor for the stake DB
-		sdbChainMonitor := baseDB.NewStakeDBChainMonitor(quit, &wg,
-			notify.NtfnChans.ConnectChanStakeDB, notify.NtfnChans.ReorgChanStakeDB)
+	// Blockchain monitor for the collector
+	addrMap := make(map[string]txhelpers.TxAction) // for support of watched addresses
+	// On reorg, only update web UI since dcrsqlite's own reorg handler will
+	// deal with patching up the block info database.
+	reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
+	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
+		reorgBlockDataSavers, quit, &wg, addrMap,
+		notify.NtfnChans.ConnectChan, notify.NtfnChans.RecvTxBlockChan,
+		notify.NtfnChans.ReorgChanBlockData)
 
-		// Blockchain monitor for the wired sqlite DB
-		wiredDBChainMonitor := baseDB.NewChainMonitor(collector, quit, &wg,
-			notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
+	// Blockchain monitor for the stake DB
+	sdbChainMonitor := baseDB.NewStakeDBChainMonitor(quit, &wg,
+		notify.NtfnChans.ConnectChanStakeDB, notify.NtfnChans.ReorgChanStakeDB)
 
-		var auxDBChainMonitor *dcrpg.ChainMonitor
-		auxDBBlockConnectedSync := func(*chainhash.Hash) {}
-		if usePG {
-			// Blockchain monitor for the aux (PG) DB
-			auxDBChainMonitor = auxDB.NewChainMonitor(quit, &wg,
-				notify.NtfnChans.ConnectChanDcrpgDB, notify.NtfnChans.ReorgChanDcrpgDB)
-			if auxDBChainMonitor == nil {
-				return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
-			}
-			auxDBBlockConnectedSync = auxDBChainMonitor.BlockConnectedSync
+	// Blockchain monitor for the wired sqlite DB
+	wiredDBChainMonitor := baseDB.NewChainMonitor(collector, quit, &wg,
+		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
+
+	var auxDBChainMonitor *dcrpg.ChainMonitor
+	auxDBBlockConnectedSync := func(*chainhash.Hash) {}
+	if usePG {
+		// Blockchain monitor for the aux (PG) DB
+		auxDBChainMonitor = auxDB.NewChainMonitor(quit, &wg,
+			notify.NtfnChans.ConnectChanDcrpgDB, notify.NtfnChans.ReorgChanDcrpgDB)
+		if auxDBChainMonitor == nil {
+			return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
 		}
-
-		// Setup the synchronous handler functions called by the collectionQueue via
-		// OnBlockConnected.
-		collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
-			sdbChainMonitor.BlockConnectedSync,     // 1. Stake DB for pool info
-			wsChainMonitor.BlockConnectedSync,      // 2. blockdata for regular block data collection and storage
-			wiredDBChainMonitor.BlockConnectedSync, // 3. dcrsqlite for sqlite DB reorg handling
-			auxDBBlockConnectedSync,
-		})
-
-		// Initial data summary for web ui. stakedb must be at the same height, so
-		// we get do this before starting the monitors.
-		blockData, msgBlock, err := collector.Collect()
-		if err != nil {
-			return fmt.Errorf("Block data collection for initial summary failed: %v",
-				err.Error())
-		}
-
-		if err = explore.Store(blockData, msgBlock); err != nil {
-			return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
-		}
-
-		explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
-
-		// blockdata collector
-		wg.Add(2)
-		go wsChainMonitor.BlockConnectedHandler()
-		// The blockdata reorg handler disables collection during reorg, leaving
-		// dcrsqlite to do the switch, except for the last block which gets
-		// collected and stored via reorgBlockDataSavers.
-		go wsChainMonitor.ReorgHandler()
-
-		// StakeDatabase
-		wg.Add(2)
-		go sdbChainMonitor.BlockConnectedHandler()
-		go sdbChainMonitor.ReorgHandler()
-
-		// dcrsqlite does not handle new blocks except during reorg
-		wg.Add(2)
-		go wiredDBChainMonitor.BlockConnectedHandler()
-		go wiredDBChainMonitor.ReorgHandler()
-
-		if usePG {
-			// dcrsqlite does not handle new blocks except during reorg
-			wg.Add(2)
-			go auxDBChainMonitor.BlockConnectedHandler()
-			go auxDBChainMonitor.ReorgHandler()
-		}
-
-		if cfg.MonitorMempool {
-			mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
-			if mpoolCollector == nil {
-				return fmt.Errorf("Failed to create mempool data collector")
-			}
-
-			mpData, err := mpoolCollector.Collect()
-			if err != nil {
-				return fmt.Errorf("Mempool info collection failed while gathering"+
-					" initial data: %v", err.Error())
-			}
-
-			// Store initial MP data
-			if err = baseDB.MPC.StoreMPData(mpData, time.Now()); err != nil {
-				return fmt.Errorf("Failed to store initial mempool data (wiredDB): %v",
-					err.Error())
-			}
-
-			// Setup monitor
-			mpi := &mempool.MempoolInfo{
-				CurrentHeight:               mpData.GetHeight(),
-				NumTicketPurchasesInMempool: mpData.GetNumTickets(),
-				NumTicketsSinceStatsReport:  0,
-				LastCollectTime:             time.Now(),
-			}
-
-			newTicketLimit := int32(cfg.MPTriggerTickets)
-			mini := time.Duration(cfg.MempoolMinInterval) * time.Second
-			maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
-
-			mpm := mempool.NewMempoolMonitor(mpoolCollector, mempoolSavers,
-				notify.NtfnChans.NewTxChan, quit, &wg, newTicketLimit, mini, maxi, mpi)
-			wg.Add(1)
-			go mpm.TxHandler(dcrdClient)
-		}
-
-		// Wait for notification handlers to quit
-		wg.Wait()
+		auxDBBlockConnectedSync = auxDBChainMonitor.BlockConnectedSync
 	}
 
-	// Register for notifications from dcrd
+	// Setup the synchronous handler functions called by the collectionQueue via
+	// OnBlockConnected.
+	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
+		sdbChainMonitor.BlockConnectedSync,     // 1. Stake DB for pool info
+		wsChainMonitor.BlockConnectedSync,      // 2. blockdata for regular block data collection and storage
+		wiredDBChainMonitor.BlockConnectedSync, // 3. dcrsqlite for sqlite DB reorg handling
+		auxDBBlockConnectedSync,                // 4. dcrpg for postgres DB reorg handling
+	})
+
+	// Initial data summary for web ui. stakedb must be at the same height, so
+	// we do this before starting the monitors.
+	blockData, msgBlock, err := collector.Collect()
+	if err != nil {
+		return fmt.Errorf("Block data collection for initial summary failed: %v",
+			err.Error())
+	}
+
+	if err = explore.Store(blockData, msgBlock); err != nil {
+		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
+	}
+
+	// Register for notifications from dcrd.
 	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
 	if cerr != nil {
 		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
 	}
+
+	// After this final node sync check, the monitors will handle new blocks.
+	// TODO: make this not racy at all by having sync stop at specified block.
+	if err = ensureSync(); err != nil {
+		return err
+	}
+
+	// Start the monitors' event handlers.
+
+	// blockdata collector handlers
+	wg.Add(2)
+	go wsChainMonitor.BlockConnectedHandler()
+	// The blockdata reorg handler disables collection during reorg, leaving
+	// dcrsqlite to do the switch, except for the last block which gets
+	// collected and stored via reorgBlockDataSavers (for the explorer UI).
+	go wsChainMonitor.ReorgHandler()
+
+	// StakeDatabase
+	wg.Add(2)
+	go sdbChainMonitor.BlockConnectedHandler()
+	go sdbChainMonitor.ReorgHandler()
+
+	// dcrsqlite does not handle new blocks except during reorg.
+	wg.Add(2)
+	go wiredDBChainMonitor.BlockConnectedHandler()
+	go wiredDBChainMonitor.ReorgHandler()
+
+	if usePG {
+		// dcrpg also does not handle new blocks except during reorg.
+		wg.Add(2)
+		go auxDBChainMonitor.BlockConnectedHandler()
+		go auxDBChainMonitor.ReorgHandler()
+	}
+
+	explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
+
+	if cfg.MonitorMempool {
+		// Create the mempool data collector.
+		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
+		if mpoolCollector == nil {
+			return fmt.Errorf("Failed to create mempool data collector")
+		}
+
+		// Collect and store initial mempool data.
+		mpData, err := mpoolCollector.Collect()
+		if err != nil {
+			return fmt.Errorf("Mempool info collection failed while gathering"+
+				" initial data: %v", err.Error())
+		}
+
+		// Store initial MP data.
+		if err = baseDB.MPC.StoreMPData(mpData, time.Now()); err != nil {
+			return fmt.Errorf("Failed to store initial mempool data (wiredDB): %v",
+				err.Error())
+		}
+
+		// Setup the mempool monitor, which handles notifications of new
+		// transactions.
+		mpi := &mempool.MempoolInfo{
+			CurrentHeight:               mpData.GetHeight(),
+			NumTicketPurchasesInMempool: mpData.GetNumTickets(),
+			NumTicketsSinceStatsReport:  0,
+			LastCollectTime:             time.Now(),
+		}
+
+		// Parameters for triggering data collection. See config.go.
+		newTicketLimit := int32(cfg.MPTriggerTickets)
+		mini := time.Duration(cfg.MempoolMinInterval) * time.Second
+		maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
+
+		mpm := mempool.NewMempoolMonitor(mpoolCollector, mempoolSavers,
+			notify.NtfnChans.NewTxChan, quit, &wg, newTicketLimit, mini, maxi, mpi)
+		wg.Add(1)
+		go mpm.TxHandler(dcrdClient)
+	}
+
+	// Pre-populate charts data now that blocks are sync'd and new-block
+	// monitors are running.
+	explore.PrepareCharts()
+
+	// Wait for notification handlers to quit.
+	wg.Wait()
 
 	return nil
 }

@@ -28,10 +28,12 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
+// Status page strings
 const (
 	defaultErrorCode    = "Something went wrong..."
-	defaultErrorMessage = "Try refreshing this page... it usually fixes things"
-	fullModeRequired    = "full-functionality mode required for this page"
+	defaultErrorMessage = "Try refreshing... it usually fixes things."
+	fullModeRequired    = "Full-functionality mode is required for this page."
+	wrongNetwork        = "Wrong Network"
 )
 
 // netName returns the name used when referring to a decred network.
@@ -42,7 +44,7 @@ func netName(chainParams *chaincfg.Params) string {
 	return strings.Title(chainParams.Name)
 }
 
-// Home is the page handler for the "/" path
+// Home is the page handler for the "/" path.
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	height := exp.blockData.GetHeight()
 
@@ -50,7 +52,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	// Lock for both MempoolData and ExtraInfo
 	exp.MempoolData.RLock()
-	exp.NewBlockDataMtx.RLock()
+	exp.pageData.RLock()
 
 	str, err := exp.templates.execTemplateToString("home", struct {
 		Info    *HomeInfo
@@ -59,7 +61,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Version string
 		NetName string
 	}{
-		exp.ExtraInfo,
+		exp.pageData.HomeInfo,
 		exp.MempoolData,
 		blocks,
 		exp.Version,
@@ -67,7 +69,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	})
 
 	exp.MempoolData.RUnlock()
-	exp.NewBlockDataMtx.RUnlock()
+	exp.pageData.RUnlock()
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -79,7 +81,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// SideChains is the page handler for the "/side" path
+// SideChains is the page handler for the "/side" path.
 func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	sideBlocks, err := exp.explorerSource.SideChainBlocks()
 	if err != nil {
@@ -108,13 +110,43 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// NextHome is the page handler for the "/nexthome" path
+// DisapprovedBlocks is the page handler for the "/rejects" path.
+func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request) {
+	disapprovedBlocks, err := exp.explorerSource.DisapprovedBlocks()
+	if err != nil {
+		log.Errorf("Unable to get stakeholder disapproved blocks: %v", err)
+		exp.StatusPage(w, defaultErrorCode,
+			"failed to retrieve stakeholder disapproved blocks", ErrorStatusType)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("rejects", struct {
+		Data    []*dbtypes.BlockStatus
+		Version string
+		NetName string
+	}{
+		disapprovedBlocks,
+		exp.Version,
+		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// NextHome is the page handler for the "/nexthome" path.
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	height := exp.blockData.GetHeight()
 
 	blocks := exp.blockData.GetExplorerFullBlocks(height, height-11)
 
-	exp.NewBlockDataMtx.RLock()
+	exp.pageData.RLock()
 	exp.MempoolData.RLock()
 
 	str, err := exp.templates.execTemplateToString("nexthome", struct {
@@ -124,13 +156,13 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 		Version string
 		NetName string
 	}{
-		exp.ExtraInfo,
+		exp.pageData.HomeInfo,
 		exp.MempoolData,
 		blocks,
 		exp.Version,
 		exp.NetName,
 	})
-	exp.NewBlockDataMtx.RUnlock()
+	exp.pageData.RUnlock()
 	exp.MempoolData.RUnlock()
 
 	if err != nil {
@@ -143,19 +175,84 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Blocks is the page handler for the "/blocks" path
+// StakeDiffWindows is the page handler for the "/ticketpricewindows" path
+func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) {
+	if exp.liteMode {
+		exp.StatusPage(w, fullModeRequired,
+			"Windows page cannot run in lite mode.", NotSupportedStatusType)
+	}
+
+	offsetWindow, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
+	if err != nil {
+		offsetWindow = 0
+	}
+
+	bestWindow := uint64(exp.Height() / exp.ChainParams.StakeDiffWindowSize)
+	if offsetWindow > bestWindow {
+		offsetWindow = bestWindow
+	}
+
+	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
+	if err != nil || rows < minExplorerRows {
+		rows = minExplorerRows
+	}
+
+	if rows > maxExplorerRows {
+		rows = maxExplorerRows
+	}
+
+	windows, err := exp.explorerSource.PosIntervals(rows, offsetWindow)
+	if err != nil {
+		log.Errorf("The specified windows are invalid. offset=%d&rows=%d: error: %v ", offsetWindow, rows, err)
+		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", NotFoundStatusType)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("windows", struct {
+		Data         []*dbtypes.BlocksGroupedInfo
+		WindowSize   int64
+		BestWindow   int64
+		OffsetWindow int64
+		Limit        int64
+		Version      string
+		NetName      string
+	}{
+		windows,
+		exp.ChainParams.StakeDiffWindowSize,
+		int64(bestWindow),
+		int64(offsetWindow),
+		int64(rows),
+		exp.Version,
+		exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// Blocks is the page handler for the "/blocks" path.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
-	idx := exp.blockData.GetHeight()
+	bestBlockHeight := exp.blockData.GetHeight()
 
 	height, err := strconv.Atoi(r.URL.Query().Get("height"))
-	if err != nil || height > idx {
-		height = idx
+	if err != nil || height > bestBlockHeight {
+		height = bestBlockHeight
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-
-	if err != nil || rows > maxExplorerRows || rows < minExplorerRows {
+	if err != nil || rows < minExplorerRows {
 		rows = minExplorerRows
+	}
+
+	if rows > maxExplorerRows {
+		rows = maxExplorerRows
 	}
 
 	oldestBlock := height - rows + 1
@@ -182,17 +279,19 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("explorer", struct {
-		Data      []*BlockBasic
-		BestBlock int
-		Rows      int
-		Version   string
-		NetName   string
+		Data       []*BlockBasic
+		BestBlock  int64
+		Rows       int64
+		Version    string
+		NetName    string
+		WindowSize int64
 	}{
 		summaries,
-		idx,
-		rows,
+		int64(bestBlockHeight),
+		int64(rows),
 		exp.Version,
 		exp.NetName,
+		exp.ChainParams.StakeDiffWindowSize,
 	})
 
 	if err != nil {
@@ -205,17 +304,18 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Block is the page handler for the "/block" path
+// Block is the page handler for the "/block" path.
 func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
+	// Retrieve the block specified on the path.
 	hash := getBlockHashCtx(r)
-
 	data := exp.blockData.GetExplorerBlock(hash)
 	if data == nil {
 		log.Errorf("Unable to get block %s", hash)
 		exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
 		return
 	}
-	// Checking if there exists any regular non-Coinbase transactions in the block.
+
+	// Check if there are any regular non-coinbase transactions in the block.
 	var count int
 	data.TxAvailable = true
 	for _, i := range data.Tx {
@@ -227,6 +327,8 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.TxAvailable = false
 	}
 
+	// In full mode, retrieve missed votes, main/side chain status, and
+	// stakeholder approval.
 	if !exp.liteMode {
 		var err error
 		data.Misses, err = exp.explorerSource.BlockMissedVotes(hash)
@@ -266,7 +368,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Mempool is the page handler for the "/mempool" path
+// Mempool is the page handler for the "/mempool" path.
 func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RLock()
 	str, err := exp.templates.execTemplateToString("mempool", struct {
@@ -290,7 +392,7 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// Ticketpool is the page handler for the "/ticketpool" path
+// Ticketpool is the page handler for the "/ticketpool" path.
 func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
@@ -306,14 +408,12 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var mp = dbtypes.PoolTicketsData{}
+	var mp dbtypes.PoolTicketsData
 	exp.MempoolData.RLock()
-	var mpData = exp.MempoolData
-
-	if len(mpData.Tickets) > 0 {
-		mp.Time = append(mp.Time, uint64(mpData.Tickets[0].Time))
-		mp.Price = append(mp.Price, mpData.Tickets[0].TotalOut)
-		mp.Mempool = append(mp.Mempool, uint64(len(mpData.Tickets)))
+	if len(exp.MempoolData.Tickets) > 0 {
+		mp.Time = append(mp.Time, uint64(exp.MempoolData.Tickets[0].Time))
+		mp.Price = append(mp.Price, exp.MempoolData.Tickets[0].TotalOut)
+		mp.Mempool = append(mp.Mempool, uint64(len(exp.MempoolData.Tickets)))
 	} else {
 		log.Debug("No tickets exist in the mempool")
 	}
@@ -346,7 +446,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// TxPage is the page handler for the "/tx" path
+// TxPage is the page handler for the "/tx" path.
 func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// attempt to get tx hash string from URL path
 	hash, ok := r.Context().Value(ctxTxHash).(string)
@@ -673,11 +773,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				// expiry in blocks - (number of blocks since ticket purchase -
 				// ticket maturity))
 				// C is the probability (chance)
-				exp.NewBlockDataMtx.RLock()
-				pVote := float64(exp.ChainParams.TicketsPerBlock) / float64(exp.ExtraInfo.PoolInfo.Size)
-				exp.NewBlockDataMtx.RUnlock()
-				tx.TicketInfo.Probability = 100 * (math.Pow(1-pVote,
-					float64(exp.ChainParams.TicketExpiry)-float64(blocksLive)))
+				exp.pageData.RLock()
+				pVote := float64(exp.ChainParams.TicketsPerBlock) / float64(exp.pageData.HomeInfo.PoolInfo.Size)
+				exp.pageData.RUnlock()
+
+				remainingBlocksLive := float64(exp.ChainParams.TicketExpiry) - float64(blocksLive)
+				tx.TicketInfo.Probability = 100 * math.Pow(1-pVote, remainingBlocksLive)
 			}
 		} // tx.IsTicket()
 	} // !exp.liteMode
@@ -716,7 +817,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// AddressPage is the page handler for the "/address" path
+// AddressPage is the page handler for the "/address" path.
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
 	type AddressPageData struct {
@@ -773,10 +874,18 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
 	if exp.liteMode {
-		addrData = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		if strings.HasPrefix(err.Error(), "wrong network") {
+			exp.StatusPage(w, wrongNetwork, "That address is not valid for "+exp.NetName, NotSupportedStatusType)
+			return
+		}
+		if err != nil {
+			log.Errorf("Unable to get address %s: %v", address, err)
+			exp.StatusPage(w, defaultErrorCode, "Unexpected issue locating data for that address.", ErrorStatusType)
+			return
+		}
 		if addrData == nil {
-			log.Errorf("Unable to get address %s", address)
-			exp.StatusPage(w, defaultErrorCode, "could not find that address", NotFoundStatusType)
+			exp.StatusPage(w, defaultErrorCode, "Unknown issue locating data for that address.", NotFoundStatusType)
 			return
 		}
 	} else {
@@ -1059,16 +1168,16 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 
 // Search implements a primitive search algorithm by checking if the value in
 // question is a block index, block hash, address hash or transaction hash and
-// redirects to the appropriate page or displays an error
+// redirects to the appropriate page or displays an error.
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	searchStr := r.URL.Query().Get("search")
 	if searchStr == "" {
-		exp.StatusPage(w, "search failed", "Nothing was searched for", NotFoundStatusType)
+		exp.StatusPage(w, "search failed", "Empty search string!", NotSupportedStatusType)
 		return
 	}
 
 	// Attempt to get a block hash by calling GetBlockHash to see if the value
-	// is a block index and then redirect to the block page if it is
+	// is a block index and then redirect to the block page if it is.
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
 	if err == nil {
 		_, err = exp.blockData.GetBlockHash(idx)
@@ -1080,22 +1189,23 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call GetExplorerAddress to see if the value is an address hash and
-	// then redirect to the address page if it is
-	address := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
+	// Call GetExplorerAddress to see if the value is an address hash and then
+	// redirect to the address page if it is. Ignore the error as the passed
+	// data is expected to fail validation or have other issues.
+	address, _ := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
 
-	// Check if the value is a valid hash
+	// Remaining possibilities are hashes, so verify the string is a hash.
 	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
-		exp.StatusPage(w, "search failed", "Couldn't find any address "+searchStr, NotFoundStatusType)
+		exp.StatusPage(w, "search failed", "Search string is not a valid hash or address: "+searchStr, NotFoundStatusType)
 		return
 	}
 
 	// Attempt to get a block index by calling GetBlockHeight to see if the
-	// value is a block hash and then redirect to the block page if it is
+	// value is a block hash and then redirect to the block page if it is.
 	_, err = exp.blockData.GetBlockHeight(searchStr)
 	if err == nil {
 		http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
@@ -1103,18 +1213,18 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call GetExplorerTx to see if the value is a transaction hash and then
-	// redirect to the tx page if it is
+	// redirect to the tx page if it is.
 	tx := exp.blockData.GetExplorerTx(searchStr)
 	if tx != nil {
 		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
-	exp.StatusPage(w, "search failed", "Could not find any transaction or block "+searchStr, NotFoundStatusType)
+	exp.StatusPage(w, "search failed", "The search string does not match any address, block, or transaction: "+searchStr, NotFoundStatusType)
 }
 
 // StatusPage provides a page for displaying status messages and exception
 // handling without redirecting.
-func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message string, sType statusType) {
+func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, sType statusType) {
 	str, err := exp.templates.execTemplateToString("status", struct {
 		StatusType statusType
 		Code       string
@@ -1139,29 +1249,32 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 		w.WriteHeader(http.StatusNotFound)
 	case ErrorStatusType:
 		w.WriteHeader(http.StatusInternalServerError)
-	// When blockchain sync is running status 202 is used to imply that the other
-	// requests apart from serving the status sync page have been received and
-	// accepted but cannot be processed now till the sync is complete.
+	// When blockchain sync is running, status 202 is used to imply that the
+	// other requests apart from serving the status sync page have been received
+	// and accepted but cannot be processed now till the sync is complete.
 	case BlockchainSyncingType:
 		w.WriteHeader(http.StatusAccepted)
+	case NotSupportedStatusType:
+		w.WriteHeader(http.StatusUnprocessableEntity)
 	default:
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	io.WriteString(w, str)
 }
 
-// NotFound wraps StatusPage to display a 404 page
+// NotFound wraps StatusPage to display a 404 page.
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, NotFoundStatusType)
 }
 
-// ParametersPage is the page handler for the "/parameters" path
+// ParametersPage is the page handler for the "/parameters" path.
 func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	cp := exp.ChainParams
 	addrPrefix := AddressPrefixes(cp)
 	actualTicketPoolSize := int64(cp.TicketPoolSize * cp.TicketsPerBlock)
 	ecp := ExtendedChainParams{
 		Params:               cp,
+		MaximumBlockSize:     cp.MaximumBlockSizes[0],
 		AddressPrefix:        addrPrefix,
 		ActualTicketPoolSize: actualTicketPoolSize,
 	}
@@ -1186,7 +1299,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// AgendaPage is the page handler for the "/agenda" path
+// AgendaPage is the page handler for the "/agenda" path.
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
@@ -1199,7 +1312,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 			"the agenda ID given seems to not exist", NotFoundStatusType)
 	}
 
-	// Attempt to get agendaid string from URL path
+	// Attempt to get agendaid string from URL path.
 	agendaid := getAgendaIDCtx(r)
 	agendaInfo, err := GetAgendaInfo(agendaid)
 	if err != nil {
@@ -1243,7 +1356,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// AgendasPage is the page handler for the "/agendas" path
+// AgendasPage is the page handler for the "/agendas" path.
 func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	agendas, err := agendadb.GetAllAgendas()
 	if err != nil {
@@ -1304,13 +1417,11 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 	})
 
 	str := string(data)
-	statusCode := http.StatusAccepted
 	if err != nil {
-		str = fmt.Sprintf("error occurred while process the API response: %v", err)
-		statusCode = http.StatusServiceUnavailable
+		str = fmt.Sprintf("error occurred while processing the API response: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
+	w.WriteHeader(http.StatusServiceUnavailable)
 	io.WriteString(w, str)
 }

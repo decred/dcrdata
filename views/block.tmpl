@@ -172,6 +172,12 @@
                             <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .Difficulty 8 true)}}</span>
                         </td>
                     </tr>
+                    <tr>
+                        <td class="text-right pr-2 lh1rem nowrap p03rem0 xs-w91">TRANSACTION FEES</td>
+                        <td class="lh1rem fs16">
+                            <span class="rm-spacing">{{.MiningFee}}</span>
+                        </td>
+                    </tr>
                 </table>
             </div>
         </div>

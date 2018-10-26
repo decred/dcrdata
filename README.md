@@ -35,6 +35,7 @@ The dcrdata repository is a collection of Go packages and apps for
     - ["full" Mode (SQLite and PostgreSQL)](#full-mode-sqlite-and-postgresql)
   - [dcrdata Daemon](#dcrdata-daemon)
     - [Block Explorer](#block-explorer)
+  - [APIs](#apis)
     - [Insight API (EXPERIMENTAL)](#insight-api-experimental)
     - [dcrdata API](#dcrdata-api)
       - [Endpoint List](#endpoint-list)
@@ -415,6 +416,7 @@ List of variables that can be set:
 | The number minimum number of new tickets that must be seen to trigger a new mempool report.                              | DCRDATA_MP_TRIGGER_TICKETS     |
 | Dump to file the fees of all the tickets in mempool.                                                                     | DCRDATA_ENABLE_DUMP_ALL_MP_TIX |
 | SQLite DB file name (default is dcrdata.sqlt.db)                                                                         | DCRDATA_SQLITE_DB_FILE_NAME    |
+| Voting agendas DB file name (default is agendas.db)                                                                      | DCRDATA_AGENDA_DB_FILE_NAME    |
 | Run in "Full Mode" mode, enables postgresql support                                                                      | DCRDATA_ENABLE_FULL_MODE       |
 | PostgreSQL DB name.                                                                                                      | DCRDATA_PG_DB_NAME             |
 | PostgreSQL DB user                                                                                                       | DCRDATA_POSTGRES_USER          |
@@ -422,6 +424,7 @@ List of variables that can be set:
 | port or UNIX socket (e.g. /run/postgresql).                                                                              | DCRDATA_POSTGRES_HOST_URL      |
 | Disable automatic dev fund balance query on new blocks.                                                                  | DCRDATA_DISABLE_DEV_PREFETCH   |
 | Sync to the best block and exit. Do not start the explorer or API.                                                       | DCRDATA_ENABLE_SYNC_N_QUIT     |
+| (experimental) Import side chain blocks from dcrd via the getchaintips RPC.                                              | DCRDATA_IMPORT_SIDE_CHAINS     |
 | Daemon RPC user name                                                                                                     | DCRDATA_DCRD_USER              |
 | Daemon RPC password                                                                                                      | DCRDATA_DCRD_PASS              |
 | Hostname/IP and port of dcrd RPC server                                                                                  | DCRDATA_DCRD_URL               |
@@ -553,7 +556,7 @@ After dcrdata syncs with the blockchain server via RPC, by default it will begin
 listening for HTTP connections on `http://127.0.0.1:7777/`. This means it starts
 a web server listening on IPv4 localhost, port 7777. Both the interface and port
 are configurable. The block explorer and the JSON APIs are both provided by the
-server on this port. See [JSON REST API](#json-rest-api) for details.
+server on this port.
 
 Note that while dcrdata can be started with HTTPS support, it is recommended to
 employ a reverse proxy such as Nginx ("engine x"). See sample-nginx.conf for an
@@ -570,36 +573,10 @@ The dcrdata block explorer is exposed by two APIs: a Decred implementation of th
 
 ### Insight API (EXPERIMENTAL)
 
-The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP via REST or WebSocket. 
+The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP via REST or WebSocket.
 
-To call the REST API, use the `/insight/api` path prefix. To call the Websocket API, use the `/insight/socket.io` path prefix.
+See the [Insight API documentation](api/Insight_API_documentation.md) for further details.
 
-
-#### Endpoint List
-
-| Method           | Path                   | 
-| -------------------- | ---------------------- | 
-| Block              | `/block/{hash}`          |  
-| Block index          | `/block-index/{height}`      |  
-| Raw block (hash)               | `/rawblock/{hash}`   | 
-| Raw block (height)                | `/rawblock/{height}`     |  
-| Raw summaries               | `/blocks (URL query params: limit, blockDate, ...) `   |              
-| Transaction                 | `/tx/{hash}`     |  
-| Raw transaction              | `/rawtx/{hash}`  | 
-| Address         | `/addr/{address}`       | 
-| Address Props   | `/balance, totalReceived, totalSent, /totalSent, unconfirmedBalance` |  
-| UTXOs | `/addr/{address}/utxo`  |  
-| Multi-address UTXOs | `/addrs/{address0, address1, etc}/utxo`  |  
-| POST-variant of multi-address UTXOs | ``  |                     
-| Transactions by block | `/txs/?block={hash}`  |   
-| Transactions by address | `/txs/?address={address}`  |   
-| Transactions for multiple addresses | `/addrs/{addr0, addr1, ...}/txs (params: from, to)`  |   
-| POST-variant for ^^ | `(includes params: noAsm, noScriptSig, noSpent)`  |  
-| Transaction broadcast | `/tx/send (raw tx in POST params) `  | 
-| Sync status (dcrdata) | `/sync`  |  
-| Sync status (dcrd) | `/peer`  |  
-| Decred network status | `/status(with each possible value for the q param)`  |  
-| Estimate fee | `/estimatefee (params: nbBlocks)`  |  
 ### dcrdata API
 
 The dcrdata API is a REST API accessible via HTTP. To call the dcrdata API, use the `/api` path prefix.
@@ -668,15 +645,15 @@ The dcrdata API is a REST API accessible via HTTP. To call the dcrdata API, use 
 | Transaction details (POST body is JSON of `types.Txns`) | `/txs`         | `[]types.Tx`        |
 | Transaction details w/o block info                      | `/txs/trimmed` | `[]types.TrimmedTx` |
 
-| Address A                                                               | Path                           | Type                  |
-| ----------------------------------------------------------------------- | ------------------------------ | --------------------- |
-| Summary of last 10 transactions                                         | `/address/A`                   | `types.Address`       |
-| Number and value of spent and unspent outputs                           | `/address/A/totals`            | `types.AddressTotals` |
-| Verbose transaction result for last <br> 10 transactions                | `/address/A/raw`               | `types.AddressTxRaw`  |
-| Summary of last `N` transactions                                        | `/address/A/count/N`           | `types.Address`       |
-| Verbose transaction result for last <br> `N` transactions               | `/address/A/count/N/raw`       | `types.AddressTxRaw`  |
-| Summary of last `N` transactions, skipping `M`                          | `/address/A/count/N/skip/M`    | `types.Address`       |
-| Verbose transaction result for last <br> `N` transactions, skipping `M` | `/address/A/count/N/skip/Mraw` | `types.AddressTxRaw`  |
+| Address A                                                               | Path                            | Type                  |
+| ----------------------------------------------------------------------- | ------------------------------- | --------------------- |
+| Summary of last 10 transactions                                         | `/address/A`                    | `types.Address`       |
+| Number and value of spent and unspent outputs                           | `/address/A/totals`             | `types.AddressTotals` |
+| Verbose transaction result for last <br> 10 transactions                | `/address/A/raw`                | `types.AddressTxRaw`  |
+| Summary of last `N` transactions                                        | `/address/A/count/N`            | `types.Address`       |
+| Verbose transaction result for last <br> `N` transactions               | `/address/A/count/N/raw`        | `types.AddressTxRaw`  |
+| Summary of last `N` transactions, skipping `M`                          | `/address/A/count/N/skip/M`     | `types.Address`       |
+| Verbose transaction result for last <br> `N` transactions, skipping `M` | `/address/A/count/N/skip/M/raw` | `types.AddressTxRaw`  |
 
 | Stake Difficulty (Ticket Price)        | Path                    | Type                               |
 | -------------------------------------- | ----------------------- | ---------------------------------- |
@@ -835,7 +812,7 @@ See the GitHub issue tracker and the [project milestones](https://github.com/dec
 Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it:
 
 1. Fork the repo.
-2. Create a branch for your work (`git branch -b cool-stuff`).
+2. Create a branch for your work (`git checkout -b cool-stuff`).
 3. Code something great.
 4. Commit and push to your repo.
 5. Create a [pull request](https://github.com/decred/dcrdata/compare).

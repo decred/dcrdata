@@ -90,8 +90,10 @@ func DeindexBlockTableOnHeight(db *sql.DB) (err error) {
 	return
 }
 
-// Vouts table indexes
+// vouts table indexes
 
+// IndexVoutTableOnTxHashIdx creates the index for the addresses table over
+// transaction hash and index.
 func IndexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexVoutTableOnTxHashIdx)
 	return
@@ -102,7 +104,10 @@ func DeindexVoutTableOnTxHashIdx(db *sql.DB) (err error) {
 	return
 }
 
-// Addresses table indexes
+// addresses table indexes
+
+// IndexBlockTimeOnTableAddress creates the index for the addresses table over
+// block time.
 func IndexBlockTimeOnTableAddress(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexBlockTimeOnTableAddress)
 	return
@@ -113,6 +118,8 @@ func DeindexBlockTimeOnTableAddress(db *sql.DB) (err error) {
 	return
 }
 
+// IndexMatchingTxHashOnTableAddress creates the index for the addresses table
+// over matching transaction hash.
 func IndexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexMatchingTxHashOnTableAddress)
 	return
@@ -123,6 +130,8 @@ func DeindexMatchingTxHashOnTableAddress(db *sql.DB) (err error) {
 	return
 }
 
+// IndexAddressTableOnAddress creates the index for the addresses table over
+// address.
 func IndexAddressTableOnAddress(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAddressTableOnAddress)
 	return
@@ -133,6 +142,8 @@ func DeindexAddressTableOnAddress(db *sql.DB) (err error) {
 	return
 }
 
+// IndexAddressTableOnVoutID creates the index for the addresses table over
+// vout row ID.
 func IndexAddressTableOnVoutID(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAddressTableOnVoutID)
 	return
@@ -143,6 +154,8 @@ func DeindexAddressTableOnVoutID(db *sql.DB) (err error) {
 	return
 }
 
+// IndexAddressTableOnTxHash creates the index for the addresses table over
+// transaction hash.
 func IndexAddressTableOnTxHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAddressTableOnTxHash)
 	return
@@ -153,7 +166,7 @@ func DeindexAddressTableOnTxHash(db *sql.DB) (err error) {
 	return
 }
 
-// Votes table indexes
+// votes table indexes
 
 func IndexVotesTableOnHashes(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexVotesTableOnHashes)
@@ -195,7 +208,7 @@ func DeindexVotesTableOnVoteVersion(db *sql.DB) (err error) {
 	return
 }
 
-// Tickets table indexes
+// tickets table indexes
 
 func IndexTicketsTableOnHashes(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexTicketsTableOnHashes)
@@ -227,7 +240,7 @@ func DeindexTicketsTableOnPoolStatus(db *sql.DB) (err error) {
 	return
 }
 
-// Missed votes table indexes
+// missed votes table indexes
 
 func IndexMissesTableOnHashes(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexMissesTableOnHashes)
@@ -239,7 +252,7 @@ func DeindexMissesTableOnHash(db *sql.DB) (err error) {
 	return
 }
 
-// Agendas table indexes
+// agendas table indexes
 
 func IndexAgendasTableOnBlockTime(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAgendasTableOnBlockTime)
@@ -287,7 +300,8 @@ func (pgb *ChainDB) DeleteDuplicateMisses() (int64, error) {
 	return DeleteDuplicateMisses(pgb.db)
 }
 
-// Indexes check
+// Indexes checks
+
 func (pgb *ChainDB) ExistsIndexVinOnVins() (bool, error) {
 	return ExistsIndex(pgb.db, "uix_vin")
 }
@@ -395,12 +409,12 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 	for _, val := range allIndexes {
 		logMsg := "Indexing " + val.Msg + "..."
 		log.Infof(logMsg)
-		if err := val.IndexFunc(pgb.db); err != nil {
-			return err
-		}
-
 		if barLoad != nil {
 			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.InitialDBLoad, Subtitle: logMsg}
+		}
+
+		if err := val.IndexFunc(pgb.db); err != nil {
+			return err
 		}
 	}
 	// Signal task is done
@@ -422,12 +436,12 @@ func (pgb *ChainDB) IndexTicketsTable(barLoad chan *dbtypes.ProgressBarLoad) err
 	for _, val := range ticketsTableIndexes {
 		logMsg := "Indexing tickets table on " + val.Msg + "..."
 		log.Info(logMsg)
-		if err := val.IndexFunc(pgb.db); err != nil {
-			return err
-		}
-
 		if barLoad != nil {
 			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.AddressesTableSync, Subtitle: logMsg}
+		}
+
+		if err := val.IndexFunc(pgb.db); err != nil {
+			return err
 		}
 	}
 	// Signal task is done.
@@ -490,12 +504,12 @@ func (pgb *ChainDB) IndexAddressTable(barLoad chan *dbtypes.ProgressBarLoad) err
 	for _, val := range addressesTableIndexes {
 		logMsg := "Indexing addresses table on " + val.Msg + "..."
 		log.Info(logMsg)
-		if err := val.IndexFunc(pgb.db); err != nil {
-			return err
-		}
-
 		if barLoad != nil {
 			barLoad <- &dbtypes.ProgressBarLoad{BarID: dbtypes.AddressesTableSync, Subtitle: logMsg}
+		}
+
+		if err := val.IndexFunc(pgb.db); err != nil {
+			return err
 		}
 	}
 	// Signal task is done.

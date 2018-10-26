@@ -17,11 +17,13 @@ type apiMux struct {
 	*chi.Mux
 }
 
-func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
+// NewAPIRouter creates a new HTTP request path router/mux for the given API,
+// appContext.
+func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 	// chi router
 	mux := chi.NewRouter()
 
-	if userRealIP {
+	if useRealIP {
 		mux.Use(middleware.RealIP)
 	}
 	mux.Use(middleware.Logger)

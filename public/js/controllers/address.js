@@ -222,6 +222,9 @@
         }
 
         onZoom(){
+            if (this.graph == undefined) {
+                return
+            }
             $('body').addClass('loading');
             this.graph.resetZoom();
             if (this.zoom > 0 && this.zoom < this.xVal[1]) {
@@ -233,7 +236,7 @@
         }
 
         disableBtnsIfNotApplicable(){
-            var val = parseInt(this.addrTarget.id)
+            var val = parseInt(this.addrTarget.id)*1000
             var d = new Date()
 
             var pastYear = d.getFullYear() - 1;
@@ -245,11 +248,11 @@
             var setApplicableBtns = (className, ts) => {
                 var isDisabled = (val > Number(new Date(ts))) ||
                     (this.options === 'unspent' && this.unspent == "0")
-                var zoomElem = this.zoomTarget.getElementsByClassName(className)[0]
-                zoomElem.disabled = isDisabled
 
-                var intervalElem = this.intervalTarget.getElementsByClassName(className)[0]
-                intervalElem.disabled = isDisabled
+                if (isDisabled) {
+                    this.zoomTarget.getElementsByClassName(className)[0].setAttribute("disabled", isDisabled)
+                    this.intervalTarget.getElementsByClassName(className)[0].setAttribute("disabled", isDisabled)
+                }
 
                 if (className !== "year" && !isDisabled){
                     this.enabledButtons.push(className)

@@ -119,6 +119,73 @@ func UpdateTicketPoolData(interval dbtypes.ChartGrouping, barGraphs []*dbtypes.P
 	ticketPoolGraphsCache.DonutGraphCache[interval] = donutcharts
 }
 
+// UTXOData stores an address and value associated with a transaction output.
+type UTXOData struct {
+	Address string
+	Value   int64
+}
+
+// utxoStore provides a UTXOData cache with thread-safe get/set methods.
+type utxoStore struct {
+	sync.Mutex
+	c map[string]map[uint32]*UTXOData
+}
+
+// newUtxoStore constructs a new utxoStore.
+func newUtxoStore(prealloc int) utxoStore {
+	return utxoStore{
+		c: make(map[string]map[uint32]*UTXOData, prealloc),
+	}
+}
+
+// Get attempts to locate UTXOData for the specified outpoint. If the data is
+// not in the cache, a nil pointer and false are returned. If the data is
+// located, the data and true are returned, and the data is evicted from cache.
+func (u *utxoStore) Get(txHash string, txIndex uint32) (*UTXOData, bool) {
+	u.Lock()
+	defer u.Unlock()
+	utxoData, ok := u.c[txHash][txIndex]
+	if ok {
+		u.c[txHash][txIndex] = nil
+		delete(u.c[txHash], txIndex)
+		if len(u.c[txHash]) == 0 {
+			delete(u.c, txHash)
+		}
+	}
+	return utxoData, ok
+}
+
+// Set stores the address and amount in a UTXOData entry in the cache for the
+// given outpoint.
+func (u *utxoStore) Set(txHash string, txIndex uint32, addr string, val int64) {
+	u.Lock()
+	defer u.Unlock()
+	txUTXOVals, ok := u.c[txHash]
+	if !ok {
+		u.c[txHash] = map[uint32]*UTXOData{
+			txIndex: &UTXOData{
+				Address: addr,
+				Value:   val,
+			},
+		}
+	} else {
+		txUTXOVals[txIndex] = &UTXOData{
+			Address: addr,
+			Value:   val,
+		}
+	}
+}
+
+// Size returns the size of the utxo cache in number of UTXOs.
+func (u *utxoStore) Size() (sz int) {
+	u.Lock()
+	defer u.Unlock()
+	for _, m := range u.c {
+		sz += len(m)
+	}
+	return
+}
+
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
@@ -137,6 +204,7 @@ type ChainDB struct {
 	InBatchSync        bool
 	InReorg            bool
 	tpUpdatePermission map[dbtypes.ChartGrouping]*trylock.Mutex
+	utxoCache          utxoStore
 }
 
 // ChainDBRPC provides an interface for storing and manipulating extracted and
@@ -181,6 +249,64 @@ func (db *ChainDBRPC) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	return db.ChainDB.Store(blockData, msgBlock)
 }
 
+// MissingSideChainBlocks identifies side chain blocks that are missing from the
+// DB. Side chains known to dcrd are listed via the getchaintips RPC. Each block
+// presence in the postgres DB is checked, and any missing block is returned in
+// a SideChain along with a count of the total number of missing blocks.
+func (db *ChainDBRPC) MissingSideChainBlocks() ([]dbtypes.SideChain, int, error) {
+	// First get the side chain tips (head blocks).
+	tips, err := rpcutils.SideChains(db.Client)
+	if err != nil {
+		return nil, 0, fmt.Errorf("unable to get chain tips from node: %v", err)
+	}
+	nSideChains := len(tips)
+
+	// Build a list of all the blocks in each side chain that are not
+	// already in the database.
+	blocksToStore := make([]dbtypes.SideChain, nSideChains)
+	var nSideChainBlocks int
+	for it := range tips {
+		sideHeight := tips[it].Height
+		log.Tracef("Getting full side chain with tip %s at %d.", tips[it].Hash, sideHeight)
+
+		sideChain, err := rpcutils.SideChainFull(db.Client, tips[it].Hash)
+		if err != nil {
+			return nil, 0, fmt.Errorf("unable to get side chain blocks for chain tip %s: %v",
+				tips[it].Hash, err)
+		}
+		// Starting height is the lowest block in the side chain.
+		sideHeight -= int64(len(sideChain)) - 1
+
+		// For each block in the side chain, check if it already stored.
+		for is := range sideChain {
+			// Check for the block hash in the DB.
+			sideHeightDB, err := db.BlockHeight(sideChain[is])
+			if err == sql.ErrNoRows {
+				// This block is NOT already in the DB.
+				blocksToStore[it].Hashes = append(blocksToStore[it].Hashes, sideChain[is])
+				blocksToStore[it].Heights = append(blocksToStore[it].Heights, sideHeight)
+				nSideChainBlocks++
+			} else if err == nil {
+				// This block is already in the DB.
+				log.Tracef("Found block %s in postgres at height %d.",
+					sideChain[is], sideHeightDB)
+				if sideHeight != sideHeightDB {
+					log.Errorf("Side chain block height %d, expected %d.",
+						sideHeightDB, sideHeight)
+				}
+			} else /* err != nil && err != sql.ErrNoRows */ {
+				// Unexpected error
+				log.Errorf("Failed to retrieve block %s: %v", sideChain[is], err)
+			}
+
+			// Next block
+			sideHeight++
+		}
+	}
+
+	return blocksToStore, nSideChainBlocks, nil
+}
+
 // addressCounter provides a cache for address balances.
 type addressCounter struct {
 	sync.RWMutex
@@ -222,6 +348,7 @@ func (t *TicketTxnIDGetter) TxnDbID(txid string, expire bool) (uint64, error) {
 		return dbID, nil
 	}
 	// Cache miss. Get the row id by hash from the tickets table.
+	log.Tracef("Cache miss for %s.", txid)
 	return RetrieveTicketIDByHash(t.db, txid)
 }
 
@@ -320,6 +447,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 		DevFundBalance:     new(DevFundBalance),
 		devPrefetch:        devPrefetch,
 		tpUpdatePermission: tpUpdatePermissions,
+		utxoCache:          newUtxoStore(2e4),
 	}, nil
 }
 
@@ -411,9 +539,19 @@ func (pgb *ChainDB) SideChainTips() ([]*dbtypes.BlockStatus, error) {
 	return RetrieveSideChainTips(pgb.db)
 }
 
+// DisapprovedBlocks retrieves all blocks disapproved by stakeholder votes.
+func (pgb *ChainDB) DisapprovedBlocks() ([]*dbtypes.BlockStatus, error) {
+	return RetrieveDisapprovedBlocks(pgb.db)
+}
+
 // BlockStatus retrieves the block chain status of the specified block.
 func (pgb *ChainDB) BlockStatus(hash string) (dbtypes.BlockStatus, error) {
 	return RetrieveBlockStatus(pgb.db, hash)
+}
+
+// BlockFlags retrieves the block's isValid and isMainchain flags.
+func (pgb *ChainDB) BlockFlags(hash string) (bool, bool, error) {
+	return RetrieveBlockFlags(pgb.db, hash)
 }
 
 // TransactionBlocks retrieves the blocks in which the specified transaction
@@ -635,6 +773,14 @@ func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
 	return retrieveTicketsByDate(pgb.db, maturityBlock, int64(val))
 }
 
+// PosIntervals retrieves the blocks at the respective stakebase windows interval.
+// The term "window" is used here to describe the group of blocks whose count is
+// defined by chainParams.StakeDiffWindowSize. During this chainParams.StakeDiffWindowSize
+// block interval the ticket price and the difficulty value is constant.
+func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	return retrieveWindowBlocks(pgb.db, pgb.chainParams.StakeDiffWindowSize, limit, offset)
+}
+
 // TicketPoolVisualization helps block consecutive and duplicate DB queries for
 // the requested ticket pool chart data. If the data for the given interval is
 // cached and fresh, it is returned. If the cached data is stale and there are
@@ -760,6 +906,37 @@ func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
 		Hash:           *blockHash,
 	}
 	return balance, err
+}
+
+// FreshenAddressCaches resets the address balance cache, and prefetches the
+// project fund balance if devPrefetch is enabled and not mid-reorg.
+func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool) error {
+	pgb.addressCounts.Lock()
+	pgb.addressCounts.validHeight = pgb.bestBlock
+	pgb.addressCounts.balance = map[string]explorer.AddressBalance{}
+	pgb.addressCounts.Unlock()
+
+	// Lazy update of DevFundBalance
+	if pgb.devPrefetch && !pgb.InReorg {
+		updateBalance := func() error {
+			log.Infof("Pre-fetching project fund balance at height %d...", pgb.bestBlock)
+			if _, err := pgb.UpdateDevBalance(); err != nil {
+				return fmt.Errorf("Failed to update project fund balance: %v", err)
+			}
+			return nil
+		}
+		if lazyProjectFund {
+			go func() {
+				runtime.Gosched()
+				if err := updateBalance(); err != nil {
+					log.Error(err)
+				}
+			}()
+			return nil
+		}
+		return updateBalance()
+	}
+	return nil
 }
 
 // UpdateDevBalance forcibly updates the cached development/project fund balance
@@ -1177,13 +1354,27 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
-// and part of mainchain.
+// and part of mainchain. Store should not be used for batch block processing;
+// instead, use StoreBlock and specify appropriate flags.
 func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+	// This function must handle being run when pgb is nil (not constructed).
 	if pgb == nil {
 		return nil
 	}
-	// New blocks stored this way are considered valid and part of mainchain.
-	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets, true, true, true, true)
+
+	// New blocks stored this way are considered valid and part of mainchain,
+	// warranting updates to existing records. When adding side chain blocks
+	// manually, call StoreBlock directly with appropriate flags for isValid,
+	// isMainchain, and updateExistingRecords, and nil winningTickets.
+	isValid, isMainChain, updateExistingRecords := true, true, true
+
+	// Since Store should not be used in batch block processing, addresses and
+	// tickets spending information is updated.
+	updateAddressesSpendingInfo, updateTicketsSpendingInfo := true, true
+
+	_, _, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets,
+		isValid, isMainChain, updateExistingRecords,
+		updateAddressesSpendingInfo, updateTicketsSpendingInfo)
 	return err
 }
 
@@ -1208,7 +1399,7 @@ func (pgb *ChainDB) GetTxHistoryData(address string, addrChart dbtypes.HistoryCh
 		return retrieveTxHistoryByUnspentAmount(pgb.db, address, timestamp)
 
 	default:
-		return nil, fmt.Errorf("unknown error occured")
+		return nil, fmt.Errorf("unknown error occurred")
 	}
 }
 
@@ -1440,16 +1631,26 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 }
 
 // StoreBlock processes the input wire.MsgBlock, and saves to the data tables.
-// The number of vins, and vouts stored are also returned.
+// The number of vins and vouts stored are returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
-	isValid, isMainchain, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) (numVins int64, numVouts int64, err error) {
+	isValid, isMainchain, updateExistingRecords, updateAddressesSpendingInfo,
+	updateTicketsSpendingInfo bool) (numVins int64, numVouts int64, numAddresses int64, err error) {
 	// Convert the wire.MsgBlock to a dbtypes.Block
 	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams)
 
-	// Get the previous winners (stake DB pool info cache have this info)
+	// Get the previous winners (stake DB pool info cache has this info). If the
+	// previous block is side chain, stakedb will not have the
+	// winners/validators. Since Validators are only used to identify misses in
+	// InsertVotes, we will leave the Validators empty and assume there are no
+	// misses. If this block becomes main chain at some point via a
+	// reorganization, its table entries will be updated appropriately, which
+	// will include inserting any misses since the stakeDB will then include the
+	// block, thus allowing the winning tickets to be known at that time.
+	// TODO: Somehow verify reorg operates as described when switching manually
+	// imported side chain blocks over to main chain.
 	prevBlockHash := msgBlock.Header.PrevBlock
 	var winners []string
-	if !bytes.Equal(zeroHash[:], prevBlockHash[:]) {
+	if isMainchain && !bytes.Equal(zeroHash[:], prevBlockHash[:]) {
 		tpi, found := pgb.stakeDB.PoolInfo(prevBlockHash)
 		if !found {
 			err = fmt.Errorf("stakedb.PoolInfo failed for block %s", msgBlock.BlockHash())
@@ -1458,7 +1659,8 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		winners = tpi.Winners
 	}
 
-	// Wrap the message block
+	// Wrap the message block with newly winning tickets and the tickets
+	// expected to vote in this block (on the previous block).
 	MsgBlockPG := &MsgBlockPG{
 		MsgBlock:       msgBlock,
 		WinningTickets: winningTickets,
@@ -1476,6 +1678,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	go func() {
 		resChanReg <- pgb.storeTxns(MsgBlockPG, wire.TxTreeRegular,
 			pgb.chainParams, &dbBlock.TxDbIDs, isValid, isMainchain,
+			updateExistingRecords,
 			updateAddressesSpendingInfo, updateTicketsSpendingInfo)
 	}()
 
@@ -1484,8 +1687,13 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	go func() {
 		resChanStake <- pgb.storeTxns(MsgBlockPG, wire.TxTreeStake,
 			pgb.chainParams, &dbBlock.STxDbIDs, isValid, isMainchain,
+			updateExistingRecords,
 			updateAddressesSpendingInfo, updateTicketsSpendingInfo)
 	}()
+
+	if dbBlock.Height%5000 == 0 {
+		log.Debugf("UTXO cache size: %d", pgb.utxoCache.Size())
+	}
 
 	errReg := <-resChanReg
 	errStk := <-resChanStake
@@ -1494,6 +1702,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 			err = errStk.err
 			numVins = errReg.numVins
 			numVouts = errReg.numVouts
+			numAddresses = errReg.numAddresses
 			return
 		}
 		err = errors.New(errReg.Error() + ", " + errStk.Error())
@@ -1502,13 +1711,15 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		err = errReg.err
 		numVins = errStk.numVins
 		numVouts = errStk.numVouts
+		numAddresses = errStk.numAddresses
 		return
 	}
 
 	numVins = errStk.numVins + errReg.numVins
 	numVouts = errStk.numVouts + errReg.numVouts
+	numAddresses = errStk.numAddresses + errReg.numAddresses
 
-	// Store the block now that it has all it's transaction PK IDs
+	// Store the block now that it has all if its transaction row IDs.
 	var blockDbID uint64
 	blockDbID, err = InsertBlock(pgb.db, dbBlock, isValid, isMainchain, pgb.dupChecks)
 	if err != nil {
@@ -1517,9 +1728,15 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	}
 	pgb.lastBlock[msgBlock.BlockHash()] = blockDbID
 
-	pgb.bestBlock = int64(dbBlock.Height)
-	pgb.bestBlockHash = dbBlock.Hash
+	if isMainchain {
+		// Update best block height and hash.
+		pgb.bestBlock = int64(dbBlock.Height)
+		pgb.bestBlockHash = dbBlock.Hash
+	}
 
+	// Insert the block in the block_chain table with the previous block hash
+	// and an empty string for the next block hash, which may be updated when a
+	// new block extends this chain.
 	err = InsertBlockPrevNext(pgb.db, blockDbID, dbBlock.Hash,
 		dbBlock.PreviousHash, "")
 	if err != nil && err != sql.ErrNoRows {
@@ -1527,94 +1744,118 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		return
 	}
 
-	// Update last block in db with this block's hash as it's next. Also update
-	// isValid flag in last block if votes in this block invalidated it.
-	lastBlockHash := msgBlock.Header.PrevBlock
-	// Only update if last was not genesis, which is not in the table (implied).
-	if lastBlockHash != zeroHash {
-		// Attempt to find the row id of the block hash in cache.
-		lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
-		if !ok {
-			log.Debugf("The previous block %s for block %s not found in cache, "+
-				"looking it up.", lastBlockHash, msgBlock.BlockHash())
-			lastBlockDbID, err = RetrieveBlockChainDbID(pgb.db, lastBlockHash.String())
-			if err != nil {
-				log.Criticalf("Unable to locate block %s in block_chain table: %v",
-					lastBlockHash, err)
-				return
-			}
-		}
-
-		// Was the previous block invalidated? Update it's is_valid flag in the
-		// blocks table if needed.
-		lastIsValid := dbBlock.VoteBits&1 != 0
-		if !lastIsValid {
-			log.Infof("Setting last block %s as INVALID", lastBlockHash)
-			err = UpdateLastBlockValid(pgb.db, lastBlockDbID, lastIsValid)
-			if err != nil {
-				log.Error("UpdateLastBlock:", err)
-				return
-			}
-		}
-
-		// Update the previous block's next block hash in the block_chain table.
-		err = UpdateBlockNext(pgb.db, lastBlockDbID, dbBlock.Hash)
-		if err != nil {
-			log.Error("UpdateBlockNext:", err)
-			return
-		}
-
-		// If the previous block is invalidated by this one, flag all the vins,
-		// transactions, and addresses table rows from the previous block's
-		// transactions as invalid. Do nothing otherwise since blocks'
-		// transactions are initially added as valid.
-		if !lastIsValid {
-			// Update the is_valid flag in the transactions from the previous block.
-			err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid, isMainchain)
-			if err != nil {
-				log.Error("UpdateLastVins:", err)
-				return
-			}
-
-			// Update last block's regular transactions.
-			_, _, err = UpdateTransactionsValid(pgb.db, lastBlockHash.String(), lastIsValid)
-			if err != nil {
-				log.Error("UpdateTransactionsValid:", err)
-				return
-			}
-
-			// Update addresses table for last block's regular transactions.
-			err = UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
-			if err != nil {
-				log.Error("UpdateLastAddressesValid:", err)
-				return
-			}
-
-			// NOTE: Updating the tickets, votes, and misses tables is not
-			// necessary since the stake tree is not subject to stakeholder
-			// approval.
-		}
+	// Update the previous block's next block hash in the block_chain table with
+	// this block's hash as it is next. If the current block's votes
+	// invalidated/disapproved the previous block, also update the is_valid
+	// columns for the previous block's entries in the following tables: blocks,
+	// vins, addresses, and transactions.
+	err = pgb.UpdateLastBlock(msgBlock, isMainchain)
+	if err != nil && err != sql.ErrNoRows {
+		err = fmt.Errorf("InsertBlockPrevNext: %v", err)
+		return
 	}
 
 	// If not in batch sync, lazy update the dev fund balance
 	if !pgb.InBatchSync {
-		pgb.addressCounts.Lock()
-		pgb.addressCounts.validHeight = int64(msgBlock.Header.Height)
-		pgb.addressCounts.balance = map[string]explorer.AddressBalance{}
-		pgb.addressCounts.Unlock()
-
-		// Lazy update of DevFundBalance
-		if pgb.devPrefetch && !pgb.InReorg {
-			go func() {
-				runtime.Gosched()
-				if _, err = pgb.UpdateDevBalance(); err != nil {
-					log.Errorf("Failed to update development fund balance: %v", err)
-				}
-			}()
+		if err = pgb.FreshenAddressCaches(true); err != nil {
+			log.Warnf("FreshenAddressCaches: %v", err)
 		}
 	}
 
 	return
+}
+
+// UpdateLastBlock set the previous block's next block hash in the block_chain
+// table with this block's hash as it is next. If the current block's votes
+// invalidated/disapproved the previous block, it also updates the is_valid
+// columns for the previous block's entries in the following tables: blocks,
+// vins, addresses, and transactions. If the previous block is not on the same
+// chain as this block (as indicated by isMainchain), no updates are performed.
+func (pgb *ChainDB) UpdateLastBlock(msgBlock *wire.MsgBlock, isMainchain bool) error {
+	// Only update if last was not genesis, which is not in the table (implied).
+	lastBlockHash := msgBlock.Header.PrevBlock
+	if lastBlockHash == zeroHash {
+		return nil
+	}
+
+	// Ensure previous block has the same main/sidechain status. If the
+	// current block being added is side chain, do not invalidate the
+	// mainchain block or any of its components, or update the block_chain
+	// table to point to this block.
+	if !isMainchain { // only check when current block is side chain
+		_, lastIsMainchain, err := pgb.BlockFlags(lastBlockHash.String())
+		if err != nil {
+			log.Errorf("Unable to determine status of previous block %v: %v",
+				lastBlockHash, err)
+			return nil // do not return an error, but this should not happen
+		}
+		// Do not update previous block data if it is not the same blockchain
+		// branch. i.e. A side chain block does not invalidate a main chain block.
+		if lastIsMainchain != isMainchain {
+			log.Debugf("Previous block %v is on the main chain, while current "+
+				"block %v is on a side chain. Not updating main chain parent.",
+				lastBlockHash, msgBlock.BlockHash())
+			return nil
+		}
+	}
+
+	// Attempt to find the row id of the block hash in cache.
+	lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
+	if !ok {
+		log.Debugf("The previous block %s for block %s not found in cache, "+
+			"looking it up.", lastBlockHash, msgBlock.BlockHash())
+		var err error
+		lastBlockDbID, err = RetrieveBlockChainDbID(pgb.db, lastBlockHash.String())
+		if err != nil {
+			return fmt.Errorf("unable to locate block %s in block_chain table: %v",
+				lastBlockHash, err)
+		}
+	}
+
+	// Update the previous block's next block hash in the block_chain table.
+	err := UpdateBlockNext(pgb.db, lastBlockDbID, msgBlock.BlockHash().String())
+	if err != nil {
+		return fmt.Errorf("UpdateBlockNext: %v", err)
+	}
+
+	// If the previous block is invalidated by this one: (1) update it's
+	// is_valid flag in the blocks table if needed, and (2) flag all the vins,
+	// transactions, and addresses table rows from the previous block's
+	// transactions as invalid. Do nothing otherwise since blocks' transactions
+	// are initially added as valid.
+	lastIsValid := msgBlock.Header.VoteBits&1 != 0
+	if !lastIsValid {
+		// Update the is_valid flag in the blocks table.
+		log.Infof("Setting last block %s as INVALID", lastBlockHash)
+		err := UpdateLastBlockValid(pgb.db, lastBlockDbID, lastIsValid)
+		if err != nil {
+			return fmt.Errorf("UpdateLastBlockValid: %v", err)
+		}
+
+		// Update the is_valid flag for the last block's vins.
+		err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid, isMainchain)
+		if err != nil {
+			return fmt.Errorf("UpdateLastVins: %v", err)
+		}
+
+		// Update the is_valid flag for the last block's regular transactions.
+		_, _, err = UpdateTransactionsValid(pgb.db, lastBlockHash.String(), lastIsValid)
+		if err != nil {
+			return fmt.Errorf("UpdateTransactionsValid: %v", err)
+		}
+
+		// Update addresses table for last block's regular transactions.
+		err = UpdateLastAddressesValid(pgb.db, lastBlockHash.String(), lastIsValid)
+		if err != nil {
+			return fmt.Errorf("UpdateLastAddressesValid: %v", err)
+		}
+
+		// NOTE: Updating the tickets, votes, and misses tables is not
+		// necessary since the stake tree is not subject to stakeholder
+		// approval.
+	}
+
+	return nil
 }
 
 // storeTxnsResult is the type of object sent back from the goroutines wrapping
@@ -1640,7 +1881,7 @@ type MsgBlockPG struct {
 // storeTxns stores the transactions of a given block.
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isValid, isMainchain bool,
-	updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
+	updateExistingRecords, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block, transaction tree, and network, extract the
 	// transactions, vins, and vouts.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
@@ -1655,11 +1896,22 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	dbAddressRows := make([][]dbtypes.AddressRow, len(dbTransactions))
 	var totalAddressRows int
 
+	// For a side chain block, set Validators to an empty slice so that there
+	// will be no misses even if there are less than 5 votes. Any Validators
+	// that do not match a spent ticket hash in InsertVotes are considered
+	// misses. By listing no required validators, there are no misses. For side
+	// chain blocks, this is acceptable and necessary because the misses table
+	// does not record the block hash or main/side chain status.
+	if !isMainchain {
+		msgBlock.Validators = []string{}
+	}
+
 	var err error
 	for it, dbtx := range dbTransactions {
 		// Insert vouts, and collect AddressRows to add to address table for
 		// each output.
-		dbtx.VoutDbIds, dbAddressRows[it], err = InsertVouts(pgb.db, dbTxVouts[it], pgb.dupChecks)
+		dbtx.VoutDbIds, dbAddressRows[it], err = InsertVouts(pgb.db,
+			dbTxVouts[it], pgb.dupChecks, updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVouts:", err)
 			txRes.err = err
@@ -1672,7 +1924,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		}
 
 		// Insert vins
-		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it], pgb.dupChecks)
+		dbtx.VinDbIds, err = InsertVins(pgb.db, dbTxVins[it], pgb.dupChecks,
+			updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVins:", err)
 			txRes.err = err
@@ -1687,7 +1940,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	}
 
 	// Get the tx PK IDs for storage in the blocks, tickets, and votes table
-	*TxDbIDs, err = InsertTxns(pgb.db, dbTransactions, pgb.dupChecks)
+	*TxDbIDs, err = InsertTxns(pgb.db, dbTransactions, pgb.dupChecks,
+		updateExistingRecords)
 	if err != nil && err != sql.ErrNoRows {
 		log.Error("InsertTxns:", err)
 		txRes.err = err
@@ -1699,7 +1953,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	// new votes, revokes, misses, and expires.
 	if txTree == wire.TxTreeStake {
 		// Tickets: Insert new (unspent) tickets
-		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, *TxDbIDs, pgb.dupChecks)
+		newTicketDbIDs, newTicketTx, err := InsertTickets(pgb.db, dbTransactions, *TxDbIDs,
+			pgb.dupChecks, updateExistingRecords)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertTickets:", err)
 			txRes.err = err
@@ -1723,8 +1978,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
-		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions,
-			*TxDbIDs, unspentTicketCache, msgBlock, pgb.dupChecks, pgb.chainParams)
+		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs,
+			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords, pgb.chainParams)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err
@@ -1736,10 +1991,11 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// revokes), and the ticket DB row IDs themselves. Also return
 			// tickets table row IDs for newly spent tickets, if we are updating
 			// them as we go (SetSpendingForTickets). CollectTicketSpendDBInfo
-			// uses ChainDB's ticket DB row ID cache, and immediately expires
-			// any found entries.
+			// uses ChainDB's ticket DB row ID cache (unspentTicketCache), and
+			// immediately expires any found entries for a main chain block.
 			spendingTxDbIDs, spendTypes, spentTicketHashes, ticketDbIDs, err :=
-				pgb.CollectTicketSpendDBInfo(dbTransactions, *TxDbIDs, msgBlock.MsgBlock)
+				pgb.CollectTicketSpendDBInfo(dbTransactions, *TxDbIDs,
+					msgBlock.MsgBlock, isMainchain)
 			if err != nil {
 				log.Error("CollectTicketSpendDBInfo:", err)
 				txRes.err = err
@@ -1828,8 +2084,20 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// Release the stake node.
 			pgb.stakeDB.UnlockStakeNode()
 
+			// Locate the row IDs of the unspent expired and missed tickets. Do
+			// not expire the cache entry.
+			unspentEnMRowIDs := make([]uint64, len(unspentEnM))
+			for iu := range unspentEnM {
+				t, err0 := unspentTicketCache.TxnDbID(unspentEnM[iu], false)
+				if err0 != nil {
+					txRes.err = fmt.Errorf("failed to retrieve ticket %s DB ID: %v", unspentEnM[iu], err0)
+					return txRes
+				}
+				unspentEnMRowIDs[iu] = t
+			}
+
 			// Update status of the unspent expired and missed tickets.
-			numUnrevokedMisses, err := SetPoolStatusForTicketsByHash(pgb.db, unspentEnM, missStatuses)
+			numUnrevokedMisses, err := SetPoolStatusForTickets(pgb.db, unspentEnMRowIDs, missStatuses)
 			if err != nil {
 				log.Errorf("SetPoolStatusForTicketsByHash: %v", err)
 			} else if numUnrevokedMisses > 0 {
@@ -1848,34 +2116,34 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 
 			// Set fields not set by InsertVouts: TxBlockTime, IsFunding,
 			// ValidMainChain, and MatchingTxHash. Only MatchingTxHash goes
-			// unset initially, later set by insertSpendingTxByPrptStmt (called
+			// unset initially, later set by insertAddrSpendingTxUpdateMatchedFunding (called
 			// by SetSpendingForFundingOP below, and other places).
 			dba.TxBlockTime = uint64(tx.BlockTime)
-			dba.IsFunding = true
+			dba.IsFunding = true // from vouts
 			dba.ValidMainChain = isMainchain && isValid
 
 			// Funding tx hash, vout id, value, and address are already assigned
 			// by InsertVouts. Only the block time and is_funding was needed.
 			dbAddressRowsFlat = append(dbAddressRowsFlat, dba)
+
+			// Cache the data for this UTXO.
+			pgb.utxoCache.Set(tx.TxID, dba.TxVinVoutIndex, dba.Address, int64(dba.Value))
 		}
 	}
 
 	// Insert each new AddressRow, absent MatchingTxHash (spending txn since
 	// these new address rows are *funding*).
-	_, err = InsertAddressRows(pgb.db, dbAddressRowsFlat, pgb.dupChecks)
+	_, err = InsertAddressRows(pgb.db, dbAddressRowsFlat, pgb.dupChecks, updateExistingRecords)
 	if err != nil {
 		log.Error("InsertAddressRows:", err)
 		txRes.err = err
 		return txRes
 	}
+	txRes.numAddresses = int64(totalAddressRows)
 
-	// Defer update of addresses table spending info for a batch process if
-	// requested.
-	if !updateAddressesSpendingInfo {
-		return txRes
-	}
-
-	// Check the new vins and update matching_tx_hash in addresses table.
+	// Check the new vins, inserting spending address rows, and (if
+	// updateAddressesSpendingInfo) update matching_tx_hash in corresponding
+	// funding rows.
 	for it, tx := range dbTransactions {
 		// vins array for this transaction
 		txVins := dbTxVins[it]
@@ -1895,12 +2163,19 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			spendingTxHash := vin.TxID
 			spendingTxIndex := vin.TxIndex
 			validMainchain := tx.IsValidBlock && tx.IsMainchainBlock
-			numAddressRowsSet, err := SetSpendingForFundingOP(pgb.db,
+			// Attempt to retrieve cached data for this now-spent TXO. A
+			// successful get will delete the entry from the cache.
+			utxoData, ok := pgb.utxoCache.Get(vin.PrevTxHash, vin.PrevTxIndex)
+			if !ok {
+				log.Tracef("Data for that utxo (%s:%d) wasn't cached!", vin.PrevTxHash, vin.PrevTxIndex)
+			}
+			numAddressRowsSet, err := InsertSpendingAddressRow(pgb.db,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree),
-				spendingTxHash, spendingTxIndex, uint64(tx.BlockTime), vinDbID,
-				pgb.dupChecks, validMainchain, vin.TxType)
+				spendingTxHash, spendingTxIndex, vinDbID, utxoData, pgb.dupChecks,
+				updateExistingRecords, validMainchain, vin.TxType, updateAddressesSpendingInfo,
+				uint64(tx.BlockTime))
 			if err != nil {
-				log.Errorf("SetSpendingForFundingOP: %v", err)
+				log.Errorf("InsertSpendingAddressRow: %v", err)
 			}
 			txRes.numAddresses += numAddressRowsSet
 		}
@@ -1913,9 +2188,10 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 // correspond to the transaction data in dbTxns, and extracts data for votes and
 // revokes, including the spent ticket hash and DB row ID.
 func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uint64,
-	msgBlock *wire.MsgBlock) (spendingTxDbIDs []uint64, spendTypes []dbtypes.TicketSpendType,
+	msgBlock *wire.MsgBlock, isMainchain bool) (spendingTxDbIDs []uint64, spendTypes []dbtypes.TicketSpendType,
 	ticketHashes []string, ticketDbIDs []uint64, err error) {
-	// This only makes sense for stake transactions
+	// This only makes sense for stake transactions. Check that the number of
+	// dbTxns equals the number of STransactions in msgBlock.
 	msgTxns := msgBlock.STransactions
 	if len(msgTxns) != len(dbTxns) {
 		err = fmt.Errorf("number of stake transactions (%d) not as expected (%d)",
@@ -1924,14 +2200,14 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 	}
 
 	for i, tx := range dbTxns {
-		// ensure the transaction slices correspond
+		// Ensure the transaction slices correspond.
 		msgTx := msgTxns[i]
 		if tx.TxID != msgTx.TxHash().String() {
 			err = fmt.Errorf("txid of dbtypes.Tx does not match that of msgTx")
 			return
 		}
 
-		// Filter for votes and revokes only
+		// Filter for votes and revokes only.
 		var stakeSubmissionVinInd int
 		var spendType dbtypes.TicketSpendType
 		switch tx.TxType {
@@ -1959,7 +2235,8 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 		ticketHashes = append(ticketHashes, ticketHash)
 
 		// ticket's row ID in *tickets* table
-		t, err0 := pgb.unspentTicketCache.TxnDbID(ticketHash, true) // expire all cache entries
+		expireEntries := isMainchain // expire all cache entries for main chain blocks
+		t, err0 := pgb.unspentTicketCache.TxnDbID(ticketHash, expireEntries)
 		if err0 != nil {
 			err = fmt.Errorf("failed to retrieve ticket %s DB ID: %v", ticketHash, err0)
 			return
@@ -1969,13 +2246,13 @@ func (pgb *ChainDB) CollectTicketSpendDBInfo(dbTxns []*dbtypes.Tx, txDbIDs []uin
 	return
 }
 
-// UpdateSpendingInfoInAllAddresses completely rebuilds the spending transaction
-// info columns of the address table. This is intended to be use after syncing
-// all other tables and creating their indexes, particularly the indexes on the
-// vins table, and the addresses table index on the funding tx columns. This can
-// be used instead of using updateAddressesSpendingInfo=true with storeTxns,
-// which will update these addresses table columns too, but much more slowly for
-// a number of reasons (that are well worth investigating BTW!).
+// UpdateSpendingInfoInAllAddresses completely rebuilds the matching transaction
+// columns for funding rows of the addresses table. This is intended to be use
+// after syncing all other tables and creating their indexes, particularly the
+// indexes on the vins table, and the addresses table index on the funding tx
+// columns. This can be used instead of using updateAddressesSpendingInfo=true
+// with storeTxns, which will update these addresses table columns too, but much
+// more slowly for a number of reasons (that are well worth investigating BTW!).
 func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Get the full list of vinDbIDs
 	allVinDbIDs, err := RetrieveAllVinDbIDs(pgb.db)
@@ -1984,7 +2261,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.Progr
 		return 0, err
 	}
 
-	updatesPerDBTx := 500
+	updatesPerDBTx := 1000
 	totalVinIbIDs := len(allVinDbIDs)
 
 	timeStart := time.Now()
@@ -2020,8 +2297,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.Progr
 			timeStart = time.Now()
 		}
 
-		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db,
-			allVinDbIDs[i:endChunk])
+		_, numAddressRowsSet, err = SetSpendingForVinDbIDs(pgb.db, allVinDbIDs[i:endChunk])
 		if err != nil {
 			log.Errorf("SetSpendingForVinDbIDs: %v", err)
 			continue
@@ -2029,7 +2305,7 @@ func (pgb *ChainDB) UpdateSpendingInfoInAllAddresses(barLoad chan *dbtypes.Progr
 		numAddresses += numAddressRowsSet
 	}
 
-	// Signal the completion of the sync
+	// Signal the completion of the sync to the status page.
 	if barLoad != nil {
 		barLoad <- &dbtypes.ProgressBarLoad{
 			From:  int64(totalVinIbIDs),

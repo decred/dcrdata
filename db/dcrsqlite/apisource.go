@@ -240,7 +240,9 @@ func (db *wiredDB) GetChainParams() *chaincfg.Params {
 func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
 	hash, err := db.RetrieveBlockHash(idx)
 	if err != nil {
-		log.Errorf("Unable to get block hash for block number %d: %v", idx, err)
+		if err != sql.ErrNoRows {
+			log.Errorf("Unable to get block hash for block number %d: %v", idx, err)
+		}
 		return "", err
 	}
 	return hash, nil
@@ -249,22 +251,24 @@ func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
 func (db *wiredDB) GetBlockHeight(hash string) (int64, error) {
 	height, err := db.RetrieveBlockHeight(hash)
 	if err != nil {
-		log.Errorf("Unable to get block height for hash %s: %v", hash, err)
+		if err != sql.ErrNoRows {
+			log.Errorf("Unable to get block height for hash %s: %v", hash, err)
+		}
 		return -1, err
 	}
 	return height, nil
 }
 
 func (db *wiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
-	return rpcutils.GetBlockHeaderVerbose(db.client, db.params, int64(idx))
+	return rpcutils.GetBlockHeaderVerbose(db.client, int64(idx))
 }
 
 func (db *wiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerbose(db.client, db.params, int64(idx), verboseTx)
+	return rpcutils.GetBlockVerbose(db.client, int64(idx), verboseTx)
 }
 
 func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, verboseTx)
+	return rpcutils.GetBlockVerboseByHash(db.client, hash, verboseTx)
 }
 
 func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
@@ -297,13 +301,13 @@ func (db *wiredDB) BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSu
 }
 
 func (db *wiredDB) GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions {
-	blockVerbose := rpcutils.GetBlockVerbose(db.client, db.params, idx, false)
+	blockVerbose := rpcutils.GetBlockVerbose(db.client, idx, false)
 
 	return makeBlockTransactions(blockVerbose)
 }
 
 func (db *wiredDB) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
-	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, db.params, hash, false)
+	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, hash, false)
 
 	return makeBlockTransactions(blockVerbose)
 }
@@ -648,12 +652,22 @@ func (db *wiredDB) GetSummaryByHash(hash string) *apitypes.BlockDataBasic {
 	return blockSummary
 }
 
+// GetBestBlockSummary retrieves data for the best block in the DB. If there are
+// no blocks in the table (yet), a nil pointer is returned.
 func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
+	// Attempt to retrieve height of best block in DB.
 	dbBlkHeight, err := db.GetBlockSummaryHeight()
 	if err != nil {
 		log.Errorf("GetBlockSummaryHeight failed: %v", err)
 		return nil
 	}
+
+	// Empty table is not an error.
+	if dbBlkHeight == -1 {
+		return nil
+	}
+
+	// Retrieve the block data.
 	blockSummary, err := db.RetrieveBlockSummary(dbBlkHeight)
 	if err != nil {
 		log.Errorf("Unable to retrieve block %d summary: %v", dbBlkHeight, err)
@@ -941,8 +955,10 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 	return txarray
 }
 
-func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult) *explorer.BlockBasic {
+func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *explorer.BlockBasic {
+	index := dbtypes.CalculateWindowIndex(data.Height, params.StakeDiffWindowSize)
 	block := &explorer.BlockBasic{
+		WindowIndx:     index,
 		Height:         data.Height,
 		Hash:           data.Hash,
 		Size:           data.Size,
@@ -1037,7 +1053,7 @@ func (db *wiredDB) GetExplorerBlocks(start int, end int) []*explorer.BlockBasic 
 		data := db.GetBlockVerbose(i, true)
 		block := new(explorer.BlockBasic)
 		if data != nil {
-			block = makeExplorerBlockBasic(data)
+			block = makeExplorerBlockBasic(data, db.params)
 		}
 		summaries = append(summaries, block)
 	}
@@ -1067,7 +1083,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		return nil
 	}
 
-	b := makeExplorerBlockBasic(data)
+	b := makeExplorerBlockBasic(data, db.params)
 
 	// Explorer Block Info
 	block := &explorer.BlockInfo{
@@ -1293,46 +1309,44 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	return tx
 }
 
-func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *explorer.AddressInfo {
+func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, error) {
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
-		log.Infof("Invalid address %s: %v", address, err)
-		return nil
+		return nil, err
 	}
 
-	{
-		// Short circuit the transaction and balance queries if the provided address
-		// is the zero pubkey hash address commonly used for zero value
-		// sstxchange-tagged outputs.
-		isDummyAddress := IsZeroHashP2PHKAddress(address, db.params)
-		if isDummyAddress {
-			return &explorer.AddressInfo{
-				Address:         address,
-				Balance:         new(explorer.AddressBalance),
-				UnconfirmedTxns: new(explorer.AddressTransactions),
-				IsDummyAddress:  true,
-				Fullmode:        true,
-			}
-		}
+	// Short circuit the transaction and balance queries if the provided address
+	// is the zero pubkey hash address commonly used for zero value
+	// sstxchange-tagged outputs.
+	isDummyAddress := IsZeroHashP2PHKAddress(address, db.params)
+	if isDummyAddress {
+		return &explorer.AddressInfo{
+			Address:         address,
+			Balance:         new(explorer.AddressBalance),
+			UnconfirmedTxns: new(explorer.AddressTransactions),
+			IsDummyAddress:  true,
+			Fullmode:        true,
+		}, nil
+	}
+
+	// Handle invalid address.
+	if !ValidateNetworkAddress(addr, db.params) {
+		return nil, fmt.Errorf("wrong network: address %s is not valid for %v",
+			address, db.params.Name)
 	}
 
 	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(maxcount), true, true, nil)
 	if err != nil && err.Error() == "-32603: No Txns available" {
-		log.Debugf("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
-
-		if !ValidateNetworkAddress(addr, db.params) {
-			log.Warnf("Address %s is not valid for this network", address)
-			return nil
-		}
+		log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
 		return &explorer.AddressInfo{
 			Address:    address,
 			MaxTxLimit: maxcount,
-		}
+		}, nil
 	} else if err != nil {
-		log.Warnf("GetExplorerAddress: SearchRawTransactionsVerbose failed for address %s: %v", addr, err)
-		return nil
+		return nil, fmt.Errorf("SearchRawTransactionsVerbose failed for address %s: %v",
+			addr, err)
 	}
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
@@ -1402,7 +1416,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) *expl
 		KnownTransactions: numberMaxOfTx,
 		KnownFundingTxns:  numReceiving,
 		KnownSpendingTxns: numSpending,
-	}
+	}, nil
 }
 
 // IsZeroHashP2PHKAddress checks if the given address is the dummy (zero pubkey

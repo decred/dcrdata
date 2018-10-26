@@ -92,20 +92,20 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		case "Ticket":
 			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
 				exp.MempoolData.Unlock()
-				log.Debugf("Not broadcasting duplicate ticket notification: %s", hash)
+				log.Tracef("Not broadcasting duplicate ticket notification: %s", hash)
 				continue // back to waiting for new tx signal
 			}
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Tickets = append([]MempoolTx{tx}, exp.MempoolData.Tickets...)
 			exp.MempoolData.NumTickets++
 		case "Vote":
-			// Votes on the next block may be recieve just prior to dcrdata
+			// Votes on the next block may be received just prior to dcrdata
 			// actually processing the new block. Do not broadcast these ahead
 			// of the full update with the new block signal as the vote will be
 			// included in that update.
 			if tx.VoteInfo.Validation.Height > lastBlockHeight {
 				exp.MempoolData.Unlock()
-				log.Debug("Got a vote for a future block. Waiting to pull it "+
+				log.Trace("Got a vote for a future block. Waiting to pull it "+
 					"out of mempool with new block signal. Vote: ", tx.Hash)
 				continue
 			}
@@ -113,7 +113,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			// Maintain the list of unique stake txns encountered.
 			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
 				exp.MempoolData.Unlock()
-				log.Debugf("Not broadcasting duplicate vote notification: %s", hash)
+				log.Tracef("Not broadcasting duplicate vote notification: %s", hash)
 				continue // back to waiting for new tx signal
 			}
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
@@ -133,7 +133,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			// Maintain the list of unique regular txns encountered.
 			if _, found := exp.MempoolData.InvRegular[tx.Hash]; found {
 				exp.MempoolData.Unlock()
-				log.Debugf("Not broadcasting duplicate txns notification: %s", hash)
+				log.Tracef("Not broadcasting duplicate txns notification: %s", hash)
 				continue // back to waiting for new tx signal
 			}
 			exp.MempoolData.InvRegular[tx.Hash] = struct{}{}
@@ -143,7 +143,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			// Maintain the list of unique stake txns encountered.
 			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
 				exp.MempoolData.Unlock()
-				log.Debugf("Not broadcasting duplicate revocation notification: %s", hash)
+				log.Tracef("Not broadcasting duplicate revocation notification: %s", hash)
 				continue // back to waiting for new tx signal
 			}
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
@@ -185,11 +185,6 @@ func (exp *explorerUI) StartMempoolMonitor(newTxChan chan *NewMempoolTx) {
 }
 
 func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
-
-	// Store mempool data for template rendering
-	exp.MempoolData.Lock()
-	defer exp.MempoolData.Unlock()
-
 	defer func(start time.Time) {
 		log.Debugf("storeMempoolInfo() completed in %v", time.Since(start))
 	}(time.Now())
@@ -281,6 +276,11 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 	}
 
 	sort.Sort(byHeight(votes))
+	formattedSize := humanize.Bytes(uint64(totalSize))
+
+	// Store mempool data for template rendering
+	exp.MempoolData.Lock()
+	defer exp.MempoolData.Unlock()
 
 	exp.MempoolData.Transactions = regular
 	exp.MempoolData.Tickets = tickets
@@ -299,12 +299,13 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 		NumRegular:         len(regular),
 		NumRevokes:         len(revs),
 		LatestTransactions: latest,
-		FormattedTotalSize: humanize.Bytes(uint64(totalSize)),
+		FormattedTotalSize: formattedSize,
 		TicketIndexes:      ticketSpendInds,
 		VotingInfo:         votingInfo,
 		InvRegular:         invRegular,
 		InvStake:           invStake,
 	}
+
 	return
 }
 
@@ -348,11 +349,11 @@ func (v *BlockValidation) ForBlock(blockHash string) bool {
 
 // getLastBlock returns the last block hash, height and time
 func (exp *explorerUI) getLastBlock() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
-	exp.NewBlockDataMtx.RLock()
-	lastBlock = exp.NewBlockData.Height
-	lastBlockTime = exp.NewBlockData.BlockTime
-	lastBlockHash = exp.NewBlockData.Hash
-	exp.NewBlockDataMtx.RUnlock()
+	exp.pageData.RLock()
+	defer exp.pageData.RUnlock()
+	lastBlock = exp.pageData.BlockInfo.Height
+	lastBlockTime = exp.pageData.BlockInfo.BlockTime
+	lastBlockHash = exp.pageData.BlockInfo.Hash
 	return
 }
 

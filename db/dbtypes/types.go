@@ -117,6 +117,28 @@ type ProgressBarLoad struct {
 	Timestamp int64
 }
 
+// BlocksGroupedInfo contains the data about a stake difficulty (ticket price) window,
+// including intrinsic properties (e.g. window index, ticket price, start block, etc.),
+// and aggregate transaction counts (e.g. number of votes, regular transactions,
+// new tickets, etc.)
+type BlocksGroupedInfo struct {
+	// intrinsic properties
+	WindowIndx    int64
+	EndBlock      int64
+	Difficulty    float64
+	TicketPrice   int64
+	StartTime     int64
+	Size          int64
+	FormattedTime string
+	FormattedSize string
+	// Aggregate properties
+	Voters       uint64
+	Transactions uint64
+	FreshStake   uint64
+	Revocations  uint64
+	BlocksCount  int64
+}
+
 // ChartGroupings helps maping a given chart grouping to its standard string value.
 var ChartGroupings = map[ChartGrouping]string{
 	AllChartGrouping:   "all",
@@ -574,4 +596,10 @@ type BlockStatus struct {
 	PrevHash    string `json:"previous_hash"`
 	Hash        string `json:"hash"`
 	NextHash    string `json:"next_hash"`
+}
+
+// SideChain represents blocks of a side chain, in ascending height order.
+type SideChain struct {
+	Hashes  []string
+	Heights []int64
 }

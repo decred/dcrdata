@@ -69,7 +69,9 @@ func (pgb *ChainDB) RetrieveAddressSpentUnspent(address string) (int64, int64, i
 	return RetrieveAddressSpentUnspent(pgb.db, address)
 }
 
-// Update Vin due to DCRD AMOUNTIN - START
+// RetrieveAddressIDsByOutpoint fetches all address row IDs for a given outpoint
+// (txHash:voutIndex). TODO: Update the vin due to the issue with amountin
+// invalid for unconfirmed txns.
 func (pgb *ChainDB) RetrieveAddressIDsByOutpoint(txHash string,
 	voutIndex uint32) ([]uint64, []string, int64, error) {
 	return RetrieveAddressIDsByOutpoint(pgb.db, txHash, voutIndex)
@@ -113,15 +115,13 @@ func (pgb *ChainDBRPC) GetTransactionHex(txid string) string {
 // GetBlockVerboseByHash returns a *dcrjson.GetBlockVerboseResult for the
 // specified block hash, optionally with transaction details.
 func (pgb *ChainDBRPC) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
-	return rpcutils.GetBlockVerboseByHash(pgb.Client, pgb.chainParams,
-		hash, verboseTx)
+	return rpcutils.GetBlockVerboseByHash(pgb.Client, hash, verboseTx)
 }
 
 // GetTransactionsForBlockByHash returns a *apitypes.BlockTransactions for the
 // block with the specified hash.
 func (pgb *ChainDBRPC) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
-	blockVerbose := rpcutils.GetBlockVerboseByHash(
-		pgb.Client, pgb.chainParams, hash, false)
+	blockVerbose := rpcutils.GetBlockVerboseByHash(pgb.Client, hash, false)
 
 	return makeBlockTransactions(blockVerbose)
 }

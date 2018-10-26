@@ -1,20 +1,20 @@
-{{define "sidechains"}}
+{{define "rejects"}}
 <!DOCTYPE html>
 <html lang="en">
 
-{{template "html-head" "Decred Side Chains"}}
+{{template "html-head" "Stakeholder Disapproved Blocks"}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
-        <h4><span title="side chain blocks known to this dcrdata instance"><img class="img-size40" src="/images/dcr-side-chains.svg" alt="side chain"> Side Chain Blocks</span></h4>
-
+        <h4><span title="blocks disapproved by stakeholder voting"><img class="img-size40" src="/images/pos-hammer.svg" alt="pos hammer"> Stakeholder Disapproved Blocks</span></h4>
+        <h6>There are currently {{len .Data}} blocks that have been <a href="https://docs.decred.org/faq/proof-of-stake/general/#9-what-is-proof-of-stake-voting">disapproved via PoS voting.</a></h6>
         <div class="row">
             <div class="col-md-12">
-                <table class="table striped table-responsive" id="sideblockstable">
+                <table class="table striped table-responsive" id="disapprovedblockstable">
                     <thead>
                         <tr>
                             <th>Height</th>
-                            <th>PoS Approved</th>
+                            <th>Main Chain</th>
                             <th>Parent</th>
                             <th>Child</th>
                         </tr>
@@ -23,7 +23,7 @@
                     {{range .Data}}
                         <tr id="{{ .Height }}">
                             <td class="mono fs15"><a href="/block/{{.Hash}}" class="fs16 height">{{ .Height }}</a></td>
-                            <td class="mono fs15">{{.IsValid}}</td>
+                            <td class="mono fs15">{{.IsMainchain}}</td>
                             <td class="break-word"><a href="/block/{{.PrevHash}}" class="hash lh1rem">{{ .PrevHash }}</a></td>
                             {{if .NextHash }}
                             <td class="break-word"><a href="/block/{{.NextHash}}" class="hash lh1rem">{{ .NextHash }}</a></td>

@@ -1,32 +1,6 @@
 package internal
 
 const (
-	insertAddressRow0 = `INSERT INTO addresses (address, matching_tx_hash, tx_hash,
-		tx_vin_vout_index, tx_vin_vout_row_id, value, block_time, is_funding, valid_mainchain, tx_type)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) `
-
-	InsertAddressRow = insertAddressRow0 + `RETURNING id;`
-
-	UpsertAddressRow = insertAddressRow0 + `ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE
-		SET matching_tx_hash = $2, tx_hash = $3, tx_vin_vout_index = $4,
-		block_time = $7, valid_mainchain = $9 RETURNING id;`
-	InsertAddressRowReturnID = `WITH inserting AS (` +
-		insertAddressRow0 +
-		`ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE
-			SET address = NULL WHERE FALSE
-			RETURNING id
-		)
-		SELECT id FROM inserting
-		UNION  ALL
-		SELECT id FROM addresses
-		WHERE  address = $1 AND is_funding = $8 AND tx_vin_vout_row_id = $5
-		LIMIT  1;`
-
-	// SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
-	// SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins WHERE prev_tx_hash=$1 AND prev_tx_index=$2;`
-	// SelectFundingTxsByTx      = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`
-	// SelectFundingTxByTxIn     = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1 AND tx_index=$2;`
-
 	CreateAddressTable = `CREATE TABLE IF NOT EXISTS addresses (
 		id SERIAL8 PRIMARY KEY,
 		address TEXT,
@@ -39,7 +13,69 @@ const (
 		tx_vin_vout_index INT4,
 		tx_vin_vout_row_id INT8,
 		tx_type INT4
-		);`
+	);`
+
+	// insertAddressRow is the basis for several address insert/upsert
+	// statements.
+	insertAddressRow = `INSERT INTO addresses (address, matching_tx_hash, tx_hash,
+		tx_vin_vout_index, tx_vin_vout_row_id, value, block_time, is_funding, valid_mainchain, tx_type)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) `
+
+	// InsertAddressRow inserts a address block row without checking for unique
+	// index conflicts. This should only be used before the unique indexes are
+	// created or there may be constraint violations (errors).
+	InsertAddressRow = insertAddressRow + `RETURNING id;`
+
+	// UpsertAddressRow is an upsert (insert or update on conflict), returning
+	// the inserted/updated address row id.
+	UpsertAddressRow = insertAddressRow + `ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO UPDATE
+		SET matching_tx_hash = $2, tx_hash = $3, tx_vin_vout_index = $4,
+		block_time = $7, valid_mainchain = $9 RETURNING id;`
+
+	// InsertAddressRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
+	// conflict with addresses' unique tx index, while returning the row id of
+	// either the inserted row or the existing row that causes the conflict. The
+	// complexity of this statement is necessary to avoid an unnecessary UPSERT,
+	// which would have performance consequences. The row is not locked.
+	InsertAddressRowOnConflictDoNothing = `WITH inserting AS (` +
+		insertAddressRow +
+		`	ON CONFLICT (tx_vin_vout_row_id, address, is_funding) DO NOTHING -- no lock on row
+			RETURNING id
+		)
+		SELECT id FROM inserting
+		UNION  ALL
+		SELECT id FROM addresses
+		WHERE  address = $1 AND is_funding = $8 AND tx_vin_vout_row_id = $5 -- only executed if no INSERT
+		LIMIT  1;`
+
+	// IndexAddressTableOnVoutID creates the unique index uix_addresses_vout_id
+	// on (tx_vin_vout_row_id, address, is_funding).
+	IndexAddressTableOnVoutID = `CREATE UNIQUE INDEX uix_addresses_vout_id
+		ON addresses(tx_vin_vout_row_id, address, is_funding);`
+	DeindexAddressTableOnVoutID = `DROP INDEX uix_addresses_vout_id;`
+
+	// IndexBlockTimeOnTableAddress creates a sorted index on block_time, which
+	// accelerates queries with ORDER BY block_time LIMIT n OFFSET m.
+	IndexBlockTimeOnTableAddress = `CREATE INDEX block_time_index
+		ON addresses(block_time DESC NULLS LAST);`
+	DeindexBlockTimeOnTableAddress = `DROP INDEX block_time_index;`
+
+	IndexMatchingTxHashOnTableAddress = `CREATE INDEX matching_tx_hash_index
+	    ON addresses(matching_tx_hash);`
+	DeindexMatchingTxHashOnTableAddress = `DROP INDEX matching_tx_hash_index;`
+
+	IndexAddressTableOnAddress = `CREATE INDEX uix_addresses_address
+		ON addresses(address);`
+	DeindexAddressTableOnAddress = `DROP INDEX uix_addresses_address;`
+
+	IndexAddressTableOnTxHash = `CREATE INDEX uix_addresses_funding_tx
+		ON addresses(tx_hash);`
+	DeindexAddressTableOnTxHash = `DROP INDEX uix_addresses_funding_tx;`
+
+	// SelectSpendingTxsByPrevTx = `SELECT id, tx_hash, tx_index, prev_tx_index FROM vins WHERE prev_tx_hash=$1;`
+	// SelectSpendingTxByPrevOut = `SELECT id, tx_hash, tx_index FROM vins WHERE prev_tx_hash=$1 AND prev_tx_index=$2;`
+	// SelectFundingTxsByTx      = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`
+	// SelectFundingTxByTxIn     = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1 AND tx_index=$2;`
 
 	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, valid_mainchain,
 		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
@@ -148,20 +184,13 @@ const (
 	SelectAddressIDByVoutIDAddress = `SELECT id FROM addresses WHERE address=$1 AND
 	    tx_vin_vout_row_id=$2 AND is_funding = TRUE;`
 
-	SetAddressFundingForMatchingTxHash = `UPDATE addresses SET matching_tx_hash=$1
-		WHERE tx_hash=$2 AND is_funding = TRUE AND tx_vin_vout_index=$3;`
-
-	SetAddressMainchainForVoutIDs = `UPDATE addresses SET valid_mainchain=$1
-		WHERE is_funding = TRUE AND tx_vin_vout_row_id=$2;`
-
-	SetAddressMainchainForVinIDs = `UPDATE addresses SET valid_mainchain=$1
-		WHERE is_funding = FALSE AND tx_vin_vout_row_id=$2;`
-
 	SelectAddressOldestTxBlockTime = `SELECT block_time FROM addresses WHERE
 		address=$1 ORDER BY block_time DESC LIMIT 1;`
 
-	// Rtx defines Regular transactions grouped into (SentRtx and ReceivedRtx),
-	// SSTx defines tickets, SSGen defines votes and SSRtx defines Revocation transactions
+	// SelectAddressTxTypesByAddress gets the transaction type histogram for the
+	// given address using block time binning with bin size of block_time.
+	// Regular transactions are grouped into (SentRtx and ReceivedRtx), SSTx
+	// defines tickets, SSGen defines votes, and SSRtx defines revocations.
 	SelectAddressTxTypesByAddress = `SELECT (block_time/$1)*$1 as timestamp,
 		COUNT(CASE WHEN tx_type = 0 AND is_funding = false THEN 1 ELSE NULL END) as SentRtx,
 		COUNT(CASE WHEN tx_type = 0 AND is_funding = true THEN 1 ELSE NULL END) as ReceivedRtx,
@@ -179,6 +208,30 @@ const (
 		SUM(value) as unspent FROM addresses WHERE address=$2 AND is_funding=TRUE
 		AND matching_tx_hash ='' GROUP BY timestamp ORDER BY timestamp;`
 
+	// UPDATEs/SETs
+
+	// SetAddressMatchingTxHashForOutpoint sets the matching tx hash (a spending
+	// transaction) for the addresses rows corresponding to the specified
+	// outpoint (tx_hash:tx_vin_vout_index), a funding tx row.
+	SetAddressMatchingTxHashForOutpoint = `UPDATE addresses SET matching_tx_hash=$1
+		WHERE tx_hash=$2 AND is_funding = TRUE AND tx_vin_vout_index=$3`  // not terminated with ;
+
+	// AssignMatchingTxHashForOutpoint is like
+	// SetAddressMatchingTxHashForOutpoint except that it only updates rows
+	// where matching_tx_hash is not already set.
+	AssignMatchingTxHashForOutpoint = SetAddressMatchingTxHashForOutpoint + ` AND matching_tx_hash='';`
+
+	SetAddressMainchainForVoutIDs = `UPDATE addresses SET valid_mainchain=$1
+		WHERE is_funding = TRUE AND tx_vin_vout_row_id=$2;`
+
+	SetAddressMainchainForVinIDs = `UPDATE addresses SET valid_mainchain=$1
+		WHERE is_funding = FALSE AND tx_vin_vout_row_id=$2;`
+
+	SetTxTypeOnAddressesByVinAndVoutIDs = `UPDATE addresses SET tx_type=$1 WHERE
+		tx_vin_vout_row_id=$2 AND is_funding=$3;`
+
+	// Patches/upgrades
+
 	// The SelectAddressesGloballyInvalid and UpdateAddressesGloballyInvalid
 	// queries are used to patch a bug in new block handling that neglected to
 	// set valid_mainchain=false for the previous block when the new block's
@@ -187,7 +240,7 @@ const (
 	// SelectAddressesGloballyInvalid selects the row ids of the addresses table
 	// corresponding to transactions that should have valid_mainchain set to
 	// false according to the transactions table. Should is defined as any
-	// occurence of a given transaction (hash) being flagged as is_valid AND
+	// occurrence of a given transaction (hash) being flagged as is_valid AND
 	// is_mainchain.
 	SelectAddressesGloballyInvalid = `SELECT id, valid_mainchain
 		FROM addresses
@@ -238,34 +291,23 @@ const (
 		SET valid_mainchain = (tr.is_mainchain::int * tr.is_valid::int)::boolean
 		FROM transactions AS tr
 		WHERE addresses.tx_hash = tr.tx_hash;`
-
-	SetTxTypeOnAddressesByVinAndVoutIDs = `UPDATE addresses SET tx_type=$1 WHERE
-		tx_vin_vout_row_id=$2 AND is_funding=$3;`
-
-	IndexBlockTimeOnTableAddress = `CREATE INDEX block_time_index
-		ON addresses (block_time DESC NULLS LAST);`
-	DeindexBlockTimeOnTableAddress = `DROP INDEX block_time_index;`
-
-	IndexMatchingTxHashOnTableAddress = `CREATE INDEX matching_tx_hash_index
-	    ON addresses (matching_tx_hash);`
-	DeindexMatchingTxHashOnTableAddress = `DROP INDEX matching_tx_hash_index;`
-
-	IndexAddressTableOnAddress = `CREATE INDEX uix_addresses_address
-		ON addresses(address);`
-	DeindexAddressTableOnAddress = `DROP INDEX uix_addresses_address;`
-
-	IndexAddressTableOnVoutID = `CREATE UNIQUE INDEX uix_addresses_vout_id
-		ON addresses(tx_vin_vout_row_id, address, is_funding);`
-	DeindexAddressTableOnVoutID = `DROP INDEX uix_addresses_vout_id;`
-
-	IndexAddressTableOnTxHash = `CREATE INDEX uix_addresses_funding_tx
-		ON addresses(tx_hash);`
-	DeindexAddressTableOnTxHash = `DROP INDEX uix_addresses_funding_tx;`
 )
 
-func MakeAddressRowInsertStatement(checked bool) string {
-	if checked {
+// MakeAddressRowInsertStatement returns the appropriate addresses insert statement for
+// the desired conflict checking and handling behavior. For checked=false, no ON
+// CONFLICT checks will be performed, and the value of updateOnConflict is
+// ignored. This should only be used prior to creating the unique indexes as
+// these constraints will cause an errors if an inserted row violates a
+// constraint. For updateOnConflict=true, an upsert statement will be provided
+// that UPDATEs the conflicting row. For updateOnConflict=false, the statement
+// will either insert or do nothing, and return the inserted (new) or
+// conflicting (unmodified) row id.
+func MakeAddressRowInsertStatement(checked, updateOnConflict bool) string {
+	if !checked {
+		return InsertAddressRow
+	}
+	if updateOnConflict {
 		return UpsertAddressRow
 	}
-	return InsertAddressRow
+	return InsertAddressRowOnConflictDoNothing
 }

@@ -25,6 +25,7 @@ const (
 	NotFoundStatusType       statusType = "Not Found"
 	NotSupportedStatusType   statusType = "Not Supported"
 	NotImplementedStatusType statusType = "Not Implemented"
+	WrongNetworkStatusType   statusType = "Wrong Network"
 	DeprecatedStatusType     statusType = "Deprecated"
 	BlockchainSyncingType    statusType = "Blocks Syncing"
 )
@@ -42,6 +43,7 @@ type BlockBasic struct {
 	MainChain      bool   `json:"mainchain"`
 	Voters         uint16 `json:"votes"`
 	Transactions   int    `json:"tx"`
+	WindowIndx     int64  `json:"windowIndex"`
 	FreshStake     uint8  `json:"tickets"`
 	Revocations    uint32 `json:"revocations"`
 	BlockTime      int64  `json:"time"`
@@ -377,8 +379,8 @@ type VotingInfo struct {
 	votedTickets     map[string]bool
 }
 
-// ChainParams models simple data about the chain server's parameters used for some
-// info on the front page
+// ChainParams models simple data about the chain server's parameters used for
+// some info on the front page.
 type ChainParams struct {
 	WindowSize       int64 `json:"window_size"`
 	RewardWindowSize int64 `json:"reward_window_size"`
@@ -477,6 +479,7 @@ type NewMempoolTx struct {
 // ExtendedChainParams represents the data of ChainParams
 type ExtendedChainParams struct {
 	Params               *chaincfg.Params
+	MaximumBlockSize     int
 	ActualTicketPoolSize int64
 	AddressPrefix        []AddrPrefix
 }

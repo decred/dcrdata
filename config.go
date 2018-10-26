@@ -90,21 +90,22 @@ type config struct {
 	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
 
 	// Data I/O
-	MonitorMempool     bool   `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added."`
-	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen."`
-	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen."`
-	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report."`
-	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool."`
-	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)."`
-	AgendaDBFileName   string `long:"agendadbfile" description:"Agenda DB file name (default is agendas.db)."`
+	MonitorMempool     bool   `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added." env:"DCRDATA_ENABLE_MEMPOOL_MONITOR"`
+	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
+	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MAX_INTERVAL"`
+	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report." env:"DCRDATA_MP_TRIGGER_TICKETS"`
+	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool." env:"DCRDATA_ENABLE_DUMP_ALL_MP_TIX"`
+	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)." env:"DCRDATA_SQLITE_DB_FILE_NAME"`
+	AgendaDBFileName   string `long:"agendadbfile" description:"Agenda DB file name (default is agendas.db)." env:"DCRDATA_AGENDA_DB_FILE_NAME"`
 
-	FullMode      bool   `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support"`
-	PGDBName      string `long:"pgdbname" description:"PostgreSQL DB name."`
-	PGUser        string `long:"pguser" description:"PostgreSQL DB user."`
-	PGPass        string `long:"pgpass" description:"PostgreSQL DB password."`
-	PGHost        string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)."`
-	NoDevPrefetch bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected."`
-	SyncAndQuit   bool   `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API."`
+	FullMode         bool   `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support" env:"DCRDATA_ENABLE_FULL_MODE"`
+	PGDBName         string `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
+	PGUser           string `long:"pguser" description:"PostgreSQL DB user." env:"DCRDATA_POSTGRES_USER"`
+	PGPass           string `long:"pgpass" description:"PostgreSQL DB password." env:"DCRDATA_POSTGRES_PASS"`
+	PGHost           string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)." env:"DCRDATA_POSTGRES_HOST_URL"`
+	NoDevPrefetch    bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
+	SyncAndQuit      bool   `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
+	ImportSideChains bool   `long:"import-side-chains" description:"(experimental) Enable startup import of side chains retrieved from dcrd via getchaintips." env:"DCRDATA_IMPORT_SIDE_CHAINS"`
 
 	SyncStatusLimit int64 `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000."`
 
@@ -275,16 +276,29 @@ func loadConfig() (*config, error) {
 	loadConfigError := func(err error) (*config, error) {
 		return nil, err
 	}
-	// Default config.
+
+	// Default config
 	cfg := defaultConfig
-	// Load environment variables into the config overriding the default config
+	defaultConfigNow := defaultConfig
+
+	// Load settings from environment variables.
 	err := env.Parse(&cfg)
 	if err != nil {
 		return loadConfigError(err)
 	}
-	// Pre-parse the command line options to see if an alternative config
-	// file or the version flag was specified.
-	// Override any environment variables with parsed command flags
+
+	// If appdata was specified but not the config file, change the config file
+	// path, and record this as the new default config file location.
+	if defaultHomeDir != cfg.HomeDir && defaultConfigNow.ConfigFile == cfg.ConfigFile {
+		cfg.ConfigFile = filepath.Join(cfg.HomeDir, defaultConfigFilename)
+		// Update the defaultConfig to avoid an error if the config file in this
+		// "new default" location does not exist.
+		defaultConfigNow.ConfigFile = cfg.ConfigFile
+	}
+
+	// Pre-parse the command line options to see if an alternative config file
+	// or the version flag was specified. Override any environment variables
+	// with parsed command line flags.
 	preCfg := cfg
 	preParser := flags.NewParser(&preCfg, flags.HelpFlag|flags.PassDoubleDash)
 	_, flagerr := preParser.Parse()
@@ -310,14 +324,29 @@ func loadConfig() (*config, error) {
 		os.Exit(0)
 	}
 
+	// If a non-default appdata folder is specified on the command line, it may
+	// be necessary adjust the config file location. If the the config file
+	// location was not specified on the command line, the default location
+	// should be under the non-default appdata directory. However, if the config
+	// file was specified on the command line, it should be used regardless of
+	// the appdata directory.
+	if defaultHomeDir != preCfg.HomeDir && defaultConfigNow.ConfigFile == preCfg.ConfigFile {
+		preCfg.ConfigFile = filepath.Join(preCfg.HomeDir, defaultConfigFilename)
+		// Update the defaultConfig to avoid an error if the config file in this
+		// "new default" location does not exist.
+		defaultConfigNow.ConfigFile = preCfg.ConfigFile
+	}
+
 	// Load additional config from file.
 	var configFileError error
 	// Config file name for logging.
 	configFile := "NONE (defaults)"
 	parser := flags.NewParser(&cfg, flags.Default)
+
+	// Do not error default config file is missing.
 	if _, err := os.Stat(preCfg.ConfigFile); os.IsNotExist(err) {
 		// Non-default config file must exist
-		if defaultConfig.ConfigFile != preCfg.ConfigFile {
+		if defaultConfigNow.ConfigFile != preCfg.ConfigFile {
 			fmt.Fprintln(os.Stderr, err)
 			return loadConfigError(err)
 		}
@@ -364,6 +393,19 @@ func loadConfig() (*config, error) {
 		err := fmt.Errorf(str, funcName, err)
 		fmt.Fprintln(os.Stderr, err)
 		return nil, err
+	}
+
+	// If a non-default appdata folder is specified, it may be necessary to
+	// adjust the DataDir and LogDir. If these other paths are their defaults,
+	// they should be modifed to look under the non-default appdata directory.
+	// If they are not their defaults, the user-specified values should be used.
+	if defaultHomeDir != cfg.HomeDir {
+		if defaultDataDir == cfg.DataDir {
+			cfg.DataDir = filepath.Join(cfg.HomeDir, defaultDataDirname)
+		}
+		if defaultLogDir == cfg.LogDir {
+			cfg.LogDir = filepath.Join(cfg.HomeDir, defaultLogDirname)
+		}
 	}
 
 	// Warn about missing config file after the final command line parse
@@ -427,6 +469,12 @@ func loadConfig() (*config, error) {
 
 	log.Infof("Log folder:  %s", cfg.LogDir)
 	log.Infof("Config file: %s", configFile)
+
+	// If import-sidechains is true, but not running in full mode, warn the user
+	// that side chain import cannot be performed.
+	if !cfg.FullMode && cfg.ImportSideChains {
+		log.Warn("Unable to import side chains in lite mode!")
+	}
 
 	// Disable dev balance prefetch if network has invalid script.
 	_, err = dbtypes.DevSubsidyAddress(activeChain)

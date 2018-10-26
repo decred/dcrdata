@@ -71,6 +71,7 @@
                 <span class="patty short"></span>
                 <div id="menu">
                     <a data-keynav-skip href="/" title="Home">Home</a>
+                    <a data-keynav-skip href="/ticketpricewindows" title="Decred windows">Windows</a>
                     <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
                     <a data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
                     <a data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
@@ -87,7 +88,7 @@
                     <a data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
                         <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
                     </a>
-                    <a data-keynav-skip href="https://github.com/decred/dcrdata#json-rest-api" title="API Endpoints" target="_blank">JSON API Docs</a>
+                    <a data-keynav-skip href="https://github.com/decred/dcrdata#apis" title="API Endpoints" target="_blank" rel="noopener noreferrer">API Docs</a>
                 </div>
             </div>
         </nav>
@@ -245,6 +246,7 @@
             if (expTableRows){
                 expTableRows.last().remove()
                 var newRow = '<tr id="' + b.height + '">' +
+                    '<td>' + b.windowIndex + '</td>'+
                     '<td><a href="/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
                     '<td>' + b.tx + '</td>' +
                     '<td>' + b.votes + '</td>' +
@@ -257,7 +259,7 @@
                 var newRowHtml = $.parseHTML(newRow)
                 $(newRowHtml).insertBefore(expTableRows.first())
             }
-            
+
 
             var ex = newBlock.extra
             if (window.location.pathname == "/nexthome"){
@@ -383,8 +385,8 @@
 <footer class="navbar-fixed-bottom">
     <div class="container wrapper text-center">
         <div style="text-align: left; margin:0 auto !important; display:inline-block">
-            <a class="nav-item" href="https://github.com/decred/dcrdata" title="dcrdata on GitHub" target="_blank">dcrdata v{{.Version}}</a>
-            <a class="nav-item" href="https://github.com/decred/dcrdata/blob/master/LICENSE" target="_blank">© 2018 The Decred developers (ISC)</a>
+            <a class="nav-item" href="https://github.com/decred/dcrdata" title="dcrdata on GitHub" target="_blank" rel="noopener noreferrer">dcrdata v{{.Version}}</a>
+            <a class="nav-item" href="https://github.com/decred/dcrdata/blob/master/LICENSE" target="_blank" rel="noopener noreferrer">© 2018 The Decred developers (ISC)</a>
         </div>
         <div style="float: right;">
             <span data-turbolinks-permanent class="nav-item" id="connection"
@@ -600,7 +602,7 @@ const app = Stimulus.Application.start()
     <span class="int">{{ index . 0 }}.{{ index . 1 }}</span>
     {{if gt (len (index . 2)) 0}}<span class="decimal lh15rem">{{ index . 2 }}</span>
     <span class="decimal lh15rem trailing-zeroes">{{ index . 3 }}</span>{{end}}
-    {{else}} 
+    {{else}}
     <span class="int">{{index . 0}}</span>
     {{if gt (len (index . 1)) 0}}<span class="decimal lh15rem dot">.</span>
     <span class="decimal lh15rem">{{index . 1 }}</span>

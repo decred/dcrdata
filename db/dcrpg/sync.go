@@ -139,7 +139,7 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 	}
 
 	// Total and rate statistics
-	var totalTxs, totalVins, totalVouts int64
+	var totalTxs, totalVins, totalVouts, totalAddresses int64
 	var lastTxs, lastVins, lastVouts int64
 	tickTime := 20 * time.Second
 	ticker := time.NewTicker(tickTime)
@@ -285,34 +285,40 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		}
 		winners := tpi.Winners
 
-		// If this is likely to be the last call to StoreBlock, allow
-		// possibly-repetative code, such as the dev balance update.
-		if ib == nodeHeight {
-			db.InBatchSync = false
-		}
-
 		// Store data from this block in the database
-		numVins, numVouts, err := db.StoreBlock(block.MsgBlock(), winners, true,
-			true, !updateAllAddresses, !updateAllVotes)
+		isValid, isMainchain := true, true
+		// updateExisting is ignored if dupCheck=false, but true since this is
+		// processing main chain blocks.
+		updateExisting := true
+		numVins, numVouts, numAddresses, err := db.StoreBlock(block.MsgBlock(), winners, isValid,
+			isMainchain, updateExisting, !updateAllAddresses, !updateAllVotes)
 		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}
 		totalVins += numVins
 		totalVouts += numVouts
+		totalAddresses += numAddresses
 
 		// Total transactions is the sum of regular and stake transactions
 		totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
+
+		// If updating explorer is activated, update it at intervals of 20
+		if updateExplorer != nil && ib%20 == 0 &&
+			explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
+			log.Infof("Updating the explorer with information for block %v", ib)
+			updateExplorer <- blockHash
+		}
 
 		// Update height, the end condition for the loop
 		if nodeHeight, err = client.NodeHeight(); err != nil {
 			return ib, fmt.Errorf("GetBestBlock failed: %v", err)
 		}
+	}
 
-		// If updating explorer is activated, update it at intervals of 20
-		if updateExplorer != nil && ib%20 == 0 && explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
-			log.Infof("Updating the explorer with information for block %v", ib)
-			updateExplorer <- blockHash
-		}
+	// After the last call to StoreBlock, synchronously update the project fund
+	// and clear the general address balance cache.
+	if err = db.FreshenAddressCaches(false); err != nil {
+		log.Warnf("FreshenAddressCaches: %v", err)
 	}
 
 	// Signal the end of the initial load sync
@@ -394,8 +400,8 @@ func (db *ChainDB) SyncChainDB(client rpcutils.MasterBlockGetter, quit chan stru
 		barLoad <- &dbtypes.ProgressBarLoad{BarID: barID, Subtitle: "sync complete"}
 	}
 
-	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs",
-		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts)
+	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs, %d addresses",
+		nodeHeight, nodeHeight-startHeight+1, totalTxs, totalVins, totalVouts, totalAddresses)
 
 	return nodeHeight, err
 }

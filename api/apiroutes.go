@@ -79,7 +79,7 @@ type DataSourceLite interface {
 	GetAddressTransactionsWithSkip(addr string, count, skip int) *apitypes.Address
 	GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw
 	SendRawTransaction(txhex string) (string, error)
-	GetExplorerAddress(address string, count, offset int64) *explorer.AddressInfo
+	GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, error)
 }
 
 // DataSourceAux specifies an interface for advanced data collection using the
@@ -179,7 +179,7 @@ out:
 
 			summary := c.BlockData.GetBestBlockSummary()
 			if summary == nil {
-				log.Errorf("BlockData summary is nil")
+				log.Errorf("BlockData summary is nil for height %d.", height)
 				break keepon
 			}
 
