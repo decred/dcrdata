@@ -21,7 +21,7 @@
                 </span>
             </h4>
             <div class="lh1rem mb-1">
-                <span class="break-word fs15 w80 mr-1">{{.TxID}}</span>
+                <span id="spanTxID" data-tx-page-txid="{{.TxID}}" class="break-word fs15 w80 mr-1">{{.TxID}}</span>
                 <span class="nowrap">
                     <a class="fs13 nowrap" href="/api/tx/decoded/{{.TxID}}?indent=true" data-turbolinks="false">view decoded</a>
                     <span class="sep"></span>

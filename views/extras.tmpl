@@ -225,21 +225,34 @@
             $("#decode_header").text("Sent tx");
             $("#decoded_tx").text(evt);
         })
+
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
-            var confirms = $('[data-confirmation-block-height]');
-            $.each(confirms, function(i, v) {
-                if (isNaN($(v).text())) {
-                    $(v).text("0");
-                }
-                var confirmations = newBlock.block.height - $(v).data('confirmation-block-height');
-                $(v).text("(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")")
-            })
 
             // block summary data
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
+
+            var currentTxHash = $('#spanTxID').data('tx-page-txid');
+            if(currentTxHash) { // we are on the tx page
+                if((b.Tx.filter(function (tx) {
+                    return tx.TxID === currentTxHash
+                })).length > 0){
+                    // the current tx is in the received block
+                    Turbolinks.visit(window.location)
+                }
+            }else {
+                var confirms = $('[data-confirmation-block-height]');
+                $.each(confirms, function(i, v) {
+                    if (isNaN($(v).text())) {
+                        $(v).text("0");
+                    }
+                    var confirmations = newBlock.block.height - $(v).data('confirmation-block-height');
+                    // todo number of confirmations on the tx page should be handled seperately
+                    $(v).text("(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")")
+                })
+            }
 
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
@@ -309,6 +322,8 @@
                 $("#pool_size_percentage").html(parseFloat(ex.pool_info.percent).toFixed(2))
             }
         };
+
+
         ws.registerEvtHandler("newblock", updateBlockData);
 
         ws.registerEvtHandler("mempool", function(event){

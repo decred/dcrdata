@@ -1,0 +1,422 @@
+{
+  "block": {
+    "height": 282800,
+    "hash": "0000000000000000024ac76ef66a28c807312ee55570c84b3a005656f7538631",
+    "size": 10789,
+    "valid": true,
+    "mainchain": true,
+    "votes": 5,
+    "tx": 4,
+    "windowIndex": 1964,
+    "tickets": 13,
+    "revocations": 0,
+    "time": 1539437408,
+    "formatted_time": "2018-10-13 14:30:08",
+    "formatted_bytes": "11 kB",
+    "Version": 5,
+    "Confirmations": 3638,
+    "StakeRoot": "0628b1d1c9ff1b471b59552f0ef61100a87c0c4ca56ef8dba35c3182659319f0",
+    "MerkleRoot": "eb7c697b58eeae361051069f2a0b518ae966138509dba7b458a5ddcab1ab1386",
+    "TxAvailable": false,
+    "Tx": [
+      {
+        "TxID": "94d027e20c96c3f3b08a6831a35dba212484f0a251a227cc69ccb4c5fd0c691e",
+        "FormattedSize": "925 B",
+        "Total": 346.29058209,
+        "Fee": 93100,
+        "FeeRate": 100648,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "a1504a96c5bcd9675a6203569d27bfad0e668918e80ab574e3943444c54581e1",
+        "FormattedSize": "616 B",
+        "Total": 101.41346114,
+        "Fee": 62100,
+        "FeeRate": 100811,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "dddeab009cb7af298e426a450036e909f71d295c652fac18651056f4cd14c70e",
+        "FormattedSize": "617 B",
+        "Total": 98.20106474,
+        "Fee": 62100,
+        "FeeRate": 100648,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "8fb0e436c858b8751403c2c269f3711b5a62b826ccec0309969ac2c0ee3be49c",
+        "FormattedSize": "183 B",
+        "Total": 13.82549611,
+        "Fee": 0,
+        "FeeRate": 0,
+        "VoteInfo": null,
+        "Coinbase": true
+      }
+    ],
+    "Tickets": [
+      {
+        "TxID": "77441b3f2820e210c3e5516bf2855a570713a2d68560c9799298029bb6b9f880",
+        "FormattedSize": "538 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 102230,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "5cc6937262074bdd30df3f4b8ba3d14a5a51cf8e6bb2a1a48364c91f1acf6d1d",
+        "FormattedSize": "539 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 102040,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "d4432e2f3609628de81a4806056050e59c8200c3720cb769ece6b65de0e74fbc",
+        "FormattedSize": "539 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 102040,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "49a878fc9c0bd9f3d1c1c2152b476107085f56e5133f067be52e88e485b8e95a",
+        "FormattedSize": "539 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 102040,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "856b0c88f60d642336ef56b5baa28e22671d37f196d20c37d0b8de3c9e086333",
+        "FormattedSize": "539 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 102040,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "bcd8b7cfe7c49ffd42c814ef288a2205285a37e1dd659e39da15018304797386",
+        "FormattedSize": "539 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 102040,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "9ea432353c6d9e24623aeef8ac326f9f33eb5d6b6d4a5583f424179f6cfbfe88",
+        "FormattedSize": "540 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 101851,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "e5777f66c2f81438a608fc1dc892d1128f6a6df2bb1721c9f27bbae622651e35",
+        "FormattedSize": "540 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 101851,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "bfe0947f4f3a3fd0fac2e0901d8ec537f29766a423eb9bc67568e17d7c411586",
+        "FormattedSize": "540 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 101851,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "a7c73653087b1022dd37a98c59c381a9c534a1d8dee8820d41d19c291e44b304",
+        "FormattedSize": "540 B",
+        "Total": 98.17357605,
+        "Fee": 55000,
+        "FeeRate": 101851,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "e0ef94db8e7894ed8463f760e36f28d3105c57c40244d5068ee1bf27b30a9cdf",
+        "FormattedSize": "296 B",
+        "Total": 98.17357605,
+        "Fee": 30000,
+        "FeeRate": 101351,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "f9b783b7009985ef142c9527c0f7ead27da278e0c4d2cf56a83dd41420be4d34",
+        "FormattedSize": "296 B",
+        "Total": 98.17357605,
+        "Fee": 30000,
+        "FeeRate": 101351,
+        "VoteInfo": null,
+        "Coinbase": false
+      },
+      {
+        "TxID": "132dc6e662ae603bf1f733b590e7b23d26b113ab5c53eda6886db0f66b29a5e9",
+        "FormattedSize": "296 B",
+        "Total": 98.17357605,
+        "Fee": 30000,
+        "FeeRate": 101351,
+        "VoteInfo": null,
+        "Coinbase": false
+      }
+    ],
+    "Revs": [],
+    "Votes": [
+      {
+        "TxID": "d80bf982b333187dc8b43a14e3f96d4c6c0aef58c4583cfad72ea80e35a27304",
+        "FormattedSize": "419 B",
+        "Total": 101.63370229,
+        "Fee": 1,
+        "FeeRate": 2,
+        "VoteInfo": {
+          "block_validation": {
+            "hash": "00000000000000000d0658be3453fa95708f0f5d6c43ff60d3421edf7c95006a",
+            "height": 282799,
+            "validity": true
+          },
+          "vote_version": 5,
+          "vote_bits": 1,
+          "vote_choices": [
+            {
+              "id": "lnfeatures",
+              "description": "Enable features defined in DCP0002 and DCP0003 necessary to support Lightning Network (LN)",
+              "mask": 6,
+              "vote_version": 5,
+              "vote_index": 0,
+              "choice_index": 0,
+              "choice": {
+                "Id": "abstain",
+                "Description": "abstain voting for change",
+                "Bits": 0,
+                "IsAbstain": true,
+                "IsNo": false
+              }
+            }
+          ],
+          "ticket_spent": "",
+          "mempool_ticket_index": 0,
+          "last_block": false
+        },
+        "Coinbase": false
+      },
+      {
+        "TxID": "c9d98059e0f1e7a081d5adba4fd8f899e3bea706b3958ac7f8599f913cb90c35",
+        "FormattedSize": "420 B",
+        "Total": 101.3580496,
+        "Fee": 1,
+        "FeeRate": 2,
+        "VoteInfo": {
+          "block_validation": {
+            "hash": "00000000000000000d0658be3453fa95708f0f5d6c43ff60d3421edf7c95006a",
+            "height": 282799,
+            "validity": true
+          },
+          "vote_version": 5,
+          "vote_bits": 1,
+          "vote_choices": [
+            {
+              "id": "lnfeatures",
+              "description": "Enable features defined in DCP0002 and DCP0003 necessary to support Lightning Network (LN)",
+              "mask": 6,
+              "vote_version": 5,
+              "vote_index": 0,
+              "choice_index": 0,
+              "choice": {
+                "Id": "abstain",
+                "Description": "abstain voting for change",
+                "Bits": 0,
+                "IsAbstain": true,
+                "IsNo": false
+              }
+            }
+          ],
+          "ticket_spent": "",
+          "mempool_ticket_index": 0,
+          "last_block": false
+        },
+        "Coinbase": false
+      },
+      {
+        "TxID": "f6525dc3d23ac881e785ac8ada81bcb5de52eadb42154e2e659eab5cd6553156",
+        "FormattedSize": "344 B",
+        "Total": 99.24683351,
+        "Fee": 0,
+        "FeeRate": 0,
+        "VoteInfo": {
+          "block_validation": {
+            "hash": "00000000000000000d0658be3453fa95708f0f5d6c43ff60d3421edf7c95006a",
+            "height": 282799,
+            "validity": true
+          },
+          "vote_version": 5,
+          "vote_bits": 1,
+          "vote_choices": [
+            {
+              "id": "lnfeatures",
+              "description": "Enable features defined in DCP0002 and DCP0003 necessary to support Lightning Network (LN)",
+              "mask": 6,
+              "vote_version": 5,
+              "vote_index": 0,
+              "choice_index": 0,
+              "choice": {
+                "Id": "abstain",
+                "Description": "abstain voting for change",
+                "Bits": 0,
+                "IsAbstain": true,
+                "IsNo": false
+              }
+            }
+          ],
+          "ticket_spent": "",
+          "mempool_ticket_index": 0,
+          "last_block": false
+        },
+        "Coinbase": false
+      },
+      {
+        "TxID": "e05072eb6e9570d7b14f8b23e0dda5fe6075cd1e182e5797eea94dbbdf52a5da",
+        "FormattedSize": "382 B",
+        "Total": 99.23366867,
+        "Fee": 0,
+        "FeeRate": 0,
+        "VoteInfo": {
+          "block_validation": {
+            "hash": "00000000000000000d0658be3453fa95708f0f5d6c43ff60d3421edf7c95006a",
+            "height": 282799,
+            "validity": true
+          },
+          "vote_version": 5,
+          "vote_bits": 5,
+          "vote_choices": [
+            {
+              "id": "lnfeatures",
+              "description": "Enable features defined in DCP0002 and DCP0003 necessary to support Lightning Network (LN)",
+              "mask": 6,
+              "vote_version": 5,
+              "vote_index": 0,
+              "choice_index": 2,
+              "choice": {
+                "Id": "yes",
+                "Description": "change to the new consensus rules",
+                "Bits": 4,
+                "IsAbstain": false,
+                "IsNo": false
+              }
+            }
+          ],
+          "ticket_spent": "",
+          "mempool_ticket_index": 0,
+          "last_block": false
+        },
+        "Coinbase": false
+      },
+      {
+        "TxID": "edaeab3716c915b6e91e0b851616e32e5a684a8f16384b1716196f4ff9bf874d",
+        "FormattedSize": "420 B",
+        "Total": 97.55578896,
+        "Fee": 1,
+        "FeeRate": 2,
+        "VoteInfo": {
+          "block_validation": {
+            "hash": "00000000000000000d0658be3453fa95708f0f5d6c43ff60d3421edf7c95006a",
+            "height": 282799,
+            "validity": true
+          },
+          "vote_version": 5,
+          "vote_bits": 5,
+          "vote_choices": [
+            {
+              "id": "lnfeatures",
+              "description": "Enable features defined in DCP0002 and DCP0003 necessary to support Lightning Network (LN)",
+              "mask": 6,
+              "vote_version": 5,
+              "vote_index": 0,
+              "choice_index": 2,
+              "choice": {
+                "Id": "yes",
+                "Description": "change to the new consensus rules",
+                "Bits": 4,
+                "IsAbstain": false,
+                "IsNo": false
+              }
+            }
+          ],
+          "ticket_spent": "",
+          "mempool_ticket_index": 0,
+          "last_block": false
+        },
+        "Coinbase": false
+      }
+    ],
+    "Misses": null,
+    "Nonce": 420380900,
+    "VoteBits": 1,
+    "FinalState": "d049c8cbe77f",
+    "PoolSize": 40907,
+    "Bits": "19008209",
+    "SBits": 98.17357605,
+    "Difficulty": 8455366089.199435,
+    "ExtraData": "000000000000e1009dd392810000000000000000000000000000000000000000",
+    "StakeVersion": 5,
+    "PreviousHash": "00000000000000000d0658be3453fa95708f0f5d6c43ff60d3421edf7c95006a",
+    "NextHash": "00000000000000003e97f1734ed4d7f779ec2006e647e31bd563fb6a38641932",
+    "TotalSent": 2335.01513576,
+    "MiningFee": 857303,
+    "StakeValidationHeight": 4096,
+    "AllTxs": 22
+  },
+  "extra": {
+    "coin_supply": 870419103029386,
+    "sdiff": 98.17357605,
+    "next_expected_sdiff": 0,
+    "next_expected_min": 0,
+    "next_expected_max": 0,
+    "window_idx": 129,
+    "reward_idx": 176,
+    "difficulty": 8455366089.199435,
+    "dev_fund": 0,
+    "dev_address": "Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx",
+    "reward": 1.2063405833325556,
+    "reward_period": "29.07 days",
+    "ASR": 13.36130847313083,
+    "subsidy": {
+      "total": 1973846153,
+      "pow": 1184307693,
+      "pos": 592153845,
+      "dev": 197384615
+    },
+    "params": {
+      "window_size": 144,
+      "reward_window_size": 6144,
+      "target_pool_size": 0,
+      "target_block_time": 300000000000,
+      "MeanVotingBlocks": 7860
+    },
+    "pool_info": {
+      "size": 40906,
+      "value": 3986322.05280386,
+      "valavg": 97.45079090607393,
+      "percent": 45.79773167810724,
+      "target": 40960,
+      "percent_target": 99.8681640625
+    },
+    "total_locked_dcr": 0,
+    "hash_rate": 121.05173609606332,
+    "hash_rate_change": 6.56072576526781
+  }
+}
