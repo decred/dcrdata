@@ -5,6 +5,7 @@
 package dcrpg
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -24,8 +25,8 @@ type ReorgData struct {
 
 // ChainMonitor responds to block connection and chain reorganization.
 type ChainMonitor struct {
+	ctx            context.Context
 	db             *ChainDBRPC
-	quit           chan struct{}
 	wg             *sync.WaitGroup
 	blockChan      chan *chainhash.Hash
 	reorgChan      chan *ReorgData
@@ -41,14 +42,14 @@ type ChainMonitor struct {
 }
 
 // NewChainMonitor creates a new ChainMonitor.
-func (db *ChainDBRPC) NewChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
+func (db *ChainDBRPC) NewChainMonitor(ctx context.Context, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
 	if db == nil {
 		return nil
 	}
 	return &ChainMonitor{
+		ctx:            ctx,
 		db:             db,
-		quit:           quit,
 		wg:             wg,
 		blockChan:      blockChan,
 		reorgChan:      reorgChan,
@@ -135,11 +136,9 @@ out:
 
 			release()
 
-		case _, ok := <-p.quit:
-			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler.")
-				break out
-			}
+		case <-p.ctx.Done():
+			log.Debugf("Got quit signal. Exiting block connected handler.")
+			break out
 		}
 	}
 
@@ -291,11 +290,9 @@ out:
 
 			reorgData.WG.Done()
 
-		case _, ok := <-p.quit:
-			if !ok {
-				log.Debugf("Got quit signal. Exiting reorg notification handler.")
-				break out
-			}
+		case <-p.ctx.Done():
+			log.Debugf("Got quit signal. Exiting reorg notification handler.")
+			break out
 		}
 	}
 }

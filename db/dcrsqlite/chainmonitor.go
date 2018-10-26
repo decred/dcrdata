@@ -5,6 +5,7 @@
 package dcrsqlite
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -23,9 +24,9 @@ type ReorgData struct {
 
 // ChainMonitor handles change notifications from the node client
 type ChainMonitor struct {
+	ctx            context.Context
 	db             *wiredDB
 	collector      *blockdata.Collector
-	quit           chan struct{}
 	wg             *sync.WaitGroup
 	blockChan      chan *chainhash.Hash
 	reorgChan      chan *ReorgData
@@ -41,12 +42,12 @@ type ChainMonitor struct {
 }
 
 // NewChainMonitor creates a new ChainMonitor
-func (db *wiredDB) NewChainMonitor(collector *blockdata.Collector, quit chan struct{}, wg *sync.WaitGroup,
+func (db *wiredDB) NewChainMonitor(ctx context.Context, collector *blockdata.Collector, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
 	return &ChainMonitor{
+		ctx:            ctx,
 		db:             db,
 		collector:      collector,
-		quit:           quit,
 		wg:             wg,
 		blockChan:      blockChan,
 		reorgChan:      reorgChan,
@@ -134,11 +135,9 @@ out:
 			}
 			release()
 
-		case _, ok := <-p.quit:
-			if !ok {
-				log.Debugf("Got quit signal. Exiting block connected handler.")
-				break out
-			}
+		case <-p.ctx.Done():
+			log.Debugf("Got quit signal. Exiting block connected handler.")
+			break out
 		}
 	}
 
@@ -251,11 +250,9 @@ out:
 
 			reorgData.WG.Done()
 
-		case _, ok := <-p.quit:
-			if !ok {
-				log.Debugf("Got quit signal. Exiting reorg notification handler.")
-				break out
-			}
+		case <-p.ctx.Done():
+			log.Debugf("Got quit signal. Exiting reorg notification handler.")
+			break out
 		}
 	}
 }

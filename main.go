@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
@@ -42,9 +42,25 @@ import (
 	"github.com/google/gops/agent"
 )
 
-// mainCore does all the work. Deferred functions do not run after os.Exit(),
-// so main wraps this function, which returns a code.
-func mainCore() error {
+func main() {
+	// Create a context that is cancelled when a shutdown request is received
+	// via requestShutdown.
+	ctx := withShutdownCancel(context.Background())
+	// Listen for both interrupt signals and shutdown requests.
+	go shutdownListener()
+
+	if err := _main(ctx); err != nil {
+		if logRotator != nil {
+			log.Error(err)
+		}
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+// _main does all the work. Deferred functions do not run after os.Exit(), so
+// main wraps this function, which returns a code.
+func _main(ctx context.Context) error {
 	// Parse the configuration file, and setup logger.
 	cfg, err := loadConfig()
 	if err != nil {
@@ -125,27 +141,6 @@ func mainCore() error {
 		return fmt.Errorf("expected network %s, got %s", activeNet.Net, curnet)
 	}
 
-	// Ctrl-C to shut down.
-	// Nothing should be sent the quit channel.  It should only be closed.
-	quit := make(chan struct{})
-	// Only accept a single CTRL+C
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-
-	// Start waiting for the interrupt signal
-	go func() {
-		<-c
-		// Close the channel so multiple goroutines can get the message
-		log.Infof("CTRL+C hit.  Closing goroutines.")
-		close(quit)
-		for {
-			select {
-			case <-c:
-			}
-			log.Info("Shutdown signaled.  Already shutting down...")
-		}
-	}()
-
 	// Sqlite output
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
@@ -176,7 +171,7 @@ func mainCore() error {
 			Pass:   cfg.PGPass,
 			DBName: cfg.PGDBName,
 		}
-		chainDB, err := dcrpg.NewChainDB(&dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
+		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
 		if chainDB != nil {
 			defer chainDB.Close()
 		}
@@ -246,7 +241,7 @@ func mainCore() error {
 			if stakedbHeight == fromHeight || stakedbHeight%200 == 0 {
 				log.Infof("Rewinding StakeDatabase from %d to %d.", stakedbHeight, heightDB)
 			}
-			stakedbHeight, err = baseDB.RewindStakeDB(int64(heightDB), quit)
+			stakedbHeight, err = baseDB.RewindStakeDB(ctx, int64(heightDB))
 			if err != nil {
 				return fmt.Errorf("RewindStakeDB failed: %v", err)
 			}
@@ -335,10 +330,8 @@ func mainCore() error {
 	mempoolSavers = append(mempoolSavers, baseDB.MPC)
 
 	// Allow Ctrl-C to halt startup here.
-	select {
-	case <-quit:
+	if shutdownRequested(ctx) {
 		return nil
-	default:
 	}
 
 	// Create the explorer system.
@@ -472,7 +465,7 @@ func mainCore() error {
 	app := api.NewContext(dcrdClient, activeChain, &baseDB, auxDB, cfg.IndentJSON)
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
-	go app.StatusNtfnHandler(&wg, quit)
+	go app.StatusNtfnHandler(ctx, &wg)
 	// Initial setting of DBHeight. Subsequently, Store() will send this.
 	if wireDBheight >= 0 {
 		// Do not sent 4294967295 = uint32(-1) if there are no blocks.
@@ -547,7 +540,7 @@ func mainCore() error {
 	// Start the web server.
 	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
 		log.Criticalf("listenAndServeProto: %v", err)
-		close(quit)
+		requestShutdown()
 	}
 
 	log.Infof("Starting blockchain sync...")
@@ -569,7 +562,7 @@ func mainCore() error {
 		// BlockGate will provide this for blocks after fetchHeightInBaseDB. In
 		// full mode, baseDB will be configured not to send progress updates or
 		// chain data to the explorer pages since auxDB will do it.
-		baseDB.SyncDBAsync(sqliteSyncRes, quit, smartClient, fetchHeightInBaseDB,
+		baseDB.SyncDBAsync(ctx, sqliteSyncRes, smartClient, fetchHeightInBaseDB,
 			latestBlockHash, barLoad)
 
 		// Now that stakedb is either catching up or waiting for a block, start
@@ -578,11 +571,11 @@ func mainCore() error {
 		// StakeDatabase at the best block's height. For a detailed description
 		// on how the DBs' synchronization is coordinated, see the documents in
 		// db/dcrpg/sync.go.
-		go auxDB.SyncChainDBAsync(pgSyncRes, smartClient, quit,
+		go auxDB.SyncChainDBAsync(ctx, pgSyncRes, smartClient,
 			updateAddys, updateVotes, newPGInds, latestBlockHash, barLoad)
 
 		// Wait for the results from both of these DBs.
-		return waitForSync(sqliteSyncRes, pgSyncRes, usePG, quit)
+		return waitForSync(ctx, sqliteSyncRes, pgSyncRes, usePG)
 	}
 
 	baseDBHeight, auxDBHeight, err := getSyncd(updateAllAddresses,
@@ -768,24 +761,23 @@ func mainCore() error {
 	// On reorg, only update web UI since dcrsqlite's own reorg handler will
 	// deal with patching up the block info database.
 	reorgBlockDataSavers := []blockdata.BlockDataSaver{explore}
-	wsChainMonitor := blockdata.NewChainMonitor(collector, blockDataSavers,
-		reorgBlockDataSavers, quit, &wg, addrMap,
-		notify.NtfnChans.ConnectChan, notify.NtfnChans.RecvTxBlockChan,
-		notify.NtfnChans.ReorgChanBlockData)
+	wsChainMonitor := blockdata.NewChainMonitor(ctx, collector, blockDataSavers,
+		reorgBlockDataSavers, &wg, addrMap, notify.NtfnChans.ConnectChan,
+		notify.NtfnChans.RecvTxBlockChan, notify.NtfnChans.ReorgChanBlockData)
 
 	// Blockchain monitor for the stake DB
-	sdbChainMonitor := baseDB.NewStakeDBChainMonitor(quit, &wg,
+	sdbChainMonitor := baseDB.NewStakeDBChainMonitor(ctx, &wg,
 		notify.NtfnChans.ConnectChanStakeDB, notify.NtfnChans.ReorgChanStakeDB)
 
 	// Blockchain monitor for the wired sqlite DB
-	wiredDBChainMonitor := baseDB.NewChainMonitor(collector, quit, &wg,
+	wiredDBChainMonitor := baseDB.NewChainMonitor(ctx, collector, &wg,
 		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
 
 	var auxDBChainMonitor *dcrpg.ChainMonitor
 	auxDBBlockConnectedSync := func(*chainhash.Hash) {}
 	if usePG {
 		// Blockchain monitor for the aux (PG) DB
-		auxDBChainMonitor = auxDB.NewChainMonitor(quit, &wg,
+		auxDBChainMonitor = auxDB.NewChainMonitor(ctx, &wg,
 			notify.NtfnChans.ConnectChanDcrpgDB, notify.NtfnChans.ReorgChanDcrpgDB)
 		if auxDBChainMonitor == nil {
 			return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
@@ -889,8 +881,8 @@ func mainCore() error {
 		mini := time.Duration(cfg.MempoolMinInterval) * time.Second
 		maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
 
-		mpm := mempool.NewMempoolMonitor(mpoolCollector, mempoolSavers,
-			notify.NtfnChans.NewTxChan, quit, &wg, newTicketLimit, mini, maxi, mpi)
+		mpm := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
+			notify.NtfnChans.NewTxChan, &wg, newTicketLimit, mini, maxi, mpi)
 		wg.Add(1)
 		go mpm.TxHandler(dcrdClient)
 	}
@@ -905,24 +897,13 @@ func mainCore() error {
 	return nil
 }
 
-func main() {
-	if err := mainCore(); err != nil {
-		if logRotator != nil {
-			log.Error(err)
-		}
-		os.Exit(1)
-	}
-	os.Exit(0)
-}
-
-func waitForSync(base chan dbtypes.SyncResult, aux chan dbtypes.SyncResult,
-	useAux bool, quit chan struct{}) (int64, int64, error) {
+func waitForSync(ctx context.Context, base chan dbtypes.SyncResult, aux chan dbtypes.SyncResult, useAux bool) (int64, int64, error) {
 	baseRes := <-base
 	baseDBHeight := baseRes.Height
 	log.Infof("SQLite sync ended at height %d", baseDBHeight)
 	if baseRes.Error != nil {
 		log.Errorf("dcrsqlite.SyncDBAsync failed at height %d: %v.", baseDBHeight, baseRes.Error)
-		close(quit)
+		requestShutdown()
 		auxRes := <-aux
 		return baseDBHeight, auxRes.Height, baseRes.Error
 	}
@@ -933,21 +914,21 @@ func waitForSync(base chan dbtypes.SyncResult, aux chan dbtypes.SyncResult,
 
 	// See if there was a SIGINT (CTRL+C)
 	select {
-	case <-quit:
+	case <-ctx.Done():
 		return baseDBHeight, auxDBHeight, fmt.Errorf("quit signal received during DB sync")
 	default:
 	}
 
 	if baseRes.Error != nil {
 		log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", baseDBHeight)
-		close(quit)
+		requestShutdown()
 		return baseDBHeight, auxDBHeight, baseRes.Error
 	}
 
 	if useAux {
 		// Check for errors and combine the messages if necessary
 		if auxRes.Error != nil {
-			close(quit)
+			requestShutdown()
 			if baseRes.Error != nil {
 				log.Error("dcrsqlite.SyncDBAsync AND dcrpg.SyncChainDBAsync "+
 					"failed at heights %d and %d, respectively.",
