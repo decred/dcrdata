@@ -457,6 +457,34 @@ body.darkBG .progress {
   transform: none;
 }
 
+#dcrLogo {
+  display: inline-block;
+  width: 98px;
+  height: 19px;
+  background-image: url("/images/logo-2018_light-theme.svg");
+}
+body.darkBG #dcrLogo {
+  background-image: url("/images/logo-2018_dark-theme.svg");
+}
+
+#searchIcon {
+  display: inline-block;
+  margin:5px 10px 0 0;
+  width: 20px;
+  height: 20px;
+  background-image: url("/images/search_light-theme.svg");
+}
+body.darkBG #searchIcon {
+  background-image: url("/images/search_dark-theme.svg");
+}
+
+#search {
+  color:#232323;
+}
+body.darkBG #search {
+  color:#fdfdfd;
+}
+
 @-webkit-keyframes autofill {
   to {
     background: transparent;
