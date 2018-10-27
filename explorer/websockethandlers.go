@@ -28,41 +28,17 @@ func trimTxInfo(txs []*TxInfo) []*TrimmedTxInfo {
 		if tx.IsVote() {
 			voteValid = tx.VoteInfo.Validation.Validity
 		}
+
 		trimmedTx := &TrimmedTxInfo{
+			TxBasic:   tx.TxBasic,
+			Fees:      tx.Fee.ToCoin(),
+			VoteValid: voteValid,
 			VinCount:  len(tx.Vin),
 			VoutCount: len(tx.Vout),
-			VoteValid: voteValid,
-			TxID:      tx.TxID,
-			Total:     tx.Total,
-			Fees:      tx.Fee.ToCoin(),
-			Coinbase:  tx.Coinbase,
 		}
 		trimmedTxs = append(trimmedTxs, trimmedTx)
 	}
 	return trimmedTxs
-}
-
-func trimBlockInfo(block *BlockInfo) *TrimmedBlockInfo {
-	// check tx info
-	txCount := len(block.Tx)
-	transactions := make([]*TxInfo, 0, txCount)
-	for _, tx := range block.Tx {
-		if !tx.Coinbase {
-			transactions = append(transactions, tx)
-		}
-	}
-
-	return &TrimmedBlockInfo{
-		Time:         block.BlockTime,
-		Height:       block.Height,
-		Total:        block.TotalSent,
-		Fees:         block.MiningFee,
-		Subsidy:      block.Subsidy,
-		Votes:        trimTxInfo(block.Votes),
-		Tickets:      trimTxInfo(block.Tickets),
-		Revocations:  trimTxInfo(block.Revs),
-		Transactions: trimTxInfo(transactions),
-	}
 }
 
 // RootWebsocket is the websocket handler for all pages

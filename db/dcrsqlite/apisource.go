@@ -1112,9 +1112,9 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		Subsidy:               db.BlockSubsidy(b.Height, b.Voters),
 	}
 
-	votes := make([]*explorer.TxInfo, 0, block.Voters)
-	revocations := make([]*explorer.TxInfo, 0, block.Revocations)
-	tickets := make([]*explorer.TxInfo, 0, block.FreshStake)
+	votes := make([]*explorer.TrimmedTxInfo, 0, block.Voters)
+	revocations := make([]*explorer.TrimmedTxInfo, 0, block.Revocations)
+	tickets := make([]*explorer.TrimmedTxInfo, 0, block.FreshStake)
 
 	for _, tx := range data.RawSTx {
 		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
@@ -1124,37 +1124,44 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		}
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
-			stx := db.GetExplorerTx(tx.Txid)
+			stx := db.GetExplorerTxTrimmed(tx, msgTx)
 			// Fees for votes should be zero, but if the transaction was created
 			// with unmatched inputs/outputs then the remainder becomes a fee.
 			// Account for this possibility by calculating the fee for votes as
 			// well.
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
-			stx := db.GetExplorerTx(tx.Txid)
+			stx := db.GetExplorerTxTrimmed(tx, msgTx)
 			tickets = append(tickets, stx)
 		case stake.TxTypeSSRtx:
-			stx := db.GetExplorerTx(tx.Txid)
+			stx := db.GetExplorerTxTrimmed(tx, msgTx)
 			revocations = append(revocations, stx)
 		}
 	}
 
-	txs := make([]*explorer.TxInfo, 0, block.Transactions)
+	txs := make([]*explorer.TrimmedTxInfo, 0, block.Transactions)
 	for _, tx := range data.RawTx {
-		exptx := db.GetExplorerTx(tx.Txid)
+		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
+		if err != nil {
+			log.Errorf("Unknown transaction %s: %v", tx.Txid, err)
+			return nil
+		}
+
+		exptx := db.GetExplorerTxTrimmed(tx, msgTx)
 		for _, vin := range tx.Vin {
 			if vin.IsCoinBase() {
-				exptx.Fee, exptx.FeeRate = 0.0, 0.0
+				exptx.Fee, exptx.FeeRate, exptx.Fees = 0.0, 0.0, 0.0
 			}
 		}
 		txs = append(txs, exptx)
 	}
+
 	block.Tx = txs
 	block.Votes = votes
 	block.Revs = revocations
 	block.Tickets = tickets
 
-	sortTx := func(txs []*explorer.TxInfo) {
+	sortTx := func(txs []*explorer.TrimmedTxInfo) {
 		sort.Slice(txs, func(i, j int) bool {
 			return txs[i].Total > txs[j].Total
 		})
@@ -1165,13 +1172,13 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	sortTx(block.Revs)
 	sortTx(block.Tickets)
 
-	getTotalFee := func(txs []*explorer.TxInfo) (total dcrutil.Amount) {
+	getTotalFee := func(txs []*explorer.TrimmedTxInfo) (total dcrutil.Amount) {
 		for _, tx := range txs {
 			total += tx.Fee
 		}
 		return
 	}
-	getTotalSent := func(txs []*explorer.TxInfo) (total dcrutil.Amount) {
+	getTotalSent := func(txs []*explorer.TrimmedTxInfo) (total dcrutil.Amount) {
 		for _, tx := range txs {
 			amt, err := dcrutil.NewAmount(tx.Total)
 			if err != nil {
@@ -1187,6 +1194,24 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		getTotalFee(block.Tickets) + getTotalFee(block.Votes)).ToCoin()
 
 	return block
+}
+
+func (db *wiredDB) GetExplorerTxTrimmed(txraw dcrjson.TxRawResult, msgTx *wire.MsgTx) *explorer.TrimmedTxInfo {
+	txBasic := makeExplorerTxBasic(txraw, msgTx, db.params)
+
+	voteValid := false
+	if txBasic.VoteInfo != nil {
+		voteValid = txBasic.VoteInfo.Validation.Validity
+	}
+
+	tx := &explorer.TrimmedTxInfo{
+		TxBasic:   txBasic,
+		Fees:      txBasic.Fee.ToCoin(),
+		VinCount:  len(txraw.Vin),
+		VoutCount: len(txraw.Vout),
+		VoteValid: voteValid,
+	}
+	return tx
 }
 
 func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {

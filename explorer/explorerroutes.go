@@ -147,10 +147,33 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	// Get top N blocks and trim each block to have just the fields required for this page.
 	height := exp.blockData.GetHeight()
-	blocks := exp.blockData.GetExplorerFullBlocks(height, height - homePageBlocksMaxCount)
+	blocks := exp.blockData.GetExplorerFullBlocks(height, height-homePageBlocksMaxCount)
+
+	// trim unwanted data in each block
 	trimmedBlocks := make([]*TrimmedBlockInfo, 0, len(blocks))
-	for _, block := range blocks {
-		trimmedBlock := trimBlockInfo(block)
+	for index := range blocks {
+		block := blocks[index]
+
+		// show only regular tx in block.Transactions, exclude coinbase (reward) transactions
+		transactions := make([]*TrimmedTxInfo, 0)
+		for _, tx := range block.Tx {
+			if !tx.Coinbase {
+				transactions = append(transactions, tx)
+			}
+		}
+
+		trimmedBlock := &TrimmedBlockInfo{
+			Time:         block.BlockTime,
+			Height:       block.Height,
+			Total:        block.TotalSent,
+			Fees:         block.MiningFee,
+			Subsidy:      block.Subsidy,
+			Votes:        block.Votes,
+			Tickets:      block.Tickets,
+			Revocations:  block.Revs,
+			Transactions: transactions,
+		}
+
 		trimmedBlocks = append(trimmedBlocks, trimmedBlock)
 	}
 
@@ -195,15 +218,15 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// construct mempool object with properties required in template
-	mempoolData := MempoolData {
-		Subsidy:	  exp.pageData.HomeInfo.NBlockSubsidy,
+	mempoolData := &MempoolData{
+		Subsidy:      exp.pageData.HomeInfo.NBlockSubsidy,
 		Transactions: trimTxInfo(mempoolTxs),
 		Tickets:      trimTxInfo(mempoolTickets),
 		Votes:        trimTxInfo(mempoolVotes),
 		Revocations:  trimTxInfo(mempoolRevs),
 		Total:        exp.MempoolData.TotalOut,
 		Time:         exp.MempoolData.LastBlockTime,
-		Fees:		  mempoolFees,
+		Fees:         mempoolFees,
 	}
 
 	exp.pageData.RUnlock()
@@ -212,7 +235,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("nexthome", struct {
 		*CommonPageData
 		Info    *HomeInfo
-		Mempool MempoolData
+		Mempool *MempoolData
 		Blocks  []*TrimmedBlockInfo
 		NetName string
 	}{

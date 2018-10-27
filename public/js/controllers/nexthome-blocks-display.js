@@ -210,12 +210,10 @@ function makeTicketAndRevocationElements(tickets, revocations, blockHref) {
 
 function makeTransactionElements(transactions, blockHref) {
     let totalDCR = 0;
-    const transactionElements = (transactions || [])
-                .filter(tx => !tx.Coinbase)
-                .map(tx => {
-                    totalDCR += tx.Total;
-                    return makeTxElement(tx, "block-tx", "Transaction", true);
-                });
+    const transactionElements = (transactions || []).map(tx => {
+        totalDCR += tx.Total;
+        return makeTxElement(tx, "block-tx", "Transaction", true);
+    });
 
     if (transactionElements.length > 50) {
         const total = transactionElements.length;

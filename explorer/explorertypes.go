@@ -117,13 +117,11 @@ func (a *AddressTx) IOID(txType ...string) string {
 
 // TrimmedTxInfo for use with /nexthome
 type TrimmedTxInfo struct {
+	*TxBasic
+	Fees      float64
 	VinCount  int
 	VoutCount int
 	VoteValid bool
-	TxID      string
-	Total	  float64
-	Fees      float64
-	Coinbase  bool
 }
 
 // TxInfo models data needed for display on the tx page
@@ -219,8 +217,8 @@ type Vout struct {
 type TrimmedBlockInfo struct {
 	Time         int64
 	Height       int64
-	Total		 float64
-	Fees	     float64
+	Total        float64
+	Fees         float64
 	Subsidy      *dcrjson.GetBlockSubsidyResult
 	Votes        []*TrimmedTxInfo
 	Tickets      []*TrimmedTxInfo
@@ -236,10 +234,10 @@ type BlockInfo struct {
 	StakeRoot             string
 	MerkleRoot            string
 	TxAvailable           bool
-	Tx                    []*TxInfo
-	Tickets               []*TxInfo
-	Revs                  []*TxInfo
-	Votes                 []*TxInfo
+	Tx                    []*TrimmedTxInfo
+	Tickets               []*TrimmedTxInfo
+	Revs                  []*TrimmedTxInfo
+	Votes                 []*TrimmedTxInfo
 	Misses                []string
 	Nonce                 uint32
 	VoteBits              uint16
@@ -385,7 +383,7 @@ type MempoolData struct {
 	Subsidy      BlockSubsidy
 	Total        float64
 	Time         int64
-	Fees		 float64
+	Fees         float64
 }
 
 // MempoolInfo models data to update mempool info on the home page
@@ -517,12 +515,13 @@ type TicketPoolInfo struct {
 
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
-	Hash     string    `json:"hash"`
-	Time     int64     `json:"time"`
-	Size     int32     `json:"size"`
-	TotalOut float64   `json:"total"`
-	Type     string    `json:"Type"`
-	VoteInfo *VoteInfo `json:"vote_info"`
+	Hash      string    `json:"hash"`
+	Time      int64     `json:"time"`
+	Size      int32     `json:"size"`
+	TotalOut  float64   `json:"total"`
+	Type      string    `json:"Type"`
+	VoteInfo  *VoteInfo `json:"vote_info"`
+	VoteValid bool
 }
 
 // NewMempoolTx models data sent from the notification handler

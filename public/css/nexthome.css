@@ -129,7 +129,7 @@ body {
 }
 .blocks-section .title,
 .netstats-section .title {
-    display: block;
+    display: inline-block;
     font-family: "Source Sans Pro", sans-serif;
     font-size: 20px;
     margin-bottom: 30px;
