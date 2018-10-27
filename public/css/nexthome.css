@@ -251,13 +251,13 @@ body {
     line-height: 1.3;
     color: #5a5a5a;
 }
-.block-tickets .block-ticket {
+.block-tickets .block-.block-rows ticket {
   background-color: #FFC84D;
 }
-.block-tickets .block-rev {
+.block-rows .block-tickets .block-rev {
   background-color: #FD714A;
 }
-.block-transactions .block-tx {
+.block-rows .block-transactions .block-tx {
   background-color: #c4cbd2;
 }
 .block-rows .block-element-link,
