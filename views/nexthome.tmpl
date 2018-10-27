@@ -185,7 +185,7 @@
                         <!-- show tickets before revs, if tickets are more than 50, truncate at 30 and show more tip -->
                         {{$tickets := .Tickets}}
                         {{$ticketsCount := len .Tickets}}
-                        {{if gt $ticketsCount 50}} {{$tickets = first30Txs .Tickets}} {{end}}
+                        {{if gt $ticketsCount 50}} {{$tickets = clipSlice .Tickets 30}} {{end}}
                         {{range $tickets}}
                         <span class="block-ticket"
                             title='{"object": "Ticket", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>
@@ -213,7 +213,7 @@
                         <div class="block-transactions" style="flex-grow: 1">
                         {{$txs := .Transactions}}
                         {{$txCount := len .Transactions}}
-                        {{if gt $txCount 50}} {{$txs = first30Txs .Transactions}} {{end}}
+                        {{if gt $txCount 50}} {{$txs = clipSlice .Transactions 30}} {{end}}
                         {{range $txs}}
                         <span class="block-tx" style="flex-grow: {{.Total}}"
                             title='{"object": "Transaction", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>
@@ -289,7 +289,7 @@
                         <!-- show tickets before revs, if tickets are more than 50, truncate at 30 and show more tip -->
                         {{$tickets := .Tickets}}
                         {{$ticketsCount := len .Tickets}}
-                        {{if gt $ticketsCount 50}} {{$tickets = first30Txs .Tickets}} {{end}}
+                        {{if gt $ticketsCount 50}} {{$tickets = clipSlice .Tickets 30}} {{end}}
                         {{range $tickets}}
                         <span class="block-ticket"
                             title='{"object": "Ticket", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>
@@ -317,7 +317,7 @@
                         <div class="block-transactions" style="flex-grow: 1">
                         {{$txs := .Transactions}}
                         {{$txCount := len .Transactions}}
-                        {{if gt $txCount 50}} {{$txs = first30Txs .Transactions}} {{end}}
+                        {{if gt $txCount 50}} {{$txs = clipSlice .Transactions 30}} {{end}}
                         {{range $txs}}
                         <span class="block-tx" style="flex-grow: {{.Total}}"
                             title='{"object": "Transaction", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>

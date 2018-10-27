@@ -367,12 +367,12 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return make([]int, length)
 		},
-		"first30Txs": func(txs []TrimmedTxInfo) []TrimmedTxInfo {
-			first30 := make([]TrimmedTxInfo, 0, 30)
-			for i := 0; i < 30; i++ {
-				first30[i] = txs[i]
+		"clipSlice": func(arr []*TrimmedTxInfo, n int) []*TrimmedTxInfo {
+			if len(arr) >= n {
+				return arr[:n]
+			} else {
+				return arr
 			}
-			return first30
 		},
 	}
 }

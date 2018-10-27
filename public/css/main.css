@@ -2,7 +2,10 @@
 @font-face {
   font-family: 'icomoon';
   src: url('/fonts/icomoon.eot?g003m6');
-  src: url('/fonts/icomoon.eot?g003m6#iefix') format('embedded-opentype'), url('/fonts/icomoon.ttf?g003m6') format('truetype'), url('/fonts/icomoon.woff?g003m6') format('woff'), url('/fonts/icomoon.svg?g003m6#icomoon') format('svg');
+  src:  url('/fonts/icomoon.eot?g003m6#iefix') format('embedded-opentype'),
+    url('/fonts/icomoon.ttf?g003m6') format('truetype'),
+    url('/fonts/icomoon.woff?g003m6') format('woff'),
+    url('/fonts/icomoon.svg?g003m6#icomoon') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -44,7 +47,9 @@
 @font-face {
   font-family: 'source-sans-pro-v9-latin-regular';
   src: url('/fonts/source-sans-pro-v9-latin-regular.eot');
-  src: url('/fonts/source-sans-pro-v9-latin-regular.eot#iefix') format('embedded-opentype'), url('/fonts/source-sans-pro-v9-latin-regular.woff') format('woff'), url('/fonts/source-sans-pro-v9-latin-regular.svg') format('svg');
+  src: url('/fonts/source-sans-pro-v9-latin-regular.eot#iefix') format('embedded-opentype'),
+    url('/fonts/source-sans-pro-v9-latin-regular.woff') format('woff'),
+    url('/fonts/source-sans-pro-v9-latin-regular.svg') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -405,7 +410,10 @@ body.darkBG .progress {
   border-radius: 3px;
   z-index: 1;
   transform-origin: top right;
-  transition: transform 0.5s cubic-bezier(0.77, 0.2, 0.05, 1.0), background 0.5s cubic-bezier(0.77, 0.2, 0.05, 1.0), width .3s, opacity 0.55s ease;
+  transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
+  background 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
+  width .3s,
+  opacity 0.55s ease;
 }
 #menuToggle .patty.short {
   width: 14px;

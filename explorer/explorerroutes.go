@@ -36,6 +36,9 @@ const (
 	wrongNetwork        = "Wrong Network"
 )
 
+// number of blocks displayed on /nexthome
+const homePageBlocksMaxCount = 30
+
 // netName returns the name used when referring to a decred network.
 func netName(chainParams *chaincfg.Params) string {
 	if strings.HasPrefix(strings.ToLower(chainParams.Name), "testnet") {
@@ -142,9 +145,9 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 
 // NextHome is the page handler for the "/nexthome" path.
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
-	// get top 30 blocks and trim each block to have just the fields required for this page
+	// Get top N blocks and trim each block to have just the fields required for this page.
 	height := exp.blockData.GetHeight()
-	blocks := exp.blockData.GetExplorerFullBlocks(height, height-30)
+	blocks := exp.blockData.GetExplorerFullBlocks(height, height - homePageBlocksMaxCount)
 	trimmedBlocks := make([]*TrimmedBlockInfo, 0, len(blocks))
 	for _, block := range blocks {
 		trimmedBlock := trimBlockInfo(block)
@@ -180,7 +183,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// fetch regular tx for mempool, and calculate total fees for mempool block
-	var mempoolFees float64 = 0
+	var mempoolFees float64
 	txCount := len(exp.MempoolData.Transactions)
 	mempoolTxs := make([]*TxInfo, 0, txCount)
 	for _, tx := range exp.MempoolData.Transactions {

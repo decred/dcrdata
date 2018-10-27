@@ -41,6 +41,7 @@ func trimTxInfo(txs []*TxInfo) []*TrimmedTxInfo {
 	}
 	return trimmedTxs
 }
+
 func trimBlockInfo(block *BlockInfo) *TrimmedBlockInfo {
 	// check tx info
 	txCount := len(block.Tx)
