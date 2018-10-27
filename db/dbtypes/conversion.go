@@ -58,30 +58,29 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params) *B
 	}
 }
 
-// ChartGroupingToInterval converts the chartGrouping value to an actual time
-// interval based on the gregorian calendar. AllChartGrouping returns 1 while
-// the unknown chartGrouping returns -1 and an error. All the other time
-// interval values is returned in terms of seconds.
-func ChartGroupingToInterval(grouping ChartGrouping) (float64, error) {
+// TimeBasedGroupingToInterval converts the TimeBasedGrouping value to an actual
+// time value in seconds based on the gregorian calendar except AllGrouping that
+// returns 1 while the unknownGrouping returns -1 and an error.
+func TimeBasedGroupingToInterval(grouping TimeBasedGrouping) (float64, error) {
 	var hr = 3600.0
 	switch grouping {
-	case AllChartGrouping:
+	case AllGrouping:
 		return 1, nil
 
-	case DayChartGrouping:
+	case DayGrouping:
 		return hr * 24, nil
 
-	case WeekChartGrouping:
+	case WeekGrouping:
 		return hr * 24 * 7, nil
 
-	case MonthChartGrouping:
+	case MonthGrouping:
 		return hr * 24 * 30.436875, nil
 
-	case YearChartGrouping:
+	case YearGrouping:
 		return hr * 24 * 30.436875 * 12, nil
 
 	default:
-		return -1, fmt.Errorf(`unknown chart grouping "%d"`, grouping)
+		return -1, fmt.Errorf(`unknown grouping "%d"`, grouping)
 	}
 }
 

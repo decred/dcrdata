@@ -399,7 +399,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 			"Ticketpool page cannot run in lite mode", NotSupportedStatusType)
 		return
 	}
-	interval := dbtypes.AllChartGrouping
+	interval := dbtypes.AllGrouping
 
 	barGraphs, donutChart, height, err := exp.explorerSource.TicketPoolVisualization(interval)
 	if err != nil {

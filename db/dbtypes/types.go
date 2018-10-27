@@ -81,16 +81,17 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 	}
 }
 
-// ChartGrouping defines the possible ways that a graph's axis can be grouped
-// according to all, year, month, week or day grouping.
-type ChartGrouping int8
+// TimeBasedGrouping defines the possible ways that a time can be grouped
+// according to all, year, month, week or day grouping. This time grouping is
+// used in time-based grouping like charts and blocks list view.
+type TimeBasedGrouping int8
 
 const (
-	AllChartGrouping ChartGrouping = iota
-	YearChartGrouping
-	MonthChartGrouping
-	WeekChartGrouping
-	DayChartGrouping
+	AllGrouping TimeBasedGrouping = iota
+	YearGrouping
+	MonthGrouping
+	WeekGrouping
+	DayGrouping
 	UnknownGrouping
 )
 
@@ -139,32 +140,32 @@ type BlocksGroupedInfo struct {
 	BlocksCount  int64
 }
 
-// ChartGroupings helps maping a given chart grouping to its standard string value.
-var ChartGroupings = map[ChartGrouping]string{
-	AllChartGrouping:   "all",
-	YearChartGrouping:  "yr",
-	MonthChartGrouping: "mo",
-	WeekChartGrouping:  "wk",
-	DayChartGrouping:   "day",
+// TimeBasedGroupings helps mapping a given time grouping to its standard string value.
+var TimeBasedGroupings = map[TimeBasedGrouping]string{
+	AllGrouping:   "all",
+	YearGrouping:  "yr",
+	MonthGrouping: "mo",
+	WeekGrouping:  "wk",
+	DayGrouping:   "day",
 }
 
-func (g ChartGrouping) String() string {
-	return ChartGroupings[g]
+func (g TimeBasedGrouping) String() string {
+	return TimeBasedGroupings[g]
 }
 
-// ChartGroupingFromStr converts groupings string to its respective chartGrouping value.
-func ChartGroupingFromStr(groupings string) ChartGrouping {
+// TimeGroupingFromStr converts groupings string to its respective TimeBasedGrouping value.
+func TimeGroupingFromStr(groupings string) TimeBasedGrouping {
 	switch strings.ToLower(groupings) {
 	case "all":
-		return AllChartGrouping
+		return AllGrouping
 	case "yr", "year":
-		return YearChartGrouping
+		return YearGrouping
 	case "mo", "month":
-		return MonthChartGrouping
+		return MonthGrouping
 	case "wk", "week":
-		return WeekChartGrouping
+		return WeekGrouping
 	case "day":
-		return DayChartGrouping
+		return DayGrouping
 	default:
 		return UnknownGrouping
 	}

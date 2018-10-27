@@ -109,7 +109,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				case "getticketpooldata":
 					// Retrieve chart data on the given interval.
-					interval := dbtypes.ChartGroupingFromStr(msg.Message)
+					interval := dbtypes.TimeGroupingFromStr(msg.Message)
 					// Chart height is returned since the cache may be stale,
 					// although it is automatically updated by the first caller
 					// who requests data from a stale cache.
