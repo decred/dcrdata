@@ -1028,7 +1028,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	msgTx, err := txhelpers.MsgTxFromHex(data.Hex)
 	if err == nil {
 		tx.TxType = txhelpers.DetermineTxTypeString(msgTx)
-	}else{
+	} else {
 		log.Trace("makeExplorerAddressTx cannot get tx type", err)
 	}
 
