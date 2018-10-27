@@ -47,6 +47,7 @@ type explorerDataSourceLite interface {
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
+	GetExplorerTxTrimmed(txid string) *TrimmedTxInfo
 	GetExplorerAddress(address string, count, offset int64) (*AddressInfo, error)
 	GetTip() (*WebBasicBlock, error)
 	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
@@ -59,6 +60,7 @@ type explorerDataSourceLite interface {
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
 	GetExplorerFullBlocks(start int, end int) []*BlockInfo
+	GetTrimmedMempoolTx(txs []MempoolTx) []*TrimmedTxInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
 }

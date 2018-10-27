@@ -238,7 +238,7 @@ body {
 .block-rows .block-votes > span,
 .block-rows .block-tickets > span,
 .block-rows .block-transactions > span {
-  flex-basis: 0;
+  flex-basis: 5px;
   flex-grow: 1;
 }
 .block-rows .block-element-link {

@@ -143,6 +143,18 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 	io.WriteString(w, str)
 }
 
+// show only regular tx in block.Transactions, exclude coinbase (reward) transactions
+// for use in NextHome handler and websocket response to getmempooltxs event
+func filterRegularTx(txs []*TrimmedTxInfo) []*TrimmedTxInfo {
+	transactions := make([]*TrimmedTxInfo, 0)
+	for _, tx := range txs {
+		if !tx.Coinbase {
+			transactions = append(transactions, tx)
+		}
+	}
+	return transactions
+}
+
 // NextHome is the page handler for the "/nexthome" path.
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	// Get top N blocks and trim each block to have just the fields required for this page.
@@ -154,14 +166,6 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	for index := range blocks {
 		block := blocks[index]
 
-		// show only regular tx in block.Transactions, exclude coinbase (reward) transactions
-		transactions := make([]*TrimmedTxInfo, 0)
-		for _, tx := range block.Tx {
-			if !tx.Coinbase {
-				transactions = append(transactions, tx)
-			}
-		}
-
 		trimmedBlock := &TrimmedBlockInfo{
 			Time:         block.BlockTime,
 			Height:       block.Height,
@@ -171,7 +175,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 			Votes:        block.Votes,
 			Tickets:      block.Tickets,
 			Revocations:  block.Revs,
-			Transactions: transactions,
+			Transactions: filterRegularTx(block.Tx),
 		}
 
 		trimmedBlocks = append(trimmedBlocks, trimmedBlock)
@@ -180,50 +184,28 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	exp.pageData.RLock()
 	exp.MempoolData.RLock()
 
-	// fetch votes for mempool
-	mempoolVotes := make([]*TxInfo, 0)
-	for _, tx := range exp.MempoolData.Votes {
-		if tx.VoteInfo.ForLastBlock == true {
-			exptx := exp.blockData.GetExplorerTx(tx.Hash)
-			mempoolVotes = append(mempoolVotes, exptx)
+	mempoolVotes := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Votes)
+	mempoolTickets := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Tickets)
+	mempoolRevs := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Revocations)
+	mempoolTxs := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Transactions)
+
+	// calculate total fees for mempool block
+	getTotalFee := func(txs []*TrimmedTxInfo) (total float64) {
+		for _, tx := range txs {
+			total += tx.Fees
 		}
+		return
 	}
-
-	// fetch tickets for mempool
-	ticketsCount := len(exp.MempoolData.Tickets)
-	mempoolTickets := make([]*TxInfo, 0, ticketsCount)
-	for _, tx := range exp.MempoolData.Tickets {
-		exptx := exp.blockData.GetExplorerTx(tx.Hash)
-		mempoolTickets = append(mempoolTickets, exptx)
-	}
-
-	// fetch revocations for mempool
-	revCount := len(exp.MempoolData.Revocations)
-	mempoolRevs := make([]*TxInfo, 0, revCount)
-	for _, tx := range exp.MempoolData.Revocations {
-		exptx := exp.blockData.GetExplorerTx(tx.Hash)
-		mempoolRevs = append(mempoolRevs, exptx)
-	}
-
-	// fetch regular tx for mempool, and calculate total fees for mempool block
-	var mempoolFees float64
-	txCount := len(exp.MempoolData.Transactions)
-	mempoolTxs := make([]*TxInfo, 0, txCount)
-	for _, tx := range exp.MempoolData.Transactions {
-		exptx := exp.blockData.GetExplorerTx(tx.Hash)
-		if !exptx.Coinbase {
-			mempoolFees += exptx.Fee.ToCoin()
-			mempoolTxs = append(mempoolTxs, exptx)
-		}
-	}
+	mempoolFees := getTotalFee(mempoolTxs) + getTotalFee(mempoolRevs) + getTotalFee(mempoolTickets) +
+		getTotalFee(mempoolVotes)
 
 	// construct mempool object with properties required in template
 	mempoolData := &MempoolData{
 		Subsidy:      exp.pageData.HomeInfo.NBlockSubsidy,
-		Transactions: trimTxInfo(mempoolTxs),
-		Tickets:      trimTxInfo(mempoolTickets),
-		Votes:        trimTxInfo(mempoolVotes),
-		Revocations:  trimTxInfo(mempoolRevs),
+		Transactions: filterRegularTx(mempoolTxs),
+		Tickets:      mempoolTickets,
+		Votes:        mempoolVotes,
+		Revocations:  mempoolRevs,
 		Total:        exp.MempoolData.TotalOut,
 		Time:         exp.MempoolData.LastBlockTime,
 		Fees:         mempoolFees,

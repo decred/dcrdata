@@ -336,6 +336,7 @@
         });
 
         ws.registerEvtHandler("getmempooltxsResp", function(event) {
+            console.log("received mempooltx response", event);
             if (window.location.pathname === "/nexthome") {
                 handleMempoolUpdate(event);
             }

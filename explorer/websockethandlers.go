@@ -116,54 +116,40 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 				case "getmempooltxs":
+					exp.pageData.RLock()
 					exp.MempoolData.RLock()
-					mempoolData := exp.MempoolData
+
+					mempoolVotes := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Votes)
+					mempoolTickets := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Tickets)
+					mempoolRevs := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Revocations)
+					mempoolTxs := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Transactions)
+
+					// calculate total fees for mempool block
+					getTotalFee := func(txs []*TrimmedTxInfo) (total float64) {
+						for _, tx := range txs {
+							total += tx.Fees
+						}
+						return
+					}
+					mempoolFees := getTotalFee(mempoolTxs) + getTotalFee(mempoolRevs) + getTotalFee(mempoolTickets) +
+						getTotalFee(mempoolVotes)
+
+					// construct mempool object with properties required in template
+					mempoolData := &MempoolData{
+						Subsidy:      exp.pageData.HomeInfo.NBlockSubsidy,
+						Transactions: filterRegularTx(mempoolTxs),
+						Tickets:      mempoolTickets,
+						Votes:        mempoolVotes,
+						Revocations:  mempoolRevs,
+						Total:        exp.MempoolData.TotalOut,
+						Time:         exp.MempoolData.LastBlockTime,
+						Fees:         mempoolFees,
+					}
+
+					exp.pageData.RUnlock()
 					exp.MempoolData.RUnlock()
 
-					txCount := len(mempoolData.Transactions)
-					mempoolTxs := make([]*TxInfo, 0, txCount)
-					for _, tx := range mempoolData.Transactions {
-						exptx := exp.blockData.GetExplorerTx(tx.Hash)
-						for _, vin := range exptx.Vin {
-							if vin.IsCoinBase() {
-								exptx.Fee, exptx.FeeRate = 0.0, 0.0
-							}
-						}
-						mempoolTxs = append(mempoolTxs, exptx)
-					}
-					ticketsCount := len(mempoolData.Tickets)
-					mempoolTickets := make([]*TxInfo, 0, ticketsCount)
-					for _, tx := range mempoolData.Tickets {
-						exptx := exp.blockData.GetExplorerTx(tx.Hash)
-						mempoolTickets = append(mempoolTickets, exptx)
-					}
-					mempoolVotes := make([]*TxInfo, 0)
-					for _, tx := range mempoolData.Votes {
-						if tx.VoteInfo.ForLastBlock == true {
-							exptx := exp.blockData.GetExplorerTx(tx.Hash)
-							mempoolVotes = append(mempoolVotes, exptx)
-						}
-					}
-					revCount := len(mempoolData.Revocations)
-					mempoolRevs := make([]*TxInfo, 0, revCount)
-					for _, tx := range mempoolData.Revocations {
-						exptx := exp.blockData.GetExplorerTx(tx.Hash)
-						mempoolRevs = append(mempoolRevs, exptx)
-					}
-
-					exp.pageData.RLock()
-					data := MempoolData{
-						Subsidy:      exp.pageData.HomeInfo.NBlockSubsidy,
-						Transactions: trimTxInfo(mempoolTxs),
-						Tickets:      trimTxInfo(mempoolTickets),
-						Votes:        trimTxInfo(mempoolVotes),
-						Revocations:  trimTxInfo(mempoolRevs),
-						Total:        mempoolData.TotalOut,
-						Time:         mempoolData.LastBlockTime,
-					}
-					exp.pageData.RUnlock()
-
-					msg, err := json.Marshal(data)
+					msg, err := json.Marshal(mempoolData)
 
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)

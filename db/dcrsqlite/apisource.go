@@ -1124,17 +1124,17 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		}
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
-			stx := db.GetExplorerTxTrimmed(tx, msgTx)
+			stx := db.GetExplorerTxTrimmedFromRawTx(tx, msgTx)
 			// Fees for votes should be zero, but if the transaction was created
 			// with unmatched inputs/outputs then the remainder becomes a fee.
 			// Account for this possibility by calculating the fee for votes as
 			// well.
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
-			stx := db.GetExplorerTxTrimmed(tx, msgTx)
+			stx := db.GetExplorerTxTrimmedFromRawTx(tx, msgTx)
 			tickets = append(tickets, stx)
 		case stake.TxTypeSSRtx:
-			stx := db.GetExplorerTxTrimmed(tx, msgTx)
+			stx := db.GetExplorerTxTrimmedFromRawTx(tx, msgTx)
 			revocations = append(revocations, stx)
 		}
 	}
@@ -1147,7 +1147,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 			return nil
 		}
 
-		exptx := db.GetExplorerTxTrimmed(tx, msgTx)
+		exptx := db.GetExplorerTxTrimmedFromRawTx(tx, msgTx)
 		for _, vin := range tx.Vin {
 			if vin.IsCoinBase() {
 				exptx.Fee, exptx.FeeRate, exptx.Fees = 0.0, 0.0, 0.0
@@ -1196,7 +1196,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	return block
 }
 
-func (db *wiredDB) GetExplorerTxTrimmed(txraw dcrjson.TxRawResult, msgTx *wire.MsgTx) *explorer.TrimmedTxInfo {
+func (db *wiredDB) GetExplorerTxTrimmedFromRawTx(txraw dcrjson.TxRawResult, msgTx *wire.MsgTx) *explorer.TrimmedTxInfo {
 	txBasic := makeExplorerTxBasic(txraw, msgTx, db.params)
 
 	voteValid := false
@@ -1212,6 +1212,38 @@ func (db *wiredDB) GetExplorerTxTrimmed(txraw dcrjson.TxRawResult, msgTx *wire.M
 		VoteValid: voteValid,
 	}
 	return tx
+}
+
+func (db *wiredDB) GetExplorerTxTrimmed(txid string) *explorer.TrimmedTxInfo {
+	txhash, err := chainhash.NewHashFromStr(txid)
+	if err != nil {
+		log.Errorf("Invalid transaction hash %s", txid)
+		return nil
+	}
+	txraw, err := db.client.GetRawTransactionVerbose(txhash)
+	if err != nil {
+		log.Warnf("GetRawTransactionVerbose failed for %v: %v", txhash, err)
+		return nil
+	}
+
+	msgTx, err := txhelpers.MsgTxFromHex(txraw.Hex)
+	if err != nil {
+		log.Errorf("Cannot create MsgTx for tx %v: %v", txhash, err)
+		return nil
+	}
+
+	return db.GetExplorerTxTrimmedFromRawTx(*txraw, msgTx)
+}
+
+func (db *wiredDB) GetTrimmedMempoolTx(txs []explorer.MempoolTx) []*explorer.TrimmedTxInfo {
+	trimmedTxs := make([]*explorer.TrimmedTxInfo, 0, len(txs))
+
+	for index := range txs {
+		txhash := txs[index].Hash
+		trimmedTxs = append(trimmedTxs, db.GetExplorerTxTrimmed(txhash))
+	}
+
+	return trimmedTxs
 }
 
 func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
