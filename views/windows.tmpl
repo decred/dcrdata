@@ -81,8 +81,8 @@
                 <table class="table striped table-responsive">
                     <thead>
                         <tr>
-                            <th>Ticket Price Window #</th>
-                            <th>End Block</th>
+                            <th class="text-right">Ticket Price Window #</th>
+                            <th class="text-right">End Block</th>
                             <th class="text-right">Transactions</th>
                             <th class="text-right">Votes</th>
                             <th class="text-right">Tickets</th>
@@ -97,12 +97,12 @@
                     <tbody>
                     {{range .Data}}
                         <tr id="{{.EndBlock}}">
-                            <td>
-                                <span>{{.WindowIndx}}</span>
+                            <td class="text-right">
                                 {{$blocksCount := (.BlocksCount)}}
                                 {{if lt .BlocksCount $.WindowSize}}{{$blocksCount = (subtract .BlocksCount 1)}} <span>({{$blocksCount}}/{{$.WindowSize}}) </span>{{end}}
+                                <span>{{.WindowIndx}}</span>
                             </td>
-                            <td>
+                            <td class="text-right">
                                 <a class="fs16 height" href="/blocks?height={{.EndBlock}}&rows=20">{{.EndBlock}}</a>
                             </td>
                             <td class="text-right">{{intComma .Transactions}}</td>
