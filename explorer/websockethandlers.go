@@ -54,8 +54,8 @@ func trimBlockInfo(block *BlockInfo) *TrimmedBlockInfo {
 	return &TrimmedBlockInfo{
 		Time:         block.BlockTime,
 		Height:       block.Height,
-		Total:    	  block.TotalSent,
-		Fees:    	  block.MiningFee,
+		Total:        block.TotalSent,
+		Fees:         block.MiningFee,
 		Subsidy:      block.Subsidy,
 		Votes:        trimTxInfo(block.Votes),
 		Tickets:      trimTxInfo(block.Tickets),
@@ -176,7 +176,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 					exp.pageData.RLock()
 					data := MempoolData{
-						Subsidy:	  exp.pageData.HomeInfo.NBlockSubsidy,
+						Subsidy:      exp.pageData.HomeInfo.NBlockSubsidy,
 						Transactions: trimTxInfo(mempoolTxs),
 						Tickets:      trimTxInfo(mempoolTickets),
 						Votes:        trimTxInfo(mempoolVotes),

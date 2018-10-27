@@ -5,10 +5,6 @@ header .container {
     justify-content: space-between;
     height: 40px;
 }
-header .logo {
-  height: 50%;
-  display: inline-block;
-}
 header .logo img {
   height: 100%;
   vertical-align: initial;
@@ -600,7 +596,7 @@ footer .container .right span.green {
     .container {
         max-width: 1280px !important;
     }
-    .container .logo a img {
+    .top-nav .logo a {
         width: 120px !important;
     }
 }
@@ -621,7 +617,7 @@ footer .container .right span.green {
     .container {
         max-width: 85% !important;
     }
-    .container .logo a img {
+    .top-nav .logo a {
         width: 90px !important;
     }
     .col-md-6 {
@@ -671,19 +667,19 @@ footer .container .right span.green {
         font-size: 12px;
     }
 }
-body.darkBG .container .row .networkStatsWrapper .statCard {
+body.darkBG .netstats-section .statCard {
     background: #2d2d2d!important
 }
 
-body.darkBG .container .decBlockchainWrapper .showmore {
+body.darkBG .blocks-section .showmore {
     background: #2d2d2d!important
 }
 
-body.darkBG .container .decBlockchainWrapper .decredblockWrap .decredblock .info-block {
+body.darkBG .blocks-holder .info-block {
     background: #2d2d2d!important
 }
 
-body.darkBG .container .decBlockchainWrapper .decredblockWrap .decredblock .info-block .color-code {
+body.darkBG .blocks-holder .info-block .color-code {
     color: rgba(148, 255, 202, .75)!important
 }
 
@@ -691,10 +687,11 @@ input#search {
     background: inherit!important
 }
 
-body header .top-nav .container .logo a span {
+body .top-nav .logo a {
+    display: block;
     content: url("/images/themes/light/logo.svg")
 }
 
-body.darkBG header .top-nav .container .logo a span {
+body.darkBG .top-nav .logo a {
     content: url("/images/themes/night/logo.svg")
 }
