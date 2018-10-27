@@ -87,6 +87,7 @@ type explorerDataSource interface {
 	VinsForTx(*dbtypes.Tx) (vins []dbtypes.VinTxProperty, prevPkScripts []string, scriptVersions []uint16, err error)
 	VoutsForTx(*dbtypes.Tx) ([]dbtypes.Vout, error)
 	PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
+	TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 }
 
 // chartDataCounter is a data cache for the historical charts.
@@ -305,7 +306,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "rejects", "ticketpool", "nexthome", "statistics",
-		"windows"}
+		"windows", "timelisting"}
 
 	tempDefaults := []string{"extras"}
 
@@ -683,4 +684,15 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	ASR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationReward
 	ReturnTable += fmt.Sprintf("ASR over 365 Days is %.2f.\n", ASR)
 	return
+}
+
+// genesisBlockTime returns the genesis block time.
+func (exp *explorerUI) genesisBlockTime()(int64, error) {
+	hash, err := exp.blockData.GetBlockHash(0)
+	if err != nil {
+		return -1, err
+	}
+
+	data := exp.blockData.GetExplorerBlock(hash)
+	return data.BlockTime, nil
 }

@@ -8,14 +8,14 @@
     <div class="container main" data-controller="main">
         <h4>Ticket Price Windows</h4><h6>The ticket price and mining difficulty are adjusted every {{$.WindowSize}} blocks on {{toLowerCase .NetName}} (~12 hours).</h6>
         {{$pendingWindows := 0}}
-        {{if gt (int64 (len .Data)) 0}}{{$pendingWindows = (int64 (index .Data 0).WindowIndx)}}{{end}}
+        {{if gt (int64 (len .Data)) 0}}{{$pendingWindows = (int64 (index .Data 0).IndexVal)}}{{end}}
 
         {{block "windowsPagination" .}}
         {{$windowsCount := (int64 (len .Data))}}
         <div class="mb-1 fs13">
             {{if gt $windowsCount 0}}
-            {{$topWindow := (int64 (index .Data 0).WindowIndx)}}
-            {{$pendingWindows := (int64 (index .Data 0).WindowIndx)}}
+            {{$topWindow := (int64 (index .Data 0).IndexVal)}}
+            {{$pendingWindows := (int64 (index .Data 0).IndexVal)}}
             <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
                 {{$oldest := (add .OffsetWindow $windowsCount)}}
                 {{$lastWindow := (add .BestWindow 1)}}
@@ -100,7 +100,7 @@
                             <td class="text-right">
                                 {{$blocksCount := (.BlocksCount)}}
                                 {{if lt .BlocksCount $.WindowSize}}{{$blocksCount = (subtract .BlocksCount 1)}} <span>({{$blocksCount}}/{{$.WindowSize}}) </span>{{end}}
-                                <span>{{.WindowIndx}}</span>
+                                <span>{{.IndexVal}}</span>
                             </td>
                             <td class="text-right">
                                 <a class="fs16 height" href="/blocks?height={{.EndBlock}}&rows=20">{{.EndBlock}}</a>

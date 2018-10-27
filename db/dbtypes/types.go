@@ -124,7 +124,7 @@ type ProgressBarLoad struct {
 // new tickets, etc.)
 type BlocksGroupedInfo struct {
 	// intrinsic properties
-	WindowIndx    int64
+	IndexVal      int64
 	EndBlock      int64
 	Difficulty    float64
 	TicketPrice   int64

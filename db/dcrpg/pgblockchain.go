@@ -796,6 +796,18 @@ func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGrouped
 	return retrieveWindowBlocks(pgb.db, pgb.chainParams.StakeDiffWindowSize, limit, offset)
 }
 
+// TimeBasedIntervals retrieves blocks groups by the selected time-based interval.
+// For the consecutive groups the number of blocks grouped together is not uniform.
+func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
+	limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	interval, err := dbtypes.TimeBasedGroupingToInterval(timeGrouping)
+	if err != nil {
+		return nil, err
+	}
+
+	return retrieveTimeBasedBlockListing(pgb.db, uint64(interval), limit, offset)
+}
+
 // TicketPoolVisualization helps block consecutive and duplicate DB queries for
 // the requested ticket pool chart data. If the data for the given interval is
 // cached and fresh, it is returned. If the cached data is stale and there are

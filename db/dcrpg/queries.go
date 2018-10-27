@@ -576,7 +576,7 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(db *sql.DB) (ids []uint64, heights 
 
 // retrieveWindowBlocks fetches chunks of windows using the limit and offset provided
 // for a window size of chaincfg.Params.StakeDiffWindowSize.
-func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
+func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit,
 	offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
 	rows, err := db.Query(internal.SelectWindowsByLimit, windowSize, limit, offset)
 	if err != nil {
@@ -599,7 +599,7 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
 		index := dbtypes.CalculateWindowIndex(endBlock, windowSize)
 
 		data = append(data, &dbtypes.BlocksGroupedInfo{
-			WindowIndx:    index, //window index at the endblock
+			IndexVal:      index, //window index at the endblock
 			EndBlock:      endBlock,
 			Voters:        votes,
 			Transactions:  txs,
@@ -615,6 +615,45 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
 		})
 	}
 
+	return data, nil
+}
+
+// retrieveTimeBasedBlockListing fetches blocks in chunks based on their block
+// time using the limit and offset provided. The time-based blocks groupings
+// include but are not limited to day, week, month and year.
+func retrieveTimeBasedBlockListing(db *sql.DB, timeInterval, limit,
+	offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	rows, err := db.Query(internal.SelectBlocksTimeListingByLimit, timeInterval,
+		limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTimeBasedBlockListing failed: error: %v", err)
+	}
+
+	data := make([]*dbtypes.BlocksGroupedInfo, 0)
+	for rows.Next() {
+		var txs, tickets, votes, revocations, blockSizes uint64
+		var blocksCount, timestamp, endBlock, indexVal int64
+
+		err = rows.Scan(&indexVal, &endBlock, &txs, &tickets, &votes,
+			&revocations, &blockSizes, &blocksCount, &timestamp)
+		if err != nil {
+			return nil, err
+		}
+
+		data = append(data, &dbtypes.BlocksGroupedInfo{
+			IndexVal:      indexVal,
+			EndBlock:      endBlock,
+			Voters:        votes,
+			Transactions:  txs,
+			FreshStake:    tickets,
+			Revocations:   revocations,
+			BlocksCount:   blocksCount,
+			StartTime:     timestamp,
+			Size:          int64(blockSizes),
+			FormattedSize: humanize.Bytes(blockSizes),
+			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),
+		})
+	}
 	return data, nil
 }
 

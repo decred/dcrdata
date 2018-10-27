@@ -125,6 +125,20 @@ const (
 		ORDER BY window_start DESC
 		LIMIT $2 OFFSET $3;`
 
+	SelectBlocksTimeListingByLimit = `SELECT time/$1 as index_value,
+		MAX(height) AS end_block,
+		SUM(num_rtx) AS txs,
+		SUM(fresh_stake) AS tickets,
+		SUM(voters) AS votes,
+		SUM(revocations) AS revocations,
+		SUM(size) AS size,
+		COUNT(*) AS blocks_count,
+		MIN(time) AS time
+		FROM blocks
+		GROUP BY index_value
+		ORDER BY index_value DESC
+		LIMIT $2 OFFSET $3;`
+
 	SelectBlocksBlockSize = `SELECT time, size, numtx, height FROM blocks ORDER BY time;`
 
 	SelectBlocksPreviousHash = `SELECT previous_hash FROM blocks WHERE hash = $1;`

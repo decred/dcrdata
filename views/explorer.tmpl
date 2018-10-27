@@ -100,7 +100,7 @@
                     <tbody>
                     {{range .Data}}
                         <tr id="{{ .Height }}">
-                            <td>{{.WindowIndx}}</td>
+                            <td>{{.IndexVal}}</td>
                             <td><a href="/block/{{.Height}}" class="fs16 height">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
                             <td {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>
