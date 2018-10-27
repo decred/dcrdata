@@ -375,7 +375,8 @@ const (
 			count(*) AS total
 		 FROM agendas
 		WHERE agenda_id = $4
-		  AND block_height <= (` + agendaLockinBlock + `);`
+		  AND block_height <= (` + agendaLockinBlock + `)
+		GROUP BY block_height;`
 
 	SelectAgendasLockedIn   = `SELECT block_height FROM agendas WHERE locked_in = true AND agenda_id = $1 LIMIT 1;`
 	SelectAgendasHardForked = `SELECT block_height FROM agendas WHERE hard_forked = true AND agenda_id = $1 LIMIT 1;`

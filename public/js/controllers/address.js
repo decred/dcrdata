@@ -38,6 +38,7 @@
         data.series.map(function(series){
             if (series.color==undefined) return '';
             var l = `<span style="color: ` + series.color + ';"> ' + series.labelHTML;
+            html = `<span style="color:#2d2d2d;">`+html+`</span>`
             html += '<br>' + series.dashHTML  + l + ': ' + (isNaN(series.y) ? '': series.y) + '</span>';
         });
         return html;
@@ -49,6 +50,7 @@
             if (series.color==undefined) return '';
             if (series.y === 0 && series.labelHTML.includes('Net')) return '';
             var l = `<span style="color: ` + series.color + ';"> ' + series.labelHTML;
+            html = `<span style="color:#2d2d2d;">`+html+`</span>`
             html += '<br>' + series.dashHTML  + l + ': ' + (isNaN(series.y) ? '': series.y + ' DCR') + '</span> ';
         });
         return html;
@@ -264,7 +266,7 @@
             setApplicableBtns('week', new Date().setDate(pastWeek))
             setApplicableBtns('day', new Date().setDate(pastDay))
 
-            if (parseInt(this.intervalTarget.dataset.txcount) < 20) {
+            if (parseInt(this.intervalTarget.dataset.txcount) < 20 || this.enabledButtons.length === 0) {
                 this.enabledButtons[0] = "all"
             }
 

@@ -171,7 +171,6 @@ body {
       position: absolute;
       font-family: "Source Sans Pro", sans-serif;
       font-size: 12px;
-      color: #17173C;
       line-height: 35px;
       font-weight: bold;
       right: 10px; }
@@ -209,7 +208,6 @@ body {
       float: left; }
     .networkStatsWrapper .statCard p.statcard-title {
       font-family: "Source Sans Pro", sans-serif;
-      color: #17173C;
       margin-bottom: 0px;
       font-size: 14px; }
     .networkStatsWrapper .statCard .heading {
@@ -461,8 +459,8 @@ footer {
 @media (min-width: 1400px) {
   .container {
     max-width: 1280px !important; }
-    .container .logo a img {
-      width:100px !important; } }
+    .container .logo a span {
+      width:120px !important; } }
 @media (min-width: 800px) {
   header .right .searchbox.full input {
     flex: 1; }}
@@ -474,8 +472,8 @@ footer {
   .container {
     max-width: 85% !important;
   }
-  .container .logo a img {
-    width:70px !important;
+  .container .logo a span {
+    width:90px !important;
   }
   .col-md-6 {
     flex: 0 0 50%;
@@ -528,3 +526,17 @@ footer {
     font-size: 12px;
   }
 }
+body.darkBG .container .row .networkStatsWrapper .statCard {
+  background: #2d2d2d !important;}
+body.darkBG .container .decBlockchainWrapper .showmore {
+  background: #2d2d2d !important;}
+body.darkBG .container .decBlockchainWrapper .decredblockWrap .decredblock .info-block {
+  background: #2d2d2d !important;}
+body.darkBG .container .decBlockchainWrapper .decredblockWrap .decredblock .info-block .color-code {
+  color: rgba(148, 255, 202, 0.75) !important;}
+input#search {
+  background: inherit !important;}
+body header .top-nav .container .logo a span {
+  content:url("/images/themes/light/logo.svg")}
+body.darkBG header .top-nav .container .logo a span {
+  content:url("/images/themes/night/logo.svg")}
