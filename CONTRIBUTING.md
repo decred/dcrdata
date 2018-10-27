@@ -36,7 +36,7 @@ Only submit a PR once the intended edits are either done or nearing completion. 
 - Visual Studio Code with Go extension plus `gometalinter`
 - coffee, preferably black. [some good stuff](http://haiticoffeeacademy.com/)
 
-## Quick Start
+## Git Workflow
 
 1. Fork the repository on GitHub.  Just click the little Fork button at https://github.com/decred/dcrdata
 2. Clone your newly forked dcrdata repository
@@ -71,7 +71,28 @@ git status
 git commit # type a good commit message
 ```
 
-6. Push your commit to GitHub
+6. Bring master up-to-date and rebase
+
+```sh
+git checkout master
+git pull https://github.com/decred/dcrtime.git
+git checkout my-great-stuff
+git rebase -i master
+```
+
+In the text editor, change the command from `pick` to `squash` for **all but the top** commit. If you want to use a different
+commit message for everything, change the command from  `pick` to `reword` on the top commit.
+
+7. **If you have conflicts**, you will need to resolve them by iterating through the diffs one conflicting commit at a time
+
+```sh
+# resolve diffs
+git add file1.go, file2.go, ...
+git rebase --continue
+# repeat until rebase completes
+```
+
+8. Push your commit to GitHub
 
 Assuming `origin` is the name of the remote used for *your* repository:
 
@@ -79,7 +100,7 @@ Assuming `origin` is the name of the remote used for *your* repository:
 git push -u origin my-great-stuff
 ```
 
-7. Create the pull request
+9. Create the pull request
 
 At the [main dcrdata repo page](https://github.com/decred/dcrdata) (not your fork) you may find a button suggesting that you might want to create a PR from a branch you just pushed. "Compare & pull request" it will say on a big green button. Click it and it will start form to open a new pull request. Always:
 
