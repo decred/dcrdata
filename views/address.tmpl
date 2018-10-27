@@ -207,6 +207,7 @@
                     {{if .Transactions}}
                     <table class="table table-mono-cells table-sm striped" style="width: 100%;">
                         <thead>
+                            <th>Tx Type</th>
                             <th>Input/Output ID</th>
                             {{if eq $txType "merged_debit"}}
                                 <th># of Input(s)</th>
@@ -227,6 +228,7 @@
                             {{range $i, $v := .Transactions}}
                             <tr>
                                 {{with $v}}
+                                <td>{{.TxType}}</td>
                                 <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
                                 {{if eq $txType "merged_debit"}}
                                     <td class="text-right">{{.MergedTxnCount}}</td>
