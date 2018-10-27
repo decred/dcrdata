@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	humanize "github.com/dustin/go-humanize"
@@ -404,6 +405,26 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 				return true
 			}
 			return false
+		},
+		"PKAddr2PKHAddr": func(address string) (p2pkh string) {
+			// Attempt to decode the pay-to-pubkey address.
+			var addr dcrutil.Address
+			addr, err := dcrutil.DecodeAddress(address)
+			if err != nil {
+				log.Errorf(err.Error())
+				return ""
+			}
+
+			// Extract the pubkey hash.
+			addrHash := addr.Hash160()
+
+			// Create a new pay-to-pubkey-hash address.
+			addrPKH, err := dcrutil.NewAddressPubKeyHash(addrHash[:], addr.Net(), dcrec.STEcdsaSecp256k1)
+			if err != nil {
+				log.Errorf(err.Error())
+				return ""
+			}
+			return addrPKH.EncodeAddress()
 		},
 	}
 }
