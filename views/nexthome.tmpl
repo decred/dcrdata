@@ -2,253 +2,350 @@
 <!DOCTYPE html>
 <html lang="en">
 {{ template "html-head" "Decred Block Explorer by dcrdata.org"}}
-<body>
+
+<body id="nexthome">
     {{ template "navbar" . }}
+
     <div id="mainContainer" class="container" data-controller="main">
-        <div class="row">
-            <div class="col-lg-6 networkStatsWrapper font-weight-bold">
-                <a class="no-underline" href="/statistics">
-                    <h3 class="title font-weight-bold" >{{.NetName}} Network Statistics</h3>
-                </a>
-                {{with .Info}}
-                <div class="statCard general">
-                    <div class="row">
-                        <div class="col-12">
-                            <span><img class="img-size" src="/images/general.svg" alt="general"><p class="statcard-title">General</p></span>
+        <div class="netstats-section font-weight-bold">
+            <a class="no-underline title font-weight-bold" href="/statistics">
+                {{.NetName}} Network Statistics
+            </a>
+            {{with .Info}}
+            <div class="statCard general">
+                <div class="row">
+                    <div class="col-12">
+                        <span><img class="img-size" src="/images/general.svg" alt="general"><p class="statcard-title">General</p></span>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="heading">Available Supply (of 21 mil)</div>
+                        <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <span id="coin-supply">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
+                            </span>
+                            <span class="pl-1 unit lh15rem">DCR</span>
                         </div>
-                        <div class="col-sm-4">
-                            <div class="heading">Available Supply (of 21 mil)</div>
-                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="coin-supply">
-                                    {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
-                                </span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
-                            </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="heading">Dev Reward</div>
+                        <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <span id="bsubsidy-dev">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
+                            </span>
+                            <span class="pl-1 unit lh15rem"> DCR</span>
                         </div>
-                        <div class="col-sm-4">
-                            <div class="heading">Dev Reward</div>
-                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="bsubsidy-dev">
-                                    {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
-                                </span>
-                                <span class="pl-1 unit lh15rem"> DCR</span>
-                            </div>
+                    </div>
+                    {{if .DevFund}}
+                    <div class="col-sm-4">
+                        <div class="heading"><a href="/address/{{.DevAddress}}">Project Fund</a></div>
+                        <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <span id="dev-fund">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .DevFund) 0 true)}}
+                            </span>
+                            <span class="pl-1 unit lh15rem"> DCR</span>
                         </div>
-                        {{if .DevFund}}
-                        <div class="col-sm-4">
-                            <div class="heading"><a href="/address/{{.DevAddress}}">Project Fund</a></div>
-                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="dev-fund">
-                                    {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .DevFund) 0 true)}}
-                                </span>
-                                <span class="pl-1 unit lh15rem"> DCR</span>
-                            </div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            <div class="statCard general">
+                <div class="row">
+                    <div class="col-12">
+                        <span><img class="img-size" src="/images/staking.svg" alt="staking"><p class="statcard-title">Staking</p></span>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="heading">Total Locked DCR</div>
+                        <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <span id="pool-value">
+                                {{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 0 true)}}
+                            </span>
+                            <span class="pl-1 unit lh15rem">DCR</span>
                         </div>
+                        <div class="subdata">
+                            <span class="count" id="pool-info-percentage">({{printf "%.2f" .PoolInfo.Percentage}} % of total supply)</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="heading">PoS Reward</div>
+                        <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <span id="bsubsidy-pos">
+                                {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (divide .NBlockSubsidy.PoS 5)) 8 true 2)}}
+                            </span>
+                            <span class="pl-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
+                        </div>
+                        <div class="subdata">
+                            <span id="ticket-reward" class="count">({{template "fmtPercentage" .TicketReward}} per ~{{.RewardPeriod}})</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="heading">
+                            <a class="no-underline" href="/charts#ticket-price">Ticket Price</a>
+                        </div>
+                        <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <span id="ticket-price">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
+                            <span class="pl-1 unit lh15rem">DCR</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="statCard general">
+                <div class="row">
+                    <div class="col-12">
+                        <span><img class="img-size" src="/images/mining.svg" alt="mining"><p class="statcard-title">Mining</p></span>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="heading">
+                            <a class="no-underline" href="/charts#pow-difficulty">Difficulty</a>
+                        </div>
+                        <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <span id="diff">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
+                            <span class="pl-1 unit lh15rem">Mil</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="heading">PoW Reward</div>
+                        <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <span id="bsubsidy-pow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
+                            <span class="pl-1 unit lh15rem">DCR</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="heading">Hashrate</div>
+                        <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
+                            <span id="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}<span>
+                            <span class="pl-1 unit lh15rem">Ph/s</span>
+                        </div>
+                        <div class="subdata">
+                            <span id="hashrate-subdata" class="count">({{template "fmtPercentage" .HashRateChange}} in 24h)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{end}}
+        </div>
+        <div class="flex-space"></div>
+        <div class="blocks-section">
+            <a class="no-underline title font-weight-bold" href="/blocks">Decred Blockchain</a>
+            <div class="blocks-holder">
+                <!-- add mempool element -->
+                {{with .Mempool}}
+                <div class="block visible">
+                    <div class="block-info">
+                        <a class="color-code" href="/mempool">Mempool</a>
+                        <div class="mono amount" style="line-height: 1;">
+                            <span>{{template "decimalParts" (float64AsDecimalParts .Total 0 false)}}</span>
+                            <span class="unit"> DCR</span>
+                        </div>
+                        <span class="timespan">
+                            <span data-target="main.age" data-age="{{.Time}}"></span>&nbsp;ago
+                        </span>
+                    </div>
+                    <div class="block-rows">
+                        <div class="block-rewards" style="flex-grow: 1">
+                            <span class="pow" style="flex-grow: {{.Subsidy.PoW}}"
+                                title='{"object": "PoW Reward", "total": "{{.Subsidy.PoW}}"}'>
+                                <a class="block-element-link" href="#">
+                                    <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
+                                </a>
+                            </span>
+                            <span class="pos" style="flex-grow: {{.Subsidy.PoS}}"
+                                title='{"object": "PoS Reward", "total": "{{.Subsidy.PoS}}"}'>
+                                <a class="block-element-link" href="#">
+                                    <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
+                                </a>
+                            </span>
+                            <span class="fund" style="flex-grow: {{.Subsidy.Dev}}"
+                                title='{"object": "Project Fund", "total": "{{.Subsidy.Dev}}"}'>
+                                <a class="block-element-link" href="#">
+                                    <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
+                                </a>
+                            </span>
+                            <span class="fees" style="flex-grow: {{.Fees}}"
+                                title='{"object": "Tx Fees", "total": "{{.Fees}}"}'>
+                                <a class="block-element-link" href="#"></a>
+                            </span>
+                        </div>
+
+                        <div class="block-votes" style="flex-grow: 1">
+                        {{range .Votes}}
+                            <span style="background-color: {{if .VoteValid}}#2971ff{{else}}rgba(253, 113, 74, 0.8){{end}}"
+                                title='{"object": "Vote", "total": "{{.Total}}", "vote": "${.VoteValid}"}'>
+                                <a class="block-element-link" href="/tx/{{.TxID}}"></a>
+                            </span>
                         {{end}}
-                    </div>
-                </div>
+                        {{if lt (len .Votes) 5}}
+                        {{$remainingVoteCount := intSubtract 5 (len .Votes)}}
+                        {{range (emptyArray $remainingVoteCount)}}
+                        <span title="Empty vote slot"></span>
+                        {{end}}
+                        {{end}}
+                        </div>
 
-                <div class="statCard general">
-                    <div class="row">
-                        <div class="col-12">
-                            <span><img class="img-size" src="/images/staking.svg" alt="staking"><p class="statcard-title">Staking</p></span>
+                        <div class="block-tickets" style="flex-grow: 1">
+                        <!-- show tickets before revs, if tickets are more than 50, truncate at 30 and show more tip -->
+                        {{$tickets := .Tickets}}
+                        {{$ticketsCount := len .Tickets}}
+                        {{if gt $ticketsCount 50}} {{$tickets = first30Txs .Tickets}} {{end}}
+                        {{range $tickets}}
+                        <span class="block-ticket"
+                            title='{"object": "Ticket", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>
+                            <a class="block-element-link" href="/tx/{{.TxID}}"></a>
+                        </span>
+                        {{end}}
+                        {{if gt $ticketsCount 50}}
+                        <!-- show total number of tickets -->
+                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of $ticketsCount tickets">
+                            <a class="block-element-link" href="#">+ {{intSubtract $ticketsCount 30}}</a>
+                        </span>
+                        {{end}}
+                        {{range .Revocations}}
+                        <span class="block-rev"
+                            title='{"object": "Revocation", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>
+                            <a class="block-element-link" href="/tx/{{.TxID}}"></a>
+                        </span>
+                        {{end}}
+                        {{$ticketsRevsCount := intAdd $ticketsCount (len .Revocations)}}
+                        {{range (emptyArray (intSubtract 20 $ticketsRevsCount))}}
+                        <span title="Empty ticket slot"></span>
+                        {{end}}
                         </div>
-                        <div class="col-sm-4">
-                            <div class="heading">Total Locked DCR</div>
-                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="pool-value">
-                                    {{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 0 true)}}
-                                </span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
-                            </div>
-                            <div class="subdata">
-                                <span class="count" id="pool-info-percentage">({{printf "%.2f" .PoolInfo.Percentage}} % of total supply)</span>
-                            </div>
-                        </div>
-                        <div class="col-sm-4">
-                            <div class="heading">PoS Reward</div>
-                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="bsubsidy-pos">
-                                    {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (divide .NBlockSubsidy.PoS 5)) 8 true 2)}}
-                                </span>
-                                <span class="pl-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
-                            </div>
-                            <div class="subdata">
-                                <span id="ticket-reward" class="count">({{template "fmtPercentage" .TicketReward}} per ~{{.RewardPeriod}})</span>
-                            </div>
-                        </div>
-                        <div class="col-sm-4">
-                            <div class="heading">
-                                <a class="no-underline" href="/charts#ticket-price">Ticket Price</a>
-                            </div>
-                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="ticket-price">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="statCard general">
-                    <div class="row">
-                        <div class="col-12">
-                            <span><img class="img-size" src="/images/mining.svg" alt="mining"><p class="statcard-title">Mining</p></span>
-                        </div>
-                        <div class="col-sm-4">
-                            <div class="heading">
-                                <a class="no-underline" href="/charts#pow-difficulty">Difficulty</a>
-                            </div>
-                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="diff">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
-                                <span class="pl-1 unit lh15rem">Mil</span>
-                            </div>
-                        </div>
-                        <div class="col-sm-4">
-                            <div class="heading">PoW Reward</div>
-                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="bsubsidy-pow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
-                                <span class="pl-1 unit lh15rem">DCR</span>
-                            </div>
-                        </div>
-                        <div class="col-sm-4">
-                            <div class="heading">Hashrate</div>
-                            <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                                <span id="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
-                                <span class="pl-1 unit lh15rem">Ph/s</span>
-                            </div>
-                            <div class="subdata">
-                                <span id="hashrate-subdata" class="count">({{template "fmtPercentage" .HashRateChange}} in 24h)</span>
-                            </div>
+                        <div class="block-transactions" style="flex-grow: 1">
+                        {{$txs := .Transactions}}
+                        {{$txCount := len .Transactions}}
+                        {{if gt $txCount 50}} {{$txs = first30Txs .Transactions}} {{end}}
+                        {{range $txs}}
+                        <span class="block-tx" style="flex-grow: {{.Total}}"
+                            title='{"object": "Transaction", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>
+                            <a class="block-element-link" href="/tx/{{.TxID}}"></a>
+                        </span>
+                        {{end}}
+                        {{if gt $txCount 50}}
+                        <!-- show total number of tickets -->
+                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of $txCount transactions">
+                            <a class="block-element-link" href="#">+ {{intSubtract $txCount 30}}</a>
+                        </span>
+                        {{end}}
                         </div>
                     </div>
                 </div>
                 {{end}}
 
-            </div>
+                {{range $index, $block := .Blocks}}
+                <div class="{{if lt $index 10}}block visible{{else}}block{{end}}">
+                {{with $block}}
+                    <div class="block-info">
+                        <a class="color-code" href="/block/{{.Height}}">{{.Height}}</a>
+                        <div class="mono amount" style="line-height: 1;">
+                            <span>{{template "decimalParts" (float64AsDecimalParts .Total 0 false)}}</span>
+                            <span class="unit"> DCR</span>
+                        </div>
+                        <span class="timespan">
+                            <span data-target="main.age" data-age="{{.Time}}"></span>&nbsp;ago
+                        </span>
+                    </div>
+                    <div class="block-rows">
+                        <div class="block-rewards" style="flex-grow: 1">
+                            <span class="pow" style="flex-grow: {{.Subsidy.PoW}}"
+                                title='{"object": "PoW Reward", "total": "{{.Subsidy.PoW}}"}'>
+                                <a class="block-element-link" href="#">
+                                    <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
+                                </a>
+                            </span>
+                            <span class="pos" style="flex-grow: {{.Subsidy.PoS}}"
+                                title='{"object": "PoS Reward", "total": "{{.Subsidy.PoS}}"}'>
+                                <a class="block-element-link" href="#">
+                                    <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
+                                </a>
+                            </span>
+                            <span class="fund" style="flex-grow: {{.Subsidy.Developer}}"
+                                title='{"object": "Project Fund", "total": "{{.Subsidy.Developer}}"}'>
+                                <a class="block-element-link" href="#">
+                                    <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
+                                </a>
+                            </span>
+                            <span class="fees" style="flex-grow: {{.Fees}}"
+                                title='{"object": "Tx Fees", "total": "{{.Fees}}"}'>
+                                <a class="block-element-link" href="#"></a>
+                            </span>
+                        </div>
 
-            <div class="col-lg-6 decBlockchainWrapper">
-                <a class="no-underline" href="/blocks">
-                    <h3 class="title font-weight-bold">Decred Blockchain</h3>
-                </a>
-                <div class="row">
-                    {{with .Mempool}}
-                    <div id="mempool-info" class="col-lg-4 col-md-6 decredblockWrap">
-                        <div class="decredblock">
-                            <div class="palette one" style="width:10%; left:0%;"></div>
-                            <div class="palette two" style="width:20%; left:10%;"></div>
-                            <div class="palette three" style="width:30%; left:30%;"></div>
-                            <div class="palette four" style="width:20%; left:60%;"></div>
-                            <div class="palette five" style="width:20%; left:80%;"></div>
-                            <div class="info-block">
-                                <span class="color-code">Mempool</span>
-                                <div class="expanded-block">
-                                    <div class="row">
-                                        <div class="col-12" style="margin-left:6%;">
-                                            <img class="img-size" src="/images/transactions.svg" alt="amount" style="margin-right:3%;">
-                                            <div class="data mono lh1rem fs14-decimal fs24">
-                                                <span id="mempool-total-sent">
-                                                    {{template "decimalParts" (float64AsDecimalParts .TotalOut 2 false 2)}}
-                                                </span>
-                                                <span class="pl-1 unit lh15rem"> DCR</span>
-                                            </div>
-                                            <div id="mempool-tx-count" class="subdata">sent in {{.NumAll}} transactions</div>
-                                        </div>
-                                        <div class="col-5" style="margin-left:6%;">
-                                            <img class="img-size" src="/images/votes.svg" alt="votes" style="margin: 2% 10%;">
-                                            <div class="data">
-                                                <p id="mempool-votes" class="count">{{.NumVotes}}</p>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <img class="img-size" src="/images/staking.svg" alt="tickets" style="margin: 2% 10%;">
-                                            <div class="data">
-                                                <p id="mempool-tickets" class="count">{{.NumTickets}}</p>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <button><a class="no-underline" href="/mempool">Show Mempool</a></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="block-votes" style="flex-grow: 1">
+                        {{range .Votes}}
+                            <span style="background-color: {{if .VoteValid}}#2971ff{{else}}rgba(253, 113, 74, 0.8){{end}}"
+                                title='{"object": "Vote", "total": "{{.Total}}", "vote": "${.VoteValid}"}'>
+                                <a class="block-element-link" href="/tx/{{.TxID}}"></a>
+                            </span>
+                        {{end}}
+                        {{if lt (len .Votes) 5}}
+                        {{$remainingVoteCount := intSubtract 5 (len .Votes)}}
+                        {{range (emptyArray $remainingVoteCount)}}
+                        <span title="Empty vote slot"></span>
+                        {{end}}
+                        {{end}}
+                        </div>
+
+                        <div class="block-tickets" style="flex-grow: 1">
+                        <!-- show tickets before revs, if tickets are more than 50, truncate at 30 and show more tip -->
+                        {{$tickets := .Tickets}}
+                        {{$ticketsCount := len .Tickets}}
+                        {{if gt $ticketsCount 50}} {{$tickets = first30Txs .Tickets}} {{end}}
+                        {{range $tickets}}
+                        <span class="block-ticket"
+                            title='{"object": "Ticket", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>
+                            <a class="block-element-link" href="/tx/{{.TxID}}"></a>
+                        </span>
+                        {{end}}
+                        {{if gt $ticketsCount 50}}
+                        <!-- show total number of tickets -->
+                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of $ticketsCount tickets">
+                            <a class="block-element-link" href="#">+ {{intSubtract $ticketsCount 30}}</a>
+                        </span>
+                        {{end}}
+                        {{range .Revocations}}
+                        <span class="block-rev"
+                            title='{"object": "Revocation", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>
+                            <a class="block-element-link" href="/tx/{{.TxID}}"></a>
+                        </span>
+                        {{end}}
+                        {{$ticketsRevsCount := intAdd $ticketsCount (len .Revocations)}}
+                        {{range (emptyArray (intSubtract 20 $ticketsRevsCount))}}
+                        <span title="Empty ticket slot"></span>
+                        {{end}}
+                        </div>
+
+                        <div class="block-transactions" style="flex-grow: 1">
+                        {{$txs := .Transactions}}
+                        {{$txCount := len .Transactions}}
+                        {{if gt $txCount 50}} {{$txs = first30Txs .Transactions}} {{end}}
+                        {{range $txs}}
+                        <span class="block-tx" style="flex-grow: {{.Total}}"
+                            title='{"object": "Transaction", "total": "{{.Total}}", "vout": "{{.VoutCount}}", "vin": "{{.VinCount}}"}'>
+                            <a class="block-element-link" href="/tx/{{.TxID}}"></a>
+                        </span>
+                        {{end}}
+                        {{if gt $txCount 50}}
+                        <!-- show total number of tickets -->
+                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of $txCount transactions">
+                            <a class="block-element-link" href="#">+ {{intSubtract $txCount 30}}</a>
+                        </span>
+                        {{end}}
                         </div>
                     </div>
-                    {{end}}
-
-                    {{range .Blocks}}
-                    <div class="block-info col-lg-4 col-md-6 decredblockWrap">
-                        <div class="decredblock">
-                            <div class="palette one" style="width:10%; left:0%;"></div>
-                            <div class="palette two" style="width:20%; left:10%;"></div>
-                            <div class="palette three" style="width:30%; left:30%;"></div>
-                            <div class="palette four" style="width:20%; left:60%;"></div>
-                            <div class="palette five" style="width:20%; left:80%;"></div>
-                            <div class="info-block">
-                                <span id="block-height" class="color-code">{{.Height}}</span>
-                                <span class="row timespan" style="right:1.5rem;">
-                                    <span id="block-age" data-target="main.age" data-age="{{.BlockTime}}"></span>
-                                    <span style="margin-left:.2rem;">ago</span>
-                                </span>
-                                <div class="expanded-block">
-                                    <div class="row">
-                                        <div class="col-12" style="margin-left:6%;">
-                                            <img class="img-size" src="/images/transactions.svg" alt="amount">
-                                            <div class="data mono lh1rem fs14-decimal fs24">
-                                                <span id="total-sent">
-                                                    {{template "decimalParts" (float64AsDecimalParts .TotalSent 2 false 2)}}
-                                                </span>
-                                                <span class="pl-1 unit lh15rem"> DCR</span>
-                                            </div>
-                                            <div id="tx-count" class="subdata">sent in {{.AllTxs}} transactions</div>
-                                        </div>
-                                        <div class="col-5" style="margin-left:6%;">
-                                            <img class="img-size" src="/images/votes.svg" alt="votes" style="margin: 2% 10%;">
-                                            <div class="data">
-                                                <p id="votes" class="count">{{.Voters}}</p>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <img class="img-size" src="/images/staking.svg" alt="tickets" style="margin: 2% 10%;">
-                                            <div class="data">
-                                                <p id="tickets" class="count">{{.FreshStake}}</p>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                           <button><a id="show-block" class="text-center no-underline" href="/block/{{.Height}}">Show Block</a></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {{end}}
-  		        </div>
-                <a class="no-underline" href="/blocks"><div class="showmore"><p>View BlockChain History</p></div></a>
+                {{end}}
+                </div>
+                {{end}}
             </div>
+            <a class="no-underline" style="display: block; margin-top: 25px;" href="/blocks"><div class="showmore"><p>View BlockChain History</p></div></a>
         </div>
     </div>
 
-    <script>
-        $(document).ready(function(){
-            var count = 0;
-            $(".decBlockchainWrapper .decredblockWrap").click(function(){
-                $(this).toggleClass("expanded");
-                count++;
-
-                if (count > 1) {
-                    $(".decBlockchainWrapper .decredblockWrap").removeClass("expanded");
-                    count = 0;
-                }
-            });
-
-            $(".decredblockWrap").click(function() {
-                if ($( ".decredblockWrap" ).hasClass( "expanded" )) {
-                    $( ".decredblockWrap" ).siblings().addClass("fade");
-                } else {
-                    $( ".decredblockWrap" ).siblings().removeClass("fade");
-                }
-            });
-        })
+    <script src="/js/tippy.all.min.js"></script>
+    <script type="text/javascript" src="/js/controllers/nexthome-blocks-display.js" data-turbolinks-eval="false"></script>
+    <script type="text/javascript" src="/js/controllers/nexthome-socket-update.js" data-turbolinks-eval="false"></script>
+    <script type="text/javascript">
+        // allow some ms for page to properly render blocks before refreshing display
+        setTimeout(refreshBlocksDisplay, 100);
     </script>
 
     {{ template "footer" . }}

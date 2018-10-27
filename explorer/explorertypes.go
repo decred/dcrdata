@@ -115,6 +115,17 @@ func (a *AddressTx) IOID(txType ...string) string {
 	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
 }
 
+// TrimmedTxInfo for use with /nexthome
+type TrimmedTxInfo struct {
+	VinCount  int
+	VoutCount int
+	VoteValid bool
+	TxID      string
+	Total	  float64
+	Fees      float64
+	Coinbase  bool
+}
+
 // TxInfo models data needed for display on the tx page
 type TxInfo struct {
 	*TxBasic
@@ -204,6 +215,19 @@ type Vout struct {
 	Index           uint32
 }
 
+// TrimmedBlockInfo for use with /nexthome
+type TrimmedBlockInfo struct {
+	Time         int64
+	Height       int64
+	Total		 float64
+	Fees	     float64
+	Subsidy      *dcrjson.GetBlockSubsidyResult
+	Votes        []*TrimmedTxInfo
+	Tickets      []*TrimmedTxInfo
+	Revocations  []*TrimmedTxInfo
+	Transactions []*TrimmedTxInfo
+}
+
 // BlockInfo models data for display on the block page
 type BlockInfo struct {
 	*BlockBasic
@@ -212,10 +236,10 @@ type BlockInfo struct {
 	StakeRoot             string
 	MerkleRoot            string
 	TxAvailable           bool
-	Tx                    []*TxBasic
-	Tickets               []*TxBasic
-	Revs                  []*TxBasic
-	Votes                 []*TxBasic
+	Tx                    []*TxInfo
+	Tickets               []*TxInfo
+	Revs                  []*TxInfo
+	Votes                 []*TxInfo
 	Misses                []string
 	Nonce                 uint32
 	VoteBits              uint16
@@ -229,9 +253,10 @@ type BlockInfo struct {
 	PreviousHash          string
 	NextHash              string
 	TotalSent             float64
-	MiningFee             dcrutil.Amount
+	MiningFee             float64
 	StakeValidationHeight int64
 	AllTxs                uint32
+	Subsidy               *dcrjson.GetBlockSubsidyResult
 }
 
 // AddressTransactions collects the transactions for an address as AddressTx
@@ -349,6 +374,18 @@ type BlockSubsidy struct {
 	PoW   int64 `json:"pow"`
 	PoS   int64 `json:"pos"`
 	Dev   int64 `json:"dev"`
+}
+
+// MempoolData models data to update mempool info on the home page
+type MempoolData struct {
+	Transactions []*TrimmedTxInfo
+	Tickets      []*TrimmedTxInfo
+	Votes        []*TrimmedTxInfo
+	Revocations  []*TrimmedTxInfo
+	Subsidy      BlockSubsidy
+	Total        float64
+	Time         int64
+	Fees		 float64
 }
 
 // MempoolInfo models data to update mempool info on the home page

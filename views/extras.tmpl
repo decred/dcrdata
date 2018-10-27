@@ -23,8 +23,8 @@
     <title>{{.}}</title>
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
+    <link href="/css/nexthome.css" rel="stylesheet">
     <link href="/css/charts.css" rel="stylesheet">
-     <link href="/css/nexthome.css" rel="stylesheet">
     <!-- <link rel="stylesheet/less" type="text/css" href="/css/dynamic.less"> -->
     <script src="/js/turbolinks.js"></script>
     <script src="/js/jquery.js"></script>
@@ -38,8 +38,7 @@
 {{end}}
 
 {{define "navbar"}}
-<header>
-<div class="top-nav">
+<header class="top-nav">
     <div class="container">
         <div class="d-flex align-items-center flex-wrap">
             <div class="d-flex align-items-center">
@@ -93,7 +92,6 @@
             </nav>
         </div>
     </div>
-</div>
 </header>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
@@ -200,14 +198,11 @@
     var ws; // websocket global
     async function createWebSocket(loc) {
         // wait a bit to prevent websocket churn from drive by page loads
-        console.log('Waiting to create websocket');
         $('#connection').removeClass('hidden');
         var uri = getSocketURI(loc)
         ws = new MessageSocket(uri);
         await sleep(3000);
         ws.connect()
-        console.log('Starting websocket');
-        console.log("createdWebSocket", uri, ws)
         ws.registerEvtHandler("open", function() {
             console.log('Connected')
             updateConnectionStatus('Connected', true);
@@ -224,8 +219,7 @@
         });
 
         ws.registerEvtHandler("ping", function(evt) {
-            console.log("ping. users online: ", evt)
-            //ws.send("pong", "copy")
+            console.debug("ping. users online: ", evt)
         });
         ws.registerEvtHandler("decodetxResp", function(evt) {
             console.log("Got message: ", evt);
@@ -284,7 +278,7 @@
 
 
             var ex = newBlock.extra
-            if (window.location.pathname == "/nexthome"){
+            if (window.location.pathname === "/nexthome"){
                 $("#coin-supply").html(humanize.decimalParts(ex.coin_supply/100000000, true, 0, false))
                 $("#bsubsidy-dev").html(humanize.decimalParts(ex.subsidy.dev/100000000, false, 8, false, 2))
                 $("#dev-fund").html(humanize.decimalParts(ex.dev_fund/100000000, true, 0, false))
@@ -298,17 +292,7 @@
                 $("#hashrate").html(humanize.decimalParts(ex.hash_rate, false, 8, false, 2))
                 $("#hashrate-subdata").html("("+ humanize.fmtPercentage(ex.hash_rate_change)+ " in 24hr)")
 
-                var newB = $(".block-info").first().clone(true)
-                newB.find("#block-height").text(b.height)
-                newB.find("#block-age").attr("data-age", b.time)
-                newB.find("#total-sent").html(humanize.decimalParts(b.TotalSent, false, 2, false, 2))
-                newB.find("#tx-count").text("sent in "+b.AllTxs+" transactions")
-                newB.find("#votes").text(b.votes)
-                newB.find("#tickets").text(b.tickets)
-                newB.find("#show-block").attr("href", "/block/" + b.height)
-                $(newB).insertAfter("#mempool-info")
-
-                $(".block-info").last().remove()
+                handleBlockUpdate(newBlock.block)
             }
 
              if (window.location.pathname == "/"){
@@ -339,11 +323,22 @@
         ws.registerEvtHandler("newblock", updateBlockData);
 
         ws.registerEvtHandler("mempool", function(event){
-            var mempool = JSON.parse(event);
-            $("#mempool-total-sent").html(humanize.decimalParts(mempool.total, false, 2, false, 2))
-            $("#mempool-tx-count").text("sent in "+mempool.num_all+" transactions")
-            $("#mempool-votes").text(mempool.num_votes)
-            $("#mempool-tickets").text(mempool.num_tickets)
+            if (window.location.pathname === "/nexthome") {
+                ws.send("getmempooltxs", "")
+            }
+            else {
+                var mempool = JSON.parse(event);
+                $("#mempool-total-sent").html(humanize.decimalParts(mempool.total, false, 2, false, 2))
+                $("#mempool-tx-count").text("sent in "+mempool.num_all+" transactions")
+                $("#mempool-votes").text(mempool.num_votes)
+                $("#mempool-tickets").text(mempool.num_tickets)
+            }
+        });
+
+        ws.registerEvtHandler("getmempooltxsResp", function(event) {
+            if (window.location.pathname === "/nexthome") {
+                handleMempoolUpdate(event);
+            }
         });
     }
 
@@ -469,7 +464,6 @@
 </script>
 
 <script src="/js/notify.min.js"></script>
-
 {{end}}
 
 {{define "footer"}}
@@ -514,7 +508,6 @@
 </footer>
 
 <script data-turbolinks-eval="false">
-
     // Keyboard Navigation
     var targets;
     var targetsLength;
@@ -707,9 +700,8 @@
     })
     DCRThings.counter = $("[data-main-lastblocktime]")
 </script>
-
 <script data-turbolinks-eval="false">
-const app = Stimulus.Application.start()
+    const app = Stimulus.Application.start()
 </script>
 <script src="/js/controllers/main.js"  data-turbolinks-eval="false"></script>
 <script src="/js/controllers/mempool.js"  data-turbolinks-eval="false"></script>

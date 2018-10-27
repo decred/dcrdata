@@ -142,28 +142,83 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 
 // NextHome is the page handler for the "/nexthome" path.
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
+	// get top 30 blocks and trim each block to have just the fields required for this page
 	height := exp.blockData.GetHeight()
-
-	blocks := exp.blockData.GetExplorerFullBlocks(height, height-11)
+	blocks := exp.blockData.GetExplorerFullBlocks(height, height-30)
+	trimmedBlocks := make([]*TrimmedBlockInfo, 0, len(blocks))
+	for _, block := range blocks {
+		trimmedBlock := trimBlockInfo(block)
+		trimmedBlocks = append(trimmedBlocks, trimmedBlock)
+	}
 
 	exp.pageData.RLock()
 	exp.MempoolData.RLock()
 
+	// fetch votes for mempool
+	mempoolVotes := make([]*TxInfo, 0)
+	for _, tx := range exp.MempoolData.Votes {
+		if tx.VoteInfo.ForLastBlock == true {
+			exptx := exp.blockData.GetExplorerTx(tx.Hash)
+			mempoolVotes = append(mempoolVotes, exptx)
+		}
+	}
+
+	// fetch tickets for mempool
+	ticketsCount := len(exp.MempoolData.Tickets)
+	mempoolTickets := make([]*TxInfo, 0, ticketsCount)
+	for _, tx := range exp.MempoolData.Tickets {
+		exptx := exp.blockData.GetExplorerTx(tx.Hash)
+		mempoolTickets = append(mempoolTickets, exptx)
+	}
+
+	// fetch revocations for mempool
+	revCount := len(exp.MempoolData.Revocations)
+	mempoolRevs := make([]*TxInfo, 0, revCount)
+	for _, tx := range exp.MempoolData.Revocations {
+		exptx := exp.blockData.GetExplorerTx(tx.Hash)
+		mempoolRevs = append(mempoolRevs, exptx)
+	}
+
+	// fetch regular tx for mempool, and calculate total fees for mempool block
+	var mempoolFees float64 = 0
+	txCount := len(exp.MempoolData.Transactions)
+	mempoolTxs := make([]*TxInfo, 0, txCount)
+	for _, tx := range exp.MempoolData.Transactions {
+		exptx := exp.blockData.GetExplorerTx(tx.Hash)
+		if !exptx.Coinbase {
+			mempoolFees += exptx.Fee.ToCoin()
+			mempoolTxs = append(mempoolTxs, exptx)
+		}
+	}
+
+	// construct mempool object with properties required in template
+	mempoolData := MempoolData {
+		Subsidy:	  exp.pageData.HomeInfo.NBlockSubsidy,
+		Transactions: trimTxInfo(mempoolTxs),
+		Tickets:      trimTxInfo(mempoolTickets),
+		Votes:        trimTxInfo(mempoolVotes),
+		Revocations:  trimTxInfo(mempoolRevs),
+		Total:        exp.MempoolData.TotalOut,
+		Time:         exp.MempoolData.LastBlockTime,
+		Fees:		  mempoolFees,
+	}
+
+	exp.pageData.RUnlock()
+	exp.MempoolData.RUnlock()
+
 	str, err := exp.templates.execTemplateToString("nexthome", struct {
 		*CommonPageData
 		Info    *HomeInfo
-		Mempool *MempoolInfo
-		Blocks  []*BlockInfo
+		Mempool MempoolData
+		Blocks  []*TrimmedBlockInfo
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
 		Info:           exp.pageData.HomeInfo,
-		Mempool:        exp.MempoolData,
-		Blocks:         blocks,
+		Mempool:        mempoolData,
+		Blocks:         trimmedBlocks,
 		NetName:        exp.NetName,
 	})
-	exp.pageData.RUnlock()
-	exp.MempoolData.RUnlock()
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
