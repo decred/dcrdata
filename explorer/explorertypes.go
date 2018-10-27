@@ -411,15 +411,9 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 			BlockTime: addrOut.TxBlockTime,
 			InOutID:   addrOut.TxVinVoutIndex,
 			TxID:      addrOut.TxHash,
+			TxType:    txhelpers.TxTypeToString(int(addrOut.TxType)),
 			MatchedTx: addrOut.MatchingTxHash,
 			IsFunding: addrOut.IsFunding,
-		}
-
-		if tx.TxType == "" {
-			msgTx, err := txhelpers.MsgTxFromHex(addrOut.TxHash)
-			if err == nil {
-				tx.TxType = txhelpers.DetermineTxTypeString(msgTx)
-			}
 		}
 
 		if addrOut.IsFunding {

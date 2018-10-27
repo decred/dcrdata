@@ -77,7 +77,7 @@ const (
 	// SelectFundingTxsByTx      = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1;`
 	// SelectFundingTxByTxIn     = `SELECT id, prev_tx_hash FROM vins WHERE tx_hash=$1 AND tx_index=$2;`
 
-	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, valid_mainchain,
+	addrsColumnNames = `id, address, matching_tx_hash, tx_hash, tx_type, valid_mainchain,
 		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
 
 	SelectAddressAllByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses WHERE address=$1 ORDER BY block_time DESC;`

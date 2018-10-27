@@ -1029,7 +1029,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	if err == nil {
 		tx.TxType = txhelpers.DetermineTxTypeString(msgTx)
 	} else {
-		log.Trace("makeExplorerAddressTx cannot get tx type", err)
+		log.Warn("makeExplorerAddressTx cannot get tx type", err)
 	}
 
 	for i := range data.Vin {
