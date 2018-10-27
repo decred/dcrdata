@@ -47,12 +47,11 @@
 <div class="top-nav">
     <div class="container">
         <div class="logo">
-            <a class="no-underline" href="/"><img src="/images/logo-2018.svg" alt="dcr-icon"></a>
+            <a class="no-underline" href="/"><span></span></a>
         </div>
         <div class="right">
             <div class="searchbox full">
                 <form class="navbar-form" role="search" id="search-form" action="/search" style="display: flex;">
-                    <img class="img-size" src="/images/search.svg" alt="search-icon">
                     <input
                         tabindex="0"
                         type="text"
@@ -244,9 +243,13 @@
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
             if (expTableRows){
+                var indexVal = ""
+                if (window.location.pathname === "/blocks") {
+                    indexVal = '<td>' + b.windowIndex + '</td>'
+                }
                 expTableRows.last().remove()
                 var newRow = '<tr id="' + b.height + '">' +
-                    '<td>' + b.windowIndex + '</td>'+
+                    indexVal +
                     '<td><a href="/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
                     '<td>' + b.tx + '</td>' +
                     '<td>' + b.votes + '</td>' +
