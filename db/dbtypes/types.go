@@ -124,14 +124,16 @@ type ProgressBarLoad struct {
 // new tickets, etc.)
 type BlocksGroupedInfo struct {
 	// intrinsic properties
-	IndexVal      int64
-	EndBlock      int64
-	Difficulty    float64
-	TicketPrice   int64
-	StartTime     int64
-	Size          int64
-	FormattedTime string
-	FormattedSize string
+	IndexVal           int64
+	EndBlock           int64
+	Difficulty         float64
+	TicketPrice        int64
+	StartTime          int64
+	FormattedStartTime string
+	EndTime            int64
+	FormattedEndTime   string
+	Size               int64
+	FormattedSize      string
 	// Aggregate properties
 	Voters       uint64
 	Transactions uint64
@@ -140,7 +142,7 @@ type BlocksGroupedInfo struct {
 	BlocksCount  int64
 }
 
-// TimeBasedGroupings helps mapping a given time grouping to its standard string value.
+// TimeBasedGroupings maps a given time grouping to its standard string value.
 var TimeBasedGroupings = map[TimeBasedGrouping]string{
 	AllGrouping:   "all",
 	YearGrouping:  "yr",

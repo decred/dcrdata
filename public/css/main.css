@@ -465,7 +465,7 @@ body.darkBG .progress {
   display: block;
   padding: 7px 20px;
   margin: 1px 0;
-  font-size: 20px;
+  font-size: 15px;
 }
 #menuToggle input:checked ~ #menu {
   transform: none;
@@ -1037,7 +1037,7 @@ body.darkBG .keynav-target {
   max-width: 600px;
   margin: 0px auto 2% auto;
 }
-table {
+.tb-table {
   table-layout: fixed;
   word-wrap: break-word;
 }

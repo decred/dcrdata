@@ -162,6 +162,7 @@ type explorerUI struct {
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
+	genesisBlock          *BlockInfo
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -684,15 +685,4 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	ASR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationReward
 	ReturnTable += fmt.Sprintf("ASR over 365 Days is %.2f.\n", ASR)
 	return
-}
-
-// genesisBlockTime returns the genesis block time.
-func (exp *explorerUI) genesisBlockTime()(int64, error) {
-	hash, err := exp.blockData.GetBlockHash(0)
-	if err != nil {
-		return -1, err
-	}
-
-	data := exp.blockData.GetExplorerBlock(hash)
-	return data.BlockTime, nil
 }

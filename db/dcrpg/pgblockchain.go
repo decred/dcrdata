@@ -804,7 +804,10 @@ func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
 	if err != nil {
 		return nil, err
 	}
-	return retrieveTimeBasedBlockListing(pgb.db, uint64(interval), limit, offset)
+
+	genesisBlockTime := uint64(pgb.chainParams.GenesisBlock.Header.Timestamp.Unix())
+	return retrieveTimeBasedBlockListing(pgb.db, uint64(interval),
+		limit, offset, genesisBlockTime)
 }
 
 // TicketPoolVisualization helps block consecutive and duplicate DB queries for

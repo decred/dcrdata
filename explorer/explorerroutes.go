@@ -193,7 +193,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || rows < minExplorerRows {
+	if err != nil || (rows < minExplorerRows && rows == 0) {
 		rows = minExplorerRows
 	}
 
@@ -281,12 +281,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		offset = 0
 	}
 
-	oldestBlockTime, err := exp.genesisBlockTime()
-	if err != nil {
-		exp.StatusPage(w, defaultErrorCode, "Genesis block time missing.", ErrorStatusType)
-		log.Errorf("Genesis block time missing: error: %v ", err)
-	}
-
+	oldestBlockTime := exp.ChainParams.GenesisBlock.Header.Timestamp.Unix()
 	maxOffset := (time.Now().Unix() - oldestBlockTime) / int64(i)
 	m := uint64(maxOffset)
 	if offset > m {
@@ -294,7 +289,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || rows < minExplorerRows {
+	if err != nil || (rows < minExplorerRows && rows == 0) {
 		rows = minExplorerRows
 	}
 
@@ -317,7 +312,6 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		Version      string
 		NetName      string
 		BestGrouping int64
-		IndexDiff    int64
 	}{
 		data,
 		val,
@@ -326,7 +320,6 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		exp.Version,
 		exp.NetName,
 		maxOffset,
-		(oldestBlockTime / int64(i)) - 1,
 	})
 
 	if err != nil {
@@ -350,7 +343,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-	if err != nil || rows < minExplorerRows {
+	if err != nil || (rows < minExplorerRows && rows == 0) {
 		rows = minExplorerRows
 	}
 
@@ -448,7 +441,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.MainChain = blockStatus.IsMainchain
 	}
 
-	pageData := struct {
+	str, err := exp.templates.execTemplateToString("block", struct {
 		Data          *BlockInfo
 		ConfirmHeight int64
 		Version       string
@@ -458,8 +451,8 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		exp.Height() - data.Confirmations,
 		exp.Version,
 		exp.NetName,
-	}
-	str, err := exp.templates.execTemplateToString("block", pageData)
+	})
+
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)

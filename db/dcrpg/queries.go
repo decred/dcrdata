@@ -599,19 +599,19 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit,
 		index := dbtypes.CalculateWindowIndex(endBlock, windowSize)
 
 		data = append(data, &dbtypes.BlocksGroupedInfo{
-			IndexVal:      index, //window index at the endblock
-			EndBlock:      endBlock,
-			Voters:        votes,
-			Transactions:  txs,
-			FreshStake:    tickets,
-			Revocations:   revocations,
-			BlocksCount:   count,
-			Difficulty:    difficulty,
-			TicketPrice:   sbits,
-			StartTime:     timestamp,
-			Size:          int64(blockSizes),
-			FormattedSize: humanize.Bytes(blockSizes),
-			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),
+			IndexVal:           index, //window index at the endblock
+			EndBlock:           endBlock,
+			Voters:             votes,
+			Transactions:       txs,
+			FreshStake:         tickets,
+			Revocations:        revocations,
+			BlocksCount:        count,
+			Difficulty:         difficulty,
+			TicketPrice:        sbits,
+			Size:               int64(blockSizes),
+			FormattedSize:      humanize.Bytes(blockSizes),
+			StartTime:          timestamp,
+			FormattedStartTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),
 		})
 	}
 
@@ -622,35 +622,38 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit,
 // time using the limit and offset provided. The time-based blocks groupings
 // include but are not limited to day, week, month and year.
 func retrieveTimeBasedBlockListing(db *sql.DB, timeInterval, limit,
-	offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	offset, genesisBlockTime uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
 	rows, err := db.Query(internal.SelectBlocksTimeListingByLimit, timeInterval,
-		limit, offset)
+		genesisBlockTime, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("retrieveTimeBasedBlockListing failed: error: %v", err)
 	}
 
-	data := make([]*dbtypes.BlocksGroupedInfo, 0)
+	var data []*dbtypes.BlocksGroupedInfo
 	for rows.Next() {
-		var blocksCount, timestamp, indexVal int64
 		var txs, tickets, votes, revocations, blockSizes uint64
+		var blocksCount, startTime, endTime, indexVal, endBlock int64
 
-		err = rows.Scan(&indexVal, &txs, &tickets, &votes,
-			&revocations, &blockSizes, &blocksCount, &timestamp)
+		err = rows.Scan(&indexVal, &endBlock, &txs, &tickets, &votes,
+			&revocations, &blockSizes, &blocksCount, &startTime, &endTime)
 		if err != nil {
 			return nil, err
 		}
 
 		data = append(data, &dbtypes.BlocksGroupedInfo{
-			IndexVal:      indexVal,
-			Voters:        votes,
-			Transactions:  txs,
-			FreshStake:    tickets,
-			Revocations:   revocations,
-			BlocksCount:   blocksCount,
-			StartTime:     timestamp,
-			Size:          int64(blockSizes),
-			FormattedSize: humanize.Bytes(blockSizes),
-			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02"),
+			IndexVal:           indexVal,
+			EndBlock:           endBlock,
+			Voters:             votes,
+			Transactions:       txs,
+			FreshStake:         tickets,
+			Revocations:        revocations,
+			BlocksCount:        blocksCount,
+			Size:               int64(blockSizes),
+			FormattedSize:      humanize.Bytes(blockSizes),
+			StartTime:          startTime,
+			FormattedStartTime: time.Unix(startTime, 0).Format("2006-01-02"),
+			EndTime:            endTime,
+			FormattedEndTime:   time.Unix(endTime, 0).Format("2006-01-02"),
 		})
 	}
 	return data, nil
