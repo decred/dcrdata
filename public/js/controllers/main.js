@@ -32,7 +32,7 @@
         setAges() {
             this.ageTargets.forEach((el,i) => {
                 if (el.dataset.age > 0) {
-                    el.textContent = humanize.timeSince(el.dataset.age)
+                    el.textContent = humanize.timeSince(el.dataset.age, el.id)
                 }
             })
         }

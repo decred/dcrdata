@@ -1037,6 +1037,13 @@ body.darkBG .keynav-target {
   max-width: 600px;
   margin: 0px auto 2% auto;
 }
+table {
+  table-layout: fixed;
+  word-wrap: break-word;
+}
+table th, table td {
+    overflow: hidden;
+}
 
 /*Stats Page*/
 .card {

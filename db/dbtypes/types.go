@@ -158,13 +158,13 @@ func TimeGroupingFromStr(groupings string) TimeBasedGrouping {
 	switch strings.ToLower(groupings) {
 	case "all":
 		return AllGrouping
-	case "yr", "year":
+	case "yr", "year", "years":
 		return YearGrouping
-	case "mo", "month":
+	case "mo", "month", "months":
 		return MonthGrouping
-	case "wk", "week":
+	case "wk", "week", "weeks":
 		return WeekGrouping
-	case "day":
+	case "day", "days":
 		return DayGrouping
 	default:
 		return UnknownGrouping

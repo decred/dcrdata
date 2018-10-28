@@ -239,22 +239,22 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 
 // DayBlocksListing handles "/day" page.
 func (exp *explorerUI) DayBlocksListing(w http.ResponseWriter, r *http.Request) {
-	exp.timeBasedBlocksListing("Day", w, r)
+	exp.timeBasedBlocksListing("Days", w, r)
 }
 
 // WeekBlocksListing handles "/week" page.
 func (exp *explorerUI) WeekBlocksListing(w http.ResponseWriter, r *http.Request) {
-	exp.timeBasedBlocksListing("Week", w, r)
+	exp.timeBasedBlocksListing("Weeks", w, r)
 }
 
 // MonthBlocksListing handles "/month" page.
 func (exp *explorerUI) MonthBlocksListing(w http.ResponseWriter, r *http.Request) {
-	exp.timeBasedBlocksListing("Month", w, r)
+	exp.timeBasedBlocksListing("Months", w, r)
 }
 
 // YearBlocksListing handles "/year" page.
 func (exp *explorerUI) YearBlocksListing(w http.ResponseWriter, r *http.Request) {
-	exp.timeBasedBlocksListing("Year", w, r)
+	exp.timeBasedBlocksListing("Years", w, r)
 }
 
 // TimeBasedBlocksListing is the main handler for "/day", "/week", "/month" and "/year".

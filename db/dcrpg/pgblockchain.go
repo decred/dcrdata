@@ -804,7 +804,6 @@ func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
 	if err != nil {
 		return nil, err
 	}
-
 	return retrieveTimeBasedBlockListing(pgb.db, uint64(interval), limit, offset)
 }
 

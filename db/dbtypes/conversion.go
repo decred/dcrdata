@@ -63,6 +63,8 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params) *B
 // returns 1 while the unknownGrouping returns -1 and an error.
 func TimeBasedGroupingToInterval(grouping TimeBasedGrouping) (float64, error) {
 	var hr = 3600.0
+	// days per month value is obtained by 365/12
+	var daysPerMonth = 30.416666666666668
 	switch grouping {
 	case AllGrouping:
 		return 1, nil
@@ -74,10 +76,10 @@ func TimeBasedGroupingToInterval(grouping TimeBasedGrouping) (float64, error) {
 		return hr * 24 * 7, nil
 
 	case MonthGrouping:
-		return hr * 24 * 30.436875, nil
+		return hr * 24 * daysPerMonth, nil
 
 	case YearGrouping:
-		return hr * 24 * 30.436875 * 12, nil
+		return hr * 24 * daysPerMonth * 12, nil
 
 	default:
 		return -1, fmt.Errorf(`unknown grouping "%d"`, grouping)

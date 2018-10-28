@@ -27,8 +27,8 @@
     }
 
     function humanizeTime(secs) {
-        var years = Math.floor(secs / 29030400) % 10
-        var months = Math.floor(secs / 2419200) % 12
+        var years = Math.floor(secs / 31536000) % 10
+        var months = Math.floor(secs / 2628000) % 12
         var weeks = Math.floor(secs / 604800) % 4
         var days  = Math.floor(secs / 86400) % 7
         var hours   = Math.floor(secs / 3600) % 24

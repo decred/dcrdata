@@ -631,10 +631,10 @@ func retrieveTimeBasedBlockListing(db *sql.DB, timeInterval, limit,
 
 	data := make([]*dbtypes.BlocksGroupedInfo, 0)
 	for rows.Next() {
+		var blocksCount, timestamp, indexVal int64
 		var txs, tickets, votes, revocations, blockSizes uint64
-		var blocksCount, timestamp, endBlock, indexVal int64
 
-		err = rows.Scan(&indexVal, &endBlock, &txs, &tickets, &votes,
+		err = rows.Scan(&indexVal, &txs, &tickets, &votes,
 			&revocations, &blockSizes, &blocksCount, &timestamp)
 		if err != nil {
 			return nil, err
@@ -642,7 +642,6 @@ func retrieveTimeBasedBlockListing(db *sql.DB, timeInterval, limit,
 
 		data = append(data, &dbtypes.BlocksGroupedInfo{
 			IndexVal:      indexVal,
-			EndBlock:      endBlock,
 			Voters:        votes,
 			Transactions:  txs,
 			FreshStake:    tickets,
@@ -651,7 +650,7 @@ func retrieveTimeBasedBlockListing(db *sql.DB, timeInterval, limit,
 			StartTime:     timestamp,
 			Size:          int64(blockSizes),
 			FormattedSize: humanize.Bytes(blockSizes),
-			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),
+			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02"),
 		})
 	}
 	return data, nil

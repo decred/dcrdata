@@ -126,7 +126,6 @@ const (
 		LIMIT $2 OFFSET $3;`
 
 	SelectBlocksTimeListingByLimit = `SELECT time/$1 as index_value,
-		MAX(height) AS end_block,
 		SUM(num_rtx) AS txs,
 		SUM(fresh_stake) AS tickets,
 		SUM(voters) AS votes,
