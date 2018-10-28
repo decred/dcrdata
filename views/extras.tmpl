@@ -188,6 +188,14 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    // `formatTxDate`: Format a string to match the format `(UTC) YYYY-MM-DD HH:MM:SS` used by explorer.TxPage and tx.tmpl
+    function formatTxDate(stamp) {
+        var d = new Date(stamp*1000);
+        var zone = d.toLocaleTimeString('en-us',{timeZoneName:'short'}).split(' ')[2];
+        return "("+zone+") "+String(d.getFullYear())+"-"+String(d.getMonth()+1).padStart(2, "0")+"-"+String(d.getDate()).padStart(2, "0")+" "
+            +String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0")+":"+String(d.getSeconds()).padStart(2, "0");
+    }
+
     var ws; // websocket global
     async function createWebSocket(loc) {
         // wait a bit to prevent websocket churn from drive by page loads
@@ -244,9 +252,30 @@
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
 
+
             // Update the blocktime counter.
             DCRThings.counter.data("main-lastblocktime", b.time).removeClass("text-danger")
             DCRThings.counter.html(humanize.timeSince(b.time))
+
+            // This is triggered on a transaction (/tx) page for an unconfirmed mempool transaction
+            var needsConfirmation = $("[data-txid-mempool-display]")
+            if(needsConfirmation.length && needsConfirmation.text() == "mempool"){
+                var txid = needsConfirmation.data("txid-mempool-display");
+                var k, txs, idx;
+                $.each([b.Tx, b.Tickets, b.Revs, b.Votes], function(k, txs){
+                    for(idx in txs){
+                        if(txs[idx].TxID ==  txid){
+                            needsConfirmation.remove();
+                            $("[data-confirmation-block-height]").data("confirmation-block-height", b.height).html("(1 confirmation)");
+                            $("#txMempoolLink").html(b.height).attr("href", "/block/"+b.hash);
+                            $("#txFmtTime").html(formatTxDate(b.time));
+                            $("#txAge").html(humanize.timeSince(b.time)).before("(").after(" ago)").attr("data-age",b.time);
+                            $("#txMaturityProgress").css({"width":"0.4%"}).attr("aria-valuenow","1").children("span").html("Immature, eligible to vote in 255 blocks (20.8 hours remaining)")
+                            return false
+                        }
+                    }
+                })
+            }
 
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
