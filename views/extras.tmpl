@@ -312,6 +312,11 @@
                 $("#target_percent").html(parseFloat(ex.pool_info.percent_target).toFixed(2))
                 $("#pool_size_percentage").html(parseFloat(ex.pool_info.percent).toFixed(2))
             }
+
+            // handling status page for a future block 
+            if ($("#futureblock").length){
+                Turbolinks.visit(window.location, { action: "replace" });
+            }
         };
         ws.registerEvtHandler("newblock", updateBlockData);
 
