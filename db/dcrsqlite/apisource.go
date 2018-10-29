@@ -641,6 +641,16 @@ func (db *wiredDB) GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended {
 	return stakeInfo
 }
 
+func (db *wiredDB) GetStakeInfoExtendedByHash(blockhash string) *apitypes.StakeInfoExtended {
+	stakeInfo, err := db.RetrieveStakeInfoExtendedByHash(blockhash)
+	if err != nil {
+		log.Errorf("Unable to retrieve stake info: %v", err)
+		return nil
+	}
+
+	return stakeInfo
+}
+
 func (db *wiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
 	blockSummary, err := db.RetrieveBlockSummary(int64(idx))
 	if err != nil {

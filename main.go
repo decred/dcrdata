@@ -566,6 +566,9 @@ func _main(ctx context.Context) error {
 		// Synchronization between DBs via rpcutils.BlockGate
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
+		// Update older sqlite table to index side ChainSize if Needed
+		// Needs auxDB
+
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them,
 		// but it has to get a notification channel first to receive them. The
 		// BlockGate will provide this for blocks after fetchHeightInBaseDB. In
@@ -635,15 +638,26 @@ func _main(ctx context.Context) error {
 		return nil
 	}
 
+	log.Info("Mainchain sync complete.")
+
+	// Ensure all side chains known by dcrd are also present in the base DB
+	// and import them if they are not already there.
+	if cfg.ImportSideChains {
+		log.Info("Primary DB -> Now retrieving side chain blocks from dcrd...")
+		err := baseDB.ImportSideChains(collector)
+		if err != nil {
+			log.Errorf("Primary DB -> Error importing side chains: %v", err)
+		}
+	}
+
 	// Ensure all side chains known by dcrd are also present in the auxiliary DB
 	// and import them if they are not already there.
 	if usePG && cfg.ImportSideChains {
 		// First identify the side chain blocks that are missing from the DB.
-		log.Infof("Initial sync complete, at height %d. "+
-			"Now retrieving side chain blocks from dcrd...", baseDBHeight)
+		log.Info("Aux DB -> Retrieving side chain blocks from dcrd...")
 		sideChainBlocksToStore, nSideChainBlocks, err := auxDB.MissingSideChainBlocks()
 		if err != nil {
-			return fmt.Errorf("unable to determine missing side chain blocks: %v", err)
+			return fmt.Errorf("Aux DB -> Unable to determine missing side chain blocks: %v", err)
 		}
 		nSideChains := len(sideChainBlocksToStore)
 
@@ -653,7 +667,7 @@ func _main(ctx context.Context) error {
 		// to get ticket pool info.
 
 		// Collect and store data for each side chain.
-		log.Infof("Importing %d new block(s) from %d known side chains...",
+		log.Infof("Aux DB -> Importing %d new block(s) from %d known side chains...",
 			nSideChainBlocks, nSideChains)
 		// Disable recomputing project fund balance, and clearing address
 		// balance and counts cache.
@@ -672,7 +686,7 @@ func _main(ctx context.Context) error {
 				// Validate the block hash.
 				blockHash, err := chainhash.NewHashFromStr(hash)
 				if err != nil {
-					log.Errorf("Invalid block hash %s: %v.", hash, err)
+					log.Errorf("Aux DB -> Invalid block hash %s: %v.", hash, err)
 					continue
 				}
 
@@ -680,7 +694,7 @@ func _main(ctx context.Context) error {
 				blockData, msgBlock, err := collector.CollectHash(blockHash)
 				if err != nil {
 					// Do not quit if unable to collect side chain block data.
-					log.Errorf("Unable to collect data for side chain block %s: %v.",
+					log.Errorf("Aux DB -> Unable to collect data for side chain block %s: %v.",
 						hash, err)
 					continue
 				}
@@ -711,7 +725,7 @@ func _main(ctx context.Context) error {
 				// }
 
 				// PostgreSQL / aux DB
-				log.Debugf("Importing block %s (height %d) into aux DB.",
+				log.Debugf("Aux DB -> Importing block %s (height %d) into aux DB.",
 					blockHash, msgBlock.Header.Height)
 
 				// Stake invalidation is always handled by subsequent block, so
@@ -730,7 +744,7 @@ func _main(ctx context.Context) error {
 				if err != nil {
 					// If data collection succeeded, but storage fails, bail out
 					// to diagnose the DB trouble.
-					return fmt.Errorf("ChainDBRPC.StoreBlock failed: %v", err)
+					return fmt.Errorf("Aux DB -> ChainDBRPC.StoreBlock failed: %v", err)
 				}
 
 				sideChainBlocksStored++
