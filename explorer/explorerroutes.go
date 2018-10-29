@@ -1041,7 +1041,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			// Look through old transactions and set the
 			// the spending transactions match fields
 			for _, dbTxn := range addrData.Transactions {
-				if dbTxn.TxID == strprevhash {
+				if dbTxn.TxID == strprevhash && dbTxn.InOutID == previndex && dbTxn.IsFunding {
 					dbTxn.MatchedTx = spendingTx.Hash().String()
 					dbTxn.MatchedTxIndex = uint32(f.InputIndex)
 				}
@@ -1090,19 +1090,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return addrData.Transactions[i].Time > addrData.Transactions[j].Time
 	})
 
+	// Do not put this before the sort.Slice of addrData.Transactions above
 	confirmHeights := make([]int64, len(addrData.Transactions))
 	bdHeight := exp.Height()
 	for i, v := range addrData.Transactions {
 		confirmHeights[i] = bdHeight - int64(v.Confirmations)
 	}
-
-	// addresscount := len(addressRows)
-	// if addresscount > 0 {
-	// 	calcoffset := int(math.Min(float64(addresscount), float64(offset)))
-	// 	calcN := int(math.Min(float64(offset+N), float64(addresscount)))
-	// 	log.Infof("Slicing result set which is %d addresses long to offset: %d and N: %d", addresscount, calcoffset, calcN)
-	// 	addressRows = addressRows[calcoffset:calcN]
-	// }
 
 	pageData := AddressPageData{
 		Data:          addrData,
