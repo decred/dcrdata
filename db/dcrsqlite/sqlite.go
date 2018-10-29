@@ -807,6 +807,7 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	bd := apitypes.NewBlockDataBasic()
 
 	var winners string
+=======
 	var timestamp int64
 	var isMainchain, isValid bool
 	err := db.QueryRow(db.getLatestBlockSQL).Scan(&bd.Hash, &bd.Height, &bd.Size,
