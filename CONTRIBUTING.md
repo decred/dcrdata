@@ -39,6 +39,7 @@ Only submit a PR once the intended edits are either done or nearing completion. 
 ## Git Workflow
 
 1. Fork the repository on GitHub.  Just click the little Fork button at https://github.com/decred/dcrdata
+
 2. Clone your newly forked dcrdata repository
 
 ```sh
@@ -73,20 +74,27 @@ git commit # type a good commit message
 
 6. Bring master up-to-date and rebase
 
+If you are preparing your first pull request on this branch, rebase to master
+
 ```sh
 git checkout master
-git pull https://github.com/decred/dcrtime.git
+git pull https://github.com/decred/dcrdata.git
 git checkout my-great-stuff
 git rebase -i master
 ```
 
-In the text editor, change the command from `pick` to `squash` for **all but the top** commit. If you want to use a different
+In the text editor, change the command from `pick` to `fixup` or `squash` for **all but the top** commit. Use `fixup` for little touchups to discard the commit's log message. If you want to use a different
 commit message for everything, change the command from  `pick` to `reword` on the top commit.
+It should look something like this before saving.
+
+
+![alt text](https://i.imgur.com/fOtaYtb.png "Rebase commmit command guide")
+
 
 7. **If you have conflicts**, you will need to resolve them by iterating through the diffs one conflicting commit at a time
 
 ```sh
-# resolve diffs
+# resolve conflicts
 git add file1.go, file2.go, ...
 git rebase --continue
 # repeat until rebase completes
@@ -94,21 +102,50 @@ git rebase --continue
 
 8. Push your commit to GitHub
 
-Assuming `origin` is the name of the remote used for *your* repository:
+Assuming `myremote` is the name of the remote used for *your* repository:
 
 ```sh
-git push -u origin my-great-stuff
+git push -u myremote my-great-stuff
 ```
 
 9. Create the pull request
 
-At the [main dcrdata repo page](https://github.com/decred/dcrdata) (not your fork) you may find a button suggesting that you might want to create a PR from a branch you just pushed. "Compare & pull request" it will say on a big green button. Click it and it will start form to open a new pull request. Always:
+On Github, select your branch in the dropdown menu (1) and click (2) to start a pull request.
+
+![alt text](https://i.imgur.com/GXZTyiq.png "Pull Request submission guide")
+
+Always:
 
 - Type a detailed comment for the changes you are proposing.  Include motivation and a description of the code change.
 - Highlight any breaking changes.  This includes any syntax changes, added or removed struct fields, interface changes, file renames or deletions, etc.
 - Scroll down and review the code diffs. Verify that the changes are what you expect to see based on your earlier review of the diffs and your git commit log (you did that, right?).
 
 Excellent [PR guidelines](https://github.com/kubernetes/community/blob/master/contributors/devel/pull-requests.md#best-practices-for-faster-reviews) from Kubernetes project.
+
+10. Receive feedback and make changes
+
+You will typically receive feedback from other developers. Before responding, take a moment to review the 
+[Code of Conduct](https://github.com/decred/dcrdata/blob/master/CODE_OF_CONDUCT.md). 
+
+Work through the comments and resolve any confusion with others and then implement the changes necessary.
+
+11. Resubmitting
+
+Similar to step #6 above, you will want to clean up your commits before creating the pull request. 
+As long as it hasn't been a very long time, you don't need to rebase to master. Instead, rebase 
+to the commit of the last pull request. To see a list of commits, you can use
+
+```sh
+git log --oneline --graph
+```
+
+Find the hash of the commit of your last pull request. Get all the new changes squashed down using 
+
+```sh
+git rebase -i [commit hash]
+```
+
+and following the same procedure from #6. Once everything is cleaned up, push the changes to remote.
 
 ## Go Development Tips
 
