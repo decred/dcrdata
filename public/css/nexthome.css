@@ -141,7 +141,6 @@ body {
 }
 .block {
     display: none;
-    background: white;
     overflow: hidden;
     transition: 0.2s ease-in-out;
     border: 1px solid #c4cbd2;
@@ -155,7 +154,6 @@ body {
     display: flex;
     justify-content: space-between;
     padding: .2em .5em;
-    background: white;
     transition: 0.2s ease-in-out;
     overflow: hidden;
     font-size: 14px;
@@ -194,7 +192,6 @@ body {
   flex-wrap: nowrap;
   align-items: stretch;
   border-top: 1px solid white;
-  background: white;
 }
 .block-rows .block-rewards {
     border-top: none;
