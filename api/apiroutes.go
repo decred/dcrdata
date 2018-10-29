@@ -55,7 +55,7 @@ type DataSourceLite interface {
 	GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions
 	GetFeeInfo(idx int) *dcrjson.FeeInfoBlock
 	//GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeDiffResult
-	GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended
+	GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended
 	GetStakeInfoExtendedByHash(hash string) *apitypes.StakeInfoExtended
 	GetStakeDiffEstimates() *apitypes.StakeDiff
 	//GetBestBlock() *blockdata.BlockData
@@ -730,22 +730,36 @@ func (c *appContext) getBlockFeeInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, blockFeeInfo, c.getIndentQuery(r))
 }
 
-func (c *appContext) getBlockStakeInfoExtended(w http.ResponseWriter, r *http.Request) {
+// getBlockStakeInfoExtendedByHash retrieves the apitype.StakeInfoExtended
+// for the given blockhash
+func (c *appContext) getBlockStakeInfoExtendedByHash(w http.ResponseWriter, r *http.Request) {
 	hash := c.getBlockHashCtx(r)
 	if hash == "" {
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}
 
-	// idx := c.getBlockHeightCtx(r)
-	// if idx < 0 {
-	// 	http.Error(w, http.StatusText(422), 422)
-	// 	return
-	// }
-
 	stakeinfo := c.BlockData.GetStakeInfoExtendedByHash(hash)
 	if stakeinfo == nil {
 		apiLog.Errorf("Unable to get block fee info for %s", hash)
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+
+	writeJSON(w, stakeinfo, c.getIndentQuery(r))
+}
+
+// getBlockStakeInfoExtendedByHeight retrieves the apitype.StakeInfoExtended
+// for the given blockheight on mainchain
+func (c *appContext) getBlockStakeInfoExtendedByHeight(w http.ResponseWriter, r *http.Request) {
+	idx := c.getBlockHeightCtx(r)
+	if idx < 0 {
+		http.Error(w, http.StatusText(422), 422)
+		return
+	}
+	stakeinfo := c.BlockData.GetStakeInfoExtendedByHeight(int(idx))
+	if stakeinfo == nil {
+		apiLog.Errorf("Unable to get block fee info for height %d", idx)
 		http.Error(w, http.StatusText(422), 422)
 		return
 	}

@@ -566,9 +566,6 @@ func _main(ctx context.Context) error {
 		// Synchronization between DBs via rpcutils.BlockGate
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
-		// Update older sqlite table to index side ChainSize if Needed
-		// Needs auxDB
-
 		// stakedb (in baseDB) connects blocks *after* ChainDB retrieves them,
 		// but it has to get a notification channel first to receive them. The
 		// BlockGate will provide this for blocks after fetchHeightInBaseDB. In

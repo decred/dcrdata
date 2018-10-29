@@ -68,7 +68,7 @@ type DB struct {
 	getBlockSizeRangeSQL                                         string
 	getBestBlockHashSQL, getBestBlockHeightSQL                   string
 	getLatestStakeInfoExtendedSQL, getHighestStakeHeight         string
-	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL          string
+	getStakeInfoExtendedByHeightSQL, insertStakeInfoExtendedSQL  string
 	getStakeInfoExtendedByHashSQL                                string
 	getStakeInfoWinnersSQL, getStakeInfoWinnersByHashSQL         string
 	getAllPoolValSize                                            string
@@ -142,7 +142,7 @@ func NewDB(db *sql.DB) (*DB, error) {
 	d.setHeightToSideChainSQL = fmt.Sprintf(`UPDATE %s SET is_mainchain = 0 where height = ?`, TableNameSummaries)
 
 	// Stake info queries
-	d.getStakeInfoExtendedSQL = fmt.Sprintf(`SELECT %[1]s.* FROM %[1]s JOIN %[2]s ON %[1]s.hash = %[2]s.hash WHERE %[2]s.is_mainchain = 1 AND %[1]s.height = ?`,
+	d.getStakeInfoExtendedByHeightSQL = fmt.Sprintf(`SELECT %[1]s.* FROM %[1]s JOIN %[2]s ON %[1]s.hash = %[2]s.hash WHERE %[2]s.is_mainchain = 1 AND %[1]s.height = ?`,
 		TableNameStakeInfo, TableNameSummaries)
 	d.getStakeInfoExtendedByHashSQL = fmt.Sprintf(`SELECT * FROM %s WHERE hash = ?`,
 		TableNameStakeInfo)
@@ -150,14 +150,6 @@ func NewDB(db *sql.DB) (*DB, error) {
 		TableNameStakeInfo, TableNameSummaries)
 	d.getStakeInfoWinnersByHashSQL = fmt.Sprintf(`SELECT %[1]s.winners FROM %[1]s JOIN %[2]s ON %[1]s.hash = %[2]s.hash WHERE %[1]s.hash = ?`,
 		TableNameStakeInfo, TableNameSummaries)
-
-	// &si.Feeinfo.Height, &si.Feeinfo.Number, &si.Feeinfo.Min,
-	// &si.Feeinfo.Max, &si.Feeinfo.Mean,
-	// &si.Feeinfo.Median, &si.Feeinfo.StdDev,
-	// &si.StakeDiff, // no next or estimates
-	// &si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
-	// &si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners
-
 	d.getLatestStakeInfoExtendedSQL = fmt.Sprintf(
 		`SELECT %[1]s.* FROM %[1]s JOIN %[2]s ON %[1]s.hash = %[2]s.hash WHERE %[2]s.is_mainchain = 1 ORDER BY %[1]s.height DESC LIMIT 0, 1`, TableNameStakeInfo, TableNameSummaries)
 	d.getHighestStakeHeight = fmt.Sprintf(
@@ -218,21 +210,20 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	}
 
 	rawCreateBlockSummaryStmt := `
-        create table if not exists %s(
-						hash TEXT PRIMARY KEY,
-            height INTEGER,
-            size INTEGER,
-            diff FLOAT,
-            sdiff FLOAT,
-            time INTEGER,
-            poolsize INTEGER,
-            poolval FLOAT,
-			poolavg FLOAT,
-			winners TEXT,
-			is_mainchain BOOL,
-			is_valid BOOL
-        );
-        `
+    	create table if not exists %s(
+      	hash TEXT PRIMARY KEY,
+      	height INTEGER,
+      	size INTEGER,
+      	diff FLOAT,
+      	sdiff FLOAT,
+      	time INTEGER,
+      	poolsize INTEGER,
+      	poolval FLOAT,
+      	poolavg FLOAT,
+      	winners TEXT,
+      	is_mainchain BOOL,
+      	is_valid BOOL
+    	);`
 
 	createBlockSummaryStmt := fmt.Sprintf(rawCreateBlockSummaryStmt, TableNameSummaries)
 
@@ -243,17 +234,16 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	}
 
 	rawCreateStakeInfoExtendedStmt := `
-        create table if not exists %s(
-						hash TEXT PRIMARY KEY,
-            height INTEGER,
-            num_tickets INTEGER,
-            fee_min FLOAT, fee_max FLOAT, fee_mean FLOAT,
-			fee_med FLOAT, fee_std FLOAT,
-			sdiff FLOAT, window_num INTEGER, window_ind INTEGER,
-			pool_size INTEGER, pool_val FLOAT, pool_valavg FLOAT,
-			winners TEXT
-        );
-        `
+    	create table if not exists %s(
+      	hash TEXT PRIMARY KEY,
+      	height INTEGER,
+      	num_tickets INTEGER,
+      	fee_min FLOAT, fee_max FLOAT, fee_mean FLOAT,
+      	fee_med FLOAT, fee_std FLOAT,
+      	sdiff FLOAT, window_num INTEGER, window_ind INTEGER,
+      	pool_size INTEGER, pool_val FLOAT, pool_valavg FLOAT,
+      	winners TEXT
+    	);`
 
 	createStakeInfoExtendedStmt := fmt.Sprintf(rawCreateStakeInfoExtendedStmt, TableNameStakeInfo)
 
@@ -1053,7 +1043,7 @@ func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended,
 	si := apitypes.NewStakeInfoExtended()
 
 	var winners string
-	err := db.QueryRow(db.getStakeInfoExtendedSQL, ind).Scan(&si.Hash, &si.Feeinfo.Height,
+	err := db.QueryRow(db.getStakeInfoExtendedByHeightSQL, ind).Scan(&si.Hash, &si.Feeinfo.Height,
 		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
 		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
 		&si.StakeDiff, // no next or estimates
