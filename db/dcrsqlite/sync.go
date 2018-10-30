@@ -417,16 +417,14 @@ func (db *wiredDB) ImportSideChains(collector *blockdata.Collector) error {
 	if err != nil {
 		return err
 	}
-	hashlist := make([]*chainhash.Hash, 0)
+	var hashlist []*chainhash.Hash
 	for it := range tips {
-		sideHeight := tips[it].Height
-		log.Tracef("Primary DB -> Getting base DB side chain with tip %s at %d.", tips[it].Hash, sideHeight)
+		log.Tracef("Primary DB -> Getting base DB side chain with tip %s at %d.", tips[it].Hash, tips[it].Height)
 		sideChain, err := rpcutils.SideChainFull(db.client, tips[it].Hash)
 		if err != nil {
 			log.Errorf("Primary DB -> Unable to get side chain blocks for chain tip %s: %v", tips[it].Hash, err)
 			return err
 		}
-		sideHeight -= int64(len(sideChain)) - 1
 
 		// For each block in the side chain, check if it already stored.
 		for is := range sideChain {
