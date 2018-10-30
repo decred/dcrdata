@@ -748,6 +748,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				Type:            txhelpers.TxTypeToString(int(vouts[iv].TxType)),
 				Spent:           spendingTx != "",
 				OP_RETURN:       opReturn,
+				Index:           vouts[iv].TxIndex,
 			})
 		}
 
@@ -809,6 +810,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				},
 				Addresses:       addresses,
 				FormattedAmount: humanize.Commaf(amount),
+				Index:           txIndex,
 			})
 		}
 

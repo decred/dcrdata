@@ -584,6 +584,11 @@ body.darkBG .progress {
   border-bottom: 1px solid #e4e4e4;
 }
 
+.shrink-to-fit {
+  width:1%;
+  white-space:nowrap;
+}
+
 .addressAndScriptData {
   overflow: hidden;
 }

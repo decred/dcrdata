@@ -355,8 +355,13 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"theme": func() string {
 			return netTheme
 		},
-		"now": func() int64 {
-			return time.Now().Unix()
+		"elide": func(a string, maxLen int) string {
+			aLen := len(a)
+			if aLen <= maxLen || maxLen < 3 {
+				return a
+			}
+			endLen := (maxLen - 2) / 2
+			return a[:endLen] + "..." + a[aLen-endLen:aLen]
 		},
 		"uint16toInt64": func(v uint16) int64 {
 			return int64(v)
