@@ -30,6 +30,14 @@
         }
 
         setAges() {
+            if(this.data.has("lastblocktime")){
+              var lbt = this.data.get("lastblocktime")
+              this.element.textContent = humanize.timeSince(lbt)
+              if((new Date()).getTime()/1000 - lbt > 12000){ // 8*blocktime = 40minutes = 12000 seconds
+                this.element.classList.add("text-danger")
+              }
+              return
+            }
             this.ageTargets.forEach((el,i) => {
                 if (el.dataset.age > 0) {
                     el.textContent = humanize.timeSince(el.dataset.age, el.id)

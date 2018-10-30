@@ -240,6 +240,9 @@
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
 
+            // Update the blocktime counter.
+            $("[data-main-lastblocktime]").data("main-lastblocktime", b.time).removeClass("text-danger")
+
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
             if (expTableRows){
@@ -392,6 +395,9 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container d-flex">
+        <ul class="nav justify-content-left align-items-center nowrap">
+          <div class="float-left"><span data-controller="main" data-target="main.age" data-main-lastblocktime="{{$.Tip.Time}}"></span> since last block</div>
+        </ul>
         <ul class="nav justify-content-center col">
             <li class="nav-item">
                 <a
