@@ -1034,17 +1034,29 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			// sent total sats has to be a lookup of the vout:i prevout value
 			// because vin:i valuein is not reliable from dcrd at present
 			prevhash := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Hash
+			strprevhash := prevhash.String()
 			previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
 			valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
 
+			// Look through old transactions and set the
+			// the spending transactions match fields
+			for _, dbTxn := range addrData.Transactions {
+				if dbTxn.TxID == strprevhash && dbTxn.InOutID == previndex && dbTxn.IsFunding {
+					dbTxn.MatchedTx = spendingTx.Hash().String()
+					dbTxn.MatchedTxIndex = uint32(f.InputIndex)
+				}
+			}
+
 			if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit {
 				addrTx := &AddressTx{
-					TxID:          spendingTx.Hash().String(),
-					InOutID:       uint32(f.InputIndex),
-					Time:          spendingTx.MemPoolTime,
-					FormattedSize: humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
-					Total:         txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
-					SentTotal:     dcrutil.Amount(valuein).ToCoin(),
+					TxID:           spendingTx.Hash().String(),
+					InOutID:        uint32(f.InputIndex),
+					Time:           spendingTx.MemPoolTime,
+					FormattedSize:  humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
+					Total:          txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
+					SentTotal:      dcrutil.Amount(valuein).ToCoin(),
+					MatchedTx:      strprevhash,
+					MatchedTxIndex: previndex,
 				}
 				addrData.Transactions = append(addrData.Transactions, addrTx)
 			}
@@ -1071,12 +1083,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
 	addrData.TxnType = txnType.String()
 
-	confirmHeights := make([]int64, len(addrData.Transactions))
-	bdHeight := exp.Height()
-	for i, v := range addrData.Transactions {
-		confirmHeights[i] = bdHeight - int64(v.Confirmations)
-	}
-
 	sort.Slice(addrData.Transactions, func(i, j int) bool {
 		if addrData.Transactions[i].Time == addrData.Transactions[j].Time {
 			return addrData.Transactions[i].InOutID > addrData.Transactions[j].InOutID
@@ -1084,13 +1090,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return addrData.Transactions[i].Time > addrData.Transactions[j].Time
 	})
 
-	// addresscount := len(addressRows)
-	// if addresscount > 0 {
-	// 	calcoffset := int(math.Min(float64(addresscount), float64(offset)))
-	// 	calcN := int(math.Min(float64(offset+N), float64(addresscount)))
-	// 	log.Infof("Slicing result set which is %d addresses long to offset: %d and N: %d", addresscount, calcoffset, calcN)
-	// 	addressRows = addressRows[calcoffset:calcN]
-	// }
+	// Do not put this before the sort.Slice of addrData.Transactions above
+	confirmHeights := make([]int64, len(addrData.Transactions))
+	bdHeight := exp.Height()
+	for i, v := range addrData.Transactions {
+		confirmHeights[i] = bdHeight - int64(v.Confirmations)
+	}
 
 	pageData := AddressPageData{
 		Data:          addrData,
