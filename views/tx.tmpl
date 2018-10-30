@@ -294,7 +294,7 @@
     </div>
 
     <div class="row">
-        <div class="col-md-7 mb-3">
+        <div class="col-md-7 mb-3 tx-col-l">
             <h4>Input</h4>
             <table class="table table-sm striped">
                 <thead>
@@ -308,21 +308,21 @@
                     {{range .Vin}}
                     <tr {{if and (eq $.HighlightInOut "in") (eq $.HighlightInOutID .Index)}} class="matching-hash" {{end}}>
                         <td class="shrink-to-fit">{{.Index}}</td>
-                        <td class="break-word mono fs13">
+                        <td class="mono fs13">
                             <div>
                             {{if .Coinbase}}
-                                Coinbase: {{elide .Coinbase 32}}
+                                Coinbase: {{elide .Coinbase 20}}
                             {{else if .Stakebase}}
-                                Stakebase: {{elide .Stakebase 32}}
+                                Stakebase: {{elide .Stakebase 20}}
                             {{else}}
-                                <a data-keynav-priority href="/tx/{{.Txid}}/out/{{.Vout}}">{{elide .Txid 32}}:{{.Vout}}</a>
+                                <a data-keynav-priority href="/tx/{{.Txid}}/out/{{.Vout}}">{{elide .Txid 20}}:{{.Vout}}</a>
                             {{end}}
                             </div>
                         </td>
-                        <td><div class="break-word mono fs13">
+                        <td><div class="mono fs13">
                             {{if gt (len .Addresses) 0}}
                                 {{range .Addresses}}
-                                    <div><a href="/address/{{.}}">{{elide . 32}}</a></div>
+                                    <div><a href="/address/{{.}}">{{.}}</a></div>
                                 {{end}}
                             {{else}}
                                 N/A
@@ -358,7 +358,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="col-md-5 mb-3">
+        <div class="col-md-5 mb-3 tx-col-r">
             <h4>Output</h4>
             <table class="table table-sm striped">
                 <thead>
@@ -372,9 +372,9 @@
                     {{range $i, $v := .Vout}}
                     <tr {{if and (eq $.HighlightInOut "out") (eq $.HighlightInOutID .Index)}} class="matching-hash" {{end}}>
                         <td class="shrink-to-fit">{{.Index}}</td>
-                        <td class="break-word mono fs13 addressAndScriptData">
+                        <td class="mono fs13 addressAndScriptData">
                             {{range .Addresses}}
-                                <div class="sm-fullwidth"><a href="/address/{{.}}" data-keynav-priority>{{elide . 32}}</a></div>
+                                <div class="sm-fullwidth"><a href="/address/{{.}}" data-keynav-priority>{{.}}</a></div>
                             {{end}}
                             {{if .OP_RETURN}}
                                 {{if .Addresses}}
@@ -385,7 +385,7 @@
                                 {{else}}
                                 <div>
                                 {{end}}
-                                    <span>{{.OP_RETURN}}</span>
+                                    <span class="break-work">{{.OP_RETURN}}</span>
                                 </div>
                             {{end}}
                         </td>

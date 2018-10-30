@@ -553,6 +553,12 @@ body.darkBG .progress {
   padding: .1rem .5rem;
   height: 25px;
 }
+.tx-col-l{
+  max-width:54%;
+}
+.tx-col-r{
+  max-width:46%;
+}
 .table.flush-left tr td:first-child {
   padding-left: 0px;
 }
