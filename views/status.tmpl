@@ -8,6 +8,7 @@
     <div class="container" data-controller="status">
         <br/>
         <div class="alert alert-info">
+            {{$P2PKHAddr := PKAddr2PKHAddr .AdditionalInfo}}
             {{if eq .StatusType "Not Found"}}
                 <h5>No matching page, block, address or transaction that could be found</h5>
                 <h5>{{.Message}}</h5>
@@ -32,8 +33,8 @@
                 <h5>{{.Message}}. You can <a href="https://insight.bitpay.com">find that here.</a></h5>
             {{else if eq .StatusType "P2PK Address Type"}}
                 <h5>{{.Message}}. 
-                    {{if and (ne .AdditionalInfo "") (ne (PKAddr2PKHAddr .AdditionalInfo) "")}}
-                        You can <a href="https://explorer.dcrdata.org/search?search={{PKAddr2PKHAddr .AdditionalInfo}}">convert to P2PKH and search here.</a>
+                    {{if and (ne .AdditionalInfo "") (ne $P2PKHAddr "")}}
+                        You can <a href="https://explorer.dcrdata.org/search?search={{$P2PKHAddr}}">convert to P2PKH and search here.</a>
                     {{end}}
                 </h5>
             {{else}}

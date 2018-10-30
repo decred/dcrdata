@@ -1344,7 +1344,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 
 		// This is here to detect a bitcoin type address
 		if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3")) && len(address) >= 25 && len(address) <= 34 {
-			return nil, fmt.Errorf("Bitcoin address detected")
+			return nil, fmt.Errorf("Possible Bitcoin address detected.")
 		}
 		return nil, nil
 	}
