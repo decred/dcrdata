@@ -270,11 +270,25 @@
                             $("#txMempoolLink").html(b.height).attr("href", "/block/"+b.hash);
                             $("#txFmtTime").html(formatTxDate(b.time));
                             $("#txAge").html(humanize.timeSince(b.time)).before("(").after(" ago)").attr("data-age",b.time);
-                            $("#txMaturityProgress").css({"width":"0.4%"}).attr("aria-valuenow","1").children("span").html("Immature, eligible to vote in 255 blocks (20.8 hours remaining)")
+                            $("#txMaturityProgress").css({"width":"0.4%"}).attr("aria-valuenow","1"
+                          ).children("span").html("Immature, eligible to vote in 255 blocks (21.3 hours remaining)")
                             return false
                         }
                     }
                 })
+            }
+            var ticketProgress = $("#txMaturityProgress");
+            if(ticketProgress.length){
+                var progress = ticketProgress.attr("aria-valuenow");
+                if(progress == 255){
+                    oldProgress.closest(".row").replaceWith("Mature");
+                }
+                else{
+                    progress++
+                    var ratio = progress/256
+                    ticketProgress.attr("aria-valuenow", progress).css({"width":(ratio*100).toString()+"%"})
+                    ticketProgress.children("span").html("Immature, eligible to vote in "+(256-progress).toString()+" blocks ("+((1-ratio)*21.3).toFixed(1)+" hours remaining)");
+                }
             }
 
             var expTableRows = $('#explorertable tbody tr');

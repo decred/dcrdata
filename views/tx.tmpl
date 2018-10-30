@@ -79,7 +79,7 @@
                     </tr>
                 {{end}}
                 {{if eq .Mature "True"}}
-                    <tr><td class="text-right pr-2 h1rem p03rem0">MATURITY</td><td>Fully Mature</td></tr>
+                    <tr><td class="text-right pr-2 h1rem p03rem0">MATURITY</td><td>Mature</td></tr>
                 {{end}}
                 {{if and (eq .Mature "False") (eq .Type "Ticket")}}
                     <tr>
@@ -99,7 +99,7 @@
                                         >
                                             <span class="nowrap pl-1 pr-1">
                                               {{if gt .Confirmations 0}}
-                                                Immature, {{ if eq .Type "Ticket"}}eligible to vote{{else}}spendable{{end}} in {{ if eq .Confirmations .TicketInfo.TicketMaturity }}next block{{else}}{{subtract (add .TicketInfo.TicketMaturity 1) .Confirmations}} blocks ({{printf "%.1f" .TicketInfo.TimeTillMaturity}} hours remaining){{end}}
+                                                Immature, {{ if eq .Type "Ticket"}}eligible to vote{{else}}spendable{{end}} in {{ if eq .Confirmations .TicketInfo.TicketMaturity }}next block{{else}}{{subtract .TicketInfo.TicketMaturity .Confirmations}} blocks ({{printf "%.1f" .TicketInfo.TimeTillMaturity}} hours remaining){{end}}
                                               {{else}}
                                                 Awaiting confirmation
                                               {{end}}
