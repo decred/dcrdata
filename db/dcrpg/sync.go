@@ -154,6 +154,9 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		}
 		totalVoutPerSec := totalVouts / int64(totalElapsed)
 		totalTxPerSec := totalTxs / int64(totalElapsed)
+		if totalTxs == 0 {
+			return
+		}
 		log.Infof("Avg. speed: %d tx/s, %d vout/s", totalTxPerSec, totalVoutPerSec)
 	}
 	speedReport := func() { o.Do(speedReporter) }
@@ -320,9 +323,10 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 	// and clear the general address balance cache.
 	if err = db.FreshenAddressCaches(false); err != nil {
 		log.Warnf("FreshenAddressCaches: %v", err)
+		err = nil // not an error with sync
 	}
 
-	// Signal the end of the initial load sync
+	// Signal the end of the initial load sync.
 	if barLoad != nil {
 		barLoad <- &dbtypes.ProgressBarLoad{
 			From:  nodeHeight,

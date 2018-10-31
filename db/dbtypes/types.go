@@ -4,6 +4,7 @@
 package dbtypes
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,29 @@ import (
 
 	"github.com/decred/dcrdata/v3/db/dbtypes/internal"
 )
+
+var (
+	// PGCancelError is the error string PostgreSQL returns when a query fails
+	// to complete due to user requested cancellation.
+	PGCancelError       = "pq: canceling statement due to user request"
+	CtxDeadlineExceeded = context.DeadlineExceeded.Error()
+	TimeoutPrefix       = "TIMEOUT of PostgreSQL query"
+)
+
+// IsTimeout checks if the message is prefixed with the expected DB timeout
+// message prefix.
+func IsTimeout(msg string) bool {
+	// Contains is used instead of HasPrefix since error messages are often
+	// supplemented with additional information.
+	return strings.Contains(msg, TimeoutPrefix) ||
+		strings.Contains(msg, CtxDeadlineExceeded)
+}
+
+// IsTimeout checks if error's message is prefixed with the expected DB timeout
+// message prefix.
+func IsTimeoutErr(err error) bool {
+	return err != nil && IsTimeout(err.Error())
+}
 
 // TimeDef is time.Time wrapper that formats time by default as a string without
 // a timezone. The time Stringer interface formats the time into a string
@@ -111,6 +135,14 @@ const (
 	DayGrouping
 	UnknownGrouping
 )
+
+// TimeIntervals is a slice of distinct time intervals used for grouping data.
+var TimeIntervals = []TimeBasedGrouping{
+	YearGrouping,
+	MonthGrouping,
+	WeekGrouping,
+	DayGrouping,
+}
 
 const (
 	// InitialDBLoad is a sync where data is first loaded from the chain db into
@@ -317,7 +349,10 @@ func (p *VinTxPropertyARRAY) Scan(src interface{}) error {
 			return fmt.Errorf("type assertion .(map[string]interface) failed")
 		}
 		b, _ := json.Marshal(VinTxPropertyMapIface)
-		json.Unmarshal(b, &ba[ii])
+		err := json.Unmarshal(b, &ba[ii])
+		if err != nil {
+			return err
+		}
 	}
 	*p = ba
 
@@ -436,14 +471,14 @@ type AddressRow struct {
 }
 
 // AddressMetrics defines address metrics needed to make decisions by which
-// grouping buttons on the address history page charts should be disabled
-// or enabled by default.
+// grouping buttons on the address history page charts should be disabled or
+// enabled by default.
 type AddressMetrics struct {
 	OldestBlockTime TimeDef
-	YearTxsCount    int64 // Years txs grouping
-	MonthTxsCount   int64 // Months txs grouping
-	WeekTxsCount    int64 // Weeks txs grouping
-	DayTxsCount     int64 // Days txs grouping
+	YearTxsCount    int64 // number of year intervals with transactions
+	MonthTxsCount   int64 // number of year month with transactions
+	WeekTxsCount    int64 // number of year week with transactions
+	DayTxsCount     int64 // number of year day with transactions
 }
 
 // ChartsData defines the fields that store the values needed to plot the charts

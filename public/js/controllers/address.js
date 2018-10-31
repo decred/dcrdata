@@ -310,10 +310,10 @@
             var pastDay = d.getDate() - 1
 
             this.enabledButtons = []
-            var setApplicableBtns = (className, ts, txCountByType) => {
+            var setApplicableBtns = (className, ts, numIntervals) => {
                 var isDisabled = (val > new Date(ts)) ||
                     (this.options === 'unspent' && this.unspent == "0") ||
-                    txCountByType < 2;
+                    numIntervals < 2;
 
                 if (isDisabled) {
                     this.zoomTarget.getElementsByClassName(className)[0].setAttribute("disabled", isDisabled)

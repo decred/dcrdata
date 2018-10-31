@@ -78,12 +78,12 @@ type explorerDataSource interface {
 	BlockMissedVotes(blockHash string) ([]string, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
-	GetTicketsPriceByHeight() (*dbtypes.ChartsData, error)
+	TicketsPriceByHeight() (*dbtypes.ChartsData, error)
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	BlockFlags(hash string) (bool, bool, error)
-	GetAddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
+	AddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)
 	Transaction(txHash string) ([]*dbtypes.Tx, error)
@@ -429,6 +429,10 @@ func (exp *explorerUI) prePopulateChartsData() {
 	log.Info("Pre-populating the charts data. This may take a minute...")
 	var err error
 	pgData, err := exp.explorerSource.GetPgChartsData()
+	if dbtypes.IsTimeoutErr(err) {
+		log.Warnf("GetPgChartsData DB timeout: %v", err)
+		return
+	}
 	if err != nil {
 		log.Errorf("Invalid PG data found: %v", err)
 		return

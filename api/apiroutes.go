@@ -94,7 +94,7 @@ type DataSourceAux interface {
 		txnType dbtypes.AddrTxnType) (*apitypes.Address, error)
 	AddressTotals(address string) (*apitypes.AddressTotals, error)
 	VotesInBlock(hash string) (int16, error)
-	GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
+	TxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
 		[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
@@ -118,8 +118,8 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 
-	// explorerDataSource is an interface that could have a value of pointer
-	// type, and if either is nil this means lite mode.
+	// auxDataSource is an interface that could have a value of pointer type,
+	// and if either is nil this means lite mode.
 	liteMode := auxDataSource == nil || reflect.ValueOf(auxDataSource).IsNil()
 
 	return &appContext{
@@ -428,6 +428,9 @@ func (c *appContext) setOutputSpends(txid string, vouts []apitypes.Vout) error {
 	// For each output of this transaction, look up any spending transactions,
 	// and the index of the spending transaction input.
 	spendHashes, spendVinInds, voutInds, err := c.AuxDataSource.SpendingTransactions(txid)
+	if dbtypes.IsTimeoutErr(err) {
+		return fmt.Errorf("SpendingTransactions: %v", err)
+	}
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("unable to get spending transaction info for outputs of %s", txid)
 	}
@@ -835,9 +838,14 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 	// needed by this request.
 	interval := dbtypes.TimeGroupingFromStr(tp)
 	barCharts, _, height, err := c.AuxDataSource.TicketPoolVisualization(interval)
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("TicketPoolVisualization: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
+	}
 	if err != nil {
 		apiLog.Errorf("Unable to get ticket pool by date: %v", err)
-		http.Error(w, http.StatusText(422), 422)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -887,6 +895,11 @@ func (c *appContext) blockSubsidies(w http.ResponseWriter, r *http.Request) {
 	if hash != "" {
 		var err error
 		numVotes, err = c.AuxDataSource.VotesInBlock(hash)
+		if dbtypes.IsTimeoutErr(err) {
+			apiLog.Errorf("VotesInBlock: %v", err)
+			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+			return
+		}
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -1215,6 +1228,11 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totals, err := c.AuxDataSource.AddressTotals(address)
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("AddressTotals: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
+	}
 	if err != nil {
 		log.Warnf("failed to get address totals (%s): %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -1237,8 +1255,13 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	data, err := c.AuxDataSource.GetTxHistoryData(address, dbtypes.TxsType,
+	data, err := c.AuxDataSource.TxHistoryData(address, dbtypes.TxsType,
 		dbtypes.TimeGroupingFromStr(chartGrouping))
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("TxHistoryData: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
+	}
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by tx type : %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -1261,8 +1284,13 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	data, err := c.AuxDataSource.GetTxHistoryData(address, dbtypes.AmountFlow,
+	data, err := c.AuxDataSource.TxHistoryData(address, dbtypes.AmountFlow,
 		dbtypes.TimeGroupingFromStr(chartGrouping))
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("TxHistoryData: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
+	}
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by amount flow: %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -1285,8 +1313,13 @@ func (c *appContext) getAddressTxUnspentAmountData(w http.ResponseWriter, r *htt
 		return
 	}
 
-	data, err := c.AuxDataSource.GetTxHistoryData(address, dbtypes.TotalUnspent,
+	data, err := c.AuxDataSource.TxHistoryData(address, dbtypes.TotalUnspent,
 		dbtypes.TimeGroupingFromStr(chartGrouping))
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("TxHistoryData: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
+	}
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by unspent amount flow: %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -1353,8 +1386,12 @@ func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Reque
 		txs = c.BlockData.GetAddressTransactionsWithSkip(address, int(count), int(skip))
 	} else {
 		txs, err = c.AuxDataSource.AddressTransactionDetails(address, count, skip, dbtypes.AddrTxnAll)
+		if dbtypes.IsTimeoutErr(err) {
+			apiLog.Errorf("AddressTransactionDetails: %v", err)
+			http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+			return
+		}
 	}
-
 	if txs == nil || err != nil {
 		http.Error(w, http.StatusText(422), 422)
 		return

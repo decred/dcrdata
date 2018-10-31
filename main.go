@@ -165,11 +165,12 @@ func _main(ctx context.Context) error {
 			}
 		}
 		dbi := dcrpg.DBInfo{
-			Host:   pgHost,
-			Port:   pgPort,
-			User:   cfg.PGUser,
-			Pass:   cfg.PGPass,
-			DBName: cfg.PGDBName,
+			Host:         pgHost,
+			Port:         pgPort,
+			User:         cfg.PGUser,
+			Pass:         cfg.PGPass,
+			DBName:       cfg.PGDBName,
+			QueryTimeout: cfg.PGQueryTimeout,
 		}
 		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
 		if chainDB != nil {

@@ -16,12 +16,12 @@ func (c *insightApiContext) TxConverter(txs []*dcrjson.TxRawResult) ([]apitypes.
 	return c.DcrToInsightTxns(txs, false, false, false)
 }
 
-// DcrToInsightTxns takes struct with filter params
-func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult,
-	noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
+// DcrToInsightTxns converts a dcrjson TxRawResult to a InsightTx. The asm,
+// scriptSig, and spending status may be skipped by setting the appropriate
+// input arguments.
+func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult, noAsm, noScriptSig, noSpent bool) ([]apitypes.InsightTx, error) {
 	var newTxs []apitypes.InsightTx
 	for _, tx := range txs {
-
 		// Build new InsightTx
 		txNew := apitypes.InsightTx{
 			Txid:          tx.Txid,
@@ -36,10 +36,8 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult,
 		}
 
 		// Vins fill
-		var vInSum, vOutSum float64
-
+		var vInSum float64
 		for vinID, vin := range tx.Vin {
-
 			InsightVin := &apitypes.InsightVin{
 				Txid:     vin.Txid,
 				Vout:     vin.Vout,
@@ -60,8 +58,9 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult,
 				}
 			}
 
-			// Note, this only gathers information from the database which does not include mempool transactions
-			_, addresses, value, err := c.BlockData.ChainDB.RetrieveAddressIDsByOutpoint(vin.Txid, vin.Vout)
+			// Note: this only gathers information from the database, which does
+			// not include mempool transactions.
+			_, addresses, value, err := c.BlockData.ChainDB.AddressIDsByOutpoint(vin.Txid, vin.Vout)
 			if err == nil {
 				if len(addresses) > 0 {
 					// Update Vin due to DCRD AMOUNTIN - START
@@ -82,6 +81,7 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult,
 		}
 
 		// Vout fill
+		var vOutSum float64
 		for _, v := range tx.Vout {
 			InsightVout := &apitypes.InsightVout{
 				Value: v.Value,
@@ -109,7 +109,7 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult,
 		dcramt, _ = dcrutil.NewAmount(txNew.ValueIn - txNew.ValueOut)
 		txNew.Fees = dcramt.ToCoin()
 
-		// Return true if coinbase value is not empty, return 0 at some fields
+		// Return true if coinbase value is not empty, return 0 at some fields.
 		if txNew.Vins != nil && txNew.Vins[0].CoinBase != "" {
 			txNew.IsCoinBase = true
 			txNew.ValueIn = 0
@@ -121,9 +121,13 @@ func (c *insightApiContext) DcrToInsightTxns(txs []*dcrjson.TxRawResult,
 		}
 
 		if !noSpent {
-			// populate the spending status of all vouts
-			// Note, this only gathers information from the database which does not include mempool transactions
-			addrFull := c.BlockData.ChainDB.GetSpendDetailsByFundingHash(txNew.Txid)
+			// Populate the spending status of all vouts. Note: this only
+			// gathers information from the database, which does not include
+			// mempool transactions.
+			addrFull, err := c.BlockData.ChainDB.SpendDetailsForFundingTx(txNew.Txid)
+			if err != nil {
+				return nil, err
+			}
 			for _, dbaddr := range addrFull {
 				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentIndex = dbaddr.SpendingTxVinIndex
 				txNew.Vouts[dbaddr.FundingTxVoutIndex].SpentTxID = dbaddr.SpendingTxHash
