@@ -73,8 +73,19 @@
                 {{if and (ne .TicketInfo.PoolStatus "") (and (eq .Type "Ticket") (gt .Confirmations 0))}}
                     <tr>
                         <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">POOL STATUS</td>
-                        <td>
-                            {{if ne .TicketInfo.SpendStatus "Voted"}} {{.TicketInfo.PoolStatus}}  / {{end}} {{if (index .SpendingTxns 0).Hash}}<a href="/tx/{{(index .SpendingTxns 0).Hash}}">{{.TicketInfo.SpendStatus}}</a>{{else}}{{.TicketInfo.SpendStatus}}{{end}}
+                        <td id="txPoolStatus">
+                            {{if ne .TicketInfo.SpendStatus "Voted"}}
+                              {{if eq .Confirmations 256}}
+                                live /
+                              {{else}}
+                                {{.TicketInfo.PoolStatus}}  /
+                              {{end}}
+                            {{end}}
+                            {{if (index .SpendingTxns 0).Hash}}
+                              <a href="/tx/{{(index .SpendingTxns 0).Hash}}">{{.TicketInfo.SpendStatus}}</a>
+                            {{else}}
+                              {{.TicketInfo.SpendStatus}}
+                            {{end}}
                         </td>
                     </tr>
                 {{end}}
@@ -96,10 +107,26 @@
                                             aria-valuenow="{{.Confirmations}}"
                                             aria-valuemin="0"
                                             aria-valuemax="256"
+                                            data-confirm-height="{{$.ConfirmHeight}}"
+                                            data-tx-type="{{.Type}}"
                                         >
                                             <span class="nowrap pl-1 pr-1">
                                               {{if gt .Confirmations 0}}
-                                                Immature, {{ if eq .Type "Ticket"}}eligible to vote{{else}}spendable{{end}} in {{ if eq .Confirmations .TicketInfo.TicketMaturity }}next block{{else}}{{subtract .TicketInfo.TicketMaturity .Confirmations}} blocks ({{printf "%.1f" .TicketInfo.TimeTillMaturity}} hours remaining){{end}}
+                                                {{if eq .Confirmations 256}}
+                                                  Mature,
+                                                {{else}}
+                                                  Immature,
+                                                {{end}}
+                                                {{ if eq .Type "Ticket"}}
+                                                  eligible to vote
+                                                {{else}}
+                                                  spendable
+                                                {{end}} in
+                                                {{ if eq .Confirmations .TicketInfo.TicketMaturity }}
+                                                  next block
+                                                {{else}}
+                                                  {{subtract (add .TicketInfo.TicketMaturity 1) .Confirmations}} blocks ({{printf "%.1f" .TicketInfo.TimeTillMaturity}} hours remaining)
+                                                {{end}}
                                               {{else}}
                                                 Awaiting confirmation
                                               {{end}}
@@ -120,11 +147,14 @@
                                     <div class="progress" style="max-width: 330px">
                                         <div
                                             class="progress-bar"
+                                            id="txMaturityProgress"
                                             role="progressbar"
                                             style="width: {{percentage  .Confirmations .Maturity}}%;"
                                             aria-valuenow="{{.Confirmations}}"
                                             aria-valuemin="0"
                                             aria-valuemax="256"
+                                            data-confirm-height="{{$.ConfirmHeight}}"
+                                            data-tx-type="{{.Type}}"
                                         >
                                             <span class="nowrap pl-1 pr-1">
                                                 Immature, spendable in {{ if eq (add .Confirmations 1) .Maturity }}next block{{else}}{{subtract .Maturity .Confirmations}} blocks ({{printf "%.1f" .MaturityTimeTill}} hours remaining){{end}}
@@ -158,6 +188,7 @@
                                             <div class="progress" style="max-width: 330px">
                                                 <div
                                                     class="progress-bar"
+                                                    id="ticketExpiryChance"
                                                     role="progressbar"
                                                     style="width: {{.TicketInfo.Probability}}%;"
                                                     aria-valuenow="{{.TicketInfo.Probability}}"
@@ -173,8 +204,6 @@
                                     </div>
                                 </td>
                             </tr>
-                        {{end}}
-                        {{if ge .TicketInfo.TicketExpiry .TicketInfo.TicketLiveBlocks}}
                             <tr>
                                 <td class="text-right pr-2 h1rem p03rem0">EXPIRY</td>
                                 <td>
@@ -183,11 +212,14 @@
                                             <div class="progress" style="max-width: 330px">
                                                 <div
                                                     class="progress-bar"
+                                                    id="txMaturityProgress"
                                                     role="progressbar"
                                                     style="width: {{percentage (subtract .TicketInfo.TicketLiveBlocks 1) .TicketInfo.TicketExpiry}}%;"
                                                     aria-valuenow="{{.Confirmations}}"
                                                     aria-valuemin="0"
-                                                    aria-valuemax="256"
+                                                    aria-valuemax="40960"
+                                                    data-confirm-height="{{add $.ConfirmHeight 256}}"
+                                                    data-tx-type="LiveTicket"
                                                 >
                                                     <span class="nowrap pl-1 pr-1">
                                                         block {{.TicketInfo.TicketLiveBlocks}} of {{.TicketInfo.TicketExpiry}} ({{printf "%.1f" .TicketInfo.TicketExpiryDaysLeft}} days remaining)

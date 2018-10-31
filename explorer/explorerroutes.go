@@ -823,7 +823,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				}
 				tx.TicketInfo.SpendStatus = spendStatus.String()
 
-				// Ticket luck and probability of voting
+				// Ticket luck and probability of voting.
+				// blockLive < 0 for immature tickets
 				blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
 				if tx.TicketInfo.SpendStatus == "Voted" {
 					// Blocks from eligible until voted (actual luck)
