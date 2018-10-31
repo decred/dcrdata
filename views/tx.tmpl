@@ -308,7 +308,7 @@
                     {{range .Vin}}
                     <tr {{if and (eq $.HighlightInOut "in") (eq $.HighlightInOutID .Index)}} class="matching-hash" {{end}}>
                         <td class="shrink-to-fit">{{.Index}}</td>
-                        <td class="mono fs13">
+                        <td class="mono fs13 break-word">
                             <div>
                             {{if .Coinbase}}
                                 Coinbase: {{elide .Coinbase 20}}
@@ -319,7 +319,7 @@
                             {{end}}
                             </div>
                         </td>
-                        <td><div class="mono fs13">
+                        <td><div class="mono fs13 break-word">
                             {{if gt (len .Addresses) 0}}
                                 {{range .Addresses}}
                                     <div><a href="/address/{{.}}">{{.}}</a></div>
@@ -374,7 +374,7 @@
                         <td class="shrink-to-fit">{{.Index}}</td>
                         <td class="mono fs13 addressAndScriptData">
                             {{range .Addresses}}
-                                <div class="sm-fullwidth"><a href="/address/{{.}}" data-keynav-priority>{{.}}</a></div>
+                                <div class="sm-fullwidth break-word"><a href="/address/{{.}}" data-keynav-priority>{{.}}</a></div>
                             {{end}}
                             {{if .OP_RETURN}}
                                 {{if .Addresses}}
@@ -385,12 +385,12 @@
                                 {{else}}
                                 <div>
                                 {{end}}
-                                    <span class="break-work">{{.OP_RETURN}}</span>
+                                    <span class="break-word">{{.OP_RETURN}}</span> 
                                 </div>
                             {{end}}
                         </td>
-                        <td class="fs13 break-word shrink-to-fit">
-                            {{.Type}}
+                        <td class="fs13">
+                            <div class="tx-type-stub">{{.Type}}</div>
                         </td>
                         <td class="text-left fs13 shrink-to-fit">{{with $spending := (index $.Data.SpendingTxns $i) }}
                             {{if $spending.Hash}}

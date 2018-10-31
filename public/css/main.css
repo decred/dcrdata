@@ -553,11 +553,11 @@ body.darkBG .progress {
   padding: .1rem .5rem;
   height: 25px;
 }
-.tx-col-l{
-  max-width:54%;
-}
-.tx-col-r{
-  max-width:46%;
+.tx-type-stub{
+  max-width: 80px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow:hidden;
 }
 .table.flush-left tr td:first-child {
   padding-left: 0px;
@@ -775,6 +775,16 @@ body.darkBG .keynav-target {
     display:none;
   }
 }
+
+@media only screen and (min-width: 768px)  {
+  .tx-col-l{
+    max-width:52%;
+  }
+  .tx-col-r{
+    max-width:48%;
+  }
+}
+
 @media only screen and (max-width: 576px)  {
   .home-link {
     width: 35px;
