@@ -213,7 +213,7 @@ type Vout struct {
 	Index           uint32
 }
 
-// TrimmedBlockInfo for use with /nexthome
+// TrimmedBlockInfo models data needed to display block info on the new home page
 type TrimmedBlockInfo struct {
 	Time         int64
 	Height       int64
@@ -374,8 +374,8 @@ type BlockSubsidy struct {
 	Dev   int64 `json:"dev"`
 }
 
-// MempoolData models data to update mempool info on the home page
-type MempoolData struct {
+// TrimmedMempoolInfo models data needed to display mempool info on the new home page
+type TrimmedMempoolInfo struct {
 	Transactions []*TrimmedTxInfo
 	Tickets      []*TrimmedTxInfo
 	Votes        []*TrimmedTxInfo
@@ -515,13 +515,17 @@ type TicketPoolInfo struct {
 
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
+	TxID      string    `json:"txid"`
+	Fees      float64   `json:"fees"`
+	VinCount  int       `json:"vin_count"`
+	VoutCount int       `json:"vout_count"`
+	Coinbase  bool      `json:"coinbase"`
 	Hash      string    `json:"hash"`
 	Time      int64     `json:"time"`
 	Size      int32     `json:"size"`
 	TotalOut  float64   `json:"total"`
-	Type      string    `json:"Type"`
-	VoteInfo  *VoteInfo `json:"vote_info"`
-	VoteValid bool
+	Type      string    `json:"type"`
+	VoteInfo  *VoteInfo `json:"vote_info,omitempty"`
 }
 
 // NewMempoolTx models data sent from the notification handler

@@ -21,26 +21,6 @@ import (
 // close an already closed connection.
 var ErrWsClosed = "use of closed network connection"
 
-func trimTxInfo(txs []*TxInfo) []*TrimmedTxInfo {
-	trimmedTxs := make([]*TrimmedTxInfo, 0, len(txs))
-	for _, tx := range txs {
-		voteValid := false
-		if tx.IsVote() {
-			voteValid = tx.VoteInfo.Validation.Validity
-		}
-
-		trimmedTx := &TrimmedTxInfo{
-			TxBasic:   tx.TxBasic,
-			Fees:      tx.Fee.ToCoin(),
-			VoteValid: voteValid,
-			VinCount:  len(tx.Vin),
-			VoutCount: len(tx.Vout),
-		}
-		trimmedTxs = append(trimmedTxs, trimmedTx)
-	}
-	return trimmedTxs
-}
-
 // RootWebsocket is the websocket handler for all pages
 func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
@@ -116,40 +96,13 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 				case "getmempooltxs":
-					exp.pageData.RLock()
-					exp.MempoolData.RLock()
-
-					mempoolVotes := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Votes)
-					mempoolTickets := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Tickets)
-					mempoolRevs := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Revocations)
-					mempoolTxs := exp.blockData.GetTrimmedMempoolTx(exp.MempoolData.Transactions)
-
-					// calculate total fees for mempool block
-					getTotalFee := func(txs []*TrimmedTxInfo) (total float64) {
-						for _, tx := range txs {
-							total += tx.Fees
-						}
-						return
-					}
-					mempoolFees := getTotalFee(mempoolTxs) + getTotalFee(mempoolRevs) + getTotalFee(mempoolTickets) +
-						getTotalFee(mempoolVotes)
-
 					// construct mempool object with properties required in template
-					mempoolData := &MempoolData{
-						Subsidy:      exp.pageData.HomeInfo.NBlockSubsidy,
-						Transactions: filterRegularTx(mempoolTxs),
-						Tickets:      mempoolTickets,
-						Votes:        mempoolVotes,
-						Revocations:  mempoolRevs,
-						Total:        exp.MempoolData.TotalOut,
-						Time:         exp.MempoolData.LastBlockTime,
-						Fees:         mempoolFees,
-					}
-
+					mempoolInfo := exp.TrimmedMempoolInfo()
+					exp.pageData.RLock()
+					mempoolInfo.Subsidy = exp.pageData.HomeInfo.NBlockSubsidy
 					exp.pageData.RUnlock()
-					exp.MempoolData.RUnlock()
 
-					msg, err := json.Marshal(mempoolData)
+					msg, err := json.Marshal(mempoolInfo)
 
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)

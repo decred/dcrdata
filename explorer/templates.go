@@ -361,7 +361,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"uint16toInt64": func(v uint16) int64 {
 			return int64(v)
 		},
-		"emptyArray": func(length int) []int {
+		"zeroSlice": func(length int) []int {
 			if length < 0 {
 				length = 0
 			}

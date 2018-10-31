@@ -9,7 +9,7 @@
     <div id="mainContainer" class="container" data-controller="main">
         <div class="netstats-section font-weight-bold">
             <a class="no-underline title font-weight-bold" href="/statistics">
-                {{.NetName}} Network Statistics
+                {{.NetName}} Statistics
             </a>
             {{with .Info}}
             <div class="statCard general">
@@ -125,7 +125,7 @@
         </div>
         <div class="flex-space"></div>
         <div class="blocks-section">
-            <a class="no-underline title font-weight-bold" href="/blocks">Decred Blockchain</a>
+            <a class="no-underline title font-weight-bold" href="/blocks">Latest Blocks</a>
             <div class="blocks-holder">
                 <!-- add mempool element -->
                 {{with .Mempool}}
@@ -169,13 +169,13 @@
                         <div class="block-votes" style="flex-grow: 1">
                         {{range .Votes}}
                             <span style="background-color: {{if .VoteValid}}#2971ff{{else}}rgba(253, 113, 74, 0.8){{end}}"
-                                title='{"object": "Vote", "total": "{{.Total}}", "vote": "${.VoteValid}"}'>
+                                title='{"object": "Vote", "voteValid": "{{.VoteValid}}"}'>
                                 <a class="block-element-link" href="/tx/{{.TxID}}"></a>
                             </span>
                         {{end}}
                         {{if lt (len .Votes) 5}}
                         {{$remainingVoteCount := intSubtract 5 (len .Votes)}}
-                        {{range (emptyArray $remainingVoteCount)}}
+                        {{range (zeroSlice $remainingVoteCount)}}
                         <span title="Empty vote slot"></span>
                         {{end}}
                         {{end}}
@@ -205,7 +205,7 @@
                         </span>
                         {{end}}
                         {{$ticketsRevsCount := intAdd $ticketsCount (len .Revocations)}}
-                        {{range (emptyArray (intSubtract 20 $ticketsRevsCount))}}
+                        {{range (zeroSlice (intSubtract 20 $ticketsRevsCount))}}
                         <span title="Empty ticket slot"></span>
                         {{end}}
                         </div>
@@ -273,13 +273,13 @@
                         <div class="block-votes" style="flex-grow: 1">
                         {{range .Votes}}
                             <span style="background-color: {{if .VoteValid}}#2971ff{{else}}rgba(253, 113, 74, 0.8){{end}}"
-                                title='{"object": "Vote", "total": "{{.Total}}", "vote": "${.VoteValid}"}'>
+                                title='{"object": "Vote", "voteValid": "{{.VoteValid}}"}'>
                                 <a class="block-element-link" href="/tx/{{.TxID}}"></a>
                             </span>
                         {{end}}
                         {{if lt (len .Votes) 5}}
                         {{$remainingVoteCount := intSubtract 5 (len .Votes)}}
-                        {{range (emptyArray $remainingVoteCount)}}
+                        {{range (zeroSlice $remainingVoteCount)}}
                         <span title="Empty vote slot"></span>
                         {{end}}
                         {{end}}
@@ -309,7 +309,7 @@
                         </span>
                         {{end}}
                         {{$ticketsRevsCount := intAdd $ticketsCount (len .Revocations)}}
-                        {{range (emptyArray (intSubtract 20 $ticketsRevsCount))}}
+                        {{range (zeroSlice (intSubtract 20 $ticketsRevsCount))}}
                         <span title="Empty ticket slot"></span>
                         {{end}}
                         </div>

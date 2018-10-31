@@ -259,7 +259,7 @@ function setupTooltips() {
             var data = JSON.parse(tooltipElement.attr('title'));
             var newContent;
             if (data.object === "Vote") {
-                newContent = `<b>${data.object} (${(data.vote === "true") ? "Yes" : "No"})</b><br>${data.total} DCR`;
+                newContent = `<b>${data.object} (${data.voteValid ? "Yes" : "No"})</b>`;
             }
             else {
                 newContent = `<b>${data.object}</b><br>${data.total} DCR`;
