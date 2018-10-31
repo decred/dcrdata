@@ -40,6 +40,10 @@ const (
 	addressesTableValidMainchainPatch
 	addressesTableMatchingTxHashPatch
 	addressesTableBlockTimeSortedIndex
+	addressesBlockTimeDataTypeUpdate
+	blocksBlockTimeDataTypeUpdate
+	agendasBlockTimeDataTypeUpdate
+	transactionsBlockTimeDataTypeUpdate
 )
 
 type TableUpgradeType struct {
@@ -268,8 +272,27 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		}
 
 		// Go on to next upgrade
-		// fallthrough
-		// or be done
+		fallthrough
+
+	// Upgrade from 3.5.5 --> 3.5.6
+	case version.major == 3 && version.minor == 5 && version.patch == 5:
+		toVersion = TableVersion{3, 5, 6}
+
+		theseUpgrades := []TableUpgradeType{
+			{"addresses", addressesBlockTimeDataTypeUpdate},
+			{"blocks", blocksBlockTimeDataTypeUpdate},
+			{"agendas", agendasBlockTimeDataTypeUpdate},
+			{"transactions", transactionsBlockTimeDataTypeUpdate},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
+	// Go on to next upgrade
+	// fallthrough
+	// or be done
 
 	default:
 		// UpgradeType == "upgrade" or "reindex", but no supported case.
@@ -368,6 +391,18 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case addressesTableBlockTimeSortedIndex:
 		tableReady = true
 		tableName, upgradeTypeStr = "addresses", "reindex"
+	case addressesBlockTimeDataTypeUpdate:
+		tableReady = true
+		tableName, upgradeTypeStr = "addresses", "block time data type update"
+	case blocksBlockTimeDataTypeUpdate:
+		tableReady = true
+		tableName, upgradeTypeStr = "blocks", "block time data type update"
+	case agendasBlockTimeDataTypeUpdate:
+		tableReady = true
+		tableName, upgradeTypeStr = "agendas", "block time data type update"
+	case transactionsBlockTimeDataTypeUpdate:
+		tableReady = true
+		tableName, upgradeTypeStr = "transactions", "block time data type update"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -530,6 +565,14 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		}
 	}
 
+	// Columns data type update
+	switch tableUpgrade {
+	case addressesBlockTimeDataTypeUpdate:
+	case blocksBlockTimeDataTypeUpdate:
+	case agendasBlockTimeDataTypeUpdate:
+	case transactionsBlockTimeDataTypeUpdate:
+	}
+
 	return true, nil
 }
 
@@ -622,6 +665,21 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 	}
 
 	return rowsUpdated, nil
+}
+
+func (pgb *ChainDB) alterColumnDataType(table, column string) (int64, error) {
+	query := "ALTER TABLE %s1 ALTER COLUMN %2 TYPE timestamp USING to_timestamp(%2);"
+	results, err := pgb.db.Exec(fmt.Sprintf(query, table, column))
+	if err != nil {
+		return -1, fmt.Errorf("alterColumnDataType failed: error %v", err)
+	}
+
+	c, err := results.RowsAffected()
+	if err != nil {
+		return -1, err
+	}
+
+	return c, nil
 }
 
 func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade tableUpgradeType) (int64, error) {
