@@ -38,7 +38,7 @@
 
 /* layout */
 .container.main {
-  padding: 20px;
+  padding-bottom: 40px;
 }
 .row .col-md-4 table {
   margin: auto;
@@ -115,6 +115,9 @@ body.theme-testnet .top-search {
 body.theme-testnet #menuToggle .patty {
   background: #fff;
 }
+body.theme-testnet .dcrdata-logo {
+  background-image: url(/images/logo_white.svg);
+}
 
 
 /**simnet theme**/
@@ -133,7 +136,9 @@ body.theme-simnet .navbar-fixed-bottom .nav-item {
 body.theme-simnet #menuToggle .patty {
   background: #fff;
 }
-
+body.theme-simnet .dcrdata-logo {
+  background-image: url(/images/logo_white.svg);
+}
 
 /*dark theme*/
 body.darkBG {
@@ -225,6 +230,9 @@ body.darkBG .progress {
 .darkBG .nav-pills .nav-link.active {
   background-color: #2DD8A3;
   color: black;
+}
+.darkBG .dcrdata-logo {
+  background-image: url(/images/logo_white.svg);
 }
 
 .flash {
@@ -349,10 +357,16 @@ body.darkBG .progress {
 .top-nav a {
   color: #052f4b;
 }
-.top-nav .dcricon-decred {
-  font-size: 25px;
-  top: 1px;
-  position: relative;
+.home-link {
+  padding: 2px 1px;
+}
+.dcrdata-logo {
+  width: 126px;
+  height: 24px;
+  background-image: url(/images/logo_gradient_black.svg);
+  background-repeat: no-repeat;
+  display: block;
+  background-size: cover;
 }
 .top-search {
   height: 30px;
@@ -747,6 +761,10 @@ body.darkBG .keynav-target {
   }
 }
 @media only screen and (max-width: 576px)  {
+  .home-link {
+    width: 35px;
+    overflow: hidden;
+  }
   .xs-w91 {
     width: 91px !important;
   }
