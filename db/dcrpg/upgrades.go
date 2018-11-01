@@ -520,6 +520,10 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("Patching matching_tx_hash in the addresses table...")
 		rowsUpdated, err = updateAddressesMatchingTxHashPatch(pgb.db)
 
+	case addressesBlockTimeDataTypeUpdate, blocksBlockTimeDataTypeUpdate,
+		agendasBlockTimeDataTypeUpdate, transactionsBlockTimeDataTypeUpdate:
+	// set block time data type to timestamp
+
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
 	}
@@ -565,12 +569,27 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		}
 	}
 
+	var columns []string
 	// Columns data type update
 	switch tableUpgrade {
 	case addressesBlockTimeDataTypeUpdate:
+		columns = []string{"block_time"}
 	case blocksBlockTimeDataTypeUpdate:
+		columns = []string{"time"}
 	case agendasBlockTimeDataTypeUpdate:
+		columns = []string{"block_time"}
 	case transactionsBlockTimeDataTypeUpdate:
+		columns = []string{"time", "block_time"}
+	}
+
+	if len(columns) > 0 {
+		for _, column := range columns {
+			log.Infof("Setting the %s table %s column data type to timestamp. Please wait...", tableName, column)
+			_, err := pgb.alterColumnDataType(tableName, column)
+			if err != nil {
+				return false, fmt.Errorf("failed to set the timestamp data type to %s column in %s table: %v", tableName, column, err)
+			}
+		}
 	}
 
 	return true, nil
@@ -668,8 +687,8 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 }
 
 func (pgb *ChainDB) alterColumnDataType(table, column string) (int64, error) {
-	query := "ALTER TABLE %s1 ALTER COLUMN %2 TYPE timestamp USING to_timestamp(%2);"
-	results, err := pgb.db.Exec(fmt.Sprintf(query, table, column))
+	query := "ALTER TABLE %s ALTER COLUMN %s TYPE timestamp USING to_timestamp(%s);"
+	results, err := pgb.db.Exec(fmt.Sprintf(query, table, column, column))
 	if err != nil {
 		return -1, fmt.Errorf("alterColumnDataType failed: error %v", err)
 	}

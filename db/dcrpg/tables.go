@@ -49,7 +49,7 @@ type dropDuplicatesInfo struct {
 const (
 	tableMajor = 3
 	tableMinor = 5
-	tablePatch = 5
+	tablePatch = 6
 )
 
 // TODO eliminiate this map since we're actually versioning each table the same.
