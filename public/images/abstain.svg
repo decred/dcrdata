@@ -1,1 +1,12 @@
-<svg viewBox="0 0 17 17" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><filter id="a" filterUnits="userSpaceOnUse" height="17" width="17" x="0" y="0"><feOffset/><feGaussianBlur result="blur" stdDeviation="1.5"/><feFlood flood-color="#69d3f5"/><feComposite in2="blur" operator="in"/><feComposite in="SourceGraphic"/></filter><g filter="url(#a)"><circle cx="4" cy="4" fill="#69d3f5" r="4" transform="translate(4.5 4.5)"/></g></svg>
+<svg viewBox="0 0 17 17" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<filter id="a" filterUnits="userSpaceOnUse" height="17" width="17" x="0" y="0">
+		<feOffset/>
+		<feGaussianBlur result="blur" stdDeviation="1.5"/>
+		<feFlood flood-color="#69d3f5"/>
+		<feComposite in2="blur" operator="in"/>
+		<feComposite in="SourceGraphic"/>
+	</filter>
+	<g filter="url(#a)">
+		<circle cx="4" cy="4" fill="#69d3f5" r="4" transform="translate(4.5 4.5)"/>
+	</g>
+</svg>
