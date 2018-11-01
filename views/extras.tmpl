@@ -107,6 +107,10 @@
         var expires = "expires="+d.toUTCString();
         document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
     }
+
+    var DCRThings = {}
+    DCRThings.targetBlockTime = {{$.BlockTimeUnix}}
+
     var sunIcon = document.getElementById("sun-icon")
     var darkBGCookieName = 'dcrdataDarkBG';
     function darkEnabled() {
@@ -240,7 +244,11 @@
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
 
+<<<<<<< 578926bf19314216786a4a73ae1443a4faa26ca4
             // Update the blocktime counter.
+=======
+            // update the blocktime counter
+>>>>>>> base CommonPageData structure for explorer templates
             $("[data-main-lastblocktime]").data("main-lastblocktime", b.time).removeClass("text-danger")
 
             var expTableRows = $('#explorertable tbody tr');

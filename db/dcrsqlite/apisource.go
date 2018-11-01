@@ -268,7 +268,6 @@ func (db *wiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVer
 func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	return rpcutils.GetBlockVerboseByHash(db.client, hash, verboseTx)
 }
-
 func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	coinSupply, err := db.client.GetCoinSupply()
 	if err != nil {
@@ -1579,4 +1578,26 @@ func (db *wiredDB) Difficulty() (float64, error) {
 		return diff, err
 	}
 	return diff, nil
+}
+
+// GetTip grabs the highest block stored in the database.
+func (db *wiredDB) GetTip() (*explorer.WebBasicBlock, error) {
+	tip, err := db.DB.getTip()
+	if err != nil {
+		return nil, err
+	}
+	blockdata := explorer.WebBasicBlock{
+		Height:      tip.Height,
+		Size:        tip.Size,
+		Hash:        tip.Hash,
+		Difficulty:  tip.Difficulty,
+		StakeDiff:   tip.StakeDiff,
+		Time:        tip.Time,
+		NumTx:       tip.NumTx,
+		PoolSize:    tip.PoolInfo.Size,
+		PoolValue:   tip.PoolInfo.Value,
+		PoolValAvg:  tip.PoolInfo.ValAvg,
+		PoolWinners: tip.PoolInfo.Winners,
+	}
+	return &blockdata, nil
 }

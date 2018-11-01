@@ -52,6 +52,21 @@ type BlockBasic struct {
 	FormattedBytes string `json:"formatted_bytes"`
 }
 
+// WebBasicBlock is used for quick DB data without rpc calls
+type WebBasicBlock struct {
+	Height      uint32   `json:"height"`
+	Size        uint32   `json:"size"`
+	Hash        string   `json:"hash"`
+	Difficulty  float64  `json:"diff"`
+	StakeDiff   float64  `json:"sdiff"`
+	Time        int64    `json:"time"`
+	NumTx       uint32   `json:"txlength"`
+	PoolSize    uint32   `json:"poolsize"`
+	PoolValue   float64  `json:"poolvalue"`
+	PoolValAvg  float64  `json:"poolvalavg"`
+	PoolWinners []string `json:"winners"`
+}
+
 // TxBasic models data for transactions on the block page
 type TxBasic struct {
 	TxID          string
@@ -576,6 +591,13 @@ type StatsInfo struct {
 	BlockTime                  int64
 	IdxInRewardWindow          int
 	RewardWindowSize           int64
+}
+
+type CommonPageData struct {
+	Tip           *WebBasicBlock
+	Version       string
+	ChainParams   *chaincfg.Params
+	BlockTimeUnix int64
 }
 
 // isSyncExplorerUpdate helps determine when the explorer should be updated
