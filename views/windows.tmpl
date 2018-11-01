@@ -111,11 +111,7 @@
                             <td class="text-right">{{intComma .Revocations}}</td>
                             <td>{{.FormattedSize}}</td>
                             <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
-                            <td class="text-right">
-                                <span class="rm-spacing-tb lh15rem">
-                                    {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .TicketPrice) 2 false)}}
-                                </span>
-                            </td>
+                            <td class="text-right">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
                             <td class="text-right" data-target="main.age" data-age="{{.StartTime}}"></td>
                             <td>{{.FormattedStartTime}}</td>
                         </tr>
