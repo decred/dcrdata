@@ -499,8 +499,7 @@ body.darkBG .progress {
 }
 
 .navbar-fixed-bottom .blockcounter {
-  width:20%;
-  overflow:visible;
+  width:100px;
 }
 
 #watermark
@@ -763,6 +762,9 @@ body.darkBG .keynav-target {
   }
   .sm-w151 {
     width: 151px;
+  }
+  .block-msg {
+    display:none;
   }
 }
 @media only screen and (max-width: 576px)  {
