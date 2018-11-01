@@ -145,7 +145,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Revocations  0 }}<a href="#revocations" data-keynav-skip>REVOCATIONS</a>{{else}}REVOCATIONS{{end}}</td>
+                        <td class="text-right pr-2 lh1rem p03rem0 xs-w117">{{if gt .Revocations  0 }}<a href="#revokes" data-keynav-skip>REVOKES</a>{{else}}REVOKES{{end}}</td>
                         <td class="lh1rem">
                             {{.Revocations}}
                         </td>
@@ -332,9 +332,9 @@
 
         {{if .Revocations}}
         <div class="row">
-            <span class="achor" id="revocations"></span>
+            <span class="anchor" id="revokes"></span>
             <div class="col-md-12">
-                <h4><span>Revocations</span></h4>
+                <h4><span>Revokes</span></h4>
                 <table class="table table-sm striped">
                     <thead>
                         <th>Transaction ID</th>
