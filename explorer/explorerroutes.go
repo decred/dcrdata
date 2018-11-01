@@ -1610,7 +1610,7 @@ func (exp *explorerUI) commonData() *CommonPageData {
 	var err error
 	cd.Tip, err = exp.blockData.GetTip()
 	if err != nil {
-		log.Errorf("Failed to get retreive the chain tip from the database.: %v", err)
+		log.Errorf("Failed to get the chain tip from the database.: %v", err)
 	}
 	return &cd
 }
