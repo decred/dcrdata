@@ -10,7 +10,7 @@
 
         <div class="row">
             <div class="col-md-12">
-                <table class="table striped table-responsive" id="sideblockstable">
+                <table class="table striped table-responsive-sm" id="sideblockstable">
                     <thead>
                         <tr>
                             <th>Height</th>
@@ -23,12 +23,12 @@
                     {{range .Data}}
                         <tr id="{{ .Height }}">
                             <td class="mono fs15"><a href="/block/{{.Hash}}" class="fs16 height">{{ .Height }}</a></td>
-                            <td class="mono fs15">{{.IsValid}}</td>
+                            <td>{{.IsValid}}</td>
                             <td class="break-word"><a href="/block/{{.PrevHash}}" class="hash lh1rem">{{ .PrevHash }}</a></td>
                             {{if .NextHash }}
                             <td class="break-word"><a href="/block/{{.NextHash}}" class="hash lh1rem">{{ .NextHash }}</a></td>
                             {{else}}
-                            <td class="break-word" title="This block is the tip of its chain.">none</td>
+                            <td title="This block is the tip of its chain.">none</td>
                             {{end}}
                         </tr>
                     {{end}}
