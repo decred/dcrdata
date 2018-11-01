@@ -52,7 +52,7 @@
                             <td data-target="mempool.mempoolSize" class="lh1rem" >{{.FormattedTotalSize}}</td>
                         </tr>
                         <tr>
-                            <td class="text-right pr-2 lh1rem nowrap p03rem0">REVOCATIONS</td>
+                            <td class="text-right pr-2 lh1rem nowrap p03rem0">REVOKES</td>
                             <td data-target="mempool.numRevoke" class="lh1rem">{{.NumRevokes}}</td>
                         </tr>
                         <tr>
@@ -140,7 +140,7 @@
 
             <div class="row">
                 <div class="col-sm-12">
-                <h4><span>Revocations</span></h4>
+                <h4><span>Revokes</span></h4>
                     <table class="table table-sm striped">
                         <thead>
                             <th>Transaction ID</th>
@@ -166,7 +166,7 @@
                             {{end}}
                             {{else}}
                                 <tr>
-                                    <td colspan="4">No revocations in mempool.</td>
+                                    <td colspan="4">No revokes in mempool.</td>
                                 </tr>
                             {{end}}
                         </tbody>
