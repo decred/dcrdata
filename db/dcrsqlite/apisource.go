@@ -877,7 +877,7 @@ func (db *wiredDB) GetAddressTransactionsWithSkip(addr string, count, skip int) 
 	for i := range txs {
 		tx = append(tx, &apitypes.AddressTxShort{
 			TxID:          txs[i].Txid,
-			Time:          txs[i].Time,
+			Time:          time.Unix(txs[i].Time, 0),
 			Value:         txhelpers.TotalVout(txs[i].Vout).ToCoin(),
 			Confirmations: int64(txs[i].Confirmations),
 			Size:          int32(len(txs[i].Hex) / 2),
@@ -926,8 +926,8 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 		copy(tx.Vin, txs[i].Vin)
 		tx.Confirmations = int64(txs[i].Confirmations)
 		tx.BlockHash = txs[i].BlockHash
-		tx.Blocktime = txs[i].Blocktime
-		tx.Time = txs[i].Time
+		tx.Blocktime = time.Unix(txs[i].Blocktime, 0)
+		tx.Time = time.Unix(txs[i].Time, 0)
 		tx.Vout = make([]apitypes.Vout, len(txs[i].Vout))
 		for j := range txs[i].Vout {
 			tx.Vout[j].Value = txs[i].Vout[j].Value
@@ -1021,9 +1021,8 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
-	tx.Time = data.Time
-	t := time.Unix(tx.Time, 0)
-	tx.FormattedTime = t.Format("2006-01-02 15:04:05")
+	tx.Time = time.Unix(data.Time, 0)
+	tx.FormattedTime = tx.Time.Format("2006-01-02 15:04:05")
 	tx.Confirmations = data.Confirmations
 
 	msgTx, err := txhelpers.MsgTxFromHex(data.Hex)

@@ -118,7 +118,7 @@ const (
 		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
 		GROUP BY price ORDER BY price;`
 
-	SelectTicketsByPurchaseDate = `SELECT (transactions.block_time/$1)*$1 as timestamp,
+	SelectTicketsByPurchaseDate = `SELECT date_trunc($1,transactions.block_time) as timestamp,
 		SUM(price) as price,
 		SUM(CASE WHEN tickets.block_height >= $2 THEN 1 ELSE 0 END) as immature,
 		SUM(CASE WHEN tickets.block_height < $2 THEN 1 ELSE 0 END) as live
@@ -328,7 +328,7 @@ const (
 		agenda_vote_choice INT2,
 		tx_hash TEXT NOT NULL,
 		block_height INT4,
-		block_time INT8,
+		block_time TIMESTAMP,
 		locked_in BOOLEAN,
 		activated BOOLEAN,
 		hard_forked BOOLEAN

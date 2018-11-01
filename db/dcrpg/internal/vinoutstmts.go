@@ -18,7 +18,7 @@ const (
 		tx_tree INT2,
 		is_valid BOOLEAN,
 		is_mainchain BOOLEAN,
-		block_time INT8,
+		block_time TIMESTAMP,
 		prev_tx_hash TEXT,
 		prev_tx_index INT8,
 		prev_tx_tree INT2,

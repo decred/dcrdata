@@ -812,12 +812,8 @@ func (pgb *ChainDB) GetTicketPoolBlockMaturity() int64 {
 // interval provided and an error value.
 func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
 	interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, error) {
-	val, err := dbtypes.TimeBasedGroupingToInterval(interval)
-	if err != nil {
-		return nil, err
-	}
 
-	return retrieveTicketsByDate(pgb.db, maturityBlock, int64(val))
+	return retrieveTicketsByDate(pgb.db, maturityBlock, interval.String())
 }
 
 // PosIntervals retrieves the blocks at the respective stakebase windows interval.
@@ -832,14 +828,8 @@ func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGrouped
 // For the consecutive groups the number of blocks grouped together is not uniform.
 func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
 	limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
-	interval, err := dbtypes.TimeBasedGroupingToInterval(timeGrouping)
-	if err != nil {
-		return nil, err
-	}
 
-	genesisBlockTime := uint64(pgb.chainParams.GenesisBlock.Header.Timestamp.Unix())
-	return retrieveTimeBasedBlockListing(pgb.db, uint64(interval),
-		limit, offset, genesisBlockTime)
+	return retrieveTimeBasedBlockListing(pgb.db, timeGrouping.String(),limit, offset)
 }
 
 // TicketPoolVisualization helps block consecutive and duplicate DB queries for
@@ -1224,13 +1214,13 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 		txn.FormattedSize = humanize.Bytes(uint64(dbTx.Size))
 		txn.Total = dcrutil.Amount(dbTx.Sent).ToCoin()
 		txn.Time = dbTx.BlockTime
-		if dbTx.BlockTime > 0 {
+		if txn.Time.Unix() > 0 {
 			txn.Confirmations = pgb.Height() - uint64(dbTx.BlockHeight) + 1
 		} else {
 			numUnconfirmed++
 			txn.Confirmations = 0
 		}
-		txn.FormattedTime = time.Unix(dbTx.BlockTime, 0).Format("2006-01-02 15:04:05")
+		txn.FormattedTime = dbTx.BlockTime.Format("2006-01-02 15:04:05")
 
 		// Get the funding or spending transaction matching index if there is a
 		// matching tx hash already present.  During the next database
@@ -1443,23 +1433,18 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 
 // GetTxHistoryData fetches the address history chart data for the provided parameters.
 func (pgb *ChainDB) GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
-	TimeBasedGrouping dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error) {
-	timeInterval, err := dbtypes.TimeBasedGroupingToInterval(TimeBasedGrouping)
-	if err != nil {
-		return nil, fmt.Errorf("GetTxHistoryData error: %v", err)
-	}
-
-	timestamp := int64(timeInterval)
+	chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error) {
+	timeInterval := chartGroupings.String()
 
 	switch addrChart {
 	case dbtypes.TxsType:
-		return retrieveTxHistoryByType(pgb.db, address, timestamp)
+		return retrieveTxHistoryByType(pgb.db, address, timeInterval)
 
 	case dbtypes.AmountFlow:
-		return retrieveTxHistoryByAmountFlow(pgb.db, address, timestamp)
+		return retrieveTxHistoryByAmountFlow(pgb.db, address, timeInterval)
 
 	case dbtypes.TotalUnspent:
-		return retrieveTxHistoryByUnspentAmount(pgb.db, address, timestamp)
+		return retrieveTxHistoryByUnspentAmount(pgb.db, address, timeInterval)
 
 	default:
 		return nil, fmt.Errorf("unknown error occurred")
@@ -2181,7 +2166,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 			// ValidMainChain, and MatchingTxHash. Only MatchingTxHash goes
 			// unset initially, later set by insertAddrSpendingTxUpdateMatchedFunding (called
 			// by SetSpendingForFundingOP below, and other places).
-			dba.TxBlockTime = uint64(tx.BlockTime)
+			dba.TxBlockTime = tx.BlockTime
 			dba.IsFunding = true // from vouts
 			dba.ValidMainChain = isMainchain && isValid
 
@@ -2236,7 +2221,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 				vin.PrevTxHash, vin.PrevTxIndex, int8(vin.PrevTxTree),
 				spendingTxHash, spendingTxIndex, vinDbID, utxoData, pgb.dupChecks,
 				updateExistingRecords, validMainchain, vin.TxType, updateAddressesSpendingInfo,
-				uint64(tx.BlockTime))
+				tx.BlockTime)
 			if err != nil {
 				log.Errorf("InsertSpendingAddressRow: %v", err)
 			}

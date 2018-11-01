@@ -710,8 +710,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			BlockIndex:    dbTx0.BlockIndex,
 			BlockHash:     dbTx0.BlockHash,
 			Confirmations: exp.Height() - dbTx0.BlockHeight + 1,
-			Time:          dbTx0.Time,
-			FormattedTime: time.Unix(dbTx0.Time, 0).Format("2006-01-02 15:04:05"),
+			Time:          dbTx0.Time.Unix(),
+			FormattedTime: dbTx0.Time.Format("2006-01-02 15:04:05"),
 		}
 
 		// Coinbase transactions are regular, but call them coinbase for the page.
@@ -1217,7 +1217,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 					TxID:          fundingTx.Hash().String(),
 					TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx),
 					InOutID:       f.Index,
-					Time:          fundingTx.MemPoolTime,
+					Time:          time.Unix(fundingTx.MemPoolTime, 0),
 					FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
 					Total:         txhelpers.TotalOutFromMsgTx(fundingTx.Tx).ToCoin(),
 					ReceivedTotal: dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
@@ -1272,7 +1272,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 					TxID:           spendingTx.Hash().String(),
 					TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx),
 					InOutID:        uint32(f.InputIndex),
-					Time:           spendingTx.MemPoolTime,
+					Time:           time.Unix(spendingTx.MemPoolTime, 0),
 					FormattedSize:  humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
 					Total:          txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
 					SentTotal:      dcrutil.Amount(valuein).ToCoin(),
@@ -1308,7 +1308,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		if addrData.Transactions[i].Time == addrData.Transactions[j].Time {
 			return addrData.Transactions[i].InOutID > addrData.Transactions[j].InOutID
 		}
-		return addrData.Transactions[i].Time > addrData.Transactions[j].Time
+		return addrData.Transactions[i].Time.Unix() > addrData.Transactions[j].Time.Unix()
 	})
 
 	// Do not put this before the sort.Slice of addrData.Transactions above

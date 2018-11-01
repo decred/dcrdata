@@ -24,7 +24,7 @@ const (
 		num_stx INT4,
 		stx TEXT[],
 		stxDbIDs INT8[],
-		time INT8,
+		time TIMESTAMP,
 		nonce INT8,
 		vote_bits INT2,
 		final_state BYTEA,
@@ -125,7 +125,7 @@ const (
 		ORDER BY window_start DESC
 		LIMIT $2 OFFSET $3;`
 
-	SelectBlocksTimeListingByLimit = `SELECT (time-$2)/$1 as index_value,
+	SelectBlocksTimeListingByLimit = `SELECT date_trunc($1, time) as index_value,
 		MAX(height),
 		SUM(num_rtx) AS txs,
 		SUM(fresh_stake) AS tickets,
@@ -138,7 +138,7 @@ const (
 		FROM blocks
 		GROUP BY index_value
 		ORDER BY index_value DESC
-		LIMIT $3 OFFSET $4;`
+		LIMIT $2 OFFSET $3;`
 
 	SelectBlocksBlockSize = `SELECT time, size, numtx, height FROM blocks ORDER BY time;`
 

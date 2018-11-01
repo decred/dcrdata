@@ -8,7 +8,7 @@ const (
 		valid_mainchain BOOLEAN,
 		matching_tx_hash TEXT,
 		value INT8,
-		block_time INT8 NOT NULL,
+		block_time TIMESTAMP NOT NULL,
 		is_funding BOOLEAN,
 		tx_vin_vout_index INT4,
 		tx_vin_vout_row_id INT8,
@@ -196,7 +196,7 @@ const (
 	// given address using block time binning with bin size of block_time.
 	// Regular transactions are grouped into (SentRtx and ReceivedRtx), SSTx
 	// defines tickets, SSGen defines votes, and SSRtx defines revocations.
-	SelectAddressTxTypesByAddress = `SELECT (block_time/$1)*$1 as timestamp,
+	SelectAddressTxTypesByAddress = `SELECT date_trunc($1, block_time) as timestamp,
 		COUNT(CASE WHEN tx_type = 0 AND is_funding = false THEN 1 ELSE NULL END) as SentRtx,
 		COUNT(CASE WHEN tx_type = 0 AND is_funding = true THEN 1 ELSE NULL END) as ReceivedRtx,
 		COUNT(CASE WHEN tx_type = 1 THEN 1 ELSE NULL END) as SSTx,
@@ -204,12 +204,12 @@ const (
 		COUNT(CASE WHEN tx_type = 3 THEN 1 ELSE NULL END) as SSRtx
 		FROM addresses WHERE address=$2 GROUP BY timestamp ORDER BY timestamp;`
 
-	SelectAddressAmountFlowByAddress = `SELECT (block_time/$1)*$1 as timestamp,
+	SelectAddressAmountFlowByAddress = `SELECT date_trunc($1, block_time) as timestamp,
 		SUM(CASE WHEN is_funding = TRUE THEN value ELSE 0 END) as received,
 		SUM(CASE WHEN is_funding = FALSE THEN value ELSE 0 END) as sent FROM
 		addresses WHERE address=$2 GROUP BY timestamp ORDER BY timestamp;`
 
-	SelectAddressUnspentAmountByAddress = `SELECT (block_time/$1)*$1 as timestamp,
+	SelectAddressUnspentAmountByAddress = `SELECT date_trunc($1, block_time) as timestamp,
 		SUM(value) as unspent FROM addresses WHERE address=$2 AND is_funding=TRUE
 		AND matching_tx_hash ='' GROUP BY timestamp ORDER BY timestamp;`
 

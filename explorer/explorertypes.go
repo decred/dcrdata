@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -87,14 +88,13 @@ type AddressTx struct {
 	FormattedSize  string
 	Total          float64
 	Confirmations  uint64
-	Time           int64
+	Time           time.Time
 	FormattedTime  string
 	ReceivedTotal  float64
 	SentTotal      float64
 	IsFunding      bool
 	MatchedTx      string
 	MatchedTxIndex uint32
-	BlockTime      uint64
 	MergedTxnCount uint64 `json:",omitempty"`
 }
 
@@ -461,7 +461,7 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		}
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
 		tx := AddressTx{
-			BlockTime: addrOut.TxBlockTime,
+			Time:      addrOut.TxBlockTime,
 			InOutID:   addrOut.TxVinVoutIndex,
 			TxID:      addrOut.TxHash,
 			TxType:    txhelpers.TxTypeToString(int(addrOut.TxType)),

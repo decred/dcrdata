@@ -4,6 +4,8 @@
 package types
 
 import (
+	"time"
+
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
@@ -161,18 +163,18 @@ type AddressTxRaw struct {
 	Vout          []Vout               `json:"vout"`
 	Confirmations int64                `json:"confirmations"`
 	BlockHash     string               `json:"blockhash"`
-	Time          int64                `json:"time,omitempty"`
-	Blocktime     int64                `json:"blocktime,omitempty"`
+	Time          time.Time            `json:"time,omitempty"`
+	Blocktime     time.Time            `json:"blocktime,omitempty"`
 }
 
 // AddressTxShort is a subset of AddressTxRaw with just the basic tx details
 // pertaining the particular address
 type AddressTxShort struct {
-	TxID          string  `json:"txid"`
-	Size          int32   `json:"size"`
-	Time          int64   `json:"time"`
-	Value         float64 `json:"value"`
-	Confirmations int64   `json:"confirmations"`
+	TxID          string    `json:"txid"`
+	Size          int32     `json:"size"`
+	Time          time.Time `json:"time"`
+	Value         float64   `json:"value"`
+	Confirmations int64     `json:"confirmations"`
 }
 
 // AddressTotals represents the number and value of spent and unspent outputs

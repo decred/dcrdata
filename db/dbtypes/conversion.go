@@ -41,7 +41,7 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params) *B
 		Tx:           txHashStrs,
 		NumStakeTx:   uint32(len(msgBlock.STransactions)),
 		STx:          stxHashStrs,
-		Time:         uint64(blockHeader.Timestamp.Unix()),
+		Time:         blockHeader.Timestamp,
 		Nonce:        uint64(blockHeader.Nonce),
 		VoteBits:     blockHeader.VoteBits,
 		FinalState:   blockHeader.FinalState[:],
@@ -106,7 +106,7 @@ func CalculateWindowIndex(height, stakeDiffWindowSize int64) int64 {
 	windowVal := float64(height) / float64(stakeDiffWindowSize)
 	index := int64(windowVal)
 	if windowVal != math.Floor(windowVal) || windowVal == 0 {
-		index += 1
+		index++
 	}
 	return index
 }
