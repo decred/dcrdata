@@ -40,6 +40,8 @@ Only submit a PR once the intended edits are either done or nearing completion. 
 
 1. Fork the repository on GitHub.  Just click the little Fork button at https://github.com/decred/dcrdata
 
+![image](https://user-images.githubusercontent.com/6109680/47858277-b8910480-ddb9-11e8-9088-a4d1c7b0805d.png)
+
 2. Clone your newly forked dcrdata repository
 
 ```sh
@@ -74,7 +76,7 @@ git commit # type a good commit message
 
 6. Bring master up-to-date and rebase
 
-If you are preparing your first pull request on this branch, rebase to master
+Since your local fork is likely out of sync with the Decred, you'll need to realign everything and clean up your commits.
 
 ```sh
 git checkout master
@@ -91,7 +93,7 @@ It should look something like this before saving.
 ![alt text](https://i.imgur.com/fOtaYtb.png "Rebase commmit command guide")
 
 
-7. **If you have conflicts**, you will need to resolve them by iterating through the diffs one conflicting commit at a time
+7. **If you have conflicts**, resolve them by iterating through the diffs one conflicting commit at a time.
 
 ```sh
 # resolve conflicts
@@ -102,7 +104,7 @@ git rebase --continue
 
 8. Push your commit to GitHub
 
-Assuming `myremote` is the name of the remote used for *your* repository:
+Assuming `myremote` is the name of the remote used for *your* repository (by default, git sets this to `origin`):
 
 ```sh
 git push -u myremote my-great-stuff
@@ -127,25 +129,47 @@ Excellent [PR guidelines](https://github.com/kubernetes/community/blob/master/co
 You will typically receive feedback from other developers. Before responding, take a moment to review the 
 [Code of Conduct](https://github.com/decred/dcrdata/blob/master/CODE_OF_CONDUCT.md). 
 
-Work through the comments and resolve any confusion with others and then implement the changes necessary.
+Work through the comments and resolve any confusion with others. Make whatever revisions are necessary.
 
 11. Resubmitting
 
-Similar to step #6 above, you will want to clean up your commits before creating the pull request. 
-As long as it hasn't been a very long time, you don't need to rebase to master. Instead, rebase 
-to the commit of the last pull request. To see a list of commits, you can use
+Commit your work as in step 5 above.
+
+###### a)
+
+Before resubmitting, clean up any little touchip commits you've made since the last time you pushed.
+If you've only made one commit since then, you can skip this step.
+For example, if you have made 3 commits since your last push, then run the following to put them together.
 
 ```sh
-git log --oneline --graph
+git rebase -i HEAD~3
 ```
 
-Find the hash of the commit of your last pull request. Get all the new changes squashed down using 
+The number after the tilda (~) is the number of commits that you want to combine, including the one you did at the beginning of this step.
+
+###### b)
+
+Then rebase the entire branch back to an updated master. 
 
 ```sh
-git rebase -i [commit hash]
+git checkout master
+git pull https://github.com/decred/dcrdata.git
+git checkout my-great-stuff
+git rebase $(git merge-base master HEAD)
 ```
 
-and following the same procedure from #6. Once everything is cleaned up, push the changes to remote.
+Note the different 4th command. 
+
+###### c)
+
+Push the changes to your remote branch. 
+
+```sh
+git push myremote my-great-stuff
+```
+
+Depending on what has changed, you will likely receive an error message rejecting your push for a misaligned branch tip. This is normal.
+Rerun with the `--force` flag. 
 
 ## Go Development Tips
 
