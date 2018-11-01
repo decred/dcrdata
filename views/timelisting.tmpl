@@ -101,7 +101,7 @@
                         {{range .Data}}
                             <tr id="{{.EndBlock}}">
                                 <td>
-                                   <a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .EndTime}}">{{.FormattedStartTime}}</a>
+                                   <a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .EndTime.Unix}}">{{.FormattedStartTime}}</a>
                                 </td>
                                 {{if eq $lowerCaseVal "years"}}
                                 <td>{{.FormattedEndTime}}</td>

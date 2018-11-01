@@ -487,14 +487,14 @@ type VinTxProperty struct {
 // PoolTicketsData defines the real time data
 // needed for ticket pool visualization charts.
 type PoolTicketsData struct {
-	Time     []uint64  `json:"time,omitempty"`
-	Price    []float64 `json:"price,omitempty"`
-	Mempool  []uint64  `json:"mempool,omitempty"`
-	Immature []uint64  `json:"immature,omitempty"`
-	Live     []uint64  `json:"live,omitempty"`
-	Solo     uint64    `json:"solo,omitempty"`
-	Pooled   uint64    `json:"pooled,omitempty"`
-	TxSplit  uint64    `json:"txsplit,omitempty"`
+	Time     []time.Time `json:"time,omitempty"`
+	Price    []float64   `json:"price,omitempty"`
+	Mempool  []uint64    `json:"mempool,omitempty"`
+	Immature []uint64    `json:"immature,omitempty"`
+	Live     []uint64    `json:"live,omitempty"`
+	Solo     uint64      `json:"solo,omitempty"`
+	Pooled   uint64      `json:"pooled,omitempty"`
+	TxSplit  uint64      `json:"txsplit,omitempty"`
 }
 
 // Vin models a transaction input.

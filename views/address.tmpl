@@ -284,7 +284,7 @@
                                     {{end}}
                                 </td>
                                 <td class="addr-tx-age">
-                                {{if eq .Time 0}}
+                                {{if eq (.Time.Unix) 0}}
                                     N/A
                                 {{else}}
                                     <span data-controller="main" data-target="main.age" data-age="{{.Time}}"></span>

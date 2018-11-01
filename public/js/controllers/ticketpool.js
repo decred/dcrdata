@@ -46,12 +46,13 @@ function barchartPlotter(e) {
         var finalDate = "";
 
         items.time.map(function(n, i){
-            finalDate = new Date(n*1000);
+            finalDate = new Date(n);
             s.push([finalDate, 0, items.immature[i], items.live[i], items.price[i]]);
         });
 
         if (!isNaN(memP.time)){
-            s.push([new Date((memP.time[0] + 60) * 1000) , memP.mempool[0], 0, 0, memP.price[0]]); // add mempool
+            memPdate = new Date(memP.time[0])
+            s.push([new Date().setDate(memPdate.getMinutes() + 1) , memP.mempool[0], 0, 0, memP.price[0]]); // add mempool
         }
 
         origDate = s[0][0] - new Date(0)

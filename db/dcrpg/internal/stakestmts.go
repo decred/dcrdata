@@ -118,10 +118,10 @@ const (
 		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
 		GROUP BY price ORDER BY price;`
 
-	SelectTicketsByPurchaseDate = `SELECT date_trunc($1,transactions.block_time) as timestamp,
+	selectTicketsByPurchaseDate = `SELECT %s as timestamp,
 		SUM(price) as price,
-		SUM(CASE WHEN tickets.block_height >= $2 THEN 1 ELSE 0 END) as immature,
-		SUM(CASE WHEN tickets.block_height < $2 THEN 1 ELSE 0 END) as live
+		SUM(CASE WHEN tickets.block_height >= $1 THEN 1 ELSE 0 END) as immature,
+		SUM(CASE WHEN tickets.block_height < $1 THEN 1 ELSE 0 END) as live
 		FROM tickets JOIN transactions ON purchase_tx_db_id=transactions.id
 		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
 		GROUP BY timestamp ORDER BY timestamp;`
@@ -433,4 +433,9 @@ func MakeAgendaInsertStatement(checked bool) string {
 		return UpsertAgendaRow
 	}
 	return InsertAgendaRow
+}
+
+// MakeSelectTicketsByPurchaseDate returns the selectTicketsByPurchaseDate query
+func MakeSelectTicketsByPurchaseDate(group string) string {
+	return formatGroupingQuery(selectTicketsByPurchaseDate, group, "transactions.block_time")
 }

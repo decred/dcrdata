@@ -12,14 +12,15 @@ import (
 )
 
 const (
-	ticketPrice     = "/chart/ticket-price"
-	tpMonthGrouping = "/ticketpool/bydate/mo"
-	tpDayGrouping   = "/ticketpool/bydate/day"
-	tpAllGrouping   = "/ticketpool/bydate/all"
-	serverAPIUrl    = "http://127.0.0.1:7777/api"
+	ticketPrice      = "/chart/ticket-price"
+	tpMonthGrouping  = "/ticketpool/bydate/mo"
+	tpDayGrouping    = "/ticketpool/bydate/day"
+	tpAllGrouping    = "/ticketpool/bydate/all"
+	allProjectFundTx = "/address/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/types/all"
+	serverAPIUrl     = "http://127.0.0.1:7777/api"
 
 	statusOK      = http.StatusOK
-	maxIterations = 100
+	maxIterations = 10
 )
 
 // httpClient set the time out value, maximum connections and Disable compressions.
@@ -57,13 +58,14 @@ func queryEndpoint(urlStr string, statusCode int) error {
 // queryEndpoint function.
 func main() {
 	testingUrls := map[string]string{
-		"ticketPrice":       serverAPIUrl + ticketPrice,
-		"month ticket pool": serverAPIUrl + tpMonthGrouping,
-		"day ticket pool":   serverAPIUrl + tpDayGrouping,
-		// "all time ticket pool": serverAPIUrl + tpAllGrouping,
+		"ticketPrice":               serverAPIUrl + ticketPrice,
+		"month ticket pool":         serverAPIUrl + tpMonthGrouping,
+		"day ticket pool":           serverAPIUrl + tpDayGrouping,
+		"all time ticket pool":      serverAPIUrl + tpAllGrouping,
+		"all project fund txtypes ": serverAPIUrl + allProjectFundTx,
 	}
 
-	fmt.Println(" >>>>>> Intitiating the Server Perfomance Test by Response Time <<<<<<< ")
+	fmt.Printf(" >>>>>> Intitiating the Server Perfomance Test by Response Time for %d Iterations per URL<<<<<<< \n", maxIterations)
 	for urlType, val := range testingUrls {
 		startTime := time.Now()
 		err := queryEndpoint(val, statusOK)
@@ -72,6 +74,6 @@ func main() {
 			break
 		}
 
-		fmt.Printf("Server Performance testing on %s url took %v\n\n", urlType, time.Since(startTime))
+		fmt.Printf("Server Performance testing on '%s' url took %v \n\n", urlType, time.Since(startTime))
 	}
 }

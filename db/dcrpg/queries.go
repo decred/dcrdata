@@ -632,9 +632,9 @@ func retrieveTimeBasedBlockListing(db *sql.DB, timeInterval string, limit,
 
 	var data []*dbtypes.BlocksGroupedInfo
 	for rows.Next() {
-		var startTime, endTime time.Time
+		var startTime, endTime, indexVal time.Time
 		var txs, tickets, votes, revocations, blockSizes uint64
-		var blocksCount, indexVal, endBlock int64
+		var blocksCount, endBlock int64
 
 		err = rows.Scan(&indexVal, &endBlock, &txs, &tickets, &votes,
 			&revocations, &blockSizes, &blocksCount, &startTime, &endTime)
@@ -643,7 +643,7 @@ func retrieveTimeBasedBlockListing(db *sql.DB, timeInterval string, limit,
 		}
 
 		data = append(data, &dbtypes.BlocksGroupedInfo{
-			IndexVal:           indexVal,
+			//IndexVal:           indexVal,
 			EndBlock:           endBlock,
 			Voters:             votes,
 			Transactions:       txs,
@@ -744,7 +744,7 @@ func RetrieveTicketIDsByHashes(db *sql.DB, ticketHashes []string) (ids []uint64,
 // purchase date. The maturity block is needed to identify immature tickets.
 // The grouping interval size is specified in seconds.
 func retrieveTicketsByDate(db *sql.DB, maturityBlock int64, groupBy string) (*dbtypes.PoolTicketsData, error) {
-	rows, err := db.Query(internal.SelectTicketsByPurchaseDate, groupBy, maturityBlock)
+	rows, err := db.Query(internal.MakeSelectTicketsByPurchaseDate(groupBy), maturityBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -752,7 +752,8 @@ func retrieveTicketsByDate(db *sql.DB, maturityBlock int64, groupBy string) (*db
 
 	tickets := new(dbtypes.PoolTicketsData)
 	for rows.Next() {
-		var immature, live, timestamp uint64
+		var immature, live uint64
+		var timestamp time.Time
 		var price, total float64
 		err = rows.Scan(&timestamp, &price, &immature, &live)
 		if err != nil {
@@ -1379,8 +1380,8 @@ func retrieveTxHistoryByType(db *sql.DB, addr,
 	timeInterval string) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
 
-	rows, err := db.Query(internal.SelectAddressTxTypesByAddress,
-		timeInterval, addr)
+	rows, err := db.Query(internal.MakeSelectAddressTxTypesByAddress(timeInterval),
+		addr)
 	if err != nil {
 		return nil, err
 	}
@@ -1414,8 +1415,8 @@ func retrieveTxHistoryByAmountFlow(db *sql.DB, addr,
 	timeInterval string) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
 
-	rows, err := db.Query(internal.SelectAddressAmountFlowByAddress,
-		timeInterval, addr)
+	rows, err := db.Query(internal.MakeSelectAddressAmountFlowByAddress(timeInterval),
+		addr)
 	if err != nil {
 		return nil, err
 	}
@@ -1452,8 +1453,7 @@ func retrieveTxHistoryByUnspentAmount(db *sql.DB, addr,
 	var totalAmount uint64
 	var items = new(dbtypes.ChartsData)
 
-	rows, err := db.Query(internal.SelectAddressUnspentAmountByAddress,
-		timeInterval, addr)
+	rows, err := db.Query(internal.MakeSelectAddressUnspentAmountByAddress(timeInterval), addr)
 	if err != nil {
 		return nil, err
 	}

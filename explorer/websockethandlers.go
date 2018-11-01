@@ -136,7 +136,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					var mp dbtypes.PoolTicketsData
 					exp.MempoolData.RLock()
 					if len(exp.MempoolData.Tickets) > 0 {
-						mp.Time = append(mp.Time, uint64(exp.MempoolData.Tickets[0].Time))
+						mp.Time = append(mp.Time, time.Unix(exp.MempoolData.Tickets[0].Time, 0))
 						mp.Price = append(mp.Price, exp.MempoolData.Tickets[0].TotalOut)
 						mp.Mempool = append(mp.Mempool, uint64(len(exp.MempoolData.Tickets)))
 					} else {

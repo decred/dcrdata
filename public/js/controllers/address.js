@@ -3,7 +3,7 @@
         var p = []
 
         d.time.map((n, i) => {
-            p.push([new Date(n*1000), d.sentRtx[i], d.receivedRtx[i], d.tickets[i], d.votes[i], d.revokeTx[i]])
+            p.push([new Date(n), d.sentRtx[i], d.receivedRtx[i], d.tickets[i], d.votes[i], d.revokeTx[i]])
         });
         return p
     }
@@ -17,7 +17,7 @@
             var netSent = 0
 
             v > 0 ? (netReceived = v) : (netSent = (v* -1))
-            p.push([new Date(n*1000), d.received[i], d.sent[i], netReceived, netSent])
+            p.push([new Date(n), d.received[i], d.sent[i], netReceived, netSent])
         });
         return p
     }
@@ -26,10 +26,11 @@
         var p = []
         // start plotting 6 days before the actual day
         if (d.length > 0) {
-            p.push([new Date((d.time[0] - 10000) * 1000), 0])
+            v = new Date(d.time[0])
+            p.push([new Date().setDate(v.getDate()-6), 0])
         }
 
-        d.time.map((n, i) => p.push([new Date(n*1000), d.amount[i]]));
+        d.time.map((n, i) => p.push([new Date(n), d.amount[i]]));
         return p
     }
 
@@ -300,7 +301,7 @@
         }
 
         disableBtnsIfNotApplicable(){
-            var val = parseInt(this.addrTarget.dataset.oldestblockTime)*1000
+            var val = parseInt(this.addrTarget.dataset.oldestblockTime)
             var d = new Date()
 
             var pastYear = d.getFullYear() - 1;
@@ -310,7 +311,7 @@
 
             this.enabledButtons = []
             var setApplicableBtns = (className, ts, txCountByType) => {
-                var isDisabled = (val > Number(new Date(ts))) ||
+                var isDisabled = (val > ts) ||
                     (this.options === 'unspent' && this.unspent == "0") ||
                     txCountByType < 2;
 

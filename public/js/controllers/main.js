@@ -1,5 +1,8 @@
 
 (() => {
+    function isCorrectVal(value) {
+        return /^\d+$/.test(value) && value >0;
+    }
 
     app.register("main", class extends Stimulus.Controller {
         static get targets() {
@@ -39,8 +42,10 @@
               return
             }
             this.ageTargets.forEach((el,i) => {
-                if (el.dataset.age > 0) {
-                    el.textContent = humanize.timeSince(el.dataset.age, el.id)
+                if (isCorrectVal(el.dataset.age)) {
+                    el.textContent = humanize.timeSince(el.dataset.age)
+                } else if (el.dataset.age != '') {
+                    el.textContent = humanize.timeSince(Date.parse(el.dataset.age)/1000)
                 }
             })
         }
