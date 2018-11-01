@@ -1,7 +1,7 @@
 (() => {
 
     function incrementValue($el) {
-        if ($el.size() > 0) {
+        if ($el.length > 0) {
             $el.text(
                 parseInt($el.text()) + 1
             )

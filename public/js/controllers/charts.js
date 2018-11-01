@@ -311,7 +311,7 @@
             $(this.rollPeriodInputTarget).val(undefined)
             $(this.chartWrapperTarget).addClass('loading');
             if (selectedChart != selection) {
-                getAPIData(selection, this).success((data) => {
+                getAPIData(selection, this).done((data) => {
                     console.log("got api data", data, this, selection)
                     this.plotGraph(selection, data)
                 })
