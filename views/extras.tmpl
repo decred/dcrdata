@@ -244,11 +244,7 @@
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
 
-<<<<<<< 578926bf19314216786a4a73ae1443a4faa26ca4
             // Update the blocktime counter.
-=======
-            // update the blocktime counter
->>>>>>> base CommonPageData structure for explorer templates
             $("[data-main-lastblocktime]").data("main-lastblocktime", b.time).removeClass("text-danger")
 
             var expTableRows = $('#explorertable tbody tr');
@@ -403,8 +399,8 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container d-flex">
-        <ul class="nav justify-content-left align-items-center nowrap">
-          <div class="float-left"><span data-controller="main" data-target="main.age" data-main-lastblocktime="{{$.Tip.Time}}"></span> since last block</div>
+        <ul class="nav align-items-center nowrap blockcounter">
+          <span class="nav-item"><span data-controller="main" data-target="main.age" data-main-lastblocktime="{{$.Tip.Time}}"></span> since last block</span>
         </ul>
         <ul class="nav justify-content-center col">
             <li class="nav-item">

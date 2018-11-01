@@ -498,6 +498,11 @@ body.darkBG .progress {
   position: relative;
 }
 
+.navbar-fixed-bottom .blockcounter {
+  width:20%;
+  overflow:visible;
+}
+
 #watermark
 {
   left: 50%;
