@@ -803,6 +803,9 @@ body.darkBG .keynav-target {
   font-weight: bold;
   vertical-align: middle;
 }
+.connection-wrapper {
+  width: 100px
+}
 #connection div {
   background-image: url("/images/abstain.svg");
   background-size: 15px 15px;
@@ -1134,9 +1137,14 @@ body.darkBG .keynav-target {
    .stat-headers {
      margin-left: 0px;
    }
-
    #proof-stake-header {
      margin-left: 38px;
    }
 }
+@media (min-width: 768px) {
+  .connection-wrapper {
+    width: 180px;
+  }
+}
+
 /*end Stats page */
