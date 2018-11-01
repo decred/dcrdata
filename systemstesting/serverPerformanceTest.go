@@ -1,4 +1,4 @@
-package systemstesting
+package main
 
 // This trys to create a standard way we can measure the server performance
 // by measuring how long it takes query a given endpoint in dcrdata for a certain
@@ -16,10 +16,10 @@ const (
 	tpMonthGrouping = "/ticketpool/bydate/mo"
 	tpDayGrouping   = "/ticketpool/bydate/day"
 	tpAllGrouping   = "/ticketpool/bydate/all"
-	serverAPIUrl    = "http://127.0.0.1/api"
+	serverAPIUrl    = "http://127.0.0.1:7777/api"
 
 	statusOK      = http.StatusOK
-	maxIterations = 1000
+	maxIterations = 100
 )
 
 // httpClient set the time out value, maximum connections and Disable compressions.
@@ -41,7 +41,7 @@ func queryEndpoint(urlStr string, statusCode int) error {
 	for i := 0; i < maxIterations; i++ {
 		res, err := client.Get(urlStr)
 		if err != nil {
-			return fmt.Errorf("failed to fetch %s url data at iteration %d", urlStr, i)
+			return fmt.Errorf("failed to fetch %s url data at iteration %d: error: %v", urlStr, i, err)
 		}
 
 		if res.StatusCode != statusCode {
@@ -57,12 +57,13 @@ func queryEndpoint(urlStr string, statusCode int) error {
 // queryEndpoint function.
 func main() {
 	testingUrls := map[string]string{
-		"ticketPrice":          serverAPIUrl + ticketPrice,
-		"month ticket pool":    serverAPIUrl + tpMonthGrouping,
-		"day ticket pool":      serverAPIUrl + tpDayGrouping,
-		"all time ticket pool": serverAPIUrl + tpAllGrouping,
+		"ticketPrice":       serverAPIUrl + ticketPrice,
+		"month ticket pool": serverAPIUrl + tpMonthGrouping,
+		"day ticket pool":   serverAPIUrl + tpDayGrouping,
+		// "all time ticket pool": serverAPIUrl + tpAllGrouping,
 	}
 
+	fmt.Println(" >>>>>> Intitiating the Server Perfomance Test by Response Time <<<<<<< ")
 	for urlType, val := range testingUrls {
 		startTime := time.Now()
 		err := queryEndpoint(val, statusOK)
@@ -71,6 +72,6 @@ func main() {
 			break
 		}
 
-		fmt.Printf("Server Performance testing on %s url took %v", urlType, time.Since(startTime))
+		fmt.Printf("Server Performance testing on %s url took %v\n\n", urlType, time.Since(startTime))
 	}
 }
