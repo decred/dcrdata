@@ -16,7 +16,7 @@ require (
 	github.com/decred/dcrd/chaincfg v1.1.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/database v1.0.2
-	github.com/decred/dcrd/dcrec v0.0.0-20180926135934-93133096234e // indirect
+	github.com/decred/dcrd/dcrec v0.0.0-20180926135934-93133096234e
 	github.com/decred/dcrd/dcrec/edwards v0.0.0-20180926135934-93133096234e // indirect
 	github.com/decred/dcrd/dcrjson v1.0.0
 	github.com/decred/dcrd/dcrutil v1.1.1
