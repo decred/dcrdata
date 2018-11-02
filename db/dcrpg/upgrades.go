@@ -275,9 +275,9 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		// Go on to next upgrade
 		fallthrough
 
-	// Upgrade from 3.5.5 --> 3.5.6
+	// Upgrade from 3.5.5 --> 3.6.0
 	case version.major == 3 && version.minor == 5 && version.patch == 5:
-		toVersion = TableVersion{3, 5, 6}
+		toVersion = TableVersion{3, 6, 0}
 
 		theseUpgrades := []TableUpgradeType{
 			{"addresses", addressesBlockTimeDataTypeUpdate},
