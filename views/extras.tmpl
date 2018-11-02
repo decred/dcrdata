@@ -246,6 +246,7 @@
 
             // Update the blocktime counter.
             DCRThings.counter.data("main-lastblocktime", b.time).removeClass("text-danger")
+            DCRThings.counter.html(humanize.timeSince(b.time))
 
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
