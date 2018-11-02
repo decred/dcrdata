@@ -593,7 +593,7 @@ type StatsInfo struct {
 	RewardWindowSize           int64
 }
 
-// CommonPageData is the basis for dasta structs used for HTML templates.
+// CommonPageData is the basis for data structs used for HTML templates.
 // explorerUI.commonData returns an initialized instance or CommonPageData,
 // which itself should be used to initialize page data template structs.
 type CommonPageData struct {
