@@ -81,12 +81,13 @@ type explorerDataSource interface {
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	BlockFlags(hash string) (bool, bool, error)
 	GetOldestTxBlockTime(addr string) (int64, error)
-	TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
+	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)
 	Transaction(txHash string) ([]*dbtypes.Tx, error)
 	VinsForTx(*dbtypes.Tx) (vins []dbtypes.VinTxProperty, prevPkScripts []string, scriptVersions []uint16, err error)
 	VoutsForTx(*dbtypes.Tx) ([]dbtypes.Vout, error)
 	PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
+	TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 }
 
 // chartDataCounter is a data cache for the historical charts.
@@ -161,6 +162,7 @@ type explorerUI struct {
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
+	genesisBlock          *BlockInfo
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -305,7 +307,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "rejects", "ticketpool", "nexthome", "statistics",
-		"windows"}
+		"windows", "timelisting"}
 
 	tempDefaults := []string{"extras"}
 

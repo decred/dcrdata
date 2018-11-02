@@ -612,6 +612,12 @@
             Notify.requestPermission(onPermissionGranted, onPermissionDenied);
         }
     })
+
+    $("#listing-view").change(function(ev) {
+        Turbolinks.visit( "/"+
+            $("#listing-view option:selected").val()
+        )
+    })
 </script>
 
 <script data-turbolinks-eval="false">
@@ -642,4 +648,17 @@ const app = Stimulus.Application.start()
 {{define "fmtPercentage"}}
     {{if gt . 0.0}}<span style="color:green">+{{printf "%.2f" .}} %</span>
     {{else}}<span style="color:red">{{printf "%.2f" .}} %</span>{{end}}
+{{end}}
+
+{{define "listViewRouting"}}
+    <div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
+        <select id="listing-view" class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
+            <option {{if eq . "years"}}selected{{end}} value="years">Years</option>
+            <option {{if eq . "months"}}selected{{end}} value="months">Months</option>
+            <option {{if eq . "weeks"}}selected{{end}} value="weeks">Weeks</option>
+            <option {{if eq . "days"}}selected{{end}} value="days">Days</option>
+            <option {{if eq . "windows"}}selected{{end}} value="ticketpricewindows">Windows</option>
+            <option {{if eq . "blocks"}}selected{{end}} value="blocks">Blocks</option>
+        </select>
+    </div>
 {{end}}

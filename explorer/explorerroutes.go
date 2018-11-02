@@ -193,7 +193,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || rows < minExplorerRows {
+	if err != nil || (rows < minExplorerRows && rows == 0) {
 		rows = minExplorerRows
 	}
 
@@ -237,6 +237,102 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	io.WriteString(w, str)
 }
 
+// DayBlocksListing handles "/day" page.
+func (exp *explorerUI) DayBlocksListing(w http.ResponseWriter, r *http.Request) {
+	exp.timeBasedBlocksListing("Days", w, r)
+}
+
+// WeekBlocksListing handles "/week" page.
+func (exp *explorerUI) WeekBlocksListing(w http.ResponseWriter, r *http.Request) {
+	exp.timeBasedBlocksListing("Weeks", w, r)
+}
+
+// MonthBlocksListing handles "/month" page.
+func (exp *explorerUI) MonthBlocksListing(w http.ResponseWriter, r *http.Request) {
+	exp.timeBasedBlocksListing("Months", w, r)
+}
+
+// YearBlocksListing handles "/year" page.
+func (exp *explorerUI) YearBlocksListing(w http.ResponseWriter, r *http.Request) {
+	exp.timeBasedBlocksListing("Years", w, r)
+}
+
+// TimeBasedBlocksListing is the main handler for "/day", "/week", "/month" and "/year".
+func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter, r *http.Request) {
+	if exp.liteMode {
+		exp.StatusPage(w, fullModeRequired,
+			"Time based blocks listing page cannot run in lite mode.", NotSupportedStatusType)
+	}
+
+	grouping := dbtypes.TimeGroupingFromStr(val)
+	i, err := dbtypes.TimeBasedGroupingToInterval(grouping)
+	if err != nil {
+		// default to year grouping if grouping is missing
+		i, err = dbtypes.TimeBasedGroupingToInterval(dbtypes.YearGrouping)
+		if err != nil {
+			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", ErrorStatusType)
+			log.Errorf("Invalid year grouping found: error: %v ", err)
+		}
+		grouping = dbtypes.YearGrouping
+	}
+
+	offset, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
+	if err != nil {
+		offset = 0
+	}
+
+	oldestBlockTime := exp.ChainParams.GenesisBlock.Header.Timestamp.Unix()
+	maxOffset := (time.Now().Unix() - oldestBlockTime) / int64(i)
+	m := uint64(maxOffset)
+	if offset > m {
+		offset = m
+	}
+
+	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
+	if err != nil || (rows < minExplorerRows && rows == 0) {
+		rows = minExplorerRows
+	}
+
+	if rows > maxExplorerRows {
+		rows = maxExplorerRows
+	}
+
+	data, err := exp.explorerSource.TimeBasedIntervals(grouping, rows, offset)
+	if err != nil {
+		log.Errorf("The specified /%s intervals are invalid. offset=%d&rows=%d: error: %v ", val, offset, rows, err)
+		exp.StatusPage(w, defaultErrorCode, "The specified intervals could not found", NotFoundStatusType)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("timelisting", struct {
+		Data         []*dbtypes.BlocksGroupedInfo
+		TimeGrouping string
+		Offset       int64
+		Limit        int64
+		Version      string
+		NetName      string
+		BestGrouping int64
+	}{
+		data,
+		val,
+		int64(offset),
+		int64(rows),
+		exp.Version,
+		exp.NetName,
+		maxOffset,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // Blocks is the page handler for the "/blocks" path.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	bestBlockHeight := exp.blockData.GetHeight()
@@ -247,7 +343,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-	if err != nil || rows < minExplorerRows {
+	if err != nil || (rows < minExplorerRows && rows == 0) {
 		rows = minExplorerRows
 	}
 
@@ -345,7 +441,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		data.MainChain = blockStatus.IsMainchain
 	}
 
-	pageData := struct {
+	str, err := exp.templates.execTemplateToString("block", struct {
 		Data          *BlockInfo
 		ConfirmHeight int64
 		Version       string
@@ -355,8 +451,8 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 		exp.Height() - data.Confirmations,
 		exp.Version,
 		exp.NetName,
-	}
-	str, err := exp.templates.execTemplateToString("block", pageData)
+	})
+
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
@@ -399,7 +495,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 			"Ticketpool page cannot run in lite mode", NotSupportedStatusType)
 		return
 	}
-	interval := dbtypes.AllChartGrouping
+	interval := dbtypes.AllGrouping
 
 	barGraphs, donutChart, height, err := exp.explorerSource.TicketPoolVisualization(interval)
 	if err != nil {

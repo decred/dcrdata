@@ -576,7 +576,7 @@ func RetrieveAllVotesDbIDsHeightsTicketDbIDs(db *sql.DB) (ids []uint64, heights 
 
 // retrieveWindowBlocks fetches chunks of windows using the limit and offset provided
 // for a window size of chaincfg.Params.StakeDiffWindowSize.
-func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
+func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit,
 	offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
 	rows, err := db.Query(internal.SelectWindowsByLimit, windowSize, limit, offset)
 	if err != nil {
@@ -599,22 +599,63 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit uint64,
 		index := dbtypes.CalculateWindowIndex(endBlock, windowSize)
 
 		data = append(data, &dbtypes.BlocksGroupedInfo{
-			WindowIndx:    index, //window index at the endblock
-			EndBlock:      endBlock,
-			Voters:        votes,
-			Transactions:  txs,
-			FreshStake:    tickets,
-			Revocations:   revocations,
-			BlocksCount:   count,
-			Difficulty:    difficulty,
-			TicketPrice:   sbits,
-			StartTime:     timestamp,
-			Size:          int64(blockSizes),
-			FormattedSize: humanize.Bytes(blockSizes),
-			FormattedTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),
+			IndexVal:           index, //window index at the endblock
+			EndBlock:           endBlock,
+			Voters:             votes,
+			Transactions:       txs,
+			FreshStake:         tickets,
+			Revocations:        revocations,
+			BlocksCount:        count,
+			Difficulty:         difficulty,
+			TicketPrice:        sbits,
+			Size:               int64(blockSizes),
+			FormattedSize:      humanize.Bytes(blockSizes),
+			StartTime:          timestamp,
+			FormattedStartTime: time.Unix(timestamp, 0).Format("2006-01-02 15:04:05"),
 		})
 	}
 
+	return data, nil
+}
+
+// retrieveTimeBasedBlockListing fetches blocks in chunks based on their block
+// time using the limit and offset provided. The time-based blocks groupings
+// include but are not limited to day, week, month and year.
+func retrieveTimeBasedBlockListing(db *sql.DB, timeInterval, limit,
+	offset, genesisBlockTime uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	rows, err := db.Query(internal.SelectBlocksTimeListingByLimit, timeInterval,
+		genesisBlockTime, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTimeBasedBlockListing failed: error: %v", err)
+	}
+
+	var data []*dbtypes.BlocksGroupedInfo
+	for rows.Next() {
+		var txs, tickets, votes, revocations, blockSizes uint64
+		var blocksCount, startTime, endTime, indexVal, endBlock int64
+
+		err = rows.Scan(&indexVal, &endBlock, &txs, &tickets, &votes,
+			&revocations, &blockSizes, &blocksCount, &startTime, &endTime)
+		if err != nil {
+			return nil, err
+		}
+
+		data = append(data, &dbtypes.BlocksGroupedInfo{
+			IndexVal:           indexVal,
+			EndBlock:           endBlock,
+			Voters:             votes,
+			Transactions:       txs,
+			FreshStake:         tickets,
+			Revocations:        revocations,
+			BlocksCount:        blocksCount,
+			Size:               int64(blockSizes),
+			FormattedSize:      humanize.Bytes(blockSizes),
+			StartTime:          startTime,
+			FormattedStartTime: time.Unix(startTime, 0).Format("2006-01-02"),
+			EndTime:            endTime,
+			FormattedEndTime:   time.Unix(endTime, 0).Format("2006-01-02"),
+		})
+	}
 	return data, nil
 }
 

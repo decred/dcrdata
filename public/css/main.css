@@ -465,7 +465,7 @@ body.darkBG .progress {
   display: block;
   padding: 7px 20px;
   margin: 1px 0;
-  font-size: 20px;
+  font-size: 15px;
 }
 #menuToggle input:checked ~ #menu {
   transform: none;

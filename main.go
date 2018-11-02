@@ -510,6 +510,10 @@ func _main(ctx context.Context) error {
 		r.NotFound(explore.NotFound)
 
 		r.Mount("/explorer", explore.Mux)
+		r.Get("/days", explore.DayBlocksListing)
+		r.Get("/weeks", explore.WeekBlocksListing)
+		r.Get("/months", explore.MonthBlocksListing)
+		r.Get("/years", explore.YearBlocksListing)
 		r.Get("/blocks", explore.Blocks)
 		r.Get("/ticketpricewindows", explore.StakeDiffWindows)
 		r.Get("/side", explore.SideChains)
