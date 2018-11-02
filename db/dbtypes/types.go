@@ -14,6 +14,28 @@ import (
 	"github.com/decred/dcrdata/v3/db/dbtypes/internal"
 )
 
+// TimeDef is time.Time wrapper that formats time by default as a string without
+// a timezone. The time Stringer interface formats the time into a string
+// with a timezone.
+type TimeDef struct {
+	T time.Time
+}
+
+func (t *TimeDef) String() string {
+	return t.T.Format("2006-01-02 15:04:05")
+}
+
+// TimeAPI is a fall back dbtypes.TimeDef wrapper that allows API endpoint that
+// previously accepted timestamp instead of a formatted string time to continue
+// working.
+type TimeAPI struct {
+	S TimeDef
+}
+
+func (t *TimeAPI) String() int64 {
+	return t.S.T.Unix()
+}
+
 // Tickets have 6 states, 5 possible fates:
 // Live -...---> Voted
 //           \-> Missed (unspent) [--> Revoked]
@@ -129,9 +151,9 @@ type BlocksGroupedInfo struct {
 	EndBlock           int64
 	Difficulty         float64
 	TicketPrice        int64
-	StartTime          time.Time
+	StartTime          TimeDef
 	FormattedStartTime string
-	EndTime            time.Time
+	EndTime            TimeDef
 	FormattedEndTime   string
 	Size               int64
 	FormattedSize      string
@@ -410,7 +432,7 @@ type AddressRow struct {
 	// funding tx outputs.
 	MatchingTxHash   string
 	IsFunding        bool
-	TxBlockTime      time.Time
+	TxBlockTime      TimeDef
 	TxHash           string
 	TxVinVoutIndex   uint32
 	Value            uint64
@@ -433,28 +455,28 @@ type AddressMetrics struct {
 // ChartsData defines the fields that store the values needed to plot the charts
 // on the frontend.
 type ChartsData struct {
-	Difficulty  []float64   `json:"difficulty,omitempty"`
-	Time        []time.Time `json:"time,omitempty"`
-	Value       []uint64    `json:"value,omitempty"`
-	Size        []uint64    `json:"size,omitempty"`
-	ChainSize   []uint64    `json:"chainsize,omitempty"`
-	Count       []uint64    `json:"count,omitempty"`
-	SizeF       []float64   `json:"sizef,omitempty"`
-	ValueF      []float64   `json:"valuef,omitempty"`
-	Unspent     []uint64    `json:"unspent,omitempty"`
-	Revoked     []uint64    `json:"revoked,omitempty"`
-	Height      []uint64    `json:"height,omitempty"`
-	Pooled      []uint64    `json:"pooled,omitempty"`
-	Solo        []uint64    `json:"solo,omitempty"`
-	SentRtx     []uint64    `json:"sentRtx,omitempty"`
-	ReceivedRtx []uint64    `json:"receivedRtx,omitempty"`
-	Tickets     []uint64    `json:"tickets,omitempty"`
-	Votes       []uint64    `json:"votes,omitempty"`
-	RevokeTx    []uint64    `json:"revokeTx,omitempty"`
-	Amount      []float64   `json:"amount,omitempty"`
-	Received    []float64   `json:"received,omitempty"`
-	Sent        []float64   `json:"sent,omitempty"`
-	Net         []float64   `json:"net,omitempty"`
+	Difficulty  []float64 `json:"difficulty,omitempty"`
+	Time        []TimeDef `json:"time,omitempty"`
+	Value       []uint64  `json:"value,omitempty"`
+	Size        []uint64  `json:"size,omitempty"`
+	ChainSize   []uint64  `json:"chainsize,omitempty"`
+	Count       []uint64  `json:"count,omitempty"`
+	SizeF       []float64 `json:"sizef,omitempty"`
+	ValueF      []float64 `json:"valuef,omitempty"`
+	Unspent     []uint64  `json:"unspent,omitempty"`
+	Revoked     []uint64  `json:"revoked,omitempty"`
+	Height      []uint64  `json:"height,omitempty"`
+	Pooled      []uint64  `json:"pooled,omitempty"`
+	Solo        []uint64  `json:"solo,omitempty"`
+	SentRtx     []uint64  `json:"sentRtx,omitempty"`
+	ReceivedRtx []uint64  `json:"receivedRtx,omitempty"`
+	Tickets     []uint64  `json:"tickets,omitempty"`
+	Votes       []uint64  `json:"votes,omitempty"`
+	RevokeTx    []uint64  `json:"revokeTx,omitempty"`
+	Amount      []float64 `json:"amount,omitempty"`
+	Received    []float64 `json:"received,omitempty"`
+	Sent        []float64 `json:"sent,omitempty"`
+	Net         []float64 `json:"net,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
@@ -466,35 +488,35 @@ type ScriptPubKeyData struct {
 
 // VinTxProperty models a transaction input with previous outpoint information.
 type VinTxProperty struct {
-	PrevOut     string    `json:"prevout"`
-	PrevTxHash  string    `json:"prevtxhash"`
-	PrevTxIndex uint32    `json:"prevvoutidx"`
-	PrevTxTree  uint16    `json:"tree"`
-	Sequence    uint32    `json:"sequence"`
-	ValueIn     int64     `json:"amountin"`
-	TxID        string    `json:"tx_hash"`
-	TxIndex     uint32    `json:"tx_index"`
-	TxTree      uint16    `json:"tx_tree"`
-	TxType      int16     `json:"tx_type"`
-	BlockHeight uint32    `json:"blockheight"`
-	BlockIndex  uint32    `json:"blockindex"`
-	ScriptHex   []byte    `json:"scripthex"`
-	IsValid     bool      `json:"is_valid"`
-	IsMainchain bool      `json:"is_mainchain"`
-	Time        time.Time `json:"time"`
+	PrevOut     string  `json:"prevout"`
+	PrevTxHash  string  `json:"prevtxhash"`
+	PrevTxIndex uint32  `json:"prevvoutidx"`
+	PrevTxTree  uint16  `json:"tree"`
+	Sequence    uint32  `json:"sequence"`
+	ValueIn     int64   `json:"amountin"`
+	TxID        string  `json:"tx_hash"`
+	TxIndex     uint32  `json:"tx_index"`
+	TxTree      uint16  `json:"tx_tree"`
+	TxType      int16   `json:"tx_type"`
+	BlockHeight uint32  `json:"blockheight"`
+	BlockIndex  uint32  `json:"blockindex"`
+	ScriptHex   []byte  `json:"scripthex"`
+	IsValid     bool    `json:"is_valid"`
+	IsMainchain bool    `json:"is_mainchain"`
+	Time        TimeDef `json:"time"`
 }
 
 // PoolTicketsData defines the real time data
 // needed for ticket pool visualization charts.
 type PoolTicketsData struct {
-	Time     []time.Time `json:"time,omitempty"`
-	Price    []float64   `json:"price,omitempty"`
-	Mempool  []uint64    `json:"mempool,omitempty"`
-	Immature []uint64    `json:"immature,omitempty"`
-	Live     []uint64    `json:"live,omitempty"`
-	Solo     uint64      `json:"solo,omitempty"`
-	Pooled   uint64      `json:"pooled,omitempty"`
-	TxSplit  uint64      `json:"txsplit,omitempty"`
+	Time     []TimeDef `json:"time,omitempty"`
+	Price    []float64 `json:"price,omitempty"`
+	Mempool  []uint64  `json:"mempool,omitempty"`
+	Immature []uint64  `json:"immature,omitempty"`
+	Live     []uint64  `json:"live,omitempty"`
+	Solo     uint64    `json:"solo,omitempty"`
+	Pooled   uint64    `json:"pooled,omitempty"`
+	TxSplit  uint64    `json:"txsplit,omitempty"`
 }
 
 // Vin models a transaction input.
@@ -523,33 +545,33 @@ type ScriptSig struct {
 // the block heights, or a day, in which case Time contains the time stamps of
 // each interval. Total is always the sum of Yes, No, and Abstain.
 type AgendaVoteChoices struct {
-	Abstain []uint64    `json:"abstain"`
-	Yes     []uint64    `json:"yes"`
-	No      []uint64    `json:"no"`
-	Total   []uint64    `json:"total"`
-	Height  []uint64    `json:"height,omitempty"`
-	Time    []time.Time `json:"time,omitempty"`
+	Abstain []uint64  `json:"abstain"`
+	Yes     []uint64  `json:"yes"`
+	No      []uint64  `json:"no"`
+	Total   []uint64  `json:"total"`
+	Height  []uint64  `json:"height,omitempty"`
+	Time    []TimeDef `json:"time,omitempty"`
 }
 
 // Tx models a Decred transaction. It is stored in a Block.
 type Tx struct {
 	//blockDbID  int64
-	BlockHash   string    `json:"block_hash"`
-	BlockHeight int64     `json:"block_height"`
-	BlockTime   time.Time `json:"block_time"`
-	Time        time.Time `json:"time"`
-	TxType      int16     `json:"tx_type"`
-	Version     uint16    `json:"version"`
-	Tree        int8      `json:"tree"`
-	TxID        string    `json:"txid"`
-	BlockIndex  uint32    `json:"block_index"`
-	Locktime    uint32    `json:"locktime"`
-	Expiry      uint32    `json:"expiry"`
-	Size        uint32    `json:"size"`
-	Spent       int64     `json:"spent"`
-	Sent        int64     `json:"sent"`
-	Fees        int64     `json:"fees"`
-	NumVin      uint32    `json:"numvin"`
+	BlockHash   string  `json:"block_hash"`
+	BlockHeight int64   `json:"block_height"`
+	BlockTime   TimeDef `json:"block_time"`
+	Time        TimeDef `json:"time"`
+	TxType      int16   `json:"tx_type"`
+	Version     uint16  `json:"version"`
+	Tree        int8    `json:"tree"`
+	TxID        string  `json:"txid"`
+	BlockIndex  uint32  `json:"block_index"`
+	Locktime    uint32  `json:"locktime"`
+	Expiry      uint32  `json:"expiry"`
+	Size        uint32  `json:"size"`
+	Spent       int64   `json:"spent"`
+	Sent        int64   `json:"sent"`
+	Fees        int64   `json:"fees"`
+	NumVin      uint32  `json:"numvin"`
 	//Vins        VinTxPropertyARRAY `json:"vins"`
 	VinDbIds  []uint64 `json:"vindbids"`
 	NumVout   uint32   `json:"numvout"`
@@ -576,30 +598,30 @@ type Block struct {
 	NumStakeTx   uint32
 	STx          []string `json:"stx"`
 	STxDbIDs     []uint64
-	Time         time.Time `json:"time"`
-	Nonce        uint64    `json:"nonce"`
-	VoteBits     uint16    `json:"votebits"`
-	FinalState   []byte    `json:"finalstate"`
-	Voters       uint16    `json:"voters"`
-	FreshStake   uint8     `json:"freshstake"`
-	Revocations  uint8     `json:"revocations"`
-	PoolSize     uint32    `json:"poolsize"`
-	Bits         uint32    `json:"bits"`
-	SBits        uint64    `json:"sbits"`
-	Difficulty   float64   `json:"difficulty"`
-	ExtraData    []byte    `json:"extradata"`
-	StakeVersion uint32    `json:"stakeversion"`
-	PreviousHash string    `json:"previousblockhash"`
+	Time         TimeDef `json:"time"`
+	Nonce        uint64  `json:"nonce"`
+	VoteBits     uint16  `json:"votebits"`
+	FinalState   []byte  `json:"finalstate"`
+	Voters       uint16  `json:"voters"`
+	FreshStake   uint8   `json:"freshstake"`
+	Revocations  uint8   `json:"revocations"`
+	PoolSize     uint32  `json:"poolsize"`
+	Bits         uint32  `json:"bits"`
+	SBits        uint64  `json:"sbits"`
+	Difficulty   float64 `json:"difficulty"`
+	ExtraData    []byte  `json:"extradata"`
+	StakeVersion uint32  `json:"stakeversion"`
+	PreviousHash string  `json:"previousblockhash"`
 }
 
 type BlockDataBasic struct {
-	Height     uint32    `json:"height,omitemtpy"`
-	Size       uint32    `json:"size,omitemtpy"`
-	Hash       string    `json:"hash,omitemtpy"`
-	Difficulty float64   `json:"diff,omitemtpy"`
-	StakeDiff  float64   `json:"sdiff,omitemtpy"`
-	Time       time.Time `json:"time,omitemtpy"`
-	NumTx      uint32    `json:"txlength,omitempty"`
+	Height     uint32  `json:"height,omitemtpy"`
+	Size       uint32  `json:"size,omitemtpy"`
+	Hash       string  `json:"hash,omitemtpy"`
+	Difficulty float64 `json:"diff,omitemtpy"`
+	StakeDiff  float64 `json:"sdiff,omitemtpy"`
+	Time       TimeDef `json:"time,omitemtpy"`
+	NumTx      uint32  `json:"txlength,omitempty"`
 }
 
 // BlockStatus describes a block's status in the block chain.

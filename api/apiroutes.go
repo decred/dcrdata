@@ -187,7 +187,7 @@ out:
 
 			c.statusMtx.Lock()
 			c.Status.DBHeight = height
-			c.Status.DBLastBlockTime = summary.Time
+			c.Status.DBLastBlockTime = summary.Time.T.Unix()
 
 			bdHeight := c.BlockData.GetHeight()
 			if bdHeight >= 0 && summary.Height == uint32(bdHeight) &&

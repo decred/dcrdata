@@ -13,6 +13,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/rpcutils"
 	"github.com/decred/dcrdata/v3/txhelpers"
 	"github.com/decred/slog"
@@ -94,7 +95,7 @@ func mainCore() int {
 			Hash:       blockhash.String(),
 			Difficulty: diffRatio,
 			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
-			Time:       header.Timestamp.Unix(),
+			Time:       dbtypes.TimeDef{T:header.Timestamp},
 			PoolInfo: &apitypes.TicketPoolInfo{
 				Size: header.PoolSize,
 			},

@@ -275,7 +275,7 @@
                     '<td>' + b.revocations + '</td>' +
                     '<td>' + humanize.bytes(b.size) + '</td>' +
                     '<td data-target="main.age"  data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
-                    '<td>' + b.formatted_time + '</td>' +
+                    '<td>' + b.time + '</td>' +
                 '</tr>'
                 var newRowHtml = $.parseHTML(newRow)
                 $(newRowHtml).insertBefore(expTableRows.first())

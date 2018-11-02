@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/stakedb"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
@@ -66,23 +67,22 @@ func (b *BlockData) ToStakeInfoExtendedEstimates() apitypes.StakeInfoExtendedEst
 
 // ToBlockSummary returns an apitypes.BlockDataBasic object from the blockdata
 func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
+	t := dbtypes.TimeDef{T:time.Unix(b.Header.Time, 0)}
 	return apitypes.BlockDataBasic{
 		Height:     b.Header.Height,
 		Size:       b.Header.Size,
 		Hash:       b.Header.Hash,
 		Difficulty: b.Header.Difficulty,
 		StakeDiff:  b.Header.SBits,
-		Time:       b.Header.Time,
+		Time:       t,
 		PoolInfo:   b.PoolInfo,
 	}
 }
 
 // ToBlockExplorerSummary returns a BlockExplorerBasic
 func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
-	t := time.Unix(b.Header.Time, 0)
-	ftime := t.Format("2006-01-02 15:04:05")
 	extra := b.ExtraInfo
-	extra.FormattedTime = ftime
+	t := dbtypes.TimeDef{T:time.Unix(b.Header.Time, 0)}
 	return apitypes.BlockExplorerBasic{
 		Height:                 b.Header.Height,
 		Size:                   b.Header.Size,
@@ -91,7 +91,7 @@ func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 		FreshStake:             b.Header.FreshStake,
 		StakeDiff:              b.Header.SBits,
 		BlockExplorerExtraInfo: extra,
-		Time:                   b.Header.Time,
+		Time:                   t,
 	}
 }
 
@@ -205,7 +205,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 		Hash:       hash.String(),
 		Difficulty: diff,
 		StakeDiff:  sdiff,
-		Time:       header.Timestamp.Unix(),
+		Time:       dbtypes.TimeDef{T:header.Timestamp},
 		PoolInfo:   ticketPoolInfo,
 	}
 	extrainfo := &apitypes.BlockExplorerExtraInfo{

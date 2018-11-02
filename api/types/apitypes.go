@@ -4,9 +4,8 @@
 package types
 
 import (
-	"time"
-
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
@@ -163,18 +162,18 @@ type AddressTxRaw struct {
 	Vout          []Vout               `json:"vout"`
 	Confirmations int64                `json:"confirmations"`
 	BlockHash     string               `json:"blockhash"`
-	Time          time.Time            `json:"time,omitempty"`
-	Blocktime     time.Time            `json:"blocktime,omitempty"`
+	Time          dbtypes.TimeAPI      `json:"time,omitempty"`
+	Blocktime     dbtypes.TimeAPI      `json:"blocktime,omitempty"`
 }
 
 // AddressTxShort is a subset of AddressTxRaw with just the basic tx details
 // pertaining the particular address
 type AddressTxShort struct {
-	TxID          string    `json:"txid"`
-	Size          int32     `json:"size"`
-	Time          time.Time `json:"time"`
-	Value         float64   `json:"value"`
-	Confirmations int64     `json:"confirmations"`
+	TxID          string          `json:"txid"`
+	Size          int32           `json:"size"`
+	Time          dbtypes.TimeAPI `json:"time"`
+	Value         float64         `json:"value"`
+	Confirmations int64           `json:"confirmations"`
 }
 
 // AddressTotals represents the number and value of spent and unspent outputs
@@ -282,13 +281,13 @@ type TicketPoolValsAndSizes struct {
 
 // BlockDataBasic models primary information about block at height Height
 type BlockDataBasic struct {
-	Height     uint32  `json:"height,omitemtpy"`
-	Size       uint32  `json:"size,omitemtpy"`
-	Hash       string  `json:"hash,omitemtpy"`
-	Difficulty float64 `json:"diff,omitemtpy"`
-	StakeDiff  float64 `json:"sdiff,omitemtpy"`
-	Time       int64   `json:"time,omitemtpy"`
-	NumTx      uint32  `json:"txlength,omitempty"`
+	Height     uint32          `json:"height,omitemtpy"`
+	Size       uint32          `json:"size,omitemtpy"`
+	Hash       string          `json:"hash,omitemtpy"`
+	Difficulty float64         `json:"diff,omitemtpy"`
+	StakeDiff  float64         `json:"sdiff,omitemtpy"`
+	Time       dbtypes.TimeDef `json:"time,omitemtpy"`
+	NumTx      uint32          `json:"txlength,omitempty"`
 	// TicketPoolInfo may be nil for side chain blocks.
 	PoolInfo *TicketPoolInfo `json:"ticket_pool,omitempty"`
 }
@@ -303,13 +302,13 @@ func NewBlockDataBasic() *BlockDataBasic {
 // BlockExplorerBasic models primary information about block at height Height
 // for the block explorer.
 type BlockExplorerBasic struct {
-	Height      uint32  `json:"height"`
-	Size        uint32  `json:"size"`
-	Voters      uint16  `json:"votes"`
-	FreshStake  uint8   `json:"tickets"`
-	Revocations uint8   `json:"revocations"`
-	StakeDiff   float64 `json:"sdiff"`
-	Time        int64   `json:"time"`
+	Height      uint32          `json:"height"`
+	Size        uint32          `json:"size"`
+	Voters      uint16          `json:"votes"`
+	FreshStake  uint8           `json:"tickets"`
+	Revocations uint8           `json:"revocations"`
+	StakeDiff   float64         `json:"sdiff"`
+	Time        dbtypes.TimeDef `json:"time"`
 	BlockExplorerExtraInfo
 }
 
@@ -317,7 +316,6 @@ type BlockExplorerBasic struct {
 // explorer.
 type BlockExplorerExtraInfo struct {
 	TxLen            int                            `json:"tx"`
-	FormattedTime    string                         `json:"formatted_time"`
 	CoinSupply       int64                          `json:"coin_supply"`
 	NextBlockSubsidy *dcrjson.GetBlockSubsidyResult `json:"next_block_subsidy"`
 }

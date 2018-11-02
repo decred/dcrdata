@@ -1214,13 +1214,12 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *explorer.AddressInfo) erro
 		txn.FormattedSize = humanize.Bytes(uint64(dbTx.Size))
 		txn.Total = dcrutil.Amount(dbTx.Sent).ToCoin()
 		txn.Time = dbTx.BlockTime
-		if txn.Time.Unix() > 0 {
+		if txn.Time.T.Unix() > 0 {
 			txn.Confirmations = pgb.Height() - uint64(dbTx.BlockHeight) + 1
 		} else {
 			numUnconfirmed++
 			txn.Confirmations = 0
 		}
-		txn.FormattedTime = dbTx.BlockTime.Format("2006-01-02 15:04:05")
 
 		// Get the funding or spending transaction matching index if there is a
 		// matching tx hash already present.  During the next database
@@ -1362,7 +1361,7 @@ func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
 	for i := range txs {
 		txsShort = append(txsShort, &apitypes.AddressTxShort{
 			TxID:          txs[i].TxID,
-			Time:          txs[i].Time,
+			Time:          dbtypes.TimeAPI{S:txs[i].Time},
 			Value:         txs[i].Total,
 			Confirmations: int64(txs[i].Confirmations),
 			Size:          int32(txs[i].Size),
@@ -1398,7 +1397,7 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 			//
 			Confirmations: int64(txs[i].Confirmations),
 			//BlockHash: txs[i].
-			Time: txs[i].Time,
+			Time: dbtypes.TimeAPI{S:txs[i].Time},
 			//Blocktime:
 		})
 	}

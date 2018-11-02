@@ -613,7 +613,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	var mp dbtypes.PoolTicketsData
 	exp.MempoolData.RLock()
 	if len(exp.MempoolData.Tickets) > 0 {
-		mp.Time = append(mp.Time, time.Unix(exp.MempoolData.Tickets[0].Time, 0))
+		mp.Time = append(mp.Time, uint64(exp.MempoolData.Tickets[0].Time))
 		mp.Price = append(mp.Price, exp.MempoolData.Tickets[0].TotalOut)
 		mp.Mempool = append(mp.Mempool, uint64(len(exp.MempoolData.Tickets)))
 	} else {
@@ -710,8 +710,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			BlockIndex:    dbTx0.BlockIndex,
 			BlockHash:     dbTx0.BlockHash,
 			Confirmations: exp.Height() - dbTx0.BlockHeight + 1,
-			Time:          dbTx0.Time.Unix(),
-			FormattedTime: dbTx0.Time.Format("2006-01-02 15:04:05"),
+			Time:          dbTx0.Time,
 		}
 
 		// Coinbase transactions are regular, but call them coinbase for the page.

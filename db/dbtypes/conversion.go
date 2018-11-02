@@ -41,7 +41,7 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params) *B
 		Tx:           txHashStrs,
 		NumStakeTx:   uint32(len(msgBlock.STransactions)),
 		STx:          stxHashStrs,
-		Time:         blockHeader.Timestamp,
+		Time:         TimeDef{blockHeader.Timestamp},
 		Nonce:        uint64(blockHeader.Nonce),
 		VoteBits:     blockHeader.VoteBits,
 		FinalState:   blockHeader.FinalState[:],

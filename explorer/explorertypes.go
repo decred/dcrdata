@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -38,19 +37,18 @@ var blockchainSyncStatus = new(syncStatus)
 
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
-	Height         int64  `json:"height"`
-	Hash           string `json:"hash"`
-	Size           int32  `json:"size"`
-	Valid          bool   `json:"valid"`
-	MainChain      bool   `json:"mainchain"`
-	Voters         uint16 `json:"votes"`
-	Transactions   int    `json:"tx"`
-	IndexVal       int64  `json:"windowIndex"`
-	FreshStake     uint8  `json:"tickets"`
-	Revocations    uint32 `json:"revocations"`
-	BlockTime      int64  `json:"time"`
-	FormattedTime  string `json:"formatted_time"`
-	FormattedBytes string `json:"formatted_bytes"`
+	Height         int64           `json:"height"`
+	Hash           string          `json:"hash"`
+	Size           int32           `json:"size"`
+	Valid          bool            `json:"valid"`
+	MainChain      bool            `json:"mainchain"`
+	Voters         uint16          `json:"votes"`
+	Transactions   int             `json:"tx"`
+	IndexVal       int64           `json:"windowIndex"`
+	FreshStake     uint8           `json:"tickets"`
+	Revocations    uint32          `json:"revocations"`
+	BlockTime      dbtypes.TimeDef `json:"time"`
+	FormattedBytes string          `json:"formatted_bytes"`
 }
 
 // WebBasicBlock is used for quick DB data without rpc calls
@@ -88,8 +86,7 @@ type AddressTx struct {
 	FormattedSize  string
 	Total          float64
 	Confirmations  uint64
-	Time           time.Time
-	FormattedTime  string
+	Time           dbtypes.TimeDef
 	ReceivedTotal  float64
 	SentTotal      float64
 	IsFunding      bool
@@ -136,8 +133,7 @@ type TxInfo struct {
 	BlockHash        string
 	BlockMiningFee   int64
 	Confirmations    int64
-	Time             int64
-	FormattedTime    string
+	Time             dbtypes.TimeDef
 	Mature           string
 	VoteFundsLocked  string
 	Maturity         int64   // Total number of blocks before mature

@@ -1027,7 +1027,7 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(msgBlock *wire.MsgBlock) (int64, e
 			}
 
 			err = pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
-				val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime,
+				val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime.T,
 				progress.LockedIn == tx.BlockHeight,
 				progress.Activated == tx.BlockHeight,
 				progress.HardForked == tx.BlockHeight).Scan(&rowID)
