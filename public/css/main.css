@@ -803,6 +803,9 @@ body.darkBG .keynav-target {
   font-weight: bold;
   vertical-align: middle;
 }
+.connection-wrapper {
+  width: 100px
+}
 #connection div {
   background-image: url("/images/connecting.svg");
   background-size: 15px 15px;
@@ -1037,3 +1040,9 @@ body.darkBG .keynav-target {
   max-width: 600px;
   margin: 0px auto 2% auto;
 }
+@media (min-width: 768px) {
+  .connection-wrapper {
+    width: 180px;
+  }
+}
+
