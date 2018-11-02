@@ -1,27 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
-  <defs>
-    <style>
-      .cls-1 {
-        fill: #8795a2;
-      }
-
-      .cls-2 {
-        fill: #c4cbd2;
-      }
-    </style>
-  </defs>
-  <g id="Symbol_33_4" data-name="Symbol 33 – 4" transform="translate(5080 -2161)">
-    <g id="Group_786" data-name="Group 786" transform="translate(-5080 2161)">
-      <rect id="XMLID_10_" class="cls-1" width="8.46" height="1.125" transform="translate(0 6.435)"/>
-      <path id="XMLID_9_" class="cls-2" d="M8.46,170.831V168H0v3.96H8.46Z" transform="translate(0 -160.44)"/>
-      <rect id="XMLID_8_" class="cls-1" width="8.415" height="1.125" transform="translate(9.585 6.435)"/>
-      <path id="XMLID_7_" class="cls-2" d="M221.415,170.831V168H213v3.96h8.415Z" transform="translate(-203.415 -160.44)"/>
-      <rect id="XMLID_6_" class="cls-1" width="8.46" height="1.125" transform="translate(0 12.915)"/>
-      <path id="XMLID_5_" class="cls-2" d="M0,314.822v1.138H8.46V312H0Z" transform="translate(0 -297.96)"/>
-      <rect id="XMLID_4_" class="cls-1" width="8.415" height="1.125" transform="translate(9.585 12.915)"/>
-      <path id="XMLID_3_" class="cls-2" d="M221.415,314.822V312H213v3.96h8.415Z" transform="translate(-203.415 -297.96)"/>
-      <path id="XMLID_2_" class="cls-1" d="M18,1.125V0H0V1.125H18Z"/>
-      <path id="XMLID_1_" class="cls-2" d="M18,27.8V25H0v3.915H18Z" transform="translate(0 -23.875)"/>
-    </g>
-  </g>
+<svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+	<g>
+		<path d="m0 6.435h8.46v1.125h-8.46z" fill="#8795a2"/>
+		<path d="m8.46 170.831v-2.831h-8.46v3.96h8.46z" fill="#c4cbd2" transform="translate(0 -160.44)"/>
+		<path d="m9.585 6.435h8.415v1.125h-8.415z" fill="#8795a2"/>
+		<path d="m221.415 170.831v-2.831h-8.415v3.96h8.415z" fill="#c4cbd2" transform="translate(-203.415 -160.44)"/>
+		<path d="m0 12.915h8.46v1.125h-8.46z" fill="#8795a2"/>
+		<path d="m0 314.822v1.138h8.46v-3.96h-8.46z" fill="#c4cbd2" transform="translate(0 -297.96)"/>
+		<path d="m9.585 12.915h8.415v1.125h-8.415z" fill="#8795a2"/>
+		<path d="m221.415 314.822v-2.822h-8.415v3.96h8.415z" fill="#c4cbd2" transform="translate(-203.415 -297.96)"/>
+		<path d="m18 1.125v-1.125h-18v1.125z" fill="#8795a2"/>
+		<path d="m18 27.8v-2.8h-18v3.915h18z" fill="#c4cbd2" transform="translate(0 -23.875)"/>
+	</g>
 </svg>
