@@ -27,7 +27,7 @@
                         </div>
                     </div>
                     <div class="col-sm-4">
-                        <div class="heading">Dev Reward</div>
+                        <div class="heading">Project Subsidy</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
                             <span id="bsubsidy-dev">
                                 {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
@@ -142,20 +142,20 @@
                     </div>
                     <div class="block-rows">
                         <div class="block-rewards" style="flex-grow: 1">
-                            <span class="pow" style="flex-grow: {{.Subsidy.PoW}}"
-                                title='{"object": "PoW Reward", "total": "{{.Subsidy.PoW}}"}'>
+                            <span class="pow" style="flex-grow: {{toFloat64Amount .Subsidy.PoW}}"
+                                title='{"object": "PoW Reward", "total": "{{toFloat64Amount .Subsidy.PoW}}"}'>
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
-                            <span class="pos" style="flex-grow: {{.Subsidy.PoS}}"
-                                title='{"object": "PoS Reward", "total": "{{.Subsidy.PoS}}"}'>
+                            <span class="pos" style="flex-grow: {{toFloat64Amount .Subsidy.PoS}}"
+                                title='{"object": "PoS Reward", "total": "{{toFloat64Amount .Subsidy.PoS}}"}'>
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
-                            <span class="fund" style="flex-grow: {{.Subsidy.Dev}}"
-                                title='{"object": "Project Fund", "total": "{{.Subsidy.Dev}}"}'>
+                            <span class="fund" style="flex-grow: {{toFloat64Amount .Subsidy.Dev}}"
+                                title='{"object": "Project Fund", "total": "{{toFloat64Amount .Subsidy.Dev}}"}'>
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
@@ -246,20 +246,20 @@
                     </div>
                     <div class="block-rows">
                         <div class="block-rewards" style="flex-grow: 1">
-                            <span class="pow" style="flex-grow: {{.Subsidy.PoW}}"
-                                title='{"object": "PoW Reward", "total": "{{.Subsidy.PoW}}"}'>
+                            <span class="pow" style="flex-grow: {{toFloat64Amount .Subsidy.PoW}}"
+                                title='{"object": "PoW Reward", "total": "{{toFloat64Amount .Subsidy.PoW}}"}'>
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
-                            <span class="pos" style="flex-grow: {{.Subsidy.PoS}}"
-                                title='{"object": "PoS Reward", "total": "{{.Subsidy.PoS}}"}'>
+                            <span class="pos" style="flex-grow: {{toFloat64Amount .Subsidy.PoS}}"
+                                title='{"object": "PoS Reward", "total": "{{toFloat64Amount .Subsidy.PoS}}"}'>
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
-                            <span class="fund" style="flex-grow: {{.Subsidy.Developer}}"
-                                title='{"object": "Project Fund", "total": "{{.Subsidy.Developer}}"}'>
+                            <span class="fund" style="flex-grow: {{toFloat64Amount .Subsidy.Developer}}"
+                                title='{"object": "Project Fund", "total": "{{toFloat64Amount .Subsidy.Developer}}"}'>
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>

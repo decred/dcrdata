@@ -254,6 +254,9 @@ body {
 .netstats-section {
     flex-shrink: 0;
 }
+#mainContainer .decimal {
+    margin-left: 0;
+}
 .netstats-section .statCard {
   background: white;
   padding: 15px;
