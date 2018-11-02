@@ -804,7 +804,7 @@ body.darkBG .keynav-target {
   vertical-align: middle;
 }
 #connection div {
-  background-image: url("/images/abstain.svg");
+  background-image: url("/images/connecting.svg");
   background-size: 15px 15px;
   background-position: center;
   width: 9px;

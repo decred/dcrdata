@@ -1,24 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
-  <defs>
-    <style>
-      .cls-1 {
-        fill: none;
-      }
-
-      .cls-2 {
-        fill: #8795a2;
-      }
-
-      .cls-3 {
-        fill: #c4cbd2;
-      }
-    </style>
-  </defs>
-  <g id="Symbol_31" data-name="Symbol 31" transform="translate(-359 -44)">
-    <rect id="Rectangle_28" data-name="Rectangle 28" class="cls-1" width="18" height="18" transform="translate(359 44)"/>
-    <g id="XMLID_1_" transform="translate(360.144 47.392)">
-      <rect id="XMLID_3_" class="cls-2" width="12.764" height="6.732" transform="translate(0 5.608)"/>
-      <rect id="XMLID_2_" class="cls-3" width="12.764" height="6.732" transform="translate(2.948)"/>
-    </g>
-  </g>
+<svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+	<path d="m0 0h18v18h-18z" fill="none"/>
+	<path d="m1.144 9h12.764v6.732h-12.764z" fill="#8795a2"/>
+	<path d="m4.092 3.392h12.764v6.732h-12.764z" fill="#c4cbd2"/>
 </svg>
