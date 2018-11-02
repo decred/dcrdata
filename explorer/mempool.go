@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrdata/v3/txhelpers"
 	humanize "github.com/dustin/go-humanize"
@@ -90,32 +91,17 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			}
 		}
 
-		// get txraw
-		txraw, err := exp.blockData.DecodeRawTransaction(ntx.Hex)
-		if err != nil {
-			log.Debugf("Failed to decode raw transaction: %v", err)
-			continue
-		}
-
-		var coinbase bool
-		for _, i := range txraw.Vin {
-			if i.IsCoinBase() {
-				coinbase = true
-				break
-			}
-		}
-
 		tx := MempoolTx{
-			TxID:      txraw.Txid,
+			TxID:      msgTx.TxHash().String(),
 			Hash:      hash,
 			Time:      ntx.Time,
 			Size:      int32(len(ntx.Hex) / 2),
 			TotalOut:  txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
 			Type:      txhelpers.DetermineTxTypeString(msgTx),
 			VoteInfo:  voteInfo,
-			VinCount:  len(txraw.Vin),
-			VoutCount: len(txraw.Vout),
-			Coinbase:  coinbase,
+			VinCount:  len(msgTx.TxIn),
+			VoutCount: len(msgTx.TxOut),
+			Coinbase:  blockchain.IsCoinBaseTx(msgTx),
 		}
 
 		fee, _ := txhelpers.TxFeeRate(msgTx)

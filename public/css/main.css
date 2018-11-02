@@ -67,13 +67,14 @@ html {
   -webkit-font-smoothing: antialiased !important;
   -moz-font-smoothing: antialiased !important;
   text-rendering: optimizelegibility !important;
+  padding-top: 35px;
 }
 .mono {
   font-family: 'inconsolata-v15-latin-regular';
 }
 body {
   font-family: 'source-sans-pro-v9-latin-regular';
-  padding: 3rem 0;
+  padding-bottom: 2.1rem;
   background: #F3F5F6;
 }
 body .grayed {
