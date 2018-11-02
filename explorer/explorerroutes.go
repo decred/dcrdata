@@ -986,6 +986,18 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		} // tx.IsTicket()
 	} // !exp.liteMode
 
+	// Prepare the string to display for previous outpoint.
+	for idx, _ := range tx.Vin {
+		vin := &tx.Vin[idx]
+		if vin.Coinbase != "" {
+			vin.DisplayText = "Coinbase: " + vin.Coinbase
+		} else if vin.Stakebase != "" {
+			vin.DisplayText = "Stakebase: " + vin.Stakebase
+		} else {
+			vin.DisplayText = vin.Txid + ":" + strconv.Itoa(int(vin.Vout))
+		}
+	}
+
 	pageData := struct {
 		*CommonPageData
 		Data              *TxInfo

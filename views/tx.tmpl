@@ -294,7 +294,7 @@
     </div>
 
     <div class="row">
-        <div class="col-md-7 mb-3 tx-col-l">
+        <div class="col-md-6 mb-3">
             <h4>Input</h4>
             <table class="table table-sm striped">
                 <thead>
@@ -308,16 +308,15 @@
                     {{range .Vin}}
                     <tr {{if and (eq $.HighlightInOut "in") (eq $.HighlightInOutID .Index)}} class="matching-hash" {{end}}>
                         <td class="shrink-to-fit">{{.Index}}</td>
-                        <td class="mono fs13 break-word">
-                            <div>
-                            {{if .Coinbase}}
-                                Coinbase: {{elide .Coinbase 20}}
-                            {{else if .Stakebase}}
-                                Stakebase: {{elide .Stakebase 20}}
-                            {{else}}
-                                <a data-keynav-priority href="/tx/{{.Txid}}/out/{{.Vout}}">{{elide .Txid 20}}:{{.Vout}}</a>
-                            {{end}}
-                            </div>
+                        <td class="mono fs13">
+                            {{if or .Coinbase .Stakebase}}<div{{else}}<a href="/tx/{{.Txid}}/out/{{.Vout}}"{{end}} class="d-block hex-elide-wrap h-100 position-relative" data-keynav-priority>
+                              <div class="hex-elide-left">
+                                {{.DisplayText}}
+                              </div>
+                              <div class="hex-elide-right">
+                                {{.DisplayText}}
+                              </div>
+                            {{if or .Coinbase .Stakebase}}</div>{{else}}</a>{{end}}
                         </td>
                         <td><div class="mono fs13 break-word">
                             {{if gt (len .Addresses) 0}}
@@ -358,7 +357,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="col-md-5 mb-3 tx-col-r">
+        <div class="col-md-6 mb-3">
             <h4>Output</h4>
             <table class="table table-sm striped">
                 <thead>
@@ -385,7 +384,7 @@
                                 {{else}}
                                 <div>
                                 {{end}}
-                                    <span class="break-word">{{.OP_RETURN}}</span> 
+                                    <span class="break-word">{{.OP_RETURN}}</span>
                                 </div>
                             {{end}}
                         </td>

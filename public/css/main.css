@@ -553,7 +553,7 @@ body.darkBG .progress {
   padding: .1rem .5rem;
   height: 25px;
 }
-.tx-type-stub{
+.table .tx-type-stub{
   max-width: 80px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -574,6 +574,36 @@ body.darkBG .progress {
 }
 .table-fixed {
   table-layout: fixed;
+}
+.table .hex-elide-wrap {
+  position:relative;
+  bottom:0;
+}
+.table .hex-elide-wrap:hover > div {
+  text-decoration:underline;
+}
+.table .hex-elide-left, .table .hex-elide-right {
+  padding-top:.1rem;
+  position:absolute;
+  top:0;
+  overflow:hidden;
+  -webkit-user-select: all;
+  -moz-user-select: all;
+  user-select: all;
+}
+.table .hex-elide-left {
+  left:5px;
+  right:50%;
+  text-align:right;
+  text-overflow: ellipsis;
+}
+.table .hex-elide-right {
+  right:5px;
+  left:50%;
+  text-align:left;
+  direction:rtl;
+  text-overflow:clip;
+  text-overflow:'';
 }
 
 /*flexboxtable*/
@@ -773,15 +803,6 @@ body.darkBG .keynav-target {
   }
   .block-msg {
     display:none;
-  }
-}
-
-@media only screen and (min-width: 768px)  {
-  .tx-col-l{
-    max-width:52%;
-  }
-  .tx-col-r{
-    max-width:48%;
   }
 }
 
