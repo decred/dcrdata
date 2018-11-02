@@ -1,10 +1,4 @@
 @import url("https://fonts.googleapis.com/css?family=Inconsolata:400,700|Source+Sans+Pro:400,600");
-header .container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 40px;
-}
 header .logo img {
   height: 100%;
   vertical-align: initial;
