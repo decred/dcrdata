@@ -201,6 +201,7 @@ type Vin struct {
 	FormattedAmount string
 	Index           uint32
 	DisplayText     string
+	Link            string
 }
 
 // Vout models basic data about a tx output for display

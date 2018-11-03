@@ -787,3 +787,18 @@
         </select>
     </div>
 {{end}}
+
+{{define "hashElide"}}
+  {{$hash := (index . 0)}}
+  {{$link := (index . 1)}}
+  {{if eq $link ""}}
+    <div
+  {{else}}
+    <a href="{{$link}}"
+  {{end}}
+    data-keynav-priority
+    class="elidedhash mono"
+    data-head="{{hashStart $hash}}"
+    data-tail="{{hashEnd $hash}}"
+    >{{$hash}}{{if eq $link ""}}</div>{{else}}</a>{{end}}
+{{end}}

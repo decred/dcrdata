@@ -553,12 +553,6 @@ body.darkBG .progress {
   padding: .1rem .5rem;
   height: 25px;
 }
-.table .tx-type-stub{
-  max-width: 80px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow:hidden;
-}
 .table.flush-left tr td:first-child {
   padding-left: 0px;
 }
@@ -575,35 +569,74 @@ body.darkBG .progress {
 .table-fixed {
   table-layout: fixed;
 }
-.table .hex-elide-wrap {
+.table div.hash-box {
   position:relative;
+  height:1.4rem;
+  min-width:4em;
+  font-size:14px;
+  padding:0.2em 10% 0.2em 0;
+}
+.table div.hash-fill {
+  position:absolute;
+  left:0;
+  top:0;
+  right:0;
   bottom:0;
 }
-.table .hex-elide-wrap:hover > div {
-  text-decoration:underline;
-}
-.table .hex-elide-left, .table .hex-elide-right {
-  padding-top:.1rem;
-  position:absolute;
-  top:0;
-  overflow:hidden;
+.elidedhash {
+  position:relative;
+  display:inline-block;
+  font-family: 'inconsolata-v15-latin-regular', monospace;
+  color:transparent;
+/*   border: 1px solid #aaa; */
+  max-width:100%;
   -webkit-user-select: all;
   -moz-user-select: all;
   user-select: all;
-}
-.table .hex-elide-left {
-  left:5px;
-  right:50%;
-  text-align:right;
-  text-overflow: ellipsis;
-}
-.table .hex-elide-right {
-  right:5px;
-  left:50%;
-  text-align:left;
-  direction:rtl;
+  z-index:20;
+  cursor:pointer;
   text-overflow:clip;
-  text-overflow:'';
+  overflow:hidden;
+}
+a.elidedhash:visited {
+  color:transparent;
+}
+.elidedhash::selection {
+  color:transparent;
+  background-color:#ccc;
+}
+.elidedhash:before {
+  content:attr(data-head);
+  position:absolute;
+  left:0;
+  top:0;
+  right:3em;
+  text-overflow:ellipsis;
+  overflow:hidden;
+  z-index:10;
+  text-align:left;
+}
+a.elidedhash:before, a.elidedhash:after {
+  color:#2e75ff;
+}
+div.elidedhash:before, div.elidedhash:after {
+  color:#212529;
+}
+.elidedhash:after {
+  content:attr(data-tail);
+  color:#2e75ff;
+  position:absolute;
+  right:0;
+  top:0;
+  width:3em;
+  z-index:10;
+  text-align:right;
+  direction:rtl;
+}
+.elidedhash:hover {
+  color:transparent;
+  text-decoration: underline;
+  text-decoration-color:#2e75ff;
 }
 
 /*flexboxtable*/
@@ -624,14 +657,11 @@ body.darkBG .progress {
   width:1%;
   white-space:nowrap;
 }
-
-.addressAndScriptData {
-  overflow: hidden;
-}
 .scriptDataStar {
   z-index: 1;
   text-align: center;
   color: coral;
+  cursor:pointer;
 }
 .scriptData {
   z-index: -1;

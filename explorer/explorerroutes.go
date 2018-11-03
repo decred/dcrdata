@@ -994,7 +994,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		} else if vin.Stakebase != "" {
 			vin.DisplayText = "Stakebase: " + vin.Stakebase
 		} else {
-			vin.DisplayText = vin.Txid + ":" + strconv.Itoa(int(vin.Vout))
+			voutStr := strconv.Itoa(int(vin.Vout))
+			vin.DisplayText = vin.Txid + ":" + voutStr
+			vin.Link = "/tx/" + vin.Txid + "/out/" + voutStr
 		}
 	}
 
