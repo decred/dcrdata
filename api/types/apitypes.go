@@ -286,7 +286,7 @@ type BlockDataBasic struct {
 	Hash       string          `json:"hash,omitemtpy"`
 	Difficulty float64         `json:"diff,omitemtpy"`
 	StakeDiff  float64         `json:"sdiff,omitemtpy"`
-	Time       dbtypes.TimeDef `json:"time,omitemtpy"`
+	Time       dbtypes.TimeAPI `json:"time,omitemtpy"`
 	NumTx      uint32          `json:"txlength,omitempty"`
 	// TicketPoolInfo may be nil for side chain blocks.
 	PoolInfo *TicketPoolInfo `json:"ticket_pool,omitempty"`

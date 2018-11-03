@@ -313,7 +313,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"toLowerCase": func(a string) string {
 			return strings.ToLower(a)
 		},
-		"fetchRowLinkURL": func(groupingStr string, interval int64) string {
+		"fetchRowLinkURL": func(groupingStr string, t time.Time) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views
 			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks
 			// (/years -> /months) simply means that on "/years" page every row has a
@@ -327,17 +327,19 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			switch val {
 			case dbtypes.YearGrouping:
 				matchedGrouping = "months"
-				rowsCount = 12
+				rowsCount = int(t.Month())
 			case dbtypes.MonthGrouping:
 				matchedGrouping = "weeks"
-				rowsCount = 4
+				rowsCount = t.Day() / 4
 			case dbtypes.WeekGrouping:
 				matchedGrouping = "days"
-				rowsCount = 7
+				rowsCount = t.Day()
 			// for dbtypes.DayGrouping and any other groupings default to blocks.
 			default:
-				return fmt.Sprintf("/blocks?offset=%d&rows=20", interval)
+				matchedGrouping = "blocks"
+				rowsCount = 20
 			}
+			
 			matchingVal := dbtypes.TimeGroupingFromStr(matchedGrouping)
 			intervalVal, err := dbtypes.TimeBasedGroupingToInterval(matchingVal)
 			if err != nil {
@@ -346,10 +348,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 
 			latestTime := time.Now().Unix()
-			offsetVal := (latestTime - interval) / int64(intervalVal)
-			if latestTime < interval {
-				return "/blocks?offset=0&rows=20"
-			}
+			offsetVal := (latestTime - t.Unix()) / int64(intervalVal)
 			return fmt.Sprintf("/%s?offset=%d&rows=%d", matchedGrouping, offsetVal, rowsCount)
 		},
 		"theme": func() string {

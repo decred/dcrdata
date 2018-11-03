@@ -67,14 +67,14 @@ func (b *BlockData) ToStakeInfoExtendedEstimates() apitypes.StakeInfoExtendedEst
 
 // ToBlockSummary returns an apitypes.BlockDataBasic object from the blockdata
 func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
-	t := dbtypes.TimeDef{T:time.Unix(b.Header.Time, 0)}
+	t := dbtypes.TimeDef{T: time.Unix(b.Header.Time, 0)}
 	return apitypes.BlockDataBasic{
 		Height:     b.Header.Height,
 		Size:       b.Header.Size,
 		Hash:       b.Header.Hash,
 		Difficulty: b.Header.Difficulty,
 		StakeDiff:  b.Header.SBits,
-		Time:       t,
+		Time:       dbtypes.TimeAPI{t},
 		PoolInfo:   b.PoolInfo,
 	}
 }
@@ -82,7 +82,7 @@ func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 // ToBlockExplorerSummary returns a BlockExplorerBasic
 func (b *BlockData) ToBlockExplorerSummary() apitypes.BlockExplorerBasic {
 	extra := b.ExtraInfo
-	t := dbtypes.TimeDef{T:time.Unix(b.Header.Time, 0)}
+	t := dbtypes.TimeDef{T: time.Unix(b.Header.Time, 0)}
 	return apitypes.BlockExplorerBasic{
 		Height:                 b.Header.Height,
 		Size:                   b.Header.Size,
@@ -205,7 +205,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 		Hash:       hash.String(),
 		Difficulty: diff,
 		StakeDiff:  sdiff,
-		Time:       dbtypes.TimeDef{T:header.Timestamp},
+		Time:       dbtypes.TimeAPI{S: dbtypes.TimeDef{T: header.Timestamp}},
 		PoolInfo:   ticketPoolInfo,
 	}
 	extrainfo := &apitypes.BlockExplorerExtraInfo{
