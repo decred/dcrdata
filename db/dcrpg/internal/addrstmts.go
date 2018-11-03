@@ -334,7 +334,7 @@ func MakeSelectAddressUnspentAmountByAddress(group string) string {
 	return formatGroupingQuery(selectAddressUnspentAmountByAddress, group, "block_time")
 }
 
-// Since date_trunc function doesn't have an option to group by "all"
+// Since date_trunc function doesn't have an option to group by "all" grouping,
 // formatGroupingQuery removes the date_trunc from the sql query as its not applicable.
 func formatGroupingQuery(mainQuery, group, column string) string {
 	if group == "all" {

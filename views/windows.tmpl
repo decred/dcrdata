@@ -113,7 +113,7 @@
                             <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
                             <td class="text-right">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
                             <td class="text-right" data-target="main.age" data-age="{{.StartTime}}"></td>
-                            <td>{{.FormattedStartTime}}</td>
+                            <td>{{.StartTime}}</td>
                         </tr>
                     {{end}}
                     </tbody>

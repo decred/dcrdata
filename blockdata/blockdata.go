@@ -74,7 +74,7 @@ func (b *BlockData) ToBlockSummary() apitypes.BlockDataBasic {
 		Hash:       b.Header.Hash,
 		Difficulty: b.Header.Difficulty,
 		StakeDiff:  b.Header.SBits,
-		Time:       dbtypes.TimeAPI{t},
+		Time:       apitypes.TimeAPI{S: t},
 		PoolInfo:   b.PoolInfo,
 	}
 }
@@ -205,7 +205,7 @@ func (t *Collector) CollectBlockInfo(hash *chainhash.Hash) (*apitypes.BlockDataB
 		Hash:       hash.String(),
 		Difficulty: diff,
 		StakeDiff:  sdiff,
-		Time:       dbtypes.TimeAPI{S: dbtypes.TimeDef{T: header.Timestamp}},
+		Time:       apitypes.TimeAPI{S: dbtypes.TimeDef{T: header.Timestamp}},
 		PoolInfo:   ticketPoolInfo,
 	}
 	extrainfo := &apitypes.BlockExplorerExtraInfo{

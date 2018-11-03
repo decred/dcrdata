@@ -829,7 +829,7 @@ func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGrouped
 func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
 	limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
 
-	return retrieveTimeBasedBlockListing(pgb.db, timeGrouping.String(),limit, offset)
+	return retrieveTimeBasedBlockListing(pgb.db, timeGrouping.String(), limit, offset)
 }
 
 // TicketPoolVisualization helps block consecutive and duplicate DB queries for
@@ -1361,7 +1361,7 @@ func (pgb *ChainDB) AddressTransactionDetails(addr string, count, skip int64,
 	for i := range txs {
 		txsShort = append(txsShort, &apitypes.AddressTxShort{
 			TxID:          txs[i].TxID,
-			Time:          dbtypes.TimeAPI{S:txs[i].Time},
+			Time:          apitypes.TimeAPI{S: txs[i].Time},
 			Value:         txs[i].Total,
 			Confirmations: int64(txs[i].Confirmations),
 			Size:          int32(txs[i].Size),
@@ -1397,7 +1397,7 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 			//
 			Confirmations: int64(txs[i].Confirmations),
 			//BlockHash: txs[i].
-			Time: dbtypes.TimeAPI{S:txs[i].Time},
+			Time: apitypes.TimeAPI{S: txs[i].Time},
 			//Blocktime:
 		})
 	}

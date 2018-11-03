@@ -62,7 +62,7 @@ func processTransactions(msgBlock *wire.MsgBlock, tree int8, chainParams *chainc
 
 	blockHeight := msgBlock.Header.Height
 	blockHash := msgBlock.BlockHash()
-	blockTime := TimeDef{msgBlock.Header.Timestamp}
+	blockTime := TimeDef{T: msgBlock.Header.Timestamp}
 
 	dbTransactions := make([]*Tx, 0, len(txs))
 	dbTxVouts := make([][]*Vout, len(txs))

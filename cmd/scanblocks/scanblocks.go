@@ -95,7 +95,7 @@ func mainCore() int {
 			Hash:       blockhash.String(),
 			Difficulty: diffRatio,
 			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
-			Time:       dbtypes.TimeAPI{S: dbtypes.TimeDef{T: header.Timestamp}},
+			Time:       apitypes.TimeAPI{S: dbtypes.TimeDef{T: header.Timestamp}},
 			PoolInfo: &apitypes.TicketPoolInfo{
 				Size: header.PoolSize,
 			},

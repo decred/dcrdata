@@ -4,10 +4,28 @@
 package types
 
 import (
+	"encoding/json"
+
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
+
+// TimeAPI is a fall back dbtypes.TimeDef wrapper that allows API endpoints that
+// previously returned a timestamp instead of a formatted string time to continue
+// working.
+type TimeAPI struct {
+	S dbtypes.TimeDef
+}
+
+func (t TimeAPI) String() string {
+	return t.S.String()
+}
+
+// MarshalJSON is set as the default marshalling function for TimeAPI struct.
+func (t *TimeAPI) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.S.T.Unix())
+}
 
 // much of the time, dcrdata will be using the types in dcrjson, but others are
 // defined here
@@ -162,18 +180,18 @@ type AddressTxRaw struct {
 	Vout          []Vout               `json:"vout"`
 	Confirmations int64                `json:"confirmations"`
 	BlockHash     string               `json:"blockhash"`
-	Time          dbtypes.TimeAPI      `json:"time,omitempty"`
-	Blocktime     dbtypes.TimeAPI      `json:"blocktime,omitempty"`
+	Time          TimeAPI              `json:"time,omitempty"`
+	Blocktime     TimeAPI              `json:"blocktime,omitempty"`
 }
 
 // AddressTxShort is a subset of AddressTxRaw with just the basic tx details
 // pertaining the particular address
 type AddressTxShort struct {
-	TxID          string          `json:"txid"`
-	Size          int32           `json:"size"`
-	Time          dbtypes.TimeAPI `json:"time"`
-	Value         float64         `json:"value"`
-	Confirmations int64           `json:"confirmations"`
+	TxID          string  `json:"txid"`
+	Size          int32   `json:"size"`
+	Time          TimeAPI `json:"time"`
+	Value         float64 `json:"value"`
+	Confirmations int64   `json:"confirmations"`
 }
 
 // AddressTotals represents the number and value of spent and unspent outputs
@@ -281,13 +299,13 @@ type TicketPoolValsAndSizes struct {
 
 // BlockDataBasic models primary information about block at height Height
 type BlockDataBasic struct {
-	Height     uint32          `json:"height,omitemtpy"`
-	Size       uint32          `json:"size,omitemtpy"`
-	Hash       string          `json:"hash,omitemtpy"`
-	Difficulty float64         `json:"diff,omitemtpy"`
-	StakeDiff  float64         `json:"sdiff,omitemtpy"`
-	Time       dbtypes.TimeAPI `json:"time,omitemtpy"`
-	NumTx      uint32          `json:"txlength,omitempty"`
+	Height     uint32  `json:"height,omitemtpy"`
+	Size       uint32  `json:"size,omitemtpy"`
+	Hash       string  `json:"hash,omitemtpy"`
+	Difficulty float64 `json:"diff,omitemtpy"`
+	StakeDiff  float64 `json:"sdiff,omitemtpy"`
+	Time       TimeAPI `json:"time,omitemtpy"`
+	NumTx      uint32  `json:"txlength,omitempty"`
 	// TicketPoolInfo may be nil for side chain blocks.
 	PoolInfo *TicketPoolInfo `json:"ticket_pool,omitempty"`
 }

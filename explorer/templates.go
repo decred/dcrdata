@@ -339,7 +339,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 				matchedGrouping = "blocks"
 				rowsCount = 20
 			}
-			
+
 			matchingVal := dbtypes.TimeGroupingFromStr(matchedGrouping)
 			intervalVal, err := dbtypes.TimeBasedGroupingToInterval(matchingVal)
 			if err != nil {

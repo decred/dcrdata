@@ -599,19 +599,18 @@ func retrieveWindowBlocks(db *sql.DB, windowSize int64, limit,
 		index := dbtypes.CalculateWindowIndex(endBlock, windowSize)
 
 		data = append(data, &dbtypes.BlocksGroupedInfo{
-			IndexVal:           index, //window index at the endblock
-			EndBlock:           endBlock,
-			Voters:             votes,
-			Transactions:       txs,
-			FreshStake:         tickets,
-			Revocations:        revocations,
-			BlocksCount:        count,
-			Difficulty:         difficulty,
-			TicketPrice:        sbits,
-			Size:               int64(blockSizes),
-			FormattedSize:      humanize.Bytes(blockSizes),
-			StartTime:          timestamp,
-			FormattedStartTime: timestamp.T.Format("2006-01-02 15:04:05"),
+			IndexVal:      index, //window index at the endblock
+			EndBlock:      endBlock,
+			Voters:        votes,
+			Transactions:  txs,
+			FreshStake:    tickets,
+			Revocations:   revocations,
+			BlocksCount:   count,
+			Difficulty:    difficulty,
+			TicketPrice:   sbits,
+			Size:          int64(blockSizes),
+			FormattedSize: humanize.Bytes(blockSizes),
+			StartTime:     timestamp,
 		})
 	}
 
@@ -740,7 +739,8 @@ func RetrieveTicketIDsByHashes(db *sql.DB, ticketHashes []string) (ids []uint64,
 
 // retrieveTicketsByDate fetches the tickets in the current ticketpool order by the
 // purchase date. The maturity block is needed to identify immature tickets.
-// The grouping interval size is specified in seconds.
+// The grouping is done using the time-based group names provided e.g. months,
+// days, weeks and years.
 func retrieveTicketsByDate(db *sql.DB, maturityBlock int64, groupBy string) (*dbtypes.PoolTicketsData, error) {
 	rows, err := db.Query(internal.MakeSelectTicketsByPurchaseDate(groupBy), maturityBlock)
 	if err != nil {
@@ -773,7 +773,8 @@ func retrieveTicketsByDate(db *sql.DB, maturityBlock int64, groupBy string) (*db
 
 // retrieveTicketByPrice fetches the tickets in the current ticketpool ordered by the
 // purchase price. The maturity block is needed to identify immature tickets.
-// The grouping interval size is specified in seconds.
+// The grouping is done using the time-based group names provided e.g. months,
+// days, weeks and years.
 func retrieveTicketByPrice(db *sql.DB, maturityBlock int64) (*dbtypes.PoolTicketsData, error) {
 	// Create the query statement and retrieve rows
 	rows, err := db.Query(internal.SelectTicketsByPrice, maturityBlock)
@@ -1413,8 +1414,7 @@ func retrieveTxHistoryByAmountFlow(db *sql.DB, addr,
 	timeInterval string) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
 
-	rows, err := db.Query(internal.MakeSelectAddressAmountFlowByAddress(timeInterval),
-		addr)
+	rows, err := db.Query(internal.MakeSelectAddressAmountFlowByAddress(timeInterval), addr)
 	if err != nil {
 		return nil, err
 	}
@@ -2147,7 +2147,6 @@ func retrieveAgendaVoteChoices(db *sql.DB, agendaID string, byType int) (*dbtype
 	var a, y, n, t uint64
 	totalVotes := new(dbtypes.AgendaVoteChoices)
 	for rows.Next() {
-		// Parse the counts and time/height
 		var blockTime dbtypes.TimeDef
 		var abstain, yes, no, total, height uint64
 		if byType == 0 {
@@ -2906,7 +2905,7 @@ func UpdateLastVins(db *sql.DB, blockHash string, isValid, isMainchain bool) err
 	for i, txHash := range txs {
 		n, err := sqlExec(db, internal.SetIsValidIsMainchainByTxHash,
 			"failed to update last vins tx validity: ", isValid, isMainchain,
-			txHash, timestamps[i], trees[i])
+			txHash, timestamps[i].T, trees[i])
 		if err != nil {
 			return err
 		}

@@ -30,22 +30,6 @@ func (t *TimeDef) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
 }
 
-// TimeAPI is a fall back dbtypes.TimeDef wrapper that allows API endpoint that
-// previously accepted timestamp instead of a formatted string time to continue
-// working.
-type TimeAPI struct {
-	S TimeDef
-}
-
-func (t TimeAPI) String() string {
-	return t.S.T.Format("2006-01-02 15:04:05")
-}
-
-// MarshalJSON is set as the default marshalling function for TimeAPI struct.
-func (t *TimeAPI) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t.S.T.Unix())
-}
-
 // Tickets have 6 states, 5 possible fates:
 // Live -...---> Voted
 //           \-> Missed (unspent) [--> Revoked]

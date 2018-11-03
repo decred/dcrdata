@@ -877,7 +877,7 @@ func (db *wiredDB) GetAddressTransactionsWithSkip(addr string, count, skip int) 
 	for i := range txs {
 		tx = append(tx, &apitypes.AddressTxShort{
 			TxID:          txs[i].Txid,
-			Time:          dbtypes.TimeAPI{S:dbtypes.TimeDef{T:time.Unix(txs[i].Time, 0)}},
+			Time:          apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(txs[i].Time, 0)}},
 			Value:         txhelpers.TotalVout(txs[i].Vout).ToCoin(),
 			Confirmations: int64(txs[i].Confirmations),
 			Size:          int32(len(txs[i].Hex) / 2),
@@ -926,8 +926,8 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 		copy(tx.Vin, txs[i].Vin)
 		tx.Confirmations = int64(txs[i].Confirmations)
 		tx.BlockHash = txs[i].BlockHash
-		tx.Blocktime = dbtypes.TimeAPI{S:dbtypes.TimeDef{T:time.Unix(txs[i].Blocktime, 0)}}
-		tx.Time = dbtypes.TimeAPI{S:dbtypes.TimeDef{T:time.Unix(txs[i].Time, 0)}}
+		tx.Blocktime = apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(txs[i].Blocktime, 0)}}
+		tx.Time = apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(txs[i].Time, 0)}}
 		tx.Vout = make([]apitypes.Vout, len(txs[i].Vout))
 		for j := range txs[i].Vout {
 			tx.Vout[j].Value = txs[i].Vout[j].Value
@@ -966,7 +966,7 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincf
 		Voters:         data.Voters,
 		Transactions:   len(data.RawTx),
 		FreshStake:     data.FreshStake,
-		BlockTime:      dbtypes.TimeDef{T:time.Unix(data.Time,0)},
+		BlockTime:      dbtypes.TimeDef{T: time.Unix(data.Time, 0)},
 		FormattedBytes: humanize.Bytes(uint64(data.Size)),
 	}
 
@@ -1020,7 +1020,7 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
-	tx.Time = dbtypes.TimeDef{T:time.Unix(data.Time, 0)}
+	tx.Time = dbtypes.TimeDef{T: time.Unix(data.Time, 0)}
 	tx.Confirmations = data.Confirmations
 
 	msgTx, err := txhelpers.MsgTxFromHex(data.Hex)
@@ -1238,7 +1238,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.BlockIndex = txraw.BlockIndex
 	tx.BlockHash = txraw.BlockHash
 	tx.Confirmations = txraw.Confirmations
-	tx.Time = dbtypes.TimeDef{T:time.Unix(txraw.Time, 0)}
+	tx.Time = dbtypes.TimeDef{T: time.Unix(txraw.Time, 0)}
 
 	inputs := make([]explorer.Vin, 0, len(txraw.Vin))
 	for i, vin := range txraw.Vin {
@@ -1618,7 +1618,7 @@ func (db *wiredDB) GetTip() (*explorer.WebBasicBlock, error) {
 		Hash:        tip.Hash,
 		Difficulty:  tip.Difficulty,
 		StakeDiff:   tip.StakeDiff,
-		Time:        tip.Time,
+		Time:        tip.Time.S.T.Unix(),
 		NumTx:       tip.NumTx,
 		PoolSize:    tip.PoolInfo.Size,
 		PoolValue:   tip.PoolInfo.Value,
