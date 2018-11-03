@@ -301,7 +301,7 @@
         }
 
         disableBtnsIfNotApplicable(){
-            var val = parseInt(this.addrTarget.dataset.oldestblockTime)
+            var val = new Date(this.addrTarget.dataset.oldestblocktime)
             var d = new Date()
 
             var pastYear = d.getFullYear() - 1;
@@ -311,7 +311,7 @@
 
             this.enabledButtons = []
             var setApplicableBtns = (className, ts, txCountByType) => {
-                var isDisabled = (val > ts) ||
+                var isDisabled = (val > new Date(ts)) ||
                     (this.options === 'unspent' && this.unspent == "0") ||
                     txCountByType < 2;
 

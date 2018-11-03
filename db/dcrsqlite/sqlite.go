@@ -268,15 +268,13 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 
 	// Insert the block.
 	winners := strings.Join(bd.PoolInfo.Winners, ";")
-	var timestamp int64
 	res, err := stmt.Exec(&bd.Height, &bd.Size, &bd.Hash,
-		&bd.Difficulty, &bd.StakeDiff, &timestamp,
+		&bd.Difficulty, &bd.StakeDiff, bd.Time.S.T.Unix(),
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners)
 	if err != nil {
 		return err
 	}
-	bd.Time = apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(timestamp, 0)}}
 	// Update the DB block summary height.
 	db.Lock()
 	defer db.Unlock()

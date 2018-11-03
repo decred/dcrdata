@@ -100,10 +100,9 @@ const (
 			time DESC,
 			transactions.tx_hash ASC;`
 
-	// SelectAddressTimeGroupingCount return the count of record groups,
+	// selectAddressTimeGroupingCount return the count of record groups,
 	// where grouping is done by a specified time interval, for an addresss.
-	SelectAddressTimeGroupingCount = `SELECT COUNT(DISTINCT (block_time/$2)*$2)
-		FROM addresses WHERE address=$1;`
+	selectAddressTimeGroupingCount = `SELECT COUNT(DISTINCT %s) FROM addresses WHERE address=$1;`
 
 	SelectAddressUnspentCountANDValue = `SELECT COUNT(*), SUM(value) FROM addresses
 	    WHERE address = $1 AND is_funding = TRUE AND matching_tx_hash = '' AND valid_mainchain = TRUE;`
@@ -332,6 +331,10 @@ func MakeSelectAddressAmountFlowByAddress(group string) string {
 // MakeSelectAddressUnspentAmountByAddress returns the selectAddressUnspentAmountByAddress query
 func MakeSelectAddressUnspentAmountByAddress(group string) string {
 	return formatGroupingQuery(selectAddressUnspentAmountByAddress, group, "block_time")
+}
+
+func MakeSelectAddressTimeGroupingCount(group string) string {
+	return formatGroupingQuery(selectAddressTimeGroupingCount, group, "block_time")
 }
 
 // Since date_trunc function doesn't have an option to group by "all" grouping,

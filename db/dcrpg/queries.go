@@ -1081,8 +1081,8 @@ func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64,
 
 // retrieveAddressTxsCount return the number of record groups, where grouping
 // is done by a specified time interval, for an address.
-func retrieveAddressTxsCount(db *sql.DB, address string, interval int64) (count int64, err error) {
-	err = db.QueryRow(internal.SelectAddressTimeGroupingCount, address, interval).Scan(&count)
+func retrieveAddressTxsCount(db *sql.DB, address, interval string) (count int64, err error) {
+	err = db.QueryRow(internal.MakeSelectAddressTimeGroupingCount(interval), address).Scan(&count)
 	return
 }
 

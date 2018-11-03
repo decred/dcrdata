@@ -740,12 +740,8 @@ func (pgb *ChainDB) GetAddressMetrics(addr string) (*dbtypes.AddressMetrics, err
 
 	for _, s := range []dbtypes.TimeBasedGrouping{dbtypes.YearGrouping,
 		dbtypes.MonthGrouping, dbtypes.WeekGrouping, dbtypes.DayGrouping} {
-		interval, err := dbtypes.TimeBasedGroupingToInterval(s)
-		if err != nil {
-			return nil, err
-		}
 
-		txCount, err := retrieveAddressTxsCount(pgb.db, addr, int64(interval))
+		txCount, err := retrieveAddressTxsCount(pgb.db, addr, s.String())
 		if err != nil {
 			return nil, fmt.Errorf("retrieveAddressAllTxsCount failed: error: %v", err)
 		}

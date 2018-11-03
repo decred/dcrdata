@@ -213,7 +213,7 @@ type Vout struct {
 
 // TrimmedBlockInfo models data needed to display block info on the new home page
 type TrimmedBlockInfo struct {
-	Time         int64
+	Time         dbtypes.TimeDef
 	Height       int64
 	Total        float64
 	Fees         float64

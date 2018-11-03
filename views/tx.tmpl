@@ -266,7 +266,7 @@
                 <tr>
                     <td class="text-right pr-2">TIME</td>
                     <td class="lh1rem">
-                        {{if eq (.Time.Unix) 0}}
+                        {{if eq (.Time.T.Unix) 0}}
                             <span id="txFmtTime">N/A</span> <span class="op60 fs12 nowrap"><span id="txAge" data-target="main.age" data-age=""></span></span>
                         {{else}}
                             <span>({{timezone}}) {{.Time}}</span> <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.Time}}"></span> ago)</span>

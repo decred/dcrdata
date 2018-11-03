@@ -439,7 +439,7 @@ type AddressRow struct {
 // grouping buttons on the address history page charts should be disabled
 // or enabled by default.
 type AddressMetrics struct {
-	OldestBlockTime int64
+	OldestBlockTime TimeDef
 	YearTxsCount    int64 // Years txs grouping
 	MonthTxsCount   int64 // Months txs grouping
 	WeekTxsCount    int64 // Weeks txs grouping

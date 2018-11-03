@@ -13,7 +13,7 @@
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
                 <div class="mono" data-target="address.addr"
-                    data-oldestblockTime="{{$.Metrics.OldestBlockTime}}"
+                    data-oldestblocktime="{{$.Metrics.OldestBlockTime}}"
                     style="margin-bottom: 12px;">
                     {{.Address}}<a
                         id="qrcode-init"
@@ -284,7 +284,7 @@
                                     {{end}}
                                 </td>
                                 <td class="addr-tx-age">
-                                {{if eq (.Time.Unix) 0}}
+                                {{if eq (.Time.T.Unix) 0}}
                                     N/A
                                 {{else}}
                                     <span data-controller="main" data-target="main.age" data-age="{{.Time}}"></span>

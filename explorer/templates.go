@@ -313,7 +313,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"toLowerCase": func(a string) string {
 			return strings.ToLower(a)
 		},
-		"fetchRowLinkURL": func(groupingStr string, t time.Time) string {
+		"fetchRowLinkURL": func(groupingStr string, start, end dbtypes.TimeDef) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views
 			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks
 			// (/years -> /months) simply means that on "/years" page every row has a
@@ -321,23 +321,21 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			// expected to comprise a given row in "/years" page i.e each row has a
 			// link like "/months?offset=14&rows=12" with the offset unique for each row.
 			var matchedGrouping string
-			var rowsCount int
 			val := dbtypes.TimeGroupingFromStr(groupingStr)
 
 			switch val {
 			case dbtypes.YearGrouping:
 				matchedGrouping = "months"
-				rowsCount = int(t.Month())
+
 			case dbtypes.MonthGrouping:
 				matchedGrouping = "weeks"
-				rowsCount = t.Day() / 4
+
 			case dbtypes.WeekGrouping:
 				matchedGrouping = "days"
-				rowsCount = t.Day()
+
 			// for dbtypes.DayGrouping and any other groupings default to blocks.
 			default:
 				matchedGrouping = "blocks"
-				rowsCount = 20
 			}
 
 			matchingVal := dbtypes.TimeGroupingFromStr(matchedGrouping)
@@ -347,9 +345,15 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 				return "/blocks?offset=0&rows=20"
 			}
 
-			latestTime := time.Now().Unix()
-			offsetVal := (latestTime - t.Unix()) / int64(intervalVal)
-			return fmt.Sprintf("/%s?offset=%d&rows=%d", matchedGrouping, offsetVal, rowsCount)
+			rowsCount := int64(end.T.Sub(start.T).Seconds()/intervalVal) + 1
+			offset := int64(time.Since(end.T).Seconds() / intervalVal)
+
+			if offset != 0 {
+				offset++
+			}
+
+			return fmt.Sprintf("/%s?offset=%d&rows=%d",
+				matchedGrouping, offset, rowsCount)
 		},
 		"theme": func() string {
 			return netTheme
