@@ -107,6 +107,10 @@
         var expires = "expires="+d.toUTCString();
         document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
     }
+
+    var DCRThings = {}
+    DCRThings.targetBlockTime = {{$.BlockTimeUnix}}
+
     var sunIcon = document.getElementById("sun-icon")
     var darkBGCookieName = 'dcrdataDarkBG';
     function darkEnabled() {
@@ -239,6 +243,10 @@
             // block summary data
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
+
+            // Update the blocktime counter.
+            DCRThings.counter.data("main-lastblocktime", b.time).removeClass("text-danger")
+            DCRThings.counter.html(humanize.timeSince(b.time))
 
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
@@ -391,7 +399,12 @@
 
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
-    <div class="container d-flex">
+    <div class="container d-flex justify-content-between align-items-center">
+        <ul class="nav justify-contents-left nowrap blockcounter">
+          <li class="nav-item text-left">
+            <span data-controller="main" data-target="main.age" data-main-lastblocktime="{{$.Tip.Time}}"></span> <span class="block-msg">since last block</span>
+          </li>
+        </ul>
         <ul class="nav justify-content-center col">
             <li class="nav-item">
                 <a
@@ -612,12 +625,12 @@
             Notify.requestPermission(onPermissionGranted, onPermissionDenied);
         }
     })
-
     $("#listing-view").change(function(ev) {
         Turbolinks.visit( "/"+
             $("#listing-view option:selected").val()
         )
     })
+    DCRThings.counter = $("[data-main-lastblocktime]")
 </script>
 
 <script data-turbolinks-eval="false">

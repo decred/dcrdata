@@ -346,5 +346,8 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"theme": func() string {
 			return netTheme
 		},
+		"now": func() int64 {
+			return time.Now().Unix()
+		},
 	}
 }

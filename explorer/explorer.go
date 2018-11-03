@@ -48,6 +48,7 @@ type explorerDataSourceLite interface {
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
 	GetExplorerAddress(address string, count, offset int64) (*AddressInfo, error)
+	GetTip() (*WebBasicBlock, error)
 	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int

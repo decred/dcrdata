@@ -498,6 +498,10 @@ body.darkBG .progress {
   position: relative;
 }
 
+.navbar-fixed-bottom .blockcounter {
+  width:100px;
+}
+
 #watermark
 {
   left: 50%;
@@ -758,6 +762,9 @@ body.darkBG .keynav-target {
   }
   .sm-w151 {
     width: 151px;
+  }
+  .block-msg {
+    display:none;
   }
 }
 @media only screen and (max-width: 576px)  {
