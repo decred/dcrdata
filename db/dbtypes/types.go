@@ -21,8 +21,13 @@ type TimeDef struct {
 	T time.Time
 }
 
-func (t *TimeDef) String() string {
+func (t TimeDef) String() string {
 	return t.T.Format("2006-01-02 15:04:05")
+}
+
+// MarshalJSON is set as the default marshalling function for TimeDef struct.
+func (t *TimeDef) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
 }
 
 // TimeAPI is a fall back dbtypes.TimeDef wrapper that allows API endpoint that
@@ -32,8 +37,13 @@ type TimeAPI struct {
 	S TimeDef
 }
 
-func (t *TimeAPI) String() int64 {
-	return t.S.T.Unix()
+func (t TimeAPI) String() string {
+	return fmt.Sprintf("%d", t.S.T.Unix())
+}
+
+// MarshalJSON is set as the default marshalling function for TimeAPI struct.
+func (t *TimeAPI) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
 }
 
 // Tickets have 6 states, 5 possible fates:
