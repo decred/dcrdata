@@ -1,4 +1,30 @@
-@import url("https://fonts.googleapis.com/css?family=Inconsolata:400,700|Source+Sans+Pro:400,600");
+@font-face {
+    font-family: 'Source Sans Pro';
+    src:  url('/fonts/source-sans-pro-v9-latin-regular.eot');
+    src:  url('/fonts/source-sans-pro-v9-latin-regular.eot#iefix') format('embedded-opentype'),
+    url('/fonts/source-sans-pro-v9-latin-regular.woff') format('woff'),
+    url('/fonts/source-sans-pro-v9-latin-regular.svg') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Inconsolata';
+    src:  url('/fonts/inconsolata-v15-latin-regular.eot');
+    src:  url('/fonts/inconsolata-v15-latin-regular.eot#iefix') format('embedded-opentype'),
+    url('/fonts/inconsolata-v15-latin-regular.woff') format('woff'),
+    url('/fonts/inconsolata-v15-latin-regular.svg') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Inconsolata';
+    src:  url('/fonts/inconsolata-bold-webfont.eot');
+    src:  url('/fonts/inconsolata-bold-webfont.eot#iefix') format('embedded-opentype'),
+    url('/fonts/inconsolata-bold-webfont.woff') format('woff'),
+    url('/fonts/inconsolata-bold-webfont.svg') format('svg');
+    font-weight: 700;
+    font-style: normal;
+}
 header .logo img {
   height: 100%;
   vertical-align: initial;
