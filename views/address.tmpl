@@ -282,9 +282,10 @@
                                     <span data-controller="main" data-target="main.age" data-age="{{.Time}}"></span>
                                 {{end}}
                                 </td>
-                                <td data-controller="extras" data-target="extras.confirmations" data-confirmations="{{.Confirmations}}"
-                                    data-confirmationBlockHeight="{{index $.ConfirmHeight $i}}"
-                                        data-confirmation-block-height="{{index $.ConfirmHeight $i}}">{{.Confirmations}}</td>
+                                <td data-controller="extras" data-target="extras.confirmations"
+                                    data-confirmations="{{.Confirmations}}"
+                                    data-confirmation-block-height="{{index $.ConfirmHeight $i}}"
+                                >{{.Confirmations}}</td>
                                 <td class="text-right">{{.FormattedSize}}</td>
                                 {{end}}
                             </tr>

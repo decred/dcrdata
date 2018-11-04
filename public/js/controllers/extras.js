@@ -20,6 +20,10 @@
         }
 
         setConfirmationText(el, confirmations) {
+            if(!el.dataset.formatted){
+                el.textContent = confirmations
+                return
+            }
             if(confirmations > 0) {
                 el.textContent = "(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")"
             }else {
