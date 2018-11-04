@@ -1441,6 +1441,10 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	// Attempt to get a block index by calling GetBlockHeight to see if the
 	// value is a block hash and then redirect to the block page if it is.
 	_, err = exp.blockData.GetBlockHeight(searchStr)
+	// Also check the ChainDB if the hash is not found and the app is in full mode
+	if err != nil && !exp.liteMode {
+		_, err = exp.explorerSource.BlockHeight(searchStr)
+	}
 	if err == nil {
 		http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
 		return
