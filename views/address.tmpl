@@ -38,9 +38,9 @@
                     data-target="address.btns"
                     data-action="click->address#changeView"
                 >
-                    <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="List" name="list">
-                    <input id="addr-btn" type="button" class="btn btn_sm" value="Charts"
-                    name="chart" {{if or $.IsLiteMode (le (len .Transactions) 1)}}disabled{{end}}>
+                    <input id="list" type="button" class="addr-btn btn btn_sm btn-active" value="List" name="list">
+                    <input id="chart" type="button" class="addr-btn btn btn_sm" value="Charts"
+                        name="chart" {{if or $.IsLiteMode (le (len .Transactions) 1)}}disabled{{end}}>
                 </div>
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
@@ -123,9 +123,9 @@
                             data-target="address.options"
                             data-action="change->address#changeGraph"
                         >
-                            <option value="types" selected>Transaction Types</option>
-                            <option value="amountflow">Sent and Received</option>
-                            <option value="unspent">Total Unspent</option>
+                            <option id="types" value="types">Transactions Types</option>
+                            <option id="amountflow" value="amountflow">Sent and Received</option>
+                            <option id="unspent" value="unspent">Total Unspent</option>
                         </select>
                         <div id="toggle-charts" class="row t-charts d-hide" data-target="address.flow"
                             data-action="change->address#updateFlow">

@@ -137,6 +137,21 @@
                     visibility: [true],
                     fillGraph: true
                 }
+
+                var defaultHash = 'list-view'
+                var hashVal = window.location.hash.replace('#', '') || defaultHash;
+
+                if (hashVal.length === 0 || hashVal === defaultHash){
+                    history.pushState({},  defaultHash, defaultHash);
+                } else {
+                    var selectedVal = this.optionsTarget.namedItem(hashVal)
+                    $(this.optionsTarget).val(selectedVal ? selectedVal.value : 'types')
+
+                    $('.addr-btn').removeClass('btn-active');
+                    $('#chart').addClass('btn-active');
+
+                    this.changeView()
+                }
             })
         }
 
@@ -167,6 +182,9 @@
             var _this = this
             var graphType = _this.options
             var interval = _this.interval
+
+            var selectedHash = this.optionsTarget.value
+            history.pushState({}, selectedHash, "#"+selectedHash);
 
             $('#no-bal').addClass('d-hide');
             $('#history-chart').removeClass('d-hide');
@@ -216,6 +234,8 @@
                         }
                         _this.updateFlow()
                         _this.xVal = _this.graph.xAxisExtremes()
+
+                        window.location.hash = graphType
                     }else{
                         $('#no-bal').removeClass('d-hide');
                         $('#history-chart').addClass('d-hide');
@@ -313,8 +333,7 @@
         }
 
         get options(){
-            var selectedValue = this.optionsTarget
-            return selectedValue.options[selectedValue.selectedIndex].value;
+            return this.optionsTarget.value
         }
 
         get addr(){
