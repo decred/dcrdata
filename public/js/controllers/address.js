@@ -142,13 +142,13 @@
                 var hashVal = window.location.hash.replace('#', '') || defaultHash;
 
                 if (hashVal.length === 0 || hashVal === defaultHash){
-                    history.pushState({},  defaultHash, defaultHash);
+                    history.pushState({},  this.addr, "#" + defaultHash);
                 } else {
                     var selectedVal = this.optionsTarget.namedItem(hashVal)
-                    $(this.optionsTarget).val(selectedVal ? selectedVal.value : 'types')
+                    $(this.optionsTarget).val((selectedVal ? selectedVal.value : 'types'))
 
-                    $('.addr-btn').removeClass('btn-active');
-                    $('#chart').addClass('btn-active');
+                    $('#addr-btn').removeClass('btn-active');
+                    $('.chart').addClass('btn-active');
 
                     this.changeView()
                 }
@@ -183,8 +183,7 @@
             var graphType = _this.options
             var interval = _this.interval
 
-            var selectedHash = this.optionsTarget.value
-            history.pushState({}, selectedHash, "#"+selectedHash);
+            history.pushState({}, this.addr, "#" + graphType);
 
             $('#no-bal').addClass('d-hide');
             $('#history-chart').removeClass('d-hide');
@@ -234,8 +233,6 @@
                         }
                         _this.updateFlow()
                         _this.xVal = _this.graph.xAxisExtremes()
-
-                        window.location.hash = graphType
                     }else{
                         $('#no-bal').removeClass('d-hide');
                         $('#history-chart').addClass('d-hide');
