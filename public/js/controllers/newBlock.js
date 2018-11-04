@@ -5,8 +5,8 @@
         }
         initialize() {
             let that = this
-            globalEventBus.on("BLOCK_RECEIVED", function (newBlock) {
-                that.refreshConfirmations(newBlock.block.height)
+            globalEventBus.on("BLOCK_RECEIVED", function (data) {
+                that.refreshConfirmations(data.block.height)
             })
         }
         connect() {
@@ -27,8 +27,8 @@
         }
         refreshConfirmations(expHeight) {
             this.confirmationsTargets.forEach((el,i) => {
-                let confirmHeight = el.dataset.confirmationBlockHeight
-                let confirmations = expHeight - (confirmHeight + 1)
+                let confirmHeight = parseInt(el.dataset.confirmationBlockHeight)
+                let confirmations = (expHeight - confirmHeight) + 1
                 this.setConfirmationText(el, confirmations)
                 el.dataset.confirmations = confirmations
             })
