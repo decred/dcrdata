@@ -896,10 +896,11 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		Blocks:            blocks,
 		BlockInds:         blockInds,
 		HasValidMainchain: hasValidMainchain,
-		ConfirmHeight:     exp.Height() - tx.Confirmations,
-		NetName:           exp.NetName,
-		HighlightInOut:    inout,
-		HighlightInOutID:  inoutid,
+		// ConfirmHeight is now the same as tx.BlockHeight here.
+		ConfirmHeight:    exp.Height() - tx.Confirmations + 1,
+		NetName:          exp.NetName,
+		HighlightInOut:   inout,
+		HighlightInOutID: inoutid,
 	}
 
 	str, err := exp.templates.execTemplateToString("tx", pageData)

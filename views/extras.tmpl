@@ -110,6 +110,7 @@
 
     var DCRThings = {}
     DCRThings.targetBlockTime = {{$.BlockTimeUnix}}
+    DCRThings.ticketPoolSize = {{$.ChainParams.TicketPoolSize}}
 
     var sunIcon = document.getElementById("sun-icon")
     var darkBGCookieName = 'dcrdataDarkBG';
@@ -257,26 +258,6 @@
             DCRThings.counter.data("main-lastblocktime", b.time).removeClass("text-danger")
             DCRThings.counter.html(humanize.timeSince(b.time))
 
-            // This is triggered on a transaction (/tx) page for an unconfirmed mempool transaction
-            var needsConfirmation = $("[data-txid-mempool-display]")
-            if(needsConfirmation.length && needsConfirmation.text() == "mempool"){
-                var txid = needsConfirmation.data("txid-mempool-display");
-                var k, txs, idx;
-                $.each([b.Tx, b.Tickets, b.Revs, b.Votes], function(k, txs){
-                    for(idx in txs){
-                        if(txs[idx].TxID ==  txid){
-                            needsConfirmation.remove();
-                            $("[data-confirmation-block-height]").data("confirmation-block-height", b.height).html("(1 confirmation)");
-                            $("#txMempoolLink").html(b.height).attr("href", "/block/"+b.hash);
-                            $("#txFmtTime").html(formatTxDate(b.time));
-                            $("#txAge").html(humanize.timeSince(b.time)).before("(").after(" ago)").attr("data-age",b.time);
-                            $("#txMaturityProgress").css({"width":"0.4%"}).attr("aria-valuenow","1"
-                          ).children("span").html("Immature, eligible to vote in 255 blocks (21.3 hours remaining)")
-                            return false
-                        }
-                    }
-                })
-            }
             advanceTicketProgress(b)
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
@@ -418,6 +399,30 @@
 
     // Advance various progress bars on /tx.
     function advanceTicketProgress(block){
+        // Check for confirmations on mempool transactions.
+        var needsConfirmation = $("[data-txid-mempool-display]")
+        if(needsConfirmation.length && needsConfirmation.text() == "mempool"){
+            var txid = needsConfirmation.data("txid-mempool-display");
+            var k, txs, idx;
+            $.each([block.Tx, block.Tickets, block.Revs, block.Votes], function(k, txs){
+                for(idx in txs){
+                    if(txs[idx].TxID ==  txid){
+                        needsConfirmation.remove();
+                        $("[data-confirmation-block-height]").data("confirmation-block-height", block.height).html("(1 confirmation)");
+                        $("#txMempoolLink").html(block.height).attr("href", "/block/"+block.hash);
+                        $("#txFmtTime").html(formatTxDate(block.time));
+                        $("#txAge").html(humanize.timeSince(block.time)).before("(").after(" ago)").attr("data-age",block.time);
+                        var progressBar = $("#txMaturityProgress")
+                        var remainingBlocks = parseInt(progressBar.attr("aria-valuemax")) - 1
+                        var remainingTime = remainingBlocks*DCRThings.targetBlockTime
+                        progressBar.css({"width":"0.4%"}).attr("aria-valuenow","1"
+                      ).children("span").html("Immature, eligible to vote in "+remainingBlocks+" blocks ("+remainingTime.toFixed(1)+" hours remaining)")
+                        return false
+                    }
+                }
+            })
+        }
+        // Advance the progress bars.
         var ticketProgress = $("#txMaturityProgress");
         if(!ticketProgress.length){
             return;
@@ -442,9 +447,9 @@
             var blocksLeft = complete+1-confirmations;
             if(txType == "LiveTicket"){
                 ticketProgress.children("span").html("block "+confirmations+" of "+complete+" ("+((1-ratio)*142.2).toFixed(1)+" days remaining)");
-                // Chance of expiring is (1-P)^N where P: single-block probability of being picked, N: blocks remaining.
+                // Chance of expiring is (1-P)^N where P := single-block probability of being picked, N := blocks remaining.
                 // This probability is using the network parameter rather than the calculated value. So far, the ticket pool size seems stable enough to do that.
-                var pctChance = Math.pow(1 - 1/8192, blocksLeft)*100;
+                var pctChance = Math.pow(1 - 1/DCRThings.ticketPoolSize, blocksLeft)*100;
                 $("#ticketExpiryChance").children("span").html(pctChance.toFixed(2)+"% chance of expiry");
             }
             else{
