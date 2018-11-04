@@ -48,6 +48,7 @@ type explorerDataSourceLite interface {
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
 	GetExplorerAddress(address string, count, offset int64) (*AddressInfo, error)
+	GetTip() (*WebBasicBlock, error)
 	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int
@@ -58,6 +59,7 @@ type explorerDataSourceLite interface {
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
 	GetExplorerFullBlocks(start int, end int) []*BlockInfo
+	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
 }
 
@@ -80,12 +82,13 @@ type explorerDataSource interface {
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	BlockFlags(hash string) (bool, bool, error)
 	GetOldestTxBlockTime(addr string) (int64, error)
-	TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
+	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)
 	Transaction(txHash string) ([]*dbtypes.Tx, error)
 	VinsForTx(*dbtypes.Tx) (vins []dbtypes.VinTxProperty, prevPkScripts []string, scriptVersions []uint16, err error)
 	VoutsForTx(*dbtypes.Tx) ([]dbtypes.Vout, error)
 	PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
+	TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 }
 
 // chartDataCounter is a data cache for the historical charts.
@@ -160,6 +163,7 @@ type explorerUI struct {
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
+	genesisBlock          *BlockInfo
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -303,7 +307,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	}
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
-		"sidechains", "rejects", "ticketpool", "nexthome", "windows"}
+		"sidechains", "rejects", "ticketpool", "nexthome", "statistics",
+		"windows", "timelisting"}
 
 	tempDefaults := []string{"extras"}
 
@@ -566,6 +571,8 @@ func (exp *explorerUI) addRoutes() {
 	exp.Mux.Get("/address/{x}", redirect("address"))
 
 	exp.Mux.Get("/decodetx", redirect("decodetx"))
+
+	exp.Mux.Get("/stats", redirect("statistics"))
 }
 
 // Simulate ticket purchase and re-investment over a full year for a given

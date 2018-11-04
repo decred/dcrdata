@@ -185,7 +185,7 @@ const (
 	    tx_vin_vout_row_id=$2 AND is_funding = TRUE;`
 
 	SelectAddressOldestTxBlockTime = `SELECT block_time FROM addresses WHERE
-		address=$1 ORDER BY block_time DESC LIMIT 1;`
+		address=$1 ORDER BY block_time LIMIT 1;`
 
 	// SelectAddressTxTypesByAddress gets the transaction type histogram for the
 	// given address using block time binning with bin size of block_time.

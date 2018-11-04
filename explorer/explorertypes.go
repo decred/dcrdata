@@ -23,6 +23,7 @@ type statusType string
 const (
 	ErrorStatusType          statusType = "Error"
 	NotFoundStatusType       statusType = "Not Found"
+	FutureBlockStatusType    statusType = "Future Block"
 	NotSupportedStatusType   statusType = "Not Supported"
 	NotImplementedStatusType statusType = "Not Implemented"
 	WrongNetworkStatusType   statusType = "Wrong Network"
@@ -43,12 +44,27 @@ type BlockBasic struct {
 	MainChain      bool   `json:"mainchain"`
 	Voters         uint16 `json:"votes"`
 	Transactions   int    `json:"tx"`
-	WindowIndx     int64  `json:"windowIndex"`
+	IndexVal       int64  `json:"windowIndex"`
 	FreshStake     uint8  `json:"tickets"`
 	Revocations    uint32 `json:"revocations"`
 	BlockTime      int64  `json:"time"`
 	FormattedTime  string `json:"formatted_time"`
 	FormattedBytes string `json:"formatted_bytes"`
+}
+
+// WebBasicBlock is used for quick DB data without rpc calls
+type WebBasicBlock struct {
+	Height      uint32   `json:"height"`
+	Size        uint32   `json:"size"`
+	Hash        string   `json:"hash"`
+	Difficulty  float64  `json:"diff"`
+	StakeDiff   float64  `json:"sdiff"`
+	Time        int64    `json:"time"`
+	NumTx       uint32   `json:"txlength"`
+	PoolSize    uint32   `json:"poolsize"`
+	PoolValue   float64  `json:"poolvalue"`
+	PoolValAvg  float64  `json:"poolvalavg"`
+	PoolWinners []string `json:"winners"`
 }
 
 // TxBasic models data for transactions on the block page
@@ -542,6 +558,49 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 // GetAgendaInfo gets the all info for the specified agenda ID.
 func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
 	return agendadb.GetAgendaInfo(agendaId)
+}
+
+// StatsInfo represents all of the data for the stats page.
+type StatsInfo struct {
+	UltimateSupply             int64
+	TotalSupply                int64
+	TotalSupplyPercentage      float64
+	ProjectFunds               int64
+	ProjectAddress             string
+	PoWDiff                    float64
+	HashRate                   float64
+	BlockReward                int64
+	NextBlockReward            int64
+	PoWReward                  int64
+	PoSReward                  int64
+	ProjectFundReward          int64
+	VotesInMempool             int
+	TicketsInMempool           int
+	TicketPrice                float64
+	NextEstimatedTicketPrice   float64
+	TicketPoolSize             uint32
+	TicketPoolSizePerToTarget  float64
+	TicketPoolValue            float64
+	TPVOfTotalSupplyPeecentage float64
+	TicketsROI                 float64
+	RewardPeriod               string
+	ASR                        float64
+	APR                        float64
+	IdxBlockInWindow           int
+	WindowSize                 int64
+	BlockTime                  int64
+	IdxInRewardWindow          int
+	RewardWindowSize           int64
+}
+
+// CommonPageData is the basis for data structs used for HTML templates.
+// explorerUI.commonData returns an initialized instance or CommonPageData,
+// which itself should be used to initialize page data template structs.
+type CommonPageData struct {
+	Tip           *WebBasicBlock
+	Version       string
+	ChainParams   *chaincfg.Params
+	BlockTimeUnix int64
 }
 
 // isSyncExplorerUpdate helps determine when the explorer should be updated

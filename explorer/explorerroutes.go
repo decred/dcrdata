@@ -50,22 +50,22 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	blocks := exp.blockData.GetExplorerBlocks(height, height-5)
 
-	// Lock for both MempoolData and ExtraInfo
+	// Lock for both MempoolData and pageData.HomeInfo
 	exp.MempoolData.RLock()
 	exp.pageData.RLock()
 
 	str, err := exp.templates.execTemplateToString("home", struct {
+		*CommonPageData
 		Info    *HomeInfo
 		Mempool *MempoolInfo
 		Blocks  []*BlockBasic
-		Version string
 		NetName string
 	}{
-		exp.pageData.HomeInfo,
-		exp.MempoolData,
-		blocks,
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		Info:           exp.pageData.HomeInfo,
+		Mempool:        exp.MempoolData,
+		Blocks:         blocks,
+		NetName:        exp.NetName,
 	})
 
 	exp.MempoolData.RUnlock()
@@ -91,13 +91,13 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("sidechains", struct {
+		*CommonPageData
 		Data    []*dbtypes.BlockStatus
-		Version string
 		NetName string
 	}{
-		sideBlocks,
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		Data:           sideBlocks,
+		NetName:        exp.NetName,
 	})
 
 	if err != nil {
@@ -121,13 +121,13 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 	}
 
 	str, err := exp.templates.execTemplateToString("rejects", struct {
+		*CommonPageData
 		Data    []*dbtypes.BlockStatus
-		Version string
 		NetName string
 	}{
-		disapprovedBlocks,
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		Data:           disapprovedBlocks,
+		NetName:        exp.NetName,
 	})
 
 	if err != nil {
@@ -150,17 +150,17 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RLock()
 
 	str, err := exp.templates.execTemplateToString("nexthome", struct {
+		*CommonPageData
 		Info    *HomeInfo
 		Mempool *MempoolInfo
 		Blocks  []*BlockInfo
-		Version string
 		NetName string
 	}{
-		exp.pageData.HomeInfo,
-		exp.MempoolData,
-		blocks,
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		Info:           exp.pageData.HomeInfo,
+		Mempool:        exp.MempoolData,
+		Blocks:         blocks,
+		NetName:        exp.NetName,
 	})
 	exp.pageData.RUnlock()
 	exp.MempoolData.RUnlock()
@@ -193,7 +193,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 
 	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
-	if err != nil || rows < minExplorerRows {
+	if err != nil || (rows < minExplorerRows && rows == 0) {
 		rows = minExplorerRows
 	}
 
@@ -209,21 +209,117 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 
 	str, err := exp.templates.execTemplateToString("windows", struct {
+		*CommonPageData
 		Data         []*dbtypes.BlocksGroupedInfo
 		WindowSize   int64
 		BestWindow   int64
 		OffsetWindow int64
 		Limit        int64
-		Version      string
 		NetName      string
 	}{
-		windows,
-		exp.ChainParams.StakeDiffWindowSize,
-		int64(bestWindow),
-		int64(offsetWindow),
+		CommonPageData: exp.commonData(),
+		Data:           windows,
+		WindowSize:     exp.ChainParams.StakeDiffWindowSize,
+		BestWindow:     int64(bestWindow),
+		OffsetWindow:   int64(offsetWindow),
+		Limit:          int64(rows),
+		NetName:        exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// DayBlocksListing handles "/day" page.
+func (exp *explorerUI) DayBlocksListing(w http.ResponseWriter, r *http.Request) {
+	exp.timeBasedBlocksListing("Days", w, r)
+}
+
+// WeekBlocksListing handles "/week" page.
+func (exp *explorerUI) WeekBlocksListing(w http.ResponseWriter, r *http.Request) {
+	exp.timeBasedBlocksListing("Weeks", w, r)
+}
+
+// MonthBlocksListing handles "/month" page.
+func (exp *explorerUI) MonthBlocksListing(w http.ResponseWriter, r *http.Request) {
+	exp.timeBasedBlocksListing("Months", w, r)
+}
+
+// YearBlocksListing handles "/year" page.
+func (exp *explorerUI) YearBlocksListing(w http.ResponseWriter, r *http.Request) {
+	exp.timeBasedBlocksListing("Years", w, r)
+}
+
+// TimeBasedBlocksListing is the main handler for "/day", "/week", "/month" and "/year".
+func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter, r *http.Request) {
+	if exp.liteMode {
+		exp.StatusPage(w, fullModeRequired,
+			"Time based blocks listing page cannot run in lite mode.", NotSupportedStatusType)
+	}
+
+	grouping := dbtypes.TimeGroupingFromStr(val)
+	i, err := dbtypes.TimeBasedGroupingToInterval(grouping)
+	if err != nil {
+		// default to year grouping if grouping is missing
+		i, err = dbtypes.TimeBasedGroupingToInterval(dbtypes.YearGrouping)
+		if err != nil {
+			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", ErrorStatusType)
+			log.Errorf("Invalid year grouping found: error: %v ", err)
+		}
+		grouping = dbtypes.YearGrouping
+	}
+
+	offset, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
+	if err != nil {
+		offset = 0
+	}
+
+	oldestBlockTime := exp.ChainParams.GenesisBlock.Header.Timestamp.Unix()
+	maxOffset := (time.Now().Unix() - oldestBlockTime) / int64(i)
+	m := uint64(maxOffset)
+	if offset > m {
+		offset = m
+	}
+
+	rows, err := strconv.ParseUint(r.URL.Query().Get("rows"), 10, 64)
+	if err != nil || (rows < minExplorerRows && rows == 0) {
+		rows = minExplorerRows
+	}
+
+	if rows > maxExplorerRows {
+		rows = maxExplorerRows
+	}
+
+	data, err := exp.explorerSource.TimeBasedIntervals(grouping, rows, offset)
+	if err != nil {
+		log.Errorf("The specified /%s intervals are invalid. offset=%d&rows=%d: error: %v ", val, offset, rows, err)
+		exp.StatusPage(w, defaultErrorCode, "The specified intervals could not found", NotFoundStatusType)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("timelisting", struct {
+		Data         []*dbtypes.BlocksGroupedInfo
+		TimeGrouping string
+		Offset       int64
+		Limit        int64
+		Version      string
+		NetName      string
+		BestGrouping int64
+	}{
+		data,
+		val,
+		int64(offset),
 		int64(rows),
 		exp.Version,
 		exp.NetName,
+		maxOffset,
 	})
 
 	if err != nil {
@@ -247,7 +343,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
-	if err != nil || rows < minExplorerRows {
+	if err != nil || (rows < minExplorerRows && rows == 0) {
 		rows = minExplorerRows
 	}
 
@@ -279,19 +375,19 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("explorer", struct {
+		*CommonPageData
 		Data       []*BlockBasic
 		BestBlock  int64
 		Rows       int64
-		Version    string
 		NetName    string
 		WindowSize int64
 	}{
-		summaries,
-		int64(bestBlockHeight),
-		int64(rows),
-		exp.Version,
-		exp.NetName,
-		exp.ChainParams.StakeDiffWindowSize,
+		CommonPageData: exp.commonData(),
+		Data:           summaries,
+		BestBlock:      int64(bestBlockHeight),
+		Rows:           int64(rows),
+		NetName:        exp.NetName,
+		WindowSize:     exp.ChainParams.StakeDiffWindowSize,
 	})
 
 	if err != nil {
@@ -346,15 +442,15 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pageData := struct {
+		*CommonPageData
 		Data          *BlockInfo
 		ConfirmHeight int64
-		Version       string
 		NetName       string
 	}{
-		data,
-		exp.Height() - data.Confirmations,
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		Data:           data,
+		ConfirmHeight:  exp.Height() - data.Confirmations,
+		NetName:        exp.NetName,
 	}
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
@@ -372,13 +468,13 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RLock()
 	str, err := exp.templates.execTemplateToString("mempool", struct {
+		*CommonPageData
 		Mempool *MempoolInfo
-		Version string
 		NetName string
 	}{
-		exp.MempoolData,
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		Mempool:        exp.MempoolData,
+		NetName:        exp.NetName,
 	})
 	exp.MempoolData.RUnlock()
 
@@ -399,7 +495,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 			"Ticketpool page cannot run in lite mode", NotSupportedStatusType)
 		return
 	}
-	interval := dbtypes.AllChartGrouping
+	interval := dbtypes.AllGrouping
 
 	barGraphs, donutChart, height, err := exp.explorerSource.TicketPoolVisualization(interval)
 	if err != nil {
@@ -420,19 +516,19 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RUnlock()
 
 	str, err := exp.templates.execTemplateToString("ticketpool", struct {
-		Version      string
+		*CommonPageData
 		NetName      string
 		ChartsHeight uint64
 		ChartData    []*dbtypes.PoolTicketsData
 		GroupedData  *dbtypes.PoolTicketsData
 		Mempool      *dbtypes.PoolTicketsData
 	}{
-		exp.Version,
-		exp.NetName,
-		height,
-		barGraphs,
-		donutChart,
-		&mp,
+		CommonPageData: exp.commonData(),
+		NetName:        exp.NetName,
+		ChartsHeight:   height,
+		ChartData:      barGraphs,
+		GroupedData:    donutChart,
+		Mempool:        &mp,
 	})
 
 	if err != nil {
@@ -784,25 +880,25 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	} // !exp.liteMode
 
 	pageData := struct {
+		*CommonPageData
 		Data              *TxInfo
 		Blocks            []*dbtypes.BlockStatus
 		BlockInds         []uint32
 		HasValidMainchain bool
 		ConfirmHeight     int64
-		Version           string
 		NetName           string
 		HighlightInOut    string
 		HighlightInOutID  int64
 	}{
-		tx,
-		blocks,
-		blockInds,
-		hasValidMainchain,
-		exp.Height() - tx.Confirmations,
-		exp.Version,
-		exp.NetName,
-		inout,
-		inoutid,
+		CommonPageData:    exp.commonData(),
+		Data:              tx,
+		Blocks:            blocks,
+		BlockInds:         blockInds,
+		HasValidMainchain: hasValidMainchain,
+		ConfirmHeight:     exp.Height() - tx.Confirmations,
+		NetName:           exp.NetName,
+		HighlightInOut:    inout,
+		HighlightInOutID:  inoutid,
 	}
 
 	str, err := exp.templates.execTemplateToString("tx", pageData)
@@ -821,9 +917,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
 	type AddressPageData struct {
+		*CommonPageData
 		Data          *AddressInfo
 		ConfirmHeight []int64
-		Version       string
 		NetName       string
 		OldestTxTime  int64
 		IsLiteMode    bool
@@ -875,7 +971,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	var addrData *AddressInfo
 	if exp.liteMode {
 		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
-		if strings.HasPrefix(err.Error(), "wrong network") {
+		if err != nil && strings.HasPrefix(err.Error(), "wrong network") {
 			exp.StatusPage(w, wrongNetwork, "That address is not valid for "+exp.NetName, NotSupportedStatusType)
 			return
 		}
@@ -1034,17 +1130,29 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			// sent total sats has to be a lookup of the vout:i prevout value
 			// because vin:i valuein is not reliable from dcrd at present
 			prevhash := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Hash
+			strprevhash := prevhash.String()
 			previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
 			valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
 
+			// Look through old transactions and set the
+			// the spending transactions match fields
+			for _, dbTxn := range addrData.Transactions {
+				if dbTxn.TxID == strprevhash && dbTxn.InOutID == previndex && dbTxn.IsFunding {
+					dbTxn.MatchedTx = spendingTx.Hash().String()
+					dbTxn.MatchedTxIndex = uint32(f.InputIndex)
+				}
+			}
+
 			if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit {
 				addrTx := &AddressTx{
-					TxID:          spendingTx.Hash().String(),
-					InOutID:       uint32(f.InputIndex),
-					Time:          spendingTx.MemPoolTime,
-					FormattedSize: humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
-					Total:         txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
-					SentTotal:     dcrutil.Amount(valuein).ToCoin(),
+					TxID:           spendingTx.Hash().String(),
+					InOutID:        uint32(f.InputIndex),
+					Time:           spendingTx.MemPoolTime,
+					FormattedSize:  humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
+					Total:          txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
+					SentTotal:      dcrutil.Amount(valuein).ToCoin(),
+					MatchedTx:      strprevhash,
+					MatchedTxIndex: previndex,
 				}
 				addrData.Transactions = append(addrData.Transactions, addrTx)
 			}
@@ -1071,12 +1179,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
 	addrData.TxnType = txnType.String()
 
-	confirmHeights := make([]int64, len(addrData.Transactions))
-	bdHeight := exp.Height()
-	for i, v := range addrData.Transactions {
-		confirmHeights[i] = bdHeight - int64(v.Confirmations)
-	}
-
 	sort.Slice(addrData.Transactions, func(i, j int) bool {
 		if addrData.Transactions[i].Time == addrData.Transactions[j].Time {
 			return addrData.Transactions[i].InOutID > addrData.Transactions[j].InOutID
@@ -1084,21 +1186,20 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return addrData.Transactions[i].Time > addrData.Transactions[j].Time
 	})
 
-	// addresscount := len(addressRows)
-	// if addresscount > 0 {
-	// 	calcoffset := int(math.Min(float64(addresscount), float64(offset)))
-	// 	calcN := int(math.Min(float64(offset+N), float64(addresscount)))
-	// 	log.Infof("Slicing result set which is %d addresses long to offset: %d and N: %d", addresscount, calcoffset, calcN)
-	// 	addressRows = addressRows[calcoffset:calcN]
-	// }
+	// Do not put this before the sort.Slice of addrData.Transactions above
+	confirmHeights := make([]int64, len(addrData.Transactions))
+	bdHeight := exp.Height()
+	for i, v := range addrData.Transactions {
+		confirmHeights[i] = bdHeight - int64(v.Confirmations)
+	}
 
 	pageData := AddressPageData{
-		Data:          addrData,
-		ConfirmHeight: confirmHeights,
-		IsLiteMode:    exp.liteMode,
-		OldestTxTime:  oldestTxBlockTime,
-		Version:       exp.Version,
-		NetName:       exp.NetName,
+		CommonPageData: exp.commonData(),
+		Data:           addrData,
+		ConfirmHeight:  confirmHeights,
+		IsLiteMode:     exp.liteMode,
+		OldestTxTime:   oldestTxBlockTime,
+		NetName:        exp.NetName,
 	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
@@ -1116,11 +1217,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 // decoding or broadcasting is handled by the websocket hub.
 func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("rawtx", struct {
-		Version string
+		*CommonPageData
 		NetName string
 	}{
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		NetName:        exp.NetName,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1147,13 +1248,13 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("charts", struct {
-		Version string
+		*CommonPageData
 		NetName string
 		Data    *dbtypes.ChartsData
 	}{
-		exp.Version,
-		exp.NetName,
-		tickets,
+		CommonPageData: exp.commonData(),
+		NetName:        exp.NetName,
+		Data:           tickets,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1226,17 +1327,17 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 // handling without redirecting.
 func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, sType statusType) {
 	str, err := exp.templates.execTemplateToString("status", struct {
+		*CommonPageData
 		StatusType statusType
 		Code       string
 		Message    string
-		Version    string
 		NetName    string
 	}{
-		sType,
-		code,
-		message,
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		StatusType:     sType,
+		Code:           code,
+		Message:        message,
+		NetName:        exp.NetName,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1247,6 +1348,8 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, s
 	switch sType {
 	case NotFoundStatusType:
 		w.WriteHeader(http.StatusNotFound)
+	case FutureBlockStatusType:
+		w.WriteHeader(http.StatusOK)
 	case ErrorStatusType:
 		w.WriteHeader(http.StatusInternalServerError)
 	// When blockchain sync is running, status 202 is used to imply that the
@@ -1280,13 +1383,13 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("parameters", struct {
+		*CommonPageData
 		Cp      ExtendedChainParams
-		Version string
 		NetName string
 	}{
-		ecp,
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		Cp:             ecp,
+		NetName:        exp.NetName,
 	})
 
 	if err != nil {
@@ -1333,17 +1436,17 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("agenda", struct {
+		*CommonPageData
 		Ai               *agendadb.AgendaTagged
-		Version          string
 		NetName          string
 		ChartDataByTime  *dbtypes.AgendaVoteChoices
 		ChartDataByBlock *dbtypes.AgendaVoteChoices
 	}{
-		agendaInfo,
-		exp.Version,
-		exp.NetName,
-		chartDataByTime,
-		chartDataByHeight,
+		CommonPageData:   exp.commonData(),
+		Ai:               agendaInfo,
+		NetName:          exp.NetName,
+		ChartDataByTime:  chartDataByTime,
+		ChartDataByBlock: chartDataByHeight,
 	})
 
 	if err != nil {
@@ -1366,13 +1469,13 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("agendas", struct {
+		*CommonPageData
 		Agendas []*agendadb.AgendaTagged
-		Version string
 		NetName string
 	}{
-		agendas,
-		exp.Version,
-		exp.NetName,
+		CommonPageData: exp.commonData(),
+		Agendas:        agendas,
+		NetName:        exp.NetName,
 	})
 
 	if err != nil {
@@ -1424,4 +1527,90 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusServiceUnavailable)
 	io.WriteString(w, str)
+}
+
+// StatsPage is the page handler for the "/stats" path
+func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
+	// Get current PoW difficulty.
+	powDiff, err := exp.blockData.Difficulty()
+	if err != nil {
+		log.Errorf("Failed to get Difficulty: %v", err)
+	}
+
+	// Subsidies
+	ultSubsidy := txhelpers.UltimateSubsidy(exp.ChainParams)
+	blockSubsidy := exp.blockData.BlockSubsidy(int64(exp.blockData.GetHeight()),
+		exp.ChainParams.TicketsPerBlock)
+
+	exp.MempoolData.RLock()
+	exp.pageData.RLock()
+	stats := StatsInfo{
+		TotalSupply:              exp.pageData.HomeInfo.CoinSupply,
+		UltimateSupply:           ultSubsidy,
+		TotalSupplyPercentage:    float64(exp.pageData.HomeInfo.CoinSupply) / float64(ultSubsidy) * 100,
+		ProjectFunds:             exp.pageData.HomeInfo.DevFund,
+		ProjectAddress:           exp.pageData.HomeInfo.DevAddress,
+		PoWDiff:                  exp.pageData.HomeInfo.Difficulty,
+		BlockReward:              blockSubsidy.Total,
+		NextBlockReward:          exp.pageData.HomeInfo.NBlockSubsidy.Total,
+		PoWReward:                exp.pageData.HomeInfo.NBlockSubsidy.PoW,
+		PoSReward:                exp.pageData.HomeInfo.NBlockSubsidy.PoS,
+		ProjectFundReward:        exp.pageData.HomeInfo.NBlockSubsidy.Dev,
+		VotesInMempool:           exp.MempoolData.NumVotes,
+		TicketsInMempool:         exp.MempoolData.NumTickets,
+		TicketPrice:              exp.pageData.HomeInfo.StakeDiff,
+		NextEstimatedTicketPrice: exp.pageData.HomeInfo.NextExpectedStakeDiff,
+		TicketPoolSize:           exp.pageData.HomeInfo.PoolInfo.Size,
+		TicketPoolSizePerToTarget: float64(exp.pageData.HomeInfo.PoolInfo.Size) /
+			float64(exp.ChainParams.TicketPoolSize*exp.ChainParams.TicketsPerBlock) * 100,
+		TicketPoolValue:            exp.pageData.HomeInfo.PoolInfo.Value,
+		TPVOfTotalSupplyPeecentage: exp.pageData.HomeInfo.PoolInfo.Percentage,
+		TicketsROI:                 exp.pageData.HomeInfo.TicketReward,
+		RewardPeriod:               exp.pageData.HomeInfo.RewardPeriod,
+		ASR:                        exp.pageData.HomeInfo.ASR,
+		APR:                        exp.pageData.HomeInfo.ASR,
+		IdxBlockInWindow:           exp.pageData.HomeInfo.IdxBlockInWindow,
+		WindowSize:                 exp.pageData.HomeInfo.Params.WindowSize,
+		BlockTime:                  exp.pageData.HomeInfo.Params.BlockTime,
+		IdxInRewardWindow:          exp.pageData.HomeInfo.IdxInRewardWindow,
+		RewardWindowSize:           exp.pageData.HomeInfo.Params.RewardWindowSize,
+		HashRate:                   powDiff * math.Pow(2, 32) / exp.ChainParams.TargetTimePerBlock.Seconds() / math.Pow(10, 15),
+	}
+	exp.MempoolData.RUnlock()
+	exp.pageData.RUnlock()
+
+	str, err := exp.templates.execTemplateToString("statistics", struct {
+		*CommonPageData
+		Stats   StatsInfo
+		NetName string
+	}{
+		CommonPageData: exp.commonData(),
+		Stats:          stats,
+		NetName:        exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// commonData grabs the common page data that is available to every page.
+// This is particularly useful for extras.tmpl, parts of which
+// are used on every page
+func (exp *explorerUI) commonData() *CommonPageData {
+	var cd CommonPageData
+	cd.Version = exp.Version
+	cd.ChainParams = exp.ChainParams
+	cd.BlockTimeUnix = int64(exp.ChainParams.TargetTimePerBlock.Seconds())
+	var err error
+	cd.Tip, err = exp.blockData.GetTip()
+	if err != nil {
+		log.Errorf("Failed to get the chain tip from the database.: %v", err)
+	}
+	return &cd
 }

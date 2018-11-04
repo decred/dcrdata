@@ -16,6 +16,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -151,6 +152,46 @@ func float64Formatting(v float64, numPlaces int, useCommas bool, boldNumPlaces .
 	return []string{integer, dec[:places], dec[places:], trailingZeros}
 }
 
+func amountAsDecimalPartsTrimmed(v, numPlaces int64, useCommas bool) []string {
+
+	// Filter numPlaces to only allow up to 8 decimal places trimming (eg. 1.12345678)
+	if numPlaces > 8 {
+		numPlaces = 8
+	}
+
+	// Separate values passed in into int.dec parts.
+	intpart := v / 1e8
+	decpart := v % 1e8
+
+	// Format left side.
+	left := strconv.FormatInt(intpart, 10)
+	rightWithTail := fmt.Sprintf("%08d", decpart)
+
+	// Reduce precision according to numPlaces.
+	if len(rightWithTail) > int(numPlaces) {
+		rightWithTail = rightWithTail[0:numPlaces]
+	}
+
+	// Separate trailing zeros.
+	right := strings.TrimRight(rightWithTail, "0")
+	tail := strings.TrimPrefix(rightWithTail, right)
+
+	// Add commas (eg. 3,444.33)
+	if useCommas && (len(left) > 3) {
+		integerAsInt64, err := strconv.ParseInt(left, 10, 64)
+		if err != nil {
+			log.Errorf("amountAsDecimalParts comma formatting failed. Input: %v Error: %v", v, err.Error())
+			left = "ERROR"
+			right = "VALUE"
+			tail = ""
+			return []string{left, right, tail}
+		}
+		left = humanize.Comma(integerAsInt64)
+	}
+
+	return []string{left, right, tail}
+}
+
 func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 	netTheme := "theme-" + strings.ToLower(netName(params))
 
@@ -159,6 +200,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return a + b
 		},
 		"subtract": func(a, b int64) int64 {
+			return a - b
+		},
+		"floatsubtract": func(a, b float64) float64 {
 			return a - b
 		},
 		"divide": func(n, d int64) int64 {
@@ -228,6 +272,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return str + "remaining"
 		},
+		"amountAsDecimalPartsTrimmed": amountAsDecimalPartsTrimmed,
 		"TimeDurationFormat": func(duration time.Duration) (formatedDuration string) {
 			durationhr := int(duration.Minutes() / 60)
 			durationmin := int(duration.Minutes()) % 60
@@ -243,7 +288,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return
 		},
-		"covertByteArrayToString": func(arr []byte) (inString string) {
+		"convertByteArrayToString": func(arr []byte) (inString string) {
 			inString = hex.EncodeToString(arr)
 			return
 		},
@@ -256,8 +301,53 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			result = dateTime.Format("2006-01-02 15:04:05 MST")
 			return
 		},
+		"toLowerCase": func(a string) string {
+			return strings.ToLower(a)
+		},
+		"fetchRowLinkURL": func(groupingStr string, interval int64) string {
+			// fetchRowLinkURL creates links url to be used in the blocks list views
+			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks
+			// (/years -> /months) simply means that on "/years" page every row has a
+			// link to the "/months" page showing the number of months that are
+			// expected to comprise a given row in "/years" page i.e each row has a
+			// link like "/months?offset=14&rows=12" with the offset unique for each row.
+			var matchedGrouping string
+			var rowsCount int
+			val := dbtypes.TimeGroupingFromStr(groupingStr)
+
+			switch val {
+			case dbtypes.YearGrouping:
+				matchedGrouping = "months"
+				rowsCount = 12
+			case dbtypes.MonthGrouping:
+				matchedGrouping = "weeks"
+				rowsCount = 4
+			case dbtypes.WeekGrouping:
+				matchedGrouping = "days"
+				rowsCount = 7
+			// for dbtypes.DayGrouping and any other groupings default to blocks.
+			default:
+				return fmt.Sprintf("/blocks?offset=%d&rows=20", interval)
+			}
+			matchingVal := dbtypes.TimeGroupingFromStr(matchedGrouping)
+			intervalVal, err := dbtypes.TimeBasedGroupingToInterval(matchingVal)
+			if err != nil {
+				log.Debugf("Resolving the new group interval failed: error : %v", err)
+				return "/blocks?offset=0&rows=20"
+			}
+
+			latestTime := time.Now().Unix()
+			offsetVal := (latestTime - interval) / int64(intervalVal)
+			if latestTime < interval {
+				return "/blocks?offset=0&rows=20"
+			}
+			return fmt.Sprintf("/%s?offset=%d&rows=%d", matchedGrouping, offsetVal, rowsCount)
+		},
 		"theme": func() string {
 			return netTheme
+		},
+		"now": func() int64 {
+			return time.Now().Unix()
 		},
 	}
 }

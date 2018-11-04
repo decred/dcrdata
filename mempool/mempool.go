@@ -5,6 +5,7 @@ package mempool
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,6 +39,7 @@ type MempoolInfo struct {
 }
 
 type mempoolMonitor struct {
+	ctx            context.Context
 	mpoolInfo      MempoolInfo
 	newTicketLimit int32
 	minInterval    time.Duration
@@ -45,16 +47,15 @@ type mempoolMonitor struct {
 	collector      *mempoolDataCollector
 	dataSavers     []MempoolDataSaver
 	newTxHash      chan *NewTx
-	quit           chan struct{}
 	wg             *sync.WaitGroup
 }
 
 // NewMempoolMonitor creates a new mempoolMonitor
-func NewMempoolMonitor(collector *mempoolDataCollector,
-	savers []MempoolDataSaver, newTxChan chan *NewTx,
-	quit chan struct{}, wg *sync.WaitGroup, newTicketLimit int32,
+func NewMempoolMonitor(ctx context.Context, collector *mempoolDataCollector, savers []MempoolDataSaver,
+	newTxChan chan *NewTx, wg *sync.WaitGroup, newTicketLimit int32,
 	mini time.Duration, maxi time.Duration, mpi *MempoolInfo) *mempoolMonitor {
 	return &mempoolMonitor{
+		ctx:            ctx,
 		mpoolInfo:      *mpi,
 		newTicketLimit: newTicketLimit,
 		minInterval:    mini,
@@ -62,7 +63,6 @@ func NewMempoolMonitor(collector *mempoolDataCollector,
 		collector:      collector,
 		dataSavers:     savers,
 		newTxHash:      newTxChan,
-		quit:           quit,
 		wg:             wg,
 	}
 }
@@ -217,7 +217,7 @@ func (p *mempoolMonitor) TxHandler(client *rpcclient.Client) {
 				}
 			}
 
-		case <-p.quit:
+		case <-p.ctx.Done():
 			log.Debugf("Quitting OnTxAccepted (new tx in mempool) handler.")
 			return
 		}

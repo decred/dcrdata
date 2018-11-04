@@ -2,25 +2,24 @@
 <!DOCTYPE html>
 <html lang="en">
 
-{{template "html-head" "Decred Blocks Windows"}}
+{{template "html-head" "Decred Windows List"}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
-        <h4>Ticket Price Windows</h4><h6>The ticket price and mining difficulty are adjusted every {{$.WindowSize}} blocks or on {{.NetName}} (~12 hours).</h6>
-        {{$pendingWindows := 0}}
-        {{if gt (int64 (len .Data)) 0}}{{$pendingWindows = (int64 (index .Data 0).WindowIndx)}}{{end}}
+        <h4>Ticket Price Windows</h4><h6>The ticket price and mining difficulty are adjusted every {{$.WindowSize}} blocks on {{toLowerCase .NetName}} (~12 hours).</h6>
 
         {{block "windowsPagination" .}}
         {{$windowsCount := (int64 (len .Data))}}
         <div class="mb-1 fs13">
             {{if gt $windowsCount 0}}
-            {{$topWindow := (int64 (index .Data 0).WindowIndx)}}
-            {{$pendingWindows := (int64 (index .Data 0).WindowIndx)}}
+            {{$pendingWindows := (int64 (index .Data 0).IndexVal)}}
             <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
                 {{$oldest := (add .OffsetWindow $windowsCount)}}
                 {{$lastWindow := (add .BestWindow 1)}}
+                {{template "listViewRouting" "windows"}}
+
                 <span class="fs12 nowrap text-right">
-                    <label class="mb-0 mr-1" for="windows-pagesize">Page size</label>
+                    <label class="mb-0 mr-1" for="windows-pagesize">Page Size</label>
                     <select
                         name="windows-pagesize"
                         id="windows-pagesize"
@@ -31,20 +30,28 @@
                     {{if ge $pendingWindows 30}}<option {{if eq $windowsCount 30}}selected{{end}} value="30">30</option>{{end}}
                     {{if ge $pendingWindows 50}}<option {{if eq $windowsCount 50}}selected{{end}} value="50">50</option>{{end}}
                     {{if ge $pendingWindows 100}}<option {{if eq $windowsCount 100}}selected{{end}} value="100">100</option>{{end}}
-                    {{if eq $windowsCount 20 30 50}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}}</option>{{end}}
+                    {{if eq $lastWindow $windowsCount 20 30 50 100}}{{else}}<option value="{{$lastWindow}}">{{$lastWindow}}</option>{{end}}
+                    {{if eq $windowsCount 20 30 50 100}}{{else}}<option selected value="{{$windowsCount}}">{{$windowsCount}}</option>{{end}}
                     </select>
                 </span>
                 <span class="fs12 nowrap text-right">
-                    {{intComma (add .OffsetWindow 1)}} &mdash; {{intComma $oldest}} of {{ intComma $lastWindow }} rows
+                    {{intComma (add .OffsetWindow 1)}} &ndash; {{intComma $oldest}} of {{ intComma $lastWindow }} rows
                 </span>
                 <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2">
                     <ul class="pagination mb-0 pagination-sm">
-                        <li class="page-item {{if ge $oldest $lastWindow}}disabled{{end}}">
+                        <li class="page-item {{if eq .OffsetWindow 0}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/ticketpricewindows?offset={{subtract $lastWindow .Limit}}&rows={{.Limit}}"
-                                id="prev"
-                            >Oldest</a>
+                                href="/ticketpricewindows?offset=0&rows={{.Limit}}"
+                                id="next"
+                            > Newest</a>
+                        </li>
+                        <li class="page-item {{if eq .OffsetWindow 0}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/ticketpricewindows?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
+                                id="next"
+                            > Newer</a>
                         </li>
                         <li class="page-item {{if ge $oldest $lastWindow}}disabled{{end}}">
                             <a
@@ -53,19 +60,12 @@
                                 id="prev"
                             >Older</a>
                         </li>
-                        <li class="page-item {{if gt $topWindow .BestWindow}}disabled{{end}}">
+                        <li class="page-item {{if ge $oldest $lastWindow}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/ticketpricewindows?offset={{ subtract .OffsetWindow .Limit }}&rows={{.Limit}}"
-                                id="next"
-                            > Newer</a>
-                        </li>
-                        <li class="page-item {{if lt .OffsetWindow $windowsCount}}disabled{{end}}">
-                            <a
-                                class="page-link"
-                                href="/ticketpricewindows?offset=0&rows={{.Limit}}"
-                                id="next"
-                            > Newest</a>
+                                href="/ticketpricewindows?offset={{subtract $lastWindow .Limit}}&rows={{.Limit}}"
+                                id="prev"
+                            >Oldest</a>
                         </li>
                     </ul>
                 </nav>
@@ -78,42 +78,42 @@
 
         <div class="row">
             <div class="col-md-12">
-                <table class="table striped table-responsive">
+                <table class="table striped table-responsive-sm">
                     <thead>
                         <tr>
-                            <th>Ticket Price Window #</th>
-                            <th>End Block</th>
-                            <th>Transactions</th>
-                            <th>Votes</th>
-                            <th>Tickets</th>
-                            <th>Revocations</th>
+                            <th class="text-right">Ticket Price Window #</th>
+                            <th class="text-right">End Block</th>
+                            <th class="text-right">Transactions</th>
+                            <th class="text-right">Votes</th>
+                            <th class="text-right">Tickets</th>
+                            <th class="text-right">Revokes</th>
                             <th>Total Size</th>
-                            <th>Difficulty</th>
-                            <th>Ticket Price (DCR)</th>
-                            <th>Age</th>
+                            <th class="text-right">Difficulty</th>
+                            <th class="text-right">Ticket Price (DCR)</th>
+                            <th class="text-right">Age</th>
                             <th>Start Time ({{timezone}})</th>
                         </tr>
                     </thead>
                     <tbody>
                     {{range .Data}}
                         <tr id="{{.EndBlock}}">
-                            <td>
-                                <span>{{.WindowIndx}}</span>
+                            <td class="text-right">
                                 {{$blocksCount := (.BlocksCount)}}
                                 {{if lt .BlocksCount $.WindowSize}}{{$blocksCount = (subtract .BlocksCount 1)}} <span>({{$blocksCount}}/{{$.WindowSize}}) </span>{{end}}
+                                <span>{{.IndexVal}}</span>
                             </td>
-                            <td>
+                            <td class="text-right">
                                 <a class="fs16 height" href="/blocks?height={{.EndBlock}}&rows=20">{{.EndBlock}}</a>
                             </td>
-                            <td>{{.Transactions}}</td>
-                            <td>{{.Voters}}</td>
-                            <td>{{.FreshStake}}</td>
-                            <td>{{.Revocations}}</td>
+                            <td class="text-right">{{intComma .Transactions}}</td>
+                            <td class="text-right">{{intComma .Voters}}</td>
+                            <td class="text-right">{{intComma .FreshStake}}</td>
+                            <td class="text-right">{{intComma .Revocations}}</td>
                             <td>{{.FormattedSize}}</td>
-                            <td>{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
-                            <td>{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .TicketPrice) 2 false)}}</td>
-                            <td data-target="main.age" data-age="{{.StartTime}}"></td>
-                            <td>{{.FormattedTime}}</td>
+                            <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
+                            <td class="text-right">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
+                            <td class="text-right" data-target="main.age" data-age="{{.StartTime}}"></td>
+                            <td>{{.FormattedStartTime}}</td>
                         </tr>
                     {{end}}
                     </tbody>

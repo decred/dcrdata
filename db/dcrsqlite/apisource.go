@@ -5,6 +5,7 @@
 package dcrsqlite
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -109,9 +110,9 @@ func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
 	return wDB, cleanup, err
 }
 
-func (db *wiredDB) NewStakeDBChainMonitor(quit chan struct{}, wg *sync.WaitGroup,
+func (db *wiredDB) NewStakeDBChainMonitor(ctx context.Context, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *stakedb.ReorgData) *stakedb.ChainMonitor {
-	return db.sDB.NewChainMonitor(quit, wg, blockChan, reorgChan)
+	return db.sDB.NewChainMonitor(ctx, wg, blockChan, reorgChan)
 }
 
 func (db *wiredDB) ChargePoolInfoCache(startHeight int64) error {
@@ -168,8 +169,7 @@ func (db *wiredDB) CheckConnectivity() error {
 // MasterBlockGetter, fetchToHeight should be one past the best block in the aux
 // DB, thus putting wiredDB sync into "catch up" mode where it just pulls blocks
 // from RPC until it matches the auxDB height and coordination begins.
-func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
-	quit chan struct{}, blockGetter rpcutils.BlockGetter, fetchToHeight int64,
+func (db *wiredDB) SyncDBAsync(ctx context.Context, res chan dbtypes.SyncResult, blockGetter rpcutils.BlockGetter, fetchToHeight int64,
 	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
 	// Ensure the db is working.
 	if err := db.CheckConnectivity(); err != nil {
@@ -191,7 +191,7 @@ func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 	// Begin sync in a goroutine, and return the result when done on the
 	// provided channel.
 	go func() {
-		height, err := db.resyncDB(quit, blockGetter, fetchToHeight, updateExplorer, barLoad)
+		height, err := db.resyncDB(ctx, blockGetter, fetchToHeight, updateExplorer, barLoad)
 		res <- dbtypes.SyncResult{
 			Height: height,
 			Error:  err,
@@ -201,10 +201,8 @@ func (db *wiredDB) SyncDBAsync(res chan dbtypes.SyncResult,
 
 // SyncDB is like SyncDBAsync, except it uses synchronous execution (the call to
 // resyncDB is a blocking call).
-func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{},
-	blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
+func (db *wiredDB) SyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
 	// Ensure the db is working.
-	defer wg.Done()
 	if err := db.CheckConnectivity(); err != nil {
 		return -1, fmt.Errorf("CheckConnectivity failed: %v", err)
 	}
@@ -214,7 +212,7 @@ func (db *wiredDB) SyncDB(wg *sync.WaitGroup, quit chan struct{},
 		log.Debugf("Setting block gate height to %d", fetchToHeight)
 		db.initWaitChan(blockGetter.WaitForHeight(fetchToHeight))
 	}
-	return db.resyncDB(quit, blockGetter, fetchToHeight, nil, nil)
+	return db.resyncDB(ctx, blockGetter, fetchToHeight, nil, nil)
 }
 
 func (db *wiredDB) GetStakeDB() *stakedb.StakeDatabase {
@@ -270,7 +268,6 @@ func (db *wiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVer
 func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	return rpcutils.GetBlockVerboseByHash(db.client, hash, verboseTx)
 }
-
 func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	coinSupply, err := db.client.GetCoinSupply()
 	if err != nil {
@@ -958,7 +955,7 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *explorer.BlockBasic {
 	index := dbtypes.CalculateWindowIndex(data.Height, params.StakeDiffWindowSize)
 	block := &explorer.BlockBasic{
-		WindowIndx:     index,
+		IndexVal:       index,
 		Height:         data.Height,
 		Hash:           data.Hash,
 		Size:           data.Size,
@@ -1571,4 +1568,36 @@ func (db *wiredDB) TxHeight(txid string) (height int64) {
 	}
 	height = txraw.BlockHeight
 	return
+}
+
+// Difficulty returns the difficulty.
+func (db *wiredDB) Difficulty() (float64, error) {
+	diff, err := db.client.GetDifficulty()
+	if err != nil {
+		log.Error("GetDifficulty failed")
+		return diff, err
+	}
+	return diff, nil
+}
+
+// GetTip grabs the highest block stored in the database.
+func (db *wiredDB) GetTip() (*explorer.WebBasicBlock, error) {
+	tip, err := db.DB.getTip()
+	if err != nil {
+		return nil, err
+	}
+	blockdata := explorer.WebBasicBlock{
+		Height:      tip.Height,
+		Size:        tip.Size,
+		Hash:        tip.Hash,
+		Difficulty:  tip.Difficulty,
+		StakeDiff:   tip.StakeDiff,
+		Time:        tip.Time,
+		NumTx:       tip.NumTx,
+		PoolSize:    tip.PoolInfo.Size,
+		PoolValue:   tip.PoolInfo.Value,
+		PoolValAvg:  tip.PoolInfo.ValAvg,
+		PoolWinners: tip.PoolInfo.Winners,
+	}
+	return &blockdata, nil
 }
