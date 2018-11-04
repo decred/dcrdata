@@ -7,7 +7,10 @@
         }
 
         initialize() {
-            this.startWsRetryTimer()
+            let that = this
+            globalEventBus.on("BLOCK_RECEIVED", function (newBlock) {
+                that.refreshConfirmations(newBlock.block.height)
+            })
         }
 
         connect() {
@@ -34,35 +37,5 @@
                 el.dataset.confirmationBlockHeight = blockHeight
             })
         }
-
-        registerWsNewBlockEnt() {
-            let ctl = this
-            ws.registerEvtHandler("newBlock", function (event) {
-                alert('received new block in extras controller')
-                var newBlock = JSON.parse(event);
-                ctl.refreshConfirmations(newBlock.block.height)
-            })
-            alert('ws registered')
-        }
-/*
-        disconnect() {
-            this.stopWsRetryTimer()
-        }*/
-
-        startWsRetryTimer() {
-            this.wsRetryTimer = setInterval(() => {
-                if(ws){
-                    this.registerWsNewBlockEnt()
-                    this.stopWsRetryTimer()
-                }
-            }, 5000)
-        }
-
-        stopWsRetryTimer() {
-            if (this.wsRetryTimer) {
-                clearInterval(this.wsRetryTimer)
-            }
-        }
-
     })
 })()

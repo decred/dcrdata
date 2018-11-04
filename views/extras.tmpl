@@ -236,6 +236,8 @@
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
 
+            globalEventBus.publish("BLOCK_RECEIVED", newBlock)
+
             // block summary data
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
