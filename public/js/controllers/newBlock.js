@@ -25,13 +25,12 @@
                 el.textContent = "(unconfirmed)"
             }
         }
-        refreshConfirmations(newHeight) {
+        refreshConfirmations(expHeight) {
             this.confirmationsTargets.forEach((el,i) => {
-                let blockHeight = el.dataset.confirmationBlockHeight
-                let confirmations = newHeight - blockHeight
+                let confirmHeight = el.dataset.confirmationBlockHeight
+                let confirmations = expHeight - (confirmHeight + 1)
                 this.setConfirmationText(el, confirmations)
                 el.dataset.confirmations = confirmations
-                el.dataset.confirmationBlockHeight = blockHeight
             })
         }
     })
