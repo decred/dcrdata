@@ -248,16 +248,6 @@
                 // partial update. but since we are silently reloading the page, we will not have the issue of the view
                 // being wrongly updated that happens when the current transaction is not contained in the received block
                 Turbolinks.reload()
-            }else {
-                /*var confirms = $('[data-confirmation-block-height]');
-                $.each(confirms, function(i, v) {
-                    if (isNaN($(v).text())) {
-                        $(v).text("0");
-                    }
-                    var confirmations = newBlock.block.height - $(v).data('confirmation-block-height');
-                    // todo number of confirmations on the tx page should be handled seperately
-                    $(v).text("(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")")
-                })*/
             }
             
             // Update the blocktime counter.
