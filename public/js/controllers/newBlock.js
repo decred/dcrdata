@@ -28,7 +28,7 @@
         refreshConfirmations(expHeight) {
             this.confirmationsTargets.forEach((el,i) => {
                 let confirmHeight = parseInt(el.dataset.confirmationBlockHeight)
-                let confirmations = (expHeight - confirmHeight) + 1
+                let confirmations = expHeight - confirmHeight
                 this.setConfirmationText(el, confirmations)
                 el.dataset.confirmations = confirmations
             })
