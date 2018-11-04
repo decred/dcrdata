@@ -243,7 +243,7 @@
                 // being wrongly updated that happens when the current transaction is not contained in the received block
                 Turbolinks.reload()
             }else {
-                var confirms = $('[data-confirmation-block-height]');
+                /*var confirms = $('[data-confirmation-block-height]');
                 $.each(confirms, function(i, v) {
                     if (isNaN($(v).text())) {
                         $(v).text("0");
@@ -251,7 +251,7 @@
                     var confirmations = newBlock.block.height - $(v).data('confirmation-block-height');
                     // todo number of confirmations on the tx page should be handled seperately
                     $(v).text("(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")")
-                })
+                })*/
             }
 
             var expTableRows = $('#explorertable tbody tr');
@@ -627,6 +627,7 @@ const app = Stimulus.Application.start()
 <script src="/js/controllers/address.js" data-turbolinks-eval="false"></script>
 <script src="/js/controllers/ticketpool.js" data-turbolinks-eval="false"></script>
 <script src="/js/controllers/status.js" data-turbolinks-eval="false"></script>
+<script src="/js/controllers/extras.js" data-turbolinks-eval="false"></script>
 {{end}}
 
 {{define "decimalParts"}}

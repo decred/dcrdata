@@ -12,9 +12,13 @@
                 Transaction
                 <span class="fs15">
                 {{if eq .Confirmations 0}}
-                    <strong data-confirmation-block-height="{{$.ConfirmHeight}}">(unconfirmed)</strong>
+                    <strong data-controller="extras" data-target="extras.confirmations" data-confirmations="0"
+                            data-confirmationBlockHeight="{{$.ConfirmHeight}}"
+                            data-confirmation-block-height="{{$.ConfirmHeight}}">(unconfirmed)</strong>
                 {{else}}
-                    <strong data-confirmation-block-height="{{$.ConfirmHeight}}">
+                    <strong data-controller="extras" data-target="extras.confirmations" data-confirmations="{{.Confirmations}}"
+                            data-confirmationBlockHeight="{{$.ConfirmHeight}}"
+                            data-confirmation-block-height="{{$.ConfirmHeight}}">
                         ({{.Confirmations}} {{if gt .Confirmations 1}}confirmations{{else}}confirmation{{end}})
                     </strong>
                 {{end}}
