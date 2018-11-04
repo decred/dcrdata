@@ -1403,14 +1403,21 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Attempt to get a block hash by calling GetBlockHash to see if the value
-	// is a block index and then redirect to the block page if it is.
+	// Attempt to get a block hash by calling GetBlockHash of wiredDB and BlockHash of ChainDB (if not int lite) to see
+	// if the value is a block index and then redirect to the block page if it is.
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
 	if err == nil {
 		_, err = exp.blockData.GetBlockHash(idx)
 		if err == nil {
 			http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
 			return
+		}
+		if !exp.liteMode {
+			_, err = exp.explorerSource.BlockHash(idx)
+			if err == nil {
+				http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
+				return
+			}
 		}
 		exp.StatusPage(w, "search failed", "Block "+searchStr+" has not yet been mined", NotFoundStatusType)
 		return

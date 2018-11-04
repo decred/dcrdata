@@ -44,7 +44,19 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			}
 		} else {
 			//Handle future blocks
-			maxHeight := int64(exp.blockData.GetHeight())
+			var maxHeight int64
+			if exp.liteMode {
+				maxHeight = int64(exp.blockData.GetHeight())
+			}else {
+				bestBlockHeight, err := exp.explorerSource.HeightDB()
+				if err != nil {
+					log.Errorf("HeightDB() failed: %v", err)
+					exp.StatusPage(w, defaultErrorCode, "an unexpected error had occured while retrieving the best block", NotFoundStatusType)
+					return
+				}
+				maxHeight = int64(bestBlockHeight)
+			}
+
 			if height > maxHeight {
 				expectedTime := time.Duration(height-maxHeight) * exp.ChainParams.TargetTimePerBlock
 				message := fmt.Sprintf("This block is expected to arrive in approximately in %v. ", expectedTime)
@@ -54,9 +66,16 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 
 			hash, err = exp.blockData.GetBlockHash(height)
 			if err != nil {
-				log.Errorf("GetBlockHeight(%d) failed: %v", height, err)
-				exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
-				return
+				f := "GetBlockHeight"
+				if !exp.liteMode {
+					hash, err = exp.explorerSource.BlockHash(height)
+					f = "BlockHash"
+				}
+				if err != nil {
+					log.Errorf("%s(%d) failed: %v", f, height, err)
+					exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
+					return
+				}
 			}
 		}
 
