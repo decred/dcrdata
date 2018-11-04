@@ -1,5 +1,5 @@
 (() => {
-    app.register("extras", class extends Stimulus.Controller {
+    app.register("newBlock", class extends Stimulus.Controller {
         static get targets() {
             return [ "confirmations" ]
         }
