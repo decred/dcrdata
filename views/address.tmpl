@@ -102,7 +102,7 @@
                         {{end}}
                     </tr>
                     {{if ne .NumUnconfirmed 0}}
-                        <tr class="numunconfirmed" data-target="address.numUnconfirmed">
+                        <tr data-target="address.numUnconfirmed">
                             <td class="text-right pr-2">UNCONFIRMED</td>
                             <td class="mono nowrap text-right">
                             {{.NumUnconfirmed}} transaction{{if gt .NumUnconfirmed 0}}s{{end}}
@@ -174,7 +174,7 @@
                     {{if lt .NumTransactions $TxnCount}}
                     <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
                         <span class="fs12 nowrap text-right">
-                            {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of {{intComma $TxnCount}} transactions
+                            {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of <span data-target="address.txnCount" data-txn-count="{{$TxnCount}}">{{intComma $TxnCount}}</span> transactions
                             {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
                             <sup>*</sup>
                             {{end}}
@@ -200,7 +200,8 @@
                         </nav>
                     </div>
                     {{else}}
-                    <span class="fs12 nowrap text-right list-display">{{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
+                    <span class="fs12 nowrap text-right list-display" data-target="address.txnCount" data-txn-count="{{$TxnCount}}" data-formatted="true">
+                    {{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
                     {{end}}
                 </div>
                 <div class="list-display">
@@ -270,7 +271,7 @@
                                 {{end}}
                                 <td>
                                     {{if eq .Confirmations 0}}
-                                        Unconfirmed
+                                        <span data-target="address.formattedTime">Unconfirmed</span>
                                     {{else}}
                                         {{.FormattedTime}}
                                     {{end}}
