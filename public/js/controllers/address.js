@@ -138,11 +138,11 @@
                     fillGraph: true
                 }
 
-                var defaultHash = 'list-view'
-                var hashVal = window.location.hash.replace('#', '') || defaultHash;
+                _this.defaultHash = 'list-view'
+                var hashVal = window.location.hash.replace('#', '') || _this.defaultHash;
 
-                if (hashVal.length === 0 || hashVal === defaultHash){
-                    history.pushState({},  this.addr, "#" + defaultHash);
+                if (hashVal.length === 0 || hashVal === _this.defaultHash){
+                    history.pushState({},  this.addr, "#" + _this.defaultHash);
                 } else {
                     var selectedVal = this.optionsTarget.namedItem(hashVal)
                     $(this.optionsTarget).val((selectedVal ? selectedVal.value : 'types'))
@@ -256,6 +256,7 @@
             if (divShow !== 'chart') {
                 divHide = 'chart'
                 $('body').removeClass('loading');
+                history.pushState({}, this.addr, "#" + _this.defaultHash);
             } else {
                 _this.drawGraph()
             }
