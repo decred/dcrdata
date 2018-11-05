@@ -842,18 +842,17 @@ body.darkBG .keynav-target {
   padding: 1px 5px;
 }
 
-.progress-bar {
-  background: #41BF53;
-  color: #fff;
-  height: 20px;
-  line-height: 20px;
-  text-shadow: 1px 1px 0px #00000012;
-}
-
 /*bootstrap overrides*/
 .progress {
-  background-color: #c5c4c4;
+  background-color: #dddddd;
   border-radius: 2px;
+  height: 1.5rem;
+}
+.progress-bar {
+  background: #74e06b;
+  color: #333;
+  line-height: 1.5rem;
+  text-shadow: 1px 1px 0px #00000012;
 }
 .btn-primary {
   background-color: #2970ff;
