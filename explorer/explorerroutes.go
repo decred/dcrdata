@@ -25,7 +25,7 @@ import (
 	"github.com/decred/dcrdata/v3/db/agendadb"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/txhelpers"
-	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize"
 )
 
 // Status page strings
@@ -1423,13 +1423,21 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call GetExplorerAddress to see if the value is an address hash and then
-	// redirect to the address page if it is. Ignore the error as the passed
-	// data is expected to fail validation or have other issues.
+	// Check to see if the value is an address hash and then
+	// redirect to the address page if it is.
+	// Ignore the error as the passed data is expected to fail validation or have other issues.
 	address, _ := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 		return
+	}
+	if !exp.liteMode {
+		addrHist, _, _ := exp.explorerSource.AddressHistory(
+			searchStr, 1, 0, dbtypes.AddrTxnTypeFromStr("all"))
+		if len(addrHist) > 0 {
+			http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
+			return
+		}
 	}
 
 	// Remaining possibilities are hashes, so verify the string is a hash.
@@ -1457,6 +1465,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
+
 	exp.StatusPage(w, "search failed", "The search string does not match any address, block, or transaction: "+searchStr, NotFoundStatusType)
 }
 
