@@ -513,9 +513,9 @@ type AddrPrefix struct {
 func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 	Descriptions := []string{"P2PK address",
 		"P2PKH address prefix. Standard wallet address. 1 public key -> 1 private key",
-		"Ed25519 high-speed signature",
+		"Ed25519 P2PKH address prefix",
 		"secp256k1 Schnorr P2PKH address prefix",
-		"P2SH Stake Pool (multi-sig 1-of-2) address",
+		"P2SH address prefix",
 		"WIF private key prefix",
 		"HD extended private key prefix",
 		"HD extended public key prefix",
