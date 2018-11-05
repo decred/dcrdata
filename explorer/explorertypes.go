@@ -65,6 +65,7 @@ type TxBasic struct {
 // AddressTx models data for transactions on the address page
 type AddressTx struct {
 	TxID           string
+	TxType         string
 	InOutID        uint32
 	Size           uint32
 	FormattedSize  string
@@ -410,6 +411,7 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 			BlockTime: addrOut.TxBlockTime,
 			InOutID:   addrOut.TxVinVoutIndex,
 			TxID:      addrOut.TxHash,
+			TxType:    txhelpers.TxTypeToString(int(addrOut.TxType)),
 			MatchedTx: addrOut.MatchingTxHash,
 			IsFunding: addrOut.IsFunding,
 		}
