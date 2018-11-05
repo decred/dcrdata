@@ -1,15 +1,17 @@
 {{define "parameters"}}
 <!DOCTYPE html>
 <html lang="en">
-    {{ template "html-head" printf "Decred ChainParams"}}
+    {{ template "html-head" printf "Decred Chain Parameters"}}
     <body class="{{ theme }}">
         {{template "navbar" . }}
         {{with .Cp}}
         <div class="container main">
             <div class="row justify-content-between">
                 <div class="col-md-7 col-sm-6 d-flex">
-                    <h4 class="mb-2">{{.Params.Net}} Parameters
-                        <a class="fs12" href="https://github.com/decred/dcrd/blob/master/chaincfg/params.go">github</a>
+                    <h4 class="mb-2">Parameters for Decred {{$.ChainParams.Name}}
+                      <span class="fs12" >
+                        from <a href="https://github.com/decred/dcrd/blob/master/chaincfg/params.go">chaincfg/params.go</a>
+                      </span>
                     </h4>
                 </div>
             </div>
@@ -17,7 +19,7 @@
             <div class="row">
                 <div class="col">
                     <h4><span>Chain parameters</span></h4>
-                    <table class="table mono table-mono-cells table-sm striped">
+                    <table class="table table-mono-cells table-sm striped">
                         <thead>
                             <th width="20%">Parameter</th>
                             <th>Value</th>
@@ -25,84 +27,84 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0"><a href="/block/{{.Params.GenesisHash}}">GenesisBlock</a></td>
-                                <td class="mono">{{.Params.GenesisBlock.Header.Height}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0"><a href="/block/{{$.ChainParams.GenesisHash}}">GenesisBlock</a></td>
+                                <td class="mono">{{$.ChainParams.GenesisBlock.Header.Height}}</td>
                                 <td>First block of the chain</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0"><a href="/block/1">PremineBlock</a></td>
+                                <td class="mono text-left pr-2 nowrap p03rem0"><a href="/block/1">PremineBlock</a></td>
                                 <td class="mono">1</td>
                                 <td>Premine Block of the chain</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">PowLimitBits</td>
-                                <td class="mono">{{.Params.PowLimitBits}} bits</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">PowLimitBits</td>
+                                <td class="mono">{{$.ChainParams.PowLimitBits}} bits</td>
                                 <td>Highest allowed proof of work value for a block in compact form</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">ReduceMinDifficulty</td>
-                                <td class="mono">{{.Params.ReduceMinDifficulty}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">ReduceMinDifficulty</td>
+                                <td class="mono">{{$.ChainParams.ReduceMinDifficulty}}</td>
                                 <td>Whether the network should reduce the minimum required difficulty after a long enough period of time has passed without finding a block</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">MinDiffReductionTime</td>
-                                <td class="mono">{{.Params.MinDiffReductionTime}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">MinDiffReductionTime</td>
+                                <td class="mono">{{$.ChainParams.MinDiffReductionTime}}</td>
                                 <td>Amount of time after which the minimum required difficulty should be reduced when a block hasn't been found</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">GenerateSupported</td>
-                                <td class="mono">{{.Params.GenerateSupported}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">GenerateSupported</td>
+                                <td class="mono">{{$.ChainParams.GenerateSupported}}</td>
                                 <td>Whether or not CPU mining is allowed</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">MaximumBlockSize</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">MaximumBlockSize</td>
                                 <td class="mono">{{.MaximumBlockSize}} bytes</td>
                                 <td>Maximum size of a block that can be generated on the network</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">MaxTxSize</td>
-                                <td class="mono">{{.Params.MaxTxSize}} bytes</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">MaxTxSize</td>
+                                <td class="mono">{{$.ChainParams.MaxTxSize}} bytes</td>
                                 <td>Largest allowable transaction size</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">WorkDiffAlpha</td>
-                                <td class="mono">{{.Params.WorkDiffAlpha}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">WorkDiffAlpha</td>
+                                <td class="mono">{{$.ChainParams.WorkDiffAlpha}}</td>
                                 <td>Stake difficulty EMA calculation alpha (smoothing) value</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">WorkDiffWindowSize</td>
-                                <td class="mono">{{.Params.WorkDiffWindowSize}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">WorkDiffWindowSize</td>
+                                <td class="mono">{{$.ChainParams.WorkDiffWindowSize}} blocks</td>
                                 <td>Number of windows (intervals) used for calculation of the exponentially weighted average</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">WorkDiffWindows</td>
-                                <td class="mono">{{.Params.WorkDiffWindows}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">WorkDiffWindows</td>
+                                <td class="mono">{{$.ChainParams.WorkDiffWindows}}</td>
                                 <td>Number of windows (intervals) used for calculation of the exponentially weighted average</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">TargetTimespan</td>
-                                <td class="mono">{{TimeDurationFormat .Params.TargetTimespan}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TargetTimespan</td>
+                                <td class="mono">{{TimeDurationFormat $.ChainParams.TargetTimespan}}</td>
                                 <td>Amount of time that should elapse before the block difficulty requirement is examined to determine how it should be changed in order to maintain the desired block generation rate</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">TargetTimePerBlock</td>
-                                <td class="mono">{{TimeDurationFormat .Params.TargetTimePerBlock}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TargetTimePerBlock</td>
+                                <td class="mono">{{TimeDurationFormat $.ChainParams.TargetTimePerBlock}}</td>
                                 <td>The desired amount of time to generate each block</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">RetargetAdjustmentFactor</td>
-                                <td class="mono">{{.Params.RetargetAdjustmentFactor}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">RetargetAdjustmentFactor</td>
+                                <td class="mono">{{$.ChainParams.RetargetAdjustmentFactor}}</td>
                                 <td>Adjustment factor used to limit the minimum and maximum amount of adjustment that can occur between difficulty retargets</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">AcceptNonStdTxs</td>
-                                <td class="mono">{{.Params.AcceptNonStdTxs}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">AcceptNonStdTxs</td>
+                                <td class="mono">{{$.ChainParams.AcceptNonStdTxs}}</td>
                                 <td>Mempool param to either accept and relay non standard txs to the network or reject them</td>
                             </tr>
                         </tbody>
                     </table>
                     <h4><span>Subsidy parameters</span></h4>
-                    <table class="table mono table-mono-cells table-sm striped">
+                    <table class="table table-mono-cells table-sm striped">
                         <thead>
                             <th width="20%">Parameter</th>
                             <th>Value</th>
@@ -110,48 +112,48 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">BaseSubsidy</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">BaseSubsidy</td>
                                 <td class="mono fs13">
-                                    <span class="rm-spacing">{{template "decimalParts" (amountAsDecimalParts .Params.BaseSubsidy true)}}
+                                    <span class="rm-spacing">{{template "decimalParts" (amountAsDecimalParts $.ChainParams.BaseSubsidy true)}}
                                     <span class="pl-1 unit lh15rem">DCR</span>
                                     </span>
                                 </td>
                                 <td>Starting subsidy amount for mined blocks</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">MulSubsidy</td>
-                                <td class="mono">{{.Params.MulSubsidy}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">MulSubsidy</td>
+                                <td class="mono">{{$.ChainParams.MulSubsidy}}</td>
                                 <td>Subsidy reduction multiplier</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">DivSubsidy</td>
-                                <td class="mono">{{.Params.DivSubsidy}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">DivSubsidy</td>
+                                <td class="mono">{{$.ChainParams.DivSubsidy}}</td>
                                 <td>Subsidy reduction divisor</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">SubsidyReductionInterval</td>
-                                <td class="mono">{{.Params.SubsidyReductionInterval}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">SubsidyReductionInterval</td>
+                                <td class="mono">{{$.ChainParams.SubsidyReductionInterval}} blocks</td>
                                 <td>Reduction interval in blocks</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">WorkRewardProportion</td>
-                                <td class="mono">{{uint16Mul .Params.WorkRewardProportion 10}}%</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">WorkRewardProportion</td>
+                                <td class="mono">{{uint16Mul $.ChainParams.WorkRewardProportion 10}}%</td>
                                 <td>Comparative amount of the subsidy given for creating a block</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeRewardProportion</td>
-                                <td class="mono">{{uint16Mul .Params.StakeRewardProportion 10}}%</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">StakeRewardProportion</td>
+                                <td class="mono">{{uint16Mul $.ChainParams.StakeRewardProportion 10}}%</td>
                                 <td>Comparative amount of the subsidy given for casting stake votes (collectively, per block)</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">BlockTaxProportion</td>
-                                <td class="mono">{{uint16Mul .Params.BlockTaxProportion 10}}%</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">BlockTaxProportion</td>
+                                <td class="mono">{{uint16Mul $.ChainParams.BlockTaxProportion 10}}%</td>
                                 <td>Inverse of the percentage of funds for each block to allocate to the developer organization</td>
                             </tr>
                         </tbody>
                     </table>
                     <h4><span>Stake parameters</span></h4>
-                    <table class="table mono table-mono-cells table-sm striped">
+                    <table class="table table-mono-cells table-sm striped">
                         <thead>
                             <th width="20%">Parameter</th>
                             <th>Value</th>
@@ -159,99 +161,99 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">MinimumStakeDiff</td>
-                                <td class="mono">{{template "decimalParts" (amountAsDecimalParts .Params.MinimumStakeDiff true)}} DCR</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">MinimumStakeDiff</td>
+                                <td class="mono">{{template "decimalParts" (amountAsDecimalParts $.ChainParams.MinimumStakeDiff true)}} DCR</td>
                                 <td>Minimum amount of Atoms required to purchase a stake ticket</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">TicketPoolSize</td>
-                                <td class="mono">{{.Params.TicketPoolSize}} ({{.ActualTicketPoolSize}} actual)</td>
-                                <td>Target size of ticket pool</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TicketPoolSize</td>
+                                <td class="mono">{{$.ChainParams.TicketPoolSize}} ({{.ActualTicketPoolSize}} actual)</td>
+                                <td>Target size of ticket pool. (actual ticket count = TicketPoolSize x TicketsPerBlock)</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">TicketsPerBlock</td>
-                                <td class="mono">{{.Params.TicketsPerBlock}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TicketsPerBlock</td>
+                                <td class="mono">{{$.ChainParams.TicketsPerBlock}}</td>
                                 <td>Average number of tickets per block for Decred PoS</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">TicketMaturity</td>
-                                <td class="mono">{{.Params.TicketMaturity}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TicketMaturity</td>
+                                <td class="mono">{{$.ChainParams.TicketMaturity}} blocks</td>
                                 <td>Number of blocks for tickets to mature</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">TicketExpiry</td>
-                                <td class="mono">{{.Params.TicketExpiry}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TicketExpiry</td>
+                                <td class="mono">{{$.ChainParams.TicketExpiry}} blocks</td>
                                 <td>Number of blocks for tickets to expire after they have matured</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">CoinbaseMaturity</td>
-                                <td class="mono">{{.Params.CoinbaseMaturity}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">CoinbaseMaturity</td>
+                                <td class="mono">{{$.ChainParams.CoinbaseMaturity}} blocks</td>
                                 <td>Number of blocks required before newly mined coins (coinbase transactions) can be spent</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">SStxChangeMaturity</td>
-                                <td class="mono">{{.Params.SStxChangeMaturity}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">SStxChangeMaturity</td>
+                                <td class="mono">{{$.ChainParams.SStxChangeMaturity}} blocks</td>
                                 <td>Maturity for spending SStx change outputs</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">TicketPoolSizeWeight</td>
-                                <td class="mono">{{.Params.TicketPoolSizeWeight}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">TicketPoolSizeWeight</td>
+                                <td class="mono">{{$.ChainParams.TicketPoolSizeWeight}}</td>
                                 <td>Multiplicative weight applied to the ticket pool size difference between a window period and its target when determining the stake system</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeDiffAlpha</td>
-                                <td class="mono">{{.Params.StakeDiffAlpha}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">StakeDiffAlpha</td>
+                                <td class="mono">{{$.ChainParams.StakeDiffAlpha}}</td>
                                 <td>stake difficulty EMA calculation alpha (smoothing) value</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeDiffWindowSize</td>
-                                <td class="mono">{{.Params.StakeDiffWindowSize}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">StakeDiffWindowSize</td>
+                                <td class="mono">{{$.ChainParams.StakeDiffWindowSize}} blocks</td>
                                 <td>Number of blocks used for each interval in exponentially weighted average</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeDiffWindows</td>
-                                <td class="mono">{{.Params.StakeDiffWindows}} windows</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">StakeDiffWindows</td>
+                                <td class="mono">{{$.ChainParams.StakeDiffWindows}} windows</td>
                                 <td>Number of windows (intervals) used for calculation of the exponentially weighted average</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeVersionInterval</td>
-                                <td class="mono">{{.Params.StakeVersionInterval}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">StakeVersionInterval</td>
+                                <td class="mono">{{$.ChainParams.StakeVersionInterval}} blocks</td>
                                 <td>Interval where the stake version is calculated</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">MaxFreshStakePerBlock</td>
-                                <td class="mono">{{.Params.MaxFreshStakePerBlock}} tickets</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">MaxFreshStakePerBlock</td>
+                                <td class="mono">{{$.ChainParams.MaxFreshStakePerBlock}} tickets</td>
                                 <td>Maximum number of new tickets that may be submitted per block</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0"><a href="/block/{{.Params.StakeEnabledHeight}}">StakeEnabledHeight</a></td>
-                                <td class="mono">{{.Params.StakeEnabledHeight}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0"><a href="/block/{{$.ChainParams.StakeEnabledHeight}}">StakeEnabledHeight</a></td>
+                                <td class="mono">{{$.ChainParams.StakeEnabledHeight}}</td>
                                 <td>Height in which the first ticket could possibly mature</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0"><a href="/block/{{.Params.StakeValidationHeight}}">StakeValidationHeight</a></td>
-                                <td class="mono">{{.Params.StakeValidationHeight}}</a></td>
+                                <td class="mono text-left pr-2 nowrap p03rem0"><a href="/block/{{$.ChainParams.StakeValidationHeight}}">StakeValidationHeight</a></td>
+                                <td class="mono">{{$.ChainParams.StakeValidationHeight}}</a></td>
                                 <td>Height at which votes (SSGen) are required to add a new block to the top of the blockchain</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeBaseSigScript</td>
-                                <td class="mono">{{convertByteArrayToString .Params.StakeBaseSigScript}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">StakeBaseSigScript</td>
+                                <td class="mono">{{convertByteArrayToString $.ChainParams.StakeBaseSigScript}}</td>
                                 <td>Consensus stakebase signature script for all votes on the network</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeMajorityMultiplier</td>
-                                <td class="mono">{{.Params.StakeMajorityMultiplier}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">StakeMajorityMultiplier</td>
+                                <td class="mono">{{$.ChainParams.StakeMajorityMultiplier}}</td>
                                 <td>Calculate the super majority of stake votes using integer math</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">StakeMajorityDivisor</td>
-                                <td class="mono">{{.Params.StakeMajorityDivisor}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">StakeMajorityDivisor</td>
+                                <td class="mono">{{$.ChainParams.StakeMajorityDivisor}}</td>
                                 <td>Calculate the super majority of stake votes using integer math</td>
                             </tr>
                         </tbody>
                     </table>
                     <h4><span>Rule change parameters</span></h4>
-                    <table class="table table-mono-cells table-sm striped momo f15">
+                    <table class="table table-mono-cells table-sm striped f15">
                         <thead>
                             <th width="20%">Parameter</th>
                             <th>Value</th>
@@ -259,59 +261,59 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">RuleChangeActivationQuorum</td>
-                                <td class="mono">{{.Params.RuleChangeActivationQuorum}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">RuleChangeActivationQuorum</td>
+                                <td class="mono">{{$.ChainParams.RuleChangeActivationQuorum}}</td>
                                 <td>Number of votes required for a vote to take effect</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">RuleChangeActivationMultiplier</td>
-                                <td class="mono">{{.Params.RuleChangeActivationMultiplier}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">RuleChangeActivationMultiplier</td>
+                                <td class="mono">{{$.ChainParams.RuleChangeActivationMultiplier}}</td>
                                 <td></td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">RuleChangeActivationDivisor</td>
-                                <td class="mono">{{.Params.RuleChangeActivationDivisor}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">RuleChangeActivationDivisor</td>
+                                <td class="mono">{{$.ChainParams.RuleChangeActivationDivisor}}</td>
                                 <td></td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">RuleChangeActivationInterval</td>
-                                <td class="mono">{{.Params.RuleChangeActivationInterval}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">RuleChangeActivationInterval</td>
+                                <td class="mono">{{$.ChainParams.RuleChangeActivationInterval}} blocks</td>
                                 <td>Number of blocks in each threshold state retarget window</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">BlockEnforceNumRequired</td>
-                                <td class="mono">{{.Params.BlockEnforceNumRequired}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">BlockEnforceNumRequired</td>
+                                <td class="mono">{{$.ChainParams.BlockEnforceNumRequired}} blocks</td>
                                 <td>Enforce current block version once network has upgraded</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">BlockRejectNumRequired</td>
-                                <td class="mono">{{.Params.BlockRejectNumRequired}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">BlockRejectNumRequired</td>
+                                <td class="mono">{{$.ChainParams.BlockRejectNumRequired}} blocks</td>
                                 <td>Reject previous block versions once network has upgraded</td>
                             </tr>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">BlockUpgradeNumToCheck</td>
-                                <td class="mono">{{.Params.BlockUpgradeNumToCheck}} blocks</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">BlockUpgradeNumToCheck</td>
+                                <td class="mono">{{$.ChainParams.BlockUpgradeNumToCheck}} blocks</td>
                                 <td>The number of nodes to check</td>
                             </tr>
                         </tbody>
                     </table>
                     <h4><span>Address parameters</span></h4>
-                    <table class="table mono table-mono-cells table-sm striped">
+                    <table class="table table-mono-cells table-sm striped">
                         <thead>
                             <th width="20%">Address</th>
-                            <th>Preffix</th>
+                            <th>Prefix</th>
                             <th width="60%">Description</th>
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">NetworkAddressPrefix</td>
-                                <td class="mono">{{.Params.NetworkAddressPrefix}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">NetworkAddressPrefix</td>
+                                <td class="mono">{{$.ChainParams.NetworkAddressPrefix}}</td>
                                 <td>First letter of the network for any given address encoded as a string</td>
                             </tr>
                             {{range $i, $v := .AddressPrefix}}
                             {{with $v}}
                             <tr>
-                                <td class="mono text-right pr-2 nowrap p03rem0">{{.Name}}</td>
+                                <td class="mono text-left pr-2 nowrap p03rem0">{{.Name}}</td>
                                 <td class="mono">{{.Prefix}}</td>
                                 <td class="mono">{{.Description}}</td>
                             </tr>
