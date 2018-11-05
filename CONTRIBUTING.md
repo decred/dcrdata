@@ -48,6 +48,17 @@ Only submit a PR once the intended edits are either done or nearing completion. 
 git clone git@github.com:my-user-name/dcrdata.git
 ```
 
+###### recommended
+
+Setting your master branch to track this repository makes keeping everything up-to-date a breeze. 
+The rest of this workflow guide will assume that you have completed this step. 
+
+```sh
+git remote add upstream https://github.com/decred/dcrdata.git
+git fetch upstream
+git branch -u upstream/master master
+```
+
 3. Make a branch for your planned work, based on `master`
 
 ```sh
@@ -76,17 +87,18 @@ git commit # type a good commit message
 
 6. Bring master up-to-date and rebase
 
-Since your local fork is likely out of sync with the Decred, you'll need to realign everything and clean up your commits.
+Since the Decred repo may have changes that you do not have locally, you'll want to pull in any changes and rebase.
+Read [this](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase) if you need a primer on rebasing.
 
 ```sh
 git checkout master
-git pull https://github.com/decred/dcrdata.git
+git pull
 git checkout my-great-stuff
 git rebase -i master
 ```
 
 In the text editor, change the command from `pick` to `fixup` or `squash` for **all but the top** commit. Use `fixup` for little touchups to discard the commit's log message. If you want to use a different
-commit message for everything, change the command from  `pick` to `reword` on the top commit.
+commit message for everything, change the command from `pick` to `reword` on the top commit.
 It should look something like this before saving.
 
 
@@ -102,9 +114,9 @@ git rebase --continue
 # repeat until rebase completes
 ```
 
-8. Push your commit to GitHub
+8. Push your branch to GitHub
 
-Assuming `myremote` is the name of the remote used for *your* repository (by default, git sets this to `origin`):
+Assuming `myremote` is the name of the remote used for *your* repository (by default, git created an alias, `origin`, for *your* forked repository in step 2 above, but you can [name it whatever you'd like](https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes)):
 
 ```sh
 git push -u myremote my-great-stuff
@@ -137,15 +149,15 @@ Commit your work as in step 5 above.
 
 ###### a)
 
-Before resubmitting, clean up any little touchip commits you've made since the last time you pushed.
+Before resubmitting, clean up any little touchup commits you've made since the last time you pushed.
 If you've only made one commit since then, you can skip this step.
-For example, if you have made 3 commits since your last push, then run the following to put them together.
+For example, if you have made 3 commits since your last push, then run the following to "squash" them together.
 
 ```sh
 git rebase -i HEAD~3
 ```
 
-The number after the tilda (~) is the number of commits that you want to combine, including the one you did at the beginning of this step.
+The number after the tilda (~) is the number of commits that you want to combine, including the one you did at the beginning of this step. Try not to squash post-review commits with pre-review commits. Leaving them separate makes navigating the changes easier. 
 
 ###### b)
 
@@ -153,16 +165,16 @@ Then rebase the entire branch back to an updated master.
 
 ```sh
 git checkout master
-git pull https://github.com/decred/dcrdata.git
+git pull
 git checkout my-great-stuff
-git rebase $(git merge-base master HEAD)
+git rebase master
 ```
 
-Note the different 4th command. 
+Note that the 4th command is different than step 6. You already performed the squash in the last step, so an interactive rebase (`-i`) is not needed here.
 
 ###### c)
 
-Push the changes to your remote branch. 
+Push the changes to your remote fork. 
 
 ```sh
 git push myremote my-great-stuff
@@ -170,6 +182,8 @@ git push myremote my-great-stuff
 
 Depending on what has changed, you will likely receive an error message rejecting your push for a misaligned branch tip. This is normal.
 Rerun with the `--force` flag. 
+
+As soon as you push, your changes will be ready for review. There is typically no need to notify anybody that the changes have been made. Github takes care of that. Feel free to leave a comment on the pull request with a brief description of your changes. 
 
 ## Go Development Tips
 
