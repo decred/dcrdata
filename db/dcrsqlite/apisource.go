@@ -1024,6 +1024,13 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	tx.FormattedTime = t.Format("2006-01-02 15:04:05")
 	tx.Confirmations = data.Confirmations
 
+	msgTx, err := txhelpers.MsgTxFromHex(data.Hex)
+	if err == nil {
+		tx.TxType = txhelpers.DetermineTxTypeString(msgTx)
+	} else {
+		log.Warn("makeExplorerAddressTx cannot get tx type", err)
+	}
+
 	for i := range data.Vin {
 		if data.Vin[i].PrevOut != nil && len(data.Vin[i].PrevOut.Addresses) > 0 {
 			if data.Vin[i].PrevOut.Addresses[0] == address {
