@@ -408,7 +408,7 @@
                 for(idx in txs){
                     if(txs[idx].TxID ==  txid){
                         needsConfirmation.remove();
-                        $("[data-confirmation-block-height]").data("confirmation-block-height", block.height).html("(1 confirmation)");
+                        $("[data-confirmation-block-height]").data("confirmation-block-height", block.height - 1).html("(1 confirmation)");
                         $("#txMempoolLink").html(block.height).attr("href", "/block/"+block.hash);
                         $("#txFmtTime").html(formatTxDate(block.time));
                         $("#txAge").html(humanize.timeSince(block.time)).before("(").after(" ago)").attr("data-age",block.time);

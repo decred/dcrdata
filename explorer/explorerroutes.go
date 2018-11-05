@@ -897,7 +897,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		BlockInds:         blockInds,
 		HasValidMainchain: hasValidMainchain,
 		// ConfirmHeight is now the same as tx.BlockHeight here.
-		ConfirmHeight:    exp.Height() - tx.Confirmations + 1,
+		ConfirmHeight:    exp.Height() - tx.Confirmations,
 		NetName:          exp.NetName,
 		HighlightInOut:   inout,
 		HighlightInOutID: inoutid,

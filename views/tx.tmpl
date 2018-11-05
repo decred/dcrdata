@@ -107,7 +107,7 @@
                                             aria-valuenow="{{.Confirmations}}"
                                             aria-valuemin="0"
                                             aria-valuemax="{{.TicketInfo.TicketMaturity}}"
-                                            data-confirm-height="{{$.ConfirmHeight}}"
+                                            data-confirm-height="{{add $.ConfirmHeight 1}}"
                                             data-tx-type="{{.Type}}"
                                         >
                                             <span class="nowrap pl-1 pr-1">
@@ -153,7 +153,7 @@
                                             aria-valuenow="{{.Confirmations}}"
                                             aria-valuemin="0"
                                             aria-valuemax="{{.Maturity}}"
-                                            data-confirm-height="{{$.ConfirmHeight}}"
+                                            data-confirm-height="{{add $.ConfirmHeight 1}}"
                                             data-tx-type="{{.Type}}"
                                         >
                                             <span class="nowrap pl-1 pr-1">
@@ -218,7 +218,7 @@
                                                     aria-valuenow="{{.Confirmations}}"
                                                     aria-valuemin="0"
                                                     aria-valuemax="{{.TicketInfo.TicketExpiry}}"
-                                                    data-confirm-height="{{add $.ConfirmHeight (uint16toInt64 $.ChainParams.TicketMaturity)}}"
+                                                    data-confirm-height="{{add (add $.ConfirmHeight 1) (uint16toInt64 $.ChainParams.TicketMaturity)}}"
                                                     data-tx-type="LiveTicket"
                                                 >
                                                     <span class="nowrap pl-1 pr-1">
