@@ -102,10 +102,10 @@
                         {{end}}
                     </tr>
                     {{if ne .NumUnconfirmed 0}}
-                        <tr>
+                        <tr class="numunconfirmed" data-target="address.numUnconfirmed">
                             <td class="text-right pr-2">UNCONFIRMED</td>
                             <td class="mono nowrap text-right">
-                                {{.NumUnconfirmed}} transaction{{if gt .NumUnconfirmed 0}}s{{end}}
+                            {{.NumUnconfirmed}} transaction{{if gt .NumUnconfirmed 0}}s{{end}}
                             </td>
                         </tr>
                     {{end}}

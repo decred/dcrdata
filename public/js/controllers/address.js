@@ -76,11 +76,16 @@
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
             return ['options', 'addr', 'btns', 'unspent',
-                    'flow', 'zoom', 'interval']
+                    'flow', 'zoom', 'interval', 'numUnconfirmed']
         }
 
         initialize(){
             var _this = this
+            globalEventBus.on('BLOCK_RECEIVED', function (data) {
+                _this.numUnconfirmedTargets.forEach((el,i) => {
+                    el.classList.add('hidden')
+                })
+            })
             $.getScript('/js/dygraphs.min.js', () => {
                 _this.typesGraphOptions = {
                     labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
