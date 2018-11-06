@@ -304,11 +304,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
-<<<<<<< HEAD
-			"Windows page cannot run in lite mode.", ExpStatusNotSupported)
-=======
-			"Windows page cannot run in lite mode.", "", NotSupportedStatusType)
->>>>>>> requested additions and fixing conflicts
+			"Windows page cannot run in lite mode.", "", ExpStatusNotSupported)
 	}
 
 	offsetWindow, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
@@ -336,11 +332,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 	if err != nil {
 		log.Errorf("The specified windows are invalid. offset=%d&rows=%d: error: %v ", offsetWindow, rows, err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", ExpStatusNotFound)
-=======
-		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", "", NotFoundStatusType)
->>>>>>> requested additions and fixing conflicts
+		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", "", ExpStatusNotFound)
 		return
 	}
 
@@ -364,7 +356,6 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-<<<<<<< HEAD
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
@@ -465,10 +456,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested additions and fixing conflicts
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -1163,6 +1151,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
+<<<<<<< HEAD
 	if exp.liteMode {
 		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 		if err != nil && strings.HasPrefix(err.Error(), "wrong network") {
@@ -1181,7 +1170,27 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("Unable to get address %s: %v", address, err)
 			exp.StatusPage(w, defaultErrorCode, "Unexpected issue locating data for that address.", "", ErrorStatusType)
 			return
+=======
+	addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+	if err != nil {
+		st := WrongNetworkStatusType
+		message := err.Error()
+		if err.Error() == "P2PK address detected" {
+			st = P2PkAddressStatusTypes
+			message = "Looks like you are searching for an address of type P2PK"
+		} else if err.Error() == "Possible Bitcoin address detected." {
+			st = BitcoinWrongNetworkStatusType
+			message = "Looks like you are searching for a bitcoin address"
+		} else if strings.HasPrefix(err.Error(), "Wrong Network") {
+		} else {
+			st = ErrorStatusType
+			message = "Unexpected issue locating data for that address."
+>>>>>>> review changes- fixing where wrong addresses open on the address page
 		}
+		exp.StatusPage(w, defaultErrorCode, message, address, st)
+		return
+	}
+	if exp.liteMode {
 		if addrData == nil {
 			log.Errorf("Unable to get address %s", address)
 			exp.StatusPage(w, defaultErrorCode, "could not find that address", "", NotFoundStatusType)
@@ -1606,6 +1615,10 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		} else if err.Error() == "Possible Bitcoin address detected." {
 			st = BitcoinWrongNetworkStatusType
 			message = "Looks like you are searching for a bitcoin address"
+		} else if strings.HasPrefix(err.Error(), "Wrong Network") {
+		} else {
+			st = ErrorStatusType
+			message = "Unexpected issue locating data for that address."
 		}
 		exp.StatusPage(w, "search failed", message, ai, st)
 		return
