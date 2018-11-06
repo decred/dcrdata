@@ -112,7 +112,7 @@
                     <div class="col-sm-4">
                         <div class="heading">Hashrate</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}<span>
+                            <span id="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
                             <span class="pl-1 unit lh15rem">Ph/s</span>
                         </div>
                         <div class="subdata">
@@ -194,7 +194,7 @@
                         {{end}}
                         {{if gt $ticketsCount 50}}
                         <!-- show total number of tickets -->
-                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of $ticketsCount tickets">
+                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of {{$ticketsCount}} tickets">
                             <a class="block-element-link" href="#">+ {{intSubtract $ticketsCount 30}}</a>
                         </span>
                         {{end}}
@@ -222,7 +222,7 @@
                         {{end}}
                         {{if gt $txCount 50}}
                         <!-- show total number of tickets -->
-                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of $txCount transactions">
+                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of {{$txCount}} transactions">
                             <a class="block-element-link" href="#">+ {{intSubtract $txCount 30}}</a>
                         </span>
                         {{end}}
@@ -298,7 +298,7 @@
                         {{end}}
                         {{if gt $ticketsCount 50}}
                         <!-- show total number of tickets -->
-                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of $ticketsCount tickets">
+                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of {{$ticketsCount}} tickets">
                             <a class="block-element-link" href="#">+ {{intSubtract $ticketsCount 30}}</a>
                         </span>
                         {{end}}
@@ -326,7 +326,7 @@
                         {{end}}
                         {{if gt $txCount 50}}
                         <!-- show total number of tickets -->
-                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of $txCount transactions">
+                        <span class="block-ticket" style="flex-grow: 10; flex-basis: 50px;" title="Total of {{$txCount}} transactions">
                             <a class="block-element-link" href="#">+ {{intSubtract $txCount 30}}</a>
                         </span>
                         {{end}}
@@ -336,7 +336,7 @@
                 </div>
                 {{end}}
             </div>
-            <a class="no-underline" style="display: block; margin-top: 25px;" href="/blocks"><div class="showmore"><p>View BlockChain History</p></div></a>
+            <a class="no-underline d-block mt-4" href="/blocks"><div class="showmore"><p>View BlockChain History</p></div></a>
         </div>
     </div>
 

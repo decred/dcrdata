@@ -25,96 +25,6 @@
     font-weight: 700;
     font-style: normal;
 }
-header .logo img {
-  height: 100%;
-  vertical-align: initial;
-}
-header .right {
-    display: flex;
-    flex: 1;
-    justify-content: flex-end;
-    align-items: center;
-}
-header #search-form {
-  align-items: center;
-}
-header .right .searchbox {
-    cursor: pointer;
-    position: relative;
-}
-header .right .searchbox img {
-    width: 20px;
-    margin-right: 5px;
-    align-self: flex-end;
-}
-header .right .searchbox input {
-    font-family: "Source Sans Pro", sans-serif;
-    border: none;
-    border-bottom: 1px solid #c3cad1;
-    transition: 0.2s ease-out;
-}
-header .right .searchbox input.hide {
-    width: 0 !important;
-}
-header .right .searchbox.full {
-  flex-grow: 1;
-  margin: 0 2rem;
-}
-header .right .searchbox.full input {
-    width: 95%;
-}
-header .right .switch {
-    font-size: 14px;
-    font-family: "Source Sans Pro", sans-serif;
-    margin-right: 25px;
-    cursor: pointer;
-    transition: 0.2s linear;
-}
-header .right .switch span img {
-    width: 20px;
-    margin: 0 5px;
-    transition: 0.1s linear;
-}
-header .right .switch:hover {
-    opacity: 0.5;
-}
-header .right .switch:hover span img {
-    transform: rotate(180deg);
-}
-header .right .menu {
-    position: relative;
-    height: 19px;
-    width: 25px;
-    cursor: pointer;
-}
-header .right .menu span {
-    position: absolute;
-    transition: 0.1s linear;
-}
-header .right .menu span.one {
-    height: 3px;
-    width: 100%;
-    top: 0;
-    background: #17173C;
-}
-header .right .menu span.two {
-    height: 3px;
-    width: 100%;
-    top: 8px;
-    background: #17173C;
-}
-header .right .menu span.three {
-    height: 3px;
-    width: 60%;
-    bottom: 0;
-    background: #17173C;
-}
-header .right .menu:hover span.one {
-    width: 60%;
-}
-header .right .menu:hover span.three {
-    width: 100%;
-}
 *:focus {
     outline: none !important;
 }
@@ -398,50 +308,6 @@ body {
 .blockhchainWrapper table#blockchainTable tr.data:hover {
     background: #eeeeee;
 }
-footer {
-    background: white;
-    height: 50px;
-    position: fixed;
-    width: 100%;
-    bottom: 0;
-    font-family: "Source Sans Pro", sans-serif;
-    color: #8997A5;
-    font-size: 12px;
-}
-footer .container {
-    display: flex;
-    flex-direction: row;
-    height: 50px;
-    align-items: center;
-    justify-content: space-between;
-}
-footer .container p {
-    margin-bottom: 0;
-}
-footer .container .left * {
-    float: left;
-}
-footer .container .right {
-    position: relative;
-    padding-right: 17px;
-    display: flex;
-    align-items: center;
-}
-footer .container .right span {
-    position: absolute;
-    width: 15px;
-    height: 15px;
-    right: 0;
-    border-radius: 25px;
-}
-footer .container .right span.red {
-    background: red;
-    border: 3px solid #ffcccc;
-}
-footer .container .right span.green {
-    background: #0ead8f;
-    border: 3px solid #91f6e3;
-}
 #mainContainer.stats {
     padding: 60px 0;
 }
@@ -605,9 +471,6 @@ footer .container .right span.green {
     }
 }
 @media (min-width: 1400px) {
-    .container {
-        max-width: 1280px !important;
-    }
     .top-nav .logo a {
         width: 120px !important;
     }
@@ -625,9 +488,6 @@ footer .container .right span.green {
 @media only screen and (max-width: 768px) {
     #nexthome .container {
         padding: 0 5%;
-    }
-    .container {
-        max-width: 85% !important;
     }
     .top-nav .logo a {
         width: 90px !important;
@@ -682,28 +542,15 @@ footer .container .right span.green {
 body.darkBG .netstats-section .statCard {
     background: #2d2d2d!important
 }
-
 body.darkBG .blocks-section .showmore {
     background: #2d2d2d!important
 }
-
 body.darkBG .blocks-holder .info-block {
     background: #2d2d2d!important
 }
-
 body.darkBG .blocks-holder .info-block .color-code {
     color: rgba(148, 255, 202, .75)!important
 }
-
 input#search {
     background: inherit!important
-}
-
-body .top-nav .logo a {
-    display: block;
-    content: url("/images/themes/light/logo.svg")
-}
-
-body.darkBG .top-nav .logo a {
-    content: url("/images/themes/night/logo.svg")
 }
