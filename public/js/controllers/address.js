@@ -146,10 +146,6 @@
                 } else {
                     var selectedVal = this.optionsTarget.namedItem(hashVal)
                     $(this.optionsTarget).val((selectedVal ? selectedVal.value : 'types'))
-
-                    $('.addr-btn').removeClass('btn-active');
-                    $('.chart').addClass('btn-active');
-
                     this.changeView()
                 }
             })
@@ -244,7 +240,10 @@
             });
         }
 
-        changeView() {
+        changeView(e) {
+            $('.addr-btn').removeClass('btn-active');
+            $(e ? e.srcElement : '.chart').addClass('btn-active');
+
             var _this = this
             _this.disableBtnsIfNotApplicable()
 
@@ -265,7 +264,12 @@
             $('.'+divHide+'-display').addClass('d-hide');
         }
 
-        changeGraph(){
+        changeGraph(e){
+            if (e.srcElement.className.includes('.chart-size')){
+                $(e.srcElement).siblings().removeClass('btn-active');
+                $(e.srcElement).toggleClass('btn-active');
+            }
+
             $('body').addClass('loading');
             this.drawGraph()
         }
@@ -278,7 +282,10 @@
            }
         }
 
-        onZoom(){
+        onZoom(e){
+            $(e.srcElement).siblings().removeClass('btn-active');
+            $(e.srcElement).toggleClass('btn-active');
+
             if (this.graph == undefined) {
                 return
             }

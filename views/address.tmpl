@@ -38,8 +38,8 @@
                     data-target="address.btns"
                     data-action="click->address#changeView"
                 >
-                    <input id="list" type="button" class="addr-btn btn btn_sm btn-active" value="List" name="list">
-                    <input id="chart" type="button" class="addr-btn btn btn_sm" value="Charts"
+                    <input type="button" class="addr-btn list btn btn_sm btn-active" value="List" name="list">
+                    <input type="button" class="addr-btn chart btn btn_sm" value="Charts"
                         name="chart" {{if or $.IsLiteMode (le (len .Transactions) 1)}}disabled{{end}}>
                 </div>
             </div>
@@ -425,11 +425,6 @@
                 }
             })
         }
-
-        $('.addr-btn, .chart-zoom, .chart-size').on('click', function(){
-            $(this).siblings().removeClass('btn-active');
-            $(this).toggleClass('btn-active');
-        });
 
     </script>
     {{end}}
