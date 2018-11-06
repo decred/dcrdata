@@ -149,11 +149,11 @@
                             data-target="address.zoom"
                             data-action="click->address#onZoom"
                         >
-                            <input id="chart-zoom" type="button" class="btn btn_sm btn-active all" value="All Time" name="0">
-                            <input id="chart-zoom" type="button" class="btn btn_sm year" value="Year" name="3.154e+10">
-                            <input id="chart-zoom" type="button" class="btn btn_sm month" value="Month" name="2.628e+9">
-                            <input id="chart-zoom" type="button" class="btn btn_sm week" value="Week" name="6.048e+8">
-                            <input id="chart-zoom" type="button" class="btn btn_sm day" value="Day" name="8.64e+7">
+                            <input type="button" class="chart-zoom btn btn_sm btn-active all" value="All Time" name="0">
+                            <input type="button" class="chart-zoom btn btn_sm year" value="Year" name="3.154e+10">
+                            <input type="button" class="chart-zoom btn btn_sm month" value="Month" name="2.628e+9">
+                            <input type="button" class="chart-zoom btn btn_sm week" value="Week" name="6.048e+8">
+                            <input type="button" class="chart-zoom btn btn_sm day" value="Day" name="8.64e+7">
                         </div>
                         <label style="margin: 0 1% 0 2%;">Group By </label>
                         <div
@@ -167,11 +167,11 @@
                             data-week="{{$.Metrics.WeekTxsCount}}"
                             data-day="{{$.Metrics.DayTxsCount}}"
                         >
-                            <input id="chart-size" type="button" class="btn btn_sm year" value="Year" name="yr">
-                            <input id="chart-size" type="button" class="btn btn_sm month" value="Month" name="mo">
-                            <input id="chart-size" type="button" class="btn btn_sm week" value="Week" name="wk">
-                            <input id="chart-size" type="button" class="btn btn_sm day" value="Day" name="day">
-                            <input id="chart-size" type="button" class="btn btn_sm all btn-active" value="All Blocks" name="all">
+                            <input type="button" class="chart-size btn btn_sm year" value="Year" name="yr">
+                            <input type="button" class="chart-size btn btn_sm month" value="Month" name="mo">
+                            <input type="button" class="chart-size btn btn_sm week" value="Week" name="wk">
+                            <input type="button" class="chart-size btn btn_sm day" value="Day" name="day">
+                            <input type="button" class="chart-size btn btn_sm all btn-active" value="All Blocks" name="all">
                         </div>
                     </div>
                     <h5 class="mr-auto mb-0 list-display">History</h5>
@@ -426,8 +426,8 @@
             })
         }
 
-        $('input[type=button]').on('click', function(){
-            $('input#'+this.id).removeClass('btn-active');
+        $('.addr-btn, .chart-zoom, .chart-size').on('click', function(){
+            $(this).siblings().removeClass('btn-active');
             $(this).toggleClass('btn-active');
         });
 
