@@ -147,7 +147,7 @@
                     var selectedVal = this.optionsTarget.namedItem(hashVal)
                     $(this.optionsTarget).val((selectedVal ? selectedVal.value : 'types'))
 
-                    $('#addr-btn').removeClass('btn-active');
+                    $('.addr-btn').removeClass('btn-active');
                     $('.chart').addClass('btn-active');
 
                     this.changeView()
@@ -326,8 +326,8 @@
                 this.enabledButtons[0] = "all"
             }
 
-            $("input#chart-size").removeClass("btn-active")
-            $("input#chart-size." + this.enabledButtons[0]).addClass("btn-active");
+            $("input.chart-size").removeClass("btn-active")
+            $("input.chart-size." + this.enabledButtons[0]).addClass("btn-active");
         }
 
         get options(){
