@@ -96,9 +96,16 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 				case "getmempooltxs":
-					exp.MempoolData.RLock()
-					msg, err := json.Marshal(exp.MempoolData)
-					exp.MempoolData.RUnlock()
+					// construct mempool object with properties required in template
+					mempoolInfo := exp.TrimmedMempoolInfo()
+					// mempool fees appear incorrect, temporarily set to zero for now
+					mempoolInfo.Fees = 0
+
+					exp.pageData.RLock()
+					mempoolInfo.Subsidy = exp.pageData.HomeInfo.NBlockSubsidy
+					exp.pageData.RUnlock()
+
+					msg, err := json.Marshal(mempoolInfo)
 
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)

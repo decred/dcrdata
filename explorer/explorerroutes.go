@@ -36,6 +36,9 @@ const (
 	wrongNetwork        = "Wrong Network"
 )
 
+// number of blocks displayed on /nexthome
+const homePageBlocksMaxCount = 30
+
 // netName returns the name used when referring to a decred network.
 func netName(chainParams *chaincfg.Params) string {
 	if strings.HasPrefix(strings.ToLower(chainParams.Name), "testnet") {
@@ -146,32 +149,135 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 	io.WriteString(w, str)
 }
 
+// show only regular tx in block.Transactions, exclude coinbase (reward) transactions
+// for use in NextHome handler and websocket response to getmempooltxs event
+func filterRegularTx(txs []*TrimmedTxInfo) (transactions []*TrimmedTxInfo) {
+	for _, tx := range txs {
+		if !tx.Coinbase {
+			transactions = append(transactions, tx)
+		}
+	}
+	return transactions
+}
+
+func trimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
+	for _, tx := range txs {
+		txBasic := &TxBasic{
+			Coinbase: tx.Coinbase,
+			TxID:     tx.TxID,
+			Total:    tx.TotalOut,
+			VoteInfo: tx.VoteInfo,
+		}
+
+		var voteValid bool
+		if tx.VoteInfo != nil {
+			voteValid = tx.VoteInfo.Validation.Validity
+		}
+
+		trimmedTx := &TrimmedTxInfo{
+			TxBasic:   txBasic,
+			Fees:      tx.Fees,
+			VoteValid: voteValid,
+			VinCount:  tx.VinCount,
+			VoutCount: tx.VoutCount,
+		}
+
+		trimmedTxs = append(trimmedTxs, trimmedTx)
+	}
+
+	return trimmedTxs
+}
+
+func filterUniqueLastBlockVotes(txs []*TrimmedTxInfo) (votes []*TrimmedTxInfo) {
+	for _, tx := range txs {
+		if tx.VoteInfo != nil && tx.VoteInfo.ForLastBlock == true {
+			votes = append(votes, tx)
+		}
+	}
+	return votes
+}
+
+// convert the *MempoolInfo in exp.MempoolData to *MempoolData
+func (exp *explorerUI) TrimmedMempoolInfo() *TrimmedMempoolInfo {
+	exp.MempoolData.RLock()
+
+	mempoolRegularTxs := trimMempoolTx(exp.MempoolData.Transactions)
+	mempoolVotes := trimMempoolTx(exp.MempoolData.Votes)
+
+	data := &TrimmedMempoolInfo{
+		Transactions: filterRegularTx(mempoolRegularTxs),
+		Tickets:      trimMempoolTx(exp.MempoolData.Tickets),
+		Votes:        filterUniqueLastBlockVotes(mempoolVotes),
+		Revocations:  trimMempoolTx(exp.MempoolData.Revocations),
+		Total:        exp.MempoolData.TotalOut,
+		Time:         exp.MempoolData.LastBlockTime,
+	}
+
+	exp.MempoolData.RUnlock()
+
+	// calculate total fees for mempool block
+	getTotalFee := func(txs []*TrimmedTxInfo) (total float64) {
+		for _, tx := range txs {
+			total += tx.Fees
+		}
+		return
+	}
+
+	data.Fees = getTotalFee(data.Transactions) + getTotalFee(data.Revocations) + getTotalFee(data.Tickets) +
+		getTotalFee(data.Votes)
+
+	return data
+}
+
 // NextHome is the page handler for the "/nexthome" path.
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
+	// Get top N blocks and trim each block to have just the fields required for this page.
 	height := exp.blockData.GetHeight()
+	blocks := exp.blockData.GetExplorerFullBlocks(height, height-homePageBlocksMaxCount)
 
-	blocks := exp.blockData.GetExplorerFullBlocks(height, height-11)
+	// trim unwanted data in each block
+	trimmedBlocks := make([]*TrimmedBlockInfo, 0, len(blocks))
+	for _, block := range blocks {
+		trimmedBlock := &TrimmedBlockInfo{
+			Time:         block.BlockTime,
+			Height:       block.Height,
+			Total:        block.TotalSent,
+			Fees:         block.MiningFee,
+			Subsidy:      block.Subsidy,
+			Votes:        block.Votes,
+			Tickets:      block.Tickets,
+			Revocations:  block.Revs,
+			Transactions: filterRegularTx(block.Tx),
+		}
+
+		trimmedBlocks = append(trimmedBlocks, trimmedBlock)
+	}
+
+	// construct mempool object with properties required in template
+	mempoolInfo := exp.TrimmedMempoolInfo()
+	// mempool fees appear incorrect, temporarily set to zero for now
+	mempoolInfo.Fees = 0
 
 	exp.pageData.RLock()
-	exp.MempoolData.RLock()
+	mempoolInfo.Subsidy = exp.pageData.HomeInfo.NBlockSubsidy
 
 	str, err := exp.templates.execTemplateToString("nexthome", struct {
 		ChainParams *chaincfg.Params
 		Info        *HomeInfo
-		Mempool     *MempoolInfo
-		Blocks      []*BlockInfo
+		Mempool     *TrimmedMempoolInfo
+		Blocks      []*TrimmedBlockInfo
 		Version     string
 		NetName     string
 	}{
 		exp.ChainParams,
 		exp.pageData.HomeInfo,
-		exp.MempoolData,
-		blocks,
+		mempoolInfo,
+		trimmedBlocks,
 		exp.Version,
 		exp.NetName,
 	})
+
 	exp.pageData.RUnlock()
-	exp.MempoolData.RUnlock()
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)

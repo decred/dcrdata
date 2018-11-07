@@ -3,9 +3,9 @@
   font-family: 'icomoon';
   src:  url('/fonts/icomoon.eot?g003m6');
   src:  url('/fonts/icomoon.eot?g003m6#iefix') format('embedded-opentype'),
-    url('/fonts/icomoon.ttf?g003m6') format('truetype'),
-    url('/fonts/icomoon.woff?g003m6') format('woff'),
-    url('/fonts/icomoon.svg?g003m6#icomoon') format('svg');
+  url('/fonts/icomoon.ttf?g003m6') format('truetype'),
+  url('/fonts/icomoon.woff?g003m6') format('woff'),
+  url('/fonts/icomoon.svg?g003m6#icomoon') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -110,7 +110,7 @@ body.theme-testnet .navbar-fixed-bottom .nav-item {
   color: #fff;
 }
 body.theme-testnet .top-search {
- color: #fff;
+  color: #fff;
 }
 body.theme-testnet #menuToggle .patty {
   background: #fff;
@@ -127,7 +127,7 @@ body.theme-simnet .navbar-fixed-bottom {
   color: #fff;
 }
 body.theme-simnet .top-search {
- color: #fff;
+  color: #fff;
 }
 
 body.theme-simnet .navbar-fixed-bottom .nav-item {
@@ -193,7 +193,7 @@ body.darkBG .json-block {
   color: #fdfdfd;
 }
 body.darkBG .top-search {
- color: #7fbdff;
+  color: #7fbdff;
 }
 body.darkBG .top-nav input:-webkit-autofill {
   -webkit-animation-name: autofillDark;
@@ -420,9 +420,9 @@ body.darkBG .progress {
   z-index: 1;
   transform-origin: top right;
   transition: transform 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
-              background 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
-              width .3s,
-              opacity 0.55s ease;
+  background 0.5s cubic-bezier(0.77,0.2,0.05,1.0),
+  width .3s,
+  opacity 0.55s ease;
 }
 #menuToggle .patty.short {
   width: 14px;
@@ -482,8 +482,8 @@ body.darkBG .progress {
 }
 @-webkit-keyframes autofillDark {
   to {
-      color: #7fbdff;
-      background: transparent;
+    color: #7fbdff;
+    background: transparent;
   }
 }
 
@@ -497,9 +497,7 @@ body.darkBG .progress {
   padding: 0 6px;
   position: relative;
 }
-
-#watermark
-{
+#watermark {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%) rotate(-15deg);
@@ -632,12 +630,12 @@ body.darkBG .progress {
 .fs14-decimal .dot,
 .fs14-decimal .decimal,
 .fs14-decimal .unit {
-    font-size: 14px
+  font-size: 14px
 }
 .fs16-decimal .dot,
 .fs16-decimal .decimal,
 .fs16-decimal .unit {
-    font-size: 16px
+  font-size: 16px
 }
 .sep {
   position: relative;
@@ -727,7 +725,7 @@ a {
   animation-iteration-count: 1;
 }
 body.darkBG .keynav-target {
-   animation-name: greenHighlight;
+  animation-name: greenHighlight;
 }
 
 @keyframes highlight {
@@ -777,24 +775,24 @@ body.darkBG .keynav-target {
 /* Notice: Portions of the connection indicator style come from html5rocks.com */
 @-webkit-keyframes glowGreen {
   from {
-      -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+    -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
   }
   50% {
-      -webkit-box-shadow: rgba(0, 255, 0, 1) 0 0 10px;
+    -webkit-box-shadow: rgba(0, 255, 0, 1) 0 0 10px;
   }
   to {
-      -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
+    -webkit-box-shadow: rgba(0, 255, 0, 0) 0 0 0;
   }
 }
 @-webkit-keyframes glowRed {
   from {
-      -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+    -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
   }
   50% {
-      -webkit-box-shadow: rgba(255, 0, 0, 1) 0 0 10px;
+    -webkit-box-shadow: rgba(255, 0, 0, 1) 0 0 10px;
   }
   to {
-      -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
+    -webkit-box-shadow: rgba(255, 0, 0, 0) 0 0 0;
   }
 }
 #connection {
