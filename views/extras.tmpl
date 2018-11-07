@@ -189,10 +189,10 @@
     }
 
     // `formatTxDate`: Format a string to match the format `(UTC) YYYY-MM-DD HH:MM:SS` used by explorer.TxPage and tx.tmpl
-    function formatTxDate(stamp) {
+    function formatTxDate(stamp, withTimezone) {
         var d = new Date(stamp*1000);
-        var zone = d.toLocaleTimeString('en-us',{timeZoneName:'short'}).split(' ')[2];
-        return "("+zone+") "+String(d.getFullYear())+"-"+String(d.getMonth()+1).padStart(2, "0")+"-"+String(d.getDate()).padStart(2, "0")+" "
+        var zone = withTimezone ? "("+d.toLocaleTimeString('en-us',{timeZoneName:'short'}).split(' ')[2]+") " : "";
+        return zone+String(d.getFullYear())+"-"+String(d.getMonth()+1).padStart(2, "0")+"-"+String(d.getDate()).padStart(2, "0")+" "
             +String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0")+":"+String(d.getSeconds()).padStart(2, "0");
     }
 
@@ -244,7 +244,7 @@
                 if (isNaN($(v).text())) {
                     $(v).text("0");
                 }
-                var confirmations = newBlock.block.height - $(v).data('confirmation-block-height');
+                var confirmations = newBlock.block.height - $(v).data('confirmation-block-height') + 1;
                 $(v).text("(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")")
             })
 
@@ -254,6 +254,8 @@
 
 
             advanceTicketProgress(b)
+            confirmAddrMempool(b)
+
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
             if (expTableRows){
@@ -387,37 +389,47 @@
         }
     }
 
+    // Check for the txid in the given block
+    function txInBlock(txid, block) {
+      var txTypes = [block.Tx, block.Tickets, block.Revs, block.Votes]
+      for(txIdx in txTypes){
+          txs = txTypes[txIdx]
+          for(idx in txs){
+              if(txs[idx].TxID ==  txid){
+                  return true;
+              }
+          }
+      }
+      return false;
+    }
+
     // Advance various progress bars on /tx.
     function advanceTicketProgress(block){
         // Check for confirmations on mempool transactions.
         var needsConfirmation = $("[data-txid-mempool-display]")
         if(needsConfirmation.length && needsConfirmation.text() == "mempool"){
             var txid = needsConfirmation.data("txid-mempool-display");
-            var k, txs, idx;
-            $.each([block.Tx, block.Tickets, block.Revs, block.Votes], function(k, txs){
-                for(idx in txs){
-                    if(txs[idx].TxID ==  txid){
-                        needsConfirmation.remove();
-                        $("[data-confirmation-block-height]").data("confirmation-block-height", block.height - 1).html("(1 confirmation)");
-                        $("#txMempoolLink").html(block.height).attr("href", "/block/"+block.hash);
-                        $("#txFmtTime").html(formatTxDate(block.time));
-                        $("#txAge").html(humanize.timeSince(block.time)).before("(").after(" ago)").attr("data-age",block.time);
-                        var progressBar = $("#txMaturityProgress")
-                        var remainingBlocks = parseInt(progressBar.attr("aria-valuemax")) - 1
-                        var remainingTime = remainingBlocks*DCRThings.targetBlockTime
-                        progressBar.css({"width":"0.4%"}).attr("aria-valuenow","1"
-                      ).children("span").html("Immature, eligible to vote in "+remainingBlocks+" blocks ("+remainingTime.toFixed(1)+" hours remaining)")
-                        return false
-                    }
-                }
-            })
+            if(txInBlock(txid, block)){
+              needsConfirmation.remove();
+              $("[data-confirmation-block-height]").data("confirmation-block-height", block.height).html("(1 confirmation)");
+              $("#txMempoolLink").html(block.height).attr("href", "/block/"+block.hash);
+              $("#txFmtTime").html(formatTxDate(block.time, true));
+              $("#txAge").html(humanize.timeSince(block.time)).before("(").after(" ago)").attr("data-age",block.time);
+              var progressBar = $("#txMaturityProgress")
+              var remainingBlocks = parseInt(progressBar.attr("aria-valuemax")) - 1
+              progressBar.attr('data-confirm-height', block.height)
+            }
         }
         // Advance the progress bars.
         var ticketProgress = $("#txMaturityProgress");
         if(!ticketProgress.length){
             return;
         }
-        var confirmations = block.height - ticketProgress.data("confirm-height") + 1;
+        var txBlockHeight = ticketProgress.data("confirm-height")
+        if(txBlockHeight == 0){
+          return;
+        }
+        var confirmations = block.height - txBlockHeight + 1;
         var txType = ticketProgress.data("tx-type");
         var complete = parseInt(ticketProgress.attr("aria-valuemax"));
         if(confirmations == complete + 1){
@@ -435,8 +447,9 @@
         }
         else{
             var blocksLeft = complete+1-confirmations;
+            var remainingTime = blocksLeft*DCRThings.targetBlockTime
             if(txType == "LiveTicket"){
-                ticketProgress.children("span").html("block "+confirmations+" of "+complete+" ("+((1-ratio)*142.2).toFixed(1)+" days remaining)");
+                ticketProgress.children("span").html("block "+confirmations+" of "+complete+" ("+(remainingTime/86400.).toFixed(1)+" days remaining)");
                 // Chance of expiring is (1-P)^N where P := single-block probability of being picked, N := blocks remaining.
                 // This probability is using the network parameter rather than the calculated value. So far, the ticket pool size seems stable enough to do that.
                 var pctChance = Math.pow(1 - 1/DCRThings.ticketPoolSize, blocksLeft)*100;
@@ -444,10 +457,41 @@
             }
             else{
                 var typeStub = txType == "Ticket" ? "eligible to vote" : "spendable";
-                ticketProgress.children("span").html("Immature, "+typeStub+" in "+blocksLeft+" blocks ("+((1-ratio)*21.3).toFixed(1)+" hours remaining)");
+                ticketProgress.children("span").html("Immature, "+typeStub+" in "+blocksLeft+" blocks ("+(remainingTime/3600.).toFixed(1)+" hours remaining)");
             }
             ticketProgress.attr("aria-valuenow", confirmations).css({"width":(ratio*100).toString()+"%"});
         }
+    }
+
+    // Check the block for mempool transactions on the address page.
+    function confirmAddrMempool(block){
+      var mempoolRows = $("[data-addr-tx-pending]");
+      mempoolRows.each(function(idx, tr){
+        var row = $(tr)
+        var txid = row.data('addr-tx-pending')
+        if(txInBlock(txid, block)){
+          var confirms = row.children('.addr-tx-confirms');
+          confirms.attr('data-tx-block-height', block.height);
+          row.removeAttr('data-addr-tx-pending');
+          row.children('.addr-tx-time').html(formatTxDate(block.time, false));
+          row.children('.addr-tx-age').children('span').attr("data-age", block.time).html(humanize.timeSince(block.time));
+          confirms.html("1")
+        }
+      });
+      var confirmTds = $('[data-tx-block-height]');
+      confirmTds.each(function(idx, td){
+        confirms = $(td);
+        confirms.html(block.height - parseInt(confirms.data('tx-block-height')) + 1);
+      });
+      var pendingCounters = $('[data-tx-confirmations-pending]');
+      pendingCounters.each(function(i,c){
+        var counter = $(c);
+        var txid = counter.data('tx-confirmations-pending')
+        if(txInBlock(txid, block)){
+          counter.removeAttr('data-tx-confirmations-pending')
+          counter.attr('data-confirmation-block-height', block.height).html('(1 confirmation)')
+        }
+      });
     }
 
 </script>

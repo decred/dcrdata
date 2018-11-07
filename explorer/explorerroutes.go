@@ -346,13 +346,11 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pageData := struct {
-		Data          *BlockInfo
-		ConfirmHeight int64
-		Version       string
-		NetName       string
+		Data    *BlockInfo
+		Version string
+		NetName string
 	}{
 		data,
-		exp.Height() - data.Confirmations,
 		exp.Version,
 		exp.NetName,
 	}
@@ -789,7 +787,6 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		Blocks            []*dbtypes.BlockStatus
 		BlockInds         []uint32
 		HasValidMainchain bool
-		ConfirmHeight     int64
 		Version           string
 		NetName           string
 		HighlightInOut    string
@@ -799,8 +796,6 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		blocks,
 		blockInds,
 		hasValidMainchain,
-		// ConfirmHeight is now the same as tx.BlockHeight here.
-		exp.Height() - tx.Confirmations,
 		exp.Version,
 		exp.NetName,
 		inout,
@@ -823,13 +818,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
 	type AddressPageData struct {
-		Data          *AddressInfo
-		ConfirmHeight []int64
-		Version       string
-		NetName       string
-		OldestTxTime  int64
-		IsLiteMode    bool
-		ChartData     *dbtypes.ChartsData
+		Data           *AddressInfo
+		TxBlockHeights []int64
+		Version        string
+		NetName        string
+		OldestTxTime   int64
+		IsLiteMode     bool
+		ChartData      *dbtypes.ChartsData
 	}
 
 	// Get the address URL parameter, which should be set in the request context
@@ -998,6 +993,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnCredit {
 				addrTx := &AddressTx{
 					TxID:          fundingTx.Hash().String(),
+					TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx),
 					InOutID:       f.Index,
 					Time:          fundingTx.MemPoolTime,
 					FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
@@ -1052,6 +1048,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit {
 				addrTx := &AddressTx{
 					TxID:           spendingTx.Hash().String(),
+					TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx),
 					InOutID:        uint32(f.InputIndex),
 					Time:           spendingTx.MemPoolTime,
 					FormattedSize:  humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
@@ -1093,19 +1090,19 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Do not put this before the sort.Slice of addrData.Transactions above
-	confirmHeights := make([]int64, len(addrData.Transactions))
+	txBlockHeights := make([]int64, len(addrData.Transactions))
 	bdHeight := exp.Height()
 	for i, v := range addrData.Transactions {
-		confirmHeights[i] = bdHeight - int64(v.Confirmations)
+		txBlockHeights[i] = bdHeight - int64(v.Confirmations) + 1
 	}
 
 	pageData := AddressPageData{
-		Data:          addrData,
-		ConfirmHeight: confirmHeights,
-		IsLiteMode:    exp.liteMode,
-		OldestTxTime:  oldestTxBlockTime,
-		Version:       exp.Version,
-		NetName:       exp.NetName,
+		Data:           addrData,
+		TxBlockHeights: txBlockHeights,
+		IsLiteMode:     exp.liteMode,
+		OldestTxTime:   oldestTxBlockTime,
+		Version:        exp.Version,
+		NetName:        exp.NetName,
 	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
