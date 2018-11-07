@@ -398,7 +398,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		return nil, err
 	}
 
-	chainDB.ctx = context.Background()
+	chainDB.ctx = ctx
 	return chainDB, nil
 }
 
@@ -449,6 +449,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 	}
 
 	return &ChainDB{
+		ctx:                context.Background(),
 		db:                 db,
 		chainParams:        params,
 		devAddress:         devSubsidyAddress,
