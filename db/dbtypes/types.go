@@ -418,6 +418,17 @@ type AddressRow struct {
 	TxType           int16
 }
 
+// AddressMetrics defines address metrics needed to make decisions by which
+// grouping buttons on the address history page charts should be disabled
+// or enabled by default.
+type AddressMetrics struct {
+	OldestBlockTime int64
+	YearTxsCount    int64 // Years txs grouping
+	MonthTxsCount   int64 // Months txs grouping
+	WeekTxsCount    int64 // Weeks txs grouping
+	DayTxsCount     int64 // Days txs grouping
+}
+
 // ChartsData defines the fields that store the values needed to plot the charts
 // on the frontend.
 type ChartsData struct {

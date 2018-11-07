@@ -238,7 +238,7 @@
         }
 
         disableBtnsIfNotApplicable(){
-            var val = parseInt(this.addrTarget.id)*1000
+            var val = parseInt(this.addrTarget.dataset.address)*1000
             var d = new Date()
 
             var pastYear = d.getFullYear() - 1;
@@ -247,9 +247,10 @@
             var pastDay = d.getDate() - 1
 
             this.enabledButtons = []
-            var setApplicableBtns = (className, ts) => {
+            var setApplicableBtns = (className, ts, txCountByType) => {
                 var isDisabled = (val > Number(new Date(ts))) ||
-                    (this.options === 'unspent' && this.unspent == "0")
+                    (this.options === 'unspent' && this.unspent == "0") ||
+                    txCountByType < 2;
 
                 if (isDisabled) {
                     this.zoomTarget.getElementsByClassName(className)[0].setAttribute("disabled", isDisabled)
@@ -261,10 +262,10 @@
                 }
             }
 
-            setApplicableBtns('year', new Date().setFullYear(pastYear))
-            setApplicableBtns('month', new Date().setMonth(pastMonth))
-            setApplicableBtns('week', new Date().setDate(pastWeek))
-            setApplicableBtns('day', new Date().setDate(pastDay))
+            setApplicableBtns('year', new Date().setFullYear(pastYear), this.intervalTarget.dataset.year)
+            setApplicableBtns('month', new Date().setMonth(pastMonth),this.intervalTarget.dataset.month)
+            setApplicableBtns('week', new Date().setDate(pastWeek), this.intervalTarget.dataset.week)
+            setApplicableBtns('day', new Date().setDate(pastDay), this.intervalTarget.dataset.day)
 
             if (parseInt(this.intervalTarget.dataset.txcount) < 20 || this.enabledButtons.length === 0) {
                 this.enabledButtons[0] = "all"

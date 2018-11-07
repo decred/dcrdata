@@ -13,7 +13,8 @@
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
                 <div class="mono" data-target="address.addr"
-                    id="{{$.OldestTxTime}}" style="margin-bottom: 12px;">
+                    data-address="{{$.Metrics.OldestBlockTime}}"
+                    style="margin-bottom: 12px;">
                     {{.Address}}<a
                         id="qrcode-init"
                         href="javascript:showAddressQRCode('{{.Address}}');"
@@ -39,7 +40,7 @@
                 >
                     <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="List" name="list">
                     <input id="addr-btn" type="button" class="btn btn_sm" value="Charts"
-                    name="chart" {{if $.IsLiteMode}}disabled{{end}}>
+                    name="chart" {{if or $.IsLiteMode (le (len .Transactions) 1)}}disabled{{end}}>
                 </div>
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
@@ -161,6 +162,10 @@
                             data-txcount="{{$TxnCount}}"
                             data-target="address.interval"
                             data-action="click->address#changeGraph"
+                            data-year="{{$.Metrics.YearTxsCount}}"
+                            data-month="{{$.Metrics.MonthTxsCount}}"
+                            data-week="{{$.Metrics.WeekTxsCount}}"
+                            data-day="{{$.Metrics.DayTxsCount}}"
                         >
                             <input id="chart-size" type="button" class="btn btn_sm year" value="Year" name="yr">
                             <input id="chart-size" type="button" class="btn btn_sm month" value="Month" name="mo">
