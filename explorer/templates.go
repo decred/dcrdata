@@ -243,7 +243,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return
 		},
-		"covertByteArrayToString": func(arr []byte) (inString string) {
+		"convertByteArrayToString": func(arr []byte) (inString string) {
 			inString = hex.EncodeToString(arr)
 			return
 		},

@@ -496,8 +496,8 @@ type AddrPrefix struct {
 // AddressPrefixes generates an array AddrPrefix by using chaincfg.Params
 func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 	Descriptions := []string{"P2PK address",
-		"P2PKH address prefix",
-		"P2PKH address prefix",
+		"P2PKH address prefix. Standard wallet address. 1 public key -> 1 private key",
+		"Ed25519 P2PKH address prefix",
 		"secp256k1 Schnorr P2PKH address prefix",
 		"P2SH address prefix",
 		"WIF private key prefix",
