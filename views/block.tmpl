@@ -12,13 +12,15 @@
                 <h4 class="mb-2">
                     Block #{{.Height}}
                     {{ if not .MainChain }}
-                        <span class="attention">(side chain)</span>
+                      <span class="attention">(side chain)</span>
                     {{else}}
+                      <span class="op60 fs12" data-confirmation-block-height="{{.Height}}">
                         {{ if gt .Confirmations 1 }}
-                            <span class="op60 fs12">( <span data-confirmation-block-height="{{$.ConfirmHeight}}">{{.Confirmations}}</span> confirmations)</span>
+                          ({{.Confirmations}} confirmations)
                         {{else}}
-                            <span class="op60 fs12">best block</span>
+                          (best block)
                         {{end}}
+                      </span>
                     {{end}}
                     <a class="fs12" href="/api/block/{{.Height}}/verbose?indent=true" data-turbolinks="false">api</a>
                 </h4>
@@ -226,7 +228,7 @@
                 {{if not .Votes}}
                     <table class="table table-sm striped">
                             <tr>
-                                <td>No votes in this block. 
+                                <td>No votes in this block.
                                     {{if lt .Height .StakeValidationHeight}}
                                         (Voting starts at block {{.StakeValidationHeight}}.)
                                     {{end}}
@@ -402,7 +404,7 @@
                     </table>
                 {{end}}
             </div>
-        </div> 
+        </div>
     {{end}}
     </div>
 </div>
