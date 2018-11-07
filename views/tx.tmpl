@@ -29,28 +29,30 @@
                 </span>
             </div>
             <table class="table no-border table-centered-1rem">
-                {{if gt .BlockHeight 0}}
-                    <tr>
-                        <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">INCLUDED IN BLOCK</td>
-                        <td>
-                        {{range $i, $b := $.Blocks}}
-                        {{$blockInd := index $.BlockInds $i}}
-                        {{$validMainchain := and $b.IsValid $b.IsMainchain}}
-                            <a href="/block/{{$b.Hash}}?ind={{$blockInd}}"
-                                {{if not $validMainchain}}
-                                class="fs18 grayed" title="Mainchain: {{$b.IsMainchain}}&#xA;Valid: {{$b.IsValid}}"
-                                {{else}}
-                                class="fs18"
-                                {{end}}>
-                                {{$b.Height}}</a>{{if lt (add (int64 $i) 1) (len $.Blocks)}}, {{end}}
-                        {{end}}
-                        </td>
-                    </tr>
-                    {{if not $.HasValidMainchain}}
-                    <tr>
-                        <span class="attention">This transaction is not included in a stakeholder-approved mainchain block.</span>
-                    </tr>
+                <tr>
+                    <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">INCLUDED IN BLOCK</td>
+                    {{if eq .BlockHeight 0}}
+                        <td><span data-txid-mempool-display="{{.TxID}}">mempool</span><a id="txMempoolLink" href="" class="fs18"></a></td>
+                    {{else}}
+                      <td>
+                      {{range $i, $b := $.Blocks}}
+                      {{$blockInd := index $.BlockInds $i}}
+                      {{$validMainchain := and $b.IsValid $b.IsMainchain}}
+                          <a href="/block/{{$b.Hash}}?ind={{$blockInd}}"
+                              {{if not $validMainchain}}
+                              class="fs18 grayed" title="Mainchain: {{$b.IsMainchain}}&#xA;Valid: {{$b.IsValid}}"
+                              {{else}}
+                              class="fs18"
+                              {{end}}>
+                              {{$b.Height}}</a>{{if lt (add (int64 $i) 1) (len $.Blocks)}}, {{end}}
+                      {{end}}
+                      </td>
                     {{end}}
+                </tr>
+                {{if and (ne .BlockHeight 0) (not $.HasValidMainchain)}}
+                <tr>
+                    <span class="attention">This transaction is not included in a stakeholder-approved mainchain block.</span>
+                </tr>
                 {{end}}
                 {{if or (eq .Type "Vote") (eq .Type "Revocation")}}
                     {{range .Vin}}
@@ -71,19 +73,26 @@
                 {{if and (ne .TicketInfo.PoolStatus "") (and (eq .Type "Ticket") (gt .Confirmations 0))}}
                     <tr>
                         <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">POOL STATUS</td>
-                        <td>
-                            {{if ne .TicketInfo.SpendStatus "Voted"}} {{.TicketInfo.PoolStatus}}  / {{end}} {{if (index .SpendingTxns 0).Hash}}<a href="/tx/{{(index .SpendingTxns 0).Hash}}">{{.TicketInfo.SpendStatus}}</a>{{else}}{{.TicketInfo.SpendStatus}}{{end}}
+                        <td id="txPoolStatus">
+                            {{if ne .TicketInfo.SpendStatus "Voted"}}
+                              {{if eq .Confirmations .TicketInfo.TicketMaturity}}
+                                live /
+                              {{else}}
+                                {{.TicketInfo.PoolStatus}}  /
+                              {{end}}
+                            {{end}}
+                            {{if (index .SpendingTxns 0).Hash}}
+                              <a href="/tx/{{(index .SpendingTxns 0).Hash}}">{{.TicketInfo.SpendStatus}}</a>
+                            {{else}}
+                              {{.TicketInfo.SpendStatus}}
+                            {{end}}
                         </td>
                     </tr>
                 {{end}}
                 {{if eq .Mature "True"}}
-                    <tr><td class="text-right pr-2 h1rem p03rem0">MATURE</td><td>{{.Mature}}</td></tr>
-                {{else}}
-                {{if and (eq .Confirmations 0) (or (eq .Type "Ticket") (eq .Type "Vote")) }}
-                    <tr><td class="text-right pr-2 h1rem p03rem0">MATURE</td><td>N/A</td></tr>
+                    <tr><td class="text-right pr-2 h1rem p03rem0">MATURITY</td><td>Mature</td></tr>
                 {{end}}
-                {{end}}
-                {{if and (gt .Confirmations 0) (and (eq .Mature "False") (eq .Type "Ticket"))}}
+                {{if and (eq .Mature "False") (eq .Type "Ticket")}}
                     <tr>
                         <td class="text-right pr-2 h1rem p03rem0">MATURITY</td>
                         <td>
@@ -92,14 +101,35 @@
                                     <div class="progress" style="max-width: 330px">
                                         <div
                                             class="progress-bar"
+                                            id="txMaturityProgress"
                                             role="progressbar"
-                                            style="width: {{percentage (subtract .Confirmations 1) .TicketInfo.TicketMaturity}}%;"
+                                            style="width:{{if eq .Confirmations 0}}0{{else}}{{percentage (subtract .Confirmations 1) .TicketInfo.TicketMaturity}}%{{end}};"
                                             aria-valuenow="{{.Confirmations}}"
                                             aria-valuemin="0"
-                                            aria-valuemax="256"
+                                            aria-valuemax="{{.TicketInfo.TicketMaturity}}"
+                                            data-confirm-height="{{add $.ConfirmHeight 1}}"
+                                            data-tx-type="{{.Type}}"
                                         >
                                             <span class="nowrap pl-1 pr-1">
-                                                Immature, {{ if eq .Type "Ticket"}}eligible to vote{{else}}spendable{{end}} in {{ if eq .Confirmations .TicketInfo.TicketMaturity }}next block{{else}}{{subtract (add .TicketInfo.TicketMaturity 1) .Confirmations}} blocks ({{printf "%.1f" .TicketInfo.TimeTillMaturity}} hours remaining){{end}}
+                                              {{if gt .Confirmations 0}}
+                                                {{if eq .Confirmations .TicketInfo.TicketMaturity}}
+                                                  Mature,
+                                                {{else}}
+                                                  Immature,
+                                                {{end}}
+                                                {{ if eq .Type "Ticket"}}
+                                                  eligible to vote
+                                                {{else}}
+                                                  spendable
+                                                {{end}} in
+                                                {{ if eq .Confirmations .TicketInfo.TicketMaturity }}
+                                                  next block
+                                                {{else}}
+                                                  {{subtract (add .TicketInfo.TicketMaturity 1) .Confirmations}} blocks ({{printf "%.1f" .TicketInfo.TimeTillMaturity}} hours remaining)
+                                                {{end}}
+                                              {{else}}
+                                                Awaiting confirmation
+                                              {{end}}
                                             </span>
                                         </div>
                                     </div>
@@ -117,11 +147,14 @@
                                     <div class="progress" style="max-width: 330px">
                                         <div
                                             class="progress-bar"
+                                            id="txMaturityProgress"
                                             role="progressbar"
                                             style="width: {{percentage  .Confirmations .Maturity}}%;"
                                             aria-valuenow="{{.Confirmations}}"
                                             aria-valuemin="0"
-                                            aria-valuemax="256"
+                                            aria-valuemax="{{.Maturity}}"
+                                            data-confirm-height="{{add $.ConfirmHeight 1}}"
+                                            data-tx-type="{{.Type}}"
                                         >
                                             <span class="nowrap pl-1 pr-1">
                                                 Immature, spendable in {{ if eq (add .Confirmations 1) .Maturity }}next block{{else}}{{subtract .Maturity .Confirmations}} blocks ({{printf "%.1f" .MaturityTimeTill}} hours remaining){{end}}
@@ -155,6 +188,7 @@
                                             <div class="progress" style="max-width: 330px">
                                                 <div
                                                     class="progress-bar"
+                                                    id="ticketExpiryChance"
                                                     role="progressbar"
                                                     style="width: {{.TicketInfo.Probability}}%;"
                                                     aria-valuenow="{{.TicketInfo.Probability}}"
@@ -170,8 +204,6 @@
                                     </div>
                                 </td>
                             </tr>
-                        {{end}}
-                        {{if ge .TicketInfo.TicketExpiry .TicketInfo.TicketLiveBlocks}}
                             <tr>
                                 <td class="text-right pr-2 h1rem p03rem0">EXPIRY</td>
                                 <td>
@@ -180,11 +212,14 @@
                                             <div class="progress" style="max-width: 330px">
                                                 <div
                                                     class="progress-bar"
+                                                    id="txMaturityProgress"
                                                     role="progressbar"
                                                     style="width: {{percentage (subtract .TicketInfo.TicketLiveBlocks 1) .TicketInfo.TicketExpiry}}%;"
                                                     aria-valuenow="{{.Confirmations}}"
                                                     aria-valuemin="0"
-                                                    aria-valuemax="256"
+                                                    aria-valuemax="{{.TicketInfo.TicketExpiry}}"
+                                                    data-confirm-height="{{add (add $.ConfirmHeight 1) (uint16toInt64 $.ChainParams.TicketMaturity)}}"
+                                                    data-tx-type="LiveTicket"
                                                 >
                                                     <span class="nowrap pl-1 pr-1">
                                                         block {{.TicketInfo.TicketLiveBlocks}} of {{.TicketInfo.TicketExpiry}} ({{printf "%.1f" .TicketInfo.TicketExpiryDaysLeft}} days remaining)
@@ -227,9 +262,9 @@
                     <td class="text-right pr-2">TIME</td>
                     <td class="lh1rem">
                         {{if eq .Time 0}}
-                            N/A
+                            <span id="txFmtTime">N/A</span> <span class="op60 fs12 nowrap"><span id="txAge" data-target="main.age" data-age=""></span></span>
                         {{else}}
-                            ({{timezone}}) {{.FormattedTime}} <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.Time}}"></span> ago)</span>
+                            <span>({{timezone}}) {{.FormattedTime}}</span> <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.Time}}"></span> ago)</span>
                         {{end}}
                     </td>
                 </tr>
@@ -300,7 +335,7 @@
                             <a href="/block/{{.BlockHeight}}">{{.BlockHeight}}</a>
                         {{end}}
                         </td>
-                        <td class="mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}} 
+                        <td class="mono fs13 text-right">{{if lt .AmountIn 0.0}} N/A {{else}}
                         <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .AmountIn 8 false)}} {{end}}</span>
                         </td>
                     </tr>

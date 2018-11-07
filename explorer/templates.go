@@ -262,5 +262,8 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"theme": func() string {
 			return netTheme
 		},
+		"uint16toInt64": func(v uint16) int64 {
+			return int64(v)
+		},
 	}
 }

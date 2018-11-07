@@ -107,6 +107,10 @@
         var expires = "expires="+d.toUTCString();
         document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
     }
+
+    var DCRThings = {}
+    DCRThings.ticketPoolSize = {{$.ChainParams.TicketPoolSize}}
+
     var sunIcon = document.getElementById("sun-icon")
     var darkBGCookieName = 'dcrdataDarkBG';
     function darkEnabled() {
@@ -184,6 +188,14 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    // `formatTxDate`: Format a string to match the format `(UTC) YYYY-MM-DD HH:MM:SS` used by explorer.TxPage and tx.tmpl
+    function formatTxDate(stamp) {
+        var d = new Date(stamp*1000);
+        var zone = d.toLocaleTimeString('en-us',{timeZoneName:'short'}).split(' ')[2];
+        return "("+zone+") "+String(d.getFullYear())+"-"+String(d.getMonth()+1).padStart(2, "0")+"-"+String(d.getDate()).padStart(2, "0")+" "
+            +String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0")+":"+String(d.getSeconds()).padStart(2, "0");
+    }
+
     var ws; // websocket global
     async function createWebSocket(loc) {
         // wait a bit to prevent websocket churn from drive by page loads
@@ -240,6 +252,8 @@
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
 
+
+            advanceTicketProgress(b)
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
             if (expTableRows){
@@ -372,6 +386,70 @@
             doNotification(block);
         }
     }
+
+    // Advance various progress bars on /tx.
+    function advanceTicketProgress(block){
+        // Check for confirmations on mempool transactions.
+        var needsConfirmation = $("[data-txid-mempool-display]")
+        if(needsConfirmation.length && needsConfirmation.text() == "mempool"){
+            var txid = needsConfirmation.data("txid-mempool-display");
+            var k, txs, idx;
+            $.each([block.Tx, block.Tickets, block.Revs, block.Votes], function(k, txs){
+                for(idx in txs){
+                    if(txs[idx].TxID ==  txid){
+                        needsConfirmation.remove();
+                        $("[data-confirmation-block-height]").data("confirmation-block-height", block.height - 1).html("(1 confirmation)");
+                        $("#txMempoolLink").html(block.height).attr("href", "/block/"+block.hash);
+                        $("#txFmtTime").html(formatTxDate(block.time));
+                        $("#txAge").html(humanize.timeSince(block.time)).before("(").after(" ago)").attr("data-age",block.time);
+                        var progressBar = $("#txMaturityProgress")
+                        var remainingBlocks = parseInt(progressBar.attr("aria-valuemax")) - 1
+                        var remainingTime = remainingBlocks*DCRThings.targetBlockTime
+                        progressBar.css({"width":"0.4%"}).attr("aria-valuenow","1"
+                      ).children("span").html("Immature, eligible to vote in "+remainingBlocks+" blocks ("+remainingTime.toFixed(1)+" hours remaining)")
+                        return false
+                    }
+                }
+            })
+        }
+        // Advance the progress bars.
+        var ticketProgress = $("#txMaturityProgress");
+        if(!ticketProgress.length){
+            return;
+        }
+        var confirmations = block.height - ticketProgress.data("confirm-height") + 1;
+        var txType = ticketProgress.data("tx-type");
+        var complete = parseInt(ticketProgress.attr("aria-valuemax"));
+        if(confirmations == complete + 1){
+            ticketProgress.closest(".row").replaceWith(txType == "LiveTicket" ? "Expired" : "Mature");
+            return;
+        }
+        var ratio = confirmations/complete;
+        if(confirmations == complete){
+            ticketProgress.children("span").html(txType == "Ticket" ? "Mature. Eligible to vote on next block." :
+            txType == "LiveTicket" ? "Ticket has expired" : "Mature. Ready to spend.");
+            var status = $("#txPoolStatus");
+            if(status.length){
+                status.html("live / unspent");
+            }
+        }
+        else{
+            var blocksLeft = complete+1-confirmations;
+            if(txType == "LiveTicket"){
+                ticketProgress.children("span").html("block "+confirmations+" of "+complete+" ("+((1-ratio)*142.2).toFixed(1)+" days remaining)");
+                // Chance of expiring is (1-P)^N where P := single-block probability of being picked, N := blocks remaining.
+                // This probability is using the network parameter rather than the calculated value. So far, the ticket pool size seems stable enough to do that.
+                var pctChance = Math.pow(1 - 1/DCRThings.ticketPoolSize, blocksLeft)*100;
+                $("#ticketExpiryChance").children("span").html(pctChance.toFixed(2)+"% chance of expiry");
+            }
+            else{
+                var typeStub = txType == "Ticket" ? "eligible to vote" : "spendable";
+                ticketProgress.children("span").html("Immature, "+typeStub+" in "+blocksLeft+" blocks ("+((1-ratio)*21.3).toFixed(1)+" hours remaining)");
+            }
+            ticketProgress.attr("aria-valuenow", confirmations).css({"width":(ratio*100).toString()+"%"});
+        }
+    }
+
 </script>
 
 <script>
