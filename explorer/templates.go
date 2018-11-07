@@ -199,10 +199,16 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"add": func(a, b int64) int64 {
 			return a + b
 		},
+		"intAdd": func(a, b int) int {
+			return a + b
+		},
 		"subtract": func(a, b int64) int64 {
 			return a - b
 		},
 		"floatsubtract": func(a, b float64) float64 {
+			return a - b
+		},
+		"intSubtract": func(a, b int) int {
 			return a - b
 		},
 		"divide": func(n, d int64) int64 {
@@ -212,6 +218,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return n / d
 		},
 		"multiply": func(a, b int64) int64 {
+			return a * b
+		},
+		"intMultiply": func(a, b int) int {
 			return a * b
 		},
 		"timezone": func() string {
@@ -351,6 +360,19 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"uint16toInt64": func(v uint16) int64 {
 			return int64(v)
+		},
+		"zeroSlice": func(length int) []int {
+			if length < 0 {
+				length = 0
+			}
+			return make([]int, length)
+		},
+		"clipSlice": func(arr []*TrimmedTxInfo, n int) []*TrimmedTxInfo {
+			if len(arr) >= n {
+				return arr[:n]
+			} else {
+				return arr
+			}
 		},
 	}
 }

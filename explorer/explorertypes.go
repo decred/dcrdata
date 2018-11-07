@@ -115,6 +115,15 @@ func (a *AddressTx) IOID(txType ...string) string {
 	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
 }
 
+// TrimmedTxInfo for use with /nexthome
+type TrimmedTxInfo struct {
+	*TxBasic
+	Fees      float64
+	VinCount  int
+	VoutCount int
+	VoteValid bool
+}
+
 // TxInfo models data needed for display on the tx page
 type TxInfo struct {
 	*TxBasic
@@ -204,6 +213,19 @@ type Vout struct {
 	Index           uint32
 }
 
+// TrimmedBlockInfo models data needed to display block info on the new home page
+type TrimmedBlockInfo struct {
+	Time         int64
+	Height       int64
+	Total        float64
+	Fees         float64
+	Subsidy      *dcrjson.GetBlockSubsidyResult
+	Votes        []*TrimmedTxInfo
+	Tickets      []*TrimmedTxInfo
+	Revocations  []*TrimmedTxInfo
+	Transactions []*TrimmedTxInfo
+}
+
 // BlockInfo models data for display on the block page
 type BlockInfo struct {
 	*BlockBasic
@@ -212,10 +234,10 @@ type BlockInfo struct {
 	StakeRoot             string
 	MerkleRoot            string
 	TxAvailable           bool
-	Tx                    []*TxBasic
-	Tickets               []*TxBasic
-	Revs                  []*TxBasic
-	Votes                 []*TxBasic
+	Tx                    []*TrimmedTxInfo
+	Tickets               []*TrimmedTxInfo
+	Revs                  []*TrimmedTxInfo
+	Votes                 []*TrimmedTxInfo
 	Misses                []string
 	Nonce                 uint32
 	VoteBits              uint16
@@ -229,9 +251,10 @@ type BlockInfo struct {
 	PreviousHash          string
 	NextHash              string
 	TotalSent             float64
-	MiningFee             dcrutil.Amount
+	MiningFee             float64
 	StakeValidationHeight int64
 	AllTxs                uint32
+	Subsidy               *dcrjson.GetBlockSubsidyResult
 }
 
 // AddressTransactions collects the transactions for an address as AddressTx
@@ -349,6 +372,18 @@ type BlockSubsidy struct {
 	PoW   int64 `json:"pow"`
 	PoS   int64 `json:"pos"`
 	Dev   int64 `json:"dev"`
+}
+
+// TrimmedMempoolInfo models data needed to display mempool info on the new home page
+type TrimmedMempoolInfo struct {
+	Transactions []*TrimmedTxInfo
+	Tickets      []*TrimmedTxInfo
+	Votes        []*TrimmedTxInfo
+	Revocations  []*TrimmedTxInfo
+	Subsidy      BlockSubsidy
+	Total        float64
+	Time         int64
+	Fees         float64
 }
 
 // MempoolInfo models data to update mempool info on the home page
@@ -480,12 +515,17 @@ type TicketPoolInfo struct {
 
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
-	Hash     string    `json:"hash"`
-	Time     int64     `json:"time"`
-	Size     int32     `json:"size"`
-	TotalOut float64   `json:"total"`
-	Type     string    `json:"Type"`
-	VoteInfo *VoteInfo `json:"vote_info"`
+	TxID      string    `json:"txid"`
+	Fees      float64   `json:"fees"`
+	VinCount  int       `json:"vin_count"`
+	VoutCount int       `json:"vout_count"`
+	Coinbase  bool      `json:"coinbase"`
+	Hash      string    `json:"hash"`
+	Time      int64     `json:"time"`
+	Size      int32     `json:"size"`
+	TotalOut  float64   `json:"total"`
+	Type      string    `json:"type"`
+	VoteInfo  *VoteInfo `json:"vote_info,omitempty"`
 }
 
 // NewMempoolTx models data sent from the notification handler
