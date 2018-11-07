@@ -55,12 +55,14 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	exp.pageData.RLock()
 
 	str, err := exp.templates.execTemplateToString("home", struct {
-		Info    *HomeInfo
-		Mempool *MempoolInfo
-		Blocks  []*BlockBasic
-		Version string
-		NetName string
+		ChainParams *chaincfg.Params
+		Info        *HomeInfo
+		Mempool     *MempoolInfo
+		Blocks      []*BlockBasic
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		exp.pageData.HomeInfo,
 		exp.MempoolData,
 		blocks,
@@ -91,10 +93,12 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("sidechains", struct {
-		Data    []*dbtypes.BlockStatus
-		Version string
-		NetName string
+		ChainParams *chaincfg.Params
+		Data        []*dbtypes.BlockStatus
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		sideBlocks,
 		exp.Version,
 		exp.NetName,
@@ -121,10 +125,12 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 	}
 
 	str, err := exp.templates.execTemplateToString("rejects", struct {
-		Data    []*dbtypes.BlockStatus
-		Version string
-		NetName string
+		ChainParams *chaincfg.Params
+		Data        []*dbtypes.BlockStatus
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		disapprovedBlocks,
 		exp.Version,
 		exp.NetName,
@@ -150,12 +156,14 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RLock()
 
 	str, err := exp.templates.execTemplateToString("nexthome", struct {
-		Info    *HomeInfo
-		Mempool *MempoolInfo
-		Blocks  []*BlockInfo
-		Version string
-		NetName string
+		ChainParams *chaincfg.Params
+		Info        *HomeInfo
+		Mempool     *MempoolInfo
+		Blocks      []*BlockInfo
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		exp.pageData.HomeInfo,
 		exp.MempoolData,
 		blocks,
@@ -209,6 +217,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 
 	str, err := exp.templates.execTemplateToString("windows", struct {
+		ChainParams  *chaincfg.Params
 		Data         []*dbtypes.BlocksGroupedInfo
 		WindowSize   int64
 		BestWindow   int64
@@ -217,6 +226,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		Version      string
 		NetName      string
 	}{
+		exp.ChainParams,
 		windows,
 		exp.ChainParams.StakeDiffWindowSize,
 		int64(bestWindow),
@@ -279,13 +289,15 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("explorer", struct {
-		Data       []*BlockBasic
-		BestBlock  int64
-		Rows       int64
-		Version    string
-		NetName    string
-		WindowSize int64
+		ChainParams *chaincfg.Params
+		Data        []*BlockBasic
+		BestBlock   int64
+		Rows        int64
+		Version     string
+		NetName     string
+		WindowSize  int64
 	}{
+		exp.ChainParams,
 		summaries,
 		int64(bestBlockHeight),
 		int64(rows),
@@ -346,10 +358,12 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pageData := struct {
-		Data    *BlockInfo
-		Version string
-		NetName string
+		ChainParams *chaincfg.Params
+		Data        *BlockInfo
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		data,
 		exp.Version,
 		exp.NetName,
@@ -370,10 +384,12 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RLock()
 	str, err := exp.templates.execTemplateToString("mempool", struct {
-		Mempool *MempoolInfo
-		Version string
-		NetName string
+		ChainParams *chaincfg.Params
+		Mempool     *MempoolInfo
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		exp.MempoolData,
 		exp.Version,
 		exp.NetName,
@@ -418,6 +434,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RUnlock()
 
 	str, err := exp.templates.execTemplateToString("ticketpool", struct {
+		ChainParams  *chaincfg.Params
 		Version      string
 		NetName      string
 		ChartsHeight uint64
@@ -425,6 +442,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 		GroupedData  *dbtypes.PoolTicketsData
 		Mempool      *dbtypes.PoolTicketsData
 	}{
+		exp.ChainParams,
 		exp.Version,
 		exp.NetName,
 		height,
@@ -783,6 +801,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	} // !exp.liteMode
 
 	pageData := struct {
+		ChainParams       *chaincfg.Params
 		Data              *TxInfo
 		Blocks            []*dbtypes.BlockStatus
 		BlockInds         []uint32
@@ -792,6 +811,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		HighlightInOut    string
 		HighlightInOutID  int64
 	}{
+		exp.ChainParams,
 		tx,
 		blocks,
 		blockInds,
@@ -818,6 +838,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
 	type AddressPageData struct {
+		ChainParams    *chaincfg.Params
 		Data           *AddressInfo
 		TxBlockHeights []int64
 		Version        string
@@ -1097,6 +1118,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pageData := AddressPageData{
+		ChainParams:    exp.ChainParams,
 		Data:           addrData,
 		TxBlockHeights: txBlockHeights,
 		IsLiteMode:     exp.liteMode,
@@ -1120,9 +1142,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 // decoding or broadcasting is handled by the websocket hub.
 func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("rawtx", struct {
-		Version string
-		NetName string
+		ChainParams *chaincfg.Params
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		exp.Version,
 		exp.NetName,
 	})
@@ -1151,10 +1175,12 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("charts", struct {
-		Version string
-		NetName string
-		Data    *dbtypes.ChartsData
+		ChainParams *chaincfg.Params
+		Version     string
+		NetName     string
+		Data        *dbtypes.ChartsData
 	}{
+		exp.ChainParams,
 		exp.Version,
 		exp.NetName,
 		tickets,
@@ -1230,12 +1256,14 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 // handling without redirecting.
 func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, sType statusType) {
 	str, err := exp.templates.execTemplateToString("status", struct {
-		StatusType statusType
-		Code       string
-		Message    string
-		Version    string
-		NetName    string
+		ChainParams *chaincfg.Params
+		StatusType  statusType
+		Code        string
+		Message     string
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		sType,
 		code,
 		message,
@@ -1283,10 +1311,12 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("parameters", struct {
-		Cp      ExtendedChainParams
-		Version string
-		NetName string
+		ChainParams *chaincfg.Params
+		Cp          ExtendedChainParams
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		ecp,
 		exp.Version,
 		exp.NetName,
@@ -1336,12 +1366,14 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("agenda", struct {
+		ChainParams      *chaincfg.Params
 		Ai               *agendadb.AgendaTagged
 		Version          string
 		NetName          string
 		ChartDataByTime  *dbtypes.AgendaVoteChoices
 		ChartDataByBlock *dbtypes.AgendaVoteChoices
 	}{
+		exp.ChainParams,
 		agendaInfo,
 		exp.Version,
 		exp.NetName,
@@ -1369,10 +1401,12 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("agendas", struct {
-		Agendas []*agendadb.AgendaTagged
-		Version string
-		NetName string
+		ChainParams *chaincfg.Params
+		Agendas     []*agendadb.AgendaTagged
+		Version     string
+		NetName     string
 	}{
+		exp.ChainParams,
 		agendas,
 		exp.Version,
 		exp.NetName,
