@@ -152,6 +152,18 @@ body.darkBG a,
 body.darkBG a:hover {
   color: #94ffca;
 }
+body.darkBG a.elidedhash,  body.darkBG a.elidedhash:hover{
+  color:transparent;
+  text-decoration-color:#94ffca;
+}
+body.darkBG a.elidedhash::before,
+body.darkBG a.elidedhash::after {
+  color: #94ffca;
+}
+body.darkBG div.elidedhash::before,
+body.darkBG div.elidedhash::after {
+  color: #fdfdfd;
+}
 body.darkBG a.grayed,
 body.darkBG a.grayed:hover {
   color: rgba(148, 255, 202, 0.75) !important;
@@ -594,9 +606,11 @@ body.darkBG .progress {
   -moz-user-select: all;
   user-select: all;
   z-index:20;
-  cursor:pointer;
   text-overflow:clip;
   overflow:hidden;
+}
+a.elidedhash {
+  cursor:pointer;
 }
 a.elidedhash:visited {
   color:transparent;
@@ -624,7 +638,6 @@ div.elidedhash:before, div.elidedhash:after {
 }
 .elidedhash:after {
   content:attr(data-tail);
-  color:#2e75ff;
   position:absolute;
   right:0;
   top:0;
@@ -633,7 +646,7 @@ div.elidedhash:before, div.elidedhash:after {
   text-align:right;
   direction:rtl;
 }
-.elidedhash:hover {
+a.elidedhash:hover {
   color:transparent;
   text-decoration: underline;
   text-decoration-color:#2e75ff;
