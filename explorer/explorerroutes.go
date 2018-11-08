@@ -1099,6 +1099,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 					FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
 					Total:         txhelpers.TotalOutFromMsgTx(fundingTx.Tx).ToCoin(),
 					ReceivedTotal: dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
+					TxType:         txhelpers.DetermineTxTypeString(fundingTx.Tx),
 				}
 				addrData.Transactions = append(addrData.Transactions, addrTx)
 			}
@@ -1155,6 +1156,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 					SentTotal:      dcrutil.Amount(valuein).ToCoin(),
 					MatchedTx:      strprevhash,
 					MatchedTxIndex: previndex,
+					TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx),
 				}
 				addrData.Transactions = append(addrData.Transactions, addrTx)
 			}
