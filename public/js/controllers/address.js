@@ -238,7 +238,7 @@
         }
 
         disableBtnsIfNotApplicable(){
-            var val = parseInt(this.addrTarget.dataset.address)*1000
+            var val = parseInt(this.addrTarget.dataset.oldestblockTime)*1000
             var d = new Date()
 
             var pastYear = d.getFullYear() - 1;
