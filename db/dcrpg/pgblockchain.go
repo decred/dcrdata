@@ -734,7 +734,7 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 // GetAddressMetrics returns the block time of the oldest transaction and the
 // total count for all the transactions linked to the provided address grouped
 // by years, months, weeks and days time grouping in seconds.
-// This helps provide more meaningful graphs with the addresses history plotted.
+// This helps plot more meaningful address history graphs to the user.
 func (pgb *ChainDB) GetAddressMetrics(addr string) (*dbtypes.AddressMetrics, error) {
 	var metrics dbtypes.AddressMetrics
 
