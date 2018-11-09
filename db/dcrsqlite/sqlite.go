@@ -49,6 +49,7 @@ const (
 type DB struct {
 	*sql.DB
 	sync.RWMutex
+	lastStoredBlock                                              *apitypes.BlockDataBasic
 	dbSummaryHeight                                              int64
 	dbStakeInfoHeight                                            int64
 	getPoolSQL, getPoolRangeSQL, getPoolValSizeRangeSQL          string
@@ -283,6 +284,10 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 		height := int64(bd.Height)
 		if height > db.dbSummaryHeight {
 			db.dbSummaryHeight = height
+		}
+		if db.lastStoredBlock == nil || bd.Height >= db.lastStoredBlock.Height {
+			blockdata := apitypes.BlockDataBasic(*bd)
+			db.lastStoredBlock = &blockdata
 		}
 	}
 
@@ -938,4 +943,15 @@ func splitToArray(str string) []string {
 		return []string{}
 	}
 	return strings.Split(str, ";")
+}
+
+// getTip returns the last block stored using StoreBlockSummary.
+// If no block has been stored yet, it returns the best block in the database.
+func (db *DB) getTip() (*apitypes.BlockDataBasic, error) {
+	db.RLock()
+	defer db.RUnlock()
+	if db.lastStoredBlock != nil {
+		return db.lastStoredBlock, nil
+	}
+	return db.RetrieveLatestBlockSummary()
 }

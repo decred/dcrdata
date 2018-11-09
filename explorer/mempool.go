@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrdata/v3/txhelpers"
 	humanize "github.com/dustin/go-humanize"
@@ -53,6 +54,20 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		}
 
 		hash := msgTx.TxHash().String()
+		txType := txhelpers.DetermineTxTypeString(msgTx)
+
+		// Maintain the list of unique stake and regular txns encountered.
+		var txExists bool
+		if txType == "Regular" {
+			_, txExists = exp.MempoolData.InvRegular[hash]
+		} else {
+			_, txExists = exp.MempoolData.InvStake[hash]
+		}
+
+		if txExists {
+			log.Tracef("Not broadcasting duplicate %s notification: %s", txType, hash)
+			continue // back to waiting for new tx signal
+		}
 
 		// If this is a vote, decode vote bits.
 		var voteInfo *VoteInfo
@@ -77,24 +92,26 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 		}
 
 		tx := MempoolTx{
-			Hash:     hash,
-			Time:     ntx.Time,
-			Size:     int32(len(ntx.Hex) / 2),
-			TotalOut: txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
-			Type:     txhelpers.DetermineTxTypeString(msgTx),
-			VoteInfo: voteInfo,
+			TxID:      msgTx.TxHash().String(),
+			Hash:      hash,
+			Time:      ntx.Time,
+			Size:      int32(len(ntx.Hex) / 2),
+			TotalOut:  txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
+			Type:      txhelpers.DetermineTxTypeString(msgTx),
+			VoteInfo:  voteInfo,
+			VinCount:  len(msgTx.TxIn),
+			VoutCount: len(msgTx.TxOut),
+			Coinbase:  blockchain.IsCoinBaseTx(msgTx),
 		}
+
+		fee, _ := txhelpers.TxFeeRate(msgTx)
+		tx.Fees = fee.ToCoin()
 
 		// Add the tx to the appropriate tx slice in MempoolData and update the
 		// count for the transaction type.
 		exp.MempoolData.Lock()
 		switch tx.Type {
 		case "Ticket":
-			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
-				exp.MempoolData.Unlock()
-				log.Tracef("Not broadcasting duplicate ticket notification: %s", hash)
-				continue // back to waiting for new tx signal
-			}
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Tickets = append([]MempoolTx{tx}, exp.MempoolData.Tickets...)
 			exp.MempoolData.NumTickets++
@@ -110,12 +127,6 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 				continue
 			}
 
-			// Maintain the list of unique stake txns encountered.
-			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
-				exp.MempoolData.Unlock()
-				log.Tracef("Not broadcasting duplicate vote notification: %s", hash)
-				continue // back to waiting for new tx signal
-			}
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Votes = append([]MempoolTx{tx}, exp.MempoolData.Votes...)
 			//sort.Sort(byHeight(exp.MempoolData.Votes))
@@ -130,22 +141,10 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 				votingInfo.TicketsVoted++
 			}
 		case "Regular":
-			// Maintain the list of unique regular txns encountered.
-			if _, found := exp.MempoolData.InvRegular[tx.Hash]; found {
-				exp.MempoolData.Unlock()
-				log.Tracef("Not broadcasting duplicate txns notification: %s", hash)
-				continue // back to waiting for new tx signal
-			}
 			exp.MempoolData.InvRegular[tx.Hash] = struct{}{}
 			exp.MempoolData.Transactions = append([]MempoolTx{tx}, exp.MempoolData.Transactions...)
 			exp.MempoolData.NumRegular++
 		case "Revocation":
-			// Maintain the list of unique stake txns encountered.
-			if _, found := exp.MempoolData.InvStake[tx.Hash]; found {
-				exp.MempoolData.Unlock()
-				log.Tracef("Not broadcasting duplicate revocation notification: %s", hash)
-				continue // back to waiting for new tx signal
-			}
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Revocations = append([]MempoolTx{tx}, exp.MempoolData.Revocations...)
 			exp.MempoolData.NumRevokes++

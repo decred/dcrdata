@@ -6,7 +6,6 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
     {{with .Data}}
-    {{$heights := $.ConfirmHeight}}
     {{$TxnCount := .TxnCount}}
     {{$txType := .TxnType}}
     <div class="container main" data-controller="address">
@@ -14,7 +13,8 @@
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
                 <div class="mono" data-target="address.addr"
-                    id="{{$.OldestTxTime}}" style="margin-bottom: 12px;">
+                    data-oldestblockTime="{{$.Metrics.OldestBlockTime}}"
+                    style="margin-bottom: 12px;">
                     {{.Address}}<a
                         id="qrcode-init"
                         href="javascript:showAddressQRCode('{{.Address}}');"
@@ -40,7 +40,7 @@
                 >
                     <input id="addr-btn" type="button" class="btn btn_sm btn-active" value="List" name="list">
                     <input id="addr-btn" type="button" class="btn btn_sm" value="Charts"
-                    name="chart" {{if $.IsLiteMode}}disabled{{end}}>
+                    name="chart" {{if or $.IsLiteMode (le (len .Transactions) 1)}}disabled{{end}}>
                 </div>
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
@@ -162,6 +162,10 @@
                             data-txcount="{{$TxnCount}}"
                             data-target="address.interval"
                             data-action="click->address#changeGraph"
+                            data-year="{{$.Metrics.YearTxsCount}}"
+                            data-month="{{$.Metrics.MonthTxsCount}}"
+                            data-week="{{$.Metrics.WeekTxsCount}}"
+                            data-day="{{$.Metrics.DayTxsCount}}"
                         >
                             <input id="chart-size" type="button" class="btn btn_sm year" value="Year" name="yr">
                             <input id="chart-size" type="button" class="btn btn_sm month" value="Month" name="mo">
@@ -207,6 +211,7 @@
                     {{if .Transactions}}
                     <table class="table table-mono-cells table-sm striped" style="width: 100%;">
                         <thead>
+                            <th>Tx Type</th>
                             <th>Input/Output ID</th>
                             {{if eq $txType "merged_debit"}}
                                 <th># of Input(s)</th>
@@ -225,8 +230,9 @@
                         </thead>
                         <tbody>
                             {{range $i, $v := .Transactions}}
-                            <tr>
+                            <tr {{if eq .Confirmations 0}} data-addr-tx-pending="{{.TxID}}" {{end}}>
                                 {{with $v}}
+                                <td>{{.TxType}}</td>
                                 <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
                                 {{if eq $txType "merged_debit"}}
                                     <td class="text-right">{{.MergedTxnCount}}</td>
@@ -250,7 +256,7 @@
                                 {{if ne .SentTotal 0.0}}
                                     {{if lt 0.0 .SentTotal}}
                                     {{if eq $txType "merged_debit"}}
-                                            <td class="text-right fs15"> 
+                                            <td class="text-right fs15">
                                             <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</span>
                                             </td>
                                         {{else}}
@@ -268,21 +274,27 @@
                                         <td>unspent</td>
                                     {{end}}
                                 {{end}}
-                                <td>
+                                <td class="addr-tx-time">
                                     {{if eq .Confirmations 0}}
                                         Unconfirmed
                                     {{else}}
                                         {{.FormattedTime}}
                                     {{end}}
                                 </td>
-                                <td>
+                                <td class="addr-tx-age">
                                 {{if eq .Time 0}}
                                     N/A
                                 {{else}}
                                     <span data-controller="main" data-target="main.age" data-age="{{.Time}}"></span>
                                 {{end}}
                                 </td>
-                                <td data-confirmation-block-height="{{index $.ConfirmHeight $i}}">{{.Confirmations}}</td>
+                                <td
+                                  {{if eq .Confirmations 0}}
+                                    class="addr-tx-confirms"
+                                  {{else}}
+                                    data-tx-block-height="{{index $.TxBlockHeights $i}}"
+                                  {{end}}
+                                  >{{.Confirmations}}</td>
                                 <td class="text-right">{{.FormattedSize}}</td>
                                 {{end}}
                             </tr>

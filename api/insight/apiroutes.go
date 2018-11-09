@@ -60,6 +60,7 @@ func NewInsightContext(client *rpcclient.Client, blockData *dcrpg.ChainDBRPC, pa
 			NodeConnections: conns,
 			APIVersion:      APIVersion,
 			DcrdataVersion:  version.String(),
+			NetworkName:     params.Name,
 		},
 	}
 	return &newContext

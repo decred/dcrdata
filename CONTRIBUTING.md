@@ -36,13 +36,27 @@ Only submit a PR once the intended edits are either done or nearing completion. 
 - Visual Studio Code with Go extension plus `gometalinter`
 - coffee, preferably black. [some good stuff](http://haiticoffeeacademy.com/)
 
-## Quick Start
+## Git Workflow
 
 1. Fork the repository on GitHub.  Just click the little Fork button at https://github.com/decred/dcrdata
+
+![image](https://user-images.githubusercontent.com/6109680/47858277-b8910480-ddb9-11e8-9088-a4d1c7b0805d.png)
+
 2. Clone your newly forked dcrdata repository
 
 ```sh
 git clone git@github.com:my-user-name/dcrdata.git
+```
+
+###### recommended
+
+Setting your master branch to track this repository makes keeping everything up-to-date a breeze. 
+The rest of this workflow guide will assume that you have completed this step. 
+
+```sh
+git remote add upstream https://github.com/decred/dcrdata.git
+git fetch upstream
+git branch -u upstream/master master
 ```
 
 3. Make a branch for your planned work, based on `master`
@@ -71,23 +85,105 @@ git status
 git commit # type a good commit message
 ```
 
-6. Push your commit to GitHub
+6. Bring master up-to-date and rebase
 
-Assuming `origin` is the name of the remote used for *your* repository:
+Since the Decred repo may have changes that you do not have locally, you'll want to pull in any changes and rebase.
+Read [this](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase) if you need a primer on rebasing.
 
 ```sh
-git push -u origin my-great-stuff
+git checkout master
+git pull
+git checkout my-great-stuff
+git rebase -i master
 ```
 
-7. Create the pull request
+In the text editor, change the command from `pick` to `fixup` or `squash` for **all but the top** commit. Use `fixup` for little touchups to discard the commit's log message. If you want to use a different
+commit message for everything, change the command from `pick` to `reword` on the top commit.
+It should look something like this before saving.
 
-At the [main dcrdata repo page](https://github.com/decred/dcrdata) (not your fork) you may find a button suggesting that you might want to create a PR from a branch you just pushed. "Compare & pull request" it will say on a big green button. Click it and it will start form to open a new pull request. Always:
+
+![alt text](https://i.imgur.com/fOtaYtb.png "Rebase commmit command guide")
+
+
+7. **If you have conflicts**, resolve them by iterating through the diffs one conflicting commit at a time.
+
+```sh
+# resolve conflicts
+git add file1.go, file2.go, ...
+git rebase --continue
+# repeat until rebase completes
+```
+
+8. Push your branch to GitHub
+
+Assuming `myremote` is the name of the remote used for *your* repository (by default, git created an alias, `origin`, for *your* forked repository in step 2 above, but you can [name it whatever you'd like](https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes)):
+
+```sh
+git push -u myremote my-great-stuff
+```
+
+9. Create the pull request
+
+On Github, select your branch in the dropdown menu (1) and click (2) to start a pull request.
+
+![alt text](https://i.imgur.com/GXZTyiq.png "Pull Request submission guide")
+
+Always:
 
 - Type a detailed comment for the changes you are proposing.  Include motivation and a description of the code change.
 - Highlight any breaking changes.  This includes any syntax changes, added or removed struct fields, interface changes, file renames or deletions, etc.
 - Scroll down and review the code diffs. Verify that the changes are what you expect to see based on your earlier review of the diffs and your git commit log (you did that, right?).
 
 Excellent [PR guidelines](https://github.com/kubernetes/community/blob/master/contributors/devel/pull-requests.md#best-practices-for-faster-reviews) from Kubernetes project.
+
+10. Receive feedback and make changes
+
+You will typically receive feedback from other developers. Before responding, take a moment to review the 
+[Code of Conduct](https://github.com/decred/dcrdata/blob/master/CODE_OF_CONDUCT.md). 
+
+Work through the comments and resolve any confusion with others. Make whatever revisions are necessary.
+
+11. Resubmitting
+
+Commit your work as in step 5 above.
+
+###### a)
+
+Before resubmitting, clean up any little touchup commits you've made since the last time you pushed.
+If you've only made one commit since then, you can skip this step.
+For example, if you have made 3 commits since your last push, then run the following to "squash" them together.
+
+```sh
+git rebase -i HEAD~3
+```
+
+The number after the tilda (~) is the number of commits that you want to combine, including the one you did at the beginning of this step. Try not to squash post-review commits with pre-review commits. Leaving them separate makes navigating the changes easier. 
+
+###### b)
+
+Then rebase the entire branch back to an updated master. 
+
+```sh
+git checkout master
+git pull
+git checkout my-great-stuff
+git rebase master
+```
+
+Note that the 4th command is different than step 6. You already performed the squash in the last step, so an interactive rebase (`-i`) is not needed here.
+
+###### c)
+
+Push the changes to your remote fork. 
+
+```sh
+git push myremote my-great-stuff
+```
+
+Depending on what has changed, you will likely receive an error message rejecting your push for a misaligned branch tip. This is normal.
+Rerun with the `--force` flag. 
+
+As soon as you push, your changes will be ready for review. There is typically no need to notify anybody that the changes have been made. Github takes care of that. Feel free to leave a comment on the pull request with a brief description of your changes. 
 
 ## Go Development Tips
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -198,10 +199,16 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"add": func(a, b int64) int64 {
 			return a + b
 		},
+		"intAdd": func(a, b int) int {
+			return a + b
+		},
 		"subtract": func(a, b int64) int64 {
 			return a - b
 		},
 		"floatsubtract": func(a, b float64) float64 {
+			return a - b
+		},
+		"intSubtract": func(a, b int) int {
 			return a - b
 		},
 		"divide": func(n, d int64) int64 {
@@ -211,6 +218,9 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return n / d
 		},
 		"multiply": func(a, b int64) int64 {
+			return a * b
+		},
+		"intMultiply": func(a, b int) int {
 			return a * b
 		},
 		"timezone": func() string {
@@ -287,7 +297,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return
 		},
-		"covertByteArrayToString": func(arr []byte) (inString string) {
+		"convertByteArrayToString": func(arr []byte) (inString string) {
 			inString = hex.EncodeToString(arr)
 			return
 		},
@@ -303,8 +313,66 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"toLowerCase": func(a string) string {
 			return strings.ToLower(a)
 		},
+		"fetchRowLinkURL": func(groupingStr string, interval int64) string {
+			// fetchRowLinkURL creates links url to be used in the blocks list views
+			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks
+			// (/years -> /months) simply means that on "/years" page every row has a
+			// link to the "/months" page showing the number of months that are
+			// expected to comprise a given row in "/years" page i.e each row has a
+			// link like "/months?offset=14&rows=12" with the offset unique for each row.
+			var matchedGrouping string
+			var rowsCount int
+			val := dbtypes.TimeGroupingFromStr(groupingStr)
+
+			switch val {
+			case dbtypes.YearGrouping:
+				matchedGrouping = "months"
+				rowsCount = 12
+			case dbtypes.MonthGrouping:
+				matchedGrouping = "weeks"
+				rowsCount = 4
+			case dbtypes.WeekGrouping:
+				matchedGrouping = "days"
+				rowsCount = 7
+			// for dbtypes.DayGrouping and any other groupings default to blocks.
+			default:
+				return fmt.Sprintf("/blocks?offset=%d&rows=20", interval)
+			}
+			matchingVal := dbtypes.TimeGroupingFromStr(matchedGrouping)
+			intervalVal, err := dbtypes.TimeBasedGroupingToInterval(matchingVal)
+			if err != nil {
+				log.Debugf("Resolving the new group interval failed: error : %v", err)
+				return "/blocks?offset=0&rows=20"
+			}
+
+			latestTime := time.Now().Unix()
+			offsetVal := (latestTime - interval) / int64(intervalVal)
+			if latestTime < interval {
+				return "/blocks?offset=0&rows=20"
+			}
+			return fmt.Sprintf("/%s?offset=%d&rows=%d", matchedGrouping, offsetVal, rowsCount)
+		},
 		"theme": func() string {
 			return netTheme
+		},
+		"now": func() int64 {
+			return time.Now().Unix()
+		},
+		"uint16toInt64": func(v uint16) int64 {
+			return int64(v)
+		},
+		"zeroSlice": func(length int) []int {
+			if length < 0 {
+				length = 0
+			}
+			return make([]int, length)
+		},
+		"clipSlice": func(arr []*TrimmedTxInfo, n int) []*TrimmedTxInfo {
+			if len(arr) >= n {
+				return arr[:n]
+			} else {
+				return arr
+			}
 		},
 	}
 }

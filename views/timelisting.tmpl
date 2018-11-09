@@ -1,0 +1,150 @@
+{{define "timelisting"}}
+<!DOCTYPE html>
+<html lang="en">
+
+{{template "html-head" printf "Decred %s List" .TimeGrouping}}
+<body class="{{ theme }}">
+    {{template "navbar" . }}
+    <div class="container main" data-controller="main">
+        <div style="margin: auto auto 1rem; width: 80%; max-width: 80%;">
+            <h4>{{.TimeGrouping}}</h4>
+
+            {{block "timeBasedPagination" .}}
+            {{$count := (int64 (len .Data))}}
+            <div class="mb-1 fs13">
+                {{if gt $count 0}}
+                <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
+                    {{$oldest := (add .Offset $count)}}
+                    {{$lastGrouping := (add .BestGrouping 1)}}
+                    {{$lowerCaseVal := (toLowerCase .TimeGrouping)}}
+                    {{$pending := (subtract $lastGrouping .Offset)}}
+                    {{template "listViewRouting" $lowerCaseVal}}
+
+                    <span class="fs12 nowrap text-right">
+                        <label class="mb-0 mr-1" for="tb-pagesize">Page Size</label>
+                        <select
+                            name="tb-pagesize"
+                            id="tb-pagesize"
+                            class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pending 20}}disabled{{end}}"
+                            {{if lt $pending 20}}disabled="disabled"{{end}}
+                        >
+                        {{if ge $pending 20}}<option {{if eq $count 20}}selected{{end}} value="20">20</option>{{end}}
+                        {{if ge $pending 30}}<option {{if eq $count 30}}selected{{end}} value="30">30</option>{{end}}
+                        {{if ge $pending 50}}<option {{if eq $count 50}}selected{{end}} value="50">50</option>{{end}}
+                        {{if ge $pending 100}}<option {{if eq $count 100}}selected{{end}} value="100">100</option>{{end}}
+                        {{if eq $lastGrouping $count 20 30 50 100}}{{else}}<option value="{{$lastGrouping}}">{{$lastGrouping}}</option>{{end}}
+                        {{if eq $count 20 30 50 100}}{{else}}<option selected value="{{$count}}">{{$count}}</option>{{end}}
+                        </select>
+                    </span>
+                    <span class="fs12 nowrap text-right">
+                        {{intComma (add .Offset 1)}} &ndash; {{intComma $oldest}} of {{ intComma $lastGrouping }} rows
+                    </span>
+                    <nav aria-label="blocks navigation" data-limit="{{.Limit}}" class="ml-2">
+                        <ul class="pagination mb-0 pagination-sm">
+                            <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
+                                <a
+                                    class="page-link"
+                                    href="/{{$lowerCaseVal}}?offset=0&rows={{.Limit}}"
+                                    id="next"
+                                > Newest</a>
+                            </li>
+                            <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
+                                <a
+                                    class="page-link"
+                                    href="/{{$lowerCaseVal}}?offset={{subtract .Offset .Limit}}&rows={{.Limit}}"
+                                    id="next"
+                                > Newer</a>
+                            </li>
+                            <li class="page-item {{if ge $oldest $lastGrouping}}disabled{{end}}">
+                                <a
+                                    class="page-link"
+                                    href="/{{$lowerCaseVal}}?offset={{add .Offset .Limit}}&rows={{.Limit}}"
+                                    id="prev"
+                                >Older</a>
+                            </li>
+                            <li class="page-item {{if ge $oldest $lastGrouping}}disabled{{end}}">
+                                <a
+                                    class="page-link"
+                                    href="/{{$lowerCaseVal}}?offset={{subtract $lastGrouping .Limit}}&rows={{.Limit}}"
+                                    id="prev"
+                                >Oldest</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                {{else}}
+                <span class="fs12 nowrap text-right list-display">no confirmed blocks found</span>
+                {{end}}
+            </div>
+            {{end}}
+
+            {{$lowerCaseVal := (toLowerCase .TimeGrouping)}}
+            <div class="row">
+                <div class="col-md-12">
+                    <table class="table striped table-responsive-sm">
+                        <thead>
+                            <tr>
+                                <th>Start Date</th>
+                                {{if eq $lowerCaseVal "years"}}
+                                <th>End Date</th>
+                                {{end}}
+                                <th class="text-right">Transactions</th>
+                                <th class="text-right">Votes</th>
+                                <th class="text-right">Tickets</th>
+                                <th class="text-right">Revokes</th>
+                                <th class="text-right">Total Blocks</th>
+                                <th class="text-right">Total Size</th>
+                                <th class="text-right">Age</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {{range .Data}}
+                            <tr id="{{.EndBlock}}">
+                                <td>
+                                   <a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .EndTime}}">{{.FormattedStartTime}}</a>
+                                </td>
+                                {{if eq $lowerCaseVal "years"}}
+                                <td>{{.FormattedEndTime}}</td>
+                                {{end}}
+                                <td class="text-right">{{intComma .Transactions}}</td>
+                                <td class="text-right">{{intComma .Voters}}</td>
+                                <td class="text-right">{{intComma .FreshStake}}</td>
+                                <td class="text-right">{{intComma .Revocations}}</td>
+                                <td class="text-right">{{intComma .BlocksCount}}</td>
+                                <td class="text-right">{{.FormattedSize}}</td>
+                                <td id="{{toLowerCase $.TimeGrouping}}" class="text-right" data-target="main.age" data-age="{{.StartTime}}"></td>
+                            </tr>
+                        {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {{if gt (len $.Data) 20}}
+            <div style="margin-bottom:5%;">
+                {{template "timeBasedPagination" .}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+
+{{ template "footer" . }}
+
+<script>
+    $("#tb-pagesize").change(function(ev) {
+        var pagesize = "20"
+        var offset = {{$.Offset}}
+        if (ev.currentTarget.id.indexOf("tb-pagesize") != -1){
+            pagesize = $("#tb-pagesize option:selected").val()
+        }
+
+        Turbolinks.visit(
+            window.location.pathname
+            + "?offset="+ offset 
+            + "&rows=" + pagesize
+        )
+    })
+</script>
+
+</body>
+</html>
+{{ end }}

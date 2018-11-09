@@ -81,16 +81,17 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 	}
 }
 
-// ChartGrouping defines the possible ways that a graph's axis can be grouped
-// according to all, year, month, week or day grouping.
-type ChartGrouping int8
+// TimeBasedGrouping defines the possible ways that a time can be grouped
+// according to all, year, month, week or day grouping. This time grouping is
+// used in time-based grouping like charts and blocks list view.
+type TimeBasedGrouping int8
 
 const (
-	AllChartGrouping ChartGrouping = iota
-	YearChartGrouping
-	MonthChartGrouping
-	WeekChartGrouping
-	DayChartGrouping
+	AllGrouping TimeBasedGrouping = iota
+	YearGrouping
+	MonthGrouping
+	WeekGrouping
+	DayGrouping
 	UnknownGrouping
 )
 
@@ -123,14 +124,16 @@ type ProgressBarLoad struct {
 // new tickets, etc.)
 type BlocksGroupedInfo struct {
 	// intrinsic properties
-	WindowIndx    int64
-	EndBlock      int64
-	Difficulty    float64
-	TicketPrice   int64
-	StartTime     int64
-	Size          int64
-	FormattedTime string
-	FormattedSize string
+	IndexVal           int64
+	EndBlock           int64
+	Difficulty         float64
+	TicketPrice        int64
+	StartTime          int64
+	FormattedStartTime string
+	EndTime            int64
+	FormattedEndTime   string
+	Size               int64
+	FormattedSize      string
 	// Aggregate properties
 	Voters       uint64
 	Transactions uint64
@@ -139,32 +142,32 @@ type BlocksGroupedInfo struct {
 	BlocksCount  int64
 }
 
-// ChartGroupings helps maping a given chart grouping to its standard string value.
-var ChartGroupings = map[ChartGrouping]string{
-	AllChartGrouping:   "all",
-	YearChartGrouping:  "yr",
-	MonthChartGrouping: "mo",
-	WeekChartGrouping:  "wk",
-	DayChartGrouping:   "day",
+// TimeBasedGroupings maps a given time grouping to its standard string value.
+var TimeBasedGroupings = map[TimeBasedGrouping]string{
+	AllGrouping:   "all",
+	YearGrouping:  "yr",
+	MonthGrouping: "mo",
+	WeekGrouping:  "wk",
+	DayGrouping:   "day",
 }
 
-func (g ChartGrouping) String() string {
-	return ChartGroupings[g]
+func (g TimeBasedGrouping) String() string {
+	return TimeBasedGroupings[g]
 }
 
-// ChartGroupingFromStr converts groupings string to its respective chartGrouping value.
-func ChartGroupingFromStr(groupings string) ChartGrouping {
+// TimeGroupingFromStr converts groupings string to its respective TimeBasedGrouping value.
+func TimeGroupingFromStr(groupings string) TimeBasedGrouping {
 	switch strings.ToLower(groupings) {
 	case "all":
-		return AllChartGrouping
-	case "yr", "year":
-		return YearChartGrouping
-	case "mo", "month":
-		return MonthChartGrouping
-	case "wk", "week":
-		return WeekChartGrouping
-	case "day":
-		return DayChartGrouping
+		return AllGrouping
+	case "yr", "year", "years":
+		return YearGrouping
+	case "mo", "month", "months":
+		return MonthGrouping
+	case "wk", "week", "weeks":
+		return WeekGrouping
+	case "day", "days":
+		return DayGrouping
 	default:
 		return UnknownGrouping
 	}
@@ -413,6 +416,17 @@ type AddressRow struct {
 	VinVoutDbID      uint64
 	MergedDebitCount uint64
 	TxType           int16
+}
+
+// AddressMetrics defines address metrics needed to make decisions by which
+// grouping buttons on the address history page charts should be disabled
+// or enabled by default.
+type AddressMetrics struct {
+	OldestBlockTime int64
+	YearTxsCount    int64 // Years txs grouping
+	MonthTxsCount   int64 // Months txs grouping
+	WeekTxsCount    int64 // Weeks txs grouping
+	DayTxsCount     int64 // Days txs grouping
 }
 
 // ChartsData defines the fields that store the values needed to plot the charts

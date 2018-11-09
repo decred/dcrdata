@@ -95,8 +95,8 @@ type DataSourceAux interface {
 	AddressTotals(address string) (*apitypes.AddressTotals, error)
 	VotesInBlock(hash string) (int16, error)
 	GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
-		chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error)
-	TicketPoolVisualization(interval dbtypes.ChartGrouping) (
+		chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
+	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
 		[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 }
 
@@ -133,6 +133,7 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 			NodeConnections: conns,
 			APIVersion:      APIVersion,
 			DcrdataVersion:  appver.Version(),
+			NetworkName:     params.Name,
 		},
 		JSONIndent: JSONIndent,
 	}
@@ -832,7 +833,7 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 	// The db queries are fast enough that it makes sense to call
 	// TicketPoolVisualization here even though it returns a lot of data not
 	// needed by this request.
-	interval := dbtypes.ChartGroupingFromStr(tp)
+	interval := dbtypes.TimeGroupingFromStr(tp)
 	barCharts, _, height, err := c.AuxDataSource.TicketPoolVisualization(interval)
 	if err != nil {
 		apiLog.Errorf("Unable to get ticket pool by date: %v", err)
@@ -1237,7 +1238,7 @@ func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Reques
 	}
 
 	data, err := c.AuxDataSource.GetTxHistoryData(address, dbtypes.TxsType,
-		dbtypes.ChartGroupingFromStr(chartGrouping))
+		dbtypes.TimeGroupingFromStr(chartGrouping))
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by tx type : %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -1261,7 +1262,7 @@ func (c *appContext) getAddressTxAmountFlowData(w http.ResponseWriter, r *http.R
 	}
 
 	data, err := c.AuxDataSource.GetTxHistoryData(address, dbtypes.AmountFlow,
-		dbtypes.ChartGroupingFromStr(chartGrouping))
+		dbtypes.TimeGroupingFromStr(chartGrouping))
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by amount flow: %v", address, err)
 		http.Error(w, http.StatusText(422), 422)
@@ -1285,7 +1286,7 @@ func (c *appContext) getAddressTxUnspentAmountData(w http.ResponseWriter, r *htt
 	}
 
 	data, err := c.AuxDataSource.GetTxHistoryData(address, dbtypes.TotalUnspent,
-		dbtypes.ChartGroupingFromStr(chartGrouping))
+		dbtypes.TimeGroupingFromStr(chartGrouping))
 	if err != nil {
 		log.Warnf("failed to get address (%s) history by unspent amount flow: %v", address, err)
 		http.Error(w, http.StatusText(422), 422)

@@ -23,8 +23,8 @@
     <title>{{.}}</title>
     <link href="/css/bootstrap.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
+    <link href="/css/nexthome.css" rel="stylesheet">
     <link href="/css/charts.css" rel="stylesheet">
-     <link href="/css/nexthome.css" rel="stylesheet">
     <script src="/js/turbolinks.js"></script>
     <script src="/js/jquery.js"></script>
     <script src="/js/jquery-migrate.js"></script>
@@ -38,8 +38,7 @@
 {{end}}
 
 {{define "navbar"}}
-<header>
-<div class="top-nav">
+<header class="top-nav">
     <div class="container">
         <div class="d-flex align-items-center flex-wrap">
             <div class="d-flex align-items-center">
@@ -93,7 +92,6 @@
             </nav>
         </div>
     </div>
-</div>
 </header>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
@@ -107,6 +105,11 @@
         var expires = "expires="+d.toUTCString();
         document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
     }
+
+    var DCRThings = {}
+    DCRThings.targetBlockTime = {{$.BlockTimeUnix}}
+    DCRThings.ticketPoolSize = {{$.ChainParams.TicketPoolSize}}
+
     var sunIcon = document.getElementById("sun-icon")
     var darkBGCookieName = 'dcrdataDarkBG';
     function darkEnabled() {
@@ -184,17 +187,22 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    // `formatTxDate`: Format a string to match the format `(UTC) YYYY-MM-DD HH:MM:SS` used by explorer.TxPage and tx.tmpl
+    function formatTxDate(stamp, withTimezone) {
+        var d = new Date(stamp*1000);
+        var zone = withTimezone ? "("+d.toLocaleTimeString('en-us',{timeZoneName:'short'}).split(' ')[2]+") " : "";
+        return zone+String(d.getFullYear())+"-"+String(d.getMonth()+1).padStart(2, "0")+"-"+String(d.getDate()).padStart(2, "0")+" "
+            +String(d.getHours()).padStart(2, "0")+":"+String(d.getMinutes()).padStart(2, "0")+":"+String(d.getSeconds()).padStart(2, "0");
+    }
+
     var ws; // websocket global
     async function createWebSocket(loc) {
         // wait a bit to prevent websocket churn from drive by page loads
-        console.log('Waiting to create websocket');
         $('#connection').removeClass('hidden');
         var uri = getSocketURI(loc)
         ws = new MessageSocket(uri);
         await sleep(3000);
         ws.connect()
-        console.log('Starting websocket');
-        console.log("createdWebSocket", uri, ws)
         ws.registerEvtHandler("open", function() {
             console.log('Connected')
             updateConnectionStatus('Connected', true);
@@ -211,8 +219,7 @@
         });
 
         ws.registerEvtHandler("ping", function(evt) {
-            console.log("ping. users online: ", evt)
-            //ws.send("pong", "copy")
+            console.debug("ping. users online: ", evt)
         });
         ws.registerEvtHandler("decodetxResp", function(evt) {
             console.log("Got message: ", evt);
@@ -232,13 +239,21 @@
                 if (isNaN($(v).text())) {
                     $(v).text("0");
                 }
-                var confirmations = newBlock.block.height - $(v).data('confirmation-block-height');
+                var confirmations = newBlock.block.height - $(v).data('confirmation-block-height') + 1;
                 $(v).text("(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")")
             })
 
             // block summary data
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
+
+
+            // Update the blocktime counter.
+            DCRThings.counter.data("main-lastblocktime", b.time).removeClass("text-danger")
+            DCRThings.counter.html(humanize.timeSince(b.time))
+
+            advanceTicketProgress(b)
+            confirmAddrMempool(b)
 
             var expTableRows = $('#explorertable tbody tr');
             //var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
@@ -265,7 +280,7 @@
 
 
             var ex = newBlock.extra
-            if (window.location.pathname == "/nexthome"){
+            if (window.location.pathname === "/nexthome"){
                 $("#coin-supply").html(humanize.decimalParts(ex.coin_supply/100000000, true, 0, false))
                 $("#bsubsidy-dev").html(humanize.decimalParts(ex.subsidy.dev/100000000, false, 8, false, 2))
                 $("#dev-fund").html(humanize.decimalParts(ex.dev_fund/100000000, true, 0, false))
@@ -279,17 +294,7 @@
                 $("#hashrate").html(humanize.decimalParts(ex.hash_rate, false, 8, false, 2))
                 $("#hashrate-subdata").html("("+ humanize.fmtPercentage(ex.hash_rate_change)+ " in 24hr)")
 
-                var newB = $(".block-info").first().clone(true)
-                newB.find("#block-height").text(b.height)
-                newB.find("#block-age").attr("data-age", b.time)
-                newB.find("#total-sent").html(humanize.decimalParts(b.TotalSent, false, 2, false, 2))
-                newB.find("#tx-count").text("sent in "+b.AllTxs+" transactions")
-                newB.find("#votes").text(b.votes)
-                newB.find("#tickets").text(b.tickets)
-                newB.find("#show-block").attr("href", "/block/" + b.height)
-                $(newB).insertAfter("#mempool-info")
-
-                $(".block-info").last().remove()
+                handleBlockUpdate(newBlock.block)
             }
 
              if (window.location.pathname == "/"){
@@ -320,11 +325,23 @@
         ws.registerEvtHandler("newblock", updateBlockData);
 
         ws.registerEvtHandler("mempool", function(event){
-            var mempool = JSON.parse(event);
-            $("#mempool-total-sent").html(humanize.decimalParts(mempool.total, false, 2, false, 2))
-            $("#mempool-tx-count").text("sent in "+mempool.num_all+" transactions")
-            $("#mempool-votes").text(mempool.num_votes)
-            $("#mempool-tickets").text(mempool.num_tickets)
+            if (window.location.pathname === "/nexthome") {
+                ws.send("getmempooltxs", "")
+            }
+            else {
+                var mempool = JSON.parse(event);
+                $("#mempool-total-sent").html(humanize.decimalParts(mempool.total, false, 2, false, 2))
+                $("#mempool-tx-count").text("sent in "+mempool.num_all+" transactions")
+                $("#mempool-votes").text(mempool.num_votes)
+                $("#mempool-tickets").text(mempool.num_tickets)
+            }
+        });
+
+        ws.registerEvtHandler("getmempooltxsResp", function(event) {
+            console.log("received mempooltx response", event);
+            if (window.location.pathname === "/nexthome") {
+                handleMempoolUpdate(event);
+            }
         });
     }
 
@@ -377,6 +394,112 @@
             doNotification(block);
         }
     }
+
+    // Check for the txid in the given block
+    function txInBlock(txid, block) {
+      var txTypes = [block.Tx, block.Tickets, block.Revs, block.Votes]
+      for(txIdx in txTypes){
+          txs = txTypes[txIdx]
+          for(idx in txs){
+              if(txs[idx].TxID ==  txid){
+                  return true;
+              }
+          }
+      }
+      return false;
+    }
+
+    // Advance various progress bars on /tx.
+    function advanceTicketProgress(block){
+        // Check for confirmations on mempool transactions.
+        var needsConfirmation = $("[data-txid-mempool-display]")
+        if(needsConfirmation.length && needsConfirmation.text() == "mempool"){
+            var txid = needsConfirmation.data("txid-mempool-display");
+            if(txInBlock(txid, block)){
+              needsConfirmation.remove();
+              $("[data-confirmation-block-height]").data("confirmation-block-height", block.height).html("(1 confirmation)");
+              $("#txMempoolLink").html(block.height).attr("href", "/block/"+block.hash);
+              $("#txFmtTime").html(formatTxDate(block.time, true));
+              $("#txAge").html(humanize.timeSince(block.time)).before("(").after(" ago)").attr("data-age",block.time);
+              var progressBar = $("#txMaturityProgress")
+              var remainingBlocks = parseInt(progressBar.attr("aria-valuemax")) - 1
+              progressBar.attr('data-confirm-height', block.height)
+            }
+        }
+        // Advance the progress bars.
+        var ticketProgress = $("#txMaturityProgress");
+        if(!ticketProgress.length){
+            return;
+        }
+        var txBlockHeight = ticketProgress.data("confirm-height")
+        if(txBlockHeight == 0){
+          return;
+        }
+        var confirmations = block.height - txBlockHeight + 1;
+        var txType = ticketProgress.data("tx-type");
+        var complete = parseInt(ticketProgress.attr("aria-valuemax"));
+        if(confirmations == complete + 1){
+            ticketProgress.closest(".row").replaceWith(txType == "LiveTicket" ? "Expired" : "Mature");
+            return;
+        }
+        var ratio = confirmations/complete;
+        if(confirmations == complete){
+            ticketProgress.children("span").html(txType == "Ticket" ? "Mature. Eligible to vote on next block." :
+            txType == "LiveTicket" ? "Ticket has expired" : "Mature. Ready to spend.");
+            var status = $("#txPoolStatus");
+            if(status.length){
+                status.html("live / unspent");
+            }
+        }
+        else{
+            var blocksLeft = complete+1-confirmations;
+            var remainingTime = blocksLeft*DCRThings.targetBlockTime
+            if(txType == "LiveTicket"){
+                ticketProgress.children("span").html("block "+confirmations+" of "+complete+" ("+(remainingTime/86400.).toFixed(1)+" days remaining)");
+                // Chance of expiring is (1-P)^N where P := single-block probability of being picked, N := blocks remaining.
+                // This probability is using the network parameter rather than the calculated value. So far, the ticket pool size seems stable enough to do that.
+                var pctChance = Math.pow(1 - 1/DCRThings.ticketPoolSize, blocksLeft)*100;
+                $("#ticketExpiryChance").children("span").html(pctChance.toFixed(2)+"% chance of expiry");
+            }
+            else{
+                var typeStub = txType == "Ticket" ? "eligible to vote" : "spendable";
+                ticketProgress.children("span").html("Immature, "+typeStub+" in "+blocksLeft+" blocks ("+(remainingTime/3600.).toFixed(1)+" hours remaining)");
+            }
+            ticketProgress.attr("aria-valuenow", confirmations).css({"width":(ratio*100).toString()+"%"});
+        }
+    }
+
+    // Check the block for mempool transactions on the address page.
+    function confirmAddrMempool(block){
+      var mempoolRows = $("[data-addr-tx-pending]");
+      mempoolRows.each(function(idx, tr){
+        var row = $(tr)
+        var txid = row.data('addr-tx-pending')
+        if(txInBlock(txid, block)){
+          var confirms = row.children('.addr-tx-confirms');
+          confirms.attr('data-tx-block-height', block.height);
+          row.removeAttr('data-addr-tx-pending');
+          row.children('.addr-tx-time').html(formatTxDate(block.time, false));
+          row.children('.addr-tx-age').children('span').attr("data-age", block.time).html(humanize.timeSince(block.time));
+          confirms.html("1")
+        }
+      });
+      var confirmTds = $('[data-tx-block-height]');
+      confirmTds.each(function(idx, td){
+        confirms = $(td);
+        confirms.html(block.height - parseInt(confirms.data('tx-block-height')) + 1);
+      });
+      var pendingCounters = $('[data-tx-confirmations-pending]');
+      pendingCounters.each(function(i,c){
+        var counter = $(c);
+        var txid = counter.data('tx-confirmations-pending')
+        if(txInBlock(txid, block)){
+          counter.removeAttr('data-tx-confirmations-pending')
+          counter.attr('data-confirmation-block-height', block.height).html('(1 confirmation)')
+        }
+      });
+    }
+
 </script>
 
 <script>
@@ -386,12 +509,16 @@
 </script>
 
 <script src="/js/notify.min.js"></script>
-
 {{end}}
 
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
-    <div class="container d-flex">
+    <div class="container d-flex justify-content-between align-items-center">
+        <ul class="nav justify-contents-left nowrap blockcounter">
+          <li class="nav-item text-left">
+            <span data-controller="main" data-target="main.age" data-main-lastblocktime="{{$.Tip.Time}}"></span> <span class="block-msg">since last block</span>
+          </li>
+        </ul>
         <ul class="nav justify-content-center col">
             <li class="nav-item">
                 <a
@@ -411,8 +538,8 @@
                 >© 2018 The Decred developers (ISC)</a>
             </li>
         </ul>
-        <ul class="nav justify-content-right align-items-center nowrap">
-            <li class="text-right">
+        <ul class="nav justify-content-right align-items-center">
+            <li class="text-right connection-wrapper">
                 <span
                     id="connection"
                     class="nav-item align-items-center"
@@ -426,7 +553,6 @@
 </footer>
 
 <script data-turbolinks-eval="false">
-
     // Keyboard Navigation
     var targets;
     var targetsLength;
@@ -612,10 +738,15 @@
             Notify.requestPermission(onPermissionGranted, onPermissionDenied);
         }
     })
+    $("#listing-view").change(function(ev) {
+        Turbolinks.visit( "/"+
+            $("#listing-view option:selected").val()
+        )
+    })
+    DCRThings.counter = $("[data-main-lastblocktime]")
 </script>
-
 <script data-turbolinks-eval="false">
-const app = Stimulus.Application.start()
+    const app = Stimulus.Application.start()
 </script>
 <script src="/js/controllers/main.js"  data-turbolinks-eval="false"></script>
 <script src="/js/controllers/mempool.js"  data-turbolinks-eval="false"></script>
@@ -642,4 +773,17 @@ const app = Stimulus.Application.start()
 {{define "fmtPercentage"}}
     {{if gt . 0.0}}<span style="color:green">+{{printf "%.2f" .}} %</span>
     {{else}}<span style="color:red">{{printf "%.2f" .}} %</span>{{end}}
+{{end}}
+
+{{define "listViewRouting"}}
+    <div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
+        <select id="listing-view" class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
+            <option {{if eq . "years"}}selected{{end}} value="years">Years</option>
+            <option {{if eq . "months"}}selected{{end}} value="months">Months</option>
+            <option {{if eq . "weeks"}}selected{{end}} value="weeks">Weeks</option>
+            <option {{if eq . "days"}}selected{{end}} value="days">Days</option>
+            <option {{if eq . "windows"}}selected{{end}} value="ticketpricewindows">Windows</option>
+            <option {{if eq . "blocks"}}selected{{end}} value="blocks">Blocks</option>
+        </select>
+    </div>
 {{end}}

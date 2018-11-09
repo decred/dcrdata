@@ -96,9 +96,16 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 				case "getmempooltxs":
-					exp.MempoolData.RLock()
-					msg, err := json.Marshal(exp.MempoolData)
-					exp.MempoolData.RUnlock()
+					// construct mempool object with properties required in template
+					mempoolInfo := exp.TrimmedMempoolInfo()
+					// mempool fees appear incorrect, temporarily set to zero for now
+					mempoolInfo.Fees = 0
+
+					exp.pageData.RLock()
+					mempoolInfo.Subsidy = exp.pageData.HomeInfo.NBlockSubsidy
+					exp.pageData.RUnlock()
+
+					msg, err := json.Marshal(mempoolInfo)
 
 					if err != nil {
 						log.Warn("Invalid JSON message: ", err)
@@ -109,7 +116,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				case "getticketpooldata":
 					// Retrieve chart data on the given interval.
-					interval := dbtypes.ChartGroupingFromStr(msg.Message)
+					interval := dbtypes.TimeGroupingFromStr(msg.Message)
 					// Chart height is returned since the cache may be stale,
 					// although it is automatically updated by the first caller
 					// who requests data from a stale cache.

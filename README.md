@@ -565,7 +565,8 @@ example Nginx configuration.
 To save time and tens of gigabytes of disk storage space, dcrdata runs by
 default in a reduced functionality ("lite") mode that does not require
 PostgreSQL. To enable the PostgreSQL backend (and the expanded functionality),
-dcrdata may be started with the `--pg` switch.
+dcrdata may be started with the `--pg` switch. See `--help` or `sample-dcrdata.conf` 
+for additional PostgreSQL configuration settings. 
 
 ## APIs
 
@@ -809,7 +810,7 @@ See the GitHub issue tracker and the [project milestones](https://github.com/dec
 
 ## Contributing
 
-Yes, please! See the CONTRIBUTING.md file for details, but here's the gist of it:
+Yes, please! **See the CONTRIBUTING.md file for details**, but here's the gist of it:
 
 1. Fork the repo.
 2. Create a branch for your work (`git checkout -b cool-stuff`).

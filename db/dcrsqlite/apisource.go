@@ -268,7 +268,6 @@ func (db *wiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVer
 func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	return rpcutils.GetBlockVerboseByHash(db.client, hash, verboseTx)
 }
-
 func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	coinSupply, err := db.client.GetCoinSupply()
 	if err != nil {
@@ -512,6 +511,7 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 		spk := &tx.Vout[i].ScriptPubKeyDecoded
 		spkRaw := &txraw.Vout[i].ScriptPubKey
 		spk.Asm = spkRaw.Asm
+		spk.Hex = spkRaw.Hex
 		spk.ReqSigs = spkRaw.ReqSigs
 		spk.Type = spkRaw.Type
 		spk.Addresses = make([]string, len(spkRaw.Addresses))
@@ -936,6 +936,7 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 			spk := &tx.Vout[j].ScriptPubKeyDecoded
 			spkRaw := &txs[i].Vout[j].ScriptPubKey
 			spk.Asm = spkRaw.Asm
+			spk.Hex = spkRaw.Hex
 			spk.ReqSigs = spkRaw.ReqSigs
 			spk.Type = spkRaw.Type
 			spk.Addresses = make([]string, len(spkRaw.Addresses))
@@ -956,7 +957,7 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *explorer.BlockBasic {
 	index := dbtypes.CalculateWindowIndex(data.Height, params.StakeDiffWindowSize)
 	block := &explorer.BlockBasic{
-		WindowIndx:     index,
+		IndexVal:       index,
 		Height:         data.Height,
 		Hash:           data.Hash,
 		Size:           data.Size,
@@ -1024,6 +1025,13 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	t := time.Unix(tx.Time, 0)
 	tx.FormattedTime = t.Format("2006-01-02 15:04:05")
 	tx.Confirmations = data.Confirmations
+
+	msgTx, err := txhelpers.MsgTxFromHex(data.Hex)
+	if err == nil {
+		tx.TxType = txhelpers.DetermineTxTypeString(msgTx)
+	} else {
+		log.Warn("makeExplorerAddressTx cannot get tx type", err)
+	}
 
 	for i := range data.Vin {
 		if data.Vin[i].PrevOut != nil && len(data.Vin[i].PrevOut.Addresses) > 0 {
@@ -1103,11 +1111,12 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		NextHash:              data.NextHash,
 		StakeValidationHeight: db.params.StakeValidationHeight,
 		AllTxs:                (uint32(b.Voters) + uint32(b.Transactions) + uint32(b.FreshStake)),
+		Subsidy:               db.BlockSubsidy(b.Height, b.Voters),
 	}
 
-	votes := make([]*explorer.TxBasic, 0, block.Voters)
-	revocations := make([]*explorer.TxBasic, 0, block.Revocations)
-	tickets := make([]*explorer.TxBasic, 0, block.FreshStake)
+	votes := make([]*explorer.TrimmedTxInfo, 0, block.Voters)
+	revocations := make([]*explorer.TrimmedTxInfo, 0, block.Revocations)
+	tickets := make([]*explorer.TrimmedTxInfo, 0, block.FreshStake)
 
 	for _, tx := range data.RawSTx {
 		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
@@ -1117,41 +1126,44 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		}
 		switch stake.DetermineTxType(msgTx) {
 		case stake.TxTypeSSGen:
-			stx := makeExplorerTxBasic(tx, msgTx, db.params)
+			stx := trimmedTxInfoFromMsgTx(tx, msgTx, db.params)
 			// Fees for votes should be zero, but if the transaction was created
 			// with unmatched inputs/outputs then the remainder becomes a fee.
 			// Account for this possibility by calculating the fee for votes as
 			// well.
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
-			stx := makeExplorerTxBasic(tx, msgTx, db.params)
+			stx := trimmedTxInfoFromMsgTx(tx, msgTx, db.params)
 			tickets = append(tickets, stx)
 		case stake.TxTypeSSRtx:
-			stx := makeExplorerTxBasic(tx, msgTx, db.params)
+			stx := trimmedTxInfoFromMsgTx(tx, msgTx, db.params)
 			revocations = append(revocations, stx)
 		}
 	}
 
-	txs := make([]*explorer.TxBasic, 0, block.Transactions)
+	txs := make([]*explorer.TrimmedTxInfo, 0, block.Transactions)
 	for _, tx := range data.RawTx {
 		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
 		if err != nil {
-			continue
+			log.Errorf("Unknown transaction %s: %v", tx.Txid, err)
+			return nil
 		}
-		exptx := makeExplorerTxBasic(tx, msgTx, db.params)
+
+		exptx := trimmedTxInfoFromMsgTx(tx, msgTx, db.params)
 		for _, vin := range tx.Vin {
 			if vin.IsCoinBase() {
-				exptx.Fee, exptx.FeeRate = 0.0, 0.0
+				exptx.Fee, exptx.FeeRate, exptx.Fees = 0.0, 0.0, 0.0
 			}
 		}
 		txs = append(txs, exptx)
 	}
+
 	block.Tx = txs
 	block.Votes = votes
 	block.Revs = revocations
 	block.Tickets = tickets
 
-	sortTx := func(txs []*explorer.TxBasic) {
+	sortTx := func(txs []*explorer.TrimmedTxInfo) {
 		sort.Slice(txs, func(i, j int) bool {
 			return txs[i].Total > txs[j].Total
 		})
@@ -1162,13 +1174,13 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	sortTx(block.Revs)
 	sortTx(block.Tickets)
 
-	getTotalFee := func(txs []*explorer.TxBasic) (total dcrutil.Amount) {
+	getTotalFee := func(txs []*explorer.TrimmedTxInfo) (total dcrutil.Amount) {
 		for _, tx := range txs {
 			total += tx.Fee
 		}
 		return
 	}
-	getTotalSent := func(txs []*explorer.TxBasic) (total dcrutil.Amount) {
+	getTotalSent := func(txs []*explorer.TrimmedTxInfo) (total dcrutil.Amount) {
 		for _, tx := range txs {
 			amt, err := dcrutil.NewAmount(tx.Total)
 			if err != nil {
@@ -1180,10 +1192,28 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	}
 	block.TotalSent = (getTotalSent(block.Tx) + getTotalSent(block.Revs) +
 		getTotalSent(block.Tickets) + getTotalSent(block.Votes)).ToCoin()
-	block.MiningFee = getTotalFee(block.Tx) + getTotalFee(block.Revs) +
-		getTotalFee(block.Tickets) + getTotalFee(block.Votes)
+	block.MiningFee = (getTotalFee(block.Tx) + getTotalFee(block.Revs) +
+		getTotalFee(block.Tickets) + getTotalFee(block.Votes)).ToCoin()
 
 	return block
+}
+
+func trimmedTxInfoFromMsgTx(txraw dcrjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *explorer.TrimmedTxInfo {
+	txBasic := makeExplorerTxBasic(txraw, msgTx, params)
+
+	voteValid := false
+	if txBasic.VoteInfo != nil {
+		voteValid = txBasic.VoteInfo.Validation.Validity
+	}
+
+	tx := &explorer.TrimmedTxInfo{
+		TxBasic:   txBasic,
+		Fees:      txBasic.Fee.ToCoin(),
+		VinCount:  len(txraw.Vin),
+		VoutCount: len(txraw.Vout),
+		VoteValid: voteValid,
+	}
+	return tx
 }
 
 func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
@@ -1579,4 +1609,26 @@ func (db *wiredDB) Difficulty() (float64, error) {
 		return diff, err
 	}
 	return diff, nil
+}
+
+// GetTip grabs the highest block stored in the database.
+func (db *wiredDB) GetTip() (*explorer.WebBasicBlock, error) {
+	tip, err := db.DB.getTip()
+	if err != nil {
+		return nil, err
+	}
+	blockdata := explorer.WebBasicBlock{
+		Height:      tip.Height,
+		Size:        tip.Size,
+		Hash:        tip.Hash,
+		Difficulty:  tip.Difficulty,
+		StakeDiff:   tip.StakeDiff,
+		Time:        tip.Time,
+		NumTx:       tip.NumTx,
+		PoolSize:    tip.PoolInfo.Size,
+		PoolValue:   tip.PoolInfo.Value,
+		PoolValAvg:  tip.PoolInfo.ValAvg,
+		PoolWinners: tip.PoolInfo.Winners,
+	}
+	return &blockdata, nil
 }

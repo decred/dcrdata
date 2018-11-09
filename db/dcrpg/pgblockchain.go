@@ -74,24 +74,24 @@ func (d *DevFundBalance) Balance() *explorer.AddressBalance {
 // fetching the same information.
 type ticketPoolDataCache struct {
 	sync.RWMutex
-	Height map[dbtypes.ChartGrouping]uint64
+	Height map[dbtypes.TimeBasedGrouping]uint64
 	// BarGraphsCache persists data for the Ticket purchase distribution chart
 	// and Ticket Price Distribution chart
-	BarGraphsCache map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData
+	BarGraphsCache map[dbtypes.TimeBasedGrouping][]*dbtypes.PoolTicketsData
 	// DonutGraphCache persist data for the Number of tickets outputs pie chart.
-	DonutGraphCache map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData
+	DonutGraphCache map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData
 }
 
 // ticketPoolGraphsCache persists the latest ticketpool data queried from the db.
 var ticketPoolGraphsCache = &ticketPoolDataCache{
-	Height:          make(map[dbtypes.ChartGrouping]uint64),
-	BarGraphsCache:  make(map[dbtypes.ChartGrouping][]*dbtypes.PoolTicketsData),
-	DonutGraphCache: make(map[dbtypes.ChartGrouping]*dbtypes.PoolTicketsData),
+	Height:          make(map[dbtypes.TimeBasedGrouping]uint64),
+	BarGraphsCache:  make(map[dbtypes.TimeBasedGrouping][]*dbtypes.PoolTicketsData),
+	DonutGraphCache: make(map[dbtypes.TimeBasedGrouping]*dbtypes.PoolTicketsData),
 }
 
 // TicketPoolData is a thread-safe way to access the ticketpool graphs data
 // stored in the cache.
-func TicketPoolData(interval dbtypes.ChartGrouping, height uint64) (barGraphs []*dbtypes.PoolTicketsData,
+func TicketPoolData(interval dbtypes.TimeBasedGrouping, height uint64) (barGraphs []*dbtypes.PoolTicketsData,
 	donutChart *dbtypes.PoolTicketsData, actualHeight uint64, intervalFound, isStale bool) {
 	ticketPoolGraphsCache.RLock()
 	defer ticketPoolGraphsCache.RUnlock()
@@ -110,7 +110,7 @@ func TicketPoolData(interval dbtypes.ChartGrouping, height uint64) (barGraphs []
 // UpdateTicketPoolData updates the ticket pool cache with the latest data fetched.
 // This is a thread-safe way to update ticket pool cache data. TryLock helps avoid
 // stacking calls to update the cache.
-func UpdateTicketPoolData(interval dbtypes.ChartGrouping, barGraphs []*dbtypes.PoolTicketsData,
+func UpdateTicketPoolData(interval dbtypes.TimeBasedGrouping, barGraphs []*dbtypes.PoolTicketsData,
 	donutcharts *dbtypes.PoolTicketsData, height uint64) {
 	ticketPoolGraphsCache.Lock()
 	defer ticketPoolGraphsCache.Unlock()
@@ -205,7 +205,7 @@ type ChainDB struct {
 	devPrefetch        bool
 	InBatchSync        bool
 	InReorg            bool
-	tpUpdatePermission map[dbtypes.ChartGrouping]*trylock.Mutex
+	tpUpdatePermission map[dbtypes.TimeBasedGrouping]*trylock.Mutex
 	utxoCache          utxoStore
 }
 
@@ -443,8 +443,8 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeData
 	}
 
 	// For each chart grouping type create a non-blocking updater mutex.
-	tpUpdatePermissions := make(map[dbtypes.ChartGrouping]*trylock.Mutex)
-	for g := range dbtypes.ChartGroupings {
+	tpUpdatePermissions := make(map[dbtypes.TimeBasedGrouping]*trylock.Mutex)
+	for g := range dbtypes.TimeBasedGroupings {
 		tpUpdatePermissions[g] = new(trylock.Mutex)
 	}
 
@@ -731,11 +731,43 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 	return retrieveAgendaVoteChoices(pgb.db, agendaID, chartType)
 }
 
-// GetOldestTxBlockTime returns the block time of the oldest transaction made in
-// relation to the provided address. This helps provide more meaningful graphs
-// with the addresses history plotted.
-func (pgb *ChainDB) GetOldestTxBlockTime(addr string) (int64, error) {
-	return retrieveOldestTxBlockTime(pgb.db, addr)
+// GetAddressMetrics returns the block time of the oldest transaction and the
+// total count for all the transactions linked to the provided address grouped
+// by years, months, weeks and days time grouping in seconds.
+// This helps plot more meaningful address history graphs to the user.
+func (pgb *ChainDB) GetAddressMetrics(addr string) (*dbtypes.AddressMetrics, error) {
+	var metrics dbtypes.AddressMetrics
+
+	for _, s := range []dbtypes.TimeBasedGrouping{dbtypes.YearGrouping,
+		dbtypes.MonthGrouping, dbtypes.WeekGrouping, dbtypes.DayGrouping} {
+		interval, err := dbtypes.TimeBasedGroupingToInterval(s)
+		if err != nil {
+			return nil, err
+		}
+
+		txCount, err := retrieveAddressTxsCount(pgb.db, addr, int64(interval))
+		if err != nil {
+			return nil, fmt.Errorf("retrieveAddressAllTxsCount failed: error: %v", err)
+		}
+		switch s {
+		case dbtypes.YearGrouping:
+			metrics.YearTxsCount = txCount
+		case dbtypes.MonthGrouping:
+			metrics.MonthTxsCount = txCount
+		case dbtypes.WeekGrouping:
+			metrics.WeekTxsCount = txCount
+		case dbtypes.DayGrouping:
+			metrics.DayTxsCount = txCount
+		}
+	}
+
+	blockTime, err := retrieveOldestTxBlockTime(pgb.db, addr)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveOldestTxBlockTime failed: error: %v", err)
+	}
+
+	metrics.OldestBlockTime = blockTime
+	return &metrics, err
 }
 
 // AddressTransactions retrieves a slice of *dbtypes.AddressRow for a given
@@ -779,8 +811,8 @@ func (pgb *ChainDB) GetTicketPoolBlockMaturity() int64 {
 // GetTicketPoolByDateAndInterval fetches the tickets ordered by the purchase date
 // interval provided and an error value.
 func (pgb *ChainDB) GetTicketPoolByDateAndInterval(maturityBlock int64,
-	interval dbtypes.ChartGrouping) (*dbtypes.PoolTicketsData, error) {
-	val, err := dbtypes.ChartGroupingToInterval(interval)
+	interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, error) {
+	val, err := dbtypes.TimeBasedGroupingToInterval(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -796,6 +828,20 @@ func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGrouped
 	return retrieveWindowBlocks(pgb.db, pgb.chainParams.StakeDiffWindowSize, limit, offset)
 }
 
+// TimeBasedIntervals retrieves blocks groups by the selected time-based interval.
+// For the consecutive groups the number of blocks grouped together is not uniform.
+func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
+	limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error) {
+	interval, err := dbtypes.TimeBasedGroupingToInterval(timeGrouping)
+	if err != nil {
+		return nil, err
+	}
+
+	genesisBlockTime := uint64(pgb.chainParams.GenesisBlock.Header.Timestamp.Unix())
+	return retrieveTimeBasedBlockListing(pgb.db, uint64(interval),
+		limit, offset, genesisBlockTime)
+}
+
 // TicketPoolVisualization helps block consecutive and duplicate DB queries for
 // the requested ticket pool chart data. If the data for the given interval is
 // cached and fresh, it is returned. If the cached data is stale and there are
@@ -803,7 +849,8 @@ func (pgb *ChainDB) PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGrouped
 // a query and updates the cache. If there is no cached data for the interval,
 // this will launch a new query for the data if one is not already running, and
 // if one is running, it will wait for the query to complete.
-func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error) {
+func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) ([]*dbtypes.PoolTicketsData,
+	*dbtypes.PoolTicketsData, uint64, error) {
 	// Attempt to retrieve data for the current block from cache.
 	heightSeen := pgb.Height() // current block seen *by the ChainDB*
 	barcharts, donutCharts, height, intervalFound, stale := TicketPoolData(interval, heightSeen)
@@ -861,7 +908,8 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.ChartGrouping) ([]*
 // counts by ticket type (solo, pool, other split). The interval may be one of:
 // "mo", "wk", "day", or "all". The data is needed to populate the ticketpool
 // graphs. The data grouped by time and price are returned in a slice.
-func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.ChartGrouping) (byTimeAndPrice []*dbtypes.PoolTicketsData, byInputs *dbtypes.PoolTicketsData, height uint64, err error) {
+func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) (byTimeAndPrice []*dbtypes.PoolTicketsData,
+	byInputs *dbtypes.PoolTicketsData, height uint64, err error) {
 	// Ensure DB height is the same before and after queries since they are not
 	// atomic. Initial height:
 	height = pgb.Height()
@@ -1395,8 +1443,8 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 
 // GetTxHistoryData fetches the address history chart data for the provided parameters.
 func (pgb *ChainDB) GetTxHistoryData(address string, addrChart dbtypes.HistoryChart,
-	chartGroupings dbtypes.ChartGrouping) (*dbtypes.ChartsData, error) {
-	timeInterval, err := dbtypes.ChartGroupingToInterval(chartGroupings)
+	TimeBasedGrouping dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error) {
+	timeInterval, err := dbtypes.TimeBasedGroupingToInterval(TimeBasedGrouping)
 	if err != nil {
 		return nil, fmt.Errorf("GetTxHistoryData error: %v", err)
 	}

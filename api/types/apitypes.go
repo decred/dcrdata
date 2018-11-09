@@ -109,6 +109,7 @@ type TxInputID struct {
 // ScriptPubKey is the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKey struct {
 	Asm       string   `json:"asm"`
+	Hex       string   `json:"hex"`
 	ReqSigs   int32    `json:"reqSigs,omitempty"`
 	Type      string   `json:"type"`
 	Addresses []string `json:"addresses,omitempty"`
@@ -248,6 +249,7 @@ type Status struct {
 	NodeConnections int64  `json:"node_connections"`
 	APIVersion      int    `json:"api_version"`
 	DcrdataVersion  string `json:"dcrdata_version"`
+	NetworkName     string `json:"network_name"`
 }
 
 // CoinSupply models the coin supply at a certain best block.

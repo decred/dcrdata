@@ -71,22 +71,22 @@ var humanize = (function() {
       var precision = (val < 10) ? 1 : 0
       return round(val,precision) + " " + suffix
     },
-    timeSince: function(unixTime) {
+    timeSince: function(unixTime, keepOnly) {
       var seconds = Math.floor(((new Date().getTime()/1000) - unixTime))
       var interval = Math.floor(seconds / 31536000);
       if (interval >= 1) {
-        var extra = Math.floor((seconds - interval * 31536000) / 2592000)
+        var extra = Math.floor((seconds - interval * 31536000) / 2628000)
         var result = interval + "y"
-        if (extra > 0) {
+        if (extra > 0 && keepOnly != "years") {
           result = result + " " + extra + "mo"
         }
         return result
       }
-      interval = Math.floor(seconds / 2592000);
+      interval = Math.floor(seconds / 2628000);
       if (interval >= 1) {
-        var extra = Math.floor((seconds - interval * 2592000) / 86400)
+        var extra = Math.floor((seconds - interval * 2628000) / 86400)
         var result = interval + "mo"
-        if (extra > 0) {
+        if (extra > 0 && keepOnly != "months") {
           result = result + " " + extra + "d"
         }
         return result
@@ -95,7 +95,7 @@ var humanize = (function() {
       if (interval >= 1) {
         var extra = Math.floor((seconds - interval * 86400) / 3600)
         var result = interval + "d"
-        if (extra > 0) {
+        if (extra > 0 && keepOnly != "days") {
           result = result + " " + extra + "h"
         }
         return result

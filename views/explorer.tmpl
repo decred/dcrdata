@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 
-{{template "html-head" "Decred Blocks"}}
+{{template "html-head" "Decred Blocks List"}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
     <div class="container main" data-controller="main">
@@ -18,8 +18,10 @@
             {{$Offset := (subtract .BestBlock $topBlock)}}
             {{$pendingBlocks := ((index .Data 0).Height)}}
             <div class="d-flex flex-wrap-reverse align-items-center justify-content-end list-display">
+                {{template "listViewRouting" "blocks"}}
+
                 <span class="fs12 nowrap text-right">
-                    <label class="mb-0 mr-1" for="blocks-pagesize">Page size</label>
+                    <label class="mb-0 mr-1" for="blocks-pagesize">Page Size</label>
                     <select
                         id="blocks-pagesize"
                         name="blocks-pagesize"
@@ -31,7 +33,7 @@
                     {{if ge $pendingBlocks 50}}<option {{if eq $blocksCount 50}}selected{{end}} value="50">50</option>{{end}}
                     {{if ge $pendingBlocks 100}}<option {{if eq $blocksCount 100}}selected{{end}} value="100">100</option>{{end}}
                     {{if ge $pendingBlocks .WindowSize}}<option {{if eq $blocksCount .WindowSize}}selected{{end}} value="{{.WindowSize}}">{{.WindowSize}}</option>{{end}}
-                    {{if eq $blocksCount 20 30 50}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}}</option>{{end}}
+                    {{if eq $blocksCount 20 30 50 100 .WindowSize}}{{else}}<option selected value="{{$blocksCount}}">{{$blocksCount}}</option>{{end}}
                     </select>
                 </span>
                 <span class="fs12 nowrap text-right">
@@ -39,19 +41,12 @@
                 </span>
                 <nav aria-label="blocks navigation" data-limit="{{.Rows}}" class="ml-2">
                     <ul class="pagination mb-0 pagination-sm">
-                        <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
+                         <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/blocks?height={{subtract .Rows 1}}&rows={{.Rows}}"
-                                id="prev"
-                            >Oldest</a>
-                        </li>
-                        <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
-                            <a
-                                class="page-link"
-                                href="/blocks?height={{ subtract $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
-                                id="prev"
-                            >Older</a>
+                                href="/blocks?height={{.BestBlock}}&rows={{.Rows}}"
+                                id="next"
+                            > Newest</a>
                         </li>
                         <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
                             <a
@@ -60,12 +55,19 @@
                                 id="next"
                             > Newer</a>
                         </li>
-                         <li class="page-item {{if ge $topBlock .BestBlock}}disabled{{end}}">
+                        <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
                             <a
                                 class="page-link"
-                                href="/blocks?height={{.BestBlock}}&rows={{.Rows}}"
-                                id="next"
-                            > Newest</a>
+                                href="/blocks?height={{ subtract $topBlock (int64 $blocksCount) }}&rows={{.Rows}}"
+                                id="prev"
+                            >Older</a>
+                        </li>
+                        <li class="page-item {{if lt $topBlock .Rows}}disabled{{end}}">
+                            <a
+                                class="page-link"
+                                href="/blocks?height={{subtract .Rows 1}}&rows={{.Rows}}"
+                                id="prev"
+                            >Oldest</a>
                         </li>
                     </ul>
                 </nav>
@@ -100,7 +102,7 @@
                     <tbody>
                     {{range .Data}}
                         <tr id="{{ .Height }}">
-                            <td>{{.WindowIndx}}</td>
+                            <td>{{.IndexVal}}</td>
                             <td><a href="/block/{{.Height}}" class="fs16 height">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
                             <td {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
                             <td>{{.Voters}}</td>

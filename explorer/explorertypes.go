@@ -44,12 +44,27 @@ type BlockBasic struct {
 	MainChain      bool   `json:"mainchain"`
 	Voters         uint16 `json:"votes"`
 	Transactions   int    `json:"tx"`
-	WindowIndx     int64  `json:"windowIndex"`
+	IndexVal       int64  `json:"windowIndex"`
 	FreshStake     uint8  `json:"tickets"`
 	Revocations    uint32 `json:"revocations"`
 	BlockTime      int64  `json:"time"`
 	FormattedTime  string `json:"formatted_time"`
 	FormattedBytes string `json:"formatted_bytes"`
+}
+
+// WebBasicBlock is used for quick DB data without rpc calls
+type WebBasicBlock struct {
+	Height      uint32   `json:"height"`
+	Size        uint32   `json:"size"`
+	Hash        string   `json:"hash"`
+	Difficulty  float64  `json:"diff"`
+	StakeDiff   float64  `json:"sdiff"`
+	Time        int64    `json:"time"`
+	NumTx       uint32   `json:"txlength"`
+	PoolSize    uint32   `json:"poolsize"`
+	PoolValue   float64  `json:"poolvalue"`
+	PoolValAvg  float64  `json:"poolvalavg"`
+	PoolWinners []string `json:"winners"`
 }
 
 // TxBasic models data for transactions on the block page
@@ -66,6 +81,7 @@ type TxBasic struct {
 // AddressTx models data for transactions on the address page
 type AddressTx struct {
 	TxID           string
+	TxType         string
 	InOutID        uint32
 	Size           uint32
 	FormattedSize  string
@@ -97,6 +113,15 @@ func (a *AddressTx) IOID(txType ...string) string {
 	}
 	// A transaction input referencing an outpoint being spent
 	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
+}
+
+// TrimmedTxInfo for use with /nexthome
+type TrimmedTxInfo struct {
+	*TxBasic
+	Fees      float64
+	VinCount  int
+	VoutCount int
+	VoteValid bool
 }
 
 // TxInfo models data needed for display on the tx page
@@ -188,6 +213,19 @@ type Vout struct {
 	Index           uint32
 }
 
+// TrimmedBlockInfo models data needed to display block info on the new home page
+type TrimmedBlockInfo struct {
+	Time         int64
+	Height       int64
+	Total        float64
+	Fees         float64
+	Subsidy      *dcrjson.GetBlockSubsidyResult
+	Votes        []*TrimmedTxInfo
+	Tickets      []*TrimmedTxInfo
+	Revocations  []*TrimmedTxInfo
+	Transactions []*TrimmedTxInfo
+}
+
 // BlockInfo models data for display on the block page
 type BlockInfo struct {
 	*BlockBasic
@@ -196,10 +234,10 @@ type BlockInfo struct {
 	StakeRoot             string
 	MerkleRoot            string
 	TxAvailable           bool
-	Tx                    []*TxBasic
-	Tickets               []*TxBasic
-	Revs                  []*TxBasic
-	Votes                 []*TxBasic
+	Tx                    []*TrimmedTxInfo
+	Tickets               []*TrimmedTxInfo
+	Revs                  []*TrimmedTxInfo
+	Votes                 []*TrimmedTxInfo
 	Misses                []string
 	Nonce                 uint32
 	VoteBits              uint16
@@ -213,9 +251,10 @@ type BlockInfo struct {
 	PreviousHash          string
 	NextHash              string
 	TotalSent             float64
-	MiningFee             dcrutil.Amount
+	MiningFee             float64
 	StakeValidationHeight int64
 	AllTxs                uint32
+	Subsidy               *dcrjson.GetBlockSubsidyResult
 }
 
 // AddressTransactions collects the transactions for an address as AddressTx
@@ -335,6 +374,18 @@ type BlockSubsidy struct {
 	Dev   int64 `json:"dev"`
 }
 
+// TrimmedMempoolInfo models data needed to display mempool info on the new home page
+type TrimmedMempoolInfo struct {
+	Transactions []*TrimmedTxInfo
+	Tickets      []*TrimmedTxInfo
+	Votes        []*TrimmedTxInfo
+	Revocations  []*TrimmedTxInfo
+	Subsidy      BlockSubsidy
+	Total        float64
+	Time         int64
+	Fees         float64
+}
+
 // MempoolInfo models data to update mempool info on the home page
 type MempoolInfo struct {
 	sync.RWMutex
@@ -411,6 +462,7 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 			BlockTime: addrOut.TxBlockTime,
 			InOutID:   addrOut.TxVinVoutIndex,
 			TxID:      addrOut.TxHash,
+			TxType:    txhelpers.TxTypeToString(int(addrOut.TxType)),
 			MatchedTx: addrOut.MatchingTxHash,
 			IsFunding: addrOut.IsFunding,
 		}
@@ -463,12 +515,17 @@ type TicketPoolInfo struct {
 
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
-	Hash     string    `json:"hash"`
-	Time     int64     `json:"time"`
-	Size     int32     `json:"size"`
-	TotalOut float64   `json:"total"`
-	Type     string    `json:"Type"`
-	VoteInfo *VoteInfo `json:"vote_info"`
+	TxID      string    `json:"txid"`
+	Fees      float64   `json:"fees"`
+	VinCount  int       `json:"vin_count"`
+	VoutCount int       `json:"vout_count"`
+	Coinbase  bool      `json:"coinbase"`
+	Hash      string    `json:"hash"`
+	Time      int64     `json:"time"`
+	Size      int32     `json:"size"`
+	TotalOut  float64   `json:"total"`
+	Type      string    `json:"type"`
+	VoteInfo  *VoteInfo `json:"vote_info,omitempty"`
 }
 
 // NewMempoolTx models data sent from the notification handler
@@ -495,8 +552,8 @@ type AddrPrefix struct {
 // AddressPrefixes generates an array AddrPrefix by using chaincfg.Params
 func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 	Descriptions := []string{"P2PK address",
-		"P2PKH address prefix",
-		"P2PKH address prefix",
+		"P2PKH address prefix. Standard wallet address. 1 public key -> 1 private key",
+		"Ed25519 P2PKH address prefix",
 		"secp256k1 Schnorr P2PKH address prefix",
 		"P2SH address prefix",
 		"WIF private key prefix",
@@ -576,6 +633,16 @@ type StatsInfo struct {
 	BlockTime                  int64
 	IdxInRewardWindow          int
 	RewardWindowSize           int64
+}
+
+// CommonPageData is the basis for data structs used for HTML templates.
+// explorerUI.commonData returns an initialized instance or CommonPageData,
+// which itself should be used to initialize page data template structs.
+type CommonPageData struct {
+	Tip           *WebBasicBlock
+	Version       string
+	ChainParams   *chaincfg.Params
+	BlockTimeUnix int64
 }
 
 // isSyncExplorerUpdate helps determine when the explorer should be updated
