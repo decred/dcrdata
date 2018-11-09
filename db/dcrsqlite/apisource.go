@@ -511,6 +511,7 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 		spk := &tx.Vout[i].ScriptPubKeyDecoded
 		spkRaw := &txraw.Vout[i].ScriptPubKey
 		spk.Asm = spkRaw.Asm
+		spk.Hex = spkRaw.Hex
 		spk.ReqSigs = spkRaw.ReqSigs
 		spk.Type = spkRaw.Type
 		spk.Addresses = make([]string, len(spkRaw.Addresses))
@@ -935,6 +936,7 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 			spk := &tx.Vout[j].ScriptPubKeyDecoded
 			spkRaw := &txs[i].Vout[j].ScriptPubKey
 			spk.Asm = spkRaw.Asm
+			spk.Hex = spkRaw.Hex
 			spk.ReqSigs = spkRaw.ReqSigs
 			spk.Type = spkRaw.Type
 			spk.Addresses = make([]string, len(spkRaw.Addresses))
