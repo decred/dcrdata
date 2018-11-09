@@ -1024,9 +1024,9 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		Data           *AddressInfo
 		TxBlockHeights []int64
 		NetName        string
-		OldestTxTime   int64
 		IsLiteMode     bool
 		ChartData      *dbtypes.ChartsData
+		Metrics        *dbtypes.AddressMetrics
 	}
 
 	// Get the address URL parameter, which should be set in the request context
@@ -1068,7 +1068,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
 
-	var oldestTxBlockTime int64
+	var addrMetrics *dbtypes.AddressMetrics
 
 	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
@@ -1151,13 +1151,15 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 		// If there are confirmed transactions, check the oldest transaction's time.
 		if len(addrData.Transactions) > 0 {
-			oldestTxBlockTime, err = exp.explorerSource.GetOldestTxBlockTime(address)
+			addrMetrics, err = exp.explorerSource.GetAddressMetrics(address)
 			if err != nil {
-				log.Errorf("Unable to fetch oldest transactions block time %s: %v", address, err)
-				exp.StatusPage(w, defaultErrorCode, "oldest block time not found",
+				log.Errorf("Unable to fetch address metrics %s: %v", address, err)
+				exp.StatusPage(w, defaultErrorCode, "address metrics not found",
 					NotFoundStatusType)
 				return
 			}
+		} else {
+			addrMetrics = &dbtypes.AddressMetrics{}
 		}
 
 		// Check for unconfirmed transactions
@@ -1303,8 +1305,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		Data:           addrData,
 		TxBlockHeights: txBlockHeights,
 		IsLiteMode:     exp.liteMode,
-		OldestTxTime:   oldestTxBlockTime,
 		NetName:        exp.NetName,
+		Metrics:        addrMetrics,
 	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {

@@ -98,6 +98,11 @@ const (
 			time DESC,
 			transactions.tx_hash ASC;`
 
+	// SelectAddressTimeGroupingCount return the count of record groups,
+	// where grouping is done by a specified time interval, for an addresss.
+	SelectAddressTimeGroupingCount = `SELECT COUNT(DISTINCT (block_time/$2)*$2)
+		FROM addresses WHERE address=$1;`
+
 	SelectAddressUnspentCountANDValue = `SELECT COUNT(*), SUM(value) FROM addresses
 	    WHERE address = $1 AND is_funding = TRUE AND matching_tx_hash = '' AND valid_mainchain = TRUE;`
 

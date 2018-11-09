@@ -731,11 +731,43 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 	return retrieveAgendaVoteChoices(pgb.db, agendaID, chartType)
 }
 
-// GetOldestTxBlockTime returns the block time of the oldest transaction made in
-// relation to the provided address. This helps provide more meaningful graphs
-// with the addresses history plotted.
-func (pgb *ChainDB) GetOldestTxBlockTime(addr string) (int64, error) {
-	return retrieveOldestTxBlockTime(pgb.db, addr)
+// GetAddressMetrics returns the block time of the oldest transaction and the
+// total count for all the transactions linked to the provided address grouped
+// by years, months, weeks and days time grouping in seconds.
+// This helps plot more meaningful address history graphs to the user.
+func (pgb *ChainDB) GetAddressMetrics(addr string) (*dbtypes.AddressMetrics, error) {
+	var metrics dbtypes.AddressMetrics
+
+	for _, s := range []dbtypes.TimeBasedGrouping{dbtypes.YearGrouping,
+		dbtypes.MonthGrouping, dbtypes.WeekGrouping, dbtypes.DayGrouping} {
+		interval, err := dbtypes.TimeBasedGroupingToInterval(s)
+		if err != nil {
+			return nil, err
+		}
+
+		txCount, err := retrieveAddressTxsCount(pgb.db, addr, int64(interval))
+		if err != nil {
+			return nil, fmt.Errorf("retrieveAddressAllTxsCount failed: error: %v", err)
+		}
+		switch s {
+		case dbtypes.YearGrouping:
+			metrics.YearTxsCount = txCount
+		case dbtypes.MonthGrouping:
+			metrics.MonthTxsCount = txCount
+		case dbtypes.WeekGrouping:
+			metrics.WeekTxsCount = txCount
+		case dbtypes.DayGrouping:
+			metrics.DayTxsCount = txCount
+		}
+	}
+
+	blockTime, err := retrieveOldestTxBlockTime(pgb.db, addr)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveOldestTxBlockTime failed: error: %v", err)
+	}
+
+	metrics.OldestBlockTime = blockTime
+	return &metrics, err
 }
 
 // AddressTransactions retrieves a slice of *dbtypes.AddressRow for a given

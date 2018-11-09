@@ -1077,6 +1077,13 @@ func RetrieveAddressSpent(db *sql.DB, address string) (count, totalAmount int64,
 	return
 }
 
+// retrieveAddressTxsCount return the number of record groups, where grouping
+// is done by a specified time interval, for an address.
+func retrieveAddressTxsCount(db *sql.DB, address string, interval int64) (count int64, err error) {
+	err = db.QueryRow(internal.SelectAddressTimeGroupingCount, address, interval).Scan(&count)
+	return
+}
+
 // RetrieveAddressSpentUnspent gets the numbers of spent and unspent outpoints
 // for the given address, the total amounts spent and unspent, and the the
 // number of distinct spending transactions.
