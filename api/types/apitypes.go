@@ -249,6 +249,7 @@ type Status struct {
 	NodeConnections int64  `json:"node_connections"`
 	APIVersion      int    `json:"api_version"`
 	DcrdataVersion  string `json:"dcrdata_version"`
+	NetworkName     string `json:"network_name"`
 }
 
 // CoinSupply models the coin supply at a certain best block.
