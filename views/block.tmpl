@@ -14,13 +14,18 @@
                     {{ if not .MainChain }}
                       <span class="attention">(side chain)</span>
                     {{else}}
-                      <span class="op60 fs12" data-confirmation-block-height="{{.Height}}">
+
                         {{ if gt .Confirmations 1 }}
-                          ({{.Confirmations}} confirmations)
+                            <span class="op60 fs12" data-controller="newBlock" data-target="newBlock.confirmations"
+                                  data-confirmations="{{.Confirmations}}"
+                                  data-formatted="true"
+                                  data-confirmation-block-height="{{.Height}}"
+                            >({{.Confirmations}} confirmations)</span>
                         {{else}}
-                          (best block)
+                            <span class="op60 fs12">(best block)</span>
                         {{end}}
-                      </span>
+
+
                     {{end}}
                     <a class="fs12" href="/api/block/{{.Height}}/verbose?indent=true" data-turbolinks="false">api</a>
                 </h4>

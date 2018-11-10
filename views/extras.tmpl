@@ -235,14 +235,8 @@
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
-            var confirms = $('[data-confirmation-block-height]');
-            $.each(confirms, function(i, v) {
-                if (isNaN($(v).text())) {
-                    $(v).text("0");
-                }
-                var confirmations = newBlock.block.height - $(v).data('confirmation-block-height') + 1;
-                $(v).text("(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")")
-            })
+
+            globalEventBus.publish("BLOCK_RECEIVED", newBlock)
 
             // block summary data
             var b = newBlock.block;
@@ -730,6 +724,10 @@
             keyNav(e, true)
         } else {
             $(".top-search").focus()
+        }
+        if (scrollPosition) {
+            window.scrollTo.apply(window, scrollPosition)
+            scrollPosition = null
         }
     })
 
