@@ -158,7 +158,7 @@ function makeVoteElements(votes) {
     const voteElements = (votes || []).map(vote => {
         totalDCR += vote.Total;
         return `<span style="background-color: ${vote.VoteValid ? '#2971ff' : 'rgba(253, 113, 74, 0.8)' }"
-                    title='{"object": "Vote", "total": "${vote.Total}", "vote": "${vote.VoteValid}"}'>
+                    title='{"object": "Vote", "total": "${vote.Total}", "voteValid": "${vote.VoteValid}"}'>
                     <a class="block-element-link" href="/tx/${vote.TxID}"></a>
                 </span>`;
     });
