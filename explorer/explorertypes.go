@@ -524,7 +524,7 @@ type MempoolTx struct {
 	Time      int64     `json:"time"`
 	Size      int32     `json:"size"`
 	TotalOut  float64   `json:"total"`
-	Type      string    `json:"type"`
+	Type      string    `json:"Type"`
 	VoteInfo  *VoteInfo `json:"vote_info,omitempty"`
 }
 
