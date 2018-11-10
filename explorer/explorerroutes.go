@@ -990,9 +990,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	for idx, _ := range tx.Vin {
 		vin := &tx.Vin[idx]
 		if vin.Coinbase != "" {
-			vin.DisplayText = "Coinbase: " + vin.Coinbase
+			vin.DisplayText = "Coinbase"
 		} else if vin.Stakebase != "" {
-			vin.DisplayText = "Stakebase: " + vin.Stakebase
+			vin.DisplayText = "Stakebase"
 		} else {
 			voutStr := strconv.Itoa(int(vin.Vout))
 			vin.DisplayText = vin.Txid + ":" + voutStr
