@@ -5,7 +5,7 @@
 {{template "html-head" "Decred Blocks List"}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
-    <div class="container main" data-controller="main">
+    <div class="container main" data-controller="time">
         <h4>Blocks</h4>
         {{$pendingBlocks := 0}}
         {{if gt (len $.Data) 0}}{{$pendingBlocks = ((index .Data 0).Height)}}{{end}}

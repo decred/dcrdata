@@ -4,7 +4,7 @@
 {{template "html-head" printf "Decred Block %d" .Data.Height}}
 <body class="{{ theme }}">
     {{ template "navbar" . }}
-    <div class="container main" data-controller="main">
+    <div class="container main" data-controller="time">
     {{with .Data}}
         {{$Invalidated := and (gt .Confirmations 1) (not .Valid) }}
         <div class="row justify-content-between">

@@ -44,6 +44,7 @@ The dcrdata repository is a collection of Go packages and apps for
     - [rebuilddb](#rebuilddb)
     - [rebuilddb2](#rebuilddb2)
     - [scanblocks](#scanblocks)
+  - [Front End Development](#front-end-development)
   - [Helper Packages](#helper-packages)
   - [Internal-use Packages](#internal-use-packages)
   - [Plans](#plans)
@@ -738,6 +739,31 @@ scanblocks is a CLI app to scan the blockchain and save data into a JSON file.
 More details are in [its own README](./cmd/scanblocks/README.md). The repository
 also includes a shell script, jsonarray2csv.sh, to convert the result into a
 comma-separated value (CSV) file.
+
+## Front End Development
+
+Make sure you have a recent version of node installed, then do:
+`npm install`
+
+For development, webpack will run eslint and compile your javascript via:
+`npm run watch`
+
+For production, bundle assets via:
+`npm run build`
+
+### CSS Guidelines
+Before you write any CSS, see if you can achieve your goal by using existing classes available in Bootsrap 4. This helps prevent our stylesheets from getting bloated makes it easier for things to work well accross a wide range browsers & devices. Please take the time to [Read the docs](https://getbootstrap.com/docs/4.1/getting-started/introduction/)
+
+Note there is a dark mode, so make sure things look good with the dark background as well.
+
+### HTML
+The core functionality of dcrdata is server-side rendered in Go and designed to work well with javascript disabled.
+
+### Javascript
+Given the html first approach, [Stimulus](https://stimulusjs.org/) is a lightweight framework we lean on for adding javascript based enhancements.The application started out as a vanilla/jQuery codebase. But as the codebase continues to grow, adding a bit of declarative structure with Stimulus helps keep code organized and prevents logic from spilling into the global scope.
+
+### Web Performance
+The core functionality of dcrdata should perform well in low power device / high latency scenarios (eg. a cheap smart phone with poor reception). This means that most libraries should be lazy loaded when they are actually needed. This way we don't bog down users doing simple tasks like checking a transaction or address.
 
 ## Helper Packages
 

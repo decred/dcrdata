@@ -287,7 +287,7 @@
                                 {{if eq (.Time.T.Unix) 0}}
                                     N/A
                                 {{else}}
-                                    <span data-controller="main" data-target="main.age" data-age="{{.Time}}"></span>
+                                    <span data-controller="time" data-target="time.age" data-age="{{.Time}}"></span>
                                 {{end}}
                                 </td>
 
@@ -390,7 +390,7 @@
         function showAddressQRCode() {
             var $qrcode = $("#address-qrcode")
             $.getScript(
-                "/js/qrcode.min.js",
+                "/js/vendor/qrcode.min.js",
                 function() {
                     new QRCode($qrcode[0], {{.Address}});
                     $qrcode.css({

@@ -5,7 +5,7 @@
 {{template "html-head" printf "Decred %s List" .TimeGrouping}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
-    <div class="container main" data-controller="main">
+    <div class="container main" data-controller="time">
         <div style="margin: auto auto 1rem; width: 80%; max-width: 80%;">
             <h4>{{.TimeGrouping}}</h4>
 
@@ -112,7 +112,7 @@
                                 <td class="text-right">{{intComma .Revocations}}</td>
                                 <td class="text-right">{{intComma .BlocksCount}}</td>
                                 <td class="text-right">{{.FormattedSize}}</td>
-                                <td id="{{toLowerCase $.TimeGrouping}}" class="text-right" data-target="main.age" data-age="{{.StartTime}}"></td>
+                                <td id="{{toLowerCase $.TimeGrouping}}" class="text-right" data-target="time.age" data-age="{{.StartTime}}"></td>
                             </tr>
                         {{end}}
                         </tbody>
