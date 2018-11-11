@@ -13,7 +13,7 @@
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
                 <div class="mono" data-target="address.addr"
-                    {{/*data-oldestblockTime="{{$.Metrics.OldestBlockTime}}"*/}}
+                    data-oldestblockTime="{{$.Metrics.OldestBlockTime}}"
                     style="margin-bottom: 12px;">
                     {{.Address}}<a
                         id="qrcode-init"
@@ -162,10 +162,10 @@
                             data-txcount="{{$TxnCount}}"
                             data-target="address.interval"
                             data-action="click->address#changeGraph"
-                            {{/*data-year="{{$.Metrics.YearTxsCount}}"
+                            data-year="{{$.Metrics.YearTxsCount}}"
                             data-month="{{$.Metrics.MonthTxsCount}}"
                             data-week="{{$.Metrics.WeekTxsCount}}"
-                            data-day="{{$.Metrics.DayTxsCount}}"*/}}
+                            data-day="{{$.Metrics.DayTxsCount}}"
                         >
                             <input id="chart-size" type="button" class="btn btn_sm year" value="Year" name="yr">
                             <input id="chart-size" type="button" class="btn btn_sm month" value="Month" name="mo">
