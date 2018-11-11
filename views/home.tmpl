@@ -4,13 +4,13 @@
 
 {{ template "html-head" "Decred Block Explorer by dcrdata.org"}}
 
-<body class="{{ theme }}"> 
+<body class="{{ theme }}">
     {{ template "navbar" . }}
     <div class="container main" data-controller="main">
 
         <div class="row" data-controller="homepageMempool">
 
-            <div class="col-md-6">
+            <div class="col-md-6 nh-col-md-6">
 
                 <h3 class="mt-2">{{.NetName}} Chain State</h3>
 
@@ -78,7 +78,7 @@
                             <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET REWARD</td>
                             <td>
                             <div class="mono vam lh1rem fs24 p03rem0 fs14-decimal">
-                                +<span id="ticket_reward">{{printf "%.2f" .TicketReward}}</span>%&nbsp;<span class="mono lh1rem fs18">per ~{{.RewardPeriod}}</span>  
+                                +<span id="ticket_reward">{{printf "%.2f" .TicketReward}}</span>%&nbsp;<span class="mono lh1rem fs18">per ~{{.RewardPeriod}}</span>
                                 <span class="mono lh1rem fs18" title="Annual Stake Rewards">({{printf "%.2f" .ASR}}% / year)</span>
                             </div>
                             </td>
@@ -87,7 +87,7 @@
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL SIZE</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal fs18">
-                                    <span id="pool_size">{{intComma .PoolInfo.Size}}&nbsp;</span> 
+                                    <span id="pool_size">{{intComma .PoolInfo.Size}}&nbsp;</span>
                                     (<span id="target_percent">{{printf "%.2f" .PoolInfo.PercentTarget}}</span>% of target&nbsp;<span>{{intComma .PoolInfo.Target}}</span>)
                                 </div>
                             </td>
@@ -187,7 +187,7 @@
 
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-6 nh-col-md-6">
 
                 <div class="d-flex align-items-center">
                     <h4>Latest Transactions</h4> <a href="/mempool" class="pl-2 keyboard-target" data-keynav-priority><small>see more ...</small></a>

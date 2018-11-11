@@ -588,6 +588,10 @@ body.darkBG .progress {
   font-size:14px;
   padding:0.2em 10% 0.2em 0;
 }
+.table th.addr-hash-column {
+  font-size:14px;
+  width:20em;
+}
 .table div.hash-fill {
   position:absolute;
   left:0;
@@ -628,7 +632,7 @@ a.elidedhash:visited {
   text-overflow:ellipsis;
   overflow:hidden;
   z-index:10;
-  text-align:left;
+  text-align:right;
 }
 a.elidedhash:before, a.elidedhash:after {
   color:#2e75ff;
