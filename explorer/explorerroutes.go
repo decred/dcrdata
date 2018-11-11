@@ -25,7 +25,7 @@ import (
 	"github.com/decred/dcrdata/v3/db/agendadb"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/txhelpers"
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 )
 
 // Status page strings
@@ -1464,6 +1464,17 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	if tx != nil {
 		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
 		return
+	}
+	if !exp.liteMode {
+		// Search for occurrences of the transaction in the database.
+		dbTxs, err := exp.explorerSource.Transaction(searchStr)
+		if err != nil && err != sql.ErrNoRows {
+			log.Errorf("Searching for transaction failed: %v", err)
+		}
+		if dbTxs != nil {
+			http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
+			return
+		}
 	}
 
 	exp.StatusPage(w, "search failed", "The search string does not match any address, block, or transaction: "+searchStr, NotFoundStatusType)
