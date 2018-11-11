@@ -18,10 +18,10 @@ require (
 	github.com/decred/dcrd/database v1.0.2
 	github.com/decred/dcrd/dcrec v0.0.0-20180926135934-93133096234e // indirect
 	github.com/decred/dcrd/dcrec/edwards v0.0.0-20180926135934-93133096234e // indirect
-	github.com/decred/dcrd/dcrjson v1.0.0
+	github.com/decred/dcrd/dcrjson v1.0.1-0.20181016163058-6d647094eedd
 	github.com/decred/dcrd/dcrutil v1.1.1
 	github.com/decred/dcrd/gcs v1.0.2 // indirect
-	github.com/decred/dcrd/rpcclient v1.0.2
+	github.com/decred/dcrd/rpcclient v1.0.3-0.20181016163058-6d647094eedd
 	github.com/decred/dcrd/txscript v1.0.1
 	github.com/decred/dcrd/wire v1.1.0
 	github.com/decred/dcrwallet/wallet v1.0.0
