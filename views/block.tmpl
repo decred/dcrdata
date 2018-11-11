@@ -22,7 +22,10 @@
                                   data-confirmation-block-height="{{.Height}}"
                             >({{.Confirmations}} confirmations)</span>
                         {{else}}
-                            <span class="op60 fs12">(best block)</span>
+                            <span class="op60 fs12" data-controller="newBlock" data-target="newBlock.confirmations"
+                                  data-formatted="true"
+                                  data-confirmation-block-height="{{.Height}}"
+                            >(best block)</span>
                         {{end}}
 
 

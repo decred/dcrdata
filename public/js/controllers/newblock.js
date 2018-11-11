@@ -11,6 +11,7 @@
         }
         connect() {
             this.confirmationsTargets.forEach((el,i) => {
+                if(!el.dataset.confirmations) return
                 this.setConfirmationText(el, el.dataset.confirmations)
             })
         }
