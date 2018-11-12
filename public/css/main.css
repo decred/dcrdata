@@ -316,6 +316,9 @@ body.darkBG .progress {
 .trailing-zeroes {
   opacity: .3
 }
+.decimal.trailing-zeroes {
+  margin-left: 0 !important;
+}
 .op70 {
   opacity: .7
 }
