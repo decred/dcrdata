@@ -17,7 +17,7 @@
                 {{with .Info}}
                 <div>
                     <table class="mb-3 col">
-                        <tr class="h2rem">
+                        <tr class="h2rem align-baseline">
                             <td class="text-right pr-2 p03rem0 w142 lh1rem">TOTAL SUPPLY</td>
                             <td>
                                 <div class="fs24 mono p03rem0 lh1rem fs14-decimal">
@@ -34,8 +34,8 @@
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">VOTES IN MEMPOOL</td>
                             <td><span data-target="homepageMempool.numVote" class="mono  p03rem0 fs24">{{$.Mempool.NumVotes}}</span></td>
                         </tr>
-                        <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET PRICE</td>
+                        <tr class="align-baseline">
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET PRICE</td>
                             <td>
                                 <div class="mono lh1rem fs24 p03rem0 fs14-decimal font-weight-bold">
                                     <span id="blocksdiff">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false)}}</span>
@@ -43,11 +43,11 @@
                                 </div>
                             </td>
                         </tr>
-                        <tr>
-                            <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">NEXT TICKET PRICE ESTIMATE</td>
+                        <tr class="align-bottom">
+                            <td class="text-right pr-2 lh1rem pt-1 pb-1">NEXT TICKET PRICE ESTIMATE</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal">
-                                    <span class="fs24 font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 8 false)}}<span class="pl-1 unit font-weight-bold lh15rem">DCR</span></span>, <span class="fs18" style="line-height:1.3rem;">&nbsp;bounds:[
+                                    <span class="fs24 font-weight-bold">{{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 8 false)}}<span class="pl-1 unit font-weight-bold lh15rem">DCR</span></span>, <span class="fs18" style="line-height:1.3rem;">&nbsp;bounds: [
                                         {{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMin 2 false)}}, {{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMax 2 false)}}]</span>
                                 </div>
                             </td>
@@ -74,12 +74,12 @@
                                 </div>
                             </td>
                         </tr>
-                        <tr>
+                        <tr class="align-baseline">
                             <td class="text-right pr-2 lh1rem pt-1 pb-1 vam">TICKET REWARD</td>
                             <td>
                             <div class="mono vam lh1rem fs24 p03rem0 fs14-decimal">
                                 +<span id="ticket_reward">{{printf "%.2f" .TicketReward}}</span>%&nbsp;<span class="mono lh1rem fs18">per ~{{.RewardPeriod}}</span>
-                                <span class="mono lh1rem fs18" title="Annual Stake Rewards">({{printf "%.2f" .ASR}}% / year)</span>
+                                <span class="mono lh1rem fs18" title="Annual Stake Rewards">&nbsp;({{printf "%.2f" .ASR}}% / year)</span>
                             </div>
                             </td>
                         </tr>
@@ -87,12 +87,11 @@
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL SIZE</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal fs18">
-                                    <span id="pool_size">{{intComma .PoolInfo.Size}}&nbsp;</span>
-                                    (<span id="target_percent">{{printf "%.2f" .PoolInfo.PercentTarget}}</span>% of target&nbsp;<span>{{intComma .PoolInfo.Target}}</span>)
+                                    <span id="pool_size">{{intComma .PoolInfo.Size}}</span>&nbsp;(<span id="target_percent">{{printf "%.2f" .PoolInfo.PercentTarget}}</span>% of target&nbsp;<span>{{intComma .PoolInfo.Target}}</span>)
                                 </div>
                             </td>
                         </tr>
-                        <tr>
+                        <tr class="align-baseline">
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">TICKET POOL VALUE</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs18">
@@ -126,7 +125,7 @@
                                 </div>
                             </td>
                         </tr>
-                        <tr>
+                        <tr class="align-baseline">
                             <td class="text-right pr-2 lh1rem pt-1">BLOCK REWARD</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal fs24">
@@ -135,7 +134,7 @@
                                 </div>
                             </td>
                         </tr>
-                        <tr>
+                        <tr class="align-baseline">
                             <td class="text-right pr-2 lh1rem">POW</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal fs18">
@@ -144,7 +143,7 @@
                                 </div>
                             </td>
                         </tr>
-                        <tr>
+                        <tr class="align-baseline">
                             <td class="text-right pr-2 lh1rem">POS</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal fs18">
@@ -153,7 +152,7 @@
                                 </div>
                             </td>
                         </tr>
-                        <tr>
+                        <tr class="align-baseline">
                             <td class="text-right pr-2 lh1rem">PROJECT</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal fs18">
@@ -162,7 +161,7 @@
                                 </div>
                             </td>
                         </tr>
-                        <tr>
+                        <tr class="align-bottom">
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">PROOF OF WORK DIFFICULTY</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs24 fs14-decimal">
@@ -171,7 +170,7 @@
                             </td>
                         </tr>
                         {{if .DevFund}}
-                        <tr>
+                        <tr class="align-baseline">
                             <td class="text-right pr-2 lh1rem"><a href="/address/{{.DevAddress}}">PROJECT FUND</a></td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal fs18">
