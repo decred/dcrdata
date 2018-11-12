@@ -1037,6 +1037,16 @@ body.darkBG .keynav-target {
   max-width: 600px;
   margin: 0px auto 2% auto;
 }
+.no-decimal .dot {
+  display: none;
+}
+.no-decimal .decimal {
+  display: none;
+}
+.decimal {
+  margin-left: -2px;
+  margin-right: 0px;
+}
 @media (min-width: 768px) {
   .connection-wrapper {
     width: 180px;

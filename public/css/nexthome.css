@@ -492,7 +492,7 @@ body {
     .top-nav .logo a {
         width: 90px !important;
     }
-    .col-md-6 {
+    .nh-col-md-6 {
         flex: 0 0 50%;
         max-width: 100%;
     }
