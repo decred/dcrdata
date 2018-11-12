@@ -200,6 +200,8 @@ type Vin struct {
 	Addresses       []string
 	FormattedAmount string
 	Index           uint32
+	DisplayText     string
+	Link            string
 }
 
 // Vout models basic data about a tx output for display

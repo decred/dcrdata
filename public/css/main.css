@@ -152,6 +152,18 @@ body.darkBG a,
 body.darkBG a:hover {
   color: #94ffca;
 }
+body.darkBG a.elidedhash,  body.darkBG a.elidedhash:hover{
+  color:transparent;
+  text-decoration-color:#94ffca;
+}
+body.darkBG a.elidedhash::before,
+body.darkBG a.elidedhash::after {
+  color: #94ffca;
+}
+body.darkBG div.elidedhash::before,
+body.darkBG div.elidedhash::after {
+  color: #fdfdfd;
+}
 body.darkBG a.grayed,
 body.darkBG a.grayed:hover {
   color: rgba(148, 255, 202, 0.75) !important;
@@ -569,6 +581,80 @@ body.darkBG .progress {
 .table-fixed {
   table-layout: fixed;
 }
+.table div.hash-box {
+  position:relative;
+  height:1.4rem;
+  min-width:4em;
+  font-size:14px;
+  padding:0.2em 10% 0.2em 0;
+}
+.table th.addr-hash-column {
+  font-size:14px;
+  width:20em;
+}
+.table div.hash-fill {
+  position:absolute;
+  left:0;
+  top:0;
+  right:0;
+  bottom:0;
+}
+.elidedhash {
+  position:relative;
+  display:inline-block;
+  font-family: 'inconsolata-v15-latin-regular', monospace;
+  color:transparent;
+/*   border: 1px solid #aaa; */
+  max-width:100%;
+  -webkit-user-select: all;
+  -moz-user-select: all;
+  user-select: all;
+  z-index:20;
+  text-overflow:clip;
+  overflow:hidden;
+}
+a.elidedhash {
+  cursor:pointer;
+}
+a.elidedhash:visited {
+  color:transparent;
+}
+.elidedhash::selection {
+  color:transparent;
+  background-color:#ccc;
+}
+.elidedhash:before {
+  content:attr(data-head);
+  position:absolute;
+  left:0;
+  top:0;
+  right:3em;
+  text-overflow:ellipsis;
+  overflow:hidden;
+  z-index:10;
+  text-align:right;
+}
+a.elidedhash:before, a.elidedhash:after {
+  color:#2e75ff;
+}
+div.elidedhash:before, div.elidedhash:after {
+  color:#212529;
+}
+.elidedhash:after {
+  content:attr(data-tail);
+  position:absolute;
+  right:0;
+  top:0;
+  width:3em;
+  z-index:10;
+  text-align:right;
+  direction:rtl;
+}
+a.elidedhash:hover {
+  color:transparent;
+  text-decoration: underline;
+  text-decoration-color:#2e75ff;
+}
 
 /*flexboxtable*/
 .flex-table .header {
@@ -584,13 +670,15 @@ body.darkBG .progress {
   border-bottom: 1px solid #e4e4e4;
 }
 
-.addressAndScriptData {
-  overflow: hidden;
+.shrink-to-fit {
+  width:1%;
+  white-space:nowrap;
 }
 .scriptDataStar {
   z-index: 1;
   text-align: center;
   color: coral;
+  cursor:pointer;
 }
 .scriptData {
   z-index: -1;
@@ -764,6 +852,7 @@ body.darkBG .keynav-target {
     display:none;
   }
 }
+
 @media only screen and (max-width: 576px)  {
   .home-link {
     width: 35px;

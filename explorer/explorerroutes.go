@@ -748,6 +748,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				Type:            txhelpers.TxTypeToString(int(vouts[iv].TxType)),
 				Spent:           spendingTx != "",
 				OP_RETURN:       opReturn,
+				Index:           vouts[iv].TxIndex,
 			})
 		}
 
@@ -809,6 +810,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				},
 				Addresses:       addresses,
 				FormattedAmount: humanize.Commaf(amount),
+				Index:           txIndex,
 			})
 		}
 
@@ -983,6 +985,20 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			}
 		} // tx.IsTicket()
 	} // !exp.liteMode
+
+	// Prepare the string to display for previous outpoint.
+	for idx, _ := range tx.Vin {
+		vin := &tx.Vin[idx]
+		if vin.Coinbase != "" {
+			vin.DisplayText = "Coinbase"
+		} else if vin.Stakebase != "" {
+			vin.DisplayText = "Stakebase"
+		} else {
+			voutStr := strconv.Itoa(int(vin.Vout))
+			vin.DisplayText = vin.Txid + ":" + voutStr
+			vin.Link = "/tx/" + vin.Txid + "/out/" + voutStr
+		}
+	}
 
 	pageData := struct {
 		*CommonPageData

@@ -355,9 +355,6 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"theme": func() string {
 			return netTheme
 		},
-		"now": func() int64 {
-			return time.Now().Unix()
-		},
 		"uint16toInt64": func(v uint16) int64 {
 			return int64(v)
 		},
@@ -373,6 +370,17 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			} else {
 				return arr
 			}
+		},
+		"hashlink": func(hash string, link string) [2]string {
+			return [2]string{hash, link}
+		},
+		"hashStart": func(hash string) string {
+			hashLen := len(hash)
+			return hash[0 : hashLen-6]
+		},
+		"hashEnd": func(hash string) string {
+			hashLen := len(hash)
+			return hash[hashLen-6 : hashLen]
 		},
 	}
 }
