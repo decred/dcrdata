@@ -318,6 +318,12 @@ func mainCore() error {
 			return fmt.Errorf("GetBlock failed (%s): %v", blockHash, err)
 		}
 
+		// Grab the chainwork.
+		chainWork, err := rpcutils.GetChainWork(client, blockHash)
+		if err != nil {
+			return fmt.Errorf("GetChainWork failed (%s): %v", blockHash, err)
+		}
+
 		// stake db always has genesis, so do not connect it
 		var winners []string
 		if ib > 0 {
@@ -339,7 +345,7 @@ func mainCore() error {
 		isValid, isMainchain, updateExistingRecords := true, true, true
 		numVins, numVouts, _, err = db.StoreBlock(block.MsgBlock(), winners,
 			isValid, isMainchain, updateExistingRecords,
-			cfg.AddrSpendInfoOnline, !cfg.TicketSpendInfoBatch)
+			cfg.AddrSpendInfoOnline, !cfg.TicketSpendInfoBatch, chainWork)
 		if err != nil {
 			return fmt.Errorf("StoreBlock failed: %v", err)
 		}

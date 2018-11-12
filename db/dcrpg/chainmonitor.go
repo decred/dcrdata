@@ -117,12 +117,19 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 		}
 		winners := tpi.Winners
 
+		// Get the chainWork
+		blockHash := msgBlock.BlockHash()
+		chainWork, err := p.db.GetChainWork(&blockHash)
+		if err != nil {
+			return 0, nil, fmt.Errorf("GetChainWork failed (%s): %v", blockHash.String(), err)
+		}
+
 		// New blocks stored this way are considered part of mainchain. They are
 		// also considered valid unless invalidated by the next block
 		// (invalidation of previous handled inside StoreBlock).
 		isValid, isMainChain, updateExisting := true, true, true
-		_, _, _, err := p.db.StoreBlock(msgBlock, winners, isValid, isMainChain,
-			updateExisting, true, true)
+		_, _, _, err = p.db.StoreBlock(msgBlock, winners, isValid, isMainChain,
+			updateExisting, true, true, chainWork)
 		if err != nil {
 			return int32(p.db.Height()), p.db.Hash(),
 				fmt.Errorf("error connecting block %v", newChain[i])

@@ -447,3 +447,12 @@ func CommonAncestor(client *rpcclient.Client, hashA, hashB chainhash.Hash) (*cha
 	// hashA == hashB
 	return &hashA, chainA, chainB, nil
 }
+
+// GetChainwork fetches the dcrjson.BlockHeaderVerbose
+// and returns only the ChainWork field as a string.
+func GetChainWork(client *rpcclient.Client, hash *chainhash.Hash) (string, error) {
+	header, err := client.GetBlockHeaderVerbose(hash)
+	if err != nil {
+		return "", err
+	}
+	return header.ChainWork, nil

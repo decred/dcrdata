@@ -685,6 +685,13 @@ func _main(ctx context.Context) error {
 					continue
 				}
 
+				// Get the chainwork
+				chainWork, err := rpcutils.GetChainWork(auxDB.Client, blockHash)
+				if err != nil {
+					log.Errorf("GetChainWork failed (%s): %v", blockHash, err)
+					continue
+				}
+
 				// SQLite / base DB
 				// TODO: Make hash the primary key instead of height, otherwise
 				// the main chain block will be overwritten.
@@ -719,7 +726,7 @@ func _main(ctx context.Context) error {
 
 				// Store data in the aux (dcrpg) DB.
 				_, _, _, err = auxDB.StoreBlock(msgBlock, blockData.WinningTickets,
-					isValid, isMainchain, updateExistingRecords, true, true)
+					isValid, isMainchain, updateExistingRecords, true, true, chainWork)
 				if err != nil {
 					// If data collection succeeded, but storage fails, bail out
 					// to diagnose the DB trouble.

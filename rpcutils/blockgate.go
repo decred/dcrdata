@@ -21,6 +21,7 @@ type BlockGetter interface {
 	Block(chainhash.Hash) (*dcrutil.Block, error)
 	WaitForHeight(int64) chan chainhash.Hash
 	WaitForHash(chainhash.Hash) chan int64
+	GetChainWork(*chainhash.Hash) (string, error)
 }
 
 // MasterBlockGetter builds on BlockGetter, adding functions that fetch blocks
@@ -299,4 +300,15 @@ func (g *BlockGate) WaitForHash(hash chainhash.Hash) chan int64 {
 		go g.signalHash(hash)
 	}
 	return waitChain
+}
+
+// GetChainwork fetches the dcrjson.BlockHeaderVerbose
+// and returns only the ChainWork attribute as a string
+func (g *BlockGate) GetChainWork(hash *chainhash.Hash) (string, error) {
+	return GetChainWork(g.client, hash)
+}
+
+// Client is just an access function to get the BlockGate's RPC client.
+func (g *BlockGate) Client() *rpcclient.Client {
+	return g.client
 }
