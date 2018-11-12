@@ -411,6 +411,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	}
 
 	str, err := exp.templates.execTemplateToString("timelisting", struct {
+		*CommonPageData
 		Data         []*dbtypes.BlocksGroupedInfo
 		TimeGrouping string
 		Offset       int64
@@ -419,13 +420,14 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		NetName      string
 		BestGrouping int64
 	}{
-		data,
-		val,
-		int64(offset),
-		int64(rows),
-		exp.Version,
-		exp.NetName,
-		maxOffset,
+		CommonPageData: exp.commonData(),
+		Data:           data,
+		TimeGrouping:   val,
+		Offset:         int64(offset),
+		Limit:          int64(rows),
+		Version:        exp.Version,
+		NetName:        exp.NetName,
+		BestGrouping:   maxOffset,
 	})
 
 	if err != nil {

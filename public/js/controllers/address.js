@@ -137,6 +137,17 @@
                     visibility: [true],
                     fillGraph: true
                 }
+
+                _this.defaultHash = 'list-view'
+                var hashVal = window.location.hash.replace('#', '') || _this.defaultHash;
+
+                if (hashVal.length === 0 || hashVal === _this.defaultHash){
+                    history.pushState({},  this.addr, "#" + _this.defaultHash);
+                } else {
+                    var selectedVal = this.optionsTarget.namedItem(hashVal)
+                    $(this.optionsTarget).val((selectedVal ? selectedVal.value : 'types'))
+                    this.changeView()
+                }
             })
         }
 
@@ -167,6 +178,8 @@
             var _this = this
             var graphType = _this.options
             var interval = _this.interval
+
+            history.pushState({}, this.addr, "#" + graphType);
 
             $('#no-bal').addClass('d-hide');
             $('#history-chart').removeClass('d-hide');
@@ -227,7 +240,10 @@
             });
         }
 
-        changeView() {
+        changeView(e) {
+            $('.addr-btn').removeClass('btn-active');
+            $(e ? e.srcElement : '.chart').addClass('btn-active');
+
             var _this = this
             _this.disableBtnsIfNotApplicable()
 
@@ -239,6 +255,7 @@
             if (divShow !== 'chart') {
                 divHide = 'chart'
                 $('body').removeClass('loading');
+                history.pushState({}, this.addr, "#" + _this.defaultHash);
             } else {
                 _this.drawGraph()
             }
@@ -247,7 +264,12 @@
             $('.'+divHide+'-display').addClass('d-hide');
         }
 
-        changeGraph(){
+        changeGraph(e){
+            if (e.srcElement.className.includes('.chart-size')){
+                $(e.srcElement).siblings().removeClass('btn-active');
+                $(e.srcElement).toggleClass('btn-active');
+            }
+
             $('body').addClass('loading');
             this.drawGraph()
         }
@@ -260,7 +282,10 @@
            }
         }
 
-        onZoom(){
+        onZoom(e){
+            $(e.srcElement).siblings().removeClass('btn-active');
+            $(e.srcElement).toggleClass('btn-active');
+
             if (this.graph == undefined) {
                 return
             }
@@ -308,13 +333,12 @@
                 this.enabledButtons[0] = "all"
             }
 
-            $("input#chart-size").removeClass("btn-active")
-            $("input#chart-size." + this.enabledButtons[0]).addClass("btn-active");
+            $("input.chart-size").removeClass("btn-active")
+            $("input.chart-size." + this.enabledButtons[0]).addClass("btn-active");
         }
 
         get options(){
-            var selectedValue = this.optionsTarget
-            return selectedValue.options[selectedValue.selectedIndex].value;
+            return this.optionsTarget.value
         }
 
         get addr(){

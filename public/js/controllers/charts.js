@@ -157,9 +157,7 @@
                         nightModeOptions(params.nightMode)
                     );
                 })
-
             });
-
         }
 
         disconnect(){
@@ -192,7 +190,9 @@
                 [[1,1]],
                 options
             );
-            $(this.chartSelectTarget).val(window.location.hash.replace("#","") || 'ticket-price')
+
+            var val = this.chartSelectTarget.namedItem(window.location.hash.replace("#",""))
+            $(this.chartSelectTarget).val((val ? val.value : 'ticket-price'))
             this.selectChart()
         }
 
