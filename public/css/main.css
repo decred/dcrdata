@@ -515,6 +515,9 @@ body.darkBG .progress {
 }
 
 /*table*/
+table.align-baseline-rows tr {
+  vertical-align: baseline;
+}
 .table-centered-1rem td {
   line-height: 1rem;
   vertical-align: middle;
