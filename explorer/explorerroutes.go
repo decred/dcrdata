@@ -1117,6 +1117,25 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err := txhelpers.AddressVerification(address, exp.NetName)
+	if err != nil {
+		st := WrongNetworkStatusType
+		message := err.Error()
+		if err.Error() == "P2PK address detected" {
+			st = P2PkAddressStatusTypes
+			message = "Looks like you are searching for an address of type P2PK"
+		} else if err.Error() == "Possible Bitcoin address detected." {
+			st = BitcoinWrongNetworkStatusType
+			message = "Looks like you are searching for a bitcoin address"
+		} else if strings.HasPrefix(err.Error(), "Wrong Network") {
+		} else {
+			st = ErrorStatusType
+			message = "Unexpected issue validating this address."
+		}
+		exp.StatusPage(w, defaultErrorCode, message, address, st)
+		return
+	}
+
 	// Number of outputs for the address to query the database for. The URL
 	// query parameter "n" is used to specify the limit (e.g. "?n=20").
 	limitN, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
@@ -1151,26 +1170,16 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
-<<<<<<< HEAD
 	if exp.liteMode {
 		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 		if err != nil && strings.HasPrefix(err.Error(), "wrong network") {
 			exp.StatusPage(w, wrongNetwork, "That address is not valid for "+exp.NetName, "", ExpStatusNotSupported)
 			return
 		}
-<<<<<<< HEAD
-		// AddressInfo should never be nil if err is nil. Catch non-nil error
-		// and nil addrData here since they are both unexpected errors.
-		if err != nil || addrData == nil {
-			log.Errorf("Unable to get data for address %s: %v", address, err)
-			exp.StatusPage(w, defaultErrorCode,
-				"Unexpected issue locating data for that address.", ExpStatusError)
-=======
 		if err != nil {
 			log.Errorf("Unable to get address %s: %v", address, err)
-			exp.StatusPage(w, defaultErrorCode, "Unexpected issue locating data for that address.", "", ErrorStatusType)
+			exp.StatusPage(w, defaultErrorCode, "Unexpected issue locating data for that address.", "", ExpStatusError)
 			return
-=======
 	addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 	if err != nil {
 		st := WrongNetworkStatusType
@@ -1185,20 +1194,20 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		} else {
 			st = ErrorStatusType
 			message = "Unexpected issue locating data for that address."
->>>>>>> review changes- fixing where wrong addresses open on the address page
 		}
 		exp.StatusPage(w, defaultErrorCode, message, address, st)
 		return
 	}
+
 	if exp.liteMode {
+		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		if err != nil {
+			exp.StatusPage(w, defaultErrorCode, "Unexpected issue locating data for that address.", address, ErrorStatusType)
+			return
+		}
 		if addrData == nil {
 			log.Errorf("Unable to get address %s", address)
 			exp.StatusPage(w, defaultErrorCode, "could not find that address", "", NotFoundStatusType)
-<<<<<<< HEAD
->>>>>>> requested changes and more
->>>>>>> requested changes and more
-=======
->>>>>>> requested additions and fixing conflicts
 			return
 		}
 	} else {
@@ -1225,18 +1234,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			addrData = ReduceAddressHistory(addrHist)
 			if addrData == nil {
 				// Empty history is not expected for credit txnType with any txns.
-<<<<<<< HEAD
 				if txnType != dbtypes.AddrTxnDebit &&
 					(balance.NumSpent+balance.NumUnspent) > 0 {
 					log.Debugf("empty address history (%s): n=%d&start=%d",
 						address, limitN, offsetAddrOuts)
 					exp.StatusPage(w, defaultErrorCode,
-						"that address has no history", ExpStatusNotFound)
-=======
-				if txnType != dbtypes.AddrTxnDebit && (balance.NumSpent+balance.NumUnspent) > 0 {
-					log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
-					exp.StatusPage(w, defaultErrorCode, "that address has no history", "", NotFoundStatusType)
->>>>>>> requested changes and more
+						"that address has no history", "", ExpStatusNotFound)
 					return
 				}
 				// No mined transactions
@@ -1277,12 +1280,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			}
 			if err != nil {
 				log.Errorf("Unable to fill address %s transactions: %v", address, err)
-<<<<<<< HEAD
-				exp.StatusPage(w, defaultErrorCode,
-					"transactions for that address not found", ExpStatusNotFound)
-=======
-				exp.StatusPage(w, defaultErrorCode, "could not find transactions for that address", "", NotFoundStatusType)
->>>>>>> requested changes and more
+				exp.StatusPage(w, defaultErrorCode, "could not find transactions for that address", "", ExpStatusNotFound)
 				return
 			}
 		}
@@ -1296,15 +1294,9 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if err != nil {
-<<<<<<< HEAD
-				log.Errorf("Unable to fetch address metrics %s: %v", address, err)
-				exp.StatusPage(w, defaultErrorCode, "address metrics not found",
-					ExpStatusNotFound)
-=======
 				log.Errorf("Unable to fetch oldest transactions block time %s: %v", address, err)
 				exp.StatusPage(w, defaultErrorCode, "oldest block time not found", "",
-					NotFoundStatusType)
->>>>>>> requested changes and more
+				ExpStatusNotFound)
 				return
 			}
 		} else {
@@ -1427,8 +1419,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		addrData.Balance.NumUnspent += (numReceived - numSent)
 		addrData.Balance.TotalSpent += sent
 		addrData.Balance.TotalUnspent += (received - sent)
-<<<<<<< HEAD
-=======
 
 		if err != nil {
 			log.Errorf("Unable to fetch transactions for the address %s: %v", address, err)
@@ -1437,7 +1427,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
->>>>>>> requested changes and more
 	}
 
 	// Set page parameters.
@@ -1472,12 +1461,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested changes and more
-		return
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -1498,11 +1482,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1514,24 +1494,16 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
-<<<<<<< HEAD
-			"Charts page cannot run in lite mode", ExpStatusNotSupported)
+			"Charts page cannot run in lite mode", "", ExpStatusNotSupported)
 		return
 	}
 	tickets, err := exp.explorerSource.TicketsPriceByHeight()
 	if exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
-=======
-			"Charts page cannot run in lite mode", "", NotSupportedStatusType)
->>>>>>> requested changes and more
 		return
 	}
 	if err != nil {
 		log.Errorf("Loading the Ticket Price By Height chart data failed %v", err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -1546,11 +1518,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -1565,11 +1533,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	searchStr := r.URL.Query().Get("search")
 	if searchStr == "" {
-<<<<<<< HEAD
-		exp.StatusPage(w, "search failed", "Empty search string!", ExpStatusNotSupported)
-=======
-		exp.StatusPage(w, "search failed", "Nothing was searched for", searchStr, NotFoundStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, "search failed", "Nothing was searched for", searchStr, ExpStatusNotSupported)
 		return
 	}
 
@@ -1583,7 +1547,6 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/block/"+searchStr, http.StatusPermanentRedirect)
 			return
 		}
-<<<<<<< HEAD
 		if !exp.liteMode {
 			_, err = exp.explorerSource.BlockHash(idx)
 			if err == nil {
@@ -1591,10 +1554,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		exp.StatusPage(w, "search failed", "Block "+searchStr+" has not yet been mined", ExpStatusNotFound)
-=======
-		exp.StatusPage(w, "search failed", "Block "+searchStr+" has not yet been mined", searchStr, NotFoundStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, "search failed", "Block "+searchStr+" has not yet been mined", searchStr, ExpStatusNotFound)
 		return
 	}
 

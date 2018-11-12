@@ -1365,14 +1365,14 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		}
 	}
 
-	maxcount := explorer.MaxAddressRows
-	txs, err := db.client.SearchRawTransactionsVerbose(addr,
-		int(offset), int(maxcount), true, true, nil)
-
 	// Dectection of when an address belonging to a different network is inputed
 	if addr.Net().Name != db.params.Name {
 		return nil, fmt.Errorf("Wrong Network. You pasted a %s address on %v", addr.Net().Name, db.params.Name)
 	}
+
+	maxcount := explorer.MaxAddressRows
+	txs, err := db.client.SearchRawTransactionsVerbose(addr,
+		int(offset), int(maxcount), true, true, nil)
 
 	if err != nil && err.Error() == "-32603: No Txns available" {
 		log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
