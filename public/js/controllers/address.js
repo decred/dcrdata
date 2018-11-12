@@ -76,11 +76,31 @@
     app.register('address', class extends Stimulus.Controller {
         static get targets(){
             return ['options', 'addr', 'btns', 'unspent',
-                    'flow', 'zoom', 'interval']
+                    'flow', 'zoom', 'interval', 'numUnconfirmed', 'formattedTime', 'txnCount']
         }
 
         initialize(){
             var _this = this
+            let isFirstFire = true
+            globalEventBus.on('BLOCK_RECEIVED', function (data) {
+                // The update of the Time UTC and transactions count will only happen during the first confirmation
+                if(!isFirstFire) {
+                    return
+                }
+                isFirstFire = false;
+                _this.numUnconfirmedTargets.forEach((el,i) => {
+                    el.classList.add('hidden')
+                })
+                let numConfirmed = 0
+                _this.formattedTimeTargets.forEach((el,i) => {
+                    el.textContent = data.block.formatted_time
+                    numConfirmed++;
+                })
+                _this.txnCountTargets.forEach((el,i) => {
+                    let transactions = numConfirmed + parseInt(el.dataset.txnCount)
+                    _this.setTxnCountText(el, transactions)
+                })
+            })
             $.getScript('/js/dygraphs.min.js', () => {
                 _this.typesGraphOptions = {
                     labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
@@ -117,6 +137,23 @@
                     visibility: [true],
                     fillGraph: true
                 }
+            })
+        }
+
+        setTxnCountText(el, count) {
+            if(el.dataset.formatted){
+                el.textContent = count + " transaction" + (count > 1? "s":"")
+            }else{
+                el.textContent = count
+            }
+        }
+        connect() {
+            let _this = this
+            this.formattedTimeTargets.forEach((el,i) => {
+                el.textContent = "Unconfirmed"
+            })
+            this.txnCountTargets.forEach((el,i) => {
+                _this.setTxnCountText(el, parseInt(el.dataset.txnCount))
             })
         }
 

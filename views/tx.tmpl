@@ -12,16 +12,21 @@
                 Transaction
                 <span class="fs15">
                 {{if eq .Confirmations 0}}
-                    <strong data-tx-confirmations-pending="{{.TxID}}">(unconfirmed)</strong>
+                    <strong data-tx-confirmations-pending="{{.TxID}}"
+                            data-controller="newBlock" data-target="newBlock.confirmations" data-confirmations="0"
+                            data-confirmation-block-height="{{.BlockHeight}}"
+                            data-formatted="true">(unconfirmed)</strong>
                 {{else}}
-                    <strong data-confirmation-block-height="{{.BlockHeight}}">
+                    <strong data-controller="newBlock" data-target="newBlock.confirmations" data-confirmations="{{.Confirmations}}"
+                            data-confirmation-block-height="{{.BlockHeight}}"
+                            data-formatted="true">
                         ({{.Confirmations}} {{if gt .Confirmations 1}}confirmations{{else}}confirmation{{end}})
                     </strong>
                 {{end}}
                 </span>
             </h4>
             <div class="lh1rem mb-1">
-                <span class="break-word fs15 w80 mr-1">{{.TxID}}</span>
+                <span id="spanTxID" data-tx-page-txid="{{.TxID}}" class="break-word fs15 w80 mr-1">{{.TxID}}</span>
                 <span class="nowrap">
                     <a class="fs13 nowrap" href="/api/tx/decoded/{{.TxID}}?indent=true" data-turbolinks="false">view decoded</a>
                     <span class="sep"></span>

@@ -34,6 +34,7 @@
     <script src="/js/humanize.js"></script>
     <script src="/js/stimulus.umd.js"></script>
     <script src="/js/mousetrap.min.js"></script>
+    <script src="/js/eventbus.js"></script>
 </head>
 {{end}}
 
@@ -234,18 +235,20 @@
         var updateBlockData = function (event) {
             console.log("Received newblock message", event);
             var newBlock = JSON.parse(event);
-            var confirms = $('[data-confirmation-block-height]');
-            $.each(confirms, function(i, v) {
-                if (isNaN($(v).text())) {
-                    $(v).text("0");
-                }
-                var confirmations = newBlock.block.height - $(v).data('confirmation-block-height') + 1;
-                $(v).text("(" + confirmations + (confirmations > 1? " confirmations": " confirmation") + ")")
-            })
+
+            globalEventBus.publish("BLOCK_RECEIVED", newBlock)
 
             // block summary data
             var b = newBlock.block;
             desktopNotifyNewBlock(b);
+
+            var currentTxHash = $('#spanTxID').data('tx-page-txid');
+            if(currentTxHash) { // we are on the tx page
+                // it is important to check that the current transaction is contained in the received block before any
+                // partial update. but since we are silently reloading the page, we will not have the issue of the view
+                // being wrongly updated that happens when the current transaction is not contained in the received block
+                Turbolinks.reload()
+            }
 
 
             // Update the blocktime counter.
@@ -702,6 +705,18 @@
     });
 
     $("#keynav-toggle .text").text(keyNavEnabled() ? "Disable Hot Keys":"Enable Hot Keys" )
+
+    var scrollPosition
+
+    Turbolinks.reload = function () {
+        scrollPosition = [window.scrollX, window.scrollY]
+        Turbolinks.visit(window.location, { action: 'replace' })
+        if(!ws){
+            console.log("ws is closed after Turbolinks.visit")
+            createWebSocket(window.location)
+        }
+    }
+
     document.addEventListener("turbolinks:load", function(e){
         closeMenu(e)
         if (keyNavEnabled()) {
@@ -709,6 +724,10 @@
             keyNav(e, true)
         } else {
             $(".top-search").focus()
+        }
+        if (scrollPosition) {
+            window.scrollTo.apply(window, scrollPosition)
+            scrollPosition = null
         }
     })
 
@@ -755,6 +774,7 @@
 <script src="/js/controllers/address.js" data-turbolinks-eval="false"></script>
 <script src="/js/controllers/ticketpool.js" data-turbolinks-eval="false"></script>
 <script src="/js/controllers/status.js" data-turbolinks-eval="false"></script>
+<script src="/js/controllers/newblock.js" data-turbolinks-eval="false"></script>
 {{end}}
 
 {{define "decimalParts"}}
