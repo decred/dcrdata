@@ -142,7 +142,7 @@
                 var hashVal = window.location.hash.replace('#', '') || _this.defaultHash;
 
                 if (hashVal.length === 0 || hashVal === _this.defaultHash){
-                    history.pushState({},  this.addr, "#" + _this.defaultHash);
+                    history.replaceState({},  this.addr, "#" + _this.defaultHash);
                 } else {
                     var selectedVal = this.optionsTarget.namedItem(hashVal)
                     $(this.optionsTarget).val((selectedVal ? selectedVal.value : 'types'))
