@@ -107,16 +107,28 @@ var cacheChartsData chartDataCounter
 func (c *chartDataCounter) Height() int64 {
 	c.RLock()
 	defer c.RUnlock()
-	if c.Data == nil {
-		return -1
-	}
-	return c.updateHeight
+	return c.height()
 }
 
 // Update sets new data for the given height in the the charts data cache.
 func (c *chartDataCounter) Update(height int64, newData map[string]*dbtypes.ChartsData) {
 	c.Lock()
 	defer c.Unlock()
+	c.update(height, newData)
+}
+
+// height returns the last update height of the charts data cache. Use Height
+// instead for thread-safe access.
+func (c *chartDataCounter) height() int64 {
+	if c.Data == nil {
+		return -1
+	}
+	return c.updateHeight
+}
+
+// update sets new data for the given height in the the charts data cache. Use
+// Update instead for thread-safe access.
+func (c *chartDataCounter) update(height int64, newData map[string]*dbtypes.ChartsData) {
 	c.updateHeight = height
 	c.Data = newData
 }
@@ -403,9 +415,13 @@ func (exp *explorerUI) prePopulateChartsData() {
 		return
 	}
 
+	// Hold charts cache during check and update.
+	cacheChartsData.Lock()
+	defer cacheChartsData.Unlock()
+
 	// Avoid needlessly updating charts data.
 	expHeight := exp.Height()
-	if expHeight == cacheChartsData.Height() {
+	if expHeight == cacheChartsData.height() {
 		log.Debugf("Not updating charts data again for height %d.", expHeight)
 		return
 	}
@@ -428,7 +444,7 @@ func (exp *explorerUI) prePopulateChartsData() {
 		pgData[k] = v
 	}
 
-	cacheChartsData.Update(expHeight, pgData)
+	cacheChartsData.update(expHeight, pgData)
 
 	log.Info("Done pre-populating the charts data.")
 }
