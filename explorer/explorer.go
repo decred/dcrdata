@@ -96,17 +96,38 @@ type explorerDataSource interface {
 // chartDataCounter is a data cache for the historical charts.
 type chartDataCounter struct {
 	sync.RWMutex
-	Data map[string]*dbtypes.ChartsData
+	updateHeight int64
+	Data         map[string]*dbtypes.ChartsData
 }
 
-// cacheChartsData holds the prepopulated data that is used to draw the charts
+// cacheChartsData holds the prepopulated data that is used to draw the charts.
 var cacheChartsData chartDataCounter
+
+// Height returns the last update height of the charts data cache.
+func (c *chartDataCounter) Height() int64 {
+	c.RLock()
+	defer c.RUnlock()
+	if c.Data == nil {
+		return -1
+	}
+	return c.updateHeight
+}
+
+// Update sets new data for the given height in the the charts data cache.
+func (c *chartDataCounter) Update(height int64, newData map[string]*dbtypes.ChartsData) {
+	c.Lock()
+	defer c.Unlock()
+	c.updateHeight = height
+	c.Data = newData
+}
 
 // ChartTypeData is a thread-safe way to access chart data of the given type.
 func ChartTypeData(chartType string) (data *dbtypes.ChartsData, ok bool) {
 	cacheChartsData.RLock()
 	defer cacheChartsData.RUnlock()
 
+	// Data updates replace the entire map rather than modifying the data to
+	// which the pointers refer, so the pointer can safely be returned here.
 	data, ok = cacheChartsData.Data[chartType]
 	return
 }
@@ -165,7 +186,6 @@ type explorerUI struct {
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
-	genesisBlock          *BlockInfo
 }
 
 func (exp *explorerUI) reloadTemplates() error {
@@ -322,13 +342,6 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
-	// Do not fetch charts updates when on liteMode or when blockchain syncing
-	// is running in the background.
-	isSyncRunning := exp.DisplaySyncStatusPage() || SyncExplorerUpdateStatus()
-	if !exp.liteMode && !isSyncRunning {
-		exp.prePopulateChartsData()
-	}
-
 	exp.addRoutes()
 
 	exp.wsHub = NewWebsocketHub()
@@ -350,14 +363,11 @@ func (exp *explorerUI) PrepareCharts() {
 func (exp *explorerUI) StartSyncingStatusMonitor() {
 	go func() {
 		timer := time.NewTicker(syncStatusInterval)
-		for {
-			select {
-			case <-timer.C:
-				if !exp.DisplaySyncStatusPage() {
-					timer.Stop()
-				}
-				exp.wsHub.HubRelay <- sigSyncStatus
+		for range timer.C {
+			if !exp.DisplaySyncStatusPage() {
+				timer.Stop()
 			}
+			exp.wsHub.HubRelay <- sigSyncStatus
 		}
 	}()
 }
@@ -370,7 +380,7 @@ func (exp *explorerUI) DisplaySyncStatusPage() bool {
 
 // SetDisplaySyncStatusPage is a thread-safe way to update the displaySyncStatusPage.
 func (exp *explorerUI) SetDisplaySyncStatusPage(displayStatus bool) {
-	if displayStatus == false {
+	if !displayStatus {
 		// Send the one last signal so that the websocket can send the final
 		// confirmation that syncing is done and home page auto reload should happen.
 		exp.wsHub.HubRelay <- sigSyncStatus
@@ -392,9 +402,16 @@ func (exp *explorerUI) prePopulateChartsData() {
 		log.Warnf("Charts are not supported in lite mode!")
 		return
 	}
+
+	// Avoid needlessly updating charts data.
+	expHeight := exp.Height()
+	if expHeight == cacheChartsData.Height() {
+		log.Debugf("Not updating charts data again for height %d.", expHeight)
+		return
+	}
+
 	log.Info("Pre-populating the charts data. This may take a minute...")
 	var err error
-
 	pgData, err := exp.explorerSource.GetPgChartsData()
 	if err != nil {
 		log.Errorf("Invalid PG data found: %v", err)
@@ -411,24 +428,12 @@ func (exp *explorerUI) prePopulateChartsData() {
 		pgData[k] = v
 	}
 
-	cacheChartsData.Lock()
-	cacheChartsData.Data = pgData
-	cacheChartsData.Unlock()
+	cacheChartsData.Update(expHeight, pgData)
 
-	log.Info("Done Pre-populating the charts data")
+	log.Info("Done pre-populating the charts data.")
 }
 
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
-	bData := blockData.ToBlockExplorerSummary()
-
-	isSyncRunning := exp.DisplaySyncStatusPage() || SyncExplorerUpdateStatus()
-
-	// Update the charts data after every five blocks or if no charts data
-	// exists yet. Do not update the charts data if blockchain sync is running.
-	if !isSyncRunning && bData.Height%5 == 0 || (len(cacheChartsData.Data) == 0 && !exp.liteMode) {
-		go exp.prePopulateChartsData()
-	}
-
 	// Retrieve block data for the passed block hash.
 	newBlockData := exp.blockData.GetExplorerBlock(msgBlock.BlockHash().String())
 
@@ -513,6 +518,16 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	if !exp.liteMode && exp.devPrefetch {
 		go exp.updateDevFundBalance()
+	}
+
+	// Update the charts data after every five blocks or if no charts data
+	// exists yet. Do not update the charts data if blockchain sync is running.
+	isSyncRunning := exp.DisplaySyncStatusPage() || SyncExplorerUpdateStatus()
+	if !isSyncRunning && (newBlockData.Height%5 == 0 || cacheChartsData.Height() == -1) {
+		// This must be done after storing BlockInfo since that provides the
+		// explorer's best block height, which is used by prePopulateChartsData
+		// to decide if an update is needed.
+		go exp.prePopulateChartsData()
 	}
 
 	// Signal to the websocket hub that a new block was received, but do not
