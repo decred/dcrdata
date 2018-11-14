@@ -1493,7 +1493,7 @@ func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool, updateOnCo
 	err = db.QueryRow(internal.MakeVinInsertStatement(checked, doUpsert),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
 		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree,
-		dbVin.ValueIn, dbVin.IsValid, dbVin.IsMainchain, dbVin.Time,
+		dbVin.ValueIn, dbVin.IsValid, dbVin.IsMainchain, dbVin.Time.T,
 		dbVin.TxType).Scan(&id)
 	return
 }
@@ -1844,7 +1844,7 @@ func RetrieveVinsByIDs(db *sql.DB, vinDbIDs []uint64) ([]dbtypes.VinTxProperty, 
 		vin := &vins[i]
 		err := db.QueryRow(internal.SelectAllVinInfoByID, id).Scan(&vin.TxID,
 			&vin.TxIndex, &vin.TxTree, &vin.IsValid, &vin.IsMainchain,
-			&vin.Time, &vin.PrevTxHash, &vin.PrevTxIndex, &vin.PrevTxTree,
+			&vin.Time.T, &vin.PrevTxHash, &vin.PrevTxIndex, &vin.PrevTxTree,
 			&vin.ValueIn, &vin.TxType)
 		if err != nil {
 			return nil, err
