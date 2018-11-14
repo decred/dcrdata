@@ -1403,8 +1403,9 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Attempt to get a block hash by calling GetBlockHash of wiredDB and BlockHash of ChainDB (if not int lite) to see
-	// if the value is a block index and then redirect to the block page if it is.
+	// Attempt to get a block hash by calling GetBlockHash of wiredDB or
+	// BlockHash of ChainDB (if full mode) to see if the URL query value is a
+	// block index. Then redirect to the block page if it is.
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
 	if err == nil {
 		_, err = exp.blockData.GetBlockHash(idx)
@@ -1423,17 +1424,17 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check to see if the value is an address hash and then
-	// redirect to the address page if it is.
-	// Ignore the error as the passed data is expected to fail validation or have other issues.
+	// Check to see if the value is an address, and redirect to the address page
+	// if it is. Ignore the error as the passed data is expected to fail
+	// validation or have other issues.
 	address, _ := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
 	if address != nil {
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
 	if !exp.liteMode {
-		addrHist, _, _ := exp.explorerSource.AddressHistory(
-			searchStr, 1, 0, dbtypes.AddrTxnTypeFromStr("all"))
+		addrHist, _, _ := exp.explorerSource.AddressHistory(searchStr,
+			1, 0, dbtypes.AddrTxnAll)
 		if len(addrHist) > 0 {
 			http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 			return
@@ -1449,7 +1450,8 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	// Attempt to get a block index by calling GetBlockHeight to see if the
 	// value is a block hash and then redirect to the block page if it is.
 	_, err = exp.blockData.GetBlockHeight(searchStr)
-	// Also check the ChainDB if the hash is not found and the app is in full mode
+	// If block search failed, and dcrdata is in full mode, check the aux DB,
+	// which has data for side chain and orphaned blocks.
 	if err != nil && !exp.liteMode {
 		_, err = exp.explorerSource.BlockHeight(searchStr)
 	}

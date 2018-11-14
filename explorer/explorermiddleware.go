@@ -47,11 +47,12 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			var maxHeight int64
 			if exp.liteMode {
 				maxHeight = int64(exp.blockData.GetHeight())
-			}else {
+			} else {
 				bestBlockHeight, err := exp.explorerSource.HeightDB()
 				if err != nil {
 					log.Errorf("HeightDB() failed: %v", err)
-					exp.StatusPage(w, defaultErrorCode, "an unexpected error had occured while retrieving the best block", NotFoundStatusType)
+					exp.StatusPage(w, defaultErrorCode,
+						"an unexpected error had occured while retrieving the best block", ErrorStatusType)
 					return
 				}
 				maxHeight = int64(bestBlockHeight)
@@ -66,7 +67,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 
 			hash, err = exp.blockData.GetBlockHash(height)
 			if err != nil {
-				f := "GetBlockHeight"
+				f := "GetBlockHash"
 				if !exp.liteMode {
 					hash, err = exp.explorerSource.BlockHash(height)
 					f = "BlockHash"
