@@ -35,7 +35,7 @@ export default class extends Controller {
 
   setAges () {
     if (this.data.has('lastblocktime')) {
-      var lbt = window.DCRThings.counter.data('main-lastblocktime')
+      var lbt = window.DCRThings.counter.data('time-lastblocktime')
       this.element.textContent = humanize.timeSince(lbt)
       if ((new Date()).getTime() / 1000 - lbt > 8 * window.DCRThings.targetBlockTime) { // 8*blocktime = 40minutes = 12000 seconds
         this.element.classList.add('text-danger')

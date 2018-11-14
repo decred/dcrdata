@@ -103,7 +103,7 @@ async function createWebSocket (loc) {
     desktopNotifyNewBlock(b)
 
     // Update the blocktime counter.
-    window.DCRThings.counter.data('main-lastblocktime', b.time).removeClass('text-danger')
+    window.DCRThings.counter.data('time-lastblocktime', b.time).removeClass('text-danger')
     window.DCRThings.counter.html(humanize.timeSince(b.time))
 
     advanceTicketProgress(b)
@@ -363,7 +363,7 @@ $('#listing-view').change(function () {
         $('#listing-view option:selected').val()
   )
 })
-window.DCRThings.counter = $('[data-main-lastblocktime]')
+window.DCRThings.counter = $('[data-time-lastblocktime]')
 
 $('.scriptDataStar').on('click', function () {
   $(this).next('.scriptData').slideToggle()
@@ -378,4 +378,3 @@ $('#listing-view').change(function () {
         $('#listing-view option:selected').val()
   )
 })
-window.DCRThings.counter = $('[data-main-lastblocktime]')

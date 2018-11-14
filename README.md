@@ -566,8 +566,8 @@ example Nginx configuration.
 To save time and tens of gigabytes of disk storage space, dcrdata runs by
 default in a reduced functionality ("lite") mode that does not require
 PostgreSQL. To enable the PostgreSQL backend (and the expanded functionality),
-dcrdata may be started with the `--pg` switch. See `--help` or `sample-dcrdata.conf` 
-for additional PostgreSQL configuration settings. 
+dcrdata may be started with the `--pg` switch. See `--help` or `sample-dcrdata.conf`
+for additional PostgreSQL configuration settings.
 
 ## APIs
 
@@ -742,10 +742,17 @@ comma-separated value (CSV) file.
 
 ## Front End Development
 
-Make sure you have a recent version of node installed, then do:
+Make sure you have a recent version of [node and npm](https://nodejs.org/en/download/) installed.
+You may want to use the [node version manager (nvm)](https://github.com/creationix/nvm) for managing
+your node download and installation.
+
+From the dcrdata root directory, run the following command to install the node modules.
+
 `npm install`
 
-For development, webpack will run eslint and compile your javascript via:
+For development, there's a webpack script that watches for file changes and automatically compiles.
+To use it, run this command in a separate terminal and leave it running while you work.
+
 `npm run watch`
 
 For production, bundle assets via:
