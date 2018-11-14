@@ -41,6 +41,9 @@ const homePageBlocksMaxCount = 30
 
 // netName returns the name used when referring to a decred network.
 func netName(chainParams *chaincfg.Params) string {
+	if chainParams == nil {
+		return "invalid"
+	}
 	if strings.HasPrefix(strings.ToLower(chainParams.Name), "testnet") {
 		return "Testnet"
 	}
