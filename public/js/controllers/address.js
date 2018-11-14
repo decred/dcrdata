@@ -266,7 +266,7 @@
         }
 
         changeGraph(e){
-            if (e.srcElement.className.includes('.chart-size')){
+            if (e.srcElement.className.includes('chart-size')){
                 $(e.srcElement).siblings().removeClass('btn-active');
                 $(e.srcElement).toggleClass('btn-active');
             }
