@@ -351,7 +351,7 @@ func (exp *explorerUI) getLastBlock() (lastBlockHash string, lastBlock int64, la
 	exp.pageData.RLock()
 	defer exp.pageData.RUnlock()
 	lastBlock = exp.pageData.BlockInfo.Height
-	lastBlockTime = exp.pageData.BlockInfo.BlockTime
+	lastBlockTime = exp.pageData.BlockInfo.BlockTime.T.Unix()
 	lastBlockHash = exp.pageData.BlockInfo.Hash
 	return
 }

@@ -37,19 +37,18 @@ var blockchainSyncStatus = new(syncStatus)
 
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
-	Height         int64  `json:"height"`
-	Hash           string `json:"hash"`
-	Size           int32  `json:"size"`
-	Valid          bool   `json:"valid"`
-	MainChain      bool   `json:"mainchain"`
-	Voters         uint16 `json:"votes"`
-	Transactions   int    `json:"tx"`
-	IndexVal       int64  `json:"windowIndex"`
-	FreshStake     uint8  `json:"tickets"`
-	Revocations    uint32 `json:"revocations"`
-	BlockTime      int64  `json:"time"`
-	FormattedTime  string `json:"formatted_time"`
-	FormattedBytes string `json:"formatted_bytes"`
+	Height         int64           `json:"height"`
+	Hash           string          `json:"hash"`
+	Size           int32           `json:"size"`
+	Valid          bool            `json:"valid"`
+	MainChain      bool            `json:"mainchain"`
+	Voters         uint16          `json:"votes"`
+	Transactions   int             `json:"tx"`
+	IndexVal       int64           `json:"windowIndex"`
+	FreshStake     uint8           `json:"tickets"`
+	Revocations    uint32          `json:"revocations"`
+	BlockTime      dbtypes.TimeDef `json:"time"`
+	FormattedBytes string          `json:"formatted_bytes"`
 }
 
 // WebBasicBlock is used for quick DB data without rpc calls
@@ -87,14 +86,12 @@ type AddressTx struct {
 	FormattedSize  string
 	Total          float64
 	Confirmations  uint64
-	Time           int64
-	FormattedTime  string
+	Time           dbtypes.TimeDef
 	ReceivedTotal  float64
 	SentTotal      float64
 	IsFunding      bool
 	MatchedTx      string
 	MatchedTxIndex uint32
-	BlockTime      uint64
 	MergedTxnCount uint64 `json:",omitempty"`
 }
 
@@ -136,8 +133,7 @@ type TxInfo struct {
 	BlockHash        string
 	BlockMiningFee   int64
 	Confirmations    int64
-	Time             int64
-	FormattedTime    string
+	Time             dbtypes.TimeDef
 	Mature           string
 	VoteFundsLocked  string
 	Maturity         int64   // Total number of blocks before mature
@@ -217,7 +213,7 @@ type Vout struct {
 
 // TrimmedBlockInfo models data needed to display block info on the new home page
 type TrimmedBlockInfo struct {
-	Time         int64
+	Time         dbtypes.TimeDef
 	Height       int64
 	Total        float64
 	Fees         float64
@@ -461,7 +457,7 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		}
 		coin := dcrutil.Amount(addrOut.Value).ToCoin()
 		tx := AddressTx{
-			BlockTime: addrOut.TxBlockTime,
+			Time:      addrOut.TxBlockTime,
 			InOutID:   addrOut.TxVinVoutIndex,
 			TxID:      addrOut.TxHash,
 			TxType:    txhelpers.TxTypeToString(int(addrOut.TxType)),

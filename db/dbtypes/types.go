@@ -9,9 +9,26 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrdata/v3/db/dbtypes/internal"
 )
+
+// TimeDef is time.Time wrapper that formats time by default as a string without
+// a timezone. The time Stringer interface formats the time into a string
+// with a timezone.
+type TimeDef struct {
+	T time.Time
+}
+
+func (t TimeDef) String() string {
+	return t.T.Format("2006-01-02 15:04:05")
+}
+
+// MarshalJSON is set as the default marshalling function for TimeDef struct.
+func (t *TimeDef) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
 
 // Tickets have 6 states, 5 possible fates:
 // Live -...---> Voted
@@ -128,9 +145,9 @@ type BlocksGroupedInfo struct {
 	EndBlock           int64
 	Difficulty         float64
 	TicketPrice        int64
-	StartTime          int64
+	StartTime          TimeDef
 	FormattedStartTime string
-	EndTime            int64
+	EndTime            TimeDef
 	FormattedEndTime   string
 	Size               int64
 	FormattedSize      string
@@ -145,9 +162,9 @@ type BlocksGroupedInfo struct {
 // TimeBasedGroupings maps a given time grouping to its standard string value.
 var TimeBasedGroupings = map[TimeBasedGrouping]string{
 	AllGrouping:   "all",
-	YearGrouping:  "yr",
-	MonthGrouping: "mo",
-	WeekGrouping:  "wk",
+	YearGrouping:  "year",
+	MonthGrouping: "month",
+	WeekGrouping:  "week",
 	DayGrouping:   "day",
 }
 
@@ -409,7 +426,7 @@ type AddressRow struct {
 	// funding tx outputs.
 	MatchingTxHash   string
 	IsFunding        bool
-	TxBlockTime      uint64
+	TxBlockTime      TimeDef
 	TxHash           string
 	TxVinVoutIndex   uint32
 	Value            uint64
@@ -422,7 +439,7 @@ type AddressRow struct {
 // grouping buttons on the address history page charts should be disabled
 // or enabled by default.
 type AddressMetrics struct {
-	OldestBlockTime int64
+	OldestBlockTime TimeDef
 	YearTxsCount    int64 // Years txs grouping
 	MonthTxsCount   int64 // Months txs grouping
 	WeekTxsCount    int64 // Weeks txs grouping
@@ -432,9 +449,8 @@ type AddressMetrics struct {
 // ChartsData defines the fields that store the values needed to plot the charts
 // on the frontend.
 type ChartsData struct {
-	TimeStr     []string  `json:"timestr,omitempty"`
 	Difficulty  []float64 `json:"difficulty,omitempty"`
-	Time        []uint64  `json:"time,omitempty"`
+	Time        []TimeDef `json:"time,omitempty"`
 	Value       []uint64  `json:"value,omitempty"`
 	Size        []uint64  `json:"size,omitempty"`
 	ChainSize   []uint64  `json:"chainsize,omitempty"`
@@ -466,28 +482,28 @@ type ScriptPubKeyData struct {
 
 // VinTxProperty models a transaction input with previous outpoint information.
 type VinTxProperty struct {
-	PrevOut     string `json:"prevout"`
-	PrevTxHash  string `json:"prevtxhash"`
-	PrevTxIndex uint32 `json:"prevvoutidx"`
-	PrevTxTree  uint16 `json:"tree"`
-	Sequence    uint32 `json:"sequence"`
-	ValueIn     int64  `json:"amountin"`
-	TxID        string `json:"tx_hash"`
-	TxIndex     uint32 `json:"tx_index"`
-	TxTree      uint16 `json:"tx_tree"`
-	TxType      int16  `json:"tx_type"`
-	BlockHeight uint32 `json:"blockheight"`
-	BlockIndex  uint32 `json:"blockindex"`
-	ScriptHex   []byte `json:"scripthex"`
-	IsValid     bool   `json:"is_valid"`
-	IsMainchain bool   `json:"is_mainchain"`
-	Time        int64  `json:"time"`
+	PrevOut     string  `json:"prevout"`
+	PrevTxHash  string  `json:"prevtxhash"`
+	PrevTxIndex uint32  `json:"prevvoutidx"`
+	PrevTxTree  uint16  `json:"tree"`
+	Sequence    uint32  `json:"sequence"`
+	ValueIn     int64   `json:"amountin"`
+	TxID        string  `json:"tx_hash"`
+	TxIndex     uint32  `json:"tx_index"`
+	TxTree      uint16  `json:"tx_tree"`
+	TxType      int16   `json:"tx_type"`
+	BlockHeight uint32  `json:"blockheight"`
+	BlockIndex  uint32  `json:"blockindex"`
+	ScriptHex   []byte  `json:"scripthex"`
+	IsValid     bool    `json:"is_valid"`
+	IsMainchain bool    `json:"is_mainchain"`
+	Time        TimeDef `json:"time"`
 }
 
 // PoolTicketsData defines the real time data
 // needed for ticket pool visualization charts.
 type PoolTicketsData struct {
-	Time     []uint64  `json:"time,omitempty"`
+	Time     []TimeDef `json:"time,omitempty"`
 	Price    []float64 `json:"price,omitempty"`
 	Mempool  []uint64  `json:"mempool,omitempty"`
 	Immature []uint64  `json:"immature,omitempty"`
@@ -523,33 +539,33 @@ type ScriptSig struct {
 // the block heights, or a day, in which case Time contains the time stamps of
 // each interval. Total is always the sum of Yes, No, and Abstain.
 type AgendaVoteChoices struct {
-	Abstain []uint64 `json:"abstain"`
-	Yes     []uint64 `json:"yes"`
-	No      []uint64 `json:"no"`
-	Total   []uint64 `json:"total"`
-	Height  []uint64 `json:"height,omitempty"`
-	Time    []uint64 `json:"time,omitempty"`
+	Abstain []uint64  `json:"abstain"`
+	Yes     []uint64  `json:"yes"`
+	No      []uint64  `json:"no"`
+	Total   []uint64  `json:"total"`
+	Height  []uint64  `json:"height,omitempty"`
+	Time    []TimeDef `json:"time,omitempty"`
 }
 
 // Tx models a Decred transaction. It is stored in a Block.
 type Tx struct {
 	//blockDbID  int64
-	BlockHash   string `json:"block_hash"`
-	BlockHeight int64  `json:"block_height"`
-	BlockTime   int64  `json:"block_time"`
-	Time        int64  `json:"time"`
-	TxType      int16  `json:"tx_type"`
-	Version     uint16 `json:"version"`
-	Tree        int8   `json:"tree"`
-	TxID        string `json:"txid"`
-	BlockIndex  uint32 `json:"block_index"`
-	Locktime    uint32 `json:"locktime"`
-	Expiry      uint32 `json:"expiry"`
-	Size        uint32 `json:"size"`
-	Spent       int64  `json:"spent"`
-	Sent        int64  `json:"sent"`
-	Fees        int64  `json:"fees"`
-	NumVin      uint32 `json:"numvin"`
+	BlockHash   string  `json:"block_hash"`
+	BlockHeight int64   `json:"block_height"`
+	BlockTime   TimeDef `json:"block_time"`
+	Time        TimeDef `json:"time"`
+	TxType      int16   `json:"tx_type"`
+	Version     uint16  `json:"version"`
+	Tree        int8    `json:"tree"`
+	TxID        string  `json:"txid"`
+	BlockIndex  uint32  `json:"block_index"`
+	Locktime    uint32  `json:"locktime"`
+	Expiry      uint32  `json:"expiry"`
+	Size        uint32  `json:"size"`
+	Spent       int64   `json:"spent"`
+	Sent        int64   `json:"sent"`
+	Fees        int64   `json:"fees"`
+	NumVin      uint32  `json:"numvin"`
 	//Vins        VinTxPropertyARRAY `json:"vins"`
 	VinDbIds  []uint64 `json:"vindbids"`
 	NumVout   uint32   `json:"numvout"`
@@ -576,7 +592,7 @@ type Block struct {
 	NumStakeTx   uint32
 	STx          []string `json:"stx"`
 	STxDbIDs     []uint64
-	Time         uint64  `json:"time"`
+	Time         TimeDef `json:"time"`
 	Nonce        uint64  `json:"nonce"`
 	VoteBits     uint16  `json:"votebits"`
 	FinalState   []byte  `json:"finalstate"`
@@ -598,7 +614,7 @@ type BlockDataBasic struct {
 	Hash       string  `json:"hash,omitemtpy"`
 	Difficulty float64 `json:"diff,omitemtpy"`
 	StakeDiff  float64 `json:"sdiff,omitemtpy"`
-	Time       int64   `json:"time,omitemtpy"`
+	Time       TimeDef `json:"time,omitemtpy"`
 	NumTx      uint32  `json:"txlength,omitempty"`
 }
 

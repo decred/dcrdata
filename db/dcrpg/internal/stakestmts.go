@@ -118,10 +118,10 @@ const (
 		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
 		GROUP BY price ORDER BY price;`
 
-	SelectTicketsByPurchaseDate = `SELECT (transactions.block_time/$1)*$1 as timestamp,
+	selectTicketsByPurchaseDate = `SELECT %s as timestamp,
 		SUM(price) as price,
-		SUM(CASE WHEN tickets.block_height >= $2 THEN 1 ELSE 0 END) as immature,
-		SUM(CASE WHEN tickets.block_height < $2 THEN 1 ELSE 0 END) as live
+		SUM(CASE WHEN tickets.block_height >= $1 THEN 1 ELSE 0 END) as immature,
+		SUM(CASE WHEN tickets.block_height < $1 THEN 1 ELSE 0 END) as live
 		FROM tickets JOIN transactions ON purchase_tx_db_id=transactions.id
 		WHERE pool_status = 0 AND tickets.is_mainchain = TRUE
 		GROUP BY timestamp ORDER BY timestamp;`
@@ -328,7 +328,7 @@ const (
 		agenda_vote_choice INT2,
 		tx_hash TEXT NOT NULL,
 		block_height INT4,
-		block_time INT8,
+		block_time TIMESTAMP,
 		locked_in BOOLEAN,
 		activated BOOLEAN,
 		hard_forked BOOLEAN
@@ -433,4 +433,9 @@ func MakeAgendaInsertStatement(checked bool) string {
 		return UpsertAgendaRow
 	}
 	return InsertAgendaRow
+}
+
+// MakeSelectTicketsByPurchaseDate returns the selectTicketsByPurchaseDate query
+func MakeSelectTicketsByPurchaseDate(group string) string {
+	return formatGroupingQuery(selectTicketsByPurchaseDate, group, "transactions.block_time")
 }

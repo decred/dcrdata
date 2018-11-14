@@ -1,5 +1,7 @@
 package internal
 
+import "fmt"
+
 const (
 	CreateAddressTable = `CREATE TABLE IF NOT EXISTS addresses (
 		id SERIAL8 PRIMARY KEY,
@@ -8,7 +10,7 @@ const (
 		valid_mainchain BOOLEAN,
 		matching_tx_hash TEXT,
 		value INT8,
-		block_time INT8 NOT NULL,
+		block_time TIMESTAMP NOT NULL,
 		is_funding BOOLEAN,
 		tx_vin_vout_index INT4,
 		tx_vin_vout_row_id INT8,
@@ -98,10 +100,9 @@ const (
 			time DESC,
 			transactions.tx_hash ASC;`
 
-	// SelectAddressTimeGroupingCount return the count of record groups,
+	// selectAddressTimeGroupingCount return the count of record groups,
 	// where grouping is done by a specified time interval, for an addresss.
-	SelectAddressTimeGroupingCount = `SELECT COUNT(DISTINCT (block_time/$2)*$2)
-		FROM addresses WHERE address=$1;`
+	selectAddressTimeGroupingCount = `SELECT COUNT(DISTINCT %s) FROM addresses WHERE address=$1;`
 
 	SelectAddressUnspentCountANDValue = `SELECT COUNT(*), SUM(value) FROM addresses
 	    WHERE address = $1 AND is_funding = TRUE AND matching_tx_hash = '' AND valid_mainchain = TRUE;`
@@ -192,25 +193,25 @@ const (
 	SelectAddressOldestTxBlockTime = `SELECT block_time FROM addresses WHERE
 		address=$1 ORDER BY block_time LIMIT 1;`
 
-	// SelectAddressTxTypesByAddress gets the transaction type histogram for the
+	// selectAddressTxTypesByAddress gets the transaction type histogram for the
 	// given address using block time binning with bin size of block_time.
 	// Regular transactions are grouped into (SentRtx and ReceivedRtx), SSTx
 	// defines tickets, SSGen defines votes, and SSRtx defines revocations.
-	SelectAddressTxTypesByAddress = `SELECT (block_time/$1)*$1 as timestamp,
+	selectAddressTxTypesByAddress = `SELECT %s as timestamp,
 		COUNT(CASE WHEN tx_type = 0 AND is_funding = false THEN 1 ELSE NULL END) as SentRtx,
 		COUNT(CASE WHEN tx_type = 0 AND is_funding = true THEN 1 ELSE NULL END) as ReceivedRtx,
 		COUNT(CASE WHEN tx_type = 1 THEN 1 ELSE NULL END) as SSTx,
 		COUNT(CASE WHEN tx_type = 2 THEN 1 ELSE NULL END) as SSGen,
 		COUNT(CASE WHEN tx_type = 3 THEN 1 ELSE NULL END) as SSRtx
-		FROM addresses WHERE address=$2 GROUP BY timestamp ORDER BY timestamp;`
+		FROM addresses WHERE address=$1 GROUP BY timestamp ORDER BY timestamp;`
 
-	SelectAddressAmountFlowByAddress = `SELECT (block_time/$1)*$1 as timestamp,
+	selectAddressAmountFlowByAddress = `SELECT %s as timestamp,
 		SUM(CASE WHEN is_funding = TRUE THEN value ELSE 0 END) as received,
 		SUM(CASE WHEN is_funding = FALSE THEN value ELSE 0 END) as sent FROM
-		addresses WHERE address=$2 GROUP BY timestamp ORDER BY timestamp;`
+		addresses WHERE address=$1 GROUP BY timestamp ORDER BY timestamp;`
 
-	SelectAddressUnspentAmountByAddress = `SELECT (block_time/$1)*$1 as timestamp,
-		SUM(value) as unspent FROM addresses WHERE address=$2 AND is_funding=TRUE
+	selectAddressUnspentAmountByAddress = `SELECT %s as timestamp,
+		SUM(value) as unspent FROM addresses WHERE address=$1 AND is_funding=TRUE
 		AND matching_tx_hash ='' GROUP BY timestamp ORDER BY timestamp;`
 
 	// UPDATEs/SETs
@@ -315,4 +316,33 @@ func MakeAddressRowInsertStatement(checked, updateOnConflict bool) string {
 		return UpsertAddressRow
 	}
 	return InsertAddressRowOnConflictDoNothing
+}
+
+// MakeSelectAddressTxTypesByAddress returns the selectAddressTxTypesByAddress query
+func MakeSelectAddressTxTypesByAddress(group string) string {
+	return formatGroupingQuery(selectAddressTxTypesByAddress, group, "block_time")
+}
+
+// MakeSelectAddressAmountFlowByAddress returns the selectAddressAmountFlowByAddress query
+func MakeSelectAddressAmountFlowByAddress(group string) string {
+	return formatGroupingQuery(selectAddressAmountFlowByAddress, group, "block_time")
+}
+
+// MakeSelectAddressUnspentAmountByAddress returns the selectAddressUnspentAmountByAddress query
+func MakeSelectAddressUnspentAmountByAddress(group string) string {
+	return formatGroupingQuery(selectAddressUnspentAmountByAddress, group, "block_time")
+}
+
+func MakeSelectAddressTimeGroupingCount(group string) string {
+	return formatGroupingQuery(selectAddressTimeGroupingCount, group, "block_time")
+}
+
+// Since date_trunc function doesn't have an option to group by "all" grouping,
+// formatGroupingQuery removes the date_trunc from the sql query as its not applicable.
+func formatGroupingQuery(mainQuery, group, column string) string {
+	if group == "all" {
+		return fmt.Sprintf(mainQuery, column)
+	}
+	subQuery := fmt.Sprintf("date_trunc('%s', %s)", group, column)
+	return fmt.Sprintf(mainQuery, subQuery)
 }

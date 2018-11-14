@@ -54,7 +54,7 @@ function barchartPlotter(e) {
         if (!d.yes instanceof Array) return [[0,0,0]]
         return d.yes.map((n,i) => {
             return [
-                new Date(d.time[i]*1000),
+                new Date(d.time[i]),
                 + d.yes[i],
                 d.abstain[i], 
                 d.no[i]

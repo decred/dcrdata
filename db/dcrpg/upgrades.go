@@ -40,6 +40,11 @@ const (
 	addressesTableValidMainchainPatch
 	addressesTableMatchingTxHashPatch
 	addressesTableBlockTimeSortedIndex
+	addressesBlockTimeDataTypeUpdate
+	blocksBlockTimeDataTypeUpdate
+	agendasBlockTimeDataTypeUpdate
+	transactionsBlockTimeDataTypeUpdate
+	vinsBlockTimeDataTypeUpdate
 )
 
 type TableUpgradeType struct {
@@ -268,8 +273,32 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		}
 
 		// Go on to next upgrade
-		// fallthrough
-		// or be done
+		fallthrough
+
+	// Upgrade from 3.5.5 --> 3.6.0
+	case version.major == 3 && version.minor == 5 && version.patch == 5:
+		toVersion = TableVersion{3, 6, 0}
+
+		theseUpgrades := []TableUpgradeType{
+			{"addresses", addressesBlockTimeDataTypeUpdate},
+			{"blocks", blocksBlockTimeDataTypeUpdate},
+			{"agendas", agendasBlockTimeDataTypeUpdate},
+			{"transactions", transactionsBlockTimeDataTypeUpdate},
+			{"vins", vinsBlockTimeDataTypeUpdate},
+		}
+
+		pgb.dropBlockTimeIndexes()
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
+		pgb.createBlockTimeIndexes()
+
+	// Go on to next upgrade
+	// fallthrough
+	// or be done
 
 	default:
 		// UpgradeType == "upgrade" or "reindex", but no supported case.
@@ -368,6 +397,21 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case addressesTableBlockTimeSortedIndex:
 		tableReady = true
 		tableName, upgradeTypeStr = "addresses", "reindex"
+	case addressesBlockTimeDataTypeUpdate:
+		tableReady = true
+		tableName, upgradeTypeStr = "addresses", "block time data type update"
+	case blocksBlockTimeDataTypeUpdate:
+		tableReady = true
+		tableName, upgradeTypeStr = "blocks", "block time data type update"
+	case agendasBlockTimeDataTypeUpdate:
+		tableReady = true
+		tableName, upgradeTypeStr = "agendas", "block time data type update"
+	case transactionsBlockTimeDataTypeUpdate:
+		tableReady = true
+		tableName, upgradeTypeStr = "transactions", "block time data type update"
+	case vinsBlockTimeDataTypeUpdate:
+		tableReady = true
+		tableName, upgradeTypeStr = "vins", "block time data type update"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -485,6 +529,11 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		log.Infof("Patching matching_tx_hash in the addresses table...")
 		rowsUpdated, err = updateAddressesMatchingTxHashPatch(pgb.db)
 
+	case addressesBlockTimeDataTypeUpdate, blocksBlockTimeDataTypeUpdate,
+		agendasBlockTimeDataTypeUpdate, transactionsBlockTimeDataTypeUpdate,
+		vinsBlockTimeDataTypeUpdate:
+	// set block time data type to timestamp
+
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
 	}
@@ -530,7 +579,54 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		}
 	}
 
+	type dataTypeUpgrade struct {
+		Column   string
+		DataType string
+	}
+
+	var columnsUpdate []dataTypeUpgrade
+	switch tableUpgrade {
+	case addressesBlockTimeDataTypeUpdate, agendasBlockTimeDataTypeUpdate,
+		vinsBlockTimeDataTypeUpdate:
+		columnsUpdate = []dataTypeUpgrade{{Column: "block_time", DataType: "TIMESTAMP"}}
+	case blocksBlockTimeDataTypeUpdate:
+		columnsUpdate = []dataTypeUpgrade{{Column: "time", DataType: "TIMESTAMP"}}
+	case transactionsBlockTimeDataTypeUpdate:
+		columnsUpdate = []dataTypeUpgrade{
+			{Column: "time", DataType: "TIMESTAMP"},
+			{Column: "block_time", DataType: "TIMESTAMP"},
+		}
+	}
+
+	if len(columnsUpdate) > 0 {
+		for _, c := range columnsUpdate {
+			log.Infof("Setting the %s table %s column data type to %s. Please wait...", tableName, c.Column, c.DataType)
+			_, err := pgb.alterColumnDataType(tableName, c.Column, c.DataType)
+			if err != nil {
+				return false, fmt.Errorf("failed to set the %s data type to %s column in %s table: %v", tableName, c.Column, c.DataType, err)
+			}
+		}
+	}
+
 	return true, nil
+}
+
+// dropBlockTimeIndexes drops all indexes that are likely to slow down the db upgrade.
+func (pgb *ChainDB) dropBlockTimeIndexes() {
+	log.Info("Dropping block time indexes")
+	err := DeindexBlockTimeOnTableAddress(pgb.db)
+	if err != nil {
+		log.Warnf("DeindexBlockTimeOnTableAddress failed: error: %v", err)
+	}
+}
+
+// CreateBlockTimeIndexes creates back all the dropped indexes.
+func (pgb *ChainDB) createBlockTimeIndexes() {
+	log.Info("Creating the dropped block time indexes")
+	err := IndexBlockTimeOnTableAddress(pgb.db)
+	if err != nil {
+		log.Warnf("IndexBlockTimeOnTableAddress failed: error: %v", err)
+	}
 }
 
 func (pgb *ChainDB) handleAgendasVotingMilestonesUpgrade() (int64, error) {
@@ -622,6 +718,21 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 	}
 
 	return rowsUpdated, nil
+}
+
+func (pgb *ChainDB) alterColumnDataType(table, column, dataType string) (int64, error) {
+	query := "ALTER TABLE %s ALTER COLUMN %s TYPE %s USING to_timestamp(%s);"
+	results, err := pgb.db.Exec(fmt.Sprintf(query, table, column, dataType, column))
+	if err != nil {
+		return -1, fmt.Errorf("alterColumnDataType failed: error %v", err)
+	}
+
+	c, err := results.RowsAffected()
+	if err != nil {
+		return -1, err
+	}
+
+	return c, nil
 }
 
 func (pgb *ChainDB) handleTxTypeHistogramUpgrade(bestBlock uint64, upgrade tableUpgradeType) (int64, error) {
@@ -916,7 +1027,7 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(msgBlock *wire.MsgBlock) (int64, e
 			}
 
 			err = pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
-				val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime,
+				val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime.T,
 				progress.LockedIn == tx.BlockHeight,
 				progress.Activated == tx.BlockHeight,
 				progress.HardForked == tx.BlockHeight).Scan(&rowID)

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
@@ -267,15 +268,13 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 
 	// Insert the block.
 	winners := strings.Join(bd.PoolInfo.Winners, ";")
-
 	res, err := stmt.Exec(&bd.Height, &bd.Size, &bd.Hash,
-		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
+		&bd.Difficulty, &bd.StakeDiff, bd.Time.S.T.Unix(),
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners)
 	if err != nil {
 		return err
 	}
-
 	// Update the DB block summary height.
 	db.Lock()
 	defer db.Unlock()
@@ -526,11 +525,16 @@ func (db *DB) RetrieveAllPoolValAndSize() (*dbtypes.ChartsData, error) {
 
 	for rows.Next() {
 		var pval, psize float64
-		var timestamp uint64
+		var timestamp int64
 		if err = rows.Scan(&psize, &pval, &timestamp); err != nil {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 		}
-		chartsData.Time = append(chartsData.Time, timestamp)
+
+		if timestamp == 0 {
+			continue
+		}
+
+		chartsData.Time = append(chartsData.Time, dbtypes.TimeDef{T: time.Unix(timestamp, 0)})
 		chartsData.SizeF = append(chartsData.SizeF, psize)
 		chartsData.ValueF = append(chartsData.ValueF, pval)
 	}
@@ -655,11 +659,13 @@ func (db *DB) RetrieveBlockSummaryByTimeRange(minTime, maxTime int64, limit int)
 
 	for rows.Next() {
 		bd := apitypes.NewBlockDataBasic()
+		var timestamp int64
 		if err = rows.Scan(&bd.Height, &bd.Size, &bd.Hash,
-			&bd.Difficulty, &bd.StakeDiff, &bd.Time,
+			&bd.Difficulty, &bd.StakeDiff, &timestamp,
 			&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg); err != nil {
 			log.Errorf("Unable to scan for block fields")
 		}
+		bd.Time = apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(timestamp, 0)}}
 		blocks = append(blocks, *bd)
 	}
 	if err = rows.Err(); err != nil {
@@ -687,13 +693,15 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	bd := apitypes.NewBlockDataBasic()
 
 	var winners string
+	var timestamp int64
 	err := db.QueryRow(db.getLatestBlockSQL).Scan(&bd.Height, &bd.Size,
-		&bd.Hash, &bd.Difficulty, &bd.StakeDiff, &bd.Time,
+		&bd.Hash, &bd.Difficulty, &bd.StakeDiff, &timestamp,
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners)
 	if err != nil {
 		return nil, err
 	}
+	bd.Time = apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(timestamp, 0)}}
 	bd.PoolInfo.Winners = splitToArray(winners)
 	return bd, nil
 }
@@ -731,13 +739,15 @@ func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic,
 	bd := apitypes.NewBlockDataBasic()
 
 	var winners string
+	var timestamp int64
 	err := db.QueryRow(db.getBlockByHashSQL, hash).Scan(&bd.Height, &bd.Size, &bd.Hash,
-		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
+		&bd.Difficulty, &bd.StakeDiff, &timestamp,
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners)
 	if err != nil {
 		return nil, err
 	}
+	bd.Time = apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(timestamp, 0)}}
 	bd.PoolInfo.Winners = splitToArray(winners)
 	return bd, nil
 }
@@ -750,13 +760,15 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 
 	// 1. chained QueryRow/Scan only
 	var winners string
+	var timestamp int64
 	err := db.QueryRow(db.getBlockSQL, ind).Scan(&bd.Height, &bd.Size, &bd.Hash,
-		&bd.Difficulty, &bd.StakeDiff, &bd.Time,
+		&bd.Difficulty, &bd.StakeDiff, &timestamp,
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners)
 	if err != nil {
 		return nil, err
 	}
+	bd.Time = apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(timestamp, 0)}}
 	bd.PoolInfo.Winners = splitToArray(winners)
 	// 2. Prepare + chained QueryRow/Scan
 	// stmt, err := db.Prepare(getBlockSQL)
