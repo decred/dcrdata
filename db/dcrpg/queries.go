@@ -1872,7 +1872,12 @@ func RetrieveVoutsByIDs(db *sql.DB, voutDbIDs []uint64) ([]dbtypes.Vout, error) 
 
 		vout.ScriptPubKeyData.ReqSigs = reqSigs
 		vout.ScriptPubKeyData.Type = scriptType
-		vout.ScriptPubKeyData.Addresses = strings.Split(addresses, ",")
+		// If there are no addresses, the Addresses should be nil or length
+		// zero. However, strings.Split will return [""] if addresses is "".
+		// If that is the case, leave it as a nil slice.
+		if len(addresses) > 0 {
+			vout.ScriptPubKeyData.Addresses = strings.Split(addresses, ",")
+		}
 	}
 	return vouts, nil
 }
