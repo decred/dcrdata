@@ -4,6 +4,131 @@ import (
 	"testing"
 )
 
+func TestHashStart(t *testing.T) {
+	funcs := makeTemplateFuncMap(nil)
+
+	hashStart, ok := funcs["hashStart"]
+	if !ok {
+		t.Fatalf(`Template function map does not contain "hashStart".`)
+	}
+
+	hashStartFn, ok := hashStart.(func(hash string) string)
+	if !ok {
+		t.Fatalf(`Template function "hashStart" is not of type "func(hash string) string".`)
+	}
+
+	testData := []struct {
+		in  string
+		out string
+	}{
+		{"2769040088594af8581b2f5c", "2769040088594af858"},
+		{"948004e47d1578365b7b2b7b57512360b688e35ecd04f2e709f967000efdd6e9", "948004e47d1578365b7b2b7b57512360b688e35ecd04f2e709f967000e"},
+		{"1234567", "1"},
+		{"123456", ""},
+		{"12345", ""},
+		{"", ""},
+	}
+
+	for i := range testData {
+		actual := hashStartFn(testData[i].in)
+		if actual != testData[i].out {
+			t.Errorf(`hashStart("%s") returned "%s", expected "%s"`,
+				testData[i].in, actual, testData[i].out)
+		}
+	}
+}
+
+func TestHashEnd(t *testing.T) {
+	funcs := makeTemplateFuncMap(nil)
+
+	hashEnd, ok := funcs["hashEnd"]
+	if !ok {
+		t.Fatalf(`Template function map does not contain "hashEnd".`)
+	}
+
+	hashEndFn, ok := hashEnd.(func(hash string) string)
+	if !ok {
+		t.Fatalf(`Template function "hashEnd" is not of type "func(hash string) string".`)
+	}
+
+	testData := []struct {
+		in  string
+		out string
+	}{
+		{"2769040088594af8581b2f5c", "1b2f5c"},
+		{"948004e47d1578365b7b2b7b57512360b688e35ecd04f2e709f967000efdd6e9", "fdd6e9"},
+		{"1234567", "234567"},
+		{"123456", "123456"},
+		{"12345", "12345"},
+		{"", ""},
+	}
+
+	for i := range testData {
+		actual := hashEndFn(testData[i].in)
+		if actual != testData[i].out {
+			t.Errorf(`hashEnd("%s") returned "%s", expected "%s"`,
+				testData[i].in, actual, testData[i].out)
+		}
+	}
+}
+
+func TestHashStartEnd(t *testing.T) {
+	funcs := makeTemplateFuncMap(nil)
+
+	hashStart, ok := funcs["hashStart"]
+	if !ok {
+		t.Fatalf(`Template function map does not contain "hashStart".`)
+	}
+
+	hashStartFn, ok := hashStart.(func(hash string) string)
+	if !ok {
+		t.Fatalf(`Template function "hashStart" is not of type "func(hash string) string".`)
+	}
+
+	hashEnd, ok := funcs["hashEnd"]
+	if !ok {
+		t.Fatalf(`Template function map does not contain "hashEnd".`)
+	}
+
+	hashEndFn, ok := hashEnd.(func(hash string) string)
+	if !ok {
+		t.Fatalf(`Template function "hashEnd" is not of type "func(hash string) string".`)
+	}
+
+	testData := []struct {
+		in         string
+		out1, out2 string
+	}{
+		{"2769040088594af8581b2f5c", "2769040088594af858", "1b2f5c"},
+		{"948004e47d1578365b7b2b7b57512360b688e35ecd04f2e709f967000efdd6e9", "948004e47d1578365b7b2b7b57512360b688e35ecd04f2e709f967000e", "fdd6e9"},
+		{"123456789ab", "12345", "6789ab"},
+		{"123456789abc", "123456", "789abc"},
+		{"123456789abcd", "1234567", "89abcd"},
+		{"1234567", "1", "234567"},
+		{"123456", "", "123456"},
+		{"12345", "", "12345"},
+		{"1", "", "1"},
+		{"", "", ""},
+	}
+
+	for i := range testData {
+		actualStart := hashStartFn(testData[i].in)
+		actualEnd := hashEndFn(testData[i].in)
+		if actualStart+actualEnd != testData[i].in {
+			t.Errorf(`hashStart+hashEnd("%s") returned "%s" ("%s"+"%s"), expected "%s"`,
+				testData[i].in, actualStart+actualEnd, actualStart, actualEnd, testData[i].in)
+		}
+		if actualStart != testData[i].out1 {
+			t.Errorf(`hashStart("%s") returned "%s", expected "%s"`,
+				testData[i].in, actualStart, testData[i].out1)
+		}
+		if actualEnd != testData[i].out2 {
+			t.Errorf(`hashEnd("%s") returned "%s", expected "%s"`,
+				testData[i].in, actualEnd, testData[i].out2)
+		}
+	}
+}
+
 func TestAmountAsDecimalPartsTrimmed(t *testing.T) {
 
 	in := []struct {

@@ -378,12 +378,20 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			return [2]string{hash, link}
 		},
 		"hashStart": func(hash string) string {
-			hashLen := len(hash)
-			return hash[0 : hashLen-6]
+			clipLen := 6
+			hashLen := len(hash) - clipLen
+			if hashLen < 1 {
+				return ""
+			}
+			return hash[0:hashLen]
 		},
 		"hashEnd": func(hash string) string {
-			hashLen := len(hash)
-			return hash[hashLen-6 : hashLen]
+			clipLen := 6
+			hashLen := len(hash) - clipLen
+			if hashLen < 0 {
+				return hash
+			}
+			return hash[hashLen:]
 		},
 	}
 }
