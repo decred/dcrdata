@@ -76,16 +76,7 @@ async function createWebSocket (loc) {
   ws.registerEvtHandler('ping', function (evt) {
     console.debug('ping. users online: ', evt)
   })
-  ws.registerEvtHandler('decodetxResp', function (evt) {
-    console.log('Got message: ', evt)
-    $('#decode_header').text('Decoded tx')
-    $('#decoded_tx').text(evt)
-  })
-  ws.registerEvtHandler('sendtxResp', function (evt) {
-    console.log('Got message: ', evt)
-    $('#decode_header').text('Sent tx')
-    $('#decoded_tx').text(evt)
-  })
+
   var updateBlockData = function (event) {
     console.log('Received newblock message', event)
     var newBlock = JSON.parse(event)
