@@ -769,6 +769,8 @@ The core functionality of dcrdata is server-side rendered in Go and designed to 
 ### Javascript
 Given the html first approach, [Stimulus](https://stimulusjs.org/) is a lightweight framework we lean on for adding javascript based enhancements.The application started out as a vanilla/jQuery codebase. But as the codebase continues to grow, adding a bit of declarative structure with Stimulus helps keep code organized and prevents logic from spilling into the global scope.
 
+.tmpl files are cached by the backend, but you can bust it by running `killall -USR1 v3` from the command line
+
 ### Web Performance
 The core functionality of dcrdata should perform well in low power device / high latency scenarios (eg. a cheap smart phone with poor reception). This means that most libraries should be lazy loaded when they are actually needed. This way we don't bog down users doing simple tasks like checking a transaction or address.
 

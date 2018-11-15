@@ -1,7 +1,7 @@
 /* global $ */
+/* global Turbolinks */
 import { toggleMenu, toggleSun, closeMenu } from '../services/theme_service'
 import Mousetrap from 'mousetrap'
-import Turbolinks from 'turbolinks'
 import { setCookie } from './cookie_service'
 
 // Keyboard Navigation

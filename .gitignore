@@ -9,7 +9,7 @@ debug
 *.key
 dcrdata
 dcrdata*.conf
-vendor/
+/vendor/
 *.orig
 *.db
 *.db-journal

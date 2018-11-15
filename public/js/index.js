@@ -1,6 +1,6 @@
 /* global require */
 /* global $ */
-import Turbolinks from 'turbolinks'
+/* global Turbolinks */
 import ws from './services/messagesocket_service'
 import humanize from './helpers/humanize_helper'
 import Notify from 'notifyjs'

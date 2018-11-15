@@ -6,7 +6,8 @@ module.exports = {
     app: './public/js/index.js'
   },
   externals: {
-    jquery: 'jQuery'
+    jquery: 'jQuery',
+    turbolinks: 'Turbolinks'
   },
   plugins: [
     new CleanWebpackPlugin(['dist']),
