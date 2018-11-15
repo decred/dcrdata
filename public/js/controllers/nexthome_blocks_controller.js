@@ -1,5 +1,5 @@
 /* global $ */
-/* global tippy */
+import tippy from '../vendor/tippy.all'
 
 const conversionRate = 100000000
 function calculateMaximumNumberOfBlocksToDisplay (blockElement) {
@@ -273,19 +273,17 @@ function setupTooltips () {
     } catch (error) {}
   })
 
-  $.getScript('/js/vendor/tippy.all.js', function () {
-    tippy('.block-rows [title]', {
-      allowTitleHTML: true,
-      animation: 'shift-away',
-      arrow: true,
-      createPopperInstanceOnInit: true,
-      dynamicTitle: true,
-      performance: true,
-      placement: 'top',
-      size: 'small',
-      sticky: true,
-      theme: 'light'
-    })
+  tippy('.block-rows [title]', {
+    allowTitleHTML: true,
+    animation: 'shift-away',
+    arrow: true,
+    createPopperInstanceOnInit: true,
+    dynamicTitle: true,
+    performance: true,
+    placement: 'top',
+    size: 'small',
+    sticky: true,
+    theme: 'light'
   })
 }
 
