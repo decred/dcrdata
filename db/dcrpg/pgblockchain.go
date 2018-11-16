@@ -546,8 +546,6 @@ func setupTables(db *sql.DB) error {
 // is returned when any table is not of the correct version.
 // A smart client is passed to implement the supported upgrades if need be.
 func (pgb *ChainDB) VersionCheck(client *rpcclient.Client) error {
-	toVersion = TableVersion{3, 6, 0}
-	versionAllTables(pgb.db, toVersion)
 	vers := TableVersions(pgb.db)
 	for tab, ver := range vers {
 		log.Debugf("Table %s: v%s", tab, ver)
