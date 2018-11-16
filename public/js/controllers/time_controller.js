@@ -1,6 +1,10 @@
 import { Controller } from 'stimulus'
 import humanize from '../helpers/humanize_helper'
 
+function isCorrectVal(value) {
+ return /^\d+$/.test(value) && value >0;
+}
+
 export default class extends Controller {
   static get targets () {
     return ['age']
@@ -27,10 +31,6 @@ export default class extends Controller {
     if (this.ageRefreshTimer) {
       clearInterval(this.ageRefreshTimer)
     }
-  }
-
-  function isCorrectVal(value) {
-   return /^\d+$/.test(value) && value >0;
   }
 
   setAges () {

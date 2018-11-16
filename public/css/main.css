@@ -217,10 +217,10 @@ body.darkBG #menuToggle .patty {
 body.darkBG #menuToggle input:checked ~ .patty {
   background: #fbfbfb;
 }
-body.darkBG #hamburger-menu a {
+body.darkBG #hamburger-menu a, body.darkBG #hamburger-menu span {
   color: #fbfbfb;
 }
-body.darkBG #hamburger-menu a:hover {
+body.darkBG #hamburger-menu a:hover,body.darkBG #hamburger-menu span:hover {
   color: #94ffca;
 }
 body.darkBG #menu {
@@ -473,11 +473,12 @@ body.darkBG .progress {
   transition: transform 0.33s cubic-bezier(0.77,0.2,0.05,1.0);
   box-shadow: 0px 0px 0px 1px #0000001a;
 }
-#menu a {
+#menu > a, #menu > span {
   display: block;
   padding: 7px 20px;
   margin: 1px 0;
   font-size: 15px;
+  cursor:pointer;
 }
 #menuToggle input:checked ~ #menu {
   transform: none;
@@ -510,7 +511,7 @@ body.darkBG .progress {
   position: relative;
 }
 .navbar-fixed-bottom .blockcounter {
-  width:100px;
+  width:180px;
 }
 #watermark {
   left: 50%;

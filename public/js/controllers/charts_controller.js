@@ -61,18 +61,18 @@ function nightModeOptions (nightModeOn) {
 function ticketsFunc (gData) {
   return map(gData.time, (n, i) => {
     return [
-      new Date(n * 1000),
+      new Date(n),
       gData.valuef[i]
     ]
   })
 }
 
 function difficultyFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n * 1000), gData.difficulty[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), gData.difficulty[i]] })
 }
 
 function supplyFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n * 1000), gData.valuef[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), gData.valuef[i]] })
 }
 
 function timeBtwBlocksFunc (gData) {
@@ -83,12 +83,12 @@ function timeBtwBlocksFunc (gData) {
 
 function blockSizeFunc (gData) {
   return map(gData.time, (n, i) => {
-    return [new Date(n * 1000), gData.size[i]]
+    return [new Date(n), gData.size[i]]
   })
 }
 
 function blockChainSizeFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n * 1000), gData.chainsize[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), gData.chainsize[i]] })
 }
 
 function txPerBlockFunc (gData) {
@@ -100,11 +100,11 @@ function txPerDayFunc (gData) {
 }
 
 function poolSizeFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n * 1000), gData.sizef[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), gData.sizef[i]] })
 }
 
 function poolValueFunc (gData) {
-  return map(gData.time, (n, i) => { return [new Date(n * 1000), gData.valuef[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), gData.valuef[i]] })
 }
 
 function blockFeeFunc (gData) {

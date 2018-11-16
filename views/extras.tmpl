@@ -76,7 +76,7 @@
                         {{else}}
                             <a data-keynav-skip href="https://explorer.dcrdata.org/" title="Home">Switch To Mainnet</a>
                         {{end}}
-                        <a data-keynav-skip data-turbolinks="false" data-target="darkMode" href="" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</a>
+                        <span data-keynav-skip data-action="click->menu#onSunClick" class="jsonly"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</span>
                         <a data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
                             <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
                         </a>

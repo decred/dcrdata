@@ -91,11 +91,12 @@ async function createWebSocket (loc) {
 
     // block summary data
     var b = newBlock.block
+    b.unixStamp = (new Date(b.time)).getTime()/1000
     desktopNotifyNewBlock(b)
 
     // Update the blocktime counter.
-    window.DCRThings.counter.data('time-lastblocktime', b.time).removeClass('text-danger')
-    window.DCRThings.counter.html(humanize.timeSince(b.time))
+    window.DCRThings.counter.data('time-lastblocktime', b.unixStamp).removeClass('text-danger')
+    window.DCRThings.counter.html(humanize.timeSince(b.unixStamp))
 
     advanceTicketProgress(b)
     confirmAddrMempool(b)
@@ -116,7 +117,7 @@ async function createWebSocket (loc) {
                 '<td>' + b.tickets + '</td>' +
                 '<td>' + b.revocations + '</td>' +
                 '<td>' + humanize.bytes(b.size) + '</td>' +
-                '<td data-target="time.age"  data-age=' + b.time + '>' + humanize.timeSince(b.time) + '</td>' +
+                '<td data-target="time.age"  data-age=' + b.unixStamp + '>' + humanize.timeSince(b.unixStamp) + '</td>' +
                 '<td>' + b.formatted_time + '</td>' +
             '</tr>'
       var newRowHtml = $.parseHTML(newRow)
