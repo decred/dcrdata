@@ -266,7 +266,7 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	// Eventually won't be needed.
 	dataBase.rawCreateBlockSummaryStmt = rawCreateBlockSummaryStmt
 	dataBase.rawCreateStakeInfoExtendedStmt = rawCreateStakeInfoExtendedStmt
-	if err = dataBase.JustifyTableStructures(); err != nil {
+	if err = dataBase.JustifyTableStructures(dbInfo); err != nil {
 		return nil, err
 	}
 
@@ -369,13 +369,14 @@ func (db *DB) StoreBlock(bd *apitypes.BlockDataBasic, isMainchain bool, isValid 
 
 	// Insert the block.
 	winners := strings.Join(bd.PoolInfo.Winners, ";")
-	res, err := stmt.Exec(&bd.Height, &bd.Size, &bd.Hash,
+	res, err := stmt.Exec(&bd.Hash, &bd.Height, &bd.Size,
 		&bd.Difficulty, &bd.StakeDiff, bd.Time.S.T.Unix(),
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners, &isMainchain, &isValid)
 	if err != nil {
 		return err
 	}
+
 	// Update the DB block summary height.
 	db.Lock()
 	defer db.Unlock()
@@ -806,7 +807,6 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	bd := apitypes.NewBlockDataBasic()
 
 	var winners string
-=======
 	var timestamp int64
 	var isMainchain, isValid bool
 	err := db.QueryRow(db.getLatestBlockSQL).Scan(&bd.Hash, &bd.Height, &bd.Size,
@@ -1078,7 +1078,7 @@ func (db *DB) RetrieveStakeInfoExtendedByHash(blockhash string) (*apitypes.Stake
 // summary table got two new boolean columns, `is_mainchain` and `is_valid`,
 // and the Primary key was changed from height to hash.
 // The stake info table got a `hash` column and the primary key was switched from height to hash
-func (db *DB) JustifyTableStructures() error {
+func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 
 	// Grab the column info. Right now, just counting them, but could be looked at more closely
 	// Each tuple is a row with columns [cid, name, type, notnull, dflt_value, pk]
@@ -1099,6 +1099,23 @@ func (db *DB) JustifyTableStructures() error {
 	}
 
 	log.Info("Detected old SQLite table structure. Updating.")
+
+	// Create a backup file, if one hasn't already been created.
+	directory := filepath.Dir(dbInfo.FileName)
+	bkpPath := filepath.Join(directory, "dcrdata.nosidechains-bkp.db")
+	_, err = os.Stat(bkpPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = os.Link(dbInfo.FileName, bkpPath)
+			if err != nil {
+				log.Errorf("Error backing up %s: %v", dbInfo.FileName, err)
+				return err
+			}
+		} else {
+			log.Errorf("Error retrieving FileInfo for %s: %v", dbInfo.FileName, err)
+			return err
+		}
+	}
 
 	tmpSummaryTableName := TableNameSummaries + "_temp"
 	tmpStakeTableName := TableNameStakeInfo + "_temp"
