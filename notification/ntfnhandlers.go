@@ -135,10 +135,14 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 			blockHeader := new(wire.BlockHeader)
 			err := blockHeader.FromBytes(blockHeaderSerialized)
 			if err != nil {
-				log.Error("Failed to serialize blockHeader in new block notification.")
+				log.Error("Failed to deserialize blockHeader in new block notification: "+
+					"%v", err)
+				return
 			}
 			height := int32(blockHeader.Height)
 			hash := blockHeader.BlockHash()
+
+			log.Tracef("OnBlockConnected: %d / %s", height, hash)
 
 			// queue this block
 			blockQueue.q <- &blockHashHeight{
@@ -146,9 +150,25 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 				height: int64(height),
 			}
 		},
+		OnBlockDisconnected: func(blockHeaderSerialized []byte) {
+			blockHeader := new(wire.BlockHeader)
+			err := blockHeader.FromBytes(blockHeaderSerialized)
+			if err != nil {
+				log.Error("Failed to deserialize blockHeader in block disconnect notification: "+
+					"%v", err)
+				return
+			}
+			height := int32(blockHeader.Height)
+			hash := blockHeader.BlockHash()
+
+			log.Tracef("OnBlockDisconnected: %d / %s", height, hash)
+		},
 		OnReorganization: func(oldHash *chainhash.Hash, oldHeight int32,
 			newHash *chainhash.Hash, newHeight int32) {
 			wg := new(sync.WaitGroup)
+			log.Tracef("OnReorganization: %d / %s --> %d / %s",
+				oldHeight, oldHash, newHeight, newHash)
+
 			// Send reorg data to dcrsqlite's monitor
 			wg.Add(1)
 			select {
