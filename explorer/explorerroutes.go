@@ -50,6 +50,16 @@ func netName(chainParams *chaincfg.Params) string {
 	return strings.Title(chainParams.Name)
 }
 
+func (exp *explorerUI) timeoutErrorPage(w http.ResponseWriter, err error, debugStr string) (wasTimeout bool) {
+	wasTimeout = dbtypes.IsTimeoutErr(err)
+	if wasTimeout {
+		log.Debugf("%s: %v", debugStr, err)
+		exp.StatusPage(w, defaultErrorCode,
+			"Database timeout. Please try again later.", ExpStatusDBTimeout)
+	}
+	return
+}
+
 // Home is the page handler for the "/" path.
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	height := exp.blockData.GetHeight()
@@ -79,7 +89,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -90,9 +100,12 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 // SideChains is the page handler for the "/side" path.
 func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	sideBlocks, err := exp.explorerSource.SideChainBlocks()
+	if exp.timeoutErrorPage(w, err, "SideChainBlocks") {
+		return
+	}
 	if err != nil {
 		log.Errorf("Unable to get side chain blocks: %v", err)
-		exp.StatusPage(w, defaultErrorCode, "failed to retrieve side chain blocks", ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, "failed to retrieve side chain blocks", ExpStatusError)
 		return
 	}
 
@@ -108,7 +121,7 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -119,10 +132,13 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 // DisapprovedBlocks is the page handler for the "/rejects" path.
 func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request) {
 	disapprovedBlocks, err := exp.explorerSource.DisapprovedBlocks()
+	if exp.timeoutErrorPage(w, err, "DisapprovedBlocks") {
+		return
+	}
 	if err != nil {
 		log.Errorf("Unable to get stakeholder disapproved blocks: %v", err)
 		exp.StatusPage(w, defaultErrorCode,
-			"failed to retrieve stakeholder disapproved blocks", ErrorStatusType)
+			"failed to retrieve stakeholder disapproved blocks", ExpStatusError)
 		return
 	}
 
@@ -138,7 +154,7 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -276,7 +292,7 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -284,11 +300,11 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// StakeDiffWindows is the page handler for the "/ticketpricewindows" path
+// StakeDiffWindows is the page handler for the "/ticketpricewindows" path.
 func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
-			"Windows page cannot run in lite mode.", NotSupportedStatusType)
+			"Windows page cannot run in lite mode.", ExpStatusNotSupported)
 	}
 
 	offsetWindow, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
@@ -311,9 +327,12 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	}
 
 	windows, err := exp.explorerSource.PosIntervals(rows, offsetWindow)
+	if exp.timeoutErrorPage(w, err, "PosIntervals") {
+		return
+	}
 	if err != nil {
 		log.Errorf("The specified windows are invalid. offset=%d&rows=%d: error: %v ", offsetWindow, rows, err)
-		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", NotFoundStatusType)
+		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", ExpStatusNotFound)
 		return
 	}
 
@@ -337,7 +356,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 
@@ -366,11 +385,12 @@ func (exp *explorerUI) YearBlocksListing(w http.ResponseWriter, r *http.Request)
 	exp.timeBasedBlocksListing("Years", w, r)
 }
 
-// TimeBasedBlocksListing is the main handler for "/day", "/week", "/month" and "/year".
+// TimeBasedBlocksListing is the main handler for "/day", "/week", "/month" and
+// "/year".
 func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
-			"Time based blocks listing page cannot run in lite mode.", NotSupportedStatusType)
+			"Time based blocks listing page cannot run in lite mode.", ExpStatusNotSupported)
 	}
 
 	grouping := dbtypes.TimeGroupingFromStr(val)
@@ -379,7 +399,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		// default to year grouping if grouping is missing
 		i, err = dbtypes.TimeBasedGroupingToInterval(dbtypes.YearGrouping)
 		if err != nil {
-			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", ErrorStatusType)
+			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", ExpStatusError)
 			log.Errorf("Invalid year grouping found: error: %v ", err)
 		}
 		grouping = dbtypes.YearGrouping
@@ -407,9 +427,12 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	}
 
 	data, err := exp.explorerSource.TimeBasedIntervals(grouping, rows, offset)
+	if exp.timeoutErrorPage(w, err, "TimeBasedIntervals") {
+		return
+	}
 	if err != nil {
 		log.Errorf("The specified /%s intervals are invalid. offset=%d&rows=%d: error: %v ", val, offset, rows, err)
-		exp.StatusPage(w, defaultErrorCode, "The specified intervals could not found", NotFoundStatusType)
+		exp.StatusPage(w, defaultErrorCode, "The specified intervals could not found", ExpStatusNotFound)
 		return
 	}
 
@@ -433,7 +456,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 
@@ -468,13 +491,16 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
-		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", NotFoundStatusType)
+		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", ExpStatusNotFound)
 		return
 	}
 
 	if !exp.liteMode {
 		for _, s := range summaries {
 			blockStatus, err := exp.explorerSource.BlockStatus(s.Hash)
+			if exp.timeoutErrorPage(w, err, "BlockStatus") {
+				return
+			}
 			if err != nil && err != sql.ErrNoRows {
 				log.Warnf("Unable to retrieve chain status for block %s: %v", s.Hash, err)
 			}
@@ -501,7 +527,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -516,7 +542,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	data := exp.blockData.GetExplorerBlock(hash)
 	if data == nil {
 		log.Errorf("Unable to get block %s", hash)
-		exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
+		exp.StatusPage(w, defaultErrorCode, "could not find that block", ExpStatusNotFound)
 		return
 	}
 
@@ -537,12 +563,18 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	if !exp.liteMode {
 		var err error
 		data.Misses, err = exp.explorerSource.BlockMissedVotes(hash)
+		if exp.timeoutErrorPage(w, err, "BlockMissedVotes") {
+			return
+		}
 		if err != nil && err != sql.ErrNoRows {
 			log.Warnf("Unable to retrieve missed votes for block %s: %v", hash, err)
 		}
 
 		var blockStatus dbtypes.BlockStatus
 		blockStatus, err = exp.explorerSource.BlockStatus(hash)
+		if exp.timeoutErrorPage(w, err, "BlockStatus") {
+			return
+		}
 		if err != nil && err != sql.ErrNoRows {
 			log.Warnf("Unable to retrieve chain status for block %s: %v", hash, err)
 		}
@@ -562,7 +594,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -587,7 +619,7 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -599,15 +631,18 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
-			"Ticketpool page cannot run in lite mode", NotSupportedStatusType)
+			"Ticketpool page cannot run in lite mode", ExpStatusNotSupported)
 		return
 	}
 	interval := dbtypes.AllGrouping
 
 	barGraphs, donutChart, height, err := exp.explorerSource.TicketPoolVisualization(interval)
+	if exp.timeoutErrorPage(w, err, "TicketPoolVisualization") {
+		return
+	}
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 
@@ -641,7 +676,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 
@@ -656,13 +691,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		log.Trace("txid not set")
-		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", NotFoundStatusType)
+		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", ExpStatusNotFound)
 		return
 	}
 
 	inout, _ := r.Context().Value(ctxTxInOut).(string)
 	if inout != "in" && inout != "out" && inout != "" {
-		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", NotFoundStatusType)
+		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", ExpStatusNotFound)
 		return
 	}
 	ioid, _ := r.Context().Value(ctxTxInOutId).(string)
@@ -674,18 +709,21 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	if tx == nil {
 		if exp.liteMode {
 			log.Errorf("Unable to get transaction %s", hash)
-			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
+			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", ExpStatusNotFound)
 			return
 		}
 		// Search for occurrences of the transaction in the database.
 		dbTxs, err := exp.explorerSource.Transaction(hash)
+		if exp.timeoutErrorPage(w, err, "Transaction") {
+			return
+		}
 		if err != nil {
 			log.Errorf("Unable to retrieve transaction details for %s.", hash)
-			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", NotFoundStatusType)
+			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", ExpStatusNotFound)
 			return
 		}
 		if dbTxs == nil {
-			exp.StatusPage(w, defaultErrorCode, "that transaction has not been recorded", NotFoundStatusType)
+			exp.StatusPage(w, defaultErrorCode, "that transaction has not been recorded", ExpStatusNotFound)
 			return
 		}
 
@@ -722,10 +760,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 		// Retrieve vouts from DB.
 		vouts, err := exp.explorerSource.VoutsForTx(dbTx0)
+		if exp.timeoutErrorPage(w, err, "VoutsForTx") {
+			return
+		}
 		if err != nil {
 			log.Errorf("Failed to retrieve all vout details for transaction %s: %v",
 				dbTx0.TxID, err)
-			exp.StatusPage(w, defaultErrorCode, "VoutsForTx failed", ErrorStatusType)
+			exp.StatusPage(w, defaultErrorCode, "VoutsForTx failed", ExpStatusError)
 			return
 		}
 
@@ -739,6 +780,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			}
 			// Determine if the outpoint is spent
 			spendingTx, _, _, err := exp.explorerSource.SpendingTransaction(hash, vouts[iv].TxIndex)
+			if exp.timeoutErrorPage(w, err, "SpendingTransaction") {
+				return
+			}
 			if err != nil && err != sql.ErrNoRows {
 				log.Warnf("SpendingTransaction failed for outpoint %s:%d: %v",
 					hash, vouts[iv].TxIndex, err)
@@ -757,10 +801,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 		// Retrieve vins from DB.
 		vins, prevPkScripts, scriptVersions, err := exp.explorerSource.VinsForTx(dbTx0)
+		if exp.timeoutErrorPage(w, err, "VinsForTx") {
+			return
+		}
 		if err != nil {
 			log.Errorf("Failed to retrieve all vin details for transaction %s: %v",
 				dbTx0.TxID, err)
-			exp.StatusPage(w, defaultErrorCode, "VinsForTx failed", ErrorStatusType)
+			exp.StatusPage(w, defaultErrorCode, "VinsForTx failed", ExpStatusError)
 			return
 		}
 
@@ -887,9 +934,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		// Details on all the blocks containing this transaction
 		var err error
 		blocks, blockInds, err = exp.explorerSource.TransactionBlocks(tx.TxID)
+		if exp.timeoutErrorPage(w, err, "TransactionBlocks") {
+			return
+		}
 		if err != nil {
 			log.Errorf("Unable to retrieve blocks for transaction %s: %v", hash, err)
-			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 			return
 		}
 
@@ -905,9 +955,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		// For each output of this transaction, look up any spending transactions,
 		// and the index of the spending transaction input.
 		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
+		if exp.timeoutErrorPage(w, err, "SpendingTransactions") {
+			return
+		}
 		if err != nil {
 			log.Errorf("Unable to retrieve spending transactions for %s: %v", hash, err)
-			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 			return
 		}
 		for i, vout := range voutInds {
@@ -922,8 +975,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 		if tx.IsTicket() {
 			spendStatus, poolStatus, err := exp.explorerSource.PoolStatusForTicket(hash)
-			if err != nil {
+			if exp.timeoutErrorPage(w, err, "PoolStatusForTicket") {
+				return
+			}
+			if err != nil && err != sql.ErrNoRows {
 				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v", hash, err)
+				exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
+				return
+			} else if err != sql.ErrNoRows {
+				log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
 			} else {
 				if tx.Mature == "False" {
 					tx.TicketInfo.PoolStatus = "immature"
@@ -1026,7 +1086,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("tx", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1053,7 +1113,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	address, ok := r.Context().Value(ctxAddress).(string)
 	if !ok {
 		log.Trace("address not set")
-		exp.StatusPage(w, defaultErrorCode, "there seems to not be an address in this request", NotFoundStatusType)
+		exp.StatusPage(w, defaultErrorCode, "there seems to not be an address in this request", ExpStatusNotFound)
 		return
 	}
 
@@ -1082,7 +1142,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 	txnType := dbtypes.AddrTxnTypeFromStr(txntype)
 	if txnType == dbtypes.AddrTxnUnknown {
-		exp.StatusPage(w, defaultErrorCode, "unknown txntype query value", ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, "unknown txntype query value", ExpStatusError)
 		return
 	}
 	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
@@ -1094,31 +1154,47 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 		if err != nil && strings.HasPrefix(err.Error(), "wrong network") {
-			exp.StatusPage(w, wrongNetwork, "That address is not valid for "+exp.NetName, NotSupportedStatusType)
+			exp.StatusPage(w, wrongNetwork, "That address is not valid for "+exp.NetName, ExpStatusNotSupported)
 			return
 		}
-		if err != nil {
-			log.Errorf("Unable to get address %s: %v", address, err)
-			exp.StatusPage(w, defaultErrorCode, "Unexpected issue locating data for that address.", ErrorStatusType)
-			return
-		}
-		if addrData == nil {
-			exp.StatusPage(w, defaultErrorCode, "Unknown issue locating data for that address.", NotFoundStatusType)
+		// AddressInfo should never be nil if err is nil. Catch non-nil error
+		// and nil addrData here since they are both unexpected errors.
+		if err != nil || addrData == nil {
+			log.Errorf("Unable to get data for address %s: %v", address, err)
+			exp.StatusPage(w, defaultErrorCode,
+				"Unexpected issue locating data for that address.", ExpStatusError)
 			return
 		}
 	} else {
-		// Get addresses table rows for the address
+		// Get addresses table rows for the address.
 		addrHist, balance, errH := exp.explorerSource.AddressHistory(
 			address, limitN, offsetAddrOuts, txnType)
-
-		if errH == nil {
-			// Generate AddressInfo skeleton from the address table rows
+		if exp.timeoutErrorPage(w, errH, "AddressHistory") {
+			return
+		} else if errH == sql.ErrNoRows {
+			// We do not have any confirmed transactions. Prep to display ONLY
+			// unconfirmed transactions (or none at all).
+			addrData = new(AddressInfo)
+			addrData.Address = address
+			addrData.Fullmode = true
+			addrData.Balance = &AddressBalance{}
+			log.Tracef("AddressHistory: No confirmed transactions for address %s.", address)
+		} else if errH != nil {
+			// Unexpected error
+			log.Errorf("AddressHistory: %v", errH)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
+			return
+		} else /*errH == nil*/ {
+			// Generate AddressInfo skeleton from the address table rows.
 			addrData = ReduceAddressHistory(addrHist)
 			if addrData == nil {
 				// Empty history is not expected for credit txnType with any txns.
-				if txnType != dbtypes.AddrTxnDebit && (balance.NumSpent+balance.NumUnspent) > 0 {
-					log.Debugf("empty address history (%s): n=%d&start=%d", address, limitN, offsetAddrOuts)
-					exp.StatusPage(w, defaultErrorCode, "that address has no history", NotFoundStatusType)
+				if txnType != dbtypes.AddrTxnDebit &&
+					(balance.NumSpent+balance.NumUnspent) > 0 {
+					log.Debugf("empty address history (%s): n=%d&start=%d",
+						address, limitN, offsetAddrOuts)
+					exp.StatusPage(w, defaultErrorCode,
+						"that address has no history", ExpStatusNotFound)
 					return
 				}
 				// No mined transactions
@@ -1152,53 +1228,59 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				addrData.NumTransactions = limitN
 			}
 
-			// Query database for transaction details
+			// Query database for transaction details.
 			err = exp.explorerSource.FillAddressTransactions(addrData)
-			if err != nil {
-				log.Errorf("Unable to fill address %s transactions: %v", address, err)
-				exp.StatusPage(w, defaultErrorCode, "could not find transactions for that address", NotFoundStatusType)
+			if exp.timeoutErrorPage(w, err, "FillAddressTransactions") {
 				return
 			}
-		} else {
-			// We do not have any confirmed transactions.  Prep to display ONLY
-			// unconfirmed transactions (or none at all)
-			addrData = new(AddressInfo)
-			addrData.Address = address
-			addrData.Fullmode = true
-			addrData.Balance = &AddressBalance{}
+			if err != nil {
+				log.Errorf("Unable to fill address %s transactions: %v", address, err)
+				exp.StatusPage(w, defaultErrorCode,
+					"transactions for that address not found", ExpStatusNotFound)
+				return
+			}
 		}
 
-		// If there are confirmed transactions, check the oldest transaction's time.
+		// If there are confirmed transactions, get address metrics: oldest
+		// transaction's time, number of entries for the various time
+		// groupings/intervals.
 		if len(addrData.Transactions) > 0 {
-			addrMetrics, err = exp.explorerSource.GetAddressMetrics(address)
+			addrMetrics, err = exp.explorerSource.AddressMetrics(address)
+			if exp.timeoutErrorPage(w, err, "AddressMetrics") {
+				return
+			}
 			if err != nil {
 				log.Errorf("Unable to fetch address metrics %s: %v", address, err)
 				exp.StatusPage(w, defaultErrorCode, "address metrics not found",
-					NotFoundStatusType)
+					ExpStatusNotFound)
 				return
 			}
 		} else {
 			addrMetrics = &dbtypes.AddressMetrics{}
 		}
 
-		// Check for unconfirmed transactions
+		// Check for unconfirmed transactions.
 		addressOuts, numUnconfirmed, err := exp.blockData.UnconfirmedTxnsForAddress(address)
-		if err != nil {
-			log.Warnf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
+		if err != nil || addressOuts == nil {
+			log.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
+			exp.StatusPage(w, defaultErrorCode, "transactions for that address not found",
+				ExpStatusNotFound)
+			return
 		}
 		addrData.NumUnconfirmed = numUnconfirmed
 		if addrData.UnconfirmedTxns == nil {
 			addrData.UnconfirmedTxns = new(AddressTransactions)
 		}
+
 		// Funding transactions (unconfirmed)
 		var received, sent, numReceived, numSent int64
 	FUNDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.Outpoints {
-			//Mempool transactions stick around for 2 blocks.  The first block
-			//incorporates the transaction and mines it.  The second block
-			//validates it by the stake.  However, transactions move into our
-			//database as soon as they are mined and thus we need to be careful
-			//to not include those transactions in our list.
+			// Mempool transactions stick around for 2 blocks. The first block
+			// incorporates the transaction and mines it. The second block
+			// validates it by the stake. However, transactions move into our
+			// database as soon as they are mined and thus we need to be careful
+			// to not include those transactions in our list.
 			for _, b := range addrData.Transactions {
 				if f.Hash.String() == b.TxID && f.Index == b.InOutID {
 					continue FUNDING_TX_DUPLICATE_CHECK
@@ -1229,14 +1311,15 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			numReceived++
 
 		}
+
 		// Spending transactions (unconfirmed)
 	SPENDING_TX_DUPLICATE_CHECK:
 		for _, f := range addressOuts.PrevOuts {
-			//Mempool transactions stick around for 2 blocks.  The first block
-			//incorporates the transaction and mines it.  The second block
-			//validates it by the stake.  However, transactions move into our
-			//database as soon as they are mined and thus we need to be careful
-			//to not include those transactions in our list.
+			// Mempool transactions stick around for 2 blocks. The first block
+			// incorporates the transaction and mines it. The second block
+			// validates it by the stake. However, transactions move into our
+			// database as soon as they are mined and thus we need to be careful
+			// to not include those transactions in our list.
 			for _, b := range addrData.Transactions {
 				if f.TxSpending.String() == b.TxID && f.InputIndex == int(b.InOutID) {
 					continue SPENDING_TX_DUPLICATE_CHECK
@@ -1252,15 +1335,15 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			// sent total sats has to be a lookup of the vout:i prevout value
-			// because vin:i valuein is not reliable from dcrd at present
+			// The total send amount must be looked up from the previous
+			// outpoint because vin:i valuein is not reliable from dcrd.
 			prevhash := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Hash
 			strprevhash := prevhash.String()
 			previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
 			valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
 
-			// Look through old transactions and set the
-			// the spending transactions match fields
+			// Look through old transactions and set the spending transactions'
+			// matching transaction fields.
 			for _, dbTxn := range addrData.Transactions {
 				if dbTxn.TxID == strprevhash && dbTxn.InOutID == previndex && dbTxn.IsFunding {
 					dbTxn.MatchedTx = spendingTx.Hash().String()
@@ -1285,22 +1368,16 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 			sent += valuein
 			numSent++
-		}
+		} // range addressOuts.PrevOuts
+
+		// Totals from funding and spending transactions.
 		addrData.Balance.NumSpent += numSent
 		addrData.Balance.NumUnspent += (numReceived - numSent)
 		addrData.Balance.TotalSpent += sent
 		addrData.Balance.TotalUnspent += (received - sent)
-
-		if err != nil {
-			log.Errorf("Unable to fetch transactions for the address %s: %v", address, err)
-			exp.StatusPage(w, defaultErrorCode, "transactions for that address not found",
-				NotFoundStatusType)
-			return
-		}
-
 	}
 
-	// Set page parameters
+	// Set page parameters.
 	addrData.Path = r.URL.Path
 	addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
 	addrData.TxnType = txnType.String()
@@ -1312,13 +1389,15 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return addrData.Transactions[i].Time.T.Unix() > addrData.Transactions[j].Time.T.Unix()
 	})
 
-	// Do not put this before the sort.Slice of addrData.Transactions above
+	// Compute block height for each transaction. This must be done *after*
+	// sort.Slice of addrData.Transactions.
 	txBlockHeights := make([]int64, len(addrData.Transactions))
 	bdHeight := exp.Height()
 	for i, v := range addrData.Transactions {
 		txBlockHeights[i] = bdHeight - int64(v.Confirmations) + 1
 	}
 
+	// Execute the HTML template.
 	pageData := AddressPageData{
 		CommonPageData: exp.commonData(),
 		Data:           addrData,
@@ -1330,9 +1409,10 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
@@ -1351,7 +1431,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1363,13 +1443,16 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
-			"Charts page cannot run in lite mode", NotSupportedStatusType)
+			"Charts page cannot run in lite mode", ExpStatusNotSupported)
 		return
 	}
-	tickets, err := exp.explorerSource.GetTicketsPriceByHeight()
+	tickets, err := exp.explorerSource.TicketsPriceByHeight()
+	if exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
+		return
+	}
 	if err != nil {
 		log.Errorf("Loading the Ticket Price By Height chart data failed %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 
@@ -1384,7 +1467,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 
@@ -1399,7 +1482,7 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	searchStr := r.URL.Query().Get("search")
 	if searchStr == "" {
-		exp.StatusPage(w, "search failed", "Empty search string!", NotSupportedStatusType)
+		exp.StatusPage(w, "search failed", "Empty search string!", ExpStatusNotSupported)
 		return
 	}
 
@@ -1420,7 +1503,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		exp.StatusPage(w, "search failed", "Block "+searchStr+" has not yet been mined", NotFoundStatusType)
+		exp.StatusPage(w, "search failed", "Block "+searchStr+" has not yet been mined", ExpStatusNotFound)
 		return
 	}
 
@@ -1443,7 +1526,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Remaining possibilities are hashes, so verify the string is a hash.
 	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
-		exp.StatusPage(w, "search failed", "Search string is not a valid hash or address: "+searchStr, NotFoundStatusType)
+		exp.StatusPage(w, "search failed", "Search string is not a valid hash or address: "+searchStr, ExpStatusNotFound)
 		return
 	}
 
@@ -1479,15 +1562,15 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	exp.StatusPage(w, "search failed", "The search string does not match any address, block, or transaction: "+searchStr, NotFoundStatusType)
+	exp.StatusPage(w, "search failed", "The search string does not match any address, block, or transaction: "+searchStr, ExpStatusNotFound)
 }
 
 // StatusPage provides a page for displaying status messages and exception
 // handling without redirecting.
-func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, sType statusType) {
+func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, sType expStatus) {
 	str, err := exp.templates.execTemplateToString("status", struct {
 		*CommonPageData
-		StatusType statusType
+		StatusType expStatus
 		Code       string
 		Message    string
 		NetName    string
@@ -1505,18 +1588,20 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, s
 
 	w.Header().Set("Content-Type", "text/html")
 	switch sType {
-	case NotFoundStatusType:
+	case ExpStatusDBTimeout:
+		w.WriteHeader(http.StatusServiceUnavailable)
+	case ExpStatusNotFound:
 		w.WriteHeader(http.StatusNotFound)
-	case FutureBlockStatusType:
+	case ExpStatusFutureBlock:
 		w.WriteHeader(http.StatusOK)
-	case ErrorStatusType:
+	case ExpStatusError:
 		w.WriteHeader(http.StatusInternalServerError)
 	// When blockchain sync is running, status 202 is used to imply that the
 	// other requests apart from serving the status sync page have been received
 	// and accepted but cannot be processed now till the sync is complete.
-	case BlockchainSyncingType:
+	case ExpStatusSyncing:
 		w.WriteHeader(http.StatusAccepted)
-	case NotSupportedStatusType:
+	case ExpStatusNotSupported:
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	default:
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -1526,7 +1611,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, s
 
 // NotFound wraps StatusPage to display a 404 page.
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
-	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, NotFoundStatusType)
+	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, ExpStatusNotFound)
 }
 
 // ParametersPage is the page handler for the "/parameters" path.
@@ -1552,7 +1637,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1564,13 +1649,13 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
-			"Agenda page cannot run in lite mode.", NotSupportedStatusType)
+			"Agenda page cannot run in lite mode.", ExpStatusNotSupported)
 		return
 	}
 	errPageInvalidAgenda := func(err error) {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode,
-			"the agenda ID given seems to not exist", NotFoundStatusType)
+			"the agenda ID given seems to not exist", ExpStatusNotFound)
 	}
 
 	// Attempt to get agendaid string from URL path.
@@ -1582,12 +1667,18 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	chartDataByTime, err := exp.explorerSource.AgendaVotes(agendaid, 0)
+	if exp.timeoutErrorPage(w, err, "AgendaVotes") {
+		return
+	}
 	if err != nil {
 		errPageInvalidAgenda(err)
 		return
 	}
 
 	chartDataByHeight, err := exp.explorerSource.AgendaVotes(agendaid, 1)
+	if exp.timeoutErrorPage(w, err, "AgendaVotes") {
+		return
+	}
 	if err != nil {
 		errPageInvalidAgenda(err)
 		return
@@ -1609,7 +1700,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1622,7 +1713,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	agendas, err := agendadb.GetAllAgendas()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 
@@ -1638,7 +1729,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1749,7 +1840,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")

@@ -83,7 +83,6 @@ const (
 		tx_vin_vout_index, block_time, tx_vin_vout_row_id, value, is_funding`
 
 	SelectAddressAllByAddress = `SELECT ` + addrsColumnNames + ` FROM addresses WHERE address=$1 ORDER BY block_time DESC;`
-	SelectAddressRecvCount    = `SELECT COUNT(*) FROM addresses WHERE address=$1 AND valid_mainchain = TRUE;`
 
 	SelectAddressesAllTxn = `SELECT
 			transactions.tx_hash,

@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	flags "github.com/btcsuite/go-flags"
 	"github.com/caarlos0/env"
@@ -59,10 +60,11 @@ var (
 	defaultDBFileName      = "dcrdata.sqlt.db"
 	defaultAgendDBFileName = "agendas.db"
 
-	defaultPGHost   = "127.0.0.1:5432"
-	defaultPGUser   = "dcrdata"
-	defaultPGPass   = ""
-	defaultPGDBName = "dcrdata"
+	defaultPGHost                       = "127.0.0.1:5432"
+	defaultPGUser                       = "dcrdata"
+	defaultPGPass                       = ""
+	defaultPGDBName                     = "dcrdata"
+	defaultPGQueryTimeout time.Duration = time.Hour
 )
 
 type config struct {
@@ -98,14 +100,16 @@ type config struct {
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)." env:"DCRDATA_SQLITE_DB_FILE_NAME"`
 	AgendaDBFileName   string `long:"agendadbfile" description:"Agenda DB file name (default is agendas.db)." env:"DCRDATA_AGENDA_DB_FILE_NAME"`
 
-	FullMode         bool   `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support" env:"DCRDATA_ENABLE_FULL_MODE"`
-	PGDBName         string `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
-	PGUser           string `long:"pguser" description:"PostgreSQL DB user." env:"DCRDATA_POSTGRES_USER"`
-	PGPass           string `long:"pgpass" description:"PostgreSQL DB password." env:"DCRDATA_POSTGRES_PASS"`
-	PGHost           string `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)." env:"DCRDATA_POSTGRES_HOST_URL"`
-	NoDevPrefetch    bool   `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
-	SyncAndQuit      bool   `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
-	ImportSideChains bool   `long:"import-side-chains" description:"(experimental) Enable startup import of side chains retrieved from dcrd via getchaintips." env:"DCRDATA_IMPORT_SIDE_CHAINS"`
+	FullMode       bool          `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support" env:"DCRDATA_ENABLE_FULL_MODE"`
+	PGDBName       string        `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
+	PGUser         string        `long:"pguser" description:"PostgreSQL DB user." env:"DCRDATA_POSTGRES_USER"`
+	PGPass         string        `long:"pgpass" description:"PostgreSQL DB password." env:"DCRDATA_POSTGRES_PASS"`
+	PGHost         string        `long:"pghost" description:"PostgreSQL server host:port or UNIX socket (e.g. /run/postgresql)." env:"DCRDATA_POSTGRES_HOST_URL"`
+	PGQueryTimeout time.Duration `short:"T" long:"pgtimeout" description:"Timeout (a time.Duration string) for most PostgreSQL queries used for user initiated queries."`
+
+	NoDevPrefetch    bool `long:"no-dev-prefetch" description:"Disable automatic dev fund balance query on new blocks. When true, the query will still be run on demand, but not automatically after new blocks are connected." env:"DCRDATA_DISABLE_DEV_PREFETCH"`
+	SyncAndQuit      bool `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
+	ImportSideChains bool `long:"import-side-chains" description:"(experimental) Enable startup import of side chains retrieved from dcrd via getchaintips." env:"DCRDATA_IMPORT_SIDE_CHAINS"`
 
 	SyncStatusLimit int64 `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000."`
 
@@ -147,6 +151,7 @@ var (
 		PGUser:             defaultPGUser,
 		PGPass:             defaultPGPass,
 		PGHost:             defaultPGHost,
+		PGQueryTimeout:     defaultPGQueryTimeout,
 	}
 )
 
@@ -519,6 +524,12 @@ func loadConfig() (*config, error) {
 	// Parse, validate, and set debug log level(s).
 	if cfg.Quiet {
 		cfg.DebugLevel = "error"
+	}
+
+	// Validate DB timeout. Zero or negative should be set to the large default
+	// timeout to effectively disable timeouts.
+	if cfg.PGQueryTimeout <= 0 {
+		cfg.PGQueryTimeout = defaultPGQueryTimeout
 	}
 
 	// Parse, validate, and set debug log level(s).

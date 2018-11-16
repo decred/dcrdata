@@ -17,18 +17,19 @@ import (
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
-// statusType defines the various status types supported by the system.
-type statusType string
+// expStatus defines the various status types supported by the system.
+type expStatus string
 
 const (
-	ErrorStatusType          statusType = "Error"
-	NotFoundStatusType       statusType = "Not Found"
-	FutureBlockStatusType    statusType = "Future Block"
-	NotSupportedStatusType   statusType = "Not Supported"
-	NotImplementedStatusType statusType = "Not Implemented"
-	WrongNetworkStatusType   statusType = "Wrong Network"
-	DeprecatedStatusType     statusType = "Deprecated"
-	BlockchainSyncingType    statusType = "Blocks Syncing"
+	ExpStatusError          expStatus = "Error"
+	ExpStatusNotFound       expStatus = "Not Found"
+	ExpStatusFutureBlock    expStatus = "Future Block"
+	ExpStatusNotSupported   expStatus = "Not Supported"
+	ExpStatusNotImplemented expStatus = "Not Implemented"
+	ExpStatusWrongNetwork   expStatus = "Wrong Network"
+	ExpStatusDeprecated     expStatus = "Deprecated"
+	ExpStatusSyncing        expStatus = "Blocks Syncing"
+	ExpStatusDBTimeout      expStatus = "Database Timeout"
 )
 
 // blockchainSyncStatus defines the status update displayed on the syncing status page

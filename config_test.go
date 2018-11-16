@@ -29,8 +29,10 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 	os.Args = os.Args[:1]
 	// Run the tests now that the testing package flags have been parsed.
-	m.Run()
+	retCode := m.Run()
 	os.Unsetenv("DCRDATA_CONFIG_FILE")
+
+	os.Exit(retCode)
 }
 
 // disableConfigFileEnv checks if the DCRDATA_CONFIG_FILE environment variable

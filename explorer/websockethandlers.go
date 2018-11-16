@@ -121,6 +121,11 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					// although it is automatically updated by the first caller
 					// who requests data from a stale cache.
 					cData, gData, chartHeight, err := exp.explorerSource.TicketPoolVisualization(interval)
+					if dbtypes.IsTimeoutErr(err) {
+						log.Warnf("TicketPoolVisualization DB timeout: %v", err)
+						webData.Message = "Error: DB timeout"
+						break
+					}
 					if err != nil {
 						if strings.HasPrefix(err.Error(), "unknown interval") {
 							log.Debugf("invalid ticket pool interval provided "+

@@ -5,6 +5,7 @@ package dcrpg
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -470,7 +471,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case blocksTableMainchainUpgrade:
 		var blockHash string
 		// blocks table upgrade proceeds from best block back to genesis
-		_, blockHash, _, err = RetrieveBestBlockHeightAny(pgb.db)
+		_, blockHash, _, err = RetrieveBestBlockHeightAny(context.Background(), pgb.db)
 		if err != nil {
 			return false, fmt.Errorf("failed to retrieve best block from DB: %v", err)
 		}
@@ -655,9 +656,13 @@ func (pgb *ChainDB) handleAgendasVotingMilestonesUpgrade() (int64, error) {
 }
 
 func (pgb *ChainDB) handleVinsTableMainchainupgrade() (int64, error) {
+	// The queries in this function should not timeout or (probably) canceled,
+	// so use a background context.
+	ctx := context.Background()
+
 	// Get all of the block hashes
 	log.Infof(" - Retrieving all block hashes...")
-	blockHashes, err := RetrieveBlocksHashesAll(pgb.db)
+	blockHashes, err := RetrieveBlocksHashesAll(ctx, pgb.db)
 	if err != nil {
 		return 0, fmt.Errorf("unable to retrieve all block hashes: %v", err)
 	}
@@ -665,7 +670,7 @@ func (pgb *ChainDB) handleVinsTableMainchainupgrade() (int64, error) {
 	log.Infof(" - Updating vins data for each transactions in every block...")
 	var rowsUpdated int64
 	for i, blockHash := range blockHashes {
-		vinDbIDsBlk, areValid, areMainchain, err := RetrieveTxnsVinsByBlock(pgb.db, blockHash)
+		vinDbIDsBlk, areValid, areMainchain, err := RetrieveTxnsVinsByBlock(ctx, pgb.db, blockHash)
 		if err != nil {
 			return 0, fmt.Errorf("unable to retrieve vin data for block %s: %v", blockHash, err)
 		}

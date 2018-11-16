@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -9,8 +10,7 @@ import (
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 )
 
-// InsightAddress models an address transactions
-//
+// InsightAddress models an address' transactions.
 type InsightAddress struct {
 	Address      string      `json:"address,omitempty"`
 	From         int         `json:"from"`
@@ -18,8 +18,7 @@ type InsightAddress struct {
 	Transactions []InsightTx `json:"items,omitempty"`
 }
 
-// InsightAddressInfo models basic information
-// about an address
+// InsightAddressInfo models basic information about an address.
 type InsightAddressInfo struct {
 	Address                  string   `json:"addrStr,omitempty"`
 	Balance                  float64  `json:"balance"`
@@ -35,13 +34,12 @@ type InsightAddressInfo struct {
 	TransactionsID           []string `json:"transactions,omitempty"`
 }
 
-// InsightRawTx contains the raw transaction string
-// of a transaction
+// InsightRawTx contains the raw transaction string of a transaction.
 type InsightRawTx struct {
 	Rawtx string `json:"rawtx"`
 }
 
-// InsightMultiAddrsTx models multi address post data structure
+// InsightMultiAddrsTx models multi-address post data structure.
 type InsightMultiAddrsTx struct {
 	Addresses   string      `json:"addrs"`
 	From        json.Number `json:"from,Number,omitempty"`
@@ -58,20 +56,19 @@ type InsightMultiAddrsTxOutput struct {
 	Items      []InsightTx `json:"items"`
 }
 
-// InsightAddr models the multi address post data structure
+// InsightAddr models the multi-address post data structure.
 type InsightAddr struct {
 	Addrs string `json:"addrs"`
 }
 
-// InsightPagination models basic pagination output
-// for a result
+// InsightPagination models basic pagination output for a result.
 type InsightPagination struct {
 	Next    string `json:"next,omitempty"`
 	Prev    string `json:"prev,omitempty"`
 	IsToday string `json:"isToday,omitempty"`
 }
 
-// AddressTxnOutput models an address transaction outputs
+// AddressTxnOutput models an address transaction outputs.
 type AddressTxnOutput struct {
 	Address       string  `json:"address"`
 	TxnID         string  `json:"txid"`
@@ -86,8 +83,7 @@ type AddressTxnOutput struct {
 	Confirmations int64   `json:"confirmations"`
 }
 
-// SpendByFundingHash models a return from
-// GetSpendDetailsByFundingHash
+// SpendByFundingHash models a return from SpendDetailsForFundingTx.
 type SpendByFundingHash struct {
 	FundingTxVoutIndex uint32
 	SpendingTxVinIndex interface{}

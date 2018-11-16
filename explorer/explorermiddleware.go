@@ -37,9 +37,12 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			} else {
 				height, err = exp.explorerSource.BlockHeight(hash)
 			}
+			if exp.timeoutErrorPage(w, err, "BlockHashPathOrIndexCtx>BlockHeight") {
+				return
+			}
 			if err != nil {
 				log.Errorf("BlockHeight(%s) failed: %v", hash, err)
-				exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
+				exp.StatusPage(w, defaultErrorCode, "could not find that block", ExpStatusNotFound)
 				return
 			}
 		} else {
@@ -52,7 +55,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				if err != nil {
 					log.Errorf("HeightDB() failed: %v", err)
 					exp.StatusPage(w, defaultErrorCode,
-						"an unexpected error had occured while retrieving the best block", ErrorStatusType)
+						"an unexpected error had occured while retrieving the best block", ExpStatusError)
 					return
 				}
 				maxHeight = int64(bestBlockHeight)
@@ -61,7 +64,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			if height > maxHeight {
 				expectedTime := time.Duration(height-maxHeight) * exp.ChainParams.TargetTimePerBlock
 				message := fmt.Sprintf("This block is expected to arrive in approximately in %v. ", expectedTime)
-				exp.StatusPage(w, defaultErrorCode, message, FutureBlockStatusType)
+				exp.StatusPage(w, defaultErrorCode, message, ExpStatusFutureBlock)
 				return
 			}
 
@@ -74,7 +77,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				}
 				if err != nil {
 					log.Errorf("%s(%d) failed: %v", f, height, err)
-					exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
+					exp.StatusPage(w, defaultErrorCode, "could not find that block", ExpStatusNotFound)
 					return
 				}
 			}
@@ -93,7 +96,7 @@ func (exp *explorerUI) SyncStatusPageActivation(next http.Handler) http.Handler 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp.DisplaySyncStatusPage() {
 			exp.StatusPage(w, "Database Update Running. Please Wait...",
-				"Blockchain sync is running. Please wait ...", BlockchainSyncingType)
+				"Blockchain sync is running. Please wait ...", ExpStatusSyncing)
 		} else {
 			// Pass the token to the next middleware handler
 			next.ServeHTTP(w, r)

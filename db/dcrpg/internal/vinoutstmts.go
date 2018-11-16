@@ -202,8 +202,12 @@ const (
 
 	SelectPkScriptByID       = `SELECT version, pkscript FROM vouts WHERE id=$1;`
 	SelectPkScriptByOutpoint = `SELECT version, pkscript FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
-	SelectVoutIDByOutpoint   = `SELECT id FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
-	SelectVoutByID           = `SELECT * FROM vouts WHERE id=$1;`
+	SelectPkScriptByVinID    = `SELECT version, pkscript FROM vouts
+		JOIN vins ON vouts.tx_hash=vins.prev_tx_hash and vouts.tx_index=vins.prev_tx_index
+		WHERE vins.id=$1;`
+
+	SelectVoutIDByOutpoint = `SELECT id FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
+	SelectVoutByID         = `SELECT * FROM vouts WHERE id=$1;`
 
 	RetrieveVoutValue  = `SELECT value FROM vouts WHERE tx_hash=$1 and tx_index=$2;`
 	RetrieveVoutValues = `SELECT value, tx_index, tx_tree FROM vouts WHERE tx_hash=$1;`
