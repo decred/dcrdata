@@ -111,7 +111,7 @@ func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
 }
 
 func (db *wiredDB) NewStakeDBChainMonitor(ctx context.Context, wg *sync.WaitGroup,
-	blockChan chan *chainhash.Hash, reorgChan chan *stakedb.ReorgData) *stakedb.ChainMonitor {
+	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *stakedb.ChainMonitor {
 	return db.sDB.NewChainMonitor(ctx, wg, blockChan, reorgChan)
 }
 
@@ -230,6 +230,17 @@ func (db *wiredDB) GetBestBlockHash() (string, error) {
 		err = fmt.Errorf("unable to get best block hash")
 	}
 	return hash, err
+}
+
+// GetBestBlockHeightHash retrieves the DB's best block hash and height.
+func (db *wiredDB) GetBestBlockHeightHash() (chainhash.Hash, int64, error) {
+	bestBlockSummary := db.GetBestBlockSummary()
+	if bestBlockSummary == nil {
+		return chainhash.Hash{}, -1, fmt.Errorf("unable to retrieve best block summary")
+	}
+	height := int64(bestBlockSummary.Height)
+	hash, err := chainhash.NewHashFromStr(bestBlockSummary.Hash)
+	return *hash, height, err
 }
 
 func (db *wiredDB) GetChainParams() *chaincfg.Params {
