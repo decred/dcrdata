@@ -232,6 +232,17 @@ func (db *wiredDB) GetBestBlockHash() (string, error) {
 	return hash, err
 }
 
+// GetBestBlockHeightHash retrieves the DB's best block hash and height.
+func (db *wiredDB) GetBestBlockHeightHash() (chainhash.Hash, int64, error) {
+	bestBlockSummary := db.GetBestBlockSummary()
+	if bestBlockSummary == nil {
+		return chainhash.Hash{}, -1, fmt.Errorf("unable to retrieve best block summary")
+	}
+	height := int64(bestBlockSummary.Height)
+	hash, err := chainhash.NewHashFromStr(bestBlockSummary.Hash)
+	return *hash, height, err
+}
+
 func (db *wiredDB) GetChainParams() *chaincfg.Params {
 	return db.params
 }

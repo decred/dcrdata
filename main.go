@@ -827,6 +827,14 @@ func _main(ctx context.Context) error {
 		return err
 	}
 
+	// Set the current best block in the collection queue so that it can verify
+	// that subsequent blocks are in the correct sequence.
+	bestHash, bestHeight, err := baseDB.GetBestBlockHeightHash()
+	if err != nil {
+		return fmt.Errorf("Failed to determine base DB's best block: %v", err)
+	}
+	collectionQueue.SetPreviousBlock(bestHash, bestHeight)
+
 	// Start the monitors' event handlers.
 
 	// blockdata collector handlers

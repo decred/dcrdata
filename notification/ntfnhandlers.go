@@ -61,14 +61,16 @@ func RegisterNodeNtfnHandlers(dcrdClient *rpcclient.Client) *ContextualError {
 }
 
 type blockHashHeight struct {
-	hash   chainhash.Hash
-	height int64
+	hash     chainhash.Hash
+	height   int64
+	prevHash chainhash.Hash
 }
 
 type collectionQueue struct {
-	sync.Mutex
 	q            chan *blockHashHeight
 	syncHandlers []func(hash *chainhash.Hash)
+	prevHash     chainhash.Hash
+	prevHeight   int64
 }
 
 // NewCollectionQueue creates a new collectionQueue with a queue channel large
@@ -85,24 +87,41 @@ func (q *collectionQueue) SetSynchronousHandlers(syncHandlers []func(hash *chain
 	q.syncHandlers = syncHandlers
 }
 
+func (q *collectionQueue) SetPreviousBlock(prevHash chainhash.Hash, prevHeight int64) {
+	q.prevHash = prevHash
+	q.prevHeight = prevHeight
+}
+
 // ProcessBlocks receives new *blockHashHeights, calls the synchronous handlers,
 // then signals to the monitors that a new block was mined.
 func (q *collectionQueue) ProcessBlocks() {
-	// process queued blocks one at a time
+	// Process queued blocks one at a time.
 	for bh := range q.q {
 		hash := bh.hash
 		height := bh.height
 
+		// Ensure that the received block (bh.hash, bh.height) connects to the
+		// previously connected block (q.prevHash, q.prevHeight).
+		if bh.prevHash != q.prevHash {
+			log.Infof("Received block at %d (%v) does not connect to %d (%v)."+
+				"This is normal before reorganization.",
+				height, hash, q.prevHeight, q.prevHash)
+			continue
+		}
+
 		start := time.Now()
 
-		// Run synchronous block connected handlers in order
+		// Run synchronous block connected handlers in order.
 		for _, h := range q.syncHandlers {
 			h(&hash)
 		}
 
+		q.prevHash = hash
+		q.prevHeight = height
+
 		log.Debugf("Synchronous handlers of collectionQueue.ProcessBlocks() completed in %v", time.Since(start))
 
-		// Signal to mempool monitors that a block was mined
+		// Signal to mempool monitors that a block was mined.
 		select {
 		case NtfnChans.NewTxChan <- &mempool.NewTx{
 			Hash: nil,
@@ -141,13 +160,15 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 			}
 			height := int32(blockHeader.Height)
 			hash := blockHeader.BlockHash()
+			prevHash := blockHeader.PrevBlock // to ensure this is the next block
 
-			log.Tracef("OnBlockConnected: %d / %s", height, hash)
+			log.Tracef("OnBlockConnected: %d / %v (previous: %v)", height, hash, prevHash)
 
-			// queue this block
+			// Queue this block.
 			blockQueue.q <- &blockHashHeight{
-				hash:   hash,
-				height: int64(height),
+				hash:     hash,
+				height:   int64(height),
+				prevHash: prevHash,
 			}
 		},
 		OnBlockDisconnected: func(blockHeaderSerialized []byte) {
@@ -161,7 +182,7 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 			height := int32(blockHeader.Height)
 			hash := blockHeader.BlockHash()
 
-			log.Tracef("OnBlockDisconnected: %d / %s", height, hash)
+			log.Tracef("OnBlockDisconnected: %d / %v", height, hash)
 		},
 		OnReorganization: func(oldHash *chainhash.Hash, oldHeight int32,
 			newHash *chainhash.Hash, newHeight int32) {
