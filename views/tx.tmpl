@@ -13,11 +13,15 @@
                 <span class="fs15">
                 {{if eq .Confirmations 0}}
                     <strong data-tx-confirmations-pending="{{.TxID}}"
-                            data-controller="newBlock" data-target="newBlock.confirmations" data-confirmations="0"
-                            data-confirmation-block-height="{{.BlockHeight}}"
+                            data-controller="newblock"
+                            data-target="newblock.confirmations"
+                            data-confirmations="0"
+                            data-confirmation-block-height="-1"
                             data-formatted="true">(unconfirmed)</strong>
                 {{else}}
-                    <strong data-controller="newBlock" data-target="newBlock.confirmations" data-confirmations="{{.Confirmations}}"
+                    <strong data-controller="newblock"
+                            data-target="newblock.confirmations"
+                            data-confirmations="{{.Confirmations}}"
                             data-confirmation-block-height="{{.BlockHeight}}"
                             data-formatted="true">
                         ({{.Confirmations}} {{if gt .Confirmations 1}}confirmations{{else}}confirmation{{end}})

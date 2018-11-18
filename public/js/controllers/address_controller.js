@@ -108,7 +108,7 @@ export default class extends Controller {
         _this.setTxnCountText(el, transactions)
       })
     })
-    $.getScript('/js/dygraphs.min.js', () => {
+    $.getScript('/js/vendor/dygraphs.min.js', () => {
       _this.typesGraphOptions = {
         labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
         colors: ['#69D3F5', '#2971FF', '#41BF53', 'darkorange', '#FF0090'],

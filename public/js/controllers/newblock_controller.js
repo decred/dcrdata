@@ -31,6 +31,7 @@ export default class extends Controller {
   refreshConfirmations (expHeight) {
     this.confirmationsTargets.forEach((el, i) => {
       let confirmHeight = parseInt(el.dataset.confirmationBlockHeight)
+      if (confirmHeight === -1) return // Unconfirmed block
       let confirmations = expHeight - confirmHeight + 1
       this.setConfirmationText(el, confirmations)
       el.dataset.confirmations = confirmations

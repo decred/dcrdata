@@ -81,36 +81,22 @@ async function createWebSocket (loc) {
   var updateBlockData = function (event) {
     console.log('Received newblock message', event)
     var newBlock = JSON.parse(event)
-    var confirms = $('[data-confirmation-block-height]')
-    $.each(confirms, function (i, v) {
-      if (isNaN($(v).text())) {
-        $(v).text('0')
-      }
-      var confirmations = newBlock.block.height - $(v).data('confirmation-block-height') + 1
-      $(v).text('(' + confirmations + (confirmations > 1 ? ' confirmations' : ' confirmation') + ')')
-    })
-
-    globalEventBus.publish("BLOCK_RECEIVED", newBlock)
-
-    // block summary data
     var b = newBlock.block
     b.unixStamp = (new Date(b.time)).getTime() / 1000
-    desktopNotifyNewBlock(b)
 
-    var currentTxHash = $('#spanTxID').data('tx-page-txid');
-    if (currentTxHash) { // we are on the tx page
-      // it is important to check that the current transaction is contained in the received block before any
-      // partial update. but since we are silently reloading the page, we will not have the issue of the view
-      // being wrongly updated that happens when the current transaction is not contained in the received block
-      Turbolinks.reload()
-    }
+    // Check for uncofirmed tx page before signalling block
+    confirmAddrMempool(b)
+
+    globalEventBus.publish('BLOCK_RECEIVED', newBlock)
+
+    // block summary data
+    desktopNotifyNewBlock(b)
 
     // Update the blocktime counter.
     window.DCRThings.counter.data('time-lastblocktime', b.unixStamp).removeClass('text-danger')
     window.DCRThings.counter.html(humanize.timeSince(b.unixStamp))
 
     advanceTicketProgress(b)
-    confirmAddrMempool(b)
 
     var expTableRows = $('#explorertable tbody tr')
     // var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
@@ -346,7 +332,7 @@ function confirmAddrMempool (block) {
     var txid = counter.data('tx-confirmations-pending')
     if (txInBlock(txid, block)) {
       counter.removeAttr('data-tx-confirmations-pending')
-      counter.attr('data-confirmation-block-height', block.height).html('(1 confirmation)')
+      counter.attr('data-confirmation-block-height', block.height.toString()).html('(1 confirmation)')
     }
   })
 }

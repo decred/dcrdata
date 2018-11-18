@@ -11,7 +11,6 @@
     "start": "webpack-dev-server --open --config webpack.dev.js",
     "analyze": "webpack --config webpack.analyze.js",
     "build": "webpack --config webpack.prod.js"
-
   },
   "repository": {
     "type": "git",
