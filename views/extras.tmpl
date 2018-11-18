@@ -86,6 +86,11 @@
             </nav>
         </div>
     </div>
+    <script data-turbolinks-eval="false">
+        var DCRThings = {};
+        DCRThings.targetBlockTime = {{$.BlockTimeUnix}};
+        DCRThings.ticketPoolSize = {{$.ChainParams.TicketPoolSize}};
+    </script>
 </header>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 {{end}}
@@ -129,29 +134,12 @@
             </li>
         </ul>
     </div>
-
-    <script data-turbolinks-eval="false">
-        var DCRThings = {};
-        DCRThings.targetBlockTime = {{$.BlockTimeUnix}};
-        DCRThings.ticketPoolSize = {{$.ChainParams.TicketPoolSize}};
-    </script>
     <script
         src="/js/dist/app.bundle.js"
         data-turbolinks-eval="false"
         data-turbolinks-suppress-warning
     ></script>
 </footer>
-
-<!-- <script data-turbolinks-eval="false">
-    const app = Stimulus.Application.start()
-</script> -->
-<!-- <script src="/js/controllers/main.js"  data-turbolinks-eval="false"></script>
-<script src="/js/controllers/mempool.js"  data-turbolinks-eval="false"></script>
-<script src="/js/controllers/agenda.js"  data-turbolinks-eval="false"></script>
-<script src="/js/controllers/charts.js" data-turbolinks-eval="false"></script>
-<script src="/js/controllers/address.js" data-turbolinks-eval="false"></script>
-<script src="/js/controllers/ticketpool.js" data-turbolinks-eval="false"></script>
-<script src="/js/controllers/status.js" data-turbolinks-eval="false"></script> -->
 {{end}}
 
 {{define "decimalParts"}}

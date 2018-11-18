@@ -60,6 +60,7 @@ export default class extends Controller {
   }
 
   renderLatestTransactions (txs, incremental) {
+    console.log('render', txs)
     each(txs, (tx) => {
       if (incremental) {
         incrementValue($(this['num' + tx.Type + 'Target']))

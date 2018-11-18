@@ -3,9 +3,11 @@
 import { Controller } from 'stimulus'
 import { isEmpty } from 'lodash-es'
 import { barChartPlotter } from '../helpers/chart_helper'
+import globalEventBus from '../services/event_bus_service'
 
 function txTypesFunc (d) {
   var p = []
+
   d.time.map((n, i) => {
     p.push([new Date(n), d.sentRtx[i], d.receivedRtx[i], d.tickets[i], d.votes[i], d.revokeTx[i]])
   })
@@ -14,6 +16,7 @@ function txTypesFunc (d) {
 
 function amountFlowFunc (d) {
   var p = []
+
   d.time.map((n, i) => {
     var v = d.net[i]
     var netReceived = 0
@@ -29,8 +32,8 @@ function unspentAmountFunc (d) {
   var p = []
   // start plotting 6 days before the actual day
   if (d.length > 0) {
-    v = new Date(d.time[0])
-    p.push([new Date().setDate(v.getDate()-6), 0])
+    let v = new Date(d.time[0])
+    p.push([new Date().setDate(v.getDate() - 6), 0])
   }
 
   d.time.map((n, i) => p.push([new Date(n), d.amount[i]]))
@@ -41,8 +44,8 @@ function formatter (data) {
   var html = this.getLabels()[0] + ': ' + ((data.xHTML === undefined) ? '' : data.xHTML)
   data.series.map(function (series) {
     if (series.color === undefined) return ''
-    var l = '<span style="color: ' + series.color + ';"> ' + series.labelHTML
-    html = '<span style="color:#2d2d2d;">' + html + '</span>'
+    var l = `<span style="color: ` + series.color + ';"> ' + series.labelHTML
+    html = `<span style="color:#2d2d2d;">` + html + `</span>`
     html += '<br>' + series.dashHTML + l + ': ' + (isNaN(series.y) ? '' : series.y) + '</span>'
   })
   return html
@@ -53,8 +56,8 @@ function customizedFormatter (data) {
   data.series.map(function (series) {
     if (series.color === undefined) return ''
     if (series.y === 0 && series.labelHTML.includes('Net')) return ''
-    var l = '<span style="color: ' + series.color + ';"> ' + series.labelHTML
-    html = '<span style="color:#2d2d2d;">' + html + '</span>'
+    var l = `<span style="color: ` + series.color + ';"> ' + series.labelHTML
+    html = `<span style="color:#2d2d2d;">` + html + `</span>`
     html += '<br>' + series.dashHTML + l + ': ' + (isNaN(series.y) ? '' : series.y + ' DCR') + '</span> '
   })
   return html
@@ -69,6 +72,7 @@ function plotGraph (processedData, otherOptions) {
     fillAlpha: 0.9,
     labelsKMB: true
   }
+
   return new Dygraph(
     document.getElementById('history-chart'),
     processedData,
@@ -79,12 +83,32 @@ function plotGraph (processedData, otherOptions) {
 export default class extends Controller {
   static get targets () {
     return ['options', 'addr', 'btns', 'unspent',
-      'flow', 'zoom', 'interval']
+      'flow', 'zoom', 'interval', 'numUnconfirmed', 'formattedTime', 'txnCount']
   }
 
   initialize () {
     var _this = this
-    $.getScript('/js/vendor/dygraphs.min.js', function () {
+    let isFirstFire = true
+    globalEventBus.on('BLOCK_RECEIVED', function (data) {
+      // The update of the Time UTC and transactions count will only happen during the first confirmation
+      if (!isFirstFire) {
+        return
+      }
+      isFirstFire = false
+      _this.numUnconfirmedTargets.forEach((el, i) => {
+        el.classList.add('hidden')
+      })
+      let numConfirmed = 0
+      _this.formattedTimeTargets.forEach((el, i) => {
+        el.textContent = data.block.formatted_time
+        numConfirmed++
+      })
+      _this.txnCountTargets.forEach((el, i) => {
+        let transactions = numConfirmed + parseInt(el.dataset.txnCount)
+        _this.setTxnCountText(el, transactions)
+      })
+    })
+    $.getScript('/js/dygraphs.min.js', () => {
       _this.typesGraphOptions = {
         labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
         colors: ['#69D3F5', '#2971FF', '#41BF53', 'darkorange', '#FF0090'],
@@ -120,6 +144,34 @@ export default class extends Controller {
         visibility: [true],
         fillGraph: true
       }
+
+      _this.defaultHash = 'list-view'
+      var hashVal = window.location.hash.replace('#', '') || _this.defaultHash
+
+      if (hashVal.length === 0 || hashVal === _this.defaultHash) {
+        window.history.pushState({}, this.addr, '#' + _this.defaultHash)
+      } else {
+        var selectedVal = this.optionsTarget.namedItem(hashVal)
+        $(this.optionsTarget).val((selectedVal ? selectedVal.value : 'types'))
+        this.changeView()
+      }
+    })
+  }
+
+  setTxnCountText (el, count) {
+    if (el.dataset.formatted) {
+      el.textContent = count + ' transaction' + (count > 1 ? 's' : '')
+    } else {
+      el.textContent = count
+    }
+  }
+  connect () {
+    let _this = this
+    this.formattedTimeTargets.forEach((el, i) => {
+      el.textContent = 'Unconfirmed'
+    })
+    this.txnCountTargets.forEach((el, i) => {
+      _this.setTxnCountText(el, parseInt(el.dataset.txnCount))
     })
   }
 
@@ -133,6 +185,8 @@ export default class extends Controller {
     var _this = this
     var graphType = _this.options
     var interval = _this.interval
+
+    window.history.pushState({}, this.addr, '#' + graphType)
 
     $('#no-bal').addClass('d-hide')
     $('#history-chart').removeClass('d-hide')
@@ -150,7 +204,7 @@ export default class extends Controller {
       url: '/api/address/' + _this.addr + '/' + graphType + '/' + interval,
       beforeSend: function () {},
       success: function (data) {
-        if (isEmpty(data)) {
+        if (!isEmpty(data)) {
           var newData = []
           var options = {}
 
@@ -193,7 +247,10 @@ export default class extends Controller {
     })
   }
 
-  changeView () {
+  changeView (e) {
+    $('.addr-btn').removeClass('btn-active')
+    $(e ? e.srcElement : '.chart').addClass('btn-active')
+
     var _this = this
     _this.disableBtnsIfNotApplicable()
 
@@ -205,6 +262,7 @@ export default class extends Controller {
     if (divShow !== 'chart') {
       divHide = 'chart'
       $('body').removeClass('loading')
+      window.history.pushState({}, this.addr, '#' + _this.defaultHash)
     } else {
       _this.drawGraph()
     }
@@ -213,7 +271,12 @@ export default class extends Controller {
     $('.' + divHide + '-display').addClass('d-hide')
   }
 
-  changeGraph () {
+  changeGraph (e) {
+    if (e.srcElement.className.includes('chart-size')) {
+      $(e.srcElement).siblings().removeClass('btn-active')
+      $(e.srcElement).toggleClass('btn-active')
+    }
+
     $('body').addClass('loading')
     this.drawGraph()
   }
@@ -226,7 +289,10 @@ export default class extends Controller {
     }
   }
 
-  onZoom () {
+  onZoom (e) {
+    $(e.srcElement).siblings().removeClass('btn-active')
+    $(e.srcElement).toggleClass('btn-active')
+
     if (this.graph === undefined) {
       return
     }
@@ -241,7 +307,7 @@ export default class extends Controller {
   }
 
   disableBtnsIfNotApplicable () {
-    var val = parseInt(this.addrTarget.id)
+    var val = new Date(this.addrTarget.dataset.oldestblocktime)
     var d = new Date()
 
     var pastYear = d.getFullYear() - 1
@@ -250,9 +316,10 @@ export default class extends Controller {
     var pastDay = d.getDate() - 1
 
     this.enabledButtons = []
-    var setApplicableBtns = (className, ts) => {
+    var setApplicableBtns = (className, ts, numIntervals) => {
       var isDisabled = (val > new Date(ts)) ||
-                (this.options === 'unspent' && this.unspent === '0')
+                    (this.options === 'unspent' && this.unspent === '0') ||
+                    numIntervals < 2
 
       if (isDisabled) {
         this.zoomTarget.getElementsByClassName(className)[0].setAttribute('disabled', isDisabled)
@@ -264,22 +331,21 @@ export default class extends Controller {
       }
     }
 
-    setApplicableBtns('year', new Date().setFullYear(pastYear))
-    setApplicableBtns('month', new Date().setMonth(pastMonth))
-    setApplicableBtns('week', new Date().setDate(pastWeek))
-    setApplicableBtns('day', new Date().setDate(pastDay))
+    setApplicableBtns('year', new Date().setFullYear(pastYear), this.intervalTarget.dataset.year)
+    setApplicableBtns('month', new Date().setMonth(pastMonth), this.intervalTarget.dataset.month)
+    setApplicableBtns('week', new Date().setDate(pastWeek), this.intervalTarget.dataset.week)
+    setApplicableBtns('day', new Date().setDate(pastDay), this.intervalTarget.dataset.day)
 
     if (parseInt(this.intervalTarget.dataset.txcount) < 20 || this.enabledButtons.length === 0) {
       this.enabledButtons[0] = 'all'
     }
 
-    $('input#chart-size').removeClass('btn-active')
-    $('input#chart-size.' + this.enabledButtons[0]).addClass('btn-active')
+    $('input.chart-size').removeClass('btn-active')
+    $('input.chart-size.' + this.enabledButtons[0]).addClass('btn-active')
   }
 
   get options () {
-    var selectedValue = this.optionsTarget
-    return selectedValue.options[selectedValue.selectedIndex].value
+    return this.optionsTarget.value
   }
 
   get addr () {

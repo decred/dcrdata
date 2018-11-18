@@ -37,8 +37,8 @@ function purchasesGraphData (items, memP) {
   })
 
   if (!isNaN(memP.time)) {
-    memPdate = new Date(memP.time[0])
-    s.push([new Date().setDate(memPdate.getMinutes() + 1) , memP.mempool[0], 0, 0, memP.price[0]]); // add mempool
+    let memPdate = new Date(memP.time[0])
+    s.push([new Date().setDate(memPdate.getMinutes() + 1), memP.mempool[0], 0, 0, memP.price[0]]) // add mempool
   }
 
   origDate = s[0][0] - new Date(0)

@@ -9,6 +9,7 @@ import { Application } from 'stimulus'
 import { definitionsFromContext } from 'stimulus/webpack-helpers'
 import { darkEnabled } from './services/theme_service'
 import { handleNextHomeBlockUpdate, handleMempoolUpdate } from './controllers/nexthome_blocks_controller'
+import globalEventBus from './services/event_bus_service'
 
 window.darkEnabled = darkEnabled
 
@@ -89,10 +90,20 @@ async function createWebSocket (loc) {
       $(v).text('(' + confirmations + (confirmations > 1 ? ' confirmations' : ' confirmation') + ')')
     })
 
+    globalEventBus.publish("BLOCK_RECEIVED", newBlock)
+
     // block summary data
     var b = newBlock.block
-    b.unixStamp = (new Date(b.time)).getTime()/1000
+    b.unixStamp = (new Date(b.time)).getTime() / 1000
     desktopNotifyNewBlock(b)
+
+    var currentTxHash = $('#spanTxID').data('tx-page-txid');
+    if (currentTxHash) { // we are on the tx page
+      // it is important to check that the current transaction is contained in the received block before any
+      // partial update. but since we are silently reloading the page, we will not have the issue of the view
+      // being wrongly updated that happens when the current transaction is not contained in the received block
+      Turbolinks.reload()
+    }
 
     // Update the blocktime counter.
     window.DCRThings.counter.data('time-lastblocktime', b.unixStamp).removeClass('text-danger')
@@ -118,7 +129,7 @@ async function createWebSocket (loc) {
                 '<td>' + b.revocations + '</td>' +
                 '<td>' + humanize.bytes(b.size) + '</td>' +
                 '<td data-target="time.age"  data-age=' + b.unixStamp + '>' + humanize.timeSince(b.unixStamp) + '</td>' +
-                '<td>' + b.formatted_time + '</td>' +
+                '<td>' + b.time + '</td>' +
             '</tr>'
       var newRowHtml = $.parseHTML(newRow)
       $(newRowHtml).insertBefore(expTableRows.first())

@@ -199,7 +199,7 @@ export default class extends Controller {
       [[1, 1]],
       options
     )
-    var val = this.chartSelectTarget.namedItem(window.location.hash.replace("#",""))
+    var val = this.chartSelectTarget.namedItem(window.location.hash.replace('#', ''))
     $(this.chartSelectTarget).val((val ? val.value : 'ticket-price'))
     this.selectChart()
   }

@@ -1,8 +1,8 @@
 import { Controller } from 'stimulus'
 import humanize from '../helpers/humanize_helper'
 
-function isCorrectVal(value) {
- return /^\d+$/.test(value) && value >0;
+function isCorrectVal (value) {
+  return /^\d+$/.test(value) && value > 0
 }
 
 export default class extends Controller {
@@ -24,7 +24,7 @@ export default class extends Controller {
     })
     this.ageRefreshTimer = setInterval(() => {
       this.setAges()
-    }, 1000)
+    }, 10 * 1000)
   }
 
   stopAgeRefresh () {
@@ -45,8 +45,8 @@ export default class extends Controller {
     this.ageTargets.forEach((el) => {
       if (isCorrectVal(el.dataset.age)) {
         el.textContent = humanize.timeSince(el.dataset.age)
-      } else if (el.dataset.age != '') {
-        el.textContent = humanize.timeSince(Date.parse(el.dataset.age)/1000)
+      } else if (el.dataset.age !== '') {
+        el.textContent = humanize.timeSince(Date.parse(el.dataset.age) / 1000)
       }
     })
   }
