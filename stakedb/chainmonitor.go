@@ -91,48 +91,15 @@ out:
 				break out
 			}
 
-			// If reorganizing, the block will first go to a side chain
-			reorg, reorgData := p.reorganizing, p.reorgData
-
-			if reorg {
-				p.sideChain = append(p.sideChain, *hash)
-				log.Infof("Adding block %v to sidechain", *hash)
-
-				// Just append to side chain until the new main chain tip block is reached
-				if reorgData.NewChainHead != *hash {
-					release()
-					break keepon
-				}
-
-				// Once all blocks in side chain are lined up, switch over
-				log.Info("Switching to side chain...")
-				newHeight, newHash, err := p.switchToSideChain()
-				if err != nil {
-					panic(err)
-				}
-
-				if p.reorgData.NewChainHead != *newHash ||
-					p.reorgData.NewChainHeight != newHeight {
-					panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
-						p.reorgData.NewChainHead, newHash, newHeight))
-				}
-
-				// Reorg is complete
-				p.sideChain = nil
-				p.reorganizing = false
-				log.Infof("Reorganization to block %v (height %d) complete",
-					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
-			} else {
-				// Extend main chain
-				block, err := p.db.ConnectBlockHash(hash)
-				if err != nil {
-					release()
-					log.Error(err)
-					break keepon
-				}
-
-				log.Infof("Connected block %d to stake DB.", block.Height())
+			// Extend main chain
+			block, err := p.db.ConnectBlockHash(hash)
+			if err != nil {
+				release()
+				log.Error(err)
+				break keepon
 			}
+
+			log.Infof("Connected block %d to stake DB.", block.Height())
 
 			release()
 
@@ -198,6 +165,8 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 			block.Hash(), block.Height())
 	}
 
+	p.sideChain = nil
+
 	mainTip = int64(p.db.Height())
 	if mainTip != block.Height() {
 		panic("connected block height not db tip height")
@@ -235,12 +204,32 @@ out:
 
 			p.reorganizing = true
 			p.reorgData = reorgData
-			p.Unlock()
 
 			log.Infof("Reorganize started. NEW head block %v at height %d.",
 				newHash, newHeight)
 			log.Infof("Reorganize started. OLD head block %v at height %d.",
 				oldHash, oldHeight)
+
+			// Get the side chain.
+			p.sideChain = []chainhash.Hash{}
+			hash := newHash
+
+			for {
+				prevMsgBlock, err := p.db.NodeClient.GetBlock(&hash)
+				if err != nil {
+					log.Errorf("Unable to get block for reorg: %v", hash)
+					p.Unlock()
+					p.reorganizing = false
+					break keepon
+				}
+				// prevBlock := dcrutil.NewBlock(prevMsgBlock)
+
+				hash = prevMsgBlock.BlockHash()
+			}
+
+			// Success!
+			p.reorganizing = false
+			p.Unlock()
 
 			reorgData.WG.Done()
 

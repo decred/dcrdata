@@ -1,3 +1,4 @@
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -5,6 +6,7 @@ package rpcutils
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strconv"
@@ -23,9 +25,18 @@ import (
 // Any of the following dcrd RPC API versions are deemed compatible with
 // dcrdata.
 var compatibleChainServerAPIs = []semver.Semver{
-	semver.NewSemver(3, 0, 0),
-	semver.NewSemver(4, 0, 0), // bumped for removal of createrawssgen, not used by dcrdata
+	semver.NewSemver(5, 0, 0), // order of reorg and block connected notifications changed
 }
+
+var (
+	zeroHash            = chainhash.Hash{}
+	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
+
+	maxAncestorChainLength = 8192
+
+	ErrAncestorAtGenesis      = errors.New("no ancestor: at genesis")
+	ErrAncestorMaxChainLength = errors.New("no ancestor: max chain length reached")
+)
 
 // ConnectNodeRPC attempts to create a new websocket connection to a dcrd node,
 // with the given credentials and optional notification handlers.
@@ -354,4 +365,80 @@ func SearchRawTransaction(client *rpcclient.Client, count int, address string) (
 		log.Warnf("SearchRawTransaction failed for address %s: %v", addr, err)
 	}
 	return txs, nil
+}
+
+// CommonAncestor attempts to determine the common ancestor block for two chains
+// specified by the hash of the chain tip block. The full chains from the tips
+// back to but not including the common ancestor are also returned. The common
+// ancestor will never by one of the chain tips. Thus, if one of the chain tips
+// is on the other chain, that block will be shared between the two chains, and
+// the common ancestor will be the previous block. However, the intended use of
+// this function is to find a common ancestor for two chains with no common
+// blocks.
+func CommonAncestor(client *rpcclient.Client, hashA, hashB chainhash.Hash) (*chainhash.Hash, []chainhash.Hash, []chainhash.Hash, error) {
+	var length int
+	var chainA, chainB []chainhash.Hash
+	for {
+		if length >= maxAncestorChainLength {
+			return nil, nil, nil, ErrAncestorMaxChainLength
+		}
+
+		// Chain A
+		blockA, err := client.GetBlock(&hashA)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Failed to get block %v: %v", hashA, err)
+		}
+		heightA := blockA.Header.Height
+
+		// Chain B
+		blockB, err := client.GetBlock(&hashB)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Failed to get block %v: %v", hashB, err)
+		}
+		heightB := blockB.Header.Height
+
+		// Reach the same height on both chains before checking the loop
+		// termination condition. At least one previous block for each chain
+		// must be used, so that a chain tip block will not be considered a
+		// common ancestor and it will instead be added to a chain slice.
+		if heightA > heightB {
+			chainA = append(chainA, blockA.BlockHash())
+			length++
+			hashA = blockA.Header.PrevBlock
+			continue
+		}
+		if heightB > heightA {
+			chainB = append(chainB, blockB.BlockHash())
+			length++
+			hashB = blockB.Header.PrevBlock
+			continue
+		}
+
+		// Assert heightB == heightA
+		if heightB != heightA {
+			panic("you broke the code")
+		}
+
+		chainA = append(chainA, blockA.BlockHash())
+		chainB = append(chainB, blockB.BlockHash())
+		length++
+
+		// We are at genesis if the previous block is the zero hash.
+		if blockA.Header.PrevBlock == zeroHash {
+			return nil, chainA, chainB, ErrAncestorAtGenesis // no common ancestor, but the same block
+		}
+
+		hashA = blockA.Header.PrevBlock
+		hashB = blockB.Header.PrevBlock
+
+		// break here rather than for condition so inputs with equal hashes get
+		// handled properly (with ancestor as previous block and chains
+		// including the input blocks.)
+		if hashA == hashB {
+			break // hashA(==hashB) is the common ancestor.
+		}
+	}
+
+	// hashA == hashB
+	return &hashA, chainA, chainB, nil
 }

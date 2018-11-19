@@ -1,6 +1,7 @@
 package rpcutils
 
 import (
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"reflect"
 	"testing"
 
@@ -113,4 +114,35 @@ func TestReverseStringSlice(t *testing.T) {
 	if !reflect.DeepEqual(s2, ref2) {
 		t.Errorf("reverseStringSlice failed. Got %v, expected %v.", s2, ref2)
 	}
+}
+
+func TestCommonAncestor(t *testing.T) {
+	// Equal starting hashes -> return hash an empty chains
+	hashA, _ := chainhash.NewHashFromStr("0000000000000000090442455c38da583f287f753215c430d7adc509bf762d5d")
+	hashB := hashA
+	hash, chainA, chainB, err := CommonAncestor(nil, *hashA, *hashB)
+	if err != nil {
+		t.Error(err)
+	}
+	if *hash != *hashA {
+		t.Errorf("hash should have been hashA")
+	}
+	if chainA != nil || chainB != nil {
+		t.Errorf("chains should have been empty")
+	}
+
+	// Equal starting hashes -> return hash an empty chains
+	hashA = &zeroHash
+	hashB = hashA
+	hash, chainA, chainB, err = CommonAncestor(nil, *hashA, *hashB)
+	if err != nil {
+		t.Error(err)
+	}
+	if *hash != *hashA {
+		t.Errorf("hash should have been hashA")
+	}
+	if chainA != nil || chainB != nil {
+		t.Errorf("chains should have been empty")
+	}
+	t.Log(hash, chainA, chainB)
 }
