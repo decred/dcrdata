@@ -66,75 +66,83 @@ export function keyNav (event, pulsate, preserveIndex) {
   }
 }
 
-Mousetrap.bind(['left', '['], function () {
-  clearTargets()
-  currentIndex--
-  if (currentIndex < 0) {
-    currentIndex = targetsLength - 1
-  }
-  $(targets[currentIndex]).addClass('keynav-target')
-})
+Mousetrap.pause = function () {
+  Mousetrap.reset()
+}
 
-Mousetrap.bind(['right', ']'], function () {
-  clearTargets()
-  currentIndex++
-  if (currentIndex >= targetsLength) {
-    currentIndex = 0
-  }
-  $(targets[currentIndex]).addClass('keynav-target')
-})
-
-Mousetrap.bind('enter', function (e) {
-  if (targets.length < currentIndex) {
-    return
-  }
-  var currentTarget = $(targets[currentIndex])
-  if (currentTarget.is('input')) {
-    currentTarget.focus()
-    e.stopPropagation()
-    e.preventDefault()
-    return
-  }
-  if (currentTarget[0].id === 'keynav-toggle') {
-    toggleKeyNav()
-    return
-  }
-  var location = currentTarget.attr('href')
-  if (location !== undefined) {
-    var preserveKeyNavIndex = currentTarget.data('preserveKeynavIndex')
-    if (preserveKeyNavIndex) {
-      jumpToIndexOnLoad = currentIndex
+Mousetrap.unpause = function () {
+  Mousetrap.bind(['left', '['], function () {
+    clearTargets()
+    currentIndex--
+    if (currentIndex < 0) {
+      currentIndex = targetsLength - 1
     }
-    currentTarget.addClass('activated')
-    Turbolinks.visit(location)
-  }
-})
+    $(targets[currentIndex]).addClass('keynav-target')
+  })
 
-Mousetrap.bind('\\', function (e) {
-  e.preventDefault()
-  var $topSearch = $('.top-search')
-  if ($topSearch.hasClass('keynav-target')) {
-    $topSearch.blur()
+  Mousetrap.bind(['right', ']'], function () {
     clearTargets()
-    keyNav(e, true, 0)
-  } else {
+    currentIndex++
+    if (currentIndex >= targetsLength) {
+      currentIndex = 0
+    }
+    $(targets[currentIndex]).addClass('keynav-target')
+  })
+
+  Mousetrap.bind('enter', function (e) {
+    if (targets.length < currentIndex) {
+      return
+    }
+    var currentTarget = $(targets[currentIndex])
+    if (currentTarget.is('input')) {
+      currentTarget.focus()
+      e.stopPropagation()
+      e.preventDefault()
+      return
+    }
+    if (currentTarget[0].id === 'keynav-toggle') {
+      toggleKeyNav()
+      return
+    }
+    var location = currentTarget.attr('href')
+    if (location !== undefined) {
+      var preserveKeyNavIndex = currentTarget.data('preserveKeynavIndex')
+      if (preserveKeyNavIndex) {
+        jumpToIndexOnLoad = currentIndex
+      }
+      currentTarget.addClass('activated')
+      Turbolinks.visit(location)
+    }
+  })
+
+  Mousetrap.bind('\\', function (e) {
+    e.preventDefault()
+    var $topSearch = $('.top-search')
+    if ($topSearch.hasClass('keynav-target')) {
+      $topSearch.blur()
+      clearTargets()
+      keyNav(e, true, 0)
+    } else {
+      clearTargets()
+      $topSearch.addClass('keynav-target').focus()
+    }
+  })
+
+  Mousetrap.bind('`', function () {
+    toggleSun()
+  })
+
+  Mousetrap.bind('=', function (e) {
+    toggleMenu(e)
+    keyNav(e, true)
+  })
+
+  Mousetrap.bind('q', function () {
     clearTargets()
-    $topSearch.addClass('keynav-target').focus()
-  }
-})
+  })
+}
 
-Mousetrap.bind('`', function () {
-  toggleSun()
-})
-
-Mousetrap.bind('=', function (e) {
-  toggleMenu(e)
-  keyNav(e, true)
-})
-
-Mousetrap.bind('q', function () {
-  clearTargets()
-})
+if (keyNavEnabled()) Mousetrap.unpause()
 
 $('#keynav-toggle .text').text(keyNavEnabled() ? 'Disable Hot Keys' : 'Enable Hot Keys')
 document.addEventListener('turbolinks:load', function (e) {

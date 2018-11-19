@@ -21,10 +21,7 @@ class EventBus {
 
   publish (eventType, args) {
     const eventCallbacksPair = findEventCallbacksPair(eventType)
-    if (!eventCallbacksPair) {
-      console.error('no subscribers for event ' + eventType)
-      return
-    }
+    if (!eventCallbacksPair) return
     eventCallbacksPair.callbacks.forEach(callback => callback(args))
   }
 }

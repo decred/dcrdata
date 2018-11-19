@@ -220,7 +220,7 @@ body.darkBG #menuToggle input:checked ~ .patty {
 body.darkBG #hamburger-menu a, body.darkBG #hamburger-menu span {
   color: #fbfbfb;
 }
-body.darkBG #hamburger-menu a:hover,body.darkBG #hamburger-menu span:hover {
+body.darkBG #hamburger-menu a:hover, body.darkBG #hamburger-menu span:hover {
   color: #94ffca;
 }
 body.darkBG #menu {
@@ -397,7 +397,7 @@ body.darkBG .progress {
   color: #232323;
   transition: color 0.3s ease;
 }
-#hamburger-menu a:hover {
+#hamburger-menu a:hover, #hamburger-menu span:hover {
   color: #2e75ff;
 }
 #menuToggle {
