@@ -376,6 +376,10 @@ func SearchRawTransaction(client *rpcclient.Client, count int, address string) (
 // this function is to find a common ancestor for two chains with no common
 // blocks.
 func CommonAncestor(client *rpcclient.Client, hashA, hashB chainhash.Hash) (*chainhash.Hash, []chainhash.Hash, []chainhash.Hash, error) {
+	if client == nil {
+		return nil, nil, nil, errors.New("nil RPC client")
+	}
+
 	var length int
 	var chainA, chainB []chainhash.Hash
 	for {
