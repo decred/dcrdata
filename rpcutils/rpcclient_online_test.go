@@ -56,8 +56,8 @@ func TestCommonAncestorOnlineDifferentHeights(t *testing.T) {
 	hashB, _ := chainhash.NewHashFromStr("000000000036c32da2a340574904726f463a497b7a16fca727420e5c62cf154b")                // main chain @ 72908
 
 	chainAHashes := []string{"0000000004b7497db457e7159ebe9a3775f9c0389ed6558cbd50da6650d5520f"}
-	chainBHashes := []string{"000000000036c32da2a340574904726f463a497b7a16fca727420e5c62cf154b",
-		"0000000007771c758e95635dc5806441c3926b76f0fb8de3f23cd4ca24b23059"}
+	chainBHashes := []string{"0000000007771c758e95635dc5806441c3926b76f0fb8de3f23cd4ca24b23059",
+		"000000000036c32da2a340574904726f463a497b7a16fca727420e5c62cf154b"}
 
 	testCommonAncestorPositive(t, client, hashA, hashB, hashAncestorExpected, chainAHashes, chainBHashes)
 
@@ -114,8 +114,8 @@ func TestCommonAncestorOnlineSharedBlock(t *testing.T) {
 
 	// Note that hashB is the last hash in both chains. The common ancestor is
 	// the previous block since a block is not the ancestor of itself.
-	chainAHashes := []string{"0000000004b7497db457e7159ebe9a3775f9c0389ed6558cbd50da6650d5520f",
-		"000000000002a17a0aeb56856b7b531926a7684e242a39aa5b1acb130a945f9e"}
+	chainAHashes := []string{"000000000002a17a0aeb56856b7b531926a7684e242a39aa5b1acb130a945f9e",
+		"0000000004b7497db457e7159ebe9a3775f9c0389ed6558cbd50da6650d5520f"}
 	chainBHashes := []string{"000000000002a17a0aeb56856b7b531926a7684e242a39aa5b1acb130a945f9e"}
 
 	testCommonAncestorPositive(t, client, hashA, hashB, hashAncestorExpected, chainAHashes, chainBHashes)

@@ -369,12 +369,13 @@ func SearchRawTransaction(client *rpcclient.Client, count int, address string) (
 
 // CommonAncestor attempts to determine the common ancestor block for two chains
 // specified by the hash of the chain tip block. The full chains from the tips
-// back to but not including the common ancestor are also returned. The common
-// ancestor will never by one of the chain tips. Thus, if one of the chain tips
-// is on the other chain, that block will be shared between the two chains, and
-// the common ancestor will be the previous block. However, the intended use of
-// this function is to find a common ancestor for two chains with no common
-// blocks.
+// back to but not including the common ancestor are also returned. The first
+// element in the chain slices is the lowest block following the common
+// ancestor, while the last element is the chain tip. The common ancestor will
+// never by one of the chain tips. Thus, if one of the chain tips is on the
+// other chain, that block will be shared between the two chains, and the common
+// ancestor will be the previous block. However, the intended use of this
+// function is to find a common ancestor for two chains with no common blocks.
 func CommonAncestor(client *rpcclient.Client, hashA, hashB chainhash.Hash) (*chainhash.Hash, []chainhash.Hash, []chainhash.Hash, error) {
 	if client == nil {
 		return nil, nil, nil, errors.New("nil RPC client")
@@ -406,13 +407,13 @@ func CommonAncestor(client *rpcclient.Client, hashA, hashB chainhash.Hash) (*cha
 		// must be used, so that a chain tip block will not be considered a
 		// common ancestor and it will instead be added to a chain slice.
 		if heightA > heightB {
-			chainA = append(chainA, blockA.BlockHash())
+			chainA = append([]chainhash.Hash{hashA}, chainA...)
 			length++
 			hashA = blockA.Header.PrevBlock
 			continue
 		}
 		if heightB > heightA {
-			chainB = append(chainB, blockB.BlockHash())
+			chainB = append([]chainhash.Hash{hashB}, chainB...)
 			length++
 			hashB = blockB.Header.PrevBlock
 			continue
@@ -423,8 +424,8 @@ func CommonAncestor(client *rpcclient.Client, hashA, hashB chainhash.Hash) (*cha
 			panic("you broke the code")
 		}
 
-		chainA = append(chainA, blockA.BlockHash())
-		chainB = append(chainB, blockB.BlockHash())
+		chainA = append([]chainhash.Hash{hashA}, chainA...)
+		chainB = append([]chainhash.Hash{hashB}, chainB...)
 		length++
 
 		// We are at genesis if the previous block is the zero hash.
