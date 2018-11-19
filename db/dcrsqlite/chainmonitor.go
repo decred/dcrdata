@@ -16,6 +16,7 @@ import (
 
 // ChainMonitor handles change notifications from the node client
 type ChainMonitor struct {
+	sync.Mutex     // coordinate reorg handling
 	ctx            context.Context
 	db             *wiredDB
 	collector      *blockdata.Collector
@@ -25,12 +26,6 @@ type ChainMonitor struct {
 	ConnectingLock chan struct{}
 	DoneConnecting chan struct{}
 	syncConnect    sync.Mutex
-
-	// reorg handling
-	reorgLock    sync.Mutex
-	reorgData    *txhelpers.ReorgData
-	sideChain    []chainhash.Hash
-	reorganizing bool
 }
 
 // NewChainMonitor creates a new ChainMonitor
@@ -48,132 +43,35 @@ func (db *wiredDB) NewChainMonitor(ctx context.Context, collector *blockdata.Col
 	}
 }
 
-// BlockConnectedSync is the synchronous (blocking call) handler for the newly
-// connected block given by the hash.
-func (p *ChainMonitor) BlockConnectedSync(hash *chainhash.Hash) {
-	// Connections go one at a time so signals cannot be mixed
-	p.syncConnect.Lock()
-	defer p.syncConnect.Unlock()
-	// lock with buffered channel
-	p.ConnectingLock <- struct{}{}
-	p.blockChan <- hash
-	// wait
-	<-p.DoneConnecting
-}
-
-// BlockConnectedHandler handles block connected notifications, which helps deal
-// with a chain reorganization.
-func (p *ChainMonitor) BlockConnectedHandler() {
-	defer p.wg.Done()
-out:
-	for {
-	keepon:
-		select {
-		case hash, ok := <-p.blockChan:
-			release := func() {}
-			select {
-			case <-p.ConnectingLock:
-				// send on unbuffered channel
-				release = func() { p.DoneConnecting <- struct{}{} }
-			default:
-			}
-
-			if !ok {
-				log.Warnf("Block connected channel closed.")
-				release()
-				break out
-			}
-
-			// If reorganizing, the block will first go to a side chain
-			p.reorgLock.Lock()
-			reorg, reorgData := p.reorganizing, p.reorgData
-			p.reorgLock.Unlock()
-
-			if reorg {
-				// stakedb will not be at this level until it switches to the
-				// complete side chain (during the last side chain block
-				// handling). So, store only the hash now and get data by hash
-				// after stakedb has switched over, at which point the pool info
-				// at each level will have been saved in the PoolInfoCache.
-				p.sideChain = append(p.sideChain, *hash)
-				log.Infof("Adding block hash %v to sidechain", *hash)
-
-				// Just append to side chain until the new main chain tip block is reached
-				if !reorgData.NewChainHead.IsEqual(hash) {
-					release()
-					break keepon
-				}
-
-				// Once all blocks in side chain are lined up, switch over
-				newHeight, newHash, err := p.switchToSideChain()
-				if err != nil {
-					log.Error(err)
-				}
-
-				if !p.reorgData.NewChainHead.IsEqual(newHash) ||
-					p.reorgData.NewChainHeight != newHeight {
-					release()
-					panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
-						p.reorgData.NewChainHead, newHash, newHeight))
-				}
-
-				// Reorg is complete
-				p.sideChain = nil
-				p.reorgLock.Lock()
-				p.reorganizing = false
-				p.reorgLock.Unlock()
-				log.Infof("Reorganization to block %v (height %d) complete",
-					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
-			}
-			release()
-
-		case <-p.ctx.Done():
-			log.Debugf("Got quit signal. Exiting block connected handler.")
-			break out
-		}
-	}
-
-}
-
 // switchToSideChain attempts to switch to a side chain by collecting data for
 // each block in the side chain, and saving it as the new mainchain in sqlite.
-func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
-	if len(p.sideChain) == 0 {
+func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32, *chainhash.Hash, error) {
+	if reorgData == nil || len(reorgData.NewChain) == 0 {
 		return 0, nil, fmt.Errorf("no side chain")
 	}
 
-	// Update DBs, just overwrite
+	newChain := reorgData.NewChain
+	// newChain does not include the common ancestor.
+	commonAncestorHeight := int64(reorgData.NewChainHeight) - int64(len(newChain))
 
-	/* // Determine highest common ancestor of side chain and main chain
-	block, err := p.db.client.GetBlock(&p.sideChain[0])
-	if err != nil {
-		return 0, nil, fmt.Errorf("unable to get block at root of side chain")
+	mainTip := p.db.GetBestBlockHeight()
+	if mainTip != int64(reorgData.OldChainHeight) {
+		log.Warnf("StakeDatabase height is %d, expected %d. Rewinding as "+
+			"needed to complete reorg from ancestor at %d", mainTip,
+			reorgData.OldChainHeight, commonAncestorHeight)
 	}
 
-	prevBlock, err := p.db.client.GetBlock(&block.MsgBlock().Header.PrevBlock)
-	if err != nil {
-		return 0, nil, fmt.Errorf("unable to get common ancestor on side chain")
-	}
-
-	commonAncestorHeight := block.Height() - 1
-	if prevBlock.Height() != commonAncestorHeight {
-		panic("Failed to determine common ancestor.")
-	}
-
-	mainTip := int64(p.db.GetHeight())
-	numOverwrittenBlocks := mainTip - commonAncestorHeight
-
-	// Disconnect blocks back to common ancestor
-	log.Debugf("Overwriting data for %d blocks from main chain.", numOverwrittenBlocks)
-	*/
+	// Update DB tables, just overwriting any existing data.
+	// TODO(chappjc): Remove rows for disconnected blocks just in case not
+	// everything gets overwritten, as intended.
 
 	// Save blocks from previous side chain that is now the main chain
-	log.Infof("Saving %d new blocks from previous side chain to sqlite", len(p.sideChain))
-	for i := range p.sideChain {
+	log.Infof("Saving %d new blocks from previous side chain to sqlite.", len(newChain))
+	for i := range newChain {
 		// Get data by block hash, which requires the stakedb's PoolInfoCache to
 		// contain data for the side chain blocks already (guaranteed if stakedb
 		// block-connected ntfns are always handled before these).
-		blockDataSummary, stakeInfoSummaryExtended := p.collector.CollectAPITypes(&p.sideChain[i])
+		blockDataSummary, stakeInfoSummaryExtended := p.collector.CollectAPITypes(&newChain[i])
 		if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
 			log.Error("Failed to collect data for reorg.")
 			continue
@@ -188,18 +86,13 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 			blockDataSummary.Hash, blockDataSummary.Height)
 	}
 
-	// Retrieve height of chain in sqlite DB, and hash of best block
-	bestBlockSummary := p.db.GetBestBlockSummary()
-	if bestBlockSummary == nil {
-		return 0, nil, fmt.Errorf("unable to retrieve best block summary")
-	}
-	height := bestBlockSummary.Height
-	hash, err := chainhash.NewHashFromStr(bestBlockSummary.Hash)
+	// Retrieve height and hash of the best block in the DB.
+	hash, height, err := p.db.GetBestBlockHeightHash()
 	if err != nil {
-		log.Errorf("Invalid block hash")
+		return 0, nil, fmt.Errorf("unable to retrieve best block: %v", err)
 	}
 
-	return int32(height), hash, err
+	return int32(height), &hash, err
 }
 
 // ReorgHandler receives notification of a chain reorganization and initiates a
@@ -208,7 +101,7 @@ func (p *ChainMonitor) ReorgHandler() {
 	defer p.wg.Done()
 out:
 	for {
-	keepon:
+		//keepon:
 		select {
 		case reorgData, ok := <-p.reorgChan:
 			if !ok {
@@ -219,26 +112,26 @@ out:
 			newHeight, oldHeight := reorgData.NewChainHeight, reorgData.OldChainHeight
 			newHash, oldHash := reorgData.NewChainHead, reorgData.OldChainHead
 
-			p.reorgLock.Lock()
-			if p.reorganizing {
-				p.reorgLock.Unlock()
-				log.Errorf("Reorg notified for chain tip %v (height %v), but already "+
-					"processing a reorg to block %v", newHash, newHeight,
-					p.reorgData.NewChainHead)
-				break keepon
-			}
-
-			// Set the reorg flag so that when BlockConnectedHandler gets called
-			// for the side chain blocks, it knows to prepare then to be stored
-			// as main chain data.
-			p.reorganizing = true
-			p.reorgData = reorgData
-			p.reorgLock.Unlock()
-
 			log.Infof("Reorganize started. NEW head block %v at height %d.",
 				newHash, newHeight)
 			log.Infof("Reorganize started. OLD head block %v at height %d.",
 				oldHash, oldHeight)
+
+			// Switch to the side chain.
+			stakeDBTipHeight, stakeDBTipHash, err := p.switchToSideChain(reorgData)
+			if err != nil {
+				log.Errorf("switchToSideChain failed: %v", err)
+			}
+			if stakeDBTipHeight != newHeight {
+				log.Errorf("stakeDBTipHeight is %d, expected %d",
+					stakeDBTipHeight, newHeight)
+			}
+			if *stakeDBTipHash != newHash {
+				log.Errorf("stakeDBTipHash is %d, expected %d",
+					stakeDBTipHash, newHash)
+			}
+
+			p.Unlock()
 
 			reorgData.WG.Done()
 

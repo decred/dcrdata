@@ -798,10 +798,9 @@ func _main(ctx context.Context) error {
 	// Setup the synchronous handler functions called by the collectionQueue via
 	// OnBlockConnected.
 	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
-		sdbChainMonitor.BlockConnectedSync,     // 1. Stake DB for pool info
-		wsChainMonitor.BlockConnectedSync,      // 2. blockdata for regular block data collection and storage
-		wiredDBChainMonitor.BlockConnectedSync, // 3. dcrsqlite for sqlite DB reorg handling
-		auxDBBlockConnectedSync,                // 4. dcrpg for postgres DB reorg handling
+		sdbChainMonitor.BlockConnectedSync, // 1. Stake DB for pool info
+		wsChainMonitor.BlockConnectedSync,  // 2. blockdata for regular block data collection and storage
+		auxDBBlockConnectedSync,            // 3. dcrpg for postgres DB reorg handling
 	})
 
 	// Initial data summary for web ui. stakedb must be at the same height, so
@@ -852,8 +851,7 @@ func _main(ctx context.Context) error {
 	go sdbChainMonitor.ReorgHandler()
 
 	// dcrsqlite does not handle new blocks except during reorg.
-	wg.Add(2)
-	go wiredDBChainMonitor.BlockConnectedHandler()
+	wg.Add(1)
 	go wiredDBChainMonitor.ReorgHandler()
 
 	if usePG {
