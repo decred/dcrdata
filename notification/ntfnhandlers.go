@@ -15,12 +15,10 @@ import (
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v3/api/insight"
-	"github.com/decred/dcrdata/v3/blockdata"
-	"github.com/decred/dcrdata/v3/db/dcrpg"
-	"github.com/decred/dcrdata/v3/db/dcrsqlite"
 	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/mempool"
-	"github.com/decred/dcrdata/v3/stakedb"
+	"github.com/decred/dcrdata/v3/rpcutils"
+	"github.com/decred/dcrdata/v3/txhelpers"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
@@ -145,10 +143,93 @@ func (q *collectionQueue) ProcessBlocks() {
 	}
 }
 
-// MakeNodeNtfnHandlers defines the dcrd notification handlers
+// ReorgData contains
+type ReorgData struct {
+	OldChainHead   chainhash.Hash
+	OldChainHeight int32
+	NewChainHead   chainhash.Hash
+	NewChainHeight int32
+	WG             *sync.WaitGroup
+}
+
+// reorgDataChan relays details of a chain reorganization to reorgSignaler via
+// queueReorg.
+var reorgDataChan = make(chan ReorgData, 16)
+
+// queueReorg puts the provided ReorgData into the queue for signaling to each
+// package's reorg handler.
+func queueReorg(reorgData ReorgData) {
+	// Do not block, even if the channel buffer is full.
+	go func() { reorgDataChan <- reorgData }()
+}
+
+// ReorgSignaler processes ReorgData sent on reorgDataChan (use queueReorg to
+// send), allowing each package's reorg handler to finish before proceeding to
+// the next reorg in the queue. This should be launched as a goroutine.
+func ReorgSignaler(dcrdClient *rpcclient.Client) {
+	for d := range reorgDataChan {
+		// Determine the common ancestor of the two chains, and get the full
+		// list of blocks in each chain back to but not including the common
+		// ancestor.
+		ancestor, newChain, oldChain, err := rpcutils.CommonAncestor(dcrdClient,
+			d.NewChainHead, d.OldChainHead)
+		if err != nil {
+			log.Errorf("Failed to determine common ancestor. Aborting reorg.")
+			continue
+		}
+
+		fullData := &txhelpers.ReorgData{
+			CommonAncestor: *ancestor,
+			NewChain:       newChain,
+			NewChainHead:   d.NewChainHead,
+			NewChainHeight: d.NewChainHeight,
+			OldChain:       oldChain,
+			OldChainHead:   d.OldChainHead,
+			OldChainHeight: d.OldChainHeight,
+			WG:             d.WG,
+		}
+
+		// Send reorg data to dcrsqlite's monitor
+		d.WG.Add(1)
+		select {
+		case NtfnChans.ReorgChanWiredDB <- fullData:
+		default:
+			d.WG.Done()
+		}
+
+		// Send reorg data to blockdata's monitor (so that it stops collecting)
+		d.WG.Add(1)
+		select {
+		case NtfnChans.ReorgChanBlockData <- fullData:
+		default:
+			d.WG.Done()
+		}
+
+		// Send reorg data to stakedb's monitor
+		d.WG.Add(1)
+		select {
+		case NtfnChans.ReorgChanStakeDB <- fullData:
+		default:
+			d.WG.Done()
+		}
+		d.WG.Wait()
+
+		// Send reorg data to ChainDB's monitor
+		d.WG.Add(1)
+		select {
+		case NtfnChans.ReorgChanDcrpgDB <- fullData:
+		default:
+			d.WG.Done()
+		}
+		d.WG.Wait()
+	}
+}
+
+// MakeNodeNtfnHandlers defines the dcrd notification handlers.
 func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) {
 	blockQueue := NewCollectionQueue()
 	go blockQueue.ProcessBlocks()
+	// ReorgSignaler must be started after creating the RPC client.
 	return &rpcclient.NotificationHandlers{
 		OnBlockConnected: func(blockHeaderSerialized []byte, transactions [][]byte) {
 			blockHeader := new(wire.BlockHeader)
@@ -186,67 +267,18 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 		},
 		OnReorganization: func(oldHash *chainhash.Hash, oldHeight int32,
 			newHash *chainhash.Hash, newHeight int32) {
-			wg := new(sync.WaitGroup)
 			log.Tracef("OnReorganization: %d / %s --> %d / %s",
 				oldHeight, oldHash, newHeight, newHash)
 
-			// Send reorg data to dcrsqlite's monitor
-			wg.Add(1)
-			select {
-			case NtfnChans.ReorgChanWiredDB <- &dcrsqlite.ReorgData{
+			// Queue sending the details of this reorganization to each
+			// package's reorg handler. This is not blocking.
+			queueReorg(ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
 				NewChainHeight: newHeight,
-				WG:             wg,
-			}:
-			default:
-				wg.Done()
-			}
-
-			// Send reorg data to blockdata's monitor (so that it stops collecting)
-			wg.Add(1)
-			select {
-			case NtfnChans.ReorgChanBlockData <- &blockdata.ReorgData{
-				OldChainHead:   *oldHash,
-				OldChainHeight: oldHeight,
-				NewChainHead:   *newHash,
-				NewChainHeight: newHeight,
-				WG:             wg,
-			}:
-			default:
-				wg.Done()
-			}
-
-			// Send reorg data to stakedb's monitor
-			wg.Add(1)
-			select {
-			case NtfnChans.ReorgChanStakeDB <- &stakedb.ReorgData{
-				OldChainHead:   *oldHash,
-				OldChainHeight: oldHeight,
-				NewChainHead:   *newHash,
-				NewChainHeight: newHeight,
-				WG:             wg,
-			}:
-			default:
-				wg.Done()
-			}
-			wg.Wait()
-
-			// Send reorg data to ChainDB's monitor
-			wg.Add(1)
-			select {
-			case NtfnChans.ReorgChanDcrpgDB <- &dcrpg.ReorgData{
-				OldChainHead:   *oldHash,
-				OldChainHeight: oldHeight,
-				NewChainHead:   *newHash,
-				NewChainHeight: newHeight,
-				WG:             wg,
-			}:
-			default:
-				wg.Done()
-			}
-			wg.Wait()
+				WG:             new(sync.WaitGroup),
+			})
 		},
 
 		OnWinningTickets: func(blockHash *chainhash.Hash, blockHeight int64,

@@ -112,6 +112,7 @@ func _main(ctx context.Context) error {
 	if err != nil || dcrdClient == nil {
 		return fmt.Errorf("Connection to dcrd failed: %v", err)
 	}
+	go notify.ReorgSignaler(dcrdClient)
 
 	defer func() {
 		// The individial hander's loops should close the notifications channels

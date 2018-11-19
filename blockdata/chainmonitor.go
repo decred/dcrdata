@@ -14,15 +14,6 @@ import (
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
-// ReorgData contains the information from a reoranization notification
-type ReorgData struct {
-	OldChainHead   chainhash.Hash
-	OldChainHeight int32
-	NewChainHead   chainhash.Hash
-	NewChainHeight int32
-	WG             *sync.WaitGroup
-}
-
 // for getblock, ticketfeeinfo, estimatestakediff, etc.
 type chainMonitor struct {
 	ctx             context.Context
@@ -33,14 +24,14 @@ type chainMonitor struct {
 	watchaddrs      map[string]txhelpers.TxAction
 	blockChan       chan *chainhash.Hash
 	recvTxBlockChan chan *txhelpers.BlockWatchedTx
-	reorgChan       chan *ReorgData
+	reorgChan       chan *txhelpers.ReorgData
 	ConnectingLock  chan struct{}
 	DoneConnecting  chan struct{}
 	syncConnect     sync.Mutex
 
 	// reorg handling
 	reorgLock    sync.Mutex
-	reorgData    *ReorgData
+	reorgData    *txhelpers.ReorgData
 	sideChain    []chainhash.Hash
 	reorganizing bool
 }
@@ -49,7 +40,7 @@ type chainMonitor struct {
 func NewChainMonitor(ctx context.Context, collector *Collector, savers []BlockDataSaver,
 	reorgSavers []BlockDataSaver, wg *sync.WaitGroup, addrs map[string]txhelpers.TxAction,
 	blockChan chan *chainhash.Hash, recvTxBlockChan chan *txhelpers.BlockWatchedTx,
-	reorgChan chan *ReorgData) *chainMonitor {
+	reorgChan chan *txhelpers.ReorgData) *chainMonitor {
 	return &chainMonitor{
 		ctx:             ctx,
 		collector:       collector,

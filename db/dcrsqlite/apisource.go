@@ -111,7 +111,7 @@ func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
 }
 
 func (db *wiredDB) NewStakeDBChainMonitor(ctx context.Context, wg *sync.WaitGroup,
-	blockChan chan *chainhash.Hash, reorgChan chan *stakedb.ReorgData) *stakedb.ChainMonitor {
+	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *stakedb.ChainMonitor {
 	return db.sDB.NewChainMonitor(ctx, wg, blockChan, reorgChan)
 }
 

@@ -9,12 +9,8 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 
 	"github.com/decred/dcrdata/v3/api/insight"
-	"github.com/decred/dcrdata/v3/blockdata"
-	"github.com/decred/dcrdata/v3/db/dcrpg"
-	"github.com/decred/dcrdata/v3/db/dcrsqlite"
 	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/mempool"
-	"github.com/decred/dcrdata/v3/stakedb"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
@@ -37,13 +33,13 @@ const (
 // NtfnChans collects the chain server notification channels
 var NtfnChans struct {
 	ConnectChan                       chan *chainhash.Hash
-	ReorgChanBlockData                chan *blockdata.ReorgData
+	ReorgChanBlockData                chan *txhelpers.ReorgData
 	ConnectChanWiredDB                chan *chainhash.Hash
-	ReorgChanWiredDB                  chan *dcrsqlite.ReorgData
+	ReorgChanWiredDB                  chan *txhelpers.ReorgData
 	ConnectChanStakeDB                chan *chainhash.Hash
-	ReorgChanStakeDB                  chan *stakedb.ReorgData
+	ReorgChanStakeDB                  chan *txhelpers.ReorgData
 	ConnectChanDcrpgDB                chan *chainhash.Hash
-	ReorgChanDcrpgDB                  chan *dcrpg.ReorgData
+	ReorgChanDcrpgDB                  chan *txhelpers.ReorgData
 	UpdateStatusNodeHeight            chan uint32
 	UpdateStatusDBHeight              chan uint32
 	SpendTxBlockChan, RecvTxBlockChan chan *txhelpers.BlockWatchedTx
@@ -71,10 +67,10 @@ func MakeNtfnChans(monitorMempool, postgresEnabled bool) {
 	NtfnChans.ConnectChanDcrpgDB = make(chan *chainhash.Hash, blockConnChanBuffer)
 
 	// Reorg data channels
-	NtfnChans.ReorgChanBlockData = make(chan *blockdata.ReorgData)
-	NtfnChans.ReorgChanWiredDB = make(chan *dcrsqlite.ReorgData)
-	NtfnChans.ReorgChanStakeDB = make(chan *stakedb.ReorgData)
-	NtfnChans.ReorgChanDcrpgDB = make(chan *dcrpg.ReorgData)
+	NtfnChans.ReorgChanBlockData = make(chan *txhelpers.ReorgData)
+	NtfnChans.ReorgChanWiredDB = make(chan *txhelpers.ReorgData)
+	NtfnChans.ReorgChanStakeDB = make(chan *txhelpers.ReorgData)
+	NtfnChans.ReorgChanDcrpgDB = make(chan *txhelpers.ReorgData)
 
 	// To update app status
 	NtfnChans.UpdateStatusNodeHeight = make(chan uint32, blockConnChanBuffer)

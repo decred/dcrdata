@@ -16,6 +16,7 @@ import (
 	"math/big"
 	"sort"
 	"strconv"
+	"sync"
 
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
@@ -34,6 +35,20 @@ var (
 
 var CoinbaseFlags = "/dcrd/"
 var CoinbaseScript = append([]byte{0x00, 0x00}, []byte(CoinbaseFlags)...)
+
+// ReorgData contains details of a chain reorganization, including the full old
+// and new chains, and the common ancestor that should not be included in either
+// chain.
+type ReorgData struct {
+	CommonAncestor chainhash.Hash
+	OldChainHead   chainhash.Hash
+	OldChainHeight int32
+	OldChain       []chainhash.Hash
+	NewChainHead   chainhash.Hash
+	NewChainHeight int32
+	NewChain       []chainhash.Hash
+	WG             *sync.WaitGroup
+}
 
 // RawTransactionGetter is an interface satisfied by rpcclient.Client, and
 // required by functions that would otherwise require a rpcclient.Client just

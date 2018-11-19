@@ -11,16 +11,8 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/v3/blockdata"
+	"github.com/decred/dcrdata/v3/txhelpers"
 )
-
-// ReorgData contains the information from a reoranization notification
-type ReorgData struct {
-	OldChainHead   chainhash.Hash
-	OldChainHeight int32
-	NewChainHead   chainhash.Hash
-	NewChainHeight int32
-	WG             *sync.WaitGroup
-}
 
 // ChainMonitor handles change notifications from the node client
 type ChainMonitor struct {
@@ -29,21 +21,21 @@ type ChainMonitor struct {
 	collector      *blockdata.Collector
 	wg             *sync.WaitGroup
 	blockChan      chan *chainhash.Hash
-	reorgChan      chan *ReorgData
+	reorgChan      chan *txhelpers.ReorgData
 	ConnectingLock chan struct{}
 	DoneConnecting chan struct{}
 	syncConnect    sync.Mutex
 
 	// reorg handling
 	reorgLock    sync.Mutex
-	reorgData    *ReorgData
+	reorgData    *txhelpers.ReorgData
 	sideChain    []chainhash.Hash
 	reorganizing bool
 }
 
 // NewChainMonitor creates a new ChainMonitor
 func (db *wiredDB) NewChainMonitor(ctx context.Context, collector *blockdata.Collector, wg *sync.WaitGroup,
-	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
+	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *ChainMonitor {
 	return &ChainMonitor{
 		ctx:            ctx,
 		db:             db,
