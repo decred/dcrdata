@@ -22,15 +22,8 @@ type ChainMonitor struct {
 	wg             *sync.WaitGroup
 	blockChan      chan *chainhash.Hash
 	reorgChan      chan *txhelpers.ReorgData
-	syncConnect    sync.Mutex
 	ConnectingLock chan struct{}
 	DoneConnecting chan struct{}
-
-	// reorg handling
-	sync.Mutex
-	reorgData    *txhelpers.ReorgData
-	sideChain    []chainhash.Hash
-	reorganizing bool
 }
 
 // NewChainMonitor creates a new ChainMonitor.
@@ -93,7 +86,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 	}
 
 	// Connect blocks in side chain onto main chain
-	log.Debugf("Connecting %d blocks", len(p.sideChain))
+	log.Debugf("Connecting %d blocks", len(newChain))
 	currentHeight := commonAncestorHeight + 1
 	var endHash chainhash.Hash
 	var endHeight int32
@@ -164,13 +157,12 @@ out:
 		//keepon:
 		select {
 		case reorgData, ok := <-p.reorgChan:
-			p.Lock()
 			if !ok {
-				p.Unlock()
 				log.Warnf("Reorg channel closed.")
 				break out
 			}
 
+			p.db.InReorg = true // to avoid project fund balance computation
 			newHeight, oldHeight := reorgData.NewChainHeight, reorgData.OldChainHeight
 			newHash, oldHash := reorgData.NewChainHead, reorgData.OldChainHead
 
@@ -193,7 +185,9 @@ out:
 					stakeDBTipHash, newHash)
 			}
 
-			p.Unlock()
+			p.db.InReorg = false
+
+			_ = p.db.FreshenAddressCaches(true) // async update
 
 			reorgData.WG.Done()
 

@@ -16,7 +16,6 @@ import (
 
 // ChainMonitor handles change notifications from the node client
 type ChainMonitor struct {
-	sync.Mutex     // coordinate reorg handling
 	ctx            context.Context
 	db             *wiredDB
 	collector      *blockdata.Collector
@@ -25,7 +24,6 @@ type ChainMonitor struct {
 	reorgChan      chan *txhelpers.ReorgData
 	ConnectingLock chan struct{}
 	DoneConnecting chan struct{}
-	syncConnect    sync.Mutex
 }
 
 // NewChainMonitor creates a new ChainMonitor
@@ -130,8 +128,6 @@ out:
 				log.Errorf("stakeDBTipHash is %d, expected %d",
 					stakeDBTipHash, newHash)
 			}
-
-			p.Unlock()
 
 			reorgData.WG.Done()
 
