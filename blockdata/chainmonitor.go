@@ -105,7 +105,8 @@ func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData
 	// relevant for the best block.
 	var blockData *BlockData
 	if chainHeight != height {
-		log.Infof("Behind on our collection...")
+		log.Debugf("Collecting data for block %v (%d), behind tip %d.",
+			hash, height, chainHeight)
 		blockData, _, err = p.collector.CollectHash(hash)
 		if err != nil {
 			return nil, nil, fmt.Errorf("blockdata.CollectHash(hash) failed: %v", err.Error())
@@ -199,7 +200,8 @@ out:
 			// Do not handle reorg and block connects simultaneously.
 			p.reorgLock.Lock()
 
-			log.Infof("Reorganize signaled to blockdata. Collecting data for NEW head block %v at height %d.",
+			log.Infof("Reorganize signaled to blockdata. "+
+				"Collecting data for NEW head block %v at height %d.",
 				newHash, newHeight)
 
 			// Collect data for the new best block.
