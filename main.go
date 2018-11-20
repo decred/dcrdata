@@ -112,7 +112,6 @@ func _main(ctx context.Context) error {
 	if err != nil || dcrdClient == nil {
 		return fmt.Errorf("Connection to dcrd failed: %v", err)
 	}
-	go notify.ReorgSignaler(dcrdClient)
 
 	defer func() {
 		// The individial hander's loops should close the notifications channels
@@ -812,7 +811,9 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
 	}
 
-	// Register for notifications from dcrd.
+	// Register for notifications from dcrd. This also sets the daemon RPC
+	// client used by other functions in the notify/notification package (i.e.
+	// common ancestor identification in signalReorg).
 	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
 	if cerr != nil {
 		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())

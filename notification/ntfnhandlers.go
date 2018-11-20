@@ -22,11 +22,17 @@ import (
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 
+var nodeClient *rpcclient.Client
+
 // RegisterNodeNtfnHandlers registers with dcrd to receive new block,
 // transaction and winning ticket notifications.
 func RegisterNodeNtfnHandlers(dcrdClient *rpcclient.Client) *ContextualError {
-	var err error
+	// Set the node client for use by signalReorg to determine the common
+	// ancestor of two chains.
+	nodeClient = dcrdClient
+
 	// Register for block connection and chain reorg notifications.
+	var err error
 	if err = dcrdClient.NotifyBlocks(); err != nil {
 		return newContextualError("block notification "+
 			"registration failed", err)
@@ -71,13 +77,17 @@ type collectionQueue struct {
 	prevHeight   int64
 }
 
-// NewCollectionQueue creates a new collectionQueue with a queue channel large
-// enough for 10 million block pointers.
+// NewCollectionQueue creates a new collectionQueue with an unbuffered channel
+// to facilitate synchronous processing. Run (*collectionQueue).ProcessBlocks as
+// a goroutine to begin processing blocks sent to the channel, or call
+// processBlock for each new block.
 func NewCollectionQueue() *collectionQueue {
 	return &collectionQueue{
-		q: make(chan *blockHashHeight, 1e7),
+		q: make(chan *blockHashHeight),
 	}
 }
+
+var blockQueue = NewCollectionQueue()
 
 // SetSynchronousHandlers sets the slice of synchronous new block handler
 // functions, which are called in the order they occur in the slice.
@@ -85,65 +95,78 @@ func (q *collectionQueue) SetSynchronousHandlers(syncHandlers []func(hash *chain
 	q.syncHandlers = syncHandlers
 }
 
+// SetPreviousBlock modifies the height and hash of the best block. This data is
+// required to avoid connecting new blocks that are not next in the chain. It is
+// only necessary to call SetPreviousBlock if blocks are connected or
+// disconnected by a mechanism other than (*collectionQueue).processBlock, which
+// keeps this data up-to-date. For example, signalReorg will use
+// SetPreviousBlock after the reorg is complete.
 func (q *collectionQueue) SetPreviousBlock(prevHash chainhash.Hash, prevHeight int64) {
 	q.prevHash = prevHash
 	q.prevHeight = prevHeight
 }
 
-// ProcessBlocks receives new *blockHashHeights, calls the synchronous handlers,
-// then signals to the monitors that a new block was mined.
+// ProcessBlocks receives *blockHashHeights on the channel collectionQueue.q,
+// and calls processBlock synchronously for the received data. This should be
+// run as a goroutine, or use processBlock directly.
 func (q *collectionQueue) ProcessBlocks() {
 	// Process queued blocks one at a time.
 	for bh := range q.q {
-		hash := bh.hash
-		height := bh.height
-
-		// Ensure that the received block (bh.hash, bh.height) connects to the
-		// previously connected block (q.prevHash, q.prevHeight).
-		if bh.prevHash != q.prevHash {
-			log.Infof("Received block at %d (%v) does not connect to %d (%v)."+
-				"This is normal before reorganization.",
-				height, hash, q.prevHeight, q.prevHash)
-			continue
-		}
-
-		start := time.Now()
-
-		// Run synchronous block connected handlers in order.
-		for _, h := range q.syncHandlers {
-			h(&hash)
-		}
-
-		q.prevHash = hash
-		q.prevHeight = height
-
-		log.Debugf("Synchronous handlers of collectionQueue.ProcessBlocks() completed in %v", time.Since(start))
-
-		// Signal to mempool monitors that a block was mined.
-		select {
-		case NtfnChans.NewTxChan <- &mempool.NewTx{
-			Hash: nil,
-			T:    time.Now(),
-		}:
-		default:
-		}
-
-		select {
-		case NtfnChans.ExpNewTxChan <- &explorer.NewMempoolTx{
-			Hex: "",
-		}:
-		default:
-		}
-
-		// API status update handler
-		select {
-		case NtfnChans.UpdateStatusNodeHeight <- uint32(height):
-		default:
-		}
+		q.processBlock(bh)
 	}
 }
 
-// ReorgData contains
+// processBlock calls each synchronous new block handler with the given
+// blockHashHeight, and then signals to the monitors that a new block was mined.
+func (q *collectionQueue) processBlock(bh *blockHashHeight) {
+	hash := bh.hash
+	height := bh.height
+
+	// Ensure that the received block (bh.hash, bh.height) connects to the
+	// previously connected block (q.prevHash, q.prevHeight).
+	if bh.prevHash != q.prevHash {
+		log.Infof("Received block at %d (%v) does not connect to %d (%v). "+
+			"This is normal before reorganization.",
+			height, hash, q.prevHeight, q.prevHash)
+		return
+	}
+
+	start := time.Now()
+
+	// Run synchronous block connected handlers in order.
+	for _, h := range q.syncHandlers {
+		h(&hash)
+	}
+
+	// Record this block as the best block connected by the collectionQueue.
+	q.SetPreviousBlock(hash, height)
+
+	log.Debugf("Synchronous handlers of collectionQueue.processBlock() completed in %v", time.Since(start))
+
+	// Signal to mempool monitors that a block was mined.
+	select {
+	case NtfnChans.NewTxChan <- &mempool.NewTx{
+		Hash: nil,
+		T:    time.Now(),
+	}:
+	default:
+	}
+
+	select {
+	case NtfnChans.ExpNewTxChan <- &explorer.NewMempoolTx{
+		Hex: "",
+	}:
+	default:
+	}
+
+	// API status update handler
+	select {
+	case NtfnChans.UpdateStatusNodeHeight <- uint32(height):
+	default:
+	}
+}
+
+// ReorgData describes the old and new chain tips involved in a reorganization.
 type ReorgData struct {
 	OldChainHead   chainhash.Hash
 	OldChainHeight int32
@@ -152,83 +175,108 @@ type ReorgData struct {
 	WG             *sync.WaitGroup
 }
 
-// reorgDataChan relays details of a chain reorganization to reorgSignaler via
-// queueReorg.
-var reorgDataChan = make(chan ReorgData, 16)
+// signalReorg takes the basic reorganization data from dcrd, determines the two
+// chains and their common ancestor, and signals the reorg to each packages'
+// reorganization handler. Lastly, the collectionQueue's best block data is
+// updated so that it will successfully accept new blocks building on the new
+// chain tip.
+func signalReorg(d ReorgData) {
+	if nodeClient == nil {
+		log.Errorf("The daemon RPC client for signalReorg is not configured!")
+		return
+	}
 
-// queueReorg puts the provided ReorgData into the queue for signaling to each
-// package's reorg handler.
-func queueReorg(reorgData ReorgData) {
-	// Do not block, even if the channel buffer is full.
-	go func() { reorgDataChan <- reorgData }()
+	// Determine the common ancestor of the two chains, and get the full
+	// list of blocks in each chain back to but not including the common
+	// ancestor.
+	ancestor, newChain, oldChain, err := rpcutils.CommonAncestor(nodeClient,
+		d.NewChainHead, d.OldChainHead)
+	if err != nil {
+		log.Errorf("Failed to determine common ancestor. Aborting reorg.")
+		return
+	}
+
+	fullData := &txhelpers.ReorgData{
+		CommonAncestor: *ancestor,
+		NewChain:       newChain,
+		NewChainHead:   d.NewChainHead,
+		NewChainHeight: d.NewChainHeight,
+		OldChain:       oldChain,
+		OldChainHead:   d.OldChainHead,
+		OldChainHeight: d.OldChainHeight,
+		WG:             d.WG,
+	}
+
+	// Send reorg data to stakedb's monitor.
+	d.WG.Add(1)
+	select {
+	case NtfnChans.ReorgChanStakeDB <- fullData:
+	default:
+		d.WG.Done()
+	}
+	d.WG.Wait()
+
+	// Send reorg data to dcrsqlite's monitor.
+	d.WG.Add(1)
+	select {
+	case NtfnChans.ReorgChanWiredDB <- fullData:
+	default:
+		d.WG.Done()
+	}
+
+	// Send reorg data to blockdata's monitor.
+	d.WG.Add(1)
+	select {
+	case NtfnChans.ReorgChanBlockData <- fullData:
+	default:
+		d.WG.Done()
+	}
+
+	// Send reorg data to ChainDB's monitor.
+	d.WG.Add(1)
+	select {
+	case NtfnChans.ReorgChanDcrpgDB <- fullData:
+	default:
+		d.WG.Done()
+	}
+	d.WG.Wait()
+
+	// Update prevHash and prevHeight in collectionQueue.
+	blockQueue.SetPreviousBlock(d.NewChainHead, int64(d.NewChainHeight))
 }
 
-// ReorgSignaler processes ReorgData sent on reorgDataChan (use queueReorg to
-// send), allowing each package's reorg handler to finish before proceeding to
-// the next reorg in the queue. This should be launched as a goroutine.
-func ReorgSignaler(dcrdClient *rpcclient.Client) {
-	for d := range reorgDataChan {
-		// Determine the common ancestor of the two chains, and get the full
-		// list of blocks in each chain back to but not including the common
-		// ancestor.
-		ancestor, newChain, oldChain, err := rpcutils.CommonAncestor(dcrdClient,
-			d.NewChainHead, d.OldChainHead)
-		if err != nil {
-			log.Errorf("Failed to determine common ancestor. Aborting reorg.")
-			continue
-		}
+// anyQueue is a buffered channel used queueing the handling of different types
+// of event notifications, while keeping the order in which they were received
+// from the daemon. See superQueue.
+var anyQueue = make(chan interface{}, 1e7)
 
-		fullData := &txhelpers.ReorgData{
-			CommonAncestor: *ancestor,
-			NewChain:       newChain,
-			NewChainHead:   d.NewChainHead,
-			NewChainHeight: d.NewChainHeight,
-			OldChain:       oldChain,
-			OldChainHead:   d.OldChainHead,
-			OldChainHeight: d.OldChainHeight,
-			WG:             d.WG,
-		}
-
-		// Send reorg data to dcrsqlite's monitor
-		d.WG.Add(1)
-		select {
-		case NtfnChans.ReorgChanWiredDB <- fullData:
+// superQueue manages the event notification queue, keeping the events in the
+// same order they were received by the rpcclient.NotificationHandlers, and
+// sending them to the appropriate handlers. This should be run as a goroutine.
+func superQueue() {
+	for e := range anyQueue {
+		// Do not allow new blocks to process while running reorg. Only allow
+		// them to be processed after this reorg completes.
+		switch et := e.(type) {
+		case *blockHashHeight:
+			// Process the new block.
+			log.Infof("superQueue: Processing new block %v (height %d).", et.hash, et.height)
+			blockQueue.processBlock(et)
+		case ReorgData:
+			// Process the reorg.
+			log.Infof("superQueue: Processing reorganization from %s (height %d) to %s (height %d).",
+				et.OldChainHead.String(), et.OldChainHeight,
+				et.NewChainHead.String(), et.NewChainHeight)
+			signalReorg(et)
 		default:
-			d.WG.Done()
+			log.Errorf("Unknown event data type: %T", et)
 		}
-
-		// Send reorg data to blockdata's monitor (so that it stops collecting)
-		d.WG.Add(1)
-		select {
-		case NtfnChans.ReorgChanBlockData <- fullData:
-		default:
-			d.WG.Done()
-		}
-
-		// Send reorg data to stakedb's monitor
-		d.WG.Add(1)
-		select {
-		case NtfnChans.ReorgChanStakeDB <- fullData:
-		default:
-			d.WG.Done()
-		}
-		d.WG.Wait()
-
-		// Send reorg data to ChainDB's monitor
-		d.WG.Add(1)
-		select {
-		case NtfnChans.ReorgChanDcrpgDB <- fullData:
-		default:
-			d.WG.Done()
-		}
-		d.WG.Wait()
 	}
 }
 
 // MakeNodeNtfnHandlers defines the dcrd notification handlers.
 func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) {
-	blockQueue := NewCollectionQueue()
-	go blockQueue.ProcessBlocks()
+	go superQueue()
 	// ReorgSignaler must be started after creating the RPC client.
 	return &rpcclient.NotificationHandlers{
 		OnBlockConnected: func(blockHeaderSerialized []byte, transactions [][]byte) {
@@ -246,7 +294,7 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 			log.Tracef("OnBlockConnected: %d / %v (previous: %v)", height, hash, prevHash)
 
 			// Queue this block.
-			blockQueue.q <- &blockHashHeight{
+			anyQueue <- &blockHashHeight{
 				hash:     hash,
 				height:   int64(height),
 				prevHash: prevHash,
@@ -272,13 +320,13 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 
 			// Queue sending the details of this reorganization to each
 			// package's reorg handler. This is not blocking.
-			queueReorg(ReorgData{
+			anyQueue <- ReorgData{
 				OldChainHead:   *oldHash,
 				OldChainHeight: oldHeight,
 				NewChainHead:   *newHash,
 				NewChainHeight: newHeight,
 				WG:             new(sync.WaitGroup),
-			})
+			}
 		},
 
 		OnWinningTickets: func(blockHash *chainhash.Hash, blockHeight int64,
