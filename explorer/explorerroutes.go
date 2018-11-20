@@ -889,6 +889,40 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 	} // tx == nil (not found by dcrd)
 
+	// Check for any transaction outputs that appear unspent.
+	unspents := UnspentOutputIndices(tx.Vout)
+	if len(unspents) > 0 {
+		// Grab the mempool transation inputs that match this transaction.
+		mempoolVins := exp.blockData.GetTxMempoolInputs(hash)
+		if mempoolVins != nil && len(mempoolVins) > 0 {
+			// A quick matching function.
+			matchingVin := func(vout *Vout) (string, uint32) {
+				for vindex := range mempoolVins {
+					vin := mempoolVins[vindex]
+					for inIdx := range vin.Inputs {
+						input := vin.Inputs[inIdx]
+						if input.Outdex == vout.Index {
+							return vin.TxId, input.Index
+						}
+					}
+				}
+				return "", 0
+			}
+			for _, outdex := range unspents {
+				vout := &tx.Vout[outdex]
+				txid, vindex := matchingVin(vout)
+				if txid == "" {
+					continue
+				}
+				vout.Spent = true
+				tx.SpendingTxns[vout.Index] = TxInID{
+					Hash:  txid,
+					Index: vindex,
+				}
+			}
+		}
+	}
+
 	// Set ticket-related parameters for both full and lite mode.
 	if tx.IsTicket() {
 		blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
