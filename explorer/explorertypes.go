@@ -642,6 +642,7 @@ type CommonPageData struct {
 	Version       string
 	ChainParams   *chaincfg.Params
 	BlockTimeUnix int64
+	DevAddress    string
 }
 
 // isSyncExplorerUpdate helps determine when the explorer should be updated

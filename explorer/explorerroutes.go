@@ -1856,6 +1856,7 @@ func (exp *explorerUI) commonData() *CommonPageData {
 	cd.Version = exp.Version
 	cd.ChainParams = exp.ChainParams
 	cd.BlockTimeUnix = int64(exp.ChainParams.TargetTimePerBlock.Seconds())
+	cd.DevAddress = exp.pageData.HomeInfo.DevAddress
 	var err error
 	cd.Tip, err = exp.blockData.GetTip()
 	if err != nil {
