@@ -116,7 +116,7 @@ body.theme-testnet #menuToggle .patty {
   background: #fff;
 }
 body.theme-testnet .dcrdata-logo {
-  background-image: url(/images/logo_white.svg);
+  background-image: url(/images/themes/night/logo.svg);
 }
 
 
@@ -135,9 +135,6 @@ body.theme-simnet .navbar-fixed-bottom .nav-item {
 }
 body.theme-simnet #menuToggle .patty {
   background: #fff;
-}
-body.theme-simnet .dcrdata-logo {
-  background-image: url(/images/logo_white.svg);
 }
 
 /*dark theme*/
@@ -244,7 +241,7 @@ body.darkBG .progress {
   color: black;
 }
 .darkBG .dcrdata-logo {
-  background-image: url(/images/logo_white.svg);
+  background-image: url(/images/themes/night/logo.svg);
 }
 
 .flash {
@@ -376,16 +373,16 @@ body.darkBG .progress {
   padding: 2px 1px;
 }
 .dcrdata-logo {
-  width: 126px;
+  width: 110px;
   height: 24px;
-  background-image: url(/images/logo_gradient_black.svg);
+  background-image: url(/images/themes/light/logo.svg);
   background-repeat: no-repeat;
   display: block;
   background-size: cover;
 }
 .top-search {
-  height: 30px;
-  margin: 2px 0 2px 2px !important;
+  height: 26px;
+  margin: 4px 0 4px 2px !important;
   border-top: 0px;
   border-left: 0px;
   border-right: 0px;
