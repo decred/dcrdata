@@ -156,6 +156,8 @@ type TxInfo struct {
 	Type             string
 	Vin              []Vin
 	Vout             []Vout
+	VinLenght        int
+	VoutLenght       int
 	BlockHeight      int64
 	BlockIndex       uint32
 	BlockHash        string
