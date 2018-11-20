@@ -533,6 +533,19 @@ type NewMempoolTx struct {
 	Hex  string
 }
 
+// MempoolVin is minimal information about the inputs of a mempool transaction.
+type MempoolVin struct {
+	TxId   string
+	Inputs []*MempoolInput
+}
+
+// MempoolInput is basic information about a transaction input.
+type MempoolInput struct {
+	TxId   string
+	Index  uint32
+	Outdex uint32
+}
+
 // ExtendedChainParams represents the data of ChainParams
 type ExtendedChainParams struct {
 	Params               *chaincfg.Params
@@ -702,4 +715,18 @@ func SyncStatus() []SyncStatusInfo {
 	defer blockchainSyncStatus.RUnlock()
 
 	return blockchainSyncStatus.ProgressBars
+}
+
+// UnspentOutputIndices finds the indices of the transaction outputs that
+// appear unspent. The indices returned are the index within the passed slice,
+// not within the transaction.
+func UnspentOutputIndices(vouts []Vout) (unspents []int) {
+	for idx := range vouts {
+		vout := vouts[idx]
+		if vout.Amount == 0.0 || vout.Spent {
+			continue
+		}
+		unspents = append(unspents, idx)
+	}
+	return
 }

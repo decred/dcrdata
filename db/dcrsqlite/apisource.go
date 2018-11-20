@@ -1520,6 +1520,51 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 	return addressOutpoints, numUnconfirmed, err
 }
 
+// GetTxMempoolInputs grabs very simple information about mempool transaction inputs that spend
+// a particular previous transaction's outputs. The returned slice has just enough information to
+// match an unspent transaction output.
+func (db *wiredDB) GetTxMempoolInputs(txid string) []*explorer.MempoolVin {
+	mempooltxs, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
+	if err != nil {
+		log.Errorf("GetRawMempoolVerbose failed: %v", err)
+		return nil
+	}
+
+	vin := make([]*explorer.MempoolVin, 0, len(mempooltxs))
+
+	for hash, _ := range mempooltxs {
+		rawtx, hex := db.getRawTransaction(hash)
+		if rawtx == nil {
+			continue
+		}
+		msgTx, err := txhelpers.MsgTxFromHex(hex)
+		if err != nil {
+			continue
+		}
+		var inputs []*explorer.MempoolInput
+		for vindex, _ := range msgTx.TxIn {
+			outpoint := msgTx.TxIn[vindex].PreviousOutPoint
+			outId := outpoint.Hash.String()
+			if outId != txid {
+				continue
+			}
+			inputs = append(inputs, &explorer.MempoolInput{
+				TxId:   outId,
+				Index:  uint32(vindex),
+				Outdex: outpoint.Index,
+			})
+		}
+		if len(inputs) == 0 {
+			continue
+		}
+		vin = append(vin, &explorer.MempoolVin{
+			TxId:   hash,
+			Inputs: inputs,
+		})
+	}
+	return vin
+}
+
 // GetMepool gets all transactions from the mempool for explorer and adds the
 // total out for all the txs and vote info for the votes. The returned slice
 // will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
