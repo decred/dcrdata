@@ -784,7 +784,6 @@ func _main(ctx context.Context) error {
 		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
 
 	var auxDBChainMonitor *dcrpg.ChainMonitor
-	auxDBBlockConnectedSync := func(*chainhash.Hash) {}
 	if usePG {
 		// Blockchain monitor for the aux (PG) DB
 		auxDBChainMonitor = auxDB.NewChainMonitor(ctx, &wg,
@@ -792,7 +791,6 @@ func _main(ctx context.Context) error {
 		if auxDBChainMonitor == nil {
 			return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
 		}
-		auxDBBlockConnectedSync = auxDBChainMonitor.BlockConnectedSync
 	}
 
 	// Setup the synchronous handler functions called by the collectionQueue via
@@ -800,7 +798,6 @@ func _main(ctx context.Context) error {
 	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
 		sdbChainMonitor.BlockConnectedSync, // 1. Stake DB for pool info
 		wsChainMonitor.BlockConnectedSync,  // 2. blockdata for regular block data collection and storage
-		auxDBBlockConnectedSync,            // 3. dcrpg for postgres DB reorg handling
 	})
 
 	// Initial data summary for web ui. stakedb must be at the same height, so
@@ -856,8 +853,7 @@ func _main(ctx context.Context) error {
 
 	if usePG {
 		// dcrpg also does not handle new blocks except during reorg.
-		wg.Add(2)
-		go auxDBChainMonitor.BlockConnectedHandler()
+		wg.Add(1)
 		go auxDBChainMonitor.ReorgHandler()
 	}
 
