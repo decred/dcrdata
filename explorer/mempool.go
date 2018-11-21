@@ -101,6 +101,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *NewMempoolTx) {
 			VoteInfo:  voteInfo,
 			VinCount:  len(msgTx.TxIn),
 			VoutCount: len(msgTx.TxOut),
+			Vin:       MsgTxMempoolInputs(msgTx),
 			Coinbase:  blockchain.IsCoinBaseTx(msgTx),
 		}
 
@@ -385,4 +386,42 @@ func (votes byHeight) Len() int {
 
 func (votes byHeight) Swap(i, j int) {
 	votes[i], votes[j] = votes[j], votes[i]
+}
+
+// matchMempoolVins filters relevant mempool transaction inputs
+// whose previous outpoints match the specified transaction id.
+func matchMempoolVins(txid string, txsList []MempoolTx) (vins []MempoolVin) {
+	for idx := range txsList {
+		tx := txsList[idx]
+		var inputs []MempoolInput
+		for vindex := range tx.Vin {
+			input := tx.Vin[vindex]
+			if input.TxId != txid {
+				continue
+			}
+			inputs = append(inputs, input)
+		}
+		if len(inputs) == 0 {
+			continue
+		}
+		vins = append(vins, MempoolVin{
+			TxId:   tx.TxID,
+			Inputs: inputs,
+		})
+	}
+	return
+}
+
+// GetTxMempoolInputs grabs very simple information about mempool transaction inputs that spend
+// a particular previous transaction's outputs. The returned slice has just enough information to
+// match an unspent transaction output.
+func (exp *explorerUI) GetTxMempoolInputs(txid string, txType string) []MempoolVin {
+	var vins []MempoolVin
+	exp.MempoolData.Lock()
+	defer exp.MempoolData.Unlock()
+	vins = append(vins, matchMempoolVins(txid, exp.MempoolData.Transactions)...)
+	vins = append(vins, matchMempoolVins(txid, exp.MempoolData.Tickets)...)
+	vins = append(vins, matchMempoolVins(txid, exp.MempoolData.Revocations)...)
+	vins = append(vins, matchMempoolVins(txid, exp.MempoolData.Votes)...)
+	return vins
 }

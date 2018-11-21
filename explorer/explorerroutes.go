@@ -893,7 +893,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	unspents := UnspentOutputIndices(tx.Vout)
 	if len(unspents) > 0 {
 		// Grab the mempool transation inputs that match this transaction.
-		mempoolVins := exp.blockData.GetTxMempoolInputs(hash)
+		mempoolVins := exp.GetTxMempoolInputs(hash, tx.Type)
 		if mempoolVins != nil && len(mempoolVins) > 0 {
 			// A quick matching function.
 			matchingVin := func(vout *Vout) (string, uint32) {

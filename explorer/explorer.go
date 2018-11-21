@@ -61,7 +61,6 @@ type explorerDataSourceLite interface {
 	GetExplorerFullBlocks(start int, end int) []*BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
-	GetTxMempoolInputs(txid string) []*MempoolVin
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
