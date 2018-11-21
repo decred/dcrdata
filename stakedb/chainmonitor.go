@@ -11,38 +11,25 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrdata/v3/txhelpers"
 )
-
-// ReorgData contains the information from a reoranization notification
-type ReorgData struct {
-	OldChainHead   chainhash.Hash
-	OldChainHeight int32
-	NewChainHead   chainhash.Hash
-	NewChainHeight int32
-	WG             *sync.WaitGroup
-}
 
 // ChainMonitor connects blocks to the stake DB as they come in.
 type ChainMonitor struct {
+	sync.Mutex     // coordinate reorg handling
 	ctx            context.Context
 	db             *StakeDatabase
 	wg             *sync.WaitGroup
 	blockChan      chan *chainhash.Hash
-	reorgChan      chan *ReorgData
+	reorgChan      chan *txhelpers.ReorgData
 	syncConnect    sync.Mutex
 	ConnectingLock chan struct{}
 	DoneConnecting chan struct{}
-
-	// reorg handling
-	sync.Mutex
-	reorgData    *ReorgData
-	sideChain    []chainhash.Hash
-	reorganizing bool
 }
 
 // NewChainMonitor creates a new ChainMonitor
 func (db *StakeDatabase) NewChainMonitor(ctx context.Context, wg *sync.WaitGroup,
-	blockChan chan *chainhash.Hash, reorgChan chan *ReorgData) *ChainMonitor {
+	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *ChainMonitor {
 	return &ChainMonitor{
 		ctx:            ctx,
 		db:             db,
@@ -91,48 +78,15 @@ out:
 				break out
 			}
 
-			// If reorganizing, the block will first go to a side chain
-			reorg, reorgData := p.reorganizing, p.reorgData
-
-			if reorg {
-				p.sideChain = append(p.sideChain, *hash)
-				log.Infof("Adding block %v to sidechain", *hash)
-
-				// Just append to side chain until the new main chain tip block is reached
-				if reorgData.NewChainHead != *hash {
-					release()
-					break keepon
-				}
-
-				// Once all blocks in side chain are lined up, switch over
-				log.Info("Switching to side chain...")
-				newHeight, newHash, err := p.switchToSideChain()
-				if err != nil {
-					panic(err)
-				}
-
-				if p.reorgData.NewChainHead != *newHash ||
-					p.reorgData.NewChainHeight != newHeight {
-					panic(fmt.Sprintf("Failed to reorg to %v. Got to %v (height %d) instead.",
-						p.reorgData.NewChainHead, newHash, newHeight))
-				}
-
-				// Reorg is complete
-				p.sideChain = nil
-				p.reorganizing = false
-				log.Infof("Reorganization to block %v (height %d) complete",
-					p.reorgData.NewChainHead, p.reorgData.NewChainHeight)
-			} else {
-				// Extend main chain
-				block, err := p.db.ConnectBlockHash(hash)
-				if err != nil {
-					release()
-					log.Error(err)
-					break keepon
-				}
-
-				log.Infof("Connected block %d to stake DB.", block.Height())
+			// Extend main chain
+			block, err := p.db.ConnectBlockHash(hash)
+			if err != nil {
+				release()
+				log.Error(err)
+				break keepon
 			}
+
+			log.Infof("Connected block %d to stake DB.", block.Height())
 
 			release()
 
@@ -147,34 +101,26 @@ out:
 // switchToSideChain attempts to switch to a new side chain by: determining a
 // common ancestor block, disconnecting blocks from the main chain back to this
 // block, and connecting the side chain blocks onto the mainchain.
-func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
-	if len(p.sideChain) == 0 {
+func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32, *chainhash.Hash, error) {
+	if reorgData == nil || len(reorgData.NewChain) == 0 {
 		return 0, nil, fmt.Errorf("no side chain")
 	}
 
-	// Determine highest common ancestor of side chain and main chain
-	msgBlock, err := p.db.NodeClient.GetBlock(&p.sideChain[0])
-	if err != nil {
-		return 0, nil, fmt.Errorf("unable to get block at root of side chain")
-	}
-	block := dcrutil.NewBlock(msgBlock)
-
-	prevMsgBlock, err := p.db.NodeClient.GetBlock(&msgBlock.Header.PrevBlock)
-	if err != nil {
-		return 0, nil, fmt.Errorf("unable to get common ancestor on side chain")
-	}
-	prevBlock := dcrutil.NewBlock(prevMsgBlock)
-
-	commonAncestorHeight := block.Height() - 1
-	if prevBlock.Height() != commonAncestorHeight {
-		panic("Failed to determine common ancestor.")
-	}
+	newChain := reorgData.NewChain
+	// newChain does not include the common ancestor.
+	commonAncestorHeight := int64(reorgData.NewChainHeight) - int64(len(newChain))
 
 	mainTip := int64(p.db.Height())
+	if mainTip != int64(reorgData.OldChainHeight) {
+		log.Warnf("StakeDatabase height is %d, expected %d. Rewinding as "+
+			"needed to complete reorg from ancestor at %d", mainTip,
+			reorgData.OldChainHeight, commonAncestorHeight)
+	}
 
-	// Disconnect blocks back to common ancestor
+	// Disconnect blocks back to common ancestor.
 	log.Debugf("Disconnecting %d blocks", mainTip-commonAncestorHeight)
-	if err = p.db.DisconnectBlocks(mainTip - commonAncestorHeight); err != nil {
+	err := p.db.DisconnectBlocks(mainTip - commonAncestorHeight)
+	if err != nil {
 		return 0, nil, err
 	}
 
@@ -184,26 +130,32 @@ func (p *ChainMonitor) switchToSideChain() (int32, *chainhash.Hash, error) {
 			mainTip, commonAncestorHeight))
 	}
 
-	// Connect blocks in side chain onto main chain
-	log.Debugf("Connecting %d blocks", len(p.sideChain))
-	for i := range p.sideChain {
-		if block, err = p.db.ConnectBlockHash(&p.sideChain[i]); err != nil {
+	// Connect blocks in side/new chain onto main chain.
+	log.Debugf("Connecting %d blocks", len(newChain))
+	var tipHeight int64
+	var tipHash *chainhash.Hash
+	for i := range newChain {
+		hash := &newChain[i]
+		var block *dcrutil.Block
+		if block, err = p.db.ConnectBlockHash(hash); err != nil {
 			mainTip = int64(p.db.Height())
 			currentBlockHdr, _ := p.db.DBTipBlockHeader()
 			currentBlockHash := currentBlockHdr.BlockHash()
 			return int32(mainTip), &currentBlockHash,
-				fmt.Errorf("error connecting block %v", p.sideChain[i])
+				fmt.Errorf("error connecting block %v", hash)
 		}
+		tipHeight = block.Height()
+		tipHash = block.Hash()
 		log.Infof("Connected block %v (height %d) from side chain.",
-			block.Hash(), block.Height())
+			tipHash, tipHeight)
 	}
 
 	mainTip = int64(p.db.Height())
-	if mainTip != block.Height() {
+	if mainTip != tipHeight {
 		panic("connected block height not db tip height")
 	}
 
-	return int32(mainTip), block.Hash(), nil
+	return int32(mainTip), tipHash, nil
 }
 
 // ReorgHandler receives notification of a chain reorganization and initiates a
@@ -212,7 +164,7 @@ func (p *ChainMonitor) ReorgHandler() {
 	defer p.wg.Done()
 out:
 	for {
-	keepon:
+		//keepon:
 		select {
 		case reorgData, ok := <-p.reorgChan:
 			p.Lock()
@@ -225,27 +177,31 @@ out:
 			newHeight, oldHeight := reorgData.NewChainHeight, reorgData.OldChainHeight
 			newHash, oldHash := reorgData.NewChainHead, reorgData.OldChainHead
 
-			if p.reorganizing {
-				log.Errorf("Reorg notified for chain tip %v (height %v), but already "+
-					"processing a reorg to block %v", newHash, newHeight,
-					p.reorgData.NewChainHead)
-				p.Unlock()
-				break keepon
-			}
-
-			p.reorganizing = true
-			p.reorgData = reorgData
-			p.Unlock()
-
 			log.Infof("Reorganize started. NEW head block %v at height %d.",
 				newHash, newHeight)
 			log.Infof("Reorganize started. OLD head block %v at height %d.",
 				oldHash, oldHeight)
 
+			// Switch to the side chain.
+			stakeDBTipHeight, stakeDBTipHash, err := p.switchToSideChain(reorgData)
+			if err != nil {
+				log.Errorf("switchToSideChain failed: %v", err)
+			}
+			if stakeDBTipHeight != newHeight {
+				log.Errorf("stakeDBTipHeight is %d, expected %d",
+					stakeDBTipHeight, newHeight)
+			}
+			if *stakeDBTipHash != newHash {
+				log.Errorf("stakeDBTipHash is %d, expected %d",
+					stakeDBTipHash, newHash)
+			}
+
+			p.Unlock()
+
 			reorgData.WG.Done()
 
 		case <-p.ctx.Done():
-			log.Debugf("Got quit signal. Exiting reorg notification handler.")
+			log.Debugf("Got quit signal. Exiting stakedb reorg notification handler.")
 			break out
 		}
 	}
