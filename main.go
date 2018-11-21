@@ -783,7 +783,6 @@ func _main(ctx context.Context) error {
 		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
 
 	var auxDBChainMonitor *dcrpg.ChainMonitor
-	auxDBBlockConnectedSync := func(*chainhash.Hash) {}
 	if usePG {
 		// Blockchain monitor for the aux (PG) DB
 		auxDBChainMonitor = auxDB.NewChainMonitor(ctx, &wg,
@@ -791,16 +790,13 @@ func _main(ctx context.Context) error {
 		if auxDBChainMonitor == nil {
 			return fmt.Errorf("Failed to enable dcrpg ChainMonitor. *ChainDB is nil.")
 		}
-		auxDBBlockConnectedSync = auxDBChainMonitor.BlockConnectedSync
 	}
 
 	// Setup the synchronous handler functions called by the collectionQueue via
 	// OnBlockConnected.
 	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
-		sdbChainMonitor.BlockConnectedSync,     // 1. Stake DB for pool info
-		wsChainMonitor.BlockConnectedSync,      // 2. blockdata for regular block data collection and storage
-		wiredDBChainMonitor.BlockConnectedSync, // 3. dcrsqlite for sqlite DB reorg handling
-		auxDBBlockConnectedSync,                // 4. dcrpg for postgres DB reorg handling
+		sdbChainMonitor.BlockConnectedSync, // 1. Stake DB for pool info
+		wsChainMonitor.BlockConnectedSync,  // 2. blockdata for regular block data collection and storage
 	})
 
 	// Initial data summary for web ui. stakedb must be at the same height, so
@@ -815,7 +811,9 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
 	}
 
-	// Register for notifications from dcrd.
+	// Register for notifications from dcrd. This also sets the daemon RPC
+	// client used by other functions in the notify/notification package (i.e.
+	// common ancestor identification in signalReorg).
 	cerr := notify.RegisterNodeNtfnHandlers(dcrdClient)
 	if cerr != nil {
 		return fmt.Errorf("RPC client error: %v (%v)", cerr.Error(), cerr.Cause())
@@ -826,6 +824,14 @@ func _main(ctx context.Context) error {
 	if err = ensureSync(); err != nil {
 		return err
 	}
+
+	// Set the current best block in the collection queue so that it can verify
+	// that subsequent blocks are in the correct sequence.
+	bestHash, bestHeight, err := baseDB.GetBestBlockHeightHash()
+	if err != nil {
+		return fmt.Errorf("Failed to determine base DB's best block: %v", err)
+	}
+	collectionQueue.SetPreviousBlock(bestHash, bestHeight)
 
 	// Start the monitors' event handlers.
 
@@ -843,14 +849,12 @@ func _main(ctx context.Context) error {
 	go sdbChainMonitor.ReorgHandler()
 
 	// dcrsqlite does not handle new blocks except during reorg.
-	wg.Add(2)
-	go wiredDBChainMonitor.BlockConnectedHandler()
+	wg.Add(1)
 	go wiredDBChainMonitor.ReorgHandler()
 
 	if usePG {
 		// dcrpg also does not handle new blocks except during reorg.
-		wg.Add(2)
-		go auxDBChainMonitor.BlockConnectedHandler()
+		wg.Add(1)
 		go auxDBChainMonitor.ReorgHandler()
 	}
 
