@@ -772,15 +772,15 @@ Before you write any CSS, see if you can achieve your goal by using existing cla
 Note there is a dark mode, so make sure things look good with the dark background as well.
 
 ### HTML
-The core functionality of dcrdata is server-side rendered in Go and designed to work well with javascript disabled.
+The core functionality of dcrdata is server-side rendered in Go and designed to work well with javascript disabled. For users with javascript enabled, [Turbolinks](https://github.com/turbolinks/turbolinks) creates a persistent single page application that handles all HTML rendering.
+
+.tmpl files are cached by the backend, and can be reloaded via running `killall -USR1 v3` from the command line.
 
 ### Javascript
-Given the html first approach, [Stimulus](https://stimulusjs.org/) is a lightweight framework we lean on for adding javascript based enhancements.The application started out as a vanilla/jQuery codebase. But as the codebase continues to grow, adding a bit of declarative structure with Stimulus helps keep code organized and prevents logic from spilling into the global scope.
-
-.tmpl files are cached by the backend, but you can bust it by running `killall -USR1 v3` from the command line
+To encourage code that is idiomatic to Turbolinks based execution environment, javascript based enhancements should use [Stimulus](https://stimulusjs.org/) controllers with corresponding actions and targets. Keeping things tightly scoped with controllers and modules helps to localize complexity and maintain a clean application lifecycle. When using events handlers, bind and **unbind** them in the `connect` and `disconnect` function of controllers which executes when they get removed from the DOM.
 
 ### Web Performance
-The core functionality of dcrdata should perform well in low power device / high latency scenarios (eg. a cheap smart phone with poor reception). This means that most libraries should be lazy loaded when they are actually needed. This way we don't bog down users doing simple tasks like checking a transaction or address.
+The core functionality of dcrdata should perform well in low power device / high latency scenarios (eg. a cheap smart phone with poor reception). This means that heavy assets should be lazy loaded when they are actually needed. Simple tasks like checking a transaction or address should have a very fast initial page load.
 
 ## Helper Packages
 
