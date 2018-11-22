@@ -5,7 +5,7 @@
 {{template "html-head" "Decred Windows List"}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
-    <div class="container main" data-controller="main">
+    <div class="container main" data-controller="time">
         <h4>Ticket Price Windows</h4><h6>The ticket price and mining difficulty are adjusted every {{$.WindowSize}} blocks on {{toLowerCase .NetName}} (~12 hours).</h6>
 
         {{block "windowsPagination" .}}
@@ -112,7 +112,7 @@
                             <td>{{.FormattedSize}}</td>
                             <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
                             <td class="text-right">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
-                            <td class="text-right" data-target="main.age" data-age="{{.StartTime}}"></td>
+                            <td class="text-right" data-target="time.age" data-age="{{.StartTime}}"></td>
                             <td>{{.StartTime}}</td>
                         </tr>
                     {{end}}
@@ -139,7 +139,7 @@
 
         Turbolinks.visit(
             window.location.pathname
-            + "?offset="+ offset 
+            + "?offset="+ offset
             + "&rows=" + pagesize
         )
     })

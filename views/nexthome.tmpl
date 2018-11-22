@@ -6,7 +6,7 @@
 <body id="nexthome">
     {{ template "navbar" . }}
 
-    <div id="mainContainer" class="container" data-controller="main">
+    <div id="mainContainer" class="container" data-controller="time">
         <div class="netstats-section font-weight-bold">
             <a class="no-underline title font-weight-bold" href="/statistics">
                 {{.NetName}} Statistics
@@ -137,7 +137,7 @@
                             <span class="unit"> DCR</span>
                         </div>
                         <span class="timespan">
-                            <span data-target="main.age" data-age="{{.Time}}"></span>&nbsp;ago
+                            <span data-target="time.age" data-age="{{.Time}}"></span>&nbsp;ago
                         </span>
                     </div>
                     <div class="block-rows">
@@ -241,7 +241,7 @@
                             <span class="unit"> DCR</span>
                         </div>
                         <span class="timespan">
-                            <span data-target="main.age" data-age="{{.Time}}"></span>&nbsp;ago
+                            <span data-target="time.age" data-age="{{.Time}}"></span>&nbsp;ago
                         </span>
                     </div>
                     <div class="block-rows">
@@ -339,14 +339,6 @@
             <a class="no-underline d-block mt-4" href="/blocks"><div class="showmore"><p>View BlockChain History</p></div></a>
         </div>
     </div>
-
-    <script src="/js/tippy.all.min.js"></script>
-    <script type="text/javascript" src="/js/controllers/nexthome-blocks-display.js" data-turbolinks-eval="false"></script>
-    <script type="text/javascript" src="/js/controllers/nexthome-socket-update.js" data-turbolinks-eval="false"></script>
-    <script type="text/javascript">
-        // allow some ms for page to properly render blocks before refreshing display
-        setTimeout(refreshBlocksDisplay, 500);
-    </script>
 
     {{ template "footer" . }}
 </body>

@@ -287,14 +287,14 @@
                                 {{if eq (.Time.T.Unix) 0}}
                                     N/A
                                 {{else}}
-                                    <span data-controller="main" data-target="main.age" data-age="{{.Time}}"></span>
+                                    <span data-target="time.age" data-age="{{.Time}}"></span>
                                 {{end}}
                                 </td>
 
                                     <td {{if eq .Confirmations 0}}
                                         class="addr-tx-confirms"
                                         {{end}}
-                                        data-controller="newBlock" data-target="newBlock.confirmations"
+                                        data-target="newBlock.confirmations"
                                         data-confirmations="{{.Confirmations}}"
                                         data-confirmation-block-height="{{index $.TxBlockHeights $i}}"
                                         data-tx-block-height="{{index $.TxBlockHeights $i}}"
@@ -390,7 +390,7 @@
         function showAddressQRCode() {
             var $qrcode = $("#address-qrcode")
             $.getScript(
-                "/js/qrcode.min.js",
+                "/js/vendor/qrcode.min.js",
                 function() {
                     new QRCode($qrcode[0], {{.Address}});
                     $qrcode.css({

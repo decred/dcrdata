@@ -4,60 +4,40 @@
     {{template "html-head" printf "Decode Raw Decred Transaction"}}
     <body class="{{ theme }}">
         {{template "navbar" . }}
-        <div class="container main">
+        <div class="container main" data-controller="rawtx">
             <h4 class="mb-2">Decred transaction to decode or broadcast</h4>
             <form>
                 <textarea
                     autofocus
                     rows="6"
                     class="col"
-                    name="rawtx"
-                    id="rawtx"
+                    data-target="rawtx.rawTransaction"
+                    data-action="keypress->rawtx#send"
+                    data-event-id="decodetx"
                     placeholder="Enter the full transation (hexadecimal encoded) here"
-                /></textarea>
-                <button type="button" id="decode_tx" class="button btn btn-primary mr-1">Decode</button>
-                <button type="button" id="send_tx" class="button btn btn-success">Broadcast</button>
+                ></textarea>
+                <button
+                    type="button"
+                    data-target="rawtx.decode"
+                    data-action="click->rawtx#send"
+                    data-event-id="decodetx"
+                    class="button btn btn-primary mr-1"
+                >Decode</button>
+                <button
+                    type="button"
+                    data-target="rawtx.broadcast"
+                    data-action="click->rawtx#send"
+                    data-event-id="sendtx"
+                    class="button btn btn-success"
+                >Broadcast</button>
             </form>
-            <h4 class="mb-2" id="decode_header">Decoded transaction</h4>
+            <h4 class="mb-2" data-target="rawtx.decodeHeader">Decoded transaction</h4>
             <pre
-                id="decoded_tx"
+                data-target="rawtx.decodedTransaction"
                 class="json-block mono pt-3 pr-3 pb-3 pl-3"
             >
             </pre>
         </div>
-        <script>
-            $("#send_tx").on("click", function() {
-                $("#decoded_tx").text('');
-                $('#decoded_tx').fadeTo(0, 0.3, function() { $(this).fadeTo(500, 1.0); });
-                var msg = $("#rawtx").val();
-                if (msg !== ""){
-                    ws.send("sendtx", msg);
-                }
-            })
-            $("#decode_tx").on("click", function(){
-                $("#decoded_tx").text('');
-                $('#decoded_tx').fadeTo(100, 0.3, function() { $(this).fadeTo(500, 1.0); });
-                var msg = $("#rawtx").val();
-                if (msg !== ""){
-                    ws.send("decodetx", msg);
-                }
-            })
-            setTimeout(function(){
-                $("#rawtx").keypress( function(e){
-                    if (!e) e = window.event;
-                    var keyCode = e.keyCode || e.which;
-                    if (keyCode == '13'){
-                        $("#decoded_tx").text('');
-                        $('#decoded_tx').fadeTo(100, 0.3, function() { $(this).fadeTo(500, 1.0); });
-                        if (this.value !== "") {
-                            ws.send("decodetx", this.value);
-                        }
-                        return false;
-                    }
-                })
-                .focus()
-            }, 14)
-        </script>
         {{ template "footer" . }}
     </body>
 </html>

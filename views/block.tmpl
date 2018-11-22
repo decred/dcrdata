@@ -4,7 +4,7 @@
 {{template "html-head" printf "Decred Block %d" .Data.Height}}
 <body class="{{ theme }}">
     {{ template "navbar" . }}
-    <div class="container main" data-controller="main">
+    <div class="container main" data-controller="time">
     {{with .Data}}
         {{$Invalidated := and (gt .Confirmations 1) (not .Valid) }}
         <div class="row justify-content-between">
@@ -133,7 +133,7 @@
                     <tr>
                         <td class="text-right lh1rem pr-2 xs-w117">TIME</td>
                         <td class="lh1rem" style="min-width: 178px;">
-                            ({{timezone}}) {{.BlockTime}}} <span class="op60 fs12 nowrap">(<span data-target="main.age" data-age="{{.BlockTime}}"></span> ago)</span>
+                            ({{timezone}}) {{.BlockTime}}} <span class="op60 fs12 nowrap">(<span data-target="time.age" data-age="{{.BlockTime}}"></span> ago)</span>
                         </td>
                     </tr>
                     <tr>

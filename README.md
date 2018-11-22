@@ -44,6 +44,7 @@ The dcrdata repository is a collection of Go packages and apps for
     - [rebuilddb](#rebuilddb)
     - [rebuilddb2](#rebuilddb2)
     - [scanblocks](#scanblocks)
+  - [Front End Development](#front-end-development)
   - [Helper Packages](#helper-packages)
   - [Internal-use Packages](#internal-use-packages)
   - [Plans](#plans)
@@ -565,8 +566,8 @@ example Nginx configuration.
 To save time and tens of gigabytes of disk storage space, dcrdata runs by
 default in a reduced functionality ("lite") mode that does not require
 PostgreSQL. To enable the PostgreSQL backend (and the expanded functionality),
-dcrdata may be started with the `--pg` switch. See `--help` or `sample-dcrdata.conf` 
-for additional PostgreSQL configuration settings. 
+dcrdata may be started with the `--pg` switch. See `--help` or `sample-dcrdata.conf`
+for additional PostgreSQL configuration settings.
 
 ## APIs
 
@@ -738,6 +739,48 @@ scanblocks is a CLI app to scan the blockchain and save data into a JSON file.
 More details are in [its own README](./cmd/scanblocks/README.md). The repository
 also includes a shell script, jsonarray2csv.sh, to convert the result into a
 comma-separated value (CSV) file.
+
+## Front End Development
+
+Make sure you have a recent version of [node and npm](https://nodejs.org/en/download/) installed.
+You may want to use the [node version manager (nvm)](https://github.com/creationix/nvm) for managing
+your node download and installation.
+
+From the dcrdata root directory, run the following command to install the node modules.
+
+`npm install`
+
+This will create and install into a directory named `node_modules`.
+
+For development, there's a webpack script that watches for file changes and automatically bundles.
+To use it, run the following command in a separate terminal and leave it running while you work.
+You'll only use this command if you are editing javascript files.
+
+`npm run watch`
+
+For production, bundle assets via:
+
+`npm run build`
+
+Both the `watch` and `build` scripts create a single output file at `/public/js/dist/app.bundle.js`.
+You will need to at least `build` if changes have been made. `watch` essentially runs `build` after file changes,
+but also performs some additional checks.
+
+### CSS Guidelines
+Before you write any CSS, see if you can achieve your goal by using existing classes available in Bootsrap 4. This helps prevent our stylesheets from getting bloated makes it easier for things to work well accross a wide range browsers & devices. Please take the time to [Read the docs](https://getbootstrap.com/docs/4.1/getting-started/introduction/)
+
+Note there is a dark mode, so make sure things look good with the dark background as well.
+
+### HTML
+The core functionality of dcrdata is server-side rendered in Go and designed to work well with javascript disabled. For users with javascript enabled, [Turbolinks](https://github.com/turbolinks/turbolinks) creates a persistent single page application that handles all HTML rendering.
+
+.tmpl files are cached by the backend, and can be reloaded via running `killall -USR1 v3` from the command line.
+
+### Javascript
+To encourage code that is idiomatic to Turbolinks based execution environment, javascript based enhancements should use [Stimulus](https://stimulusjs.org/) controllers with corresponding actions and targets. Keeping things tightly scoped with controllers and modules helps to localize complexity and maintain a clean application lifecycle. When using events handlers, bind and **unbind** them in the `connect` and `disconnect` function of controllers which executes when they get removed from the DOM.
+
+### Web Performance
+The core functionality of dcrdata should perform well in low power device / high latency scenarios (eg. a cheap smart phone with poor reception). This means that heavy assets should be lazy loaded when they are actually needed. Simple tasks like checking a transaction or address should have a very fast initial page load.
 
 ## Helper Packages
 

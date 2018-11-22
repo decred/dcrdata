@@ -9,7 +9,7 @@ debug
 *.key
 dcrdata
 dcrdata*.conf
-vendor/
+/vendor/
 *.orig
 *.db
 *.db-journal
@@ -39,3 +39,6 @@ dcrdata-testdata
 .vendor-new
 v3
 tmp/runner-build
+node_modules/
+package-lock.json
+public/js/dist/
