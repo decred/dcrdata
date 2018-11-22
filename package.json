@@ -32,12 +32,9 @@
     "eslint-plugin-node": "^8.0.0",
     "eslint-plugin-promise": "^4.0.1",
     "eslint-plugin-standard": "^4.0.0",
-    "jquery": "^3.3.1",
-    "jquery-migrate": "^3.0.1",
     "mousetrap": "^1.6.2",
     "notifyjs": "^3.0.0",
     "stimulus": "^1.1.0",
-    "turbolinks": "^5.2.0",
     "webpack": "^4.25.1",
     "webpack-bundle-analyzer": "^3.0.3",
     "webpack-cli": "^3.1.2",
@@ -45,7 +42,6 @@
     "webpack-merge": "^4.1.4"
   },
   "dependencies": {
-    "chart.js": "^2.7.3",
     "lodash-es": "^4.17.11"
   }
 }
