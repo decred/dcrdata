@@ -388,18 +388,18 @@ func (votes byHeight) Swap(i, j int) {
 	votes[i], votes[j] = votes[j], votes[i]
 }
 
-// matchMempoolVins filters relevant mempool transaction inputs
-// whose previous outpoints match the specified transaction id.
+// matchMempoolVins filters relevant mempool transaction inputs whose previous
+// outpoints match the specified transaction id.
 func matchMempoolVins(txid string, txsList []MempoolTx) (vins []MempoolVin) {
 	for idx := range txsList {
-		tx := txsList[idx]
+		tx := &txsList[idx]
 		var inputs []MempoolInput
 		for vindex := range tx.Vin {
-			input := tx.Vin[vindex]
+			input := &tx.Vin[vindex]
 			if input.TxId != txid {
 				continue
 			}
-			inputs = append(inputs, input)
+			inputs = append(inputs, *input)
 		}
 		if len(inputs) == 0 {
 			continue
@@ -412,13 +412,13 @@ func matchMempoolVins(txid string, txsList []MempoolTx) (vins []MempoolVin) {
 	return
 }
 
-// GetTxMempoolInputs grabs very simple information about mempool transaction inputs that spend
-// a particular previous transaction's outputs. The returned slice has just enough information to
-// match an unspent transaction output.
+// GetTxMempoolInputs grabs very simple information about mempool transaction
+// inputs that spend a particular previous transaction's outputs. The returned
+// slice has just enough information to match an unspent transaction output.
 func (exp *explorerUI) GetTxMempoolInputs(txid string, txType string) []MempoolVin {
 	var vins []MempoolVin
-	exp.MempoolData.Lock()
-	defer exp.MempoolData.Unlock()
+	exp.MempoolData.RLock()
+	defer exp.MempoolData.RUnlock()
 	vins = append(vins, matchMempoolVins(txid, exp.MempoolData.Transactions)...)
 	vins = append(vins, matchMempoolVins(txid, exp.MempoolData.Tickets)...)
 	vins = append(vins, matchMempoolVins(txid, exp.MempoolData.Revocations)...)
