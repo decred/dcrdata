@@ -456,3 +456,4 @@ func GetChainWork(client *rpcclient.Client, hash *chainhash.Hash) (string, error
 		return "", err
 	}
 	return header.ChainWork, nil
+}

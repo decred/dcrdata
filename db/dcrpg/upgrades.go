@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -1209,7 +1210,7 @@ func addAddressesColumnsForMainchain(db *sql.DB) (bool, error) {
 
 func addChainWorkColumn(db *sql.DB) (bool, error) {
 	newColumns := []newColumn{
-		{"chainwork", "TEXT", ""},
+		{"chainwork", "TEXT", "0"},
 	}
 	return addNewColumnsIfNotFound(db, "blocks", newColumns)
 }
@@ -1233,7 +1234,7 @@ func versionAllTables(db *sql.DB, version TableVersion) error {
 func verifyChainWork(blockgate *rpcutils.BlockGate, db *sql.DB) (int64, error) {
 	// Count rows with missing chainWork.
 	var count int64
-	countRow := db.QueryRow(`SELECT COUNT(hash) FROM blocks WHERE chainwork IS NULL;`)
+	countRow := db.QueryRow(`SELECT COUNT(hash) FROM blocks WHERE chainwork = '0';`)
 	err := countRow.Scan(&count)
 	if err != nil {
 		log.Error("Failed to count null chainwork columns: %v", err)
@@ -1252,19 +1253,20 @@ func verifyChainWork(blockgate *rpcutils.BlockGate, db *sql.DB) (int64, error) {
 	defer stmt.Close()
 
 	// Grab the blockhashes from rows that don't have chainwork.
-	rows, err := db.Query(`SELECT hash FROM blocks WHERE chainwork IS NULL;`)
+	rows, err := db.Query(`SELECT hash, is_mainchain FROM blocks WHERE chainwork = '0';`)
 	if err != nil {
 		log.Error("Failed to query database for missing chainwork: %v", err)
 		return 0, err
 	}
 	defer rows.Close()
 
-	var hashStr string
-	var updated int64 = 0
+	var updated int64
 	client := blockgate.Client()
-	tReport := time.Now().Unix()
+	tReport := time.Now()
 	for rows.Next() {
-		err = rows.Scan(&hashStr)
+		var hashStr string
+		var isMainchain bool
+		err = rows.Scan(&hashStr, &isMainchain)
 		if err != nil {
 			log.Error("Failed to Scan null chainwork results. Aborting chainwork sync: %v", err)
 			return updated, err
@@ -1278,6 +1280,18 @@ func verifyChainWork(blockgate *rpcutils.BlockGate, db *sql.DB) (int64, error) {
 
 		chainWork, err := rpcutils.GetChainWork(client, blockHash)
 		if err != nil {
+			// If it's an orphaned block, it may not be in dcrd database. OK to skip.
+			if strings.HasPrefix(err.Error(), "-5: Block not found") {
+				if isMainchain {
+					// Although every mainchain block should have a corresponding
+					// blockNode and chainwork value in drcd, this upgrade is run before
+					// the chain is synced, so it's possible an orphaned block is still
+					// marked mainchain.
+					log.Warnf("No chainwork found for mainchain block %s. Skipping.", hashStr)
+				}
+				updated++
+				continue
+			}
 			log.Errorf("GetChainWork failed (%s). Aborting chainwork sync.: %v", hashStr, err)
 			return updated, err
 		}
@@ -1287,10 +1301,10 @@ func verifyChainWork(blockgate *rpcutils.BlockGate, db *sql.DB) (int64, error) {
 			log.Errorf("Failed to insert chainwork (%s) for block %s. Aborting chainwork sync: %v", chainWork, hashStr, err)
 			return updated, err
 		}
-		updated += 1
+		updated++
 		// Every two minutes, report the sync status.
-		if updated%100 == 0 && time.Now().Unix()-tReport > 120 {
-			tReport = time.Now().Unix()
+		if updated%100 == 0 && time.Since(tReport) > 2*time.Minute {
+			tReport = time.Now()
 			log.Infof("Chainwork sync is %.1f%% complete.", float64(updated)/float64(count)*100)
 		}
 	}
