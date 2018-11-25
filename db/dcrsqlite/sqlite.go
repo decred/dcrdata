@@ -1073,6 +1073,27 @@ func (db *DB) RetrieveStakeInfoExtendedByHash(blockhash string) (*apitypes.Stake
 	return si, nil
 }
 
+// Copy the file.
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+	return out.Close()
+}
+
 // JustifyTableStructure updates an old structure that wasn't indexing
 // sidechains. It could and should be removed in a future version. The block
 // summary table got two new boolean columns, `is_mainchain` and `is_valid`,
@@ -1106,16 +1127,14 @@ func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 	_, err = os.Stat(bkpPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = os.Link(dbInfo.FileName, bkpPath)
-			if err != nil {
-				log.Errorf("Error backing up %s: %v", dbInfo.FileName, err)
-				return err
-			}
+			copyFile(dbInfo.FileName, bkpPath)
 		} else {
 			log.Errorf("Error retrieving FileInfo for %s: %v", dbInfo.FileName, err)
 			return err
 		}
 	}
+
+	copyFile(dbInfo.FileName, bkpPath)
 
 	tmpSummaryTableName := TableNameSummaries + "_temp"
 	tmpStakeTableName := TableNameStakeInfo + "_temp"
