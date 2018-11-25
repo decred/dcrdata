@@ -210,13 +210,13 @@ export default class extends Controller {
       if (evt === '') {
         return
       }
-      var v = JSON.parse(evt).ticket_pool_data
-      window.mpl = v.Mempool
-      this.purchasesGraph.updateOptions({ 'file': purchasesGraphData(v.BarGraphs[0], window.mpl),
+      var v = JSON.parse(evt)
+      window.mpl = v.mempool
+      this.purchasesGraph.updateOptions({ 'file': purchasesGraphData(v.barGraphs[0], window.mpl),
         dateWindow: getWindow(this.zoom) })
-      this.priceGraph.updateOptions({ 'file': priceGraphData(v.BarGraphs[1], window.mpl) })
+      this.priceGraph.updateOptions({ 'file': priceGraphData(v.barGraphs[1], window.mpl) })
 
-      this.outputsGraph.data.datasets[0].data = outputsGraphData(v.DonutChart)
+      this.outputsGraph.data.datasets[0].data = outputsGraphData(v.donutChart)
       this.outputsGraph.update()
     })
   }

@@ -33,6 +33,7 @@
     "eslint-plugin-promise": "^4.0.1",
     "eslint-plugin-standard": "^4.0.0",
     "mousetrap": "^1.6.2",
+    "mousetrap-pause": "^1.0.0",
     "notifyjs": "^3.0.0",
     "stimulus": "^1.1.0",
     "webpack": "^4.25.1",

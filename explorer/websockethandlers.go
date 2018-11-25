@@ -151,10 +151,10 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					exp.MempoolData.RUnlock()
 
 					var data = struct {
-						ChartHeight uint64
-						BarGraphs   []*dbtypes.PoolTicketsData
-						DonutChart  *dbtypes.PoolTicketsData
-						Mempool     *dbtypes.PoolTicketsData
+						ChartHeight uint64                      `json:"chartHeight"`
+						BarGraphs   []*dbtypes.PoolTicketsData  `json:"barGraphs"`
+						DonutChart  *dbtypes.PoolTicketsData    `json:"donutChart"`
+						Mempool     *dbtypes.PoolTicketsData    `json:"mempool"`
 					}{
 						chartHeight,
 						cData,
