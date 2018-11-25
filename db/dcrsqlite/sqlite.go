@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"io"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -1127,7 +1128,11 @@ func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 	_, err = os.Stat(bkpPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			copyFile(dbInfo.FileName, bkpPath)
+			err = copyFile(dbInfo.FileName, bkpPath)
+			if err != nil {
+				log.Errorf("Failed to backup %s: %v", dbInfo.FileName, err)
+				return err
+			}
 		} else {
 			log.Errorf("Error retrieving FileInfo for %s: %v", dbInfo.FileName, err)
 			return err
