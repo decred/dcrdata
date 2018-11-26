@@ -171,7 +171,7 @@
                         </tr>
                         {{if .DevFund}}
                         <tr class="align-baseline">
-                            <td class="text-right pr-2 lh1rem"><a href="/address/{{.DevAddress}}">PROJECT FUND</a></td>
+                            <td class="text-right pr-2 lh1rem"><a href="/address/{{.DevAddress}}?txntype=merged_debit">TREASURY</a></td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal fs18">
                                     <span id="dev_fund" >{{template "decimalParts" (amountAsDecimalParts .DevFund true)}}</span>
