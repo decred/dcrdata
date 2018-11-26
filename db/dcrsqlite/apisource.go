@@ -631,8 +631,18 @@ func (db *wiredDB) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
 	return &stakeInfo.Feeinfo
 }
 
-func (db *wiredDB) GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended {
+func (db *wiredDB) GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended {
 	stakeInfo, err := db.RetrieveStakeInfoExtended(int64(idx))
+	if err != nil {
+		log.Errorf("Unable to retrieve stake info: %v", err)
+		return nil
+	}
+
+	return stakeInfo
+}
+
+func (db *wiredDB) GetStakeInfoExtendedByHash(blockhash string) *apitypes.StakeInfoExtended {
+	stakeInfo, err := db.RetrieveStakeInfoExtendedByHash(blockhash)
 	if err != nil {
 		log.Errorf("Unable to retrieve stake info: %v", err)
 		return nil

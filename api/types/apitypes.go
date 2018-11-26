@@ -369,6 +369,7 @@ type StakeDiff struct {
 
 // StakeInfoExtended models data about the fee, pool and stake difficulty
 type StakeInfoExtended struct {
+	Hash             string               `json:"hash"`
 	Feeinfo          dcrjson.FeeInfoBlock `json:"feeinfo"`
 	StakeDiff        float64              `json:"stakediff"`
 	PriceWindowNum   int                  `json:"window_number"`
@@ -387,6 +388,7 @@ func NewStakeInfoExtended() *StakeInfoExtended {
 // StakeInfoExtendedEstimates is similar to StakeInfoExtended but includes stake
 // difficulty estimates with the stake difficulty
 type StakeInfoExtendedEstimates struct {
+	Hash             string               `json:"hash"`
 	Feeinfo          dcrjson.FeeInfoBlock `json:"feeinfo"`
 	StakeDiff        StakeDiff            `json:"stakediff"`
 	PriceWindowNum   int                  `json:"window_number"`

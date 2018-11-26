@@ -121,8 +121,8 @@ func (s *BlockDataToMemdb) GetStakeDiffEstimate(idx int) *dcrjson.EstimateStakeD
 	return &blockdata.EstStakeDiff
 }
 
-// GetStakeInfoExtended returns the stake info for block idx
-func (s *BlockDataToMemdb) GetStakeInfoExtended(idx int) *apitypes.StakeInfoExtended {
+// GetStakeInfoExtendedByHeight returns the stake info for block idx
+func (s *BlockDataToMemdb) GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended {
 	if idx < 0 {
 		return nil
 	}

@@ -6,12 +6,14 @@ package dcrsqlite
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/blockdata"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/rpcutils"
@@ -325,7 +327,9 @@ func (db *wiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 		}
 
 		// Stake info
-		si := apitypes.StakeInfoExtended{}
+		si := apitypes.StakeInfoExtended{
+			Hash: blockSummary.Hash,
+		}
 
 		// Ticket fee info
 		fib := txhelpers.FeeRateInfoBlock(block)
@@ -404,4 +408,53 @@ func (db *wiredDB) getBlock(ind int64) (*dcrutil.Block, *chainhash.Hash, error) 
 	block := dcrutil.NewBlock(msgBlock)
 
 	return block, blockhash, nil
+}
+
+// ImportSideChains imports all side chains. Similar to pgblockchain.MissingSideChainBlocks
+// plus the rest from main.go
+func (db *wiredDB) ImportSideChains(collector *blockdata.Collector) error {
+	tips, err := rpcutils.SideChains(db.client)
+	if err != nil {
+		return err
+	}
+	var hashlist []*chainhash.Hash
+	for it := range tips {
+		log.Tracef("Primary DB -> Getting base DB side chain with tip %s at %d.", tips[it].Hash, tips[it].Height)
+		sideChain, err := rpcutils.SideChainFull(db.client, tips[it].Hash)
+		if err != nil {
+			log.Errorf("Primary DB -> Unable to get side chain blocks for chain tip %s: %v", tips[it].Hash, err)
+			return err
+		}
+
+		// For each block in the side chain, check if it already stored.
+		for is := range sideChain {
+			// Check for the block hash in the DB.
+			isMainchainNow, err := db.getMainchainStatus(sideChain[is])
+			if isMainchainNow || err == sql.ErrNoRows {
+				blockhash, err := chainhash.NewHashFromStr(sideChain[is])
+				if err != nil {
+					log.Errorf("Primary DB -> Invalid block hash %s: %v.", blockhash, err)
+					continue
+				}
+				hashlist = append(hashlist, blockhash)
+			}
+		}
+	}
+	log.Infof("Primary DB -> %d new sidechain block(s) to import", len(hashlist))
+	for _, blockhash := range hashlist {
+		// Collect block data.
+		blockDataBasic, _ := collector.CollectAPITypes(blockhash)
+		log.Debugf("Primary DB -> Importing block %s (height %d) into primary DB.",
+			blockhash.String(), blockDataBasic.Height)
+		if blockDataBasic == nil {
+			// Do not quit if unable to collect side chain block data.
+			log.Error("Primary DB -> Unable to collect data for side chain block %s", blockhash.String())
+			continue
+		}
+		err := db.StoreSideBlockSummary(blockDataBasic)
+		if err != nil {
+			log.Errorf("Primary DB -> Failed to store block %s", blockhash.String())
+		}
+	}
+	return nil
 }

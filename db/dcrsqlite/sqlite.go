@@ -7,11 +7,13 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"io"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
 	"github.com/decred/dcrdata/v3/blockdata"
@@ -42,6 +44,9 @@ const (
 	TableNameSummaries = "dcrdata_block_summary"
 	// TableNameStakeInfo is name of the table used to store extended stake info
 	TableNameStakeInfo = "dcrdata_stakeinfo_extended"
+	// A couple database queries that are called before NewWiredDB
+	SetCacheSizeSQL       = "PRAGMA cache_size = 32768;"
+	SetSynchrounousOffSQL = "pragma synchronous = OFF;"
 )
 
 // DB is a wrapper around sql.DB that adds methods for storing and retrieving
@@ -63,11 +68,16 @@ type DB struct {
 	getBlockHashSQL, getBlockHeightSQL                           string
 	getBlockSizeRangeSQL                                         string
 	getBestBlockHashSQL, getBestBlockHeightSQL                   string
-	getLatestStakeInfoExtendedSQL                                string
-	getStakeInfoExtendedSQL, insertStakeInfoExtendedSQL          string
-	getStakeInfoWinnersSQL                                       string
+	getLatestStakeInfoExtendedSQL, getHighestStakeHeight         string
+	getStakeInfoExtendedByHeightSQL, insertStakeInfoExtendedSQL  string
+	getStakeInfoExtendedByHashSQL                                string
+	getStakeInfoWinnersSQL, getStakeInfoWinnersByHashSQL         string
 	getAllPoolValSize                                            string
 	getAllFeeInfoPerBlock                                        string
+	rawCreateBlockSummaryStmt, rawCreateStakeInfoExtendedStmt    string
+	getBlockSummaryTableInfo, getStakeInfoExtendedTableInfo      string
+	getMainchainStatusSQL, invalidateBlockSQL                    string
+	setHeightToSideChainSQL                                      string
 	// returns difficulty in 24hrs or immediately after 24hrs.
 	getDifficulty string
 }
@@ -84,21 +94,21 @@ func NewDB(db *sql.DB) (*DB, error) {
 
 	// Ticket pool queries
 	d.getPoolSQL = fmt.Sprintf(`SELECT hash, poolsize, poolval, poolavg, winners`+
-		` FROM %s WHERE height = ?`, TableNameSummaries)
+		` FROM %s WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getPoolByHashSQL = fmt.Sprintf(`SELECT height, poolsize, poolval, poolavg, winners`+
 		` FROM %s WHERE hash = ?`, TableNameSummaries)
 	d.getPoolRangeSQL = fmt.Sprintf(`SELECT height, hash, poolsize, poolval, poolavg, winners `+
-		`FROM %s WHERE height BETWEEN ? AND ?`, TableNameSummaries)
+		`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getPoolValSizeRangeSQL = fmt.Sprintf(`SELECT poolsize, poolval `+
-		`FROM %s WHERE height BETWEEN ? AND ?`, TableNameSummaries)
+		`FROM %s WHERE height BETWEEN ? AND ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getAllPoolValSize = fmt.Sprintf(`SELECT distinct poolsize, poolval, time `+
-		`FROM %s ORDER BY time`, TableNameSummaries)
-	d.getWinnersSQL = fmt.Sprintf(`SELECT hash, winners FROM %s WHERE height = ?`,
+		`FROM %s WHERE is_mainchain = 1 ORDER BY time`, TableNameSummaries)
+	d.getWinnersSQL = fmt.Sprintf(`SELECT hash, winners FROM %s WHERE height = ? AND is_mainchain = 1`,
 		TableNameSummaries)
 	d.getWinnersByHashSQL = fmt.Sprintf(`SELECT height, winners FROM %s WHERE hash = ?`,
 		TableNameSummaries)
 
-	d.getSDiffSQL = fmt.Sprintf(`SELECT sdiff FROM %s WHERE height = ?`,
+	d.getSDiffSQL = fmt.Sprintf(`SELECT sdiff FROM %s WHERE height = ? AND is_mainchain = 1`,
 		TableNameSummaries)
 	d.getDifficulty = fmt.Sprintf(`SELECT diff FROM %s WHERE time >= ? ORDER BY time LIMIT 1`,
 		TableNameSummaries)
@@ -106,44 +116,56 @@ func NewDB(db *sql.DB) (*DB, error) {
 		TableNameSummaries)
 
 	// Block queries
-	d.getBlockSQL = fmt.Sprintf(`SELECT * FROM %s WHERE height = ?`, TableNameSummaries)
+	d.getBlockSQL = fmt.Sprintf(`SELECT * FROM %s WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getBlockByHashSQL = fmt.Sprintf(`SELECT * FROM %s WHERE hash = ?`, TableNameSummaries)
 	d.getLatestBlockSQL = fmt.Sprintf(`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`,
 		TableNameSummaries)
 	d.insertBlockSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
-            height, size, hash, diff, sdiff, time, poolsize, poolval, poolavg, winners
-        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            hash, height, size, diff, sdiff, time, poolsize, poolval, poolavg, winners, is_mainchain, is_valid
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameSummaries)
 
-	d.getBlockSizeRangeSQL = fmt.Sprintf(`SELECT size FROM %s WHERE height BETWEEN ? AND ?`,
+	d.getBlockSizeRangeSQL = fmt.Sprintf(`SELECT size FROM %s WHERE is_mainchain = 1 AND height BETWEEN ? AND ?`,
 		TableNameSummaries)
-	d.getBlockByTimeRangeSQL = fmt.Sprintf(`SELECT * FROM %s WHERE time BETWEEN ? AND ? ORDER BY time LIMIT ?`,
+	d.getBlockByTimeRangeSQL = fmt.Sprintf(`SELECT * FROM %s WHERE is_mainchain = 1 AND time BETWEEN ? AND ? ORDER BY time LIMIT ?`,
 		TableNameSummaries)
 	d.getBlockByTimeSQL = fmt.Sprintf(`SELECT * FROM %s WHERE time = ?`,
 		TableNameSummaries)
 
-	d.getBestBlockHashSQL = fmt.Sprintf(`SELECT hash FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
+	d.getBestBlockHashSQL = fmt.Sprintf(`SELECT hash FROM %s WHERE is_mainchain = 1 ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 	d.getBestBlockHeightSQL = fmt.Sprintf(`SELECT height FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 
-	d.getBlockHashSQL = fmt.Sprintf(`SELECT hash FROM %s WHERE height = ?`, TableNameSummaries)
-	d.getBlockHeightSQL = fmt.Sprintf(`SELECT height FROM %s WHERE hash = ?`, TableNameSummaries)
+	d.getBlockHashSQL = fmt.Sprintf(`SELECT hash FROM %s WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
+	d.getBlockHeightSQL = fmt.Sprintf(`SELECT height FROM %s WHERE hash = ? AND is_mainchain = 1`, TableNameSummaries)
+	d.getMainchainStatusSQL = fmt.Sprintf(`SELECT is_mainchain FROM %s WHERE hash = ?`, TableNameSummaries)
+	d.invalidateBlockSQL = fmt.Sprintf(`UPDATE %s SET is_valid = 0 WHERE hash = ?`, TableNameSummaries)
+	d.setHeightToSideChainSQL = fmt.Sprintf(`UPDATE %s SET is_mainchain = 0 where height = ?`, TableNameSummaries)
 
 	// Stake info queries
-	d.getStakeInfoExtendedSQL = fmt.Sprintf(`SELECT * FROM %s WHERE height = ?`,
+	d.getStakeInfoExtendedByHeightSQL = fmt.Sprintf(`SELECT %[1]s.* FROM %[1]s JOIN %[2]s ON %[1]s.hash = %[2]s.hash WHERE %[2]s.is_mainchain = 1 AND %[1]s.height = ?`,
+		TableNameStakeInfo, TableNameSummaries)
+	d.getStakeInfoExtendedByHashSQL = fmt.Sprintf(`SELECT * FROM %s WHERE hash = ?`,
 		TableNameStakeInfo)
-	d.getStakeInfoWinnersSQL = fmt.Sprintf(`SELECT winners FROM %s WHERE height = ?`,
-		TableNameStakeInfo)
+	d.getStakeInfoWinnersSQL = fmt.Sprintf(`SELECT %[1]s.winners FROM %[1]s JOIN %[2]s ON %[1]s.hash = %[2]s.hash WHERE %[1]s.height = ?`,
+		TableNameStakeInfo, TableNameSummaries)
+	d.getStakeInfoWinnersByHashSQL = fmt.Sprintf(`SELECT %[1]s.winners FROM %[1]s JOIN %[2]s ON %[1]s.hash = %[2]s.hash WHERE %[1]s.hash = ?`,
+		TableNameStakeInfo, TableNameSummaries)
 	d.getLatestStakeInfoExtendedSQL = fmt.Sprintf(
-		`SELECT * FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameStakeInfo)
+		`SELECT %[1]s.* FROM %[1]s JOIN %[2]s ON %[1]s.hash = %[2]s.hash WHERE %[2]s.is_mainchain = 1 ORDER BY %[1]s.height DESC LIMIT 0, 1`, TableNameStakeInfo, TableNameSummaries)
+	d.getHighestStakeHeight = fmt.Sprintf(
+		`SELECT height FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameStakeInfo)
 	d.insertStakeInfoExtendedSQL = fmt.Sprintf(`
         INSERT OR REPLACE INTO %s(
-            height, num_tickets, fee_min, fee_max, fee_mean, fee_med, fee_std,
+            hash, height, num_tickets, fee_min, fee_max, fee_mean, fee_med, fee_std,
 			sdiff, window_num, window_ind, pool_size, pool_val, pool_valavg, winners
-        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameStakeInfo)
 
-	d.getAllFeeInfoPerBlock = fmt.Sprintf(`SELECT distinct height, fee_med FROM %s ORDER BY height;`, TableNameStakeInfo)
+	d.getAllFeeInfoPerBlock = fmt.Sprintf(`SELECT distinct %[1]s.height, fee_med FROM %[1]s JOIN %[2]s ON %[1]s.hash = %[2]s.hash ORDER BY %[1]s.height;`, TableNameStakeInfo, TableNameSummaries)
+
+	d.getBlockSummaryTableInfo = fmt.Sprintf(`PRAGMA table_info(%s);`, TableNameSummaries)
+	d.getStakeInfoExtendedTableInfo = fmt.Sprintf(`PRAGMA table_info(%s);`, TableNameStakeInfo)
 
 	var err error
 	if d.dbSummaryHeight, err = d.GetBlockSummaryHeight(); err != nil {
@@ -176,22 +198,35 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 		return nil, err
 	}
 
-	createBlockSummaryStmt := fmt.Sprintf(`
-        PRAGMA cache_size = 32768;
-        pragma synchronous = OFF;
-        create table if not exists %s(
-            height INTEGER PRIMARY KEY,
-            size INTEGER,
-            hash TEXT,
-            diff FLOAT,
-            sdiff FLOAT,
-            time INTEGER,
-            poolsize INTEGER,
-            poolval FLOAT,
-			poolavg FLOAT,
-			winners TEXT
-        );
-        `, TableNameSummaries)
+	// These are db-wide settings
+	_, err = db.Exec(SetCacheSizeSQL)
+	if err != nil {
+		log.Error("Error setting SQLite Cache size")
+		return nil, err
+	}
+	_, err = db.Exec(SetSynchrounousOffSQL)
+	if err != nil {
+		log.Error("Error setting SQLite synchrounous off")
+		return nil, err
+	}
+
+	rawCreateBlockSummaryStmt := `
+    	create table if not exists %s(
+      	hash TEXT PRIMARY KEY,
+      	height INTEGER,
+      	size INTEGER,
+      	diff FLOAT,
+      	sdiff FLOAT,
+      	time INTEGER,
+      	poolsize INTEGER,
+      	poolval FLOAT,
+      	poolavg FLOAT,
+      	winners TEXT,
+      	is_mainchain BOOL,
+      	is_valid BOOL
+    	);`
+
+	createBlockSummaryStmt := fmt.Sprintf(rawCreateBlockSummaryStmt, TableNameSummaries)
 
 	_, err = db.Exec(createBlockSummaryStmt)
 	if err != nil {
@@ -199,19 +234,19 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 		return nil, err
 	}
 
-	createStakeInfoExtendedStmt := fmt.Sprintf(`
-        PRAGMA cache_size = 32768;
-        pragma synchronous = OFF;
-        create table if not exists %s(
-            height INTEGER PRIMARY KEY,
-            num_tickets INTEGER,
-            fee_min FLOAT, fee_max FLOAT, fee_mean FLOAT,
-			fee_med FLOAT, fee_std FLOAT,
-			sdiff FLOAT, window_num INTEGER, window_ind INTEGER,
-			pool_size INTEGER, pool_val FLOAT, pool_valavg FLOAT,
-			winners TEXT
-        );
-        `, TableNameStakeInfo)
+	rawCreateStakeInfoExtendedStmt := `
+    	create table if not exists %s(
+      	hash TEXT PRIMARY KEY,
+      	height INTEGER,
+      	num_tickets INTEGER,
+      	fee_min FLOAT, fee_max FLOAT, fee_mean FLOAT,
+      	fee_med FLOAT, fee_std FLOAT,
+      	sdiff FLOAT, window_num INTEGER, window_ind INTEGER,
+      	pool_size INTEGER, pool_val FLOAT, pool_valavg FLOAT,
+      	winners TEXT
+    	);`
+
+	createStakeInfoExtendedStmt := fmt.Sprintf(rawCreateStakeInfoExtendedStmt, TableNameStakeInfo)
 
 	_, err = db.Exec(createStakeInfoExtendedStmt)
 	if err != nil {
@@ -224,6 +259,18 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 	}
 
 	dataBase, err := NewDB(db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Table creation string are used in JustifyTableStructures
+	// Eventually won't be needed.
+	dataBase.rawCreateBlockSummaryStmt = rawCreateBlockSummaryStmt
+	dataBase.rawCreateStakeInfoExtendedStmt = rawCreateStakeInfoExtendedStmt
+	if err = dataBase.JustifyTableStructures(dbInfo); err != nil {
+		return nil, err
+	}
+
 	return dataBase, err
 }
 
@@ -235,9 +282,45 @@ type DBDataSaver struct {
 }
 
 // Store satisfies the blockdata.BlockDataSaver interface.
-func (db *DBDataSaver) Store(data *blockdata.BlockData, _ *wire.MsgBlock) error {
+func (db *DBDataSaver) Store(data *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	summary := data.ToBlockSummary()
-	err := db.DB.StoreBlockSummary(&summary)
+	var err error
+
+	// Store is assumed to be called with a mainchain block
+	lastIsValid := msgBlock.Header.VoteBits&1 != 0
+	if !lastIsValid {
+		// Update the is_valid flag in the blocks table.
+		// Need to check whether to invalidate previous block
+		lastBlockHash := msgBlock.Header.PrevBlock
+		log.Infof("Setting last block %s as INVALID", lastBlockHash)
+
+		// Check for genesis block
+		isSecondBlock := lastBlockHash != chainhash.Hash{}
+		if isSecondBlock {
+			var lastIsMain bool
+			lastIsMain, err = db.DB.getMainchainStatus(lastBlockHash.String())
+			if err != nil {
+				return err
+			}
+			if lastIsMain {
+				lastIsValid := msgBlock.Header.VoteBits&1 != 0
+				if !lastIsValid {
+					err = db.DB.invalidateBlock(lastBlockHash.String())
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// Set is_mainchain false for every block at this height
+	err = db.DB.setHeightToSideChain(int64(msgBlock.Header.Height))
+	if err != nil {
+		return err
+	}
+
+	err = db.DB.StoreBlockSummary(&summary)
 	if err != nil {
 		return err
 	}
@@ -251,9 +334,28 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData, _ *wire.MsgBlock) error 
 	return db.DB.StoreStakeInfoExtended(&stakeInfoExtended)
 }
 
-// StoreBlockSummary attempts to store the block data in the database, and
+// Invalidate block at given hash
+func (db *DB) invalidateBlock(blockhash string) error {
+	_, err := db.Exec(db.invalidateBlockSQL, blockhash)
+	return err
+}
+
+// Sets the is_mainchain field to false for the given block in the database.
+func (db *DB) setHeightToSideChain(height int64) error {
+	_, err := db.Exec(db.setHeightToSideChainSQL, height)
+	return err
+}
+
+// Returns the is_mainchain value from the database for the given hash.
+func (db *DB) getMainchainStatus(blockhash string) (bool, error) {
+	var isMainchain bool
+	err := db.QueryRow(db.getMainchainStatusSQL, blockhash).Scan(&isMainchain)
+	return isMainchain, err
+}
+
+// StoreBlock attempts to store the block data in the database, and
 // returns an error on failure.
-func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
+func (db *DB) StoreBlock(bd *apitypes.BlockDataBasic, isMainchain bool, isValid bool) error {
 	stmt, err := db.Prepare(db.insertBlockSQL)
 	if err != nil {
 		return err
@@ -268,13 +370,14 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 
 	// Insert the block.
 	winners := strings.Join(bd.PoolInfo.Winners, ";")
-	res, err := stmt.Exec(&bd.Height, &bd.Size, &bd.Hash,
+	res, err := stmt.Exec(&bd.Hash, &bd.Height, &bd.Size,
 		&bd.Difficulty, &bd.StakeDiff, bd.Time.S.T.Unix(),
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
-		&winners)
+		&winners, &isMainchain, &isValid)
 	if err != nil {
 		return err
 	}
+
 	// Update the DB block summary height.
 	db.Lock()
 	defer db.Unlock()
@@ -293,7 +396,17 @@ func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
 	return err
 }
 
-// GetBestBlockHash returns the hash of the best block
+// StoreBlockSummary is called with new mainchain blocks.
+func (db *DB) StoreBlockSummary(bd *apitypes.BlockDataBasic) error {
+	return db.StoreBlock(bd, true, true)
+}
+
+// StoreSideBlockSummary is for storing side chain.
+func (db *DB) StoreSideBlockSummary(bd *apitypes.BlockDataBasic) error {
+	return db.StoreBlock(bd, false, true)
+}
+
+// GetBestBlockHash returns the hash of the best block.
 func (db *DB) GetBestBlockHash() string {
 	hash, err := db.RetrieveBestBlockHash()
 	if err != nil {
@@ -335,16 +448,15 @@ func (db *DB) GetStakeInfoHeight() (int64, error) {
 	db.RLock()
 	defer db.RUnlock()
 	if db.dbStakeInfoHeight < 0 {
-		si, err := db.RetrieveLatestStakeInfoExtended()
-		// No rows returned is not considered an error
-		if err != nil && err != sql.ErrNoRows {
-			return -1, fmt.Errorf("RetrieveLatestStakeInfoExtended failed: %v", err)
-		}
-		if err == sql.ErrNoRows {
+		height, err := db.RetrieveBestStakeHeight()
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return -1, fmt.Errorf("RetrieveBestStakeHeight failed: %v", err)
+			}
 			log.Warn("Stake info DB is empty.")
 			return -1, nil
 		}
-		db.dbStakeInfoHeight = int64(si.Feeinfo.Height)
+		db.dbStakeInfoHeight = height
 	}
 	return db.dbStakeInfoHeight, nil
 }
@@ -659,10 +771,13 @@ func (db *DB) RetrieveBlockSummaryByTimeRange(minTime, maxTime int64, limit int)
 
 	for rows.Next() {
 		bd := apitypes.NewBlockDataBasic()
+		var winners string
+		var isMainchain, isValid bool
 		var timestamp int64
-		if err = rows.Scan(&bd.Height, &bd.Size, &bd.Hash,
+		if err = rows.Scan(&bd.Hash, &bd.Height, &bd.Size,
 			&bd.Difficulty, &bd.StakeDiff, &timestamp,
-			&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg); err != nil {
+			&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
+			&winners, &isMainchain, &isValid); err != nil {
 			log.Errorf("Unable to scan for block fields")
 		}
 		bd.Time = apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(timestamp, 0)}}
@@ -694,10 +809,11 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 
 	var winners string
 	var timestamp int64
-	err := db.QueryRow(db.getLatestBlockSQL).Scan(&bd.Height, &bd.Size,
-		&bd.Hash, &bd.Difficulty, &bd.StakeDiff, &timestamp,
+	var isMainchain, isValid bool
+	err := db.QueryRow(db.getLatestBlockSQL).Scan(&bd.Hash, &bd.Height, &bd.Size,
+		&bd.Difficulty, &bd.StakeDiff, &timestamp,
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
-		&winners)
+		&winners, &isMainchain, &isValid)
 	if err != nil {
 		return nil, err
 	}
@@ -739,11 +855,12 @@ func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic,
 	bd := apitypes.NewBlockDataBasic()
 
 	var winners string
+	var isMainchain, isValid bool
 	var timestamp int64
-	err := db.QueryRow(db.getBlockByHashSQL, hash).Scan(&bd.Height, &bd.Size, &bd.Hash,
+	err := db.QueryRow(db.getBlockByHashSQL, hash).Scan(&bd.Hash, &bd.Height, &bd.Size,
 		&bd.Difficulty, &bd.StakeDiff, &timestamp,
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
-		&winners)
+		&winners, &isMainchain, &isValid)
 	if err != nil {
 		return nil, err
 	}
@@ -760,11 +877,12 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 
 	// 1. chained QueryRow/Scan only
 	var winners string
+	var isMainchain, isValid bool
 	var timestamp int64
-	err := db.QueryRow(db.getBlockSQL, ind).Scan(&bd.Height, &bd.Size, &bd.Hash,
+	err := db.QueryRow(db.getBlockSQL, ind).Scan(&bd.Hash, &bd.Height, &bd.Size,
 		&bd.Difficulty, &bd.StakeDiff, &timestamp,
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
-		&winners)
+		&winners, &isMainchain, &isValid)
 	if err != nil {
 		return nil, err
 	}
@@ -869,7 +987,7 @@ func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
 
 	winners := strings.Join(si.PoolInfo.Winners, ";")
 
-	res, err := stmt.Exec(&si.Feeinfo.Height,
+	res, err := stmt.Exec(&si.Hash, &si.Feeinfo.Height,
 		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
 		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
 		&si.StakeDiff, // no next or estimates
@@ -897,7 +1015,7 @@ func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, er
 
 	var winners string
 	err := db.QueryRow(db.getLatestStakeInfoExtendedSQL).Scan(
-		&si.Feeinfo.Height, &si.Feeinfo.Number, &si.Feeinfo.Min,
+		&si.Hash, &si.Feeinfo.Height, &si.Feeinfo.Number, &si.Feeinfo.Min,
 		&si.Feeinfo.Max, &si.Feeinfo.Mean,
 		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
 		&si.StakeDiff, // no next or estimates
@@ -910,13 +1028,23 @@ func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, er
 	return si, nil
 }
 
+// Retreives the height of the highest block in the stake table.
+func (db *DB) RetrieveBestStakeHeight() (int64, error) {
+	var height int64
+	err := db.QueryRow(db.getHighestStakeHeight).Scan(&height)
+	if err != nil {
+		return -1, err
+	}
+	return height, nil
+}
+
 // RetrieveStakeInfoExtended returns the extended stake info for the block at
 // height ind.
 func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error) {
 	si := apitypes.NewStakeInfoExtended()
 
 	var winners string
-	err := db.QueryRow(db.getStakeInfoExtendedSQL, ind).Scan(&si.Feeinfo.Height,
+	err := db.QueryRow(db.getStakeInfoExtendedByHeightSQL, ind).Scan(&si.Hash, &si.Feeinfo.Height,
 		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
 		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
 		&si.StakeDiff, // no next or estimates
@@ -927,6 +1055,137 @@ func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended,
 	}
 	si.PoolInfo.Winners = splitToArray(winners)
 	return si, nil
+}
+
+func (db *DB) RetrieveStakeInfoExtendedByHash(blockhash string) (*apitypes.StakeInfoExtended, error) {
+	si := apitypes.NewStakeInfoExtended()
+
+	var winners string
+	err := db.QueryRow(db.getStakeInfoExtendedByHashSQL, blockhash).Scan(&si.Hash, &si.Feeinfo.Height,
+		&si.Feeinfo.Number, &si.Feeinfo.Min, &si.Feeinfo.Max, &si.Feeinfo.Mean,
+		&si.Feeinfo.Median, &si.Feeinfo.StdDev,
+		&si.StakeDiff, // no next or estimates
+		&si.PriceWindowNum, &si.IdxBlockInWindow, &si.PoolInfo.Size,
+		&si.PoolInfo.Value, &si.PoolInfo.ValAvg, &winners)
+	if err != nil {
+		return nil, err
+	}
+	si.PoolInfo.Winners = splitToArray(winners)
+	return si, nil
+}
+
+// Copy the file.
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+	return out.Close()
+}
+
+// JustifyTableStructure updates an old structure that wasn't indexing
+// sidechains. It could and should be removed in a future version. The block
+// summary table got two new boolean columns, `is_mainchain` and `is_valid`,
+// and the Primary key was changed from height to hash.
+// The stake info table got a `hash` column and the primary key was switched from height to hash
+func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
+
+	// Grab the column info. Right now, just counting them, but could be looked at more closely
+	// Each tuple is a row with columns [cid, name, type, notnull, dflt_value, pk]
+	rows, err := db.Query(db.getBlockSummaryTableInfo)
+	if err != nil {
+		log.Errorf("Query failed: %v", err)
+		return err
+	}
+	defer rows.Close()
+	rowCounter := 0
+	for rows.Next() {
+		rowCounter += 1
+	}
+
+	// It simply checks whether there are enough columns for the current structure
+	if rowCounter >= 12 {
+		return nil
+	}
+
+	log.Info("Detected old SQLite table structure. Updating.")
+
+	// Create a backup file, if one hasn't already been created.
+	directory := filepath.Dir(dbInfo.FileName)
+	bkpPath := filepath.Join(directory, "dcrdata.nosidechains-bkp.db")
+	_, err = os.Stat(bkpPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = copyFile(dbInfo.FileName, bkpPath)
+			if err != nil {
+				log.Errorf("Failed to backup %s: %v", dbInfo.FileName, err)
+				return err
+			}
+		} else {
+			log.Errorf("Error retrieving FileInfo for %s: %v", dbInfo.FileName, err)
+			return err
+		}
+	}
+
+	tmpSummaryTableName := TableNameSummaries + "_temp"
+	tmpStakeTableName := TableNameStakeInfo + "_temp"
+
+	queries := make([]string, 0, 8)
+	queries = append(queries, fmt.Sprintf(db.rawCreateBlockSummaryStmt, tmpSummaryTableName))
+	queries = append(queries, fmt.Sprintf(`INSERT INTO %s SELECT hash, height, size, diff,
+		sdiff, time, poolsize, poolval, poolavg, winners, 1, 1 FROM %s;`,
+		tmpSummaryTableName, TableNameSummaries))
+	queries = append(queries, fmt.Sprintf("DROP TABLE %s;", TableNameSummaries))
+	queries = append(queries, fmt.Sprintf("ALTER TABLE %s RENAME TO %s;",
+		tmpSummaryTableName, TableNameSummaries))
+	queries = append(queries, fmt.Sprintf(db.rawCreateStakeInfoExtendedStmt, tmpStakeTableName))
+	queries = append(queries, fmt.Sprintf(`INSERT INTO %[1]s SELECT %[2]s.hash, %[3]s.height, num_tickets,
+		fee_min, fee_max, fee_mean, fee_med, fee_std, %[3]s.sdiff, window_num, window_ind, pool_size,
+		pool_val,pool_valavg, %[3]s.winners FROM %[3]s JOIN %[2]s ON
+		%[3]s.height = %[2]s.height`,
+		tmpStakeTableName, TableNameSummaries, TableNameStakeInfo))
+	queries = append(queries, fmt.Sprintf("DROP TABLE %s;", TableNameStakeInfo))
+	queries = append(queries, fmt.Sprintf("ALTER TABLE %s RENAME TO %s;", tmpStakeTableName, TableNameStakeInfo))
+
+	transaction, err := db.Begin()
+	if err != nil {
+		log.Errorf("Failed to start a transaction: \n", err)
+		return err
+	}
+	for _, query := range queries {
+		_, err = transaction.Exec(query)
+		if err != nil {
+			log.Errorf("Failed updating SQLite table structure: \n", err)
+			transaction.Rollback()
+			return err
+		}
+	}
+
+	err = transaction.Commit()
+	if err != nil {
+		log.Error("Failed to commit SQL transaction after table reorg.")
+		return err
+	}
+
+	// Clean up the file a little bit
+	_, err = db.Exec("VACUUM;")
+	if err != nil {
+		log.Error("Failed to VACUUM SQLite database.")
+	}
+
+	return nil
 }
 
 func logDBResult(res sql.Result) error {

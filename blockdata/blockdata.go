@@ -39,6 +39,7 @@ type BlockData struct {
 // blockdata
 func (b *BlockData) ToStakeInfoExtended() apitypes.StakeInfoExtended {
 	return apitypes.StakeInfoExtended{
+		Hash:             b.Header.Hash,
 		Feeinfo:          b.FeeInfo,
 		StakeDiff:        b.CurrentStakeDiff.CurrentStakeDifficulty,
 		PriceWindowNum:   b.PriceWindowNum,
@@ -51,6 +52,7 @@ func (b *BlockData) ToStakeInfoExtended() apitypes.StakeInfoExtended {
 // object from the blockdata
 func (b *BlockData) ToStakeInfoExtendedEstimates() apitypes.StakeInfoExtendedEstimates {
 	return apitypes.StakeInfoExtendedEstimates{
+		Hash:    b.Header.Hash,
 		Feeinfo: b.FeeInfo,
 		StakeDiff: apitypes.StakeDiff{
 			GetStakeDifficultyResult: b.CurrentStakeDiff,
@@ -125,6 +127,7 @@ func (t *Collector) CollectAPITypes(hash *chainhash.Hash) (*apitypes.BlockDataBa
 	winSize := t.netParams.StakeDiffWindowSize
 
 	stakeInfoExtended := &apitypes.StakeInfoExtended{
+		Hash:             blockDataBasic.Hash,
 		Feeinfo:          *feeInfoBlock,
 		StakeDiff:        blockDataBasic.StakeDiff,
 		PriceWindowNum:   int(height / winSize),

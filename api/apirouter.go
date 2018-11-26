@@ -48,7 +48,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 			rd.Get("/size", app.getBlockSize)
 			rd.Get("/subsidy", app.blockSubsidies)
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
-			rd.Get("/pos", app.getBlockStakeInfoExtended)
+			rd.Get("/pos", app.getBlockStakeInfoExtendedByHeight)
 			rd.Route("/tx", func(rt chi.Router) {
 				rt.Get("/", app.getBlockTransactions)
 				rt.Get("/count", app.getBlockTransactionsCount)
@@ -63,7 +63,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 			rd.Get("/size", app.getBlockSize)
 			rd.Get("/subsidy", app.blockSubsidies)
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
-			rd.Get("/pos", app.getBlockStakeInfoExtended)
+			rd.Get("/pos", app.getBlockStakeInfoExtendedByHash)
 			rd.Route("/tx", func(rt chi.Router) {
 				rt.Get("/", app.getBlockTransactions)
 				rt.Get("/count", app.getBlockTransactionsCount)
@@ -78,7 +78,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 			rd.Get("/size", app.getBlockSize)
 			rd.Get("/subsidy", app.blockSubsidies)
 			rd.With((middleware.Compress(1))).Get("/verbose", app.getBlockVerbose)
-			rd.Get("/pos", app.getBlockStakeInfoExtended)
+			rd.Get("/pos", app.getBlockStakeInfoExtendedByHeight)
 			rd.Route("/tx", func(rt chi.Router) {
 				rt.Get("/", app.getBlockTransactions)
 				rt.Get("/count", app.getBlockTransactionsCount)
@@ -96,7 +96,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 				rs.Get("/size", app.getBlockRangeSteppedSize)
 			})
 			// rd.Get("/header", app.getBlockHeader)
-			// rd.Get("/pos", app.getBlockStakeInfoExtended)
+			// rd.Get("/pos", app.getBlockStakeInfoExtendedByHeight)
 		})
 
 		//r.With(middleware.DefaultCompress).Get("/raw", app.someLargeResponse)
