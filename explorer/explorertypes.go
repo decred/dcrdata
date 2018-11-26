@@ -12,6 +12,7 @@ import (
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v3/db/agendadb"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"github.com/decred/dcrdata/v3/txhelpers"
@@ -514,17 +515,18 @@ type TicketPoolInfo struct {
 
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
-	TxID      string    `json:"txid"`
-	Fees      float64   `json:"fees"`
-	VinCount  int       `json:"vin_count"`
-	VoutCount int       `json:"vout_count"`
-	Coinbase  bool      `json:"coinbase"`
-	Hash      string    `json:"hash"`
-	Time      int64     `json:"time"`
-	Size      int32     `json:"size"`
-	TotalOut  float64   `json:"total"`
-	Type      string    `json:"Type"`
-	VoteInfo  *VoteInfo `json:"vote_info,omitempty"`
+	TxID      string         `json:"txid"`
+	Fees      float64        `json:"fees"`
+	VinCount  int            `json:"vin_count"`
+	VoutCount int            `json:"vout_count"`
+	Vin       []MempoolInput `json:"vin",omitempty`
+	Coinbase  bool           `json:"coinbase"`
+	Hash      string         `json:"hash"`
+	Time      int64          `json:"time"`
+	Size      int32          `json:"size"`
+	TotalOut  float64        `json:"total"`
+	Type      string         `json:"Type"`
+	VoteInfo  *VoteInfo      `json:"vote_info,omitempty"`
 }
 
 // NewMempoolTx models data sent from the notification handler
@@ -536,14 +538,14 @@ type NewMempoolTx struct {
 // MempoolVin is minimal information about the inputs of a mempool transaction.
 type MempoolVin struct {
 	TxId   string
-	Inputs []*MempoolInput
+	Inputs []MempoolInput
 }
 
 // MempoolInput is basic information about a transaction input.
 type MempoolInput struct {
-	TxId   string
-	Index  uint32
-	Outdex uint32
+	TxId   string `json:"txid"`
+	Index  uint32 `json:"index"`
+	Outdex uint32 `json:"vout"`
 }
 
 // ExtendedChainParams represents the data of ChainParams
@@ -727,6 +729,20 @@ func UnspentOutputIndices(vouts []Vout) (unspents []int) {
 			continue
 		}
 		unspents = append(unspents, idx)
+	}
+	return
+}
+
+// MsgTxMempoolInputs parses a MsgTx and creates a list of MempoolInput.
+func MsgTxMempoolInputs(msgTx *wire.MsgTx) (inputs []MempoolInput) {
+	for vindex := range msgTx.TxIn {
+		outpoint := msgTx.TxIn[vindex].PreviousOutPoint
+		outId := outpoint.Hash.String()
+		inputs = append(inputs, MempoolInput{
+			TxId:   outId,
+			Index:  uint32(vindex),
+			Outdex: outpoint.Index,
+		})
 	}
 	return
 }
