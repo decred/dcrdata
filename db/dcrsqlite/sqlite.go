@@ -1180,7 +1180,7 @@ func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 	}
 
 	// Clean up the file a little bit
-	_, err = db.Query("VACUUM;")
+	_, err = db.Exec("VACUUM;")
 	if err != nil {
 		log.Error("Failed to VACUUM SQLite database.")
 	}
