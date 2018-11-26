@@ -289,13 +289,19 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		}
 		winners := tpi.Winners
 
+		// Get the chainwork
+		chainWork, err := client.GetChainWork(blockHash)
+		if err != nil {
+			return ib - 1, fmt.Errorf("GetChainWork failed (%s): %v", blockHash, err)
+		}
+
 		// Store data from this block in the database
 		isValid, isMainchain := true, true
 		// updateExisting is ignored if dupCheck=false, but true since this is
 		// processing main chain blocks.
 		updateExisting := true
 		numVins, numVouts, numAddresses, err := db.StoreBlock(block.MsgBlock(), winners, isValid,
-			isMainchain, updateExisting, !updateAllAddresses, !updateAllVotes)
+			isMainchain, updateExisting, !updateAllAddresses, !updateAllVotes, chainWork)
 		if err != nil {
 			return ib - 1, fmt.Errorf("StoreBlock failed: %v", err)
 		}

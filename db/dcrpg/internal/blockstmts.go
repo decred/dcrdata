@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (  
+	CreateBlockTable = `CREATE TABLE IF NOT EXISTS blocks (
 		id SERIAL PRIMARY KEY,
 		hash TEXT NOT NULL, -- UNIQUE
 		height INT4,
@@ -37,7 +37,8 @@ const (
 		difficulty FLOAT8,
 		extra_data BYTEA,
 		stake_version INT4,
-		previous_hash TEXT
+		previous_hash TEXT,
+		chainwork TEXT
 	);`
 
 	// Block inserts. is_valid refers to blocks that have been validated by
@@ -50,13 +51,13 @@ const (
 		hash, height, size, is_valid, is_mainchain, version, merkle_root, stake_root,
 		numtx, num_rtx, tx, txDbIDs, num_stx, stx, stxDbIDs,
 		time, nonce, vote_bits, final_state, voters,
-		fresh_stake, revocations, pool_size, bits, sbits, 
-		difficulty, extra_data, stake_version, previous_hash)
+		fresh_stake, revocations, pool_size, bits, sbits,
+		difficulty, extra_data, stake_version, previous_hash, chainwork)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
 		$9, $10, %s, %s, $11, %s, %s,
-		$12, $13, $14, $15, $16, 
+		$12, $13, $14, $15, $16,
 		$17, $18, $19, $20, $21,
-		$22, $23, $24, $25) `
+		$22, $23, $24, $25, $26) `
 
 	// InsertBlockRow inserts a new block row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
@@ -65,7 +66,7 @@ const (
 
 	// UpsertBlockRow is an upsert (insert or update on conflict), returning
 	// the inserted/updated block row id.
-	UpsertBlockRow = insertBlockRow + `ON CONFLICT (hash) DO UPDATE 
+	UpsertBlockRow = insertBlockRow + `ON CONFLICT (hash) DO UPDATE
 		SET is_valid = $4, is_mainchain = $5 RETURNING id;`
 
 	// InsertBlockRowOnConflictDoNothing allows an INSERT with a DO NOTHING on
@@ -199,6 +200,9 @@ const (
 
 	UpdateBlockNext       = `UPDATE block_chain SET next_hash = $2 WHERE block_db_id = $1;`
 	UpdateBlockNextByHash = `UPDATE block_chain SET next_hash = $2 WHERE this_hash = $1;`
+
+	// Grab the timestamp and chainwork.
+	SelectChainWork = `SELECT time, chainwork FROM blocks WHERE is_mainchain = true ORDER BY time;`
 
 	// TODO: index block_chain where needed
 )

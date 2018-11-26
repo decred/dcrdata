@@ -1596,7 +1596,7 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 
 	_, _, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets,
 		isValid, isMainChain, updateExistingRecords,
-		updateAddressesSpendingInfo, updateTicketsSpendingInfo)
+		updateAddressesSpendingInfo, updateTicketsSpendingInfo, blockData.Header.ChainWork)
 	return err
 }
 
@@ -1720,6 +1720,11 @@ func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
 		return nil, fmt.Errorf("retrieveTicketByOutputCount by All TP window: %v", err)
 	}
 
+	chainWork, hashrates, err := retrieveChainWork(pgb.db)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveChainWork: %v", err)
+	}
+
 	data := map[string]*dbtypes.ChartsData{
 		"avg-block-size":            {Time: size.Time, Size: size.Size},
 		"blockchain-size":           {Time: size.Time, ChainSize: size.ChainSize},
@@ -1732,6 +1737,8 @@ func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
 		"ticket-spend-type":         ticketsSpendType,
 		"ticket-by-outputs-blocks":  ticketsByOutputsAllBlocks,
 		"ticket-by-outputs-windows": ticketsByOutputsTPWindow,
+		"chainwork":                 chainWork,
+		"hashrate":                  hashrates,
 	}
 
 	return data, nil
@@ -1945,9 +1952,9 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 // The number of vins and vouts stored are returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	isValid, isMainchain, updateExistingRecords, updateAddressesSpendingInfo,
-	updateTicketsSpendingInfo bool) (numVins int64, numVouts int64, numAddresses int64, err error) {
+	updateTicketsSpendingInfo bool, chainWork string) (numVins int64, numVouts int64, numAddresses int64, err error) {
 	// Convert the wire.MsgBlock to a dbtypes.Block
-	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams)
+	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams, chainWork)
 
 	// Get the previous winners (stake DB pool info cache has this info). If the
 	// previous block is side chain, stakedb will not have the
@@ -2719,4 +2726,10 @@ func ticketpoolStatusSlice(ss dbtypes.TicketPoolStatus, N int) []dbtypes.TicketP
 		S[ip] = ss
 	}
 	return S
+}
+
+// GetChainwork fetches the dcrjson.BlockHeaderVerbose and returns only the ChainWork
+// attribute as a hex-encoded string, without 0x prefix.
+func (db *ChainDBRPC) GetChainWork(hash *chainhash.Hash) (string, error) {
+	return rpcutils.GetChainWork(db.Client, hash)
 }

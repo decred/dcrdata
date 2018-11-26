@@ -48,7 +48,7 @@ type dropDuplicatesInfo struct {
 // re-indexing and a duplicate scan/purge.
 const (
 	tableMajor = 3
-	tableMinor = 6
+	tableMinor = 7
 	tablePatch = 0
 )
 
@@ -210,6 +210,7 @@ func CreateTables(db *sql.DB) error {
 			log.Tracef("Table \"%s\" exist.", tableName)
 		}
 	}
+
 	return err
 }
 

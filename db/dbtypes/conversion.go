@@ -10,7 +10,7 @@ import (
 )
 
 // MsgBlockToDBBlock creates a dbtypes.Block from a wire.MsgBlock
-func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params) *Block {
+func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params, chainWork string) *Block {
 	// Create the dbtypes.Block structure
 	blockHeader := msgBlock.Header
 
@@ -55,6 +55,7 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params) *B
 		ExtraData:    blockHeader.ExtraData[:],
 		StakeVersion: blockHeader.StakeVersion,
 		PreviousHash: blockHeader.PrevBlock.String(),
+		ChainWork:    chainWork,
 	}
 }
 

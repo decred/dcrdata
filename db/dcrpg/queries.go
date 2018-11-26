@@ -10,7 +10,9 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -2522,6 +2524,88 @@ func retrieveTicketByOutputCount(ctx context.Context, db *sql.DB, dataType outpu
 	return items, nil
 }
 
+// retrieveChainWork assembles both block-by-block chainwork data
+// and a rolling average for network hashrate data.
+func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, error) {
+	// Grab all chainwork points in rows of (time, chainwork).
+	rows, err := db.Query(internal.SelectChainWork)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer closeRows(rows)
+
+	// Assemble chainwork and hashrate simultaneously.
+	// Chainwork is stored as a 32-byte hex string, so in order to
+	// do math, math/big types are used.
+	workdata := new(dbtypes.ChartsData)
+	hashrates := new(dbtypes.ChartsData)
+	var blocktime dbtypes.TimeDef
+	var workhex string
+
+	// In order to store these large values as uint64, they are represented
+	// as exahash (10^18) for work, and terahash/s (10^12) for hashrate.
+	bigExa := big.NewInt(int64(1e18))
+	bigTera := big.NewInt(int64(1e12))
+
+	// chainWorkPt is stored for a rolling average.
+	type chainWorkPt struct {
+		work *big.Int
+		time time.Time
+	}
+	// How many blocks to average across for hashrate.
+	// 120 is the default returned by the RPC method `getnetworkhashps`.
+	var averagingLength int = 120
+	// points is used as circular storage.
+	points := make([]chainWorkPt, averagingLength)
+	var thisPt, lastPt chainWorkPt
+	var idx, workingIdx, lastIdx int
+	for rows.Next() {
+		// Get the chainwork.
+		err = rows.Scan(&blocktime.T, &workhex)
+		if err != nil {
+			return nil, nil, err
+		}
+		bigwork := new(big.Int)
+		exawork := new(big.Int)
+		bigwork, ok := bigwork.SetString(workhex, 16)
+		if !ok {
+			log.Errorf("Failed to make big.Int from chainwork %s", workhex)
+			break
+		}
+		exawork.Set(bigwork)
+		exawork.Div(bigwork, bigExa)
+		if !exawork.IsUint64() {
+			log.Errorf("Failed to make uint64 from chainwork %s", workhex)
+			break
+		}
+		workdata.ChainWork = append(workdata.ChainWork, exawork.Uint64())
+		workdata.Time = append(workdata.Time, blocktime)
+
+		workingIdx = idx % averagingLength
+		points[workingIdx] = chainWorkPt{bigwork, blocktime.T}
+		if idx >= averagingLength {
+			// lastIdx is actually the point averagingLength blocks ago.
+			lastIdx = (workingIdx + 1) % averagingLength
+			lastPt = points[lastIdx]
+			thisPt = points[workingIdx]
+			diff := new(big.Int)
+			diff.Set(thisPt.work)
+			diff.Sub(diff, lastPt.work)
+			rate := diff.Div(diff, big.NewInt(int64(thisPt.time.Sub(lastPt.time).Seconds())))
+			rate.Div(rate, bigTera)
+			if !rate.IsUint64() {
+				log.Errorf("Failed to make uint64 from rate")
+				break
+			}
+			tDef := dbtypes.TimeDef{thisPt.time}
+			hashrates.Time = append(hashrates.Time, tDef)
+			hashrates.NetHash = append(hashrates.NetHash, rate.Uint64())
+		}
+		idx += 1
+	}
+	return workdata, hashrates, nil
+}
+
 // --- blocks and block_chain tables ---
 
 func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, checked bool) (uint64, error) {
@@ -2535,7 +2619,7 @@ func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, check
 		dbBlock.FinalState, dbBlock.Voters, dbBlock.FreshStake,
 		dbBlock.Revocations, dbBlock.PoolSize, dbBlock.Bits,
 		dbBlock.SBits, dbBlock.Difficulty, dbBlock.ExtraData,
-		dbBlock.StakeVersion, dbBlock.PreviousHash).Scan(&id)
+		dbBlock.StakeVersion, dbBlock.PreviousHash, dbBlock.ChainWork).Scan(&id)
 	return id, err
 }
 

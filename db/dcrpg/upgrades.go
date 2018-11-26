@@ -9,8 +9,10 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"strings"
 
 	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
@@ -46,6 +48,7 @@ const (
 	agendasBlockTimeDataTypeUpdate
 	transactionsBlockTimeDataTypeUpdate
 	vinsBlockTimeDataTypeUpdate
+	blocksChainWorkUpdate
 )
 
 type TableUpgradeType struct {
@@ -296,6 +299,22 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		}
 
 		pgb.createBlockTimeIndexes()
+		// Go on to next upgrade
+		fallthrough
+
+		// Upgrade from 3.6.0 --> 3.7.0
+	case version.major == 3 && version.minor == 6 && version.patch == 0:
+		toVersion = TableVersion{3, 7, 0}
+
+		theseUpgrades := []TableUpgradeType{
+			{"blocks", blocksChainWorkUpdate},
+		}
+
+		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
+		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
 
 	// Go on to next upgrade
 	// fallthrough
@@ -413,6 +432,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case vinsBlockTimeDataTypeUpdate:
 		tableReady = true
 		tableName, upgradeTypeStr = "vins", "block time data type update"
+	case blocksChainWorkUpdate:
+		tableReady, err = addChainWorkColumn(pgb.db)
+		tableName, upgradeTypeStr = "blocks", "new chainwork column"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -529,6 +551,10 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case addressesTableMatchingTxHashPatch:
 		log.Infof("Patching matching_tx_hash in the addresses table...")
 		rowsUpdated, err = updateAddressesMatchingTxHashPatch(pgb.db)
+
+	case blocksChainWorkUpdate:
+		log.Infof("Syncing chainwork. This might take a while...")
+		rowsUpdated, err = verifyChainWork(client, pgb.db)
 
 	case addressesBlockTimeDataTypeUpdate, blocksBlockTimeDataTypeUpdate,
 		agendasBlockTimeDataTypeUpdate, transactionsBlockTimeDataTypeUpdate,
@@ -1182,6 +1208,13 @@ func addAddressesColumnsForMainchain(db *sql.DB) (bool, error) {
 	return addNewColumnsIfNotFound(db, "addresses", newColumns)
 }
 
+func addChainWorkColumn(db *sql.DB) (bool, error) {
+	newColumns := []newColumn{
+		{"chainwork", "TEXT", "0"},
+	}
+	return addNewColumnsIfNotFound(db, "blocks", newColumns)
+}
+
 // versionAllTables comments the tables with the upgraded table version.
 func versionAllTables(db *sql.DB, version TableVersion) error {
 	for tableName := range createTableStatements {
@@ -1194,4 +1227,88 @@ func versionAllTables(db *sql.DB, version TableVersion) error {
 		log.Infof("Modified the %v table version to %v", tableName, version)
 	}
 	return nil
+}
+
+// verifyChainWork fetches and inserts missing chainwork values.
+// This addresses a table update done at DB version 3.7.0.
+func verifyChainWork(blockgate *rpcutils.BlockGate, db *sql.DB) (int64, error) {
+	// Count rows with missing chainWork.
+	var count int64
+	countRow := db.QueryRow(`SELECT COUNT(hash) FROM blocks WHERE chainwork = '0';`)
+	err := countRow.Scan(&count)
+	if err != nil {
+		log.Error("Failed to count null chainwork columns: %v", err)
+		return 0, err
+	}
+	if count == 0 {
+		return 0, nil
+	}
+
+	// Prepare the insertion statment. Parameters: 1. chainwork; 2. blockhash.
+	stmt, err := db.Prepare(`UPDATE blocks SET chainwork=$1 WHERE hash=$2;`)
+	if err != nil {
+		log.Error("Failed to prepare chainwork insertion statement: %v", err)
+		return 0, err
+	}
+	defer stmt.Close()
+
+	// Grab the blockhashes from rows that don't have chainwork.
+	rows, err := db.Query(`SELECT hash, is_mainchain FROM blocks WHERE chainwork = '0';`)
+	if err != nil {
+		log.Error("Failed to query database for missing chainwork: %v", err)
+		return 0, err
+	}
+	defer rows.Close()
+
+	var updated int64
+	client := blockgate.Client()
+	tReport := time.Now()
+	for rows.Next() {
+		var hashStr string
+		var isMainchain bool
+		err = rows.Scan(&hashStr, &isMainchain)
+		if err != nil {
+			log.Error("Failed to Scan null chainwork results. Aborting chainwork sync: %v", err)
+			return updated, err
+		}
+
+		blockHash, err := chainhash.NewHashFromStr(hashStr)
+		if err != nil {
+			log.Errorf("Failed to parse hash from string %s. Aborting chainwork sync.: %v", hashStr, err)
+			return updated, err
+		}
+
+		chainWork, err := rpcutils.GetChainWork(client, blockHash)
+		if err != nil {
+			// If it's an orphaned block, it may not be in dcrd database. OK to skip.
+			if strings.HasPrefix(err.Error(), "-5: Block not found") {
+				if isMainchain {
+					// Although every mainchain block should have a corresponding
+					// blockNode and chainwork value in drcd, this upgrade is run before
+					// the chain is synced, so it's possible an orphaned block is still
+					// marked mainchain.
+					log.Warnf("No chainwork found for mainchain block %s. Skipping.", hashStr)
+				}
+				updated++
+				continue
+			}
+			log.Errorf("GetChainWork failed (%s). Aborting chainwork sync.: %v", hashStr, err)
+			return updated, err
+		}
+
+		_, err = stmt.Exec(chainWork, hashStr)
+		if err != nil {
+			log.Errorf("Failed to insert chainwork (%s) for block %s. Aborting chainwork sync: %v", chainWork, hashStr, err)
+			return updated, err
+		}
+		updated++
+		// Every two minutes, report the sync status.
+		if updated%100 == 0 && time.Since(tReport) > 2*time.Minute {
+			tReport = time.Now()
+			log.Infof("Chainwork sync is %.1f%% complete.", float64(updated)/float64(count)*100)
+		}
+	}
+
+	log.Info("Chainwork sync complete.")
+	return updated, nil
 }

@@ -506,6 +506,8 @@ type ChartsData struct {
 	Received    []float64 `json:"received,omitempty"`
 	Sent        []float64 `json:"sent,omitempty"`
 	Net         []float64 `json:"net,omitempty"`
+	ChainWork   []uint64  `json:"chainwork,omitempty"`
+	NetHash     []uint64  `json:"nethash,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)
@@ -641,6 +643,7 @@ type Block struct {
 	ExtraData    []byte  `json:"extradata"`
 	StakeVersion uint32  `json:"stakeversion"`
 	PreviousHash string  `json:"previousblockhash"`
+	ChainWork    string  `json:"chainwork"`
 }
 
 type BlockDataBasic struct {
