@@ -151,11 +151,11 @@
                             data-target="address.zoom"
                             data-action="click->address#onZoom"
                         >
-                            <input type="button" class="chart-zoom btn btn_sm btn-active all" value="All Time" name="0">
-                            <input type="button" class="chart-zoom btn btn_sm year" value="Year" name="3.154e+10">
-                            <input type="button" class="chart-zoom btn btn_sm month" value="Month" name="2.628e+9">
-                            <input type="button" class="chart-zoom btn btn_sm week" value="Week" name="6.048e+8">
-                            <input type="button" class="chart-zoom btn btn_sm day" value="Day" name="8.64e+7">
+                          <input type="button" class="chart-zoom btn btn_sm btn-active all" value="All Time" name="all">
+                          <input type="button" class="chart-zoom btn btn_sm year" value="Year" name="year">
+                          <input type="button" class="chart-zoom btn btn_sm month" value="Month" name="month">
+                          <input type="button" class="chart-zoom btn btn_sm week" value="Week" name="week">
+                          <input type="button" class="chart-zoom btn btn_sm day" value="Day" name="day">
                         </div>
                         <label style="margin: 0 1% 0 2%;">Group By </label>
                         <div
@@ -163,7 +163,7 @@
                             data-toggle="buttons"
                             data-txcount="{{$TxnCount}}"
                             data-target="address.interval"
-                            data-action="click->address#changeGraph"
+                            data-action="click->address#changeBin"
                             data-year="{{$.Metrics.YearTxsCount}}"
                             data-month="{{$.Metrics.MonthTxsCount}}"
                             data-week="{{$.Metrics.WeekTxsCount}}"
@@ -372,7 +372,7 @@
 
     <script>
         $(".jsonly").show()
-        $('#list-display').hide()
+        // $('#list-display').hide()
 
         $("#txntype").add("#pagesize").change(function(ev) {
             var pagesize = "20"
