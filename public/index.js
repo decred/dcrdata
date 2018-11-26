@@ -1,20 +1,22 @@
 /* global require */
 /* global $ */
 /* global Turbolinks */
-import ws from './services/messagesocket_service'
-import humanize from './helpers/humanize_helper'
+import ws from './js/services/messagesocket_service'
+import humanize from './js/helpers/humanize_helper'
 import Notify from 'notifyjs'
 
 import { Application } from 'stimulus'
 import { definitionsFromContext } from 'stimulus/webpack-helpers'
-import { darkEnabled } from './services/theme_service'
-import { handleNextHomeBlockUpdate, handleMempoolUpdate } from './controllers/nexthome_blocks_controller'
-import globalEventBus from './services/event_bus_service'
+import { darkEnabled } from './js/services/theme_service'
+import { handleNextHomeBlockUpdate, handleMempoolUpdate } from './js/controllers/nexthome_blocks_controller'
+import globalEventBus from './js/services/event_bus_service'
+
+require('./scss/application.scss')
 
 window.darkEnabled = darkEnabled
 
 const application = Application.start()
-const context = require.context('./controllers', true, /\.js$/)
+const context = require.context('./js/controllers', true, /\.js$/)
 application.load(definitionsFromContext(context))
 
 $('.jsonly').show()

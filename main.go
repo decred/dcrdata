@@ -490,6 +490,7 @@ func _main(ctx context.Context) error {
 	FileServer(webMux, "/css", http.Dir("./public/css"), cacheControlMaxAge)
 	FileServer(webMux, "/fonts", http.Dir("./public/fonts"), cacheControlMaxAge)
 	FileServer(webMux, "/images", http.Dir("./public/images"), cacheControlMaxAge)
+	FileServer(webMux, "/dist", http.Dir("./public/dist"), cacheControlMaxAge)
 
 	// SyncStatusApiResponse returns a json response when the sync status page is running.
 	webMux.With(explore.SyncStatusApiResponse).Group(func(r chi.Router) {

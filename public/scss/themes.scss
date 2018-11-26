@@ -1,0 +1,176 @@
+/**  testnet theme  **/
+body.theme-testnet {
+  .top-nav,
+  .navbar-fixed-bottom {
+    background: #116466;
+    color: #fff;
+  }
+
+  .navbar-fixed-bottom .nav-item {
+    color: #fff;
+  }
+
+  .top-search {
+    color: #fff;
+  }
+
+  #menuToggle .patty {
+    background: #fff;
+  }
+
+  .dcrdata-logo {
+    background-image: url(/images/themes/night/logo.svg);
+  }
+}
+
+/**  simnet theme  **/
+body.theme-simnet {
+  .top-nav,
+  .navbar-fixed-bottom {
+    background: #076191;
+    color: #fff;
+  }
+
+  .top-search {
+    color: #fff;
+  }
+
+  .navbar-fixed-bottom .nav-item {
+    color: #fff;
+  }
+
+  #menuToggle .patty {
+    background: #fff;
+  }
+}
+
+/* dark theme */
+body.darkBG {
+  background: #3b3f45;
+  color: #fdfdfd;
+
+  .grayed {
+    color: rgba(253, 253, 253, 0.5);
+  }
+
+  a,
+  a:hover {
+    color: #94ffca;
+  }
+
+  a.elidedhash,
+  a.elidedhash:hover {
+    color: transparent;
+    text-decoration-color: #94ffca;
+  }
+
+  a.elidedhash::before,
+  a.elidedhash::after {
+    color: #94ffca;
+  }
+
+  div.elidedhash::before,
+  div.elidedhash::after {
+    color: #fdfdfd;
+  }
+
+  a.grayed,
+  a.grayed:hover {
+    color: rgba(148, 255, 202, 0.75) !important;
+  }
+
+  .flex-table .flex-table-row,
+  .flex-table .header,
+  .table tr {
+    border-bottom: 1px solid #2d2d2d;
+  }
+
+  .table thead th {
+    vertical-align: bottom;
+  }
+
+  .flex-table .header,
+  .table thead tr {
+    background: #2d2d2d !important;
+  }
+
+  .top-nav,
+  .navbar-fixed-bottom {
+    background: #292929;
+    color: #3c4044;
+  }
+
+  .top-nav a,
+  .navbar-fixed-bottom a {
+    color: #fff;
+  }
+
+  .page-link {
+    background-color: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(221, 221, 221, 0);
+  }
+
+  .page-item.disabled .page-link {
+    border-color: transparent;
+    background-color: #565656;
+  }
+
+  .json-block {
+    color: #fdfdfd;
+  }
+
+  .top-search {
+    color: #7fbdff;
+  }
+
+  .top-nav input:-webkit-autofill {
+    -webkit-animation-name: autofillDark;
+    -webkit-animation-fill-mode: both;
+  }
+
+  .navbar-fixed-bottom .nav-item {
+    color: #dcdcdc;
+  }
+
+  #menuToggle .patty {
+    background: #fdfdfd;
+  }
+
+  #menuToggle input:checked ~ .patty {
+    background: #fbfbfb;
+  }
+
+  #menu .menu-item {
+    color: #fbfbfb;
+
+    &:hover,
+    &:hover span {
+      color: #94ffca;
+    }
+  }
+
+  #menu {
+    background: #2a2a2a;
+    box-shadow: 0 0 0 1px #fff3;
+  }
+
+  .progress {
+    background-color: #757575;
+  }
+
+  select,
+  input[type=number] {
+    color: #fff !important;
+    background: #2a2a2a !important;
+    border-color: #191919 !important;
+  }
+
+  .nav-pills .nav-link.active {
+    background-color: #2dd8a3;
+    color: black;
+  }
+
+  .dcrdata-logo {
+    background-image: url(/images/themes/night/logo.svg);
+  }
+}

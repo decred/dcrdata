@@ -1,0 +1,47 @@
+/* responsive */
+@media only screen and (max-width: 992px) {
+  .container {
+    max-width: 100% !important;
+  }
+}
+
+@media only screen and (max-width: 768px) {
+  .table {
+    margin-bottom: 0;
+    width: 100%;
+  }
+
+  .sm-fullwidth {
+    width: 100%;
+    max-width: 100% !important;
+  }
+
+  .sm-w151 {
+    width: 151px;
+  }
+
+  .block-msg {
+    display: none;
+  }
+}
+
+@media only screen and (max-width: 576px) {
+  .home-link {
+    width: 35px;
+    overflow: hidden;
+  }
+
+  .xs-w91 {
+    width: 91px !important;
+  }
+
+  .xs-w117 {
+    width: 117px;
+  }
+}
+
+@media (min-width: 768px) {
+  .connection-wrapper {
+    width: 180px;
+  }
+}

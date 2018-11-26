@@ -1,0 +1,32 @@
+/* resemble voting.decred.org */
+.highlight-text {
+  height: 20px;
+  margin-top: 3px;
+  padding: 2px 4px 3px;
+  border-radius: 3px;
+  line-height: 20px;
+  font-weight: 600;
+  background-color: rgba(105, 211, 245, 0.3);
+}
+
+.agenda-voting-overview-option-dot {
+  position: relative;
+  top: 3px;
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+  float: left;
+  border-radius: 50%;
+}
+
+.agenda-voting-overview-option-dot._abstain {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.agenda-voting-overview-option-dot._yes {
+  background-color: #2ed6a1;
+}
+
+.agenda-voting-overview-option-dot._no {
+  background-color: #2971ff;
+}

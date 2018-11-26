@@ -1,0 +1,144 @@
+/* Typography */
+.fs14-decimal .dot,
+.fs14-decimal .decimal,
+.fs14-decimal .unit {
+  font-size: 14px;
+}
+
+.fs16-decimal .dot,
+.fs16-decimal .decimal,
+.fs16-decimal .unit {
+  font-size: 16px;
+}
+
+.sep {
+  position: relative;
+  top: 3px;
+  width: 1px;
+  height: 14px;
+  background: #848484;
+  display: inline-block;
+  margin: 0 3px 0 3px;
+}
+
+.hash {
+  font-size: 14px;
+  font-family: 'inconsolata-v15-latin-regular', monospace;
+  display: inline-block;
+  word-wrap: break-word;
+  transition: 0.133s transform;
+}
+
+.truncate-hash {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: 'inconsolata-v15-latin-regular', monospace;
+}
+
+.elidedhash {
+  position: relative;
+  display: inline-block;
+  font-family: 'inconsolata-v15-latin-regular', monospace;
+  color: transparent;
+  max-width: 100%;
+  -webkit-user-select: all;
+  -moz-user-select: all;
+  user-select: all;
+  z-index: 20;
+  text-overflow: clip;
+  overflow: hidden;
+}
+
+a.elidedhash {
+  cursor: pointer;
+}
+
+a.elidedhash:visited {
+  color: transparent;
+}
+
+.elidedhash::selection {
+  color: transparent;
+  background-color: #ccc;
+}
+
+.elidedhash::before {
+  content: attr(data-head);
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 3em;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  z-index: 10;
+  text-align: right;
+}
+
+a.elidedhash::before,
+a.elidedhash::after {
+  color: #2e75ff;
+}
+
+div.elidedhash::before,
+div.elidedhash::after {
+  color: #212529;
+}
+
+.elidedhash::after {
+  content: attr(data-tail);
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 3em;
+  z-index: 10;
+  text-align: right;
+  direction: rtl;
+}
+
+a.elidedhash:hover {
+  color: transparent;
+  text-decoration: underline;
+  text-decoration-color: #2e75ff;
+}
+
+// colors
+
+.grayed {
+  opacity: 0.5;
+}
+
+body .grayed {
+  color: rgba(33, 37, 41, 0.5);
+}
+
+a.grayed {
+  color: rgba(46, 117, 255, 0.75) !important;
+}
+
+/* content */
+.dcr-total .dcr {
+  font-size: 28px;
+}
+
+.dcr-total .total-text {
+  line-height: 11px;
+  opacity: 0.8;
+  font-weight: bold;
+  letter-spacing: 0;
+}
+
+.dcr-total .total-text .d-block {
+  letter-spacing: 1px;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.attention {
+  color: red;
+  font-size: 14px;
+}

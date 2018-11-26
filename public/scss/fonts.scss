@@ -1,0 +1,22 @@
+/* fonts */
+@font-face {
+  font-family: 'source-sans-pro-v9-latin-regular';
+  src: url('/fonts/source-sans-pro-v9-latin-regular.eot');
+  src:
+    url('/fonts/source-sans-pro-v9-latin-regular.eot#iefix') format('embedded-opentype'),
+    url('/fonts/source-sans-pro-v9-latin-regular.woff') format('woff'),
+    url('/fonts/source-sans-pro-v9-latin-regular.svg') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'inconsolata-v15-latin-regular';
+  src: url('/fonts/inconsolata-v15-latin-regular.eot');
+  src:
+    url('/fonts/inconsolata-v15-latin-regular.eot#iefix') format('embedded-opentype'),
+    url('/fonts/inconsolata-v15-latin-regular.woff') format('woff'),
+    url('/fonts/inconsolata-v15-latin-regular.svg') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}

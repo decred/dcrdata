@@ -1,0 +1,104 @@
+.table-centered-1rem td {
+  line-height: 1rem;
+  vertical-align: middle;
+}
+
+.table th {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.table td {
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.table th,
+.table td {
+  border: none;
+  padding: 0.25rem 0.5rem;
+}
+
+.table tr {
+  border-bottom: 1px solid #e4e4e4;
+}
+
+table.align-baseline-rows tr {
+  vertical-align: baseline;
+}
+
+.table thead th {
+  border-bottom: none;
+  padding: 0.36rem 0.5rem;
+}
+
+.table thead tr {
+  background: #fff !important;
+  border-bottom: 1px solid #e2e2e2;
+}
+
+.table-sm td {
+  padding: 0.1rem 0.5rem;
+  height: 25px;
+}
+
+.table-mono-cells td {
+  font-family: 'inconsolata-v15-latin-regular', monospace;
+  font-size: 14px;
+}
+
+.table.flush-left tr td:first-child {
+  padding-left: 0;
+}
+
+.table .address {
+  max-width: 126px;
+}
+
+.table .outpoint {
+  max-width: 222px;
+}
+
+.table-fixed {
+  table-layout: fixed;
+}
+
+.table div.hash-box {
+  position: relative;
+  height: 1.4rem;
+  min-width: 4em;
+  font-size: 14px;
+  padding: 0.2em 10% 0.2em 0;
+}
+
+.table th.addr-hash-column {
+  font-size: 14px;
+  width: 20em;
+}
+
+.table div.hash-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* flexboxtable */
+.flex-table .header {
+  padding: 0.36rem 0.5rem;
+  background: #fff;
+  border-bottom: 1px solid #e2e2e2;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.flex-table-row {
+  padding: 0.4rem;
+  font-size: 13px;
+  border-bottom: 1px solid #e4e4e4;
+}
+
+.table.no-border tr {
+  border-bottom: none !important;
+}
