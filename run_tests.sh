@@ -27,7 +27,7 @@ testrepo () {
   popd
   #go get -u -v github.com/golangci/golangci-lint/cmd/golangci-lint
   
-  golangci-lint run --disable-all --enable govet --enable staticcheck \
+  golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
     --enable gosimple --enable unconvert --enable ineffassign --enable structcheck\
     --enable goimports --enable misspell --enable unparam
   if [ $? != 0 ]; then	
