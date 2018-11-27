@@ -476,7 +476,7 @@ func (pq *BlockPriorityQueue) Insert(summary *BlockDataBasic) (bool, *chainhash.
 	}
 
 	// At capacity
-	for int(pq.capacity) <= pq.Len() {
+	if int(pq.capacity) <= pq.Len() {
 		//fmt.Printf("Cache full: %d / %d\n", pq.Len(), pq.capacity)
 		cachedBlock := &CachedBlock{
 			summary:    summary,
@@ -486,7 +486,7 @@ func (pq *BlockPriorityQueue) Insert(summary *BlockDataBasic) (bool, *chainhash.
 		}
 
 		// If new block not lower priority than next to pop, replace that in the
-		// queue and fix up the heap.  Usuall you don't replace if equal, but
+		// queue and fix up the heap. Usually you don't replace if equal, but
 		// new one is necessariy more recently accessed, so we replace.
 		if pq.lessFn(pq.bh[0], cachedBlock) {
 			// heightAdded, heightRemoved := summary.Height, pq.bh[0].summary.Height

@@ -519,7 +519,7 @@ type MempoolTx struct {
 	Fees      float64        `json:"fees"`
 	VinCount  int            `json:"vin_count"`
 	VoutCount int            `json:"vout_count"`
-	Vin       []MempoolInput `json:"vin",omitempty`
+	Vin       []MempoolInput `json:"vin,omitempty"`
 	Coinbase  bool           `json:"coinbase"`
 	Hash      string         `json:"hash"`
 	Time      int64          `json:"time"`

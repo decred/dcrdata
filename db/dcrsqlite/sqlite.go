@@ -6,8 +6,8 @@ package dcrsqlite
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -388,8 +388,8 @@ func (db *DB) StoreBlock(bd *apitypes.BlockDataBasic, isMainchain bool, isValid 
 			db.dbSummaryHeight = height
 		}
 		if db.lastStoredBlock == nil || bd.Height >= db.lastStoredBlock.Height {
-			blockdata := apitypes.BlockDataBasic(*bd)
-			db.lastStoredBlock = &blockdata
+			db.lastStoredBlock = new(apitypes.BlockDataBasic)
+			*db.lastStoredBlock = *bd
 		}
 	}
 
