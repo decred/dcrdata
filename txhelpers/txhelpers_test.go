@@ -243,3 +243,9 @@ func TestGenesisTxHash(t *testing.T) {
 			mainnetExpectedTxHash, genesisTxHash)
 	}
 }
+
+func TestAddressErrors(t *testing.T) {
+	if AddressErrorNoError != nil {
+		t.Errorf("txhelpers.AddressErrorNoError must be <nil>")
+	}
+}

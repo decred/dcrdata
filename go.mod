@@ -11,6 +11,7 @@ require (
 	github.com/chappjc/trylock v1.0.0
 	github.com/coreos/bbolt v1.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1
+	github.com/decred/base58 v1.0.0
 	github.com/decred/dcrd/blockchain v1.0.2
 	github.com/decred/dcrd/blockchain/stake v1.0.2
 	github.com/decred/dcrd/chaincfg v1.1.1

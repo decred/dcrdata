@@ -55,7 +55,7 @@ func (exp *explorerUI) timeoutErrorPage(w http.ResponseWriter, err error, debugS
 	if wasTimeout {
 		log.Debugf("%s: %v", debugStr, err)
 		exp.StatusPage(w, defaultErrorCode,
-			"Database timeout. Please try again later.", ExpStatusDBTimeout)
+			"Database timeout. Please try again later.", "", ExpStatusDBTimeout)
 	}
 	return
 }
@@ -356,7 +356,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -390,7 +390,7 @@ func (exp *explorerUI) YearBlocksListing(w http.ResponseWriter, r *http.Request)
 func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
-			"Time based blocks listing page cannot run in lite mode.", ExpStatusNotSupported)
+			"Time based blocks listing page cannot run in lite mode.", "", ExpStatusNotSupported)
 	}
 
 	grouping := dbtypes.TimeGroupingFromStr(val)
@@ -399,7 +399,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		// default to year grouping if grouping is missing
 		i, err = dbtypes.TimeBasedGroupingToInterval(dbtypes.YearGrouping)
 		if err != nil {
-			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", ExpStatusError)
+			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", "", ExpStatusError)
 			log.Errorf("Invalid year grouping found: error: %v ", err)
 		}
 		grouping = dbtypes.YearGrouping
@@ -432,7 +432,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	}
 	if err != nil {
 		log.Errorf("The specified /%s intervals are invalid. offset=%d&rows=%d: error: %v ", val, offset, rows, err)
-		exp.StatusPage(w, defaultErrorCode, "The specified intervals could not found", ExpStatusNotFound)
+		exp.StatusPage(w, defaultErrorCode, "The specified intervals could not found", "", ExpStatusNotFound)
 		return
 	}
 
@@ -1014,7 +1014,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			}
 			if err != nil && err != sql.ErrNoRows {
 				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v", hash, err)
-				exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
+				exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 				return
 			} else if err != sql.ErrNoRows {
 				log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
@@ -1152,22 +1152,44 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := txhelpers.AddressVerification(address, exp.NetName)
-	if err != nil {
-		st := WrongNetworkStatusType
-		message := err.Error()
-		if err.Error() == "P2PK address detected" {
-			st = P2PkAddressStatusTypes
-			message = "Looks like you are searching for an address of type P2PK"
-		} else if err.Error() == "Possible Bitcoin address detected." {
-			st = BitcoinWrongNetworkStatusType
+	// Validate the address.
+	addr, addrType, addrErr := txhelpers.AddressValidation(address, exp.ChainParams)
+	if addrErr != nil && addrErr != txhelpers.AddressErrorZeroAddress {
+		var status expStatus
+		var message string
+		code := defaultErrorCode
+		switch addrErr {
+		case txhelpers.AddressErrorBitcoin:
+			status = ExpStatusBitcoin
 			message = "Looks like you are searching for a bitcoin address"
-		} else if strings.HasPrefix(err.Error(), "Wrong Network") {
-		} else {
-			st = ErrorStatusType
+		case txhelpers.AddressErrorDecodeFailed, txhelpers.AddressErrorUnknown:
+			status = ExpStatusError
 			message = "Unexpected issue validating this address."
+		case txhelpers.AddressErrorWrongNet:
+			status = ExpStatusWrongNetwork
+			message = fmt.Sprintf("The address %v is valid on %s, not %s",
+				addr, addr.Net().Name, exp.NetName)
+			code = wrongNetwork
+		default:
+			status = ExpStatusError
+			message = "Unknown error."
 		}
-		exp.StatusPage(w, defaultErrorCode, message, address, st)
+
+		exp.StatusPage(w, code, message, address, status)
+		return
+	}
+
+	// Handle valid but unsupported address types.
+	switch addrType {
+	case txhelpers.AddressTypeP2PKH, txhelpers.AddressTypeP2SH:
+		// All good.
+	case txhelpers.AddressTypeP2PK:
+		message := "Looks like you are searching for an address of type P2PK."
+		exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusP2PKAddress)
+		return
+	default:
+		message := "Unsupported address type."
+		exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusNotSupported)
 		return
 	}
 
@@ -1206,43 +1228,20 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
 	if exp.liteMode {
-		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
-		if err != nil && strings.HasPrefix(err.Error(), "wrong network") {
-			exp.StatusPage(w, wrongNetwork, "That address is not valid for "+exp.NetName, "", ExpStatusNotSupported)
+		addrData, _, addrErr = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		// The specific AddressError values from ValidateAddress were already
+		// handled, but there may be other errors from GetExplorerAddress (e.g.
+		// from searchrawtransactions).
+		if addrErr != txhelpers.AddressErrorNoError {
+			message := "Unknown error retrieving data for that address."
+			exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusError)
 			return
 		}
-		if err != nil {
-			log.Errorf("Unable to get address %s: %v", address, err)
-			exp.StatusPage(w, defaultErrorCode, "Unexpected issue locating data for that address.", "", ExpStatusError)
-			return
-	addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
-	if err != nil {
-		st := WrongNetworkStatusType
-		message := err.Error()
-		if err.Error() == "P2PK address detected" {
-			st = P2PkAddressStatusTypes
-			message = "Looks like you are searching for an address of type P2PK"
-		} else if err.Error() == "Possible Bitcoin address detected." {
-			st = BitcoinWrongNetworkStatusType
-			message = "Looks like you are searching for a bitcoin address"
-		} else if strings.HasPrefix(err.Error(), "Wrong Network") {
-		} else {
-			st = ErrorStatusType
-			message = "Unexpected issue locating data for that address."
-		}
-		exp.StatusPage(w, defaultErrorCode, message, address, st)
-		return
-	}
 
-	if exp.liteMode {
-		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
-		if err != nil {
-			exp.StatusPage(w, defaultErrorCode, "Unexpected issue locating data for that address.", address, ErrorStatusType)
-			return
-		}
 		if addrData == nil {
 			log.Errorf("Unable to get address %s", address)
-			exp.StatusPage(w, defaultErrorCode, "could not find that address", "", NotFoundStatusType)
+			exp.StatusPage(w, defaultErrorCode, "could not find that address",
+				"", ExpStatusNotFound)
 			return
 		}
 	} else {
@@ -1256,13 +1255,14 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			// unconfirmed transactions (or none at all).
 			addrData = new(AddressInfo)
 			addrData.Address = address
+			addrData.Net = addr.Net().Name
 			addrData.Fullmode = true
 			addrData.Balance = &AddressBalance{}
 			log.Tracef("AddressHistory: No confirmed transactions for address %s.", address)
 		} else if errH != nil {
 			// Unexpected error
 			log.Errorf("AddressHistory: %v", errH)
-			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 			return
 		} else /*errH == nil*/ {
 			// Generate AddressInfo skeleton from the address table rows.
@@ -1331,7 +1331,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Errorf("Unable to fetch oldest transactions block time %s: %v", address, err)
 				exp.StatusPage(w, defaultErrorCode, "oldest block time not found", "",
-				ExpStatusNotFound)
+					ExpStatusNotFound)
 				return
 			}
 		} else {
@@ -1343,7 +1343,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		if err != nil || addressOuts == nil {
 			log.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
 			exp.StatusPage(w, defaultErrorCode, "transactions for that address not found",
-				ExpStatusNotFound)
+				"", ExpStatusNotFound)
 			return
 		}
 		addrData.NumUnconfirmed = numUnconfirmed
@@ -1458,7 +1458,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Errorf("Unable to fetch transactions for the address %s: %v", address, err)
 			exp.StatusPage(w, defaultErrorCode, "transactions for that address not found", "",
-				NotFoundStatusType)
+				ExpStatusNotFound)
 			return
 		}
 
@@ -1584,29 +1584,19 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Call GetExplorerAddress to see if the value is an address hash and
 	// then redirect to the address page if it is.
-	address, err := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
-	ai := searchStr
-	if address != nil {
+	address, _, addrErr := exp.blockData.GetExplorerAddress(searchStr, 1, 0)
+	switch addrErr {
+	case txhelpers.AddressErrorNoError, txhelpers.AddressErrorZeroAddress:
 		http.Redirect(w, r, "/address/"+searchStr, http.StatusPermanentRedirect)
 		return
+	case txhelpers.AddressErrorWrongNet:
+		// Status page will provide a link, but the address page can too.
+		message := fmt.Sprintf("The address %v is valid on %s, not %s",
+			searchStr, address.Net, exp.NetName)
+		exp.StatusPage(w, wrongNetwork, message, searchStr, ExpStatusWrongNetwork)
 	}
-	if err != nil {
-		st := WrongNetworkStatusType
-		message := err.Error()
-		if err.Error() == "P2PK address detected" {
-			st = P2PkAddressStatusTypes
-			message = "Looks like you are searching for an address of type P2PK"
-		} else if err.Error() == "Possible Bitcoin address detected." {
-			st = BitcoinWrongNetworkStatusType
-			message = "Looks like you are searching for a bitcoin address"
-		} else if strings.HasPrefix(err.Error(), "Wrong Network") {
-		} else {
-			st = ErrorStatusType
-			message = "Unexpected issue locating data for that address."
-		}
-		exp.StatusPage(w, "search failed", message, ai, st)
-		return
-	}
+
+	// Try aux DB if in full mode.
 	if !exp.liteMode {
 		addrHist, _, _ := exp.explorerSource.AddressHistory(searchStr,
 			1, 0, dbtypes.AddrTxnAll)
@@ -1618,19 +1608,9 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Remaining possibilities are hashes, so verify the string is a hash.
 	if _, err = chainhash.NewHashFromStr(searchStr); err != nil {
-<<<<<<< HEAD
-<<<<<<< HEAD
-		exp.StatusPage(w, "search failed", "Search string is not a valid hash or address: "+searchStr, ExpStatusNotFound)
-=======
-<<<<<<< HEAD
-		exp.StatusPage(w, "search failed", "Search string is not a valid hash or address: "+searchStr, NotFoundStatusType)
-=======
-		exp.StatusPage(w, "search failed", "Couldn't find any address "+searchStr, searchStr, NotFoundStatusType)
->>>>>>> requested changes and more
->>>>>>> requested changes and more
-=======
-		exp.StatusPage(w, "search failed", "Couldn't find any address "+searchStr, searchStr, NotFoundStatusType)
->>>>>>> requested additions and fixing conflicts
+		exp.StatusPage(w, "search failed",
+			"Search string is not a valid hash or address: "+searchStr,
+			"", ExpStatusNotFound)
 		return
 	}
 
@@ -1654,10 +1634,9 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/tx/"+searchStr, http.StatusPermanentRedirect)
 		return
 	}
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+	// Also check the aux DB as it may have transactions from orphaned blocks.
 	if !exp.liteMode {
-		// Search for occurrences of the transaction in the database.
 		dbTxs, err := exp.explorerSource.Transaction(searchStr)
 		if err != nil && err != sql.ErrNoRows {
 			log.Errorf("Searching for transaction failed: %v", err)
@@ -1668,58 +1647,27 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	exp.StatusPage(w, "search failed", "The search string does not match any address, block, or transaction: "+searchStr, ExpStatusNotFound)
-=======
-<<<<<<< HEAD
-	exp.StatusPage(w, "search failed", "The search string does not match any address, block, or transaction: "+searchStr, NotFoundStatusType)
-=======
-	exp.StatusPage(w, "search failed", "Could not find any transaction or block "+searchStr, "", NotFoundStatusType)
->>>>>>> requested changes and more
->>>>>>> requested changes and more
-=======
-	exp.StatusPage(w, "search failed", "Could not find any transaction or block "+searchStr, "", NotFoundStatusType)
->>>>>>> requested additions and fixing conflicts
+	message := "The search did not find any matching address, block, or transaction: " + searchStr
+	exp.StatusPage(w, "search failed", message, "", ExpStatusNotFound)
 }
 
 // StatusPage provides a page for displaying status messages and exception
 // handling without redirecting.
-<<<<<<< HEAD
-<<<<<<< HEAD
-func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, sType expStatus) {
+func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, additionalInfo string, sType expStatus) {
 	str, err := exp.templates.execTemplateToString("status", struct {
 		*CommonPageData
-		StatusType expStatus
-		Code       string
-		Message    string
-		NetName    string
+		StatusType     expStatus
+		Code           string
+		Message        string
+		AdditionalInfo string
+		NetName        string
 	}{
 		CommonPageData: exp.commonData(),
 		StatusType:     sType,
 		Code:           code,
 		Message:        message,
+		AdditionalInfo: additionalInfo,
 		NetName:        exp.NetName,
-=======
-<<<<<<< HEAD
-func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message string, sType statusType) {
-=======
-=======
->>>>>>> requested additions and fixing conflicts
-func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message string, additionalInfo string, sType statusType) {
-	str, err := exp.templates.execTemplateToString("status", struct {
-		StatusType     statusType
-		Code           string
-		Message        string
-		AdditionalInfo string
-		Version        string
-		NetName        string
-	}{
-		sType,
-		code,
-		message,
-		additionalInfo,
-		exp.Version,
-		exp.NetName,
->>>>>>> requested changes and more
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1751,11 +1699,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code string, message st
 
 // NotFound wraps StatusPage to display a 404 page.
 func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
-<<<<<<< HEAD
-	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, ExpStatusNotFound)
-=======
-	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, "", NotFoundStatusType)
->>>>>>> requested changes and more
+	exp.StatusPage(w, "Page not found.", "Cannot find page: "+r.URL.Path, "", ExpStatusNotFound)
 }
 
 // ParametersPage is the page handler for the "/parameters" path.
@@ -1781,11 +1725,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1796,22 +1736,14 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 // AgendaPage is the page handler for the "/agenda" path.
 func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
-		exp.StatusPage(w, fullModeRequired,
-<<<<<<< HEAD
-			"Agenda page cannot run in lite mode.", ExpStatusNotSupported)
-=======
-			"Agenda page cannot run in lite mode.", "", NotSupportedStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, fullModeRequired, "Agenda page not available in lite mode.",
+			"", ExpStatusNotSupported)
 		return
 	}
 	errPageInvalidAgenda := func(err error) {
 		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode,
-<<<<<<< HEAD
-			"the agenda ID given seems to not exist", ExpStatusNotFound)
-=======
-			"the agenda ID given seems to not exist", "", NotFoundStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, defaultErrorCode, "the agenda ID given seems to not exist",
+			"", ExpStatusNotFound)
 	}
 
 	// Attempt to get agendaid string from URL path.
@@ -1834,11 +1766,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1851,11 +1779,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	agendas, err := agendadb.GetAllAgendas()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 
@@ -1871,11 +1795,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested changes and more
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -1986,11 +1906,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-<<<<<<< HEAD
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-=======
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ErrorStatusType)
->>>>>>> requested additions and fixing conflicts
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")

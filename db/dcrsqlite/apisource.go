@@ -1353,67 +1353,47 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	return tx
 }
 
-func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, error) {
-	addr, err := dcrutil.DecodeAddress(address)
-
-	// checks for P2Pk type addresses
-	if strings.HasPrefix(address, "Dk") || strings.HasPrefix(address, "Tk") || strings.HasPrefix(address, "Sk") {
-		return nil, fmt.Errorf("P2PK address detected")
-	}
-	if err != nil {
-		log.Infof("Invalid address %s: %v", address, err)
-
-		// This is here to detect a bitcoin type address
-		if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3")) && len(address) >= 25 && len(address) <= 34 {
-			return nil, fmt.Errorf("Possible Bitcoin address detected.")
-		}
-		return nil, err
-	}
-
-	{
-		// Short circuit the transaction and balance queries if the provided address
-		// is the zero pubkey hash address commonly used for zero value
-		// sstxchange-tagged outputs.
-		isDummyAddress := IsZeroHashP2PHKAddress(address, db.params)
-		if isDummyAddress {
-			return &explorer.AddressInfo{
-				Address:         address,
-				Balance:         new(explorer.AddressBalance),
-				UnconfirmedTxns: new(explorer.AddressTransactions),
-				IsDummyAddress:  true,
-				Fullmode:        true,
-			}, nil
-		}
-	}
-
-	// Dectection of when an address belonging to a different network is inputed
-	if addr.Net().Name != db.params.Name {
-		return nil, fmt.Errorf("Wrong Network. You pasted a %s address on %v", addr.Net().Name, db.params.Name)
+func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
+	// Validate the address.
+	addr, addrType, addrErr := txhelpers.AddressValidation(address, db.params)
+	switch addrErr {
+	case txhelpers.AddressErrorNoError:
+		// All good!
+	case txhelpers.AddressErrorZeroAddress:
+		// Short circuit the transaction and balance queries if the provided
+		// address is the zero pubkey hash address commonly used for zero
+		// value sstxchange-tagged outputs.
+		return &explorer.AddressInfo{
+			Address:         address,
+			Net:             addr.Net().Name,
+			Balance:         new(explorer.AddressBalance),
+			UnconfirmedTxns: new(explorer.AddressTransactions),
+			IsDummyAddress:  true,
+			Fullmode:        true,
+		}, addrType, nil
+	default:
+		return nil, addrType, addrErr
 	}
 
 	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(maxcount), true, true, nil)
-
-	if err != nil && err.Error() == "-32603: No Txns available" {
-		log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
-
-		if !ValidateNetworkAddress(addr, db.params) {
-			log.Warnf("Address %s is not valid for this network", address)
-			return nil, nil
+	if err != nil {
+		if err.Error() == "-32603: No Txns available" {
+			log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
+			return &explorer.AddressInfo{
+				Address:    address,
+				Net:        addr.Net().Name,
+				MaxTxLimit: maxcount,
+			}, addrType, nil
 		}
-		return &explorer.AddressInfo{
-			Address:    address,
-			MaxTxLimit: maxcount,
-		}, nil
-	} else if err != nil {
 		log.Warnf("GetExplorerAddress: SearchRawTransactionsVerbose failed for address %s: %v", addr, err)
-		return nil, nil
+		return nil, addrType, txhelpers.AddressErrorUnknown
 	}
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
 	for i, tx := range txs {
-		if int64(i) == count {
+		if int64(i) == count { // count >= len(txs)
 			break
 		}
 		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address))
@@ -1463,6 +1443,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 	}
 	return &explorer.AddressInfo{
 		Address:           address,
+		Net:               addr.Net().Name,
 		MaxTxLimit:        maxcount,
 		Limit:             count,
 		Offset:            offset,
@@ -1478,25 +1459,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		KnownTransactions: numberMaxOfTx,
 		KnownFundingTxns:  numReceiving,
 		KnownSpendingTxns: numSpending,
-	}, nil
-}
-
-// IsZeroHashP2PHKAddress checks if the given address is the dummy (zero pubkey
-// hash) address. See https://github.com/decred/dcrdata/v3/issues/358 for details.
-func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
-	zeroed := [20]byte{}
-	// expecting DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg address for mainnet
-	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
-	if err != nil {
-		log.Errorf("Incorrect pub key hash or invalid network params %v", params)
-		return false
-	}
-	zeroAddress := address.String()
-	return checkAddressString == zeroAddress
-}
-
-func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
-	return address.IsForNet(p)
+	}, addrType, nil
 }
 
 // CountUnconfirmedTransactions returns the number of unconfirmed transactions

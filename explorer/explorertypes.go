@@ -22,19 +22,17 @@ import (
 type expStatus string
 
 const (
-	ExpStatusError                expStatus = "Error"
-	ExpStatusNotFound             expStatus = "Not Found"
-	ExpStatusFutureBlock          expStatus = "Future Block"
-	ExpStatusNotSupported         expStatus = "Not Supported"
-	ExpStatusNotImplemented       expStatus = "Not Implemented"
-	ExpStatusWrongNetwork         expStatus = "Wrong Network"
-	ExpStatusDeprecated           expStatus = "Deprecated"
-	ExpStatusSyncing              expStatus = "Blocks Syncing"
-	ExpStatusDBTimeout            expStatus = "Database Timeout"
-	WrongNetworkStatusType        expStatus = "Wrong Network"
-	WrongNetworkStatusType        expStatus = "Wrong Network"
-	BitcoinWrongNetworkStatusType expStatus = "Bitcoin Wrong Network"
-	P2PkAddressStatusTypes        expStatus = "P2PK Address Type"
+	ExpStatusError          expStatus = "Error"
+	ExpStatusNotFound       expStatus = "Not Found"
+	ExpStatusFutureBlock    expStatus = "Future Block"
+	ExpStatusNotSupported   expStatus = "Not Supported"
+	ExpStatusNotImplemented expStatus = "Not Implemented"
+	ExpStatusWrongNetwork   expStatus = "Wrong Network"
+	ExpStatusDeprecated     expStatus = "Deprecated"
+	ExpStatusSyncing        expStatus = "Blocks Syncing"
+	ExpStatusDBTimeout      expStatus = "Database Timeout"
+	ExpStatusBitcoin        expStatus = "Bitcoin Address"
+	ExpStatusP2PKAddress    expStatus = "P2PK Address Type"
 )
 
 // blockchainSyncStatus defines the status update displayed on the syncing status page
@@ -274,6 +272,7 @@ type AddressTransactions struct {
 type AddressInfo struct {
 	// Address is the decred address on the current page
 	Address string
+	Net     string
 
 	// Page parameters
 	MaxTxLimit    int64
@@ -489,8 +488,17 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		transactions = append(transactions, &tx)
 	}
 
+	netName := "unknown"
+	address := addrHist[0].Address
+	addr, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		log.Warnf("Unable to deocde address %s: %v", address, err)
+		netName = addr.Net().Name
+	}
+
 	return &AddressInfo{
 		Address:         addrHist[0].Address,
+		Net:             netName,
 		Transactions:    transactions,
 		TxnsFunding:     creditTxns,
 		TxnsSpending:    debitTxns,

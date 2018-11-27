@@ -11,14 +11,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
 	"sort"
 	"strconv"
-	"strings
+	"strings"
 	"sync"
 
+	"github.com/decred/base58"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -909,27 +911,90 @@ func GenesisTxHash(params *chaincfg.Params) chainhash.Hash {
 	return params.GenesisBlock.Transactions[0].TxHash()
 }
 
-// AddressVerification returns the an error whenever an address string
-// does't meet the requirements.
-func AddressVerification(address string, netName string) error {
-	// checks for P2Pk type addresses
-	if strings.HasPrefix(address, "Dk") || strings.HasPrefix(address, "Tk") || strings.HasPrefix(address, "Sk") {
-		return fmt.Errorf("P2PK address detected")
+// IsZeroHashP2PHKAddress checks if the given address is the dummy (zero pubkey
+// hash) address. See https://github.com/decred/dcrdata/v3/issues/358 for details.
+func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
+	zeroed := [20]byte{}
+	// expecting DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg address for mainnet
+	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
+	if err != nil {
+		return false
 	}
+	zeroAddress := address.String()
+	return checkAddressString == zeroAddress
+}
+
+// ValidateNetworkAddress checks if the given address is valid on the given
+// network.
+func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
+	return address.IsForNet(p)
+}
+
+// AddressError is the type of error returned by AddressValidation.
+type AddressError error
+
+var (
+	AddressErrorNoError      AddressError = nil
+	AddressErrorBitcoin      AddressError = errors.New("possible Bitcoin address")
+	AddressErrorZeroAddress  AddressError = errors.New("null address")
+	AddressErrorWrongNet     AddressError = errors.New("wrong network")
+	AddressErrorDecodeFailed AddressError = errors.New("decoding failed")
+	AddressErrorUnknown      AddressError = errors.New("unknown error")
+	AddressErrorUnsupported  AddressError = errors.New("recognized, but unsuported address type")
+)
+
+type AddressType int
+
+const (
+	AddressTypeP2PK = iota
+	AddressTypeP2PKH
+	AddressTypeP2SH
+	AddressTypeOther
+	AddressTypeUnknown
+)
+
+// AddressValidation ...
+func AddressValidation(address string, params *chaincfg.Params) (dcrutil.Address, AddressType, AddressError) {
+	// Decode and validate the address.
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
-		fmt.Printf("Invalid address %s: %v", address, err)
-
-		// This is here to detect a bitcoin type address
-		if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3")) && len(address) >= 25 && len(address) <= 34 {
-			return fmt.Errorf("Possible Bitcoin address detected.")
+		// Detect a possible bitcoin address.
+		if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") ||
+			strings.HasPrefix(address, "3")) && len(address) >= 25 && len(address) <= 34 {
+			return nil, AddressTypeUnknown, AddressErrorBitcoin
 		}
-		return err
+		return nil, AddressTypeUnknown, AddressErrorDecodeFailed
 	}
 
-	// Dectection of when an address belonging to a different network is inputed
-	if strings.ToLower(addr.Net().Name) != strings.ToLower(netName) {
-		return fmt.Errorf("Wrong Network. You pasted a %s address on %v", addr.Net().Name, netName)
+	// Detect when an address belonging to a different Decred network.
+	if !ValidateNetworkAddress(addr, params) {
+		return addr, AddressTypeUnknown, AddressErrorWrongNet
 	}
-	return nil
+
+	// Determine address type for this valid Decred address. Ignore the error
+	// since DecodeAddress succeeded.
+	_, netID, _ := base58.CheckDecode(address)
+
+	var addrType AddressType
+	switch netID {
+	case params.PubKeyAddrID:
+		addrType = AddressTypeP2PK
+	case params.PubKeyHashAddrID:
+		addrType = AddressTypeP2PKH
+	case params.ScriptHashAddrID:
+		addrType = AddressTypeP2SH
+	case params.PKHEdwardsAddrID, params.PKHSchnorrAddrID:
+		addrType = AddressTypeOther
+	default:
+		addrType = AddressTypeUnknown
+	}
+
+	// Check if the address is the zero pubkey hash address commonly used for
+	// zero value sstxchange-tagged outputs. Return a special error value, but
+	// the decoded address and address type are valid.
+	if IsZeroHashP2PHKAddress(address, params) {
+		return addr, addrType, AddressErrorZeroAddress
+	}
+
+	return addr, addrType, AddressErrorNoError
 }
