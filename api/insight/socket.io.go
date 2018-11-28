@@ -124,7 +124,7 @@ func NewSocketServer(newTxChan chan *NewTx, params *chaincfg.Params) (*SocketSer
 		})
 	})
 
-	server.On("error", func(so socketio.Socket, err error) {
+	server.On("error", func(_ socketio.Socket, err error) {
 		apiLog.Errorf("Insight socket.io server error: %v", err)
 	})
 

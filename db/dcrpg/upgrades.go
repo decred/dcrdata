@@ -8,8 +8,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -657,10 +657,12 @@ func (pgb *ChainDB) createBlockTimeIndexes() {
 }
 
 func (pgb *ChainDB) handleAgendasVotingMilestonesUpgrade() (int64, error) {
-	var errorLog = func(agenda, idType string, err error) {
+	errorLog := func(agenda, idType string, err error) bool {
 		if err != nil {
 			log.Warnf("%s height for agenda %s wasn't set:  %v", agenda, idType, err)
+			return true
 		}
+		return false
 	}
 
 	var rowsUpdated int64
@@ -673,7 +675,9 @@ func (pgb *ChainDB) handleAgendasVotingMilestonesUpgrade() (int64, error) {
 			if val > 0 {
 				query := fmt.Sprintf("UPDATE agendas SET %v=true WHERE block_height=$1 AND agenda_id=$2", name)
 				_, err := pgb.db.Exec(query, val, id)
-				errorLog(name, id, err)
+				if errorLog(name, id, err) {
+					return rowsUpdated, err
+				}
 				rowsUpdated++
 			}
 		}
@@ -1244,7 +1248,7 @@ func verifyChainWork(blockgate *rpcutils.BlockGate, db *sql.DB) (int64, error) {
 		return 0, nil
 	}
 
-	// Prepare the insertion statment. Parameters: 1. chainwork; 2. blockhash.
+	// Prepare the insertion statement. Parameters: 1. chainwork; 2. blockhash.
 	stmt, err := db.Prepare(`UPDATE blocks SET chainwork=$1 WHERE hash=$2;`)
 	if err != nil {
 		log.Error("Failed to prepare chainwork insertion statement: %v", err)

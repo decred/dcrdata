@@ -357,7 +357,6 @@ func (pgb *ChainDB) DeindexAll() error {
 	for _, val := range allDeIndexes {
 		if err = val.DeIndexFunc(pgb.db); err != nil {
 			warnUnlessNotExists(err)
-			err = nil
 		}
 	}
 

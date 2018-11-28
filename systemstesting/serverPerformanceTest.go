@@ -53,7 +53,7 @@ func queryEndpoint(urlStr string, statusCode int) error {
 	return nil
 }
 
-// main initiates the server perfomance testing primarily measuring how long it
+// main initiates the server performance testing primarily measuring how long it
 // takes to query each of the given testingUrls if not error is returned by the
 // queryEndpoint function.
 func main() {
@@ -65,7 +65,7 @@ func main() {
 		"all project fund txtypes ": serverAPIUrl + allProjectFundTx,
 	}
 
-	fmt.Printf(" >>>>>> Intitiating the Server Perfomance Test by Response Time for %d Iterations per URL<<<<<<< \n", maxIterations)
+	fmt.Printf(" >>>>>> Intitiating the Server Performance Test by Response Time for %d Iterations per URL<<<<<<< \n", maxIterations)
 	for urlType, val := range testingUrls {
 		startTime := time.Now()
 		err := queryEndpoint(val, statusOK)

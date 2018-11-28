@@ -2597,7 +2597,7 @@ func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, er
 				log.Errorf("Failed to make uint64 from rate")
 				break
 			}
-			tDef := dbtypes.TimeDef{thisPt.time}
+			tDef := dbtypes.TimeDef{T: thisPt.time}
 			hashrates.Time = append(hashrates.Time, tDef)
 			hashrates.NetHash = append(hashrates.NetHash, rate.Uint64())
 		}

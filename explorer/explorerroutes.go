@@ -203,7 +203,7 @@ func trimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
 
 func filterUniqueLastBlockVotes(txs []*TrimmedTxInfo) (votes []*TrimmedTxInfo) {
 	for _, tx := range txs {
-		if tx.VoteInfo != nil && tx.VoteInfo.ForLastBlock == true {
+		if tx.VoteInfo != nil && tx.VoteInfo.ForLastBlock {
 			votes = append(votes, tx)
 		}
 	}
@@ -892,9 +892,9 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	// Check for any transaction outputs that appear unspent.
 	unspents := UnspentOutputIndices(tx.Vout)
 	if len(unspents) > 0 {
-		// Grab the mempool transation inputs that match this transaction.
+		// Grab the mempool transaction inputs that match this transaction.
 		mempoolVins := exp.GetTxMempoolInputs(hash, tx.Type)
-		if mempoolVins != nil && len(mempoolVins) > 0 {
+		if len(mempoolVins) > 0 {
 			// A quick matching function.
 			matchingVin := func(vout *Vout) (string, uint32) {
 				for vindex := range mempoolVins {

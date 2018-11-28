@@ -21,6 +21,20 @@ testrepo () {
   TMPFILE=$(mktemp)
   export GO111MODULE=on
 
+  git clone --branch v1.12.3 https://github.com/golangci/golangci-lint ~/golangci-lint
+  pushd ~/golangci-lint/cmd/golangci-lint
+  go install
+  popd
+  #go get -u -v github.com/golangci/golangci-lint/cmd/golangci-lint
+  
+  golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
+    --enable gosimple --enable unconvert --enable ineffassign --enable structcheck\
+    --enable goimports --enable misspell --enable unparam
+  if [ $? != 0 ]; then	
+    echo 'golangci-lint has some complaints'	
+    exit 1	
+  fi
+
   # Test application install
   go install . ./cmd/...
   if [ $? != 0 ]; then
