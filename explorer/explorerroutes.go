@@ -305,6 +305,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
 			"Windows page cannot run in lite mode.", "", ExpStatusNotSupported)
+		return
 	}
 
 	offsetWindow, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
@@ -391,6 +392,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
 			"Time based blocks listing page cannot run in lite mode.", "", ExpStatusNotSupported)
+		return
 	}
 
 	grouping := dbtypes.TimeGroupingFromStr(val)
@@ -401,6 +403,7 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		if err != nil {
 			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", "", ExpStatusError)
 			log.Errorf("Invalid year grouping found: error: %v ", err)
+			return
 		}
 		grouping = dbtypes.YearGrouping
 	}
@@ -1161,13 +1164,13 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		switch addrErr {
 		case txhelpers.AddressErrorBitcoin:
 			status = ExpStatusBitcoin
-			message = "Looks like you are searching for a bitcoin address"
+			message = "Looks like you are searching for a bitcoin address."
 		case txhelpers.AddressErrorDecodeFailed, txhelpers.AddressErrorUnknown:
 			status = ExpStatusError
 			message = "Unexpected issue validating this address."
 		case txhelpers.AddressErrorWrongNet:
 			status = ExpStatusWrongNetwork
-			message = fmt.Sprintf("The address %v is valid on %s, not %s",
+			message = fmt.Sprintf("The address %v is valid on %s, not %s.",
 				addr, addr.Net().Name, exp.NetName)
 			code = wrongNetwork
 		default:
@@ -1497,6 +1500,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -1594,6 +1598,11 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		message := fmt.Sprintf("The address %v is valid on %s, not %s",
 			searchStr, address.Net, exp.NetName)
 		exp.StatusPage(w, wrongNetwork, message, searchStr, ExpStatusWrongNetwork)
+		return
+	case txhelpers.AddressErrorBitcoin:
+		message := "Looks like you are searching for a bitcoin address."
+		exp.StatusPage(w, wrongNetwork, message, searchStr, ExpStatusBitcoin)
+		return
 	}
 
 	// Try aux DB if in full mode.
@@ -1652,7 +1661,8 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 }
 
 // StatusPage provides a page for displaying status messages and exception
-// handling without redirecting.
+// handling without redirecting. Be sure to return after calling StatusPage if
+// this completes the processing of the calling http handler.
 func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, additionalInfo string, sType expStatus) {
 	str, err := exp.templates.execTemplateToString("status", struct {
 		*CommonPageData
