@@ -1366,9 +1366,9 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		return &explorer.AddressInfo{
 			Address:         address,
 			Net:             addr.Net().Name,
+			IsDummyAddress:  true,
 			Balance:         new(explorer.AddressBalance),
 			UnconfirmedTxns: new(explorer.AddressTransactions),
-			IsDummyAddress:  true,
 			Fullmode:        true,
 		}, addrType, nil
 	default:

@@ -1157,7 +1157,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 	// Validate the address.
 	addr, addrType, addrErr := txhelpers.AddressValidation(address, exp.ChainParams)
-	if addrErr != nil && addrErr != txhelpers.AddressErrorZeroAddress {
+	isZeroAddress := addrErr == txhelpers.AddressErrorZeroAddress
+	if addrErr != nil && !isZeroAddress {
 		var status expStatus
 		var message string
 		code := defaultErrorCode
@@ -1226,11 +1227,21 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
 
-	var addrMetrics *dbtypes.AddressMetrics
+	addrMetrics := new(dbtypes.AddressMetrics)
 
-	// Retrieve address information from the DB and/or RPC
+	// Retrieve address information from the DB and/or RPC.
 	var addrData *AddressInfo
-	if exp.liteMode {
+	if isZeroAddress {
+		// For the zero address (e.g. DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg), short-circuit any queries.
+		addrData = &AddressInfo{
+			Address:         address,
+			Net:             addr.Net().Name,
+			IsDummyAddress:  true,
+			Balance:         new(AddressBalance),
+			UnconfirmedTxns: new(AddressTransactions),
+			Fullmode:        true,
+		}
+	} else if exp.liteMode {
 		addrData, _, addrErr = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 		// The specific AddressError values from ValidateAddress were already
 		// handled, but there may be other errors from GetExplorerAddress (e.g.
@@ -1337,8 +1348,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 					ExpStatusNotFound)
 				return
 			}
-		} else {
-			addrMetrics = &dbtypes.AddressMetrics{}
 		}
 
 		// Check for unconfirmed transactions.
@@ -1468,6 +1477,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set page parameters.
+	addrData.IsDummyAddress = isZeroAddress // may be redundant
 	addrData.Path = r.URL.Path
 	addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
 	addrData.TxnType = txnType.String()

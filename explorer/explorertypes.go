@@ -298,9 +298,14 @@ type AddressInfo struct {
 	Address string
 	Net     string
 
+	// IsDummyAddress is true when the address is the dummy address typically
+	// used for unspendable ticket change outputs. See
+	// https://github.com/decred/dcrdata/v3/issues/358 for details.
+	IsDummyAddress bool
+
 	// Page parameters
-	MaxTxLimit    int64
 	Fullmode      bool
+	MaxTxLimit    int64
 	Path          string
 	Limit, Offset int64  // ?n=Limit&start=Offset
 	TxnType       string // ?txntype=TxnType
@@ -332,11 +337,6 @@ type AddressInfo struct {
 	// KnownMergedSpendingTxns refers to the total count of unique debit transactions
 	// that appear in the merged debit view.
 	KnownMergedSpendingTxns int64
-
-	// IsDummyAddress is true when the address is the dummy address typically
-	// used for unspendable ticket change outputs. See
-	// https://github.com/decred/dcrdata/v3/issues/358 for details.
-	IsDummyAddress bool
 }
 
 // TxnCount returns the number of transaction "rows" available.
