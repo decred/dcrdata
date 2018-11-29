@@ -972,7 +972,7 @@ func AddressValidation(address string, params *chaincfg.Params) (dcrutil.Address
 	// Decode and validate the address.
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
-		btcAddr, err := btcutil.DecodeAddress(address, &btcchaincfg.MainNetParams)
+		_, err = btcutil.DecodeAddress(address, &btcchaincfg.MainNetParams)
 		if err != nil {
 			return nil, AddressTypeUnknown, AddressErrorDecodeFailed
 		}

@@ -9,40 +9,33 @@
         <br/>
         <div class="alert alert-info">
             {{if .StatusType.IsNotFound}}
-                <h5>No matching page, block, address or transaction that could be found</h5>
+                <h5>No matching page, block, address or transaction that could be found.</h5>
                 <h5>{{.Message}}</h5>
             {{else if .StatusType.IsWrongNet}}
+                <h5>{{.Message}}
                 {{if redirectToTestnet .NetName .Message}}
-                    <h5>
-                        {{.Message}}.
-                        {{if ne .AdditionalInfo ""}}
-                            You can <a href="https://testnet.dcrdata.org/search?search={{.AdditionalInfo}}">switch to testnet here.</a>
-                        {{end}}
-                    </h5>
+                    {{if ne .AdditionalInfo ""}}
+                    You can <a href="https://testnet.dcrdata.org/search?search={{.AdditionalInfo}}">switch to testnet here.</a>
+                    {{end}}
                 {{else if redirectToMainnet .NetName .Message}}
-                    <h5>{{.Message}}. 
-                        {{if ne .AdditionalInfo ""}}
-                            You can <a href="https://explorer.dcrdata.org/search?search={{.AdditionalInfo}}">switch to mainnet here.</a>
-                        {{end}}
-                    </h5>
-                {{else}}
-                    <h5>{{.Message}}</h5>
+                    {{if ne .AdditionalInfo ""}}
+                    You can <a href="https://explorer.dcrdata.org/search?search={{.AdditionalInfo}}">switch to mainnet here.</a>
+                    {{end}}
                 {{end}}
+                </h5>
             {{else if .StatusType.IsBitcoinAddress}}
-                <h5>{{.Message}}. You can <a href="https://insight.bitpay.com">find that here.</a></h5>
+                <h5>{{.Message}} You may possibly <a href="https://live.blockcypher.com/btc/address/{{.AdditionalInfo}}/">find it here.</a></h5>
             {{else if .StatusType.IsP2PKAddress}}
                 {{$P2PKHAddr := PKAddr2PKHAddr .AdditionalInfo}}
-                <h5>{{.Message}}. 
-                    {{if and (ne .AdditionalInfo "") (ne $P2PKHAddr "")}}
-                        You can <a href="https://explorer.dcrdata.org/search?search={{$P2PKHAddr}}">convert to P2PKH and search here.</a>
-                    {{end}}
-                </h5>
-            {{else}}
-                {{if .StatusType.IsFutureBlock}}
-                    <h5 id="futureblock">{{.Message}}</h5>
-                {{else}}
-                    <h5>{{.Message}}</h5>
+                <h5>{{.Message}}
+                {{if and (ne .AdditionalInfo "") (ne $P2PKHAddr "")}}
+                    You can <a href="https://explorer.dcrdata.org/search?search={{$P2PKHAddr}}">search for the P2PKH address instead.</a>
                 {{end}}
+                </h5>
+            {{else if .StatusType.IsFutureBlock}}
+                <h5 id="futureblock">{{.Message}}</h5>
+            {{else}}
+                <h5>{{.Message}}</h5>
             {{end}}
         </div>
         <div id="initial-load" class="sync-progress">
