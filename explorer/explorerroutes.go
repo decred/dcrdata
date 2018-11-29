@@ -637,44 +637,13 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 			"Ticketpool page cannot run in lite mode", "", ExpStatusNotSupported)
 		return
 	}
-	interval := dbtypes.AllGrouping
-
-	barGraphs, donutChart, height, err := exp.explorerSource.TicketPoolVisualization(interval)
-	if exp.timeoutErrorPage(w, err, "TicketPoolVisualization") {
-		return
-	}
-	if err != nil {
-		log.Errorf("Template execute failure: %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
-		return
-	}
-
-	var mp dbtypes.PoolTicketsData
-	exp.MempoolData.RLock()
-	if len(exp.MempoolData.Tickets) > 0 {
-		t := time.Unix(exp.MempoolData.Tickets[0].Time, 0)
-		mp.Time = append(mp.Time, dbtypes.TimeDef{T: t})
-		mp.Price = append(mp.Price, exp.MempoolData.Tickets[0].TotalOut)
-		mp.Mempool = append(mp.Mempool, uint64(len(exp.MempoolData.Tickets)))
-	} else {
-		log.Debug("No tickets exist in the mempool")
-	}
-	exp.MempoolData.RUnlock()
 
 	str, err := exp.templates.execTemplateToString("ticketpool", struct {
 		*CommonPageData
-		NetName      string
-		ChartsHeight uint64
-		ChartData    []*dbtypes.PoolTicketsData
-		GroupedData  *dbtypes.PoolTicketsData
-		Mempool      *dbtypes.PoolTicketsData
+		NetName string
 	}{
 		CommonPageData: exp.commonData(),
 		NetName:        exp.NetName,
-		ChartsHeight:   height,
-		ChartData:      barGraphs,
-		GroupedData:    donutChart,
-		Mempool:        &mp,
 	})
 
 	if err != nil {

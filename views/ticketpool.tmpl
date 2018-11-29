@@ -6,7 +6,7 @@
 
     {{template "navbar" . }}
 
-    <div class="container main" data-controller="ticketpool">
+    <div class="container main" data-controller="ticketpool" data-target="ticketpool.wrapper">
       <div>
         <h2 style="text-align: center; margin-top: 0px">Ticket Pool Visualization</h2>
         <p style="text-align: center; margin-bottom: 5px">
@@ -15,48 +15,43 @@
       </div>
       <br>
 
-      <label>Zoom :</label>
-      <div class="btn-group" data-toggle="buttons">
-        <input data-target="ticketpool.zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm all" value="All Time" name="all">
-        <input data-target="ticketpool.zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm btn-active 1d" value="Day" name="day">
-        <input data-target="ticketpool.zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm 1wk" value="Week" name="wk">
-        <input data-target="ticketpool.zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm 1m" value="Month" name="mo">
-      </div>
+      <div class="position-relative">
+        <div class="modal position-absolute"></div>
+        <label>Zoom :</label>
+        <div class="btn-group" data-toggle="buttons">
+          <input data-target="ticketpool.zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm all" value="All Time" name="all">
+          <input data-target="ticketpool.zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm btn-active 1d" value="Day" name="day">
+          <input data-target="ticketpool.zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm 1wk" value="Week" name="wk">
+          <input data-target="ticketpool.zoom" data-action="click->ticketpool#onZoom" type="button" class="btn btn_sm 1m" value="Month" name="mo">
+        </div>
 
-      <label>&nbsp;&nbsp;Bars :</label>
-      <div class="btn-group" data-toggle="buttons">
-        <input data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm all btn-active" value="All Time" name="all">
-        <input data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm 1d" value="Day" name="day">
-        <input data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm 1wk" value="Week" name="wk">
-        <input data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm 1m" value="Month" name="mo">
-      </div>
+        <label>&nbsp;&nbsp;Bars :</label>
+        <div class="btn-group" data-toggle="buttons">
+          <input data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm all btn-active" value="All Time" name="all">
+          <input data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm 1d" value="Day" name="day">
+          <input data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm 1wk" value="Week" name="wk">
+          <input data-target="ticketpool.bars" data-action="click->ticketpool#onBarsChange" type="button" class="btn btn_sm 1m" value="Month" name="mo">
+        </div>
 
-      <div id="tickets_by_purchase_date" class="tickets"></div>
+        <div id="tickets_by_purchase_date" class="tickets"></div>
 
-      <br>
-      <div id="tickets_by_purchase_price" class="tickets"></div>
+        <br>
+        <div id="tickets_by_purchase_price" class="tickets"></div>
 
-      <br>
-      <div id="tickets_by_type_doughnut" class="doughnutGraph">
-        <canvas id="doughnutGraph" width="220" height="180"
-                chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'">
-        </canvas>
+        <br>
+        <div id="tickets_by_type_doughnut" class="doughnutGraph">
+          <canvas id="doughnutGraph" width="220" height="180"
+                  chart-options="{tooltipTemplate: '<%=label%>: <%= numeral(value).format('($00[.]00)') %> - <%= numeral(circumference / 6.283).format('(0[.][00]%)') %>'">
+          </canvas>
 
-        <div class="ticket_by_types">
-          <b style="color:#2971FF;">3 Outputs:</b> - typically solo.<br><br>
-          <b style="color:#FF8C00;">5 Outputs:</b> - typically Voting Service Provider (VSP).<br><br>
-          <b style="color:#41BF53;">More than 5 Outputs:</b> - likely multi-party (split) tickets.<br>
+          <div class="ticket_by_types">
+            <b style="color:#2971FF;">3 Outputs:</b> - typically solo.<br><br>
+            <b style="color:#FF8C00;">5 Outputs:</b> - typically Voting Service Provider (VSP).<br><br>
+            <b style="color:#41BF53;">More than 5 Outputs:</b> - likely multi-party (split) tickets.<br>
+          </div>
         </div>
       </div>
     </div>
-    <div class="modal position-fixed"></div>
-
-    <script>
-      var graph = {{.ChartData}}
-      var chart = {{.GroupedData}}
-      var mpl = {{.Mempool}}
-    </script>
-
     {{ template "footer" . }}
 </body>
 </html>

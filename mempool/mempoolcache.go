@@ -9,6 +9,7 @@ import (
 
 	"github.com/decred/dcrd/dcrjson"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
+	"github.com/decred/dcrdata/v3/db/dbtypes"
 )
 
 // MempoolDataCache models the basic data for the mempool cache
@@ -22,6 +23,7 @@ type MempoolDataCache struct {
 	allFeeRates             []float64
 	lowestMineableByFeeRate float64
 	allTicketsDetails       TicketsDetails
+	stakeDiff               float64
 }
 
 // StoreMPData stores info from data in the mempool cache
@@ -37,6 +39,7 @@ func (c *MempoolDataCache) StoreMPData(data *MempoolData, timestamp time.Time) e
 	c.allFeeRates = data.MinableFees.allFeeRates
 	c.lowestMineableByFeeRate = data.MinableFees.lowestMineableFee
 	c.allTicketsDetails = data.AllTicketsDetails
+	c.stakeDiff = data.StakeDiff
 
 	return nil
 }
@@ -150,4 +153,26 @@ func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int64, int, Tickets
 	}
 
 	return c.height, c.timestamp.Unix(), numSSTx, details
+}
+
+// GetPriceCountTime gathers the nominal info for mempool.
+func (c *MempoolDataCache) GetPriceCountTime(feeAvgLength int) *apitypes.PriceCountTime {
+	c.RLock()
+	defer c.RUnlock()
+
+	numFees := len(c.allFees)
+	if numFees < feeAvgLength {
+		feeAvgLength = numFees
+	}
+	var feeAvg float64
+	for i := 0; i < feeAvgLength; i++ {
+		feeAvg += c.allFees[numFees-i-1]
+	}
+	feeAvg = feeAvg / float64(feeAvgLength)
+
+	return &apitypes.PriceCountTime{
+		Price: c.stakeDiff + feeAvg,
+		Count: numFees,
+		Time:  dbtypes.TimeDef{T: c.timestamp},
+	}
 }

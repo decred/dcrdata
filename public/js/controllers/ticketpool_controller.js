@@ -36,9 +36,8 @@ function purchasesGraphData (items, memP) {
     s.push([finalDate, 0, items.immature[i], items.live[i], items.price[i]])
   })
 
-  if (!isNaN(memP.time)) {
-    let memPdate = new Date(memP.time[0])
-    s.push([new Date().setDate(memPdate.getMinutes() + 1), memP.mempool[0], 0, 0, memP.price[0]]) // add mempool
+  if (memP) {
+    s.push([new Date(memP.time), memP.count, 0, 0, memP.price]) // add mempool
   }
 
   origDate = s[0][0] - new Date(0)
@@ -53,9 +52,9 @@ function priceGraphData (items, memP) {
   var mCount = 0
   var p = []
 
-  if (!isNaN(memP.price)) {
-    mPrice = memP.price[0]
-    mCount = memP.mempool[0]
+  if (memP) {
+    mPrice = memP.price
+    mCount = memP.count
   }
 
   items.price.map((n, i) => {
@@ -107,118 +106,97 @@ var commonOptions = {
   legend: 'follow'
 }
 
-function purchasesGraph () {
-  var d = purchasesGraphData(window.graph[0], window.mpl)
-  var p = {
-
-    labels: ['Date', 'Mempool Tickets', 'Immature Tickets', 'Live Tickets', 'Ticket Value'],
-    colors: ['#FF8C00', '#006600', '#2971FF', '#ff0090'],
-    title: 'Tickets Purchase Distribution',
-    y2label: 'A.v.g. Tickets Value (DCR)',
-    dateWindow: getWindow('day'),
-    series: {
-      'Ticket Value': {
-        axis: 'y2',
-        plotter: Dygraph.Plotters.linePlotter
-      }
-    },
-    axes: { y2: { axisLabelFormatter: function (d) { return d.toFixed(1) } } }
-  }
-  return new Dygraph(
-    document.getElementById('tickets_by_purchase_date'),
-    d, { ...commonOptions, ...p }
-  )
-}
-
-function priceGraph () {
-  var d = priceGraphData(window.graph[1], window.mpl)
-  var p = {
-    labels: ['Price', 'Mempool Tickets', 'Immature Tickets', 'Live Tickets'],
-    colors: ['#FF8C00', '#006600', '#2971FF'],
-    title: 'Ticket Price Distribution',
-    labelsKMB: true,
-    xlabel: 'Ticket Price (DCR)'
-  }
-  return new Dygraph(
-    document.getElementById('tickets_by_purchase_price'),
-    d, { ...commonOptions, ...p }
-  )
-}
-
-function outputsGraph () {
-  var d = outputsGraphData(window.chart)
-  return new Chart(
-    document.getElementById('doughnutGraph'), {
-      options: {
-        width: 200,
-        height: 200,
-        responsive: false,
-        animation: { animateScale: true },
-        legend: { position: 'bottom' },
-        title: {
-          display: true,
-          text: 'Number of Ticket Outputs'
-        },
-        tooltips: {
-          callbacks: {
-            label: function (tooltipItem, data) {
-              var sum = 0
-              var currentValue = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]
-              d.map((u) => { sum += u })
-              return currentValue + ' Tickets ( ' + ((currentValue / sum) * 100).toFixed(2) + '% )'
-            }
-          }
-        }
-      },
-      type: 'doughnut',
-      data: {
-        labels: ['Solo', 'VSP Tickets', 'TixSplit'],
-        datasets: [{
-          data: d,
-          label: 'Solo Tickets',
-          backgroundColor: ['#2971FF', '#FF8C00', '#41BF53'],
-          borderColor: ['white', 'white', 'white'],
-          borderWidth: 0.5
-        }]
-      }
-    })
-}
-
 export default class extends Controller {
   static get targets () {
-    return [ 'zoom', 'bars', 'age' ]
+    return [ 'zoom', 'bars', 'age', 'wrapper' ]
   }
 
   initialize () {
-    this.zoom = 'day'
-    this.bars = 'all'
+    var controller = this
+    controller.mempool = false
+    controller.tipHeight = 0
+    controller.purchasesGraph = null
+    controller.priceGraph = null
+    controller.outputsGraph = null
+    controller.graphData = {
+      'time_chart': null,
+      'price_chart': null,
+      'donut_chart': null
+    }
+    controller.zoom = 'day'
+    controller.bars = 'all'
     $.getScript('/js/vendor/dygraphs.min.js', () => {
-      this.purchasesGraph = purchasesGraph()
-      this.priceGraph = priceGraph()
+      controller.chartCount += 2
+      controller.purchasesGraph = controller.makePurchasesGraph()
+      controller.priceGraph = controller.makePriceGraph()
     })
     $.getScript('/js/vendor/charts.min.js', () => {
-      this.outputsGraph = outputsGraph()
+      controller.chartCount += 1
+      controller.outputsGraph = controller.makeOutputsGraph()
     })
   }
 
   connect () {
+    var controller = this
     ws.registerEvtHandler('newblock', () => {
-      ws.send('getticketpooldata', this.bars)
+      ws.send('getticketpooldata', controller.bars)
     })
 
     ws.registerEvtHandler('getticketpooldataResp', (evt) => {
       if (evt === '') {
         return
       }
-      var v = JSON.parse(evt)
-      window.mpl = v.mempool
-      this.purchasesGraph.updateOptions({ 'file': purchasesGraphData(v.barGraphs[0], window.mpl),
-        dateWindow: getWindow(this.zoom) })
-      this.priceGraph.updateOptions({ 'file': priceGraphData(v.barGraphs[1], window.mpl) })
-
-      this.outputsGraph.data.datasets[0].data = outputsGraphData(v.donutChart)
-      this.outputsGraph.update()
+      var data = JSON.parse(evt)
+      controller.processData(data)
     })
+
+    controller.fetchAll()
+  }
+
+  fetchAll () {
+    $('body').addClass('loading')
+    var controller = this
+    $.ajax({
+      type: 'GET',
+      url: '/api/ticketpool/charts',
+      success: function (data) {
+        controller.processData(data)
+      },
+      complete: function () {
+        $('body').removeClass('loading')
+      }
+    })
+  }
+
+  processData (data) {
+    var controller = this
+    if (data['mempool']) {
+      // If mempool data is included, assume the data height is the tip.
+      controller.mempool = data['mempool']
+      controller.tipHeight = data['height']
+    }
+    if (data['time_chart']) {
+      // Only append the mempool data if this data goes to the tip.
+      let mempool = controller.tipHeight === data['height'] ? controller.mempool : false
+      controller.graphData['time_chart'] = purchasesGraphData(data['time_chart'], mempool)
+      if (controller.purchasesGraph !== null) {
+        controller.purchasesGraph.updateOptions({ 'file': controller.graphData['time_chart'] })
+        controller.purchasesGraph.resetZoom()
+      }
+    }
+    if (data['price_chart']) {
+      controller.graphData['price_chart'] = priceGraphData(data['price_chart'], controller.mempool)
+      if (controller.pricesGraph !== null) {
+        controller.priceGraph.updateOptions({ 'file': controller.graphData['price_chart'] })
+      }
+    }
+    if (data['donut_chart']) {
+      controller.graphData['donut_chart'] = outputsGraphData(data['donut_chart'])
+      if (controller.outputsGraph !== null) {
+        controller.outputsGraph.data.datasets[0].data = controller.graphData['donut_chart']
+        controller.outputsGraph.update()
+      }
+    }
   }
 
   disconnect () {
@@ -239,25 +217,100 @@ export default class extends Controller {
   }
 
   onBarsChange (e) {
-    $(this.barsTargets).each((i, barsTarget) => {
+    var controller = this
+    $(controller.barsTargets).each((i, barsTarget) => {
       $(barsTarget).removeClass('btn-active')
     })
-    this.bars = e.target.name
+    controller.bars = e.target.name
     $(e.target).addClass('btn-active')
     $('body').addClass('loading')
-    var _this = this
-
     $.ajax({
       type: 'GET',
-      url: '/api/ticketpool/bydate/' + this.bars,
+      url: '/api/ticketpool/bydate/' + controller.bars,
       beforeSend: function () {},
       error: function () {
         $('body').removeClass('loading')
       },
       success: function (data) {
-        _this.purchasesGraph.updateOptions({ 'file': purchasesGraphData(data.ticket_pool_data, window.mpl) })
+        controller.purchasesGraph.updateOptions({ 'file': purchasesGraphData(data['time_chart']) })
         $('body').removeClass('loading')
       }
     })
+  }
+
+  makePurchasesGraph () {
+    var d = this.graphData['price_chart'] || [[0, 0, 0, 0, 0]]
+    var p = {
+      labels: ['Date', 'Mempool Tickets', 'Immature Tickets', 'Live Tickets', 'Ticket Value'],
+      colors: ['#FF8C00', '#006600', '#2971FF', '#ff0090'],
+      title: 'Tickets Purchase Distribution',
+      y2label: 'A.v.g. Tickets Value (DCR)',
+      dateWindow: getWindow('day'),
+      series: {
+        'Ticket Value': {
+          axis: 'y2',
+          plotter: Dygraph.Plotters.linePlotter
+        }
+      },
+      axes: { y2: { axisLabelFormatter: function (d) { return d.toFixed(1) } } }
+    }
+    return new Dygraph(
+      document.getElementById('tickets_by_purchase_date'),
+      d, { ...commonOptions, ...p }
+    )
+  }
+
+  makePriceGraph () {
+    var d = this.graphData['price_chart'] || [[0, 0, 0, 0]]
+    var p = {
+      labels: ['Price', 'Mempool Tickets', 'Immature Tickets', 'Live Tickets'],
+      colors: ['#FF8C00', '#006600', '#2971FF'],
+      title: 'Ticket Price Distribution',
+      labelsKMB: true,
+      xlabel: 'Ticket Price (DCR)'
+    }
+    return new Dygraph(
+      document.getElementById('tickets_by_purchase_price'),
+      d, { ...commonOptions, ...p }
+    )
+  }
+
+  makeOutputsGraph () {
+    var d = this.graphData['donut_chart'] || []
+    return new Chart(
+      document.getElementById('doughnutGraph'), {
+        options: {
+          width: 200,
+          height: 200,
+          responsive: false,
+          animation: { animateScale: true },
+          legend: { position: 'bottom' },
+          title: {
+            display: true,
+            text: 'Number of Ticket Outputs'
+          },
+          tooltips: {
+            callbacks: {
+              label: function (tooltipItem, data) {
+                var sum = 0
+                var currentValue = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]
+                d.map((u) => { sum += u })
+                return currentValue + ' Tickets ( ' + ((currentValue / sum) * 100).toFixed(2) + '% )'
+              }
+            }
+          }
+        },
+        type: 'doughnut',
+        data: {
+          labels: ['Solo', 'VSP Tickets', 'TixSplit'],
+          datasets: [{
+            data: d,
+            label: 'Solo Tickets',
+            backgroundColor: ['#2971FF', '#FF8C00', '#41BF53'],
+            borderColor: ['white', 'white', 'white'],
+            borderWidth: 0.5
+          }]
+        }
+      })
   }
 }
