@@ -1,8 +1,9 @@
 /* global $ */
 /* global Turbolinks */
 import { toggleMenu, toggleSun, closeMenu } from '../services/theme_service'
-import Mousetrap from 'mousetrap'
 import { setCookie } from './cookie_service'
+import Mousetrap from 'mousetrap'
+import '../vendor/mousetrap-pause.min'
 
 // Keyboard Navigation
 var targets
@@ -66,81 +67,75 @@ export function keyNav (event, pulsate, preserveIndex) {
   }
 }
 
-Mousetrap.pause = function () {
-  Mousetrap.reset()
-}
+Mousetrap.bind(['left', '['], function () {
+  clearTargets()
+  currentIndex--
+  if (currentIndex < 0) {
+    currentIndex = targetsLength - 1
+  }
+  $(targets[currentIndex]).addClass('keynav-target')
+})
 
-Mousetrap.unpause = function () {
-  Mousetrap.bind(['left', '['], function () {
-    clearTargets()
-    currentIndex--
-    if (currentIndex < 0) {
-      currentIndex = targetsLength - 1
-    }
-    $(targets[currentIndex]).addClass('keynav-target')
-  })
+Mousetrap.bind(['right', ']'], function () {
+  clearTargets()
+  currentIndex++
+  if (currentIndex >= targetsLength) {
+    currentIndex = 0
+  }
+  $(targets[currentIndex]).addClass('keynav-target')
+})
 
-  Mousetrap.bind(['right', ']'], function () {
-    clearTargets()
-    currentIndex++
-    if (currentIndex >= targetsLength) {
-      currentIndex = 0
-    }
-    $(targets[currentIndex]).addClass('keynav-target')
-  })
-
-  Mousetrap.bind('enter', function (e) {
-    if (targets.length < currentIndex) {
-      return
-    }
-    var currentTarget = $(targets[currentIndex])
-    if (currentTarget.is('input')) {
-      currentTarget.focus()
-      e.stopPropagation()
-      e.preventDefault()
-      return
-    }
-    if (currentTarget[0].id === 'keynav-toggle') {
-      toggleKeyNav()
-      return
-    }
-    var location = currentTarget.attr('href')
-    if (location !== undefined) {
-      var preserveKeyNavIndex = currentTarget.data('preserveKeynavIndex')
-      if (preserveKeyNavIndex) {
-        jumpToIndexOnLoad = currentIndex
-      }
-      currentTarget.addClass('activated')
-      Turbolinks.visit(location)
-    }
-  })
-
-  Mousetrap.bind('\\', function (e) {
+Mousetrap.bind('enter', function (e) {
+  if (targets.length < currentIndex) {
+    return
+  }
+  var currentTarget = $(targets[currentIndex])
+  if (currentTarget.is('input')) {
+    currentTarget.focus()
+    e.stopPropagation()
     e.preventDefault()
-    var $topSearch = $('.top-search')
-    if ($topSearch.hasClass('keynav-target')) {
-      $topSearch.blur()
-      clearTargets()
-      keyNav(e, true, 0)
-    } else {
-      clearTargets()
-      $topSearch.addClass('keynav-target').focus()
+    return
+  }
+  if (currentTarget[0].id === 'keynav-toggle') {
+    toggleKeyNav()
+    return
+  }
+  var location = currentTarget.attr('href')
+  if (location !== undefined) {
+    var preserveKeyNavIndex = currentTarget.data('preserveKeynavIndex')
+    if (preserveKeyNavIndex) {
+      jumpToIndexOnLoad = currentIndex
     }
-  })
+    currentTarget.addClass('activated')
+    Turbolinks.visit(location)
+  }
+})
 
-  Mousetrap.bind('`', function () {
-    toggleSun()
-  })
-
-  Mousetrap.bind('=', function (e) {
-    toggleMenu(e)
-    keyNav(e, true)
-  })
-
-  Mousetrap.bind('q', function () {
+Mousetrap.bind('\\', function (e) {
+  e.preventDefault()
+  var $topSearch = $('.top-search')
+  if ($topSearch.hasClass('keynav-target')) {
+    $topSearch.blur()
     clearTargets()
-  })
-}
+    keyNav(e, true, 0)
+  } else {
+    clearTargets()
+    $topSearch.addClass('keynav-target').focus()
+  }
+})
+
+Mousetrap.bind('`', function () {
+  toggleSun()
+})
+
+Mousetrap.bind('=', function (e) {
+  toggleMenu(e)
+  keyNav(e, true)
+})
+
+Mousetrap.bind('q', function () {
+  clearTargets()
+})
 
 if (keyNavEnabled()) Mousetrap.unpause()
 
