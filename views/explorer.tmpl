@@ -21,10 +21,14 @@
                 {{template "listViewRouting" "blocks"}}
 
                 <span class="fs12 nowrap text-right">
-                    <label class="mb-0 mr-1" for="blocks-pagesize">Page Size</label>
+                    <label class="mb-0 mr-1" for="blocksPagesize">Page Size</label>
                     <select
-                        id="blocks-pagesize"
-                        name="blocks-pagesize"
+                        id="blocksPagesize"
+                        data-controller="blocklist"
+                        data-target="blocklist.pagesize"
+                        data-action="change->blocklist#setPageSize"
+                        data-blocklist-initial-offset="{{$pendingBlocks}}"
+                        data-blocklist-offset-key="height"
                         class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $blocksCount 20}}disabled{{end}}"
                         {{if lt $blocksCount 20}}disabled="disabled"{{end}}
                     >
@@ -123,24 +127,7 @@
         </div>
         {{end}}
     </div>
-
 {{ template "footer" . }}
-
-<script>
-    $("#blocks-pagesize").change(function(ev) {
-        var pagesize = "20"
-        var height = {{$pendingBlocks}}
-        if (ev.currentTarget.id.indexOf("blocks-pagesize") != -1){
-            pagesize = $("#blocks-pagesize option:selected").val()
-        }
-
-        Turbolinks.visit(
-            window.location.pathname
-            + "?height="+ height
-            + "&rows=" + pagesize
-        )
-    })
-</script>
 </body>
 </html>
 {{ end }}

@@ -1481,24 +1481,13 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 			"Charts page cannot run in lite mode", ExpStatusNotSupported)
 		return
 	}
-	tickets, err := exp.explorerSource.TicketsPriceByHeight()
-	if exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
-		return
-	}
-	if err != nil {
-		log.Errorf("Loading the Ticket Price By Height chart data failed %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-		return
-	}
 
 	str, err := exp.templates.execTemplateToString("charts", struct {
 		*CommonPageData
 		NetName string
-		Data    *dbtypes.ChartsData
 	}{
 		CommonPageData: exp.commonData(),
 		NetName:        exp.NetName,
-		Data:           tickets,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
