@@ -294,6 +294,7 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
 			"Windows page cannot run in lite mode.", NotSupportedStatusType)
+		return
 	}
 
 	offsetWindow, err := strconv.ParseUint(r.URL.Query().Get("offset"), 10, 64)
