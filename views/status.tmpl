@@ -8,10 +8,10 @@
     <div class="container" data-controller="status">
         <br/>
         <div class="alert alert-info">
-            {{if eq .StatusType "Not Found"}}
+            {{if .StatusType.IsNotFound}}
                 <h5>No matching page, block, address or transaction that could be found</h5>
                 <h5>{{.Message}}</h5>
-            {{else if eq .StatusType "Wrong Network"}}
+            {{else if .StatusType.IsWrongNet}}
                 {{if redirectToTestnet .NetName .Message}}
                     <h5>
                         {{.Message}}.
@@ -28,9 +28,9 @@
                 {{else}}
                     <h5>{{.Message}}</h5>
                 {{end}}
-            {{else if eq .StatusType "Bitcoin Wrong Network"}}
+            {{else if .StatusType.IsBitcoinAddress}}
                 <h5>{{.Message}}. You can <a href="https://insight.bitpay.com">find that here.</a></h5>
-            {{else if eq .StatusType "P2PK Address Type"}}
+            {{else if .StatusType.IsP2PKAddress}}
                 {{$P2PKHAddr := PKAddr2PKHAddr .AdditionalInfo}}
                 <h5>{{.Message}}. 
                     {{if and (ne .AdditionalInfo "") (ne $P2PKHAddr "")}}
@@ -38,7 +38,7 @@
                     {{end}}
                 </h5>
             {{else}}
-                {{if eq .StatusType "Future Block"}}
+                {{if .StatusType.IsFutureBlock}}
                     <h5 id="futureblock">{{.Message}}</h5>
                 {{else}}
                     <h5>{{.Message}}</h5>
@@ -46,7 +46,7 @@
             {{end}}
         </div>
         <div id="initial-load" class="sync-progress">
-        {{if eq .StatusType "Blocks Syncing"}}
+        {{if .StatusType.IsSyncing}}
             <img src="/images/loader.gif" style="margin: 0px auto;display: block;"/>
         {{end}}
         </div>

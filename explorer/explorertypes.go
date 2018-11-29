@@ -35,6 +35,30 @@ const (
 	ExpStatusP2PKAddress    expStatus = "P2PK Address Type"
 )
 
+func (e expStatus) IsNotFound() bool {
+	return e == ExpStatusNotFound
+}
+
+func (e expStatus) IsWrongNet() bool {
+	return e == ExpStatusWrongNetwork
+}
+
+func (e expStatus) IsBitcoinAddress() bool {
+	return e == ExpStatusBitcoin
+}
+
+func (e expStatus) IsP2PKAddress() bool {
+	return e == ExpStatusP2PKAddress
+}
+
+func (e expStatus) IsFutureBlock() bool {
+	return e == ExpStatusFutureBlock
+}
+
+func (e expStatus) IsSyncing() bool {
+	return e == ExpStatusSyncing
+}
+
 // blockchainSyncStatus defines the status update displayed on the syncing status page
 // when new blocks are being appended into the db.
 var blockchainSyncStatus = new(syncStatus)
