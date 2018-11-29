@@ -52,6 +52,19 @@ testrepo () {
     exit 1
   fi
 
+  # webpack
+  npm install
+  if [ $? != 0 ]; then
+    echo 'npm install failed'
+    exit 1
+  fi
+
+  npm run build
+  if [ $? != 0 ]; then
+    echo 'npm packaging failed'
+    exit 1
+  fi
+
   echo "------------------------------------------"
   echo "Tests completed successfully!"
 }
