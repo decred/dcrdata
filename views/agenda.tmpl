@@ -92,26 +92,20 @@
                 {{end}}
             </table>
             {{end}}
-            <div data-controller="agenda">
-                <div
-                    data-target="agenda.cumulativeVoteChoices"
-                    style="width:100%; height:400px; margin:0 auto;"
-                ></div>
-                <br>
-                <div
-                    data-target="agenda.voteChoicesByBlock"
-                    style="width:100%; height:250px; margin:0 auto;"
-                ></div>
+            <div data-controller="agenda" data-agenda-id="{{.Id}}" class="position-relative">
+              <div class="modal position-absolute"></div>
+              <div
+                  data-target="agenda.cumulativeVoteChoices"
+                  style="width:100%; height:400px; margin:0 auto;"
+              ></div>
+              <br>
+              <div
+                  data-target="agenda.voteChoicesByBlock"
+                  style="width:100%; height:250px; margin:0 auto;"
+              ></div>
             </div>
         </div>
         {{end}}
-
-        <script>
-            // TODO pass this data via XHR instead
-            var chartDataByTime = {{.ChartDataByTime}};
-            var chartDataByBlock = {{.ChartDataByBlock}};
-        </script>
-
         {{template "footer" . }}
     </body>
 </html>

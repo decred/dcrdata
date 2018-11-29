@@ -173,6 +173,10 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 		})
 	})
 
+	mux.Route("/agenda", func(r chi.Router) {
+		r.With(m.AgendIdCtx).Get("/{agendaId}", app.getAgendaData)
+	})
+
 	mux.Route("/mempool", func(r chi.Router) {
 		r.Get("/", http.NotFound /*app.getMempoolOverview*/)
 		// ticket purchases

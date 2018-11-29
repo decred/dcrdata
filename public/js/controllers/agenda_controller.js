@@ -53,17 +53,6 @@ function voteChoicesByBlockData (d) {
   })
 }
 
-function drawChart (el, data, options) {
-  return new Dygraph(
-    el,
-    data,
-    {
-      ...chartLayout,
-      ...options
-    }
-  )
-}
-
 export default class extends Controller {
   static get targets () {
     return [
@@ -72,10 +61,38 @@ export default class extends Controller {
     ]
   }
 
+  initialize () {
+    var controller = this
+    controller.emptydata = [[0, 0, 0, 0]]
+    controller.cumulativeVoteChoicesChart = false
+    controller.voteChoicesByBlockChart = false
+  }
+
   connect () {
-    var _this = this
+    var controller = this
+    controller.agendaId = controller.data.get('id')
+    controller.element.classList.add('loading')
     $.getScript('/js/vendor/dygraphs.min.js', function () {
-      _this.drawCharts()
+      controller.drawCharts()
+      $.ajax({
+        type: 'GET',
+        url: '/api/agenda/' + controller.agendaId,
+        success: function (data) {
+          if (controller.cumulativeVoteChoicesChart) {
+            controller.cumulativeVoteChoicesChart.updateOptions({
+              'file': cumulativeVoteChoicesData(data.by_time)
+            })
+          }
+          if (controller.voteChoicesByBlockChart) {
+            controller.voteChoicesByBlockChart.updateOptions({
+              'file': voteChoicesByBlockData(data.by_height)
+            })
+          }
+        },
+        complete: function () {
+          controller.element.classList.remove('loading')
+        }
+      })
     })
   }
 
@@ -84,10 +101,21 @@ export default class extends Controller {
     this.voteChoicesByBlockChart.destroy()
   }
 
+  drawChart (el, options) {
+    return new Dygraph(
+      el,
+      this.emptydata,
+      {
+        ...chartLayout,
+        ...options
+      }
+    )
+  }
+
   drawCharts () {
-    this.cumulativeVoteChoicesChart = drawChart(
-      this.cumulativeVoteChoicesTarget,
-      cumulativeVoteChoicesData(window.chartDataByTime),
+    var controller = this
+    controller.cumulativeVoteChoicesChart = controller.drawChart(
+      controller.cumulativeVoteChoicesTarget,
       {
         labels: ['Date', 'Yes', 'Abstain', 'No'],
         ylabel: 'Cumulative Vote Choices Cast',
@@ -95,9 +123,8 @@ export default class extends Controller {
         labelsKMB: true
       }
     )
-    this.voteChoicesByBlockChart = drawChart(
-      this.voteChoicesByBlockTarget,
-      voteChoicesByBlockData(window.chartDataByBlock),
+    controller.voteChoicesByBlockChart = controller.drawChart(
+      controller.voteChoicesByBlockTarget,
       {
         labels: ['Block Height', 'Yes', 'Abstain', 'No'],
         ylabel: 'Vote Choices Cast',
