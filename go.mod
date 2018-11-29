@@ -5,6 +5,8 @@ require (
 	github.com/DataDog/zstd v1.3.4 // indirect
 	github.com/Sereal/Sereal v0.0.0-20180727013122-68c42fd7bfdf // indirect
 	github.com/asdine/storm v2.1.1+incompatible
+	github.com/btcsuite/btcd v0.0.0-20181123190223-3dcf298fed2d
+	github.com/btcsuite/btcutil v0.0.0-20180706230648-ab6388e0c60a
 	github.com/btcsuite/go-flags v0.0.0-20150116065318-6c288d648c1c
 	github.com/caarlos0/env v3.3.0+incompatible
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb

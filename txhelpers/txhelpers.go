@@ -17,9 +17,10 @@ import (
 	"math/big"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 
+	btcchaincfg "github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcutil"
 	"github.com/decred/base58"
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
@@ -949,21 +950,33 @@ const (
 	AddressTypeP2PK = iota
 	AddressTypeP2PKH
 	AddressTypeP2SH
+	AddressTypeBitcoin
 	AddressTypeOther
 	AddressTypeUnknown
 )
 
-// AddressValidation ...
+// AddressValidation performs several validation checks on the given address
+// string. Initially, decoding as a Decred address is attempted. If it fails to
+// decode, btcutil is used to try decoding it as a Bitcoin address. If both
+// decoding fails, AddressErrorDecodeFailed is returned with AddressTypeUnknown.
+// If the address is a Bitcoin address, AddressErrorBitcoin is returned with
+// AddressTypeBitcoin. If the address decoded successfully as a Decred address,
+// it is checked against the specified network. If it is the wrong network,
+// AddressErrorWrongNet is returned with AddressTypeUnknown. If the address is
+// the correct network, the address type is obtained. A final check is performed
+// to determine if the address is the zero pubkey hash address, in which case
+// AddressErrorZeroAddress is returned with the determined address type. If it
+// is another address, AddressErrorNoError is returned with the determined
+// address type.
 func AddressValidation(address string, params *chaincfg.Params) (dcrutil.Address, AddressType, AddressError) {
 	// Decode and validate the address.
 	addr, err := dcrutil.DecodeAddress(address)
 	if err != nil {
-		// Detect a possible bitcoin address.
-		if (strings.HasPrefix(address, "bc") || strings.HasPrefix(address, "1") ||
-			strings.HasPrefix(address, "3")) && len(address) >= 25 && len(address) <= 34 {
-			return nil, AddressTypeUnknown, AddressErrorBitcoin
+		btcAddr, err := btcutil.DecodeAddress(address, &btcchaincfg.MainNetParams)
+		if err != nil {
+			return nil, AddressTypeUnknown, AddressErrorDecodeFailed
 		}
-		return nil, AddressTypeUnknown, AddressErrorDecodeFailed
+		return nil, AddressTypeBitcoin, AddressErrorBitcoin
 	}
 
 	// Detect when an address belonging to a different Decred network.
