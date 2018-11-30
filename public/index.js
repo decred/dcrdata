@@ -1,6 +1,7 @@
 /* global require */
 /* global $ */
 /* global Turbolinks */
+import 'babel-polyfill'
 import ws from './js/services/messagesocket_service'
 import humanize from './js/helpers/humanize_helper'
 import Notify from 'notifyjs'
