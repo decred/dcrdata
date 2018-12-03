@@ -14,7 +14,10 @@ module.exports = merge(common, {
         sourceMap: true // set to true if you want JS source maps
       }),
       new OptimizeCSSAssetsPlugin({})
-    ]
+    ],
+    splitChunks: {
+      chunks: 'all'
+    }
   },
   module: {
     rules: [
