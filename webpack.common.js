@@ -40,12 +40,12 @@ module.exports = {
       // both options are optional
       // filename: '[name].css',
       // chunkFilename: '[id].css'
-      filename: 'style.css'
+      filename: 'css/style.css'
     }),
     new StyleLintPlugin()
   ],
   output: {
-    filename: '[name].bundle.js',
+    filename: 'js/[name].bundle.js',
     path: path.resolve(__dirname, 'public/dist')
   }
 }
