@@ -1,4 +1,5 @@
 /* global Dygraph */
+/* global QRCode */
 /* global $ */
 /* global Turbolinks */
 import { Controller } from 'stimulus'
@@ -82,140 +83,31 @@ function plotGraph (processedData, otherOptions) {
   )
 }
 
-class TurboAnchors {
-  constructor (callback, turbolinks) {
+function hashHighLight (matchHash, hoverOn) {
+  $('.hash').each(function () {
+    var thisHash = $(this).attr('href')
+    if (thisHash === matchHash && hoverOn) {
+      $(this).addClass('matching-hash')
+    } else {
+      $(this).removeClass('matching-hash')
+    }
+  })
+}
+
+class TurboQuery {
+  constructor (turbolinks) {
     var ta = this
     ta.replaceTimer = 0
     ta.appendTimer = 0
     ta.turbolinks = turbolinks || Turbolinks || false
     if (!ta.turbolinks) {
-      console.error('No passed or global Turbolinks instance detected. TurboAnchors requires Turbolinks.')
+      console.error('No passed or global Turbolinks instance detected. TurboQuery requires Turbolinks.')
       return
     }
-    ta.callback = callback
-    ta.parseDict = false
-    ta.strictDict = true
-    ta.filterNavigation = ta._filterNavigation.bind(ta)
+    // These are timer callbacks. Bind them to the TurboQuery instance.
     ta.replaceHistory = ta._replaceHistory.bind(ta)
     ta.appendHistory = ta._appendHistory.bind(ta)
-    window.addEventListener('turbolinks:before-visit', ta.filterNavigation)
-    ta.url = Url(window.location.href)
-    ta.ogUrl = Url(window.location.href)
-  }
-
-  close () {
-    window.removeEventListener('turbolinks:before-visit', this.filterNavigation)
-  }
-
-  _filterNavigation (e) {
-    var ta = this
-    var url = Url(e.data.url)
-    if (ta.ogUrl.pathname !== url.pathname || ta.ogUrl.hash !== url.hash) {
-      // User is navigating off the page or changing query parameters
-      ta.close()
-      return
-    }
-    // Prevent turbolinks reload
-    e.preventDefault()
-    // Only signal when hash data has changed
-    if (url.hash !== ta.url.hash) {
-      ta.url = url
-      ta.callback(ta.parsed)
-    }
-    ta.replaceHref()
-  }
-
-  useDict (choice) {
-    this.parseDict = typeof choice === 'undefined' ? true : choice
-  }
-
-  get parsed () {
-    return this.parsedAnchors()
-  }
-
-  get count () {
-    return Object.keys(this.parsedAnchors()).length
-  }
-
-  get (key) {
-    var ta = this
-    var anchors = this.parsedAnchors()
-    if (ta.parseDict) {
-      if (anchors.hasOwnProperty(key)) {
-        return anchors[key]
-      }
-    } else {
-      if (anchors.length > key) {
-        return anchors[key]
-      }
-    }
-    return null
-  }
-
-  parseValue (v) {
-    if (!isNaN(parseFloat(v)) && isFinite(v)) {
-      if (v.contains('.')) {
-        return parseFloat(v)
-      } else {
-        return parseInt(v)
-      }
-    } else {
-      switch (v) {
-        case 'null':
-          return null
-        case 'false':
-          return false
-        case 'true':
-          return true
-      }
-    }
-    return v
-  }
-
-  parsedAnchors (anchors) {
-    var ta = this
-    anchors = anchors || ta.url.hash.substr(1).split('&')
-    if (ta.parseDict) {
-      var d = {}
-      anchors.forEach(function (anchor) {
-        var parts = anchor.split('=')
-        if (parts.length === 0) {
-          return
-        } else if (parts.length === 1) {
-          if (ta.strictDict) {
-            return
-          }
-          d[parts[0]] = null
-        }
-        var v = parts[1]
-        if (ta.strictDict && (v === null || typeof v === 'undefined')) {
-          return
-        }
-        d[parts[0]] = ta.parseValue(v)
-      })
-      anchors = d
-    } else {
-      for (var idx in anchors) {
-        anchors[idx] = ta.parseValue(anchors[idx])
-      }
-    }
-    return anchors
-  }
-
-  encodeAnchors (anchors) {
-    var ta = this
-    if (ta.parseDict) {
-      var encoded = []
-      Object.keys(anchors).forEach(function (k) {
-        var v = anchors[k]
-        if (ta.strictDict && (v === null || typeof v === 'undefined')) {
-          return
-        }
-        encoded.push(k + '=' + String(v))
-      })
-      return encoded.join('&')
-    }
-    return anchors.join('&')
+    ta.url = Url(window.location.href, true)
   }
 
   replaceHref () {
@@ -241,71 +133,84 @@ class TurboAnchors {
 
   _appendHistory () {
     // same as replaceHref, but creates a new entry in history for navigating
-    // with the browsers forward and back buttons
+    // with the browsers forward and back buttons. May still not work because of
+    // TurboLinks caching behavior, I think.
     this.turbolinks.controller.pushHistoryWithLocationAndRestorationIdentifier(this.turbolinks.Location.wrap(this.url.href), this.turbolinks.uuid())
     this.appendTimer = 0
   }
 
-  replace (anchors) {
-    // anchors should be a list of strings
-    var ta = this
-    var oldHash = ta.url.hash
-    var newHash = ta.encodeAnchors(anchors)
-    if (newHash !== oldHash) {
-      ta.url.set('hash', newHash)
-      ta.replaceHref()
-    }
+  replace (query) {
+    this.url.set('query', this.filteredQuery(query))
+    this.replaceHref()
   }
 
-  to (anchors) {
-    var ta = this
-    var oldHash = ta.url.hash
-    var newHash = ta.encodeAnchors(anchors)
-    if (newHash !== oldHash) {
-      ta.url.set('hash', newHash)
-      ta.toHref()
-    }
+  to (query) {
+    this.url.set('query', this.filteredQuery(query))
+    this.toHref()
   }
 
-  setCallback (callback) {
-    this.callback = callback
+  filteredQuery (query) {
+    var filtered = {}
+    Object.keys(query).forEach(function (key) {
+      var v = query[key]
+      if (typeof v === 'undefined' || v === null) return
+      filtered[key] = v
+    })
+    return filtered
   }
 
   update (target) {
-    // update does nothing if in list mode
-    if (!this.useDict) return
+    // Update projects the current query parameters onto the given template.
     return this.constructor.project(target, this.parsed)
   }
 
-  static same (params1, params2) {
-    var ta = this
-    var idx
-    if (ta.useDict) {
-      var keys1 = Object.keys(params1)
-      var keys2 = Object.keys(params2)
-      if (keys1.length !== keys2.length) return false
-      for (idx in keys1) {
-        var k = keys1[idx]
-        if (!params2.hasOwnProperty(k)) return false
-        if (params1[k] !== params2[k]) return false
+  get parsed () {
+    return this.url.query
+  }
+
+  get count () {
+    return Object.keys(this.url.query).length
+  }
+
+  get (key) {
+    if (this.url.query.hasOwnProperty(key)) {
+      return TurboQuery.parseValue(this.url.query[key])
+    }
+    return null
+  }
+
+  static parseValue (v) {
+    switch (v) {
+      case 'null':
+        return null
+      case '':
+        return null
+      case 'undefined':
+        return null
+      case 'false':
+        return false
+      case 'true':
+        return true
+    }
+    if (!isNaN(parseFloat(v)) && isFinite(v)) {
+      if (String(v).includes('.')) {
+        return parseFloat(v)
+      } else {
+        return parseInt(v)
       }
-      return true
     }
-    if (params1.length !== params2.length) return false
-    for (idx in params1) {
-      var v = params1[idx]
-      if (!params2.includes(v)) return false
-    }
-    return true
+    return v
   }
 
   static project (target, source) {
+    // project fills in the properties of the given template, if they exist in
+    // the source. Extraneous source properties are not added to the template.
     var keys = Object.keys(target)
     var idx
     for (idx in keys) {
       var k = keys[idx]
       if (source.hasOwnProperty(k)) {
-        target[k] = source[k]
+        target[k] = this.parseValue(source[k])
       }
     }
     return target
@@ -315,11 +220,14 @@ class TurboAnchors {
 export default class extends Controller {
   static get targets () {
     return ['options', 'addr', 'btns', 'unspent',
-      'flow', 'zoom', 'interval', 'numUnconfirmed', 'formattedTime', 'txnCount']
+      'flow', 'zoom', 'interval', 'numUnconfirmed', 'formattedTime',
+      'pagesize', 'txntype', 'txnCount', 'qron', 'qroff']
   }
 
   initialize () {
     var controller = this
+    controller.retrievedData = {}
+    // Bind functions passed as callbacks to the controller
     controller.updateView = controller._updateView.bind(controller)
     controller.zoomCallback = controller._zoomCallback.bind(controller)
     controller.zoomMap = {
@@ -329,26 +237,13 @@ export default class extends Controller {
       week: 6.048e+8,
       day: 8.64e+7
     }
-    controller.anchors = new TurboAnchors(controller.updateView)
-    controller.anchors.useDict()
-    controller.viewSettings = {
-      view: 'list',
-      bin: null,
-      zoom: null
-    }
-    // Set initial view settings from the url
-    controller.anchors.update(controller.viewSettings)
+    controller.query = new TurboQuery()
+    controller.viewSettings = controller.makeViewSettings('list', null, null, null, null, null)
+    controller.currentView = controller.makeViewSettings(null, null, null, null, null, null)
+    // Set initial viewSettings from the url
+    controller.query.update(controller.viewSettings)
+    // Set the initial view based on the url
     controller.setViewButton(controller.viewSettings.view === 'list' ? 'list' : 'chart')
-    controller.currentView = {
-      view: null,
-      bin: null,
-      zoom: null
-    }
-    controller.listView = {
-      view: 'list',
-      bin: null,
-      zoom: null
-    }
     let isFirstFire = true
     globalEventBus.on('BLOCK_RECEIVED', function (data) {
       // The update of the Time UTC and transactions count will only happen during the first confirmation
@@ -418,10 +313,16 @@ export default class extends Controller {
 
   connect () {
     var controller = this
+    controller.bindStuff()
     controller.chartElements = $('.chart-display')
     controller.listElements = $('.list-display')
     controller.zoomButtons = $(controller.zoomTarget).children('input')
-    if (controller.anchors.get('zoom') != null) {
+    controller.binputs = $(controller.intervalTarget).children('input')
+    controller.qrOff = $(controller.qroffTarget)
+    controller.qrOn = $(controller.qronTarget)
+    controller.qrMade = false
+    controller.dcrAddress = controller.data.get('dcraddress')
+    if (controller.query.get('zoom') != null) {
       controller.zoomButtons.removeClass('btn-active')
     }
     controller.formattedTimeTargets.forEach((el, i) => {
@@ -438,6 +339,67 @@ export default class extends Controller {
     if (this.graph !== undefined) {
       this.graph.destroy()
     }
+  }
+
+  bindStuff () {
+    $('.jsonly').show()
+    $('.matchhash').hover(function () {
+      hashHighLight($(this).attr('href'), true)
+    }, function () {
+      hashHighLight($(this).attr('href'), false)
+    })
+  }
+
+  showQRCode () {
+    var controller = this
+    function setMargin () {
+      controller.qrOff.css({
+        margin: '0px 0px 12px',
+        opacity: 1,
+        height: 'auto'
+      }).show()
+    }
+    if (controller.qrMade) {
+      setMargin()
+    } else {
+      $.getScript(
+        '/js/vendor/qrcode.min.js',
+        function () {
+          controller.qrMade = new QRCode(controller.qroffTarget, controller.dcrAddress)
+          setMargin()
+        }
+      )
+    }
+    controller.qrOn.hide()
+  }
+
+  hideQRCode () {
+    this.qrOn.show()
+    this.qrOff.hide().css({
+      margin: '0',
+      opacity: 0,
+      height: 0
+    })
+  }
+
+  makeViewSettings (view, n, start, txntype, zoom, bin) {
+    return {
+      view: view,
+      n: n,
+      start: start,
+      txntype: txntype,
+      zoom: zoom,
+      bin: bin
+    }
+  }
+
+  paginate () {
+    Turbolinks.visit(
+      window.location.pathname +
+      '?txntype=' + this.txntypeTarget.selectedOptions[0].value +
+      '&n=' + this.pagesizeTarget.selectedOptions[0].value +
+      '&start=' + this.data.get('offset')
+    )
   }
 
   drawGraph () {
@@ -469,83 +431,101 @@ export default class extends Controller {
     }
 
     // Set the current view to prevent uneccesary reloads.
-    TurboAnchors.project(controller.currentView, controller.viewSettings)
+    TurboQuery.project(controller.currentView, controller.viewSettings)
+
+    // Check for cached data
+    if (controller.retrievedData[settings.view]) {
+      var viewData = controller.retrievedData[settings.view]
+      if (viewData[settings.bin]) {
+        controller.processData(settings.view, settings.bin, viewData[settings.bin])
+        return
+      }
+    }
 
     $('body').addClass('loading')
 
     $.ajax({
       type: 'GET',
-      url: '/api/address/' + controller.addr + '/' + controller.viewSettings.view + '/' + controller.viewSettings.bin,
+      url: '/api/address/' + controller.dcrAddress + '/' + settings.view + '/' + settings.bin,
       beforeSend: function () {},
       complete: function () { $('body').removeClass('loading') },
       success: function (data) {
-        if (!isEmpty(data)) {
-          var newData = []
-          var options = {}
-
-          switch (settings.view) {
-            case 'types':
-              newData = txTypesFunc(data)
-              options = controller.typesGraphOptions
-              break
-
-            case 'amountflow':
-              newData = amountFlowFunc(data)
-              options = controller.amountFlowGraphOptions
-              $('#toggle-charts').removeClass('d-hide')
-              break
-
-            case 'unspent':
-              newData = unspentAmountFunc(data)
-              options = controller.unspentGraphOptions
-              break
-          }
-
-          options.zoomCallback = controller.zoomCallback
-
-          if (controller.graph === undefined) {
-            controller.graph = plotGraph(newData, options)
-          } else {
-            controller.graph.updateOptions({
-              ...{ 'file': newData },
-              ...options })
-          }
-          controller.updateFlow()
-          controller.xVal = controller.graph.xAxisExtremes()
-          var zoom = controller.decodeZoom(settings.zoom)
-          if (zoom) controller.setZoom(zoom.start.getTime(), zoom.end.getTime())
-        } else {
-          $('#no-bal').removeClass('d-hide')
-          $('#history-chart').addClass('d-hide')
-          $('#toggle-charts').removeClass('d-hide')
-        }
+        controller.processData(settings.view, settings.bin, data)
       }
     })
   }
 
+  processData (chart, bin, data) {
+    var controller = this
+    if (!controller.retrievedData[chart]) {
+      controller.retrievedData[chart] = {}
+    }
+    controller.retrievedData[chart][bin] = data
+    if (!isEmpty(data)) {
+      var newData = []
+      var options = {}
+
+      switch (chart) {
+        case 'types':
+          newData = txTypesFunc(data)
+          options = controller.typesGraphOptions
+          break
+
+        case 'amountflow':
+          newData = amountFlowFunc(data)
+          options = controller.amountFlowGraphOptions
+          $('#toggle-charts').removeClass('d-hide')
+          break
+
+        case 'unspent':
+          newData = unspentAmountFunc(data)
+          options = controller.unspentGraphOptions
+          break
+      }
+
+      options.zoomCallback = controller.zoomCallback
+
+      if (controller.graph === undefined) {
+        controller.graph = plotGraph(newData, options)
+      } else {
+        controller.graph.updateOptions({
+          ...{ 'file': newData },
+          ...options })
+      }
+      controller.updateFlow()
+      controller.xVal = controller.graph.xAxisExtremes()
+      var zoom = controller.decodeZoom(controller.viewSettings.zoom)
+      if (zoom) controller.setZoom(zoom.start.getTime(), zoom.end.getTime())
+    } else {
+      $('#no-bal').removeClass('d-hide')
+      $('#history-chart').addClass('d-hide')
+      $('#toggle-charts').removeClass('d-hide')
+    }
+  }
+
   _updateView () {
     var controller = this
-    if (controller.anchors.count === 0 || controller.anchors.get('view') === 'list') {
+    if (controller.query.count === 0 || controller.query.get('view') === 'list') {
       controller.showList()
       return
     }
-    controller.viewSettings.bin = controller.getBin()
     controller.showGraph()
     controller.drawGraph()
   }
 
   showList () {
     var controller = this
-    TurboAnchors.project(controller.viewSettings, controller.listView)
-    TurboAnchors.project(controller.currentView, controller.listView)
-    controller.anchors.replace(controller.viewSettings)
+    controller.viewSettings.view = 'list'
+    TurboQuery.project(controller.currentView, controller.viewSettings)
+    controller.query.replace(controller.viewSettings)
     controller.chartElements.addClass('d-hide')
     controller.listElements.removeClass('d-hide')
   }
 
   showGraph () {
     var controller = this
-    controller.anchors.update(controller.viewSettings)
+    controller.viewSettings.bin = controller.getBin()
+    controller.query.replace(controller.viewSettings)
     controller.chartElements.removeClass('d-hide')
     controller.listElements.addClass('d-hide')
   }
@@ -557,7 +537,7 @@ export default class extends Controller {
 
   validGraphInterval (interval) {
     interval = interval || this.viewSettings.bin || this.activeIntervalButton
-    return $(this.intervalTarget).children("[name='" + interval + "']") || false
+    return this.binputs.filter("[name='" + interval + "']") || false
   }
 
   changeView (e) {
@@ -568,7 +548,7 @@ export default class extends Controller {
     var view = controller.activeViewButton
     if (view !== 'list') {
       settings.view = controller.chartType
-      controller.setGraphAnchors() // Triggers chart draw
+      controller.setGraphQuery() // Triggers chart draw
     } else {
       controller.showList()
     }
@@ -576,22 +556,18 @@ export default class extends Controller {
 
   changeGraph (e) {
     this.viewSettings.view = this.chartType
-    this.setGraphAnchors()
+    this.setGraphQuery()
   }
 
   changeBin (e) {
     var controller = this
     controller.viewSettings.bin = e.target.name
     controller.setIntervalButton(e.target.name)
-    this.setGraphAnchors()
+    this.setGraphQuery()
   }
 
-  setGraphAnchors () {
-    var controller = this
-    if (controller.viewSettings.bin == null) {
-      controller.viewSettings.bin = controller.getBin()
-    }
-    this.anchors.replace(this.viewSettings)
+  setGraphQuery () {
+    this.query.replace(this.viewSettings)
     this.updateView()
   }
 
@@ -624,7 +600,7 @@ export default class extends Controller {
       dateWindow: [start, end]
     })
     controller.viewSettings.zoom = controller.encodeZoomStamps(start, end)
-    controller.anchors.replace(controller.viewSettings)
+    controller.query.replace(controller.viewSettings)
     $('body').removeClass('loading')
   }
 
@@ -638,7 +614,7 @@ export default class extends Controller {
 
   getBin () {
     var controller = this
-    var bin = controller.anchors.get('bin')
+    var bin = controller.query.get('bin')
     if (!controller.setIntervalButton(bin)) {
       bin = controller.activeIntervalButton
     }
@@ -649,7 +625,7 @@ export default class extends Controller {
     var controller = this
     var button = controller.validGraphInterval(interval)
     if (!button) return false
-    $(this.intervalTarget).children('input').removeClass('btn-active')
+    controller.binputs.removeClass('btn-active')
     button.addClass('btn-active')
   }
 
@@ -680,7 +656,7 @@ export default class extends Controller {
     var controller = this
     controller.zoomButtons.removeClass('btn-active')
     controller.viewSettings.zoom = controller.encodeZoomStamps(start, end)
-    controller.anchors.replace(controller.viewSettings)
+    controller.query.replace(controller.viewSettings)
   }
 
   disableBtnsIfNotApplicable () {
@@ -723,10 +699,6 @@ export default class extends Controller {
 
   get chartType () {
     return this.optionsTarget.value
-  }
-
-  get addr () {
-    return this.addrTarget.dataset.address
   }
 
   get unspent () {
