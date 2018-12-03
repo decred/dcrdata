@@ -198,7 +198,7 @@
                         <span style="flex: 0 0 65px" class="lh1rem text-right ml-1">Type</span>
                         <span style="flex: 0 0 105px" class="lh1rem text-right ml-1">Total Sent</span>
                         <span style="flex: 0 0 50px" class="lh1rem text-right ml-1">Size</span>
-                        <span style="flex: 0 0 62px" class="lh1rem text-right ml-1">Age</span>
+                        <span style="flex: 0 0 62px" class="lh1rem text-right ml-1 jsonly">Age</span>
                     </div>
                     <div data-target="homepageMempool.transactions" class="transactions md-height-rows rows">
                     {{range .Mempool.LatestTransactions}}
@@ -209,7 +209,7 @@
                                 <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}</span>
                             </span>
                             <span style="flex: 0 0 50px" class="mono text-right ml-1">{{.Size}} B</span>
-                            <span style="flex: 0 0 62px" class="mono text-right ml-1" data-target="time.age" data-age="{{.Time}}"></span>
+                            <span style="flex: 0 0 62px" class="mono text-right ml-1 jsonly" data-target="time.age" data-age="{{.Time}}"></span>
                         </div>
                     {{end}}
                     </div>
@@ -234,7 +234,7 @@
                                 <span class="d-lg-none">Revoke</span>
                             </th>
                             <th>Size</th>
-                            <th>Age</th>
+                            <th class="jsonly">Age</th>
                             <th>Time ({{timezone}})</th>
                         </tr>
                     </thead>
@@ -247,7 +247,7 @@
                             <td>{{.FreshStake}}</td>
                             <td>{{.Revocations}}</td>
                             <td>{{.FormattedBytes}}</td>
-                            <td data-target="time.age" data-age="{{.BlockTime}}"></td>
+                            <td class="jsonly" data-target="time.age" data-age="{{.BlockTime}}"></td>
                             <td>{{.BlockTime}}</td>
                         </tr>
                         {{end}}

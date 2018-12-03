@@ -90,7 +90,7 @@
                             <th>Total Size</th>
                             <th class="text-right">Difficulty</th>
                             <th class="text-right">Ticket Price (DCR)</th>
-                            <th class="text-right">Age</th>
+                            <th class="text-right jsonly">Age</th>
                             <th>Start Time ({{timezone}})</th>
                         </tr>
                     </thead>
@@ -112,7 +112,7 @@
                             <td>{{.FormattedSize}}</td>
                             <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
                             <td class="text-right">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
-                            <td class="text-right" data-target="time.age" data-age="{{.StartTime}}"></td>
+                            <td class="text-right jsonly" data-target="time.age" data-age="{{.StartTime}}"></td>
                             <td>{{.StartTime}}</td>
                         </tr>
                     {{end}}

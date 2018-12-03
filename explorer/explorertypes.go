@@ -199,6 +199,7 @@ type Vin struct {
 	FormattedAmount string
 	Index           uint32
 	DisplayText     string
+	TextIsHash      bool
 	Link            string
 }
 

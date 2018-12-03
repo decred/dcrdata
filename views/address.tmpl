@@ -226,7 +226,7 @@
                                 <th>Debit DCR</th>
                             {{end}}
                             <th>Time UTC</th>
-                            <th>Age</th>
+                            <th class="jsonly">Age</th>
                             <th>Confirms</th>
                             <th>Size</th>
                         </thead>
@@ -283,7 +283,7 @@
                                         {{.Time}}
                                     {{end}}
                                 </td>
-                                <td class="addr-tx-age">
+                                <td class="jsonly addr-tx-age">
                                 {{if eq (.Time.T.Unix) 0}}
                                     N/A
                                 {{else}}

@@ -75,10 +75,10 @@ html {
   padding-top: 35px;
 }
 .mono {
-  font-family: 'inconsolata-v15-latin-regular';
+  font-family: 'inconsolata-v15-latin-regular', 'Courier New', Courier, monospace;
 }
 body {
-  font-family: 'source-sans-pro-v9-latin-regular';
+  font-family: 'source-sans-pro-v9-latin-regular', Arial, Helvetica, sans-serif;
   padding-bottom: 2.1rem;
   background: #F3F5F6;
 }
@@ -573,7 +573,7 @@ table.align-baseline-rows tr {
   padding-left: 0px;
 }
 .table-mono-cells td {
-  font-family: 'inconsolata-v15-latin-regular';
+  font-family: 'inconsolata-v15-latin-regular', 'Courier New', Courier, monospace;
   font-size: 14px;
 }
 .table .address {
@@ -606,7 +606,7 @@ table.align-baseline-rows tr {
 .elidedhash {
   position:relative;
   display:inline-block;
-  font-family: 'inconsolata-v15-latin-regular', monospace;
+  font-family: 'inconsolata-v15-latin-regular', 'Courier New', Courier, monospace;
   color:transparent;
 /*   border: 1px solid #aaa; */
   max-width:100%;
@@ -688,7 +688,7 @@ a.elidedhash:hover {
   z-index: -1;
   display: none;
   border-top: 1px solid #ccc;
-  font-family: 'source-sans-pro-v9-latin-regular';
+  font-family: 'source-sans-pro-v9-latin-regular', Arial, Helvetica, sans-serif;
 }
 
 /*content*/
@@ -743,7 +743,7 @@ a.elidedhash:hover {
 }
 .hash {
   font-size: 14px;
-  font-family: 'inconsolata-v15-latin-regular', monospace;
+  font-family: 'inconsolata-v15-latin-regular', 'Courier New', Courier, monospace;
   display: inline-block;
   word-wrap: break-word;
   transition: .133s transform;

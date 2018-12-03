@@ -95,7 +95,7 @@
                                 <span>Revokes</span>
                             </th>
                             <th>Size</th>
-                            <th>Age</th>
+                            <th class="jsonly" >Age</th>
                             <th>Time ({{timezone}})</th>
                         </tr>
                     </thead>
@@ -109,7 +109,7 @@
                             <td>{{.FreshStake}}</td>
                             <td>{{.Revocations}}</td>
                             <td>{{.FormattedBytes}}</td>
-                            <td data-target="time.age" data-age="{{.BlockTime}}"></td>
+                            <td class="jsonly" data-target="time.age" data-age="{{.BlockTime}}"></td>
                             <td>{{.BlockTime}}</td>
                         </tr>
                     {{end}}
