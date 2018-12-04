@@ -273,7 +273,7 @@
                         {{if eq (.Time.T.Unix) 0}}
                             <span id="txFmtTime">N/A</span> <span class="op60 fs12 nowrap"><span id="txAge" data-target="time.age" data-age=""></span></span>
                         {{else}}
-                            <span>({{timezone}}) {{.Time}}</span> <span class="op60 fs12 nowrap">(<span data-target="time.age" data-age="{{.Time}}"></span> ago)</span>
+                            <span>({{timezone}}) {{.Time}}</span><span class="op60 fs12 nowrap jsonly"> (<span data-target="time.age" data-age="{{.Time}}"></span> ago)</span>
                         {{end}}
                     </td>
                 </tr>
@@ -320,7 +320,7 @@
                         <td class="position-relative">
                           <div class="hash-box">
                             <div class="hash-fill">
-                              {{template "hashElide" (hashlink .DisplayText .Link)}}
+                              {{if .TextIsHash}}{{template "hashElide" (hashlink .DisplayText .Link)}}{{else}}{{.DisplayText}}{{end}}
                             </div>
                           </div>
                         </td>

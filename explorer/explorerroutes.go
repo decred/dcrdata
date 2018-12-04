@@ -1093,6 +1093,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		} else {
 			voutStr := strconv.Itoa(int(vin.Vout))
 			vin.DisplayText = vin.Txid + ":" + voutStr
+			vin.TextIsHash = true
 			vin.Link = "/tx/" + vin.Txid + "/out/" + voutStr
 		}
 	}

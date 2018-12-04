@@ -62,7 +62,7 @@
                         <a class="menu-item" data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
                         <a class="menu-item" data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
                         <a class="menu-item" data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
-                        <a class="menu-item" data-keynav-skip href="/charts" title="Decred charts">Charts</a>
+                        <a class="menu-item jsonly" data-keynav-skip href="/charts" title="Decred charts">Charts</a>
                         <a class="menu-item" data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
                         <a class="menu-item" data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
                         <a class="menu-item" data-keynav-skip href="/address/{{.DevAddress}}?txntype=merged_debit" title="Decred Treasury">Treasury</a>
@@ -72,7 +72,7 @@
                         {{else}}
                             <a class="menu-item" data-keynav-skip href="https://explorer.dcrdata.org/" title="Home">Switch To Mainnet</a>
                         {{end}}
-                        <span class="menu-item" data-keynav-skip data-action="click->menu#onSunClick" class="jsonly d-inline-block"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</span>
+                        <span class="menu-item jsonly" data-keynav-skip data-action="click->menu#onSunClick"><span id="sun-icon" class="dcricon-sun-fill no-underline pr-2"></span> Night Mode</span>
                         <a class="menu-item" data-keynav-skip data-turbolinks="false" href="#" class="jsonly" id="keynav-toggle">
                             <span class="text">Enable Hot Keys</span><span class="keys-hint">(&nbsp;&nbsp;<span class="arrows"> &#8592;<br>&#8594;</span>&nbsp;&nbsp;enter&nbsp;&nbsp;\&nbsp;&nbsp;=&nbsp;&nbsp;)</span>
                         </a>
@@ -94,7 +94,7 @@
 {{define "footer"}}
 <footer class="navbar-fixed-bottom">
     <div class="container d-flex justify-content-between align-items-center">
-        <ul class="nav justify-contents-left nowrap blockcounter">
+        <ul class="nav justify-contents-left nowrap blockcounter jsonly">
           <li class="nav-item text-left">
             <span data-controller="time" data-target="time.age" data-time-lastblocktime="{{$.Tip.Time}}"></span> <span class="block-msg">since last block</span>
           </li>
@@ -118,7 +118,7 @@
                 >© 2018 The Decred developers (ISC)</a>
             </li>
         </ul>
-        <ul class="nav justify-content-right align-items-center">
+        <ul class="nav justify-content-right align-items-center jsonly">
             <li class="text-right connection-wrapper">
                 <span
                     id="connection"

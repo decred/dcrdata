@@ -92,6 +92,11 @@
       color: #2e75ff;
     }
   }
+
+  a.jsonly,
+  span.jsonly {
+    display: none;
+  }
 }
 
 #menuToggle input:checked ~ #menu {
