@@ -95,7 +95,6 @@
 </header>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
-    $(".jsonly").removeClass('jsonly')
     $.ajaxSetup({
         cache: true
     });
@@ -715,6 +714,7 @@
 
 </script>
 <script>
+    $(".jsonly").removeClass('jsonly')
     $('.scriptDataStar').on('click', function(){
         $(this).next('.scriptData').slideToggle();
     });
