@@ -73,7 +73,7 @@
                         <a data-keynav-skip href="/blocks" title="Decred blocks">Blocks</a>
                         <a data-keynav-skip href="/mempool" title="Decred mempool">Mempool</a>
                         <a data-keynav-skip href="/ticketpool" title="Decred ticket pool">Ticket Pool</a>
-                        <a data-keynav-skip href="/charts" title="Decred charts">Charts</a>
+                        <a data-keynav-skip class="jsonly" href="/charts" title="Decred charts">Charts</a>
                         <a data-keynav-skip href="/agendas" title="Agendas">Agendas</a>
                         <a data-keynav-skip href="/parameters" title="Chain Parameters">Parameters</a>
                         <a data-keynav-skip href="/decodetx" title="Decode or send a raw transaction">Decode/Broadcast Tx</a>
@@ -95,7 +95,7 @@
 </header>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 <script data-turbolinks-eval="false">
-    $(".jsonly").show()
+    $(".jsonly").removeClass('jsonly')
     $.ajaxSetup({
         cache: true
     });
@@ -523,7 +523,7 @@
                 >© 2018 The Decred developers (ISC)</a>
             </li>
         </ul>
-        <ul class="nav justify-content-right align-items-center">
+        <ul class="nav justify-content-right align-items-center jsonly">
             <li class="text-right connection-wrapper">
                 <span
                     id="connection"
