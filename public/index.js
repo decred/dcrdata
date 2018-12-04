@@ -20,7 +20,7 @@ const application = Application.start()
 const context = require.context('./js/controllers', true, /\.js$/)
 application.load(definitionsFromContext(context))
 
-$('.jsonly').show()
+$('.jsonly').removeClass('jsonly')
 $.ajaxSetup({
   cache: true
 })
