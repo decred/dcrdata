@@ -230,6 +230,7 @@ export default class extends Controller {
     // Bind functions passed as callbacks to the controller
     controller.updateView = controller._updateView.bind(controller)
     controller.zoomCallback = controller._zoomCallback.bind(controller)
+    controller.drawCallback = controller._drawCallback.bind(controller)
     controller.zoomMap = {
       all: 0,
       year: 3.154e+10,
@@ -238,32 +239,38 @@ export default class extends Controller {
       day: 8.64e+7
     }
     controller.query = new TurboQuery()
-    controller.viewSettings = controller.makeViewSettings('list', null, null, null, null, null)
-    controller.currentView = controller.makeViewSettings(null, null, null, null, null, null)
+    // A master settings object
+    var settings = controller.viewSettings = {
+      view: null,
+      n: null,
+      start: null,
+      txntype: null,
+      zoom: null,
+      bin: null,
+      flow: null
+    }
+    // These two are templates for query parameter sets
+    controller.chartSettings = {
+      view: null,
+      zoom: null,
+      bin: null,
+      flow: null
+    }
+    controller.listSettings = {
+      n: null,
+      start: null,
+      txntype: null
+    }
+    controller.currentChartSettings = Object.assign({}, controller.chartSettings)
     // Set initial viewSettings from the url
-    controller.query.update(controller.viewSettings)
+    controller.query.update(settings)
+    settings.view = settings.view || 'list'
+    settings.flow = settings.flow ?settings.flow : null
+    TurboQuery.project(controller.chartSettings, settings)
+    TurboQuery.project(controller.listSettings, settings)
     // Set the initial view based on the url
-    controller.setViewButton(controller.viewSettings.view === 'list' ? 'list' : 'chart')
-    let isFirstFire = true
-    globalEventBus.on('BLOCK_RECEIVED', function (data) {
-      // The update of the Time UTC and transactions count will only happen during the first confirmation
-      if (!isFirstFire) {
-        return
-      }
-      isFirstFire = false
-      controller.numUnconfirmedTargets.forEach((el, i) => {
-        el.classList.add('hidden')
-      })
-      let numConfirmed = 0
-      controller.formattedTimeTargets.forEach((el, i) => {
-        el.textContent = data.block.formatted_time
-        numConfirmed++
-      })
-      controller.txnCountTargets.forEach((el, i) => {
-        let transactions = numConfirmed + parseInt(el.dataset.txnCount)
-        controller.setTxnCountText(el, transactions)
-      })
-    })
+    controller.setViewButton(settings.view === 'list' ? 'list' : 'chart')
+    controller.setChartType()
     $.getScript('/js/vendor/dygraphs.min.js', () => {
       controller.typesGraphOptions = {
         labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
@@ -318,11 +325,13 @@ export default class extends Controller {
     controller.listElements = $('.list-display')
     controller.zoomButtons = $(controller.zoomTarget).children('input')
     controller.binputs = $(controller.intervalTarget).children('input')
+    controller.flowBoxes = controller.flowTarget.querySelectorAll('input[type=checkbox]')
+    if (controller.viewSettings.flow) controller.setFlowChecks()
     controller.qrOff = $(controller.qroffTarget)
     controller.qrOn = $(controller.qronTarget)
     controller.qrMade = false
     controller.dcrAddress = controller.data.get('dcraddress')
-    if (controller.query.get('zoom') != null) {
+    if (controller.chartSettings.zoom !== null) {
       controller.zoomButtons.removeClass('btn-active')
     }
     controller.formattedTimeTargets.forEach((el, i) => {
@@ -331,7 +340,7 @@ export default class extends Controller {
     controller.txnCountTargets.forEach((el, i) => {
       controller.setTxnCountText(el, parseInt(el.dataset.txnCount))
     })
-    controller.disableBtnsIfNotApplicable()
+    // controller.disableBtnsIfNotApplicable()
     setTimeout(controller.updateView, 0)
   }
 
@@ -342,6 +351,27 @@ export default class extends Controller {
   }
 
   bindStuff () {
+    var controller = this
+    let isFirstFire = true
+    globalEventBus.on('BLOCK_RECEIVED', function (data) {
+      // The update of the Time UTC and transactions count will only happen during the first confirmation
+      if (!isFirstFire) {
+        return
+      }
+      isFirstFire = false
+      controller.numUnconfirmedTargets.forEach((el, i) => {
+        el.classList.add('hidden')
+      })
+      let numConfirmed = 0
+      controller.formattedTimeTargets.forEach((el, i) => {
+        el.textContent = data.block.formatted_time
+        numConfirmed++
+      })
+      controller.txnCountTargets.forEach((el, i) => {
+        let transactions = numConfirmed + parseInt(el.dataset.txnCount)
+        controller.setTxnCountText(el, transactions)
+      })
+    })
     $('.jsonly').show()
     $('.matchhash').hover(function () {
       hashHighLight($(this).attr('href'), true)
@@ -382,17 +412,6 @@ export default class extends Controller {
     })
   }
 
-  makeViewSettings (view, n, start, txntype, zoom, bin) {
-    return {
-      view: view,
-      n: n,
-      start: start,
-      txntype: txntype,
-      zoom: zoom,
-      bin: bin
-    }
-  }
-
   paginate () {
     Turbolinks.visit(
       window.location.pathname +
@@ -404,7 +423,7 @@ export default class extends Controller {
 
   drawGraph () {
     var controller = this
-    var settings = controller.viewSettings
+    var settings = controller.chartSettings
 
     $('#no-bal').addClass('d-hide')
     $('#history-chart').removeClass('d-hide')
@@ -419,31 +438,31 @@ export default class extends Controller {
 
     // If the view parameters aren't valid, go to default view.
     if (!controller.validGraphView() || !controller.validGraphInterval()) return controller.showList()
-    if (settings.view === controller.currentView.view && settings.bin === controller.currentView.bin) {
+
+    if (settings.view === controller.currentChartSettings.view && settings.bin === controller.currentChartSettings.bin) {
       // Only the zoom has changed.
       var zoom = controller.decodeZoom(settings.zoom)
       if (zoom) {
         controller.setZoom(zoom.start.getTime(), zoom.end.getTime())
-      } else {
-        controller.showList()
       }
       return
     }
 
     // Set the current view to prevent uneccesary reloads.
-    TurboQuery.project(controller.currentView, controller.viewSettings)
-
-    // Check for cached data
-    if (controller.retrievedData[settings.view]) {
-      var viewData = controller.retrievedData[settings.view]
-      if (viewData[settings.bin]) {
-        controller.processData(settings.view, settings.bin, viewData[settings.bin])
-        return
-      }
-    }
+    TurboQuery.project(controller.currentChartSettings, controller.viewSettings)
 
     $('body').addClass('loading')
 
+    // Check for cached data
+    var queue = controller.retrievedData
+    if (queue[settings.view] && queue[settings.view][settings.bin]) {
+      // Queue the function to allow the loading animation to start.
+      setTimeout(function () {
+        controller.popChartQueue(settings.view, settings.bin)
+        $('body').removeClass('loading')
+      }, 10) // 0 should work but doesn't always
+      return
+    }
     $.ajax({
       type: 'GET',
       url: '/api/address/' + controller.dcrAddress + '/' + settings.view + '/' + settings.bin,
@@ -460,42 +479,28 @@ export default class extends Controller {
     if (!controller.retrievedData[chart]) {
       controller.retrievedData[chart] = {}
     }
-    controller.retrievedData[chart][bin] = data
     if (!isEmpty(data)) {
-      var newData = []
-      var options = {}
-
+      var processor = null
       switch (chart) {
         case 'types':
-          newData = txTypesFunc(data)
-          options = controller.typesGraphOptions
+          processor = txTypesFunc
           break
 
         case 'amountflow':
-          newData = amountFlowFunc(data)
-          options = controller.amountFlowGraphOptions
-          $('#toggle-charts').removeClass('d-hide')
+          processor = amountFlowFunc
           break
 
         case 'unspent':
-          newData = unspentAmountFunc(data)
-          options = controller.unspentGraphOptions
+          processor = unspentAmountFunc
           break
       }
-
-      options.zoomCallback = controller.zoomCallback
-
-      if (controller.graph === undefined) {
-        controller.graph = plotGraph(newData, options)
-      } else {
-        controller.graph.updateOptions({
-          ...{ 'file': newData },
-          ...options })
+      if (!processor) {
+        return
       }
-      controller.updateFlow()
-      controller.xVal = controller.graph.xAxisExtremes()
-      var zoom = controller.decodeZoom(controller.viewSettings.zoom)
-      if (zoom) controller.setZoom(zoom.start.getTime(), zoom.end.getTime())
+      controller.retrievedData[chart][bin] = processor(data)
+      setTimeout(function () {
+        controller.popChartQueue(chart, bin)
+      }, 0)
     } else {
       $('#no-bal').removeClass('d-hide')
       $('#history-chart').addClass('d-hide')
@@ -503,9 +508,45 @@ export default class extends Controller {
     }
   }
 
+  popChartQueue (chart, bin) {
+    var controller = this
+    if (!controller.retrievedData[chart] || !controller.retrievedData[chart][bin]) {
+      return
+    }
+    var data = controller.retrievedData[chart][bin]
+    var options = null
+    switch (chart) {
+      case 'types':
+        options = controller.typesGraphOptions
+        break
+
+      case 'amountflow':
+        options = controller.amountFlowGraphOptions
+        $('#toggle-charts').removeClass('d-hide')
+        break
+
+      case 'unspent':
+        options = controller.unspentGraphOptions
+        break
+    }
+    options.zoomCallback = controller.zoomCallback
+    options.drawCallback = controller.drawCallback
+    if (controller.graph === undefined) {
+      controller.graph = plotGraph(data, options)
+    } else {
+      controller.graph.updateOptions({
+        ...{ 'file': data },
+        ...options })
+    }
+    controller.xVal = controller.graph.xAxisExtremes()
+    controller.setVisibleButtons()
+    var zoom = controller.decodeZoom(controller.viewSettings.zoom)
+    if (zoom) controller.setZoom(zoom.start.getTime(), zoom.end.getTime())
+  }
+
   _updateView () {
     var controller = this
-    if (controller.query.count === 0 || controller.query.get('view') === 'list') {
+    if (controller.query.count === 0 || controller.viewSettings.view === 'list') {
       controller.showList()
       return
     }
@@ -516,39 +557,40 @@ export default class extends Controller {
   showList () {
     var controller = this
     controller.viewSettings.view = 'list'
-    TurboQuery.project(controller.currentView, controller.viewSettings)
-    controller.query.replace(controller.viewSettings)
+    controller.query.replace(controller.listSettings)
     controller.chartElements.addClass('d-hide')
     controller.listElements.removeClass('d-hide')
   }
 
   showGraph () {
     var controller = this
-    controller.viewSettings.bin = controller.getBin()
-    controller.query.replace(controller.viewSettings)
+    var settings = controller.viewSettings
+    settings.bin = controller.getBin()
+    settings.flow = settings.view === 'amountflow' ? controller.flow : null
+    controller.query.replace(TurboQuery.project(controller.chartSettings, settings))
     controller.chartElements.removeClass('d-hide')
     controller.listElements.addClass('d-hide')
   }
 
   validGraphView (view) {
-    view = view || this.viewSettings.view
+    view = view || this.chartSettings.view
     return this.optionsTarget.namedItem(view) || false
   }
 
   validGraphInterval (interval) {
-    interval = interval || this.viewSettings.bin || this.activeIntervalButton
+    interval = interval || this.chartSettings.bin || this.activeIntervalButton
     return this.binputs.filter("[name='" + interval + "']") || false
   }
 
   changeView (e) {
     var controller = this
-    var settings = controller.viewSettings
     $('.addr-btn').removeClass('btn-active')
     $(e ? e.srcElement : '.chart').addClass('btn-active')
     var view = controller.activeViewButton
     if (view !== 'list') {
-      settings.view = controller.chartType
+      controller.viewSettings.view = controller.chartType
       controller.setGraphQuery() // Triggers chart draw
+      this.updateView()
     } else {
       controller.showList()
     }
@@ -557,6 +599,7 @@ export default class extends Controller {
   changeGraph (e) {
     this.viewSettings.view = this.chartType
     this.setGraphQuery()
+    this.updateView()
   }
 
   changeBin (e) {
@@ -564,19 +607,39 @@ export default class extends Controller {
     controller.viewSettings.bin = e.target.name
     controller.setIntervalButton(e.target.name)
     this.setGraphQuery()
-  }
-
-  setGraphQuery () {
-    this.query.replace(this.viewSettings)
     this.updateView()
   }
 
+  setGraphQuery () {
+    this.query.replace(TurboQuery.project(this.chartSettings, this.viewSettings))
+  }
+
   updateFlow () {
-    if (this.chartType !== 'amountflow') return ''
-    for (var i = 0; i < this.flow.length; i++) {
-      var d = this.flow[i]
-      this.graph.setVisibility(d[0], d[1])
+    var controller = this
+    var bitmap = controller.flow
+    if (bitmap === 0) {
+      // If all boxes are unchecked, just leave the last view
+      // in place to prevent chart errors with zero visible datasets
+      return
     }
+    controller.viewSettings.flow = bitmap
+    controller.setGraphQuery()
+    // Set the graph dataset visibility based on the bitmap
+    // Dygraph dataset indices: 0 received, 1 sent, 2 & 3 net
+    var visibility = {}
+    visibility[0] = bitmap & 1
+    visibility[1] = bitmap & 2
+    visibility[2] = visibility[3] = bitmap & 4
+    Object.keys(visibility).forEach(function (idx) {
+      controller.graph.setVisibility(idx, visibility[idx])
+    })
+  }
+
+  setFlowChecks () {
+    var bitmap = this.viewSettings.flow
+    this.flowBoxes.forEach(function (box) {
+      box.checked = bitmap & parseInt(box.value)
+    })
   }
 
   onZoom (e) {
@@ -600,7 +663,7 @@ export default class extends Controller {
       dateWindow: [start, end]
     })
     controller.viewSettings.zoom = controller.encodeZoomStamps(start, end)
-    controller.query.replace(controller.viewSettings)
+    controller.query.replace(TurboQuery.project(controller.chartSettings, controller.viewSettings))
     $('body').removeClass('loading')
   }
 
@@ -635,6 +698,13 @@ export default class extends Controller {
     viewForm.children("input[name='" + view + "']").addClass('btn-active')
   }
 
+  setChartType () {
+    var view = this.viewSettings.view
+    if (this.validGraphView(view)) {
+      this.optionsTarget.value = view
+    }
+  }
+
   decodeZoom (encoded) {
     if (!encoded) return false
     var range = encoded.split('-')
@@ -652,11 +722,35 @@ export default class extends Controller {
     }
   }
 
-  _zoomCallback (start, end, yRanges) {
+  _drawCallback (graph, first) {
+    var controller = this
+    if (first) return
+    var start, end
+    [start, end] = controller.graph.xAxisRange()
+    controller.viewSettings.zoom = controller.encodeZoomStamps(start, end)
+    controller.query.replace(TurboQuery.project(controller.chartSettings, controller.viewSettings))
+  }
+
+  _zoomCallback (start, end) {
     var controller = this
     controller.zoomButtons.removeClass('btn-active')
     controller.viewSettings.zoom = controller.encodeZoomStamps(start, end)
-    controller.query.replace(controller.viewSettings)
+    controller.query.replace(TurboQuery.project(controller.chartSettings, controller.viewSettings))
+  }
+
+  setVisibleButtons () {
+    var controller = this
+    var duration = controller.xVal[1] - controller.xVal[0]
+    var buttonSets = [controller.zoomButtons, controller.binputs]
+    buttonSets.forEach(function (buttonSet) {
+      buttonSet.each(function (i, button) {
+        if (duration > controller.zoomMap[button.name]) {
+          button.classList.remove('d-hide')
+        } else {
+          button.classList.add('d-hide')
+        }
+      })
+    })
   }
 
   disableBtnsIfNotApplicable () {
@@ -719,15 +813,20 @@ export default class extends Controller {
   }
 
   get flow () {
-    var ar = []
-    var boxes = this.flowTarget.querySelectorAll('input[type=checkbox]')
-    boxes.forEach((n) => {
-      var intVal = parseFloat(n.value)
-      ar.push([isNaN(intVal) ? 0 : intVal, n.checked])
-      if (intVal === 2) {
-        ar.push([3, n.checked])
-      }
+    var base10 = 0
+    this.flowBoxes.forEach(function (box) {
+      if (box.checked) base10 += parseInt(box.value)
     })
-    return ar
+    return base10
+    // var ar = []
+    // var boxes = this.flowTarget.querySelectorAll('input[type=checkbox]')
+    // boxes.forEach((n) => {
+    //   var intVal = parseFloat(n.value)
+    //   ar.push([isNaN(intVal) ? 0 : intVal, n.checked])
+    //   if (intVal === 2) {
+    //     ar.push([3, n.checked])
+    //   }
+    // })
+    // return ar
   }
 }

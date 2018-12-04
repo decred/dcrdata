@@ -1112,7 +1112,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		NetName        string
 		IsLiteMode     bool
 		ChartData      *dbtypes.ChartsData
-		Metrics        *dbtypes.AddressMetrics
+		// Metrics        *dbtypes.AddressMetrics
 	}
 
 	// Get the address URL parameter, which should be set in the request context
@@ -1196,7 +1196,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
 
-	addrMetrics := new(dbtypes.AddressMetrics)
+	// var addrMetrics *dbtypes.AddressMetrics
 
 	// Retrieve address information from the DB and/or RPC.
 	var addrData *AddressInfo
@@ -1303,21 +1303,23 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// If there are confirmed transactions, get address metrics: oldest
-		// transaction's time, number of entries for the various time
-		// groupings/intervals.
-		if len(addrData.Transactions) > 0 {
-			addrMetrics, err = exp.explorerSource.AddressMetrics(address)
-			if exp.timeoutErrorPage(w, err, "AddressMetrics") {
-				return
-			}
-			if err != nil {
-				log.Errorf("Unable to fetch oldest transactions block time %s: %v", address, err)
-				exp.StatusPage(w, defaultErrorCode, "oldest block time not found", "",
-					ExpStatusNotFound)
-				return
-			}
-		}
+		// // If there are confirmed transactions, get address metrics: oldest
+		// // transaction's time, number of entries for the various time
+		// // groupings/intervals.
+		// if len(addrData.Transactions) > 0 {
+		// 	addrMetrics, err = exp.explorerSource.AddressMetrics(address)
+		// 	if exp.timeoutErrorPage(w, err, "AddressMetrics") {
+		// 		return
+		// 	}
+		// 	if err != nil {
+		// 		log.Errorf("Unable to fetch address metrics %s: %v", address, err)
+		// 		exp.StatusPage(w, defaultErrorCode, "address metrics not found",
+		// 			ExpStatusNotFound)
+		// 		return
+		// 	}
+		// } else {
+		// 	addrMetrics = &dbtypes.AddressMetrics{}
+		// }
 
 		// Check for unconfirmed transactions.
 		addressOuts, numUnconfirmed, err := exp.blockData.UnconfirmedTxnsForAddress(address)
@@ -1473,7 +1475,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		TxBlockHeights: txBlockHeights,
 		IsLiteMode:     exp.liteMode,
 		NetName:        exp.NetName,
-		Metrics:        addrMetrics,
+		// Metrics:        addrMetrics,
 	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
