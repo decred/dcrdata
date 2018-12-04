@@ -1,3 +1,4 @@
+import 'regenerator-runtime/runtime'
 /* global require */
 /* global $ */
 /* global Turbolinks */
