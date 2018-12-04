@@ -1,0 +1,13 @@
+.flash {
+  animation-duration: 0.4s;
+  animation-name: flashBg;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes flashBg {
+  0% { background: transparent; }
+
+  100% { background: #afafaf14; }
+
+  0% { background: transparent; }
+}

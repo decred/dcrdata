@@ -1,0 +1,115 @@
+/* Stats Page */
+.card {
+  background-color: #fff;
+  box-shadow: 0 4px 8px 0 #e6eaed;
+  width: 250px;
+  height: 220px;
+  margin: auto;
+  margin-bottom: 20px;
+  margin-left: 20px;
+  float: left;
+  padding-bottom: 10px;
+  border-radius: 10px;
+  transition: all 0.2s ease-in-out;
+}
+
+.card :hover {
+  overflow: hidden;
+  white-space: normal;
+}
+
+.card-header {
+  text-transform: uppercase;
+  background-color: #e6eaed;
+  color: #8997a5;
+  text-align: center;
+  font-style: bold;
+  font-size: 16px;
+}
+
+.card-body {
+  background-color: #fff;
+  color: #3d5873;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-headers {
+  color: #3d5873;
+  text-align: center;
+  font-size: 30px;
+}
+
+.stat-link {
+  color: #2970ff;
+  font-size: 14px;
+}
+
+.stat-data {
+  font-style: bold;
+  color: #3d5873;
+  margin: auto;
+  font-size: 25px;
+}
+
+.decimal {
+  margin-left: -2px;
+  margin-right: 0;
+}
+
+.no-decimal .dot {
+  display: none;
+}
+
+.no-decimal .decimal {
+  display: none;
+}
+
+.stat-details {
+  color: #96a0a9;
+  font-size: 14px;
+}
+
+.card-body-padding-top {
+  padding-top: 2.3em;
+}
+
+.block-rewards {
+  background-color: #a1c6e7;
+}
+
+.proof-of-stake {
+  background-color: #e7c1a1;
+}
+
+.network-statistics {
+  background-color: #a1e7d9;
+}
+
+@media screen and (max-width: 1200px) {
+  .stat-headers {
+    margin-left: -146px;
+  }
+}
+
+@media screen and (max-width: 926px) {
+  .stat-headers {
+    margin-left: -25px;
+  }
+
+  #proof-stake-header {
+    margin-left: 0;
+  }
+}
+
+@media screen and (max-width: 570px) {
+  .stat-headers {
+    margin-left: 0;
+  }
+
+  #proof-stake-header {
+    margin-left: 38px;
+  }
+}

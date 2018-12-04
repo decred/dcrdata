@@ -1,0 +1,134 @@
+/* utils */
+.jsonly {
+  display: none;
+}
+
+.anchor {
+  position: relative;
+  top: -33px;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.hidden {
+  display: none;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.break-word {
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+.color-inherit {
+  color: inherit !important;
+}
+
+.fs11 {
+  font-size: 11px !important;
+}
+
+.fs12 {
+  font-size: 12px !important;
+}
+
+.fs13 {
+  font-size: 13px !important;
+}
+
+.fs14 {
+  font-size: 14px !important;
+}
+
+.fs15 {
+  font-size: 15px !important;
+}
+
+.fs16 {
+  font-size: 16px !important;
+}
+
+.fs18 {
+  font-size: 18px !important;
+}
+
+.fs24 {
+  font-size: 24px !important;
+}
+
+.fs28 {
+  font-size: 28px !important;
+}
+
+.no-underline,
+.no-underline:hover {
+  text-decoration: none;
+}
+
+.trailing-zeroes {
+  opacity: 0.3;
+}
+
+.decimal.trailing-zeroes {
+  margin-left: 0 !important;
+}
+
+.op70 {
+  opacity: 0.7;
+}
+
+.lh1rem {
+  line-height: 1rem;
+}
+
+.h2rem {
+  height: 2rem;
+}
+
+.h3rem {
+  height: 3rem;
+}
+
+.w80 {
+  width: 80px;
+}
+
+.w120 {
+  width: 120px;
+}
+
+.w142 {
+  width: 142px;
+}
+
+.vam {
+  vertical-align: middle;
+}
+
+.p03rem0 {
+  padding: 0.3rem 0;
+}
+
+.p10 {
+  padding: 10px;
+}
+
+.json-block {
+  background: rgba(128, 128, 128, 0.07);
+  padding: 1px 5px;
+}
+
+/* animation */
+.opacity-transition {
+  transition: opacity 0.42s ease-in-out;
+}
+
+.shrink-to-fit {
+  width: 1%;
+  white-space: nowrap;
+}

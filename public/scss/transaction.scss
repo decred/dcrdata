@@ -1,0 +1,18 @@
+.scriptDataStar {
+  z-index: 1;
+  text-align: center;
+  color: coral;
+  cursor: pointer;
+}
+
+.scriptData {
+  z-index: -1;
+  display: none;
+  border-top: 1px solid #ccc;
+  font-family: 'source-sans-pro-v9-latin-regular', Arial, Helvetica, sans-serif;
+}
+
+.invalidated-tx {
+  background-color: rgba(151, 125, 163, 0.3);
+  opacity: 0.5;
+}

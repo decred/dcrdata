@@ -1,5 +1,4 @@
 /* global $ */
-import tippy from '../vendor/tippy.all'
 
 const conversionRate = 100000000
 function calculateMaximumNumberOfBlocksToDisplay (blockElement) {
@@ -273,17 +272,20 @@ function setupTooltips () {
     } catch (error) {}
   })
 
-  tippy('.block-rows [title]', {
-    allowTitleHTML: true,
-    animation: 'shift-away',
-    arrow: true,
-    createPopperInstanceOnInit: true,
-    dynamicTitle: true,
-    performance: true,
-    placement: 'top',
-    size: 'small',
-    sticky: true,
-    theme: 'light'
+  import(/* webpackChunkName: "tippy" */ '../vendor/tippy.all').then(module => {
+    var tippy = module.default
+    tippy('.block-rows [title]', {
+      allowTitleHTML: true,
+      animation: 'shift-away',
+      arrow: true,
+      createPopperInstanceOnInit: true,
+      dynamicTitle: true,
+      performance: true,
+      placement: 'top',
+      size: 'small',
+      sticky: true,
+      theme: 'light'
+    })
   })
 }
 
