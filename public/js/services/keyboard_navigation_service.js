@@ -3,7 +3,9 @@
 import { toggleMenu, toggleSun, closeMenu } from '../services/theme_service'
 import { setCookie } from './cookie_service'
 import Mousetrap from 'mousetrap'
-import '../vendor/mousetrap-pause.min'
+import { addPauseToMousetrap } from '../vendor/mousetrap-pause'
+
+addPauseToMousetrap(Mousetrap)
 
 // Keyboard Navigation
 var targets
