@@ -5,7 +5,6 @@
 package explorer
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 
@@ -103,41 +102,6 @@ type TxBasic struct {
 	FeeRate       dcrutil.Amount
 	VoteInfo      *VoteInfo
 	Coinbase      bool
-}
-
-// AddressTx models data for transactions on the address page
-type AddressTx struct {
-	TxID           string
-	TxType         string
-	InOutID        uint32
-	Size           uint32
-	FormattedSize  string
-	Total          float64
-	Confirmations  uint64
-	Time           dbtypes.TimeDef
-	ReceivedTotal  float64
-	SentTotal      float64
-	IsFunding      bool
-	MatchedTx      string
-	MatchedTxIndex uint32
-	MergedTxnCount uint64 `json:",omitempty"`
-}
-
-// IOID formats an identification string for the transaction input (or output)
-// represented by the AddressTx.
-func (a *AddressTx) IOID(txType ...string) string {
-	// If transaction is of type merged_debit, return unformatted transaction ID
-	if len(txType) > 0 && dbtypes.AddrTxnTypeFromStr(txType[0]) == dbtypes.AddrMergedTxnDebit {
-		return a.TxID
-	}
-	// When AddressTx is used properly, at least one of ReceivedTotal or
-	// SentTotal should be zero.
-	if a.IsFunding {
-		// An outpoint receiving funds
-		return fmt.Sprintf("%s:out[%d]", a.TxID, a.InOutID)
-	}
-	// A transaction input referencing an outpoint being spent
-	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
 }
 
 // TrimmedTxInfo for use with /nexthome
@@ -284,92 +248,6 @@ type BlockInfo struct {
 	Subsidy               *dcrjson.GetBlockSubsidyResult
 }
 
-// AddressTransactions collects the transactions for an address as AddressTx
-// slices.
-type AddressTransactions struct {
-	Transactions []*AddressTx
-	TxnsFunding  []*AddressTx
-	TxnsSpending []*AddressTx
-}
-
-// AddressInfo models data for display on the address page
-type AddressInfo struct {
-	// Address is the decred address on the current page
-	Address string
-	Net     string
-
-	// IsDummyAddress is true when the address is the dummy address typically
-	// used for unspendable ticket change outputs. See
-	// https://github.com/decred/dcrdata/v3/issues/358 for details.
-	IsDummyAddress bool
-
-	// Page parameters
-	Fullmode      bool
-	MaxTxLimit    int64
-	Path          string
-	Limit, Offset int64  // ?n=Limit&start=Offset
-	TxnType       string // ?txntype=TxnType
-
-	// NumUnconfirmed is the number of unconfirmed txns for the address
-	NumUnconfirmed  int64
-	UnconfirmedTxns *AddressTransactions
-
-	// Transactions on the current page
-	Transactions    []*AddressTx
-	TxnsFunding     []*AddressTx
-	TxnsSpending    []*AddressTx
-	NumTransactions int64 // The number of transactions in the address
-	NumFundingTxns  int64 // number paying to the address
-	NumSpendingTxns int64 // number spending outpoints associated with the address
-	AmountReceived  dcrutil.Amount
-	AmountSent      dcrutil.Amount
-	AmountUnspent   dcrutil.Amount
-
-	// Balance is used in full mode, describing all known transactions
-	Balance *AddressBalance
-
-	// KnownTransactions refers to the total transaction count in the DB when in
-	// full mode, the sum of funding (crediting) and spending (debiting) txns.
-	KnownTransactions int64
-	KnownFundingTxns  int64
-	KnownSpendingTxns int64
-
-	// KnownMergedSpendingTxns refers to the total count of unique debit transactions
-	// that appear in the merged debit view.
-	KnownMergedSpendingTxns int64
-}
-
-// TxnCount returns the number of transaction "rows" available.
-func (a *AddressInfo) TxnCount() int64 {
-	if !a.Fullmode {
-		return a.KnownTransactions
-	}
-	switch dbtypes.AddrTxnTypeFromStr(a.TxnType) {
-	case dbtypes.AddrTxnAll:
-		return a.KnownTransactions
-	case dbtypes.AddrTxnCredit:
-		return a.KnownFundingTxns
-	case dbtypes.AddrTxnDebit:
-		return a.KnownSpendingTxns
-	case dbtypes.AddrMergedTxnDebit:
-		return a.KnownMergedSpendingTxns
-	default:
-		log.Warnf("Unknown address transaction type: %v", a.TxnType)
-		return 0
-	}
-}
-
-// AddressBalance represents the number and value of spent and unspent outputs
-// for an address.
-type AddressBalance struct {
-	Address        string `json:"address"`
-	NumSpent       int64  `json:"num_stxos"`
-	NumUnspent     int64  `json:"num_utxos"`
-	TotalSpent     int64  `json:"amount_spent"`
-	TotalUnspent   int64  `json:"amount_unspent"`
-	NumMergedSpent int64  `json:"num_merged_spent,omitempty"`
-}
-
 // HomeInfo represents data used for the home page
 type HomeInfo struct {
 	CoinSupply            int64          `json:"coin_supply"`
@@ -467,71 +345,6 @@ type ChainParams struct {
 	TargetPoolSize   int64 `json:"target_pool_size"`
 	BlockTime        int64 `json:"target_block_time"`
 	MeanVotingBlocks int64
-}
-
-// ReduceAddressHistory generates a template AddressInfo from a slice of
-// dbtypes.AddressRow. All fields except NumUnconfirmed and Transactions are set
-// completely. Transactions is partially set, with each transaction having only
-// the TxID and ReceivedTotal set. The rest of the data should be filled in by
-// other means, such as RPC calls or database queries.
-func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
-	if len(addrHist) == 0 {
-		return nil
-	}
-
-	var received, sent int64
-	var transactions, creditTxns, debitTxns []*AddressTx
-	for _, addrOut := range addrHist {
-		if !addrOut.ValidMainChain {
-			continue
-		}
-		coin := dcrutil.Amount(addrOut.Value).ToCoin()
-		tx := AddressTx{
-			Time:      addrOut.TxBlockTime,
-			InOutID:   addrOut.TxVinVoutIndex,
-			TxID:      addrOut.TxHash,
-			TxType:    txhelpers.TxTypeToString(int(addrOut.TxType)),
-			MatchedTx: addrOut.MatchingTxHash,
-			IsFunding: addrOut.IsFunding,
-		}
-
-		if addrOut.IsFunding {
-			// Funding transaction
-			received += int64(addrOut.Value)
-			tx.ReceivedTotal = coin
-			creditTxns = append(creditTxns, &tx)
-		} else {
-			// Spending transaction
-			sent += int64(addrOut.Value)
-			tx.SentTotal = coin
-			tx.MergedTxnCount = addrOut.MergedDebitCount
-
-			debitTxns = append(debitTxns, &tx)
-		}
-
-		transactions = append(transactions, &tx)
-	}
-
-	netName := "unknown"
-	address := addrHist[0].Address
-	addr, err := dcrutil.DecodeAddress(address)
-	if err != nil {
-		log.Warnf("Unable to deocde address %s: %v", address, err)
-		netName = addr.Net().Name
-	}
-
-	return &AddressInfo{
-		Address:         addrHist[0].Address,
-		Net:             netName,
-		Transactions:    transactions,
-		TxnsFunding:     creditTxns,
-		TxnsSpending:    debitTxns,
-		NumFundingTxns:  int64(len(creditTxns)),
-		NumSpendingTxns: int64(len(debitTxns)),
-		AmountReceived:  dcrutil.Amount(received),
-		AmountSent:      dcrutil.Amount(sent),
-		AmountUnspent:   dcrutil.Amount(received - sent),
-	}
 }
 
 // WebsocketBlock wraps the new block info for use in the websocket

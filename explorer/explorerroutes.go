@@ -1107,7 +1107,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
 	type AddressPageData struct {
 		*CommonPageData
-		Data           *AddressInfo
+		Data           *dbtypes.AddressInfo
 		TxBlockHeights []int64
 		NetName        string
 		IsLiteMode     bool
@@ -1236,11 +1236,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		} else if errH == sql.ErrNoRows {
 			// We do not have any confirmed transactions. Prep to display ONLY
 			// unconfirmed transactions (or none at all).
-			addrData = new(AddressInfo)
+			addrData = new(dbtypes.AddressInfo)
 			addrData.Address = address
 			addrData.Net = addr.Net().Name
 			addrData.Fullmode = true
-			addrData.Balance = &AddressBalance{}
+			addrData.Balance = &dbtypes.AddressBalance{}
 			log.Tracef("AddressHistory: No confirmed transactions for address %s.", address)
 		} else if errH != nil {
 			// Unexpected error
@@ -1249,7 +1249,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			return
 		} else /*errH == nil*/ {
 			// Generate AddressInfo skeleton from the address table rows.
-			addrData = ReduceAddressHistory(addrHist)
+			addrData = dbtypes.ReduceAddressHistory(addrHist)
 			if addrData == nil {
 				// Empty history is not expected for credit txnType with any txns.
 				if txnType != dbtypes.AddrTxnDebit &&
@@ -1261,7 +1261,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				// No mined transactions
-				addrData = new(AddressInfo)
+				addrData = new(dbtypes.AddressInfo)
 				addrData.Address = address
 			}
 			addrData.Fullmode = true
@@ -1331,7 +1331,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		}
 		addrData.NumUnconfirmed = numUnconfirmed
 		if addrData.UnconfirmedTxns == nil {
-			addrData.UnconfirmedTxns = new(AddressTransactions)
+			addrData.UnconfirmedTxns = new(dbtypes.AddressTransactions)
 		}
 
 		// Funding transactions (unconfirmed)
@@ -1358,7 +1358,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnCredit {
-				addrTx := &AddressTx{
+				addrTx := &dbtypes.AddressTx{
 					TxID:          fundingTx.Hash().String(),
 					TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx),
 					InOutID:       f.Index,
@@ -1414,7 +1414,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit {
-				addrTx := &AddressTx{
+				addrTx := &dbtypes.AddressTx{
 					TxID:           spendingTx.Hash().String(),
 					TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx),
 					InOutID:        uint32(f.InputIndex),

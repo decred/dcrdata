@@ -1042,8 +1042,8 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	return tx
 }
 
-func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address string) *explorer.AddressTx {
-	tx := new(explorer.AddressTx)
+func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address string) *dbtypes.AddressTx {
+	tx := new(dbtypes.AddressTx)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
@@ -1397,7 +1397,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		return nil, addrType, txhelpers.AddressErrorUnknown
 	}
 
-	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
+	addressTxs := make([]*dbtypes.AddressTx, 0, len(txs))
 	for i, tx := range txs {
 		if int64(i) == count { // count >= len(txs)
 			break
@@ -1440,14 +1440,14 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 	if numTxns > numberMaxOfTx {
 		numTxns = numberMaxOfTx
 	}
-	balance := &explorer.AddressBalance{
+	balance := &dbtypes.AddressBalance{
 		Address:      address,
 		NumSpent:     numSpending,
 		NumUnspent:   numReceiving,
 		TotalSpent:   int64(totalsent),
 		TotalUnspent: int64(totalreceived - totalsent),
 	}
-	return &explorer.AddressInfo{
+	return &dbtypes.AddressInfo{
 		Address:           address,
 		Net:               addr.Net().Name,
 		MaxTxLimit:        maxcount,
