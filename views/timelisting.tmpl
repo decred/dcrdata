@@ -21,10 +21,14 @@
                     {{template "listViewRouting" $lowerCaseVal}}
 
                     <span class="fs12 nowrap text-right">
-                        <label class="mb-0 mr-1" for="tb-pagesize">Page Size</label>
+                        <label class="mb-0 mr-1" for="tbPagesize">Page Size</label>
                         <select
-                            name="tb-pagesize"
-                            id="tb-pagesize"
+                            id="tbPagesize"
+                            data-controller="blocklist"
+                            data-target="blocklist.pagesize"
+                            data-action="change->blocklist#setPageSize"
+                            data-blocklist-initial-offset="{{$.Offset}}"
+                            data-blocklist-offset-key="offset"
                             class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pending 20}}disabled{{end}}"
                             {{if lt $pending 20}}disabled="disabled"{{end}}
                         >
@@ -128,22 +132,6 @@
     </div>
 
 {{ template "footer" . }}
-
-<script>
-    $("#tb-pagesize").change(function(ev) {
-        var pagesize = "20"
-        var offset = {{$.Offset}}
-        if (ev.currentTarget.id.indexOf("tb-pagesize") != -1){
-            pagesize = $("#tb-pagesize option:selected").val()
-        }
-
-        Turbolinks.visit(
-            window.location.pathname
-            + "?offset="+ offset 
-            + "&rows=" + pagesize
-        )
-    })
-</script>
 
 </body>
 </html>

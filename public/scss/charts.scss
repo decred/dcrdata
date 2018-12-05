@@ -57,8 +57,9 @@
   z-index: 1000;
   top: 0;
   left: 0;
-  height: 100%;
+  bottom: 0;
   width: 100%;
+  overflow: hidden;
   background:
     rgba(214, 225, 231, 0.3)
     url('/images/loader.gif')
@@ -66,8 +67,7 @@
     no-repeat;
 }
 
-body.loading .modal {
-  overflow: hidden;
+.loading .modal {
   display: block;
 }
 

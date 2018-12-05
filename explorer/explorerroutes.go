@@ -1481,24 +1481,13 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 			"Charts page cannot run in lite mode", ExpStatusNotSupported)
 		return
 	}
-	tickets, err := exp.explorerSource.TicketsPriceByHeight()
-	if exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
-		return
-	}
-	if err != nil {
-		log.Errorf("Loading the Ticket Price By Height chart data failed %v", err)
-		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-		return
-	}
 
 	str, err := exp.templates.execTemplateToString("charts", struct {
 		*CommonPageData
 		NetName string
-		Data    *dbtypes.ChartsData
 	}{
 		CommonPageData: exp.commonData(),
 		NetName:        exp.NetName,
-		Data:           tickets,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1694,26 +1683,8 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Attempt to get agendaid string from URL path.
-	agendaid := getAgendaIDCtx(r)
-	agendaInfo, err := GetAgendaInfo(agendaid)
-	if err != nil {
-		errPageInvalidAgenda(err)
-		return
-	}
-
-	chartDataByTime, err := exp.explorerSource.AgendaVotes(agendaid, 0)
-	if exp.timeoutErrorPage(w, err, "AgendaVotes") {
-		return
-	}
-	if err != nil {
-		errPageInvalidAgenda(err)
-		return
-	}
-
-	chartDataByHeight, err := exp.explorerSource.AgendaVotes(agendaid, 1)
-	if exp.timeoutErrorPage(w, err, "AgendaVotes") {
-		return
-	}
+	agendaId := getAgendaIDCtx(r)
+	agendaInfo, err := GetAgendaInfo(agendaId)
 	if err != nil {
 		errPageInvalidAgenda(err)
 		return
@@ -1721,16 +1692,12 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("agenda", struct {
 		*CommonPageData
-		Ai               *agendadb.AgendaTagged
-		NetName          string
-		ChartDataByTime  *dbtypes.AgendaVoteChoices
-		ChartDataByBlock *dbtypes.AgendaVoteChoices
+		Ai      *agendadb.AgendaTagged
+		NetName string
 	}{
-		CommonPageData:   exp.commonData(),
-		Ai:               agendaInfo,
-		NetName:          exp.NetName,
-		ChartDataByTime:  chartDataByTime,
-		ChartDataByBlock: chartDataByHeight,
+		CommonPageData: exp.commonData(),
+		Ai:             agendaInfo,
+		NetName:        exp.NetName,
 	})
 
 	if err != nil {

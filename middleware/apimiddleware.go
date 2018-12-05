@@ -47,6 +47,7 @@ const (
 	ctxChartType
 	ctxChartGrouping
 	ctxTp
+	ctxAgendaId
 )
 
 type DataSource interface {
@@ -588,6 +589,27 @@ func BlockDateQueryCtx(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, CtxLimit, limit)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// AgendIdCtx returns a http.HandlerFunc that embeds the value at the url
+// part {agendaId} into the request context.
+func AgendIdCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		agendaId := chi.URLParam(r, "agendaId")
+		ctx := context.WithValue(r.Context(), ctxAgendaId, agendaId)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// GetAgendaIdCtx retrieves the ctxAgendaId data from the request context.
+// If not set, the return value is an empty string.
+func GetAgendaIdCtx(r *http.Request) string {
+	agendaId, ok := r.Context().Value(ctxAgendaId).(string)
+	if !ok {
+		apiLog.Error("agendaId not parsed")
+		return ""
+	}
+	return agendaId
 }
 
 // BlockHashPathAndIndexCtx embeds the value at the url part {blockhash}, and

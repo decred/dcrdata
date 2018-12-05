@@ -163,7 +163,12 @@
 
 {{define "listViewRouting"}}
     <div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
-        <select id="listing-view" class="form-control-sm mb-2 mr-sm-2 mb-sm-0">
+        <select
+          class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
+          data-controller="blocklist"
+          data-target="blocklist.listview"
+          data-action="change->blocklist#setListView"
+          >
             <option {{if eq . "years"}}selected{{end}} value="years">Years</option>
             <option {{if eq . "months"}}selected{{end}} value="months">Months</option>
             <option {{if eq . "weeks"}}selected{{end}} value="weeks">Weeks</option>

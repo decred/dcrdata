@@ -350,11 +350,6 @@ $('#connection').on('click', function () {
     Notify.requestPermission(onPermissionGranted, onPermissionDenied)
   }
 })
-$('#listing-view').change(function () {
-  Turbolinks.visit('/' +
-        $('#listing-view option:selected').val()
-  )
-})
 window.DCRThings.counter = $('[data-time-lastblocktime]')
 
 $('.scriptDataStar').on('click', function () {
@@ -364,9 +359,4 @@ $('#connection').on('click', function () {
   if (Notify.needsPermission) {
     Notify.requestPermission(onPermissionGranted, onPermissionDenied)
   }
-})
-$('#listing-view').change(function () {
-  Turbolinks.visit('/' +
-        $('#listing-view option:selected').val()
-  )
 })

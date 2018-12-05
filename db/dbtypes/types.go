@@ -584,6 +584,12 @@ type AgendaVoteChoices struct {
 	Time    []TimeDef `json:"time,omitempty"`
 }
 
+// AgendaApiResponse holds two sets of AgendaVoteChoices.
+type AgendaApiResponse struct {
+	ByHeight *AgendaVoteChoices `json:"by_height"`
+	ByTime   *AgendaVoteChoices `json:"by_time"`
+}
+
 // Tx models a Decred transaction. It is stored in a Block.
 type Tx struct {
 	//blockDbID  int64
