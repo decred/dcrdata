@@ -1247,13 +1247,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		// 	ExpStatusNotFound)
 	}
 
-	log.Infof("Fullmode: %v", addrData.Fullmode)
-	log.Infof("Balance: %v", addrData.Balance)
-	log.Infof("KnownTransactions: %v", addrData.KnownTransactions)
-	log.Infof("KnownFundingTxns: %v", addrData.KnownFundingTxns)
-	log.Infof("KnownSpendingTxns: %v", addrData.KnownSpendingTxns)
-	log.Infof("KnownMergedSpendingTxns: %v", addrData.KnownMergedSpendingTxns)
-
 	// Set page parameters.
 	addrData.IsDummyAddress = isZeroAddress // may be redundant
 	addrData.Path = r.URL.Path
