@@ -265,7 +265,7 @@ export default class extends Controller {
     // Set initial viewSettings from the url
     controller.query.update(settings)
     settings.view = settings.view || 'list'
-    settings.flow = settings.flow ?settings.flow : null
+    settings.flow = settings.flow ? settings.flow : null
     TurboQuery.project(controller.chartSettings, settings)
     TurboQuery.project(controller.listSettings, settings)
     // Set the initial view based on the url

@@ -1391,6 +1391,8 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 				Address:    address,
 				Net:        addr.Net().Name,
 				MaxTxLimit: maxcount,
+				Limit:      count,
+				Offset:     offset,
 			}, addrType, nil
 		}
 		log.Warnf("GetExplorerAddress: SearchRawTransactionsVerbose failed for address %s: %v", addr, err)
@@ -1447,7 +1449,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		TotalSpent:   int64(totalsent),
 		TotalUnspent: int64(totalreceived - totalsent),
 	}
-	return &dbtypes.AddressInfo{
+	addrData := &dbtypes.AddressInfo{
 		Address:           address,
 		Net:               addr.Net().Name,
 		MaxTxLimit:        maxcount,
@@ -1465,7 +1467,32 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		KnownTransactions: numberMaxOfTx,
 		KnownFundingTxns:  numReceiving,
 		KnownSpendingTxns: numSpending,
+<<<<<<< HEAD
 	}, addrType, nil
+=======
+	}
+	addrData.PostProcess(uint32(db.GetHeight()))
+
+	return addrData, nil
+}
+
+// IsZeroHashP2PHKAddress checks if the given address is the dummy (zero pubkey
+// hash) address. See https://github.com/decred/dcrdata/v3/issues/358 for details.
+func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
+	zeroed := [20]byte{}
+	// expecting DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg address for mainnet
+	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
+	if err != nil {
+		log.Errorf("Incorrect pub key hash or invalid network params %v", params)
+		return false
+	}
+	zeroAddress := address.String()
+	return checkAddressString == zeroAddress
+}
+
+func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
+	return address.IsForNet(p)
+>>>>>>> Moved AddressInfo processing to ChainDB method
 }
 
 // CountUnconfirmedTransactions returns the number of unconfirmed transactions
@@ -1475,57 +1502,10 @@ func (db *wiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
 	return numUnconfirmed, err
 }
 
-// UnconfirmedTxnsForAddress returns the chainhash.Hash of all transactions in
-// mempool that (1) pay to the given address, or (2) spend a previous outpoint
-// that paid to the address.
+// CountUnconfirmedTransactions routes through rpcutils with appropriate
+// arguments. Returns mempool address associated with the given address.
 func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
-	// Mempool transactions
-	var numUnconfirmed int64
-	mempoolTxns, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
-	if err != nil {
-		log.Warnf("GetRawMempool failed for address %s: %v", address, err)
-		return nil, numUnconfirmed, err
-	}
-
-	// Check each transaction for involvement with provided address.
-	addressOutpoints := txhelpers.NewAddressOutpoints(address)
-	for hash, tx := range mempoolTxns {
-		// Transaction details from dcrd
-		txhash, err1 := chainhash.NewHashFromStr(hash)
-		if err1 != nil {
-			log.Errorf("Invalid transaction hash %s", hash)
-			return addressOutpoints, 0, err1
-		}
-
-		Tx, err1 := db.client.GetRawTransaction(txhash)
-		if err1 != nil {
-			log.Warnf("Unable to GetRawTransaction(%s): %v", hash, err1)
-			err = err1
-			continue
-		}
-		// Scan transaction for inputs/outputs involving the address of interest
-		outpoints, prevouts, prevTxns := txhelpers.TxInvolvesAddress(Tx.MsgTx(),
-			address, db.client, db.params)
-		if len(outpoints) == 0 && len(prevouts) == 0 {
-			continue
-		}
-		// Update previous outpoint txn slice with mempool time
-		for f := range prevTxns {
-			prevTxns[f].MemPoolTime = tx.Time
-		}
-
-		// Add present transaction to previous outpoint txn slice
-		numUnconfirmed++
-		thisTxUnconfirmed := &txhelpers.TxWithBlockData{
-			Tx:          Tx.MsgTx(),
-			MemPoolTime: tx.Time,
-		}
-		prevTxns = append(prevTxns, thisTxUnconfirmed)
-		// Merge the I/Os and the transactions into results
-		addressOutpoints.Update(prevTxns, outpoints, prevouts)
-	}
-
-	return addressOutpoints, numUnconfirmed, err
+	return rpcutils.UnconfirmedTxnsForAddress(db.client, address, db.params)
 }
 
 // GetMepool gets all transactions from the mempool for explorer and adds the

@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -696,6 +697,7 @@ type AddressTx struct {
 	MatchedTx      string
 	MatchedTxIndex uint32
 	MergedTxnCount uint64 `json:",omitempty"`
+	BlockHeight    uint32
 }
 
 // IOID formats an identification string for the transaction input (or output)
@@ -837,23 +839,40 @@ func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
 	}
 }
 
-// TxnCount does not appear to be used anywhere
-// // TxnCount returns the number of transaction "rows" available.
-// func (a *AddressInfo) TxnCount() int64 {
-// 	if !a.Fullmode {
-// 		return a.KnownTransactions
-// 	}
-// 	switch AddrTxnTypeFromStr(a.TxnType) {
-// 	case AddrTxnAll:
-// 		return a.KnownTransactions
-// 	case AddrTxnCredit:
-// 		return a.KnownFundingTxns
-// 	case AddrTxnDebit:
-// 		return a.KnownSpendingTxns
-// 	case AddrMergedTxnDebit:
-// 		return a.KnownMergedSpendingTxns
-// 	default:
-// 		// log.Warnf("Unknown address transaction type: %v", a.TxnType)
-// 		return 0
-// 	}
-// }
+// TxnCount returns the number of transaction "rows" available.
+func (a *AddressInfo) TxnCount() int64 {
+	if !a.Fullmode {
+		return a.KnownTransactions
+	}
+	switch AddrTxnTypeFromStr(a.TxnType) {
+	case AddrTxnAll:
+		return a.KnownTransactions
+	case AddrTxnCredit:
+		return a.KnownFundingTxns
+	case AddrTxnDebit:
+		return a.KnownSpendingTxns
+	case AddrMergedTxnDebit:
+		return a.KnownMergedSpendingTxns
+	default:
+		// log.Warnf("Unknown address transaction type: %v", a.TxnType)
+		return 0
+	}
+}
+
+// Post-process performs sorting and blockheight calculations.
+func (a *AddressInfo) PostProcess(tipHeight uint32) {
+	// Sort the transactions by date and vin/vout index
+	sort.Slice(a.Transactions, func(i, j int) bool {
+		if a.Transactions[i].Time == a.Transactions[j].Time {
+			return a.Transactions[i].InOutID > a.Transactions[j].InOutID
+		}
+		return a.Transactions[i].Time.T.Unix() > a.Transactions[j].Time.T.Unix()
+	})
+
+	// Compute block height for each transaction. This must be done *after*
+	// sort.Slice of Transactions.
+	for i := range a.Transactions {
+		tx := a.Transactions[i]
+		tx.BlockHeight = tipHeight - uint32(tx.Confirmations) + 1
+	}
+}

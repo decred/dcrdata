@@ -29,6 +29,7 @@ import (
 	"github.com/decred/dcrdata/v3/db/dcrpg/internal"
 	"github.com/decred/dcrdata/v3/rpcutils"
 	"github.com/decred/dcrdata/v3/stakedb"
+	"github.com/decred/dcrdata/v3/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -191,6 +192,7 @@ func (u *utxoStore) Size() (sz int) {
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
+	sync.RWMutex
 	ctx                context.Context
 	queryTimeout       time.Duration
 	db                 *sql.DB
@@ -719,11 +721,15 @@ func (pgb *ChainDB) HeightHashDB() (uint64, string, error) {
 
 // Height uses the last stored height.
 func (pgb *ChainDB) Height() uint64 {
+	pgb.RLock()
+	defer pgb.RUnlock()
 	return uint64(pgb.bestBlock)
 }
 
 // HashStr uses the last stored block hash.
 func (pgb *ChainDB) HashStr() string {
+	pgb.RLock()
+	defer pgb.RUnlock()
 	return pgb.bestBlockHash
 }
 
@@ -1349,6 +1355,203 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	return addressRows, &balanceInfo, nil
 }
 
+// AddressData is returned comprehensive, paginated information for an address.
+// It implements a small cache for the treasury fund.
+func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
+	txnType dbtypes.AddrTxnType) (addrData *dbtypes.AddressInfo, err error) {
+
+	addrHist, balance, errH := db.AddressHistory(address, limitN, offsetAddrOuts, txnType)
+
+	if dbtypes.IsTimeoutErr(errH) {
+		return nil, errH
+	}
+
+	populateTemplate := func() {
+		addrData.Offset = offsetAddrOuts
+		addrData.Limit = limitN
+		addrData.TxnType = txnType.String()
+		addrData.Address = address
+		addrData.Fullmode = true
+	}
+
+	if errH == sql.ErrNoRows {
+		// We do not have any confirmed transactions. Prep to display ONLY
+		// unconfirmed transactions (or none at all).
+		addrData = new(dbtypes.AddressInfo)
+		populateTemplate()
+		addrData.Balance = &dbtypes.AddressBalance{}
+		log.Tracef("AddressHistory: No confirmed transactions for address %s.", address)
+	} else if errH != nil {
+		// Unexpected error
+		log.Errorf("AddressHistory: %v", errH)
+		return nil, fmt.Errorf("AddressHistory: %v", errH)
+	} else /*errH == nil*/ {
+		// Generate AddressInfo skeleton from the address table rows.
+		addrData = dbtypes.ReduceAddressHistory(addrHist)
+		if addrData == nil {
+			// Empty history is not expected for credit txnType with any txns.
+			if txnType != dbtypes.AddrTxnDebit &&
+				(balance.NumSpent+balance.NumUnspent) > 0 {
+				log.Debugf("empty address history (%s): n=%d&start=%d",
+					address, limitN, offsetAddrOuts)
+				return nil, fmt.Errorf("That address has no history")
+			}
+			addrData = new(dbtypes.AddressInfo)
+		}
+		// Balances and txn counts (partial unless in full mode)
+		populateTemplate()
+		addrData.Balance = balance
+		addrData.KnownTransactions = (balance.NumSpent * 2) + balance.NumUnspent
+		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
+		addrData.KnownSpendingTxns = balance.NumSpent
+		addrData.KnownMergedSpendingTxns = balance.NumMergedSpent
+
+		// Transactions to fetch with FillAddressTransactions. This should be a
+		// noop if ReduceAddressHistory is working right.
+		switch txnType {
+		case dbtypes.AddrTxnAll, dbtypes.AddrMergedTxnDebit:
+		case dbtypes.AddrTxnCredit:
+			addrData.Transactions = addrData.TxnsFunding
+		case dbtypes.AddrTxnDebit:
+			addrData.Transactions = addrData.TxnsSpending
+		default:
+			log.Warnf("Unknown address transaction type: %v", txnType)
+		}
+
+		// Transactions on current page
+		addrData.NumTransactions = int64(len(addrData.Transactions))
+		if addrData.NumTransactions > limitN {
+			addrData.NumTransactions = limitN
+		}
+
+		// Query database for transaction details.
+		err = db.FillAddressTransactions(addrData)
+		if dbtypes.IsTimeoutErr(err) {
+			return nil, err
+		}
+		if err != nil {
+			return nil, fmt.Errorf("Unable to fill address %s transactions: %v", address, err)
+		}
+	}
+
+	// Check for unconfirmed transactions.
+	addressOuts, numUnconfirmed, err := rpcutils.UnconfirmedTxnsForAddress(db.Client, address, db.chainParams)
+	if err != nil || addressOuts == nil {
+		return nil, fmt.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
+	}
+	addrData.NumUnconfirmed = numUnconfirmed
+	if addrData.UnconfirmedTxns == nil {
+		addrData.UnconfirmedTxns = new(dbtypes.AddressTransactions)
+	}
+
+	// Funding transactions (unconfirmed)
+	var received, sent, numReceived, numSent int64
+FUNDING_TX_DUPLICATE_CHECK:
+	for _, f := range addressOuts.Outpoints {
+		// Mempool transactions stick around for 2 blocks. The first block
+		// incorporates the transaction and mines it. The second block
+		// validates it by the stake. However, transactions move into our
+		// database as soon as they are mined and thus we need to be careful
+		// to not include those transactions in our list.
+		for _, b := range addrData.Transactions {
+			if f.Hash.String() == b.TxID && f.Index == b.InOutID {
+				continue FUNDING_TX_DUPLICATE_CHECK
+			}
+		}
+		fundingTx, ok := addressOuts.TxnsStore[f.Hash]
+		if !ok {
+			log.Errorf("An outpoint's transaction is not available in TxnStore.")
+			continue
+		}
+		if fundingTx.Confirmed() {
+			log.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+			continue
+		}
+		if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnCredit {
+			addrTx := &dbtypes.AddressTx{
+				TxID:          fundingTx.Hash().String(),
+				TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx),
+				InOutID:       f.Index,
+				Time:          dbtypes.TimeDef{T: time.Unix(fundingTx.MemPoolTime, 0)},
+				FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
+				Total:         txhelpers.TotalOutFromMsgTx(fundingTx.Tx).ToCoin(),
+				ReceivedTotal: dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
+			}
+			addrData.Transactions = append(addrData.Transactions, addrTx)
+		}
+		received += fundingTx.Tx.TxOut[f.Index].Value
+		numReceived++
+
+	}
+
+	// Spending transactions (unconfirmed)
+SPENDING_TX_DUPLICATE_CHECK:
+	for _, f := range addressOuts.PrevOuts {
+		// Mempool transactions stick around for 2 blocks. The first block
+		// incorporates the transaction and mines it. The second block
+		// validates it by the stake. However, transactions move into our
+		// database as soon as they are mined and thus we need to be careful
+		// to not include those transactions in our list.
+		for _, b := range addrData.Transactions {
+			if f.TxSpending.String() == b.TxID && f.InputIndex == int(b.InOutID) {
+				continue SPENDING_TX_DUPLICATE_CHECK
+			}
+		}
+		spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
+		if !ok {
+			log.Errorf("An outpoint's transaction is not available in TxnStore.")
+			continue
+		}
+		if spendingTx.Confirmed() {
+			log.Errorf("An outpoint's transaction is unexpectedly confirmed.")
+			continue
+		}
+
+		// The total send amount must be looked up from the previous
+		// outpoint because vin:i valuein is not reliable from dcrd.
+		prevhash := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Hash
+		strprevhash := prevhash.String()
+		previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
+		valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
+
+		// Look through old transactions and set the spending transactions'
+		// matching transaction fields.
+		for _, dbTxn := range addrData.Transactions {
+			if dbTxn.TxID == strprevhash && dbTxn.InOutID == previndex && dbTxn.IsFunding {
+				dbTxn.MatchedTx = spendingTx.Hash().String()
+				dbTxn.MatchedTxIndex = uint32(f.InputIndex)
+			}
+		}
+
+		if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit {
+			addrTx := &dbtypes.AddressTx{
+				TxID:           spendingTx.Hash().String(),
+				TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx),
+				InOutID:        uint32(f.InputIndex),
+				Time:           dbtypes.TimeDef{T: time.Unix(spendingTx.MemPoolTime, 0)},
+				FormattedSize:  humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
+				Total:          txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
+				SentTotal:      dcrutil.Amount(valuein).ToCoin(),
+				MatchedTx:      strprevhash,
+				MatchedTxIndex: previndex,
+			}
+			addrData.Transactions = append(addrData.Transactions, addrTx)
+		}
+
+		sent += valuein
+		numSent++
+	} // range addressOuts.PrevOuts
+
+	// Totals from funding and spending transactions.
+	addrData.Balance.NumSpent += numSent
+	addrData.Balance.NumUnspent += (numReceived - numSent)
+	addrData.Balance.TotalSpent += sent
+	addrData.Balance.TotalUnspent += (received - sent)
+	addrData.PostProcess(uint32(db.Height()))
+
+	return
+}
+
 // DbTxByHash retrieves a row of the transactions table corresponding to the
 // given transaction hash. Transactions in valid and mainchain blocks are chosen
 // first.
@@ -1941,11 +2144,13 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		// move on to next block
 		tipHash = previousHash
 
+		pgb.Lock()
 		pgb.bestBlock, err = pgb.BlockHeight(tipHash)
 		if err != nil {
 			log.Errorf("Failed to retrieve block height for %s", tipHash)
 		}
 		pgb.bestBlockHash = tipHash
+		pgb.Unlock()
 	}
 
 	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets",
@@ -2054,8 +2259,10 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 
 	if isMainchain {
 		// Update best block height and hash.
+		pgb.Lock()
 		pgb.bestBlock = int64(dbBlock.Height)
 		pgb.bestBlockHash = dbBlock.Hash
+		pgb.Unlock()
 	}
 
 	// Insert the block in the block_chain table with the previous block hash

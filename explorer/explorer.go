@@ -73,6 +73,7 @@ type explorerDataSource interface {
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
 	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
+	AddressData(address string, N, offset int64, txnType dbtypes.AddrTxnType) (*dbtypes.AddressInfo, error)
 	DevBalance() (*dbtypes.AddressBalance, error)
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)

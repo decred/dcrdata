@@ -12,7 +12,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1227,252 +1226,42 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 				"", ExpStatusNotFound)
 			return
 		}
+		addrData.TxnType = txnType.String()
 	} else {
 		// Get addresses table rows for the address.
-		addrHist, balance, errH := exp.explorerSource.AddressHistory(
-			address, limitN, offsetAddrOuts, txnType)
-		if exp.timeoutErrorPage(w, errH, "AddressHistory") {
+		addrData, err = exp.explorerSource.AddressData(address, limitN, offsetAddrOuts, txnType)
+		if exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
 			return
-		} else if errH == sql.ErrNoRows {
-			// We do not have any confirmed transactions. Prep to display ONLY
-			// unconfirmed transactions (or none at all).
-			addrData = new(dbtypes.AddressInfo)
-			addrData.Address = address
-			addrData.Net = addr.Net().Name
-			addrData.Fullmode = true
-			addrData.Balance = &dbtypes.AddressBalance{}
-			log.Tracef("AddressHistory: No confirmed transactions for address %s.", address)
-		} else if errH != nil {
-			// Unexpected error
-			log.Errorf("AddressHistory: %v", errH)
-			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
-			return
-		} else /*errH == nil*/ {
-			// Generate AddressInfo skeleton from the address table rows.
-			addrData = dbtypes.ReduceAddressHistory(addrHist)
-			if addrData == nil {
-				// Empty history is not expected for credit txnType with any txns.
-				if txnType != dbtypes.AddrTxnDebit &&
-					(balance.NumSpent+balance.NumUnspent) > 0 {
-					log.Debugf("empty address history (%s): n=%d&start=%d",
-						address, limitN, offsetAddrOuts)
-					exp.StatusPage(w, defaultErrorCode,
-						"that address has no history", "", ExpStatusNotFound)
-					return
-				}
-				// No mined transactions
-				addrData = new(dbtypes.AddressInfo)
-				addrData.Address = address
-			}
-			addrData.Fullmode = true
-
-			// Balances and txn counts (partial unless in full mode)
-			addrData.Balance = balance
-			addrData.KnownTransactions = (balance.NumSpent * 2) + balance.NumUnspent
-			addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
-			addrData.KnownSpendingTxns = balance.NumSpent
-			addrData.KnownMergedSpendingTxns = balance.NumMergedSpent
-
-			// Transactions to fetch with FillAddressTransactions. This should be a
-			// noop if ReduceAddressHistory is working right.
-			switch txnType {
-			case dbtypes.AddrTxnAll, dbtypes.AddrMergedTxnDebit:
-			case dbtypes.AddrTxnCredit:
-				addrData.Transactions = addrData.TxnsFunding
-			case dbtypes.AddrTxnDebit:
-				addrData.Transactions = addrData.TxnsSpending
-			default:
-				log.Warnf("Unknown address transaction type: %v", txnType)
-			}
-
-			// Transactions on current page
-			addrData.NumTransactions = int64(len(addrData.Transactions))
-			if addrData.NumTransactions > limitN {
-				addrData.NumTransactions = limitN
-			}
-
-			// Query database for transaction details.
-			err = exp.explorerSource.FillAddressTransactions(addrData)
-			if exp.timeoutErrorPage(w, err, "FillAddressTransactions") {
-				return
-			}
-			if err != nil {
-				log.Errorf("Unable to fill address %s transactions: %v", address, err)
-				exp.StatusPage(w, defaultErrorCode, "could not find transactions for that address", "", ExpStatusNotFound)
-				return
-			}
-		}
-
-		// // If there are confirmed transactions, get address metrics: oldest
-		// // transaction's time, number of entries for the various time
-		// // groupings/intervals.
-		// if len(addrData.Transactions) > 0 {
-		// 	addrMetrics, err = exp.explorerSource.AddressMetrics(address)
-		// 	if exp.timeoutErrorPage(w, err, "AddressMetrics") {
-		// 		return
-		// 	}
-		// 	if err != nil {
-		// 		log.Errorf("Unable to fetch address metrics %s: %v", address, err)
-		// 		exp.StatusPage(w, defaultErrorCode, "address metrics not found",
-		// 			ExpStatusNotFound)
-		// 		return
-		// 	}
-		// } else {
-		// 	addrMetrics = &dbtypes.AddressMetrics{}
-		// }
-
-		// Check for unconfirmed transactions.
-		addressOuts, numUnconfirmed, err := exp.blockData.UnconfirmedTxnsForAddress(address)
-		if err != nil || addressOuts == nil {
-			log.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
-			exp.StatusPage(w, defaultErrorCode, "transactions for that address not found",
-				"", ExpStatusNotFound)
+		} else if err != nil {
+			log.Errorf("AddressData error encountered: %v", err)
+			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
 			return
 		}
-		addrData.NumUnconfirmed = numUnconfirmed
-		if addrData.UnconfirmedTxns == nil {
-			addrData.UnconfirmedTxns = new(dbtypes.AddressTransactions)
-		}
-
-		// Funding transactions (unconfirmed)
-		var received, sent, numReceived, numSent int64
-	FUNDING_TX_DUPLICATE_CHECK:
-		for _, f := range addressOuts.Outpoints {
-			// Mempool transactions stick around for 2 blocks. The first block
-			// incorporates the transaction and mines it. The second block
-			// validates it by the stake. However, transactions move into our
-			// database as soon as they are mined and thus we need to be careful
-			// to not include those transactions in our list.
-			for _, b := range addrData.Transactions {
-				if f.Hash.String() == b.TxID && f.Index == b.InOutID {
-					continue FUNDING_TX_DUPLICATE_CHECK
-				}
-			}
-			fundingTx, ok := addressOuts.TxnsStore[f.Hash]
-			if !ok {
-				log.Errorf("An outpoint's transaction is not available in TxnStore.")
-				continue
-			}
-			if fundingTx.Confirmed() {
-				log.Errorf("An outpoint's transaction is unexpectedly confirmed.")
-				continue
-			}
-			if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnCredit {
-				addrTx := &dbtypes.AddressTx{
-					TxID:          fundingTx.Hash().String(),
-					TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx),
-					InOutID:       f.Index,
-					Time:          dbtypes.TimeDef{T: time.Unix(fundingTx.MemPoolTime, 0)},
-					FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
-					Total:         txhelpers.TotalOutFromMsgTx(fundingTx.Tx).ToCoin(),
-					ReceivedTotal: dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
-				}
-				addrData.Transactions = append(addrData.Transactions, addrTx)
-			}
-			received += fundingTx.Tx.TxOut[f.Index].Value
-			numReceived++
-
-		}
-
-		// Spending transactions (unconfirmed)
-	SPENDING_TX_DUPLICATE_CHECK:
-		for _, f := range addressOuts.PrevOuts {
-			// Mempool transactions stick around for 2 blocks. The first block
-			// incorporates the transaction and mines it. The second block
-			// validates it by the stake. However, transactions move into our
-			// database as soon as they are mined and thus we need to be careful
-			// to not include those transactions in our list.
-			for _, b := range addrData.Transactions {
-				if f.TxSpending.String() == b.TxID && f.InputIndex == int(b.InOutID) {
-					continue SPENDING_TX_DUPLICATE_CHECK
-				}
-			}
-			spendingTx, ok := addressOuts.TxnsStore[f.TxSpending]
-			if !ok {
-				log.Errorf("An outpoint's transaction is not available in TxnStore.")
-				continue
-			}
-			if spendingTx.Confirmed() {
-				log.Errorf("An outpoint's transaction is unexpectedly confirmed.")
-				continue
-			}
-
-			// The total send amount must be looked up from the previous
-			// outpoint because vin:i valuein is not reliable from dcrd.
-			prevhash := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Hash
-			strprevhash := prevhash.String()
-			previndex := spendingTx.Tx.TxIn[f.InputIndex].PreviousOutPoint.Index
-			valuein := addressOuts.TxnsStore[prevhash].Tx.TxOut[previndex].Value
-
-			// Look through old transactions and set the spending transactions'
-			// matching transaction fields.
-			for _, dbTxn := range addrData.Transactions {
-				if dbTxn.TxID == strprevhash && dbTxn.InOutID == previndex && dbTxn.IsFunding {
-					dbTxn.MatchedTx = spendingTx.Hash().String()
-					dbTxn.MatchedTxIndex = uint32(f.InputIndex)
-				}
-			}
-
-			if txnType == dbtypes.AddrTxnAll || txnType == dbtypes.AddrTxnDebit {
-				addrTx := &dbtypes.AddressTx{
-					TxID:           spendingTx.Hash().String(),
-					TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx),
-					InOutID:        uint32(f.InputIndex),
-					Time:           dbtypes.TimeDef{T: time.Unix(spendingTx.MemPoolTime, 0)},
-					FormattedSize:  humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
-					Total:          txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
-					SentTotal:      dcrutil.Amount(valuein).ToCoin(),
-					MatchedTx:      strprevhash,
-					MatchedTxIndex: previndex,
-				}
-				addrData.Transactions = append(addrData.Transactions, addrTx)
-			}
-
-			sent += valuein
-			numSent++
-		} // range addressOuts.PrevOuts
-
-		// Totals from funding and spending transactions.
-		addrData.Balance.NumSpent += numSent
-		addrData.Balance.NumUnspent += (numReceived - numSent)
-		addrData.Balance.TotalSpent += sent
-		addrData.Balance.TotalUnspent += (received - sent)
-
-		if err != nil {
-			log.Errorf("Unable to fetch transactions for the address %s: %v", address, err)
-			exp.StatusPage(w, defaultErrorCode, "transactions for that address not found", "",
-				ExpStatusNotFound)
-			return
-		}
-
+		// These more specific errors were removed in the move to AddressData in explorerSource
+		// exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
+		// exp.StatusPage(w, defaultErrorCode,
+		// 	"That address has no history", ExpStatusNotFound)
+		// exp.StatusPage(w, defaultErrorCode,
+		// 	"transactions for that address not found", ExpStatusNotFound)
+		// exp.StatusPage(w, defaultErrorCode, "transactions for that address not found",
+		// 	ExpStatusNotFound)
 	}
+
+	log.Infof("Fullmode: %v", addrData.Fullmode)
+	log.Infof("Balance: %v", addrData.Balance)
+	log.Infof("KnownTransactions: %v", addrData.KnownTransactions)
+	log.Infof("KnownFundingTxns: %v", addrData.KnownFundingTxns)
+	log.Infof("KnownSpendingTxns: %v", addrData.KnownSpendingTxns)
+	log.Infof("KnownMergedSpendingTxns: %v", addrData.KnownMergedSpendingTxns)
 
 	// Set page parameters.
 	addrData.IsDummyAddress = isZeroAddress // may be redundant
 	addrData.Path = r.URL.Path
-	addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
-	addrData.TxnType = txnType.String()
-
-	sort.Slice(addrData.Transactions, func(i, j int) bool {
-		if addrData.Transactions[i].Time == addrData.Transactions[j].Time {
-			return addrData.Transactions[i].InOutID > addrData.Transactions[j].InOutID
-		}
-		return addrData.Transactions[i].Time.T.Unix() > addrData.Transactions[j].Time.T.Unix()
-	})
-
-	// Compute block height for each transaction. This must be done *after*
-	// sort.Slice of addrData.Transactions.
-	txBlockHeights := make([]int64, len(addrData.Transactions))
-	bdHeight := exp.Height()
-	for i, v := range addrData.Transactions {
-		txBlockHeights[i] = bdHeight - int64(v.Confirmations) + 1
-	}
 
 	// Execute the HTML template.
 	pageData := AddressPageData{
 		CommonPageData: exp.commonData(),
 		Data:           addrData,
-		TxBlockHeights: txBlockHeights,
 		IsLiteMode:     exp.liteMode,
 		NetName:        exp.NetName,
 		// Metrics:        addrMetrics,
@@ -1588,6 +1377,8 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Try aux DB if in full mode.
 	if !exp.liteMode {
+		// This is be unnecessarily duplicative and possible very
+		// slow for a very active addresss.
 		addrHist, _, _ := exp.explorerSource.AddressHistory(searchStr,
 			1, 0, dbtypes.AddrTxnAll)
 		if len(addrHist) > 0 {
