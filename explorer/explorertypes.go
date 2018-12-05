@@ -28,7 +28,24 @@ const (
 	WrongNetworkStatusType   statusType = "Wrong Network"
 	DeprecatedStatusType     statusType = "Deprecated"
 	BlockchainSyncingType    statusType = "Blocks Syncing"
+	P2PKAddresStatusType     statusType = "P2PK Address Type"
 )
+
+func (e statusType) IsNotFound() bool {
+	return e == NotFoundStatusType
+}
+
+func (e statusType) IsWrongNet() bool {
+	return e == WrongNetworkStatusType
+}
+
+func (e statusType) IsP2PKAddress() bool {
+	return e == P2PKAddresStatusType
+}
+
+func (e statusType) IsSyncing() bool {
+	return e == BlockchainSyncingType
+}
 
 // blockchainSyncStatus defines the status update displayed on the syncing status page
 // when new blocks are being appended into the db.
@@ -254,9 +271,14 @@ type AddressInfo struct {
 	// Address is the decred address on the current page
 	Address string
 
+	// IsDummyAddress is true when the address is the dummy address typically
+	// used for unspendable ticket change outputs. See
+	// https://github.com/decred/dcrdata/v3/issues/358 for details.
+	IsDummyAddress bool
+
 	// Page parameters
-	MaxTxLimit    int64
 	Fullmode      bool
+	MaxTxLimit    int64
 	Path          string
 	Limit, Offset int64  // ?n=Limit&start=Offset
 	TxnType       string // ?txntype=TxnType
@@ -288,11 +310,6 @@ type AddressInfo struct {
 	// KnownMergedSpendingTxns refers to the total count of unique debit transactions
 	// that appear in the merged debit view.
 	KnownMergedSpendingTxns int64
-
-	// IsDummyAddress is true when the address is the dummy address typically
-	// used for unspendable ticket change outputs. See
-	// https://github.com/decred/dcrdata/v3/issues/358 for details.
-	IsDummyAddress bool
 }
 
 // TxnCount returns the number of transaction "rows" available.
