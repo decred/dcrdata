@@ -192,6 +192,7 @@ type explorerUI struct {
 	Version          string
 	NetName          string
 	MeanVotingBlocks int64
+	ChartUpdate      sync.Mutex
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
@@ -411,18 +412,20 @@ func (exp *explorerUI) prePopulateChartsData() {
 		return
 	}
 
-	// Hold charts cache during check and update.
-	cacheChartsData.Lock()
-	defer cacheChartsData.Unlock()
+	// Prevent multiple concurrent updates, but do not lock the cacheChartsData
+	// to avoid blocking Store.
+	exp.ChartUpdate.Lock()
+	defer exp.ChartUpdate.Unlock()
 
 	// Avoid needlessly updating charts data.
 	expHeight := exp.Height()
-	if expHeight == cacheChartsData.height() {
+	if expHeight == cacheChartsData.Height() {
 		log.Debugf("Not updating charts data again for height %d.", expHeight)
 		return
 	}
 
 	log.Info("Pre-populating the charts data. This may take a minute...")
+	log.Debugf("Retrieving charts data from aux DB.")
 	var err error
 	pgData, err := exp.explorerSource.GetPgChartsData()
 	if err != nil {
@@ -430,6 +433,7 @@ func (exp *explorerUI) prePopulateChartsData() {
 		return
 	}
 
+	log.Debugf("Retrieving charts data from base DB.")
 	sqliteData, err := exp.blockData.GetSqliteChartsData()
 	if err != nil {
 		log.Errorf("Invalid SQLite data found: %v", err)
@@ -440,7 +444,7 @@ func (exp *explorerUI) prePopulateChartsData() {
 		pgData[k] = v
 	}
 
-	cacheChartsData.update(expHeight, pgData)
+	cacheChartsData.Update(expHeight, pgData)
 
 	log.Info("Done pre-populating the charts data.")
 }
