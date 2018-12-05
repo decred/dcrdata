@@ -31,7 +31,33 @@ const (
 	ExpStatusDeprecated     expStatus = "Deprecated"
 	ExpStatusSyncing        expStatus = "Blocks Syncing"
 	ExpStatusDBTimeout      expStatus = "Database Timeout"
+	ExpStatusBitcoin        expStatus = "Bitcoin Address"
+	ExpStatusP2PKAddress    expStatus = "P2PK Address Type"
 )
+
+func (e expStatus) IsNotFound() bool {
+	return e == ExpStatusNotFound
+}
+
+func (e expStatus) IsWrongNet() bool {
+	return e == ExpStatusWrongNetwork
+}
+
+func (e expStatus) IsBitcoinAddress() bool {
+	return e == ExpStatusBitcoin
+}
+
+func (e expStatus) IsP2PKAddress() bool {
+	return e == ExpStatusP2PKAddress
+}
+
+func (e expStatus) IsFutureBlock() bool {
+	return e == ExpStatusFutureBlock
+}
+
+func (e expStatus) IsSyncing() bool {
+	return e == ExpStatusSyncing
+}
 
 // blockchainSyncStatus defines the status update displayed on the syncing status page
 // when new blocks are being appended into the db.
@@ -270,10 +296,16 @@ type AddressTransactions struct {
 type AddressInfo struct {
 	// Address is the decred address on the current page
 	Address string
+	Net     string
+
+	// IsDummyAddress is true when the address is the dummy address typically
+	// used for unspendable ticket change outputs. See
+	// https://github.com/decred/dcrdata/v3/issues/358 for details.
+	IsDummyAddress bool
 
 	// Page parameters
-	MaxTxLimit    int64
 	Fullmode      bool
+	MaxTxLimit    int64
 	Path          string
 	Limit, Offset int64  // ?n=Limit&start=Offset
 	TxnType       string // ?txntype=TxnType
@@ -305,11 +337,6 @@ type AddressInfo struct {
 	// KnownMergedSpendingTxns refers to the total count of unique debit transactions
 	// that appear in the merged debit view.
 	KnownMergedSpendingTxns int64
-
-	// IsDummyAddress is true when the address is the dummy address typically
-	// used for unspendable ticket change outputs. See
-	// https://github.com/decred/dcrdata/v3/issues/358 for details.
-	IsDummyAddress bool
 }
 
 // TxnCount returns the number of transaction "rows" available.
@@ -485,8 +512,17 @@ func ReduceAddressHistory(addrHist []*dbtypes.AddressRow) *AddressInfo {
 		transactions = append(transactions, &tx)
 	}
 
+	netName := "unknown"
+	address := addrHist[0].Address
+	addr, err := dcrutil.DecodeAddress(address)
+	if err != nil {
+		log.Warnf("Unable to deocde address %s: %v", address, err)
+		netName = addr.Net().Name
+	}
+
 	return &AddressInfo{
 		Address:         addrHist[0].Address,
+		Net:             netName,
 		Transactions:    transactions,
 		TxnsFunding:     creditTxns,
 		TxnsSpending:    debitTxns,

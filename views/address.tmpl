@@ -32,7 +32,7 @@
                   <br/>
                   This a is dummy address, typically used for unspendable ticket change outputs.<br/>
                   <br/>
-                {{end}}
+                {{else}}
                 <div class="btn-group mr-auto mb-0 align-bottom address-btn"
                     data-toggle="buttons"
                     data-target="address.btns"
@@ -42,6 +42,7 @@
                     <input type="button" class="addr-btn chart btn btn_sm" value="Charts"
                         name="chart" {{if or $.IsLiteMode (le (len .Transactions) 1)}}disabled{{end}}>
                 </div>
+                {{end}}
             </div>
             <div class="col-md-4 col-sm-6 d-flex pb-3">
                 <table>
@@ -113,6 +114,7 @@
             </div>
         </div>
 
+        {{if not .IsDummyAddress}}
         <div class="row">
             <div class="col">
                 <div class="d-flex flex-wrap align-items-center justify-content-end mb-1">
@@ -363,9 +365,10 @@
                     <div id="history-chart" style="width:100%; height:500px; margin-top:20 auto;"></div>
                     <h5 id="no-bal" class="mt-2 bal-d" style="margin:7% auto 0 auto;">There are no confirmed transactions to display.</h5>
                 </div>
-            </div>
-        </div>
-    </div>
+            </div> <!-- col -->
+        </div> <!-- row -->
+        {{end}}
+    </div> <!-- container main -->
 
     <script>
         $(".jsonly").show()

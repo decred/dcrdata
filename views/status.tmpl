@@ -8,18 +8,38 @@
     <div class="container" data-controller="status">
         <br/>
         <div class="alert alert-info">
-            {{if eq .StatusType "Not Found"}}
-                <h5>No matching page, block, address or transaction that could be found</h5>
-            {{else}}
-                {{if eq .StatusType "Future Block"}}
-                    <h5 id="futureblock">{{.Message}}</h5>
-                {{else}}
-                    <h5>{{.Message}}</h5>
+            {{if .StatusType.IsNotFound}}
+                <h5>No matching page, block, address or transaction that could be found.</h5>
+                <h5>{{.Message}}</h5>
+            {{else if .StatusType.IsWrongNet}}
+                <h5>{{.Message}}
+                {{if redirectToTestnet .NetName .Message}}
+                    {{if ne .AdditionalInfo ""}}
+                    You can <a href="https://testnet.dcrdata.org/search?search={{.AdditionalInfo}}">switch to testnet here.</a>
+                    {{end}}
+                {{else if redirectToMainnet .NetName .Message}}
+                    {{if ne .AdditionalInfo ""}}
+                    You can <a href="https://explorer.dcrdata.org/search?search={{.AdditionalInfo}}">switch to mainnet here.</a>
+                    {{end}}
                 {{end}}
+                </h5>
+            {{else if .StatusType.IsBitcoinAddress}}
+                <h5>{{.Message}} You may possibly <a href="https://live.blockcypher.com/btc/address/{{.AdditionalInfo}}/">find it here.</a></h5>
+            {{else if .StatusType.IsP2PKAddress}}
+                {{$P2PKHAddr := PKAddr2PKHAddr .AdditionalInfo}}
+                <h5>{{.Message}}
+                {{if and (ne .AdditionalInfo "") (ne $P2PKHAddr "")}}
+                    You can <a href="https://explorer.dcrdata.org/search?search={{$P2PKHAddr}}">search for the P2PKH address instead.</a>
+                {{end}}
+                </h5>
+            {{else if .StatusType.IsFutureBlock}}
+                <h5 id="futureblock">{{.Message}}</h5>
+            {{else}}
+                <h5>{{.Message}}</h5>
             {{end}}
         </div>
         <div id="initial-load" class="sync-progress">
-        {{if eq .StatusType "Blocks Syncing"}}
+        {{if .StatusType.IsSyncing}}
             <img src="/images/loader.gif" style="margin: 0px auto;display: block;"/>
         {{end}}
         </div>

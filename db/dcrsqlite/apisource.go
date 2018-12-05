@@ -1353,49 +1353,47 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	return tx
 }
 
-func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, error) {
-	addr, err := dcrutil.DecodeAddress(address)
-	if err != nil {
-		return nil, err
-	}
-
-	// Short circuit the transaction and balance queries if the provided address
-	// is the zero pubkey hash address commonly used for zero value
-	// sstxchange-tagged outputs.
-	isDummyAddress := IsZeroHashP2PHKAddress(address, db.params)
-	if isDummyAddress {
+func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
+	// Validate the address.
+	addr, addrType, addrErr := txhelpers.AddressValidation(address, db.params)
+	switch addrErr {
+	case txhelpers.AddressErrorNoError:
+		// All good!
+	case txhelpers.AddressErrorZeroAddress:
+		// Short circuit the transaction and balance queries if the provided
+		// address is the zero pubkey hash address commonly used for zero
+		// value sstxchange-tagged outputs.
 		return &explorer.AddressInfo{
 			Address:         address,
+			Net:             addr.Net().Name,
+			IsDummyAddress:  true,
 			Balance:         new(explorer.AddressBalance),
 			UnconfirmedTxns: new(explorer.AddressTransactions),
-			IsDummyAddress:  true,
 			Fullmode:        true,
-		}, nil
-	}
-
-	// Handle invalid address.
-	if !ValidateNetworkAddress(addr, db.params) {
-		return nil, fmt.Errorf("wrong network: address %s is not valid for %v",
-			address, db.params.Name)
+		}, addrType, nil
+	default:
+		return nil, addrType, addrErr
 	}
 
 	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
 		int(offset), int(maxcount), true, true, nil)
-	if err != nil && err.Error() == "-32603: No Txns available" {
-		log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
-		return &explorer.AddressInfo{
-			Address:    address,
-			MaxTxLimit: maxcount,
-		}, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("SearchRawTransactionsVerbose failed for address %s: %v",
-			addr, err)
+	if err != nil {
+		if err.Error() == "-32603: No Txns available" {
+			log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
+			return &explorer.AddressInfo{
+				Address:    address,
+				Net:        addr.Net().Name,
+				MaxTxLimit: maxcount,
+			}, addrType, nil
+		}
+		log.Warnf("GetExplorerAddress: SearchRawTransactionsVerbose failed for address %s: %v", addr, err)
+		return nil, addrType, txhelpers.AddressErrorUnknown
 	}
 
 	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
 	for i, tx := range txs {
-		if int64(i) == count {
+		if int64(i) == count { // count >= len(txs)
 			break
 		}
 		addressTxs = append(addressTxs, makeExplorerAddressTx(tx, address))
@@ -1445,6 +1443,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 	}
 	return &explorer.AddressInfo{
 		Address:           address,
+		Net:               addr.Net().Name,
 		MaxTxLimit:        maxcount,
 		Limit:             count,
 		Offset:            offset,
@@ -1460,25 +1459,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		KnownTransactions: numberMaxOfTx,
 		KnownFundingTxns:  numReceiving,
 		KnownSpendingTxns: numSpending,
-	}, nil
-}
-
-// IsZeroHashP2PHKAddress checks if the given address is the dummy (zero pubkey
-// hash) address. See https://github.com/decred/dcrdata/v3/issues/358 for details.
-func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
-	zeroed := [20]byte{}
-	// expecting DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg address for mainnet
-	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
-	if err != nil {
-		log.Errorf("Incorrect pub key hash or invalid network params %v", params)
-		return false
-	}
-	zeroAddress := address.String()
-	return checkAddressString == zeroAddress
-}
-
-func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
-	return address.IsForNet(p)
+	}, addrType, nil
 }
 
 // CountUnconfirmedTransactions returns the number of unconfirmed transactions
