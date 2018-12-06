@@ -280,7 +280,7 @@
         }
 
         get addr(){
-            return this.addrTarget.outerText
+            return this.addrTarget.dataset.address
         }
 
         get unspent(){
