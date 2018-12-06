@@ -155,8 +155,8 @@ func (c *MempoolDataCache) GetTicketsDetails(N int) (uint32, int64, int, Tickets
 	return c.height, c.timestamp.Unix(), numSSTx, details
 }
 
-// GetPriceCountTime gathers the nominal info for mempool.
-func (c *MempoolDataCache) GetPriceCountTime(feeAvgLength int) *apitypes.PriceCountTime {
+// GetTicketPriceCountTime gathers the nominal info for mempool tickets.
+func (c *MempoolDataCache) GetTicketPriceCountTime(feeAvgLength int) *apitypes.PriceCountTime {
 	c.RLock()
 	defer c.RUnlock()
 

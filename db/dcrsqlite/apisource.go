@@ -877,7 +877,7 @@ func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 // GetMempoolPriceCountTime retreives from mempool: the ticket price, the number
 // of tickets in mempool, the time of the first ticket.
 func (db *wiredDB) GetMempoolPriceCountTime() *apitypes.PriceCountTime {
-	return db.MPC.GetPriceCountTime(int(db.params.MaxFreshStakePerBlock))
+	return db.MPC.GetTicketPriceCountTime(int(db.params.MaxFreshStakePerBlock))
 }
 
 // GetAddressTransactionsWithSkip returns an apitypes.Address Object with at most the
