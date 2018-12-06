@@ -1106,11 +1106,10 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
 	type AddressPageData struct {
 		*CommonPageData
-		Data           *dbtypes.AddressInfo
-		TxBlockHeights []int64
-		NetName        string
-		IsLiteMode     bool
-		ChartData      *dbtypes.ChartsData
+		Data       *dbtypes.AddressInfo
+		NetName    string
+		IsLiteMode bool
+		ChartData  *dbtypes.ChartsData
 		// Metrics        *dbtypes.AddressMetrics
 	}
 
@@ -1162,6 +1161,13 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	default:
 		message := "Unsupported address type."
 		exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusNotSupported)
+		return
+	}
+
+	pageKey, ok := r.Context().Value(ctxAddressPageKey).(string)
+	if !ok {
+		log.Errorf("pageKey not set")
+		http.NotFound(w, r)
 		return
 	}
 
@@ -1259,7 +1265,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		NetName:        exp.NetName,
 		// Metrics:        addrMetrics,
 	}
-	str, err := exp.templates.execTemplateToString("address", pageData)
+	str, err := exp.templates.execTemplateToString(pageKey, pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)

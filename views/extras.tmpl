@@ -205,39 +205,6 @@
 {{define "addressTable"}}
   {{$TxnCount := .TxnCount}}
   {{$txType := .TxnType}}
-  {{if lt .NumTransactions $TxnCount}}
-  <div class="d-flex flex-wrap-reverse align-items-center justify-content-end">
-      <span class="fs12 nowrap text-right">
-          {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
-              <span data-target="address.txnCount" data-txn-count="{{$TxnCount}}">{{intComma $TxnCount}}</span> transactions
-          {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
-          <sup>*</sup>
-          {{end}}
-      </span>
-      <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
-          <ul class="pagination mb-0 pagination-sm">
-              <li class="page-item {{if eq .Offset 0}}disabled{{end}}">
-                  <a
-                      class="page-link"
-                      href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{$txType}}"
-                      id="prev"
-                  >Previous</a>
-              </li>
-              <li class="page-item {{if lt (subtract $TxnCount .Offset) (add .Limit 1)}}disabled{{end}}">
-                  <a
-                      class="page-link"
-                      href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{$txType}}"
-                      id="next">
-                      Next
-                  </a>
-              </li>
-          </ul>
-      </nav>
-  </div>
-  {{else}}
-      <span class="fs12 nowrap text-right" data-target="address.txnCount" data-txn-count="{{$TxnCount}}" data-formatted="true">
-  {{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
-  {{end}}
   {{if .Transactions}}
   <table class="table table-mono-cells table-sm striped" style="width: 100%;">
       <thead>
@@ -343,51 +310,4 @@
       </tr>
   </table>
   {{end}}
-  <div
-      id="txntype-wrapper"
-      class="d-flex align-items-center justify-content-end"
-  >
-      <label class="mb-0 mr-1" for="txntype">Type</label>
-      <select
-          name="txntype"
-          id="txntype"
-          data-target="address.txntype"
-          data-action="change->address#paginate"
-          class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if not .Fullmode}}disabled{{end}}"
-          {{if not .Fullmode}}disabled="disabled"{{end}}
-      >
-          <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
-          <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
-          <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
-          <option {{if eq $txType "merged_debit"}}selected{{end}} value="merged_debit">Merged Debits</option>
-      </select>
-  </div>
-  {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
-  <div>
-      *Limit of {{.MaxTxLimit}} transactions shown in lite mode.
-  </div>
-  {{end}}
-  <div
-      id="pagesize-wrapper"
-      class="hidden d-flex align-items-center justify-content-end"
-  >
-      <label class="mb-0 mr-1" for="pagesize">Page size</label>
-      <select
-          name="pagesize"
-          id="pagesize"
-          data-target="address.pagesize"
-          data-action="change->address#paginate"
-          class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
-          {{if lt $TxnCount 20}}disabled="disabled"{{end}}
-      >
-      {{$Txlen := len .Transactions}}
-      {{if ge $TxnCount 20}}<option {{if eq $Txlen 20}}selected{{end}} value="20">20</option>{{end}}
-      {{if ge $TxnCount 100}}<option {{if eq $Txlen 100}}selected{{end}} value="100">100</option>{{end}}
-      {{if lt $TxnCount 1000}}
-          {{if eq $TxnCount 20 100}}{{else}}<option {{if eq $Txlen $TxnCount}}selected{{end}}
-              value="{{$TxnCount}}">{{$TxnCount}}</option>{{end}}
-      {{end}}
-      {{if ge $TxnCount 1000}}<option {{if eq $Txlen 1000}}selected{{end}} value="1000">1000</option>{{end}}
-      </select>
-  </div>
 {{end}}

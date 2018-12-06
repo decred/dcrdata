@@ -94,6 +94,18 @@ function hashHighLight (matchHash, hoverOn) {
   })
 }
 
+function safeStartTurbolinksProgress () {
+  if (!Turbolinks.supported) { return }
+  Turbolinks.controller.adapter.progressBar.setValue(0)
+  Turbolinks.controller.adapter.progressBar.show()
+}
+
+function safeStopTurbolinksProgress () {
+  if (!Turbolinks.supported) { return }
+  Turbolinks.controller.adapter.progressBar.hide()
+  Turbolinks.controller.adapter.progressBar.setValue(100)
+}
+
 class TurboQuery {
   constructor (turbolinks) {
     var ta = this
@@ -221,58 +233,55 @@ export default class extends Controller {
   static get targets () {
     return ['options', 'addr', 'btns', 'unspent',
       'flow', 'zoom', 'interval', 'numUnconfirmed', 'formattedTime',
-      'pagesize', 'txntype', 'txnCount', 'qron', 'qroff']
+      'pagesize', 'txntype', 'txnCount', 'qron', 'qroff', 'paginator',
+      'pageplus', 'pageminus', 'listbox', 'table', 'range']
   }
 
   initialize () {
-    var controller = this
-    controller.retrievedData = {}
+    var ctrl = this
+    ctrl.retrievedData = {}
     // Bind functions passed as callbacks to the controller
-    controller.updateView = controller._updateView.bind(controller)
-    controller.zoomCallback = controller._zoomCallback.bind(controller)
-    controller.drawCallback = controller._drawCallback.bind(controller)
-    controller.zoomMap = {
+    ctrl.updateView = ctrl._updateView.bind(ctrl)
+    ctrl.zoomCallback = ctrl._zoomCallback.bind(ctrl)
+    ctrl.drawCallback = ctrl._drawCallback.bind(ctrl)
+    ctrl.zoomMap = {
       all: 0,
       year: 3.154e+10,
       month: 2.628e+9,
       week: 6.048e+8,
       day: 8.64e+7
     }
-    controller.query = new TurboQuery()
-    // A master settings object
-    var settings = controller.viewSettings = {
-      view: null,
-      n: null,
-      start: null,
-      txntype: null,
-      zoom: null,
-      bin: null,
-      flow: null
-    }
+    ctrl.query = new TurboQuery()
+
     // These two are templates for query parameter sets
-    controller.chartSettings = {
+    ctrl.chartSettings = {
       view: null,
       zoom: null,
       bin: null,
       flow: null
     }
-    controller.listSettings = {
+    ctrl.listSettings = {
       n: null,
       start: null,
       txntype: null
     }
-    controller.currentChartSettings = Object.assign({}, controller.chartSettings)
+
+    // A master settings object
+    var settings = ctrl.viewSettings = Object.assign({}, ctrl.chartSettings)
+    Object.assign(settings, ctrl.listSettings)
+
+    ctrl.currentChartSettings = Object.assign({}, ctrl.chartSettings)
     // Set initial viewSettings from the url
-    controller.query.update(settings)
+    ctrl.query.update(settings)
     settings.view = settings.view || 'list'
     settings.flow = settings.flow ? settings.flow : null
-    TurboQuery.project(controller.chartSettings, settings)
-    TurboQuery.project(controller.listSettings, settings)
+    TurboQuery.project(ctrl.chartSettings, settings)
+    TurboQuery.project(ctrl.listSettings, settings)
     // Set the initial view based on the url
-    controller.setViewButton(settings.view === 'list' ? 'list' : 'chart')
-    controller.setChartType()
+    ctrl.setViewButton(settings.view === 'list' ? 'list' : 'chart')
+    ctrl.setChartType()
     $.getScript('/js/vendor/dygraphs.min.js', () => {
-      controller.typesGraphOptions = {
+      ctrl.typesGraphOptions = {
         labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
         colors: ['#69D3F5', '#2971FF', '#41BF53', 'darkorange', '#FF0090'],
         ylabel: 'Number of Transactions by Type',
@@ -284,7 +293,7 @@ export default class extends Controller {
         fillGraph: false
       }
 
-      controller.amountFlowGraphOptions = {
+      ctrl.amountFlowGraphOptions = {
         labels: ['Date', 'Received', 'Spent', 'Net Received', 'Net Spent'],
         colors: ['#2971FF', '#2ED6A1', '#41BF53', '#FF0090'],
         ylabel: 'Total Amount (DCR)',
@@ -296,7 +305,7 @@ export default class extends Controller {
         fillGraph: false
       }
 
-      controller.unspentGraphOptions = {
+      ctrl.unspentGraphOptions = {
         labels: ['Date', 'Unspent'],
         colors: ['#41BF53'],
         ylabel: 'Cummulative Unspent Amount (DCR)',
@@ -319,29 +328,37 @@ export default class extends Controller {
   }
 
   connect () {
-    var controller = this
-    controller.bindStuff()
-    controller.chartElements = $('.chart-display')
-    controller.listElements = $('.list-display')
-    controller.zoomButtons = $(controller.zoomTarget).children('input')
-    controller.binputs = $(controller.intervalTarget).children('input')
-    controller.flowBoxes = controller.flowTarget.querySelectorAll('input[type=checkbox]')
-    if (controller.viewSettings.flow) controller.setFlowChecks()
-    controller.qrOff = $(controller.qroffTarget)
-    controller.qrOn = $(controller.qronTarget)
-    controller.qrMade = false
-    controller.dcrAddress = controller.data.get('dcraddress')
-    if (controller.chartSettings.zoom !== null) {
-      controller.zoomButtons.removeClass('btn-active')
+    var ctrl = this
+    var cdata = ctrl.data
+    ctrl.bindStuff()
+    ctrl.chartElements = $('.chart-display')
+    ctrl.listElements = $('.list-display')
+    ctrl.zoomButtons = $(ctrl.zoomTarget).children('input')
+    ctrl.binputs = $(ctrl.intervalTarget).children('input')
+    ctrl.flowBoxes = ctrl.flowTarget.querySelectorAll('input[type=checkbox]')
+    if (ctrl.viewSettings.flow) ctrl.setFlowChecks()
+    ctrl.qrOff = $(ctrl.qroffTarget)
+    ctrl.qrOn = $(ctrl.qronTarget)
+    ctrl.qrMade = false
+    ctrl.dcrAddress = cdata.get('dcraddress')
+    ctrl.paginationParams = {
+      'offset': parseInt(cdata.get('offset')),
+      'all': parseInt(cdata.get('fundingCount')) + parseInt(cdata.get('spendingCount')),
+      'credit': parseInt(cdata.get('fundingCount')),
+      'debit': parseInt(cdata.get('spendingCount')),
+      'merged_debit': parseInt(cdata.get('mergedCount'))
     }
-    controller.formattedTimeTargets.forEach((el, i) => {
-      el.textContent = 'Unconfirmed'
-    })
-    controller.txnCountTargets.forEach((el, i) => {
-      controller.setTxnCountText(el, parseInt(el.dataset.txnCount))
-    })
-    // controller.disableBtnsIfNotApplicable()
-    setTimeout(controller.updateView, 0)
+    if (ctrl.chartSettings.zoom !== null) {
+      ctrl.zoomButtons.removeClass('btn-active')
+    }
+    // ctrl.formattedTimeTargets.forEach((el, i) => {
+    //   el.textContent = 'Unconfirmed'
+    // })
+    // ctrl.txnCountTargets.forEach((el, i) => {
+    //   ctrl.setTxnCountText(el, parseInt(el.dataset.txnCount))
+    // })
+    // ctrl.disableBtnsIfNotApplicable()
+    setTimeout(ctrl.updateView, 0)
   }
 
   disconnect () {
@@ -351,7 +368,7 @@ export default class extends Controller {
   }
 
   bindStuff () {
-    var controller = this
+    var ctrl = this
     let isFirstFire = true
     globalEventBus.on('BLOCK_RECEIVED', function (data) {
       // The update of the Time UTC and transactions count will only happen during the first confirmation
@@ -359,17 +376,17 @@ export default class extends Controller {
         return
       }
       isFirstFire = false
-      controller.numUnconfirmedTargets.forEach((el, i) => {
+      ctrl.numUnconfirmedTargets.forEach((el, i) => {
         el.classList.add('hidden')
       })
       let numConfirmed = 0
-      controller.formattedTimeTargets.forEach((el, i) => {
+      ctrl.formattedTimeTargets.forEach((el, i) => {
         el.textContent = data.block.formatted_time
         numConfirmed++
       })
-      controller.txnCountTargets.forEach((el, i) => {
+      ctrl.txnCountTargets.forEach((el, i) => {
         let transactions = numConfirmed + parseInt(el.dataset.txnCount)
-        controller.setTxnCountText(el, transactions)
+        ctrl.setTxnCountText(el, transactions)
       })
     })
     $('.jsonly').show()
@@ -378,29 +395,34 @@ export default class extends Controller {
     }, function () {
       hashHighLight($(this).attr('href'), false)
     })
+    ctrl.paginatorTargets.forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        e.preventDefault()
+      })
+    })
   }
 
   showQRCode () {
-    var controller = this
+    var ctrl = this
     function setMargin () {
-      controller.qrOff.css({
+      ctrl.qrOff.css({
         margin: '0px 0px 12px',
         opacity: 1,
         height: 'auto'
       }).show()
     }
-    if (controller.qrMade) {
+    if (ctrl.qrMade) {
       setMargin()
     } else {
       $.getScript(
         '/js/vendor/qrcode.min.js',
         function () {
-          controller.qrMade = new QRCode(controller.qroffTarget, controller.dcrAddress)
+          ctrl.qrMade = new QRCode(ctrl.qroffTarget, ctrl.dcrAddress)
           setMargin()
         }
       )
     }
-    controller.qrOn.hide()
+    ctrl.qrOn.hide()
   }
 
   hideQRCode () {
@@ -412,24 +434,98 @@ export default class extends Controller {
     })
   }
 
-  paginate () {
-    Turbolinks.visit(
-      window.location.pathname +
-      '?txntype=' + this.txntypeTarget.selectedOptions[0].value +
-      '&n=' + this.pagesizeTarget.selectedOptions[0].value +
-      '&start=' + this.data.get('offset')
-    )
+  makeTableUrl (txType, count, offset) {
+    return '/addresstable/' + this.dcrAddress + '?txntype=' +
+    txType + '&n=' + count + '&start=' + offset
+  }
+
+  changePageSize () {
+    this.fetchTable(this.txnType, this.pageSize, this.paginationParams.offset)
+  }
+
+  changeTxType () {
+    this.fetchTable(this.txnType, this.pageSize, 0)
+  }
+
+  nextPage () {
+    this.toPage(1)
+  }
+
+  prevPage () {
+    this.toPage(-1)
+  }
+
+  toPage (direction) {
+    var ctrl = this
+    var params = ctrl.paginationParams
+    var count = ctrl.pageSize
+    var txType = ctrl.txnType
+    var requestedOffset = params.offset + count * direction
+    if (requestedOffset > params[txType]) return
+    if (requestedOffset < 0) requestedOffset = 0
+    ctrl.fetchTable(txType, count, requestedOffset)
+  }
+
+  fetchTable (txType, count, offset) {
+    var ctrl = this
+    ctrl.listboxTarget.classList.add('loading')
+    safeStartTurbolinksProgress()
+    $.ajax({
+      type: 'GET',
+      url: ctrl.makeTableUrl(txType, count, offset),
+      complete: function () {
+        ctrl.listboxTarget.classList.remove('loading')
+        safeStopTurbolinksProgress()
+      },
+      success: function (html) {
+        ctrl.tableTarget.innerHTML = html
+        var settings = ctrl.viewSettings
+        settings.n = count
+        settings.start = offset
+        settings.txntype = txType
+        ctrl.query.replace(TurboQuery.project(ctrl.listSettings, settings))
+        ctrl.paginationParams.offset = offset
+        ctrl.setPageability()
+      }
+    })
+  }
+
+  setPageability () {
+    var ctrl = this
+    var params = ctrl.paginationParams
+    var rowMax = params[ctrl.txnType]
+    var count = ctrl.pageSize
+    if (params.offset + count > rowMax) {
+      ctrl.pageplusTarget.classList.add('disabled')
+    } else {
+      ctrl.pageplusTarget.classList.remove('disabled')
+    }
+    if (params.offset - count < 0) {
+      ctrl.pageminusTarget.classList.add('disabled')
+    } else {
+      ctrl.pageminusTarget.classList.remove('disabled')
+    }
+    if (ctrl.pageSize < 20) {
+      ctrl.pagesizeTarget.classList.add('disabled')
+    } else {
+      ctrl.pagesizeTarget.classList.remove('disabled')
+    }
+    var suffix = rowMax > 1 ? 's' : ''
+    var rangeEnd = params.offset + count
+    if (rangeEnd > rowMax) rangeEnd = rowMax
+    ctrl.rangeTarget.innerHTML = (params.offset + 1) + ' &mdash; ' + rangeEnd + ' of ' +
+      rowMax + ' transaction' + suffix
   }
 
   drawGraph () {
-    var controller = this
-    var settings = controller.chartSettings
+    var ctrl = this
+    var settings = ctrl.chartSettings
 
     $('#no-bal').addClass('d-hide')
     $('#history-chart').removeClass('d-hide')
     $('#toggle-charts').addClass('d-hide')
 
-    if (controller.unspent === '0' && settings.view === 'unspent') {
+    if (ctrl.unspent === '0' && settings.view === 'unspent') {
       $('#no-bal').removeClass('d-hide')
       $('#history-chart').addClass('d-hide')
       $('body').removeClass('loading')
@@ -437,47 +533,46 @@ export default class extends Controller {
     }
 
     // If the view parameters aren't valid, go to default view.
-    if (!controller.validGraphView() || !controller.validGraphInterval()) return controller.showList()
+    if (!ctrl.validGraphView() || !ctrl.validGraphInterval()) return ctrl.showList()
 
-    if (settings.view === controller.currentChartSettings.view && settings.bin === controller.currentChartSettings.bin) {
+    if (settings.view === ctrl.currentChartSettings.view && settings.bin === ctrl.currentChartSettings.bin) {
       // Only the zoom has changed.
-      var zoom = controller.decodeZoom(settings.zoom)
+      var zoom = ctrl.decodeZoom(settings.zoom)
       if (zoom) {
-        controller.setZoom(zoom.start.getTime(), zoom.end.getTime())
+        ctrl.setZoom(zoom.start.getTime(), zoom.end.getTime())
       }
       return
     }
 
     // Set the current view to prevent uneccesary reloads.
-    TurboQuery.project(controller.currentChartSettings, controller.viewSettings)
+    TurboQuery.project(ctrl.currentChartSettings, ctrl.viewSettings)
 
     $('body').addClass('loading')
 
     // Check for cached data
-    var queue = controller.retrievedData
+    var queue = ctrl.retrievedData
     if (queue[settings.view] && queue[settings.view][settings.bin]) {
       // Queue the function to allow the loading animation to start.
       setTimeout(function () {
-        controller.popChartQueue(settings.view, settings.bin)
+        ctrl.popChartQueue(settings.view, settings.bin)
         $('body').removeClass('loading')
       }, 10) // 0 should work but doesn't always
       return
     }
     $.ajax({
       type: 'GET',
-      url: '/api/address/' + controller.dcrAddress + '/' + settings.view + '/' + settings.bin,
-      beforeSend: function () {},
+      url: '/api/address/' + ctrl.dcrAddress + '/' + settings.view + '/' + settings.bin,
       complete: function () { $('body').removeClass('loading') },
       success: function (data) {
-        controller.processData(settings.view, settings.bin, data)
+        ctrl.processData(settings.view, settings.bin, data)
       }
     })
   }
 
   processData (chart, bin, data) {
-    var controller = this
-    if (!controller.retrievedData[chart]) {
-      controller.retrievedData[chart] = {}
+    var ctrl = this
+    if (!ctrl.retrievedData[chart]) {
+      ctrl.retrievedData[chart] = {}
     }
     if (!isEmpty(data)) {
       var processor = null
@@ -497,9 +592,9 @@ export default class extends Controller {
       if (!processor) {
         return
       }
-      controller.retrievedData[chart][bin] = processor(data)
+      ctrl.retrievedData[chart][bin] = processor(data)
       setTimeout(function () {
-        controller.popChartQueue(chart, bin)
+        ctrl.popChartQueue(chart, bin)
       }, 0)
     } else {
       $('#no-bal').removeClass('d-hide')
@@ -509,67 +604,67 @@ export default class extends Controller {
   }
 
   popChartQueue (chart, bin) {
-    var controller = this
-    if (!controller.retrievedData[chart] || !controller.retrievedData[chart][bin]) {
+    var ctrl = this
+    if (!ctrl.retrievedData[chart] || !ctrl.retrievedData[chart][bin]) {
       return
     }
-    var data = controller.retrievedData[chart][bin]
+    var data = ctrl.retrievedData[chart][bin]
     var options = null
     switch (chart) {
       case 'types':
-        options = controller.typesGraphOptions
+        options = ctrl.typesGraphOptions
         break
 
       case 'amountflow':
-        options = controller.amountFlowGraphOptions
+        options = ctrl.amountFlowGraphOptions
         $('#toggle-charts').removeClass('d-hide')
         break
 
       case 'unspent':
-        options = controller.unspentGraphOptions
+        options = ctrl.unspentGraphOptions
         break
     }
-    options.zoomCallback = controller.zoomCallback
-    options.drawCallback = controller.drawCallback
-    if (controller.graph === undefined) {
-      controller.graph = plotGraph(data, options)
+    options.zoomCallback = ctrl.zoomCallback
+    options.drawCallback = ctrl.drawCallback
+    if (ctrl.graph === undefined) {
+      ctrl.graph = plotGraph(data, options)
     } else {
-      controller.graph.updateOptions({
+      ctrl.graph.updateOptions({
         ...{ 'file': data },
         ...options })
     }
-    controller.xVal = controller.graph.xAxisExtremes()
-    controller.setVisibleButtons()
-    var zoom = controller.decodeZoom(controller.viewSettings.zoom)
-    if (zoom) controller.setZoom(zoom.start.getTime(), zoom.end.getTime())
+    ctrl.xVal = ctrl.graph.xAxisExtremes()
+    ctrl.setVisibleButtons()
+    var zoom = ctrl.decodeZoom(ctrl.viewSettings.zoom)
+    if (zoom) ctrl.setZoom(zoom.start.getTime(), zoom.end.getTime())
   }
 
   _updateView () {
-    var controller = this
-    if (controller.query.count === 0 || controller.viewSettings.view === 'list') {
-      controller.showList()
+    var ctrl = this
+    if (ctrl.query.count === 0 || ctrl.viewSettings.view === 'list') {
+      ctrl.showList()
       return
     }
-    controller.showGraph()
-    controller.drawGraph()
+    ctrl.showGraph()
+    ctrl.drawGraph()
   }
 
   showList () {
-    var controller = this
-    controller.viewSettings.view = 'list'
-    controller.query.replace(controller.listSettings)
-    controller.chartElements.addClass('d-hide')
-    controller.listElements.removeClass('d-hide')
+    var ctrl = this
+    ctrl.viewSettings.view = 'list'
+    ctrl.query.replace(TurboQuery.project(ctrl.listSettings, ctrl.viewSettings))
+    ctrl.chartElements.addClass('d-hide')
+    ctrl.listElements.removeClass('d-hide')
   }
 
   showGraph () {
-    var controller = this
-    var settings = controller.viewSettings
-    settings.bin = controller.getBin()
-    settings.flow = settings.view === 'amountflow' ? controller.flow : null
-    controller.query.replace(TurboQuery.project(controller.chartSettings, settings))
-    controller.chartElements.removeClass('d-hide')
-    controller.listElements.addClass('d-hide')
+    var ctrl = this
+    var settings = ctrl.viewSettings
+    settings.bin = ctrl.getBin()
+    settings.flow = settings.view === 'amountflow' ? ctrl.flow : null
+    ctrl.query.replace(TurboQuery.project(ctrl.chartSettings, settings))
+    ctrl.chartElements.removeClass('d-hide')
+    ctrl.listElements.addClass('d-hide')
   }
 
   validGraphView (view) {
@@ -583,16 +678,16 @@ export default class extends Controller {
   }
 
   changeView (e) {
-    var controller = this
+    var ctrl = this
     $('.addr-btn').removeClass('btn-active')
     $(e ? e.srcElement : '.chart').addClass('btn-active')
-    var view = controller.activeViewButton
+    var view = ctrl.activeViewButton
     if (view !== 'list') {
-      controller.viewSettings.view = controller.chartType
-      controller.setGraphQuery() // Triggers chart draw
+      ctrl.viewSettings.view = ctrl.chartType
+      ctrl.setGraphQuery() // Triggers chart draw
       this.updateView()
     } else {
-      controller.showList()
+      ctrl.showList()
     }
   }
 
@@ -603,9 +698,9 @@ export default class extends Controller {
   }
 
   changeBin (e) {
-    var controller = this
-    controller.viewSettings.bin = e.target.name
-    controller.setIntervalButton(e.target.name)
+    var ctrl = this
+    ctrl.viewSettings.bin = e.target.name
+    ctrl.setIntervalButton(e.target.name)
     this.setGraphQuery()
     this.updateView()
   }
@@ -615,15 +710,15 @@ export default class extends Controller {
   }
 
   updateFlow () {
-    var controller = this
-    var bitmap = controller.flow
+    var ctrl = this
+    var bitmap = ctrl.flow
     if (bitmap === 0) {
       // If all boxes are unchecked, just leave the last view
       // in place to prevent chart errors with zero visible datasets
       return
     }
-    controller.viewSettings.flow = bitmap
-    controller.setGraphQuery()
+    ctrl.viewSettings.flow = bitmap
+    ctrl.setGraphQuery()
     // Set the graph dataset visibility based on the bitmap
     // Dygraph dataset indices: 0 received, 1 sent, 2 & 3 net
     var visibility = {}
@@ -631,7 +726,7 @@ export default class extends Controller {
     visibility[1] = bitmap & 2
     visibility[2] = visibility[3] = bitmap & 4
     Object.keys(visibility).forEach(function (idx) {
-      controller.graph.setVisibility(idx, visibility[idx])
+      ctrl.graph.setVisibility(idx, visibility[idx])
     })
   }
 
@@ -643,27 +738,27 @@ export default class extends Controller {
   }
 
   onZoom (e) {
-    var controller = this
-    controller.zoomButtons.removeClass('btn-active')
+    var ctrl = this
+    ctrl.zoomButtons.removeClass('btn-active')
     $(e.srcElement).addClass('btn-active')
-    if (controller.graph === undefined) {
+    if (ctrl.graph === undefined) {
       return
     }
-    var duration = controller.zoom
+    var duration = ctrl.zoom
 
-    var end = controller.xVal[1]
-    var start = duration === 0 ? controller.xVal[0] : end - duration
-    controller.setZoom(start, end)
+    var end = ctrl.xVal[1]
+    var start = duration === 0 ? ctrl.xVal[0] : end - duration
+    ctrl.setZoom(start, end)
   }
 
   setZoom (start, end) {
-    var controller = this
+    var ctrl = this
     $('body').addClass('loading')
-    controller.graph.updateOptions({
+    ctrl.graph.updateOptions({
       dateWindow: [start, end]
     })
-    controller.viewSettings.zoom = controller.encodeZoomStamps(start, end)
-    controller.query.replace(TurboQuery.project(controller.chartSettings, controller.viewSettings))
+    ctrl.viewSettings.zoom = ctrl.encodeZoomStamps(start, end)
+    ctrl.query.replace(TurboQuery.project(ctrl.chartSettings, ctrl.viewSettings))
     $('body').removeClass('loading')
   }
 
@@ -676,19 +771,19 @@ export default class extends Controller {
   }
 
   getBin () {
-    var controller = this
-    var bin = controller.query.get('bin')
-    if (!controller.setIntervalButton(bin)) {
-      bin = controller.activeIntervalButton
+    var ctrl = this
+    var bin = ctrl.query.get('bin')
+    if (!ctrl.setIntervalButton(bin)) {
+      bin = ctrl.activeIntervalButton
     }
     return bin
   }
 
   setIntervalButton (interval) {
-    var controller = this
-    var button = controller.validGraphInterval(interval)
+    var ctrl = this
+    var button = ctrl.validGraphInterval(interval)
     if (!button) return false
-    controller.binputs.removeClass('btn-active')
+    ctrl.binputs.removeClass('btn-active')
     button.addClass('btn-active')
   }
 
@@ -723,28 +818,28 @@ export default class extends Controller {
   }
 
   _drawCallback (graph, first) {
-    var controller = this
+    var ctrl = this
     if (first) return
     var start, end
-    [start, end] = controller.graph.xAxisRange()
-    controller.viewSettings.zoom = controller.encodeZoomStamps(start, end)
-    controller.query.replace(TurboQuery.project(controller.chartSettings, controller.viewSettings))
+    [start, end] = ctrl.graph.xAxisRange()
+    ctrl.viewSettings.zoom = ctrl.encodeZoomStamps(start, end)
+    ctrl.query.replace(TurboQuery.project(ctrl.chartSettings, ctrl.viewSettings))
   }
 
   _zoomCallback (start, end) {
-    var controller = this
-    controller.zoomButtons.removeClass('btn-active')
-    controller.viewSettings.zoom = controller.encodeZoomStamps(start, end)
-    controller.query.replace(TurboQuery.project(controller.chartSettings, controller.viewSettings))
+    var ctrl = this
+    ctrl.zoomButtons.removeClass('btn-active')
+    ctrl.viewSettings.zoom = ctrl.encodeZoomStamps(start, end)
+    ctrl.query.replace(TurboQuery.project(ctrl.chartSettings, ctrl.viewSettings))
   }
 
   setVisibleButtons () {
-    var controller = this
-    var duration = controller.xVal[1] - controller.xVal[0]
-    var buttonSets = [controller.zoomButtons, controller.binputs]
+    var ctrl = this
+    var duration = ctrl.xVal[1] - ctrl.xVal[0]
+    var buttonSets = [ctrl.zoomButtons, ctrl.binputs]
     buttonSets.forEach(function (buttonSet) {
       buttonSet.each(function (i, button) {
-        if (duration > controller.zoomMap[button.name]) {
+        if (duration > ctrl.zoomMap[button.name]) {
           button.classList.remove('d-hide')
         } else {
           button.classList.add('d-hide')
@@ -818,15 +913,13 @@ export default class extends Controller {
       if (box.checked) base10 += parseInt(box.value)
     })
     return base10
-    // var ar = []
-    // var boxes = this.flowTarget.querySelectorAll('input[type=checkbox]')
-    // boxes.forEach((n) => {
-    //   var intVal = parseFloat(n.value)
-    //   ar.push([isNaN(intVal) ? 0 : intVal, n.checked])
-    //   if (intVal === 2) {
-    //     ar.push([3, n.checked])
-    //   }
-    // })
-    // return ar
+  }
+
+  get txnType () {
+    return this.txntypeTarget.selectedOptions[0].value
+  }
+
+  get pageSize () {
+    return parseInt(this.pagesizeTarget.selectedOptions[0].value)
   }
 }

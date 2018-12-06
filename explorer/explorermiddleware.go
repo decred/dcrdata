@@ -23,6 +23,7 @@ const (
 	ctxTxInOut
 	ctxTxInOutId
 	ctxAddress
+	ctxAddressPageKey
 	ctxAgendaId
 )
 
@@ -173,6 +174,17 @@ func AddressPathCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		address := chi.URLParam(r, "address")
 		ctx := context.WithValue(r.Context(), ctxAddress, address)
+		ctx = context.WithValue(ctx, ctxAddressPageKey, "address")
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// AddressTablePathCtx embeds "address" into the request context
+func AddressTablePathCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		address := chi.URLParam(r, "address")
+		ctx := context.WithValue(r.Context(), ctxAddress, address)
+		ctx = context.WithValue(ctx, ctxAddressPageKey, "addresstable")
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

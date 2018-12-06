@@ -7,7 +7,15 @@
     {{template "navbar" . }}
     {{with .Data}}
     {{$TxnCount := .TxnCount}}
-    <div class="container main" data-controller="address" data-address-offset="{{.Offset}}" data-address-dcraddress="{{.Address}}">
+    {{$txType := .TxnType}}
+    <div class="container main"
+      data-controller="address"
+      data-address-offset="{{.Offset}}"
+      data-address-dcraddress="{{.Address}}"
+      data-address-merged-count="{{.KnownMergedSpendingTxns}}"
+      data-address-spending-count="{{.KnownSpendingTxns}}"
+      data-address-funding-count="{{.KnownFundingTxns}}"
+    >
         <div class="row">
             <div class="col-md-8 col-sm-6">
                 <h4>Address</h4>
@@ -115,9 +123,95 @@
         {{if not .IsDummyAddress}}
         <div class="row">
             <div class="col">
-                <div class="list-display">
+                <div class="list-display position-relative" data-target="address.listbox">
+                  <div class="modal"></div>
                   <h5 class="mr-auto mb-0">History</h5>
-                  {{template "addressTable" .}}
+                  {{if lt .NumTransactions $TxnCount}}
+                    <div class="d-flex flex-wrap-reverse align-items-center justify-content-end">
+                        <span class="fs12 nowrap text-right" data-target="address.range">
+                            {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
+                                <span data-target="address.txnCount" data-txn-count="{{$TxnCount}}">{{intComma $TxnCount}}</span> transactions
+                            {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
+                            <sup>*</sup>
+                            {{end}}
+                        </span>
+                        <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
+                            <ul class="pagination mb-0 pagination-sm">
+                                <li class="page-item {{if eq .Offset 0}}disabled{{end}}"
+                                    data-target="address.pageminus">
+                                    <a  class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{if gt (subtract .Offset .Limit) 0}}{{subtract .Offset .Limit}}{{else}}0{{end}}&txntype={{$txType}}"
+                                        data-turbolinks="false"
+                                        data-target="address.paginator"
+                                        data-action="address#prevPage"
+                                    >Previous</a>
+                                </li>
+                                <li class="page-item {{if lt (subtract $TxnCount .Offset) (add .Limit 1)}}disabled{{end}}"
+                                    data-target="address.pageplus">
+                                    <a  class="page-link"
+                                        href="{{.Path}}?n={{.Limit}}&start={{add .Offset .Limit}}&txntype={{$txType}}"
+                                        data-turbolinks="false"
+                                        data-target="address.paginator"
+                                        data-action="address#nextPage"
+                                    >Next</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                  {{else}}
+                      <span class="fs12 nowrap text-right" data-target="address.txnCount" data-txn-count="{{$TxnCount}}" data-formatted="true">
+                  {{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
+                  {{end}}
+                  <div data-target="address.table">
+                    {{template "addressTable" .}}
+                  </div>
+                  <div
+                      id="txntype-wrapper"
+                      class="d-flex align-items-center justify-content-end"
+                  >
+                      <label class="mb-0 mr-1" for="txntype">Type</label>
+                      <select
+                          name="txntype"
+                          id="txntype"
+                          data-target="address.txntype"
+                          data-action="change->address#changeTxType"
+                          class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if not .Fullmode}}disabled{{end}}"
+                          {{if not .Fullmode}}disabled="disabled"{{end}}
+                      >
+                          <option {{if eq $txType "all"}}selected{{end}} value="all">All</option>
+                          <option {{if eq $txType "credit"}}selected{{end}} value="credit">Credits</option>
+                          <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
+                          <option {{if eq $txType "merged_debit"}}selected{{end}} value="merged_debit">Merged Debits</option>
+                      </select>
+                  </div>
+                  {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
+                  <div>
+                      *Limit of {{.MaxTxLimit}} transactions shown in lite mode.
+                  </div>
+                  {{end}}
+                  <div
+                      id="pagesize-wrapper"
+                      class="hidden d-flex align-items-center justify-content-end"
+                  >
+                      <label class="mb-0 mr-1" for="pagesize">Page size</label>
+                      <select
+                          name="pagesize"
+                          id="pagesize"
+                          data-target="address.pagesize"
+                          data-action="change->address#changePageSize"
+                          class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
+                          {{if lt $TxnCount 20}}disabled="disabled"{{end}}
+                      >
+                      {{$Txlen := len .Transactions}}
+                      {{if ge $TxnCount 20}}<option {{if eq $Txlen 20}}selected{{end}} value="20">20</option>{{end}}
+                      {{if ge $TxnCount 100}}<option {{if eq $Txlen 100}}selected{{end}} value="100">100</option>{{end}}
+                      {{if lt $TxnCount 1000}}
+                          {{if eq $TxnCount 20 100}}{{else}}<option {{if eq $Txlen $TxnCount}}selected{{end}}
+                              value="{{$TxnCount}}">{{$TxnCount}}</option>{{end}}
+                      {{end}}
+                      {{if ge $TxnCount 1000}}<option {{if eq $Txlen 1000}}selected{{end}} value="1000">1000</option>{{end}}
+                      </select>
+                  </div>
                 </div>
 
                 <div class="position-relative chart-display d-hide text-nowrap">
@@ -174,8 +268,8 @@
                       >
                           <input type="button" class="chart-size btn btn_sm year" value="Year" name="year">
                           <input type="button" class="chart-size btn btn_sm month" value="Month" name="month">
-                          <input type="button" class="chart-size btn btn_sm week btn-active" value="Week" name="week">
-                          <input type="button" class="chart-size btn btn_sm day" value="Day" name="day">
+                          <input type="button" class="chart-size btn btn_sm week" value="Week" name="week">
+                          <input type="button" class="chart-size btn btn_sm day btn-active" value="Day" name="day">
                           <input type="button" class="chart-size btn btn_sm all" value="All Blocks" name="all">
                       </div>
                     </div>
