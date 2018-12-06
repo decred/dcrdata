@@ -20,7 +20,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"regexp"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/rpcclient"
@@ -173,16 +172,14 @@ func _main(ctx context.Context) error {
 			DBName:       cfg.PGDBName,
 			QueryTimeout: cfg.PGQueryTimeout,
 		}
+
 		// Replace {netname} with curnet
-		if strings.Contains(dbi.DBName, "{netname}") {
-		  reg, err := regexp.Compile("[^a-zA-Z]+")
-		  if err != nil {
-		    return err
-		  }
-		  
-		  var networkName = reg.ReplaceAllString(curnet.String(), "");
-		  dbi.DBName = strings.Replace(dbi.DBName, "{netname}", networkName, 1);
+		const nettemplate = "{netname}"
+		if strings.Contains(dbi.DBName, nettemplate) {
+			networkname := strings.ToLower(curnet.String())
+			dbi.DBName = strings.Replace(dbi.DBName, nettemplate, networkname, -1)
 		}
+
 		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
 		if chainDB != nil {
 			defer chainDB.Close()
