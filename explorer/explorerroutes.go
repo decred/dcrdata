@@ -964,6 +964,45 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate the address.
+	addr, addrType, addrErr := txhelpers.AddressValidation(address, exp.ChainParams)
+	isZeroAddress := addrErr == txhelpers.AddressErrorZeroAddress
+	if addrErr != nil && !isZeroAddress {
+		var status statusType
+		var message string
+		code := defaultErrorCode
+		switch addrErr {
+		case txhelpers.AddressErrorDecodeFailed, txhelpers.AddressErrorUnknown:
+			status = ErrorStatusType
+			message = "Unexpected issue validating this address."
+		case txhelpers.AddressErrorWrongNet:
+			status = WrongNetworkStatusType
+			message = fmt.Sprintf("The address %v is valid on %s, not %s.",
+				addr, addr.Net().Name, exp.NetName)
+			code = wrongNetwork
+		default:
+			status = ErrorStatusType
+			message = "Unknown error."
+		}
+
+		exp.StatusPage(w, code, message, status)
+		return
+	}
+
+	// Handle valid but unsupported address types.
+	switch addrType {
+	case txhelpers.AddressTypeP2PKH, txhelpers.AddressTypeP2SH:
+		// All good.
+	case txhelpers.AddressTypeP2PK:
+		message := "Looks like you are searching for an address of type P2PK."
+		exp.StatusPage(w, defaultErrorCode, message, P2PKAddresStatusType)
+		return
+	default:
+		message := "Unsupported address type."
+		exp.StatusPage(w, defaultErrorCode, message, NotSupportedStatusType)
+		return
+	}
+
 	// Number of outputs for the address to query the database for. The URL
 	// query parameter "n" is used to specify the limit (e.g. "?n=20").
 	limitN, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
@@ -998,7 +1037,16 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve address information from the DB and/or RPC
 	var addrData *AddressInfo
-	if exp.liteMode {
+	if isZeroAddress {
+		// For the zero address (e.g. DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg), short-circuit any queries.
+		addrData = &AddressInfo{
+			Address:         address,
+			IsDummyAddress:  true,
+			Balance:         new(AddressBalance),
+			UnconfirmedTxns: new(AddressTransactions),
+			Fullmode:        true,
+		}
+	} else if exp.liteMode {
 		addrData, err = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
 		if err != nil && strings.HasPrefix(err.Error(), "wrong network") {
 			exp.StatusPage(w, wrongNetwork, "That address is not valid for "+exp.NetName, NotSupportedStatusType)
@@ -1206,6 +1254,7 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set page parameters
+	addrData.IsDummyAddress = isZeroAddress // may be redundant
 	addrData.Path = r.URL.Path
 	addrData.Limit, addrData.Offset = limitN, offsetAddrOuts
 	addrData.TxnType = txnType.String()
