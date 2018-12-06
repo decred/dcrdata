@@ -234,7 +234,7 @@ export default class extends Controller {
     return ['options', 'addr', 'btns', 'unspent',
       'flow', 'zoom', 'interval', 'numUnconfirmed', 'formattedTime',
       'pagesize', 'txntype', 'txnCount', 'qron', 'qroff', 'paginator',
-      'pageplus', 'pageminus', 'listbox', 'table', 'range']
+      'pageplus', 'pageminus', 'listbox', 'table', 'range', 'chartbox']
   }
 
   initialize () {
@@ -254,6 +254,7 @@ export default class extends Controller {
     ctrl.query = new TurboQuery()
 
     // These two are templates for query parameter sets
+    // When query parameters are set, these are updated.
     ctrl.chartSettings = {
       view: null,
       zoom: null,
@@ -271,6 +272,7 @@ export default class extends Controller {
     Object.assign(settings, ctrl.listSettings)
 
     ctrl.currentChartSettings = Object.assign({}, ctrl.chartSettings)
+    ctrl.requestedChart = false
     // Set initial viewSettings from the url
     ctrl.query.update(settings)
     settings.view = settings.view || 'list'
@@ -280,7 +282,9 @@ export default class extends Controller {
     // Set the initial view based on the url
     ctrl.setViewButton(settings.view === 'list' ? 'list' : 'chart')
     ctrl.setChartType()
-    $.getScript('/js/vendor/dygraphs.min.js', () => {
+    console.log(typeof Dygraph)
+
+    const initializeChart = () => {
       ctrl.typesGraphOptions = {
         labels: ['Date', 'Sending (regular)', 'Receiving (regular)', 'Tickets', 'Votes', 'Revocations'],
         colors: ['#69D3F5', '#2971FF', '#41BF53', 'darkorange', '#FF0090'],
@@ -316,7 +320,15 @@ export default class extends Controller {
         visibility: [true],
         fillGraph: true
       }
-    })
+      if (!ctrl.requestedChart) {
+        ctrl.fetchChart(ctrl.chartType, ctrl.getBin())
+      }
+    }
+    if (typeof Dygraph === 'undefined') {
+      $.getScript('/js/vendor/dygraphs.min.js', initializeChart)
+    } else {
+      initializeChart()
+    }
   }
 
   setTxnCountText (el, count) {
@@ -520,6 +532,7 @@ export default class extends Controller {
   drawGraph () {
     var ctrl = this
     var settings = ctrl.chartSettings
+    var state = ctrl.currentChartSettings
 
     $('#no-bal').addClass('d-hide')
     $('#history-chart').removeClass('d-hide')
@@ -528,14 +541,14 @@ export default class extends Controller {
     if (ctrl.unspent === '0' && settings.view === 'unspent') {
       $('#no-bal').removeClass('d-hide')
       $('#history-chart').addClass('d-hide')
-      $('body').removeClass('loading')
+      ctrl.chartboxTarget.classList.remove('loading')
       return
     }
 
     // If the view parameters aren't valid, go to default view.
     if (!ctrl.validGraphView() || !ctrl.validGraphInterval()) return ctrl.showList()
 
-    if (settings.view === ctrl.currentChartSettings.view && settings.bin === ctrl.currentChartSettings.bin) {
+    if (settings.view === state.view && settings.bin === state.bin) {
       // Only the zoom has changed.
       var zoom = ctrl.decodeZoom(settings.zoom)
       if (zoom) {
@@ -545,26 +558,33 @@ export default class extends Controller {
     }
 
     // Set the current view to prevent uneccesary reloads.
-    TurboQuery.project(ctrl.currentChartSettings, ctrl.viewSettings)
+    TurboQuery.project(state, settings)
+    ctrl.fetchChart(settings.view, settings.bin)
+  }
 
-    $('body').addClass('loading')
+  fetchChart (chart, bin) {
+    var ctrl = this
+    var queueKey = chart + '-' + bin
+    ctrl.requestedChart = queueKey
+
+    ctrl.chartboxTarget.classList.add('loading')
 
     // Check for cached data
     var queue = ctrl.retrievedData
-    if (queue[settings.view] && queue[settings.view][settings.bin]) {
+    if (queue[queueKey]) {
       // Queue the function to allow the loading animation to start.
       setTimeout(function () {
-        ctrl.popChartQueue(settings.view, settings.bin)
-        $('body').removeClass('loading')
+        ctrl.popChartQueue(chart, bin)
+        ctrl.chartboxTarget.classList.add('loading')
       }, 10) // 0 should work but doesn't always
       return
     }
     $.ajax({
       type: 'GET',
-      url: '/api/address/' + ctrl.dcrAddress + '/' + settings.view + '/' + settings.bin,
-      complete: function () { $('body').removeClass('loading') },
+      url: '/api/address/' + ctrl.dcrAddress + '/' + chart + '/' + bin,
+      complete: function () { ctrl.chartboxTarget.classList.add('loading') },
       success: function (data) {
-        ctrl.processData(settings.view, settings.bin, data)
+        ctrl.processData(chart, bin, data)
       }
     })
   }
@@ -592,7 +612,8 @@ export default class extends Controller {
       if (!processor) {
         return
       }
-      ctrl.retrievedData[chart][bin] = processor(data)
+      var queueKey = chart + '-' + bin
+      ctrl.retrievedData[queueKey] = processor(data)
       setTimeout(function () {
         ctrl.popChartQueue(chart, bin)
       }, 0)
@@ -605,10 +626,11 @@ export default class extends Controller {
 
   popChartQueue (chart, bin) {
     var ctrl = this
-    if (!ctrl.retrievedData[chart] || !ctrl.retrievedData[chart][bin]) {
+    var queueKey = chart + '-' + bin
+    if (!ctrl.retrievedData[queueKey]) {
       return
     }
-    var data = ctrl.retrievedData[chart][bin]
+    var data = ctrl.retrievedData[queueKey]
     var options = null
     switch (chart) {
       case 'types':
@@ -633,7 +655,7 @@ export default class extends Controller {
         ...{ 'file': data },
         ...options })
     }
-    ctrl.xVal = ctrl.graph.xAxisExtremes()
+    ctrl.xRange = ctrl.graph.xAxisExtremes()
     ctrl.setVisibleButtons()
     var zoom = ctrl.decodeZoom(ctrl.viewSettings.zoom)
     if (zoom) ctrl.setZoom(zoom.start.getTime(), zoom.end.getTime())
@@ -746,20 +768,20 @@ export default class extends Controller {
     }
     var duration = ctrl.zoom
 
-    var end = ctrl.xVal[1]
-    var start = duration === 0 ? ctrl.xVal[0] : end - duration
+    var end = ctrl.xRange[1]
+    var start = duration === 0 ? ctrl.xRange[0] : end - duration
     ctrl.setZoom(start, end)
   }
 
   setZoom (start, end) {
     var ctrl = this
-    $('body').addClass('loading')
+    ctrl.chartboxTarget.classList.add('loading')
     ctrl.graph.updateOptions({
       dateWindow: [start, end]
     })
     ctrl.viewSettings.zoom = ctrl.encodeZoomStamps(start, end)
     ctrl.query.replace(TurboQuery.project(ctrl.chartSettings, ctrl.viewSettings))
-    $('body').removeClass('loading')
+    ctrl.chartboxTarget.classList.remove('loading')
   }
 
   encodeZoomDates (start, end) {
@@ -835,7 +857,7 @@ export default class extends Controller {
 
   setVisibleButtons () {
     var ctrl = this
-    var duration = ctrl.xVal[1] - ctrl.xVal[0]
+    var duration = ctrl.xRange[1] - ctrl.xRange[0]
     var buttonSets = [ctrl.zoomButtons, ctrl.binputs]
     buttonSets.forEach(function (buttonSet) {
       buttonSet.each(function (i, button) {
