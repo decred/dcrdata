@@ -188,15 +188,6 @@ async function createWebSocket (loc) {
   })
 }
 
-document.getElementById('search').onkeypress = function (e) {
-  if (!e) e = window.event
-  var keyCode = e.keyCode || e.which
-  if (keyCode === '13') {
-    Turbolinks.visit('/search?search=' + this.value)
-    return false
-  }
-}
-
 // desktop notifications
 function onShowNotification () {
   console.log('block ntfn shown')
