@@ -11,6 +11,11 @@ module.exports = {
     jquery: 'jQuery',
     turbolinks: 'Turbolinks'
   },
+  optimization: {
+    splitChunks: {
+      chunks: 'all'
+    }
+  },
   module: {
     rules: [
       {
@@ -47,6 +52,6 @@ module.exports = {
   output: {
     filename: 'js/[name].bundle.js',
     path: path.resolve(__dirname, 'public/dist'),
-    publicPath: 'dist/'
+    publicPath: '/dist/'
   }
 }
