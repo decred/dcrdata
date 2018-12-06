@@ -94,7 +94,7 @@
                     </div>
                 </div>
 
-                <div class="chart-control-wrapper mb-1" data-target="charts.zoomSelector">
+                <div class="chart-control-wrapper mr-2 mb-1" data-target="charts.zoomSelector">
                     <div class="chart-control-label">MOVING AVG</div>
                     <div class="chart-control">
                         <input
@@ -107,6 +107,20 @@
                             data-target="charts.rollPeriodInput"
                             data-action="change->charts#onRollPeriodChange"
                         >
+                    </div>
+                </div>
+
+                <div class="chart-control-wrapper mb-1 jsonly">
+                    <div class="chart-control-label" style="padding: 0px 2px;">PERMALINK</div>
+                    <div class="chart-control-blank" style="padding: 6px 0px 0px 0px;">
+                        <a
+                            data-target="charts.chartLink"
+                            title="right click to copy link address"
+                            href=""
+                            target="_blank" rel="noopener noreferrer"
+                        >
+                            <img class="h20" src="/images/link_blue.svg" alt="permalink">
+                        </a>
                     </div>
                 </div>
 

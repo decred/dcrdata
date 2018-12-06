@@ -146,6 +146,7 @@
                 'zoomSelector',
                 'zoomOption',
                 'rollPeriodInput',
+                'chartLink',
             ]
         }
 
@@ -198,7 +199,7 @@
 
         plotGraph(chartName, data) {
             var d = []
-            window.history.pushState({}, chartName, `#${chartName}`);
+            $(this.chartLinkTarget).attr('href', `#${chartName}`)
             var gOptions = {
                 rollPeriod: 1
             }

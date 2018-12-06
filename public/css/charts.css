@@ -183,6 +183,10 @@ body.loading .modal {
     background: #fff;
     height: 42px;
 }
+.chart-control-blank {
+    height: 42px;
+    text-align: center;
+}
 .chart-control select,
 .chart-control input {
     border: none;

@@ -334,6 +334,18 @@ body.darkBG .progress {
 .p10 {
   padding: 10px;
 }
+.h10 {
+  height: 10px;
+}
+.h20 {
+  height: 20px;
+}
+.h30 {
+  height: 30px;
+}
+.h40 {
+  height: 40px;
+}
 
 /*nav*/
 .top-nav,
