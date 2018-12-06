@@ -1100,8 +1100,6 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			vin.Link = "/tx/" + vin.Txid + "/out/" + voutStr
 		}
 	}
-	tx.VinLenght = len(tx.Vin)
-	tx.VoutLenght = len(tx.Vout)
 
 	pageData := struct {
 		*CommonPageData
