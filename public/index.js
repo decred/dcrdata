@@ -20,7 +20,10 @@ const application = Application.start()
 const context = require.context('./js/controllers', true, /\.js$/)
 application.load(definitionsFromContext(context))
 
-$('.jsonly').removeClass('jsonly')
+document.addEventListener('turbolinks:load', function (e) {
+  $('.jsonly').removeClass('jsonly')
+})
+
 $.ajaxSetup({
   cache: true
 })
