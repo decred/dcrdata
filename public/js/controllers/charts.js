@@ -166,6 +166,7 @@
             if (this.chartsView != undefined) {
                 this.chartsView.destroy()
             }
+            selectedChart = null
         }
 
         drawInitialGraph(){
@@ -198,7 +199,7 @@
 
         plotGraph(chartName, data) {
             var d = []
-            window.history.pushState({}, chartName, `#${chartName}`);
+            Turbolinks.controller.replaceHistoryWithLocationAndRestorationIdentifier(Turbolinks.Location.wrap(`#${chartName}`), Turbolinks.uuid())
             var gOptions = {
                 rollPeriod: 1
             }
