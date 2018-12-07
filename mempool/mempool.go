@@ -289,6 +289,7 @@ type MempoolData struct {
 	Ticketfees        *dcrjson.TicketFeeInfoResult
 	MinableFees       *MinableFeeInfo
 	AllTicketsDetails TicketsDetails
+	StakeDiff         float64
 }
 
 // GetHeight returns the mempool height
@@ -343,6 +344,12 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 		return nil, err
 	}
 	numVotes := len(mempoolVotes)
+
+	// Grab the current stake difficulty (ticket price).
+	stakeDiff, err := c.GetStakeDifficulty()
+	if err != nil {
+		return nil, err
+	}
 
 	// Fee info
 	var numFeeWindows, numFeeBlocks uint32 = 0, 0
@@ -432,6 +439,7 @@ func (t *mempoolDataCollector) Collect() (*MempoolData, error) {
 		MinableFees:       mineables,
 		NumVotes:          uint32(numVotes),
 		AllTicketsDetails: allTicketsDetails,
+		StakeDiff:         stakeDiff.CurrentStakeDifficulty,
 	}
 
 	return mpoolData, err

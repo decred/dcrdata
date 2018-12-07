@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	apitypes "github.com/decred/dcrdata/v3/api/types"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
 	"golang.org/x/net/websocket"
 )
@@ -120,7 +121,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					// Chart height is returned since the cache may be stale,
 					// although it is automatically updated by the first caller
 					// who requests data from a stale cache.
-					cData, gData, chartHeight, err := exp.explorerSource.TicketPoolVisualization(interval)
+					timeChart, priceChart, donutChart, chartHeight, err := exp.explorerSource.TicketPoolVisualization(interval)
 					if dbtypes.IsTimeoutErr(err) {
 						log.Warnf("TicketPoolVisualization DB timeout: %v", err)
 						webData.Message = "Error: DB timeout"
@@ -138,28 +139,25 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 
-					var mp dbtypes.PoolTicketsData
+					mp := new(apitypes.PriceCountTime)
 					exp.MempoolData.RLock()
+
 					if len(exp.MempoolData.Tickets) > 0 {
-						t := time.Unix(exp.MempoolData.Tickets[0].Time, 0)
-						mp.Time = append(mp.Time, dbtypes.TimeDef{T: t})
-						mp.Price = append(mp.Price, exp.MempoolData.Tickets[0].TotalOut)
-						mp.Mempool = append(mp.Mempool, uint64(len(exp.MempoolData.Tickets)))
+						mp.Price = exp.MempoolData.Tickets[0].TotalOut
+						mp.Count = len(exp.MempoolData.Tickets)
+						mp.Time = dbtypes.TimeDef{T: time.Unix(exp.MempoolData.Tickets[0].Time, 0)}
 					} else {
 						log.Debug("No tickets exists in the mempool")
 					}
+
 					exp.MempoolData.RUnlock()
 
-					var data = struct {
-						ChartHeight uint64                     `json:"chartHeight"`
-						BarGraphs   []*dbtypes.PoolTicketsData `json:"barGraphs"`
-						DonutChart  *dbtypes.PoolTicketsData   `json:"donutChart"`
-						Mempool     *dbtypes.PoolTicketsData   `json:"mempool"`
-					}{
-						chartHeight,
-						cData,
-						gData,
-						&mp,
+					data := &apitypes.TicketPoolChartsData{
+						ChartHeight: chartHeight,
+						TimeChart:   timeChart,
+						PriceChart:  priceChart,
+						DonutChart:  donutChart,
+						Mempool:     mp,
 					}
 
 					msg, err := json.Marshal(data)

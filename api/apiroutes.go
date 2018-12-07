@@ -81,6 +81,7 @@ type DataSourceLite interface {
 	GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw
 	SendRawTransaction(txhex string) (string, error)
 	GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
+	GetMempoolPriceCountTime() *apitypes.PriceCountTime
 }
 
 // DataSourceAux specifies an interface for advanced data collection using the
@@ -97,7 +98,7 @@ type DataSourceAux interface {
 	TxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
-		[]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
+		*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 }
 
@@ -841,6 +842,41 @@ func (c *appContext) getSSTxDetails(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, sstxDetails, c.getIndentQuery(r))
 }
 
+// getTicketPoolCharts pulls the initial data to populate the /ticketpool page
+// charts.
+func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		// not available in lite mode
+		http.Error(w, "not available in lite mode", 422)
+		return
+	}
+
+	timeChart, priceChart, donutChart, height, err := c.AuxDataSource.TicketPoolVisualization(dbtypes.AllGrouping)
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("TicketPoolVisualization: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
+	}
+	if err != nil {
+		apiLog.Errorf("Unable to get ticket pool charts: %v", err)
+		http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
+		return
+	}
+
+	mp := c.BlockData.GetMempoolPriceCountTime()
+
+	response := &apitypes.TicketPoolChartsData{
+		ChartHeight: height,
+		TimeChart:   timeChart,
+		PriceChart:  priceChart,
+		DonutChart:  donutChart,
+		Mempool:     mp,
+	}
+
+	writeJSON(w, response, c.getIndentQuery(r))
+
+}
+
 func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request) {
 	if c.LiteMode {
 		// not available in lite mode
@@ -858,7 +894,7 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 	// TicketPoolVisualization here even though it returns a lot of data not
 	// needed by this request.
 	interval := dbtypes.TimeGroupingFromStr(tp)
-	barCharts, _, height, err := c.AuxDataSource.TicketPoolVisualization(interval)
+	timeChart, _, _, height, err := c.AuxDataSource.TicketPoolVisualization(interval)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("TicketPoolVisualization: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
@@ -871,11 +907,11 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 	}
 
 	tpResponse := struct {
-		Height     uint64                   `json:"height"`
-		PoolByDate *dbtypes.PoolTicketsData `json:"ticket_pool_data"`
+		Height    uint64                   `json:"height"`
+		TimeChart *dbtypes.PoolTicketsData `json:"time_chart"`
 	}{
 		height,
-		barCharts[0], // purchase time distribution
+		timeChart, // purchase time distribution
 	}
 
 	writeJSON(w, tpResponse, c.getIndentQuery(r))

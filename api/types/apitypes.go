@@ -435,3 +435,20 @@ type MempoolTicketDetails struct {
 // TicketsDetails is an array of pointers of TicketDetails used in
 // MempoolTicketDetails
 type TicketsDetails []*TicketDetails
+
+// TicketPoolChartsData is for data used to display ticket pool statistics at
+// /ticketpool.
+type TicketPoolChartsData struct {
+	ChartHeight uint64                   `json:"height"`
+	TimeChart   *dbtypes.PoolTicketsData `json:"time_chart"`
+	PriceChart  *dbtypes.PoolTicketsData `json:"price_chart"`
+	DonutChart  *dbtypes.PoolTicketsData `json:"donut_chart"`
+	Mempool     *PriceCountTime          `json:"mempool"`
+}
+
+// PriceCountTime is a basic set of information about ticket in the mempool.
+type PriceCountTime struct {
+	Price float64         `json:"price"`
+	Count int             `json:"count"`
+	Time  dbtypes.TimeDef `json:"time"`
+}
