@@ -10,7 +10,7 @@ import { barChartPlotter } from '../helpers/chart_helper'
 function legendFormatter (data) {
   if (data.x == null) return ''
   var html = this.getLabels()[0] + ': ' + data.xHTML
-  data.series.map(function (series) {
+  data.series.map((series) => {
     var labeledData = ' <span style="color: ' + series.color + ';">' + series.labelHTML + ': ' + series.yHTML
     html += '<br>' + series.dashHTML + labeledData + '</span>'
   })
@@ -31,7 +31,7 @@ function purchasesGraphData (items, memP) {
   var s = []
   var finalDate = ''
 
-  items.time.map(function (n, i) {
+  items.time.map((n, i) => {
     finalDate = new Date(n)
     s.push([finalDate, 0, items.immature[i], items.live[i], items.price[i]])
   })
@@ -154,16 +154,16 @@ export default class extends Controller {
   }
 
   fetchAll () {
-    $('body').addClass('loading')
     var controller = this
+    controller.wrapperTarget.classList.add('loading')
     $.ajax({
       type: 'GET',
       url: '/api/ticketpool/charts',
-      success: function (data) {
+      success: (data) => {
         controller.processData(data)
       },
-      complete: function () {
-        $('body').removeClass('loading')
+      complete: () => {
+        controller.wrapperTarget.classList.remove('loading')
       }
     })
   }
@@ -223,17 +223,14 @@ export default class extends Controller {
     })
     controller.bars = e.target.name
     $(e.target).addClass('btn-active')
-    $('body').addClass('loading')
+    controller.wrapperTarget.classList.add('loading')
     $.ajax({
       type: 'GET',
       url: '/api/ticketpool/bydate/' + controller.bars,
-      beforeSend: function () {},
-      error: function () {
-        $('body').removeClass('loading')
-      },
-      success: function (data) {
+      beforeSend: () => {},
+      complete: () => { controller.wrapperTarget.classList.remove('loading') },
+      success: (data) => {
         controller.purchasesGraph.updateOptions({ 'file': purchasesGraphData(data['time_chart']) })
-        $('body').removeClass('loading')
       }
     })
   }
@@ -252,7 +249,7 @@ export default class extends Controller {
           plotter: Dygraph.Plotters.linePlotter
         }
       },
-      axes: { y2: { axisLabelFormatter: function (d) { return d.toFixed(1) } } }
+      axes: { y2: { axisLabelFormatter: (d) => { return d.toFixed(1) } } }
     }
     return new Dygraph(
       document.getElementById('tickets_by_purchase_date'),
@@ -291,7 +288,7 @@ export default class extends Controller {
           },
           tooltips: {
             callbacks: {
-              label: function (tooltipItem, data) {
+              label: (tooltipItem, data) => {
                 var sum = 0
                 var currentValue = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]
                 d.map((u) => { sum += u })
