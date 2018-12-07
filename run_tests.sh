@@ -20,12 +20,6 @@ DOCKER_IMAGE_TAG=dcrdata-golang-builder-$GOVERSION
 testrepo () {
   TMPFILE=$(mktemp)
   export GO111MODULE=on
-
-  git clone --branch v1.12.3 https://github.com/golangci/golangci-lint ~/golangci-lint
-  pushd ~/golangci-lint/cmd/golangci-lint
-  go install
-  popd
-  #go get -u -v github.com/golangci/golangci-lint/cmd/golangci-lint
   
   golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
     --enable gosimple --enable unconvert --enable ineffassign --enable structcheck\
