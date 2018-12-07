@@ -1359,7 +1359,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	return tx
 }
 
-func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
+func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
 	// Validate the address.
 	addr, addrType, addrErr := txhelpers.AddressValidation(address, db.params)
 	switch addrErr {
@@ -1369,12 +1369,14 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		// Short circuit the transaction and balance queries if the provided
 		// address is the zero pubkey hash address commonly used for zero
 		// value sstxchange-tagged outputs.
-		return &explorer.AddressInfo{
+		return &dbtypes.AddressInfo{
 			Address:         address,
 			Net:             addr.Net().Name,
 			IsDummyAddress:  true,
-			Balance:         new(explorer.AddressBalance),
-			UnconfirmedTxns: new(explorer.AddressTransactions),
+			Balance:         new(dbtypes.AddressBalance),
+			UnconfirmedTxns: new(dbtypes.AddressTransactions),
+			Limit:           count,
+			Offset:          offset,
 			Fullmode:        true,
 		}, addrType, nil
 	default:
@@ -1387,7 +1389,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 	if err != nil {
 		if err.Error() == "-32603: No Txns available" {
 			log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
-			return &explorer.AddressInfo{
+			return &dbtypes.AddressInfo{
 				Address:    address,
 				Net:        addr.Net().Name,
 				MaxTxLimit: maxcount,
@@ -1467,32 +1469,10 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		KnownTransactions: numberMaxOfTx,
 		KnownFundingTxns:  numReceiving,
 		KnownSpendingTxns: numSpending,
-<<<<<<< HEAD
-	}, addrType, nil
-=======
 	}
 	addrData.PostProcess(uint32(db.GetHeight()))
 
-	return addrData, nil
-}
-
-// IsZeroHashP2PHKAddress checks if the given address is the dummy (zero pubkey
-// hash) address. See https://github.com/decred/dcrdata/v3/issues/358 for details.
-func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) bool {
-	zeroed := [20]byte{}
-	// expecting DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg address for mainnet
-	address, err := dcrutil.NewAddressPubKeyHash(zeroed[:], params, 0)
-	if err != nil {
-		log.Errorf("Incorrect pub key hash or invalid network params %v", params)
-		return false
-	}
-	zeroAddress := address.String()
-	return checkAddressString == zeroAddress
-}
-
-func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
-	return address.IsForNet(p)
->>>>>>> Moved AddressInfo processing to ChainDB method
+	return addrData, addrType, nil
 }
 
 // CountUnconfirmedTransactions returns the number of unconfirmed transactions
@@ -1502,8 +1482,8 @@ func (db *wiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
 	return numUnconfirmed, err
 }
 
-// CountUnconfirmedTransactions routes through rpcutils with appropriate
-// arguments. Returns mempool address associated with the given address.
+// UnconfirmedTxnsForAddress routes through rpcutils with appropriate
+// arguments. Returns mempool inputs/outputs associated with the given address.
 func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
 	return rpcutils.UnconfirmedTxnsForAddress(db.client, address, db.params)
 }

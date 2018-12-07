@@ -15,6 +15,7 @@
       data-address-merged-count="{{.KnownMergedSpendingTxns}}"
       data-address-spending-count="{{.KnownSpendingTxns}}"
       data-address-funding-count="{{.KnownFundingTxns}}"
+      data-address-balance="{{toFloat64Amount .Balance.TotalUnspent}}"
     >
         <div class="row">
             <div class="col-md-8 col-sm-6">
@@ -24,14 +25,14 @@
                     style="margin-bottom: 12px;">
                     {{.Address}}<a
                         data-action="click->address#showQRCode"
-                        data-target="address.qron"
+                        data-target="address.qricon"
                         class="dcricon-qrcode jsonly no-underline color-inherit p10"
                     ></a>
                 </div>
-                <div class="row">
+                <div class="row" data-target="address.qrbox">
                     <div data-action="click->address#hideQRCode"
-                        data-target="address.qroff"
-                        class="col opacity-transition"
+                        data-target="address.qrimg"
+                        class="col opacity-transition qrimg"
                     ></div>
                 </div>
                 {{if .IsDummyAddress}}
@@ -53,8 +54,7 @@
             <div class="col-md-4 col-sm-6 d-flex pb-3">
                 <table>
                     <tr  class="h2rem">
-                        <td id="{{.Balance.TotalUnspent}}" class="pr-2 lh1rem vam text-right xs-w91"
-                            data-target="address.unspent">TOTAL UNSPENT</td>
+                        <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
                         {{if .Fullmode}}
                             <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end rm-spacing">
                                 {{if .Balance}}
@@ -124,18 +124,20 @@
         <div class="row">
             <div class="col">
                 <div class="list-display position-relative" data-target="address.listbox">
-                  <div class="modal"></div>
+                  <div class="modal position-absolute"></div>
                   <h5 class="mr-auto mb-0">History</h5>
-                  {{if lt .NumTransactions $TxnCount}}
-                    <div class="d-flex flex-wrap-reverse align-items-center justify-content-end">
+                    <div class="d-flex flex-wrap-reverse align-items-center justify-content-end ">
                         <span class="fs12 nowrap text-right" data-target="address.range">
-                            {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
+                            showing {{intComma (add .Offset 1)}} &mdash; {{intComma (add .Offset .NumTransactions)}} of
                                 <span data-target="address.txnCount" data-txn-count="{{$TxnCount}}">{{intComma $TxnCount}}</span> transactions
                             {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
                             <sup>*</sup>
                             {{end}}
                         </span>
-                        <nav aria-label="address transactions navigation" data-limit="{{.Limit}}" class="ml-2">
+                        <nav aria-label="address transactions navigation"
+                              data-limit="{{.Limit}}"
+                              class="my-1 ml-2{{if ge .NumTransactions $TxnCount}} d-hide{{end}}"
+                              data-target="address.pagebuttons">
                             <ul class="pagination mb-0 pagination-sm">
                                 <li class="page-item {{if eq .Offset 0}}disabled{{end}}"
                                     data-target="address.pageminus">
@@ -158,21 +160,15 @@
                             </ul>
                         </nav>
                     </div>
-                  {{else}}
-                      <span class="fs12 nowrap text-right" data-target="address.txnCount" data-txn-count="{{$TxnCount}}" data-formatted="true">
-                  {{intComma $TxnCount}} transaction{{if gt $TxnCount 1}}s{{end}}</span>
-                  {{end}}
                   <div data-target="address.table">
                     {{template "addressTable" .}}
                   </div>
                   <div
-                      id="txntype-wrapper"
                       class="d-flex align-items-center justify-content-end"
                   >
                       <label class="mb-0 mr-1" for="txntype">Type</label>
                       <select
                           name="txntype"
-                          id="txntype"
                           data-target="address.txntype"
                           data-action="change->address#changeTxType"
                           class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if not .Fullmode}}disabled{{end}}"
@@ -190,36 +186,34 @@
                   </div>
                   {{end}}
                   <div
-                      id="pagesize-wrapper"
                       class="hidden d-flex align-items-center justify-content-end"
                   >
-                      <label class="mb-0 mr-1" for="pagesize">Page size</label>
+                      <label class="my-2 mr-1" for="pagesize">Page size</label>
                       <select
                           name="pagesize"
                           id="pagesize"
                           data-target="address.pagesize"
                           data-action="change->address#changePageSize"
                           class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $TxnCount 20}}disabled{{end}}"
-                          {{if lt $TxnCount 20}}disabled="disabled"{{end}}
+                          {{if lt $TxnCount 20}}disabled{{end}}
                       >
                       {{$Txlen := len .Transactions}}
-                      {{if ge $TxnCount 20}}<option {{if eq $Txlen 20}}selected{{end}} value="20">20</option>{{end}}
-                      {{if ge $TxnCount 100}}<option {{if eq $Txlen 100}}selected{{end}} value="100">100</option>{{end}}
-                      {{if lt $TxnCount 1000}}
-                          {{if eq $TxnCount 20 100}}{{else}}<option {{if eq $Txlen $TxnCount}}selected{{end}}
-                              value="{{$TxnCount}}">{{$TxnCount}}</option>{{end}}
-                      {{end}}
-                      {{if ge $TxnCount 1000}}<option {{if eq $Txlen 1000}}selected{{end}} value="1000">1000</option>{{end}}
+                      <option {{if eq $Txlen 20}}selected{{end}} value="20"{{if lt $TxnCount 20}} disabled{{end}}>20</option>
+                      <option {{if eq $Txlen 100}}selected{{end}} value="100"{{if lt $TxnCount 100}} disabled{{end}}>100</option>
+                        {{if lt $TxnCount 1000}}
+                            <option{{if eq $Txlen $TxnCount}} selected{{end}} value="{{$TxnCount}}"{{if le $TxnCount 100}} disabled{{end}}>{{$TxnCount}}</option>
+                        {{else}}
+                            <option{{if eq $Txlen 1000}} selected{{end}} value="1000">1000</option>
+                        {{end}}
                       </select>
                   </div>
                 </div>
 
                 <div class="position-relative chart-display d-hide text-nowrap" data-target="address.chartbox">
-                  <div class="modal"></div>
-                  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 mt-3">
+                  <div class="modal position-absolute"></div>
+                  <div class="d-flex flex-wrap align-items-center justify-content-around my-3 mx-1">
                     <select
-                        id="selectBox"
-                        class="chart-box"
+                        class="chart-box d-inline-flex"
                         data-target="address.options"
                         data-action="change->address#changeGraph"
                     >
@@ -227,23 +221,23 @@
                         <option name="amountflow" value="amountflow">Sent and Received</option>
                         <option name="unspent" value="unspent">Total Unspent</option>
                     </select>
-                    <div id="toggle-charts" class="row t-charts d-hide" data-target="address.flow"
+                    <div class="row t-charts flex-nowrap d-inline-flex d-hide mx-2" data-target="address.flow"
                         data-action="change->address#updateFlow">
-                        <label class="customcheck">Sent
+                        <label class="customcheck ml-1 d-inline-flex">Sent
                             <input type="checkbox" value="2">
                             <span class="checkmark sent"></span>
                         </label>
-                        <label class="customcheck">Received
+                        <label class="customcheck ml-1 d-inline-flex">Received
                             <input type="checkbox" checked="checked" value="1">
                             <span class="checkmark received"></span>
                         </label>
-                        <label class="customcheck">Net
+                        <label class="customcheck mx-1 d-inline-flex">Net
                             <input type="checkbox" value="4">
                             <span class="checkmark net"></span>
                         </label>
                     </div>
-                    <div class="d-inline-block">
-                      <label style="margin: 0 1% 0 .0rem;">Zoom </label>
+                    <div class="d-inline-flex flex-nowrap mx-2">
+                      <label class="d-inline pr-1">Zoom </label>
                       <div
                           class="btn-group"
                           data-toggle="buttons"
@@ -257,8 +251,8 @@
                         <input type="button" class="chart-zoom btn btn_sm day" value="Day" name="day">
                       </div>
                     </div>
-                    <div class="d-inline-block">
-                      <label style="margin: 0 1% 0 2%;">Group By </label>
+                    <div class="d-inline-flex flex-nowrap mx-2">
+                      <label class="d-inline pr-1">Group By </label>
                       <div
                           class="btn-group"
                           data-toggle="buttons"
@@ -268,20 +262,21 @@
                       >
                           <input type="button" class="chart-size btn btn_sm year" value="Year" name="year">
                           <input type="button" class="chart-size btn btn_sm month" value="Month" name="month">
-                          <input type="button" class="chart-size btn btn_sm week" value="Week" name="week">
-                          <input type="button" class="chart-size btn btn_sm day btn-active" value="Day" name="day">
+                          <input type="button" class="chart-size btn btn_sm week{{if ge .KnownTransactions 10000}} btn-active{{end}}" value="Week" name="week">
+                          <input type="button" class="chart-size btn btn_sm day{{if lt .KnownTransactions 10000}} btn-active{{end}}" value="Day" name="day">
                           <input type="button" class="chart-size btn btn_sm all" value="All Blocks" name="all">
                       </div>
                     </div>
                   </div>
-                  <div id="history-chart" style="width:100%; height:500px; margin-top:20 auto;"></div>
-                  <h5 id="no-bal" class="mt-2 bal-d" style="margin:7% auto 0 auto;">There are no confirmed transactions to display.</h5>
+                  <div data-target="address.chart" style="width:100%; height:500px; margin-top:20 auto;"></div>
+                  <h5 data-target="address.noconfirms" class="mt-2 bal-d" style="margin:7% auto 0 auto;">There are no confirmed transactions to display.</h5>
                 </div>
 
               </div> <!-- col -->
           </div> <!-- row -->
-          {{end}}
+          {{end}} {{/* if not .IsDummyAddress */}}
       </div> <!-- container main -->
+      {{end}} {{/* with .Data */}}
     {{ template "footer" . }}
 
 </body>

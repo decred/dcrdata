@@ -47,7 +47,7 @@ type explorerDataSourceLite interface {
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
-	GetExplorerAddress(address string, count, offset int64) (*AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
+	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
 	GetTip() (*WebBasicBlock, error)
 	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
@@ -83,7 +83,6 @@ type explorerDataSource interface {
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	BlockFlags(hash string) (bool, bool, error)
-	AddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)
 	Transaction(txHash string) ([]*dbtypes.Tx, error)

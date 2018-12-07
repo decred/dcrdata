@@ -1110,15 +1110,12 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		NetName    string
 		IsLiteMode bool
 		ChartData  *dbtypes.ChartsData
-		// Metrics        *dbtypes.AddressMetrics
 	}
 
-	// Get the address URL parameter, which should be set in the request context
-	// by the addressPathCtx middleware.
-	address, ok := r.Context().Value(ctxAddress).(string)
-	if !ok {
-		log.Trace("address not set")
-		exp.StatusPage(w, defaultErrorCode, "there seems to not be an address in this request", "", ExpStatusNotFound)
+	// Grab the URL query parameters
+	address, txnType, limitN, offsetAddrOuts, err := parseAddressParams(r)
+	if err != nil {
+		exp.StatusPage(w, defaultErrorCode, err.Error(), address, ExpStatusError)
 		return
 	}
 
@@ -1164,93 +1161,26 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pageKey, ok := r.Context().Value(ctxAddressPageKey).(string)
-	if !ok {
-		log.Errorf("pageKey not set")
-		http.NotFound(w, r)
-		return
-	}
-
-	// Number of outputs for the address to query the database for. The URL
-	// query parameter "n" is used to specify the limit (e.g. "?n=20").
-	limitN, err := strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
-	if err != nil || limitN < 0 {
-		limitN = defaultAddressRows
-	} else if limitN > MaxAddressRows {
-		log.Warnf("addressPage: requested up to %d address rows, "+
-			"limiting to %d", limitN, MaxAddressRows)
-		limitN = MaxAddressRows
-	}
-
-	// Number of outputs to skip (OFFSET in database query). For UX reasons, the
-	// "start" URL query parameter is used.
-	offsetAddrOuts, err := strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
-	if err != nil || offsetAddrOuts < 0 {
-		offsetAddrOuts = 0
-	}
-
-	// Transaction types to show.
-	txntype := r.URL.Query().Get("txntype")
-	if txntype == "" {
-		txntype = "all"
-	}
-	txnType := dbtypes.AddrTxnTypeFromStr(txntype)
-	if txnType == dbtypes.AddrTxnUnknown {
-		exp.StatusPage(w, defaultErrorCode, "unknown txntype query value", "", ExpStatusError)
-		return
-	}
-	log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
-
-	// var addrMetrics *dbtypes.AddressMetrics
-
 	// Retrieve address information from the DB and/or RPC.
-	var addrData *AddressInfo
+	var addrData *dbtypes.AddressInfo
 	if isZeroAddress {
 		// For the zero address (e.g. DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg), short-circuit any queries.
-		addrData = &AddressInfo{
+		addrData = &dbtypes.AddressInfo{
 			Address:         address,
 			Net:             addr.Net().Name,
 			IsDummyAddress:  true,
-			Balance:         new(AddressBalance),
-			UnconfirmedTxns: new(AddressTransactions),
+			Balance:         new(dbtypes.AddressBalance),
+			UnconfirmedTxns: new(dbtypes.AddressTransactions),
 			Fullmode:        true,
 		}
-	} else if exp.liteMode {
-		addrData, _, addrErr = exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
-		// The specific AddressError values from ValidateAddress were already
-		// handled, but there may be other errors from GetExplorerAddress (e.g.
-		// from searchrawtransactions).
-		if addrErr != txhelpers.AddressErrorNoError {
-			message := "Unknown error retrieving data for that address."
-			exp.StatusPage(w, defaultErrorCode, message, address, ExpStatusError)
-			return
-		}
-
-		if addrData == nil {
-			log.Errorf("Unable to get address %s", address)
-			exp.StatusPage(w, defaultErrorCode, "could not find that address",
-				"", ExpStatusNotFound)
-			return
-		}
-		addrData.TxnType = txnType.String()
 	} else {
-		// Get addresses table rows for the address.
-		addrData, err = exp.explorerSource.AddressData(address, limitN, offsetAddrOuts, txnType)
+		addrData, err = exp.AddressListData(address, txnType, limitN, offsetAddrOuts)
 		if exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
 			return
 		} else if err != nil {
-			log.Errorf("AddressData error encountered: %v", err)
-			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
+			exp.StatusPage(w, defaultErrorCode, err.Error(), address, ExpStatusError)
 			return
 		}
-		// These more specific errors were removed in the move to AddressData in explorerSource
-		// exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ExpStatusError)
-		// exp.StatusPage(w, defaultErrorCode,
-		// 	"That address has no history", ExpStatusNotFound)
-		// exp.StatusPage(w, defaultErrorCode,
-		// 	"transactions for that address not found", ExpStatusNotFound)
-		// exp.StatusPage(w, defaultErrorCode, "transactions for that address not found",
-		// 	ExpStatusNotFound)
 	}
 
 	// Set page parameters.
@@ -1263,9 +1193,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		Data:           addrData,
 		IsLiteMode:     exp.liteMode,
 		NetName:        exp.NetName,
-		// Metrics:        addrMetrics,
 	}
-	str, err := exp.templates.execTemplateToString(pageKey, pageData)
+	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -1276,6 +1205,121 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
+}
+
+// AddressTable is the page handler for the "/addresstable" path.
+func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
+
+	// Grab the URL query parameters
+	address, txnType, limitN, offsetAddrOuts, err := parseAddressParams(r)
+	if err != nil {
+		log.Errorf("AddressTable request error: %v", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	addrData, err := exp.AddressListData(address, txnType, limitN, offsetAddrOuts)
+	if err != nil {
+		log.Errorf("AddressListData error: %v", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("addresstable", struct {
+		Data *dbtypes.AddressInfo
+	}{
+		Data: addrData,
+	})
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+
+}
+
+// parseAddressParams is used by both /address and /addresstable.
+func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTxnType, limitN, offsetAddrOuts int64, err error) {
+	// Get the address URL parameter, which should be set in the request context
+	// by the addressPathCtx middleware.
+	var parseErr error
+
+	address, ok := r.Context().Value(ctxAddress).(string)
+	if !ok {
+		log.Trace("address not set")
+		err = fmt.Errorf("there seems to not be an address in this request")
+		return
+	}
+
+	// Number of outputs for the address to query the database for. The URL
+	// query parameter "n" is used to specify the limit (e.g. "?n=20").
+	limitN, parseErr = strconv.ParseInt(r.URL.Query().Get("n"), 10, 64)
+	if parseErr != nil || limitN < 0 {
+		limitN = defaultAddressRows
+	} else if limitN > MaxAddressRows {
+		log.Warnf("addressPage: requested up to %d address rows, "+
+			"limiting to %d", limitN, MaxAddressRows)
+		limitN = MaxAddressRows
+	}
+
+	// Number of outputs to skip (OFFSET in database query). For UX reasons, the
+	// "start" URL query parameter is used.
+	offsetAddrOuts, parseErr = strconv.ParseInt(r.URL.Query().Get("start"), 10, 64)
+	if parseErr != nil || offsetAddrOuts < 0 {
+		offsetAddrOuts = 0
+	}
+
+	// Transaction types to show.
+	txntype := r.URL.Query().Get("txntype")
+	if txntype == "" {
+		txntype = "all"
+	}
+	txnType = dbtypes.AddrTxnTypeFromStr(txntype)
+	if txnType == dbtypes.AddrTxnUnknown {
+		err = fmt.Errorf("unknown txntype query value")
+	}
+
+	// log.Debugf("Showing transaction types: %s (%d)", txntype, txnType)
+
+	return
+}
+
+// AddressListData grabs a size-limited and type-filtered set of inputs/outputs
+// for a given address.
+func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnType, limitN, offsetAddrOuts int64) (addrData *dbtypes.AddressInfo, err error) {
+	if exp.liteMode {
+		addrData, _, addrErr := exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		// The specific AddressError values from ValidateAddress were already
+		// handled, but there may be other errors from GetExplorerAddress (e.g.
+		// from searchrawtransactions).
+		if addrErr != txhelpers.AddressErrorNoError {
+			err = fmt.Errorf("Unknown error retrieving data for that address.")
+			return nil, err
+		}
+
+		if addrData == nil {
+			log.Errorf("Unable to get address %s", address)
+			err = fmt.Errorf("could not find that address")
+			return nil, err
+		}
+		addrData.TxnType = txnType.String()
+	} else {
+		// Get addresses table rows for the address.
+		addrData, err = exp.explorerSource.AddressData(address, limitN, offsetAddrOuts, txnType)
+		if dbtypes.IsTimeoutErr(err) { //exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
+			return nil, err
+		} else if err != nil {
+			log.Errorf("AddressData error encountered: %v", err)
+			err = fmt.Errorf(defaultErrorMessage)
+			return nil, err
+		}
+	}
+	return
 }
 
 // DecodeTxPage handles the "decode/broadcast transaction" page. The actual

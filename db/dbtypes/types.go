@@ -681,7 +681,7 @@ type SideChain struct {
 	Heights []int64
 }
 
-// AddressTx models data for transactions on the address page
+// AddressTx models data for transactions on the address page.
 type AddressTx struct {
 	TxID           string
 	TxType         string
@@ -725,7 +725,7 @@ type AddressTransactions struct {
 	TxnsSpending []*AddressTx
 }
 
-// AddressInfo models data for display on the address page
+// AddressInfo models data for display on the address page.
 type AddressInfo struct {
 	// Address is the decred address on the current page
 	Address string
@@ -859,7 +859,7 @@ func (a *AddressInfo) TxnCount() int64 {
 	}
 }
 
-// Post-process performs sorting and blockheight calculations.
+// Post-process performs time/vin/vout sorting and block height calculations.
 func (a *AddressInfo) PostProcess(tipHeight uint32) {
 	// Sort the transactions by date and vin/vout index
 	sort.Slice(a.Transactions, func(i, j int) bool {
@@ -869,8 +869,7 @@ func (a *AddressInfo) PostProcess(tipHeight uint32) {
 		return a.Transactions[i].Time.T.Unix() > a.Transactions[j].Time.T.Unix()
 	})
 
-	// Compute block height for each transaction. This must be done *after*
-	// sort.Slice of Transactions.
+	// Compute block height for each transaction.
 	for i := range a.Transactions {
 		tx := a.Transactions[i]
 		tx.BlockHeight = tipHeight - uint32(tx.Confirmations) + 1

@@ -211,16 +211,7 @@ type ChainDB struct {
 	InReorg            bool
 	tpUpdatePermission map[dbtypes.TimeBasedGrouping]*trylock.Mutex
 	utxoCache          utxoStore
-	// treasuryCache      TreasuryCache
 }
-
-// TreasureCache is used to manage a subset of commonly requested information
-// project fund
-// type TreasuryCache struct {
-// 	tipHash   string
-// 	listItems [1000]*AddressListItem
-// 	chartData *ChartData
-// }
 
 func (pgb *ChainDB) timeoutError() string {
 	return fmt.Sprintf("%s after %v", dbtypes.TimeoutPrefix, pgb.queryTimeout)
@@ -1355,8 +1346,7 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 	return addressRows, &balanceInfo, nil
 }
 
-// AddressData is returned comprehensive, paginated information for an address.
-// It implements a small cache for the treasury fund.
+// AddressData returns comprehensive, paginated information for an address.
 func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 	txnType dbtypes.AddrTxnType) (addrData *dbtypes.AddressInfo, err error) {
 

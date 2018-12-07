@@ -80,7 +80,7 @@ type DataSourceLite interface {
 	GetAddressTransactionsWithSkip(addr string, count, skip int) *apitypes.Address
 	GetAddressTransactionsRawWithSkip(addr string, count, skip int) []*apitypes.AddressTxRaw
 	SendRawTransaction(txhex string) (string, error)
-	GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
+	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
 	GetMempoolPriceCountTime() *apitypes.PriceCountTime
 }
 

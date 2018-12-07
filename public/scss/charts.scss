@@ -267,9 +267,9 @@
 .t-charts {
   width: 22%;
   max-width: 270px;
-  margin: 0 auto 0 auto;
   font-size: 14px;
   font-weight: bolder;
+  line-height: 1.5em;
 }
 
 .customcheck {
@@ -283,6 +283,7 @@
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  line-height: 1.5em;
 }
 
 .customcheck input {
@@ -293,7 +294,7 @@
 
 .checkmark {
   position: absolute;
-  top: 0;
+  top: 0.25em;
   left: 0;
   height: 15px;
   width: 15px;
