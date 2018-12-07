@@ -24,8 +24,8 @@ const (
 // versioning 2.0.0 spec (http://semver.org/).
 const (
 	AppName  string = "dcrdata"
-	AppMajor uint   = 3
-	AppMinor uint   = 2
+	AppMajor uint   = 4
+	AppMinor uint   = 0
 	AppPatch uint   = 0
 )
 
