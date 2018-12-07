@@ -1,4 +1,5 @@
 /* global Dygraph */
+/* global Turbolinks */
 /* global $ */
 
 import { Controller } from 'stimulus'
@@ -181,6 +182,7 @@ export default class extends Controller {
     if (this.chartsView !== undefined) {
       this.chartsView.destroy()
     }
+    selectedChart = null
   }
 
   drawInitialGraph () {
@@ -214,7 +216,7 @@ export default class extends Controller {
 
   plotGraph (chartName, data) {
     var d = []
-    window.history.pushState({}, chartName, `#${chartName}`)
+    Turbolinks.controller.replaceHistoryWithLocationAndRestorationIdentifier(Turbolinks.Location.wrap(`#${chartName}`), Turbolinks.uuid())
     var gOptions = {
       rollPeriod: 1
     }
