@@ -15,17 +15,11 @@ set -ex
 
 GOVERSION=${1:-1.11}
 REPO=dcrdata
-DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
+DOCKER_IMAGE_TAG=dcrdata-golang-builder-$GOVERSION
 
 testrepo () {
   TMPFILE=$(mktemp)
   export GO111MODULE=on
-
-  git clone --branch v1.12.3 https://github.com/golangci/golangci-lint ~/golangci-lint
-  pushd ~/golangci-lint/cmd/golangci-lint
-  go install
-  popd
-  #go get -u -v github.com/golangci/golangci-lint/cmd/golangci-lint
   
   golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
     --enable gosimple --enable unconvert --enable ineffassign --enable structcheck\
@@ -49,6 +43,19 @@ testrepo () {
   env GORACE='halt_on_error=1' go test -v -race ./...
   if [ $? != 0 ]; then
     echo 'go tests failed'
+    exit 1
+  fi
+
+  # webpack
+  npm install
+  if [ $? != 0 ]; then
+    echo 'npm install failed'
+    exit 1
+  fi
+
+  npm run build
+  if [ $? != 0 ]; then
+    echo 'npm packaging failed'
     exit 1
   fi
 
