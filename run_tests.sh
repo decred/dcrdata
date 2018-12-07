@@ -15,7 +15,7 @@ set -ex
 
 GOVERSION=${1:-1.11}
 REPO=dcrdata
-DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
+DOCKER_IMAGE_TAG=dcrdata-golang-builder-$GOVERSION
 
 testrepo () {
   TMPFILE=$(mktemp)
