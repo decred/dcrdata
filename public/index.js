@@ -28,19 +28,6 @@ $.ajaxSetup({
   cache: true
 })
 
-function updateConnectionStatus (msg, connected) {
-  var el = $('#connection')
-  el.removeClass('hidden')
-  if (connected) {
-    el.addClass('connected')
-    el.removeClass('disconnected')
-  } else {
-    el.removeClass('connected')
-    el.addClass('disconnected')
-  }
-  el.html(msg + '<div></div>')
-}
-
 function getSocketURI (loc) {
   var protocol = (loc.protocol === 'https:') ? 'wss' : 'ws'
   return protocol + '://' + loc.host + '/ws'
@@ -60,29 +47,9 @@ function formatTxDate (stamp, withTimezone) {
 
 async function createWebSocket (loc) {
   // wait a bit to prevent websocket churn from drive by page loads
-  $('#connection').removeClass('hidden')
   var uri = getSocketURI(loc)
   await sleep(3000)
   ws.connect(uri)
-
-  ws.registerEvtHandler('open', function () {
-    console.log('Connected')
-    updateConnectionStatus('Connected', true)
-  })
-
-  ws.registerEvtHandler('close', function () {
-    console.log('Disconnected')
-    updateConnectionStatus('Disconnected', false)
-  })
-
-  ws.registerEvtHandler('error', function (evt) {
-    console.log('WebSocket error:', evt)
-    updateConnectionStatus('Disconnected', false)
-  })
-
-  ws.registerEvtHandler('ping', function (evt) {
-    console.debug('ping. users online: ', evt)
-  })
 
   var updateBlockData = function (event) {
     console.log('Received newblock message', event)
@@ -339,16 +306,9 @@ createWebSocket(window.location)
 $('.scriptDataStar').on('click', function () {
   $(this).next('.scriptData').slideToggle()
 })
-$('#connection').on('click', function () {
-  if (Notify.needsPermission) {
-    Notify.requestPermission(onPermissionGranted, onPermissionDenied)
-  }
-})
+
 window.DCRThings.counter = $('[data-time-lastblocktime]')
 
-$('.scriptDataStar').on('click', function () {
-  $(this).next('.scriptData').slideToggle()
-})
 $('#connection').on('click', function () {
   if (Notify.needsPermission) {
     Notify.requestPermission(onPermissionGranted, onPermissionDenied)
