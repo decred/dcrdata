@@ -173,12 +173,8 @@ func _main(ctx context.Context) error {
 			QueryTimeout: cfg.PGQueryTimeout,
 		}
 
-		// Replace {netname} with curnet
-		const nettemplate = "{netname}"
-		if strings.Contains(dbi.DBName, nettemplate) {
-			networkname := strings.ToLower(curnet.String())
-			dbi.DBName = strings.Replace(dbi.DBName, nettemplate, networkname, -1)
-		}
+		// If using {netname} then replace it with netName(activeNet).
+		dbi.DBName = strings.Replace(dbi.DBName, "{netname}", netName(activeNet), -1)
 
 		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
 		if chainDB != nil {
