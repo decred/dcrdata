@@ -864,7 +864,7 @@ body.darkBG .keynav-target {
 
 @media only screen and (max-width: 576px)  {
   .home-link {
-    width: 35px;
+    width: 31px;
     overflow: hidden;
   }
   .xs-w91 {
