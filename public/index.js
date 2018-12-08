@@ -4,8 +4,7 @@ import 'regenerator-runtime/runtime'
 /* global Turbolinks */
 import ws from './js/services/messagesocket_service'
 import humanize from './js/helpers/humanize_helper'
-import Notify from 'notifyjs'
-
+import './js/services/desktop_notification_service'
 import { Application } from 'stimulus'
 import { definitionsFromContext } from 'stimulus/webpack-helpers'
 import { darkEnabled } from './js/services/theme_service'
@@ -61,9 +60,6 @@ async function createWebSocket (loc) {
     confirmAddrMempool(b)
 
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
-
-    // block summary data
-    desktopNotifyNewBlock(b)
 
     // Update the blocktime counter.
     window.DCRThings.counter.data('time-lastblocktime', b.unixStamp).removeClass('text-danger')
@@ -156,47 +152,6 @@ async function createWebSocket (loc) {
       handleMempoolUpdate(event)
     }
   })
-}
-
-// desktop notifications
-function onShowNotification () {
-  console.log('block ntfn shown')
-}
-function onCloseNotification () {
-  console.log('block ntfn closed')
-}
-function onClickNotification () {
-  console.log('block ntfn clicked')
-}
-function onErrorNotification () {
-  console.error('Error showing notification. You may need to request permission.')
-}
-function onPermissionGranted () {
-  console.log('Permission has been granted by the user')
-}
-function onPermissionDenied () {
-  console.warn('Permission has been denied by the user')
-}
-
-function doNotification (block) {
-  var newBlockNtfn = new Notify('New Decred Block Mined', {
-    body: 'Block mined at height ' + block.height,
-    tag: 'blockheight',
-    image: '/images/dcrdata144x128.png',
-    icon: '/images/dcrdata144x128.png',
-    notifyShow: onShowNotification,
-    notifyClose: onCloseNotification,
-    notifyClick: onClickNotification,
-    notifyError: onErrorNotification,
-    timeout: 10
-  })
-  newBlockNtfn.show()
-}
-
-function desktopNotifyNewBlock (block) {
-  if (!Notify.needsPermission) {
-    doNotification(block)
-  }
 }
 
 // Check for the txid in the given block
@@ -308,9 +263,3 @@ $('.scriptDataStar').on('click', function () {
 })
 
 window.DCRThings.counter = $('[data-time-lastblocktime]')
-
-$('#connection').on('click', function () {
-  if (Notify.needsPermission) {
-    Notify.requestPermission(onPermissionGranted, onPermissionDenied)
-  }
-})

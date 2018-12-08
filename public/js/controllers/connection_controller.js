@@ -1,5 +1,6 @@
 import { Controller } from 'stimulus'
 import ws from '../services/messagesocket_service'
+import Notify from 'notifyjs'
 
 export default class extends Controller {
   static get targets () {
@@ -39,4 +40,18 @@ export default class extends Controller {
     }
     this.indicatorTarget.innerHTML = msg + '<div></div>'
   }
+
+  requestNotifyPermission () {
+    if (Notify.needsPermission) {
+      Notify.requestPermission(onPermissionGranted, onPermissionDenied)
+    }
+  }
+}
+
+function onPermissionGranted () {
+  console.log('Permission has been granted by the user')
+}
+
+function onPermissionDenied () {
+  console.warn('Permission has been denied by the user')
 }
