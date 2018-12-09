@@ -116,7 +116,7 @@
                     <div width="45%" class="card">
                         <div class="card-header proof-of-stake">Tickets In Mempool</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data" id="bsubsidy_total">{{.TicketsInMempool}}</span>
+                            <span class="stat-data">{{.TicketsInMempool}}</span>
                             </br>
                             <span class="stat-details unit">Ticket{{if gt .TicketsInMempool 1}}s{{end}}</span>
                         </div>
@@ -124,7 +124,7 @@
                     <div width="45%" class="card">
                         <div class="card-header proof-of-stake">Votes In Mempool</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data" id="bsubsidy_total">{{.VotesInMempool}}</span>
+                            <span class="stat-data">{{.VotesInMempool}}</span>
                             </br>
                                 <span class="stat-details unit">Vote{{if gt .VotesInMempool 1}}s{{end}}</span>
                         </div>
@@ -132,7 +132,7 @@
                     <div width="45%" class="card">
                         <div class="card-header proof-of-stake">Ticket Price</div>
                         <div class="card-body card-body-padding-top">
-                            <span  class="stat-data" id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts .TicketPrice 8 false)}}</span>
+                            <span  class="stat-data">{{template "decimalParts" (float64AsDecimalParts .TicketPrice 8 false)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                         </div>
@@ -177,7 +177,7 @@
                     <div width="45%" class="card">
                         <div class="card-header proof-of-stake">Ticket Rewards</div>
                         <div class="card-body card-body-padding-top">
-                            <span  class="stat-data" id="bsubsidy_total"
+                            <span  class="stat-data"
                                    data-toggle="tooltip"
                                    title="Price based on continous re-staking and variable ticket price.">
                                     +{{printf "%.2f" .TicketsROI}}%
@@ -197,7 +197,7 @@
                     <div width="45%" class="card">
                         <div class="card-header proof-of-stake">Ticket Pool Size</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data" id="bsubsidy_total">{{intComma .TicketPoolSize}}</span>
+                            <span class="stat-data">{{intComma .TicketPoolSize}}</span>
                             </br>
                             {{if ge .TicketPoolSizePerToTarget 100.0}}
                             <span class="stat-details">+{{printf "%.2f" (floatsubtract .TicketPoolSizePerToTarget 100.0)}}% above target 40,960</span>
@@ -209,7 +209,7 @@
                     <div width="45%" class="card">
                         <div class="card-header proof-of-stake">Ticket Pool Value</div>
                         <div class="card-body card-body-padding-top">
-                            <span class="stat-data no-decimal" id="bsubsidy_total">{{template "decimalParts" (float64AsDecimalParts  .TicketPoolValue 8 true)}}</span>
+                            <span class="stat-data no-decimal">{{template "decimalParts" (float64AsDecimalParts  .TicketPoolValue 8 true)}}</span>
                             </br>
                             <span class="stat-details unit">DCR</span>
                             </br>
@@ -221,14 +221,6 @@
         </div>
         {{end}}
         {{template "footer" . }}
-
-        <script>
-          // enable tool tips
-          $(document).ready(function(){
-              $('[data-toggle="tooltip"]').tooltip();
-          });
-
-        </script>
     </body>
 </html>
 {{end}}
