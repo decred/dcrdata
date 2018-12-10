@@ -129,8 +129,11 @@
             <li class="text-right connection-wrapper">
                 <span
                     id="connection"
-                    class="nav-item align-items-center"
+                    class="nav-item align-items-center clickable"
                     data-turbolinks-permanent
+                    data-controller="connection"
+                    data-target="connection.indicator"
+                    data-action="click->connection#requestNotifyPermission"
                     title="While connected, you will receive live page updates and, if enabled, desktop notifications (click to enable)."
                     ><span>Connecting <span class="d-none d-md-inline-block">to WebSocket...</span></span><div></div>
                 </span>
