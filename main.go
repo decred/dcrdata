@@ -172,6 +172,10 @@ func _main(ctx context.Context) error {
 			DBName:       cfg.PGDBName,
 			QueryTimeout: cfg.PGQueryTimeout,
 		}
+
+		// If using {netname} then replace it with netName(activeNet).
+		dbi.DBName = strings.Replace(dbi.DBName, "{netname}", netName(activeNet), -1)
+
 		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
 		if chainDB != nil {
 			defer chainDB.Close()
