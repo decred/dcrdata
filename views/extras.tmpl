@@ -29,7 +29,10 @@
 {{end}}
 
 {{define "navbar"}}
-<header class="top-nav">
+<header class="top-nav"
+        id="navBar"
+        data-blocktime="{{.BlockTimeUnix}}"
+        data-poolsize="{{.ChainParams.TicketPoolSize}}">
     <div class="container">
         <div class="d-flex align-items-center flex-wrap">
             <div class="d-flex align-items-center">
@@ -89,11 +92,6 @@
             </nav>
         </div>
     </div>
-    <script data-turbolinks-eval="false">
-        var DCRThings = {};
-        DCRThings.targetBlockTime = {{$.BlockTimeUnix}};
-        DCRThings.ticketPoolSize = {{$.ChainParams.TicketPoolSize}};
-    </script>
 </header>
 <div id="watermark">HODL<br>HODL<br>HODL</div>
 {{end}}

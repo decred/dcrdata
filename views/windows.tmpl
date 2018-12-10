@@ -3,9 +3,9 @@
 <html lang="en">
 
 {{template "html-head" "Decred Windows List"}}
-<body class="{{ theme }}">
+<body class="{{ theme }}" data-controller="ticketwindow">
     {{template "navbar" . }}
-    <div class="container main" data-controller="time">
+    <div class="container main">
         <h4>Ticket Price Windows</h4><h6>The ticket price and mining difficulty are adjusted every {{$.WindowSize}} blocks on {{toLowerCase .NetName}} (~12 hours).</h6>
 
         {{block "windowsPagination" .}}
@@ -19,10 +19,13 @@
                 {{template "listViewRouting" "windows"}}
 
                 <span class="fs12 nowrap text-right">
-                    <label class="mb-0 mr-1" for="windows-pagesize">Page Size</label>
+                    <label class="mb-0 mr-1" for="windowsPagesize">Page Size</label>
                     <select
                         name="windows-pagesize"
-                        id="windows-pagesize"
+                        data-target="ticketwindow.pagesize"
+                        data-action="change->ticketwindow#setPageSize"
+                        data-offset="{{$.OffsetWindow}}"
+                        id="windowsPagesize"
                         class="form-control-sm mb-2 mr-sm-2 mb-sm-0 {{if lt $pendingWindows 20}}disabled{{end}}"
                         {{if lt $pendingWindows 20}}disabled="disabled"{{end}}
                     >
@@ -112,7 +115,7 @@
                             <td>{{.FormattedSize}}</td>
                             <td class="text-right">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
                             <td class="text-right">{{printf "%.2f" (toFloat64Amount .TicketPrice)}}</td>
-                            <td class="text-right jsonly" data-target="time.age" data-age="{{.StartTime}}"></td>
+                            <td class="text-right jsonly" data-controller="time" data-target="time.age" data-age="{{.StartTime}}"></td>
                             <td>{{.StartTime}}</td>
                         </tr>
                     {{end}}
@@ -128,22 +131,6 @@
     </div>
 
 {{ template "footer" . }}
-
-<script>
-    $("#windows-pagesize").change(function(ev) {
-        var pagesize = "20"
-        var offset = {{$.OffsetWindow}}
-        if (ev.currentTarget.id.indexOf("windows-pagesize") != -1){
-            pagesize = $("#windows-pagesize option:selected").val()
-        }
-
-        Turbolinks.visit(
-            window.location.pathname
-            + "?offset="+ offset
-            + "&rows=" + pagesize
-        )
-    })
-</script>
 
 </body>
 </html>
