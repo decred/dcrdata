@@ -6,7 +6,7 @@ package main
 import (
 	"sync"
 
-	apitypes "github.com/decred/dcrdata/v3/api/types"
+	apitypes "github.com/decred/dcrdata/v4/api/types"
 )
 
 // WebSocketMessage represents the JSON object used to send and received typed

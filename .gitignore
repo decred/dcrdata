@@ -38,6 +38,7 @@ dcrdata-testdata-gitlfs
 dcrdata-testdata
 .vendor-new
 v3
+v4
 tmp/runner-build
 node_modules/
 package-lock.json

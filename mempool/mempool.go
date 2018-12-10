@@ -21,7 +21,7 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
-	apitypes "github.com/decred/dcrdata/v3/api/types"
+	apitypes "github.com/decred/dcrdata/v4/api/types"
 )
 
 // NewTx models data for a new transaction

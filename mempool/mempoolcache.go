@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/dcrjson"
-	apitypes "github.com/decred/dcrdata/v3/api/types"
-	"github.com/decred/dcrdata/v3/db/dbtypes"
+	apitypes "github.com/decred/dcrdata/v4/api/types"
+	"github.com/decred/dcrdata/v4/db/dbtypes"
 )
 
 // MempoolDataCache models the basic data for the mempool cache
