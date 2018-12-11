@@ -167,11 +167,10 @@ export default class extends Controller {
   }
 
   connect () {
-    let _this = this
-    $.getScript('/js/vendor/dygraphs.min.js', function () {
-      _this.drawInitialGraph()
-      $(document).on('nightMode', this, function (event, params) {
-        event.data.chartsView.updateOptions(
+    $.getScript('/js/vendor/dygraphs.min.js', () => {
+      this.drawInitialGraph()
+      $(document).on('nightMode', (event, params) => {
+        this.chartsView.updateOptions(
           nightModeOptions(params.nightMode)
         )
       })
