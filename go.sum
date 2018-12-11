@@ -120,8 +120,8 @@ github.com/decred/dcrwallet/wallet v1.1.0 h1:bIqKgr/fWK7Sm4n7mh72RsK/vYaZ+Lxect4
 github.com/decred/dcrwallet/wallet v1.1.0/go.mod h1:g4OzDG7jpsRqTDP3bHiA0LIEZFx81accYPCkO1DBNT8=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
 github.com/decred/slog v1.0.0/go.mod h1:zR98rEZHSnbZ4WHZtO0iqmSZjDLKhkXfrPTZQKtAonQ=
-github.com/dgraph-io/badger v1.5.4 h1:gVTrpUTbbr/T24uvoCaqY2KSHfNLVGm0w+hbee2HMeg=
-github.com/dgraph-io/badger v1.5.4/go.mod h1:VZxzAIRPHRVNRKRo6AXrX9BJegn6il06VMTZVJYCIjQ=
+github.com/dgraph-io/badger v1.5.5-0.20181020042726-fbb27786246d h1:YFCfYk8kMkRVyXE/Dldb2utAE/A33Co6aKN7Mwlqig8=
+github.com/dgraph-io/badger v1.5.5-0.20181020042726-fbb27786246d/go.mod h1:VZxzAIRPHRVNRKRo6AXrX9BJegn6il06VMTZVJYCIjQ=
 github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102 h1:afESQBXJEnj3fu+34X//E8Wg3nEbMJxJkwSc0tPePK0=
 github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
 github.com/didip/tollbooth v4.0.0+incompatible h1:ayQZYuF5QOxx3NdYRNuRVFLv9/2b64JtSUlewb+0TMo=
