@@ -192,15 +192,13 @@ func (u *utxoStore) Size() (sz int) {
 // ChainDB provides an interface for storing and manipulating extracted
 // blockchain data in a PostgreSQL database.
 type ChainDB struct {
-	sync.RWMutex
 	ctx                context.Context
 	queryTimeout       time.Duration
 	db                 *sql.DB
 	chainParams        *chaincfg.Params
 	devAddress         string
 	dupChecks          bool
-	bestBlock          int64
-	bestBlockHash      string
+	bestBlock          *BestBlock
 	lastBlock          map[chainhash.Hash]uint64
 	addressCounts      *addressCounter
 	stakeDB            *stakedb.StakeDatabase
@@ -211,6 +209,13 @@ type ChainDB struct {
 	InReorg            bool
 	tpUpdatePermission map[dbtypes.TimeBasedGrouping]*trylock.Mutex
 	utxoCache          utxoStore
+}
+
+// BestBlock is mutex-protected block hash and height.
+type BestBlock struct {
+	sync.RWMutex
+	height int64
+	hash   string
 }
 
 func (pgb *ChainDB) timeoutError() string {
@@ -492,6 +497,11 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 
 	log.Infof("Setting PostgreSQL DB statement timeout to %v.", queryTimeout)
 
+	bestBlock := &BestBlock{
+		height: int64(bestHeight),
+		hash:   bestHash,
+	}
+
 	return &ChainDB{
 		ctx:                ctx,
 		queryTimeout:       queryTimeout,
@@ -499,8 +509,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		chainParams:        params,
 		devAddress:         devSubsidyAddress,
 		dupChecks:          true,
-		bestBlock:          int64(bestHeight),
-		bestBlockHash:      bestHash,
+		bestBlock:          bestBlock,
 		lastBlock:          make(map[chainhash.Hash]uint64),
 		addressCounts:      makeAddressCounter(),
 		stakeDB:            stakeDB,
@@ -711,23 +720,23 @@ func (pgb *ChainDB) HeightHashDB() (uint64, string, error) {
 }
 
 // Height uses the last stored height.
-func (pgb *ChainDB) Height() uint64 {
-	pgb.RLock()
-	defer pgb.RUnlock()
-	return uint64(pgb.bestBlock)
+func (block *BestBlock) Height() uint64 {
+	block.RLock()
+	defer block.RUnlock()
+	return uint64(block.height)
 }
 
 // HashStr uses the last stored block hash.
-func (pgb *ChainDB) HashStr() string {
-	pgb.RLock()
-	defer pgb.RUnlock()
-	return pgb.bestBlockHash
+func (block *BestBlock) HashStr() string {
+	block.RLock()
+	defer block.RUnlock()
+	return block.hash
 }
 
 // Hash uses the last stored block hash.
-func (pgb *ChainDB) Hash() *chainhash.Hash {
+func (block *BestBlock) Hash() *chainhash.Hash {
 	// Caller should check hash instead of error
-	hash, _ := chainhash.NewHashFromStr(pgb.bestBlockHash)
+	hash, _ := chainhash.NewHashFromStr(block.HashStr())
 	return hash
 }
 
@@ -997,7 +1006,7 @@ func (pgb *ChainDB) TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping,
 func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData,
 	*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error) {
 	// Attempt to retrieve data for the current block from cache.
-	heightSeen := pgb.Height() // current block seen *by the ChainDB*
+	heightSeen := pgb.bestBlock.Height() // current block seen *by the ChainDB*
 	timeChart, priceChart, donutCharts, height, intervalFound, stale := TicketPoolData(interval, heightSeen)
 	if intervalFound && !stale {
 		// The cache was fresh.
@@ -1015,7 +1024,7 @@ func (pgb *ChainDB) TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 			pgb.tpUpdatePermission[interval].Lock()
 			defer pgb.tpUpdatePermission[interval].Unlock()
 			// Try again to pull it from cache now that the update is completed.
-			heightSeen = pgb.Height()
+			heightSeen = pgb.bestBlock.Height()
 			timeChart, priceChart, donutCharts, height, intervalFound, stale = TicketPoolData(interval, heightSeen)
 			// We waited for the updater of this interval, so it should be found
 			// at this point. If not, this is an error.
@@ -1057,7 +1066,7 @@ func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 	priceChart *dbtypes.PoolTicketsData, byInputs *dbtypes.PoolTicketsData, height uint64, err error) {
 	// Ensure DB height is the same before and after queries since they are not
 	// atomic. Initial height:
-	height = pgb.Height()
+	height = pgb.bestBlock.Height()
 	for {
 		// Latest block where mature tickets may have been mined.
 		maturityBlock := pgb.TicketPoolBlockMaturity()
@@ -1080,7 +1089,7 @@ func (pgb *ChainDB) ticketPoolVisualization(interval dbtypes.TimeBasedGrouping) 
 			return nil, nil, nil, 0, err
 		}
 
-		heightEnd := pgb.Height()
+		heightEnd := pgb.bestBlock.Height()
 		if heightEnd == height {
 			break
 		}
@@ -1116,14 +1125,14 @@ func (pgb *ChainDB) retrieveDevBalance() (*DevFundBalance, error) {
 // project fund balance if devPrefetch is enabled and not mid-reorg.
 func (pgb *ChainDB) FreshenAddressCaches(lazyProjectFund bool) error {
 	pgb.addressCounts.Lock()
-	pgb.addressCounts.validHeight = pgb.bestBlock
+	pgb.addressCounts.validHeight = int64(pgb.bestBlock.Height())
 	pgb.addressCounts.balance = map[string]dbtypes.AddressBalance{}
 	pgb.addressCounts.Unlock()
 
 	// Lazy update of DevFundBalance
 	if pgb.devPrefetch && !pgb.InReorg {
 		updateBalance := func() error {
-			log.Infof("Pre-fetching project fund balance at height %d...", pgb.bestBlock)
+			log.Infof("Pre-fetching project fund balance at height %d...", pgb.bestBlock.Height())
 			if _, err := pgb.UpdateDevBalance(); err != nil {
 				err = pgb.replaceCancelError(err)
 				return fmt.Errorf("Failed to update project fund balance: %v", err)
@@ -1537,7 +1546,9 @@ SPENDING_TX_DUPLICATE_CHECK:
 	addrData.Balance.NumUnspent += (numReceived - numSent)
 	addrData.Balance.TotalSpent += sent
 	addrData.Balance.TotalUnspent += (received - sent)
-	addrData.PostProcess(uint32(db.Height()))
+
+	// sort by date and calculate block height.
+	addrData.PostProcess(uint32(db.bestBlock.Height()))
 
 	return
 }
@@ -1585,7 +1596,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 		txn.Total = dcrutil.Amount(dbTx.Sent).ToCoin()
 		txn.Time = dbTx.BlockTime
 		if txn.Time.T.Unix() > 0 {
-			txn.Confirmations = pgb.Height() - uint64(dbTx.BlockHeight) + 1
+			txn.Confirmations = pgb.bestBlock.Height() - uint64(dbTx.BlockHeight) + 1
 		} else {
 			numUnconfirmed++
 			txn.Confirmations = 0
@@ -2061,7 +2072,7 @@ func (pgb *ChainDB) VoutsForTx(dbTx *dbtypes.Tx) ([]dbtypes.Vout, error) {
 }
 
 func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
-	tipHash := pgb.bestBlockHash
+	tipHash := pgb.bestBlock.HashStr()
 	var blocksMoved, txnsUpdated, vinsUpdated, votesUpdated, ticketsUpdated, addrsUpdated int64
 	for tipHash != mainRoot {
 		// 1. Block. Set is_mainchain=false on the tip block, return hash of
@@ -2134,13 +2145,13 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 		// move on to next block
 		tipHash = previousHash
 
-		pgb.Lock()
-		pgb.bestBlock, err = pgb.BlockHeight(tipHash)
+		pgb.bestBlock.Lock()
+		pgb.bestBlock.height, err = pgb.BlockHeight(tipHash)
 		if err != nil {
 			log.Errorf("Failed to retrieve block height for %s", tipHash)
 		}
-		pgb.bestBlockHash = tipHash
-		pgb.Unlock()
+		pgb.bestBlock.hash = tipHash
+		pgb.bestBlock.Unlock()
 	}
 
 	log.Debugf("Reorg orphaned: %d blocks, %d txns, %d vins, %d addresses, %d votes, %d tickets",
@@ -2249,10 +2260,10 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 
 	if isMainchain {
 		// Update best block height and hash.
-		pgb.Lock()
-		pgb.bestBlock = int64(dbBlock.Height)
-		pgb.bestBlockHash = dbBlock.Hash
-		pgb.Unlock()
+		pgb.bestBlock.Lock()
+		pgb.bestBlock.height = int64(dbBlock.Height)
+		pgb.bestBlock.hash = dbBlock.Hash
+		pgb.bestBlock.Unlock()
 	}
 
 	// Insert the block in the block_chain table with the previous block hash

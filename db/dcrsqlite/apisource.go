@@ -1470,6 +1470,8 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 		KnownFundingTxns:  numReceiving,
 		KnownSpendingTxns: numSpending,
 	}
+
+	// sort by date and calculate block height.
 	addrData.PostProcess(uint32(db.GetHeight()))
 
 	return addrData, addrType, nil

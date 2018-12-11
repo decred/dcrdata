@@ -167,7 +167,7 @@ export default class extends Controller {
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons']
   }
 
-  initialize () {
+  connect () {
     var ctrl = this
     ctrl.retrievedData = {}
     ctrl.ajaxing = false
@@ -225,10 +225,7 @@ export default class extends Controller {
     } else {
       initializeChart()
     }
-  }
-
-  connect () {
-    setTimeout(this.updateView, 0)
+    setTimeout(ctrl.updateView, 0)
   }
 
   disconnect () {

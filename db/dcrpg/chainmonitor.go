@@ -60,7 +60,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 	// newChain does not include the common ancestor.
 	commonAncestorHeight := int64(reorgData.NewChainHeight) - int64(len(newChain))
 
-	mainTip := int64(p.db.Height())
+	mainTip := int64(p.db.bestBlock.Height())
 	if mainTip != int64(reorgData.OldChainHeight) {
 		log.Warnf("StakeDatabase height is %d, expected %d. Rewinding as "+
 			"needed to complete reorg from ancestor at %d", mainTip,
@@ -79,7 +79,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 		numBlocksmoved, time.Since(startTime))
 
 	// Verify the tip is now the previous common ancestor
-	mainTip = int64(p.db.Height())
+	mainTip = int64(p.db.bestBlock.Height())
 	if mainTip != commonAncestorHeight {
 		panic(fmt.Sprintf("disconnect blocks failed: tip height %d, expected %d",
 			mainTip, commonAncestorHeight))
@@ -131,7 +131,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 		_, _, _, err = p.db.StoreBlock(msgBlock, winners, isValid, isMainChain,
 			updateExisting, true, true, chainWork)
 		if err != nil {
-			return int32(p.db.Height()), p.db.Hash(),
+			return int32(p.db.bestBlock.Height()), p.db.bestBlock.Hash(),
 				fmt.Errorf("error connecting block %v", newChain[i])
 		}
 
@@ -146,7 +146,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 	log.Infof("Moved %d blocks from a side chain to the main chain in %v.",
 		numBlocksmoved, time.Since(startTime))
 
-	mainTip = int64(p.db.Height())
+	mainTip = int64(p.db.bestBlock.Height())
 	if mainTip != int64(endHeight) {
 		panic(fmt.Sprintf("connected block height %d not db tip height %d",
 			endHeight, mainTip))
