@@ -187,6 +187,7 @@ export default class extends Controller {
 
   drawInitialGraph () {
     var options = {
+      labels: ['Date', 'Ticket Price'],
       digitsAfterDecimal: 8,
       showRangeSelector: true,
       rangeSelectorPlotFillColor: '#8997A5',
@@ -223,7 +224,7 @@ export default class extends Controller {
     switch (chartName) {
       case 'ticket-price': // price graph
         d = ticketsFunc(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Price'], true, 'Price (Decred)', 'Date', undefined, false, false))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Ticket Price'], true, 'Price (DCR)', 'Date', undefined, false, false))
         break
 
       case 'ticket-pool-size': // pool size graph
@@ -267,7 +268,7 @@ export default class extends Controller {
 
       case 'coin-supply': // supply graph
         d = supplyFunc(data)
-        assign(gOptions, mapDygraphOptions(d, ['Date', 'Coin Supply'], true, 'Coin Supply', 'Date', undefined, true, false))
+        assign(gOptions, mapDygraphOptions(d, ['Date', 'Coin Supply'], true, 'Coin Supply (DCR)', 'Date', undefined, true, false))
         break
 
       case 'fee-per-block': // block fee graph
@@ -278,7 +279,7 @@ export default class extends Controller {
 
       case 'duration-btw-blocks': // Duration between blocks graph
         d = timeBtwBlocksFunc(data)
-        assign(gOptions, mapDygraphOptions(d, ['Block Height', 'Duration Between Block'], false, 'Duration Between Block (Seconds)', 'Block Height',
+        assign(gOptions, mapDygraphOptions(d, ['Block Height', 'Duration Between Block'], false, 'Duration Between Block (seconds)', 'Block Height',
           undefined, false, false))
         break
 
