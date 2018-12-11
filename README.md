@@ -5,28 +5,30 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/decred/dcrdata)](https://goreportcard.com/report/github.com/decred/dcrdata)
 [![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
 
-The dcrdata repository is a collection of Go packages and apps for
-[Decred](https://www.decred.org/) data collection, storage, and presentation.
+dcrdata is an original [Decred's](https://www.decred.org/) block explorer, with
+packages and apps for data collection, presentation, and storage. The backend
+and middleware are written in Go. On the front end, Webpack enables the use of
+modern javascript features, as well as SCSS for styling.
 
 - [dcrdata](#dcrdata)
   - [Repository Overview](#repository-overview)
   - [Requirements](#requirements)
   - [Docker Support](#docker-support)
-    - [Building the Image](#building-the-image)
-    - [Building dcrdata with Docker](#building-dcrdata-with-docker)
-    - [Developing dcrdata Using a Container](#developing-dcrdata-using-a-container)
-    - [Container Production Usage](#container-production-usage)
-  - [Installation](#installation)
-    - [Building with Go 1.11](#building-with-go-111)
-    - [Building with Go 1.10](#building-with-go-110)
+  - [Building](#building)
+    - [Preparation](#preparation)
+    - [Package the Static Web Assets](#package-the-static-web-assets)
+    - [Building dcrdata with Go 1.11](#building-dcrdata-with-go-111)
+    - [Building dcrdata with Go 1.10](#building-dcrdata-with-go-110)
     - [Setting build version flags](#setting-build-version-flags)
     - [Runtime Resources](#runtime-resources)
   - [Updating](#updating)
   - [Upgrading Instructions](#upgrading-instructions)
+    - [From v3.x or later](#from-v3x-or-later)
+    - [From v2.x or earlier](#from-v2x-or-earlier)
   - [Getting Started](#getting-started)
-    - [Configuring PostgreSQL (IMPORTANT)](#configuring-postgresql-important)
-    - [Creating the Configuration File](#creating-the-configuration-file)
-    - [Using Configuration Environment Variables](#using-configuration-environment-variables)
+    - [Configuring PostgreSQL (**IMPORTANT!** Seriously, read this.)](#configuring-postgresql-important-seriously-read-this)
+    - [Creating the dcrdata Configuration File](#creating-the-dcrdata-configuration-file)
+    - [Using Environment Variables for Configuration](#using-environment-variables-for-configuration)
     - [Indexing the Blockchain](#indexing-the-blockchain)
     - [Starting dcrdata](#starting-dcrdata)
     - [Running the Web Interface During Synchronization](#running-the-web-interface-during-synchronization)
@@ -45,6 +47,10 @@ The dcrdata repository is a collection of Go packages and apps for
     - [rebuilddb2](#rebuilddb2)
     - [scanblocks](#scanblocks)
   - [Front End Development](#front-end-development)
+    - [CSS Guidelines](#css-guidelines)
+    - [HTML](#html)
+    - [Javascript](#javascript)
+    - [Web Performance](#web-performance)
   - [Helper Packages](#helper-packages)
   - [Internal-use Packages](#internal-use-packages)
   - [Plans](#plans)
@@ -92,130 +98,39 @@ The dcrdata repository is a collection of Go packages and apps for
 
 ## Requirements
 
-- [Go](http://golang.org) 1.10.x or 1.11.x.
-- Running `dcrd` (>=1.3.0) synchronized to the current best block on the
-  network. This is a strict requirement as testnet2 support is removed from
-  dcrdata v3.0.0.
-- (Optional) PostgreSQL 9.6+, if running in "full" mode. v10.x is recommended
-  for improved dump/restore formats and utilities.
+- [Go](http://golang.org) 1.11.x. Instructions are also provided for 1.10, but
+  only Go 1.11 is officially supported.
+- [Node.js](https://nodejs.org/en/download/) 10.x or 11.x. Node.js is only used
+  as a build tool, and is **not used at runtime**.
+- Running `dcrd` synchronized to the current best block on the network. On
+  startup, dcrdata will verify that the dcrd version is compatible.
+  Compatibility depends on the version of dcrdata:
+  - For dcrdata v3.0.x, use dcrd v1.3.0. Earlier dcrd versions should not be
+    used since testnet2 support was removed from dcrdata v3.0.0. Further, dcrd
+    v1.4.0 has incompatible RPC reorg event notifications.
+  - For dcrdata v3.1.x or later (including master), use dcrd v1.4.x or build
+    from master.
+- (For "full" mode) PostgreSQL 10.5+. Version 11.x is supported and recommended
+  for improved performance with a number of tasks.
 
 ## Docker Support
 
-The inclusion of a Dockerfile in this repository means you can use Docker for
-dcrdata development or in production. However, official images are not presently
-published to docker hub.
+Dockerfiles are provided for convenience, but not actively supported. See [the
+Docker documentation](docs/docker.md) for more information. The supported build
+instructions are described below.
 
-When developing you can utilize containers for easily swapping out Go versions
-and overall project setup. You don't even need go installed on your system if
-using containers during development.
+## Building
 
-Once [Docker](https://docs.docker.com/install/) is installed, you can then
-download this repository and follow the build instructions below.
+The dcrdata build process comprises two general steps:
 
-### Building the Image
+1. Bundle the static web page assets with Webpack (via the `npm` tool).
+2. Build the `dcrdata` executable from the Go source files.
 
-To use a dcrdata container you need to build an image as follows:
+These steps are described in detail in the following sections.
 
-`docker build --squash -t decred/dcrdata:dev-alpine .`
+NOTE: The following instructions assume a Unix-like shell (e.g. bash).
 
-Note: The `--squash` flag is an [experimental
-feature](https://docs.docker.com/engine/reference/commandline/image_build/) as
-of Docker 18.06. Experimental features must be enabled to use the setting. On
-Windows and OS/X, look under the "Daemon" settings tab. On Linux, [enable the
-setting manually](https://github.com/docker/cli/blob/master/experimental/README.md).
-
-By default, docker will build the container based on the Dockerfile found in the
-root of the repository that is based on Alpine Linux. To use an Ubuntu-based
-container, you should build from the Ubuntu-based Dockerfile:
-
-`docker build --squash -f dockerfiles/Dockerfile_stretch -t decred/dcrdata:dev-stretch .`
-
-Part of the build process is to copy all the source code over to the image,
-download all dependencies, and build dcrdata. If you run into build errors with
-docker try adding the `--no-cache` flag to trigger a rebuild of all the layers
-since docker does not rebuild cached layers.
-
-`docker build --no-cache --squash -t decred/dcrdata:dev-alpine .`
-
-### Building dcrdata with Docker
-
-In addition to running dcrdata in a container, you can also build dcrdata inside
-a container and copy the executable to another system. To do this, you must have
-the dcrdata Docker image or [build it from source](#building-the-image).
-
-The default container image is based on amd64 Alpine Linux. To create a binary
-targeting different operating systems or architectures, it is necessary to [set
-the `GOOS` and `GOARCH` environment variables](https://golang.org/doc/install/source#environment).
-
-From the repository source folder, do the following to build the Docker image,
-and compile dcrdata into your current directory:
-
-- `docker build --squash -t decred/dcrdata:dev-alpine .` [Only build the container image if necessary](#building-the-image)
-- `docker run --entrypoint="" -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine go build`
-
-This mounts your current working directory in the host machine on a volume
-inside the container so that the build output will be on the host file system.
-
-Build for other platforms as follows:
-
-`docker run -e GOOS=darwin -e GOARCH=amd64 --entrypoint="" -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine go build`
-
-`docker run -e GOOS=windows -e GOARCH=amd64 --entrypoint="" -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine go build`
-
-### Developing dcrdata Using a Container
-
-Containers are a great way to develop any source code as they serve as a
-disposable runtime environment built specifically to the specifications of the
-application. Suggestions for developing in a container:
-
-1. Don't write code inside the container.
-2. Attach a volume and write code from your editor on your docker host.
-3. Attached volumes on a Mac are generally slower than Linux/Windows.
-4. Install everything in the container, don't muck up your Docker host.
-5. Resist the urge to run git commands from the container.
-6. You can swap out the Go version just by using a different docker image.
-
-To make the source code from the host available inside the container, attach a
-volume to the container when launching the image:
-
-`docker run -ti --entrypoint="" -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine /bin/bash`
-
-_Note_: Changing `entrypoint` allows you to run commands in the container since
-the default container command runs dcrdata. We also added /bin/bash at the
-end so the container executes this by default.
-
-You can now run `go build` or `go test` inside the container. If you run `go fmt`
-you should notice that any formatting changes will also be reflected on the
-docker host as well.
-
-To run dcrdata in the container, it may be convenient to use [environment
-variables](#using-configuration-environment-variables) to configure dcrdata. The
-variables may be set inside the container or on the [command
-line](https://docs.docker.com/engine/reference/run/#env-environment-variables).
-For example,
-
-`docker run -ti --entrypoint=/bin/bash -e DCRDATA_LISTEN_URL=0.0.0.0:2222 -v ${PWD}:/home/decred/go/src/github.com/decred/dcrdata --rm decred/dcrdata:dev-alpine`
-
-### Container Production Usage
-
-We don't yet have a build system in place for creating production grade images
-of dcrdata. However, you can still use the images for testing.
-
-In addition to configuring dcrdata, it is also necessary to map the TCP port on
-which dcrdata listens for connections with the `-p` switch. For example,
-
-`docker run -ti -p 2222:2222 -e DCRDATA_LISTEN_URL=0.0.0.0:2222 --rm decred/dcrdata:dev-alpine`
-
-Please keep in mind these images have not been hardened so this is not
-recommended for production.
-
-Note: The TLS certificate for dcrd's RPC server may be needed in the container.
-Either build a new container image with the certificate, or attach a volume
-containing the certificate to the container.
-
-## Installation
-
-The following instructions assume a Unix-like shell (e.g. bash).
+### Preparation
 
 - [Install Go](http://golang.org/doc/install)
 
@@ -228,13 +143,48 @@ The following instructions assume a Unix-like shell (e.g. bash).
 - Clone the dcrdata repository. It is conventional to put it under `GOPATH`, but
   this is no longer necessary with go module.
 
-      git clone https://github.com/decred/dcrdata $GOPATH/src/github.com/decred/dcrdata
+  ```sh
+  git clone https://github.com/decred/dcrdata $GOPATH/src/github.com/decred/dcrdata
+  ```
 
 - Install a C compiler. The sqlite driver uses cgo, which requires a C compiler
   (e.g. gcc) to compile the sources. On Windows this is easily handled with
   MSYS2 ([download](http://www.msys2.org/) and install MinGW-w64 gcc packages).
 
-### Building with Go 1.11
+- [Install Node.js](https://nodejs.org/en/download/), which is required to lint
+  and package the static web assets.
+
+Note that none of the above is required at runtime.
+
+### Package the Static Web Assets
+
+[Webpack](https://webpack.js.org/), a JavaScript module bundler, is used to
+compile and package the static assets in the `public` folder. Node.js' `npm`
+tool is used to install the required Node.js dependencies and build the bundled
+JavaScript distribution for deployment.
+
+First, install the build dependencies:
+
+```sh
+npm install # creates node_modules folder
+```
+
+Then, for production, build the webpack bundle:
+
+```sh
+npm run build # creates public/dist folder
+```
+
+Alternatively, for development, `npm` can be made to watch for and integrate
+JavaScript source changes:
+
+```sh
+npm run watch
+```
+
+See [Front End Development](#front-end-development) for more information.
+
+### Building dcrdata with Go 1.11
 
 Go 1.11 introduced [modules](https://github.com/golang/go/wiki/Modules), a new
 dependency management approach, that obviates the need for third party tooling
@@ -253,9 +203,15 @@ dependencies. If the dependencies are configured correctly, there will be no
 modifications to the `go.mod` and `go.sum` files.
 
 **Beware:** For the v3 dcrdata module, the executable generated by `go build`
-may be named "v3" instead of "dcrdata".
+may be named "v3" instead of "dcrdata". The situation is analogous for v4. This
+is a [known issue in Go 1.11](https://github.com/golang/go/issues/27283) that
+will be [resolved in Go
+1.12](https://go-review.googlesource.com/c/go/+/140863/).
 
-### Building with Go 1.10
+As a reward for reading this far, you may use the [build.sh](dev/build.sh)
+script to mostly automate the build steps.
+
+### Building dcrdata with Go 1.10
 
 Module-enabled builds with Go 1.10 require the
 [vgo](https://github.com/golang/vgo) command. Follow the same procedures as if
@@ -274,7 +230,9 @@ desireable to set the "pre" and "dev" values to different strings, such as
 `-ldflags` switch as follows:
 
 ```sh
-go build -ldflags "-X github.com/decred/dcrdata/v3/version.appPreRelease=beta -X github.com/decred/dcrdata/v3/version.appBuild=`git rev-parse --short HEAD`"
+GO111MODULE=on go build -ldflags \
+    "-X github.com/decred/dcrdata/v3/version.appPreRelease=beta \
+     -X github.com/decred/dcrdata/v3/version.appBuild=`git rev-parse --short HEAD`"
 ```
 
 This produces a string like `dcrdata version 3.1.0-beta+86cc62a (Go version go1.11)`.
@@ -292,33 +250,45 @@ executable. Set read-only permissions as appropriate.
 
 ## Updating
 
-First, update the repository (assuming you have `master` checked out):
+Update the repository (assuming you have `master` checked out in `GOPATH`):
 
-    cd $GOPATH/src/github.com/decred/dcrdata
-    git pull origin master
-    go build
+```sh
+cd $GOPATH/src/github.com/decred/dcrdata
+git pull origin master
+```
 
 Look carefully for errors with `git pull`, and reset locally modified files if
 necessary.
 
+Next, build `dcrdata` and bundle the web assets:
+
+```sh
+GO111MODULE=on go build
+npm install
+npm run build # or npm run watch
+```
+
 ## Upgrading Instructions
 
-_**Only necessary while upgrading from v2.x or below.**_ The database scheme
-change from dcrdata v2.x to v3.x does not permit an automatic migration. The
-tables must be rebuilt from scratch:
+### From v3.x or later
+
+No special actions are required. Simply start the new dcrdata and automatic
+database schema upgrades and table data patches will begin.
+
+### From v2.x or earlier
+
+The database scheme change from dcrdata v2.x to v3.x does not permit an
+automatic migration. The tables must be rebuilt from scratch:
 
 1. Drop the old dcrdata database, and create a new empty dcrdata database.
 
-```sql
- -- drop the old database
- DROP DATABASE dcrdata;
+   ```sql
+   -- Drop the old database.
+   DROP DATABASE dcrdata;
 
--- create a new database with the same `pguser` set in the dcrdata.conf
-CREATE DATABASE dcrdata OWNER dcrdata;
-
--- grant all permissions to user dcrdata
-GRANT ALL PRIVILEGES ON DATABASE dcrdata to dcrdata;
-```
+   -- Create a new database with the same "pguser" set in the dcrdata.conf.
+   CREATE DATABASE dcrdata OWNER dcrdata;
+   ```
 
 2. Delete the dcrdata data folder (i.e. corresponding to the `datadir` setting).
    By default, `datadir` is in `{appdata}/data`:
@@ -328,11 +298,11 @@ GRANT ALL PRIVILEGES ON DATABASE dcrdata to dcrdata;
    - Windows: `C:\Users\<your-username>\AppData\Local\Dcrdata\data` (`%localappdata%\Dcrdata\data`)
 
 3. With dcrd synchronized to the network's best block, start dcrdata to begin
-   the initial block data import.
+   the initial block data sync.
 
 ## Getting Started
 
-### Configuring PostgreSQL (IMPORTANT)
+### Configuring PostgreSQL (**IMPORTANT!** Seriously, read this.)
 
 If you intend to run dcrdata in "full" mode (i.e. with the `--pg` switch), which
 uses a PostgreSQL database backend, it is crucial that you configure your
@@ -341,56 +311,49 @@ PostgreSQL server for your hardware and the dcrdata workload.
 Read [postgresql-tuning.conf](./db/dcrpg/postgresql-tuning.conf) carefully for
 details on how to make the necessary changes to your system. A helpful online
 tool for determining good settings for your system is called
-[PGTune](https://pgtune.leopard.in.ua/). **DO NOT** simply use this file in place
-of your existing postgresql.conf or copy and paste these settings into the
-existing postgresql.conf. It is necessary to edit postgresql.conf, reviewing all
-the settings to ensure the same configuration parameters are not set in two
-different places in the file.
+[PGTune](https://pgtune.leopard.in.ua/). **DO NOT** simply use this file in
+place of your existing postgresql.conf. **DO NOT** simply copy and paste these
+settings into the existing postgresql.conf. It is necessary to *edit the
+existing postgresql.conf*, reviewing all the settings to ensure the same
+configuration parameters are not set in two different places in the file
+(postgres will not complain).
 
 On Linux, you may wish to use a unix domain socket instead of a TCP connection.
 The path to the socket depends on the system, but it is commonly
-/var/run/postgresql. Just set this path in `pghost`.
+`/var/run/postgresql`. Just set this path in `pghost`.
 
-### Creating the Configuration File
+### Creating the dcrdata Configuration File
 
 Begin with the sample configuration file. With the default `appdata` directory
 for the current user on Linux:
 
-```bash
+```sh
 cp sample-dcrdata.conf ~/.dcrdata/dcrdata.conf
 ```
 
 Then edit dcrdata.conf with your dcrd RPC settings. See the output of `dcrdata --help`
 for a list of all options and their default values.
 
-### Using Configuration Environment Variables
+### Using Environment Variables for Configuration
 
-There will be times when you don't want to fuss with a config file or cannot use
-command line args such as when using Docker, Heroku, Kubernetes or other cloud
-platform.
+There may be times when a config file is inconvenient, or you cannot use command
+line arguments. Almost all configuration items are available to set via
+environment variables. See the config.go file and the `config struct` for a
+complete list of which settings may be set via environment variables. Each
+setting uses the `env` struct field tag to specify the name of the environment
+variable (i.e. `env:"DCRDATA_USE_TESTNET"`).
 
-Almost all configuration items are available to set via environment variables.
-To have a look at what you can set please see config.go file and the config
-struct.
+Setting precedence:
 
-Each setting uses the `env` struct field tag to specify the name of the
-environment variable.
-
-ie. `env:"DCRDATA_USE_TESTNET"`
-
-So when starting dcrdata you can now use with environment variables `DCRDATA_USE_TESTNET=true ./dcrdata`
-
-Config precedence:
-
-1. Command line flags have top priority
+1. Command line flags
 2. Config file settings
 3. Environment variables
-4. default config embedded in source code
+4. Defaults defined in config.go
 
-Any variable that starts with USE, ENABLE, DISABLE or otherwise asks a question
-must be a true/false value.
+In general, boolean-typed variables will contain `USE`, `ENABLE`, or `DISABLE`
+in the name.
 
-List of variables that can be set:
+List of recognized environment variables:
 
 | Description                                                                                                              | Name                           |
 | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
@@ -474,7 +437,7 @@ information.
 
 On subsequent launches, only blocks new to dcrdata are processed.
 
-```bash
+```sh
 ./dcrdata    # don't forget to configure dcrdata.conf in the appdata folder!
 ```
 
@@ -484,19 +447,24 @@ the `dcrdata` executable.
 
 ### Running the Web Interface During Synchronization
 
-By default on dcrdata startup, syncing runs for all the blocks behind the current
-best block height. Syncing status page with the syncing progress is the only
-page that will run if `sync-status-limit` is not set in `dcrdata.conf` file.
+By default, on dcrdata startup, a syncing status page is the only page available
+until sync is completed.
 
-When set with a value greater than 2 and less than 5000, all dcrdata pages will be
-active on startup if and only if, the number of blocks behind the current best block
-are less than the set `sync-status-limit` value.
+However, most of the explorer pages can be made available via the
+`sync-status-limit` setting, which indicates a threshold on the number of blocks
+yet to sync, below which the entire explorer will be made available. When set
+with a value on the range `[2,5000]`, all dcrdata pages will be active on
+startup if the number of remaining blocks to process are less than the specified
+value.
 
-For Example: If `sync-status-limit` is set to 1000, all dcrdata pages will be active
-if only less than 1000 blocks need to be sync'd on startup otherwise only the sync status
-page will be accesible till the syncing is complete.
+For example, if `sync-status-limit` is set to 1000, all dcrdata pages will be
+active when fewer than 1000 blocks remain to be processed, otherwise only the
+sync status page will be accessible until synchronization is complete.
 
-```
+If `sync-status-limit` is not set (the default), only the sync status page will
+be available.
+
+```ini
 sync-status-limit=1000
 ```
 
@@ -571,18 +539,23 @@ for additional PostgreSQL configuration settings.
 
 ## APIs
 
-The dcrdata block explorer is exposed by two APIs: a Decred implementation of the [Insight API](https://github.com/bitpay/insight-api) (EXPERIMENTAL), and its own JSON HTTP API. The Insight API uses the path prefix `/insight/api`. The dcrdata API uses the path prefix `/api`.
+The dcrdata block explorer is exposed by two APIs: a Decred implementation of
+the [Insight API](https://github.com/bitpay/insight-api) (EXPERIMENTAL), and its
+own JSON HTTP API. The Insight API uses the path prefix `/insight/api`. The
+dcrdata API uses the path prefix `/api`.
 
 ### Insight API (EXPERIMENTAL)
 
-The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP via REST or WebSocket.
+The [Insight API](https://github.com/bitpay/insight-api) is accessible via HTTP
+via REST or WebSocket.
 
-See the [Insight API documentation](api/Insight_API_documentation.md) for further details.
+See the [Insight API documentation](api/Insight_API_documentation.md) for
+further details.
 
 ### dcrdata API
 
-The dcrdata API is a REST API accessible via HTTP. To call the dcrdata API, use the `/api` path prefix.
-
+The dcrdata API is a REST API accessible via HTTP. To call the dcrdata API, use
+the `/api` path prefix.
 
 #### Endpoint List
 
@@ -679,10 +652,10 @@ with deterministic order is _not_ required, using `sort=false` will reduce
 server load and latency. However, be aware that the ticket order will be random,
 and will change each time the tickets are requested.
 
-<sup>\*</sup>For the pool info block range endpoint that accepts the `arrays` url query,
-a value of `true` will put all pool values and pool sizes into separate arrays,
-rather than having a single array of pool info JSON objects. This may make
-parsing more efficient for the client.
+<sup>\*</sup>For the pool info block range endpoint that accepts the `arrays`
+url query, a value of `true` will put all pool values and pool sizes into
+separate arrays, rather than having a single array of pool info JSON objects.
+This may make parsing more efficient for the client.
 
 | Vote and Agenda Info              | Path               | Type                        |
 | --------------------------------- | ------------------ | --------------------------- |
@@ -742,19 +715,22 @@ comma-separated value (CSV) file.
 
 ## Front End Development
 
-Make sure you have a recent version of [node and npm](https://nodejs.org/en/download/) installed.
-You may want to use the [node version manager (nvm)](https://github.com/creationix/nvm) for managing
-your node download and installation.
+Make sure you have a recent version of [node and
+npm](https://nodejs.org/en/download/) installed. You may want to use the [node
+version manager (nvm)](https://github.com/creationix/nvm) for managing your node
+download and installation.
 
-From the dcrdata root directory, run the following command to install the node modules.
+From the dcrdata root directory, run the following command to install the node
+modules.
 
 `npm install`
 
 This will create and install into a directory named `node_modules`.
 
-For development, there's a webpack script that watches for file changes and automatically bundles.
-To use it, run the following command in a separate terminal and leave it running while you work.
-You'll only use this command if you are editing javascript files.
+For development, there's a webpack script that watches for file changes and
+automatically bundles. To use it, run the following command in a separate
+terminal and leave it running while you work. You'll only use this command if
+you are editing javascript files.
 
 `npm run watch`
 
@@ -762,25 +738,49 @@ For production, bundle assets via:
 
 `npm run build`
 
-Both the `watch` and `build` scripts create a single output file at `/public/js/dist/app.bundle.js`.
-You will need to at least `build` if changes have been made. `watch` essentially runs `build` after file changes,
-but also performs some additional checks.
+Both the `watch` and `build` scripts create a single output file at
+`/public/js/dist/app.bundle.js`. You will need to at least `build` if changes
+have been made. `watch` essentially runs `build` after file changes, but also
+performs some additional checks.
 
 ### CSS Guidelines
-Before you write any CSS, see if you can achieve your goal by using existing classes available in Bootsrap 4. This helps prevent our stylesheets from getting bloated makes it easier for things to work well accross a wide range browsers & devices. Please take the time to [Read the docs](https://getbootstrap.com/docs/4.1/getting-started/introduction/)
 
-Note there is a dark mode, so make sure things look good with the dark background as well.
+Before you write any CSS, see if you can achieve your goal by using existing
+classes available in Bootstrap 4. This helps prevent our stylesheets from
+getting bloated makes it easier for things to work well across a wide range
+browsers & devices. Please take the time to [Read the
+docs](https://getbootstrap.com/docs/4.1/getting-started/introduction/)
+
+Note there is a dark mode, so make sure things look good with the dark
+background as well.
 
 ### HTML
-The core functionality of dcrdata is server-side rendered in Go and designed to work well with javascript disabled. For users with javascript enabled, [Turbolinks](https://github.com/turbolinks/turbolinks) creates a persistent single page application that handles all HTML rendering.
 
-.tmpl files are cached by the backend, and can be reloaded via running `killall -USR1 v3` from the command line.
+The core functionality of dcrdata is server-side rendered in Go and designed to
+work well with javascript disabled. For users with javascript enabled,
+[Turbolinks](https://github.com/turbolinks/turbolinks) creates a persistent
+single page application that handles all HTML rendering.
+
+.tmpl files are cached by the backend, and can be reloaded via running `killall -USR1 v3`
+from the command line.
 
 ### Javascript
-To encourage code that is idiomatic to Turbolinks based execution environment, javascript based enhancements should use [Stimulus](https://stimulusjs.org/) controllers with corresponding actions and targets. Keeping things tightly scoped with controllers and modules helps to localize complexity and maintain a clean application lifecycle. When using events handlers, bind and **unbind** them in the `connect` and `disconnect` function of controllers which executes when they get removed from the DOM.
+
+To encourage code that is idiomatic to Turbolinks based execution environment,
+javascript based enhancements should use [Stimulus](https://stimulusjs.org/)
+controllers with corresponding actions and targets. Keeping things tightly
+scoped with controllers and modules helps to localize complexity and maintain a
+clean application lifecycle. When using events handlers, bind and **unbind**
+them in the `connect` and `disconnect` function of controllers which executes
+when they get removed from the DOM.
 
 ### Web Performance
-The core functionality of dcrdata should perform well in low power device / high latency scenarios (eg. a cheap smart phone with poor reception). This means that heavy assets should be lazy loaded when they are actually needed. Simple tasks like checking a transaction or address should have a very fast initial page load.
+
+The core functionality of dcrdata should perform well in low power device / high
+latency scenarios (eg. a cheap smart phone with poor reception). This means that
+heavy assets should be lazy loaded when they are actually needed. Simple tasks
+like checking a transaction or address should have a very fast initial page
+load.
 
 ## Helper Packages
 
@@ -853,7 +853,8 @@ See the GitHub issue tracker and the [project milestones](https://github.com/dec
 
 ## Contributing
 
-Yes, please! **See the CONTRIBUTING.md file for details**, but here's the gist of it:
+Yes, please! **See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details**, but
+here's the gist of it:
 
 1. Fork the repo.
 2. Create a branch for your work (`git checkout -b cool-stuff`).
@@ -863,19 +864,13 @@ Yes, please! **See the CONTRIBUTING.md file for details**, but here's the gist o
 
 **DO NOT merge from master to your feature branch; rebase.**
 
-Before committing any changes to the Gopkg.lock file, you must update `dep` to
-the latest version via:
-
-    go get -u github.com/go/dep/cmd/dep
-
-**To update `dep` from the network, it is important to use the `-u` flag as
-shown above.**
-
 Note that all dcrdata.org community and team members are expected to adhere to
-the code of conduct, described in the CODE_OF_CONDUCT file.
+the code of conduct, described in the [CODE_OF_CONDUCT](docs/CODE_OF_CONDUCT.md)
+file.
 
 Also, [come chat with us on Slack](https://slack.decred.org/)!
 
 ## License
 
-This project is licensed under the ISC License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the ISC License. See the [LICENSE](LICENSE) file
+for details.
