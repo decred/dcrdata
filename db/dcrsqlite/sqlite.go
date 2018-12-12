@@ -47,6 +47,10 @@ const (
 	// A couple database queries that are called before NewWiredDB
 	SetCacheSizeSQL       = "PRAGMA cache_size = 32768;"
 	SetSynchrounousOffSQL = "pragma synchronous = OFF;"
+	
+	// DBBusyTimeout is the length of time in milliseconds for sqlite to retry
+	// DB access when the SQLITE_BUSY error would otherwise be returned.
+	DBBusyTimeout = "30000"
 )
 
 // DB is a wrapper around sql.DB that adds methods for storing and retrieving
@@ -193,12 +197,22 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 		return nil, err
 	}
 
+	// "shared-cache" mode has multiple connections share a single data and
+	// schema cache. _busy_timeout helps prevent SQLITE_BUSY ("database is
+	// locked") errors by sleeping for a certain amount of time when the
+	// database is locked. See https://www.sqlite.org/c3ref/busy_timeout.html.
+	dbPath = dbPath + "?cache=shared&_busy_timeout=" + DBBusyTimeout
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil || db == nil {
 		return nil, err
 	}
 
-	// These are db-wide settings
+	// SQLite does not handle concurrent writes internally, necessitating a
+	// limitation of just 1 open connecton. With a busy_timeout set, this is
+	// less important.
+	db.SetMaxOpenConns(1)
+
+	// These are db-wide settings that persist for the entire session.
 	_, err = db.Exec(SetCacheSizeSQL)
 	if err != nil {
 		log.Error("Error setting SQLite Cache size")
