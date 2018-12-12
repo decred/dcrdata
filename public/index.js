@@ -8,7 +8,6 @@ import './js/services/desktop_notification_service'
 import { Application } from 'stimulus'
 import { definitionsFromContext } from 'stimulus/webpack-helpers'
 import { darkEnabled } from './js/services/theme_service'
-import { handleNextHomeBlockUpdate, handleMempoolUpdate } from './js/controllers/nexthome_blocks_controller'
 import globalEventBus from './js/services/event_bus_service'
 
 require('./scss/application.scss')
@@ -97,24 +96,8 @@ async function createWebSocket (loc) {
       $(newRowHtml).insertBefore(expTableRows.first())
     }
 
-    var ex = newBlock.extra
-    if (window.location.pathname === '/nexthome') {
-      $('#coin-supply').html(humanize.decimalParts(ex.coin_supply / 100000000, true, 0, false))
-      $('#bsubsidy-dev').html(humanize.decimalParts(ex.subsidy.dev / 100000000, false, 8, false, 2))
-      $('#dev-fund').html(humanize.decimalParts(ex.dev_fund / 100000000, true, 0, false))
-      $('#pool-value').html(humanize.decimalParts(ex.pool_info.value, true, 0, false))
-      $('#pool-info-percentage').html('(' + parseFloat(ex.pool_info.percent).toFixed(2) + ' % of total supply)')
-      $('#bsubsidy-pos').html(humanize.decimalParts((ex.subsidy.pos / 500000000), false, 8, false, 2))
-      $('#ticket-reward').html('(' + humanize.fmtPercentage(ex.reward) + ' per ~29.07 days)')
-      $('#ticket-price').html(humanize.decimalParts(ex.sdiff, false, 8, false, 2))
-      $('#diff').html(humanize.decimalParts(ex.difficulty / 1000000, true, 0, false))
-      $('#bsubsidy-pow').html(humanize.decimalParts(ex.subsidy.pow / 100000000, false, 8, false, 2))
-      $('#hashrate').html(humanize.decimalParts(ex.hash_rate, false, 8, false, 2))
-      $('#hashrate-subdata').html('(' + humanize.fmtPercentage(ex.hash_rate_change) + ' in 24hr)')
-      handleNextHomeBlockUpdate(newBlock.block)
-    }
-
     if (window.location.pathname === '/') {
+      var ex = newBlock.extra
       $('#difficulty').html(humanize.decimalParts(ex.difficulty, true, 8))
       $('#bsubsidy_total').html(humanize.decimalParts(ex.subsidy.total / 100000000, false, 8))
       $('#bsubsidy_pow').html(humanize.decimalParts(ex.subsidy.pow / 100000000, false, 8))
@@ -142,22 +125,11 @@ async function createWebSocket (loc) {
   ws.registerEvtHandler('newblock', updateBlockData)
 
   ws.registerEvtHandler('mempool', function (event) {
-    if (window.location.pathname === '/nexthome') {
-      ws.send('getmempooltxs', '')
-    } else {
-      var mempool = JSON.parse(event)
-      $('#mempool-total-sent').html(humanize.decimalParts(mempool.total, false, 2, false, 2))
-      $('#mempool-tx-count').text('sent in ' + mempool.num_all + ' transactions')
-      $('#mempool-votes').text(mempool.num_votes)
-      $('#mempool-tickets').text(mempool.num_tickets)
-    }
-  })
-
-  ws.registerEvtHandler('getmempooltxsResp', function (event) {
-    console.log('received mempooltx response', event)
-    if (window.location.pathname === '/nexthome') {
-      handleMempoolUpdate(event)
-    }
+    var mempool = JSON.parse(event)
+    $('#mempool-total-sent').html(humanize.decimalParts(mempool.total, false, 2, false, 2))
+    $('#mempool-tx-count').text('sent in ' + mempool.num_all + ' transactions')
+    $('#mempool-votes').text(mempool.num_votes)
+    $('#mempool-tickets').text(mempool.num_tickets)
   })
 }
 

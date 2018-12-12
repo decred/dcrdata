@@ -1,4 +1,7 @@
 /* global $ */
+import { Controller } from 'stimulus'
+import globalEventBus from '../services/event_bus_service'
+import ws from '../services/messagesocket_service'
 
 const conversionRate = 100000000
 function calculateMaximumNumberOfBlocksToDisplay (blockElement) {
@@ -35,28 +38,7 @@ function calculateMaximumNumberOfBlocksToDisplay (blockElement) {
   return maxBlockElements
 }
 
-function refreshBlocksDisplay () {
-  const visibleBlockElements = $('.block.visible')
-  const currentlyDisplayedBlockCount = visibleBlockElements.length
-  const maxBlockElements = calculateMaximumNumberOfBlocksToDisplay(visibleBlockElements)
-
-  if (currentlyDisplayedBlockCount > maxBlockElements) {
-    // remove the last x blocks
-    for (let i = currentlyDisplayedBlockCount; i >= maxBlockElements; i--) {
-      $(visibleBlockElements[i]).removeClass('visible')
-    }
-  } else {
-    const allBlockElements = $('.block')
-    // add more blocks to fill display
-    for (let i = currentlyDisplayedBlockCount; i < maxBlockElements; i++) {
-      $(allBlockElements[i]).addClass('visible')
-    }
-  }
-
-  setupTooltips()
-}
-
-export function makeMempoolBlock (block) {
+function makeMempoolBlock (block) {
   let fees = 0
   for (const tx of block.Transactions) {
     fees += tx.Fees
@@ -67,7 +49,7 @@ export function makeMempoolBlock (block) {
                     <a class="color-code" href="/mempool">Mempool</a>
                     <div class="mono" style="line-height: 1;">${Math.floor(block.Total)} DCR</div>
                     <span class="timespan">
-                        <span data-target="time.age" data-age="${block.Time}"></span>&nbsp;ago
+                        <span data-target="time.age" data-age="${block.Time}"></span>
                     </span>
                 </div>
                 <div class="block-rows">
@@ -79,7 +61,7 @@ export function makeMempoolBlock (block) {
             </div>`
 }
 
-export function newBlockHtmlElement (block) {
+function newBlockHtmlElement (block) {
   let rewardTxId
   for (const tx of block.Transactions) {
     if (tx.Coinbase) {
@@ -289,43 +271,82 @@ function setupTooltips () {
   })
 }
 
-export function handleMempoolUpdate (evt) {
-  const mempool = JSON.parse(evt)
-  mempool.Time = Date.now() / 1000
-  const mempoolElement = makeMempoolBlock(mempool)
-  const currentMempoolElement = $('.blocks-holder > *:first-child')
-  $(mempoolElement).insertAfter(currentMempoolElement)
-  currentMempoolElement.remove()
-  setupTooltips()
-}
-
-export function handleNextHomeBlockUpdate (block) {
-  // show only regular tx in block.Transactions, exclude coinbase (reward) transactions
-  const transactions = block.Tx.filter(tx => !tx.Coinbase)
-
-  // trim unwanted data in this block
-  const trimmedBlockInfo = {
-    Time: block.time,
-    Height: block.height,
-    Total: block.TotalSent,
-    MiningFee: block.MiningFee,
-    Subsidy: block.Subsidy,
-    Votes: block.Votes,
-    Tickets: block.Tickets,
-    Revocations: block.Revs,
-    Transactions: transactions
+export default class extends Controller {
+  static get targets () {
+    return []
   }
 
-  $(newBlockHtmlElement(trimmedBlockInfo)).insertAfter($('.blocks-holder > *:first-child'))
-  // hide last visible block as 1 more block is now visible
-  $('.blocks-holder > .block.visible').last().removeClass('visible')
-  // remove last block from dom to maintain max of 30 blocks (hidden or visible) in dom at any time
-  $('.blocks-holder > .block').last().remove()
-  setupTooltips()
+  connect () {
+    globalEventBus.on('BLOCK_RECEIVED', (newBlock) => {
+      this.handleNextHomeBlockUpdate(newBlock.block)
+    })
+
+    ws.registerEvtHandler('getmempooltxsResp', (event) => {
+      console.log('received mempooltx response', event)
+      this.handleMempoolUpdate(event)
+    })
+
+    ws.registerEvtHandler('mempool', (event) => {
+      ws.send('getmempooltxs', '')
+    })
+
+    // on load (js file is loaded after loading html content)
+    window.addEventListener('resize', this.refreshBlocksDisplay)
+
+    // allow some ms for page to properly render blocks before refreshing display
+    setTimeout(this.refreshBlocksDisplay, 500)
+  }
+
+  handleNextHomeBlockUpdate (block) {
+    // show only regular tx in block.Transactions, exclude coinbase (reward) transactions
+    const transactions = block.Tx.filter(tx => !tx.Coinbase)
+    // trim unwanted data in this block
+    const trimmedBlockInfo = {
+      Time: block.time,
+      Height: block.height,
+      Total: block.TotalSent,
+      MiningFee: block.MiningFee,
+      Subsidy: block.Subsidy,
+      Votes: block.Votes,
+      Tickets: block.Tickets,
+      Revocations: block.Revs,
+      Transactions: transactions
+    }
+
+    $(newBlockHtmlElement(trimmedBlockInfo)).insertAfter($('.blocks-holder > *:first-child'))
+    // hide last visible block as 1 more block is now visible
+    $('.blocks-holder > .block.visible').last().removeClass('visible')
+    // remove last block from dom to maintain max of 30 blocks (hidden or visible) in dom at any time
+    $('.blocks-holder > .block').last().remove()
+    setupTooltips()
+  }
+
+  handleMempoolUpdate (evt) {
+    const mempool = JSON.parse(evt)
+    mempool.Time = Date.now()
+    const mempoolElement = makeMempoolBlock(mempool)
+    const currentMempoolElement = $('.blocks-holder > *:first-child')
+    $(mempoolElement).insertAfter(currentMempoolElement)
+    currentMempoolElement.remove()
+    setupTooltips()
+  }
+
+  refreshBlocksDisplay () {
+    const visibleBlockElements = $('.block.visible')
+    const currentlyDisplayedBlockCount = visibleBlockElements.length
+    const maxBlockElements = calculateMaximumNumberOfBlocksToDisplay(visibleBlockElements)
+    if (currentlyDisplayedBlockCount > maxBlockElements) {
+      // remove the last x blocks
+      for (let i = currentlyDisplayedBlockCount; i >= maxBlockElements; i--) {
+        $(visibleBlockElements[i]).removeClass('visible')
+      }
+    } else {
+      const allBlockElements = $('.block')
+      // add more blocks to fill display
+      for (let i = currentlyDisplayedBlockCount; i < maxBlockElements; i++) {
+        $(allBlockElements[i]).addClass('visible')
+      }
+    }
+    setupTooltips()
+  }
 }
-
-// on load (js file is loaded after loading html content)
-window.addEventListener('resize', refreshBlocksDisplay)
-
-// allow some ms for page to properly render blocks before refreshing display
-setTimeout(refreshBlocksDisplay, 500)
