@@ -1,10 +1,11 @@
-/* global Dygraph */
-/* global Chart */
-
 /* global $ */
 import { Controller } from 'stimulus'
 import ws from '../services/messagesocket_service'
-import { barChartPlotter } from '../helpers/chart_helper'
+import { barChartPlotter, ensureDygraph } from '../helpers/chart_helper'
+import ajax from '../helpers/ajax_helper'
+
+var Dygraph = window.Dygraph
+var Chart = window.Chart
 
 // Common code for ploting dygraphs
 function legendFormatter (data) {
@@ -113,6 +114,7 @@ export default class extends Controller {
 
   initialize () {
     var controller = this
+    controller.processData = controller._processData.bind(controller)
     controller.mempool = false
     controller.tipHeight = 0
     controller.purchasesGraph = null
@@ -125,15 +127,29 @@ export default class extends Controller {
     }
     controller.zoom = 'day'
     controller.bars = 'all'
-    $.getScript('/js/vendor/dygraphs.min.js', () => {
+    ensureDygraph(() => {
+      Dygraph = window.Dygraph
       controller.chartCount += 2
       controller.purchasesGraph = controller.makePurchasesGraph()
       controller.priceGraph = controller.makePriceGraph()
     })
-    $.getScript('/js/vendor/charts.min.js', () => {
+
+    let success = () => {
       controller.chartCount += 1
       controller.outputsGraph = controller.makeOutputsGraph()
-    })
+    }
+
+    if (typeof Chart !== 'undefined') {
+      success()
+    } else {
+      import(/* webpackChunkName: "charts" */ '../vendor/charts.min.js').then(module => {
+        Chart = window.Chart = module.default
+        success()
+      }).catch((error) => {
+        console.error('Failed to fetch Charts.')
+        console.error(error)
+      })
+    }
   }
 
   connect () {
@@ -156,19 +172,12 @@ export default class extends Controller {
   fetchAll () {
     var controller = this
     controller.wrapperTarget.classList.add('loading')
-    $.ajax({
-      type: 'GET',
-      url: '/api/ticketpool/charts',
-      success: (data) => {
-        controller.processData(data)
-      },
-      complete: () => {
-        controller.wrapperTarget.classList.remove('loading')
-      }
+    ajax('/api/ticketpool/charts', controller.processData, () => {
+      controller.wrapperTarget.classList.remove('loading')
     })
   }
 
-  processData (data) {
+  _processData (data) {
     var controller = this
     if (data['mempool']) {
       // If mempool data is included, assume the data height is the tip.
@@ -224,14 +233,11 @@ export default class extends Controller {
     controller.bars = e.target.name
     $(e.target).addClass('btn-active')
     controller.wrapperTarget.classList.add('loading')
-    $.ajax({
-      type: 'GET',
-      url: '/api/ticketpool/bydate/' + controller.bars,
-      beforeSend: () => {},
-      complete: () => { controller.wrapperTarget.classList.remove('loading') },
-      success: (data) => {
-        controller.purchasesGraph.updateOptions({ 'file': purchasesGraphData(data['time_chart']) })
-      }
+    var url = '/api/ticketpool/bydate/' + controller.bars
+    ajax(url, (data) => {
+      controller.purchasesGraph.updateOptions({ 'file': purchasesGraphData(data['time_chart']) })
+    }, () => {
+      controller.wrapperTarget.classList.remove('loading')
     })
   }
 

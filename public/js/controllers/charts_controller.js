@@ -1,14 +1,16 @@
-/* global Dygraph */
 /* global Turbolinks */
 /* global $ */
 
 import { Controller } from 'stimulus'
 import { map, assign, merge } from 'lodash-es'
-import { barChartPlotter } from '../helpers/chart_helper'
+import { barChartPlotter, ensureDygraph } from '../helpers/chart_helper'
 import { darkEnabled } from '../services/theme_service'
 import { animationFrame } from '../helpers/animation_helper'
+import ajax from '../helpers/ajax_helper'
 
 var selectedChart
+
+var Dygraph = window.Dygraph
 
 function legendFormatter (data) {
   if (data.x == null) {
@@ -145,14 +147,6 @@ function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, xLabel, titleN
   }, nightModeOptions(darkEnabled()))
 }
 
-function getAPIData (chartType, controllerContext) {
-  return $.ajax({
-    type: 'GET',
-    url: '/api/chart/' + chartType,
-    context: controllerContext
-  })
-}
-
 export default class extends Controller {
   static get targets () {
     return [
@@ -167,7 +161,8 @@ export default class extends Controller {
   }
 
   connect () {
-    $.getScript('/js/vendor/dygraphs.min.js', () => {
+    ensureDygraph(() => {
+      Dygraph = window.Dygraph
       this.drawInitialGraph()
       $(document).on('nightMode', (event, params) => {
         this.chartsView.updateOptions(
@@ -341,7 +336,7 @@ export default class extends Controller {
     $(this.rollPeriodInputTarget).val(undefined)
     $(this.chartWrapperTarget).addClass('loading')
     if (selectedChart !== selection) {
-      getAPIData(selection, this).done((data) => {
+      ajax('/api/chart/' + selection, (data) => {
         console.log('got api data', data, this, selection)
         this.plotGraph(selection, data)
       })
