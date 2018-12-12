@@ -1,8 +1,8 @@
-/* global Dygraph */
-
-/* global $ */
 import { Controller } from 'stimulus'
-import { barChartPlotter } from '../helpers/chart_helper'
+import { barChartPlotter, ensureDygraph } from '../helpers/chart_helper'
+import ajax from '../helpers/ajax_helper'
+
+var Dygraph = window.Dygraph
 
 var chartLayout = {
   showRangeSelector: true,
@@ -72,27 +72,31 @@ export default class extends Controller {
     var controller = this
     controller.agendaId = controller.data.get('id')
     controller.element.classList.add('loading')
-    $.getScript('/js/vendor/dygraphs.min.js', function () {
+
+    ensureDygraph(() => {
+      Dygraph = window.Dygraph
       controller.drawCharts()
-      $.ajax({
-        type: 'GET',
-        url: '/api/agenda/' + controller.agendaId,
-        success: function (data) {
-          if (controller.cumulativeVoteChoicesChart) {
-            controller.cumulativeVoteChoicesChart.updateOptions({
-              'file': cumulativeVoteChoicesData(data.by_time)
-            })
-          }
-          if (controller.voteChoicesByBlockChart) {
-            controller.voteChoicesByBlockChart.updateOptions({
-              'file': voteChoicesByBlockData(data.by_height)
-            })
-          }
-        },
-        complete: function () {
-          controller.element.classList.remove('loading')
+
+      let url = '/api/agenda/' + controller.agendaId
+
+      let final = () => {
+        controller.element.classList.remove('loading')
+      }
+
+      let success = (data) => {
+        if (controller.cumulativeVoteChoicesChart) {
+          controller.cumulativeVoteChoicesChart.updateOptions({
+            'file': cumulativeVoteChoicesData(data.by_time)
+          })
         }
-      })
+        if (controller.voteChoicesByBlockChart) {
+          controller.voteChoicesByBlockChart.updateOptions({
+            'file': voteChoicesByBlockData(data.by_height)
+          })
+        }
+      }
+
+      ajax(url, success, final)
     })
   }
 

@@ -1,13 +1,13 @@
-/* global Dygraph */
 /* global QRCode */
 /* global $ */
 import { Controller } from 'stimulus'
 import { isEmpty } from 'lodash-es'
-import { padPoints, sizedBarPlotter } from '../helpers/chart_helper'
+import { padPoints, sizedBarPlotter, ensureDygraph } from '../helpers/chart_helper'
 import globalEventBus from '../services/event_bus_service'
 import TurboQuery from '../helpers/turbolinks_helper'
 
 const blockDuration = 5 * 60000
+var Dygraph
 
 function txTypesFunc (d, binSize) {
   var p = []
@@ -224,19 +224,15 @@ export default class extends Controller {
     ctrl.balance = cdata.get('balance')
 
     // Request the initial chart data, grabbing the Dygraph script if necessary.
-    const initializeChart = () => {
+    ensureDygraph(() => {
+      Dygraph = window.Dygraph
       createOptions()
       // If no chart data has been requested, e.g. when initially on the
       // list tab, then fetch the initial chart data.
       if (!ctrl.requestedChart) {
         ctrl.fetchGraphData(ctrl.chartType, ctrl.getBin())
       }
-    }
-    if (typeof Dygraph === 'undefined') {
-      $.getScript('/js/vendor/dygraphs.min.js', initializeChart)
-    } else {
-      initializeChart()
-    }
+    })
     setTimeout(ctrl.updateView, 0)
   }
 
