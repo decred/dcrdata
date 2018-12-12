@@ -41,6 +41,10 @@ const (
 	TableNameSummaries = "dcrdata_block_summary"
 	// TableNameStakeInfo is name of the table used to store extended stake info
 	TableNameStakeInfo = "dcrdata_stakeinfo_extended"
+
+	// DBBusyTimeout is the length of time in milliseconds for sqlite to retry
+	// DB access when the SQLITE_BUSY error would otherwise be returned.
+	DBBusyTimeout = "30000"
 )
 
 // DB is a wrapper around sql.DB that adds methods for storing and retrieving
@@ -169,10 +173,20 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 		return nil, err
 	}
 
+	// "shared-cache" mode has multiple connections share a single data and
+	// schema cache. _busy_timeout helps prevent SQLITE_BUSY ("database is
+	// locked") errors by sleeping for a certain amount of time when the
+	// database is locked. See https://www.sqlite.org/c3ref/busy_timeout.html.
+	dbPath = dbPath + "?cache=shared&_busy_timeout=" + DBBusyTimeout
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil || db == nil {
 		return nil, err
 	}
+
+	// SQLite does not handle concurrent writes internally, necessitating a
+	// limitation of just 1 open connecton. With a busy_timeout set, this is
+	// less important.
+	db.SetMaxOpenConns(1)
 
 	createBlockSummaryStmt := fmt.Sprintf(`
         PRAGMA cache_size = 32768;
