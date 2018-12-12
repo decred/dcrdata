@@ -1425,10 +1425,11 @@ func (c *appContext) getBlockHeightCtx(r *http.Request) int64 {
 func (c *appContext) getBlockHashCtx(r *http.Request) string {
 	hash := m.GetBlockHashCtx(r)
 	if hash == "" {
+		idx := int64(m.GetBlockIndexCtx(r))
 		var err error
-		hash, err = c.BlockData.GetBlockHash(int64(m.GetBlockIndexCtx(r)))
+		hash, err = c.BlockData.GetBlockHash(idx)
 		if err != nil {
-			apiLog.Errorf("Unable to GetBlockHash: %v", err)
+			apiLog.Errorf("Unable to GetBlockHash(%d): %v", idx, err)
 		}
 	}
 	return hash

@@ -5,6 +5,7 @@ package explorer
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -31,6 +32,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 		height, err := strconv.ParseInt(chi.URLParam(r, "blockhash"), 10, 0)
 		var hash string
 		if err != nil {
+			// Not a height, try it as a hash.
 			hash = chi.URLParam(r, "blockhash")
 			if exp.liteMode {
 				height, err = exp.blockData.GetBlockHeight(hash)
@@ -38,12 +40,14 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 				height, err = exp.explorerSource.BlockHeight(hash)
 			}
 			if err != nil {
-				log.Errorf("BlockHeight(%s) failed: %v", hash, err)
+				if err != sql.ErrNoRows {
+					log.Warnf("BlockHeight(%s) failed: %v", hash, err)
+				}
 				exp.StatusPage(w, defaultErrorCode, "could not find that block", NotFoundStatusType)
 				return
 			}
 		} else {
-			//Handle future blocks
+			// Check best DB block to recognize future blocks.
 			var maxHeight int64
 			if exp.liteMode {
 				maxHeight = int64(exp.blockData.GetHeight())
