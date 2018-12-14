@@ -1136,13 +1136,17 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 
 		// Check for unconfirmed transactions
 		addressOuts, numUnconfirmed, err := exp.blockData.UnconfirmedTxnsForAddress(address)
-		if err != nil {
-			log.Warnf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
+		if err != nil || addressOuts == nil {
+			log.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
+			exp.StatusPage(w, defaultErrorCode, "transactions for that address not found",
+				NotFoundStatusType)
+			return
 		}
 		addrData.NumUnconfirmed = numUnconfirmed
 		if addrData.UnconfirmedTxns == nil {
 			addrData.UnconfirmedTxns = new(AddressTransactions)
 		}
+
 		// Funding transactions (unconfirmed)
 		var received, sent, numReceived, numSent int64
 	FUNDING_TX_DUPLICATE_CHECK:
