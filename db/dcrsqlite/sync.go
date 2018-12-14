@@ -15,7 +15,6 @@ import (
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/explorer"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/txhelpers"
 )
@@ -28,7 +27,7 @@ const (
 // DBHeights returns the best block heights of: SQLite database tables (block
 // summary and stake info tables), the stake database (ffldb_stake), and the
 // lowest of these. An error value is returned if any database is inaccessible.
-func (db *wiredDB) DBHeights() (lowest int64, summaryHeight int64, stakeInfoHeight int64,
+func (db *WiredDB) DBHeights() (lowest int64, summaryHeight int64, stakeInfoHeight int64,
 	stakeDatabaseHeight int64, err error) {
 	// Get DB's best block (for block summary and stake info tables)
 	if summaryHeight, err = db.GetBlockSummaryHeight(); err != nil {
@@ -55,7 +54,7 @@ func (db *wiredDB) DBHeights() (lowest int64, summaryHeight int64, stakeInfoHeig
 	return
 }
 
-func (db *wiredDB) initWaitChan(waitChan chan chainhash.Hash) {
+func (db *WiredDB) initWaitChan(waitChan chan chainhash.Hash) {
 	db.waitChan = waitChan
 }
 
@@ -64,7 +63,7 @@ func (db *wiredDB) initWaitChan(waitChan chan chainhash.Hash) {
 // should abort. If the specified height is greater than the current stake DB
 // height, RewindStakeDB will exit without error, returning the current stake DB
 // height and a nil error.
-func (db *wiredDB) RewindStakeDB(ctx context.Context, toHeight int64) (stakeDBHeight int64, err error) {
+func (db *WiredDB) RewindStakeDB(ctx context.Context, toHeight int64) (stakeDBHeight int64, err error) {
 	// rewind best node in ticket db
 	stakeDBHeight = int64(db.sDB.Height())
 	if toHeight < 0 {
@@ -92,7 +91,7 @@ func (db *wiredDB) RewindStakeDB(ctx context.Context, toHeight int64) (stakeDBHe
 	return
 }
 
-func (db *wiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter,
+func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter,
 	fetchToHeight int64, updateExplorer chan *chainhash.Hash,
 	barLoad chan *dbtypes.ProgressBarLoad) (int64, error) {
 	// Determine if we're in lite mode, when we are the "master" who sets the
@@ -188,13 +187,39 @@ func (db *wiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 		return height, nil
 	}
 
-	// Initialize the progress bars on the sync status page.
-	if barLoad != nil && db.updateStatusSync {
-		barLoad <- &dbtypes.ProgressBarLoad{
-			Msg:   InitialLoadSyncStatusMsg,
-			BarID: dbtypes.InitialDBLoad,
+	// Safely send sync status updates on barLoad channel, and set the channel
+	// to nil if it was closed or the buffer is full.
+	sendProgressUpdate := func(p *dbtypes.ProgressBarLoad) {
+		if barLoad == nil {
+			return
+		}
+		select {
+		case barLoad <- p:
+		default:
+			log.Debugf("(*WiredDB).resyncDB: barLoad chan closed or full. Halting sync progress updates.")
+			barLoad = nil
 		}
 	}
+
+	// Safely send new block hash on updateExplorer channel, and set the channel
+	// to nil if it was closed or the buffer is full.
+	sendPageData := func(hash *chainhash.Hash) {
+		if updateExplorer == nil {
+			return
+		}
+		select {
+		case updateExplorer <- hash:
+		default:
+			log.Debugf("(*WiredDB).resyncDB: updateExplorer chan closed or full. Halting explorer updates.")
+			updateExplorer = nil
+		}
+	}
+
+	// Initialize the progress bars on the sync status page.
+	sendProgressUpdate(&dbtypes.ProgressBarLoad{
+		Msg:   InitialLoadSyncStatusMsg,
+		BarID: dbtypes.InitialDBLoad,
+	})
 
 	timeStart := time.Now()
 	for i := startHeight; i <= height; i++ {
@@ -258,17 +283,17 @@ func (db *wiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 				log.Infof("Scanning blocks %d to %d (%d live)...",
 					i, endRangeBlock, db.sDB.PoolSize())
 
-				// If updateStatusSync is set to true then this is the only way that sync progress will be updated.
-				if barLoad != nil && db.updateStatusSync {
+				// Update sync progress bar.
+				if barLoad != nil {
 					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-i))
-
-					barLoad <- &dbtypes.ProgressBarLoad{
+					progress := &dbtypes.ProgressBarLoad{
 						From:      i,
 						To:        height,
 						Timestamp: int64(timeTakenPerBlock * float64(height-endRangeBlock)), //timeToComplete
 						Msg:       InitialLoadSyncStatusMsg,
 						BarID:     dbtypes.InitialDBLoad,
 					}
+					sendProgressUpdate(progress)
 
 					timeStart = time.Now()
 				}
@@ -351,9 +376,12 @@ func (db *wiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 		}
 		stakeInfoHeight = i
 
-		// If updating explore is activated, update it at intervals of 200 blocks.
-		if updateExplorer != nil && i%200 == 0 && explorer.SyncExplorerUpdateStatus() && db.updateStatusSync {
-			updateExplorer <- &blockhash
+		// Update API status and explorer page, if explorer updates are enabled.
+		if i%100 == 0 {
+			// Explorer pages
+			sendPageData(&blockhash)
+
+			// API status
 			select {
 			case db.updateStatusChan <- uint32(i):
 			default:
@@ -364,17 +392,15 @@ func (db *wiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 		if _, height, err = db.client.GetBestBlock(); err != nil {
 			return i, fmt.Errorf("rpcclient.GetBestBlock failed: %v", err)
 		}
-	}
+	} // for i := startHeight ...
 
-	if barLoad != nil && db.updateStatusSync {
-		barLoad <- &dbtypes.ProgressBarLoad{
-			From:     height,
-			To:       height,
-			Msg:      InitialLoadSyncStatusMsg,
-			BarID:    dbtypes.InitialDBLoad,
-			Subtitle: "sync complete",
-		}
-	}
+	sendProgressUpdate(&dbtypes.ProgressBarLoad{
+		From:     height,
+		To:       height,
+		Msg:      InitialLoadSyncStatusMsg,
+		BarID:    dbtypes.InitialDBLoad,
+		Subtitle: "sync complete",
+	})
 
 	log.Infof("Rescan finished successfully at height %d.", height)
 
@@ -394,7 +420,7 @@ func (db *wiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 	return height, nil
 }
 
-func (db *wiredDB) getBlock(ind int64) (*dcrutil.Block, *chainhash.Hash, error) {
+func (db *WiredDB) getBlock(ind int64) (*dcrutil.Block, *chainhash.Hash, error) {
 	blockhash, err := db.client.GetBlockHash(ind)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetBlockHash(%d) failed: %v", ind, err)
@@ -412,7 +438,7 @@ func (db *wiredDB) getBlock(ind int64) (*dcrutil.Block, *chainhash.Hash, error) 
 
 // ImportSideChains imports all side chains. Similar to pgblockchain.MissingSideChainBlocks
 // plus the rest from main.go
-func (db *wiredDB) ImportSideChains(collector *blockdata.Collector) error {
+func (db *WiredDB) ImportSideChains(collector *blockdata.Collector) error {
 	tips, err := rpcutils.SideChains(db.client)
 	if err != nil {
 		return err

@@ -18,6 +18,7 @@ import (
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/explorer/types"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -28,19 +29,19 @@ type pageTemplate struct {
 
 type templates struct {
 	templates map[string]pageTemplate
-	defaults  []string
+	common    []string
 	folder    string
 	helpers   template.FuncMap
 }
 
-func newTemplates(folder string, defaults []string, helpers template.FuncMap) templates {
-	var defs []string
-	for _, file := range defaults {
-		defs = append(defs, filepath.Join(folder, file+".tmpl"))
+func newTemplates(folder string, common []string, helpers template.FuncMap) templates {
+	var com []string
+	for _, file := range common {
+		com = append(com, filepath.Join(folder, file+".tmpl"))
 	}
 	return templates{
 		templates: make(map[string]pageTemplate),
-		defaults:  defs,
+		common:    com,
 		folder:    folder,
 		helpers:   helpers,
 	}
@@ -48,7 +49,7 @@ func newTemplates(folder string, defaults []string, helpers template.FuncMap) te
 
 func (t *templates) addTemplate(name string) error {
 	fileName := filepath.Join(t.folder, name+".tmpl")
-	files := append(t.defaults, fileName)
+	files := append(t.common, fileName)
 	temp, err := template.New(name).Funcs(t.helpers).ParseFiles(files...)
 	if err == nil {
 		t.templates[name] = pageTemplate{
@@ -314,7 +315,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"toLowerCase": func(a string) string {
 			return strings.ToLower(a)
 		},
-		"fetchRowLinkURL": func(groupingStr string, start, end dbtypes.TimeDef) string {
+		"fetchRowLinkURL": func(groupingStr string, start, end types.TimeDef) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views
 			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks
 			// (/years -> /months) simply means that on "/years" page every row has a
@@ -368,7 +369,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			}
 			return make([]int, length)
 		},
-		"clipSlice": func(arr []*TrimmedTxInfo, n int) []*TrimmedTxInfo {
+		"clipSlice": func(arr []*types.TrimmedTxInfo, n int) []*types.TrimmedTxInfo {
 			if len(arr) >= n {
 				return arr[:n]
 			} else {

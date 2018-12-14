@@ -65,6 +65,8 @@ var (
 	defaultPGPass                       = ""
 	defaultPGDBName                     = "dcrdata"
 	defaultPGQueryTimeout time.Duration = time.Hour
+
+	maxSyncStatusLimit = 5000
 )
 
 type config struct {
@@ -111,7 +113,7 @@ type config struct {
 	SyncAndQuit      bool `long:"sync-and-quit" description:"Sync to the best block and exit. Do not start the explorer or API." env:"DCRDATA_ENABLE_SYNC_N_QUIT"`
 	ImportSideChains bool `long:"import-side-chains" description:"(experimental) Enable startup import of side chains retrieved from dcrd via getchaintips." env:"DCRDATA_IMPORT_SIDE_CHAINS"`
 
-	SyncStatusLimit int64 `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000."`
+	SyncStatusLimit int `long:"sync-status-limit" description:"Sets the number of blocks behind the current best height past which only the syncing status page can be served on the running web server. Value should be greater than 2 but less than 5000."`
 
 	// WatchAddresses []string `short:"w" long:"watchaddress" description:"Watched address (receiving). One per line."`
 	// SMTPUser     string `long:"smtpuser" description:"SMTP user name"`
@@ -488,15 +490,14 @@ func loadConfig() (*config, error) {
 		log.Warnf("%v. Disabling balance prefetch (--no-dev-prefetch).", err)
 	}
 
-	// Check if sync-status-limit value has been set. If its equal to zero then
-	// it hasn't been set.
+	// Validate SyncStatusLimit has been set. Zero means always show sync status
+	// page instead of full block explorer pages.
 	if cfg.SyncStatusLimit != 0 {
-		// sync-status-limit value should not be set to a value less than 2 or to a
-		// value greater than 5000. 5000 is the max value that can be set by the user
-		// in dcrdata.conf file.
-		if cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > 5000 {
-			return nil, fmt.Errorf("sync-status-limit should not be set to a value " +
-				"less than 2 or more than 5000")
+		// The sync-status-limit value should not be set to a value less than 2
+		// or greater than maxSyncStatusLimit.
+		if cfg.SyncStatusLimit < 2 || cfg.SyncStatusLimit > maxSyncStatusLimit {
+			return nil, fmt.Errorf("sync-status-limit should not be set to "+
+				"a value less than 2 or more than %d", maxSyncStatusLimit)
 		}
 	}
 

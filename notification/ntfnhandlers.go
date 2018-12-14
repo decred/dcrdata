@@ -15,7 +15,7 @@ import (
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/api/insight"
-	"github.com/decred/dcrdata/v4/explorer"
+	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/txhelpers"
@@ -153,7 +153,7 @@ func (q *collectionQueue) processBlock(bh *blockHashHeight) {
 	}
 
 	select {
-	case NtfnChans.ExpNewTxChan <- &explorer.NewMempoolTx{
+	case NtfnChans.ExpNewTxChan <- &exptypes.NewMempoolTx{
 		Hex: "",
 	}:
 	default:
@@ -367,7 +367,7 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 		OnTxAcceptedVerbose: func(txDetails *dcrjson.TxRawResult) {
 
 			select {
-			case NtfnChans.ExpNewTxChan <- &explorer.NewMempoolTx{
+			case NtfnChans.ExpNewTxChan <- &exptypes.NewMempoolTx{
 				Time: time.Now().Unix(),
 				Hex:  txDetails.Hex,
 			}:

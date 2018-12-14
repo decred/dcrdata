@@ -145,7 +145,7 @@ func _main(ctx context.Context) error {
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
 	baseDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
-		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir, !usePG)
+		notify.NtfnChans.UpdateStatusDBHeight, dcrdClient, activeChain, cfg.DataDir)
 	defer cleanupDB()
 	if err != nil {
 		return fmt.Errorf("Unable to initialize SQLite database: %v", err)
@@ -176,7 +176,8 @@ func _main(ctx context.Context) error {
 		// If using {netname} then replace it with netName(activeNet).
 		dbi.DBName = strings.Replace(dbi.DBName, "{netname}", netName(activeNet), -1)
 
-		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain, baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
+		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
+			baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
 		if chainDB != nil {
 			defer chainDB.Close()
 		}
@@ -211,8 +212,6 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("Unable to get block from node: %v", err)
 	}
 
-	var blocksBehind int64
-
 	// When in lite mode, baseDB should get blocks without having to coordinate
 	// with auxDB. Setting fetchToHeight to a large number allows this.
 	var fetchToHeight = int64(math.MaxInt32)
@@ -229,8 +228,8 @@ func _main(ctx context.Context) error {
 			lastBlockPG = -1
 		}
 
-		// Allow wiredDB/stakedb to catch up to the auxDB, but after
-		// fetchToHeight, wiredDB must receive block signals from auxDB, and
+		// Allow WiredDB/stakedb to catch up to the auxDB, but after
+		// fetchToHeight, WiredDB must receive block signals from auxDB, and
 		// stakedb must send connect signals to auxDB.
 		fetchToHeight = lastBlockPG + 1
 
@@ -262,15 +261,15 @@ func _main(ctx context.Context) error {
 			return fmt.Errorf("unable to fetch the block from the node: %v", err)
 		}
 
-		// elapsedTime is the time since the dcrd best block was mined.
-		elapsedTime := time.Since(block.Timestamp).Minutes()
+		// bestBlockAge is the time since the dcrd best block was mined.
+		bestBlockAge := time.Since(block.Timestamp).Minutes()
 
 		// Since mining a block take approximately ChainParams.TargetTimePerBlock then the
 		// expected height of the best block from dcrd now should be this.
-		expectedHeight := int64(elapsedTime/float64(activeChain.TargetTimePerBlock)) + nodeHeight
+		expectedHeight := int64(bestBlockAge/float64(activeChain.TargetTimePerBlock)) + nodeHeight
 
-		// How far auxDB is behind the node
-		blocksBehind = expectedHeight - lastBlockPG
+		// Estimate how far auxDB is behind the node.
+		blocksBehind := expectedHeight - lastBlockPG
 		if blocksBehind < 0 {
 			return fmt.Errorf("Node is still syncing. Node height = %d, "+
 				"DB height = %d", expectedHeight, heightDB)
@@ -340,7 +339,8 @@ func _main(ctx context.Context) error {
 	}
 
 	// Create the explorer system.
-	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, version.Version(), !cfg.NoDevPrefetch)
+	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, version.Version(),
+		!cfg.NoDevPrefetch, "views") // TODO: allow views config
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
 	}
@@ -348,66 +348,63 @@ func _main(ctx context.Context) error {
 	defer explore.StopWebsocketHub()
 	defer explore.StopMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
-	wireDBheight := baseDB.GetHeight() // sqlite base db
+	blockDataSavers = append(blockDataSavers, explore)
 
-	var auxDBheight int
+	// Determine blocks to sync as the
+	baseDBHeight := int64(baseDB.GetHeight()) // sqlite base db
+	blocksBehind := nodeHeight - baseDBHeight
+	var auxDBHeight int64
 	if usePG {
-		auxDBheight = auxDB.GetHeight() // pg db
+		auxDBHeight = int64(auxDB.GetHeight()) // pg db
+		if baseDBHeight > auxDBHeight {
+			blocksBehind = nodeHeight - auxDBHeight
+		}
 	}
+	// dbHeight is the smaller of baseDBHeight and auxDBHeight in full mode.
+	dbHeight := nodeHeight - blocksBehind
 
-	// barLoad is used to send sync status updates from a given function or
-	// method to SyncStatusUpdate function via websocket. Sends do not need to
-	// block, so this is buffered.
-	barLoad := make(chan *dbtypes.ProgressBarLoad, 2)
+	// Prepare for sync by setting up the channels for status/progress updates
+	// (barLoad) or full explorer page updates (latestBlockHash).
 
-	// latestBlockHash receives the block hash of the latest block to be sync'd
-	// in dcrdata. This may not necessarily be the latest block in the
-	// blockchain but it is the latest block to be sync'd according to dcrdata.
-	// This block hash is sent if the webserver is providing the full explorer
-	// functionality during blockchain syncing. Sends do not need to block, so
-	// this is buffered.
-	latestBlockHash := make(chan *chainhash.Hash, 2)
+	// barLoad is used to send sync status updates to websocket clients (e.g.
+	// browsers with the status page opened) via the goroutines launched by
+	// BeginSyncStatusUpdates.
+	var barLoad chan *dbtypes.ProgressBarLoad
 
-	// The blockchain syncing status page should be displayed; if the blocks
-	// behind the current height are more than the set status limit. On initial
-	// dcrdata startup syncing should be displayed by default. (If height is
-	// less than 40,000, initial startup from scratch must have been run)
-	// The sync status page should also be displayed when updateAllAddresses and
-	// newPGIndexes are set to true.
-	displaySyncStatusPage := blocksBehind > cfg.SyncStatusLimit ||
-		(usePG && auxDBheight < 40000) || wireDBheight < 40000 ||
-		updateAllAddresses || newPGIndexes
+	// latestBlockHash communicates the hash of block most recently processed
+	// during synchronization. This is done if all of the explorer pages (not
+	// just the status page) are to be served during sync.
+	var latestBlockHash chan *chainhash.Hash
 
-	// Set the displaySyncStatusPage value.
-	explore.SetDisplaySyncStatusPage(displaySyncStatusPage)
+	// Display the blockchain syncing status page if the number of blocks behind
+	// the node's best block height are more than the set limit. The sync status
+	// page should also be displayed when updateAllAddresses and newPGIndexes
+	// are true, indicating maintenance or an initial sync.
+	displaySyncStatusPage := blocksBehind > int64(cfg.SyncStatusLimit) || // over limit
+		updateAllAddresses || newPGIndexes // maintenance or initial sync
 
-	// Initiate the sync status monitor and SyncStatusUpdate goroutine if the
-	// sync status is activated or else initiate the goroutine that handles
-	// storing blocks needed for the explorer pages.
+	// Initiate the sync status monitor and the coordinating goroutines if the
+	// sync status is activated, otherwise coordinate updating the full set of
+	// explorer pages.
 	if displaySyncStatusPage {
-		// Starts a goroutine that signals the websocket to check and send to
-		// the frontend the latest sync status progress updates.
-		explore.StartSyncingStatusMonitor()
+		// Start goroutines that keep the update the shared progress bar data,
+		// and signal the websocket hub to send progress updates to clients.
+		barLoad = make(chan *dbtypes.ProgressBarLoad, 2)
+		explore.BeginSyncStatusUpdates(barLoad)
 	} else {
-		// Set that blocks freshly sync'd to to be stored for the explorer pages
-		// till the sync is done.
-		explorer.SetSyncExplorerUpdateStatus(true)
+		// Start a goroutine to update the explorer pages when the DB sync
+		// functions send a new block hash on the following channel.
+		latestBlockHash = make(chan *chainhash.Hash, 2)
 
-		// This goroutines updates the blocks needed on the explorer pages. It
-		// only runs when the status sync page is not the default page that a user
-		// can view on the running webserver but the syncing of blocks behind the
-		// best block is happening in the background. No new blocks monitor from
-		// dcrd will be initiated until the best block from dcrd is in sync with
-		// the best block from dcrdata.
+		// The BlockConnected handler should not be started until after sync.
 		go func() {
+			// Keep receiving updates until the channel is closed, or a nil Hash
+			// pointer received.
 			for hash := range latestBlockHash {
-				// Checks if updates should be sent to the explorer. If its been
-				// deactivated it breaks the loop.
-				if !explorer.SyncExplorerUpdateStatus() {
-					break
+				if hash == nil {
+					return
 				}
-
-				// Setch the blockdata using its block hash.
+				// Fetch the blockdata by block hash.
 				d, msgBlock, err := collector.CollectHash(hash)
 				if err != nil {
 					log.Warnf("failed to fetch blockdata for (%s) hash. error: %v",
@@ -415,7 +412,7 @@ func _main(ctx context.Context) error {
 					continue
 				}
 
-				// Store the blockdata fetch for the explorer pages
+				// Store the blockdata for the explorer pages.
 				if err = explore.Store(d, msgBlock); err != nil {
 					log.Warnf("failed to store (%s) hash's blockdata for the explorer pages error: %v",
 						hash.String(), err)
@@ -423,31 +420,20 @@ func _main(ctx context.Context) error {
 			}
 		}()
 
-		// Stores the first block in the explorer. It should correspond with the
-		// block that is currently in sync in all the dcrdata dbs
-		loadHeight := wireDBheight
-		if usePG && (auxDBheight < wireDBheight) {
-			loadHeight = auxDBheight
-		}
+		// Before starting the DB sync, trigger the explorer to display data for
+		// the current best block.
 
-		// Fetches the first block hash whose blockdata will be loaded in the
-		// explorer for it pages.
-		loadBlockHash, err := dcrdClient.GetBlockHash(int64(loadHeight))
+		// Retrieve the hash of the best block across every DB.
+		latestDBBlockHash, err := dcrdClient.GetBlockHash(dbHeight)
 		if err != nil {
-			return fmt.Errorf("failed to fetch the block at height (%d), dcrdata dbs must be corrupted",
-				loadHeight)
+			return fmt.Errorf("failed to fetch the block at height (%d): %v",
+				dbHeight, err)
 		}
 
-		// Signal to load this block's data into the explorer.
-		latestBlockHash <- loadBlockHash
+		// Signal to load this block's data into the explorer. Future signals
+		// will come from the sync methods of either baseDB or auxDB.
+		latestBlockHash <- latestDBBlockHash
 	}
-
-	// Starts a goroutine that fetches the raw updates, process them and
-	// set them as the latest sync status progress updates. The goroutine exits
-	// when no sync is running.
-	explore.SyncStatusUpdate(barLoad)
-
-	blockDataSavers = append(blockDataSavers, explore)
 
 	// Create the Insight socket.io server, and add it to block savers if in
 	// full/pg mode. Since insightSocketServer is added into the url before even
@@ -456,11 +442,10 @@ func _main(ctx context.Context) error {
 	var insightSocketServer *insight.SocketServer
 	if usePG {
 		insightSocketServer, err = insight.NewSocketServer(notify.NtfnChans.InsightNewTxChan, activeChain)
-		if err == nil {
-			blockDataSavers = append(blockDataSavers, insightSocketServer)
-		} else {
+		if err != nil {
 			return fmt.Errorf("Could not create Insight socket.io server: %v", err)
 		}
+		blockDataSavers = append(blockDataSavers, insightSocketServer)
 	}
 
 	// WaitGroup for the monitor goroutines
@@ -472,16 +457,16 @@ func _main(ctx context.Context) error {
 	wg.Add(1)
 	go app.StatusNtfnHandler(ctx, &wg)
 	// Initial setting of DBHeight. Subsequently, Store() will send this.
-	if wireDBheight >= 0 {
+	if dbHeight >= 0 {
 		// Do not sent 4294967295 = uint32(-1) if there are no blocks.
-		notify.NtfnChans.UpdateStatusDBHeight <- uint32(wireDBheight)
+		notify.NtfnChans.UpdateStatusDBHeight <- uint32(dbHeight)
 	}
 
 	// Configure the URL path to http handler router for the API.
 	apiMux := api.NewAPIRouter(app, cfg.UseRealIP)
 	// Configure the explorer web pages router.
 	webMux := chi.NewRouter()
-	webMux.With(explore.SyncStatusPageActivation).Group(func(r chi.Router) {
+	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
 		r.Get("/", explore.Home)
 		r.Get("/nexthome", explore.NextHome)
 	})
@@ -496,8 +481,9 @@ func _main(ctx context.Context) error {
 	FileServer(webMux, "/images", http.Dir("./public/images"), cacheControlMaxAge)
 	FileServer(webMux, "/dist", http.Dir("./public/dist"), cacheControlMaxAge)
 
-	// SyncStatusApiResponse returns a json response when the sync status page is running.
-	webMux.With(explore.SyncStatusApiResponse).Group(func(r chi.Router) {
+	// SyncStatusAPIIntercept returns a json response if the sync status page is
+	// enabled (no the full explorer while syncing).
+	webMux.With(explore.SyncStatusAPIIntercept).Group(func(r chi.Router) {
 		// Mount the dcrdata's REST API.
 		r.Mount("/api", apiMux.Mux)
 		// Setup and mount the Insight API.
@@ -512,7 +498,7 @@ func _main(ctx context.Context) error {
 		}
 	})
 
-	webMux.With(explore.SyncStatusPageActivation).Group(func(r chi.Router) {
+	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
 		r.NotFound(explore.NotFound)
 
 		r.Mount("/explorer", explore.Mux)
@@ -559,6 +545,16 @@ func _main(ctx context.Context) error {
 	}
 
 	log.Infof("Starting blockchain sync...")
+	explore.SetDBsSyncing(true)
+
+	// If in lite mode, baseDB will need to handle the sync progress bar or
+	// explorer page updates, otherwise it is auxDB's responsibility.
+	var baseProgressChan chan *dbtypes.ProgressBarLoad
+	var baseHashChan chan *chainhash.Hash
+	if !usePG {
+		baseProgressChan = barLoad
+		baseHashChan = latestBlockHash
+	}
 
 	// Coordinate the sync of both sqlite and auxiliary DBs with the network.
 	// This closure captures the RPC client and the quit channel.
@@ -578,7 +574,7 @@ func _main(ctx context.Context) error {
 		// full mode, baseDB will be configured not to send progress updates or
 		// chain data to the explorer pages since auxDB will do it.
 		baseDB.SyncDBAsync(ctx, sqliteSyncRes, smartClient, fetchHeightInBaseDB,
-			latestBlockHash, barLoad)
+			baseHashChan, baseProgressChan)
 
 		// Now that stakedb is either catching up or waiting for a block, start
 		// the auxDB sync, which is the master block getter, retrieving and
@@ -593,7 +589,7 @@ func _main(ctx context.Context) error {
 		return waitForSync(ctx, sqliteSyncRes, pgSyncRes, usePG)
 	}
 
-	baseDBHeight, auxDBHeight, err := getSyncd(updateAllAddresses,
+	baseDBHeight, auxDBHeight, err = getSyncd(updateAllAddresses,
 		updateAllVotes, newPGIndexes, fetchToHeight)
 	if err != nil {
 		return err
@@ -637,7 +633,7 @@ func _main(ctx context.Context) error {
 	// Exits immediately after the sync completes if SyncAndQuit is to true
 	// because all we needed then was the blockchain sync be completed successfully.
 	if cfg.SyncAndQuit {
-		log.Infof("All ready, at height %d.", baseDBHeight)
+		log.Infof("All ready, at height %d. Quitting.", baseDBHeight)
 		return nil
 	}
 
@@ -709,24 +705,6 @@ func _main(ctx context.Context) error {
 					continue
 				}
 
-				// SQLite / base DB
-				// TODO: Make hash the primary key instead of height, otherwise
-				// the main chain block will be overwritten.
-				// log.Debugf("Importing block %s (height %d) into base DB.",
-				// 	blockHash, msgBlock.Header.Height)
-
-				// blockDataSummary, stakeInfoSummaryExtended := collector.CollectAPITypes(blockHash)
-				// if blockDataSummary == nil || stakeInfoSummaryExtended == nil {
-				// 	log.Error("Failed to collect data for reorg.")
-				// 	continue
-				// }
-				// if err = baseDB.StoreBlockSummary(blockDataSummary); err != nil {
-				// 	log.Errorf("Failed to store block summary data: %v", err)
-				// }
-				// if err = baseDB.StoreStakeInfoExtended(stakeInfoSummaryExtended); err != nil {
-				// 	log.Errorf("Failed to store stake info data: %v", err)
-				// }
-
 				// PostgreSQL / aux DB
 				log.Debugf("Aux DB -> Importing block %s (height %d) into aux DB.",
 					blockHash, msgBlock.Header.Height)
@@ -764,13 +742,18 @@ func _main(ctx context.Context) error {
 	}
 
 	log.Infof("All ready, at height %d.", baseDBHeight)
+	explore.SetDBsSyncing(false)
 
 	// Deactivate displaying the sync status page after the db sync was completed.
-	explore.SetDisplaySyncStatusPage(false)
+	if barLoad != nil {
+		close(barLoad)
+	}
 
 	// Set that newly sync'd blocks should no longer be stored in the explorer.
 	// Monitors that fetch the latest updates from dcrd will be launched next.
-	explorer.SetSyncExplorerUpdateStatus(false)
+	if latestBlockHash != nil {
+		close(latestBlockHash)
+	}
 
 	// Monitors for new blocks, transactions, and reorgs should not run before
 	// blockchain syncing and DB indexing completes. If started before then, the
@@ -803,7 +786,7 @@ func _main(ctx context.Context) error {
 		notify.NtfnChans.ConnectChanStakeDB, notify.NtfnChans.ReorgChanStakeDB)
 
 	// Blockchain monitor for the wired sqlite DB
-	wiredDBChainMonitor := baseDB.NewChainMonitor(ctx, collector, &wg,
+	WiredDBChainMonitor := baseDB.NewChainMonitor(ctx, collector, &wg,
 		notify.NtfnChans.ConnectChanWiredDB, notify.NtfnChans.ReorgChanWiredDB)
 
 	var auxDBChainMonitor *dcrpg.ChainMonitor
@@ -874,7 +857,7 @@ func _main(ctx context.Context) error {
 
 	// dcrsqlite does not handle new blocks except during reorg.
 	wg.Add(1)
-	go wiredDBChainMonitor.ReorgHandler()
+	go WiredDBChainMonitor.ReorgHandler()
 
 	if usePG {
 		// dcrpg also does not handle new blocks except during reorg.
@@ -900,7 +883,7 @@ func _main(ctx context.Context) error {
 
 		// Store initial MP data.
 		if err = baseDB.MPC.StoreMPData(mpData, time.Now()); err != nil {
-			return fmt.Errorf("Failed to store initial mempool data (wiredDB): %v",
+			return fmt.Errorf("Failed to store initial mempool data (WiredDB): %v",
 				err.Error())
 		}
 

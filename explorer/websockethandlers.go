@@ -15,6 +15,7 @@ import (
 
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/explorer/types"
 	"golang.org/x/net/websocket"
 )
 
@@ -223,7 +224,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				switch sig {
 				case sigNewBlock:
 					exp.pageData.RLock()
-					enc.Encode(WebsocketBlock{
+					enc.Encode(types.WebsocketBlock{
 						Block: exp.pageData.BlockInfo,
 						Extra: exp.pageData.HomeInfo,
 					})
