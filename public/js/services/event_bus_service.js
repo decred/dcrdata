@@ -1,3 +1,5 @@
+import { remove } from 'lodash-es'
+
 const eventCallbacksPairs = []
 
 function findEventCallbacksPair (eventType) {
@@ -16,6 +18,15 @@ class EventBus {
       eventCallbacksPair.callbacks.push(callback)
     } else {
       eventCallbacksPairs.push(new EventCallbacksPair(eventType, callback))
+    }
+  }
+
+  off (eventType, callback) {
+    const eventCallbacksPair = findEventCallbacksPair(eventType)
+    if (eventCallbacksPair) {
+      remove(eventCallbacksPair.callbacks, (cb) => {
+        return cb === callback
+      })
     }
   }
 

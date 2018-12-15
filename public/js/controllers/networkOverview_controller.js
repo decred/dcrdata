@@ -9,9 +9,11 @@ export default class extends Controller {
   }
 
   connect () {
-    globalEventBus.on('BLOCK_RECEIVED', (newBlock) => {
-      this.renderNewBlock(newBlock)
-    })
+    globalEventBus.on('BLOCK_RECEIVED', this.renderNewBlock)
+  }
+
+  disconnect () {
+    globalEventBus.off('BLOCK_RECEIVED', this.renderNewBlock)
   }
 
   renderNewBlock (newBlock) {
