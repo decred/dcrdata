@@ -328,7 +328,7 @@ export default class extends Controller {
 
   handleMempoolUpdate (evt) {
     const mempool = JSON.parse(evt)
-    mempool.Time = Date.now()
+    mempool.Time = Math.round((new Date()).getTime() / 1000)
     const mempoolElement = makeMempoolBlock(mempool)
     const currentMempoolElement = $('.blocks-holder > *:first-child')
     $(mempoolElement).insertAfter(currentMempoolElement)
