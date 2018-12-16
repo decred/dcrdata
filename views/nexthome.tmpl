@@ -6,8 +6,15 @@
 <body id="nexthome">
     {{ template "navbar" . }}
 
-    <div id="mainContainer" class="container" data-controller="time">
-        <div class="netstats-section font-weight-bold">
+    <div
+        id="mainContainer"
+        class="container"
+        data-controller="time"
+    >
+        <div
+            class="netstats-section font-weight-bold"
+            data-controller="networkOverview"
+        >
             <a class="no-underline title font-weight-bold" href="/statistics">
                 {{.NetName}} Statistics
             </a>
@@ -126,7 +133,10 @@
         <div class="flex-space"></div>
         <div class="blocks-section">
             <a class="no-underline title font-weight-bold" href="/blocks">Latest Blocks</a>
-            <div class="blocks-holder">
+            <div
+                class="blocks-holder"
+                data-controller="visualBlocks"
+            >
                 <!-- add mempool element -->
                 {{with .Mempool}}
                 <div class="block visible">

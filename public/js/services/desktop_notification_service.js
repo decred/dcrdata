@@ -14,13 +14,9 @@ function onErrorNotification () {
   console.error('Error showing notification. You may need to request permission.')
 }
 
-globalEventBus.on('BLOCK_RECEIVED', (newBlock) => {
-  if (!Notify.needsPermission) {
-    notifyNewBlock(newBlock.block)
-  }
-})
-
-function notifyNewBlock (block) {
+function notifyNewBlock (newBlock) {
+  if (Notify.needsPermission) return
+  let block = newBlock.block
   var newBlockNtfn = new Notify('New Decred Block Mined', {
     body: 'Block mined at height ' + block.height,
     tag: 'blockheight',
@@ -34,3 +30,5 @@ function notifyNewBlock (block) {
   })
   newBlockNtfn.show()
 }
+
+globalEventBus.on('BLOCK_RECEIVED', notifyNewBlock)
