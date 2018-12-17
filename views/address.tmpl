@@ -47,7 +47,7 @@
                 >
                     <input type="button" class="addr-btn list btn btn_sm btn-active" value="List" name="list">
                     <input type="button" class="addr-btn chart btn btn_sm" value="Charts"
-                        name="chart" {{if or $.IsLiteMode (le (len .Transactions) 1)}}disabled{{end}}>
+                        name="chart" {{if or $.IsLiteMode (eq (len .Transactions) 0)}}disabled{{end}}>
                 </div>
                 {{end}}
             </div>
@@ -211,7 +211,7 @@
 
                 <div class="position-relative chart-display d-hide text-nowrap" data-target="address.chartbox">
                   <div class="modal position-absolute"></div>
-                  <div class="d-flex flex-wrap align-items-center justify-content-around my-3 mx-1">
+                  <div class="d-flex flex-wrap align-items-center justify-content-around my-5 mx-1">
                     <select
                         class="chart-box d-inline-flex"
                         data-target="address.options"
@@ -237,39 +237,41 @@
                         </label>
                     </div>
                     <div class="d-inline-flex flex-nowrap mx-2">
-                      <label class="d-inline pr-1">Zoom </label>
+                      <label class="d-inline-flex pr-1">Zoom </label>
                       <div
-                          class="btn-group"
+                          class="btn-group btn-group-add"
                           data-toggle="buttons"
                           data-target="address.zoom"
                           data-action="click->address#onZoom"
                       >
-                        <input type="button" class="chart-zoom btn btn_sm btn-active all" value="All Time" name="all">
-                        <input type="button" class="chart-zoom btn btn_sm year" value="Year" name="year">
-                        <input type="button" class="chart-zoom btn btn_sm month" value="Month" name="month">
-                        <input type="button" class="chart-zoom btn btn_sm week" value="Week" name="week">
-                        <input type="button" class="chart-zoom btn btn_sm day" value="Day" name="day">
+                        <button class="btn-selected" name="all" data-fixed="1">All Time</button>
+                        <button name="year">Year</button>
+                        <button name="month">Month</button>
+                        <button name="week">Week</button>
+                        <button name="day">Day</button>
                       </div>
                     </div>
                     <div class="d-inline-flex flex-nowrap mx-2">
-                      <label class="d-inline pr-1">Group By </label>
+                      <label class="d-inline-flex pr-1">Group By </label>
                       <div
-                          class="btn-group"
+                          class="btn-group btn-group-add"
                           data-toggle="buttons"
                           data-txcount="{{$TxnCount}}"
                           data-target="address.interval"
                           data-action="click->address#changeBin"
                       >
-                          <input type="button" class="chart-size btn btn_sm year" value="Year" name="year">
-                          <input type="button" class="chart-size btn btn_sm month" value="Month" name="month">
-                          <input type="button" class="chart-size btn btn_sm week{{if ge .KnownTransactions 10000}} btn-active{{end}}" value="Week" name="week">
-                          <input type="button" class="chart-size btn btn_sm day{{if lt .KnownTransactions 10000}} btn-active{{end}}" value="Day" name="day">
-                          <input type="button" class="chart-size btn btn_sm all" value="Block" name="all">
+                          <button name="year">Year</button>
+                          <button name="month">Month</button>
+                          <button{{if ge .KnownTransactions 10000}} class="btn-selected"{{end}} name="week">Week</button>
+                          <button{{if lt .KnownTransactions 10000}} class="btn-selected"{{end}} name="day" data-fixed="1">Day</button>
+                          <button name="all" data-fixed="1">Block</button>
                       </div>
                     </div>
                   </div>
-                  <div data-target="address.chart" style="width:100%; height:500px; margin-top:20 auto;"></div>
-                  <h5 data-target="address.noconfirms" class="mt-2 bal-d" style="margin:7% auto 0 auto;">There are no confirmed transactions to display.</h5>
+                  <div class="p-5 address_chart_wrap">
+                    <div data-target="address.chart" class="address_chart"></div>
+                    <h5 data-target="address.noconfirms" class="mt-2 bal-d" style="margin:7% auto 0 auto;">There are no confirmed transactions to display.</h5>
+                  </div>
                 </div>
 
               </div> <!-- col -->

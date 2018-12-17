@@ -89,6 +89,29 @@
   height: fit-content;
 }
 
+.btn-group-add {
+  font-size: 0.875rem;
+}
+
+.btn-group-add > button {
+  display: inline-flex;
+  padding: 0 0.5em;
+  margin: 0 0.1em;
+  height: 2em;
+  line-height: 2em;
+  background-color: #ddd;
+  border-style: none;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btn-group-add > button.btn-selected {
+  padding: 0.2 0.7em;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
 .btn-active,
 .btn:active {
   background-color: hsl(195, 79%, 43%) !important;
@@ -183,6 +206,18 @@
   font-weight: bold;
 }
 
+.address_chart_wrap {
+  background-color: white;
+  padding: 1em;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.address_chart {
+  width: 100%;
+  height: 500px;
+}
+
 /* chart theme */
 .chart-wrapper {
   position: relative;
@@ -267,7 +302,7 @@
 .t-charts {
   width: 22%;
   max-width: 270px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: bolder;
   line-height: 1.5em;
 }
@@ -345,10 +380,11 @@ input ~ .checkmark {
 }
 
 .chart-box {
+  font-size: 0.875rem;
   background-color: #fff;
-  height: fit-content;
-  font-size: 0.8em;
-  margin-top: 5px;
+  height: 2em;
+  line-height: 2em;
+  padding: 0 0.5em;
 }
 
 .loader {
@@ -390,4 +426,20 @@ input ~ .checkmark {
 .img-val {
   height: 30px;
   margin: 2px;
+}
+
+body.darkBG {
+  .address_chart_wrap {
+    background-color: #333;
+  }
+
+  .btn-group-add > button {
+    background-color: #333;
+    color: white;
+  }
+
+  .btn-group-add > button.btn-selected {
+    padding: 0.2 0.7em;
+    background-color: #34a;
+  }
 }

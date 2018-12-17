@@ -3,20 +3,25 @@
 /* global $ */
 import { Controller } from 'stimulus'
 import { isEmpty } from 'lodash-es'
-import { barChartPlotter } from '../helpers/chart_helper'
+import { padPoints, sizedBarPlotter } from '../helpers/chart_helper'
 import globalEventBus from '../services/event_bus_service'
 import TurboQuery from '../helpers/turbolinks_helper'
 
-function txTypesFunc (d) {
+const blockDuration = 5 * 60000
+
+function txTypesFunc (d, binSize) {
   var p = []
 
   d.time.map((n, i) => {
     p.push([new Date(n), d.sentRtx[i], d.receivedRtx[i], d.tickets[i], d.votes[i], d.revokeTx[i]])
   })
+
+  padPoints(p, binSize)
+
   return p
 }
 
-function amountFlowFunc (d) {
+function amountFlowFunc (d, binSize) {
   var p = []
 
   d.time.map((n, i) => {
@@ -27,18 +32,19 @@ function amountFlowFunc (d) {
     v > 0 ? (netReceived = v) : (netSent = (v * -1))
     p.push([new Date(n), d.received[i], d.sent[i], netReceived, netSent])
   })
+
+  padPoints(p, binSize)
+
   return p
 }
 
-function unspentAmountFunc (d) {
+function unspentAmountFunc (d, binSize) {
   var p = []
-  // start plotting 6 days before the actual day
-  if (d.length > 0) {
-    let v = new Date(d.time[0])
-    p.push([new Date().setDate(v.getDate() - 6), 0])
-  }
 
   d.time.map((n, i) => p.push([new Date(n), d.amount[i]]))
+
+  padPoints(p, binSize, true)
+
   return p
 }
 
@@ -46,6 +52,8 @@ function formatter (data) {
   var html = this.getLabels()[0] + ': ' + ((data.xHTML === undefined) ? '' : data.xHTML)
   data.series.map((series) => {
     if (series.color === undefined) return ''
+    // Skip display of zeros
+    if (series.y === 0) return ''
     var l = `<span style="color: ` + series.color + ';"> ' + series.labelHTML
     html = `<span style="color:#2d2d2d;">` + html + `</span>`
     html += '<br>' + series.dashHTML + l + ': ' + (isNaN(series.y) ? '' : series.y) + '</span>'
@@ -57,7 +65,8 @@ function customizedFormatter (data) {
   var html = this.getLabels()[0] + ': ' + ((data.xHTML === undefined) ? '' : data.xHTML)
   data.series.map((series) => {
     if (series.color === undefined) return ''
-    if (series.y === 0 && series.labelHTML.includes('Net')) return ''
+    // Skip display of zeros
+    if (series.y === 0) return ''
     var l = `<span style="color: ` + series.color + ';"> ' + series.labelHTML
     html = `<span style="color:#2d2d2d;">` + html + `</span>`
     html += '<br>' + series.dashHTML + l + ': ' + (isNaN(series.y) ? '' : series.y + ' DCR') + '</span> '
@@ -92,12 +101,22 @@ var zoomMap = {
   day: 8.64e+7
 }
 
+function zoomObject (start, end) {
+  return {
+    start: start,
+    end: end
+  }
+}
+
 var commonOptions, typesGraphOptions, amountFlowGraphOptions, unspentGraphOptions
 // Cannot set these until DyGraph is fetched.
 function createOptions () {
   commonOptions = {
     digitsAfterDecimal: 8,
     showRangeSelector: true,
+    rangeSelectorHeight: 20,
+    rangeSelectorForegroundStrokeColor: '#999',
+    rangeSelectorBackgroundStrokeColor: '#777',
     legend: 'follow',
     xlabel: 'Date',
     fillAlpha: 0.9,
@@ -111,7 +130,6 @@ function createOptions () {
     title: 'Transactions Types',
     visibility: [true, true, true, true, true],
     legendFormatter: formatter,
-    plotter: barChartPlotter,
     stackedGraph: true,
     fillGraph: false
   }
@@ -123,7 +141,6 @@ function createOptions () {
     title: 'Sent And Received',
     visibility: [true, false, false, false],
     legendFormatter: customizedFormatter,
-    plotter: barChartPlotter,
     stackedGraph: true,
     fillGraph: false
   }
@@ -152,10 +169,7 @@ function decodeZoom (encoded) {
   if (isNaN(start) || isNaN(end) || end - start <= 0) {
     return false
   }
-  return {
-    start: new Date(start * 1000),
-    end: new Date(end * 1000)
-  }
+  return zoomObject(start * 1000, end * 1000)
 }
 
 export default class extends Controller {
@@ -196,7 +210,7 @@ export default class extends Controller {
     ctrl.setChartType()
     if (ctrl.chartSettings.flow) ctrl.setFlowChecks()
     if (ctrl.chartSettings.zoom !== null) {
-      ctrl.zoomButtons.removeClass('btn-active')
+      ctrl.zoomButtons.removeClass('btn-selected')
     }
 
     // Parse stimulus data
@@ -239,8 +253,8 @@ export default class extends Controller {
     var ctrl = this
     ctrl.chartElements = $('.chart-display')
     ctrl.listElements = $('.list-display')
-    ctrl.zoomButtons = $(ctrl.zoomTarget).children('input')
-    ctrl.binputs = $(ctrl.intervalTarget).children('input')
+    ctrl.zoomButtons = $(ctrl.zoomTarget).children('button')
+    ctrl.binputs = $(ctrl.intervalTarget).children('button')
     ctrl.flowBoxes = ctrl.flowTarget.querySelectorAll('input[type=checkbox]')
     ctrl.pageSizeOptions = ctrl.pagesizeTarget.querySelectorAll('option')
     ctrl.qrImg = $(ctrl.qrimgTarget)
@@ -414,20 +428,14 @@ export default class extends Controller {
     ctrl.noconfirmsTarget.classList.add('d-hide')
     ctrl.chartTarget.classList.remove('d-hide')
 
-    if (ctrl.unspent === '0' && settings.chart === 'unspent') {
-      ctrl.noconfirmsTarget.classList.remove('d-hide')
-      ctrl.chartTarget.classList.add('d-hide')
-      ctrl.chartboxTarget.classList.remove('loading')
-      return
-    }
-    // If the view parameters aren't valid, go to default view.
+    // If the view parameters aren't valid, go to default (list) view.
     if (!ctrl.validChartType() || !ctrl.validGraphInterval()) return ctrl.showList()
 
     if (settings.chart === ctrl.chartState.chart && settings.bin === ctrl.chartState.bin) {
       // Only the zoom has changed.
       let zoom = decodeZoom(settings.zoom)
       if (zoom) {
-        ctrl.setZoom(zoom.start.getTime(), zoom.end.getTime())
+        ctrl.setZoom(zoom.start, zoom.end)
       }
       return
     }
@@ -476,36 +484,36 @@ export default class extends Controller {
     if (!ctrl.retrievedData[chart]) {
       ctrl.retrievedData[chart] = {}
     }
-    if (!isEmpty(data)) {
-      let processor = null
-      switch (chart) {
-        case 'types':
-          processor = txTypesFunc
-          break
-        case 'amountflow':
-          processor = amountFlowFunc
-          break
-        case 'unspent':
-          processor = unspentAmountFunc
-          break
-      }
-      if (!processor) {
-        return
-      }
-      let cacheKey = chart + '-' + bin
-      ctrl.retrievedData[cacheKey] = processor(data)
-      setTimeout(() => {
-        ctrl.popChartCache(chart, bin)
-      }, 0)
-    } else {
-      ctrl.noconfirmsTarget.classList.remove('d-hide')
-      ctrl.chartTarget.classList.add('d-hide')
+    if (isEmpty(data)) {
+      ctrl.noDataAvailable()
+      return
     }
+    var processor = null
+    switch (chart) {
+      case 'types':
+        processor = txTypesFunc
+        break
+      case 'amountflow':
+        processor = amountFlowFunc
+        break
+      case 'unspent':
+        processor = unspentAmountFunc
+        break
+    }
+    if (!processor) {
+      return
+    }
+    var cacheKey = chart + '-' + bin
+    ctrl.retrievedData[cacheKey] = processor(data, zoomMap[bin] || blockDuration)
+    setTimeout(() => {
+      ctrl.popChartCache(chart, bin)
+    }, 0)
   }
 
   popChartCache (chart, bin) {
     var ctrl = this
     var cacheKey = chart + '-' + bin
+    var binSize = zoomMap[bin] || blockDuration
     if (!ctrl.retrievedData[cacheKey] ||
         ctrl.requestedChart !== cacheKey ||
         ctrl.currentTab === 'list'
@@ -518,10 +526,12 @@ export default class extends Controller {
     switch (chart) {
       case 'types':
         options = typesGraphOptions
+        options.plotter = sizedBarPlotter(binSize)
         break
 
       case 'amountflow':
         options = amountFlowGraphOptions
+        options.plotter = sizedBarPlotter(binSize)
         ctrl.flowTarget.classList.remove('d-hide')
         break
 
@@ -542,9 +552,14 @@ export default class extends Controller {
       ctrl.updateFlow()
     }
     ctrl.xRange = ctrl.graph.xAxisExtremes()
-    ctrl.setButtonVisibility()
-    var zoom = decodeZoom(ctrl.chartSettings.zoom)
-    if (zoom) ctrl.setZoom(zoom.start.getTime(), zoom.end.getTime())
+    ctrl.validateZoom(binSize)
+  }
+
+  noDataAvailable () {
+    this.noconfirmsTarget.classList.remove('d-hide')
+    this.chartTarget.classList.add('d-hide')
+    this.chartboxTarget.classList.remove('loading')
+    this.flowTarget.classList.add('d-hide')
   }
 
   _updateView () {
@@ -585,10 +600,42 @@ export default class extends Controller {
     return this.binputs.filter("[name='" + interval + "']") || false
   }
 
+  validateZoom (binSize) {
+    var ctrl = this
+    ctrl.setButtonVisibility()
+    var zoom = decodeZoom(ctrl.chartSettings.zoom)
+    // Move selection window if necessary
+    var selection = ctrl.activeZoomSelection
+    if (selection || selection === 0) {
+      let duration = selection || ctrl.chartDuration
+      zoom = zoomObject(ctrl.xRange[1] - duration, ctrl.xRange[1])
+    }
+    if (!zoom) {
+      zoom = zoomObject(ctrl.xRange[0], ctrl.xRange[1])
+    }
+    // Clamp
+    var duration = zoom.end - zoom.start
+    if (duration < binSize) {
+      zoom.end = zoom.start + binSize
+    }
+    if (zoom.end > ctrl.xRange[1]) {
+      let shift = zoom.end - ctrl.xRange[1]
+      zoom.end -= shift
+      zoom.start = Math.max(zoom.start - shift, ctrl.xRange[0])
+    } else if (zoom.start < ctrl.xRange[0]) {
+      let shift = ctrl.xRange[0] - zoom.start
+      zoom.start += shift
+      zoom.end = Math.min(zoom.end + shift, ctrl.xRange[1])
+    }
+    ctrl.setZoom(zoom.start, zoom.end)
+  }
+
   changeView (e) {
     var ctrl = this
+    var target = e.srcElement || e.target
+    if (target.nodeName !== 'INPUT') return
     $('.addr-btn').removeClass('btn-active')
-    $(e ? e.srcElement : '.chart').addClass('btn-active')
+    target.classList.add('btn-active')
     var view = ctrl.activeView
     if (view !== 'list') {
       ctrl.currentTab = 'chart'
@@ -608,8 +655,10 @@ export default class extends Controller {
 
   changeBin (e) {
     var ctrl = this
-    ctrl.chartSettings.bin = e.target.name
-    ctrl.setIntervalButton(e.target.name)
+    var target = e.srcElement || e.target
+    if (target.nodeName !== 'BUTTON') return
+    ctrl.chartSettings.bin = target.name
+    ctrl.setIntervalButton(target.name)
     this.setGraphQuery()
     this.updateView()
   }
@@ -648,12 +697,14 @@ export default class extends Controller {
 
   onZoom (e) {
     var ctrl = this
-    ctrl.zoomButtons.removeClass('btn-active')
-    $(e.srcElement).addClass('btn-active')
+    var target = e.srcElement || e.target
+    if (target.nodeName !== 'BUTTON') return
+    ctrl.zoomButtons.removeClass('btn-selected')
+    target.classList.add('btn-selected')
     if (ctrl.graph === undefined) {
       return
     }
-    var duration = ctrl.zoom
+    var duration = ctrl.activeZoomSelection
 
     var end = ctrl.xRange[1]
     var start = duration === 0 ? ctrl.xRange[0] : end - duration
@@ -688,8 +739,8 @@ export default class extends Controller {
     var ctrl = this
     var button = ctrl.validGraphInterval(interval)
     if (!button) return false
-    ctrl.binputs.removeClass('btn-active')
-    button.addClass('btn-active')
+    ctrl.binputs.removeClass('btn-selected')
+    button.addClass('btn-selected')
   }
 
   setViewButton (view) {
@@ -710,26 +761,29 @@ export default class extends Controller {
     if (first) return
     var start, end
     [start, end] = ctrl.graph.xAxisRange()
+    if (start === end) return
     ctrl.chartSettings.zoom = ctrl.encodeZoomStamps(start, end)
     ctrl.query.replace(ctrl.chartSettings)
   }
 
   _zoomCallback (start, end) {
     var ctrl = this
-    ctrl.zoomButtons.removeClass('btn-active')
+    ctrl.zoomButtons.removeClass('btn-selected')
     ctrl.chartSettings.zoom = ctrl.encodeZoomStamps(start, end)
     ctrl.query.replace(ctrl.chartSettings)
   }
 
   setButtonVisibility () {
     var ctrl = this
-    var duration = ctrl.xRange[1] - ctrl.xRange[0]
+    var duration = ctrl.chartDuration
     var buttonSets = [ctrl.zoomButtons, ctrl.binputs]
     buttonSets.forEach((buttonSet) => {
       buttonSet.each((i, button) => {
+        if (button.dataset.fixed) return
         if (duration > zoomMap[button.name]) {
           button.classList.remove('d-hide')
         } else {
+          button.classList.remove('btn-selected')
           button.classList.add('d-hide')
         }
       })
@@ -744,13 +798,19 @@ export default class extends Controller {
     return this.btnsTarget.getElementsByClassName('btn-active')[0].name
   }
 
-  get zoom () {
-    var v = this.zoomTarget.getElementsByClassName('btn-active')[0].name
+  get activeZoomSelection () {
+    var activeButtons = this.zoomTarget.getElementsByClassName('btn-selected')
+    if (activeButtons.length === 0) return null
+    var v = activeButtons[0].name
     return zoomMap[v]
   }
 
+  get chartDuration () {
+    return this.xRange[1] - this.xRange[0]
+  }
+
   get activeBin () {
-    return this.intervalTarget.getElementsByClassName('btn-active')[0].name
+    return this.intervalTarget.getElementsByClassName('btn-selected')[0].name
   }
 
   get flow () {
