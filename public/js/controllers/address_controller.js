@@ -21,8 +21,10 @@ function txTypesFunc (d, binSize) {
   return p
 }
 
-function amountFlowFunc (d, binSize) {
-  var p = []
+function amountFlowProcessor (d, binSize) {
+  var flowData = []
+  var balanceData = []
+  var balance = 0
 
   d.time.map((n, i) => {
     var v = d.net[i]
@@ -30,22 +32,18 @@ function amountFlowFunc (d, binSize) {
     var netSent = 0
 
     v > 0 ? (netReceived = v) : (netSent = (v * -1))
-    p.push([new Date(n), d.received[i], d.sent[i], netReceived, netSent])
+    flowData.push([new Date(n), d.received[i], d.sent[i], netReceived, netSent])
+    balance += v
+    balanceData.push([new Date(n), balance])
   })
 
-  padPoints(p, binSize)
+  padPoints(flowData, binSize)
+  padPoints(balanceData, binSize, true)
 
-  return p
-}
-
-function unspentAmountFunc (d, binSize) {
-  var p = []
-
-  d.time.map((n, i) => p.push([new Date(n), d.amount[i]]))
-
-  padPoints(p, binSize, true)
-
-  return p
+  return {
+    flow: flowData,
+    balance: balanceData
+  }
 }
 
 function formatter (data) {
@@ -108,7 +106,7 @@ function zoomObject (start, end) {
   }
 }
 
-var commonOptions, typesGraphOptions, amountFlowGraphOptions, unspentGraphOptions
+var commonOptions, typesGraphOptions, amountFlowGraphOptions, balanceGraphOptions
 // Cannot set these until DyGraph is fetched.
 function createOptions () {
   commonOptions = {
@@ -145,11 +143,11 @@ function createOptions () {
     fillGraph: false
   }
 
-  unspentGraphOptions = {
-    labels: ['Date', 'Unspent'],
+  balanceGraphOptions = {
+    labels: ['Date', 'Balance'],
     colors: ['#41BF53'],
-    ylabel: 'Cummulative Unspent Amount (DCR)',
-    title: 'Total Unspent',
+    ylabel: 'Balance (DCR)',
+    title: 'Balance',
     plotter: [Dygraph.Plotters.linePlotter, Dygraph.Plotters.fillPlotter],
     legendFormatter: customizedFormatter,
     stackedGraph: false,
@@ -174,7 +172,7 @@ function decodeZoom (encoded) {
 
 export default class extends Controller {
   static get targets () {
-    return ['options', 'addr', 'btns', 'unspent',
+    return ['options', 'addr', 'btns', 'balance',
       'flow', 'zoom', 'interval', 'numUnconfirmed', 'formattedTime',
       'pagesize', 'txntype', 'txnCount', 'qricon', 'qrimg', 'qrbox',
       'paginator', 'pageplus', 'pageminus', 'listbox', 'table',
@@ -223,7 +221,7 @@ export default class extends Controller {
       'debit': parseInt(cdata.get('spendingCount')),
       'merged_debit': parseInt(cdata.get('mergedCount'))
     }
-    ctrl.unspent = cdata.get('balance')
+    ctrl.balance = cdata.get('balance')
 
     // Request the initial chart data, grabbing the Dygraph script if necessary.
     const initializeChart = () => {
@@ -466,9 +464,10 @@ export default class extends Controller {
       }, 10) // 0 should work but doesn't always
       return
     }
+    var chartKey = chart === 'balance' ? 'amountflow' : chart
     $.ajax({
       type: 'GET',
-      url: '/api/address/' + ctrl.dcrAddress + '/' + chart + '/' + bin,
+      url: '/api/address/' + ctrl.dcrAddress + '/' + chartKey + '/' + bin,
       complete: () => {
         ctrl.chartboxTarget.classList.remove('loading')
         ctrl.ajaxing = false
@@ -481,30 +480,18 @@ export default class extends Controller {
 
   processData (chart, bin, data) {
     var ctrl = this
-    if (!ctrl.retrievedData[chart]) {
-      ctrl.retrievedData[chart] = {}
-    }
     if (isEmpty(data)) {
       ctrl.noDataAvailable()
       return
     }
-    var processor = null
-    switch (chart) {
-      case 'types':
-        processor = txTypesFunc
-        break
-      case 'amountflow':
-        processor = amountFlowFunc
-        break
-      case 'unspent':
-        processor = unspentAmountFunc
-        break
-    }
-    if (!processor) {
-      return
-    }
-    var cacheKey = chart + '-' + bin
-    ctrl.retrievedData[cacheKey] = processor(data, zoomMap[bin] || blockDuration)
+    var binSize = zoomMap[bin] || blockDuration
+    if (chart === 'types') {
+      ctrl.retrievedData['types-' + bin] = txTypesFunc(data, binSize)
+    } else if (chart === 'amountflow' || chart === 'balance') {
+      let processed = amountFlowProcessor(data, binSize)
+      ctrl.retrievedData['amountflow-' + bin] = processed.flow
+      ctrl.retrievedData['balance-' + bin] = processed.balance
+    } else return
     setTimeout(() => {
       ctrl.popChartCache(chart, bin)
     }, 0)
@@ -535,8 +522,8 @@ export default class extends Controller {
         ctrl.flowTarget.classList.remove('d-hide')
         break
 
-      case 'unspent':
-        options = unspentGraphOptions
+      case 'balance':
+        options = balanceGraphOptions
         break
     }
     options.zoomCallback = ctrl.zoomCallback
