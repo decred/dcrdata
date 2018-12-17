@@ -139,7 +139,11 @@ Mousetrap.bind('q', function () {
   clearTargets()
 })
 
-if (keyNavEnabled()) Mousetrap.unpause()
+if (keyNavEnabled()) {
+  Mousetrap.unpause()
+} else {
+  Mousetrap.pause()
+}
 
 $('#keynav-toggle .text').text(keyNavEnabled() ? 'Disable Hot Keys' : 'Enable Hot Keys')
 document.addEventListener('turbolinks:load', function (e) {
