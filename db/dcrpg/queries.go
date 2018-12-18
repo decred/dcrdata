@@ -1287,6 +1287,58 @@ func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, off
 	return scanAddressQueryRows(rows)
 }
 
+// retrieveAddressIoCsv grabs rows for an address and formats them as a 2-D
+// array of strings for CSV-formatting
+func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvRows [][]string, err error) {
+	dbRows, err := db.QueryContext(ctx, internal.SelectAddressCsvView, address)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows(dbRows)
+
+	var txHash, matchingTxHash, strValidMainchain, strDirection string
+	var validMainchain, isFunding bool
+	var value uint64
+	var ioIndex, txType int
+	var blockTime dbtypes.TimeDef
+
+	// header row
+	csvRows = append(csvRows, []string{"tx_hash", "valid_mainchain", "matching_tx_hash", "value", "block_time", "direction", "io_index", "tx_type"})
+
+	for dbRows.Next() {
+
+		err = dbRows.Scan(&txHash, &validMainchain, &matchingTxHash,
+			&value, &blockTime.T, &isFunding, &ioIndex, &txType)
+		if err != nil {
+			return nil, fmt.Errorf("retrieveAddressIoCsv Scan error: %v", err)
+		}
+
+		if validMainchain {
+			strValidMainchain = "1"
+		} else {
+			strValidMainchain = "0"
+		}
+
+		if isFunding {
+			strDirection = "1"
+		} else {
+			strDirection = "-1"
+		}
+
+		csvRows = append(csvRows, []string{
+			txHash,
+			strValidMainchain,
+			matchingTxHash,
+			fmt.Sprintf("%f", dcrutil.Amount(value).ToCoin()),
+			blockTime.String(),
+			strDirection,
+			fmt.Sprint(ioIndex),
+			txhelpers.TxTypeToString(txType),
+		})
+	}
+	return
+}
+
 func scanPartialAddressQueryRows(rows *sql.Rows, addr string) (addressRows []*dbtypes.AddressRow, err error) {
 	for rows.Next() {
 		var addr = dbtypes.AddressRow{Address: addr}

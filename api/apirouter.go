@@ -173,6 +173,12 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 		})
 	})
 
+	mux.Route("/download", func(r chi.Router) {
+		r.Route("/address", func(rd chi.Router) {
+			rd.With(m.AddressPathCtx).Get("/io/{address}", app.addressIoCsv)
+		})
+	})
+
 	mux.Route("/agenda", func(r chi.Router) {
 		r.With(m.AgendIdCtx).Get("/{agendaId}", app.getAgendaData)
 	})

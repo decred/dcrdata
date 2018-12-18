@@ -7,6 +7,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -100,6 +101,7 @@ type DataSourceAux interface {
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
 		*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
+	AddressTxIoCsv(address string) ([][]string, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -1297,6 +1299,46 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, totals, c.getIndentQuery(r))
+}
+
+// For /api/download/address/io/{address}
+func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		return
+	}
+
+	address := m.GetAddressCtx(r)
+	if address == "" {
+		log.Errorf("Failed to parse address from request")
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+
+	_, _, addrErr := txhelpers.AddressValidation(address, c.Params)
+	if addrErr != nil {
+		log.Errorf("Error validating address %s: %v", address, addrErr)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", "attachment;filename=address-io.csv")
+	w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+
+	rows, err := c.AuxDataSource.AddressTxIoCsv(address)
+	if err != nil {
+		log.Errorf("Failed to fetch AddressTxIoCsv: %v", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	writer := csv.NewWriter(w)
+	err = writer.WriteAll(rows)
+	if err != nil {
+		log.Errorf("Failed to write CSV: %v", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {

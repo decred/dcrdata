@@ -1669,6 +1669,20 @@ func (pgb *ChainDB) AddressTotals(address string) (*apitypes.AddressTotals, erro
 	}, nil
 }
 
+// AddressTxIoCsv grabs rows of an address' transaction input/output data as a
+// 2-D array of strings to be CSV-formatted.
+func (pgb *ChainDB) AddressTxIoCsv(address string) (rows [][]string, err error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+
+	rows, err = retrieveAddressIoCsv(ctx, pgb.db, address)
+	if err != nil {
+		return nil, fmt.Errorf("AddressTxIoCsv error: %v", err)
+	}
+
+	return
+}
+
 func (pgb *ChainDB) addressInfo(addr string, count, skip int64, txnType dbtypes.AddrTxnType) (*dbtypes.AddressInfo, *dbtypes.AddressBalance, error) {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
