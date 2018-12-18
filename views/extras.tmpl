@@ -152,16 +152,19 @@
 {{end}}
 
 {{define "decimalParts"}}
+  <div class="decimal-parts d-inline-block">
     {{if eq (len .) 4}}
-    <span class="int">{{ index . 0 }}.{{ index . 1 }}</span>
-    {{if gt (len (index . 2)) 0}}<span class="decimal lh15rem">{{ index . 2 }}</span>
-    <span class="decimal lh15rem trailing-zeroes">{{ index . 3 }}</span>{{end}}
+        <span class="int">{{ index . 0 }}.{{ index . 1 }}</span
+        >{{if gt (len (index . 2)) 0}}<span class="decimal">{{ index . 2 }}</span
+        ><span class="decimal trailing-zeroes">{{ index . 3 }}</span>{{end}}
     {{else}}
-    <span class="int">{{index . 0}}</span>
-    {{if gt (len (index . 1)) 0}}<span class="decimal lh15rem dot">.</span>
-    <span class="decimal lh15rem">{{index . 1 }}</span>
-    <span class="decimal lh15rem trailing-zeroes">{{index . 2}}</span>{{end}}
+        <span class="int">{{index . 0}}</span
+        >{{if gt (len (index . 1)) 0}}<span class="decimal dot">.</span
+        ><span class="decimal">{{index . 1 }}</span
+        ><span class="decimal trailing-zeroes">{{index . 2}}</span>
+        {{end}}
     {{end}}
+  </div>
 {{end}}
 
 {{define "fmtPercentage"}}
@@ -236,7 +239,7 @@
               {{else}}
                   {{if ne .ReceivedTotal 0.0}}
                       <td class="text-right fs15">
-                      <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</span>
+                      {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
                       </td>
                   {{else}}
                       {{if eq .SentTotal 0.0}}
@@ -254,11 +257,11 @@
                   {{if lt 0.0 .SentTotal}}
                   {{if eq $txType "merged_debit"}}
                           <td class="text-right fs15">
-                          <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</span>
+                          {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
                           </td>
                       {{else}}
                           <td class="fs15">
-                          <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</span>
+                          {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
                           </td>
                       {{end}}
                   {{else}}

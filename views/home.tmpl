@@ -206,7 +206,7 @@
                             <a class="hash truncate-hash keyboard-target" style="flex: 1 1 auto" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
                             <span style="flex: 0 0 65px" class="mono text-right ml-1">{{.Type}}</span>
                             <span style="flex: 0 0 105px" class="mono text-right ml-1 fs13">
-                                <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}</span>
+                              {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                             </span>
                             <span style="flex: 0 0 50px" class="mono text-right ml-1">{{.Size}} B</span>
                             <span style="flex: 0 0 62px" class="mono text-right ml-1 jsonly" data-target="time.age" data-age="{{.Time}}"></span>
