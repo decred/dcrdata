@@ -56,7 +56,7 @@
                     <tr  class="h2rem">
                         <td class="pr-2 lh1rem vam text-right xs-w91">TOTAL UNSPENT</td>
                         {{if .Fullmode}}
-                            <td class="fs28 mono nowrap fs16-decimal d-flex align-items-center justify-content-end">
+                            <td class="fs28 mono nowrap fs16-decimal text-right">
                                 {{if .Balance}}
                                     {{template "decimalParts" (amountAsDecimalParts .Balance.TotalUnspent true)}}<span class="pl-1 unit">DCR</span>
                                 {{else}}

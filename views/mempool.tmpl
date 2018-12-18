@@ -14,9 +14,10 @@
                 <table>
                     <tr class="h2rem">
                         <td class="pr-2 lh1rem vam text-right xs-w117 w120">TOTAL SENT</td>
-                        <td class="fs28 mono fs16-decimal d-flex align-items-center" data-target="mempool.totalOut" >
-                            <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}</span>
-                        <span class="pl-1 unit">DCR</span></td>
+                        <td class="fs28 mono fs16-decimal text-left">
+                          <span class="d-inline-block" data-target="mempool.totalOut">{{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}</span
+                          ><span class="pl-1 unit d-inline-block">DCR</span>
+                        </td>
                     </tr>
                 </table>
             </div>
@@ -87,7 +88,7 @@
                                 <td class="mono fs15"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
                                 <td class="mono fs15">{{.VoteInfo.Version}}</td>
                                 <td class="mono fs15 text-right">
-                                    <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}</span>
+                                    {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                 </td>
                                 <td class="mono fs15 text-right">{{.Size}} B</td>
                                 <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>

@@ -40,19 +40,19 @@ var humanize = {
     var decimalVals = decimal.slice(0, decimal.length - numTrailingZeros)
     var trailingZeros = (numTrailingZeros === 0) ? '' : decimal.slice(-(numTrailingZeros))
 
-    var htmlString = '<div class="decimal-parts d-inline-block"><span class="int">' + int + '</span>'
-
-    if (precision !== 0) {
-      htmlString = htmlString +
-      '<span class="decimal dot">.</span>' +
-      '<span class="decimal">' + decimalVals + '</span>' +
-      '<span class="decimal trailing-zeroes">' + trailingZeros + '</span>'
-    }
+    var htmlString = '<div class="decimal-parts d-inline-block">'
 
     if (!isNaN(lgDecimals) && lgDecimals > 0) {
-      htmlString = '<span class="int">' + int + '.' + decimalVals.substring(0, lgDecimals) + '</span>' +
-      '<span class="decimal">' + decimalVals.substring(lgDecimals, decimalVals.length) + '</span>' +
-      '<span class="decimal trailing-zeroes">' + trailingZeros + '</span>'
+      htmlString += `<span class="int">${int}.${decimalVals.substring(0, lgDecimals)}</span>` +
+      `<span class="decimal">${decimalVals.substring(lgDecimals, decimalVals.length)}</span>` +
+      `<span class="decimal trailing-zeroes">${trailingZeros}</span>`
+    } else if (precision !== 0) {
+      htmlString += `<span class="int">${int}</span>` +
+      '<span class="decimal dot">.</span>' +
+      `<span class="decimal">${decimalVals}</span>` +
+      `<span class="decimal trailing-zeroes">${trailingZeros}</span>`
+    } else {
+      htmlString += '<span class="int"></span>'
     }
 
     htmlString += '</div>'
