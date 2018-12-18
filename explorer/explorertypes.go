@@ -12,9 +12,9 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/v3/db/agendadb"
-	"github.com/decred/dcrdata/v3/db/dbtypes"
-	"github.com/decred/dcrdata/v3/txhelpers"
+	"github.com/decred/dcrdata/v4/db/agendadb"
+	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/txhelpers"
 )
 
 // expStatus defines the various status types supported by the system.

@@ -14,11 +14,11 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/v3/api/insight"
-	"github.com/decred/dcrdata/v3/explorer"
-	"github.com/decred/dcrdata/v3/mempool"
-	"github.com/decred/dcrdata/v3/rpcutils"
-	"github.com/decred/dcrdata/v3/txhelpers"
+	"github.com/decred/dcrdata/v4/api/insight"
+	"github.com/decred/dcrdata/v4/explorer"
+	"github.com/decred/dcrdata/v4/mempool"
+	"github.com/decred/dcrdata/v4/rpcutils"
+	"github.com/decred/dcrdata/v4/txhelpers"
 	"github.com/decred/dcrwallet/wallet/udb"
 )
 

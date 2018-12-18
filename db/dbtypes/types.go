@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/dcrutil"
-	"github.com/decred/dcrdata/v3/db/dbtypes/internal"
-	"github.com/decred/dcrdata/v3/txhelpers"
+	"github.com/decred/dcrdata/v4/db/dbtypes/internal"
+	"github.com/decred/dcrdata/v4/txhelpers"
 )
 
 var (
@@ -733,7 +733,7 @@ type AddressInfo struct {
 
 	// IsDummyAddress is true when the address is the dummy address typically
 	// used for unspendable ticket change outputs. See
-	// https://github.com/decred/dcrdata/v3/issues/358 for details.
+	// https://github.com/decred/dcrdata/v4/issues/358 for details.
 	IsDummyAddress bool
 
 	// Page parameters

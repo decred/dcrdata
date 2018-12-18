@@ -17,9 +17,9 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
-	apitypes "github.com/decred/dcrdata/v3/api/types"
-	"github.com/decred/dcrdata/v3/semver"
-	"github.com/decred/dcrdata/v3/txhelpers"
+	apitypes "github.com/decred/dcrdata/v4/api/types"
+	"github.com/decred/dcrdata/v4/semver"
+	"github.com/decred/dcrdata/v4/txhelpers"
 )
 
 // Any of the following dcrd RPC API versions are deemed compatible with

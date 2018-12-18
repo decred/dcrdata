@@ -3,7 +3,7 @@ package internal
 import (
 	"fmt"
 
-	"github.com/decred/dcrdata/v3/db/dbtypes"
+	"github.com/decred/dcrdata/v4/db/dbtypes"
 )
 
 const (

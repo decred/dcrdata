@@ -8,9 +8,9 @@ import (
 	"runtime/pprof"
 
 	"github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrdata/v3/db/dcrsqlite"
-	"github.com/decred/dcrdata/v3/rpcutils"
-	"github.com/decred/dcrdata/v3/stakedb"
+	"github.com/decred/dcrdata/v4/db/dcrsqlite"
+	"github.com/decred/dcrdata/v4/rpcutils"
+	"github.com/decred/dcrdata/v4/stakedb"
 	"github.com/decred/slog"
 )
 

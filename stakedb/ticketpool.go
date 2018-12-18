@@ -15,6 +15,7 @@ import (
 
 	"github.com/asdine/storm"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/slog"
 	"github.com/dgraph-io/badger"
 )
 
@@ -46,9 +47,22 @@ type PoolDiffDBItem struct {
 	PoolDiff `storm:"inline"`
 }
 
+type badgerLogger struct {
+	slog.Logger
+}
+
+// Warningf along with slog.Logger functions implements badger.Logger.
+func (l *badgerLogger) Warningf(format string, v ...interface{}) {
+	l.Warnf(format, v...)
+}
+
 // NewTicketPool constructs a TicketPool by opening the persistent diff db,
 // loading all known diffs, initializing the TicketPool values.
 func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
+	// Set badger logger.
+	bLog := &badgerLogger{log}
+	badger.SetLogger(bLog)
+
 	// Open ticket pool diffs database
 	badgerDbPath := filepath.Join(dataDir, dbSubDir)
 	opts := badger.DefaultOptions
@@ -184,25 +198,27 @@ func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiffDBItem, error) {
 		it := txn.NewIterator(opts)
 		defer it.Close()
 
-		var hashesBytes []byte
 		var lastheight uint64
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
 			height := binary.BigEndian.Uint64(item.Key())
 
-			var err error
-			hashesBytes, err = item.ValueCopy(hashesBytes)
-			if err != nil {
-				log.Warnf("Key [%x]. Error while fetching value [%v]\n", item.Key(), err)
-				continue
+			// Don't waste time with a copy since we are going to read the data in
+			// this transaction.
+			var hashReader bytes.Reader
+			errTx := item.Value(func(v []byte) error {
+				hashReader.Reset(v)
+				return nil
+			})
+			if errTx != nil {
+				return fmt.Errorf("key [%x]. Error while fetching value [%v]",
+					item.Key(), errTx)
 			}
 
-			hashReader := bytes.NewReader(hashesBytes)
-
 			var poolDiff PoolDiff
-			if err = gob.NewDecoder(hashReader).Decode(&poolDiff); err != nil {
-				log.Errorf("failed to decode PoolDiff[%d]: %v", height, hashesBytes)
-				return err
+			if errTx = gob.NewDecoder(&hashReader).Decode(&poolDiff); errTx != nil {
+				log.Errorf("failed to decode PoolDiff[%d]: %v", height, errTx)
+				return errTx
 			}
 
 			poolDiffs = append(poolDiffs, PoolDiffDBItem{
@@ -306,7 +322,7 @@ func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
 		err = txn.Set(heightBytes[:], poolDiffBuffer.Bytes())
 		// If this transaction got too big, commit and make a new one
 		if err == badger.ErrTxnTooBig {
-			if err = txn.Commit(nil); err != nil {
+			if err = txn.Commit(); err != nil {
 				txn.Discard()
 				return err
 			}
@@ -322,7 +338,7 @@ func storeDiffs(db *badger.DB, diffs []*PoolDiff, heights []int64) error {
 		}
 		//poolDiffBuffer.Reset()
 	}
-	return txn.Commit(nil)
+	return txn.Commit()
 }
 
 func (tp *TicketPool) storeDiff(diff *PoolDiff, height int64) error {
@@ -336,20 +352,27 @@ func (tp *TicketPool) fetchDiff(height int64) (*PoolDiffDBItem, error) {
 
 	var diff *PoolDiffDBItem
 	err := tp.diffDB.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(heightBytes[:])
-		if err != nil {
-			return fmt.Errorf("failed to find height %d in TicketPool", height)
-		}
-		hashesBytes, err := item.Value()
-		if err != nil {
-			return fmt.Errorf("key [%x]. Error while fetching value [%v]", item.Key(), err)
+		item, errTx := txn.Get(heightBytes[:])
+		if errTx != nil {
+			return fmt.Errorf("failed to find height %d in TicketPool: %v",
+				height, errTx)
 		}
 
-		hashReader := bytes.NewReader(hashesBytes)
+		// Don't waste time with a copy since we are going to read the data in
+		// this transaction.
+		var hashReader bytes.Reader
+		errTx = item.Value(func(v []byte) error {
+			hashReader.Reset(v)
+			return nil
+		})
+		if errTx != nil {
+			return fmt.Errorf("key [%x]. Error while fetching value [%v]",
+				item.Key(), errTx)
+		}
 
 		var poolDiff PoolDiff
-		if err = gob.NewDecoder(hashReader).Decode(&poolDiff); err != nil {
-			return fmt.Errorf("failed to decode PoolDiff")
+		if errTx = gob.NewDecoder(&hashReader).Decode(&poolDiff); errTx != nil {
+			return fmt.Errorf("failed to decode PoolDiff: %v", errTx)
 		}
 
 		diff = &PoolDiffDBItem{
