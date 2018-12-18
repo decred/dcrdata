@@ -3,14 +3,14 @@
 
 import { Controller } from 'stimulus'
 import { map, assign, merge } from 'lodash-es'
-import { barChartPlotter, ensureDygraph } from '../helpers/chart_helper'
+import { barChartPlotter } from '../helpers/chart_helper'
 import { darkEnabled } from '../services/theme_service'
 import { animationFrame } from '../helpers/animation_helper'
-import ajax from '../helpers/ajax_helper'
+import { getDefault } from '../helpers/module_helper'
+import axios from 'axios'
 
 var selectedChart
-
-var Dygraph = window.Dygraph
+let Dygraph
 
 function legendFormatter (data) {
   if (data.x == null) {
@@ -160,15 +160,15 @@ export default class extends Controller {
     ]
   }
 
-  connect () {
-    ensureDygraph(() => {
-      Dygraph = window.Dygraph
-      this.drawInitialGraph()
-      $(document).on('nightMode', (event, params) => {
-        this.chartsView.updateOptions(
-          nightModeOptions(params.nightMode)
-        )
-      })
+  async connect () {
+    Dygraph = await getDefault(
+      import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
+    )
+    this.drawInitialGraph()
+    $(document).on('nightMode', (event, params) => {
+      this.chartsView.updateOptions(
+        nightModeOptions(params.nightMode)
+      )
     })
   }
 
@@ -331,15 +331,14 @@ export default class extends Controller {
     $(this.chartWrapperTarget).removeClass('loading')
   }
 
-  selectChart () {
+  async selectChart () {
     var selection = this.chartSelectTarget.value
     $(this.rollPeriodInputTarget).val(undefined)
     $(this.chartWrapperTarget).addClass('loading')
     if (selectedChart !== selection) {
-      ajax('/api/chart/' + selection, (data) => {
-        console.log('got api data', data, this, selection)
-        this.plotGraph(selection, data)
-      })
+      let data = await axios.get('/api/chart/' + selection)
+      console.log('got api data', data, this, selection)
+      this.plotGraph(selection, data.data)
       selectedChart = selection
     } else {
       $(this.chartWrapperTarget).removeClass('loading')
