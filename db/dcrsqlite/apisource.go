@@ -1042,8 +1042,8 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	return tx
 }
 
-func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address string) *explorer.AddressTx {
-	tx := new(explorer.AddressTx)
+func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address string) *dbtypes.AddressTx {
+	tx := new(dbtypes.AddressTx)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
@@ -1359,7 +1359,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	return tx
 }
 
-func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*explorer.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
+func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
 	// Validate the address.
 	addr, addrType, addrErr := txhelpers.AddressValidation(address, db.params)
 	switch addrErr {
@@ -1369,12 +1369,14 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		// Short circuit the transaction and balance queries if the provided
 		// address is the zero pubkey hash address commonly used for zero
 		// value sstxchange-tagged outputs.
-		return &explorer.AddressInfo{
+		return &dbtypes.AddressInfo{
 			Address:         address,
 			Net:             addr.Net().Name,
 			IsDummyAddress:  true,
-			Balance:         new(explorer.AddressBalance),
-			UnconfirmedTxns: new(explorer.AddressTransactions),
+			Balance:         new(dbtypes.AddressBalance),
+			UnconfirmedTxns: new(dbtypes.AddressTransactions),
+			Limit:           count,
+			Offset:          offset,
 			Fullmode:        true,
 		}, addrType, nil
 	default:
@@ -1387,17 +1389,19 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 	if err != nil {
 		if err.Error() == "-32603: No Txns available" {
 			log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
-			return &explorer.AddressInfo{
+			return &dbtypes.AddressInfo{
 				Address:    address,
 				Net:        addr.Net().Name,
 				MaxTxLimit: maxcount,
+				Limit:      count,
+				Offset:     offset,
 			}, addrType, nil
 		}
 		log.Warnf("GetExplorerAddress: SearchRawTransactionsVerbose failed for address %s: %v", addr, err)
 		return nil, addrType, txhelpers.AddressErrorUnknown
 	}
 
-	addressTxs := make([]*explorer.AddressTx, 0, len(txs))
+	addressTxs := make([]*dbtypes.AddressTx, 0, len(txs))
 	for i, tx := range txs {
 		if int64(i) == count { // count >= len(txs)
 			break
@@ -1440,14 +1444,14 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 	if numTxns > numberMaxOfTx {
 		numTxns = numberMaxOfTx
 	}
-	balance := &explorer.AddressBalance{
+	balance := &dbtypes.AddressBalance{
 		Address:      address,
 		NumSpent:     numSpending,
 		NumUnspent:   numReceiving,
 		TotalSpent:   int64(totalsent),
 		TotalUnspent: int64(totalreceived - totalsent),
 	}
-	return &explorer.AddressInfo{
+	addrData := &dbtypes.AddressInfo{
 		Address:           address,
 		Net:               addr.Net().Name,
 		MaxTxLimit:        maxcount,
@@ -1465,7 +1469,12 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*exp
 		KnownTransactions: numberMaxOfTx,
 		KnownFundingTxns:  numReceiving,
 		KnownSpendingTxns: numSpending,
-	}, addrType, nil
+	}
+
+	// sort by date and calculate block height.
+	addrData.PostProcess(uint32(db.GetHeight()))
+
+	return addrData, addrType, nil
 }
 
 // CountUnconfirmedTransactions returns the number of unconfirmed transactions
@@ -1475,57 +1484,10 @@ func (db *wiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
 	return numUnconfirmed, err
 }
 
-// UnconfirmedTxnsForAddress returns the chainhash.Hash of all transactions in
-// mempool that (1) pay to the given address, or (2) spend a previous outpoint
-// that paid to the address.
+// UnconfirmedTxnsForAddress routes through rpcutils with appropriate
+// arguments. Returns mempool inputs/outputs associated with the given address.
 func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
-	// Mempool transactions
-	var numUnconfirmed int64
-	mempoolTxns, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
-	if err != nil {
-		log.Warnf("GetRawMempool failed for address %s: %v", address, err)
-		return nil, numUnconfirmed, err
-	}
-
-	// Check each transaction for involvement with provided address.
-	addressOutpoints := txhelpers.NewAddressOutpoints(address)
-	for hash, tx := range mempoolTxns {
-		// Transaction details from dcrd
-		txhash, err1 := chainhash.NewHashFromStr(hash)
-		if err1 != nil {
-			log.Errorf("Invalid transaction hash %s", hash)
-			return addressOutpoints, 0, err1
-		}
-
-		Tx, err1 := db.client.GetRawTransaction(txhash)
-		if err1 != nil {
-			log.Warnf("Unable to GetRawTransaction(%s): %v", hash, err1)
-			err = err1
-			continue
-		}
-		// Scan transaction for inputs/outputs involving the address of interest
-		outpoints, prevouts, prevTxns := txhelpers.TxInvolvesAddress(Tx.MsgTx(),
-			address, db.client, db.params)
-		if len(outpoints) == 0 && len(prevouts) == 0 {
-			continue
-		}
-		// Update previous outpoint txn slice with mempool time
-		for f := range prevTxns {
-			prevTxns[f].MemPoolTime = tx.Time
-		}
-
-		// Add present transaction to previous outpoint txn slice
-		numUnconfirmed++
-		thisTxUnconfirmed := &txhelpers.TxWithBlockData{
-			Tx:          Tx.MsgTx(),
-			MemPoolTime: tx.Time,
-		}
-		prevTxns = append(prevTxns, thisTxUnconfirmed)
-		// Merge the I/Os and the transactions into results
-		addressOutpoints.Update(prevTxns, outpoints, prevouts)
-	}
-
-	return addressOutpoints, numUnconfirmed, err
+	return rpcutils.UnconfirmedTxnsForAddress(db.client, address, db.params)
 }
 
 // GetMepool gets all transactions from the mempool for explorer and adds the

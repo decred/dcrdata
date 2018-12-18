@@ -47,7 +47,7 @@ type explorerDataSourceLite interface {
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
 	GetExplorerTx(txid string) *TxInfo
-	GetExplorerAddress(address string, count, offset int64) (*AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
+	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
 	GetTip() (*WebBasicBlock, error)
 	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
@@ -72,9 +72,10 @@ type explorerDataSource interface {
 	SpendingTransaction(fundingTx string, vout uint32) (string, uint32, int8, error)
 	SpendingTransactions(fundingTxID string) ([]string, []uint32, []uint32, error)
 	PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error)
-	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *AddressBalance, error)
-	DevBalance() (*AddressBalance, error)
-	FillAddressTransactions(addrInfo *AddressInfo) error
+	AddressHistory(address string, N, offset int64, txnType dbtypes.AddrTxnType) ([]*dbtypes.AddressRow, *dbtypes.AddressBalance, error)
+	AddressData(address string, N, offset int64, txnType dbtypes.AddrTxnType) (*dbtypes.AddressInfo, error)
+	DevBalance() (*dbtypes.AddressBalance, error)
+	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
 	TicketsPriceByHeight() (*dbtypes.ChartsData, error)
@@ -82,7 +83,6 @@ type explorerDataSource interface {
 	DisapprovedBlocks() ([]*dbtypes.BlockStatus, error)
 	BlockStatus(hash string) (dbtypes.BlockStatus, error)
 	BlockFlags(hash string) (bool, bool, error)
-	AddressMetrics(addr string) (*dbtypes.AddressMetrics, error)
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	TransactionBlocks(hash string) ([]*dbtypes.BlockStatus, []uint32, error)
 	Transaction(txHash string) ([]*dbtypes.Tx, error)
@@ -342,7 +342,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "rejects", "ticketpool", "nexthome", "statistics",
-		"windows", "timelisting"}
+		"windows", "timelisting", "addresstable"}
 
 	tempDefaults := []string{"extras"}
 

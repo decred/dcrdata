@@ -201,3 +201,113 @@
     data-tail="{{hashEnd $hash}}"
     >{{$hash}}{{if eq $link ""}}</div>{{else}}</a>{{end}}
 {{end}}
+
+{{define "addressTable"}}
+  {{$TxnCount := .TxnCount}}
+  {{$txType := .TxnType}}
+  {{if .Transactions}}
+  <table class="table table-mono-cells table-sm striped" style="width: 100%;">
+      <thead>
+          <th>Tx Type</th>
+          <th>Input/Output ID</th>
+          {{if eq $txType "merged_debit"}}
+              <th># of Input(s)</th>
+          {{else}}
+              <th class="text-right">Credit DCR</th>
+          {{end}}
+          {{if eq $txType "merged_debit"}}
+              <th class="text-center">Debit DCR</th>
+          {{else}}
+              <th>Debit DCR</th>
+          {{end}}
+          <th>Time UTC</th>
+          <th>Age</th>
+          <th>Confirms</th>
+          <th>Size</th>
+      </thead>
+      <tbody>
+          {{range $i, $v := .Transactions}}
+          <tr {{if eq .Confirmations 0}} data-addr-tx-pending="{{.TxID}}" {{end}}>
+              {{with $v}}
+              <td>{{.TxType}}</td>
+              <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
+              {{if eq $txType "merged_debit"}}
+                  <td class="text-right">{{.MergedTxnCount}}</td>
+              {{else}}
+                  {{if ne .ReceivedTotal 0.0}}
+                      <td class="text-right fs15">
+                      <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}</span>
+                      </td>
+                  {{else}}
+                      {{if eq .SentTotal 0.0}}
+                      <td class="text-right">sstxcommitment</td>
+                      {{else}}
+                          {{if ne .MatchedTx ""}}
+                          <td class="text-right"><a href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}" class="matchhash">source</a></td>
+                          {{else}}
+                          <td class="text-right">N/A</td>
+                          {{end}}
+                      {{end}}
+                  {{end}}
+              {{end}}
+              {{if ne .SentTotal 0.0}}
+                  {{if lt 0.0 .SentTotal}}
+                  {{if eq $txType "merged_debit"}}
+                          <td class="text-right fs15">
+                          <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</span>
+                          </td>
+                      {{else}}
+                          <td class="fs15">
+                          <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}</span>
+                          </td>
+                      {{end}}
+                  {{else}}
+                      <td class="text-right fs15">N/A</td>
+                  {{end}}
+              {{else}}
+                  {{if ne .MatchedTx ""}}
+                      <td><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}" class="matchhash">spent</a></td>
+                  {{else}}
+                      <td>unspent</td>
+                  {{end}}
+              {{end}}
+              <td class="addr-tx-time">
+                  {{if eq .Confirmations 0}}
+                      <span data-target="address.formattedTime">Unconfirmed</span>
+                  {{else}}
+                      {{.Time}}
+                  {{end}}
+              </td>
+              <td class="addr-tx-age">
+              {{if eq (.Time.T.Unix) 0}}
+                  N/A
+              {{else}}
+                  <span data-controller="time" data-target="time.age" data-age="{{.Time}}"></span>
+              {{end}}
+              </td>
+
+                  <td {{if eq .Confirmations 0}}
+                      class="addr-tx-confirms"
+                      {{end}}
+                      data-target="newBlock.confirmations"
+                      data-confirmations="{{.Confirmations}}"
+                      data-confirmation-block-height="{{.BlockHeight}}"
+                      data-tx-block-height="{{.BlockHeight}}"
+                  >{{.Confirmations}}</td>
+
+              <td class="text-right">{{.FormattedSize}}</td>
+              {{end}}
+          </tr>
+          {{end}}
+      </tbody>
+  </table>
+  {{else}}
+  <table class="table table-mono-cells table-sm striped">
+      <tr>
+          <td>
+              No transactions found for this address.
+          </td>
+      </tr>
+  </table>
+  {{end}}
+{{end}}

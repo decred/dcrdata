@@ -8,11 +8,14 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrdata/v3/db/dbtypes/internal"
+	"github.com/decred/dcrdata/v3/txhelpers"
 )
 
 var (
@@ -676,4 +679,199 @@ type BlockStatus struct {
 type SideChain struct {
 	Hashes  []string
 	Heights []int64
+}
+
+// AddressTx models data for transactions on the address page.
+type AddressTx struct {
+	TxID           string
+	TxType         string
+	InOutID        uint32
+	Size           uint32
+	FormattedSize  string
+	Total          float64
+	Confirmations  uint64
+	Time           TimeDef
+	ReceivedTotal  float64
+	SentTotal      float64
+	IsFunding      bool
+	MatchedTx      string
+	MatchedTxIndex uint32
+	MergedTxnCount uint64 `json:",omitempty"`
+	BlockHeight    uint32
+}
+
+// IOID formats an identification string for the transaction input (or output)
+// represented by the AddressTx.
+func (a *AddressTx) IOID(txType ...string) string {
+	// If transaction is of type merged_debit, return unformatted transaction ID
+	if len(txType) > 0 && AddrTxnTypeFromStr(txType[0]) == AddrMergedTxnDebit {
+		return a.TxID
+	}
+	// When AddressTx is used properly, at least one of ReceivedTotal or
+	// SentTotal should be zero.
+	if a.IsFunding {
+		// An outpoint receiving funds
+		return fmt.Sprintf("%s:out[%d]", a.TxID, a.InOutID)
+	}
+	// A transaction input referencing an outpoint being spent
+	return fmt.Sprintf("%s:in[%d]", a.TxID, a.InOutID)
+}
+
+// AddressTransactions collects the transactions for an address as AddressTx
+// slices.
+type AddressTransactions struct {
+	Transactions []*AddressTx
+	TxnsFunding  []*AddressTx
+	TxnsSpending []*AddressTx
+}
+
+// AddressInfo models data for display on the address page.
+type AddressInfo struct {
+	// Address is the decred address on the current page
+	Address string
+	Net     string
+
+	// IsDummyAddress is true when the address is the dummy address typically
+	// used for unspendable ticket change outputs. See
+	// https://github.com/decred/dcrdata/v3/issues/358 for details.
+	IsDummyAddress bool
+
+	// Page parameters
+	MaxTxLimit    int64
+	Fullmode      bool
+	Path          string
+	Limit, Offset int64  // ?n=Limit&start=Offset
+	TxnType       string // ?txntype=TxnType
+
+	// NumUnconfirmed is the number of unconfirmed txns for the address
+	NumUnconfirmed  int64
+	UnconfirmedTxns *AddressTransactions
+
+	// Transactions on the current page
+	Transactions    []*AddressTx
+	TxnsFunding     []*AddressTx
+	TxnsSpending    []*AddressTx
+	NumTransactions int64 // The number of transactions in the address
+	NumFundingTxns  int64 // number paying to the address
+	NumSpendingTxns int64 // number spending outpoints associated with the address
+	AmountReceived  dcrutil.Amount
+	AmountSent      dcrutil.Amount
+	AmountUnspent   dcrutil.Amount
+
+	// Balance is used in full mode, describing all known transactions
+	Balance *AddressBalance
+
+	// KnownTransactions refers to the total transaction count in the DB when in
+	// full mode, the sum of funding (crediting) and spending (debiting) txns.
+	KnownTransactions int64
+	KnownFundingTxns  int64
+	KnownSpendingTxns int64
+
+	// KnownMergedSpendingTxns refers to the total count of unique debit transactions
+	// that appear in the merged debit view.
+	KnownMergedSpendingTxns int64
+}
+
+// AddressBalance represents the number and value of spent and unspent outputs
+// for an address.
+type AddressBalance struct {
+	Address        string `json:"address"`
+	NumSpent       int64  `json:"num_stxos"`
+	NumUnspent     int64  `json:"num_utxos"`
+	TotalSpent     int64  `json:"amount_spent"`
+	TotalUnspent   int64  `json:"amount_unspent"`
+	NumMergedSpent int64  `json:"num_merged_spent,omitempty"`
+}
+
+// ReduceAddressHistory generates a template AddressInfo from a slice of
+// AddressRow. All fields except NumUnconfirmed and Transactions are set
+// completely. Transactions is partially set, with each transaction having only
+// the TxID and ReceivedTotal set. The rest of the data should be filled in by
+// other means, such as RPC calls or database queries.
+func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
+	if len(addrHist) == 0 {
+		return nil
+	}
+
+	var received, sent int64
+	var transactions, creditTxns, debitTxns []*AddressTx
+	for _, addrOut := range addrHist {
+		if !addrOut.ValidMainChain {
+			continue
+		}
+		coin := dcrutil.Amount(addrOut.Value).ToCoin()
+		tx := AddressTx{
+			Time:      addrOut.TxBlockTime,
+			InOutID:   addrOut.TxVinVoutIndex,
+			TxID:      addrOut.TxHash,
+			TxType:    txhelpers.TxTypeToString(int(addrOut.TxType)),
+			MatchedTx: addrOut.MatchingTxHash,
+			IsFunding: addrOut.IsFunding,
+		}
+
+		if addrOut.IsFunding {
+			// Funding transaction
+			received += int64(addrOut.Value)
+			tx.ReceivedTotal = coin
+			creditTxns = append(creditTxns, &tx)
+		} else {
+			// Spending transaction
+			sent += int64(addrOut.Value)
+			tx.SentTotal = coin
+			tx.MergedTxnCount = addrOut.MergedDebitCount
+
+			debitTxns = append(debitTxns, &tx)
+		}
+
+		transactions = append(transactions, &tx)
+	}
+
+	return &AddressInfo{
+		Address:         addrHist[0].Address,
+		Transactions:    transactions,
+		TxnsFunding:     creditTxns,
+		TxnsSpending:    debitTxns,
+		NumFundingTxns:  int64(len(creditTxns)),
+		NumSpendingTxns: int64(len(debitTxns)),
+		AmountReceived:  dcrutil.Amount(received),
+		AmountSent:      dcrutil.Amount(sent),
+		AmountUnspent:   dcrutil.Amount(received - sent),
+	}
+}
+
+// TxnCount returns the number of transaction "rows" available.
+func (a *AddressInfo) TxnCount() int64 {
+	if !a.Fullmode {
+		return a.KnownTransactions
+	}
+	switch AddrTxnTypeFromStr(a.TxnType) {
+	case AddrTxnAll:
+		return a.KnownTransactions
+	case AddrTxnCredit:
+		return a.KnownFundingTxns
+	case AddrTxnDebit:
+		return a.KnownSpendingTxns
+	case AddrMergedTxnDebit:
+		return a.KnownMergedSpendingTxns
+	default:
+		// log.Warnf("Unknown address transaction type: %v", a.TxnType)
+		return 0
+	}
+}
+
+// Post-process performs time/vin/vout sorting and block height calculations.
+func (a *AddressInfo) PostProcess(tipHeight uint32) {
+	// Sort the transactions by date and vin/vout index
+	sort.Slice(a.Transactions, func(i, j int) bool {
+		if a.Transactions[i].Time == a.Transactions[j].Time {
+			return a.Transactions[i].InOutID > a.Transactions[j].InOutID
+		}
+		return a.Transactions[i].Time.T.Unix() > a.Transactions[j].Time.T.Unix()
+	})
+
+	// Compute block height for each transaction.
+	for i := range a.Transactions {
+		tx := a.Transactions[i]
+		tx.BlockHeight = tipHeight - uint32(tx.Confirmations) + 1
+	}
 }

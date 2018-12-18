@@ -457,3 +457,56 @@ func GetChainWork(client *rpcclient.Client, hash *chainhash.Hash) (string, error
 	}
 	return header.ChainWork, nil
 }
+
+// UnconfirmedTxnsForAddress returns the chainhash.Hash of all transactions in
+// mempool that (1) pay to the given address, or (2) spend a previous outpoint
+// that paid to the address.
+func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params *chaincfg.Params) (*txhelpers.AddressOutpoints, int64, error) {
+	// Mempool transactions
+	var numUnconfirmed int64
+	mempoolTxns, err := client.GetRawMempoolVerbose(dcrjson.GRMAll)
+	if err != nil {
+		log.Warnf("GetRawMempool failed for address %s: %v", address, err)
+		return nil, numUnconfirmed, err
+	}
+
+	// Check each transaction for involvement with provided address.
+	addressOutpoints := txhelpers.NewAddressOutpoints(address)
+	for hash, tx := range mempoolTxns {
+		// Transaction details from dcrd
+		txhash, err1 := chainhash.NewHashFromStr(hash)
+		if err1 != nil {
+			log.Errorf("Invalid transaction hash %s", hash)
+			return addressOutpoints, 0, err1
+		}
+
+		Tx, err1 := client.GetRawTransaction(txhash)
+		if err1 != nil {
+			log.Warnf("Unable to GetRawTransaction(%s): %v", hash, err1)
+			err = err1
+			continue
+		}
+		// Scan transaction for inputs/outputs involving the address of interest
+		outpoints, prevouts, prevTxns := txhelpers.TxInvolvesAddress(Tx.MsgTx(),
+			address, client, params)
+		if len(outpoints) == 0 && len(prevouts) == 0 {
+			continue
+		}
+		// Update previous outpoint txn slice with mempool time
+		for f := range prevTxns {
+			prevTxns[f].MemPoolTime = tx.Time
+		}
+
+		// Add present transaction to previous outpoint txn slice
+		numUnconfirmed++
+		thisTxUnconfirmed := &txhelpers.TxWithBlockData{
+			Tx:          Tx.MsgTx(),
+			MemPoolTime: tx.Time,
+		}
+		prevTxns = append(prevTxns, thisTxUnconfirmed)
+		// Merge the I/Os and the transactions into results
+		addressOutpoints.Update(prevTxns, outpoints, prevouts)
+	}
+
+	return addressOutpoints, numUnconfirmed, err
+}

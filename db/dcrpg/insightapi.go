@@ -11,7 +11,6 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
-	"github.com/decred/dcrdata/v3/explorer"
 	"github.com/decred/dcrdata/v3/rpcutils"
 	"github.com/decred/dcrdata/v3/txhelpers"
 )
@@ -168,9 +167,9 @@ func (pgb *ChainDB) GetBlockHash(idx int64) (string, error) {
 	return hash, nil
 }
 
-// AddressBalance returns a *explorer.AddressBalance for the specified address,
+// AddressBalance returns a AddressBalance for the specified address,
 // transaction count limit, and transaction number offset.
-func (pgb *ChainDB) AddressBalance(address string, N, offset int64) (*explorer.AddressBalance, error) {
+func (pgb *ChainDB) AddressBalance(address string, N, offset int64) (*dbtypes.AddressBalance, error) {
 	_, balance, err := pgb.AddressHistoryAll(address, N, offset)
 	if err != nil {
 		return nil, err
