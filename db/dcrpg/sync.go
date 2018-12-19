@@ -14,7 +14,6 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/explorer"
 	"github.com/decred/dcrdata/v4/rpcutils"
 )
 
@@ -38,14 +37,14 @@ const (
 // which will get the block via RPC and signal to all channels configured for
 // that block.
 //
-// In full mode, ChainDB has the MasterBlockGetter and wiredDB has the
+// In full mode, ChainDB has the MasterBlockGetter and WiredDB has the
 // BlockGetter. The way ChainDB is in charge of requesting blocks on demand from
-// RPC without getting ahead of wiredDB during sync is that StakeDatabase has a
+// RPC without getting ahead of WiredDB during sync is that StakeDatabase has a
 // very similar coordination mechanism (WaitForHeight).
 //
 // 1. In main, we make a new `rpcutils.BlockGate`, a concrete type that
 //    implements `MasterBlockGetter` and thus `BlockGetter` too.  This
-//    "smart client" is provided to `baseDB` (a `wiredDB`) as a `BlockGetter`,
+//    "smart client" is provided to `baseDB` (a `WiredDB`) as a `BlockGetter`,
 //    and to `auxDB` (a `ChainDB`) as a `MasterBlockGetter`.
 //
 // 2. `baseDB` makes a channel using `BlockGetter.WaitForHeight` and starts
@@ -187,19 +186,45 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		db.EnableDuplicateCheckOnInsert(true)
 	}
 
-	if barLoad != nil {
-		// Add the various updates that should run on successful sync.
-		barLoad <- &dbtypes.ProgressBarLoad{
-			Msg:   InitialLoadSyncStatusMsg,
-			BarID: dbtypes.InitialDBLoad,
+	// Safely send sync status updates on barLoad channel, and set the channel
+	// to nil if it was closed or the buffer is full.
+	sendProgressUpdate := func(p *dbtypes.ProgressBarLoad) {
+		if barLoad == nil {
+			return
 		}
-		// Addresses table sync should only run if bulk update is enabled.
-		if updateAllAddresses {
-			barLoad <- &dbtypes.ProgressBarLoad{
-				Msg:   AddressesSyncStatusMsg,
-				BarID: dbtypes.AddressesTableSync,
-			}
+		select {
+		case barLoad <- p:
+		default:
+			log.Debugf("(*ChainDB).SyncChainDB: barLoad chan closed or full. Halting sync progress updates.")
+			barLoad = nil
 		}
+	}
+
+	// Safely send new block hash on updateExplorer channel, and set the channel
+	// to nil if it was closed or the buffer is full.
+	sendPageData := func(hash *chainhash.Hash) {
+		if updateExplorer == nil {
+			return
+		}
+		select {
+		case updateExplorer <- hash:
+		default:
+			log.Debugf("(*ChainDB).SyncChainDB: updateExplorer chan closed or full. Halting explorer updates.")
+			updateExplorer = nil
+		}
+	}
+
+	// Add the various updates that should run on successful sync.
+	sendProgressUpdate(&dbtypes.ProgressBarLoad{
+		Msg:   InitialLoadSyncStatusMsg,
+		BarID: dbtypes.InitialDBLoad,
+	})
+	// Addresses table sync should only run if bulk update is enabled.
+	if updateAllAddresses {
+		sendProgressUpdate(&dbtypes.ProgressBarLoad{
+			Msg:   AddressesSyncStatusMsg,
+			BarID: dbtypes.AddressesTableSync,
+		})
 	}
 
 	timeStart := time.Now()
@@ -228,13 +253,13 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 				if barLoad != nil {
 					// Full mode is definitely running so no need to check.
 					timeTakenPerBlock := (time.Since(timeStart).Seconds() / float64(endRangeBlock-ib))
-					barLoad <- &dbtypes.ProgressBarLoad{
+					sendProgressUpdate(&dbtypes.ProgressBarLoad{
 						From:      ib,
 						To:        nodeHeight,
 						Timestamp: int64(timeTakenPerBlock * float64(nodeHeight-endRangeBlock)),
 						Msg:       InitialLoadSyncStatusMsg,
 						BarID:     dbtypes.InitialDBLoad,
-					}
+					})
 					timeStart = time.Now()
 				}
 			}
@@ -312,11 +337,13 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		// Total transactions is the sum of regular and stake transactions
 		totalTxs += int64(len(block.STransactions()) + len(block.Transactions()))
 
-		// If updating explorer is activated, update it at intervals of 20
-		if updateExplorer != nil && ib%20 == 0 &&
-			explorer.SyncExplorerUpdateStatus() && !updateAllAddresses {
-			log.Infof("Updating the explorer with information for block %v", ib)
-			updateExplorer <- blockHash
+		// Update explorer pages at intervals of 20 blocks if the update channel
+		// is active (non-nil and not closed).
+		if ib%20 == 0 && !updateAllAddresses {
+			if updateExplorer != nil {
+				log.Infof("Updating the explorer with information for block %v", ib)
+				sendPageData(blockHash)
+			}
 		}
 
 		// Update height, the end condition for the loop
@@ -333,14 +360,12 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 	}
 
 	// Signal the end of the initial load sync.
-	if barLoad != nil {
-		barLoad <- &dbtypes.ProgressBarLoad{
-			From:  nodeHeight,
-			To:    nodeHeight,
-			Msg:   InitialLoadSyncStatusMsg,
-			BarID: dbtypes.InitialDBLoad,
-		}
-	}
+	sendProgressUpdate(&dbtypes.ProgressBarLoad{
+		From:  nodeHeight,
+		To:    nodeHeight,
+		Msg:   InitialLoadSyncStatusMsg,
+		BarID: dbtypes.InitialDBLoad,
+	})
 
 	speedReport()
 
@@ -408,7 +433,10 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 		if updateAllAddresses {
 			barID = dbtypes.AddressesTableSync
 		}
-		barLoad <- &dbtypes.ProgressBarLoad{BarID: barID, Subtitle: "sync complete"}
+		sendProgressUpdate(&dbtypes.ProgressBarLoad{
+			BarID:    barID,
+			Subtitle: "sync complete",
+		})
 	}
 
 	log.Infof("Sync finished at height %d. Delta: %d blocks, %d transactions, %d ins, %d outs, %d addresses",

@@ -24,6 +24,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -42,23 +43,23 @@ const (
 // explorerDataSourceLite implements an interface for collecting data for the
 // explorer pages
 type explorerDataSourceLite interface {
-	GetExplorerBlock(hash string) *BlockInfo
-	GetExplorerBlocks(start int, end int) []*BlockBasic
+	GetExplorerBlock(hash string) *types.BlockInfo
+	GetExplorerBlocks(start int, end int) []*types.BlockBasic
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
-	GetExplorerTx(txid string) *TxInfo
+	GetExplorerTx(txid string) *types.TxInfo
 	GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError)
-	GetTip() (*WebBasicBlock, error)
+	GetTip() (*types.WebBasicBlock, error)
 	DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error)
 	SendRawTransaction(txhex string) (string, error)
 	GetHeight() int
 	GetChainParams() *chaincfg.Params
 	UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error)
-	GetMempool() []MempoolTx
+	GetMempool() []types.MempoolTx
 	TxHeight(txid string) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
 	GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
-	GetExplorerFullBlocks(start int, end int) []*BlockInfo
+	GetExplorerFullBlocks(start int, end int) []*types.BlockInfo
 	Difficulty() (float64, error)
 	RetreiveDifficulty(timestamp int64) float64
 }
@@ -176,20 +177,21 @@ func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) str
 
 type pageData struct {
 	sync.RWMutex
-	BlockInfo *BlockInfo
-	HomeInfo  *HomeInfo
+	BlockInfo *types.BlockInfo
+	HomeInfo  *types.HomeInfo
 }
 
 type explorerUI struct {
 	Mux              *chi.Mux
 	blockData        explorerDataSourceLite
 	explorerSource   explorerDataSource
+	dbsSyncing       atomic.Value
 	liteMode         bool
 	devPrefetch      bool
 	templates        templates
 	wsHub            *WebsocketHub
 	pageData         *pageData
-	MempoolData      *MempoolInfo
+	MempoolData      *types.MempoolInfo
 	ChainParams      *chaincfg.Params
 	Version          string
 	NetName          string
@@ -200,59 +202,20 @@ type explorerUI struct {
 	displaySyncStatusPage atomic.Value
 }
 
-func (exp *explorerUI) reloadTemplates() error {
-	return exp.templates.reloadTemplates()
+// AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
+func (exp *explorerUI) AreDBsSyncing() bool {
+	syncing, ok := exp.dbsSyncing.Load().(bool)
+	return ok && syncing
 }
 
-// SyncStatusUpdate receives the raw progress updates calculates the percentage
-// and updates the blockchainSyncStatus.ProgressBars.
-func (exp *explorerUI) SyncStatusUpdate(barLoad chan *dbtypes.ProgressBarLoad) {
-	// This goroutine should just be blocked if no sync is running but it should
-	// never exit so that sync processes running never get blocked after writing
-	// data to a channel.
-	go func() {
-		for bar := range barLoad {
-			// updates should only be sent when displaySyncStatus is active
-			// otherwise ignore them.
-			if !exp.DisplaySyncStatusPage() {
-				continue
-			}
+// SetDBsSyncing is a thread-safe way to update dbsSyncing.
+func (exp *explorerUI) SetDBsSyncing(syncing bool) {
+	exp.dbsSyncing.Store(syncing)
+	exp.wsHub.SetDBsSyncing(syncing)
+}
 
-			percentage := 0.0
-			if bar.To > 0 {
-				percentage = math.Floor((float64(bar.From)/float64(bar.To))*10000) / 100
-			}
-
-			val := SyncStatusInfo{
-				PercentComplete: percentage,
-				BarMsg:          bar.Msg,
-				Time:            bar.Timestamp,
-				ProgressBarID:   bar.BarID,
-				BarSubtitle:     bar.Subtitle,
-			}
-
-			if len(blockchainSyncStatus.ProgressBars) == 0 {
-				// first entry
-				blockchainSyncStatus.ProgressBars = []SyncStatusInfo{val}
-			} else {
-				for i, v := range blockchainSyncStatus.ProgressBars {
-					if v.ProgressBarID == bar.BarID {
-						if len(bar.Subtitle) > 0 && bar.Timestamp == 0 {
-							// Handle case scenario when only subtitle should be updated.
-							blockchainSyncStatus.ProgressBars[i].BarSubtitle = bar.Subtitle
-						} else {
-							blockchainSyncStatus.ProgressBars[i] = val
-						}
-						// break doesn't work with if statements thus goto was used.
-						goto end
-					}
-				}
-				// new entry
-				blockchainSyncStatus.ProgressBars = append(blockchainSyncStatus.ProgressBars, val)
-			}
-		end:
-		}
-	}()
+func (exp *explorerUI) reloadTemplates() error {
+	return exp.templates.reloadTemplates()
 }
 
 // See reloadsig*.go for an exported method
@@ -286,12 +249,12 @@ func (exp *explorerUI) StopWebsocketHub() {
 
 // New returns an initialized instance of explorerUI
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
-	useRealIP bool, appVersion string, devPrefetch bool) *explorerUI {
+	useRealIP bool, appVersion string, devPrefetch bool, viewsfolder string) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
 	exp.explorerSource = primaryDataSource
-	exp.MempoolData = new(MempoolInfo)
+	exp.MempoolData = new(types.MempoolInfo)
 	exp.Version = appVersion
 	exp.devPrefetch = devPrefetch
 	// explorerDataSource is an interface that could have a value of pointer
@@ -318,16 +281,16 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	log.Debugf("Organization address: %s", devSubsidyAddress)
 
 	exp.pageData = &pageData{
-		BlockInfo: new(BlockInfo),
-		HomeInfo: &HomeInfo{
+		BlockInfo: new(types.BlockInfo),
+		HomeInfo: &types.HomeInfo{
 			DevAddress: devSubsidyAddress,
-			Params: ChainParams{
+			Params: types.ChainParams{
 				WindowSize:       exp.ChainParams.StakeDiffWindowSize,
 				RewardWindowSize: exp.ChainParams.SubsidyReductionInterval,
 				BlockTime:        exp.ChainParams.TargetTimePerBlock.Nanoseconds(),
 				MeanVotingBlocks: exp.MeanVotingBlocks,
 			},
-			PoolInfo: TicketPoolInfo{
+			PoolInfo: types.TicketPoolInfo{
 				Target: exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock,
 			},
 		},
@@ -335,22 +298,18 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	log.Infof("Mean Voting Blocks calculated: %d", exp.pageData.HomeInfo.Params.MeanVotingBlocks)
 
-	noTemplateError := func(err error) *explorerUI {
-		log.Errorf("Unable to create new html template: %v", err)
-		return nil
-	}
+	commonTemplates := []string{"extras"}
+	exp.templates = newTemplates(viewsfolder, commonTemplates, makeTemplateFuncMap(exp.ChainParams))
+
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "rejects", "ticketpool", "nexthome", "statistics",
 		"windows", "timelisting", "addresstable"}
 
-	tempDefaults := []string{"extras"}
-
-	exp.templates = newTemplates("views", tempDefaults, makeTemplateFuncMap(exp.ChainParams))
-
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {
-			return noTemplateError(err)
+			log.Errorf("Unable to create new html template: %v", err)
+			return nil
 		}
 	}
 
@@ -368,36 +327,6 @@ func (exp *explorerUI) PrepareCharts() {
 	if !exp.liteMode {
 		exp.prePopulateChartsData()
 	}
-}
-
-// StartSyncingStatusMonitor fires up the sync status monitor. It signals the
-// websocket to check for updates after every syncStatusInterval.
-func (exp *explorerUI) StartSyncingStatusMonitor() {
-	go func() {
-		timer := time.NewTicker(syncStatusInterval)
-		for range timer.C {
-			if !exp.DisplaySyncStatusPage() {
-				timer.Stop()
-			}
-			exp.wsHub.HubRelay <- sigSyncStatus
-		}
-	}()
-}
-
-// DisplaySyncStatusPage is a thread-safe way to fetch the displaySyncStatusPage.
-func (exp *explorerUI) DisplaySyncStatusPage() bool {
-	display, ok := exp.displaySyncStatusPage.Load().(bool)
-	return ok && display
-}
-
-// SetDisplaySyncStatusPage is a thread-safe way to update the displaySyncStatusPage.
-func (exp *explorerUI) SetDisplaySyncStatusPage(displayStatus bool) {
-	if !displayStatus {
-		// Send the one last signal so that the websocket can send the final
-		// confirmation that syncing is done and home page auto reload should happen.
-		exp.wsHub.HubRelay <- sigSyncStatus
-	}
-	exp.displaySyncStatusPage.Store(displayStatus)
 }
 
 // Height returns the height of the current block data.
@@ -508,10 +437,10 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	p.HomeInfo.NBlockSubsidy.Total = blockData.ExtraInfo.NextBlockSubsidy.Total
 
 	// If BlockData contains non-nil PoolInfo, copy values.
-	p.HomeInfo.PoolInfo = TicketPoolInfo{}
+	p.HomeInfo.PoolInfo = types.TicketPoolInfo{}
 	if blockData.PoolInfo != nil {
 		tpTarget := exp.ChainParams.TicketPoolSize * exp.ChainParams.TicketsPerBlock
-		p.HomeInfo.PoolInfo = TicketPoolInfo{
+		p.HomeInfo.PoolInfo = types.TicketPoolInfo{
 			Size:          blockData.PoolInfo.Size,
 			Value:         blockData.PoolInfo.Value,
 			ValAvg:        blockData.PoolInfo.ValAvg,
@@ -545,8 +474,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 
 	// Update the charts data after every five blocks or if no charts data
 	// exists yet. Do not update the charts data if blockchain sync is running.
-	isSyncRunning := exp.DisplaySyncStatusPage() || SyncExplorerUpdateStatus()
-	if !isSyncRunning && (newBlockData.Height%5 == 0 || cacheChartsData.Height() == -1) {
+	if !exp.AreDBsSyncing() && (newBlockData.Height%5 == 0 || cacheChartsData.Height() == -1) {
 		// This must be done after storing BlockInfo since that provides the
 		// explorer's best block height, which is used by prePopulateChartsData
 		// to decide if an update is needed.

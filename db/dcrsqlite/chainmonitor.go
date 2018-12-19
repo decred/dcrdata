@@ -17,7 +17,7 @@ import (
 // ChainMonitor handles change notifications from the node client
 type ChainMonitor struct {
 	ctx            context.Context
-	db             *wiredDB
+	db             *WiredDB
 	collector      *blockdata.Collector
 	wg             *sync.WaitGroup
 	blockChan      chan *chainhash.Hash
@@ -27,7 +27,7 @@ type ChainMonitor struct {
 }
 
 // NewChainMonitor creates a new ChainMonitor
-func (db *wiredDB) NewChainMonitor(ctx context.Context, collector *blockdata.Collector, wg *sync.WaitGroup,
+func (db *WiredDB) NewChainMonitor(ctx context.Context, collector *blockdata.Collector, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *ChainMonitor {
 	return &ChainMonitor{
 		ctx:            ctx,

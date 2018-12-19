@@ -9,7 +9,7 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 
 	"github.com/decred/dcrdata/v4/api/insight"
-	"github.com/decred/dcrdata/v4/explorer"
+	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/txhelpers"
 )
@@ -45,7 +45,7 @@ var NtfnChans struct {
 	SpendTxBlockChan, RecvTxBlockChan chan *txhelpers.BlockWatchedTx
 	RelevantTxMempoolChan             chan *dcrutil.Tx
 	NewTxChan                         chan *mempool.NewTx
-	ExpNewTxChan                      chan *explorer.NewMempoolTx
+	ExpNewTxChan                      chan *exptypes.NewMempoolTx
 	InsightNewTxChan                  chan *insight.NewTx
 }
 
@@ -89,7 +89,7 @@ func MakeNtfnChans(monitorMempool, postgresEnabled bool) {
 	}
 
 	// New mempool tx chan for explorer
-	NtfnChans.ExpNewTxChan = make(chan *explorer.NewMempoolTx, expNewTxChanBuffer)
+	NtfnChans.ExpNewTxChan = make(chan *exptypes.NewMempoolTx, expNewTxChanBuffer)
 
 	if postgresEnabled {
 		NtfnChans.InsightNewTxChan = make(chan *insight.NewTx, expNewTxChanBuffer)

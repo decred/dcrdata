@@ -6,7 +6,10 @@ package explorer
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/decred/dcrdata/v4/explorer/types"
 )
 
 const (
@@ -53,17 +56,29 @@ type WebsocketHub struct {
 	Register         chan *clientHubSpoke
 	Unregister       chan *hubSpoke
 	HubRelay         chan hubSignal
-	NewTxChan        chan *MempoolTx
-	newTxBuffer      []*MempoolTx
+	NewTxChan        chan *types.MempoolTx
+	newTxBuffer      []*types.MempoolTx
 	bufferMtx        *sync.Mutex
 	bufferTickerChan chan int
 	sendBufferChan   chan int
 	quitWSHandler    chan struct{}
+	dbsSyncing       atomic.Value
+}
+
+// AreDBsSyncing is a thread-safe way to fetch the boolean in dbsSyncing.
+func (wsh *WebsocketHub) AreDBsSyncing() bool {
+	syncing, ok := wsh.dbsSyncing.Load().(bool)
+	return ok && syncing
+}
+
+// SetDBsSyncing is a thread-safe way to update the dbsSyncing.
+func (wsh *WebsocketHub) SetDBsSyncing(syncing bool) {
+	wsh.dbsSyncing.Store(syncing)
 }
 
 type client struct {
 	sync.RWMutex
-	newTxs []*MempoolTx
+	newTxs []*types.MempoolTx
 }
 
 type hubSignal int
@@ -76,8 +91,8 @@ func NewWebsocketHub() *WebsocketHub {
 		Register:         make(chan *clientHubSpoke),
 		Unregister:       make(chan *hubSpoke),
 		HubRelay:         make(chan hubSignal),
-		NewTxChan:        make(chan *MempoolTx),
-		newTxBuffer:      make([]*MempoolTx, 0, newTxBufferSize),
+		NewTxChan:        make(chan *types.MempoolTx),
+		newTxBuffer:      make([]*types.MempoolTx, 0, newTxBufferSize),
 		bufferTickerChan: make(chan int, clientSignalSize),
 		bufferMtx:        new(sync.Mutex),
 		sendBufferChan:   make(chan int, clientSignalSize),
@@ -186,13 +201,13 @@ func (wsh *WebsocketHub) run() {
 	events:
 		select {
 		case hubSignal := <-wsh.HubRelay:
-			var newtx *MempoolTx
+			var newtx *types.MempoolTx
 			clientsCount := len(wsh.clients)
 
 			switch hubSignal {
 			case sigNewBlock:
 				// Do not log when explorer update status is active.
-				if !SyncExplorerUpdateStatus() {
+				if !wsh.AreDBsSyncing() && clientsCount > 0 /* TODO put clientsCount first after testing */ {
 					log.Infof("Signaling new block to %d websocket clients.", clientsCount)
 				}
 			case sigPingAndUserCount:
@@ -247,9 +262,9 @@ func (wsh *WebsocketHub) run() {
 				wsh.bufferMtx.Unlock()
 				continue
 			}
-			txs := make([]*MempoolTx, len(wsh.newTxBuffer))
+			txs := make([]*types.MempoolTx, len(wsh.newTxBuffer))
 			copy(txs, wsh.newTxBuffer)
-			wsh.newTxBuffer = make([]*MempoolTx, 0, newTxBufferSize)
+			wsh.newTxBuffer = make([]*types.MempoolTx, 0, newTxBufferSize)
 			wsh.bufferMtx.Unlock()
 			if len(wsh.clients) > 0 {
 				log.Debugf("Signaling %d new tx to %d clients", len(txs), len(wsh.clients))
@@ -271,7 +286,7 @@ func (wsh *WebsocketHub) run() {
 // MaybeSendTxns adds a mempool transaction to the client broadcast buffer. If
 // the buffer is at capacity, a goroutine is launched to signal for the
 // transactions to be sent to the clients.
-func (wsh *WebsocketHub) MaybeSendTxns(tx *MempoolTx) {
+func (wsh *WebsocketHub) MaybeSendTxns(tx *types.MempoolTx) {
 	if wsh.addTxToBuffer(tx) {
 		// This is called from the event loop, so these sends channel may not be
 		// blocking.
@@ -283,7 +298,7 @@ func (wsh *WebsocketHub) MaybeSendTxns(tx *MempoolTx) {
 }
 
 // addTxToBuffer adds a tx to the buffer, then returns if the buffer is full
-func (wsh *WebsocketHub) addTxToBuffer(tx *MempoolTx) bool {
+func (wsh *WebsocketHub) addTxToBuffer(tx *types.MempoolTx) bool {
 	wsh.bufferMtx.Lock()
 	defer wsh.bufferMtx.Unlock()
 

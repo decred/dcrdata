@@ -2,80 +2,52 @@
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
-package explorer
+package types
 
 import (
+	"encoding/json"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/db/agendadb"
-	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/txhelpers"
 )
 
-// expStatus defines the various status types supported by the system.
-type expStatus string
-
-const (
-	ExpStatusError          expStatus = "Error"
-	ExpStatusNotFound       expStatus = "Not Found"
-	ExpStatusFutureBlock    expStatus = "Future Block"
-	ExpStatusNotSupported   expStatus = "Not Supported"
-	ExpStatusNotImplemented expStatus = "Not Implemented"
-	ExpStatusWrongNetwork   expStatus = "Wrong Network"
-	ExpStatusDeprecated     expStatus = "Deprecated"
-	ExpStatusSyncing        expStatus = "Blocks Syncing"
-	ExpStatusDBTimeout      expStatus = "Database Timeout"
-	ExpStatusBitcoin        expStatus = "Bitcoin Address"
-	ExpStatusP2PKAddress    expStatus = "P2PK Address Type"
-)
-
-func (e expStatus) IsNotFound() bool {
-	return e == ExpStatusNotFound
+// TimeDef is time.Time wrapper that formats time by default as a string without
+// a timezone. The time Stringer interface formats the time into a string with a
+// timezone.
+type TimeDef struct {
+	T time.Time
 }
 
-func (e expStatus) IsWrongNet() bool {
-	return e == ExpStatusWrongNetwork
+func (t TimeDef) String() string {
+	return t.T.Format("2006-01-02 15:04:05")
 }
 
-func (e expStatus) IsBitcoinAddress() bool {
-	return e == ExpStatusBitcoin
+// MarshalJSON is set as the default marshalling function for TimeDef struct.
+func (t *TimeDef) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
 }
-
-func (e expStatus) IsP2PKAddress() bool {
-	return e == ExpStatusP2PKAddress
-}
-
-func (e expStatus) IsFutureBlock() bool {
-	return e == ExpStatusFutureBlock
-}
-
-func (e expStatus) IsSyncing() bool {
-	return e == ExpStatusSyncing
-}
-
-// blockchainSyncStatus defines the status update displayed on the syncing status page
-// when new blocks are being appended into the db.
-var blockchainSyncStatus = new(syncStatus)
 
 // BlockBasic models data for the explorer's explorer page
 type BlockBasic struct {
-	Height         int64           `json:"height"`
-	Hash           string          `json:"hash"`
-	Size           int32           `json:"size"`
-	Valid          bool            `json:"valid"`
-	MainChain      bool            `json:"mainchain"`
-	Voters         uint16          `json:"votes"`
-	Transactions   int             `json:"tx"`
-	IndexVal       int64           `json:"windowIndex"`
-	FreshStake     uint8           `json:"tickets"`
-	Revocations    uint32          `json:"revocations"`
-	BlockTime      dbtypes.TimeDef `json:"time"`
-	FormattedBytes string          `json:"formatted_bytes"`
+	Height         int64   `json:"height"`
+	Hash           string  `json:"hash"`
+	Size           int32   `json:"size"`
+	Valid          bool    `json:"valid"`
+	MainChain      bool    `json:"mainchain"`
+	Voters         uint16  `json:"votes"`
+	Transactions   int     `json:"tx"`
+	IndexVal       int64   `json:"windowIndex"`
+	FreshStake     uint8   `json:"tickets"`
+	Revocations    uint32  `json:"revocations"`
+	BlockTime      TimeDef `json:"time"`
+	FormattedBytes string  `json:"formatted_bytes"`
 }
 
 // WebBasicBlock is used for quick DB data without rpc calls
@@ -125,7 +97,7 @@ type TxInfo struct {
 	BlockHash        string
 	BlockMiningFee   int64
 	Confirmations    int64
-	Time             dbtypes.TimeDef
+	Time             TimeDef
 	Mature           string
 	VoteFundsLocked  string
 	Maturity         int64   // Total number of blocks before mature
@@ -182,6 +154,44 @@ type BlockValidation struct {
 	Validity bool   `json:"validity"`
 }
 
+// SetTicketIndex assigns the VoteInfo an index based on the block that the vote
+// is (in)validating and the spent ticket hash. The ticketSpendInds tracks
+// known combinations of target block and spent ticket hash. This index is used
+// for sorting in views and counting total unique votes for a block.
+func (v *VoteInfo) SetTicketIndex(ticketSpendInds BlockValidatorIndex) {
+	// One-based indexing
+	startInd := 1
+	// Reference the sub-index for the block being (in)validated by this vote.
+	if idxs, ok := ticketSpendInds[v.Validation.Hash]; ok {
+		// If this ticket has been seen before voting on this block, set the
+		// known index. Otherwise, assign the next index in the series.
+		if idx, ok := idxs[v.TicketSpent]; ok {
+			v.MempoolTicketIndex = idx
+		} else {
+			idx := len(idxs) + startInd
+			idxs[v.TicketSpent] = idx
+			v.MempoolTicketIndex = idx
+		}
+	} else {
+		// First vote encountered for this block. Create new ticket sub-index.
+		ticketSpendInds[v.Validation.Hash] = TicketIndex{
+			v.TicketSpent: startInd,
+		}
+		v.MempoolTicketIndex = startInd
+	}
+}
+
+// VotesOnBlock indicates if the vote is voting on the validity of block
+// specified by the given hash.
+func (v *VoteInfo) VotesOnBlock(blockHash string) bool {
+	return v.Validation.ForBlock(blockHash)
+}
+
+// ForBlock indicates if the validation choice is for the specified block.
+func (v *BlockValidation) ForBlock(blockHash string) bool {
+	return blockHash != "" && blockHash == v.Hash
+}
+
 // Vin models basic data about a tx input for display
 type Vin struct {
 	*dcrjson.Vin
@@ -206,7 +216,7 @@ type Vout struct {
 
 // TrimmedBlockInfo models data needed to display block info on the new home page
 type TrimmedBlockInfo struct {
-	Time         dbtypes.TimeDef
+	Time         TimeDef
 	Height       int64
 	Total        float64
 	Fees         float64
@@ -332,9 +342,9 @@ type MempoolShort struct {
 
 // VotingInfo models data about the validity of the next block from mempool.
 type VotingInfo struct {
-	TicketsVoted     uint16 `json:"tickets_voted"`
-	MaxVotesPerBlock uint16 `json:"max_votes_per_block"`
-	votedTickets     map[string]bool
+	TicketsVoted     uint16          `json:"tickets_voted"`
+	MaxVotesPerBlock uint16          `json:"max_votes_per_block"`
+	VotedTickets     map[string]bool `json:"-"`
 }
 
 // ChainParams models simple data about the chain server's parameters used for
@@ -396,14 +406,6 @@ type MempoolInput struct {
 	TxId   string `json:"txid"`
 	Index  uint32 `json:"index"`
 	Outdex uint32 `json:"vout"`
-}
-
-// ExtendedChainParams represents the data of ChainParams
-type ExtendedChainParams struct {
-	Params               *chaincfg.Params
-	MaximumBlockSize     int
-	ActualTicketPoolSize int64
-	AddressPrefix        []AddrPrefix
 }
 
 // AddrPrefix represent the address name it's prefix and description
@@ -499,80 +501,9 @@ type StatsInfo struct {
 	RewardWindowSize           int64
 }
 
-// CommonPageData is the basis for data structs used for HTML templates.
-// explorerUI.commonData returns an initialized instance or CommonPageData,
-// which itself should be used to initialize page data template structs.
-type CommonPageData struct {
-	Tip           *WebBasicBlock
-	Version       string
-	ChainParams   *chaincfg.Params
-	BlockTimeUnix int64
-	DevAddress    string
-}
-
-// isSyncExplorerUpdate helps determine when the explorer should be updated
-// when the blockchain sync is running in the background and no explorer page
-// view restriction on the running webserver is activated.
-// explore.DisplaySyncStatusPage must be false for this to used.
-var isSyncExplorerUpdate = new(syncUpdateExplorer)
-
-type syncUpdateExplorer struct {
-	sync.RWMutex
-	DoStatusUpdate bool
-}
-
-// SetSyncExplorerUpdateStatus is a thread-safe way to set when the explorer
-// should be updated with the latest blocks synced.
-func SetSyncExplorerUpdateStatus(status bool) {
-	isSyncExplorerUpdate.Lock()
-	defer isSyncExplorerUpdate.Unlock()
-
-	isSyncExplorerUpdate.DoStatusUpdate = status
-}
-
-// SyncExplorerUpdateStatus is thread-safe to check the current set explorer update status.
-func SyncExplorerUpdateStatus() bool {
-	isSyncExplorerUpdate.RLock()
-	defer isSyncExplorerUpdate.RUnlock()
-
-	return isSyncExplorerUpdate.DoStatusUpdate
-}
-
-// syncStatus makes it possible to update the user on the progress of the
-// blockchain db syncing that is running after new blocks were detected on
-// system startup. ProgressBars is an array whose every entry is one of the
-// progress bars data that will be displayed on the sync status page.
-type syncStatus struct {
-	sync.RWMutex
-	ProgressBars []SyncStatusInfo
-}
-
-// SyncStatusInfo defines information for a single progress bar.
-type SyncStatusInfo struct {
-	// PercentComplete is the percentage of sync complete for a given progress bar.
-	PercentComplete float64 `json:"percentage_complete"`
-	// BarMsg holds the main bar message about the currect sync.
-	BarMsg string `json:"bar_msg"`
-	// BarSubtitle holds any other information about the current main sync. This
-	// value may include but not limited to; db indexing, deleting duplicates etc.
-	BarSubtitle string `json:"subtitle"`
-	// Time is the estimated time in seconds to the sync should be complete.
-	Time int64 `json:"seconds_to_complete"`
-	// ProgressBarID is the given entry progress bar id needed on the UI page.
-	ProgressBarID string `json:"progress_bar_id"`
-}
-
-// SyncStatus defines a thread-safe way to read the sync status updates
-func SyncStatus() []SyncStatusInfo {
-	blockchainSyncStatus.RLock()
-	defer blockchainSyncStatus.RUnlock()
-
-	return blockchainSyncStatus.ProgressBars
-}
-
-// UnspentOutputIndices finds the indices of the transaction outputs that
-// appear unspent. The indices returned are the index within the passed slice,
-// not within the transaction.
+// UnspentOutputIndices finds the indices of the transaction outputs that appear
+// unspent. The indices returned are the index within the passed slice, not
+// within the transaction.
 func UnspentOutputIndices(vouts []Vout) (unspents []int) {
 	for idx := range vouts {
 		vout := vouts[idx]

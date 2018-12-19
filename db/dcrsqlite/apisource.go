@@ -24,7 +24,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
-	"github.com/decred/dcrdata/v4/explorer"
+	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/stakedb"
@@ -32,28 +32,28 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
-// wiredDB is intended to satisfy DataSourceLite interface. The block header is
+const (
+	MaxAddressRows int64 = 1000
+)
+
+// WiredDB is intended to satisfy DataSourceLite interface. The block header is
 // not stored in the DB, so the RPC client is used to get it on demand.
-// updateStatusSync should be true when another object is not responsible for
-// relaying updates on the sync status (e.g. when in explorer's lite mode).
-type wiredDB struct {
+type WiredDB struct {
 	*DBDataSaver
-	MPC              *mempool.MempoolDataCache
-	client           *rpcclient.Client
-	params           *chaincfg.Params
-	sDB              *stakedb.StakeDatabase
-	waitChan         chan chainhash.Hash
-	updateStatusSync bool
+	MPC      *mempool.MempoolDataCache
+	client   *rpcclient.Client
+	params   *chaincfg.Params
+	sDB      *stakedb.StakeDatabase
+	waitChan chan chainhash.Hash
 }
 
 func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string, updateStatusDuringSync bool) (wiredDB, func() error) {
-	wDB := wiredDB{
-		DBDataSaver:      &DBDataSaver{DB, statusC},
-		MPC:              new(mempool.MempoolDataCache),
-		client:           cl,
-		params:           p,
-		updateStatusSync: updateStatusDuringSync,
+	p *chaincfg.Params, datadir string) (WiredDB, func() error) {
+	wDB := WiredDB{
+		DBDataSaver: &DBDataSaver{DB, statusC},
+		MPC:         new(mempool.MempoolDataCache),
+		client:      cl,
+		params:      p,
 	}
 
 	var err error
@@ -76,46 +76,46 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
 	return wDB, wDB.sDB.Close
 }
 
-// NewWiredDB creates a new wiredDB from a *sql.DB, a node client, network
+// NewWiredDB creates a new WiredDB from a *sql.DB, a node client, network
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
 func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string, updateStatusSync bool) (wiredDB, func() error, error) {
+	p *chaincfg.Params, datadir string) (WiredDB, func() error, error) {
 	// Create the sqlite.DB
 	DB, err := NewDB(db)
 	if err != nil || DB == nil {
-		return wiredDB{}, func() error { return nil }, err
+		return WiredDB{}, func() error { return nil }, err
 	}
-	// Create the wiredDB
-	wDB, cleanup := newWiredDB(DB, statusC, cl, p, datadir, updateStatusSync)
+	// Create the WiredDB
+	wDB, cleanup := newWiredDB(DB, statusC, cl, p, datadir)
 	if wDB.sDB == nil {
 		err = fmt.Errorf("failed to create StakeDatabase")
 	}
 	return wDB, cleanup, err
 }
 
-// InitWiredDB creates a new wiredDB from a file containing the data for a
+// InitWiredDB creates a new WiredDB from a file containing the data for a
 // sql.DB. The other parameters are same as those for NewWiredDB.
 func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string, updateStatusSync bool) (wiredDB, func() error, error) {
+	p *chaincfg.Params, datadir string) (WiredDB, func() error, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
-		return wiredDB{}, func() error { return nil }, err
+		return WiredDB{}, func() error { return nil }, err
 	}
 
-	wDB, cleanup := newWiredDB(db, statusC, cl, p, datadir, updateStatusSync)
+	wDB, cleanup := newWiredDB(db, statusC, cl, p, datadir)
 	if wDB.sDB == nil {
 		err = fmt.Errorf("failed to create StakeDatabase")
 	}
 	return wDB, cleanup, err
 }
 
-func (db *wiredDB) NewStakeDBChainMonitor(ctx context.Context, wg *sync.WaitGroup,
+func (db *WiredDB) NewStakeDBChainMonitor(ctx context.Context, wg *sync.WaitGroup,
 	blockChan chan *chainhash.Hash, reorgChan chan *txhelpers.ReorgData) *stakedb.ChainMonitor {
 	return db.sDB.NewChainMonitor(ctx, wg, blockChan, reorgChan)
 }
 
-func (db *wiredDB) ChargePoolInfoCache(startHeight int64) error {
+func (db *WiredDB) ChargePoolInfoCache(startHeight int64) error {
 	if startHeight < 0 {
 		startHeight = 0
 	}
@@ -151,7 +151,7 @@ func (db *wiredDB) ChargePoolInfoCache(startHeight int64) error {
 }
 
 // CheckConnectivity ensures the db and RPC client are working.
-func (db *wiredDB) CheckConnectivity() error {
+func (db *WiredDB) CheckConnectivity() error {
 	var err error
 	if err = db.Ping(); err != nil {
 		return err
@@ -167,9 +167,9 @@ func (db *wiredDB) CheckConnectivity() error {
 // fetchToHeight is used to indicate at what height the MasterBlockGetter will
 // start sending blocks for processing. e.g. When an auxiliary DB owns the
 // MasterBlockGetter, fetchToHeight should be one past the best block in the aux
-// DB, thus putting wiredDB sync into "catch up" mode where it just pulls blocks
+// DB, thus putting WiredDB sync into "catch up" mode where it just pulls blocks
 // from RPC until it matches the auxDB height and coordination begins.
-func (db *wiredDB) SyncDBAsync(ctx context.Context, res chan dbtypes.SyncResult, blockGetter rpcutils.BlockGetter, fetchToHeight int64,
+func (db *WiredDB) SyncDBAsync(ctx context.Context, res chan dbtypes.SyncResult, blockGetter rpcutils.BlockGetter, fetchToHeight int64,
 	updateExplorer chan *chainhash.Hash, barLoad chan *dbtypes.ProgressBarLoad) {
 	// Ensure the db is working.
 	if err := db.CheckConnectivity(); err != nil {
@@ -201,7 +201,7 @@ func (db *wiredDB) SyncDBAsync(ctx context.Context, res chan dbtypes.SyncResult,
 
 // SyncDB is like SyncDBAsync, except it uses synchronous execution (the call to
 // resyncDB is a blocking call).
-func (db *wiredDB) SyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
+func (db *WiredDB) SyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter, fetchToHeight int64) (int64, error) {
 	// Ensure the db is working.
 	if err := db.CheckConnectivity(); err != nil {
 		return -1, fmt.Errorf("CheckConnectivity failed: %v", err)
@@ -215,15 +215,15 @@ func (db *wiredDB) SyncDB(ctx context.Context, blockGetter rpcutils.BlockGetter,
 	return db.resyncDB(ctx, blockGetter, fetchToHeight, nil, nil)
 }
 
-func (db *wiredDB) GetStakeDB() *stakedb.StakeDatabase {
+func (db *WiredDB) GetStakeDB() *stakedb.StakeDatabase {
 	return db.sDB
 }
 
-func (db *wiredDB) GetHeight() int {
+func (db *WiredDB) GetHeight() int {
 	return int(db.GetBestBlockHeight())
 }
 
-func (db *wiredDB) GetBestBlockHash() (string, error) {
+func (db *WiredDB) GetBestBlockHash() (string, error) {
 	hash := db.DBDataSaver.GetBestBlockHash()
 	var err error
 	if len(hash) == 0 {
@@ -233,7 +233,7 @@ func (db *wiredDB) GetBestBlockHash() (string, error) {
 }
 
 // GetBestBlockHeightHash retrieves the DB's best block hash and height.
-func (db *wiredDB) GetBestBlockHeightHash() (chainhash.Hash, int64, error) {
+func (db *WiredDB) GetBestBlockHeightHash() (chainhash.Hash, int64, error) {
 	bestBlockSummary := db.GetBestBlockSummary()
 	if bestBlockSummary == nil {
 		return chainhash.Hash{}, -1, fmt.Errorf("unable to retrieve best block summary")
@@ -243,10 +243,10 @@ func (db *wiredDB) GetBestBlockHeightHash() (chainhash.Hash, int64, error) {
 	return *hash, height, err
 }
 
-func (db *wiredDB) GetChainParams() *chaincfg.Params {
+func (db *WiredDB) GetChainParams() *chaincfg.Params {
 	return db.params
 }
-func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
+func (db *WiredDB) GetBlockHash(idx int64) (string, error) {
 	hash, err := db.RetrieveBlockHash(idx)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -257,7 +257,7 @@ func (db *wiredDB) GetBlockHash(idx int64) (string, error) {
 	return hash, nil
 }
 
-func (db *wiredDB) GetBlockHeight(hash string) (int64, error) {
+func (db *WiredDB) GetBlockHeight(hash string) (int64, error) {
 	height, err := db.RetrieveBlockHeight(hash)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -268,18 +268,18 @@ func (db *wiredDB) GetBlockHeight(hash string) (int64, error) {
 	return height, nil
 }
 
-func (db *wiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
+func (db *WiredDB) GetHeader(idx int) *dcrjson.GetBlockHeaderVerboseResult {
 	return rpcutils.GetBlockHeaderVerbose(db.client, int64(idx))
 }
 
-func (db *wiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+func (db *WiredDB) GetBlockVerbose(idx int, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	return rpcutils.GetBlockVerbose(db.client, int64(idx), verboseTx)
 }
 
-func (db *wiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
+func (db *WiredDB) GetBlockVerboseByHash(hash string, verboseTx bool) *dcrjson.GetBlockVerboseResult {
 	return rpcutils.GetBlockVerboseByHash(db.client, hash, verboseTx)
 }
-func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
+func (db *WiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	coinSupply, err := db.client.GetCoinSupply()
 	if err != nil {
 		log.Errorf("RPC failure (GetCoinSupply): %v", err)
@@ -300,7 +300,7 @@ func (db *wiredDB) CoinSupply() (supply *apitypes.CoinSupply) {
 	}
 }
 
-func (db *wiredDB) BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult {
+func (db *WiredDB) BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult {
 	blockSubsidy, err := db.client.GetBlockSubsidy(height, voters)
 	if err != nil {
 		return nil
@@ -308,13 +308,13 @@ func (db *wiredDB) BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSu
 	return blockSubsidy
 }
 
-func (db *wiredDB) GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions {
+func (db *WiredDB) GetTransactionsForBlock(idx int64) *apitypes.BlockTransactions {
 	blockVerbose := rpcutils.GetBlockVerbose(db.client, idx, false)
 
 	return makeBlockTransactions(blockVerbose)
 }
 
-func (db *wiredDB) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
+func (db *WiredDB) GetTransactionsForBlockByHash(hash string) *apitypes.BlockTransactions {
 	blockVerbose := rpcutils.GetBlockVerboseByHash(db.client, hash, false)
 
 	return makeBlockTransactions(blockVerbose)
@@ -332,7 +332,7 @@ func makeBlockTransactions(blockVerbose *dcrjson.GetBlockVerboseResult) *apitype
 	return blockTransactions
 }
 
-func (db *wiredDB) GetAllTxIn(txid string) []*apitypes.TxIn {
+func (db *WiredDB) GetAllTxIn(txid string) []*apitypes.TxIn {
 
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
@@ -367,7 +367,7 @@ func (db *wiredDB) GetAllTxIn(txid string) []*apitypes.TxIn {
 	return allTxIn
 }
 
-func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
+func (db *WiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
@@ -412,7 +412,7 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 // GetRawTransactionWithPrevOutAddresses looks up the previous outpoints for a
 // transaction and extracts a slice of addresses encoded by the pkScript for
 // each previous outpoint consumed by the transaction.
-func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string) {
+func (db *WiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes.Tx, [][]string) {
 	tx, _ := db.getRawTransaction(txid)
 	if tx == nil {
 		return nil, nil
@@ -438,17 +438,17 @@ func (db *wiredDB) GetRawTransactionWithPrevOutAddresses(txid string) (*apitypes
 	return tx, prevOutAddresses
 }
 
-func (db *wiredDB) GetRawTransaction(txid string) *apitypes.Tx {
+func (db *WiredDB) GetRawTransaction(txid string) *apitypes.Tx {
 	tx, _ := db.getRawTransaction(txid)
 	return tx
 }
 
-func (db *wiredDB) GetTransactionHex(txid string) string {
+func (db *WiredDB) GetTransactionHex(txid string) string {
 	_, hex := db.getRawTransaction(txid)
 	return hex
 }
 
-func (db *wiredDB) DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error) {
+func (db *WiredDB) DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, error) {
 	bytes, err := hex.DecodeString(txhex)
 	if err != nil {
 		log.Errorf("DecodeRawTransaction failed: %v", err)
@@ -462,7 +462,7 @@ func (db *wiredDB) DecodeRawTransaction(txhex string) (*dcrjson.TxRawResult, err
 	return tx, nil
 }
 
-func (db *wiredDB) SendRawTransaction(txhex string) (string, error) {
+func (db *WiredDB) SendRawTransaction(txhex string) (string, error) {
 	msg, err := txhelpers.MsgTxFromHex(txhex)
 	if err != nil {
 		log.Errorf("SendRawTransaction failed: could not decode tx")
@@ -476,7 +476,7 @@ func (db *wiredDB) SendRawTransaction(txhex string) (string, error) {
 	return hash.String(), err
 }
 
-func (db *wiredDB) GetTrimmedTransaction(txid string) *apitypes.TrimmedTx {
+func (db *WiredDB) GetTrimmedTransaction(txid string) *apitypes.TrimmedTx {
 	tx, _ := db.getRawTransaction(txid)
 	if tx == nil {
 		return nil
@@ -491,7 +491,7 @@ func (db *wiredDB) GetTrimmedTransaction(txid string) *apitypes.TrimmedTx {
 	}
 }
 
-func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
+func (db *WiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 	tx := new(apitypes.Tx)
 
 	txhash, err := chainhash.NewHashFromStr(txid)
@@ -549,20 +549,20 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 }
 
 // GetVoteVersionInfo requests stake version info from the dcrd RPC server
-func (db *wiredDB) GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error) {
+func (db *WiredDB) GetVoteVersionInfo(ver uint32) (*dcrjson.GetVoteInfoResult, error) {
 	return db.client.GetVoteInfo(ver)
 }
 
 // GetStakeVersions requests the output of the getstakeversions RPC, which gets
 // stake version information and individual vote version information starting at the
 // given block and for count-1 blocks prior.
-func (db *wiredDB) GetStakeVersions(txHash string, count int32) (*dcrjson.GetStakeVersionsResult, error) {
+func (db *WiredDB) GetStakeVersions(txHash string, count int32) (*dcrjson.GetStakeVersionsResult, error) {
 	return db.client.GetStakeVersions(txHash, count)
 }
 
 // GetStakeVersionsLatest requests the output of the getstakeversions RPC for
 // just the current best block.
-func (db *wiredDB) GetStakeVersionsLatest() (*dcrjson.StakeVersions, error) {
+func (db *WiredDB) GetStakeVersionsLatest() (*dcrjson.StakeVersions, error) {
 	txHash, err := db.GetBestBlockHash()
 	if err != nil {
 		return nil, err
@@ -580,7 +580,7 @@ func (db *wiredDB) GetStakeVersionsLatest() (*dcrjson.StakeVersions, error) {
 // on the stake version with which dcrdata is compiled with (chaincfg.Params),
 // the Choices field of VoteInfo may be a nil slice even if the votebits were
 // set for a previously-valid agenda.
-func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
+func (db *WiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
 		log.Errorf("Invalid transaction hash %s", txid)
@@ -610,7 +610,7 @@ func (db *wiredDB) GetVoteInfo(txid string) (*apitypes.VoteInfo, error) {
 	return vinfo, nil
 }
 
-func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
+func (db *WiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 	sd := rpcutils.GetStakeDiffEstimates(db.client)
 
 	height := db.MPC.GetHeight()
@@ -621,7 +621,7 @@ func (db *wiredDB) GetStakeDiffEstimates() *apitypes.StakeDiff {
 	return sd
 }
 
-func (db *wiredDB) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
+func (db *WiredDB) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
 	stakeInfo, err := db.RetrieveStakeInfoExtended(int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve stake info: %v", err)
@@ -631,7 +631,7 @@ func (db *wiredDB) GetFeeInfo(idx int) *dcrjson.FeeInfoBlock {
 	return &stakeInfo.Feeinfo
 }
 
-func (db *wiredDB) GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended {
+func (db *WiredDB) GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExtended {
 	stakeInfo, err := db.RetrieveStakeInfoExtended(int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve stake info: %v", err)
@@ -641,7 +641,7 @@ func (db *wiredDB) GetStakeInfoExtendedByHeight(idx int) *apitypes.StakeInfoExte
 	return stakeInfo
 }
 
-func (db *wiredDB) GetStakeInfoExtendedByHash(blockhash string) *apitypes.StakeInfoExtended {
+func (db *WiredDB) GetStakeInfoExtendedByHash(blockhash string) *apitypes.StakeInfoExtended {
 	stakeInfo, err := db.RetrieveStakeInfoExtendedByHash(blockhash)
 	if err != nil {
 		log.Errorf("Unable to retrieve stake info: %v", err)
@@ -651,7 +651,7 @@ func (db *wiredDB) GetStakeInfoExtendedByHash(blockhash string) *apitypes.StakeI
 	return stakeInfo
 }
 
-func (db *wiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
+func (db *WiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
 	blockSummary, err := db.RetrieveBlockSummary(int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve block summary: %v", err)
@@ -661,7 +661,7 @@ func (db *wiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
 	return blockSummary
 }
 
-func (db *wiredDB) GetSummaryByHash(hash string) *apitypes.BlockDataBasic {
+func (db *WiredDB) GetSummaryByHash(hash string) *apitypes.BlockDataBasic {
 	blockSummary, err := db.RetrieveBlockSummaryByHash(hash)
 	if err != nil {
 		log.Errorf("Unable to retrieve block summary: %v", err)
@@ -673,7 +673,7 @@ func (db *wiredDB) GetSummaryByHash(hash string) *apitypes.BlockDataBasic {
 
 // GetBestBlockSummary retrieves data for the best block in the DB. If there are
 // no blocks in the table (yet), a nil pointer is returned.
-func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
+func (db *WiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	// Attempt to retrieve height of best block in DB.
 	dbBlkHeight, err := db.GetBlockSummaryHeight()
 	if err != nil {
@@ -696,7 +696,7 @@ func (db *wiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 	return blockSummary
 }
 
-func (db *wiredDB) GetBlockSize(idx int) (int32, error) {
+func (db *WiredDB) GetBlockSize(idx int) (int32, error) {
 	blockSizes, err := db.RetrieveBlockSizeRange(int64(idx), int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve block %d size: %v", idx, err)
@@ -709,7 +709,7 @@ func (db *wiredDB) GetBlockSize(idx int) (int32, error) {
 	return blockSizes[0], nil
 }
 
-func (db *wiredDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
+func (db *WiredDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
 	blockSizes, err := db.RetrieveBlockSizeRange(int64(idx0), int64(idx1))
 	if err != nil {
 		log.Errorf("Unable to retrieve block size range: %v", err)
@@ -718,7 +718,7 @@ func (db *wiredDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
 	return blockSizes, nil
 }
 
-func (db *wiredDB) GetPool(idx int64) ([]string, error) {
+func (db *WiredDB) GetPool(idx int64) ([]string, error) {
 	hs, err := db.sDB.PoolDB.Pool(idx)
 	if err != nil {
 		log.Errorf("Unable to get ticket pool from stakedb: %v", err)
@@ -731,7 +731,7 @@ func (db *wiredDB) GetPool(idx int64) ([]string, error) {
 	return hss, nil
 }
 
-func (db *wiredDB) GetPoolByHash(hash string) ([]string, error) {
+func (db *WiredDB) GetPoolByHash(hash string) ([]string, error) {
 	idx, err := db.GetBlockHeight(hash)
 	if err != nil {
 		log.Errorf("Unable to retrieve block height for hash %s: %v", hash, err)
@@ -751,7 +751,7 @@ func (db *wiredDB) GetPoolByHash(hash string) ([]string, error) {
 
 // GetBlockSummaryTimeRange returns the blocks created within a specified time
 // range min, max time
-func (db *wiredDB) GetBlockSummaryTimeRange(min, max int64, limit int) []apitypes.BlockDataBasic {
+func (db *WiredDB) GetBlockSummaryTimeRange(min, max int64, limit int) []apitypes.BlockDataBasic {
 	blockSummary, err := db.RetrieveBlockSummaryByTimeRange(min, max, limit)
 	if err != nil {
 		log.Errorf("Unable to retrieve block summary using time %d: %v", min, err)
@@ -759,7 +759,7 @@ func (db *wiredDB) GetBlockSummaryTimeRange(min, max int64, limit int) []apitype
 	return blockSummary
 }
 
-func (db *wiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
+func (db *WiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
 	ticketPoolInfo, err := db.RetrievePoolInfo(int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket pool info: %v", err)
@@ -768,7 +768,7 @@ func (db *wiredDB) GetPoolInfo(idx int) *apitypes.TicketPoolInfo {
 	return ticketPoolInfo
 }
 
-func (db *wiredDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
+func (db *WiredDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
 	ticketPoolInfo, err := db.RetrievePoolInfoByHash(hash)
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket pool info: %v", err)
@@ -777,7 +777,7 @@ func (db *wiredDB) GetPoolInfoByHash(hash string) *apitypes.TicketPoolInfo {
 	return ticketPoolInfo
 }
 
-func (db *wiredDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
+func (db *WiredDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
 	ticketPoolInfos, _, err := db.RetrievePoolInfoRange(int64(idx0), int64(idx1))
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket pool info range: %v", err)
@@ -786,7 +786,7 @@ func (db *wiredDB) GetPoolInfoRange(idx0, idx1 int) []apitypes.TicketPoolInfo {
 	return ticketPoolInfos
 }
 
-func (db *wiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64) {
+func (db *WiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64) {
 	poolvals, poolsizes, err := db.RetrievePoolValAndSizeRange(int64(idx0), int64(idx1))
 	if err != nil {
 		log.Errorf("Unable to retrieve ticket value and size range: %v", err)
@@ -796,7 +796,7 @@ func (db *wiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 }
 
 // GetSqliteChartsData fetches the charts data from the sqlite db.
-func (db *wiredDB) GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error) {
+func (db *WiredDB) GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error) {
 	poolData, err := db.RetrieveAllPoolValAndSize()
 	if err != nil {
 		return nil, err
@@ -816,7 +816,7 @@ func (db *wiredDB) GetSqliteChartsData() (map[string]*dbtypes.ChartsData, error)
 	return data, nil
 }
 
-func (db *wiredDB) GetSDiff(idx int) float64 {
+func (db *WiredDB) GetSDiff(idx int) float64 {
 	sdiff, err := db.RetrieveSDiff(int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve stake difficulty: %v", err)
@@ -827,7 +827,7 @@ func (db *wiredDB) GetSDiff(idx int) float64 {
 
 // RetreiveDifficulty fetches the difficulty value in the last 24hrs or
 // immediately after 24hrs.
-func (db *wiredDB) RetreiveDifficulty(timestamp int64) float64 {
+func (db *WiredDB) RetreiveDifficulty(timestamp int64) float64 {
 	sdiff, err := db.RetrieveDiff(timestamp)
 	if err != nil {
 		log.Errorf("Unable to retrieve difficulty: %v", err)
@@ -836,7 +836,7 @@ func (db *wiredDB) RetreiveDifficulty(timestamp int64) float64 {
 	return sdiff
 }
 
-func (db *wiredDB) GetSDiffRange(idx0, idx1 int) []float64 {
+func (db *WiredDB) GetSDiffRange(idx0, idx1 int) []float64 {
 	sdiffs, err := db.RetrieveSDiffRange(int64(idx0), int64(idx1))
 	if err != nil {
 		log.Errorf("Unable to retrieve stake difficulty range: %v", err)
@@ -845,12 +845,12 @@ func (db *wiredDB) GetSDiffRange(idx0, idx1 int) []float64 {
 	return sdiffs
 }
 
-func (db *wiredDB) GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo {
+func (db *WiredDB) GetMempoolSSTxSummary() *apitypes.MempoolTicketFeeInfo {
 	_, feeInfo := db.MPC.GetFeeInfoExtra()
 	return feeInfo
 }
 
-func (db *wiredDB) GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees {
+func (db *WiredDB) GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees {
 	height, timestamp, totalFees, fees := db.MPC.GetFeeRates(N)
 	mpTicketFees := apitypes.MempoolTicketFees{
 		Height:   height,
@@ -862,7 +862,7 @@ func (db *wiredDB) GetMempoolSSTxFeeRates(N int) *apitypes.MempoolTicketFees {
 	return &mpTicketFees
 }
 
-func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
+func (db *WiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 	height, timestamp, totalSSTx, details := db.MPC.GetTicketsDetails(N)
 	mpTicketDetails := apitypes.MempoolTicketDetails{
 		Height:  height,
@@ -876,13 +876,13 @@ func (db *wiredDB) GetMempoolSSTxDetails(N int) *apitypes.MempoolTicketDetails {
 
 // GetMempoolPriceCountTime retreives from mempool: the ticket price, the number
 // of tickets in mempool, the time of the first ticket.
-func (db *wiredDB) GetMempoolPriceCountTime() *apitypes.PriceCountTime {
+func (db *WiredDB) GetMempoolPriceCountTime() *apitypes.PriceCountTime {
 	return db.MPC.GetTicketPriceCountTime(int(db.params.MaxFreshStakePerBlock))
 }
 
 // GetAddressTransactionsWithSkip returns an apitypes.Address Object with at most the
 // last count transactions the address was in
-func (db *wiredDB) GetAddressTransactionsWithSkip(addr string, count, skip int) *apitypes.Address {
+func (db *WiredDB) GetAddressTransactionsWithSkip(addr string, count, skip int) *apitypes.Address {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
@@ -919,19 +919,19 @@ func (db *wiredDB) GetAddressTransactionsWithSkip(addr string, count, skip int) 
 
 // GetAddressTransactions returns an apitypes.Address Object with at most the
 // last count transactions the address was in
-func (db *wiredDB) GetAddressTransactions(addr string, count int) *apitypes.Address {
+func (db *WiredDB) GetAddressTransactions(addr string, count int) *apitypes.Address {
 	return db.GetAddressTransactionsWithSkip(addr, count, 0)
 }
 
 // GetAddressTransactionsRaw returns an array of apitypes.AddressTxRaw objects
 // representing the raw result of SearchRawTransactionsverbose
-func (db *wiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw {
+func (db *WiredDB) GetAddressTransactionsRaw(addr string, count int) []*apitypes.AddressTxRaw {
 	return db.GetAddressTransactionsRawWithSkip(addr, count, 0)
 }
 
 // GetAddressTransactionsRawWithSkip returns an array of apitypes.AddressTxRaw objects
 // representing the raw result of SearchRawTransactionsverbose
-func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw {
+func (db *WiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, skip int) []*apitypes.AddressTxRaw {
 	address, err := dcrutil.DecodeAddress(addr)
 	if err != nil {
 		log.Infof("Invalid address %s: %v", addr, err)
@@ -981,9 +981,9 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 	return txarray
 }
 
-func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *explorer.BlockBasic {
+func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *exptypes.BlockBasic {
 	index := dbtypes.CalculateWindowIndex(data.Height, params.StakeDiffWindowSize)
-	block := &explorer.BlockBasic{
+	block := &exptypes.BlockBasic{
 		IndexVal:       index,
 		Height:         data.Height,
 		Hash:           data.Hash,
@@ -993,7 +993,7 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincf
 		Voters:         data.Voters,
 		Transactions:   len(data.RawTx),
 		FreshStake:     data.FreshStake,
-		BlockTime:      dbtypes.TimeDef{T: time.Unix(data.Time, 0)},
+		BlockTime:      exptypes.TimeDef{T: time.Unix(data.Time, 0)},
 		FormattedBytes: humanize.Bytes(uint64(data.Size)),
 	}
 
@@ -1011,8 +1011,8 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincf
 	return block
 }
 
-func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *explorer.TxBasic {
-	tx := new(explorer.TxBasic)
+func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TxBasic {
+	tx := new(exptypes.TxBasic)
 	tx.TxID = data.Txid
 	tx.FormattedSize = humanize.Bytes(uint64(len(data.Hex) / 2))
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
@@ -1028,8 +1028,8 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 			log.Debugf("Cannot get vote choices for %s", tx.TxID)
 			return tx
 		}
-		tx.VoteInfo = &explorer.VoteInfo{
-			Validation: explorer.BlockValidation{
+		tx.VoteInfo = &exptypes.VoteInfo{
+			Validation: exptypes.BlockValidation{
 				Hash:     validation.Hash.String(),
 				Height:   validation.Height,
 				Validity: validation.Validity,
@@ -1074,14 +1074,14 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	return tx
 }
 
-func (db *wiredDB) GetExplorerBlocks(start int, end int) []*explorer.BlockBasic {
+func (db *WiredDB) GetExplorerBlocks(start int, end int) []*exptypes.BlockBasic {
 	if start < end {
 		return nil
 	}
-	summaries := make([]*explorer.BlockBasic, 0, start-end)
+	summaries := make([]*exptypes.BlockBasic, 0, start-end)
 	for i := start; i > end; i-- {
 		data := db.GetBlockVerbose(i, true)
-		block := new(explorer.BlockBasic)
+		block := new(exptypes.BlockBasic)
 		if data != nil {
 			block = makeExplorerBlockBasic(data, db.params)
 		}
@@ -1090,14 +1090,14 @@ func (db *wiredDB) GetExplorerBlocks(start int, end int) []*explorer.BlockBasic 
 	return summaries
 }
 
-func (db *wiredDB) GetExplorerFullBlocks(start int, end int) []*explorer.BlockInfo {
+func (db *WiredDB) GetExplorerFullBlocks(start int, end int) []*exptypes.BlockInfo {
 	if start < end {
 		return nil
 	}
-	summaries := make([]*explorer.BlockInfo, 0, start-end)
+	summaries := make([]*exptypes.BlockInfo, 0, start-end)
 	for i := start; i > end; i-- {
 		data := db.GetBlockVerbose(i, true)
-		block := new(explorer.BlockInfo)
+		block := new(exptypes.BlockInfo)
 		if data != nil {
 			block = db.GetExplorerBlock(data.Hash)
 		}
@@ -1106,7 +1106,7 @@ func (db *wiredDB) GetExplorerFullBlocks(start int, end int) []*explorer.BlockIn
 	return summaries
 }
 
-func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
+func (db *WiredDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 	data := db.GetBlockVerboseByHash(hash, true)
 	if data == nil {
 		log.Error("Unable to get block for block hash " + hash)
@@ -1116,7 +1116,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	b := makeExplorerBlockBasic(data, db.params)
 
 	// Explorer Block Info
-	block := &explorer.BlockInfo{
+	block := &exptypes.BlockInfo{
 		BlockBasic:            b,
 		Version:               data.Version,
 		Confirmations:         data.Confirmations,
@@ -1138,9 +1138,9 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		Subsidy:               db.BlockSubsidy(b.Height, b.Voters),
 	}
 
-	votes := make([]*explorer.TrimmedTxInfo, 0, block.Voters)
-	revocations := make([]*explorer.TrimmedTxInfo, 0, block.Revocations)
-	tickets := make([]*explorer.TrimmedTxInfo, 0, block.FreshStake)
+	votes := make([]*exptypes.TrimmedTxInfo, 0, block.Voters)
+	revocations := make([]*exptypes.TrimmedTxInfo, 0, block.Revocations)
+	tickets := make([]*exptypes.TrimmedTxInfo, 0, block.FreshStake)
 
 	for _, tx := range data.RawSTx {
 		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
@@ -1165,7 +1165,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 		}
 	}
 
-	txs := make([]*explorer.TrimmedTxInfo, 0, block.Transactions)
+	txs := make([]*exptypes.TrimmedTxInfo, 0, block.Transactions)
 	for _, tx := range data.RawTx {
 		msgTx, err := txhelpers.MsgTxFromHex(tx.Hex)
 		if err != nil {
@@ -1187,7 +1187,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	block.Revs = revocations
 	block.Tickets = tickets
 
-	sortTx := func(txs []*explorer.TrimmedTxInfo) {
+	sortTx := func(txs []*exptypes.TrimmedTxInfo) {
 		sort.Slice(txs, func(i, j int) bool {
 			return txs[i].Total > txs[j].Total
 		})
@@ -1198,13 +1198,13 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	sortTx(block.Revs)
 	sortTx(block.Tickets)
 
-	getTotalFee := func(txs []*explorer.TrimmedTxInfo) (total dcrutil.Amount) {
+	getTotalFee := func(txs []*exptypes.TrimmedTxInfo) (total dcrutil.Amount) {
 		for _, tx := range txs {
 			total += tx.Fee
 		}
 		return
 	}
-	getTotalSent := func(txs []*explorer.TrimmedTxInfo) (total dcrutil.Amount) {
+	getTotalSent := func(txs []*exptypes.TrimmedTxInfo) (total dcrutil.Amount) {
 		for _, tx := range txs {
 			amt, err := dcrutil.NewAmount(tx.Total)
 			if err != nil {
@@ -1222,7 +1222,7 @@ func (db *wiredDB) GetExplorerBlock(hash string) *explorer.BlockInfo {
 	return block
 }
 
-func trimmedTxInfoFromMsgTx(txraw dcrjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *explorer.TrimmedTxInfo {
+func trimmedTxInfoFromMsgTx(txraw dcrjson.TxRawResult, msgTx *wire.MsgTx, params *chaincfg.Params) *exptypes.TrimmedTxInfo {
 	txBasic := makeExplorerTxBasic(txraw, msgTx, params)
 
 	voteValid := false
@@ -1230,7 +1230,7 @@ func trimmedTxInfoFromMsgTx(txraw dcrjson.TxRawResult, msgTx *wire.MsgTx, params
 		voteValid = txBasic.VoteInfo.Validation.Validity
 	}
 
-	tx := &explorer.TrimmedTxInfo{
+	tx := &exptypes.TrimmedTxInfo{
 		TxBasic:   txBasic,
 		Fees:      txBasic.Fee.ToCoin(),
 		VinCount:  len(txraw.Vin),
@@ -1240,7 +1240,7 @@ func trimmedTxInfoFromMsgTx(txraw dcrjson.TxRawResult, msgTx *wire.MsgTx, params
 	return tx
 }
 
-func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
+func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
 		log.Errorf("Invalid transaction hash %s", txid)
@@ -1257,7 +1257,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		return nil
 	}
 	txBasic := makeExplorerTxBasic(*txraw, msgTx, db.params)
-	tx := &explorer.TxInfo{
+	tx := &exptypes.TxInfo{
 		TxBasic: txBasic,
 	}
 	tx.Type = txhelpers.DetermineTxTypeString(msgTx)
@@ -1265,9 +1265,9 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.BlockIndex = txraw.BlockIndex
 	tx.BlockHash = txraw.BlockHash
 	tx.Confirmations = txraw.Confirmations
-	tx.Time = dbtypes.TimeDef{T: time.Unix(txraw.Time, 0)}
+	tx.Time = exptypes.TimeDef{T: time.Unix(txraw.Time, 0)}
 
-	inputs := make([]explorer.Vin, 0, len(txraw.Vin))
+	inputs := make([]exptypes.Vin, 0, len(txraw.Vin))
 	for i, vin := range txraw.Vin {
 		var addresses []string
 		// ValueIn is a temporary fix until amountIn is correct from dcrd call
@@ -1283,7 +1283,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		} else {
 			ValueIn, _ = dcrutil.NewAmount(vin.AmountIn)
 		}
-		inputs = append(inputs, explorer.Vin{
+		inputs = append(inputs, exptypes.Vin{
 			Vin: &dcrjson.Vin{
 				Txid:        vin.Txid,
 				Coinbase:    vin.Coinbase,
@@ -1331,7 +1331,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.MaturityTimeTill = ((float64(db.params.CoinbaseMaturity) -
 		float64(tx.Confirmations)) / float64(db.params.CoinbaseMaturity)) * CoinbaseMaturityInHours
 
-	outputs := make([]explorer.Vout, 0, len(txraw.Vout))
+	outputs := make([]exptypes.Vout, 0, len(txraw.Vout))
 	for i, vout := range txraw.Vout {
 		txout, err := db.client.GetTxOut(txhash, uint32(i), true)
 		if err != nil {
@@ -1341,7 +1341,7 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 		if strings.Contains(vout.ScriptPubKey.Asm, "OP_RETURN") {
 			opReturn = vout.ScriptPubKey.Asm
 		}
-		outputs = append(outputs, explorer.Vout{
+		outputs = append(outputs, exptypes.Vout{
 			Addresses:       vout.ScriptPubKey.Addresses,
 			Amount:          vout.Value,
 			FormattedAmount: humanize.Commaf(vout.Value),
@@ -1354,12 +1354,12 @@ func (db *wiredDB) GetExplorerTx(txid string) *explorer.TxInfo {
 	tx.Vout = outputs
 
 	// Initialize the spending transaction slice for safety
-	tx.SpendingTxns = make([]explorer.TxInID, len(outputs))
+	tx.SpendingTxns = make([]exptypes.TxInID, len(outputs))
 
 	return tx
 }
 
-func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
+func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbtypes.AddressInfo, txhelpers.AddressType, txhelpers.AddressError) {
 	// Validate the address.
 	addr, addrType, addrErr := txhelpers.AddressValidation(address, db.params)
 	switch addrErr {
@@ -1383,16 +1383,15 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 		return nil, addrType, addrErr
 	}
 
-	maxcount := explorer.MaxAddressRows
 	txs, err := db.client.SearchRawTransactionsVerbose(addr,
-		int(offset), int(maxcount), true, true, nil)
+		int(offset), int(MaxAddressRows), true, true, nil)
 	if err != nil {
 		if err.Error() == "-32603: No Txns available" {
 			log.Tracef("GetExplorerAddress: No transactions found for address %s: %v", addr, err)
 			return &dbtypes.AddressInfo{
 				Address:    address,
 				Net:        addr.Net().Name,
-				MaxTxLimit: maxcount,
+				MaxTxLimit: MaxAddressRows,
 				Limit:      count,
 				Offset:     offset,
 			}, addrType, nil
@@ -1454,7 +1453,7 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 	addrData := &dbtypes.AddressInfo{
 		Address:           address,
 		Net:               addr.Net().Name,
-		MaxTxLimit:        maxcount,
+		MaxTxLimit:        MaxAddressRows,
 		Limit:             count,
 		Offset:            offset,
 		NumUnconfirmed:    numUnconfirmed,
@@ -1479,14 +1478,14 @@ func (db *wiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 
 // CountUnconfirmedTransactions returns the number of unconfirmed transactions
 // involving the specified address, given a maximum possible unconfirmed.
-func (db *wiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
+func (db *WiredDB) CountUnconfirmedTransactions(address string) (int64, error) {
 	_, numUnconfirmed, err := db.UnconfirmedTxnsForAddress(address)
 	return numUnconfirmed, err
 }
 
 // UnconfirmedTxnsForAddress routes through rpcutils with appropriate
 // arguments. Returns mempool inputs/outputs associated with the given address.
-func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
+func (db *WiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.AddressOutpoints, int64, error) {
 	return rpcutils.UnconfirmedTxnsForAddress(db.client, address, db.params)
 }
 
@@ -1494,14 +1493,14 @@ func (db *wiredDB) UnconfirmedTxnsForAddress(address string) (*txhelpers.Address
 // total out for all the txs and vote info for the votes. The returned slice
 // will be nil if the GetRawMempoolVerbose RPC fails. A zero-length non-nil
 // slice is returned if there are no transactions in mempool.
-func (db *wiredDB) GetMempool() []explorer.MempoolTx {
+func (db *WiredDB) GetMempool() []exptypes.MempoolTx {
 	mempooltxs, err := db.client.GetRawMempoolVerbose(dcrjson.GRMAll)
 	if err != nil {
 		log.Errorf("GetRawMempoolVerbose failed: %v", err)
 		return nil
 	}
 
-	txs := make([]explorer.MempoolTx, 0, len(mempooltxs))
+	txs := make([]exptypes.MempoolTx, 0, len(mempooltxs))
 
 	for hash, tx := range mempooltxs {
 		rawtx, hex := db.getRawTransaction(hash)
@@ -1516,7 +1515,7 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 		if err != nil {
 			continue
 		}
-		var voteInfo *explorer.VoteInfo
+		var voteInfo *exptypes.VoteInfo
 
 		if ok := stake.IsSSGen(msgTx); ok {
 			validation, version, bits, choices, err := txhelpers.SSGenVoteChoices(msgTx, db.params)
@@ -1524,8 +1523,8 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 				log.Debugf("Cannot get vote choices for %s", hash)
 
 			} else {
-				voteInfo = &explorer.VoteInfo{
-					Validation: explorer.BlockValidation{
+				voteInfo = &exptypes.VoteInfo{
+					Validation: exptypes.BlockValidation{
 						Hash:     validation.Hash.String(),
 						Height:   validation.Height,
 						Validity: validation.Validity,
@@ -1537,7 +1536,7 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 				}
 			}
 		}
-		txs = append(txs, explorer.MempoolTx{
+		txs = append(txs, exptypes.MempoolTx{
 			TxID:     msgTx.TxHash().String(),
 			Hash:     hash,
 			Time:     tx.Time,
@@ -1545,7 +1544,7 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 			TotalOut: total,
 			Type:     txhelpers.DetermineTxTypeString(msgTx),
 			VoteInfo: voteInfo,
-			Vin:      explorer.MsgTxMempoolInputs(msgTx),
+			Vin:      exptypes.MsgTxMempoolInputs(msgTx),
 		})
 	}
 
@@ -1553,7 +1552,7 @@ func (db *wiredDB) GetMempool() []explorer.MempoolTx {
 }
 
 // TxHeight gives the block height of the transaction id specified
-func (db *wiredDB) TxHeight(txid string) (height int64) {
+func (db *WiredDB) TxHeight(txid string) (height int64) {
 	txhash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
 		log.Errorf("Invalid transaction hash %s", txid)
@@ -1569,7 +1568,7 @@ func (db *wiredDB) TxHeight(txid string) (height int64) {
 }
 
 // Difficulty returns the difficulty.
-func (db *wiredDB) Difficulty() (float64, error) {
+func (db *WiredDB) Difficulty() (float64, error) {
 	diff, err := db.client.GetDifficulty()
 	if err != nil {
 		log.Error("GetDifficulty failed")
@@ -1579,12 +1578,12 @@ func (db *wiredDB) Difficulty() (float64, error) {
 }
 
 // GetTip grabs the highest block stored in the database.
-func (db *wiredDB) GetTip() (*explorer.WebBasicBlock, error) {
+func (db *WiredDB) GetTip() (*exptypes.WebBasicBlock, error) {
 	tip, err := db.DB.getTip()
 	if err != nil {
 		return nil, err
 	}
-	blockdata := explorer.WebBasicBlock{
+	blockdata := exptypes.WebBasicBlock{
 		Height:      tip.Height,
 		Size:        tip.Size,
 		Hash:        tip.Hash,

@@ -23,9 +23,21 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
+
+// CommonPageData is the basis for data structs used for HTML templates.
+// explorerUI.commonData returns an initialized instance or CommonPageData,
+// which itself should be used to initialize page data template structs.
+type CommonPageData struct {
+	Tip           *types.WebBasicBlock
+	Version       string
+	ChainParams   *chaincfg.Params
+	BlockTimeUnix int64
+	DevAddress    string
+}
 
 // Status page strings
 const (
@@ -34,6 +46,47 @@ const (
 	fullModeRequired    = "Full-functionality mode is required for this page."
 	wrongNetwork        = "Wrong Network"
 )
+
+// expStatus defines the various status types supported by the system.
+type expStatus string
+
+const (
+	ExpStatusError          expStatus = "Error"
+	ExpStatusNotFound       expStatus = "Not Found"
+	ExpStatusFutureBlock    expStatus = "Future Block"
+	ExpStatusNotSupported   expStatus = "Not Supported"
+	ExpStatusNotImplemented expStatus = "Not Implemented"
+	ExpStatusWrongNetwork   expStatus = "Wrong Network"
+	ExpStatusDeprecated     expStatus = "Deprecated"
+	ExpStatusSyncing        expStatus = "Blocks Syncing"
+	ExpStatusDBTimeout      expStatus = "Database Timeout"
+	ExpStatusBitcoin        expStatus = "Bitcoin Address"
+	ExpStatusP2PKAddress    expStatus = "P2PK Address Type"
+)
+
+func (e expStatus) IsNotFound() bool {
+	return e == ExpStatusNotFound
+}
+
+func (e expStatus) IsWrongNet() bool {
+	return e == ExpStatusWrongNetwork
+}
+
+func (e expStatus) IsBitcoinAddress() bool {
+	return e == ExpStatusBitcoin
+}
+
+func (e expStatus) IsP2PKAddress() bool {
+	return e == ExpStatusP2PKAddress
+}
+
+func (e expStatus) IsFutureBlock() bool {
+	return e == ExpStatusFutureBlock
+}
+
+func (e expStatus) IsSyncing() bool {
+	return e == ExpStatusSyncing
+}
 
 // number of blocks displayed on /nexthome
 const homePageBlocksMaxCount = 30
@@ -71,9 +124,9 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("home", struct {
 		*CommonPageData
-		Info    *HomeInfo
-		Mempool *MempoolInfo
-		Blocks  []*BlockBasic
+		Info    *types.HomeInfo
+		Mempool *types.MempoolInfo
+		Blocks  []*types.BlockBasic
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -163,7 +216,7 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 
 // show only regular tx in block.Transactions, exclude coinbase (reward) transactions
 // for use in NextHome handler and websocket response to getmempooltxs event
-func filterRegularTx(txs []*TrimmedTxInfo) (transactions []*TrimmedTxInfo) {
+func filterRegularTx(txs []*types.TrimmedTxInfo) (transactions []*types.TrimmedTxInfo) {
 	for _, tx := range txs {
 		if !tx.Coinbase {
 			transactions = append(transactions, tx)
@@ -172,9 +225,9 @@ func filterRegularTx(txs []*TrimmedTxInfo) (transactions []*TrimmedTxInfo) {
 	return transactions
 }
 
-func trimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
+func trimMempoolTx(txs []types.MempoolTx) (trimmedTxs []*types.TrimmedTxInfo) {
 	for _, tx := range txs {
-		txBasic := &TxBasic{
+		txBasic := &types.TxBasic{
 			Coinbase: tx.Coinbase,
 			TxID:     tx.TxID,
 			Total:    tx.TotalOut,
@@ -186,7 +239,7 @@ func trimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
 			voteValid = tx.VoteInfo.Validation.Validity
 		}
 
-		trimmedTx := &TrimmedTxInfo{
+		trimmedTx := &types.TrimmedTxInfo{
 			TxBasic:   txBasic,
 			Fees:      tx.Fees,
 			VoteValid: voteValid,
@@ -200,7 +253,7 @@ func trimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
 	return trimmedTxs
 }
 
-func filterUniqueLastBlockVotes(txs []*TrimmedTxInfo) (votes []*TrimmedTxInfo) {
+func filterUniqueLastBlockVotes(txs []*types.TrimmedTxInfo) (votes []*types.TrimmedTxInfo) {
 	for _, tx := range txs {
 		if tx.VoteInfo != nil && tx.VoteInfo.ForLastBlock {
 			votes = append(votes, tx)
@@ -210,13 +263,13 @@ func filterUniqueLastBlockVotes(txs []*TrimmedTxInfo) (votes []*TrimmedTxInfo) {
 }
 
 // convert the *MempoolInfo in exp.MempoolData to *MempoolData
-func (exp *explorerUI) TrimmedMempoolInfo() *TrimmedMempoolInfo {
+func (exp *explorerUI) TrimmedMempoolInfo() *types.TrimmedMempoolInfo {
 	exp.MempoolData.RLock()
 
 	mempoolRegularTxs := trimMempoolTx(exp.MempoolData.Transactions)
 	mempoolVotes := trimMempoolTx(exp.MempoolData.Votes)
 
-	data := &TrimmedMempoolInfo{
+	data := &types.TrimmedMempoolInfo{
 		Transactions: filterRegularTx(mempoolRegularTxs),
 		Tickets:      trimMempoolTx(exp.MempoolData.Tickets),
 		Votes:        filterUniqueLastBlockVotes(mempoolVotes),
@@ -228,7 +281,7 @@ func (exp *explorerUI) TrimmedMempoolInfo() *TrimmedMempoolInfo {
 	exp.MempoolData.RUnlock()
 
 	// calculate total fees for mempool block
-	getTotalFee := func(txs []*TrimmedTxInfo) (total float64) {
+	getTotalFee := func(txs []*types.TrimmedTxInfo) (total float64) {
 		for _, tx := range txs {
 			total += tx.Fees
 		}
@@ -248,9 +301,9 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	blocks := exp.blockData.GetExplorerFullBlocks(height, height-homePageBlocksMaxCount)
 
 	// trim unwanted data in each block
-	trimmedBlocks := make([]*TrimmedBlockInfo, 0, len(blocks))
+	trimmedBlocks := make([]*types.TrimmedBlockInfo, 0, len(blocks))
 	for _, block := range blocks {
-		trimmedBlock := &TrimmedBlockInfo{
+		trimmedBlock := &types.TrimmedBlockInfo{
 			Time:         block.BlockTime,
 			Height:       block.Height,
 			Total:        block.TotalSent,
@@ -275,9 +328,9 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("nexthome", struct {
 		*CommonPageData
-		Info    *HomeInfo
-		Mempool *TrimmedMempoolInfo
-		Blocks  []*TrimmedBlockInfo
+		Info    *types.HomeInfo
+		Mempool *types.TrimmedMempoolInfo
+		Blocks  []*types.TrimmedBlockInfo
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -513,7 +566,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("explorer", struct {
 		*CommonPageData
-		Data       []*BlockBasic
+		Data       []*types.BlockBasic
 		BestBlock  int64
 		Rows       int64
 		NetName    string
@@ -586,7 +639,7 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 
 	pageData := struct {
 		*CommonPageData
-		Data    *BlockInfo
+		Data    *types.BlockInfo
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -610,7 +663,7 @@ func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
 	exp.MempoolData.RLock()
 	str, err := exp.templates.execTemplateToString("mempool", struct {
 		*CommonPageData
-		Mempool *MempoolInfo
+		Mempool *types.MempoolInfo
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -703,8 +756,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		// all occurrences of the transaction.
 		dbTx0 := dbTxs[0]
 		fees := dcrutil.Amount(dbTx0.Fees)
-		tx = &TxInfo{
-			TxBasic: &TxBasic{
+		tx = &types.TxInfo{
+			TxBasic: &types.TxBasic{
 				TxID:          hash,
 				FormattedSize: humanize.Bytes(uint64(dbTx0.Size)),
 				Total:         dcrutil.Amount(dbTx0.Sent).ToCoin(),
@@ -713,7 +766,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				// VoteInfo TODO - check votes table
 				Coinbase: dbTx0.BlockIndex == 0,
 			},
-			SpendingTxns: make([]TxInID, len(dbTx0.VoutDbIds)), // SpendingTxns filled below
+			SpendingTxns: make([]types.TxInID, len(dbTx0.VoutDbIds)), // SpendingTxns filled below
 			Type:         txhelpers.TxTypeToString(int(dbTx0.TxType)),
 			// Vins - looked-up in vins table
 			// Vouts - looked-up in vouts table
@@ -721,7 +774,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			BlockIndex:    dbTx0.BlockIndex,
 			BlockHash:     dbTx0.BlockHash,
 			Confirmations: exp.Height() - dbTx0.BlockHeight + 1,
-			Time:          dbTx0.Time,
+			Time:          types.TimeDef(dbTx0.Time),
 		}
 
 		// Coinbase transactions are regular, but call them coinbase for the page.
@@ -759,7 +812,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					hash, vouts[iv].TxIndex, err)
 			}
 			amount := dcrutil.Amount(int64(vouts[iv].Value)).ToCoin()
-			tx.Vout = append(tx.Vout, Vout{
+			tx.Vout = append(tx.Vout, types.Vout{
 				Addresses:       vouts[iv].ScriptPubKeyData.Addresses,
 				Amount:          amount,
 				FormattedAmount: humanize.Commaf(amount),
@@ -813,7 +866,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					stakebase = hex.EncodeToString(txhelpers.CoinbaseScript)
 				}
 			}
-			tx.Vin = append(tx.Vin, Vin{
+			tx.Vin = append(tx.Vin, types.Vin{
 				Vin: &dcrjson.Vin{
 					Coinbase:    coinbase,
 					Stakebase:   stakebase,
@@ -861,13 +914,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	} // tx == nil (not found by dcrd)
 
 	// Check for any transaction outputs that appear unspent.
-	unspents := UnspentOutputIndices(tx.Vout)
+	unspents := types.UnspentOutputIndices(tx.Vout)
 	if len(unspents) > 0 {
 		// Grab the mempool transaction inputs that match this transaction.
 		mempoolVins := exp.GetTxMempoolInputs(hash, tx.Type)
 		if len(mempoolVins) > 0 {
 			// A quick matching function.
-			matchingVin := func(vout *Vout) (string, uint32) {
+			matchingVin := func(vout *types.Vout) (string, uint32) {
 				for vindex := range mempoolVins {
 					vin := mempoolVins[vindex]
 					for inIdx := range vin.Inputs {
@@ -886,7 +939,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				vout.Spent = true
-				tx.SpendingTxns[vout.Index] = TxInID{
+				tx.SpendingTxns[vout.Index] = types.TxInID{
 					Hash:  txid,
 					Index: vindex,
 				}
@@ -973,7 +1026,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				log.Errorf("Invalid spending transaction data (%s:%d)", hash, vout)
 				continue
 			}
-			tx.SpendingTxns[vout] = TxInID{
+			tx.SpendingTxns[vout] = types.TxInID{
 				Hash:  spendingTxHashes[i],
 				Index: spendingTxVinInds[i],
 			}
@@ -1071,7 +1124,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 	pageData := struct {
 		*CommonPageData
-		Data              *TxInfo
+		Data              *types.TxInfo
 		Blocks            []*dbtypes.BlockStatus
 		BlockInds         []uint32
 		HasValidMainchain bool
@@ -1378,7 +1431,7 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Attempt to get a block hash by calling GetBlockHash of wiredDB or
+	// Attempt to get a block hash by calling GetBlockHash of WiredDB or
 	// BlockHash of ChainDB (if full mode) to see if the URL query value is a
 	// block index. Then redirect to the block page if it is.
 	idx, err := strconv.ParseInt(searchStr, 10, 0)
@@ -1514,7 +1567,7 @@ func (exp *explorerUI) StatusPage(w http.ResponseWriter, code, message, addition
 	// and accepted but cannot be processed now till the sync is complete.
 	case ExpStatusSyncing:
 		w.WriteHeader(http.StatusAccepted)
-	case ExpStatusNotSupported:
+	case ExpStatusNotSupported, ExpStatusBitcoin:
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	default:
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -1529,23 +1582,28 @@ func (exp *explorerUI) NotFound(w http.ResponseWriter, r *http.Request) {
 
 // ParametersPage is the page handler for the "/parameters" path.
 func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
-	cp := exp.ChainParams
-	addrPrefix := AddressPrefixes(cp)
-	actualTicketPoolSize := int64(cp.TicketPoolSize * cp.TicketsPerBlock)
-	ecp := ExtendedChainParams{
-		MaximumBlockSize:     cp.MaximumBlockSizes[0],
-		AddressPrefix:        addrPrefix,
-		ActualTicketPoolSize: actualTicketPoolSize,
+	params := exp.ChainParams
+	addrPrefix := types.AddressPrefixes(params)
+	actualTicketPoolSize := int64(params.TicketPoolSize * params.TicketsPerBlock)
+
+	type ExtendedParams struct {
+		MaximumBlockSize     int
+		ActualTicketPoolSize int64
+		AddressPrefix        []types.AddrPrefix
 	}
 
 	str, err := exp.templates.execTemplateToString("parameters", struct {
 		*CommonPageData
-		Cp      ExtendedChainParams
+		ExtendedParams
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
-		Cp:             ecp,
-		NetName:        exp.NetName,
+		ExtendedParams: ExtendedParams{
+			MaximumBlockSize:     params.MaximumBlockSizes[0],
+			AddressPrefix:        addrPrefix,
+			ActualTicketPoolSize: actualTicketPoolSize,
+		},
+		NetName: exp.NetName,
 	})
 
 	if err != nil {
@@ -1573,7 +1631,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	// Attempt to get agendaid string from URL path.
 	agendaId := getAgendaIDCtx(r)
-	agendaInfo, err := GetAgendaInfo(agendaId)
+	agendaInfo, err := types.GetAgendaInfo(agendaId)
 	if err != nil {
 		errPageInvalidAgenda(err)
 		return
@@ -1628,8 +1686,8 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// HandleApiRequestsOnSync is a handler that handles all API request when the
-// sync status pages is running.
+// HandleApiRequestsOnSync handles all API request when the sync status pages is
+// running.
 func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Request) {
 	var complete int
 	dataFetched := SyncStatus()
@@ -1684,7 +1742,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 
 	exp.MempoolData.RLock()
 	exp.pageData.RLock()
-	stats := StatsInfo{
+	stats := types.StatsInfo{
 		TotalSupply:              exp.pageData.HomeInfo.CoinSupply,
 		UltimateSupply:           ultSubsidy,
 		TotalSupplyPercentage:    float64(exp.pageData.HomeInfo.CoinSupply) / float64(ultSubsidy) * 100,
@@ -1721,7 +1779,7 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("statistics", struct {
 		*CommonPageData
-		Stats   StatsInfo
+		Stats   types.StatsInfo
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
