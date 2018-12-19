@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/decred/dcrdata)](https://goreportcard.com/report/github.com/decred/dcrdata)
 [![ISC License](https://img.shields.io/badge/license-ISC-blue.svg)](http://copyfree.org)
 
-dcrdata is an original [Decred's](https://www.decred.org/) block explorer, with
+dcrdata is an original [Decred](https://www.decred.org/) block explorer, with
 packages and apps for data collection, presentation, and storage. The backend
 and middleware are written in Go. On the front end, Webpack enables the use of
 modern javascript features, as well as SCSS for styling.
@@ -71,7 +71,6 @@ modern javascript features, as well as SCSS for styling.
 │   ├── rebuilddb       rebuilddb utility, for SQLite backend. Not required.
 │   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not required.
 │   └── scanblocks      scanblocks utility. Not required.
-├── dcrdataapi          Package dcrdataapi for Go API clients.
 ├── db
 │   ├── agendadb        Package agendadb is a basic PoS voting agenda database.
 │   ├── dbtypes         Package dbtypes with common data types.
@@ -241,8 +240,9 @@ This produces a string like `dcrdata version 3.1.0-beta+86cc62a (Go version go1.
 
 The config file, logs, and data files are stored in the application data folder,
 which may be specified via the `-A/--appdata` and `-b/--datadir` settings.
-However, the location of the config file may be set with `-C/--configfile`. If
-encountering errors involving file system paths, check the permissions on these
+However, the location of the config file may also be set with `-C/--configfile`.
+The default paths for your system are shown in the `--help` description.
+If encountering errors involving file system paths, check the permissions on these
 folders to ensure that _the user running dcrdata_ is able to access these paths.
 
 The "public" and "views" folders _must_ be in the same folder as the `dcrdata`
@@ -727,6 +727,9 @@ modules.
 
 This will create and install into a directory named `node_modules`.
 
+You'll also want to run `npm install` after merging changes from upstream. It is
+run for you when you use the build script (`./dev/build.sh`).
+
 For development, there's a webpack script that watches for file changes and
 automatically bundles. To use it, run the following command in a separate
 terminal and leave it running while you work. You'll only use this command if
@@ -745,9 +748,13 @@ performs some additional checks.
 
 ### CSS Guidelines
 
+Webpack compiles SCSS to CSS while bundling. The `watch` script described above
+also watches for changes in these files and performs linting to ensure [syntax
+compliance](https://github.com/stylelint/stylelint-config-standard).
+
 Before you write any CSS, see if you can achieve your goal by using existing
 classes available in Bootstrap 4. This helps prevent our stylesheets from
-getting bloated makes it easier for things to work well across a wide range
+getting bloated and makes it easier for things to work well across a wide range
 browsers & devices. Please take the time to [Read the
 docs](https://getbootstrap.com/docs/4.1/getting-started/introduction/)
 
@@ -761,7 +768,7 @@ work well with javascript disabled. For users with javascript enabled,
 [Turbolinks](https://github.com/turbolinks/turbolinks) creates a persistent
 single page application that handles all HTML rendering.
 
-.tmpl files are cached by the backend, and can be reloaded via running `killall -USR1 v3`
+.tmpl files are cached by the backend, and can be reloaded via running `killall -USR1 v4`
 from the command line.
 
 ### Javascript
@@ -783,9 +790,6 @@ like checking a transaction or address should have a very fast initial page
 load.
 
 ## Helper Packages
-
-`package dcrdataapi` defines the data types, with json tags, used by the JSON
-API. This facilitates authoring of robust Go clients of the API.
 
 `package dbtypes` defines the data types used by the DB backends to model the
 block, transaction, and related blockchain data structures. Functions for
@@ -809,8 +813,8 @@ from dcrd.
 
 ## Internal-use Packages
 
-Packages `blockdata` and `dcrsqlite` are currently designed only for internal
-use internal use by other dcrdata packages, but they may be of general value in
+Some packages are currently designed only for internal
+use by other dcrdata packages, but may be of general value in
 the future.
 
 `blockdata` defines:
@@ -868,7 +872,7 @@ Note that all dcrdata.org community and team members are expected to adhere to
 the code of conduct, described in the [CODE_OF_CONDUCT](docs/CODE_OF_CONDUCT.md)
 file.
 
-Also, [come chat with us on Slack](https://slack.decred.org/)!
+Also, [come chat with us on Slack](https://slack.decred.org/) at the #drcdata channel!
 
 ## License
 
