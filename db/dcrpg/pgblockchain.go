@@ -719,6 +719,11 @@ func (pgb *ChainDB) HeightHashDB() (uint64, string, error) {
 	return height, hash, pgb.replaceCancelError(err)
 }
 
+// Getter for ChainDB.bestBlock.height
+func (pgb *ChainDB) Height() uint64 {
+	return pgb.bestBlock.Height()
+}
+
 // Height uses the last stored height.
 func (block *BestBlock) Height() uint64 {
 	block.RLock()

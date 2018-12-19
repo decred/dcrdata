@@ -166,7 +166,7 @@
                   <div
                       class="d-flex align-items-center justify-content-between"
                   >
-                    {{if gt $TxnCount 0}}<a class="d-inline-block p-2 bg-white border rounded" href="/api/download/address/io/{{.Address}}" download="address-io.csv"><span class="dcricon-download mx-1"></span> Download CSV</a>{{end}}
+                    {{if gt $TxnCount 0}}<a class="d-inline-block p-2 bg-white border rounded" href="/download/address/io/{{.Address}}" download><span class="dcricon-download mx-1"></span> Download CSV</a>{{end}}
                     <!-- This dummy span ensures left/right alignment of the buttons, even if one is hidden -->
                     <span> </span>
                     <div class="d-inline-block">

@@ -125,7 +125,7 @@ func (exp *explorerUI) SyncStatusAPIIntercept(next http.Handler) http.Handler {
 }
 
 // SyncStatusFileResponse triggers an HTTP error if a file is requested for
-// download before the DBs are synced
+// download before the DB is synced.
 func (exp *explorerUI) SyncStatusFileResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp.DisplaySyncStatusPage() {
