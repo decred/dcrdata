@@ -71,7 +71,6 @@ modern javascript features, as well as SCSS for styling.
 │   ├── rebuilddb       rebuilddb utility, for SQLite backend. Not required.
 │   ├── rebuilddb2      rebuilddb2 utility, for PostgreSQL backend. Not required.
 │   └── scanblocks      scanblocks utility. Not required.
-├── dcrdataapi          Package dcrdataapi for Go API clients.
 ├── db
 │   ├── agendadb        Package agendadb is a basic PoS voting agenda database.
 │   ├── dbtypes         Package dbtypes with common data types.
@@ -729,7 +728,7 @@ modules.
 This will create and install into a directory named `node_modules`.
 
 You'll also want to run `npm install` after merging changes from upstream. It is
-run for you when you use the build script (`/dev/build.sh`).
+run for you when you use the build script (`./dev/build.sh`).
 
 For development, there's a webpack script that watches for file changes and
 automatically bundles. To use it, run the following command in a separate
@@ -791,9 +790,6 @@ like checking a transaction or address should have a very fast initial page
 load.
 
 ## Helper Packages
-
-`package dcrdataapi` defines the data types, with json tags, used by the JSON
-API. This facilitates authoring of robust Go clients of the API.
 
 `package dbtypes` defines the data types used by the DB backends to model the
 block, transaction, and related blockchain data structures. Functions for
