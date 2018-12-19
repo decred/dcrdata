@@ -469,8 +469,10 @@ export default class extends Controller {
       type: 'GET',
       url: '/api/address/' + ctrl.dcrAddress + '/' + chartKey + '/' + bin,
       complete: () => {
-        ctrl.chartboxTarget.classList.remove('loading')
         ctrl.ajaxing = false
+      },
+      error: () => {
+        ctrl.chartboxTarget.classList.remove('loading')
       },
       success: (data) => {
         ctrl.processData(chart, bin, data)
@@ -538,6 +540,7 @@ export default class extends Controller {
     if (chart === 'amountflow') {
       ctrl.updateFlow()
     }
+    ctrl.chartboxTarget.classList.remove('loading')
     ctrl.xRange = ctrl.graph.xAxisExtremes()
     ctrl.validateZoom(binSize)
   }
