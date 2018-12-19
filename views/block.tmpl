@@ -37,9 +37,8 @@
                 <table>
                     <tr class="h2rem">
                         <td class="pr-2 lh1rem vam text-right xs-w117 w120">TOTAL SENT</td>
-                        <td class="fs28 mono fs16-decimal d-flex align-items-center">
-                            <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .TotalSent 8 false)}}</span>
-                            <span class="pl-1 unit">DCR</span>
+                        <td class="fs28 mono fs16-decimal">
+                            {{template "decimalParts" (float64AsDecimalParts .TotalSent 8 false)}}<span class="pl-1 unit">DCR</span>
                         </td>
                     </tr>
                 </table>
@@ -169,7 +168,7 @@
                     <tr>
                         <td class="text-right pr-2 lh1rem p03rem0 xs-w117">TICKET PRICE</td>
                         <td class="lh1rem fs16">
-                            <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .SBits 8 false)}}</span>
+                            {{template "decimalParts" (float64AsDecimalParts .SBits 8 false)}}
                         </td>
                     </tr>
                     <tr>
@@ -179,13 +178,13 @@
                     <tr>
                         <td class="text-right pr-2 lh1rem nowrap p03rem0 xs-w91">POW DIFFICULTY</td>
                         <td class="lh1rem fs16">
-                            <span class="rm-spacing">{{template "decimalParts" (float64AsDecimalParts .Difficulty 8 true)}}</span>
+                            {{template "decimalParts" (float64AsDecimalParts .Difficulty 8 true)}}
                         </td>
                     </tr>
                     <tr>
                         <td class="text-right pr-2 lh1rem nowrap p03rem0 xs-w91">TRANSACTION FEES</td>
                         <td class="lh1rem fs16">
-                            <span class="rm-spacing">{{.MiningFee}}</span>
+                            {{.MiningFee}}
                         </td>
                     </tr>
                 </table>
@@ -218,7 +217,7 @@
                                     {{end}}
                                     </td>
                                     <td class="mono fs15 text-right">
-                                        <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</span>
+                                      {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                                     </td>
                                     <td class="mono fs15">{{.FormattedSize}}</td>
                                 </tr>
@@ -263,7 +262,7 @@
                                 <td class="mono fs15">{{.VoteInfo.Version}}</td>
                                 <td>{{if .VoteInfo.Validation.Validity}}Valid{{else}}Invalid{{end}}</td>
                                 <td class="mono fs15 text-right">
-                                    <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</span>
+                                  {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                                 </td>
                                 <td class="mono fs15 text-right">{{.FormattedSize}}</td>
                             </tr>
@@ -328,7 +327,7 @@
                                     </span>
                                 </td>
                                 <td class="text-right dcr mono fs15">
-                                    <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</span>
+                                  {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                                 </td>
                                 <td class="mono fs15 text-right">{{.Fee}}</td>
                                 <td class="mono fs15">{{.FormattedSize}}</td>
@@ -361,7 +360,7 @@
                                 </span>
                             </td>
                             <td class="mono fs15 text-right">
-                                <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</span>
+                              {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                             </td>
                             <td class="mono fs15 text-right">{{.Fee}}</td>
                             <td class="mono fs15">{{.FormattedSize}}</td>
@@ -401,7 +400,7 @@
                                     </span>
                                 </td>
                                 <td class="mono fs15 text-right">
-                                    <span class="rm-spacing-tb">{{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}</span>
+                                  {{template "decimalParts" (float64AsDecimalParts .Total 8 false)}}
                                 </td>
                                 <td class="mono fs15 text-right">{{.Fee}}</td>
                                 <td class="mono fs15">{{.FormattedSize}}</td>
