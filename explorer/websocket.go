@@ -14,8 +14,8 @@ import (
 
 const (
 	wsWriteTimeout = 10 * time.Second
-	wsReadTimeout  = 12 * time.Second
-	pingInterval   = 8 * time.Second
+	wsReadTimeout  = 60 * time.Second
+	pingInterval   = 60 * time.Second
 
 	tickerSigReset int = iota
 	tickerSigStop
