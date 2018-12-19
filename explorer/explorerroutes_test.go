@@ -11,13 +11,21 @@ import (
 	"github.com/decred/dcrdata/v4/explorer/types"
 )
 
+const (
+	viewsPath = "../views"
+)
+
+// WiredDBStub satisfies explorerDataSourceLite, but will likely panic with a
+// nil pointer dereference for methods we do not explicitly define for
+// WiredDBStub for these tests.
 type WiredDBStub struct {
-	// Embed *ChainDB to get all the methods to satisfy the
-	// explorerDataSource interface, but not actually implement them.
-	// Only the methods required for this test need be implemented.
+	// Embedding *dcrsqlite.WiredDB promotes all of the methods needed for
+	// WireDBStub to satisfy the explorerDataSourceLite interface. This allows
+	// us to only implement for WiredDBStub the methods required for the tests.
 	*dcrsqlite.WiredDB
 }
 
+// GetChainParams is needed by explorer.New.
 func (ws *WiredDBStub) GetChainParams() *chaincfg.Params {
 	return &chaincfg.MainNetParams
 }
@@ -44,10 +52,12 @@ func (ws *WiredDBStub) GetTip() (*types.WebBasicBlock, error) {
 	}, nil
 }
 
+// ChainDBStub satisfies explorerDataSource, but will likely panic with a nil
+// pointer dereference for methods we do not explicitly define here.
 type ChainDBStub struct {
-	// Embed *ChainDBRPC to get all the methods to satisfy the
-	// explorerDataSource interface, but not actually implement them. Only the
-	// methods required for this test need be implemented.
+	// Embedding *dcrpg.ChainDBRPC promotes all of the methods needed for
+	// WireDBStub to satisfy the explorerDataSource interface. This allows us to
+	// only implement for ChainDBStub the methods required for the tests.
 	*dcrpg.ChainDBRPC
 }
 
@@ -57,7 +67,7 @@ func TestStatusPageResponseCodes(t *testing.T) {
 
 	var wiredDBStub WiredDBStub
 	var chainDBStub ChainDBStub
-	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, "../views")
+	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, viewsPath)
 
 	// handler := http.HandlerFunc()
 	// handler.ServeHTTP(rr, req)
@@ -82,3 +92,46 @@ func TestStatusPageResponseCodes(t *testing.T) {
 		}
 	}
 }
+
+type testTxPageWiredDBStub struct {
+	*WiredDBStub
+}
+
+func (t *testTxPageWiredDBStub) GetExplorerTx(txid string) *types.TxInfo {
+	return nil
+}
+
+// func TestTxPageResponseCodes(t *testing.T) {
+// 	var wiredDBStub testTxPageWiredDBStub
+// 	var chainDBStub ChainDBStub
+// 	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, viewsPath)
+
+// 	io := []struct {
+// 		ExpStatus expStatus
+// 		RespCode  int
+// 	}{
+// 		{
+// 			ExpStatusBitcoin, http.StatusUnprocessableEntity,
+// 		},
+// 	}
+
+// 	for _, oi := range io {
+// 		req := httptest.NewRequest("GET", "/", nil)
+// 		rr := httptest.NewRecorder()
+
+// 		// Simulate the TransactionHashCtx middleware.
+// 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 			ctx := context.WithValue(r.Context(), ctxTxHash, "notahash")
+// 			http.HandlerFunc(exp.TxPage).ServeHTTP(w, r.WithContext(ctx))
+// 		})
+
+// 		handler.ServeHTTP(rr, req)
+
+// 		resp := rr.Result()
+// 		if resp.StatusCode != oi.RespCode {
+// 			t.Errorf("wrong code %d (%s), expected %d (%s)",
+// 				resp.StatusCode, http.StatusText(resp.StatusCode),
+// 				oi.RespCode, http.StatusText(oi.RespCode))
+// 		}
+// 	}
+// }
