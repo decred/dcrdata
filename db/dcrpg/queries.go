@@ -1303,7 +1303,7 @@ func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvR
 	var blockTime dbtypes.TimeDef
 
 	// header row
-	csvRows = append(csvRows, []string{"tx_hash", "valid_mainchain", "matching_tx_hash", "value", "block_time", "direction", "io_index", "tx_type"})
+	csvRows = append(csvRows, []string{"tx_hash", "direction", "io_index", "valid_mainchain", "value", "time_stamp", "tx_type", "matching_tx_hash"})
 
 	for dbRows.Next() {
 
@@ -1327,13 +1327,13 @@ func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvR
 
 		csvRows = append(csvRows, []string{
 			txHash,
-			strValidMainchain,
-			matchingTxHash,
-			fmt.Sprintf("%f", dcrutil.Amount(value).ToCoin()),
-			blockTime.String(),
 			strDirection,
 			fmt.Sprint(ioIndex),
+			strValidMainchain,
+			fmt.Sprintf("%f", dcrutil.Amount(value).ToCoin()),
+			fmt.Sprint(blockTime.T.Unix()),
 			txhelpers.TxTypeToString(txType),
+			matchingTxHash,
 		})
 	}
 	return
