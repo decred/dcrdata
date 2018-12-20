@@ -501,7 +501,7 @@ func _main(ctx context.Context) error {
 	})
 
 	// HTTP Error 503 StatusServiceUnavailable for file requests before sync.
-	webMux.With(explore.SyncStatusFileResponse).Group(func(r chi.Router) {
+	webMux.With(explore.SyncStatusFileIntercept).Group(func(r chi.Router) {
 		r.Mount("/download", fileMux.Mux)
 	})
 
