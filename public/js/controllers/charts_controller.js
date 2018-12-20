@@ -1,16 +1,30 @@
-/* global Turbolinks */
 /* global $ */
 
 import { Controller } from 'stimulus'
 import { map, assign, merge } from 'lodash-es'
-import { barChartPlotter } from '../helpers/chart_helper'
+import { barChartPlotter, Zoom } from '../helpers/chart_helper'
 import { darkEnabled } from '../services/theme_service'
 import { animationFrame } from '../helpers/animation_helper'
 import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
+import TurboQuery from '../helpers/turbolinks_helper'
 
 var selectedChart
 let Dygraph // lazy loaded on connect
+
+const blockTime = 5 * 60 * 1000
+
+function scaleFactor () {
+  switch (selectedChart) {
+    case 'ticket-by-outputs-windows':
+      return blockTime * 144
+  }
+  return 1
+}
+
+function usingWindowUnits () {
+  return selectedChart === 'ticket-by-outputs-windows'
+}
 
 function legendFormatter (data) {
   if (data.x == null) {
@@ -26,7 +40,7 @@ function legendFormatter (data) {
   }
 
   let xAxisAdditionalInfo
-  if (selectedChart === 'ticket-by-outputs-windows') {
+  if (usingWindowUnits()) {
     let start = data.x * 144
     let end = start + 143
     xAxisAdditionalInfo = ` (Blocks ${start} &mdash; ${end})`
@@ -161,6 +175,18 @@ export default class extends Controller {
   }
 
   async connect () {
+    this.query = new TurboQuery()
+    this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'roll'])
+    this.query.update(this.settings)
+    if (this.settings.zoom) {
+      this.setSelectedZoom(null)
+    }
+    if (this.settings.roll) {
+      this.setRollPeriod(this.settings.roll)
+    }
+    this.settings.chart = this.settings.chart || 'ticket-price'
+    this.zoomCallback = this._zoomCallback.bind(this)
+    this.drawCallback = this._drawCallback.bind(this)
     Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
@@ -199,21 +225,26 @@ export default class extends Controller {
       highlightCircleSize: 4
     }
 
+    if (this.settings.zoom) {
+      let zoom = Zoom.decode(this.settings.zoom)
+      options.dateWindow = [zoom.start / scaleFactor(), zoom.end / scaleFactor()]
+    }
+
     this.chartsView = new Dygraph(
       this.chartsViewTarget,
       [[1, 1]],
       options
     )
-    var val = this.chartSelectTarget.namedItem(window.location.hash.replace('#', ''))
-    $(this.chartSelectTarget).val((val ? val.value : 'ticket-price'))
+    $(this.chartSelectTarget).val(this.settings.chart)
     this.selectChart()
   }
 
   plotGraph (chartName, data) {
     var d = []
-    Turbolinks.controller.replaceHistoryWithLocationAndRestorationIdentifier(Turbolinks.Location.wrap(`#${chartName}`), Turbolinks.uuid())
     var gOptions = {
-      rollPeriod: 1
+      rollPeriod: this.rollPeriod,
+      zoomCallback: this.zoomCallback,
+      drawCallback: this.drawCallback
     }
     switch (chartName) {
       case 'ticket-price': // price graph
@@ -327,13 +358,11 @@ export default class extends Controller {
         break
     }
     this.chartsView.updateOptions(gOptions, false)
-    this.chartsView.resetZoom()
-    $(this.chartWrapperTarget).removeClass('loading')
+    this.validateZoom()
   }
 
   async selectChart () {
-    var selection = this.chartSelectTarget.value
-    $(this.rollPeriodInputTarget).val(undefined)
+    var selection = this.settings.chart = this.chartSelectTarget.value
     $(this.chartWrapperTarget).addClass('loading')
     if (selectedChart !== selection) {
       let chartResponse = await axios.get('/api/chart/' + selection)
@@ -343,35 +372,60 @@ export default class extends Controller {
     } else {
       $(this.chartWrapperTarget).removeClass('loading')
     }
-    this.zoomOptionTargets.forEach((el) => {
-      el.classList.toggle('active', $(el).data('zoom') === 0)
-    })
   }
 
-  async onZoom (event) {
-    var selectedZoom = parseInt($(event.srcElement).data('zoom'))
+  onZoom (event) {
+    var target = event.srcElement || event.target
+    this.zoomOptionTargets.forEach((el) => {
+      el.classList.remove('active')
+    })
+    target.classList.add('active')
+    this.validateZoom()
+  }
+
+  async validateZoom () {
     await animationFrame()
     $(this.chartWrapperTarget).addClass('loading')
     await animationFrame()
-    this.xVal = this.chartsView.xAxisExtremes()
-    if (selectedZoom > 0) {
-      let normalizedZoom = selectedZoom
-      if (this.xVal[0] >= 1400000000000) {
-        normalizedZoom = selectedZoom * 1000 * 300
-      } else if (selectedChart === 'ticket-by-outputs-windows') {
-        normalizedZoom = selectedZoom / 144
-      }
-      this.chartsView.updateOptions({
-        dateWindow: [(this.xVal[1] - normalizedZoom), this.xVal[1]]
-      })
-    } else {
-      this.chartsView.resetZoom()
-    }
-    this.zoomOptionTargets.forEach((el) => {
-      el.classList.toggle('active', $(el).data('zoom') === selectedZoom)
+    var zoomMin, zoomMax
+    [zoomMin, zoomMax] = this.chartsView.xAxisExtremes()
+    var lims = Zoom.object(zoomMin * scaleFactor(), zoomMax * scaleFactor())
+    var zoom = Zoom.validate(this.selectedZoom || this.settings.zoom, lims, blockTime)
+    this.chartsView.updateOptions({
+      dateWindow: [zoom.start / scaleFactor(), zoom.end / scaleFactor()]
     })
+    this.settings.zoom = Zoom.encode(zoom.start, zoom.end)
+    this.query.replace(this.settings)
     await animationFrame()
     $(this.chartWrapperTarget).removeClass('loading')
+  }
+
+  _zoomCallback (start, end) {
+    this.settings.zoom = Zoom.encode(Zoom.object(start * scaleFactor(), end * scaleFactor()))
+    this.zoomOptionTargets.forEach((button) => {
+      button.classList.remove('active')
+    })
+    this.query.replace(this.settings)
+  }
+
+  _drawCallback (graph, first) {
+    if (first) return
+    var start, end
+    [start, end] = this.chartsView.xAxisRange()
+    if (start === end) return
+    var zoom
+    this.settings.zoom = Zoom.encode(Zoom.object(start * scaleFactor(), end * scaleFactor()))
+    this.query.replace(this.settings)
+  }
+
+  setSelectedZoom (zoomKey) {
+    this.zoomOptionTargets.forEach((button) => {
+      if (button.dataset.zoom === zoomKey) {
+        button.classList.add('active')
+      } else {
+        button.classList.remove('active')
+      }
+    })
   }
 
   async onRollPeriodChange (event) {
@@ -383,6 +437,24 @@ export default class extends Controller {
       rollPeriod: rollPeriod
     })
     await animationFrame()
+    this.settings.roll = rollPeriod
+    this.query.replace(this.settings)
     $(this.chartWrapperTarget).removeClass('loading')
+  }
+
+  setRollPeriod (period) {
+    this.rollPeriodInputTarget.value = period
+  }
+
+  get selectedZoom () {
+    var key = false
+    this.zoomOptionTargets.forEach((el) => {
+      if (el.classList.contains('active')) key = el.dataset.zoom
+    })
+    return key
+  }
+
+  get rollPeriod () {
+    return this.rollPeriodInputTarget.value
   }
 }

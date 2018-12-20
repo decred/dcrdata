@@ -53,3 +53,84 @@ export function padPoints (pts, binSize, sustain) {
   pts.unshift(front)
   pts.push(back)
 }
+
+var zoomMap = {
+  all: 0,
+  year: 3.154e+10,
+  month: 2.628e+9,
+  week: 6.048e+8,
+  day: 8.64e+7
+}
+
+export class Zoom {
+  static object (start, end) {
+    return {
+      start: start,
+      end: end
+    }
+  }
+
+  static map (key) {
+    return zoomMap[key]
+  }
+
+  static encode (start, end) {
+    if (!end) {
+      end = start.end
+      start = start.start
+    }
+    return parseInt(start / 1000).toString(36) + '-' + parseInt(end / 1000).toString(36)
+  }
+
+  static decode (encoded, lims) {
+    // if lims are provided, encoded can be a zoomMap key
+    if (!encoded) return false
+    if (lims && zoomMap.hasOwnProperty(encoded)) {
+      if (Array.isArray(lims)) {
+        lims = this.object(lims[0], lims[1])
+      }
+      let duration = zoomMap[encoded]
+      if (duration === 0) return lims
+      return this.object(lims.end - zoomMap[encoded], lims.end)
+    }
+    var range = encoded.split('-')
+    if (range.length !== 2) {
+      return false
+    }
+    var start = parseInt(range[0], 36)
+    var end = parseInt(range[1], 36)
+    if (isNaN(start) || isNaN(end) || end - start <= 0) {
+      return false
+    }
+    return this.object(start * 1000, end * 1000)
+  }
+
+  static validate (proposed, lims, minSize) {
+    // proposed: encoded zoom string || zoomMap key || zoomObject
+    // lims: zoomObject || array
+    if (Array.isArray(lims)) {
+      lims = this.object(lims[0], lims[1])
+    }
+    var zoom = lims
+    if (typeof proposed === 'string') {
+      zoom = this.decode(proposed, lims)
+      if (!zoom) return false
+    } else if (proposed && typeof proposed === 'object') {
+      zoom = proposed
+    }
+    // Shift-Clamp
+    if (minSize && zoom.end - zoom.start < minSize) {
+      zoom.end = zoom.start + minSize
+    }
+    if (zoom.end > lims.end) {
+      let shift = zoom.end - lims.end
+      zoom.end -= shift
+      zoom.start = Math.max(zoom.start - shift, lims.start)
+    } else if (zoom.start < lims.start) {
+      let shift = lims.start - zoom.start
+      zoom.start += shift
+      zoom.end = Math.min(zoom.end + shift, lims.end)
+    }
+    return zoom
+  }
+}

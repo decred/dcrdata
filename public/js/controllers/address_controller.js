@@ -2,7 +2,7 @@
 import { Controller } from 'stimulus'
 import { isEmpty } from 'lodash-es'
 import { getDefault } from '../helpers/module_helper'
-import { padPoints, sizedBarPlotter } from '../helpers/chart_helper'
+import { padPoints, sizedBarPlotter, Zoom } from '../helpers/chart_helper'
 import globalEventBus from '../services/event_bus_service'
 import TurboQuery from '../helpers/turbolinks_helper'
 import axios from 'axios'
@@ -92,21 +92,6 @@ function setTxnCountText (el, count) {
   }
 }
 
-var zoomMap = {
-  all: 0,
-  year: 3.154e+10,
-  month: 2.628e+9,
-  week: 6.048e+8,
-  day: 8.64e+7
-}
-
-function zoomObject (start, end) {
-  return {
-    start: start,
-    end: end
-  }
-}
-
 var commonOptions, typesGraphOptions, amountFlowGraphOptions, balanceGraphOptions
 // Cannot set these until DyGraph is fetched.
 function createOptions () {
@@ -155,20 +140,6 @@ function createOptions () {
     visibility: [true],
     fillGraph: true
   }
-}
-
-function decodeZoom (encoded) {
-  if (!encoded) return false
-  var range = encoded.split('-')
-  if (range.length !== 2) {
-    return false
-  }
-  var start = parseInt(range[0], 36)
-  var end = parseInt(range[1], 36)
-  if (isNaN(start) || isNaN(end) || end - start <= 0) {
-    return false
-  }
-  return zoomObject(start * 1000, end * 1000)
 }
 
 export default class extends Controller {
@@ -430,7 +401,7 @@ export default class extends Controller {
 
     if (settings.chart === ctrl.chartState.chart && settings.bin === ctrl.chartState.bin) {
       // Only the zoom has changed.
-      let zoom = decodeZoom(settings.zoom)
+      let zoom = Zoom.decode(settings.zoom)
       if (zoom) {
         ctrl.setZoom(zoom.start, zoom.end)
       }
@@ -477,7 +448,7 @@ export default class extends Controller {
       ctrl.noDataAvailable()
       return
     }
-    var binSize = zoomMap[bin] || blockDuration
+    var binSize = Zoom.map(bin) || blockDuration
     if (chart === 'types') {
       ctrl.retrievedData['types-' + bin] = txTypesFunc(data, binSize)
     } else if (chart === 'amountflow' || chart === 'balance') {
@@ -493,7 +464,7 @@ export default class extends Controller {
   popChartCache (chart, bin) {
     var ctrl = this
     var cacheKey = chart + '-' + bin
-    var binSize = zoomMap[bin] || blockDuration
+    var binSize = Zoom.map(bin) || blockDuration
     if (!ctrl.retrievedData[cacheKey] ||
         ctrl.requestedChart !== cacheKey ||
         ctrl.currentTab === 'list'
@@ -584,30 +555,7 @@ export default class extends Controller {
   validateZoom (binSize) {
     var ctrl = this
     ctrl.setButtonVisibility()
-    var zoom = decodeZoom(ctrl.chartSettings.zoom)
-    // Move selection window if necessary
-    var selection = ctrl.activeZoomSelection
-    if (selection || selection === 0) {
-      let duration = selection || ctrl.chartDuration
-      zoom = zoomObject(ctrl.xRange[1] - duration, ctrl.xRange[1])
-    }
-    if (!zoom) {
-      zoom = zoomObject(ctrl.xRange[0], ctrl.xRange[1])
-    }
-    // Clamp
-    var duration = zoom.end - zoom.start
-    if (duration < binSize) {
-      zoom.end = zoom.start + binSize
-    }
-    if (zoom.end > ctrl.xRange[1]) {
-      let shift = zoom.end - ctrl.xRange[1]
-      zoom.end -= shift
-      zoom.start = Math.max(zoom.start - shift, ctrl.xRange[0])
-    } else if (zoom.start < ctrl.xRange[0]) {
-      let shift = ctrl.xRange[0] - zoom.start
-      zoom.start += shift
-      zoom.end = Math.min(zoom.end + shift, ctrl.xRange[1])
-    }
+    var zoom = Zoom.validate(ctrl.chartSettings.zoom || ctrl.activeZoomKey, ctrl.xRange, binSize)
     ctrl.setZoom(zoom.start, zoom.end)
   }
 
@@ -685,7 +633,7 @@ export default class extends Controller {
     if (ctrl.graph === undefined) {
       return
     }
-    var duration = ctrl.activeZoomSelection
+    var duration = ctrl.activeZoomDuration
 
     var end = ctrl.xRange[1]
     var start = duration === 0 ? ctrl.xRange[0] : end - duration
@@ -698,13 +646,9 @@ export default class extends Controller {
     ctrl.graph.updateOptions({
       dateWindow: [start, end]
     })
-    ctrl.chartSettings.zoom = ctrl.encodeZoomStamps(start, end)
+    ctrl.chartSettings.zoom = Zoom.encode(start, end)
     ctrl.query.replace(ctrl.chartSettings)
     ctrl.chartboxTarget.classList.remove('loading')
-  }
-
-  encodeZoomStamps (start, end) {
-    return parseInt(start / 1000).toString(36) + '-' + parseInt(end / 1000).toString(36)
   }
 
   getBin () {
@@ -743,14 +687,14 @@ export default class extends Controller {
     var start, end
     [start, end] = ctrl.graph.xAxisRange()
     if (start === end) return
-    ctrl.chartSettings.zoom = ctrl.encodeZoomStamps(start, end)
+    ctrl.chartSettings.zoom = Zoom.encode(start, end)
     ctrl.query.replace(ctrl.chartSettings)
   }
 
   _zoomCallback (start, end) {
     var ctrl = this
     ctrl.zoomButtons.removeClass('btn-selected')
-    ctrl.chartSettings.zoom = ctrl.encodeZoomStamps(start, end)
+    ctrl.chartSettings.zoom = Zoom.encode(start, end)
     ctrl.query.replace(ctrl.chartSettings)
   }
 
@@ -761,7 +705,7 @@ export default class extends Controller {
     buttonSets.forEach((buttonSet) => {
       buttonSet.each((i, button) => {
         if (button.dataset.fixed) return
-        if (duration > zoomMap[button.name]) {
+        if (duration > Zoom.map(button.name)) {
           button.classList.remove('d-hide')
         } else {
           button.classList.remove('btn-selected')
@@ -779,11 +723,14 @@ export default class extends Controller {
     return this.btnsTarget.getElementsByClassName('btn-active')[0].name
   }
 
-  get activeZoomSelection () {
+  get activeZoomDuration () {
+    return this.activeZoomKey ? Zoom.map(this.activeZoomKey) : false
+  }
+
+  get activeZoomKey () {
     var activeButtons = this.zoomTarget.getElementsByClassName('btn-selected')
     if (activeButtons.length === 0) return null
-    var v = activeButtons[0].name
-    return zoomMap[v]
+    return activeButtons[0].name
   }
 
   get chartDuration () {
