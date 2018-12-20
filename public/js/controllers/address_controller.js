@@ -274,6 +274,10 @@ export default class extends Controller {
       })
       var numConfirmed = 0
       ctrl.formattedTimeTargets.forEach((el, i) => {
+        if (el.hasAttribute('data-addr-tx-unconfirmed')) {
+          return
+        }
+        el.dataset.addrTxTime = data.block.time // so the following line can be removed if a JS formatter processes this dataset instead
         el.textContent = data.block.formatted_time
         numConfirmed++
       })

@@ -77,6 +77,9 @@ var humanize = {
     return round(val, precision) + ' ' + suffix
   },
   timeSince: function (unixTime, keepOnly) {
+    if (unixTime === 0) {
+      return 'n/a'
+    }
     var seconds = Math.floor(((new Date().getTime() / 1000) - unixTime))
     var interval = Math.floor(seconds / 31536000)
     if (interval >= 1) {

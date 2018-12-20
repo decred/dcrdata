@@ -62,7 +62,7 @@ async function createWebSocket (loc) {
     var b = newBlock.block
     b.unixStamp = (new Date(b.time)).getTime() / 1000
 
-    // Check for uncofirmed tx page before signalling block
+    // Check for unconfirmed tx page before signalling block
     confirmAddrMempool(b)
 
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
@@ -214,7 +214,11 @@ function confirmAddrMempool (block) {
       var confirms = row.children('.addr-tx-confirms')
       confirms.attr('data-tx-block-height', block.height)
       row.removeAttr('data-addr-tx-pending')
-      row.children('.addr-tx-time').html(formatTxDate(block.time, false))
+      //row.children('.addr-tx-time').html(formatTxDate(block.time, false))
+      var addrTime = row.children('.addr-tx-time').children('span')
+      addrTime.removeAttr('data-addr-tx-unconfirmed') // tell the address controller how to interpret the following time
+      addrTime.attr('data-addr-tx-time', block.time) // the address controller will handle it from here
+      addrTime.textContent = block.formatted_time
       row.children('.addr-tx-age').children('span').attr('data-age', block.time).html(humanize.timeSince(block.time))
       confirms.html('1')
     }

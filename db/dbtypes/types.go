@@ -809,6 +809,8 @@ func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
 			IsFunding: addrOut.IsFunding,
 		}
 
+		fmt.Println(tx.Time)
+
 		if addrOut.IsFunding {
 			// Funding transaction
 			received += int64(addrOut.Value)

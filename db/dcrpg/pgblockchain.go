@@ -1587,14 +1587,20 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	for i, txn := range addrInfo.Transactions {
 		// Retrieve the most valid, most mainchain, and most recent tx with this
 		// hash. This means it prefers mainchain and valid blocks first.
+		fmt.Println(txn.Time)
 		dbTx, err := pgb.DbTxByHash(txn.TxID)
 		if err != nil {
 			return err
 		}
+		fmt.Println(txn.Time, ", ", dbTx.BlockTime)
 		txn.Size = dbTx.Size
 		txn.FormattedSize = humanize.Bytes(uint64(dbTx.Size))
 		txn.Total = dcrutil.Amount(dbTx.Sent).ToCoin()
-		txn.Time = dbTx.BlockTime
+		if dbTx.BlockTime.T.Unix() == 0 {
+			log.Debug("DB blockTime for transaction unknown, using broadcast time.")
+		} else {
+			txn.Time = dbTx.BlockTime
+		}
 		if txn.Time.T.Unix() > 0 {
 			txn.Confirmations = pgb.bestBlock.Height() - uint64(dbTx.BlockHeight) + 1
 		} else {

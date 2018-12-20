@@ -230,8 +230,8 @@
       </thead>
       <tbody>
           {{range $i, $v := .Transactions}}
+          {{with $v}}
           <tr {{if eq .Confirmations 0}} data-addr-tx-pending="{{.TxID}}" {{end}}>
-              {{with $v}}
               <td>{{.TxType}}</td>
               <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
               {{if eq $txType "merged_debit"}}
@@ -275,18 +275,10 @@
                   {{end}}
               {{end}}
               <td class="addr-tx-time">
-                  {{if eq .Confirmations 0}}
-                      <span data-target="address.formattedTime">Unconfirmed</span>
-                  {{else}}
-                      {{.Time}}
-                  {{end}}
+                      <span data-target="address.formattedTime" data-addrTxTime="{{.Time}}" {{if eq .Confirmations 0}}data-addr-tx-unconfirmed{{end}}></span>
               </td>
               <td class="addr-tx-age">
-              {{if eq (.Time.T.Unix) 0}}
-                  N/A
-              {{else}}
-                  <span data-controller="time" data-target="time.age" data-age="{{.Time}}"></span>
-              {{end}}
+                  <span data-controller="time" data-target="time.age" data-age="{{.Time.T.Unix}}"></span>
               </td>
 
                   <td {{if eq .Confirmations 0}}

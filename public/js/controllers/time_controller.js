@@ -1,7 +1,7 @@
 import { Controller } from 'stimulus'
 import humanize from '../helpers/humanize_helper'
 
-function isCorrectVal (value) {
+function isEpochTime (value) {
   return /^\d+$/.test(value) && value > 0
 }
 
@@ -43,7 +43,7 @@ export default class extends Controller {
       return
     }
     this.ageTargets.forEach((el) => {
-      if (isCorrectVal(el.dataset.age)) {
+      if (isEpochTime(el.dataset.age)) {
         el.textContent = humanize.timeSince(el.dataset.age)
       } else if (el.dataset.age !== '') {
         el.textContent = humanize.timeSince(Date.parse(el.dataset.age) / 1000)
