@@ -679,7 +679,7 @@ func BlockIndexLatestCtx(r *http.Request, source DataSource) context.Context {
 }
 
 // StatusCtx embeds the specified apitypes.Status into a request context.
-func StatusCtx(r *http.Request, status apitypes.Status) context.Context {
+func StatusCtx(r *http.Request, status *apitypes.Status) context.Context {
 	return context.WithValue(r.Context(), ctxAPIStatus, status)
 }
 
