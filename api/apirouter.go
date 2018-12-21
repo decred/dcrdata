@@ -239,6 +239,8 @@ func NewFileRouter(app *appContext, useRealIP bool) fileMux {
 	mux := stackedMux(useRealIP)
 
 	mux.Route("/address", func(rd chi.Router) {
+		// Allow browser cache for 3 minutes.
+		rd.Use(m.CacheControl(180))
 		rd.With(m.AddressPathCtx).Get("/io/{address}", app.addressIoCsv)
 	})
 

@@ -5,7 +5,6 @@
 package api
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"database/sql"
@@ -238,28 +237,42 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 }
 
 // Measures length, sets common headers, formats, and sends CSV data.
-func writeCSV(w http.ResponseWriter, rows [][]string, filename string) {
+func writeCSV(w http.ResponseWriter, rows [][]string, filename string, useCRLF bool) {
 	w.Header().Set("Content-Disposition",
 		fmt.Sprintf("attachment;filename=%s", filename))
 	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Vary", "User-Agent") // because of line endings
 
+	// To set the Content-Length response header, it is necessary to write the
+	// CSV data into a buffer rather than streaming the response directly to the
+	// http.ResponseWriter.
 	buffer := new(bytes.Buffer)
-	bufferWriter := bufio.NewWriter(buffer)
-	writer := csv.NewWriter(bufferWriter)
+	writer := csv.NewWriter(buffer)
+	writer.UseCRLF = useCRLF
 	err := writer.WriteAll(rows)
 	if err != nil {
 		log.Errorf("Failed to write address rows to buffer: %v", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Length", strconv.FormatInt(int64(buffer.Len()), 10))
+	bytesToSend := int64(buffer.Len())
+	w.Header().Set("Content-Length", strconv.FormatInt(bytesToSend, 10))
 
-	written, err := buffer.WriteTo(w)
+	bytesWritten, err := buffer.WriteTo(w)
 	if err != nil {
-		log.Errorf("Failed to transfer address rows from buffer. %d bytes written. %v", written, err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		log.Errorf("Failed to transfer address rows from buffer. "+
+			"%d bytes written. %v", bytesWritten, err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
 		return
+	}
+
+	// Warn if the number of bytes sent differs from buffer length.
+	if bytesWritten != bytesToSend {
+		log.Warnf("Failed to send the entire file. Sent %d of %d bytes.",
+			bytesWritten, bytesToSend)
 	}
 }
 
@@ -1360,7 +1373,10 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 	filename := fmt.Sprintf("address-io-%s-%d-%s.csv", address,
 		c.Status.GetHeight(), strconv.FormatInt(time.Now().Unix(), 10))
 
-	writeCSV(w, rows, filename)
+	// For Windows clients only, use CRLF (\r\n) line endings.
+	UseCRLF := strings.Contains(r.UserAgent(), "Windows")
+
+	writeCSV(w, rows, filename, UseCRLF)
 }
 
 func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {
