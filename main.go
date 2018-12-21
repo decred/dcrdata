@@ -464,6 +464,8 @@ func _main(ctx context.Context) error {
 
 	// Configure the URL path to http handler router for the API.
 	apiMux := api.NewAPIRouter(app, cfg.UseRealIP)
+	// File downloads piggy-back on the API.
+	fileMux := api.NewFileRouter(app, cfg.UseRealIP)
 	// Configure the explorer web pages router.
 	webMux := chi.NewRouter()
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {
@@ -496,6 +498,11 @@ func _main(ctx context.Context) error {
 				r.Get("/insight/socket.io/", insightSocketServer.ServeHTTP)
 			}
 		}
+	})
+
+	// HTTP Error 503 StatusServiceUnavailable for file requests before sync.
+	webMux.With(explore.SyncStatusFileIntercept).Group(func(r chi.Router) {
+		r.Mount("/download", fileMux.Mux)
 	})
 
 	webMux.With(explore.SyncStatusPageIntercept).Group(func(r chi.Router) {

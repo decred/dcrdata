@@ -543,6 +543,7 @@ The dcrdata block explorer is exposed by two APIs: a Decred implementation of
 the [Insight API](https://github.com/bitpay/insight-api) (EXPERIMENTAL), and its
 own JSON HTTP API. The Insight API uses the path prefix `/insight/api`. The
 dcrdata API uses the path prefix `/api`.
+File downloads are served from the `/download` path.
 
 ### Insight API (EXPERIMENTAL)
 
@@ -629,6 +630,7 @@ the `/api` path prefix.
 | Verbose transaction result for last <br> `N` transactions               | `/address/A/count/N/raw`        | `types.AddressTxRaw`  |
 | Summary of last `N` transactions, skipping `M`                          | `/address/A/count/N/skip/M`     | `types.Address`       |
 | Verbose transaction result for last <br> `N` transactions, skipping `M` | `/address/A/count/N/skip/M/raw` | `types.AddressTxRaw`  |
+| Transaction inputs and outputs as a CSV formatted file.                 | `/download/address/io/A`        | CSV file              |
 
 | Stake Difficulty (Ticket Price)        | Path                    | Type                               |
 | -------------------------------------- | ----------------------- | ---------------------------------- |

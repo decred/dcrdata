@@ -164,8 +164,12 @@
                     {{template "addressTable" .}}
                   </div>
                   <div
-                      class="d-flex align-items-center justify-content-end"
+                      class="d-flex align-items-center justify-content-between"
                   >
+                    {{if gt $TxnCount 0}}<a class="d-inline-block p-2 rounded download" href="/download/address/io/{{.Address}}" type="text/csv" download><span class="dcricon-download mx-1"></span> Download CSV</a>{{end}}
+                    <!-- This dummy span ensures left/right alignment of the buttons, even if one is hidden -->
+                    <span> </span>
+                    <div class="d-inline-block">
                       <label class="mb-0 mr-1" for="txntype">Type</label>
                       <select
                           name="txntype"
@@ -179,6 +183,7 @@
                           <option {{if eq $txType "debit"}}selected{{end}} value="debit">Debits</option>
                           <option {{if eq $txType "merged_debit"}}selected{{end}} value="merged_debit">Merged Debits</option>
                       </select>
+                    </div>
                   </div>
                   {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
                   <div>

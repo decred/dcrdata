@@ -5,8 +5,11 @@
 package api
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
@@ -100,6 +104,8 @@ type DataSourceAux interface {
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
 		*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
+	AddressTxIoCsv(address string) ([][]string, error)
+	Height() uint64
 }
 
 // dcrdata application context used by all route handlers
@@ -110,7 +116,6 @@ type appContext struct {
 	AuxDataSource DataSourceAux
 	LiteMode      bool
 	Status        apitypes.Status
-	statusMtx     sync.RWMutex
 	JSONIndent    string
 }
 
@@ -155,9 +160,8 @@ out:
 				break out
 			}
 
-			c.statusMtx.Lock()
+			c.Status.Lock()
 			c.Status.Height = height
-
 			// if DB height agrees with node height, then we're ready
 			c.Status.Ready = c.Status.Height == c.Status.DBHeight
 
@@ -165,11 +169,11 @@ out:
 			c.Status.NodeConnections, err = c.nodeClient.GetConnectionCount()
 			if err != nil {
 				c.Status.Ready = false
-				c.statusMtx.Unlock()
+				c.Status.Unlock()
 				log.Warn("Failed to get connection count: ", err)
 				break keepon
 			}
-			c.statusMtx.Unlock()
+			c.Status.Unlock()
 
 		case height, ok := <-notify.NtfnChans.UpdateStatusDBHeight:
 			if !ok {
@@ -187,7 +191,7 @@ out:
 				break keepon
 			}
 
-			c.statusMtx.Lock()
+			c.Status.Lock()
 			c.Status.DBHeight = height
 			c.Status.DBLastBlockTime = summary.Time.S.T.Unix()
 
@@ -196,12 +200,12 @@ out:
 				height == uint32(bdHeight) {
 				// if DB height agrees with node height, then we're ready
 				c.Status.Ready = c.Status.Height == c.Status.DBHeight
-				c.statusMtx.Unlock()
+				c.Status.Unlock()
 				break keepon
 			}
 
 			c.Status.Ready = false
-			c.statusMtx.Unlock()
+			c.Status.Unlock()
 			log.Errorf("New DB height (%d) and stored block data (%d, %d) not consistent.",
 				height, bdHeight, summary.Height)
 
@@ -233,6 +237,32 @@ func writeJSON(w http.ResponseWriter, thing interface{}, indent string) {
 	}
 }
 
+// Measures length, sets common headers, formats, and sends CSV data.
+func writeCSV(w http.ResponseWriter, rows [][]string, filename string) {
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf("attachment;filename=%s", filename))
+	w.Header().Set("Content-Type", "text/csv")
+
+	buffer := new(bytes.Buffer)
+	bufferWriter := bufio.NewWriter(buffer)
+	writer := csv.NewWriter(bufferWriter)
+	err := writer.WriteAll(rows)
+	if err != nil {
+		log.Errorf("Failed to write address rows to buffer: %v", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(buffer.Len()), 10))
+
+	written, err := buffer.WriteTo(w)
+	if err != nil {
+		log.Errorf("Failed to transfer address rows from buffer. %d bytes written. %v", written, err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (c *appContext) getIndentQuery(r *http.Request) (indent string) {
 	useIndentation := r.URL.Query().Get("indent")
 	if useIndentation == "1" || useIndentation == "true" {
@@ -260,9 +290,9 @@ func getVoteVersionQuery(r *http.Request) (int32, string, error) {
 }
 
 func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
-	c.statusMtx.RLock()
-	defer c.statusMtx.RUnlock()
-	writeJSON(w, c.Status, c.getIndentQuery(r))
+	c.Status.RLock()
+	defer c.Status.RUnlock()
+	writeJSON(w, &c.Status, c.getIndentQuery(r))
 }
 
 func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
@@ -278,7 +308,7 @@ func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
 
 func (c *appContext) currentHeight(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if _, err := io.WriteString(w, strconv.Itoa(int(c.Status.Height))); err != nil {
+	if _, err := io.WriteString(w, strconv.Itoa(int(c.Status.GetHeight()))); err != nil {
 		apiLog.Infof("failed to write height response: %v", err)
 	}
 }
@@ -1297,6 +1327,40 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, totals, c.getIndentQuery(r))
+}
+
+// For /download/address/io/{address}
+func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
+	if c.LiteMode {
+		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		return
+	}
+
+	address := m.GetAddressCtx(r)
+	if address == "" {
+		log.Debugf("Failed to parse address from request")
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+
+	_, _, addrErr := txhelpers.AddressValidation(address, c.Params)
+	if addrErr != nil {
+		log.Debugf("Error validating address %s: %v", address, addrErr)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	rows, err := c.AuxDataSource.AddressTxIoCsv(address)
+	if err != nil {
+		log.Errorf("Failed to fetch AddressTxIoCsv: %v", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	filename := fmt.Sprintf("address-io-%s-%d-%s.csv", address,
+		c.Status.GetHeight(), strconv.FormatInt(time.Now().Unix(), 10))
+
+	writeCSV(w, rows, filename)
 }
 
 func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {

@@ -5,3 +5,18 @@ div.qrimg {
 div.qrimg > img {
   margin: 1rem;
 }
+
+a.download {
+  background-color: white;
+  border: 1px solid #dee2e6;
+}
+
+body.darkBG a.download {
+  background-color: #2a2a2a;
+  color: white;
+  border-color: black;
+}
+
+body.darkBG a.download:hover {
+  color: #94ffca;
+}

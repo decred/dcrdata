@@ -124,6 +124,19 @@ func (exp *explorerUI) SyncStatusAPIIntercept(next http.Handler) http.Handler {
 	})
 }
 
+// SyncStatusFileIntercept triggers an HTTP error if a file is requested for
+// download before the DB is synced.
+func (exp *explorerUI) SyncStatusFileIntercept(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if exp.ShowingSyncStatusPage() {
+			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+		// Otherwise, proceed to the next http handler.
+		next.ServeHTTP(w, r)
+	})
+}
+
 func getBlockHashCtx(r *http.Request) string {
 	hash, ok := r.Context().Value(ctxBlockHash).(string)
 	if !ok {

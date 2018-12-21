@@ -17,21 +17,15 @@ type apiMux struct {
 	*chi.Mux
 }
 
+type fileMux struct {
+	*chi.Mux
+}
+
 // NewAPIRouter creates a new HTTP request path router/mux for the given API,
 // appContext.
 func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 	// chi router
-	mux := chi.NewRouter()
-
-	if useRealIP {
-		mux.Use(middleware.RealIP)
-	}
-	mux.Use(middleware.Logger)
-	mux.Use(middleware.Recoverer)
-	//mux.Use(middleware.DefaultCompress)
-	//mux.Use(middleware.Compress(2))
-	corsMW := cors.Default()
-	mux.Use(corsMW.Handler)
+	mux := stackedMux(useRealIP)
 
 	mux.Get("/", app.root)
 
@@ -238,6 +232,32 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 	mux.HandleFunc("/list", app.writeJSONHandlerFunc(listRoutePatterns(mux.Routes())))
 
 	return apiMux{mux}
+}
+
+// NewFileRouter creates a new HTTP request path router/mux for file downloads.
+func NewFileRouter(app *appContext, useRealIP bool) fileMux {
+	mux := stackedMux(useRealIP)
+
+	mux.Route("/address", func(rd chi.Router) {
+		rd.With(m.AddressPathCtx).Get("/io/{address}", app.addressIoCsv)
+	})
+
+	return fileMux{mux}
+}
+
+// Stacks some middleware common to both file and api router.
+func stackedMux(useRealIP bool) *chi.Mux {
+	mux := chi.NewRouter()
+	if useRealIP {
+		mux.Use(middleware.RealIP)
+	}
+	mux.Use(middleware.Logger)
+	mux.Use(middleware.Recoverer)
+	//mux.Use(middleware.DefaultCompress)
+	//mux.Use(middleware.Compress(2))
+	corsMW := cors.Default()
+	mux.Use(corsMW.Handler)
+	return mux
 }
 
 func (mux *apiMux) ListenAndServeProto(listen, proto string) {
