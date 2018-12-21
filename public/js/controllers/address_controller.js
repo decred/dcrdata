@@ -232,7 +232,8 @@ export default class extends Controller {
         ctrl.fetchGraphData(ctrl.chartType, ctrl.getBin())
       }
     }
-    Dygraph = Dygraph || await getDefault(
+
+    Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
     initializeChart()
@@ -355,7 +356,6 @@ export default class extends Controller {
   fetchTable (txType, count, offset) {
     var ctrl = this
     ctrl.listboxTarget.classList.add('loading')
-
     $.ajax({
       type: 'GET',
       url: ctrl.makeTableUrl(txType, count, offset),
