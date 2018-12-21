@@ -5,6 +5,7 @@ package types
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
@@ -261,6 +262,7 @@ type VinPrevOut struct {
 // Status indicates the state of the server, including the API version and the
 // software version.
 type Status struct {
+	sync.RWMutex    `json:"-"`
 	Ready           bool   `json:"ready"`
 	DBHeight        uint32 `json:"db_height"`
 	DBLastBlockTime int64  `json:"db_block_time"`
@@ -269,6 +271,12 @@ type Status struct {
 	APIVersion      int    `json:"api_version"`
 	DcrdataVersion  string `json:"dcrdata_version"`
 	NetworkName     string `json:"network_name"`
+}
+
+func (s *Status) GetHeight() uint32 {
+	s.RLock()
+	defer s.RUnlock()
+	return s.Height
 }
 
 // CoinSupply models the coin supply at a certain best block.

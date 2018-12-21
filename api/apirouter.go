@@ -234,6 +234,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 	return apiMux{mux}
 }
 
+// NewFileRouter creates a new HTTP request path router/mux for file downloads.
 func NewFileRouter(app *appContext, useRealIP bool) fileMux {
 	mux := stackedMux(useRealIP)
 
@@ -244,6 +245,7 @@ func NewFileRouter(app *appContext, useRealIP bool) fileMux {
 	return fileMux{mux}
 }
 
+// Stacks some middleware common to both file and api router.
 func stackedMux(useRealIP bool) *chi.Mux {
 	mux := chi.NewRouter()
 	if useRealIP {

@@ -176,7 +176,7 @@ const (
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
 	SelectAddressCsvView = "SELECT tx_hash, valid_mainchain, matching_tx_hash, value, block_time, is_funding, " +
-		"tx_vin_vout_index, tx_type FROM addresses WHERE address=$1"
+		"tx_vin_vout_index, tx_type FROM addresses WHERE address=$1 ORDER BY block_time DESC"
 
 	SelectAddressDebitsLimitNByAddress = `SELECT ` + addrsColumnNames + `
 		FROM addresses WHERE address=$1 AND is_funding = FALSE AND valid_mainchain = TRUE

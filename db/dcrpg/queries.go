@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1288,7 +1289,7 @@ func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, off
 }
 
 // retrieveAddressIoCsv grabs rows for an address and formats them as a 2-D
-// array of strings for CSV-formatting
+// array of strings for CSV-formatting.
 func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvRows [][]string, err error) {
 	dbRows, err := db.QueryContext(ctx, internal.SelectAddressCsvView, address)
 	if err != nil {
@@ -1328,10 +1329,10 @@ func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvR
 		csvRows = append(csvRows, []string{
 			txHash,
 			strDirection,
-			fmt.Sprint(ioIndex),
+			strconv.Itoa(ioIndex),
 			strValidMainchain,
-			fmt.Sprintf("%f", dcrutil.Amount(value).ToCoin()),
-			fmt.Sprint(blockTime.T.Unix()),
+			strconv.FormatFloat(dcrutil.Amount(value).ToCoin(), 'f', -1, 64),
+			strconv.FormatInt(blockTime.T.Unix(), 10),
 			txhelpers.TxTypeToString(txType),
 			matchingTxHash,
 		})
