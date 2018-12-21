@@ -241,6 +241,7 @@ func writeCSV(w http.ResponseWriter, rows [][]string, filename string, useCRLF b
 	w.Header().Set("Content-Disposition",
 		fmt.Sprintf("attachment;filename=%s", filename))
 	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Vary", "User-Agent") // because of line endings
 
 	// To set the Content-Length response header, it is necessary to write the
 	// CSV data into a buffer rather than streaming the response directly to the
