@@ -292,7 +292,7 @@ func getVoteVersionQuery(r *http.Request) (int32, string, error) {
 func (c *appContext) status(w http.ResponseWriter, r *http.Request) {
 	c.Status.RLock()
 	defer c.Status.RUnlock()
-	writeJSON(w, c.Status, c.getIndentQuery(r))
+	writeJSON(w, &c.Status, c.getIndentQuery(r))
 }
 
 func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
