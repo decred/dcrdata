@@ -1,13 +1,13 @@
-/* global Dygraph */
-/* global QRCode */
 /* global $ */
 import { Controller } from 'stimulus'
 import { isEmpty } from 'lodash-es'
+import { getDefault } from '../helpers/module_helper'
 import { padPoints, sizedBarPlotter } from '../helpers/chart_helper'
 import globalEventBus from '../services/event_bus_service'
 import TurboQuery from '../helpers/turbolinks_helper'
 
 const blockDuration = 5 * 60000
+let Dygraph // lazy loaded
 
 function txTypesFunc (d, binSize) {
   var p = []
@@ -179,7 +179,7 @@ export default class extends Controller {
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons']
   }
 
-  connect () {
+  async connect () {
     var ctrl = this
     ctrl.retrievedData = {}
     ctrl.ajaxing = false
@@ -232,11 +232,10 @@ export default class extends Controller {
         ctrl.fetchGraphData(ctrl.chartType, ctrl.getBin())
       }
     }
-    if (typeof Dygraph === 'undefined') {
-      $.getScript('/js/vendor/dygraphs.min.js', initializeChart)
-    } else {
-      initializeChart()
-    }
+    Dygraph = Dygraph || await getDefault(
+      import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
+    )
+    initializeChart()
     setTimeout(ctrl.updateView, 0)
   }
 
@@ -294,21 +293,25 @@ export default class extends Controller {
     })
   }
 
-  showQRCode () {
-    var ctrl = this
-    ctrl.qrBox.show()
-    if (ctrl.qrCode) {
-      ctrl.qrImg.css({ opacity: 1 })
+  async showQRCode () {
+    this.qrBox.show()
+    if (this.qrCode) {
+      this.qrImg.css({ opacity: 1 })
     } else {
-      $.getScript(
-        '/js/vendor/qrcode.min.js',
-        () => {
-          ctrl.qrCode = new QRCode(ctrl.qrimgTarget, ctrl.dcrAddress)
-          ctrl.qrImg.css({ opacity: 1 })
+      let QRCode = await getDefault(
+        import(/* webpackChunkName: "qrcode" */ 'qrcode')
+      )
+      let qrCodeImg = await QRCode.toDataURL(this.dcrAddress,
+        {
+          errorCorrectionLevel: 'H',
+          scale: 8,
+          margin: 0
         }
       )
+      this.qrimgTarget.innerHTML = `<img src="${qrCodeImg}"/>`
+      this.qrimgTarget.style.opacity = '1'
     }
-    ctrl.qrIcon.hide()
+    this.qrIcon.hide()
   }
 
   hideQRCode () {
@@ -352,6 +355,7 @@ export default class extends Controller {
   fetchTable (txType, count, offset) {
     var ctrl = this
     ctrl.listboxTarget.classList.add('loading')
+
     $.ajax({
       type: 'GET',
       url: ctrl.makeTableUrl(txType, count, offset),
