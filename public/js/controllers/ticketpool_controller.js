@@ -5,6 +5,9 @@ import { barChartPlotter } from '../helpers/chart_helper'
 import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 
+let Dygraph // lazy loaded on connect
+let Chart // lazy loaded on connect
+
 // Common code for ploting dygraphs
 function legendFormatter (data) {
   if (data.x == null) return ''
@@ -124,18 +127,18 @@ export default class extends Controller {
     this.zoom = 'day'
     this.bars = 'all'
 
-    let Dygraph = await getDefault(
+    Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
     this.chartCount += 2
-    this.purchasesGraph = this.makePurchasesGraph(Dygraph)
-    this.priceGraph = this.makePriceGraph(Dygraph)
+    this.purchasesGraph = this.makePurchasesGraph()
+    this.priceGraph = this.makePriceGraph()
 
-    let Chart = await getDefault(
+    Chart = await getDefault(
       import(/* webpackChunkName: "charts" */ '../vendor/charts.min.js')
     )
     this.chartCount += 1
-    this.outputsGraph = this.makeOutputsGraph(Chart)
+    this.outputsGraph = this.makeOutputsGraph()
   }
 
   connect () {
@@ -156,8 +159,8 @@ export default class extends Controller {
 
   async fetchAll () {
     this.wrapperTarget.classList.add('loading')
-    let response = await axios.get('/api/ticketpool/charts')
-    this.processData(response.data)
+    let chartsResponse = await axios.get('/api/ticketpool/charts')
+    this.processData(chartsResponse.data)
     this.wrapperTarget.classList.remove('loading')
   }
 
@@ -223,7 +226,7 @@ export default class extends Controller {
     this.wrapperTarget.classList.remove('loading')
   }
 
-  makePurchasesGraph (Dygraph) {
+  makePurchasesGraph () {
     var d = this.graphData['price_chart'] || [[0, 0, 0, 0, 0]]
     var p = {
       labels: ['Date', 'Mempool Tickets', 'Immature Tickets', 'Live Tickets', 'Ticket Value'],
@@ -245,7 +248,7 @@ export default class extends Controller {
     )
   }
 
-  makePriceGraph (Dygraph) {
+  makePriceGraph () {
     var d = this.graphData['price_chart'] || [[0, 0, 0, 0]]
     var p = {
       labels: ['Price', 'Mempool Tickets', 'Immature Tickets', 'Live Tickets'],
@@ -260,7 +263,7 @@ export default class extends Controller {
     )
   }
 
-  makeOutputsGraph (Chart) {
+  makeOutputsGraph () {
     var d = this.graphData['donut_chart'] || []
     return new Chart(
       document.getElementById('doughnutGraph'), {

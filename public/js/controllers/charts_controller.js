@@ -10,7 +10,7 @@ import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 
 var selectedChart
-let Dygraph
+let Dygraph // lazy loaded on connect
 
 function legendFormatter (data) {
   if (data.x == null) {
@@ -336,9 +336,9 @@ export default class extends Controller {
     $(this.rollPeriodInputTarget).val(undefined)
     $(this.chartWrapperTarget).addClass('loading')
     if (selectedChart !== selection) {
-      let data = await axios.get('/api/chart/' + selection)
-      console.log('got api data', data, this, selection)
-      this.plotGraph(selection, data.data)
+      let chartResponse = await axios.get('/api/chart/' + selection)
+      console.log('got api data', chartResponse, this, selection)
+      this.plotGraph(selection, chartResponse.data)
       selectedChart = selection
     } else {
       $(this.chartWrapperTarget).removeClass('loading')
