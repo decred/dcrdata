@@ -76,6 +76,7 @@ export class Zoom {
 
   static encode (start, end) {
     if (!end) {
+      start = this.tryDecode(start)
       end = start.end
       start = start.start
     }
@@ -84,15 +85,17 @@ export class Zoom {
 
   static decode (encoded, lims) {
     // if lims are provided, encoded can be a zoomMap key
-    if (!encoded) return false
+    encoded = this.tryDecode(encoded)
+    lims = this.tryDecode(lims)
     if (lims && zoomMap.hasOwnProperty(encoded)) {
-      if (Array.isArray(lims)) {
-        lims = this.object(lims[0], lims[1])
-      }
       let duration = zoomMap[encoded]
       if (duration === 0) return lims
       return this.object(lims.end - zoomMap[encoded], lims.end)
     }
+    return encoded
+  }
+
+  static decodeZoomString (encoded) {
     var range = encoded.split('-')
     if (range.length !== 2) {
       return false
@@ -108,9 +111,8 @@ export class Zoom {
   static validate (proposed, lims, minSize) {
     // proposed: encoded zoom string || zoomMap key || zoomObject
     // lims: zoomObject || array
-    if (Array.isArray(lims)) {
-      lims = this.object(lims[0], lims[1])
-    }
+    lims = this.tryDecode(lims)
+    proposed = this.tryDecode(proposed)
     var zoom = lims
     if (typeof proposed === 'string') {
       zoom = this.decode(proposed, lims)
@@ -132,5 +134,20 @@ export class Zoom {
       zoom.end = Math.min(zoom.end + shift, lims.end)
     }
     return zoom
+  }
+
+  static tryDecode (zoom) {
+    if (Array.isArray(zoom) && zoom.length === 2) {
+      return this.object(zoom[0], zoom[1])
+    } else if (typeof zoom === 'string' && zoom.indexOf('-') !== -1) {
+      return this.decodeZoomString(zoom)
+    }
+    return zoom
+  }
+
+  static equals (standard, sample) {
+    standard = this.tryDecode(standard)
+    sample = this.tryDecode(sample)
+    return standard.start === sample.start && standard.end === sample.end
   }
 }

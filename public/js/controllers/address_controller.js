@@ -557,6 +557,7 @@ export default class extends Controller {
     ctrl.setButtonVisibility()
     var zoom = Zoom.validate(ctrl.chartSettings.zoom || ctrl.activeZoomKey, ctrl.xRange, binSize)
     ctrl.setZoom(zoom.start, zoom.end)
+    if (Zoom.equals(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes())) ctrl.setSelectedZoom('all')
   }
 
   changeView (e) {
@@ -681,6 +682,16 @@ export default class extends Controller {
     }
   }
 
+  setSelectedZoom (zoomKey) {
+    this.zoomButtons.each(function (i, button) {
+      if (button.name === zoomKey) {
+        button.classList.add('btn-selected')
+      } else {
+        button.classList.remove('btn-selected')
+      }
+    })
+  }
+
   _drawCallback (graph, first) {
     var ctrl = this
     if (first) return
@@ -689,6 +700,7 @@ export default class extends Controller {
     if (start === end) return
     ctrl.chartSettings.zoom = Zoom.encode(start, end)
     ctrl.query.replace(ctrl.chartSettings)
+    if (Zoom.equals(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes())) ctrl.setSelectedZoom('all')
   }
 
   _zoomCallback (start, end) {
@@ -696,6 +708,7 @@ export default class extends Controller {
     ctrl.zoomButtons.removeClass('btn-selected')
     ctrl.chartSettings.zoom = Zoom.encode(start, end)
     ctrl.query.replace(ctrl.chartSettings)
+    if (Zoom.equals(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes())) ctrl.setSelectedZoom('all')
   }
 
   setButtonVisibility () {

@@ -396,6 +396,7 @@ export default class extends Controller {
     })
     this.settings.zoom = Zoom.encode(zoom.start, zoom.end)
     this.query.replace(this.settings)
+    if (Zoom.equals(zoom, lims)) this.setSelectedZoom('all')
     await animationFrame()
     $(this.chartWrapperTarget).removeClass('loading')
   }
@@ -406,6 +407,7 @@ export default class extends Controller {
       button.classList.remove('active')
     })
     this.query.replace(this.settings)
+    if (Zoom.equals(this.settings.zoom, this.chartsView.xAxisExtremes())) this.setSelectedZoom('all')
   }
 
   _drawCallback (graph, first) {
@@ -413,9 +415,9 @@ export default class extends Controller {
     var start, end
     [start, end] = this.chartsView.xAxisRange()
     if (start === end) return
-    var zoom
     this.settings.zoom = Zoom.encode(Zoom.object(start * scaleFactor(), end * scaleFactor()))
     this.query.replace(this.settings)
+    if (Zoom.equals(this.settings.zoom, this.chartsView.xAxisExtremes())) this.setSelectedZoom('all')
   }
 
   setSelectedZoom (zoomKey) {
