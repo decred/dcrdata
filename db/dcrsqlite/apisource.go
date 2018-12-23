@@ -661,11 +661,46 @@ func (db *WiredDB) GetSummary(idx int) *apitypes.BlockDataBasic {
 	return blockSummary
 }
 
-func (db *WiredDB) GetSummaryByHash(hash string) *apitypes.BlockDataBasic {
+func (db *WiredDB) GetSummaryByHash(hash string, withTxTotals bool) *apitypes.BlockDataBasic {
 	blockSummary, err := db.RetrieveBlockSummaryByHash(hash)
 	if err != nil {
 		log.Errorf("Unable to retrieve block summary: %v", err)
 		return nil
+	}
+
+	if withTxTotals {
+		data := db.GetBlockVerboseByHash(hash, true)
+		if data == nil {
+			log.Error("Unable to get block for block hash " + hash)
+			return nil
+		}
+
+		var totalFees, totalOut dcrutil.Amount
+		for i := range data.RawTx {
+			msgTx, err := txhelpers.MsgTxFromHex(data.RawTx[i].Hex)
+			if err != nil {
+				log.Errorf("Unable to decode transaction: %v", err)
+				return nil
+			}
+			fee, _ := txhelpers.TxFeeRate(msgTx)
+			totalFees += fee
+			totalOut += txhelpers.TotalOutFromMsgTx(msgTx)
+		}
+		for i := range data.RawSTx {
+			msgTx, err := txhelpers.MsgTxFromHex(data.RawSTx[i].Hex)
+			if err != nil {
+				log.Errorf("Unable to decode transaction: %v", err)
+				return nil
+			}
+			fee, _ := txhelpers.TxFeeRate(msgTx)
+			totalFees += fee
+			totalOut += txhelpers.TotalOutFromMsgTx(msgTx)
+		}
+
+		miningFee := int64(totalFees)
+		blockSummary.MiningFee = &miningFee
+		totalSent := int64(totalOut)
+		blockSummary.TotalSent = &totalSent
 	}
 
 	return blockSummary
