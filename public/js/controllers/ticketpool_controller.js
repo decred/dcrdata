@@ -1,10 +1,12 @@
-/* global Dygraph */
-/* global Chart */
-
 /* global $ */
 import { Controller } from 'stimulus'
 import ws from '../services/messagesocket_service'
 import { barChartPlotter } from '../helpers/chart_helper'
+import { getDefault } from '../helpers/module_helper'
+import axios from 'axios'
+
+let Dygraph // lazy loaded on connect
+let Chart // lazy loaded on connect
 
 // Common code for ploting dygraphs
 function legendFormatter (data) {
@@ -111,35 +113,37 @@ export default class extends Controller {
     return [ 'zoom', 'bars', 'age', 'wrapper' ]
   }
 
-  initialize () {
-    var controller = this
-    controller.mempool = false
-    controller.tipHeight = 0
-    controller.purchasesGraph = null
-    controller.priceGraph = null
-    controller.outputsGraph = null
-    controller.graphData = {
+  async initialize () {
+    this.mempool = false
+    this.tipHeight = 0
+    this.purchasesGraph = null
+    this.priceGraph = null
+    this.outputsGraph = null
+    this.graphData = {
       'time_chart': null,
       'price_chart': null,
       'donut_chart': null
     }
-    controller.zoom = 'day'
-    controller.bars = 'all'
-    $.getScript('/js/vendor/dygraphs.min.js', () => {
-      controller.chartCount += 2
-      controller.purchasesGraph = controller.makePurchasesGraph()
-      controller.priceGraph = controller.makePriceGraph()
-    })
-    $.getScript('/js/vendor/charts.min.js', () => {
-      controller.chartCount += 1
-      controller.outputsGraph = controller.makeOutputsGraph()
-    })
+    this.zoom = 'day'
+    this.bars = 'all'
+
+    Dygraph = await getDefault(
+      import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
+    )
+    this.chartCount += 2
+    this.purchasesGraph = this.makePurchasesGraph()
+    this.priceGraph = this.makePriceGraph()
+
+    Chart = await getDefault(
+      import(/* webpackChunkName: "charts" */ '../vendor/charts.min.js')
+    )
+    this.chartCount += 1
+    this.outputsGraph = this.makeOutputsGraph()
   }
 
   connect () {
-    var controller = this
     ws.registerEvtHandler('newblock', () => {
-      ws.send('getticketpooldata', controller.bars)
+      ws.send('getticketpooldata', this.bars)
     })
 
     ws.registerEvtHandler('getticketpooldataResp', (evt) => {
@@ -147,54 +151,45 @@ export default class extends Controller {
         return
       }
       var data = JSON.parse(evt)
-      controller.processData(data)
+      this.processData(data)
     })
 
-    controller.fetchAll()
+    this.fetchAll()
   }
 
-  fetchAll () {
-    var controller = this
-    controller.wrapperTarget.classList.add('loading')
-    $.ajax({
-      type: 'GET',
-      url: '/api/ticketpool/charts',
-      success: (data) => {
-        controller.processData(data)
-      },
-      complete: () => {
-        controller.wrapperTarget.classList.remove('loading')
-      }
-    })
+  async fetchAll () {
+    this.wrapperTarget.classList.add('loading')
+    let chartsResponse = await axios.get('/api/ticketpool/charts')
+    this.processData(chartsResponse.data)
+    this.wrapperTarget.classList.remove('loading')
   }
 
   processData (data) {
-    var controller = this
     if (data['mempool']) {
       // If mempool data is included, assume the data height is the tip.
-      controller.mempool = data['mempool']
-      controller.tipHeight = data['height']
+      this.mempool = data['mempool']
+      this.tipHeight = data['height']
     }
     if (data['time_chart']) {
       // Only append the mempool data if this data goes to the tip.
-      let mempool = controller.tipHeight === data['height'] ? controller.mempool : false
-      controller.graphData['time_chart'] = purchasesGraphData(data['time_chart'], mempool)
-      if (controller.purchasesGraph !== null) {
-        controller.purchasesGraph.updateOptions({ 'file': controller.graphData['time_chart'] })
-        controller.purchasesGraph.resetZoom()
+      let mempool = this.tipHeight === data['height'] ? this.mempool : false
+      this.graphData['time_chart'] = purchasesGraphData(data['time_chart'], mempool)
+      if (this.purchasesGraph !== null) {
+        this.purchasesGraph.updateOptions({ 'file': this.graphData['time_chart'] })
+        this.purchasesGraph.resetZoom()
       }
     }
     if (data['price_chart']) {
-      controller.graphData['price_chart'] = priceGraphData(data['price_chart'], controller.mempool)
-      if (controller.pricesGraph !== null) {
-        controller.priceGraph.updateOptions({ 'file': controller.graphData['price_chart'] })
+      this.graphData['price_chart'] = priceGraphData(data['price_chart'], this.mempool)
+      if (this.pricesGraph !== null) {
+        this.priceGraph.updateOptions({ 'file': this.graphData['price_chart'] })
       }
     }
     if (data['donut_chart']) {
-      controller.graphData['donut_chart'] = outputsGraphData(data['donut_chart'])
-      if (controller.outputsGraph !== null) {
-        controller.outputsGraph.data.datasets[0].data = controller.graphData['donut_chart']
-        controller.outputsGraph.update()
+      this.graphData['donut_chart'] = outputsGraphData(data['donut_chart'])
+      if (this.outputsGraph !== null) {
+        this.outputsGraph.data.datasets[0].data = this.graphData['donut_chart']
+        this.outputsGraph.update()
       }
     }
   }
@@ -216,23 +211,19 @@ export default class extends Controller {
     this.purchasesGraph.updateOptions({ dateWindow: getWindow(this.zoom) })
   }
 
-  onBarsChange (e) {
-    var controller = this
-    $(controller.barsTargets).each((i, barsTarget) => {
+  async onBarsChange (e) {
+    $(this.barsTargets).each((i, barsTarget) => {
       $(barsTarget).removeClass('btn-active')
     })
-    controller.bars = e.target.name
+    this.bars = e.target.name
     $(e.target).addClass('btn-active')
-    controller.wrapperTarget.classList.add('loading')
-    $.ajax({
-      type: 'GET',
-      url: '/api/ticketpool/bydate/' + controller.bars,
-      beforeSend: () => {},
-      complete: () => { controller.wrapperTarget.classList.remove('loading') },
-      success: (data) => {
-        controller.purchasesGraph.updateOptions({ 'file': purchasesGraphData(data['time_chart']) })
-      }
+    this.wrapperTarget.classList.add('loading')
+    var url = '/api/ticketpool/bydate/' + this.bars
+    let ticketPoolResponse = await axios.get(url)
+    this.purchasesGraph.updateOptions({
+      'file': purchasesGraphData(ticketPoolResponse.data['time_chart'])
     })
+    this.wrapperTarget.classList.remove('loading')
   }
 
   makePurchasesGraph () {

@@ -26,13 +26,13 @@
                     {{.Address}}<a
                         data-action="click->address#showQRCode"
                         data-target="address.qricon"
-                        class="dcricon-qrcode jsonly no-underline color-inherit p10"
+                        class="dcricon-qrcode jsonly no-underline color-inherit p10 clickable"
                     ></a>
                 </div>
                 <div class="row" data-target="address.qrbox">
                     <div data-action="click->address#hideQRCode"
                         data-target="address.qrimg"
-                        class="col opacity-transition qrimg"
+                        class="col opacity-transition qrimg clickable"
                     ></div>
                 </div>
                 {{if .IsDummyAddress}}

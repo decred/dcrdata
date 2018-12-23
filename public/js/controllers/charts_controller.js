@@ -1,4 +1,3 @@
-/* global Dygraph */
 /* global Turbolinks */
 /* global $ */
 
@@ -7,8 +6,11 @@ import { map, assign, merge } from 'lodash-es'
 import { barChartPlotter } from '../helpers/chart_helper'
 import { darkEnabled } from '../services/theme_service'
 import { animationFrame } from '../helpers/animation_helper'
+import { getDefault } from '../helpers/module_helper'
+import axios from 'axios'
 
 var selectedChart
+let Dygraph // lazy loaded on connect
 
 function legendFormatter (data) {
   if (data.x == null) {
@@ -145,14 +147,6 @@ function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, xLabel, titleN
   }, nightModeOptions(darkEnabled()))
 }
 
-function getAPIData (chartType, controllerContext) {
-  return $.ajax({
-    type: 'GET',
-    url: '/api/chart/' + chartType,
-    context: controllerContext
-  })
-}
-
 export default class extends Controller {
   static get targets () {
     return [
@@ -166,14 +160,15 @@ export default class extends Controller {
     ]
   }
 
-  connect () {
-    $.getScript('/js/vendor/dygraphs.min.js', () => {
-      this.drawInitialGraph()
-      $(document).on('nightMode', (event, params) => {
-        this.chartsView.updateOptions(
-          nightModeOptions(params.nightMode)
-        )
-      })
+  async connect () {
+    Dygraph = await getDefault(
+      import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
+    )
+    this.drawInitialGraph()
+    $(document).on('nightMode', (event, params) => {
+      this.chartsView.updateOptions(
+        nightModeOptions(params.nightMode)
+      )
     })
   }
 
@@ -336,15 +331,14 @@ export default class extends Controller {
     $(this.chartWrapperTarget).removeClass('loading')
   }
 
-  selectChart () {
+  async selectChart () {
     var selection = this.chartSelectTarget.value
     $(this.rollPeriodInputTarget).val(undefined)
     $(this.chartWrapperTarget).addClass('loading')
     if (selectedChart !== selection) {
-      getAPIData(selection, this).done((data) => {
-        console.log('got api data', data, this, selection)
-        this.plotGraph(selection, data)
-      })
+      let chartResponse = await axios.get('/api/chart/' + selection)
+      console.log('got api data', chartResponse, this, selection)
+      this.plotGraph(selection, chartResponse.data)
       selectedChart = selection
     } else {
       $(this.chartWrapperTarget).removeClass('loading')

@@ -1,8 +1,7 @@
-/* global Dygraph */
-
-/* global $ */
 import { Controller } from 'stimulus'
 import { barChartPlotter } from '../helpers/chart_helper'
+import { getDefault } from '../helpers/module_helper'
+import axios from 'axios'
 
 var chartLayout = {
   showRangeSelector: true,
@@ -62,38 +61,26 @@ export default class extends Controller {
   }
 
   initialize () {
-    var controller = this
-    controller.emptydata = [[0, 0, 0, 0]]
-    controller.cumulativeVoteChoicesChart = false
-    controller.voteChoicesByBlockChart = false
+    this.emptydata = [[0, 0, 0, 0]]
+    this.cumulativeVoteChoicesChart = false
+    this.voteChoicesByBlockChart = false
   }
 
-  connect () {
-    var controller = this
-    controller.agendaId = controller.data.get('id')
-    controller.element.classList.add('loading')
-    $.getScript('/js/vendor/dygraphs.min.js', function () {
-      controller.drawCharts()
-      $.ajax({
-        type: 'GET',
-        url: '/api/agenda/' + controller.agendaId,
-        success: function (data) {
-          if (controller.cumulativeVoteChoicesChart) {
-            controller.cumulativeVoteChoicesChart.updateOptions({
-              'file': cumulativeVoteChoicesData(data.by_time)
-            })
-          }
-          if (controller.voteChoicesByBlockChart) {
-            controller.voteChoicesByBlockChart.updateOptions({
-              'file': voteChoicesByBlockData(data.by_height)
-            })
-          }
-        },
-        complete: function () {
-          controller.element.classList.remove('loading')
-        }
-      })
+  async connect () {
+    this.agendaId = this.data.get('id')
+    this.element.classList.add('loading')
+    this.Dygraph = await getDefault(
+      import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
+    )
+    this.drawCharts()
+    let agendaResponse = await axios.get('/api/agenda/' + this.agendaId)
+    this.cumulativeVoteChoicesChart.updateOptions({
+      file: cumulativeVoteChoicesData(agendaResponse.data.by_time)
     })
+    this.voteChoicesByBlockChart.updateOptions({
+      file: voteChoicesByBlockData(agendaResponse.data.by_height)
+    })
+    this.element.classList.remove('loading')
   }
 
   disconnect () {
@@ -101,21 +88,9 @@ export default class extends Controller {
     this.voteChoicesByBlockChart.destroy()
   }
 
-  drawChart (el, options) {
-    return new Dygraph(
-      el,
-      this.emptydata,
-      {
-        ...chartLayout,
-        ...options
-      }
-    )
-  }
-
   drawCharts () {
-    var controller = this
-    controller.cumulativeVoteChoicesChart = controller.drawChart(
-      controller.cumulativeVoteChoicesTarget,
+    this.cumulativeVoteChoicesChart = this.drawChart(
+      this.cumulativeVoteChoicesTarget,
       {
         labels: ['Date', 'Yes', 'Abstain', 'No'],
         ylabel: 'Cumulative Vote Choices Cast',
@@ -123,13 +98,24 @@ export default class extends Controller {
         labelsKMB: true
       }
     )
-    controller.voteChoicesByBlockChart = controller.drawChart(
-      controller.voteChoicesByBlockTarget,
+    this.voteChoicesByBlockChart = this.drawChart(
+      this.voteChoicesByBlockTarget,
       {
         labels: ['Block Height', 'Yes', 'Abstain', 'No'],
         ylabel: 'Vote Choices Cast',
         title: 'Vote Choices By Block',
         plotter: barChartPlotter
+      }
+    )
+  }
+
+  drawChart (el, options, Dygraph) {
+    return new this.Dygraph(
+      el,
+      this.emptydata,
+      {
+        ...chartLayout,
+        ...options
       }
     )
   }

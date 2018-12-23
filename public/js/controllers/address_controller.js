@@ -1,13 +1,14 @@
-/* global Dygraph */
-/* global QRCode */
 /* global $ */
 import { Controller } from 'stimulus'
 import { isEmpty } from 'lodash-es'
+import { getDefault } from '../helpers/module_helper'
 import { padPoints, sizedBarPlotter } from '../helpers/chart_helper'
 import globalEventBus from '../services/event_bus_service'
 import TurboQuery from '../helpers/turbolinks_helper'
+import axios from 'axios'
 
 const blockDuration = 5 * 60000
+let Dygraph // lazy loaded on connect
 
 function txTypesFunc (d, binSize) {
   var p = []
@@ -179,7 +180,7 @@ export default class extends Controller {
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons']
   }
 
-  connect () {
+  async connect () {
     var ctrl = this
     ctrl.retrievedData = {}
     ctrl.ajaxing = false
@@ -223,20 +224,10 @@ export default class extends Controller {
     }
     ctrl.balance = cdata.get('balance')
 
-    // Request the initial chart data, grabbing the Dygraph script if necessary.
-    const initializeChart = () => {
-      createOptions()
-      // If no chart data has been requested, e.g. when initially on the
-      // list tab, then fetch the initial chart data.
-      if (!ctrl.requestedChart) {
-        ctrl.fetchGraphData(ctrl.chartType, ctrl.getBin())
-      }
-    }
-    if (typeof Dygraph === 'undefined') {
-      $.getScript('/js/vendor/dygraphs.min.js', initializeChart)
-    } else {
-      initializeChart()
-    }
+    Dygraph = await getDefault(
+      import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
+    )
+    ctrl.initializeChart()
     setTimeout(ctrl.updateView, 0)
   }
 
@@ -245,6 +236,16 @@ export default class extends Controller {
       this.graph.destroy()
     }
     this.retrievedData = {}
+  }
+
+  // Request the initial chart data, grabbing the Dygraph script if necessary.
+  initializeChart () {
+    createOptions()
+    // If no chart data has been requested, e.g. when initially on the
+    // list tab, then fetch the initial chart data.
+    if (!this.requestedChart) {
+      this.fetchGraphData(this.chartType, this.getBin())
+    }
   }
 
   bindElements () {
@@ -294,21 +295,25 @@ export default class extends Controller {
     })
   }
 
-  showQRCode () {
-    var ctrl = this
-    ctrl.qrBox.show()
-    if (ctrl.qrCode) {
-      ctrl.qrImg.css({ opacity: 1 })
+  async showQRCode () {
+    this.qrBox.show()
+    if (this.qrCode) {
+      this.qrImg.css({ opacity: 1 })
     } else {
-      $.getScript(
-        '/js/vendor/qrcode.min.js',
-        () => {
-          ctrl.qrCode = new QRCode(ctrl.qrimgTarget, ctrl.dcrAddress)
-          ctrl.qrImg.css({ opacity: 1 })
+      let QRCode = await getDefault(
+        import(/* webpackChunkName: "qrcode" */ 'qrcode')
+      )
+      let qrCodeImg = await QRCode.toDataURL(this.dcrAddress,
+        {
+          errorCorrectionLevel: 'H',
+          scale: 8,
+          margin: 0
         }
       )
+      this.qrimgTarget.innerHTML = `<img src="${qrCodeImg}"/>`
+      this.qrimgTarget.style.opacity = '1'
     }
-    ctrl.qrIcon.hide()
+    this.qrIcon.hide()
   }
 
   hideQRCode () {
@@ -349,26 +354,20 @@ export default class extends Controller {
     ctrl.fetchTable(txType, count, requestedOffset)
   }
 
-  fetchTable (txType, count, offset) {
+  async fetchTable (txType, count, offset) {
     var ctrl = this
     ctrl.listboxTarget.classList.add('loading')
-    $.ajax({
-      type: 'GET',
-      url: ctrl.makeTableUrl(txType, count, offset),
-      complete: () => {
-        ctrl.listboxTarget.classList.remove('loading')
-      },
-      success: (html) => {
-        ctrl.tableTarget.innerHTML = html
-        var settings = ctrl.listSettings
-        settings.n = count
-        settings.start = offset
-        settings.txntype = txType
-        ctrl.query.replace(settings)
-        ctrl.paginationParams.offset = offset
-        ctrl.setPageability()
-      }
-    })
+    let tableResponse = await axios.get(ctrl.makeTableUrl(txType, count, offset))
+    let html = tableResponse.data
+    ctrl.tableTarget.innerHTML = html
+    var settings = ctrl.listSettings
+    settings.n = count
+    settings.start = offset
+    settings.txntype = txType
+    ctrl.query.replace(settings)
+    ctrl.paginationParams.offset = offset
+    ctrl.setPageability()
+    ctrl.listboxTarget.classList.remove('loading')
   }
 
   setPageability () {
@@ -443,7 +442,7 @@ export default class extends Controller {
     ctrl.fetchGraphData(settings.chart, settings.bin)
   }
 
-  fetchGraphData (chart, bin) {
+  async fetchGraphData (chart, bin) {
     var ctrl = this
     var cacheKey = chart + '-' + bin
     if (ctrl.ajaxing === cacheKey) {
@@ -465,19 +464,11 @@ export default class extends Controller {
       return
     }
     var chartKey = chart === 'balance' ? 'amountflow' : chart
-    $.ajax({
-      type: 'GET',
-      url: '/api/address/' + ctrl.dcrAddress + '/' + chartKey + '/' + bin,
-      complete: () => {
-        ctrl.ajaxing = false
-      },
-      error: () => {
-        ctrl.chartboxTarget.classList.remove('loading')
-      },
-      success: (data) => {
-        ctrl.processData(chart, bin, data)
-      }
-    })
+    let url = '/api/address/' + ctrl.dcrAddress + '/' + chartKey + '/' + bin
+    let graphDataResponse = await axios.get(url)
+    ctrl.processData(chart, bin, graphDataResponse.data)
+    ctrl.ajaxing = false
+    ctrl.chartboxTarget.classList.remove('loading')
   }
 
   processData (chart, bin, data) {
