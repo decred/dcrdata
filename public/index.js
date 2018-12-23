@@ -19,11 +19,9 @@ const context = require.context('./js/controllers', true, /\.js$/)
 application.load(definitionsFromContext(context))
 
 document.addEventListener('turbolinks:load', function (e) {
-  $('.jsonly').removeClass('jsonly')
-})
-
-$.ajaxSetup({
-  cache: true
+  document.querySelectorAll('.jsonly').forEach((el) => {
+    el.classList.remove('jsonly')
+  })
 })
 
 {
@@ -42,6 +40,7 @@ function sleep (ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+// Create block helper and move this there
 // `formatTxDate`: Format a string to match the format `(UTC) YYYY-MM-DD HH:MM:SS` used by explorer.TxPage and tx.tmpl
 function formatTxDate (stamp, withTimezone) {
   var d = new Date(stamp)
@@ -62,17 +61,21 @@ async function createWebSocket (loc) {
     var b = newBlock.block
     b.unixStamp = (new Date(b.time)).getTime() / 1000
 
+    // Move to address controller
     // Check for uncofirmed tx page before signalling block
     confirmAddrMempool(b)
 
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
 
+    // Move to time controller
     // Update the blocktime counter.
     window.DCRThings.counter.data('time-lastblocktime', b.unixStamp).removeClass('text-danger')
     window.DCRThings.counter.html(humanize.timeSince(b.unixStamp))
 
+    // Create stimulus for /tx and move this there
     advanceTicketProgress(b)
 
+    // Move to blocklist controller
     var expTableRows = $('#explorertable tbody tr')
     // var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
     if (expTableRows) {
@@ -96,6 +99,7 @@ async function createWebSocket (loc) {
       $(newRowHtml).insertBefore(expTableRows.first())
     }
 
+    // Create homepage controller. Move this there.
     if (window.location.pathname === '/') {
       var ex = newBlock.extra
       $('#difficulty').html(humanize.decimalParts(ex.difficulty, true, 8))
@@ -124,6 +128,7 @@ async function createWebSocket (loc) {
   }
   ws.registerEvtHandler('newblock', updateBlockData)
 
+  // This appears to be unused.
   ws.registerEvtHandler('mempool', function (event) {
     var mempool = JSON.parse(event)
     $('#mempool-total-sent').html(humanize.decimalParts(mempool.total, false, 2, false, 2))
@@ -133,6 +138,7 @@ async function createWebSocket (loc) {
   })
 }
 
+// Create block helper and move this there
 // Check for the txid in the given block
 function txInBlock (txid, block) {
   var txTypes = [block.Tx, block.Tickets, block.Revs, block.Votes]
@@ -147,6 +153,7 @@ function txInBlock (txid, block) {
   return false
 }
 
+// Move to new /tx controller
 // Advance various progress bars on /tx.
 function advanceTicketProgress (block) {
   // Check for confirmations on mempool transactions.
@@ -204,6 +211,7 @@ function advanceTicketProgress (block) {
   }
 }
 
+// Move to address controller
 // Check the block for mempool transactions on the address page.
 function confirmAddrMempool (block) {
   var mempoolRows = $('[data-addr-tx-pending]')
@@ -237,6 +245,7 @@ function confirmAddrMempool (block) {
 
 createWebSocket(window.location)
 
+// Move to new /tx page controller
 $('.scriptDataStar').on('click', function () {
   $(this).next('.scriptData').slideToggle()
 })
