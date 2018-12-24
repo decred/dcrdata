@@ -63,7 +63,7 @@ type DataSourceLite interface {
 	GetStakeDiffEstimates() *apitypes.StakeDiff
 	//GetBestBlock() *blockdata.BlockData
 	GetSummary(idx int) *apitypes.BlockDataBasic
-	GetSummaryByHash(hash string) *apitypes.BlockDataBasic
+	GetSummaryByHash(hash string, withTxTotals bool) *apitypes.BlockDataBasic
 	GetBestBlockSummary() *apitypes.BlockDataBasic
 	GetBlockSize(idx int) (int32, error)
 	GetBlockSizeRange(idx0, idx1 int) ([]int32, error)
@@ -363,7 +363,10 @@ func (c *appContext) getBlockSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockSummary := c.BlockData.GetSummaryByHash(hash)
+	txTotalsParam := r.URL.Query().Get("txtotals")
+	withTxTotals := txTotalsParam == "1" || strings.EqualFold(txTotalsParam, "true")
+
+	blockSummary := c.BlockData.GetSummaryByHash(hash, withTxTotals)
 	if blockSummary == nil {
 		apiLog.Errorf("Unable to get block %s summary", hash)
 		http.Error(w, http.StatusText(422), 422)
