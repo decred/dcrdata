@@ -6,7 +6,7 @@
 
 <body class="{{ theme }}">
     {{ template "navbar" . }}
-    <div class="container main" data-controller="time">
+    <div class="container main" data-controller="time blocklist">
 
         <div class="row" data-controller="homepageMempool">
 
@@ -219,7 +219,7 @@
                     <h4>Latest Blocks</h4> <a href="/blocks" class="pl-2 keyboard-target"><small>see more ...</small></a>
                 </div>
 
-                <table class="table striped table-responsive-sm full-width" id="explorertable">
+                <table class="table striped table-responsive-sm full-width">
                     <thead>
                         <tr>
                             <th>Height</th>
@@ -238,17 +238,17 @@
                             <th>Time ({{timezone}})</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody data-target="blocklist.table">
                         {{range .Blocks}}
-                        <tr id="{{.Height}}">
-                            <td><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
-                            <td>{{.Transactions}}</td>
-                            <td>{{.Voters}}</td>
-                            <td>{{.FreshStake}}</td>
-                            <td>{{.Revocations}}</td>
-                            <td>{{.FormattedBytes}}</td>
-                            <td class="jsonly" data-target="time.age" data-age="{{.BlockTime}}"></td>
-                            <td>{{.BlockTime}}</td>
+                        <tr data-height="{{.Height}}" data-link-class="fs18">
+                            <td data-type="height"><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
+                            <td data-type="txs">{{.Transactions}}</td>
+                            <td data-type="voters">{{.Voters}}</td>
+                            <td data-type="stake">{{.FreshStake}}</td>
+                            <td data-type="revokes">{{.Revocations}}</td>
+                            <td data-type="size">{{.FormattedBytes}}</td>
+                            <td data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime}}"></td>
+                            <td data-type="time">{{.BlockTime}}</td>
                         </tr>
                         {{end}}
                     </tbody>

@@ -54,30 +54,6 @@ async function createWebSocket (loc) {
 
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
 
-    // Move to blocklist controller
-    var expTableRows = $('#explorertable tbody tr')
-    // var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
-    if (expTableRows) {
-      var indexVal = ''
-      if (window.location.pathname === '/blocks') {
-        indexVal = '<td>' + b.windowIndex + '</td>'
-      }
-      expTableRows.last().remove()
-      var newRow = '<tr id="' + b.height + '">' +
-                indexVal +
-                '<td><a href="/block/' + b.height + '" class="fs18">' + b.height + '</a></td>' +
-                '<td>' + b.tx + '</td>' +
-                '<td>' + b.votes + '</td>' +
-                '<td>' + b.tickets + '</td>' +
-                '<td>' + b.revocations + '</td>' +
-                '<td>' + humanize.bytes(b.size) + '</td>' +
-                '<td data-target="time.age"  data-age=' + b.unixStamp + '>' + humanize.timeSince(b.unixStamp) + '</td>' +
-                '<td>' + b.time + '</td>' +
-            '</tr>'
-      var newRowHtml = $.parseHTML(newRow)
-      $(newRowHtml).insertBefore(expTableRows.first())
-    }
-
     // Create homepage controller. Move this there.
     if (window.location.pathname === '/') {
       var ex = newBlock.extra

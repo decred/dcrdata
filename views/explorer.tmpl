@@ -5,7 +5,7 @@
 {{template "html-head" "Decred Blocks List"}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
-    <div class="container main" data-controller="time">
+    <div class="container main" data-controller="time blocklist">
         <h4>Blocks</h4>
         {{$pendingBlocks := 0}}
         {{if gt (len $.Data) 0}}{{$pendingBlocks = ((index .Data 0).Height)}}{{end}}
@@ -24,7 +24,6 @@
                     <label class="mb-0 mr-1" for="blocksPagesize">Page Size</label>
                     <select
                         id="blocksPagesize"
-                        data-controller="blocklist"
                         data-target="blocklist.pagesize"
                         data-action="change->blocklist#setPageSize"
                         data-blocklist-initial-offset="{{$pendingBlocks}}"
@@ -84,7 +83,7 @@
 
         <div class="row">
             <div class="col-md-12">
-                <table class="table striped table-responsive-sm" id="explorertable">
+                <table class="table striped table-responsive-sm">
                     <thead>
                         <tr>
                             <th><span class="nowrap">Ticket Price</span> <span class="nowrap">Window #<span></th>
@@ -103,18 +102,18 @@
                             <th>Time ({{timezone}})</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody data-target="blocklist.table">
                     {{range .Data}}
-                        <tr id="{{ .Height }}">
-                            <td>{{.IndexVal}}</td>
-                            <td><a href="/block/{{.Height}}" class="fs16 height">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
-                            <td {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
-                            <td>{{.Voters}}</td>
-                            <td>{{.FreshStake}}</td>
-                            <td>{{.Revocations}}</td>
-                            <td>{{.FormattedBytes}}</td>
-                            <td class="jsonly" data-target="time.age" data-age="{{.BlockTime}}"></td>
-                            <td>{{.BlockTime}}</td>
+                        <tr data-height="{{ .Height }}" data-link-class="fs16">
+                            <td data-type="index">{{.IndexVal}}</td>
+                            <td data-type="height"><a href="/block/{{.Height}}" class="fs16">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
+                            <td data-type="txs" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
+                            <td data-type="voters">{{.Voters}}</td>
+                            <td data-type="stake">{{.FreshStake}}</td>
+                            <td data-type="revokes">{{.Revocations}}</td>
+                            <td data-type="size">{{.FormattedBytes}}</td>
+                            <td data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime}}"></td>
+                            <td data-type="time">{{.BlockTime}}</td>
                         </tr>
                     {{end}}
                     </tbody>
