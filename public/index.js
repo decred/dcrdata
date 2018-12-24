@@ -59,11 +59,6 @@ async function createWebSocket (loc) {
 
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
 
-    // Move to time controller
-    // Update the blocktime counter.
-    window.DCRThings.counter.data('time-lastblocktime', b.unixStamp).removeClass('text-danger')
-    window.DCRThings.counter.html(humanize.timeSince(b.unixStamp))
-
     // Move to blocklist controller
     var expTableRows = $('#explorertable tbody tr')
     // var CurrentHeight = parseInt($('#explorertable tbody tr td').first().text());
@@ -160,5 +155,3 @@ function confirmAddrMempool (block) {
 }
 
 createWebSocket(window.location)
-
-window.DCRThings.counter = $('[data-time-lastblocktime]')
