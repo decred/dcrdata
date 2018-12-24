@@ -1040,7 +1040,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v", hash, err)
 				exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 				return
-			} else if err != sql.ErrNoRows {
+			} else if err == sql.ErrNoRows {
 				log.Warnf("Spend and pool status not found for ticket %s: %v", hash, err)
 			} else {
 				if tx.Mature == "False" {

@@ -9,6 +9,7 @@ import { Application } from 'stimulus'
 import { definitionsFromContext } from 'stimulus/webpack-helpers'
 import { darkEnabled } from './js/services/theme_service'
 import globalEventBus from './js/services/event_bus_service'
+import txInBlock from './js/helpers/block_helper'
 
 require('./scss/application.scss')
 
@@ -40,15 +41,6 @@ function sleep (ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-// Create block helper and move this there
-// `formatTxDate`: Format a string to match the format `(UTC) YYYY-MM-DD HH:MM:SS` used by explorer.TxPage and tx.tmpl
-function formatTxDate (stamp, withTimezone) {
-  var d = new Date(stamp)
-  var zone = withTimezone ? '(' + d.toLocaleTimeString('en-us', { timeZoneName: 'short' }).split(' ')[2] + ') ' : ''
-  return zone + String(d.getFullYear()) + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' +
-        String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0')
-}
-
 async function createWebSocket (loc) {
   // wait a bit to prevent websocket churn from drive by page loads
   var uri = getSocketURI(loc)
@@ -71,9 +63,6 @@ async function createWebSocket (loc) {
     // Update the blocktime counter.
     window.DCRThings.counter.data('time-lastblocktime', b.unixStamp).removeClass('text-danger')
     window.DCRThings.counter.html(humanize.timeSince(b.unixStamp))
-
-    // Create stimulus for /tx and move this there
-    advanceTicketProgress(b)
 
     // Move to blocklist controller
     var expTableRows = $('#explorertable tbody tr')
@@ -138,79 +127,6 @@ async function createWebSocket (loc) {
   })
 }
 
-// Create block helper and move this there
-// Check for the txid in the given block
-function txInBlock (txid, block) {
-  var txTypes = [block.Tx, block.Tickets, block.Revs, block.Votes]
-  for (let txIdx in txTypes) {
-    let txs = txTypes[txIdx]
-    for (let idx in txs) {
-      if (txs[idx].TxID === txid) {
-        return true
-      }
-    }
-  }
-  return false
-}
-
-// Move to new /tx controller
-// Advance various progress bars on /tx.
-function advanceTicketProgress (block) {
-  // Check for confirmations on mempool transactions.
-  var needsConfirmation = $('[data-txid-mempool-display]')
-  if (needsConfirmation.length && needsConfirmation.text() === 'mempool') {
-    var txid = needsConfirmation.data('txid-mempool-display')
-    if (txInBlock(txid, block)) {
-      needsConfirmation.remove()
-      $('[data-confirmation-block-height]').data('confirmation-block-height', block.height).html('(1 confirmation)')
-      $('#txMempoolLink').html(block.height).attr('href', '/block/' + block.hash)
-      $('#txFmtTime').html(formatTxDate(block.time, true))
-      $('#txAge').html(humanize.timeSince(block.time)).before('(').after(' ago)').attr('data-age', block.time)
-      var progressBar = $('#txMaturityProgress')
-      progressBar.attr('data-confirm-height', block.height)
-    }
-  }
-  // Advance the progress bars.
-  var ticketProgress = $('#txMaturityProgress')
-  if (!ticketProgress.length) {
-    return
-  }
-  var txBlockHeight = ticketProgress.data('confirm-height')
-  if (txBlockHeight === 0) {
-    return
-  }
-  var confirmations = block.height - txBlockHeight + 1
-  var txType = ticketProgress.data('tx-type')
-  var complete = parseInt(ticketProgress.attr('aria-valuemax'))
-  if (confirmations === complete + 1) {
-    ticketProgress.closest('.row').replaceWith(txType === 'LiveTicket' ? 'Expired' : 'Mature')
-    return
-  }
-  var ratio = confirmations / complete
-  if (confirmations === complete) {
-    ticketProgress.children('span').html(txType === 'Ticket' ? 'Mature. Eligible to vote on next block.'
-      : txType === 'LiveTicket' ? 'Ticket has expired' : 'Mature. Ready to spend.')
-    var status = $('#txPoolStatus')
-    if (status.length) {
-      status.html('live / unspent')
-    }
-  } else {
-    var blocksLeft = complete + 1 - confirmations
-    var remainingTime = blocksLeft * window.DCRThings.targetBlockTime
-    if (txType === 'LiveTicket') {
-      ticketProgress.children('span').html('block ' + confirmations + ' of ' + complete + ' (' + (remainingTime / 86400.0).toFixed(1) + ' days remaining)')
-      // Chance of expiring is (1-P)^N where P := single-block probability of being picked, N := blocks remaining.
-      // This probability is using the network parameter rather than the calculated value. So far, the ticket pool size seems stable enough to do that.
-      var pctChance = Math.pow(1 - 1 / window.DCRThings.ticketPoolSize, blocksLeft) * 100
-      $('#ticketExpiryChance').children('span').html(pctChance.toFixed(2) + '% chance of expiry')
-    } else {
-      var typeStub = txType === 'Ticket' ? 'eligible to vote' : 'spendable'
-      ticketProgress.children('span').html('Immature, ' + typeStub + ' in ' + blocksLeft + ' blocks (' + (remainingTime / 3600.0).toFixed(1) + ' hours remaining)')
-    }
-    ticketProgress.attr('aria-valuenow', confirmations).css({ 'width': (ratio * 100).toString() + '%' })
-  }
-}
-
 // Move to address controller
 // Check the block for mempool transactions on the address page.
 function confirmAddrMempool (block) {
@@ -222,7 +138,7 @@ function confirmAddrMempool (block) {
       var confirms = row.children('.addr-tx-confirms')
       confirms.attr('data-tx-block-height', block.height)
       row.removeAttr('data-addr-tx-pending')
-      row.children('.addr-tx-time').html(formatTxDate(block.time, false))
+      row.children('.addr-tx-time').html(humanize.formatTxDate(block.time, false))
       row.children('.addr-tx-age').children('span').attr('data-age', block.time).html(humanize.timeSince(block.time))
       confirms.html('1')
     }
@@ -244,10 +160,5 @@ function confirmAddrMempool (block) {
 }
 
 createWebSocket(window.location)
-
-// Move to new /tx page controller
-$('.scriptDataStar').on('click', function () {
-  $(this).next('.scriptData').slideToggle()
-})
 
 window.DCRThings.counter = $('[data-time-lastblocktime]')
