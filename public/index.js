@@ -9,7 +9,6 @@ import { Application } from 'stimulus'
 import { definitionsFromContext } from 'stimulus/webpack-helpers'
 import { darkEnabled } from './js/services/theme_service'
 import globalEventBus from './js/services/event_bus_service'
-import txInBlock from './js/helpers/block_helper'
 
 require('./scss/application.scss')
 
@@ -52,10 +51,6 @@ async function createWebSocket (loc) {
     var newBlock = JSON.parse(event)
     var b = newBlock.block
     b.unixStamp = (new Date(b.time)).getTime() / 1000
-
-    // Move to address controller
-    // Check for uncofirmed tx page before signalling block
-    confirmAddrMempool(b)
 
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
 
@@ -119,38 +114,6 @@ async function createWebSocket (loc) {
     $('#mempool-tx-count').text('sent in ' + mempool.num_all + ' transactions')
     $('#mempool-votes').text(mempool.num_votes)
     $('#mempool-tickets').text(mempool.num_tickets)
-  })
-}
-
-// Move to address controller
-// Check the block for mempool transactions on the address page.
-function confirmAddrMempool (block) {
-  var mempoolRows = $('[data-addr-tx-pending]')
-  mempoolRows.each(function (idx, tr) {
-    var row = $(tr)
-    var txid = row.data('addr-tx-pending')
-    if (txInBlock(txid, block)) {
-      var confirms = row.children('.addr-tx-confirms')
-      confirms.attr('data-tx-block-height', block.height)
-      row.removeAttr('data-addr-tx-pending')
-      row.children('.addr-tx-time').html(humanize.formatTxDate(block.time, false))
-      row.children('.addr-tx-age').children('span').attr('data-age', block.time).html(humanize.timeSince(block.time))
-      confirms.html('1')
-    }
-  })
-  var confirmTds = $('[data-tx-block-height]')
-  confirmTds.each(function (idx, td) {
-    var confirms = $(td)
-    confirms.html(block.height - parseInt(confirms.data('tx-block-height')) + 1)
-  })
-  var pendingCounters = $('[data-tx-confirmations-pending]')
-  pendingCounters.each(function (i, c) {
-    var counter = $(c)
-    var txid = counter.data('tx-confirmations-pending')
-    if (txInBlock(txid, block)) {
-      counter.removeAttr('data-tx-confirmations-pending')
-      counter.attr('data-confirmation-block-height', block.height.toString()).html('(1 confirmation)')
-    }
   })
 }
 

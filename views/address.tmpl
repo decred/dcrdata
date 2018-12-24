@@ -9,7 +9,7 @@
     {{$TxnCount := .TxnCount}}
     {{$txType := .TxnType}}
     <div class="container main"
-      data-controller="address"
+      data-controller="address newblock"
       data-address-offset="{{.Offset}}"
       data-address-dcraddress="{{.Address}}"
       data-address-merged-count="{{.KnownMergedSpendingTxns}}"
@@ -109,9 +109,9 @@
                         {{end}}
                     </tr>
                     {{if ne .NumUnconfirmed 0}}
-                        <tr data-target="address.numUnconfirmed">
+                        <tr data-target="address.numUnconfirmed" data-count="{{.NumUnconfirmed}}">
                             <td class="text-right pr-2">UNCONFIRMED</td>
-                            <td class="mono nowrap text-right">
+                            <td class="mono nowrap text-right addr-unconfirmed-count">
                                 {{.NumUnconfirmed}} transaction{{if gt .NumUnconfirmed 0}}s{{end}}
                             </td>
                         </tr>

@@ -230,7 +230,7 @@
       </thead>
       <tbody>
           {{range $i, $v := .Transactions}}
-          <tr {{if eq .Confirmations 0}} data-addr-tx-pending="{{.TxID}}" {{end}}>
+          <tr {{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}" {{end}}>
               {{with $v}}
               <td>{{.TxType}}</td>
               <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
@@ -276,7 +276,7 @@
               {{end}}
               <td class="addr-tx-time">
                   {{if eq .Confirmations 0}}
-                      <span data-target="address.formattedTime">Unconfirmed</span>
+                      Unconfirmed
                   {{else}}
                       {{.Time}}
                   {{end}}
@@ -289,14 +289,11 @@
               {{end}}
               </td>
 
-                  <td {{if eq .Confirmations 0}}
-                      class="addr-tx-confirms"
-                      {{end}}
-                      data-target="newBlock.confirmations"
-                      data-confirmations="{{.Confirmations}}"
-                      data-confirmation-block-height="{{.BlockHeight}}"
-                      data-tx-block-height="{{.BlockHeight}}"
-                  >{{.Confirmations}}</td>
+              <td class="addr-tx-confirms"
+                  data-target="newblock.confirmations"
+                  data-confirmations="{{.Confirmations}}"
+                  data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}"
+              >{{.Confirmations}}</td>
 
               <td class="text-right">{{.FormattedSize}}</td>
               {{end}}

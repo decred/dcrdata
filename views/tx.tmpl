@@ -12,8 +12,7 @@
                 Transaction
                 <span class="fs15">
                 {{if eq .Confirmations 0}}
-                    <strong data-tx-confirmations-pending="{{.TxID}}"
-                            data-controller="newblock"
+                    <strong data-controller="newblock"
                             data-target="newblock.confirmations tx.confirmations"
                             data-confirmations="0"
                             data-confirmation-block-height="-1"
