@@ -682,8 +682,11 @@ func (db *WiredDB) GetSummaryByHash(hash string, withTxTotals bool) *apitypes.Bl
 				log.Errorf("Unable to decode transaction: %v", err)
 				return nil
 			}
-			fee, _ := txhelpers.TxFeeRate(msgTx)
-			totalFees += fee
+			// Do not compute fee for coinbase transaction.
+			if !data.RawTx[i].Vin[0].IsCoinBase() {
+				fee, _ := txhelpers.TxFeeRate(msgTx)
+				totalFees += fee
+			}
 			totalOut += txhelpers.TotalOutFromMsgTx(msgTx)
 		}
 		for i := range data.RawSTx {
