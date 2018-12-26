@@ -1,8 +1,6 @@
 import 'regenerator-runtime/runtime'
 /* global require */
-/* global $ */
 import ws from './js/services/messagesocket_service'
-import humanize from './js/helpers/humanize_helper'
 import './js/services/desktop_notification_service'
 import { Application } from 'stimulus'
 import { definitionsFromContext } from 'stimulus/webpack-helpers'
@@ -50,19 +48,9 @@ async function createWebSocket (loc) {
     var newBlock = JSON.parse(event)
     var b = newBlock.block
     b.unixStamp = (new Date(b.time)).getTime() / 1000
-
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
   }
   ws.registerEvtHandler('newblock', updateBlockData)
-
-  // This appears to be unused.
-  ws.registerEvtHandler('mempool', function (event) {
-    var mempool = JSON.parse(event)
-    $('#mempool-total-sent').html(humanize.decimalParts(mempool.total, false, 2, false, 2))
-    $('#mempool-tx-count').text('sent in ' + mempool.num_all + ' transactions')
-    $('#mempool-votes').text(mempool.num_votes)
-    $('#mempool-tickets').text(mempool.num_tickets)
-  })
 }
 
 createWebSocket(window.location)
