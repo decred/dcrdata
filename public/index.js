@@ -46,8 +46,7 @@ async function createWebSocket (loc) {
   var updateBlockData = function (event) {
     console.log('Received newblock message', event)
     var newBlock = JSON.parse(event)
-    var b = newBlock.block
-    b.unixStamp = (new Date(b.time)).getTime() / 1000
+    newBlock.block.unixStamp = (new Date(newBlock.block.time)).getTime() / 1000
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
   }
   ws.registerEvtHandler('newblock', updateBlockData)
