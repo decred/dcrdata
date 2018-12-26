@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -51,7 +51,7 @@ const (
 )
 
 type DataSource interface {
-	GetHeight() int
+	GetHeight() (int64, error)
 	GetBlockHeight(hash string) (int64, error)
 	GetBlockHash(idx int64) (string, error)
 }
@@ -627,9 +627,10 @@ func BlockHashPathAndIndexCtx(r *http.Request, source DataSource) context.Contex
 // StatusInfoCtx embeds the best block index and the POST form data for
 // parameter "q" into a request context.
 func StatusInfoCtx(r *http.Request, source DataSource) context.Context {
-	idx := -1
-	if source.GetHeight() >= 0 {
-		idx = source.GetHeight()
+	idx := int64(-1)
+	h, err := source.GetHeight()
+	if h >= 0 && err == nil {
+		idx = h
 	}
 	ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
 
@@ -644,10 +645,10 @@ func BlockHashLatestCtx(r *http.Request, source DataSource) context.Context {
 	// if hash, err = c.BlockData.GetBestBlockHash(int64(idx)); err != nil {
 	// 	apiLog.Errorf("Unable to GetBestBlockHash: %v", idx, err)
 	// }
-	idx := source.GetHeight()
-	if idx >= 0 {
+	idx, err := source.GetHeight()
+	if idx >= 0 && err == nil {
 		var err error
-		if hash, err = source.GetBlockHash(int64(idx)); err != nil {
+		if hash, err = source.GetBlockHash(idx); err != nil {
 			apiLog.Errorf("Unable to GetBlockHash(%d): %v", idx, err)
 		}
 	}
@@ -670,9 +671,10 @@ func StakeVersionLatestCtx(r *http.Request, stakeVerFun StakeVersionsLatest) con
 
 // BlockIndexLatestCtx embeds the current block height into a request context.
 func BlockIndexLatestCtx(r *http.Request, source DataSource) context.Context {
-	idx := -1
-	if source.GetHeight() >= 0 {
-		idx = source.GetHeight()
+	idx := int64(-1)
+	h, err := source.GetHeight()
+	if h >= 0 && err == nil {
+		idx = h
 	}
 
 	return context.WithValue(r.Context(), ctxBlockIndex, idx)

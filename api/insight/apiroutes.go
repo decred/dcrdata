@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -196,7 +196,19 @@ func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request)
 		writeInsightError(w, "No index found in query")
 		return
 	}
-	if idx < 0 || idx > c.BlockData.ChainDB.GetHeight() {
+
+	height, err := c.BlockData.ChainDB.GetHeight()
+	if dbtypes.IsTimeoutErr(err) {
+		apiLog.Errorf("GetHeight: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+		return
+	}
+	if err != nil {
+		writeInsightNotFound(w, "Not found")
+		return
+	}
+
+	if idx < 0 || idx > int(height) {
 		writeInsightError(w, "Block height out of range")
 		return
 	}
@@ -702,42 +714,46 @@ func (c *insightApiContext) getAddressBalance(w http.ResponseWriter, r *http.Req
 }
 
 func (c *insightApiContext) getSyncInfo(w http.ResponseWriter, r *http.Request) {
-
-	blockChainHeight, err := c.nodeClient.GetBlockCount()
-
-	// To insure JSON encodes an error properly as a string or no error as null
-	// its easiest to use a pointer to a string.
-	var errorString *string
-	if err != nil {
-		s := err.Error()
-		errorString = &s
-	} else {
-		errorString = nil
+	errorResponse := func(err error) {
+		// To insure JSON encodes an error properly as a string, and no error as
+		// null, use a pointer to a string.
+		var errorString *string
+		if err != nil {
+			s := err.Error()
+			errorString = &s
+		}
+		syncInfo := apitypes.SyncResponse{
+			Status: "error",
+			Error:  errorString,
+		}
+		writeJSON(w, syncInfo, c.getIndentQuery(r))
 	}
 
-	height := c.BlockData.GetHeight()
+	blockChainHeight, err := c.nodeClient.GetBlockCount()
+	if err != nil {
+		errorResponse(err)
+		return
+	}
 
-	syncPercentage := int((float64(height) / float64(blockChainHeight)) * 100)
+	height, err := c.BlockData.GetHeight()
+	if err != nil {
+		errorResponse(err)
+		return
+	}
+
+	syncPercentage := int64((float64(height) / float64(blockChainHeight)) * 100)
 
 	st := "syncing"
 	if syncPercentage == 100 {
 		st = "finished"
 	}
 
-	syncInfo := struct {
-		Status           string  `json:"status"`
-		BlockChainHeight int64   `json:"blockChainHeight"`
-		SyncPercentage   int     `json:"syncPercentage"`
-		Height           int     `json:"height"`
-		Error            *string `json:"error"`
-		Type             string  `json:"type"`
-	}{
-		st,
-		blockChainHeight,
-		syncPercentage,
-		height,
-		errorString,
-		"from RPC calls",
+	syncInfo := apitypes.SyncResponse{
+		Status:           st,
+		BlockChainHeight: blockChainHeight,
+		SyncPercentage:   syncPercentage,
+		Height:           height,
+		Type:             "from RPC calls",
 	}
 	writeJSON(w, syncInfo, c.getIndentQuery(r))
 }

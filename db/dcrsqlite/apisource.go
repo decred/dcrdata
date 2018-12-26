@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -219,8 +219,8 @@ func (db *WiredDB) GetStakeDB() *stakedb.StakeDatabase {
 	return db.sDB
 }
 
-func (db *WiredDB) GetHeight() int {
-	return int(db.GetBestBlockHeight())
+func (db *WiredDB) GetHeight() (int64, error) {
+	return db.GetBlockSummaryHeight()
 }
 
 func (db *WiredDB) GetBestBlockHash() (string, error) {
@@ -1508,8 +1508,13 @@ func (db *WiredDB) GetExplorerAddress(address string, count, offset int64) (*dbt
 		KnownSpendingTxns: numSpending,
 	}
 
-	// sort by date and calculate block height.
-	addrData.PostProcess(uint32(db.GetHeight()))
+	// Sort by date and calculate block height.
+	height, err := db.GetHeight()
+	if err != nil {
+		log.Warnf("GetExplorerAddress: failed to get best block: %v", err)
+		return nil, addrType, txhelpers.AddressErrorUnknown
+	}
+	addrData.PostProcess(uint32(height))
 
 	return addrData, addrType, nil
 }

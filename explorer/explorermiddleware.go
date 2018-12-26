@@ -1,3 +1,4 @@
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -53,7 +54,14 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 			// Check best DB block to recognize future blocks.
 			var maxHeight int64
 			if exp.liteMode {
-				maxHeight = int64(exp.blockData.GetHeight())
+				maxHeight, err = exp.blockData.GetHeight()
+				if err != nil {
+					log.Errorf("GetHeight() failed: %v", err)
+					exp.StatusPage(w, defaultErrorCode,
+						"an unexpected error had occured while retrieving the best block",
+						"", ExpStatusNotFound)
+					return
+				}
 			} else {
 				bestBlockHeight, err := exp.explorerSource.HeightDB()
 				if err != nil {
@@ -102,8 +110,8 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 func (exp *explorerUI) SyncStatusPageIntercept(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp.ShowingSyncStatusPage() {
-			exp.StatusPage(w, "Database Update Running. Please Wait...",
-				"Blockchain sync is running. Please wait ...", "", ExpStatusSyncing)
+			exp.StatusPage(w, "Database Update Running. Please Wait.",
+				"Blockchain sync is running. Please wait.", "", ExpStatusSyncing)
 			return
 		}
 		// Otherwise, proceed to the next http handler.

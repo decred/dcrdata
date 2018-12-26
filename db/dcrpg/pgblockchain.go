@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -1552,7 +1552,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 	addrData.Balance.TotalSpent += sent
 	addrData.Balance.TotalUnspent += (received - sent)
 
-	// sort by date and calculate block height.
+	// Sort by date and calculate block height.
 	addrData.PostProcess(uint32(db.bestBlock.Height()))
 
 	return
