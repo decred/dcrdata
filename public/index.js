@@ -1,7 +1,6 @@
 import 'regenerator-runtime/runtime'
 /* global require */
 /* global $ */
-/* global Turbolinks */
 import ws from './js/services/messagesocket_service'
 import humanize from './js/helpers/humanize_helper'
 import './js/services/desktop_notification_service'
@@ -53,33 +52,6 @@ async function createWebSocket (loc) {
     b.unixStamp = (new Date(b.time)).getTime() / 1000
 
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
-
-    // Create homepage controller. Move this there.
-    if (window.location.pathname === '/') {
-      var ex = newBlock.extra
-      $('#difficulty').html(humanize.decimalParts(ex.difficulty, true, 8))
-      $('#bsubsidy_total').html(humanize.decimalParts(ex.subsidy.total / 100000000, false, 8))
-      $('#bsubsidy_pow').html(humanize.decimalParts(ex.subsidy.pow / 100000000, false, 8))
-      $('#bsubsidy_pos').html(humanize.decimalParts((ex.subsidy.pos / 500000000), false, 8)) // 5 votes per block (usually)
-      $('#bsubsidy_dev').html(humanize.decimalParts(ex.subsidy.dev / 100000000, false, 8))
-      $('#coin_supply').html(humanize.decimalParts(ex.coin_supply / 100000000, true, 8))
-      $('#blocksdiff').html(humanize.decimalParts(ex.sdiff, false, 8))
-      $('#dev_fund').html(humanize.decimalParts(ex.dev_fund / 100000000, true, 8))
-      $('#window_block_index').text(ex.window_idx)
-      $('#pos-window-progess-bar').css({ width: (ex.window_idx / ex.params.window_size) * 100 + '%' })
-      $('#reward_block_index').text(ex.reward_idx)
-      $('#pow-window-progess-bar').css({ width: (ex.reward_idx / ex.params.reward_window_size) * 100 + '%' })
-      $('#pool_size').text(ex.pool_info.size)
-      $('#pool_value').html(humanize.decimalParts(ex.pool_info.value, true, 8))
-      $('#ticket_reward').html(parseFloat(ex.reward).toFixed(2))
-      $('#target_percent').html(parseFloat(ex.pool_info.percent_target).toFixed(2))
-      $('#pool_size_percentage').html(parseFloat(ex.pool_info.percent).toFixed(2))
-    }
-
-    // handling status page for a future block
-    if ($('#futureblock').length) {
-      Turbolinks.visit(window.location, { action: 'replace' })
-    }
   }
   ws.registerEvtHandler('newblock', updateBlockData)
 

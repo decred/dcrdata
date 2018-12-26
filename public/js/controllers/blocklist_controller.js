@@ -39,18 +39,21 @@ export default class extends Controller {
   _processBlock (blockData) {
     if (!this.hasTableTarget) return
     var block = blockData.block
-    // grab a copy of the first row.
+    // Grab a copy of the first row.
     var rows = this.tableTarget.querySelectorAll('tr')
+    if (rows.length === 0) return
     var tr = rows[0]
     var lastHeight = parseInt(tr.dataset.height)
-    // Make sure this block belongs in this table.
+    // Make sure this block belongs on the top of this table.
     if (block.height === lastHeight) {
       this.tableTarget.removeChild(tr)
     } else if (block.height === lastHeight + 1) {
       this.tableTarget.removeChild(rows[rows.length - 1])
     } else return
-    // Set the td contents.
+    // Set the td contents based on the order of the existing row.
     var newRow = document.createElement('tr')
+    newRow.dataset.height = block.height
+    newRow.dataset.linkClass = tr.dataset.linkClass
     var tds = tr.querySelectorAll('td')
     tds.forEach((td) => {
       let newTd = document.createElement('td')

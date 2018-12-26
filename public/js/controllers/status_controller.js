@@ -1,8 +1,9 @@
 /* global $ */
+/* global Turbolinks */
 import { Controller } from 'stimulus'
 import ws from '../services/messagesocket_service'
-import Turbolinks from 'turbolinks'
 import Notify from 'notifyjs'
+import globalEventBus from '../services/event_bus_service'
 
 function buildProgressBar (data) {
   var progressVal = data.percentage_complete
@@ -63,7 +64,7 @@ function doNotification () {
 
 export default class extends Controller {
   static get targets () {
-    return [ 'statusSyncing' ]
+    return [ 'statusSyncing', 'futureBlock' ]
   }
 
   connect () {
@@ -87,9 +88,18 @@ export default class extends Controller {
         }
       }
     })
+    this.processBlock = this._processBlock.bind(this)
+    globalEventBus.on('BLOCK_RECEIVED', this.processBlock)
   }
 
   disconnect () {
     ws.deregisterEvtHandlers('blockchainSync')
+    globalEventBus.off('BLOCK_RECEIVED', this.processBlock)
+  }
+
+  _processBlock (blockData) {
+    if (this.hasFutureBlockTarget) {
+      Turbolinks.visit(window.location, { action: 'replace' })
+    }
   }
 }
