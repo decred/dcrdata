@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -36,7 +36,7 @@ import (
 // databases (i.e. SQLite, badger, ffldb)
 type DataSourceLite interface {
 	CoinSupply() *apitypes.CoinSupply
-	GetHeight() int
+	GetHeight() (int64, error)
 	GetBestBlockHash() (string, error)
 	GetBlockHash(idx int64) (string, error)
 	GetBlockHeight(hash string) (int64, error)
@@ -161,7 +161,7 @@ out:
 
 			c.Status.Lock()
 			c.Status.Height = height
-			// if DB height agrees with node height, then we're ready
+			// If DB height agrees with node height, then we're ready.
 			c.Status.Ready = c.Status.Height == c.Status.DBHeight
 
 			var err error
@@ -194,10 +194,18 @@ out:
 			c.Status.DBHeight = height
 			c.Status.DBLastBlockTime = summary.Time.S.T.Unix()
 
-			bdHeight := c.BlockData.GetHeight()
-			if bdHeight >= 0 && summary.Height == uint32(bdHeight) &&
-				height == uint32(bdHeight) {
-				// if DB height agrees with node height, then we're ready
+			bdHeight, err := c.BlockData.GetHeight()
+			// Catch certain pathological conditions.
+			switch {
+			case err != nil:
+				log.Errorf("GetHeight failed: %v", err)
+			case (height != uint32(bdHeight)) || (height != summary.Height):
+				log.Errorf("New DB height (%d) and stored block data (%d, %d) are not consistent.",
+					height, bdHeight, summary.Height)
+			case bdHeight < 0:
+				log.Warnf("DB empty (height = %d)", bdHeight)
+			default:
+				// If DB height agrees with node height, then we're ready.
 				c.Status.Ready = c.Status.Height == c.Status.DBHeight
 				c.Status.Unlock()
 				break keepon
@@ -205,8 +213,6 @@ out:
 
 			c.Status.Ready = false
 			c.Status.Unlock()
-			log.Errorf("New DB height (%d) and stored block data (%d, %d) not consistent.",
-				height, bdHeight, summary.Height)
 
 		case <-ctx.Done():
 			log.Debugf("Got quit signal. Exiting block connected handler for STATUS monitor.")

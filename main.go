@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -350,18 +350,28 @@ func _main(ctx context.Context) error {
 
 	blockDataSavers = append(blockDataSavers, explore)
 
-	// Determine blocks to sync as the
-	baseDBHeight := int64(baseDB.GetHeight()) // sqlite base db
+	// Determine blocks to sync.
+	baseDBHeight, err := baseDB.GetHeight()
+	if err != nil && err != sql.ErrNoRows {
+		log.Errorf("baseDB.GetHeight failed: %v", err)
+	}
+	log.Debugf("baseDB height: %d", baseDBHeight)
 	blocksBehind := nodeHeight - baseDBHeight
+
 	var auxDBHeight int64
 	if usePG {
-		auxDBHeight = int64(auxDB.GetHeight()) // pg db
+		auxDBHeight, err = auxDB.GetHeight()
+		if err != nil && err != sql.ErrNoRows {
+			log.Errorf("auxDB.GetHeight failed: %v", err)
+		}
+		log.Debugf("auxDB height: %d", auxDBHeight)
 		if baseDBHeight > auxDBHeight {
 			blocksBehind = nodeHeight - auxDBHeight
 		}
 	}
 	// dbHeight is the smaller of baseDBHeight and auxDBHeight in full mode.
 	dbHeight := nodeHeight - blocksBehind
+	log.Debugf("dbHeight: %d / blocksBehind: %d", dbHeight, blocksBehind)
 
 	// Prepare for sync by setting up the channels for status/progress updates
 	// (barLoad) or full explorer page updates (latestBlockHash).

@@ -1,3 +1,4 @@
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -437,7 +438,7 @@ func (db *DB) GetBestBlockHeight() int64 {
 }
 
 // GetBlockSummaryHeight returns the largest block height for which the database
-// can provide a block summary
+// can provide a block summary.
 func (db *DB) GetBlockSummaryHeight() (int64, error) {
 	db.RLock()
 	defer db.RUnlock()

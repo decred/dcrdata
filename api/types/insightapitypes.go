@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -9,6 +9,16 @@ import (
 
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 )
+
+// SyncResponse contains sync status information.
+type SyncResponse struct {
+	Status           string  `json:"status"`
+	BlockChainHeight int64   `json:"blockChainHeight"`
+	SyncPercentage   int64   `json:"syncPercentage"`
+	Height           int64   `json:"height"`
+	Error            *string `json:"error"`
+	Type             string  `json:"type"`
+}
 
 // InsightAddress models an address' transactions.
 type InsightAddress struct {

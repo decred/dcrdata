@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -6,6 +6,7 @@ package dcrpg
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
@@ -39,15 +40,16 @@ func (pgb *ChainDB) GetBlockHeight(hash string) (int64, error) {
 }
 
 // GetHeight returns the current best block height.
-func (pgb *ChainDB) GetHeight() int {
+func (pgb *ChainDB) GetHeight() (int64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	height, _, _, err := RetrieveBestBlockHeight(ctx, pgb.db)
-	if err != nil {
-		// TODO: return err
-		log.Errorf("GetHeight: %v", pgb.replaceCancelError(err))
+	// If the blocks table is empty, set height to -1.
+	bb := int64(height)
+	if err == sql.ErrNoRows {
+		bb = -1
 	}
-	return int(height)
+	return bb, pgb.replaceCancelError(err)
 }
 
 // SendRawTransaction attempts to decode the input serialized transaction,

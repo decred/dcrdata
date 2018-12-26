@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -114,9 +114,15 @@ func (exp *explorerUI) timeoutErrorPage(w http.ResponseWriter, err error, debugS
 
 // Home is the page handler for the "/" path.
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
-	height := exp.blockData.GetHeight()
+	height, err := exp.blockData.GetHeight()
+	if err != nil {
+		log.Errorf("GetHeight failed: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+			ExpStatusError)
+		return
+	}
 
-	blocks := exp.blockData.GetExplorerBlocks(height, height-5)
+	blocks := exp.blockData.GetExplorerBlocks(int(height), int(height)-5)
 
 	// Lock for both MempoolData and pageData.HomeInfo
 	exp.MempoolData.RLock()
@@ -157,7 +163,8 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		log.Errorf("Unable to get side chain blocks: %v", err)
-		exp.StatusPage(w, defaultErrorCode, "failed to retrieve side chain blocks", "", ExpStatusError)
+		exp.StatusPage(w, defaultErrorCode,
+			"failed to retrieve side chain blocks", "", ExpStatusError)
 		return
 	}
 
@@ -288,17 +295,25 @@ func (exp *explorerUI) TrimmedMempoolInfo() *types.TrimmedMempoolInfo {
 		return
 	}
 
-	data.Fees = getTotalFee(data.Transactions) + getTotalFee(data.Revocations) + getTotalFee(data.Tickets) +
-		getTotalFee(data.Votes)
+	data.Fees = getTotalFee(data.Transactions) + getTotalFee(data.Revocations) +
+		getTotalFee(data.Tickets) + getTotalFee(data.Votes)
 
 	return data
 }
 
 // NextHome is the page handler for the "/nexthome" path.
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
-	// Get top N blocks and trim each block to have just the fields required for this page.
-	height := exp.blockData.GetHeight()
-	blocks := exp.blockData.GetExplorerFullBlocks(height, height-homePageBlocksMaxCount)
+	// Get top N blocks and trim each block to have just the fields required for
+	// this page.
+	height, err := exp.blockData.GetHeight()
+	if err != nil {
+		log.Errorf("GetHeight failed: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+			ExpStatusError)
+		return
+	}
+	blocks := exp.blockData.GetExplorerFullBlocks(int(height),
+		int(height)-homePageBlocksMaxCount)
 
 	// trim unwanted data in each block
 	trimmedBlocks := make([]*types.TrimmedBlockInfo, 0, len(blocks))
@@ -384,8 +399,10 @@ func (exp *explorerUI) StakeDiffWindows(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err != nil {
-		log.Errorf("The specified windows are invalid. offset=%d&rows=%d: error: %v ", offsetWindow, rows, err)
-		exp.StatusPage(w, defaultErrorCode, "The specified windows could not found", "", ExpStatusNotFound)
+		log.Errorf("The specified windows are invalid. offset=%d&rows=%d: "+
+			"error: %v ", offsetWindow, rows, err)
+		exp.StatusPage(w, defaultErrorCode,
+			"The specified ticket price windows could not be found", "", ExpStatusNotFound)
 		return
 	}
 
@@ -443,7 +460,8 @@ func (exp *explorerUI) YearBlocksListing(w http.ResponseWriter, r *http.Request)
 func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter, r *http.Request) {
 	if exp.liteMode {
 		exp.StatusPage(w, fullModeRequired,
-			"Time based blocks listing page cannot run in lite mode.", "", ExpStatusNotSupported)
+			"Time based blocks listing page cannot run in lite mode.", "",
+			ExpStatusNotSupported)
 		return
 	}
 
@@ -453,7 +471,8 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		// default to year grouping if grouping is missing
 		i, err = dbtypes.TimeBasedGroupingToInterval(dbtypes.YearGrouping)
 		if err != nil {
-			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", "", ExpStatusError)
+			exp.StatusPage(w, defaultErrorCode, "Invalid year grouping found.", "",
+				ExpStatusError)
 			log.Errorf("Invalid year grouping found: error: %v ", err)
 			return
 		}
@@ -486,8 +505,10 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 		return
 	}
 	if err != nil {
-		log.Errorf("The specified /%s intervals are invalid. offset=%d&rows=%d: error: %v ", val, offset, rows, err)
-		exp.StatusPage(w, defaultErrorCode, "The specified intervals could not found", "", ExpStatusNotFound)
+		log.Errorf("The specified /%s intervals are invalid. offset=%d&rows=%d: "+
+			"error: %v ", val, offset, rows, err)
+		exp.StatusPage(w, defaultErrorCode,
+			"The specified block intervals could be not found", "", ExpStatusNotFound)
 		return
 	}
 
@@ -522,11 +543,17 @@ func (exp *explorerUI) timeBasedBlocksListing(val string, w http.ResponseWriter,
 
 // Blocks is the page handler for the "/blocks" path.
 func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
-	bestBlockHeight := exp.blockData.GetHeight()
+	bestBlockHeight, err := exp.blockData.GetHeight()
+	if err != nil {
+		log.Errorf("GetHeight failed: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+			ExpStatusError)
+		return
+	}
 
 	height, err := strconv.Atoi(r.URL.Query().Get("height"))
-	if err != nil || height > bestBlockHeight {
-		height = bestBlockHeight
+	if err != nil || height > int(bestBlockHeight) {
+		height = int(bestBlockHeight)
 	}
 
 	rows, err := strconv.Atoi(r.URL.Query().Get("rows"))
@@ -546,7 +573,8 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	summaries := exp.blockData.GetExplorerBlocks(height, height-rows)
 	if summaries == nil {
 		log.Errorf("Unable to get blocks: height=%d&rows=%d", height, rows)
-		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", "", ExpStatusNotFound)
+		exp.StatusPage(w, defaultErrorCode, "could not find those blocks", "",
+			ExpStatusNotFound)
 		return
 	}
 
@@ -557,7 +585,8 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if err != nil && err != sql.ErrNoRows {
-				log.Warnf("Unable to retrieve chain status for block %s: %v", s.Hash, err)
+				log.Warnf("Unable to retrieve chain status for block %s: %v",
+					s.Hash, err)
 			}
 			s.Valid = blockStatus.IsValid
 			s.MainChain = blockStatus.IsMainchain
@@ -574,7 +603,7 @@ func (exp *explorerUI) Blocks(w http.ResponseWriter, r *http.Request) {
 	}{
 		CommonPageData: exp.commonData(),
 		Data:           summaries,
-		BestBlock:      int64(bestBlockHeight),
+		BestBlock:      bestBlockHeight,
 		Rows:           int64(rows),
 		NetName:        exp.NetName,
 		WindowSize:     exp.ChainParams.StakeDiffWindowSize,
@@ -597,7 +626,8 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 	data := exp.blockData.GetExplorerBlock(hash)
 	if data == nil {
 		log.Errorf("Unable to get block %s", hash)
-		exp.StatusPage(w, defaultErrorCode, "could not find that block", "", ExpStatusNotFound)
+		exp.StatusPage(w, defaultErrorCode, "could not find that block", "",
+			ExpStatusNotFound)
 		return
 	}
 
@@ -715,13 +745,15 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	hash, ok := r.Context().Value(ctxTxHash).(string)
 	if !ok {
 		log.Trace("txid not set")
-		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", "", ExpStatusNotFound)
+		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested",
+			"", ExpStatusNotFound)
 		return
 	}
 
 	inout, _ := r.Context().Value(ctxTxInOut).(string)
 	if inout != "in" && inout != "out" && inout != "" {
-		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested", "", ExpStatusNotFound)
+		exp.StatusPage(w, defaultErrorCode, "there was no transaction requested",
+			"", ExpStatusNotFound)
 		return
 	}
 	ioid, _ := r.Context().Value(ctxTxInOutId).(string)
@@ -733,7 +765,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	if tx == nil {
 		if exp.liteMode {
 			log.Errorf("Unable to get transaction %s", hash)
-			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", "", ExpStatusNotFound)
+			exp.StatusPage(w, defaultErrorCode, "could not find that transaction",
+				"", ExpStatusNotFound)
 			return
 		}
 		// Search for occurrences of the transaction in the database.
@@ -743,11 +776,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		}
 		if err != nil {
 			log.Errorf("Unable to retrieve transaction details for %s.", hash)
-			exp.StatusPage(w, defaultErrorCode, "could not find that transaction", "", ExpStatusNotFound)
+			exp.StatusPage(w, defaultErrorCode, "could not find that transaction",
+				"", ExpStatusNotFound)
 			return
 		}
 		if dbTxs == nil {
-			exp.StatusPage(w, defaultErrorCode, "that transaction has not been recorded", "", ExpStatusNotFound)
+			exp.StatusPage(w, defaultErrorCode, "that transaction has not been recorded",
+				"", ExpStatusNotFound)
 			return
 		}
 
@@ -899,8 +934,10 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			} else if tx.IsVote() {
 				tx.VoteFundsLocked = "True"
 			}
-			coinbaseMaturityInHours := exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.Maturity)
-			tx.MaturityTimeTill = coinbaseMaturityInHours * (1 - float64(tx.Confirmations)/float64(tx.Maturity))
+			coinbaseMaturityInHours :=
+				exp.ChainParams.TargetTimePerBlock.Hours() * float64(tx.Maturity)
+			tx.MaturityTimeTill = coinbaseMaturityInHours *
+				(1 - float64(tx.Confirmations)/float64(tx.Maturity))
 		}
 
 		// For ticket purchase, get status and maturity blocks, but compute
@@ -958,7 +995,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		maturityInHours := (exp.ChainParams.TargetTimePerBlock.Hours() *
 			float64(tx.TicketInfo.TicketMaturity))
 		tx.TicketInfo.TimeTillMaturity = ((float64(exp.ChainParams.TicketMaturity) -
-			float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) * maturityInHours
+			float64(tx.Confirmations)) / float64(exp.ChainParams.TicketMaturity)) *
+			maturityInHours
 		ticketExpiryBlocksLeft := int64(exp.ChainParams.TicketExpiry) - blocksLive
 		tx.TicketInfo.TicketExpiryDaysLeft = (float64(ticketExpiryBlocksLeft) /
 			float64(exp.ChainParams.TicketExpiry)) * expirationInDays
@@ -996,7 +1034,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err != nil {
-			log.Errorf("Unable to retrieve blocks for transaction %s: %v", hash, err)
+			log.Errorf("Unable to retrieve blocks for transaction %s: %v",
+				hash, err)
 			exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, tx.TxID, ExpStatusError)
 			return
 		}
@@ -1012,7 +1051,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 
 		// For each output of this transaction, look up any spending transactions,
 		// and the index of the spending transaction input.
-		spendingTxHashes, spendingTxVinInds, voutInds, err := exp.explorerSource.SpendingTransactions(hash)
+		spendingTxHashes, spendingTxVinInds, voutInds, err :=
+			exp.explorerSource.SpendingTransactions(hash)
 		if exp.timeoutErrorPage(w, err, "SpendingTransactions") {
 			return
 		}
@@ -1037,7 +1077,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if err != nil && err != sql.ErrNoRows {
-				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v", hash, err)
+				log.Errorf("Unable to retrieve ticket spend and pool status for %s: %v",
+					hash, err)
 				exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
 				return
 			} else if err == sql.ErrNoRows {
@@ -1073,7 +1114,8 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 					tx.TicketInfo.VoteLuck = float64(tx.TicketInfo.BestLuck) -
 						(float64(tx.TicketInfo.TicketLiveBlocks) / float64(exp.ChainParams.TicketPoolSize))
 				}
-				if tx.TicketInfo.VoteLuck >= float64(tx.TicketInfo.BestLuck-(1/int64(exp.ChainParams.TicketPoolSize))) {
+				if tx.TicketInfo.VoteLuck >= float64(tx.TicketInfo.BestLuck-
+					(1/int64(exp.ChainParams.TicketPoolSize))) {
 					tx.TicketInfo.LuckStatus = "Perfection"
 				} else if tx.TicketInfo.VoteLuck > (float64(tx.TicketInfo.BestLuck) - 0.25) {
 					tx.TicketInfo.LuckStatus = "Very Lucky!"
@@ -1098,10 +1140,12 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				// ticket maturity))
 				// C is the probability (chance)
 				exp.pageData.RLock()
-				pVote := float64(exp.ChainParams.TicketsPerBlock) / float64(exp.pageData.HomeInfo.PoolInfo.Size)
+				pVote := float64(exp.ChainParams.TicketsPerBlock) /
+					float64(exp.pageData.HomeInfo.PoolInfo.Size)
 				exp.pageData.RUnlock()
 
-				remainingBlocksLive := float64(exp.ChainParams.TicketExpiry) - float64(blocksLive)
+				remainingBlocksLive := float64(exp.ChainParams.TicketExpiry) -
+					float64(blocksLive)
 				tx.TicketInfo.Probability = 100 * math.Pow(1-pVote, remainingBlocksLive)
 			}
 		} // tx.IsTicket()
@@ -1217,7 +1261,8 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// Retrieve address information from the DB and/or RPC.
 	var addrData *dbtypes.AddressInfo
 	if isZeroAddress {
-		// For the zero address (e.g. DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg), short-circuit any queries.
+		// For the zero address (e.g. DsQxuVRvS4eaJ42dhQEsCXauMWjvopWgrVg),
+		// short-circuit any queries.
 		addrData = &dbtypes.AddressInfo{
 			Address:         address,
 			Net:             addr.Net().Name,
@@ -1274,7 +1319,8 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 	addrData, err := exp.AddressListData(address, txnType, limitN, offsetAddrOuts)
 	if err != nil {
 		log.Errorf("AddressListData error: %v", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
 		return
 	}
 
@@ -1285,7 +1331,8 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
 		return
 	}
 
@@ -1346,7 +1393,8 @@ func parseAddressParams(r *http.Request) (address string, txnType dbtypes.AddrTx
 // for a given address.
 func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnType, limitN, offsetAddrOuts int64) (addrData *dbtypes.AddressInfo, err error) {
 	if exp.liteMode {
-		addrData, _, addrErr := exp.blockData.GetExplorerAddress(address, limitN, offsetAddrOuts)
+		addrData, _, addrErr := exp.blockData.GetExplorerAddress(address,
+			limitN, offsetAddrOuts)
 		// The specific AddressError values from ValidateAddress were already
 		// handled, but there may be other errors from GetExplorerAddress (e.g.
 		// from searchrawtransactions).
@@ -1363,7 +1411,8 @@ func (exp *explorerUI) AddressListData(address string, txnType dbtypes.AddrTxnTy
 		addrData.TxnType = txnType.String()
 	} else {
 		// Get addresses table rows for the address.
-		addrData, err = exp.explorerSource.AddressData(address, limitN, offsetAddrOuts, txnType)
+		addrData, err = exp.explorerSource.AddressData(address, limitN,
+			offsetAddrOuts, txnType)
 		if dbtypes.IsTimeoutErr(err) { //exp.timeoutErrorPage(w, err, "TicketsPriceByHeight") {
 			return nil, err
 		} else if err != nil {
@@ -1427,7 +1476,8 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 	searchStr := r.URL.Query().Get("search")
 	if searchStr == "" {
-		exp.StatusPage(w, "search failed", "Nothing was searched for", searchStr, ExpStatusNotSupported)
+		exp.StatusPage(w, "search failed", "Nothing was searched for",
+			searchStr, ExpStatusNotSupported)
 		return
 	}
 
@@ -1448,7 +1498,8 @@ func (exp *explorerUI) Search(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		exp.StatusPage(w, "search failed", "Block "+searchStr+" has not yet been mined", searchStr, ExpStatusNotFound)
+		exp.StatusPage(w, "search failed", "Block "+searchStr+
+			" has not yet been mined", searchStr, ExpStatusNotFound)
 		return
 	}
 
@@ -1727,7 +1778,7 @@ func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Re
 	io.WriteString(w, str)
 }
 
-// StatsPage is the page handler for the "/stats" path
+// StatsPage is the page handler for the "/stats" path.
 func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	// Get current PoW difficulty.
 	powDiff, err := exp.blockData.Difficulty()
@@ -1737,15 +1788,23 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 
 	// Subsidies
 	ultSubsidy := txhelpers.UltimateSubsidy(exp.ChainParams)
-	blockSubsidy := exp.blockData.BlockSubsidy(int64(exp.blockData.GetHeight()),
+	bestBlockHeight, err := exp.blockData.GetHeight()
+	if err != nil {
+		log.Errorf("GetHeight failed: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "",
+			ExpStatusError)
+		return
+	}
+	blockSubsidy := exp.blockData.BlockSubsidy(bestBlockHeight,
 		exp.ChainParams.TicketsPerBlock)
 
 	exp.MempoolData.RLock()
 	exp.pageData.RLock()
 	stats := types.StatsInfo{
-		TotalSupply:              exp.pageData.HomeInfo.CoinSupply,
-		UltimateSupply:           ultSubsidy,
-		TotalSupplyPercentage:    float64(exp.pageData.HomeInfo.CoinSupply) / float64(ultSubsidy) * 100,
+		TotalSupply:    exp.pageData.HomeInfo.CoinSupply,
+		UltimateSupply: ultSubsidy,
+		TotalSupplyPercentage: float64(exp.pageData.HomeInfo.CoinSupply) /
+			float64(ultSubsidy) * 100,
 		ProjectFunds:             exp.pageData.HomeInfo.DevFund,
 		ProjectAddress:           exp.pageData.HomeInfo.DevAddress,
 		PoWDiff:                  exp.pageData.HomeInfo.Difficulty,
@@ -1772,7 +1831,8 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 		BlockTime:                  exp.pageData.HomeInfo.Params.BlockTime,
 		IdxInRewardWindow:          exp.pageData.HomeInfo.IdxInRewardWindow,
 		RewardWindowSize:           exp.pageData.HomeInfo.Params.RewardWindowSize,
-		HashRate:                   powDiff * math.Pow(2, 32) / exp.ChainParams.TargetTimePerBlock.Seconds() / math.Pow(10, 15),
+		HashRate: powDiff * math.Pow(2, 32) /
+			exp.ChainParams.TargetTimePerBlock.Seconds() / math.Pow(10, 15),
 	}
 	exp.MempoolData.RUnlock()
 	exp.pageData.RUnlock()
