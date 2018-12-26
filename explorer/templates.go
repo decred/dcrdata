@@ -317,7 +317,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		},
 		"fetchRowLinkURL": func(groupingStr string, start, end time.Time) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views
-			// in heirachical order i.e. /yesars -> /months -> weeks -> /days -> /blocks
+			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks
 			// (/years -> /months) simply means that on "/years" page every row has a
 			// link to the "/months" page showing the number of months that are
 			// expected to comprise a given row in "/years" page i.e each row has a
