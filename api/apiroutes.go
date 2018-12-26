@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -241,7 +241,6 @@ func writeCSV(w http.ResponseWriter, rows [][]string, filename string, useCRLF b
 	w.Header().Set("Content-Disposition",
 		fmt.Sprintf("attachment;filename=%s", filename))
 	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("Vary", "User-Agent") // because of line endings
 
 	// To set the Content-Length response header, it is necessary to write the
 	// CSV data into a buffer rather than streaming the response directly to the
@@ -1345,7 +1344,8 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, totals, c.getIndentQuery(r))
 }
 
-// For /download/address/io/{address}
+// Handler for address activity CSV file download.
+// /download/address/io/{address}?cr=[true|false]
 func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 	if c.LiteMode {
 		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
@@ -1376,10 +1376,11 @@ func (c *appContext) addressIoCsv(w http.ResponseWriter, r *http.Request) {
 	filename := fmt.Sprintf("address-io-%s-%d-%s.csv", address,
 		c.Status.GetHeight(), strconv.FormatInt(time.Now().Unix(), 10))
 
-	// For Windows clients only, use CRLF (\r\n) line endings.
-	UseCRLF := strings.Contains(r.UserAgent(), "Windows")
+	// Check if ?cr=true was specified.
+	crlfParam := r.URL.Query().Get("cr")
+	useCRLF := crlfParam == "1" || strings.EqualFold(crlfParam, "true")
 
-	writeCSV(w, rows, filename, UseCRLF)
+	writeCSV(w, rows, filename, useCRLF)
 }
 
 func (c *appContext) getAddressTxTypesData(w http.ResponseWriter, r *http.Request) {

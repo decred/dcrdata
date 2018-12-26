@@ -1159,10 +1159,11 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	// AddressPageData is the data structure passed to the HTML template
 	type AddressPageData struct {
 		*CommonPageData
-		Data       *dbtypes.AddressInfo
-		NetName    string
-		IsLiteMode bool
-		ChartData  *dbtypes.ChartsData
+		Data         *dbtypes.AddressInfo
+		NetName      string
+		IsLiteMode   bool
+		ChartData    *dbtypes.ChartsData
+		CRLFDownload bool
 	}
 
 	// Grab the URL query parameters
@@ -1240,12 +1241,17 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 	addrData.IsDummyAddress = isZeroAddress // may be redundant
 	addrData.Path = r.URL.Path
 
+	// For Windows clients only, link to downloads with CRLF (\r\n) line
+	// endings.
+	UseCRLF := strings.Contains(r.UserAgent(), "Windows")
+
 	// Execute the HTML template.
 	pageData := AddressPageData{
 		CommonPageData: exp.commonData(),
 		Data:           addrData,
 		IsLiteMode:     exp.liteMode,
 		NetName:        exp.NetName,
+		CRLFDownload:   UseCRLF,
 	}
 	str, err := exp.templates.execTemplateToString("address", pageData)
 	if err != nil {
