@@ -83,16 +83,16 @@ export class Zoom {
     return parseInt(start / 1000).toString(36) + '-' + parseInt(end / 1000).toString(36)
   }
 
-  static decode (encoded, lims) {
-    // if lims are provided, encoded can be a zoomMap key
-    encoded = this.tryDecode(encoded)
-    lims = this.tryDecode(lims)
-    if (lims && zoomMap.hasOwnProperty(encoded)) {
-      let duration = zoomMap[encoded]
+  static decode (encoded, limits) {
+    // if limits are provided, encoded can be a zoomMap key
+    let decoded = this.tryDecode(encoded)
+    let lims = this.tryDecode(limits)
+    if (lims && zoomMap.hasOwnProperty(decoded)) {
+      let duration = zoomMap[decoded]
       if (duration === 0) return lims
-      return this.object(lims.end - zoomMap[encoded], lims.end)
+      return this.object(lims.end - zoomMap[decoded], lims.end)
     }
-    return encoded
+    return decoded
   }
 
   static decodeZoomString (encoded) {

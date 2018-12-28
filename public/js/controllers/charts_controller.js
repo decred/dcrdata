@@ -389,14 +389,14 @@ export default class extends Controller {
     await animationFrame()
     var zoomMin, zoomMax
     [zoomMin, zoomMax] = this.chartsView.xAxisExtremes()
-    var lims = Zoom.object(zoomMin * scaleFactor(), zoomMax * scaleFactor())
-    var zoom = Zoom.validate(this.selectedZoom || this.settings.zoom, lims, blockTime)
+    var limits = Zoom.object(zoomMin * scaleFactor(), zoomMax * scaleFactor())
+    var zoom = Zoom.validate(this.selectedZoom || this.settings.zoom, limits, blockTime)
     this.chartsView.updateOptions({
       dateWindow: [zoom.start / scaleFactor(), zoom.end / scaleFactor()]
     })
     this.settings.zoom = Zoom.encode(zoom.start, zoom.end)
     this.query.replace(this.settings)
-    if (Zoom.equals(zoom, lims)) this.setSelectedZoom('all')
+    if (Zoom.equals(zoom, limits)) this.setSelectedZoom('all')
     await animationFrame()
     $(this.chartWrapperTarget).removeClass('loading')
   }
