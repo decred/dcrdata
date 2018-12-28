@@ -99,7 +99,7 @@ function txPerBlockFunc (gData) {
 }
 
 function txPerDayFunc (gData) {
-  return map(gData.timestr, (n, i) => { return [new Date(n), gData.count[i]] })
+  return map(gData.time, (n, i) => { return [new Date(n), gData.count[i]] })
 }
 
 function poolSizeFunc (gData) {
