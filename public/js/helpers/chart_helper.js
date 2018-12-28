@@ -70,7 +70,7 @@ export class Zoom {
     }
   }
 
-  static map (key) {
+  static mapValue (key) {
     return zoomMap[key]
   }
 

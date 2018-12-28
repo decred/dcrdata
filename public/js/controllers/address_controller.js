@@ -448,7 +448,7 @@ export default class extends Controller {
       ctrl.noDataAvailable()
       return
     }
-    var binSize = Zoom.map(bin) || blockDuration
+    var binSize = Zoom.mapValue(bin) || blockDuration
     if (chart === 'types') {
       ctrl.retrievedData['types-' + bin] = txTypesFunc(data, binSize)
     } else if (chart === 'amountflow' || chart === 'balance') {
@@ -464,7 +464,7 @@ export default class extends Controller {
   popChartCache (chart, bin) {
     var ctrl = this
     var cacheKey = chart + '-' + bin
-    var binSize = Zoom.map(bin) || blockDuration
+    var binSize = Zoom.mapValue(bin) || blockDuration
     if (!ctrl.retrievedData[cacheKey] ||
         ctrl.requestedChart !== cacheKey ||
         ctrl.currentTab === 'list'
@@ -718,7 +718,7 @@ export default class extends Controller {
     buttonSets.forEach((buttonSet) => {
       buttonSet.each((i, button) => {
         if (button.dataset.fixed) return
-        if (duration > Zoom.map(button.name)) {
+        if (duration > Zoom.mapValue(button.name)) {
           button.classList.remove('d-hide')
         } else {
           button.classList.remove('btn-selected')
@@ -737,7 +737,7 @@ export default class extends Controller {
   }
 
   get activeZoomDuration () {
-    return this.activeZoomKey ? Zoom.map(this.activeZoomKey) : false
+    return this.activeZoomKey ? Zoom.mapValue(this.activeZoomKey) : false
   }
 
   get activeZoomKey () {
