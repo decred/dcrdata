@@ -2,7 +2,8 @@
 import { Controller } from 'stimulus'
 import { isEmpty } from 'lodash-es'
 import { getDefault } from '../helpers/module_helper'
-import { padPoints, sizedBarPlotter, Zoom } from '../helpers/chart_helper'
+import { padPoints, sizedBarPlotter } from '../helpers/chart_helper'
+import Zoom from '../helpers/zoom_helper'
 import globalEventBus from '../services/event_bus_service'
 import TurboQuery from '../helpers/turbolinks_helper'
 import axios from 'axios'
@@ -557,7 +558,7 @@ export default class extends Controller {
     ctrl.setButtonVisibility()
     var zoom = Zoom.validate(ctrl.chartSettings.zoom || ctrl.activeZoomKey, ctrl.xRange, binSize)
     ctrl.setZoom(zoom.start, zoom.end)
-    if (Zoom.equals(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes())) ctrl.setSelectedZoom('all')
+    ctrl.setSelectedZoom(Zoom.mapKey(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes()))
   }
 
   changeView (e) {
@@ -700,7 +701,7 @@ export default class extends Controller {
     if (start === end) return
     ctrl.chartSettings.zoom = Zoom.encode(start, end)
     ctrl.query.replace(ctrl.chartSettings)
-    if (Zoom.equals(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes())) ctrl.setSelectedZoom('all')
+    ctrl.setSelectedZoom(Zoom.mapKey(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes()))
   }
 
   _zoomCallback (start, end) {
@@ -708,7 +709,7 @@ export default class extends Controller {
     ctrl.zoomButtons.removeClass('btn-selected')
     ctrl.chartSettings.zoom = Zoom.encode(start, end)
     ctrl.query.replace(ctrl.chartSettings)
-    if (Zoom.equals(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes())) ctrl.setSelectedZoom('all')
+    ctrl.setSelectedZoom(Zoom.mapKey(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes()))
   }
 
   setButtonVisibility () {

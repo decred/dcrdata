@@ -2,7 +2,8 @@
 
 import { Controller } from 'stimulus'
 import { map, assign, merge } from 'lodash-es'
-import { barChartPlotter, Zoom } from '../helpers/chart_helper'
+import { barChartPlotter } from '../helpers/chart_helper'
+import Zoom from '../helpers/zoom_helper'
 import { darkEnabled } from '../services/theme_service'
 import { animationFrame } from '../helpers/animation_helper'
 import { getDefault } from '../helpers/module_helper'
@@ -396,7 +397,7 @@ export default class extends Controller {
     })
     this.settings.zoom = Zoom.encode(zoom.start, zoom.end)
     this.query.replace(this.settings)
-    if (Zoom.equals(zoom, limits)) this.setSelectedZoom('all')
+    this.setSelectedZoom(Zoom.mapKey(zoom, limits))
     await animationFrame()
     $(this.chartWrapperTarget).removeClass('loading')
   }
@@ -407,7 +408,7 @@ export default class extends Controller {
       button.classList.remove('active')
     })
     this.query.replace(this.settings)
-    if (Zoom.equals(this.settings.zoom, this.chartsView.xAxisExtremes())) this.setSelectedZoom('all')
+    this.setSelectedZoom(Zoom.mapKey(this.settings.zoom, this.chartsView.xAxisExtremes()))
   }
 
   _drawCallback (graph, first) {
@@ -417,7 +418,7 @@ export default class extends Controller {
     if (start === end) return
     this.settings.zoom = Zoom.encode(Zoom.object(start * scaleFactor(), end * scaleFactor()))
     this.query.replace(this.settings)
-    if (Zoom.equals(this.settings.zoom, this.chartsView.xAxisExtremes())) this.setSelectedZoom('all')
+    this.setSelectedZoom(Zoom.mapKey(this.settings.zoom, this.chartsView.xAxisExtremes()))
   }
 
   setSelectedZoom (zoomKey) {
