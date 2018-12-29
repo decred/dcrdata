@@ -242,10 +242,10 @@
                         {{range .Blocks}}
                         <tr data-height="{{.Height}}" data-link-class="fs18">
                             <td data-type="height"><a href="/block/{{.Height}}" class="fs18">{{.Height}}</a></td>
-                            <td data-type="txs">{{.Transactions}}</td>
-                            <td data-type="voters">{{.Voters}}</td>
-                            <td data-type="stake">{{.FreshStake}}</td>
-                            <td data-type="revokes">{{.Revocations}}</td>
+                            <td data-type="tx">{{.Transactions}}</td>
+                            <td data-type="votes">{{.Voters}}</td>
+                            <td data-type="tickets">{{.FreshStake}}</td>
+                            <td data-type="revocations">{{.Revocations}}</td>
                             <td data-type="size">{{.FormattedBytes}}</td>
                             <td data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime}}"></td>
                             <td data-type="time">{{.BlockTime}}</td>

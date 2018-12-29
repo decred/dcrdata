@@ -60,42 +60,23 @@ export default class extends Controller {
       let dataType = td.dataset.type
       newTd.dataset.type = dataType
       switch (dataType) {
-        case 'index':
-          newTd.textContent = block.windowIndex
+        case 'age':
+          newTd.dataset.age = block.unixStamp
+          newTd.dataset.target = 'time.age'
+          newTd.textContent = humanize.timeSince(block.unixStamp)
           break
         case 'height':
-          newTd.textContent = block.Height
           let link = document.createElement('a')
           link.href = `/block/${block.height}`
           link.textContent = block.height
           link.classList.add(tr.dataset.linkClass)
           newTd.appendChild(link)
           break
-        case 'txs':
-          newTd.textContent = block.tx
-          break
-        case 'voters':
-          newTd.textContent = block.votes
-          break
-        case 'stake':
-          newTd.textContent = block.tickets
-          break
-        case 'revokes':
-          newTd.textContent = block.revocations
-          break
         case 'size':
           newTd.textContent = humanize.bytes(block.size)
           break
-        case 'age':
-          newTd.dataset.age = block.unixStamp
-          newTd.dataset.target = 'time.age'
-          newTd.textContent = humanize.timeSince(block.unixStamp)
-          break
-        case 'time':
-          newTd.textContent = block.time
-          break
         default:
-          return
+          newTd.textContent = block[dataType]
       }
       newRow.appendChild(newTd)
     })

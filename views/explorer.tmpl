@@ -105,12 +105,12 @@
                     <tbody data-target="blocklist.table">
                     {{range .Data}}
                         <tr data-height="{{ .Height }}" data-link-class="fs16">
-                            <td data-type="index">{{.IndexVal}}</td>
+                            <td data-type="windowIndex">{{.IndexVal}}</td>
                             <td data-type="height"><a href="/block/{{.Height}}" class="fs16">{{if not .Valid}}<span class="attention">&#9888;</span>{{end}}{{ .Height }}</a></td>
-                            <td data-type="txs" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
-                            <td data-type="voters">{{.Voters}}</td>
-                            <td data-type="stake">{{.FreshStake}}</td>
-                            <td data-type="revokes">{{.Revocations}}</td>
+                            <td data-type="tx" {{if not .Valid}}class="grayed" title="Regular transactions invalidated by stakeholders."{{end}}>{{.Transactions}}</td>
+                            <td data-type="votes">{{.Voters}}</td>
+                            <td data-type="tickets">{{.FreshStake}}</td>
+                            <td data-type="revocations">{{.Revocations}}</td>
                             <td data-type="size">{{.FormattedBytes}}</td>
                             <td data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime}}"></td>
                             <td data-type="time">{{.BlockTime}}</td>
