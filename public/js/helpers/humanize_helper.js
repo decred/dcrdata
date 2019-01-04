@@ -124,6 +124,12 @@ var humanize = {
       return result
     }
     return Math.floor(seconds) + 's'
+  },
+  formatTxDate: function (stamp, withTimezone) {
+    var d = new Date(stamp)
+    var zone = withTimezone ? '(' + d.toLocaleTimeString('en-us', { timeZoneName: 'short' }).split(' ')[2] + ') ' : ''
+    return zone + String(d.getFullYear()) + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' +
+          String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0')
   }
 }
 

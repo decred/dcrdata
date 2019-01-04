@@ -315,7 +315,7 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 		"toLowerCase": func(a string) string {
 			return strings.ToLower(a)
 		},
-		"fetchRowLinkURL": func(groupingStr string, start, end types.TimeDef) string {
+		"fetchRowLinkURL": func(groupingStr string, start, end time.Time) string {
 			// fetchRowLinkURL creates links url to be used in the blocks list views
 			// in heirachical order i.e. /years -> /months -> weeks -> /days -> /blocks
 			// (/years -> /months) simply means that on "/years" page every row has a
@@ -347,8 +347,8 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 				return "/blocks?offset=0&rows=20"
 			}
 
-			rowsCount := int64(end.T.Sub(start.T).Seconds()/intervalVal) + 1
-			offset := int64(time.Since(end.T).Seconds() / intervalVal)
+			rowsCount := int64(end.Sub(start).Seconds()/intervalVal) + 1
+			offset := int64(time.Since(end).Seconds() / intervalVal)
 
 			if offset != 0 {
 				offset++

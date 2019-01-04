@@ -101,7 +101,7 @@
     <div class="container d-flex justify-content-between align-items-center">
         <ul class="nav justify-contents-left nowrap blockcounter jsonly">
           <li class="nav-item text-left">
-            <span data-controller="time" data-target="time.age" data-time-lastblocktime="{{$.Tip.Time}}"></span> <span class="block-msg">since last block</span>
+            <span data-controller="time" data-target="time.blocktime" data-stamp="{{$.Tip.Time}}"></span> <span class="block-msg">since last block</span>
           </li>
         </ul>
         <ul class="nav justify-content-center col">
@@ -176,7 +176,6 @@
     <div class="fs12 nowrap text-left" style="margin:auto auto auto 0px;">
         <select
           class="form-control-sm mb-2 mr-sm-2 mb-sm-0"
-          data-controller="blocklist"
           data-target="blocklist.listview"
           data-action="change->blocklist#setListView"
           >
@@ -230,7 +229,7 @@
       </thead>
       <tbody>
           {{range $i, $v := .Transactions}}
-          <tr {{if eq .Confirmations 0}} data-addr-tx-pending="{{.TxID}}" {{end}}>
+          <tr {{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}" {{end}}>
               {{with $v}}
               <td>{{.TxType}}</td>
               <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
@@ -276,7 +275,7 @@
               {{end}}
               <td class="addr-tx-time">
                   {{if eq .Confirmations 0}}
-                      <span data-target="address.formattedTime">Unconfirmed</span>
+                      Unconfirmed
                   {{else}}
                       {{.Time}}
                   {{end}}
@@ -289,14 +288,11 @@
               {{end}}
               </td>
 
-                  <td {{if eq .Confirmations 0}}
-                      class="addr-tx-confirms"
-                      {{end}}
-                      data-target="newBlock.confirmations"
-                      data-confirmations="{{.Confirmations}}"
-                      data-confirmation-block-height="{{.BlockHeight}}"
-                      data-tx-block-height="{{.BlockHeight}}"
-                  >{{.Confirmations}}</td>
+              <td class="addr-tx-confirms"
+                  data-target="newblock.confirmations"
+                  data-confirmations="{{.Confirmations}}"
+                  data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}"
+              >{{.Confirmations}}</td>
 
               <td class="text-right">{{.FormattedSize}}</td>
               {{end}}

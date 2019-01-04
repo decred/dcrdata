@@ -5,7 +5,7 @@
 {{template "html-head" printf "Decred %s List" .TimeGrouping}}
 <body class="{{ theme }}">
     {{template "navbar" . }}
-    <div class="container main" data-controller="time">
+    <div class="container main" data-controller="time blocklist">
         <div style="margin: auto auto 1rem; width: 80%; max-width: 80%;">
             <h4>{{.TimeGrouping}}</h4>
 
@@ -24,7 +24,6 @@
                         <label class="mb-0 mr-1" for="tbPagesize">Page Size</label>
                         <select
                             id="tbPagesize"
-                            data-controller="blocklist"
                             data-target="blocklist.pagesize"
                             data-action="change->blocklist#setPageSize"
                             data-blocklist-initial-offset="{{$.Offset}}"
@@ -105,7 +104,7 @@
                         {{range .Data}}
                             <tr id="{{.EndBlock}}">
                                 <td>
-                                   <a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .StartTime .EndTime}}">{{.FormattedStartTime}}</a>
+                                   <a class="fs16 height" href="{{fetchRowLinkURL $lowerCaseVal .StartTime.T .EndTime.T}}">{{.FormattedStartTime}}</a>
                                 </td>
                                 {{if eq $lowerCaseVal "years"}}
                                 <td>{{.FormattedEndTime}}</td>

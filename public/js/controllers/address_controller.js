@@ -7,6 +7,8 @@ import Zoom from '../helpers/zoom_helper'
 import globalEventBus from '../services/event_bus_service'
 import TurboQuery from '../helpers/turbolinks_helper'
 import axios from 'axios'
+import humanize from '../helpers/humanize_helper'
+import txInBlock from '../helpers/block_helper'
 
 const blockDuration = 5 * 60000
 let Dygraph // lazy loaded on connect
@@ -146,10 +148,11 @@ function createOptions () {
 export default class extends Controller {
   static get targets () {
     return ['options', 'addr', 'btns', 'balance',
-      'flow', 'zoom', 'interval', 'numUnconfirmed', 'formattedTime',
+      'flow', 'zoom', 'interval', 'numUnconfirmed',
       'pagesize', 'txntype', 'txnCount', 'qricon', 'qrimg', 'qrbox',
       'paginator', 'pageplus', 'pageminus', 'listbox', 'table',
-      'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons']
+      'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons',
+      'pending']
   }
 
   async connect () {
@@ -162,6 +165,7 @@ export default class extends Controller {
     ctrl.updateView = ctrl._updateView.bind(ctrl)
     ctrl.zoomCallback = ctrl._zoomCallback.bind(ctrl)
     ctrl.drawCallback = ctrl._drawCallback.bind(ctrl)
+    ctrl.confirmMempoolTxs = ctrl._confirmMempoolTxs.bind(ctrl)
     ctrl.bindElements()
     ctrl.bindEvents()
     ctrl.query = new TurboQuery()
@@ -207,6 +211,7 @@ export default class extends Controller {
     if (this.graph !== undefined) {
       this.graph.destroy()
     }
+    globalEventBus.off('BLOCK_RECEIVED', this.confirmMempoolTxs)
     this.retrievedData = {}
   }
 
@@ -235,26 +240,7 @@ export default class extends Controller {
 
   bindEvents () {
     var ctrl = this
-    var isFirstFire = true
-    globalEventBus.on('BLOCK_RECEIVED', (data) => {
-      // The update of the Time UTC and transactions count will only happen during the first confirmation
-      if (!isFirstFire) {
-        return
-      }
-      isFirstFire = false
-      ctrl.numUnconfirmedTargets.forEach((el, i) => {
-        el.classList.add('hidden')
-      })
-      var numConfirmed = 0
-      ctrl.formattedTimeTargets.forEach((el, i) => {
-        el.textContent = data.block.formatted_time
-        numConfirmed++
-      })
-      ctrl.txnCountTargets.forEach((el, i) => {
-        var transactions = numConfirmed + parseInt(el.dataset.txnCount)
-        setTxnCountText(el, transactions)
-      })
-    })
+    globalEventBus.on('BLOCK_RECEIVED', this.confirmMempoolTxs)
     $('.matchhash').hover(function () {
       hashHighLight($(this).attr('href'), true)
     }, function () {
@@ -727,6 +713,40 @@ export default class extends Controller {
         }
       })
     })
+  }
+
+  _confirmMempoolTxs (blockData) {
+    var block = blockData.block
+    if (this.hasPendingTarget) {
+      this.pendingTargets.forEach((row) => {
+        if (txInBlock(row.dataset.txid, block)) {
+          let confirms = row.querySelector('td.addr-tx-confirms')
+          confirms.textContent = '1'
+          confirms.dataset.confirmationBlockHeight = block.height
+          row.querySelector('td.addr-tx-time').textContent = humanize.formatTxDate(block.time, false)
+          let age = row.querySelector('td.addr-tx-age > span')
+          age.dataset.age = block.time
+          age.textContent = humanize.timeSince(block.time)
+          delete row.dataset.target
+          // Increment the displayed tx count
+          let count = this.txnCountTarget
+          count.dataset.txnCount++
+          setTxnCountText(count, count.dataset.txnCount)
+          this.numUnconfirmedTargets.forEach((tr, i) => {
+            var td = tr.querySelector('td.addr-unconfirmed-count')
+            var count = parseInt(tr.dataset.count)
+            if (count) count--
+            tr.dataset.count = count
+            if (count === 0) {
+              tr.classList.add('.d-hide')
+              delete tr.dataset.target
+            } else {
+              td.textContent = `${count} transaction${count > 1 ? 's' : ''}`
+            }
+          })
+        }
+      })
+    }
   }
 
   get chartType () {

@@ -4,23 +4,22 @@
 {{template "html-head" printf "Decred Transaction %.20s..." .Data.TxID}}
 <body class="{{ theme }}">
 {{template "navbar" . }}
-<div class="container main" data-controller="time">
+<div class="container main" data-controller="time tx">
 {{with .Data}}
-    <div class="row justify-content-between">
+    <div class="row justify-content-between" data-pool-status="{{.TicketInfo.PoolStatus}}">
         <div class="col-md-8 col-sm-6">
             <h4 class="mb-2">
                 Transaction
                 <span class="fs15">
                 {{if eq .Confirmations 0}}
-                    <strong data-tx-confirmations-pending="{{.TxID}}"
-                            data-controller="newblock"
-                            data-target="newblock.confirmations"
+                    <strong data-controller="newblock"
+                            data-target="newblock.confirmations tx.confirmations"
                             data-confirmations="0"
                             data-confirmation-block-height="-1"
                             data-formatted="true">(unconfirmed)</strong>
                 {{else}}
                     <strong data-controller="newblock"
-                            data-target="newblock.confirmations"
+                            data-target="newblock.confirmations tx.confirmations"
                             data-confirmations="{{.Confirmations}}"
                             data-confirmation-block-height="{{.BlockHeight}}"
                             data-formatted="true">
@@ -41,7 +40,7 @@
                 <tr>
                     <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">INCLUDED IN BLOCK</td>
                     {{if eq .BlockHeight 0}}
-                        <td><span data-txid-mempool-display="{{.TxID}}">mempool</span><a id="txMempoolLink" href="" class="fs18"></a></td>
+                        <td data-target="tx.unconfirmed" data-txid="{{.TxID}}"><span>mempool</span><a href="" class="fs18"></a></td>
                     {{else}}
                       <td>
                       {{range $i, $b := $.Blocks}}
@@ -82,7 +81,7 @@
                 {{if and (ne .TicketInfo.PoolStatus "") (and (eq .Type "Ticket") (gt .Confirmations 0))}}
                     <tr>
                         <td width="90" class="text-right pr-2 h1rem p03rem0 xs-w91">POOL STATUS</td>
-                        <td id="txPoolStatus">
+                        <td data-target="tx.poolStatus">
                             {{if ne .TicketInfo.SpendStatus "Voted"}}
                               {{if eq .Confirmations .TicketInfo.TicketMaturity}}
                                 live /
@@ -105,12 +104,12 @@
                     <tr>
                         <td class="text-right pr-2 h1rem p03rem0">MATURITY</td>
                         <td>
-                            <div class="row">
+                            <div class="row" data-target="tx.ticketStage">
                                 <div class="col-11 col-lg-8 col-sm-12">
                                     <div class="progress" style="max-width: 330px">
                                         <div
                                             class="progress-bar"
-                                            id="txMaturityProgress"
+                                            data-target="tx.progressBar"
                                             role="progressbar"
                                             style="width:{{if eq .Confirmations 0}}0{{else}}{{percentage (subtract .Confirmations 1) .TicketInfo.TicketMaturity}}%{{end}};"
                                             aria-valuenow="{{.Confirmations}}"
@@ -151,12 +150,12 @@
                     <tr>
                         <td class="text-right pr-2 h1rem p03rem0">MATURITY</td>
                         <td>
-                            <div class="row">
+                            <div class="row" data-target="tx.ticketStage">
                                 <div class="col-11 col-lg-8 col-sm-12">
                                     <div class="progress" style="max-width: 330px">
                                         <div
                                             class="progress-bar"
-                                            id="txMaturityProgress"
+                                            data-target="tx.progressBar"
                                             role="progressbar"
                                             style="width: {{percentage  .Confirmations .Maturity}}%;"
                                             aria-valuenow="{{.Confirmations}}"
@@ -166,7 +165,11 @@
                                             data-tx-type="{{.Type}}"
                                         >
                                             <span class="nowrap pl-1 pr-1">
+                                              {{if gt .Confirmations 0}}
                                                 Immature, spendable in {{ if eq (add .Confirmations 1) .Maturity }}next block{{else}}{{subtract .Maturity .Confirmations}} blocks ({{printf "%.1f" .MaturityTimeTill}} hours remaining){{end}}
+                                              {{else}}
+                                                Awaiting confirmation
+                                              {{end}}
                                             </span>
                                         </div>
                                     </div>
@@ -197,7 +200,7 @@
                                             <div class="progress" style="max-width: 330px">
                                                 <div
                                                     class="progress-bar"
-                                                    id="ticketExpiryChance"
+                                                    data-target="tx.expiryBar"
                                                     role="progressbar"
                                                     style="width: {{.TicketInfo.Probability}}%;"
                                                     aria-valuenow="{{.TicketInfo.Probability}}"
@@ -216,12 +219,12 @@
                             <tr>
                                 <td class="text-right pr-2 h1rem p03rem0">EXPIRY</td>
                                 <td>
-                                    <div class="row">
+                                    <div class="row" data-target="tx.ticketStage">
                                         <div class="col-11 col-lg-8 col-sm-12">
                                             <div class="progress" style="max-width: 330px">
                                                 <div
                                                     class="progress-bar"
-                                                    id="txMaturityProgress"
+                                                    data-target="tx.progressBar"
                                                     role="progressbar"
                                                     style="width: {{percentage (subtract .TicketInfo.TicketLiveBlocks 1) .TicketInfo.TicketExpiry}}%;"
                                                     aria-valuenow="{{.Confirmations}}"
@@ -270,7 +273,7 @@
                     <td class="text-right pr-2">TIME</td>
                     <td class="lh1rem">
                         {{if eq (.Time.T.Unix) 0}}
-                            <span id="txFmtTime">N/A</span> <span class="op60 fs12 nowrap"><span id="txAge" data-target="time.age" data-age=""></span></span>
+                            <span data-target="tx.formattedAge">N/A</span> <span class="op60 fs12 nowrap"><span data-target="tx.age" data-age=""></span></span>
                         {{else}}
                             <span>({{timezone}}) {{.Time}}</span><span class="op60 fs12 nowrap jsonly"> (<span data-target="time.age" data-age="{{.Time}}"></span> ago)</span>
                         {{end}}
@@ -385,15 +388,17 @@
                             {{end}}
                             {{if .OP_RETURN}}
                                 {{if .Addresses}}
-                                <div class="scriptDataStar">
-                                    toggle OP_RETURN
+                                <div class="script-data-star" data-action="click->tx#toggleScriptData">
+                                    <span>toggle OP_RETURN<span>
+                                    <div class="script-data d-hide">
+                                      <span class="break-word">{{.OP_RETURN}}</span>
+                                    </div>
                                 </div>
-                                <div class="scriptData">
                                 {{else}}
                                 <div>
-                                {{end}}
                                     <span class="break-word">{{.OP_RETURN}}</span>
                                 </div>
+                                {{end}}
                             {{end}}
                         </td>
                         <td class="fs13 break-word shrink-to-fit">
