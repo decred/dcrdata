@@ -1,16 +1,12 @@
-/* global $ */
 import { Controller } from 'stimulus'
 import { map, each } from 'lodash-es'
 import humanize from '../helpers/humanize_helper'
 import ws from '../services/messagesocket_service'
 import { keyNav } from '../services/keyboard_navigation_service'
 
-function incrementValue ($el) {
-  if ($el.length > 0) {
-    $el.text(
-      parseInt($el.text()) + 1
-    )
-  }
+function incrementValue (el) {
+  if (!el) return
+  el.textContent = parseInt(el.textContent) + 1
 }
 
 function txTableRow (tx) {
@@ -42,13 +38,11 @@ function buildTable (target, txType, txns, rowFn) {
   } else {
     tableBody = `<tr><td colspan="${(txType === 'votes' ? 8 : 4)}">No ${txType} in mempool.</td></tr>`
   }
-  $(target).html($.parseHTML(tableBody))
+  target.innerHTML = tableBody
 }
 
 function addTxRow (tx, target, rowFn) {
-  var rows = $(target).find('tr')
-  var newRowHtml = $.parseHTML(rowFn(tx))
-  $(newRowHtml).insertBefore(rows.first())
+  target.insertAdjacentHTML('beforebegin', rowFn(tx))
 }
 
 export default class extends Controller {
@@ -98,21 +92,19 @@ export default class extends Controller {
 
   updateMempool (e) {
     var m = JSON.parse(e)
-    $(this.numTicketTarget).text(m.num_tickets)
-    $(this.numVoteTarget).text(m.num_votes)
-    $(this.numRegularTarget).text(m.num_regular)
-    $(this.numRevokeTarget).text(m.num_revokes)
-    $(this.bestBlockTarget).text(m.block_height)
-    $(this.bestBlockTarget).data('hash', m.block_hash)
-    $(this.bestBlockTarget).attr('data-hash', m.block_hash)
-    $(this.bestBlockTarget).attr('href', '/block/' + m.block_hash)
-    $(this.bestBlockTimeTarget).data('age', m.block_time)
-    $(this.bestBlockTimeTarget).attr('data-age', m.block_time)
-    $(this.mempoolSizeTarget).text(m.formatted_size)
-    $(this.ticketsVoted).text(m.voting_info.tickets_voted)
-    $(this.maxVotesPerBlock).text(m.voting_info.max_votes_per_block)
-    $(this.totalOutTarget).html(`${humanize.decimalParts(m.total, false, 8, true)}`)
-    $(this.mempoolSizeTarget).text(m.formatted_size)
+    this.numTicketTarget.textContent = m.num_tickets
+    this.numVoteTarget.textContent = m.num_votes
+    this.numRegularTarget.textContent = m.num_regular
+    this.numRevokeTarget.textContent = m.num_revokes
+    this.bestBlockTarget.textContent = m.block_height
+    this.bestBlockTarget.dataset.hash = m.block_hash
+    this.bestBlockTarget.href = `/block/${m.block_hash}`
+    this.bestBlockTimeTarget.dataset.age = m.block_time
+    this.mempoolSizeTarget.textContent = m.formatted_size
+    this.ticketsVotedTarget.textContent = m.voting_info.tickets_voted
+    this.maxVotesPerBlockTarget.textContent = m.voting_info.max_votes_per_block
+    this.totalOutTarget.innerHTML = humanize.decimalParts(m.total, false, 8, true)
+    this.mempoolSizeTarget.textContent = m.formatted_size
     this.labelVotes()
   }
 
@@ -127,46 +119,49 @@ export default class extends Controller {
   renderNewTxns (evt) {
     var txs = JSON.parse(evt)
     each(txs, (tx) => {
-      incrementValue($(this['num' + tx.Type + 'Target']))
+      incrementValue(this['num' + tx.Type + 'Target'])
       var rowFn = tx.Type === 'Vote' ? voteTxTableRow : txTableRow
       addTxRow(tx, this[tx.Type.toLowerCase() + 'TransactionsTarget'], rowFn)
     })
   }
 
   labelVotes () {
-    var bestBlockHash = $(this.bestBlockTarget).data('hash')
-    var bestBlockHeight = $(this.bestBlockTarget).text()
-    $(this.voteTransactionsTarget).children('tr').each(function () {
-      var voteValidationHash = $(this).data('blockhash')
-      var voteBlockHeight = $(this).data('height')
+    var bestBlockHash = this.bestBlockTarget.dataset.hash
+    var bestBlockHeight = parseInt(this.bestBlockTarget.textContent)
+    this.voteTransactionsTarget.querySelectorAll('tr').forEach((tr) => {
+      var voteValidationHash = tr.dataset.blockhash
+      var voteBlockHeight = tr.dataset.height
       if (voteBlockHeight > bestBlockHeight) {
-        $(this).closest('tr').addClass('upcoming-vote')
-        $(this).closest('tr').removeClass('old-vote')
+        tr.classList.add('upcoming-vote')
+        tr.classList.remove('old-vote')
       } else if (voteValidationHash !== bestBlockHash) {
-        $(this).closest('tr').addClass('old-vote')
-        $(this).closest('tr').removeClass('upcoming-vote')
-        $(this).find('td.last_block').text('False')
+        tr.classList.add('old-vote')
+        tr.classList.remove('upcoming-vote')
+        if (tr.classList.contains('last_block')) {
+          tr.textContent = 'False'
+        }
       } else {
-        $(this).closest('tr').removeClass('old-vote')
-        $(this).closest('tr').removeClass('upcoming-vote')
-        $(this).find('td.last_block').text('True')
+        tr.classList.remove('old-vote')
+        tr.classList.remove('upcoming-vote')
+        if (tr.classList.contains('last_block')) {
+          tr.textContent = 'True'
+        }
       }
     })
   }
 
   sortVotesTable () {
-    var $rows = $(this.voteTransactionsTarget).children('tr')
-    $rows.sort(function (a, b) {
-      var heightA = parseInt($('td:nth-child(2)', a).text())
-      var heightB = parseInt($('td:nth-child(2)', b).text())
-      if (heightA === heightB) {
-        var indexA = parseInt($('td:nth-child(4)', a).text())
-        var indexB = parseInt($('td:nth-child(4)', b).text())
+    var rows = Array.from(this.voteTransactionsTarget.querySelectorAll('tr'))
+    rows.sort(function (a, b) {
+      if (a.dataset.height === b.dataset.height) {
+        var indexA = parseInt(a.dataset.ticketIndex)
+        var indexB = parseInt(b.dataset.ticketIndex)
         return (indexA - indexB)
       } else {
-        return (heightB - heightA)
+        return (b.dataset.height - a.dataset.height)
       }
     })
-    $(this.voteTransactionsTarget).html($rows)
+    this.voteTransactionsTarget.innerHTML = ''
+    rows.forEach((row) => { this.voteTransactionsTarget.appendChild(row) })
   }
 }
