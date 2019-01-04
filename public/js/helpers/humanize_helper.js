@@ -52,7 +52,7 @@ var humanize = {
       `<span class="decimal">${decimalVals}</span>` +
       `<span class="decimal trailing-zeroes">${trailingZeros}</span>`
     } else {
-      htmlString += '<span class="int"></span>'
+      htmlString += `<span class="int">${int}</span>`
     }
 
     htmlString += '</div>'

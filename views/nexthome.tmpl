@@ -27,7 +27,7 @@
                     <div class="col-sm-4">
                         <div class="heading">Available Supply (of 21 mil)</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="coin-supply">
+                            <span data-target="networkOverview.coinSupply">
                                 {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
                             </span>
                             <span class="pl-1 unit lh15rem">DCR</span>
@@ -36,7 +36,7 @@
                     <div class="col-sm-4">
                         <div class="heading">Project Subsidy</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="bsubsidy-dev">
+                            <span data-target="networkOverview.devSubsidy">
                                 {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
                             </span>
                             <span class="pl-1 unit lh15rem"> DCR</span>
@@ -46,7 +46,7 @@
                     <div class="col-sm-4">
                         <div class="heading"><a href="/address/{{.DevAddress}}">Project Fund</a></div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="dev-fund">
+                            <span data-target="networkOverview.devFund">
                                 {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .DevFund) 0 true)}}
                             </span>
                             <span class="pl-1 unit lh15rem"> DCR</span>
@@ -63,25 +63,25 @@
                     <div class="col-sm-4">
                         <div class="heading">Total Locked DCR</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="pool-value">
+                            <span data-target="networkOverview.poolValue">
                                 {{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 0 true)}}
                             </span>
                             <span class="pl-1 unit lh15rem">DCR</span>
                         </div>
                         <div class="subdata">
-                            <span class="count" id="pool-info-percentage">({{printf "%.2f" .PoolInfo.Percentage}} % of total supply)</span>
+                            <span class="count" data-target="networkOverview.stakePct">({{printf "%.2f" .PoolInfo.Percentage}} % of total supply)</span>
                         </div>
                     </div>
                     <div class="col-sm-4">
                         <div class="heading">PoS Reward</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="bsubsidy-pos">
+                            <span data-target="networkOverview.posSubsidy">
                                 {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (divide .NBlockSubsidy.PoS 5)) 8 true 2)}}
                             </span>
                             <span class="pl-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
                         </div>
                         <div class="subdata">
-                            <span id="ticket-reward" class="count">({{template "fmtPercentage" .TicketReward}} per ~{{.RewardPeriod}})</span>
+                            <span data-target="networkOverview.ticketReward" class="count">({{template "fmtPercentage" .TicketReward}} per ~{{.RewardPeriod}})</span>
                         </div>
                     </div>
                     <div class="col-sm-4">
@@ -89,7 +89,7 @@
                             <a class="no-underline" href="/charts#ticket-price">Ticket Price</a>
                         </div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="ticket-price">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
+                            <span data-target="networkOverview.ticketPrice">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
                             <span class="pl-1 unit lh15rem">DCR</span>
                         </div>
                     </div>
@@ -105,25 +105,25 @@
                             <a class="no-underline" href="/charts#pow-difficulty">Difficulty</a>
                         </div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="diff">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
+                            <span data-target="networkOverview.diff">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
                             <span class="pl-1 unit lh15rem">Mil</span>
                         </div>
                     </div>
                     <div class="col-sm-4">
                         <div class="heading">PoW Reward</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="bsubsidy-pow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
+                            <span data-target="networkOverview.powSubsidy">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
                             <span class="pl-1 unit lh15rem">DCR</span>
                         </div>
                     </div>
                     <div class="col-sm-4">
                         <div class="heading">Hashrate</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
+                            <span data-target="networkOverview.hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
                             <span class="pl-1 unit lh15rem">Ph/s</span>
                         </div>
                         <div class="subdata">
-                            <span id="hashrate-subdata" class="count">({{template "fmtPercentage" .HashRateChange}} in 24h)</span>
+                            <span data-target="networkOverview.hashrateDelta" class="count">({{template "fmtPercentage" .HashRateChange}} in 24h)</span>
                         </div>
                     </div>
                 </div>
