@@ -1,4 +1,5 @@
 import { setCookie } from './cookie_service'
+import globalEventBus from './event_bus_service'
 /* global $ */
 
 var sunIcon = document.getElementById('sun-icon')
@@ -27,11 +28,11 @@ export function toggleSun () {
   if (darkEnabled()) {
     setCookie(darkBGCookieName, '', 0)
     toggleToLightClasses(document.body)
-    $(document).trigger('nightMode', { nightMode: false })
+    globalEventBus.publish('NIGHT_MODE', { nightMode: false })
   } else {
     setCookie(darkBGCookieName, 1, 525600)
     toggleToDarkClasses(document.body)
-    $(document).trigger('nightMode', { nightMode: true })
+    globalEventBus.publish('NIGHT_MODE', { nightMode: true })
   }
 }
 
