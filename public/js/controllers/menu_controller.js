@@ -1,6 +1,16 @@
-/* global $ */
 import { Controller } from 'stimulus'
 import { toggleMenu, closeMenu, toggleSun } from '../services/theme_service'
+
+function closest (el, id) {
+  // https://stackoverflow.com/a/48726873/1124661
+  if (el.id === id) {
+    return el
+  }
+  if (el.parentNode && el.parentNode.nodeName !== 'BODY') {
+    return closest(el.parentNode, id)
+  }
+  return null
+}
 
 export default class extends Controller {
   static get targets () {
@@ -8,11 +18,12 @@ export default class extends Controller {
   }
 
   connect () {
-    $(document).click((e) => {
-      if (e.target === this.toggleTarget) {
+    document.addEventListener('click', (e) => {
+      var target = e.srcElement || e.target
+      if (target === this.toggleTarget) {
         return
       }
-      if ($(e.target).parents('#hamburger-menu').size() > 0) {
+      if (closest(target, 'hamburger-menu')) {
         return
       }
       closeMenu(e)
