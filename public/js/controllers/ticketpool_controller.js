@@ -1,4 +1,3 @@
-/* global $ */
 import { Controller } from 'stimulus'
 import ws from '../services/messagesocket_service'
 import { barChartPlotter } from '../helpers/chart_helper'
@@ -203,20 +202,22 @@ export default class extends Controller {
   }
 
   onZoom (e) {
-    $(this.zoomTargets).each((i, zoomTarget) => {
-      $(zoomTarget).removeClass('btn-active')
+    var target = e.srcElement || e.target
+    this.zoomTargets.forEach((zoomTarget) => {
+      zoomTarget.classList.remove('btn-active')
     })
-    $(e.target).addClass('btn-active')
+    target.classList.add('btn-active')
     this.zoom = e.target.name
     this.purchasesGraph.updateOptions({ dateWindow: getWindow(this.zoom) })
   }
 
   async onBarsChange (e) {
-    $(this.barsTargets).each((i, barsTarget) => {
-      $(barsTarget).removeClass('btn-active')
+    var target = e.srcElement || e.target
+    this.barsTargets.forEach((barsTarget) => {
+      barsTarget.classList.remove('btn-active')
     })
     this.bars = e.target.name
-    $(e.target).addClass('btn-active')
+    target.classList.add('btn-active')
     this.wrapperTarget.classList.add('loading')
     var url = '/api/ticketpool/bydate/' + this.bars
     let ticketPoolResponse = await axios.get(url)
