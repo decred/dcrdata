@@ -1,4 +1,3 @@
-/* global $ */
 /* global Turbolinks */
 import { Controller } from 'stimulus'
 import ws from '../services/messagesocket_service'
@@ -64,10 +63,14 @@ function doNotification () {
 
 export default class extends Controller {
   static get targets () {
-    return [ 'statusSyncing', 'futureBlock' ]
+    return ['statusSyncing', 'futureBlock', 'init', 'address', 'message']
   }
 
   connect () {
+    this.progressBars = {
+      'initial-load': this.initTarget,
+      'addresses-sync': this.addressTarget
+    }
     ws.registerEvtHandler('blockchainSync', (evt) => {
       var d = JSON.parse(evt)
       var i
@@ -75,14 +78,14 @@ export default class extends Controller {
       for (i = 0; i < d.length; i++) {
         var v = d[i]
 
-        $('#' + v.progress_bar_id).html(buildProgressBar(v))
+        this.progressBars[v.progress_bar_id].innerHTML = buildProgressBar(v)
 
         if (v.subtitle === 'sync complete') {
           if (!Notify.needsPermission) {
             doNotification()
           }
 
-          $('.alert.alert-info h5').html('Blockchain sync is complete. Redirecting to home in 20 secs.')
+          this.messageTarget.querySelector('h5').textContent = 'Blockchain sync is complete. Redirecting to home in 20 secs.'
           setInterval(() => Turbolinks.visit('/'), 20000)
           return
         }
