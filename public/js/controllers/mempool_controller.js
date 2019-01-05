@@ -1,5 +1,6 @@
 import { Controller } from 'stimulus'
 import { map, each } from 'lodash-es'
+import stripJs from 'strip-js'
 import humanize from '../helpers/humanize_helper'
 import ws from '../services/messagesocket_service'
 import { keyNav } from '../services/keyboard_navigation_service'
@@ -10,25 +11,25 @@ function incrementValue (el) {
 }
 
 function txTableRow (tx) {
-  return `<tr class="flash">
+  return stripJs(`<tr class="flash">
         <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a></span></td>
-        <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8, true)}</td>
+        <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8)}</td>
         <td class="mono fs15 text-right">${tx.size} B</td>
         <td class="mono fs15 text-right" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
-    </tr>`
+    </tr>`)
 }
 
 function voteTxTableRow (tx) {
-  return `<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
+  return stripJs(`<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
         <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
         <td class="mono fs15"><span><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}</a></span></td>
         <td class="mono fs15 last_block">${tx.vote_info.last_block ? 'True' : 'False'}</td>
         <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
         <td class="mono fs15">${tx.vote_info.vote_version}</td>
-        <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8, true)}</td>
+        <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8)}</td>
         <td class="mono fs15">${tx.size} B</td>
         <td class="mono fs15 text-right" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
-    </tr>`
+    </tr>`)
 }
 
 function buildTable (target, txType, txns, rowFn) {
@@ -103,7 +104,7 @@ export default class extends Controller {
     this.mempoolSizeTarget.textContent = m.formatted_size
     this.ticketsVotedTarget.textContent = m.voting_info.tickets_voted
     this.maxVotesPerBlockTarget.textContent = m.voting_info.max_votes_per_block
-    this.totalOutTarget.innerHTML = humanize.decimalParts(m.total, false, 8, true)
+    this.totalOutTarget.innerHTML = humanize.decimalParts(m.total, false, 8)
     this.mempoolSizeTarget.textContent = m.formatted_size
     this.labelVotes()
   }

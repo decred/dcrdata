@@ -1,4 +1,5 @@
 import { Controller } from 'stimulus'
+import stripJs from 'strip-js'
 import globalEventBus from '../services/event_bus_service'
 import ws from '../services/messagesocket_service'
 
@@ -6,7 +7,7 @@ const conversionRate = 100000000
 
 function makeNode (html) {
   var div = document.createElement('div')
-  div.innerHTML = html
+  div.innerHTML = stripJs(html)
   return div.firstChild
 }
 

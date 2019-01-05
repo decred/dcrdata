@@ -1,5 +1,6 @@
 /* global Turbolinks */
 import { Controller } from 'stimulus'
+import stripJs from 'strip-js'
 import ws from '../services/messagesocket_service'
 import Notify from 'notifyjs'
 import globalEventBus from '../services/event_bus_service'
@@ -24,7 +25,7 @@ function buildProgressBar (data) {
     notifStr = ''
   }
 
-  return (htmlString + `<div class="progress" style="height:30px;border-radius:5px;">
+  return stripJs(htmlString + `<div class="progress" style="height:30px;border-radius:5px;">
                 <div class="progress-bar sync-progress-bar" role="progressbar" style="height:auto; width:` + progressVal + `%;">
                 <span class="nowrap pl-1 font-weight-bold">Progress ` + progressVal + '% (' + remainingStr + `)</span>
                 </div>
