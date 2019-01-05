@@ -5,7 +5,7 @@
   </head>
   <body>
     <div id="updates"></div>
-    <script src="http://localhost:7777/js/socket.io.slim.js"></script>
+    <script src="socket.io.slim.js"></script>
     <script>
         var socket = io('http://localhost:7777', {path: '/insight/socket.io', transports: ['websocket'], upgrade: false});
         
@@ -18,7 +18,7 @@
         }
 
         socket.on('connect', function() {
-            update('Connected');
+            update('Connected. Updates will be shown below.');
         })
 
         socket.on('tx', function(data) {
