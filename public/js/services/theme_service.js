@@ -1,6 +1,5 @@
 import { setCookie } from './cookie_service'
 import globalEventBus from './event_bus_service'
-/* global $ */
 
 var sunIcon = document.getElementById('sun-icon')
 var darkBGCookieName = 'dcrdataDarkBG'
@@ -9,20 +8,24 @@ export function darkEnabled () {
   return document.cookie.includes(darkBGCookieName)
 }
 
+function menuToggle () {
+  return document.querySelector('#menuToggle input')
+}
+
 if (darkEnabled()) {
   toggleToDarkClasses(document.body)
 } else {
   toggleToLightClasses(document.body)
 }
 function toggleToDarkClasses (body) {
-  $(sunIcon).removeClass('dcricon-sun-fill')
-  $(sunIcon).addClass('dcricon-sun-stroke')
-  $(body).addClass('darkBG')
+  sunIcon.classList.remove('dcricon-sun-fill')
+  sunIcon.classList.add('dcricon-sun-stroke')
+  body.classList.add('darkBG')
 }
 function toggleToLightClasses (body) {
-  $(body).removeClass('darkBG')
-  $(sunIcon).removeClass('dcricon-sun-stroke')
-  $(sunIcon).addClass('dcricon-sun-fill')
+  body.classList.remove('darkBG')
+  sunIcon.classList.remove('dcricon-sun-stroke')
+  sunIcon.classList.add('dcricon-sun-fill')
 }
 export function toggleSun () {
   if (darkEnabled()) {
@@ -45,9 +48,13 @@ document.addEventListener('turbolinks:before-render', function (event) {
 })
 
 export function toggleMenu () {
-  $('#menuToggle input').prop('checked', !$('#menuToggle input').prop('checked'))
+  var checkbox = menuToggle()
+  checkbox.checked = !checkbox.checked
+  checkbox.dispatchEvent(new window.Event('change'))
 }
 
 export function closeMenu () {
-  $('#menuToggle input').prop('checked', false)
+  var checkbox = menuToggle()
+  checkbox.checked = false
+  checkbox.dispatchEvent(new window.Event('change'))
 }
