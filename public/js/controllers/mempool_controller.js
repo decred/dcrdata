@@ -1,6 +1,6 @@
 import { Controller } from 'stimulus'
 import { map, each } from 'lodash-es'
-import stripJs from 'strip-js'
+import dompurify from 'dompurify'
 import humanize from '../helpers/humanize_helper'
 import ws from '../services/messagesocket_service'
 import { keyNav } from '../services/keyboard_navigation_service'
@@ -10,8 +10,15 @@ function incrementValue (el) {
   el.textContent = parseInt(el.textContent) + 1
 }
 
+function rowNode (rowText) {
+  var tbody = document.createElement('tbody')
+  tbody.innerHTML = rowText
+  dompurify.sanitize(tbody, { IN_PLACE: true })
+  return tbody.firstChild
+}
+
 function txTableRow (tx) {
-  return stripJs(`<tr class="flash">
+  return rowNode(`<tr class="flash">
         <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a></span></td>
         <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8)}</td>
         <td class="mono fs15 text-right">${tx.size} B</td>
@@ -20,7 +27,7 @@ function txTableRow (tx) {
 }
 
 function voteTxTableRow (tx) {
-  return stripJs(`<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
+  return rowNode(`<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
         <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
         <td class="mono fs15"><span><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}</a></span></td>
         <td class="mono fs15 last_block">${tx.vote_info.last_block ? 'True' : 'False'}</td>
@@ -33,17 +40,22 @@ function voteTxTableRow (tx) {
 }
 
 function buildTable (target, txType, txns, rowFn) {
-  let tableBody
+  while (target.firstChild) target.removeChild(target.firstChild)
   if (txns && txns.length > 0) {
-    tableBody = map(txns, rowFn).join('')
+    map(txns, rowFn).forEach((tr) => {
+      target.appendChild(tr)
+    })
   } else {
-    tableBody = `<tr><td colspan="${(txType === 'votes' ? 8 : 4)}">No ${txType} in mempool.</td></tr>`
+    target.innerHTML = `<tr><td colspan="${(txType === 'votes' ? 8 : 4)}">No ${txType} in mempool.</td></tr>`
   }
-  target.innerHTML = tableBody
 }
 
 function addTxRow (tx, target, rowFn) {
-  target.insertAdjacentHTML('beforebegin', rowFn(tx))
+  if (target.childElementCount === 0) {
+    target.appendChild(rowFn(tx))
+  } else {
+    target.insertBefore(rowFn(tx), target.firstChild)
+  }
 }
 
 export default class extends Controller {
@@ -54,11 +66,11 @@ export default class extends Controller {
       'mempoolSize',
       'numVote',
       'numTicket',
-      'numRevoke',
+      'numRevocation',
       'numRegular',
       'voteTransactions',
       'ticketTransactions',
-      'revokeTransactions',
+      'revocationTransactions',
       'regularTransactions',
       'ticketsVoted',
       'maxVotesPerBlock',
@@ -67,6 +79,19 @@ export default class extends Controller {
   }
 
   connect () {
+    // from txhelpers.DetermineTxTypeString
+    this.txTargetMap = {
+      'Vote': this.voteTransactionsTarget,
+      'Ticket': this.ticketTransactionsTarget,
+      'Revocation': this.revocationTransactionsTarget,
+      'Regular': this.regularTransactionsTarget
+    }
+    this.countTargetMap = {
+      'Vote': this.numVoteTarget,
+      'Ticket': this.numTicketTarget,
+      'Revocation': this.numRevocationTarget,
+      'Regular': this.numRegularTarget
+    }
     ws.registerEvtHandler('newtx', (evt) => {
       this.renderNewTxns(evt)
       this.labelVotes()
@@ -96,7 +121,7 @@ export default class extends Controller {
     this.numTicketTarget.textContent = m.num_tickets
     this.numVoteTarget.textContent = m.num_votes
     this.numRegularTarget.textContent = m.num_regular
-    this.numRevokeTarget.textContent = m.num_revokes
+    this.numRevocationTarget.textContent = m.num_revokes
     this.bestBlockTarget.textContent = m.block_height
     this.bestBlockTarget.dataset.hash = m.block_hash
     this.bestBlockTarget.href = `/block/${m.block_hash}`
@@ -112,7 +137,7 @@ export default class extends Controller {
   handleTxsResp (event) {
     var m = JSON.parse(event)
     buildTable(this.regularTransactionsTarget, 'regular transactions', m.tx, txTableRow)
-    buildTable(this.revokeTransactionsTarget, 'revocations', m.revokes, txTableRow)
+    buildTable(this.revocationTransactionsTarget, 'revocations', m.revokes, txTableRow)
     buildTable(this.voteTransactionsTarget, 'votes', m.votes, voteTxTableRow)
     buildTable(this.ticketTransactionsTarget, 'tickets', m.tickets, txTableRow)
   }
@@ -120,9 +145,9 @@ export default class extends Controller {
   renderNewTxns (evt) {
     var txs = JSON.parse(evt)
     each(txs, (tx) => {
-      incrementValue(this['num' + tx.Type + 'Target'])
+      incrementValue(this.countTargetMap[tx.Type])
       var rowFn = tx.Type === 'Vote' ? voteTxTableRow : txTableRow
-      addTxRow(tx, this[tx.Type.toLowerCase() + 'TransactionsTarget'], rowFn)
+      addTxRow(tx, this.txTargetMap[tx.Type], rowFn)
     })
   }
 

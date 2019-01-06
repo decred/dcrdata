@@ -1,6 +1,6 @@
 import { Controller } from 'stimulus'
 import { isEmpty } from 'lodash-es'
-import stripJs from 'strip-js'
+import dompurify from 'dompurify'
 import { getDefault } from '../helpers/module_helper'
 import { padPoints, sizedBarPlotter } from '../helpers/chart_helper'
 import Zoom from '../helpers/zoom_helper'
@@ -297,7 +297,7 @@ export default class extends Controller {
     ctrl.listboxTarget.classList.add('loading')
     let tableResponse = await axios.get(ctrl.makeTableUrl(txType, count, offset))
     let html = tableResponse.data
-    ctrl.tableTarget.innerHTML = stripJs(html)
+    ctrl.tableTarget.innerHTML = dompurify.sanitize(html)
     var settings = ctrl.listSettings
     settings.n = count
     settings.start = offset

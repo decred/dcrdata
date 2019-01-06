@@ -1,6 +1,6 @@
 import { Controller } from 'stimulus'
 import { each } from 'lodash-es'
-import stripJs from 'strip-js'
+import dompurify from 'dompurify'
 import humanize from '../helpers/humanize_helper'
 import ws from '../services/messagesocket_service'
 import { keyNav } from '../services/keyboard_navigation_service'
@@ -13,7 +13,7 @@ function incrementValue (element) {
 }
 
 function txFlexTableRow (tx) {
-  return stripJs(`<div class="d-flex flex-table-row flash mempool-row">
+  return dompurify.sanitize(`<div class="d-flex flex-table-row flash mempool-row">
         <a class="hash truncate-hash" style="flex: 1 1 auto" href="/tx/${tx.hash}" title="${tx.hash}">${tx.hash}</a>
         <span style="flex: 0 0 60px" class="mono text-right ml-1">${tx.Type}</span>
         <span style="flex: 0 0 105px" class="mono text-right ml-1">${humanize.decimalParts(tx.total, false, 8)}</span>
