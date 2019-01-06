@@ -47,8 +47,8 @@
                             <td class="text-right pr-2 lh1rem pt-1 pb-1">NEXT TICKET PRICE ESTIMATE</td>
                             <td>
                                 <div class="mono lh1rem p03rem0 fs14-decimal">
-                                    <span class="fs24 font-weight-bold d-inline-block">{{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 8 false)}}<span class="pl-1 unit font-weight-bold lh15rem">DCR</span></span>, <span class="fs18" style="line-height:1.3rem;">&nbsp;bounds: [
-                                        {{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMin 2 false)}}, {{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMax 2 false)}}]</span>
+                                    <span class="fs24 font-weight-bold d-inline-block">
+                                        {{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 8 false)}}<span class="pl-1 unit font-weight-bold lh15rem">DCR</span></span>, <span class="fs18" style="line-height:1.3rem;">bounds: [{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMin 2 false)}},&hairsp;{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMax 2 false)}}]</span>
                                 </div>
                             </td>
                         </tr>
