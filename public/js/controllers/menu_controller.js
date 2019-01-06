@@ -1,5 +1,5 @@
 import { Controller } from 'stimulus'
-import { toggleMenu, closeMenu, toggleSun } from '../services/theme_service'
+import { closeMenu, toggleSun } from '../services/theme_service'
 
 function closest (el, id) {
   // https://stackoverflow.com/a/48726873/1124661
@@ -18,20 +18,21 @@ export default class extends Controller {
   }
 
   connect () {
-    document.addEventListener('click', (e) => {
-      var target = e.srcElement || e.target
-      if (target === this.toggleTarget) {
-        return
-      }
-      if (closest(target, 'hamburger-menu')) {
-        return
-      }
-      closeMenu(e)
-    })
+    this.clickout = this._clickout.bind(this)
+  }
+
+  _clickout (e) {
+    var target = e.target || e.srcElement
+    if (!closest(target, 'hamburger-menu')) {
+      document.removeEventListener('click', this.clickout)
+      closeMenu()
+    }
   }
 
   toggle (e) {
-    toggleMenu(e)
+    if (this.toggleTarget.checked) {
+      document.addEventListener('click', this.clickout)
+    }
   }
 
   onSunClick () {

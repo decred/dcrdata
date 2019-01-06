@@ -55,6 +55,7 @@ export function toggleMenu () {
 
 export function closeMenu () {
   var checkbox = menuToggle()
+  if (!checkbox.checked) return
   checkbox.checked = false
   checkbox.dispatchEvent(new window.Event('change'))
 }
