@@ -402,6 +402,13 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 		Subtitle: "sync complete",
 	})
 
+	// Update the DB height with the API status.
+	select {
+	case db.updateStatusChan <- uint32(height):
+	default:
+		log.Errorf("Failed to update DB height with API status. Is StatusNtfnHandler started?")
+	}
+
 	log.Infof("Rescan finished successfully at height %d.", height)
 
 	_, summaryHeight, stakeInfoHeight, stakeDBHeight, err = db.DBHeights()

@@ -641,6 +641,16 @@ func _main(ctx context.Context) error {
 				return fmt.Errorf("unable to get block from node: %v", err)
 			}
 		}
+
+		// Update the node height for the status API endpoint.
+		select {
+		case notify.NtfnChans.UpdateStatusNodeHeight <- uint32(height):
+		default:
+			log.Errorf("Failed to update node height with API status. Is StatusNtfnHandler started?")
+		}
+		// WiredDB.resyncDB is responsible for updating DB status via
+		// notify.NtfnChans.UpdateStatusDBHeight.
+
 		return nil
 	}
 	if err = ensureSync(); err != nil {
