@@ -8,14 +8,13 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/googollee/go-socket.io"
-
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/txhelpers"
+	socketio "github.com/googollee/go-socket.io"
 )
 
 var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
