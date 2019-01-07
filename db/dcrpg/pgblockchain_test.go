@@ -3,13 +3,16 @@
 package dcrpg
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrdata/v4/db/dbtypes"
 )
 
 var (
@@ -21,8 +24,8 @@ func openDB() (func() error, error) {
 		Host:   "localhost",
 		Port:   "5432",
 		User:   "dcrdata",
-		Pass:   "dcrdata",
-		DBName: "dcrdata",
+		Pass:   "",
+		DBName: "dcrdata_mainnet_tests",
 	}
 	var err error
 	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true)
@@ -45,6 +48,61 @@ func TestMain(m *testing.M) {
 
 	// call with result of m.Run()
 	os.Exit(retCode)
+}
+
+func TestDeleteBestBlock(t *testing.T) {
+	res, height, hash, err := DeleteBestBlock(db.db)
+	t.Logf("Deletion summary for block %d (%s): %v", height, hash, res)
+	if err != nil {
+		t.Errorf("Failed to delete best block data: %v", err)
+	}
+
+	timings := fmt.Sprintf("Blocks: %v\n", time.Duration(res.Timings.Blocks))
+	timings = timings + fmt.Sprintf("\tVins: %v\n", time.Duration(res.Timings.Vins))
+	timings = timings + fmt.Sprintf("\tVouts: %v\n", time.Duration(res.Timings.Vouts))
+	timings = timings + fmt.Sprintf("\tAddresses: %v\n", time.Duration(res.Timings.Addresses))
+	timings = timings + fmt.Sprintf("\tTransactions: %v\n", time.Duration(res.Timings.Transactions))
+	timings = timings + fmt.Sprintf("\tTickets: %v\n", time.Duration(res.Timings.Tickets))
+	timings = timings + fmt.Sprintf("\tVotes: %v\n", time.Duration(res.Timings.Votes))
+	timings = timings + fmt.Sprintf("\tMisses: %v\n", time.Duration(res.Timings.Misses))
+	t.Logf("Timings:\n%s", timings)
+}
+
+func TestDeleteBlocks(t *testing.T) {
+	height0, hash0, _, err := RetrieveBestBlockHeight(context.Background(), db.db)
+	if err != nil {
+		t.Error(err)
+	}
+
+	N := int64(222)
+	if N > int64(height0) {
+		t.Fatalf("Cannot remove %d blocks from block chain of height %d.",
+			N, height0)
+	}
+
+	t.Logf("Initial best block %d (%s).", height0, hash0)
+
+	start := time.Now()
+
+	res, _, _, err := DeleteBlocks(N, db.db)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != int(N) {
+		t.Errorf("Expected to delete %d blocks; actually deleted %d.", N, len(res))
+	}
+
+	height, hash, _, err := RetrieveBestBlockHeight(context.Background(), db.db)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("Final best block %d (%s).", height, hash)
+
+	summary := dbtypes.DeletionSummarySlice(res).Reduce()
+	if summary.Blocks != N {
+		t.Errorf("Expected summary of %d deleted blocks, got %d.", N, summary.Blocks)
+	}
+	t.Logf("Removed %d blocks in %v:\n%v.", N, time.Since(start), summary)
 }
 
 func TestStuff(t *testing.T) {

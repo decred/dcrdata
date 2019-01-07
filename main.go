@@ -207,6 +207,18 @@ func _main(ctx context.Context) error {
 		}
 	}
 
+	// Optionally purge best blocks according to config.
+	if cfg.PurgeNBestBlocks > 0 {
+		N := int64(cfg.PurgeNBestBlocks)
+		log.Infof("Purging data for the %d best blocks in the aux. DB...", N)
+		s, heightDB, err := auxDB.PurgeBestBlocks(N)
+		if err != nil {
+			return fmt.Errorf("Failed to purge %d blocks from the aux. DB: %v", N, err)
+		}
+		log.Infof("Sucessfully purged data for %d blocks from the aux. DB (new height = %d):\n%v",
+			N, heightDB, s)
+	}
+
 	blockHash, nodeHeight, err := dcrdClient.GetBestBlock()
 	if err != nil {
 		return fmt.Errorf("Unable to get block from node: %v", err)
