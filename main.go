@@ -550,7 +550,6 @@ func _main(ctx context.Context) error {
 		r.Get("/blocks", explore.Blocks)
 		r.Get("/ticketpricewindows", explore.StakeDiffWindows)
 		r.Get("/side", explore.SideChains)
-		// rejects has been deprecated. Use /disapproved.
 		r.Get("/rejects", explore.DisapprovedBlocks)
 		r.Get("/disapproved", explore.DisapprovedBlocks)
 		r.Get("/mempool", explore.Mempool)
