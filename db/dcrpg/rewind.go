@@ -36,79 +36,102 @@ package dcrpg
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
 )
 
-func deleteMissesForBlock(db *sql.DB, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(db, internal.DeleteMisses, "failed to delete misses", hash)
+func deleteMissesForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteMisses, "failed to delete misses", hash)
 }
 
-func deleteVotesForBlock(db *sql.DB, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(db, internal.DeleteVotes, "failed to delete votes", hash)
+func deleteVotesForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteVotes, "failed to delete votes", hash)
 }
 
-func deleteTicketsForBlock(db *sql.DB, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(db, internal.DeleteTickets, "failed to delete tickets", hash)
+func deleteTicketsForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteTickets, "failed to delete tickets", hash)
 }
 
-func deleteTransactionsForBlock(db *sql.DB, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(db, internal.DeleteTransactions, "failed to delete transactions", hash)
+func deleteTransactionsForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteTransactions, "failed to delete transactions", hash)
 }
 
-func deleteVoutsForBlock(db *sql.DB, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(db, internal.DeleteVouts, "failed to delete vouts", hash)
+func deleteVoutsForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteVouts, "failed to delete vouts", hash)
 }
 
-func deleteVinsForBlock(db *sql.DB, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(db, internal.DeleteVins, "failed to delete vins", hash)
+func deleteVinsForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteVins, "failed to delete vins", hash)
 }
 
-func deleteAddressesForBlock(db *sql.DB, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(db, internal.DeleteAddresses, "failed to delete addresses", hash)
+func deleteAddressesForBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteAddresses, "failed to delete addresses", hash)
 }
 
-func deleteBlock(db *sql.DB, hash string) (rowsDeleted int64, err error) {
-	return sqlExec(db, internal.DeleteBlock, "failed to delete block", hash)
+func deleteBlock(dbTx *sql.Tx, hash string) (rowsDeleted int64, err error) {
+	return sqlExec(dbTx, internal.DeleteBlock, "failed to delete block", hash)
 }
 
-func deleteBlockFromChain(db *sql.DB, hash string) (err error) {
+func deleteBlockFromChain(dbTx *sql.Tx, hash string) (err error) {
 	// Delete the row from block_chain where this_hash is the specified hash,
 	// returning the previous block hash in the chain.
 	var prev_hash string
-	err = db.QueryRow(internal.DeleteBlockFromChain, hash).Scan(&prev_hash)
+	err = dbTx.QueryRow(internal.DeleteBlockFromChain, hash).Scan(&prev_hash)
 	if err != nil {
+		// If a row with this_hash was not found, and thus prev_hash is not set,
+		// attempt to locate a row with next_hash set to the hash of this block,
+		// and set it to the empty string.
+		if err == sql.ErrNoRows {
+			err = UpdateBlockNextByNextHash(dbTx, hash, "")
+		}
 		return
 	}
 
 	// For any row where next_hash is the prev_hash of the removed row, set
 	// next_hash to and empty string since that block is no longer in the chain.
-	return UpdateBlockNextByHash(db, prev_hash, "")
+	return UpdateBlockNextByHash(dbTx, prev_hash, "")
 }
 
 // DeleteBlockData removes all data for the specified block from every table.
 // Data are removed from tables in the following order: vins, vouts, addresses,
 // transactions, tickets, votes, misses, blocks, block_chain.
 // TODO: Consider a transaction for atomic operation.
-func DeleteBlockData(db *sql.DB, hash string) (res dbtypes.DeletionSummary, err error) {
+func DeleteBlockData(ctx context.Context, db *sql.DB, hash string) (res dbtypes.DeletionSummary, err error) {
+	// The data purge is an all or nothing operation (no partial removal of
+	// data), so use a common sql.Tx for all deletions, and Commit in this
+	// function rather after each deletion.
+	var dbTx *sql.Tx
+	dbTx, err = db.BeginTx(ctx, nil)
+	if err != nil {
+		err = fmt.Errorf("failed to start new DB transaction: %v", err)
+		return
+	}
+
 	res.Timings = new(dbtypes.DeletionSummary)
 
 	start := time.Now()
-	if res.Vins, err = deleteVinsForBlock(db, hash); err != nil {
+	if res.Vins, err = deleteVinsForBlock(dbTx, hash); err != nil {
+		err = fmt.Errorf(`deleteVinsForBlock failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
 		return
 	}
 	res.Timings.Vins = time.Since(start).Nanoseconds()
 
 	start = time.Now()
-	if res.Vouts, err = deleteVoutsForBlock(db, hash); err != nil {
+	if res.Vouts, err = deleteVoutsForBlock(dbTx, hash); err != nil {
+		err = fmt.Errorf(`deleteVoutsForBlock failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
 		return
 	}
 	res.Timings.Vouts = time.Since(start).Nanoseconds()
 
 	start = time.Now()
-	if res.Addresses, err = deleteAddressesForBlock(db, hash); err != nil {
+	if res.Addresses, err = deleteAddressesForBlock(dbTx, hash); err != nil {
+		err = fmt.Errorf(`deleteAddressesForBlock failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
 		return
 	}
 	res.Timings.Addresses = time.Since(start).Nanoseconds()
@@ -117,31 +140,41 @@ func DeleteBlockData(db *sql.DB, hash string) (res dbtypes.DeletionSummary, err 
 	// rows since the transactions table is used to identify the vin and vout DB
 	// row IDs for a transaction.
 	start = time.Now()
-	if res.Transactions, err = deleteTransactionsForBlock(db, hash); err != nil {
+	if res.Transactions, err = deleteTransactionsForBlock(dbTx, hash); err != nil {
+		err = fmt.Errorf(`deleteTransactionsForBlock failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
 		return
 	}
 	res.Timings.Transactions = time.Since(start).Nanoseconds()
 
 	start = time.Now()
-	if res.Tickets, err = deleteTicketsForBlock(db, hash); err != nil {
+	if res.Tickets, err = deleteTicketsForBlock(dbTx, hash); err != nil {
+		err = fmt.Errorf(`deleteTicketsForBlock failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
 		return
 	}
 	res.Timings.Tickets = time.Since(start).Nanoseconds()
 
 	start = time.Now()
-	if res.Votes, err = deleteVotesForBlock(db, hash); err != nil {
+	if res.Votes, err = deleteVotesForBlock(dbTx, hash); err != nil {
+		err = fmt.Errorf(`deleteVotesForBlock failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
 		return
 	}
 	res.Timings.Votes = time.Since(start).Nanoseconds()
 
 	start = time.Now()
-	if res.Misses, err = deleteMissesForBlock(db, hash); err != nil {
+	if res.Misses, err = deleteMissesForBlock(dbTx, hash); err != nil {
+		err = fmt.Errorf(`deleteMissesForBlock failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
 		return
 	}
 	res.Timings.Misses = time.Since(start).Nanoseconds()
 
 	start = time.Now()
-	if res.Blocks, err = deleteBlock(db, hash); err != nil {
+	if res.Blocks, err = deleteBlock(dbTx, hash); err != nil {
+		err = fmt.Errorf(`deleteBlock failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
 		return
 	}
 	res.Timings.Blocks = time.Since(start).Nanoseconds()
@@ -150,29 +183,43 @@ func DeleteBlockData(db *sql.DB, hash string) (res dbtypes.DeletionSummary, err 
 			res.Blocks)
 	}
 
-	err = deleteBlockFromChain(db, hash)
+	err = deleteBlockFromChain(dbTx, hash)
+	switch err {
+	case sql.ErrNoRows:
+		// Just warn but do not return the error.
+		err = nil
+		log.Warnf("Block with hash %s not found in block_chain table.", hash)
+	case nil:
+		// Great. Go on to Commit.
+	default: // err != nil && err != sql.ErrNoRows
+		err = fmt.Errorf(`deleteBlockFromChain failed with "%v". Rollback: %v`,
+			err, dbTx.Rollback())
+		return
+	}
+
+	err = dbTx.Commit()
 
 	return
 }
 
 // DeleteBestBlock removes all data for the best block in the DB from every
 // table via DeleteBlockData.
-func DeleteBestBlock(db *sql.DB) (res dbtypes.DeletionSummary, height uint64, hash string, err error) {
-	height, hash, _, err = RetrieveBestBlockHeight(context.Background(), db)
+func DeleteBestBlock(ctx context.Context, db *sql.DB) (res dbtypes.DeletionSummary, height uint64, hash string, err error) {
+	height, hash, _, err = RetrieveBestBlockHeight(ctx, db)
 	if err != nil {
 		return
 	}
 
-	res, err = DeleteBlockData(db, hash)
+	res, err = DeleteBlockData(ctx, db, hash)
 	return
 }
 
 // DeleteBlocks removes all data for the N best blocks in the DB from every
 // table via repeated calls to DeleteBestBlock.
-func DeleteBlocks(N int64, db *sql.DB) (res []dbtypes.DeletionSummary, height uint64, hash string, err error) {
+func DeleteBlocks(ctx context.Context, N int64, db *sql.DB) (res []dbtypes.DeletionSummary, height uint64, hash string, err error) {
 	for i := int64(0); i < N; i++ {
 		var resi dbtypes.DeletionSummary
-		resi, height, hash, err = DeleteBestBlock(db)
+		resi, height, hash, err = DeleteBestBlock(ctx, db)
 		res = append(res, resi)
 	}
 	return

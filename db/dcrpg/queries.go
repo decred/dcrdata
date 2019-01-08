@@ -48,9 +48,14 @@ func closeRows(rows *sql.Rows) {
 	}
 }
 
+// SqlExecutor is implemented by both sql.DB and sql.Tx.
+type SqlExecutor interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
 // sqlExec executes the SQL statement string with any optional arguments, and
 // returns the nuber of rows affected.
-func sqlExec(db *sql.DB, stmt, execErrPrefix string, args ...interface{}) (int64, error) {
+func sqlExec(db SqlExecutor, stmt, execErrPrefix string, args ...interface{}) (int64, error) {
 	res, err := db.Exec(stmt, args...)
 	if err != nil {
 		return 0, fmt.Errorf(execErrPrefix + " " + err.Error())
@@ -2055,7 +2060,7 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 
 // SetSpendingForFundingOP updates funding rows of the addresses table with the
 // provided spending transaction output info.
-func SetSpendingForFundingOP(db *sql.DB, fundingTxHash string, fundingTxVoutIndex uint32,
+func SetSpendingForFundingOP(db SqlExecutor, fundingTxHash string, fundingTxVoutIndex uint32,
 	spendingTxHash string, _ /*spendingTxVinIndex*/ uint32) (int64, error) {
 	// Update the matchingTxHash for the funding tx output. matchingTxHash here
 	// is the hash of the funding tx.
@@ -3130,7 +3135,7 @@ func UpdateLastAddressesValid(db *sql.DB, blockHash string, isValid bool) error 
 
 // UpdateBlockNext sets the next block's hash for the specified row of the
 // block_chain table specified by DB row ID.
-func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
+func UpdateBlockNext(db SqlExecutor, blockDbID uint64, next string) error {
 	res, err := db.Exec(internal.UpdateBlockNext, blockDbID, next)
 	if err != nil {
 		return err
@@ -3147,7 +3152,7 @@ func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
 
 // UpdateBlockNextByHash sets the next block's hash for the block in the
 // block_chain table specified by hash.
-func UpdateBlockNextByHash(db *sql.DB, this, next string) error {
+func UpdateBlockNextByHash(db SqlExecutor, this, next string) error {
 	res, err := db.Exec(internal.UpdateBlockNextByHash, this, next)
 	if err != nil {
 		return err
@@ -3158,6 +3163,23 @@ func UpdateBlockNextByHash(db *sql.DB, this, next string) error {
 	}
 	if numRows != 1 {
 		return fmt.Errorf("UpdateBlockNextByHash failed to update exactly 1 row (%d)", numRows)
+	}
+	return nil
+}
+
+// UpdateBlockNextByNextHash sets the next block's hash for the block in the
+// block_chain table with a current next_hash specified by hash.
+func UpdateBlockNextByNextHash(db SqlExecutor, currentNext, newNext string) error {
+	res, err := db.Exec(internal.UpdateBlockNextByNextHash, currentNext, newNext)
+	if err != nil {
+		return err
+	}
+	numRows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if numRows != 1 {
+		return fmt.Errorf("UpdateBlockNextByNexHash failed to update exactly 1 row (%d)", numRows)
 	}
 	return nil
 }

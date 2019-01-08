@@ -1831,9 +1831,9 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 
 // PurgeBestBlocks deletes all data for the N best blocks in the DB.
 func (pgb *ChainDB) PurgeBestBlocks(N int64) (*dbtypes.DeletionSummary, int64, error) {
-	res, _, _, err := DeleteBlocks(N, pgb.db)
+	res, _, _, err := DeleteBlocks(pgb.ctx, N, pgb.db)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, pgb.replaceCancelError(err)
 	}
 
 	summary := dbtypes.DeletionSummarySlice(res).Reduce()

@@ -198,8 +198,9 @@ const (
 
 	SelectBlockChainRowIDByHash = `SELECT block_db_id FROM block_chain WHERE this_hash = $1;`
 
-	UpdateBlockNext       = `UPDATE block_chain SET next_hash = $2 WHERE block_db_id = $1;`
-	UpdateBlockNextByHash = `UPDATE block_chain SET next_hash = $2 WHERE this_hash = $1;`
+	UpdateBlockNext           = `UPDATE block_chain SET next_hash = $2 WHERE block_db_id = $1;`
+	UpdateBlockNextByHash     = `UPDATE block_chain SET next_hash = $2 WHERE this_hash = $1;`
+	UpdateBlockNextByNextHash = `UPDATE block_chain SET next_hash = $2 WHERE next_hash = $1;`
 
 	// Grab the timestamp and chainwork.
 	SelectChainWork = `SELECT time, chainwork FROM blocks WHERE is_mainchain = true ORDER BY time;`

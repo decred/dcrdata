@@ -51,7 +51,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestDeleteBestBlock(t *testing.T) {
-	res, height, hash, err := DeleteBestBlock(db.db)
+	ctx := context.Background()
+	res, height, hash, err := DeleteBestBlock(ctx, db.db)
 	t.Logf("Deletion summary for block %d (%s): %v", height, hash, res)
 	if err != nil {
 		t.Errorf("Failed to delete best block data: %v", err)
@@ -83,8 +84,9 @@ func TestDeleteBlocks(t *testing.T) {
 	t.Logf("Initial best block %d (%s).", height0, hash0)
 
 	start := time.Now()
+	ctx := context.Background()
 
-	res, _, _, err := DeleteBlocks(N, db.db)
+	res, _, _, err := DeleteBlocks(ctx, N, db.db)
 	if err != nil {
 		t.Error(err)
 	}
@@ -92,7 +94,7 @@ func TestDeleteBlocks(t *testing.T) {
 		t.Errorf("Expected to delete %d blocks; actually deleted %d.", N, len(res))
 	}
 
-	height, hash, _, err := RetrieveBestBlockHeight(context.Background(), db.db)
+	height, hash, _, err := RetrieveBestBlockHeight(ctx, db.db)
 	if err != nil {
 		t.Error(err)
 	}
