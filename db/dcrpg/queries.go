@@ -37,6 +37,8 @@ type outputCountType int
 const (
 	outputCountByAllBlocks outputCountType = iota
 	outputCountByTicketPoolWindow
+
+	NotOneRowErrMsg = "failed to update exactly 1 row"
 )
 
 // Maintenance functions
@@ -3145,7 +3147,7 @@ func UpdateBlockNext(db SqlExecutor, blockDbID uint64, next string) error {
 		return err
 	}
 	if numRows != 1 {
-		return fmt.Errorf("UpdateBlockNext failed to update exactly 1 row (%d)", numRows)
+		return fmt.Errorf("%s (%d)", NotOneRowErrMsg, numRows)
 	}
 	return nil
 }
@@ -3162,7 +3164,7 @@ func UpdateBlockNextByHash(db SqlExecutor, this, next string) error {
 		return err
 	}
 	if numRows != 1 {
-		return fmt.Errorf("UpdateBlockNextByHash failed to update exactly 1 row (%d)", numRows)
+		return fmt.Errorf("%s (%d)", NotOneRowErrMsg, numRows)
 	}
 	return nil
 }
@@ -3179,7 +3181,7 @@ func UpdateBlockNextByNextHash(db SqlExecutor, currentNext, newNext string) erro
 		return err
 	}
 	if numRows != 1 {
-		return fmt.Errorf("UpdateBlockNextByNexHash failed to update exactly 1 row (%d)", numRows)
+		return fmt.Errorf("%s (%d)", NotOneRowErrMsg, numRows)
 	}
 	return nil
 }

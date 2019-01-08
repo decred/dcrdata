@@ -37,6 +37,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/decred/dcrdata/v4/db/dbtypes"
@@ -98,7 +99,7 @@ func deleteBlockFromChain(dbTx *sql.Tx, hash string) (err error) {
 // DeleteBlockData removes all data for the specified block from every table.
 // Data are removed from tables in the following order: vins, vouts, addresses,
 // transactions, tickets, votes, misses, blocks, block_chain.
-// TODO: Consider a transaction for atomic operation.
+// WARNING: When no indexes are present, these queries are VERY SLOW.
 func DeleteBlockData(ctx context.Context, db *sql.DB, hash string) (res dbtypes.DeletionSummary, err error) {
 	// The data purge is an all or nothing operation (no partial removal of
 	// data), so use a common sql.Tx for all deletions, and Commit in this
@@ -192,8 +193,15 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string) (res dbtypes.
 	case nil:
 		// Great. Go on to Commit.
 	default: // err != nil && err != sql.ErrNoRows
-		err = fmt.Errorf(`deleteBlockFromChain failed with "%v". Rollback: %v`,
-			err, dbTx.Rollback())
+		// Do not return an error if deleteBlockFromChain just did not delete
+		// exactly 1 row. Commit and be done.
+		if strings.HasPrefix(err.Error(), NotOneRowErrMsg) {
+			log.Warnf("deleteBlockFromChain: %v", err)
+			err = dbTx.Commit()
+		} else {
+			err = fmt.Errorf(`deleteBlockFromChain failed with "%v". Rollback: %v`,
+				err, dbTx.Rollback())
+		}
 		return
 	}
 
@@ -203,7 +211,9 @@ func DeleteBlockData(ctx context.Context, db *sql.DB, hash string) (res dbtypes.
 }
 
 // DeleteBestBlock removes all data for the best block in the DB from every
-// table via DeleteBlockData.
+// table via DeleteBlockData. The returned height and hash are for the best
+// block after successful data removal, or the initial best block if removal
+// fails as indicated by a non-nil error value.
 func DeleteBestBlock(ctx context.Context, db *sql.DB) (res dbtypes.DeletionSummary, height uint64, hash string, err error) {
 	height, hash, _, err = RetrieveBestBlockHeight(ctx, db)
 	if err != nil {
@@ -211,6 +221,11 @@ func DeleteBestBlock(ctx context.Context, db *sql.DB) (res dbtypes.DeletionSumma
 	}
 
 	res, err = DeleteBlockData(ctx, db, hash)
+	if err != nil {
+		return
+	}
+
+	height, hash, _, err = RetrieveBestBlockHeight(ctx, db)
 	return
 }
 
@@ -220,7 +235,18 @@ func DeleteBlocks(ctx context.Context, N int64, db *sql.DB) (res []dbtypes.Delet
 	for i := int64(0); i < N; i++ {
 		var resi dbtypes.DeletionSummary
 		resi, height, hash, err = DeleteBestBlock(ctx, db)
+		// Continue if err == sql.ErrNoRows or nil.
+		if err != nil && err != sql.ErrNoRows {
+			return
+		}
 		res = append(res, resi)
+		if hash == "" {
+			err = nil // do not return sql.ErrNoRows
+			break
+		}
+		if i%100 == 0 {
+			log.Debugf("Removed data for %d blocks.", i)
+		}
 	}
 	return
 }
