@@ -188,7 +188,7 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// DisapprovedBlocks is the page handler for the "/rejects" path.
+// DisapprovedBlocks is the page handler for the "/disapproved" path.
 func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request) {
 	disapprovedBlocks, err := exp.explorerSource.DisapprovedBlocks()
 	if exp.timeoutErrorPage(w, err, "DisapprovedBlocks") {
@@ -201,7 +201,7 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	str, err := exp.templates.execTemplateToString("rejects", struct {
+	str, err := exp.templates.execTemplateToString("disapproved", struct {
 		*CommonPageData
 		Data    []*dbtypes.BlockStatus
 		NetName string

@@ -303,7 +303,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
-		"sidechains", "rejects", "ticketpool", "nexthome", "statistics",
+		"sidechains", "disapproved", "ticketpool", "nexthome", "statistics",
 		"windows", "timelisting", "addresstable"}
 
 	for _, name := range tmpls {
