@@ -1,40 +1,6 @@
 /* bootstrap overrides */
-.progress {
-  background-color: #ddd;
-  border-radius: 2px;
-  height: 1.5rem;
-}
+// try to customize via _variables.scss first before authoring an override
 
 .progress-bar {
-  background: #74e06b;
-  color: #333;
-  line-height: 1.5rem;
   text-shadow: 1px 1px 0 #00000012;
-}
-
-.btn-primary {
-  background-color: #2970ff;
-  border-color: #2970ff;
-}
-
-.btn-success {
-  background-color: #2ed6a1;
-  border-color: #2ed6a1;
-}
-
-.btn-success:hover {
-  background: #3fc39a;
-  border-color: #3fc39a;
-}
-
-.nav-pills .nav-link {
-  padding: 0.3rem 0.4rem;
-  border-radius: 0;
-  height: 38px;
-  line-height: 28px;
-}
-
-.nav-pills .nav-link.active {
-  background-color: #2970ff;
-  color: #f4f6f6;
 }

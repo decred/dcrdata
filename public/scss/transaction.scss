@@ -12,7 +12,7 @@
 .script-data {
   z-index: -1;
   border-top: 1px solid #ccc;
-  font-family: 'source-sans-pro-v9-latin-regular', Arial, Helvetica, sans-serif;
+  font-family: $font-family-sans-serif;
 }
 
 .invalidated-tx {
