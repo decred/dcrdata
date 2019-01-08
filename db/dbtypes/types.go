@@ -362,6 +362,45 @@ func (p *VinTxPropertyARRAY) Scan(src interface{}) error {
 	return nil
 }
 
+// DeletionSummary provides the number of rows removed from the tables when a
+// block is removed.
+type DeletionSummary struct {
+	Blocks, Vins, Vouts, Addresses, Transactions, Tickets, Votes, Misses int64
+	Timings                                                              *DeletionSummary
+}
+
+// String makes a pretty summary of the totals.
+func (s DeletionSummary) String() string {
+	summary := fmt.Sprintf("\t%5d Blocks purged\n", s.Blocks)
+	summary = summary + fmt.Sprintf("\t%5d Vins purged\n", s.Vins)
+	summary = summary + fmt.Sprintf("\t%5d Vouts purged\n", s.Vouts)
+	summary = summary + fmt.Sprintf("\t%5d Addresses purged\n", s.Addresses)
+	summary = summary + fmt.Sprintf("\t%5d Transactions purged\n", s.Transactions)
+	summary = summary + fmt.Sprintf("\t%5d Tickets purged\n", s.Tickets)
+	summary = summary + fmt.Sprintf("\t%5d Votes purged\n", s.Votes)
+	summary = summary + fmt.Sprintf("\t%5d Misses purged", s.Misses)
+	return summary
+}
+
+// DeletionSummarySlice is used to define methods on DeletionSummary slices.
+type DeletionSummarySlice []DeletionSummary
+
+// Reduce returns a single DeletionSummary with the corresponding fields summed.
+func (ds DeletionSummarySlice) Reduce() DeletionSummary {
+	var s DeletionSummary
+	for i := range ds {
+		s.Blocks += ds[i].Blocks
+		s.Vins += ds[i].Vins
+		s.Vouts += ds[i].Vouts
+		s.Addresses += ds[i].Addresses
+		s.Transactions += ds[i].Transactions
+		s.Tickets += ds[i].Tickets
+		s.Votes += ds[i].Votes
+		s.Misses += ds[i].Misses
+	}
+	return s
+}
+
 // VinTxPropertyARRAY is a slice of VinTxProperty sturcts that implements
 // sql.Scanner and driver.Valuer.
 type VinTxPropertyARRAY []VinTxProperty

@@ -207,6 +207,20 @@ func _main(ctx context.Context) error {
 		}
 	}
 
+	// Optionally purge best blocks according to config.
+	if cfg.PurgeNBestBlocks > 0 {
+		N := int64(cfg.PurgeNBestBlocks)
+		log.Infof("Purging data for the %d best blocks in the aux. DB...", N)
+		s, heightDB, err := auxDB.PurgeBestBlocks(N)
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("Failed to purge %d blocks from the aux. DB: %v", N, err)
+		}
+		if s != nil {
+			log.Infof("Sucessfully purged data for %d blocks from the aux. DB (new height = %d):\n%v",
+				s.Blocks, heightDB, s)
+		} // otherwise err == sql.ErrNoRows
+	}
+
 	blockHash, nodeHeight, err := dcrdClient.GetBestBlock()
 	if err != nil {
 		return fmt.Errorf("Unable to get block from node: %v", err)
@@ -274,16 +288,26 @@ func _main(ctx context.Context) error {
 			return fmt.Errorf("Node is still syncing. Node height = %d, "+
 				"DB height = %d", expectedHeight, heightDB)
 		}
-		if blocksBehind > 7500 {
-			log.Warnf("Setting PSQL sync to rebuild address table after large "+
-				"import (%d blocks).", blocksBehind)
-			updateAllAddresses = true
-			if blocksBehind > 40000 {
-				log.Warnf("Setting PSQL sync to drop indexes prior to bulk data "+
-					"import (%d blocks).", blocksBehind)
-				newPGIndexes = true
-			}
-		}
+		// (TODO@chappjc) The following overrides of updateAllAddresses and
+		// newPGIndexes are COMMENTED OUT until the utxoStore/utxoCache can be
+		// pre-charged. This is because without indexes and without a
+		// well-populated utxo cache, the query the value and corresponding
+		// address for a UTXO is far too slow. In an initial sync, the utxo
+		// cache is effective as it gets filled from the start of the chain, but
+		// when starting at an arbitrary block the cache is empty. But the
+		// queries to look up the data on a cache miss rely on the indexes for
+		// acceptable performance.
+		//
+		// if blocksBehind > 7500 {
+		//  log.Warnf("Setting PSQL sync to rebuild address table after large "+
+		//      "import (%d blocks).", blocksBehind)
+		//  updateAllAddresses = true
+		//  if blocksBehind > 40000 {
+		//      log.Warnf("Setting PSQL sync to drop indexes prior to bulk data "+
+		//          "import (%d blocks).", blocksBehind)
+		//      newPGIndexes = true
+		//  }
+		// }
 
 		// PG gets winning tickets out of baseDB's pool info cache, so it must
 		// be big enough to hold the needed blocks' info, and charged with the

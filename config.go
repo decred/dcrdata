@@ -102,6 +102,8 @@ type config struct {
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)." env:"DCRDATA_SQLITE_DB_FILE_NAME"`
 	AgendaDBFileName   string `long:"agendadbfile" description:"Agenda DB file name (default is agendas.db)." env:"DCRDATA_AGENDA_DB_FILE_NAME"`
 
+	PurgeNBestBlocks int `long:"purge-n-blocks" description:"Purge all data for the N best blocks, using the best block across all DBs if they are out of sync."`
+
 	FullMode       bool          `long:"pg" description:"Run in \"Full Mode\" mode,  enables postgresql support" env:"DCRDATA_ENABLE_FULL_MODE"`
 	PGDBName       string        `long:"pgdbname" description:"PostgreSQL DB name." env:"DCRDATA_PG_DB_NAME"`
 	PGUser         string        `long:"pguser" description:"PostgreSQL DB user." env:"DCRDATA_POSTGRES_USER"`
@@ -499,6 +501,11 @@ func loadConfig() (*config, error) {
 			return nil, fmt.Errorf("sync-status-limit should not be set to "+
 				"a value less than 2 or more than %d", maxSyncStatusLimit)
 		}
+	}
+
+	// Validate block purge options.
+	if cfg.PurgeNBestBlocks < 0 {
+		return nil, fmt.Errorf("purge-n-blocks must be non-negative")
 	}
 
 	// Set the host names and ports to the default if the user does not specify

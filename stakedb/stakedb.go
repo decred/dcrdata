@@ -689,7 +689,7 @@ func (db *StakeDatabase) disconnectBlock(neglectCache bool) error {
 		}
 	}
 
-	log.Debugf("Disconnecting block %d.", childHeight)
+	log.Tracef("Disconnecting block %d.", childHeight)
 	childUndoData := append(stake.UndoTicketDataSlice(nil), db.BestNode.UndoData()...)
 
 	// previous best node

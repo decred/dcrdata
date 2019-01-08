@@ -1829,6 +1829,18 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
+// PurgeBestBlocks deletes all data for the N best blocks in the DB.
+func (pgb *ChainDB) PurgeBestBlocks(N int64) (*dbtypes.DeletionSummary, int64, error) {
+	res, height, _, err := DeleteBlocks(pgb.ctx, N, pgb.db)
+	if err != nil {
+		return nil, int64(height), pgb.replaceCancelError(err)
+	}
+
+	summary := dbtypes.DeletionSummarySlice(res).Reduce()
+
+	return &summary, int64(height), err
+}
+
 // TxHistoryData fetches the address history chart data for specified chart
 // type and time grouping.
 func (pgb *ChainDB) TxHistoryData(address string, addrChart dbtypes.HistoryChart,

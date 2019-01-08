@@ -70,10 +70,15 @@ func (db *WiredDB) RewindStakeDB(ctx context.Context, toHeight int64) (stakeDBHe
 		toHeight = 0
 	}
 	fromHeight := stakeDBHeight
-	log.Infof("Rewinding from %d to %d", fromHeight, toHeight)
+
+	pStep := int64(1000)
 	for stakeDBHeight > toHeight {
-		if stakeDBHeight == fromHeight || stakeDBHeight%200 == 0 {
-			log.Infof("Rewinding from %d to %d", stakeDBHeight, toHeight)
+		if stakeDBHeight == fromHeight || stakeDBHeight%pStep == 0 {
+			endSegment := pStep * ((stakeDBHeight - 1) / pStep)
+			if endSegment < toHeight {
+				endSegment = toHeight
+			}
+			log.Infof("Rewinding from %d to %d", stakeDBHeight, endSegment)
 		}
 		// check for quit signal
 		select {
