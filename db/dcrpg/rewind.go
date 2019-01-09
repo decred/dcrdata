@@ -232,6 +232,16 @@ func DeleteBestBlock(ctx context.Context, db *sql.DB) (res dbtypes.DeletionSumma
 // DeleteBlocks removes all data for the N best blocks in the DB from every
 // table via repeated calls to DeleteBestBlock.
 func DeleteBlocks(ctx context.Context, N int64, db *sql.DB) (res []dbtypes.DeletionSummary, height uint64, hash string, err error) {
+	// If N is less than 1, get the current best block height and hash, then
+	// return.
+	if N < 1 {
+		height, hash, _, err = RetrieveBestBlockHeight(ctx, db)
+		if err == sql.ErrNoRows {
+			err = nil
+		}
+		return
+	}
+
 	for i := int64(0); i < N; i++ {
 		var resi dbtypes.DeletionSummary
 		resi, height, hash, err = DeleteBestBlock(ctx, db)
@@ -244,9 +254,10 @@ func DeleteBlocks(ctx context.Context, N int64, db *sql.DB) (res []dbtypes.Delet
 			err = nil // do not return sql.ErrNoRows
 			break
 		}
-		if i%100 == 0 {
-			log.Debugf("Removed data for %d blocks.", i)
+		if (i%100 == 0 && i > 0) || i == N-1 {
+			log.Debugf("Removed data for %d blocks.", i+1)
 		}
 	}
+
 	return
 }

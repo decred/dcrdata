@@ -695,11 +695,14 @@ func (pgb *ChainDB) TransactionBlocks(txHash string) ([]*dbtypes.BlockStatus, []
 	return blocks, inds, nil
 }
 
-// HeightDB queries the DB for the best block height.
+// HeightDB queries the DB for the best block height. When the tables are empty,
+// the returned height will be 0, so it is necessary to check if the error value
+// is sql.ErrNoRows in this case.
 func (pgb *ChainDB) HeightDB() (uint64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 	bestHeight, _, _, err := RetrieveBestBlockHeight(ctx, pgb.db)
+	// DO NOT change this to return -1 if err == sql.ErrNoRows.
 	return bestHeight, pgb.replaceCancelError(err)
 }
 
