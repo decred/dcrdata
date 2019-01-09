@@ -63,30 +63,44 @@ func (db *WiredDB) initWaitChan(waitChan chan chainhash.Hash) {
 // should abort. If the specified height is greater than the current stake DB
 // height, RewindStakeDB will exit without error, returning the current stake DB
 // height and a nil error.
-func (db *WiredDB) RewindStakeDB(ctx context.Context, toHeight int64) (stakeDBHeight int64, err error) {
-	// rewind best node in ticket db
-	stakeDBHeight = int64(db.sDB.Height())
+func (db *WiredDB) RewindStakeDB(ctx context.Context, toHeight int64, quiet ...bool) (stakeDBHeight int64, err error) {
+	// Target height must be non-negative. It is not possible to disconnect the
+	// genesis block.
 	if toHeight < 0 {
 		toHeight = 0
 	}
-	fromHeight := stakeDBHeight
 
+	// Periodically log progress unless quiet[0]==true
+	showProgress := true
+	if len(quiet) > 0 {
+		showProgress = !quiet[0]
+	}
+
+	// Disconnect blocks until the stake database reaches the target height.
+	stakeDBHeight = int64(db.sDB.Height())
+	startHeight := stakeDBHeight
 	pStep := int64(1000)
 	for stakeDBHeight > toHeight {
-		if stakeDBHeight == fromHeight || stakeDBHeight%pStep == 0 {
+		// Log rewind progress at regular intervals.
+		if stakeDBHeight == startHeight || stakeDBHeight%pStep == 0 {
 			endSegment := pStep * ((stakeDBHeight - 1) / pStep)
 			if endSegment < toHeight {
 				endSegment = toHeight
 			}
-			log.Infof("Rewinding from %d to %d", stakeDBHeight, endSegment)
+			if showProgress {
+				log.Infof("Rewinding from %d to %d", stakeDBHeight, endSegment)
+			}
 		}
-		// check for quit signal
+
+		// Check for quit signal.
 		select {
 		case <-ctx.Done():
 			log.Infof("Rewind cancelled at height %d.", stakeDBHeight)
 			return
 		default:
 		}
+
+		// Disconect the best block.
 		if err = db.sDB.DisconnectBlock(false); err != nil {
 			return
 		}
