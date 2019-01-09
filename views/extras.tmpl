@@ -150,16 +150,20 @@
 </footer>
 {{end}}
 
-{{define "decimalParts"}}<div class="decimal-parts d-inline-block">{{if eq (len .) 4}}
-    <span class="int">{{ index . 0 }}.{{ index . 1 }}</span
-    >{{if gt (len (index . 2)) 0}}<span class="decimal">{{ index . 2 }}</span
-    ><span class="decimal trailing-zeroes">{{ index . 3 }}</span>{{end}}
-{{else}}
-    <span class="int">{{index . 0}}</span
-    >{{if gt (len (index . 1)) 0}}<span class="decimal dot">.</span
-    ><span class="decimal">{{index . 1 }}</span
-    ><span class="decimal trailing-zeroes">{{index . 2}}</span>{{end}}
-{{end}}</div>{{end}}
+{{define "decimalParts"}}
+<div class="decimal-parts d-flex align-items-baseline">
+    {{if eq (len .) 4}}
+        <span class="int">{{ index . 0 }}.{{ index . 1 }}</span
+        >{{if gt (len (index . 2)) 0}}<span class="decimal">{{ index . 2 }}</span
+        ><span class="decimal trailing-zeroes">{{ index . 3 }}</span>{{end}}
+    {{else}}
+        <span class="int">{{index . 0}}</span
+        >{{if gt (len (index . 1)) 0}}<span class="decimal dot">.</span
+        ><span class="decimal">{{index . 1 }}</span
+        ><span class="decimal trailing-zeroes">{{index . 2}}</span>{{end}}
+    {{end}}
+    </div>
+{{end}}
 
 {{define "fmtPercentage"}}
     {{if gt . 0.0}}<span style="color:green">+{{printf "%.2f" .}} %</span>
