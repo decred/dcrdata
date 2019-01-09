@@ -9,6 +9,7 @@ import TurboQuery from '../helpers/turbolinks_helper'
 import axios from 'axios'
 import humanize from '../helpers/humanize_helper'
 import txInBlock from '../helpers/block_helper'
+import { animationFrame } from '../helpers/animation_helper'
 
 const blockDuration = 5 * 60000
 let Dygraph // lazy loaded on connect
@@ -235,8 +236,17 @@ export default class extends Controller {
 
   async showQRCode () {
     this.qrboxTarget.classList.remove('d-hide')
+    var animateOpacity = async () => {
+      let img = this.qrimgTarget
+      let transition = img.style.transition
+      img.style.transition = 'all 0 ease 0'
+      img.style.opacity = 0
+      await animationFrame()
+      img.style.transition = transition
+      img.style.opacity = 1
+    }
     if (this.qrCode) {
-      this.qrimgTarget.style.opacity = 1
+      animateOpacity()
     } else {
       let QRCode = await getDefault(
         import(/* webpackChunkName: "qrcode" */ 'qrcode')
@@ -249,7 +259,7 @@ export default class extends Controller {
         }
       )
       this.qrimgTarget.innerHTML = `<img src="${qrCodeImg}"/>`
-      this.qrimgTarget.style.opacity = '1'
+      animateOpacity()
     }
     this.qriconTarget.classList.add('d-hide')
   }
