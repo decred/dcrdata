@@ -232,6 +232,11 @@ func (db *WiredDB) GetBestBlockHash() (string, error) {
 	return hash, err
 }
 
+// BlockchainInfo retrieves the result of the getblockchaininfo node RPC.
+func (db *WiredDB) BlockchainInfo() (*dcrjson.GetBlockChainInfoResult, error) {
+	return db.client.GetBlockChainInfo()
+}
+
 // PurgeBlock deletes all data across all tables for the block with the
 // specified hash. The numbers of blocks removed from the block summary table
 // and stake info table are returned. PurgeBlock will not return sql.ErrNoRows,
