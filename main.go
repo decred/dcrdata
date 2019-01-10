@@ -550,7 +550,9 @@ func _main(ctx context.Context) error {
 		r.Get("/blocks", explore.Blocks)
 		r.Get("/ticketpricewindows", explore.StakeDiffWindows)
 		r.Get("/side", explore.SideChains)
-		r.Get("/rejects", explore.DisapprovedBlocks)
+		r.Get("/rejects", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/disapproved", http.StatusPermanentRedirect)
+		})
 		r.Get("/disapproved", explore.DisapprovedBlocks)
 		r.Get("/mempool", explore.Mempool)
 		r.Get("/parameters", explore.ParametersPage)
