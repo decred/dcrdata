@@ -34,7 +34,7 @@ export default class extends Controller {
         this.formattedAgeTarget.textContent = humanize.formatTxDate(block.time, true)
         this.ageTarget.textContent = '( ago)'
         this.ageTarget.dataset.age = block.time
-        this.ageTarget.textContent = `(${humanize.timeSince(block.time)} ago)`
+        this.ageTarget.textContent = `(${humanize.timeSince(block.unixStamp)} ago)`
         this.ageTarget.dataset.target = 'time.age'
         if (this.hasProgressBarTarget) {
           this.progressBarTarget.dataset.confirmHeight = block.height

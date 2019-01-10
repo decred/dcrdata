@@ -726,7 +726,7 @@ export default class extends Controller {
           row.querySelector('td.addr-tx-time').textContent = humanize.formatTxDate(block.time, false)
           let age = row.querySelector('td.addr-tx-age > span')
           age.dataset.age = block.time
-          age.textContent = humanize.timeSince(block.time)
+          age.textContent = humanize.timeSince(block.unixStamp)
           delete row.dataset.target
           // Increment the displayed tx count
           let count = this.txnCountTarget
