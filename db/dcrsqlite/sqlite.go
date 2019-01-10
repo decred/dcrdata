@@ -362,7 +362,9 @@ type DBDataSaver struct {
 	updateStatusChan chan uint32
 }
 
-// Store satisfies the blockdata.BlockDataSaver interface.
+// Store satisfies the blockdata.BlockDataSaver interface. This function is only
+// to be used for storing main chain block data. Use StoreSideBlock or
+// StoreBlock directly to store side chain block data.
 func (db *DBDataSaver) Store(data *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
 	summary := data.ToBlockSummary()
 	var err error
@@ -395,12 +397,8 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData, msgBlock *wire.MsgBlock)
 		}
 	}
 
-	// Set is_mainchain false for every block at this height
-	err = db.DB.setHeightToSideChain(int64(msgBlock.Header.Height))
-	if err != nil {
-		return err
-	}
-
+	// Store the main chain block data, flagging any other blocks at this height
+	// as side chain.
 	err = db.DB.StoreBlockSummary(&summary)
 	if err != nil {
 		return err
@@ -510,6 +508,14 @@ func (db *DB) getMainchainStatus(blockhash string) (bool, error) {
 // StoreBlock attempts to store the block data in the database, and
 // returns an error on failure.
 func (db *DB) StoreBlock(bd *apitypes.BlockDataBasic, isMainchain bool, isValid bool) error {
+	// When storing data for a main chain block, set is_mainchain=false for any
+	// other block at this height.
+	if isMainchain {
+		if err := db.setHeightToSideChain(int64(bd.Height)); err != nil {
+			return err
+		}
+	}
+
 	stmt, err := db.Prepare(db.insertBlockSQL)
 	if err != nil {
 		return err
@@ -536,7 +542,6 @@ func (db *DB) StoreBlock(bd *apitypes.BlockDataBasic, isMainchain bool, isValid 
 	db.Lock()
 	defer db.Unlock()
 	if err = logDBResult(res); err == nil {
-		// TODO: atomic with CAS
 		height := int64(bd.Height)
 		if height > db.dbSummaryHeight {
 			db.dbSummaryHeight = height
