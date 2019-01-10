@@ -59,9 +59,10 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 			reorgData.OldChainHeight, commonAncestorHeight)
 	}
 
-	// Update DB tables, just overwriting any existing data.
-	// TODO(chappjc): Remove rows for disconnected blocks just in case not
-	// everything gets overwritten, as intended.
+	// Update DB tables, just overwriting any existing data. TODO(chappjc): Set
+	// is_mainchain=false for the previous main chain (disconnected) blocks. For
+	// now, StoreBlockSummary first does this for any main chain block being
+	// added. This is unnecessary except during a reorg, but it does the job.
 
 	// Save blocks from previous side chain that is now the main chain
 	log.Infof("Saving %d new blocks from previous side chain to sqlite.", len(newChain))
