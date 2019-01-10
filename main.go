@@ -217,16 +217,28 @@ func _main(ctx context.Context) error {
 		}
 
 		baseDBHeight, err = baseDB.GetHeight()
-		if err != nil && err != sql.ErrNoRows {
-			log.Errorf("baseDB.GetHeight failed: %v", err)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				log.Errorf("baseDB.GetHeight failed: %v", err)
+				return
+			}
+			// err == sql.ErrNoRows is not an error
+			err = nil
+			log.Infof("baseDB block summary table is empty.")
 		}
 		log.Debugf("baseDB height: %d", baseDBHeight)
 		dbHeight = baseDBHeight
 
 		if usePG {
 			auxDBHeight, err = auxDB.GetHeight()
-			if err != nil && err != sql.ErrNoRows {
-				log.Errorf("auxDB.GetHeight failed: %v", err)
+			if err != nil {
+				if err != sql.ErrNoRows {
+					log.Errorf("auxDB.GetHeight failed: %v", err)
+					return
+				}
+				// err == sql.ErrNoRows is not an error
+				err = nil
+				log.Infof("auxDB block summary table is empty.")
 			}
 			log.Debugf("auxDB height: %d", auxDBHeight)
 			if baseDBHeight > auxDBHeight {
@@ -242,7 +254,7 @@ func _main(ctx context.Context) error {
 		// will end on the same height.
 		_, _, baseDBHeight, auxDBHeight, err := Heights()
 		if err != nil {
-			return err
+			return fmt.Errorf("Heights failed: %v", err)
 		}
 		// Determine the largest DB height.
 		maxHeight := baseDBHeight
@@ -457,7 +469,7 @@ func _main(ctx context.Context) error {
 	// are true, indicating maintenance or an initial sync.
 	dbHeight, nodeHeight, _, _, err := Heights()
 	if err != nil {
-		return err
+		return fmt.Errorf("Heights failed: %v", err)
 	}
 	blocksBehind := nodeHeight - dbHeight
 	log.Debugf("dbHeight: %d / blocksBehind: %d", dbHeight, blocksBehind)
