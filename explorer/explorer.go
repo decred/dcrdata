@@ -177,8 +177,9 @@ func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) str
 
 type pageData struct {
 	sync.RWMutex
-	BlockInfo *types.BlockInfo
-	HomeInfo  *types.HomeInfo
+	BlockInfo      *types.BlockInfo
+	BlockchainInfo *dcrjson.GetBlockChainInfoResult
+	HomeInfo       *types.HomeInfo
 }
 
 type explorerUI struct {
@@ -417,8 +418,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	p := exp.pageData
 	p.Lock()
 
-	// Store current block data.
+	// Store current block and blockchain data.
 	p.BlockInfo = newBlockData
+	p.BlockchainInfo = blockData.BlockchainInfo
 
 	// Update HomeInfo.
 	p.HomeInfo.HashRate = hashrate
