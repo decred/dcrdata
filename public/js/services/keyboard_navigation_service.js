@@ -60,7 +60,7 @@ function toggleKeyNav () {
 export function keyNav (event, pulsate, preserveIndex) {
   bindElements()
   if (menuToggle.checked) {
-    targets = Array.from(document.querySelectorAll('#hamburger-menu a'))
+    targets = Array.from(document.getElementById('hamburger-menu').querySelectorAll('a'))
     currentIndex = 0
   } else {
     targets = []
@@ -119,7 +119,7 @@ Mousetrap.bind('enter', function (e) {
     e.preventDefault()
     return
   }
-  if (currentTarget[0].id === 'keynav-toggle') {
+  if (currentTarget.id === 'keynav-toggle') {
     toggleKeyNav()
     return
   }
@@ -128,7 +128,7 @@ Mousetrap.bind('enter', function (e) {
     if (currentTarget.dataset.preserveKeynavIndex) {
       jumpToIndexOnLoad = currentIndex
     }
-    currentTarget.addClass('activated')
+    currentTarget.classList.add('activated')
     Turbolinks.visit(location)
   }
 })
