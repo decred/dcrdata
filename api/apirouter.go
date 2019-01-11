@@ -122,7 +122,7 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 			rt.Route("/{txid}", func(rd chi.Router) {
 				rd.Use(m.TransactionHashCtx)
 				rd.Get("/", app.getTransaction)
-				rd.Get("/trimmed", app.getDecodedTransactions)
+				rd.Get("/trimmed", app.getDecodedTx)
 				rd.Route("/out", func(ro chi.Router) {
 					ro.Get("/", app.getTransactionOutputs)
 					ro.With(m.TransactionIOIndexCtx).Get("/{txinoutindex}", app.getTransactionOutput)

@@ -63,7 +63,7 @@ type StakeVersionsLatest func() (*dcrjson.StakeVersions, error)
 func GetBlockStepCtx(r *http.Request) int {
 	step, ok := r.Context().Value(ctxBlockStep).(int)
 	if !ok {
-		apiLog.Error("block step not set")
+		apiLog.Error("block step is not set or is not an int")
 		return -1
 	}
 	return step
@@ -74,7 +74,7 @@ func GetBlockStepCtx(r *http.Request) int {
 func GetBlockIndex0Ctx(r *http.Request) int {
 	idx, ok := r.Context().Value(ctxBlockIndex0).(int)
 	if !ok {
-		apiLog.Error("block index0 not set")
+		apiLog.Error("block index0 is not set or is not an int")
 		return -1
 	}
 	return idx
@@ -85,7 +85,7 @@ func GetBlockIndex0Ctx(r *http.Request) int {
 func GetTxIOIndexCtx(r *http.Request) int {
 	index, ok := r.Context().Value(ctxTxInOutIndex).(int)
 	if !ok {
-		apiLog.Trace("txinoutindex not set")
+		apiLog.Warn("txinoutindex is not set or is not an int")
 		return -1
 	}
 	return index
@@ -96,7 +96,7 @@ func GetTxIOIndexCtx(r *http.Request) int {
 func GetNCtx(r *http.Request) int {
 	N, ok := r.Context().Value(ctxN).(int)
 	if !ok {
-		apiLog.Trace("N not set")
+		apiLog.Trace("N is not set or is not an int")
 		return -1
 	}
 	return N
@@ -107,7 +107,7 @@ func GetNCtx(r *http.Request) int {
 func GetMCtx(r *http.Request) int {
 	M, ok := r.Context().Value(ctxM).(int)
 	if !ok {
-		apiLog.Trace("M not set")
+		apiLog.Trace("M is not set or is not an int")
 		return -1
 	}
 	return M
@@ -249,7 +249,7 @@ func GetChartGroupingCtx(r *http.Request) string {
 func GetCountCtx(r *http.Request) int {
 	count, ok := r.Context().Value(ctxCount).(int)
 	if !ok {
-		apiLog.Trace("count not set")
+		apiLog.Warn("count is not set or is not an int")
 		return 20
 	}
 	return count
@@ -260,7 +260,7 @@ func GetCountCtx(r *http.Request) int {
 func GetOffsetCtx(r *http.Request) int {
 	offset, ok := r.Context().Value(ctxOffset).(int)
 	if !ok {
-		apiLog.Trace("offset not set")
+		apiLog.Warn("offset is not set or is not an int")
 		return 0
 	}
 	return offset
@@ -271,7 +271,7 @@ func GetOffsetCtx(r *http.Request) int {
 func GetStatusInfoCtx(r *http.Request) string {
 	statusInfo, ok := r.Context().Value(ctxGetStatus).(string)
 	if !ok {
-		apiLog.Error("status info no set")
+		apiLog.Warn("status info is not set or is not a string")
 		return ""
 	}
 	return statusInfo
@@ -289,7 +289,7 @@ func GetBlockDateCtx(r *http.Request) string {
 func GetBlockIndexCtx(r *http.Request) int {
 	idx, ok := r.Context().Value(ctxBlockIndex).(int)
 	if !ok {
-		apiLog.Trace("block index not set")
+		apiLog.Warn("block index not set or is not an int")
 		return -1
 	}
 	return idx
@@ -621,7 +621,7 @@ func BlockHashPathAndIndexCtx(r *http.Request, source DataSource) context.Contex
 		apiLog.Errorf("Unable to GetBlockHeight(%d): %v", height, err)
 	}
 	ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
-	return context.WithValue(ctx, ctxBlockIndex, height)
+	return context.WithValue(ctx, ctxBlockIndex, int(height)) // Must be int!
 }
 
 // StatusInfoCtx embeds the best block index and the POST form data for
@@ -632,7 +632,7 @@ func StatusInfoCtx(r *http.Request, source DataSource) context.Context {
 	if h >= 0 && err == nil {
 		idx = h
 	}
-	ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
+	ctx := context.WithValue(r.Context(), ctxBlockIndex, int(idx)) // Must be int!
 
 	q := r.FormValue("q")
 	return context.WithValue(ctx, ctxGetStatus, q)
@@ -653,7 +653,7 @@ func BlockHashLatestCtx(r *http.Request, source DataSource) context.Context {
 		}
 	}
 
-	ctx := context.WithValue(r.Context(), ctxBlockIndex, idx)
+	ctx := context.WithValue(r.Context(), ctxBlockIndex, int(idx)) // Must be int!
 	return context.WithValue(ctx, ctxBlockHash, hash)
 }
 
@@ -677,7 +677,7 @@ func BlockIndexLatestCtx(r *http.Request, source DataSource) context.Context {
 		idx = h
 	}
 
-	return context.WithValue(r.Context(), ctxBlockIndex, idx)
+	return context.WithValue(r.Context(), ctxBlockIndex, int(idx)) // Must be int!
 }
 
 // StatusCtx embeds the specified apitypes.Status into a request context.
@@ -705,7 +705,7 @@ func GetBlockHeightCtx(r *http.Request, source DataSource) int64 {
 func GetLatestVoteVersionCtx(r *http.Request) int {
 	ver, ok := r.Context().Value(ctxStakeVersionLatest).(int)
 	if !ok {
-		apiLog.Error("latest stake version not set")
+		apiLog.Error("latest stake version is not set or is not an int")
 		return -1
 	}
 	return ver

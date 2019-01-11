@@ -99,7 +99,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), ctxBlockHash, hash)
-		ctx = context.WithValue(ctx, ctxBlockIndex, height)
+		ctx = context.WithValue(ctx, ctxBlockIndex, int(height)) // Must be int!
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
