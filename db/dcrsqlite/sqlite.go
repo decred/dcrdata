@@ -59,6 +59,10 @@ const (
 type DB struct {
 	*sql.DB
 
+	// BlockCache stores apitypes.BlockDataBasic and apitypes.StakeInfoExtended
+	// in StoreBlock for quick retrieval without a DB query.
+	BlockCache *apitypes.APICache
+
 	// Guard cached data: lastStoredBlock, dbSummaryHeight, dbStakeInfoHeight
 	sync.RWMutex
 
@@ -82,7 +86,7 @@ type DB struct {
 	getBlockSQL, getLatestBlockSQL                               string
 	getBlockByHashSQL, getBlockByTimeRangeSQL, getBlockByTimeSQL string
 	getBlockHashSQL, getBlockHeightSQL                           string
-	getBlockSizeRangeSQL                                         string
+	getBlockSizeSQL, getBlockSizeRangeSQL                        string
 	getBestBlockHashSQL, getBestBlockHeightSQL                   string
 	getMainchainStatusSQL, invalidateBlockSQL                    string
 	setHeightToSideChainSQL                                      string
@@ -164,6 +168,9 @@ func NewDB(db *sql.DB) (*DB, error) {
 	d.getLatestBlockSQL = fmt.Sprintf(`SELECT * FROM %s
 		ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 
+	d.getBlockSizeSQL = fmt.Sprintf(`SELECT size FROM %s
+		WHERE is_mainchain = 1 AND height = ?`,
+		TableNameSummaries)
 	d.getBlockSizeRangeSQL = fmt.Sprintf(`SELECT size FROM %s
 		WHERE is_mainchain = 1 AND height BETWEEN ? AND ?`,
 		TableNameSummaries)
@@ -515,6 +522,12 @@ func (db *DB) getMainchainStatus(blockhash string) (bool, error) {
 // StoreBlock attempts to store the block data in the database, and
 // returns an error on failure.
 func (db *DB) StoreBlock(bd *apitypes.BlockDataBasic, isMainchain bool, isValid bool) error {
+	// Cache mainchain blocks.
+	if isMainchain && db.BlockCache != nil && db.BlockCache.IsEnabled() {
+		if err := db.BlockCache.StoreBlockSummary(bd); err != nil {
+			return fmt.Errorf("APICache failed to store block: %v", err)
+		}
+	}
 	stmt, err := db.Prepare(db.insertBlockSQL)
 	if err != nil {
 		return err
@@ -1020,6 +1033,17 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 
 // RetrieveBlockHash returns the block hash for block ind
 func (db *DB) RetrieveBlockHash(ind int64) (string, error) {
+	// First try the block summary cache.
+	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
+	if usingBlockCache {
+		hash := db.BlockCache.GetBlockHash(ind)
+		if hash != "" {
+			// Cache hit!
+			return hash, nil
+		}
+		// Cache miss necessitates a DB query.
+	}
+
 	var blockHash string
 	err := db.QueryRow(db.getBlockHashSQL, ind).Scan(&blockHash)
 	return blockHash, err
@@ -1048,6 +1072,16 @@ func (db *DB) RetrieveBestBlockHeight() (int64, error) {
 
 // RetrieveBlockSummaryByHash returns basic block data for a block given its hash
 func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic, error) {
+	// First try the block summary cache.
+	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
+	if usingBlockCache {
+		if bd := db.BlockCache.GetBlockSummaryByHash(hash); bd != nil {
+			// Cache hit!
+			return bd, nil
+		}
+		// Cache miss necessitates a DB query.
+	}
+
 	bd := apitypes.NewBlockDataBasic()
 
 	var winners string
@@ -1062,11 +1096,31 @@ func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic,
 	}
 	bd.Time = apitypes.TimeAPI{S: dbtypes.TimeDef{T: time.Unix(timestamp, 0)}}
 	bd.PoolInfo.Winners = splitToArray(winners)
+
+	if usingBlockCache {
+		// This is a cache miss since hits return early.
+		err = db.BlockCache.StoreBlockSummary(bd)
+		if err != nil {
+			log.Warnf("Failed to cache block %s: %v", hash, err)
+			// Do not return the error.
+		}
+	}
+
 	return bd, nil
 }
 
-// RetrieveBlockSummary returns basic block data for block ind
+// RetrieveBlockSummary returns basic block data for block ind.
 func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) {
+	// First try the block summary cache.
+	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
+	if usingBlockCache {
+		if bd := db.BlockCache.GetBlockSummary(ind); bd != nil {
+			// Cache hit!
+			return bd, nil
+		}
+		// Cache miss necessitates a DB query.
+	}
+
 	bd := apitypes.NewBlockDataBasic()
 
 	// Three different ways
@@ -1117,7 +1171,46 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 	//     log.Error(err)
 	// }
 
+	if usingBlockCache {
+		// This is a cache miss since hits return early.
+		err = db.BlockCache.StoreBlockSummary(bd)
+		if err != nil {
+			log.Warnf("Failed to cache block %d: %v", ind, err)
+			// Do not return the error.
+		}
+	}
+
 	return bd, nil
+}
+
+// RetrieveBlockSize return the size of block at height ind.
+func (db *DB) RetrieveBlockSize(ind int64) (int32, error) {
+	// First try the block summary cache.
+	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
+	if usingBlockCache {
+		sz := db.BlockCache.GetBlockSize(ind)
+		if sz != -1 {
+			// Cache hit!
+			return sz, nil
+		}
+		// Cache miss necessitates a DB query.
+	}
+
+	db.RLock()
+	if ind > db.dbSummaryHeight || ind < 0 {
+		defer db.RUnlock()
+		return -1, fmt.Errorf("Cannot retrieve block size %d, have height %d",
+			ind, db.dbSummaryHeight)
+	}
+	db.RUnlock()
+
+	var blockSize int32
+	err := db.QueryRow(db.getBlockSizeSQL, ind).Scan(&blockSize)
+	if err != nil {
+		return -1, fmt.Errorf("unable to scan for block size: %v", err)
+	}
+
+	return blockSize, nil
 }
 
 // RetrieveBlockSizeRange returns an array of block sizes for block range ind0 to ind1
@@ -1156,7 +1249,7 @@ func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
 	for rows.Next() {
 		var blockSize int32
 		if err = rows.Scan(&blockSize); err != nil {
-			log.Errorf("Unable to scan for sdiff fields: %v", err)
+			log.Errorf("Unable to scan for block size field: %v", err)
 		}
 		blockSizes = append(blockSizes, blockSize)
 	}

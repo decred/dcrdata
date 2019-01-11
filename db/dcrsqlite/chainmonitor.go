@@ -79,6 +79,12 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 				"%v", height, err)
 		}
 
+		// If a block was cached at this height already, it was from the
+		// previous mainchain, so remove it.
+		if p.db.DB.BlockCache != nil {
+			p.db.DB.BlockCache.RemoveCachedBlockByHeight(height)
+		}
+
 		// Store this block's summary data and stake info.
 		if err := p.db.StoreBlockSummary(blockDataSummary); err != nil {
 			log.Errorf("Failed to store block summary data: %v", err)

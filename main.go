@@ -141,7 +141,7 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("expected network %s, got %s", activeNet.Net, curnet)
 	}
 
-	// Sqlite output
+	// SQLite output
 	dbPath := filepath.Join(cfg.DataDir, cfg.DBFileName)
 	dbInfo := dcrsqlite.DBInfo{FileName: dbPath}
 	baseDB, cleanupDB, err := dcrsqlite.InitWiredDB(&dbInfo,
@@ -430,7 +430,7 @@ func _main(ctx context.Context) error {
 		mempoolSavers = append(mempoolSavers, mempoolFeeDumper)
 	}
 
-	blockDataSavers = append(blockDataSavers, &baseDB)
+	blockDataSavers = append(blockDataSavers, baseDB)
 	mempoolSavers = append(mempoolSavers, baseDB.MPC)
 
 	// Allow Ctrl-C to halt startup here.
@@ -439,7 +439,7 @@ func _main(ctx context.Context) error {
 	}
 
 	// Create the explorer system.
-	explore := explorer.New(&baseDB, auxDB, cfg.UseRealIP, version.Version(),
+	explore := explorer.New(baseDB, auxDB, cfg.UseRealIP, version.Version(),
 		!cfg.NoDevPrefetch, "views") // TODO: allow views config
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
@@ -545,7 +545,7 @@ func _main(ctx context.Context) error {
 	var wg sync.WaitGroup
 
 	// Start dcrdata's JSON web API.
-	app := api.NewContext(dcrdClient, activeChain, &baseDB, auxDB, cfg.IndentJSON)
+	app := api.NewContext(dcrdClient, activeChain, baseDB, auxDB, cfg.IndentJSON)
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
 	go app.StatusNtfnHandler(ctx, &wg)
@@ -583,7 +583,8 @@ func _main(ctx context.Context) error {
 		r.Mount("/api", apiMux.Mux)
 		// Setup and mount the Insight API.
 		if usePG {
-			insightApp := insight.NewInsightContext(dcrdClient, auxDB, activeChain, &baseDB, cfg.IndentJSON)
+			insightApp := insight.NewInsightContext(dcrdClient, auxDB,
+				activeChain, baseDB, cfg.IndentJSON)
 			insightMux := insight.NewInsightApiRouter(insightApp, cfg.UseRealIP)
 			r.Mount("/insight/api", insightMux.Mux)
 
@@ -856,6 +857,9 @@ func _main(ctx context.Context) error {
 
 	log.Infof("All ready, at height %d.", baseDBHeight)
 	explore.SetDBsSyncing(false)
+
+	// Enable new blocks being stored into the base DB's cache.
+	baseDB.EnableCache()
 
 	// Deactivate displaying the sync status page after the db sync was completed.
 	if barLoad != nil {

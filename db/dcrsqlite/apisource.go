@@ -48,8 +48,11 @@ type WiredDB struct {
 }
 
 func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string) (WiredDB, func() error) {
-	wDB := WiredDB{
+	p *chaincfg.Params, datadir string) (*WiredDB, func() error) {
+	// Initialize the block summary cache.
+	DB.BlockCache = apitypes.NewAPICache(1e4)
+
+	wDB := &WiredDB{
 		DBDataSaver: &DBDataSaver{DB, statusC},
 		MPC:         new(mempool.MempoolDataCache),
 		client:      cl,
@@ -80,11 +83,11 @@ func newWiredDB(DB *DB, statusC chan uint32, cl *rpcclient.Client,
 // parameters, and a status update channel. It calls dcrsqlite.NewDB to create a
 // new DB that wrapps the sql.DB.
 func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string) (WiredDB, func() error, error) {
+	p *chaincfg.Params, datadir string) (*WiredDB, func() error, error) {
 	// Create the sqlite.DB
 	DB, err := NewDB(db)
 	if err != nil || DB == nil {
-		return WiredDB{}, func() error { return nil }, err
+		return nil, func() error { return nil }, err
 	}
 	// Create the WiredDB
 	wDB, cleanup := newWiredDB(DB, statusC, cl, p, datadir)
@@ -97,10 +100,10 @@ func NewWiredDB(db *sql.DB, statusC chan uint32, cl *rpcclient.Client,
 // InitWiredDB creates a new WiredDB from a file containing the data for a
 // sql.DB. The other parameters are same as those for NewWiredDB.
 func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
-	p *chaincfg.Params, datadir string) (WiredDB, func() error, error) {
+	p *chaincfg.Params, datadir string) (*WiredDB, func() error, error) {
 	db, err := InitDB(dbInfo)
 	if err != nil {
-		return WiredDB{}, func() error { return nil }, err
+		return nil, func() error { return nil }, err
 	}
 
 	wDB, cleanup := newWiredDB(db, statusC, cl, p, datadir)
@@ -108,6 +111,14 @@ func InitWiredDB(dbInfo *DBInfo, statusC chan uint32, cl *rpcclient.Client,
 		err = fmt.Errorf("failed to create StakeDatabase")
 	}
 	return wDB, cleanup, err
+}
+
+func (db *WiredDB) EnableCache() {
+	db.BlockCache.Enable()
+}
+
+func (db *WiredDB) DisableCache() {
+	db.BlockCache.Disable()
 }
 
 func (db *WiredDB) NewStakeDBChainMonitor(ctx context.Context, wg *sync.WaitGroup,
@@ -846,16 +857,12 @@ func (db *WiredDB) GetBestBlockSummary() *apitypes.BlockDataBasic {
 }
 
 func (db *WiredDB) GetBlockSize(idx int) (int32, error) {
-	blockSizes, err := db.RetrieveBlockSizeRange(int64(idx), int64(idx))
+	blockSize, err := db.RetrieveBlockSize(int64(idx))
 	if err != nil {
 		log.Errorf("Unable to retrieve block %d size: %v", idx, err)
 		return -1, err
 	}
-	if len(blockSizes) == 0 {
-		log.Errorf("Unable to retrieve block %d size: %v", idx, err)
-		return -1, fmt.Errorf("empty block size slice")
-	}
-	return blockSizes[0], nil
+	return blockSize, nil
 }
 
 func (db *WiredDB) GetBlockSizeRange(idx0, idx1 int) ([]int32, error) {
