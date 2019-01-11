@@ -1,5 +1,6 @@
 import { Controller } from 'stimulus'
 import ws from '../services/messagesocket_service'
+import { fadeIn } from '../helpers/animation_helper'
 
 export default class extends Controller {
   static get targets () {
@@ -15,10 +16,12 @@ export default class extends Controller {
   connect () {
     ws.registerEvtHandler('decodetxResp', (evt) => {
       this.decodeHeaderTarget.textContent = 'Decoded tx'
+      fadeIn(this.decodedTransactionTarget)
       this.decodedTransactionTarget.textContent = evt
     })
     ws.registerEvtHandler('sendtxResp', (evt) => {
       this.decodeHeaderTarget.textContent = 'Sent tx'
+      fadeIn(this.decodedTransactionTarget)
       this.decodedTransactionTarget.textContent = evt
     })
   }
