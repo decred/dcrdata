@@ -14,13 +14,24 @@ var selectedChart
 let Dygraph // lazy loaded on connect
 
 const blockTime = 5 * 60 * 1000
+const blockScales = ['tx-per-block', 'fee-per-block', 'duration-btw-blocks',
+  'ticket-spend-type', 'ticket-by-outputs-blocks']
 
 function scaleFactor () {
-  switch (selectedChart) {
-    case 'ticket-by-outputs-windows':
-      return blockTime * 144
+  if (selectedChart === 'ticket-by-outputs-windows') {
+    return blockTime * 144
+  } else if (blockScales.indexOf(selectedChart) > -1) {
+    return blockTime
   }
   return 1
+}
+
+function minZoom () {
+  if (selectedChart === 'ticket-by-outputs-windows' ||
+    blockScales.indexOf(selectedChart) > -1) {
+    return 1
+  }
+  return blockTime
 }
 
 function usingWindowUnits () {
@@ -188,6 +199,8 @@ export default class extends Controller {
     this.settings.chart = this.settings.chart || 'ticket-price'
     this.zoomCallback = this._zoomCallback.bind(this)
     this.drawCallback = this._drawCallback.bind(this)
+    this.limits = null
+    this.lastZoom = null
     Dygraph = await getDefault(
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
@@ -226,11 +239,6 @@ export default class extends Controller {
       highlightCircleSize: 4
     }
 
-    if (this.settings.zoom) {
-      let zoom = Zoom.decode(this.settings.zoom)
-      options.dateWindow = [zoom.start / scaleFactor(), zoom.end / scaleFactor()]
-    }
-
     this.chartsView = new Dygraph(
       this.chartsViewTarget,
       [[1, 1]],
@@ -244,8 +252,8 @@ export default class extends Controller {
     var d = []
     var gOptions = {
       rollPeriod: this.rollPeriod,
-      zoomCallback: this.zoomCallback,
-      drawCallback: this.drawCallback
+      zoomCallback: null,
+      drawCallback: null
     }
     switch (chartName) {
       case 'ticket-price': // price graph
@@ -368,8 +376,8 @@ export default class extends Controller {
     if (selectedChart !== selection) {
       let chartResponse = await axios.get('/api/chart/' + selection)
       console.log('got api data', chartResponse, this, selection)
-      this.plotGraph(selection, chartResponse.data)
       selectedChart = selection
+      this.plotGraph(selection, chartResponse.data)
     } else {
       $(this.chartWrapperTarget).removeClass('loading')
     }
@@ -381,6 +389,7 @@ export default class extends Controller {
       el.classList.remove('active')
     })
     target.classList.add('active')
+    this.settings.zoom = null
     this.validateZoom()
   }
 
@@ -388,27 +397,34 @@ export default class extends Controller {
     await animationFrame()
     $(this.chartWrapperTarget).addClass('loading')
     await animationFrame()
-    var zoomMin, zoomMax
-    [zoomMin, zoomMax] = this.chartsView.xAxisExtremes()
-    var limits = Zoom.object(zoomMin * scaleFactor(), zoomMax * scaleFactor())
-    var zoom = Zoom.validate(this.selectedZoom || this.settings.zoom, limits, blockTime)
+    let oldLimits = this.limits || this.chartsView.xAxisExtremes()
+    this.limits = this.chartsView.xAxisExtremes()
+    if (this.selectedZoom) {
+      this.lastZoom = Zoom.validate(this.selectedZoom, this.limits, minZoom(), scaleFactor())
+    } else {
+      this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
+    }
     this.chartsView.updateOptions({
-      dateWindow: [zoom.start / scaleFactor(), zoom.end / scaleFactor()]
+      dateWindow: [this.lastZoom.start, this.lastZoom.end]
     })
-    this.settings.zoom = Zoom.encode(zoom.start, zoom.end)
+    this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
-    this.setSelectedZoom(Zoom.mapKey(zoom, limits))
     await animationFrame()
     $(this.chartWrapperTarget).removeClass('loading')
+    this.chartsView.updateOptions({
+      zoomCallback: this.zoomCallback,
+      drawCallback: this.drawCallback
+    })
   }
 
   _zoomCallback (start, end) {
-    this.settings.zoom = Zoom.encode(Zoom.object(start * scaleFactor(), end * scaleFactor()))
+    this.lastZoom = Zoom.object(start, end)
+    this.settings.zoom = Zoom.encode(this.lastZoom)
     this.zoomOptionTargets.forEach((button) => {
       button.classList.remove('active')
     })
     this.query.replace(this.settings)
-    this.setSelectedZoom(Zoom.mapKey(this.settings.zoom, this.chartsView.xAxisExtremes()))
+    this.setSelectedZoom(Zoom.mapKey(this.settings.zoom, this.limits, scaleFactor()))
   }
 
   _drawCallback (graph, first) {
@@ -416,9 +432,11 @@ export default class extends Controller {
     var start, end
     [start, end] = this.chartsView.xAxisRange()
     if (start === end) return
-    this.settings.zoom = Zoom.encode(Zoom.object(start * scaleFactor(), end * scaleFactor()))
+    if (this.lastZoom.start === start) return // only handle slide event.
+    this.lastZoom = Zoom.object(start, end)
+    this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
-    this.setSelectedZoom(Zoom.mapKey(this.settings.zoom, this.chartsView.xAxisExtremes()))
+    this.setSelectedZoom(Zoom.mapKey(this.lastZoom, this.limits, scaleFactor()))
   }
 
   setSelectedZoom (zoomKey) {
