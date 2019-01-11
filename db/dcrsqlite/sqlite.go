@@ -1159,7 +1159,7 @@ func (db *DB) RetrieveBlockSummaryByHash(hash string) (*apitypes.BlockDataBasic,
 		// This is a cache miss since hits return early.
 		err = db.BlockCache.StoreBlockSummary(bd)
 		if err != nil {
-			log.Warnf("Failed to cache block %s: %v", hash, err)
+			log.Warnf("Failed to cache summary for block %s: %v", hash, err)
 			// Do not return the error.
 		}
 	}
@@ -1233,7 +1233,7 @@ func (db *DB) RetrieveBlockSummary(ind int64) (*apitypes.BlockDataBasic, error) 
 		// This is a cache miss since hits return early.
 		err = db.BlockCache.StoreBlockSummary(bd)
 		if err != nil {
-			log.Warnf("Failed to cache block %d: %v", ind, err)
+			log.Warnf("Failed to cache summary for block at %d: %v", ind, err)
 			// Do not return the error.
 		}
 	}
@@ -1320,6 +1320,12 @@ func (db *DB) RetrieveBlockSizeRange(ind0, ind1 int64) ([]int32, error) {
 
 // StoreStakeInfoExtended stores the extended stake info in the database.
 func (db *DB) StoreStakeInfoExtended(si *apitypes.StakeInfoExtended) error {
+	if db.BlockCache != nil && db.BlockCache.IsEnabled() {
+		if err := db.BlockCache.StoreStakeInfo(si); err != nil {
+			return fmt.Errorf("APICache failed to store stake info: %v", err)
+		}
+	}
+
 	stmt, err := db.Prepare(db.insertStakeInfoExtendedSQL)
 	if err != nil {
 		return err
@@ -1392,6 +1398,20 @@ func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, er
 		return nil, err
 	}
 	si.PoolInfo.Winners = splitToArray(winners)
+
+	// See if this block should be cached.
+	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
+	if usingBlockCache {
+		if db.BlockCache.GetStakeInfoByHash(si.Hash) == nil {
+			// Cache miss, cache the data.
+			err = db.BlockCache.StoreStakeInfo(si)
+			if err != nil {
+				log.Warnf("Failed to cache stake info for block %s: %v", si.Hash, err)
+				// Do not return the error.
+			}
+		}
+	}
+
 	return si, nil
 }
 
@@ -1408,6 +1428,17 @@ func (db *DB) RetrieveBestStakeHeight() (int64, error) {
 // RetrieveStakeInfoExtended returns the extended stake info for the block at
 // height ind.
 func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended, error) {
+	// First try the block cache.
+	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
+	if usingBlockCache {
+		si := db.BlockCache.GetStakeInfo(ind)
+		if si != nil {
+			// Cache hit!
+			return si, nil
+		}
+		// Cache miss necessitates a DB query.
+	}
+
 	si := apitypes.NewStakeInfoExtended()
 
 	var winners string
@@ -1421,10 +1452,31 @@ func (db *DB) RetrieveStakeInfoExtended(ind int64) (*apitypes.StakeInfoExtended,
 		return nil, err
 	}
 	si.PoolInfo.Winners = splitToArray(winners)
+
+	if usingBlockCache {
+		// This is a cache miss since hits return early.
+		err = db.BlockCache.StoreStakeInfo(si)
+		if err != nil {
+			log.Warnf("Failed to cache stake info for block at %d: %v", ind, err)
+			// Do not return the error.
+		}
+	}
+
 	return si, nil
 }
 
 func (db *DB) RetrieveStakeInfoExtendedByHash(blockhash string) (*apitypes.StakeInfoExtended, error) {
+	// First try the block cache.
+	usingBlockCache := db.BlockCache != nil && db.BlockCache.IsEnabled()
+	if usingBlockCache {
+		si := db.BlockCache.GetStakeInfoByHash(blockhash)
+		if si != nil {
+			// Cache hit!
+			return si, nil
+		}
+		// Cache miss necessitates a DB query.
+	}
+
 	si := apitypes.NewStakeInfoExtended()
 
 	var winners string
@@ -1438,6 +1490,16 @@ func (db *DB) RetrieveStakeInfoExtendedByHash(blockhash string) (*apitypes.Stake
 		return nil, err
 	}
 	si.PoolInfo.Winners = splitToArray(winners)
+
+	if usingBlockCache {
+		// This is a cache miss since hits return early.
+		err = db.BlockCache.StoreStakeInfo(si)
+		if err != nil {
+			log.Warnf("Failed to cache stake info for block %s: %v", blockhash, err)
+			// Do not return the error.
+		}
+	}
+
 	return si, nil
 }
 
