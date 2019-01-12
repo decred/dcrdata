@@ -45,3 +45,6 @@ package-lock.json
 public/dist/
 public/js/dist/
 public/**/*.gz
+testutil/apiload/results/
+testutil/apiload/apiload.conf
+testutil/apiload/apiload

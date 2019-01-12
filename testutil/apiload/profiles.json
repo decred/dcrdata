@@ -1,0 +1,108 @@
+{
+  "rotation": {
+    "duration": 60,
+    "attackers": [
+      {
+        "frequency": 5,
+        "endpoints": [
+          "/api/address/Dscq448NxXwhwSajYLVbA1wWrdheQVvcUuG",
+          "/api/address/DsVECaj9tP9jb2PvsStMgmNYCYxt1NS7ZwY/amountflow/day",
+          "/api/address/Dca7REgeQCfQ7okBSJAkJ8p7vr3x1yjZJxU/count/20",
+          "/api/address/Dca8bQ4UX3ZKFkNTbUkmHbrfdhur1sPSNfL/count/50/raw",
+          "/api/address/Dca9nYRNadbFBS9JyimUe5wNzUdXSzarHuv/count/100/skip/10",
+          "/api/address/Dca94FPuRFWrnxKNYEFTvCjCz9A9qnrCZ91/count/20/skip/50/raw",
+          "/api/address/DcaANcUot1dFvyKXvoZUApVej1tY451NRyx/raw",
+          "/api/address/DcaAZYsnbCNqq1JPUCikd34zj5qPX6DcXjA/totals",
+          "/api/address/DcaDEDuwVUAFAn4TURoyyCFJJvKSExUHHmC/types/week",
+          "/api/address/Dcadx1KZprzZ7bWihExL97xyEHA5fbYU3fX/unspent/month",
+          "/api/agenda/lnsupport",
+          "/api/block/best",
+          "/api/block/best/hash",
+          "/api/block/best/header",
+          "/api/block/best/height",
+          "/api/block/best/pos",
+          "/api/block/best/size",
+          "/api/block/best/subsidy",
+          "/api/block/best/tx",
+          "/api/block/best/tx/count",
+          "/api/block/best/verbose",
+          "/api/block/hash/0000000000000001b30d4a5afa3fe92dcd35ba3c4f66ab074559dc68bb7a5232",
+          "/api/block/hash/0000000000000052609a06ebe26d365bc112053b00ac46647555f1932b2f2e33/header",
+          "/api/block/hash/00000000000000031a68ace4ba7ba57a6a2b8a306ba9040c974408c8a1f85056/height",
+          "/api/block/hash/000000000000014434fb6165aca1f40255dc90efefc36b607d02d7847486c3a9/pos",
+          "/api/block/hash/000000000000000b83d4ee2a31f7f0f8713ecda5f6ad795004c1f4cf75b930e5/size",
+          "/api/block/hash/00000000000001ed4733026e9fa35094698aa8d431ff828bcf82b037c3f16ef3/subsidy",
+          "/api/block/hash/000000000000000051be56c7c452f7e2a777e98fc673ff996ae0ad99781801f7/tx",
+          "/api/block/hash/000000000000235c637006abb1de96d99dcb75fde8817de9d87ba57f73cea88b/tx/count",
+          "/api/block/hash/00000000000012081a9e5b4b06650fd40f5904f13d25e44fc6443e198d047103/verbose",
+          "/api/block/range/148290/148390",
+          "/api/block/range/34783/35783/size",
+          "/api/block/range/90198/90398/2",
+          "/api/block/range/134976/135176/2/size",
+          "/api/block/83811",
+          "/api/block/243754/hash",
+          "/api/block/218497/header",
+          "/api/block/18616/pos",
+          "/api/block/64276/size",
+          "/api/block/129828/subsidy",
+          "/api/block/19790/tx",
+          "/api/block/284229/tx/count",
+          "/api/block/88145/verbose",
+          "/api/mempool/sstx",
+          "/api/mempool/sstx/details",
+          "/api/mempool/sstx/details/10",
+          "/api/mempool/sstx/fees",
+          "/api/mempool/sstx/fees/20",
+          "/api/stake/diff",
+          "/api/stake/diff/b/167598",
+          "/api/stake/diff/current",
+          "/api/stake/diff/estimates",
+          "/api/stake/diff/r/224316/224416",
+          "/api/stake/pool",
+          "/api/stake/pool/b/100028",
+          "/api/stake/pool/b/261178/full",
+          "/api/stake/pool/b/0000000000000000f52657e756897b86f06d74c6382de48d9e7bbea2733a588e/full",
+          "/api/stake/pool/full",
+          "/api/stake/pool/r/245982/246082",
+          "/api/stake/vote/info",
+          "/api/status",
+          "/api/supply",
+          "/api/ticketpool",
+          "/api/tx/decoded/a73b7ccd1a82a9d9e9775c2f0d1b096368d2fc3f8422bbaa19b1c4f8f8a63ada",
+          "/api/tx/hex/6c65498c76ba2175049ce2f3cc7eaeb115ea636db0609ca67396c8cb9530f8f2",
+          "/api/tx/e95a5bd4b322e9cd9845961ed5225dee9feb43fa26ff9d900c004f6bb7042fa3",
+          "/api/tx/a8d6d4942a86d92be649b2a2992d4173cd0ce0f863da0823d91030030b46c4b5/in",
+          "/api/tx/c7f92bd0c8a8915d58b475831e0ea77f0071561d36314c267880911392387560/in/1",
+          "/api/tx/dc176f2232317b8e20b1163c3637eb1b6a445e32f04a6db8183324cbbcc8c763/out",
+          "/api/tx/f7d4cb5f611725bc4a4cbbbb3c021079cd2fcdd11d5f0237186f8e53e9c53e57/out/0",
+          "/api/tx/b7f3dd99ba3bbefead4afd519007cd3c49cc2539a2d4786f2f7f78a33bf1e4ae/trimmed",
+          "/api/tx/4d5cdb033a31b72805ba4161a68f41908673713811198c6e858fc59f62a1184b/vinfo"
+        ]
+      }
+    ]
+  },
+  "treasury": {
+    "duration": 60,
+    "attackers": [
+      {
+        "name": "first",
+        "frequency": 1,
+        "endpoints": [
+          "/api/address/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/types/day",
+          "/api/address/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/amountflow/day",
+          "/download/address/io/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx"
+        ]
+      },
+      {
+        "name": "second",
+        "frequency": 1,
+        "delay": 30,
+        "endpoints": [
+          "/api/address/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx?txntype=merged_debit",
+          "/api/address/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/types/week",
+          "/api/address/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/amountflow/week"
+        ]
+      }
+    ]
+  }
+}
