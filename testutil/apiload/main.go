@@ -17,17 +17,21 @@ import (
 )
 
 const (
-	OutputFileTemplate = "result_%s_%s.json"
+	outputFileTemplate = "result_%s_%s.json"
+	resultChanBuffer   = 4096
 )
 
 // Attack specifies a duration and a series of attackers, each with their own
-// frequency and targets.
+// frequency and targets. Attack is unmarshaled from a JSON definition file.
 type Attack struct {
 	Duration  int         `json:"duration"`
 	Attackers []*Attacker `json:"attackers"`
 }
 
-// Frequency is 1/second and endpoints are relative to root
+// Attacker defines a list of endpoints for, and a frequency of, attack.
+// An optional name will be displayed with error messages.
+// An individual Attacker can be delayed, allowing attacks to be layered in
+// sections. Frequency is 1/second and endpoints are relative to config.Server.
 type Attacker struct {
 	Name      string   `json:"name"`
 	Frequency int      `json:"frequency"`
@@ -57,7 +61,7 @@ func main() {
 	}
 
 	if Config.Attack == "" {
-		fmt.Println("No attack specified. Specify an attack with -a.\n")
+		fmt.Print("No attack specified. Specify an attack with -a.\n\n")
 		listAttacks(profiles)
 		return
 	}
@@ -81,7 +85,7 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-	resChan := make(chan *vegeta.Result)
+	resChan := make(chan *vegeta.Result, resultChanBuffer)
 
 	// Duration from profile can be overridden in config or cli argument.
 	seconds := attackProfile.Duration
@@ -92,21 +96,26 @@ func main() {
 	// Perform the load test.
 	log.Printf("Beginning %s. Duration: %d seconds.", Config.Attack, seconds)
 	duration := time.Duration(seconds*1000) * time.Millisecond
+	server := strings.TrimSuffix(Config.Server, "/")
 	for idx, attacker := range attackProfile.Attackers {
 		if len(attacker.Endpoints) == 0 {
-			log.Fatalf("Empty enpoint list encountered for %s", Config.Attack)
+			log.Fatalf("Empty endpoint list encountered for %s", Config.Attack)
+		}
+
+		frequency := attacker.Frequency
+		if Config.Frequency > 0 {
+			frequency = Config.Frequency
 		}
 		rate := vegeta.Rate{
-			Freq: attacker.Frequency,
+			Freq: frequency,
 			Per:  time.Second,
 		}
 
 		var targets []vegeta.Target
 		for _, endpoint := range attacker.Endpoints {
-			path := Config.Server + endpoint
 			targets = append(targets, vegeta.Target{
 				Method: "GET",
-				URL:    path,
+				URL:    fmt.Sprintf("%s/%s", server, strings.TrimLeft(endpoint, "/")),
 			})
 		}
 
@@ -130,7 +139,7 @@ func main() {
 			if attacker.Name != "" {
 				log.Printf("Beggining %s", attacker.Name)
 			}
-			for res := range vegAttacker.Attack(targeter, rate, remainder, fmt.Sprintf("%s:%d", Config.Attack, idx)) {
+			for res := range vegAttacker.Attack(targeter, rate, remainder, strconv.Itoa(idx)) {
 				resChan <- res
 			}
 		}(attacker)
@@ -147,8 +156,7 @@ func main() {
 	// Vegeta doesn't return the url in the result, so look it up,
 	// finding the Attacker along the way.
 	findAttacker := func(result *vegeta.Result) (attacker *Attacker, endpoint string) {
-		parts := strings.Split(result.Attack, ":")
-		attackerIdx, err := strconv.Atoi(parts[len(parts)-1])
+		attackerIdx, err := strconv.Atoi(result.Attack)
 		if err != nil {
 			log.Fatalf("Failed to parse attacker index. Something is terribly wrong.")
 			return
@@ -168,8 +176,12 @@ func main() {
 			}
 		}
 		problematic = append(problematic, endpoint)
-		log.Printf("Error code %d from %s: %s",
-			result.Code, endpoint, string(result.Body))
+		if result.Code == 0 {
+			log.Printf("Code 0 requesting %s. Connection failed.", endpoint)
+		} else {
+			log.Printf("Error code %d from %s: %s",
+				result.Code, endpoint, string(result.Body))
+		}
 	}
 
 	delay := time.Duration(1) * time.Millisecond
@@ -205,9 +217,9 @@ out:
 		jsonBytes, err = json.Marshal(metrics)
 	}
 	if err != nil {
-		log.Fatalf("Failed to parse json from vegeta.Metrics for %s:", Config.Attack)
+		log.Fatalf("Failed to parse JSON from vegeta.Metrics for %s:", Config.Attack)
 	}
-	path := filepath.Join(Config.ResultDirectory, fmt.Sprintf(OutputFileTemplate, Config.Attack, fmtTime))
+	path := filepath.Join(Config.ResultDirectory, fmt.Sprintf(outputFileTemplate, Config.Attack, fmtTime))
 	err = ioutil.WriteFile(path, jsonBytes, 0755)
 	if err != nil {
 		log.Fatalf("Failed to write result file to %s", path)
@@ -238,7 +250,7 @@ func loadProfiles() (profiles map[string]*Attack, err error) {
 	}
 
 	if err = json.Unmarshal(jsonBytes, &profiles); err != nil {
-		return nil, fmt.Errorf("Failed to parse json from attack profiles: %v", err)
+		return nil, fmt.Errorf("Failed to parse JSON from attack profiles: %v", err)
 	}
 
 	if len(profiles) == 0 {

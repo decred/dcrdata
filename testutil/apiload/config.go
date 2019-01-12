@@ -23,6 +23,7 @@ type config struct {
 	FormatResults   bool   `short:"f" long:"format" description:"Pretty print the JSON result file."`
 	CPUs            int    `long:"cpus" description:"Maximum number of processors to use. Defaults to all available."`
 	Duration        int    `long:"duration" description:"Overrides the duration of the chosen attack. Units are seconds."`
+	Frequency       int    `long:"frequency" description:"Overrides the attack frequency for all attackers. Units are requests/second."`
 }
 
 var defaultConfig = config{

@@ -6,8 +6,6 @@ JSON formatted attack definition file. Check out the default definitions in
 `profiles.json` to see the format.
 
 ### Options
-All options (except --config) can be set via the CLI or an INI configuration file.
-
 ```
 -c, --config=    Path to a custom configuration file.
 -d, --directory= Directory for the result files. (results)
@@ -18,8 +16,17 @@ All options (except --config) can be set via the CLI or an INI configuration fil
 -f, --format     Pretty print the JSON result file.
     --cpus=      Maximum number of processors to use. Defaults to all available.
     --duration=  Overrides the duration of the chosen attack. Units are seconds.
+    --frequency= Overrides the attack frequency for all attackers. Units are requests/second.
 -h, --help       Show this help message
 ```
+
+All options (except `--config`) can be set via either the CLI or an INI
+configuration file. `--attack` is the only required argument.
+
+Attack definitions (from `--profiles`) may have multiple attackers running
+simultaneously, each with their own frequency. If a `--frequency` is provided,
+the value will override the frequencies specified in the definitions for every
+attacker. For finer control, create a custom attack definition.
 
 ### Example output
 ```
