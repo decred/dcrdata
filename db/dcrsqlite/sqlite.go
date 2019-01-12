@@ -274,10 +274,17 @@ func InitDB(dbInfo *DBInfo) (*DB, error) {
 		return nil, err
 	}
 
-	// SQLite does not handle concurrent writes internally, necessitating a
-	// limitation of just 1 open connecton. With a busy_timeout set, this is
-	// less important.
-	db.SetMaxOpenConns(1)
+	// Historically, SQLite did not handle concurrent writes internally,
+	// necessitating a limitation of just 1 open connecton. With a busy_timeout
+	// set, this is less important. With go-sqlite 1.10, this is not needed at
+	// all since the library started compiling sqlite3 for
+	// thread-safe/"serialized" operation (SQLITE_THREADSAFE=1). For details,
+	// see https://sqlite.org/threadsafe.html and
+	// https://sqlite.org/c3ref/c_config_covering_index_scan.html#sqliteconfigserialized.
+	// The change to go-sqlite3 is
+	// github.com/mattn/go-sqlite3@acfa60124032040b9f5a9406f5a772ee16fe845e
+	//
+	// db.SetMaxOpenConns(1)
 
 	// These are db-wide settings that persist for the entire session.
 	_, err = db.Exec(SetCacheSizeSQL)
