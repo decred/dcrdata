@@ -838,7 +838,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			if strings.Contains(asm, "OP_RETURN") {
 				opReturn = asm
 				// decode op_return data
-				opReturnData := strings.TrimLeft(asm, "OP_RETURN ")
+				opReturnData := strings.TrimPrefix(asm, "OP_RETURN ")
 				opReturnDataBytes, err := hex.DecodeString(opReturnData)
 				if err == nil && len(opReturnDataBytes) > 0 {
 					opReturnDecoded = string(opReturnDataBytes)

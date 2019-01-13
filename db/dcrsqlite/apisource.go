@@ -1492,7 +1492,7 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			opReturn = vout.ScriptPubKey.Asm
 
 			// decode op_return data
-			opReturnData := strings.TrimLeft(vout.ScriptPubKey.Asm, "OP_RETURN ")
+			opReturnData := strings.TrimPrefix(vout.ScriptPubKey.Asm, "OP_RETURN ")
 			opReturnDataBytes, err := hex.DecodeString(opReturnData)
 			if err == nil && len(opReturnDataBytes) > 0 {
 				opReturnDecoded = string(opReturnDataBytes)
