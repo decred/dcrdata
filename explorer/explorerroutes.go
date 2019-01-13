@@ -837,11 +837,13 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			asm, _ := txscript.DisasmString(vouts[iv].ScriptPubKey)
 			if strings.Contains(asm, "OP_RETURN") {
 				opReturn = asm
-				// decode op_return data
-				opReturnData := strings.TrimPrefix(asm, "OP_RETURN ")
-				opReturnDataBytes, err := hex.DecodeString(opReturnData)
-				if err == nil && len(opReturnDataBytes) > 0 {
-					opReturnDecoded = string(opReturnDataBytes)
+				if tx.Type == "Regular" || tx.Type == "Coinbase" {
+					// decode op_return data
+					opReturnData := strings.TrimPrefix(asm, "OP_RETURN ")
+					opReturnDataBytes, err := hex.DecodeString(opReturnData)
+					if err == nil && len(opReturnDataBytes) > 0 {
+						opReturnDecoded = string(opReturnDataBytes)
+					}
 				}
 			}
 			// Determine if the outpoint is spent

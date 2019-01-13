@@ -1491,11 +1491,13 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		if strings.Contains(vout.ScriptPubKey.Asm, "OP_RETURN") {
 			opReturn = vout.ScriptPubKey.Asm
 
-			// decode op_return data
-			opReturnData := strings.TrimPrefix(vout.ScriptPubKey.Asm, "OP_RETURN ")
-			opReturnDataBytes, err := hex.DecodeString(opReturnData)
-			if err == nil && len(opReturnDataBytes) > 0 {
-				opReturnDecoded = string(opReturnDataBytes)
+			if tx.Type == "Regular" || tx.Type == "Coinbase" {
+				// decode op_return data
+				opReturnData := strings.TrimPrefix(vout.ScriptPubKey.Asm, "OP_RETURN ")
+				opReturnDataBytes, err := hex.DecodeString(opReturnData)
+				if err == nil && len(opReturnDataBytes) > 0 {
+					opReturnDecoded = string(opReturnDataBytes)
+				}
 			}
 		}
 		outputs = append(outputs, exptypes.Vout{
