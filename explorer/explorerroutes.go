@@ -833,9 +833,16 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 		for iv := range vouts {
 			// Check pkScript for OP_RETURN
 			var opReturn string
+			var opReturnDecoded string
 			asm, _ := txscript.DisasmString(vouts[iv].ScriptPubKey)
 			if strings.Contains(asm, "OP_RETURN") {
 				opReturn = asm
+				// decode op_return data
+				opReturnData := strings.TrimLeft(asm, "OP_RETURN ")
+				opReturnDataBytes, err := hex.DecodeString(opReturnData)
+				if err == nil && len(opReturnDataBytes) > 0 {
+					opReturnDecoded = string(opReturnDataBytes)
+				}
 			}
 			// Determine if the outpoint is spent
 			spendingTx, _, _, err := exp.explorerSource.SpendingTransaction(hash, vouts[iv].TxIndex)
@@ -848,13 +855,14 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			}
 			amount := dcrutil.Amount(int64(vouts[iv].Value)).ToCoin()
 			tx.Vout = append(tx.Vout, types.Vout{
-				Addresses:       vouts[iv].ScriptPubKeyData.Addresses,
-				Amount:          amount,
-				FormattedAmount: humanize.Commaf(amount),
-				Type:            txhelpers.TxTypeToString(int(vouts[iv].TxType)),
-				Spent:           spendingTx != "",
-				OP_RETURN:       opReturn,
-				Index:           vouts[iv].TxIndex,
+				Addresses:         vouts[iv].ScriptPubKeyData.Addresses,
+				Amount:            amount,
+				FormattedAmount:   humanize.Commaf(amount),
+				Type:              txhelpers.TxTypeToString(int(vouts[iv].TxType)),
+				Spent:             spendingTx != "",
+				OP_RETURN:         opReturn,
+				OP_RETURN_DECODED: opReturnDecoded,
+				Index:             vouts[iv].TxIndex,
 			})
 		}
 

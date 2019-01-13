@@ -1487,17 +1487,26 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 			log.Warnf("Failed to determine if tx out is spent for output %d of tx %s", i, txid)
 		}
 		var opReturn string
+		var opReturnDecoded string
 		if strings.Contains(vout.ScriptPubKey.Asm, "OP_RETURN") {
 			opReturn = vout.ScriptPubKey.Asm
+
+			// decode op_return data
+			opReturnData := strings.TrimLeft(vout.ScriptPubKey.Asm, "OP_RETURN ")
+			opReturnDataBytes, err := hex.DecodeString(opReturnData)
+			if err == nil && len(opReturnDataBytes) > 0 {
+				opReturnDecoded = string(opReturnDataBytes)
+			}
 		}
 		outputs = append(outputs, exptypes.Vout{
-			Addresses:       vout.ScriptPubKey.Addresses,
-			Amount:          vout.Value,
-			FormattedAmount: humanize.Commaf(vout.Value),
-			OP_RETURN:       opReturn,
-			Type:            vout.ScriptPubKey.Type,
-			Spent:           txout == nil,
-			Index:           vout.N,
+			Addresses:         vout.ScriptPubKey.Addresses,
+			Amount:            vout.Value,
+			FormattedAmount:   humanize.Commaf(vout.Value),
+			OP_RETURN:         opReturn,
+			OP_RETURN_DECODED: opReturnDecoded,
+			Type:              vout.ScriptPubKey.Type,
+			Spent:             txout == nil,
+			Index:             vout.N,
 		})
 	}
 	tx.Vout = outputs

@@ -398,6 +398,12 @@
                                 <div>
                                     <span class="break-word">{{.OP_RETURN}}</span>
                                 </div>
+                                {{if .OP_RETURN_DECODED}}
+                                <div class="fs13 open-return-decoded-ctn">
+                                    <span class="open-return-decoded-label">Decoded OP_RETURN:</span>
+                                    <span class="break-word open-return-decoded-data">{{.OP_RETURN_DECODED}}</span>
+                                </div>
+                                {{end}}
                                 {{end}}
                             {{end}}
                         </td>

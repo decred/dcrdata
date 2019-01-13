@@ -205,13 +205,14 @@ type Vin struct {
 
 // Vout models basic data about a tx output for display
 type Vout struct {
-	Addresses       []string
-	Amount          float64
-	FormattedAmount string
-	Type            string
-	Spent           bool
-	OP_RETURN       string
-	Index           uint32
+	Addresses         []string
+	Amount            float64
+	FormattedAmount   string
+	Type              string
+	Spent             bool
+	OP_RETURN         string
+	OP_RETURN_DECODED string
+	Index             uint32
 }
 
 // TrimmedBlockInfo models data needed to display block info on the new home page
