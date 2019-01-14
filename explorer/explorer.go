@@ -177,8 +177,9 @@ func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) str
 
 type pageData struct {
 	sync.RWMutex
-	BlockInfo *types.BlockInfo
-	HomeInfo  *types.HomeInfo
+	BlockInfo      *types.BlockInfo
+	BlockchainInfo *dcrjson.GetBlockChainInfoResult
+	HomeInfo       *types.HomeInfo
 }
 
 type explorerUI struct {
@@ -303,7 +304,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
-		"sidechains", "rejects", "ticketpool", "nexthome", "statistics",
+		"sidechains", "disapproved", "ticketpool", "nexthome", "statistics",
 		"windows", "timelisting", "addresstable"}
 
 	for _, name := range tmpls {
@@ -417,8 +418,9 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	p := exp.pageData
 	p.Lock()
 
-	// Store current block data.
+	// Store current block and blockchain data.
 	p.BlockInfo = newBlockData
+	p.BlockchainInfo = blockData.BlockchainInfo
 
 	// Update HomeInfo.
 	p.HomeInfo.HashRate = hashrate

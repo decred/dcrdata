@@ -1,6 +1,6 @@
-/* global $ */
 import { Controller } from 'stimulus'
 import { isEmpty } from 'lodash-es'
+import dompurify from 'dompurify'
 import { getDefault } from '../helpers/module_helper'
 import { padPoints, sizedBarPlotter } from '../helpers/chart_helper'
 import Zoom from '../helpers/zoom_helper'
@@ -9,6 +9,7 @@ import TurboQuery from '../helpers/turbolinks_helper'
 import axios from 'axios'
 import humanize from '../helpers/humanize_helper'
 import txInBlock from '../helpers/block_helper'
+import { fadeIn } from '../helpers/animation_helper'
 
 const blockDuration = 5 * 60000
 let Dygraph // lazy loaded on connect
@@ -76,17 +77,6 @@ function customizedFormatter (data) {
   return html
 }
 
-function hashHighLight (matchHash, hoverOn) {
-  $('.hash').each(function () {
-    var thisHash = $(this).attr('href')
-    if (thisHash === matchHash && hoverOn) {
-      $(this).addClass('matching-hash')
-    } else {
-      $(this).removeClass('matching-hash')
-    }
-  })
-}
-
 function setTxnCountText (el, count) {
   if (el.dataset.formatted) {
     el.textContent = count + ' transaction' + (count > 1 ? 's' : '')
@@ -147,12 +137,12 @@ function createOptions () {
 
 export default class extends Controller {
   static get targets () {
-    return ['options', 'addr', 'btns', 'balance',
+    return ['options', 'addr', 'balance',
       'flow', 'zoom', 'interval', 'numUnconfirmed',
       'pagesize', 'txntype', 'txnCount', 'qricon', 'qrimg', 'qrbox',
       'paginator', 'pageplus', 'pageminus', 'listbox', 'table',
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons',
-      'pending']
+      'pending', 'hash', 'matchhash', 'view']
   }
 
   async connect () {
@@ -186,7 +176,9 @@ export default class extends Controller {
     ctrl.setChartType()
     if (ctrl.chartSettings.flow) ctrl.setFlowChecks()
     if (ctrl.chartSettings.zoom !== null) {
-      ctrl.zoomButtons.removeClass('btn-selected')
+      ctrl.zoomButtons.forEach((button) => {
+        button.classList.remove('btn-selected')
+      })
     }
 
     // Parse stimulus data
@@ -227,26 +219,15 @@ export default class extends Controller {
   }
 
   bindElements () {
-    var ctrl = this
-    ctrl.chartElements = $('.chart-display')
-    ctrl.listElements = $('.list-display')
-    ctrl.zoomButtons = $(ctrl.zoomTarget).children('button')
-    ctrl.binputs = $(ctrl.intervalTarget).children('button')
-    ctrl.flowBoxes = ctrl.flowTarget.querySelectorAll('input[type=checkbox]')
-    ctrl.pageSizeOptions = ctrl.pagesizeTarget.querySelectorAll('option')
-    ctrl.qrImg = $(ctrl.qrimgTarget)
-    ctrl.qrIcon = $(ctrl.qriconTarget)
-    ctrl.qrBox = $(ctrl.qrboxTarget)
+    this.flowBoxes = this.flowTarget.querySelectorAll('input')
+    this.pageSizeOptions = this.pagesizeTarget.querySelectorAll('option')
+    this.zoomButtons = this.zoomTarget.querySelectorAll('button')
+    this.binputs = this.intervalTarget.querySelectorAll('button')
   }
 
   bindEvents () {
     var ctrl = this
     globalEventBus.on('BLOCK_RECEIVED', this.confirmMempoolTxs)
-    $('.matchhash').hover(function () {
-      hashHighLight($(this).attr('href'), true)
-    }, function () {
-      hashHighLight($(this).attr('href'), false)
-    })
     ctrl.paginatorTargets.forEach((link) => {
       link.addEventListener('click', (e) => {
         e.preventDefault()
@@ -255,9 +236,9 @@ export default class extends Controller {
   }
 
   async showQRCode () {
-    this.qrBox.show()
+    this.qrboxTarget.classList.remove('d-hide')
     if (this.qrCode) {
-      this.qrImg.css({ opacity: 1 })
+      fadeIn(this.qrimgTarget)
     } else {
       let QRCode = await getDefault(
         import(/* webpackChunkName: "qrcode" */ 'qrcode')
@@ -270,15 +251,15 @@ export default class extends Controller {
         }
       )
       this.qrimgTarget.innerHTML = `<img src="${qrCodeImg}"/>`
-      this.qrimgTarget.style.opacity = '1'
+      fadeIn(this.qrimgTarget)
     }
-    this.qrIcon.hide()
+    this.qriconTarget.classList.add('d-hide')
   }
 
   hideQRCode () {
-    this.qrIcon.show()
-    this.qrBox.hide()
-    this.qrImg.css({ opacity: 0 })
+    this.qriconTarget.classList.remove('d-hide')
+    this.qrboxTarget.classList.add('d-hide')
+    this.qrimgTarget.style.opacity = 0
   }
 
   makeTableUrl (txType, count, offset) {
@@ -318,7 +299,7 @@ export default class extends Controller {
     ctrl.listboxTarget.classList.add('loading')
     let tableResponse = await axios.get(ctrl.makeTableUrl(txType, count, offset))
     let html = tableResponse.data
-    ctrl.tableTarget.innerHTML = html
+    ctrl.tableTarget.innerHTML = dompurify.sanitize(html)
     var settings = ctrl.listSettings
     settings.n = count
     settings.start = offset
@@ -516,8 +497,8 @@ export default class extends Controller {
     var ctrl = this
     ctrl.currentTab = 'list'
     ctrl.query.replace(ctrl.listSettings)
-    ctrl.chartElements.addClass('d-hide')
-    ctrl.listElements.removeClass('d-hide')
+    ctrl.chartboxTarget.classList.add('d-hide')
+    ctrl.listboxTarget.classList.remove('d-hide')
   }
 
   showGraph () {
@@ -526,8 +507,8 @@ export default class extends Controller {
     settings.bin = ctrl.getBin()
     settings.flow = settings.chart === 'amountflow' ? ctrl.flow : null
     ctrl.query.replace(settings)
-    ctrl.chartElements.removeClass('d-hide')
-    ctrl.listElements.addClass('d-hide')
+    ctrl.chartboxTarget.classList.remove('d-hide')
+    ctrl.listboxTarget.classList.add('d-hide')
   }
 
   validChartType (chart) {
@@ -536,8 +517,12 @@ export default class extends Controller {
   }
 
   validGraphInterval (interval) {
-    interval = interval || this.chartSettings.bin || this.activeBin
-    return this.binputs.filter("[name='" + interval + "']") || false
+    var bin = interval || this.chartSettings.bin || this.activeBin
+    var b = false
+    this.binputs.forEach((button) => {
+      if (button.name === bin) b = button
+    })
+    return b
   }
 
   validateZoom (binSize) {
@@ -554,8 +539,9 @@ export default class extends Controller {
   changeView (e) {
     var ctrl = this
     var target = e.srcElement || e.target
-    if (target.nodeName !== 'INPUT') return
-    $('.addr-btn').removeClass('btn-active')
+    ctrl.viewTargets.forEach((button) => {
+      button.classList.remove('btn-active')
+    })
     target.classList.add('btn-active')
     var view = ctrl.activeView
     if (view !== 'list') {
@@ -620,7 +606,9 @@ export default class extends Controller {
     var ctrl = this
     var target = e.srcElement || e.target
     if (target.nodeName !== 'BUTTON') return
-    ctrl.zoomButtons.removeClass('btn-selected')
+    ctrl.zoomButtons.forEach((button) => {
+      button.classList.remove('btn-selected')
+    })
     target.classList.add('btn-selected')
     if (ctrl.graph === undefined) {
       return
@@ -657,14 +645,20 @@ export default class extends Controller {
     var ctrl = this
     var button = ctrl.validGraphInterval(interval)
     if (!button) return false
-    ctrl.binputs.removeClass('btn-selected')
-    button.addClass('btn-selected')
+    ctrl.binputs.forEach((button) => {
+      button.classList.remove('btn-selected')
+    })
+    button.classList.add('btn-selected')
   }
 
   setViewButton (view) {
-    var viewForm = $(this.btnsTarget)
-    viewForm.children('input').removeClass('btn-active')
-    viewForm.children("input[name='" + view + "']").addClass('btn-active')
+    this.viewTargets.forEach((button) => {
+      if (button.name === view) {
+        button.classList.add('btn-active')
+      } else {
+        button.classList.remove('btn-active')
+      }
+    })
   }
 
   setChartType () {
@@ -675,7 +669,7 @@ export default class extends Controller {
   }
 
   setSelectedZoom (zoomKey) {
-    this.zoomButtons.each(function (i, button) {
+    this.zoomButtons.forEach(function (button) {
       if (button.name === zoomKey) {
         button.classList.add('btn-selected')
       } else {
@@ -699,7 +693,9 @@ export default class extends Controller {
 
   _zoomCallback (start, end) {
     var ctrl = this
-    ctrl.zoomButtons.removeClass('btn-selected')
+    ctrl.zoomButtons.forEach((button) => {
+      button.classList.remove('btn-selected')
+    })
     ctrl.chartSettings.zoom = Zoom.encode(start, end)
     ctrl.query.replace(ctrl.chartSettings)
     ctrl.setSelectedZoom(Zoom.mapKey(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes()))
@@ -710,7 +706,7 @@ export default class extends Controller {
     var duration = ctrl.chartDuration
     var buttonSets = [ctrl.zoomButtons, ctrl.binputs]
     buttonSets.forEach((buttonSet) => {
-      buttonSet.each((i, button) => {
+      buttonSet.forEach((button) => {
         if (button.dataset.fixed) return
         if (duration > Zoom.mapValue(button.name)) {
           button.classList.remove('d-hide')
@@ -756,12 +752,38 @@ export default class extends Controller {
     }
   }
 
+  hashOver (e) {
+    var target = e.srcElement || e.target
+    var href = target.href
+    this.hashTargets.forEach((link) => {
+      if (link.href === href) {
+        link.classList.add('matching-hash')
+      } else {
+        link.classList.remove('matching-hash')
+      }
+    })
+  }
+
+  hashOut (e) {
+    var target = e.srcElement || e.target
+    var href = target.href
+    this.hashTargets.forEach((link) => {
+      if (link.href === href) {
+        link.classList.remove('matching-hash')
+      }
+    })
+  }
+
   get chartType () {
     return this.optionsTarget.value
   }
 
   get activeView () {
-    return this.btnsTarget.getElementsByClassName('btn-active')[0].name
+    var view = null
+    this.viewTargets.forEach((button) => {
+      if (button.classList.contains('btn-active')) view = button.name
+    })
+    return view
   }
 
   get activeZoomDuration () {

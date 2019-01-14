@@ -8,7 +8,6 @@ module.exports = {
     app: './public/index.js'
   },
   externals: {
-    jquery: 'jQuery',
     turbolinks: 'Turbolinks'
   },
   optimization: {

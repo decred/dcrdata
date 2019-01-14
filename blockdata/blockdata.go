@@ -5,6 +5,7 @@ package blockdata
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -30,6 +31,7 @@ type BlockData struct {
 	EstStakeDiff     dcrjson.EstimateStakeDiffResult
 	PoolInfo         *apitypes.TicketPoolInfo
 	ExtraInfo        apitypes.BlockExplorerExtraInfo
+	BlockchainInfo   *dcrjson.GetBlockChainInfoResult
 	PriceWindowNum   int
 	IdxBlockInWindow int
 	WinningTickets   []string
@@ -232,7 +234,8 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBloc
 	}(time.Now())
 
 	// Info specific to the block hash
-	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, msgBlock, err := t.CollectBlockInfo(hash)
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, msgBlock, err :=
+		t.CollectBlockInfo(hash)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -241,6 +244,17 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBloc
 	numConn, err := t.dcrdChainSvr.GetConnectionCount()
 	if err != nil {
 		log.Warn("Unable to get connection count: ", err)
+	}
+
+	// Blockchain info (e.g. syncheight, verificationprogress, chainwork,
+	// bestblockhash, initialblockdownload, maxblocksize, deployments, etc.).
+	chainInfo, err := t.dcrdChainSvr.GetBlockChainInfo()
+	if err != nil {
+		log.Warn("Unable to get blockchain info: ", err)
+	}
+	// GetBlockChainInfo is only valid for for chain tip.
+	if chainInfo.BestBlockHash != hash.String() {
+		chainInfo = nil
 	}
 
 	// Output
@@ -254,6 +268,7 @@ func (t *Collector) CollectHash(hash *chainhash.Hash) (*BlockData, *wire.MsgBloc
 		EstStakeDiff:     dcrjson.EstimateStakeDiffResult{},
 		PoolInfo:         blockDataBasic.PoolInfo,
 		ExtraInfo:        *extra,
+		BlockchainInfo:   chainInfo,
 		PriceWindowNum:   int(height / winSize),
 		IdxBlockInWindow: int(height%winSize) + 1,
 	}
@@ -273,25 +288,37 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 		log.Debugf("Collector.Collect() completed in %v", time.Since(start))
 	}(time.Now())
 
-	// Run first client call with a timeout
-	type bbhRes struct {
-		err  error
-		hash *chainhash.Hash
+	// Run first client call with a timeout.
+	type bciRes struct {
+		err            error
+		blockchainInfo *dcrjson.GetBlockChainInfoResult
 	}
-	toch := make(chan bbhRes)
+	toch := make(chan bciRes)
 
-	// Pull and store relevant data about the blockchain.
+	// Pull and store relevant data about the blockchain (e.g. syncheight,
+	// verificationprogress, chainwork, bestblockhash, initialblockdownload,
+	// maxblocksize, deployments, etc.).
 	go func() {
-		bestBlockHash, err := t.dcrdChainSvr.GetBestBlockHash()
-		toch <- bbhRes{err, bestBlockHash}
+		blockchainInfo, err := t.dcrdChainSvr.GetBlockChainInfo()
+		toch <- bciRes{err, blockchainInfo}
 	}()
 
-	var bbs bbhRes
+	var bci bciRes
 	select {
-	case bbs = <-toch:
+	case bci = <-toch:
 	case <-time.After(time.Second * 10):
 		log.Errorf("Timeout waiting for dcrd.")
 		return nil, nil, errors.New("Timeout")
+	}
+
+	if bci.err != nil {
+		return nil, nil, fmt.Errorf("unable to get blockchain info: %v", bci.err)
+	}
+
+	hash, err := chainhash.NewHashFromStr(bci.blockchainInfo.BestBlockHash)
+	if err != nil {
+		return nil, nil,
+			fmt.Errorf("invalid best block hash from getblockchaininfo: %v", err)
 	}
 
 	// Stake difficulty
@@ -308,7 +335,8 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 	}
 
 	// Info specific to the block hash
-	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, msgBlock, err := t.CollectBlockInfo(bbs.hash)
+	blockDataBasic, feeInfoBlock, blockHeaderVerbose, extra, msgBlock, err :=
+		t.CollectBlockInfo(hash)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -329,6 +357,7 @@ func (t *Collector) Collect() (*BlockData, *wire.MsgBlock, error) {
 		CurrentStakeDiff: *stakeDiff,
 		EstStakeDiff:     *estStakeDiff,
 		ExtraInfo:        *extra,
+		BlockchainInfo:   bci.blockchainInfo,
 		PoolInfo:         blockDataBasic.PoolInfo,
 		PriceWindowNum:   int(height / winSize),
 		IdxBlockInWindow: int(height%winSize) + 1,

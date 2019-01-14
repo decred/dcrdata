@@ -12,6 +12,7 @@
         data-controller="time"
     >
         <div
+            id="netstatsSection"
             class="netstats-section font-weight-bold"
             data-controller="networkOverview"
         >
@@ -27,7 +28,7 @@
                     <div class="col-sm-4">
                         <div class="heading">Available Supply (of 21 mil)</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="coin-supply">
+                            <span data-target="networkOverview.coinSupply">
                                 {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .CoinSupply) 0 true)}}
                             </span>
                             <span class="pl-1 unit lh15rem">DCR</span>
@@ -36,7 +37,7 @@
                     <div class="col-sm-4">
                         <div class="heading">Project Subsidy</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="bsubsidy-dev">
+                            <span data-target="networkOverview.devSubsidy">
                                 {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
                             </span>
                             <span class="pl-1 unit lh15rem"> DCR</span>
@@ -46,7 +47,7 @@
                     <div class="col-sm-4">
                         <div class="heading"><a href="/address/{{.DevAddress}}">Project Fund</a></div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="dev-fund">
+                            <span data-target="networkOverview.devFund">
                                 {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .DevFund) 0 true)}}
                             </span>
                             <span class="pl-1 unit lh15rem"> DCR</span>
@@ -63,25 +64,25 @@
                     <div class="col-sm-4">
                         <div class="heading">Total Locked DCR</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="pool-value">
+                            <span data-target="networkOverview.poolValue">
                                 {{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 0 true)}}
                             </span>
                             <span class="pl-1 unit lh15rem">DCR</span>
                         </div>
                         <div class="subdata">
-                            <span class="count" id="pool-info-percentage">({{printf "%.2f" .PoolInfo.Percentage}} % of total supply)</span>
+                            <span class="count" data-target="networkOverview.stakePct">({{printf "%.2f" .PoolInfo.Percentage}} % of total supply)</span>
                         </div>
                     </div>
                     <div class="col-sm-4">
                         <div class="heading">PoS Reward</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="bsubsidy-pos">
+                            <span data-target="networkOverview.posSubsidy">
                                 {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount (divide .NBlockSubsidy.PoS 5)) 8 true 2)}}
                             </span>
                             <span class="pl-1 unit lh15rem" style="font-size:13px;">DCR/vote</span>
                         </div>
                         <div class="subdata">
-                            <span id="ticket-reward" class="count">({{template "fmtPercentage" .TicketReward}} per ~{{.RewardPeriod}})</span>
+                            <span data-target="networkOverview.ticketReward" class="count">({{template "fmtPercentage" .TicketReward}} per ~{{.RewardPeriod}})</span>
                         </div>
                     </div>
                     <div class="col-sm-4">
@@ -89,7 +90,7 @@
                             <a class="no-underline" href="/charts#ticket-price">Ticket Price</a>
                         </div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="ticket-price">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
+                            <span data-target="networkOverview.ticketPrice">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
                             <span class="pl-1 unit lh15rem">DCR</span>
                         </div>
                     </div>
@@ -105,25 +106,25 @@
                             <a class="no-underline" href="/charts#pow-difficulty">Difficulty</a>
                         </div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="diff">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
+                            <span data-target="networkOverview.diff">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
                             <span class="pl-1 unit lh15rem">Mil</span>
                         </div>
                     </div>
                     <div class="col-sm-4">
                         <div class="heading">PoW Reward</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="bsubsidy-pow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
+                            <span data-target="networkOverview.powSubsidy">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
                             <span class="pl-1 unit lh15rem">DCR</span>
                         </div>
                     </div>
                     <div class="col-sm-4">
                         <div class="heading">Hashrate</div>
                         <div class="data mono lh1rem fs14-decimal count fs24 p03rem0">
-                            <span id="hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
+                            <span data-target="networkOverview.hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
                             <span class="pl-1 unit lh15rem">Ph/s</span>
                         </div>
                         <div class="subdata">
-                            <span id="hashrate-subdata" class="count">({{template "fmtPercentage" .HashRateChange}} in 24h)</span>
+                            <span data-target="networkOverview.hashrateDelta" class="count">({{template "fmtPercentage" .HashRateChange}} in 24h)</span>
                         </div>
                     </div>
                 </div>
@@ -131,15 +132,15 @@
             {{end}}
         </div>
         <div class="flex-space"></div>
-        <div class="blocks-section">
-            <a class="no-underline title font-weight-bold" href="/blocks">Latest Blocks</a>
+        <div class="blocks-section" data-controller="visualBlocks" data-target="visualBlocks.root">
+            <a class="no-underline title font-weight-bold" data-target="visualBlocks.title" href="/blocks">Latest Blocks</a>
             <div
                 class="blocks-holder"
-                data-controller="visualBlocks"
+                data-target="visualBlocks.box"
             >
                 <!-- add mempool element -->
                 {{with .Mempool}}
-                <div class="block visible">
+                <div class="block visible" data-target="visualBlocks.block">
                     <div class="block-info">
                         <a class="color-code" href="/mempool">Mempool</a>
                         <div class="mono amount" style="line-height: 1;">
@@ -153,25 +154,29 @@
                     <div class="block-rows">
                         <div class="block-rewards" style="flex-grow: 1">
                             <span class="pow" style="flex-grow: {{toFloat64Amount .Subsidy.PoW}}"
-                                title='{"object": "PoW Reward", "total": "{{toFloat64Amount .Subsidy.PoW}}"}'>
+                                title='{"object": "PoW Reward", "total": "{{toFloat64Amount .Subsidy.PoW}}"}'
+                                data-target="visualBlocks.tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="pos" style="flex-grow: {{toFloat64Amount .Subsidy.PoS}}"
-                                title='{"object": "PoS Reward", "total": "{{toFloat64Amount .Subsidy.PoS}}"}'>
+                                title='{"object": "PoS Reward", "total": "{{toFloat64Amount .Subsidy.PoS}}"}'
+                                data-target="visualBlocks.tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="fund" style="flex-grow: {{toFloat64Amount .Subsidy.Dev}}"
-                                title='{"object": "Project Fund", "total": "{{toFloat64Amount .Subsidy.Dev}}"}'>
+                                title='{"object": "Project Fund", "total": "{{toFloat64Amount .Subsidy.Dev}}"}'
+                                data-target="visualBlocks.tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="fees" style="flex-grow: {{.Fees}}"
-                                title='{"object": "Tx Fees", "total": "{{.Fees}}"}'>
+                                title='{"object": "Tx Fees", "total": "{{.Fees}}"}'
+                                data-target="visualBlocks.tooltip">
                                 <a class="block-element-link" href="#"></a>
                             </span>
                         </div>
@@ -242,7 +247,7 @@
                 {{end}}
 
                 {{range $index, $block := .Blocks}}
-                <div class="{{if lt $index 10}}block visible{{else}}block{{end}}">
+                <div class="{{if lt $index 10}}block visible{{else}}block{{end}}" data-target="visualBlocks.block">
                 {{with $block}}
                     <div class="block-info">
                         <a class="color-code" href="/block/{{.Height}}">{{.Height}}</a>
@@ -257,25 +262,29 @@
                     <div class="block-rows">
                         <div class="block-rewards" style="flex-grow: 1">
                             <span class="pow" style="flex-grow: {{toFloat64Amount .Subsidy.PoW}}"
-                                title='{"object": "PoW Reward", "total": "{{toFloat64Amount .Subsidy.PoW}}"}'>
+                                title='{"object": "PoW Reward", "total": "{{toFloat64Amount .Subsidy.PoW}}"}'
+                                data-target="visualBlocks.tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="pos" style="flex-grow: {{toFloat64Amount .Subsidy.PoS}}"
-                                title='{"object": "PoS Reward", "total": "{{toFloat64Amount .Subsidy.PoS}}"}'>
+                                title='{"object": "PoS Reward", "total": "{{toFloat64Amount .Subsidy.PoS}}"}'
+                                data-target="visualBlocks.tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="fund" style="flex-grow: {{toFloat64Amount .Subsidy.Developer}}"
-                                title='{"object": "Project Fund", "total": "{{toFloat64Amount .Subsidy.Developer}}"}'>
+                                title='{"object": "Project Fund", "total": "{{toFloat64Amount .Subsidy.Developer}}"}'
+                                data-target="visualBlocks.tooltip">
                                 <a class="block-element-link" href="#">
                                     <span class="paint" style="width: {{intMultiply (len .Votes) 20}}%"></span>
                                 </a>
                             </span>
                             <span class="fees" style="flex-grow: {{.Fees}}"
-                                title='{"object": "Tx Fees", "total": "{{.Fees}}"}'>
+                                title='{"object": "Tx Fees", "total": "{{.Fees}}"}'
+                                data-target="visualBlocks.tooltip">
                                 <a class="block-element-link" href="#"></a>
                             </span>
                         </div>
@@ -324,7 +333,7 @@
                         {{end}}
                         </div>
 
-                        <div class="block-transactions" style="flex-grow: 1">
+                        <div class="block-transactions" data-target="visualBlocks.txs" style="flex-grow: 1">
                         {{$txs := .Transactions}}
                         {{$txCount := len .Transactions}}
                         {{if gt $txCount 50}} {{$txs = clipSlice .Transactions 30}} {{end}}
@@ -346,7 +355,7 @@
                 </div>
                 {{end}}
             </div>
-            <a class="no-underline d-block mt-4" href="/blocks"><div class="showmore"><p>View BlockChain History</p></div></a>
+            <a class="no-underline d-block mt-4" data-target="visualBlocks.showmore" href="/blocks"><div class="showmore"><p>View BlockChain History</p></div></a>
         </div>
     </div>
 

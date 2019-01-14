@@ -1,6 +1,6 @@
-/* global $ */
 import { Controller } from 'stimulus'
 import ws from '../services/messagesocket_service'
+import { fadeIn } from '../helpers/animation_helper'
 
 export default class extends Controller {
   static get targets () {
@@ -15,12 +15,14 @@ export default class extends Controller {
 
   connect () {
     ws.registerEvtHandler('decodetxResp', (evt) => {
-      $(this.decodeHeaderTarget).text('Decoded tx')
-      $(this.decodedTransactionTarget).text(evt)
+      this.decodeHeaderTarget.textContent = 'Decoded tx'
+      fadeIn(this.decodedTransactionTarget)
+      this.decodedTransactionTarget.textContent = evt
     })
     ws.registerEvtHandler('sendtxResp', (evt) => {
-      $(this.decodeHeaderTarget).text('Sent tx')
-      $(this.decodedTransactionTarget).text(evt)
+      this.decodeHeaderTarget.textContent = 'Sent tx'
+      fadeIn(this.decodedTransactionTarget)
+      this.decodedTransactionTarget.textContent = evt
     })
   }
 
@@ -35,11 +37,8 @@ export default class extends Controller {
     }
     if (this.rawTransactionTarget.value !== '') {
       ws.send(e.target.dataset.eventId, this.rawTransactionTarget.value)
-      $(this.rawTransactionTarget).text('')
-      $(this.decodedTransactionTarget).text('')
-      $(this.decodedTransactionTarget).fadeTo(0, 0.3, (el) => {
-        $(this.decodedTransactionTarget).fadeTo(500, 1.0)
-      })
+      this.rawTransactionTarget.textContent = ''
+      this.decodedTransactionTarget.textContent = ''
     }
   }
 }

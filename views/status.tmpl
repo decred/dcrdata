@@ -7,7 +7,7 @@
 
     <div class="container" data-controller="status">
         <br/>
-        <div class="alert alert-info">
+        <div class="alert alert-info" data-target="status.message">
             {{if .StatusType.IsNotFound}}
                 <h5>No matching page, block, address or transaction that could be found.</h5>
                 <h5>{{.Message}}</h5>
@@ -38,12 +38,12 @@
                 <h5>{{.Message}}</h5>
             {{end}}
         </div>
-        <div id="initial-load" class="sync-progress">
+        <div data-target="status.init" class="sync-progress">
         {{if .StatusType.IsSyncing}}
             <img src="/images/loader.gif" style="margin: 0px auto;display: block;"/>
         {{end}}
         </div>
-        <div id="addresses-sync" class="sync-progress"></div>
+        <div data-target="status.address" class="sync-progress"></div>
     </div>
 {{ template "footer" . }}
 </body>

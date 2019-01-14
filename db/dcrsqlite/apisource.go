@@ -226,10 +226,121 @@ func (db *WiredDB) GetHeight() (int64, error) {
 func (db *WiredDB) GetBestBlockHash() (string, error) {
 	hash := db.DBDataSaver.GetBestBlockHash()
 	var err error
-	if len(hash) == 0 {
+	if hash == "" {
 		err = fmt.Errorf("unable to get best block hash")
 	}
 	return hash, err
+}
+
+// BlockchainInfo retrieves the result of the getblockchaininfo node RPC.
+func (db *WiredDB) BlockchainInfo() (*dcrjson.GetBlockChainInfoResult, error) {
+	return db.client.GetBlockChainInfo()
+}
+
+// PurgeBlock deletes all data across all tables for the block with the
+// specified hash. The numbers of blocks removed from the block summary table
+// and stake info table are returned. PurgeBlock will not return sql.ErrNoRows,
+// but it may return without removing a block.
+func (db *WiredDB) PurgeBlock(hash string) (NSummaryRows, NStakeInfoRows int64, err error) {
+	NSummaryRows, NStakeInfoRows, err = db.DeleteBlock(hash)
+	// DeleteBlock should not return sql.ErrNoRows, but check anyway.
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+	return
+}
+
+// PurgeBestBlock deletes all data across all tables for the best block in the
+// block summary table. The numbers of blocks removed from the block summary
+// table and stake info table are returned. PurgeBestBlock will not return
+// sql.ErrNoRows, but it will return without removing a block if the tables are
+// empty. The returned height and hash values represent the best block after
+// successful data removal, or before a failed removal attempt.
+func (db *WiredDB) PurgeBestBlock() (NSummaryRows, NStakeInfoRows, height int64, hash string, err error) {
+	var h chainhash.Hash
+	h, height, err = db.GetBestBlockHeightHash()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Warnf("No blocks to remove from SQLite summary table.")
+			err = nil
+		}
+		return
+	}
+	hash = h.String()
+
+	NSummaryRows, NStakeInfoRows, err = db.PurgeBlock(hash)
+	if err != nil {
+		return
+	}
+
+	h, height, err = db.GetBestBlockHeightHash()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Last block removed.
+			err = nil
+		}
+		hash = ""
+		return
+	}
+	hash = h.String()
+
+	return
+}
+
+// PurgeBestBlocks deletes all data across all tables for the N best blocks in
+// the block summary table. The number of blocks removed is returned.
+// PurgeBestBlocks will not return sql.ErrNoRows, but it will return without
+// removing the requested number of blocks if the tables are empty or become
+// empty. The returned height and hash values represent the best block after
+// successful data removal, or before a failed removal attempt.
+func (db *WiredDB) PurgeBestBlocks(N int64) (NSummaryRows, NStakeInfoRows, height int64, hash string, err error) {
+	// If N is less than 1, get the current best block height and hash, then
+	// return.
+	if N < 1 {
+		var h chainhash.Hash
+		h, height, err = db.GetBestBlockHeightHash()
+		if err == sql.ErrNoRows {
+			err = nil
+		}
+		hash = h.String()
+		return
+	}
+
+	for i := int64(0); i < N; i++ {
+		// Attempt removal of the best block.
+		var NSumi, Nstakei, heighti int64
+		var hashi string
+		NSumi, Nstakei, heighti, hashi, err = db.PurgeBestBlock()
+		if err != nil {
+			// Return with previous (or initial) best block info and block
+			// removal count.
+			return
+		}
+
+		if (i%100 == 0 && i > 0) || i == N-1 {
+			log.Debugf("Removed data for %d blocks.", i+1)
+		}
+
+		// Removal succeeded. Returned best block values are valid.
+		NSummaryRows += NSumi
+		NStakeInfoRows += Nstakei
+		height = heighti
+		hash = hashi
+
+		// Rewind stake database to this height.
+		var stakeDBHeight int64
+		stakeDBHeight, err = db.RewindStakeDB(context.Background(), height, true)
+		if err != nil {
+			return
+		}
+		if stakeDBHeight != height {
+			err = fmt.Errorf("rewind of StakeDatabase to height %d failed, "+
+				"reaching height %d instead", height, stakeDBHeight)
+			return
+		}
+	}
+
+	return
 }
 
 // GetBestBlockHeightHash retrieves the DB's best block hash and height.

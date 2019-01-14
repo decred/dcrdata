@@ -1,41 +1,14 @@
-/* global $ */
 import { Controller } from 'stimulus'
+import dompurify from 'dompurify'
 import globalEventBus from '../services/event_bus_service'
 import ws from '../services/messagesocket_service'
 
 const conversionRate = 100000000
-function calculateMaximumNumberOfBlocksToDisplay (blockElement) {
-  const blocksSection = $('.blocks-section')
-  const blocksSectionFirstChildHeight = blocksSection.children(':first').outerHeight(true)
-  const blocksSectionLastChildHeight = blocksSection.children(':last').outerHeight(true)
 
-  // make blocks section fill available window height
-  const extraSpace = $(window).height() - $('#mainContainer').outerHeight(true)
-  let blocksSectionHeight = blocksSection.outerHeight() + extraSpace
-
-  const totalAvailableWidth = blocksSection.width()
-  let totalAvailableHeight = blocksSectionHeight - blocksSectionFirstChildHeight - blocksSectionLastChildHeight
-
-  // block section should be at least same height as netstats section
-  const netstatsSectionHeight = $('.netstats-section').outerHeight()
-  if (netstatsSectionHeight > totalAvailableHeight) {
-    totalAvailableHeight = netstatsSectionHeight - blocksSectionFirstChildHeight - blocksSectionLastChildHeight
-  }
-
-  const blockWidth = blockElement.width()
-  const blockHeight = blockElement.height() + 20 // for spacing between rows
-
-  const maxBlocksPerRow = Math.floor(totalAvailableWidth / blockWidth)
-  let maxBlockRows = Math.floor(totalAvailableHeight / blockHeight)
-  let maxBlockElements = maxBlocksPerRow * maxBlockRows
-
-  const totalBlocksDisplayable = $('.blocks-holder').children().length
-  while (maxBlockElements > totalBlocksDisplayable) {
-    maxBlockRows--
-    maxBlockElements = maxBlocksPerRow * maxBlockRows
-  }
-
-  return maxBlockElements
+function makeNode (html) {
+  var div = document.createElement('div')
+  div.innerHTML = dompurify.sanitize(html)
+  return div.firstChild
 }
 
 function makeMempoolBlock (block) {
@@ -44,7 +17,7 @@ function makeMempoolBlock (block) {
     fees += tx.Fees
   }
 
-  return `<div class="block visible">
+  return makeNode(`<div class="block visible">
                 <div class="block-info">
                     <a class="color-code" href="/mempool">Mempool</a>
                     <div class="mono" style="line-height: 1;">${Math.floor(block.Total)} DCR</div>
@@ -59,6 +32,7 @@ function makeMempoolBlock (block) {
                     ${makeTransactionElements(block.Transactions, '/mempool')}
                 </div>
             </div>`
+  )
 }
 
 function newBlockHtmlElement (block) {
@@ -70,7 +44,7 @@ function newBlockHtmlElement (block) {
     }
   }
 
-  return `<div class="block visible">
+  return makeNode(`<div class="block visible">
                 ${makeBlockSummary(block.Height, block.Total, block.Time)}
                 <div class="block-rows">
                     ${makeRewardsElement(block.Subsidy, block.MiningFee, block.Votes.length, rewardTxId)}
@@ -79,6 +53,7 @@ function newBlockHtmlElement (block) {
                     ${makeTransactionElements(block.Transactions, `/block/${block.Height}`)}
                 </div>
             </div>`
+  )
 }
 
 function makeBlockSummary (blockHeight, totalSent, time) {
@@ -225,58 +200,13 @@ function makeTxElement (tx, className, type, appendFlexGrow) {
             </span>`
 }
 
-function setupTooltips () {
-  // check for emtpy tx rows and set custom tooltip
-  $('.block-transactions').each(function () {
-    var blockTx = $(this)
-    if (blockTx.children().length === 0) {
-      blockTx.attr('title', 'No regular transaction in block')
-    }
-  })
-
-  $('.block-rows [title]').each(function () {
-    var tooltipElement = $(this)
-    try {
-      // parse the content
-      var data = JSON.parse(tooltipElement.attr('title'))
-      var newContent
-      if (data.object === 'Vote') {
-        newContent = `<b>${data.object} (${data.voteValid ? 'Yes' : 'No'})</b>`
-      } else {
-        newContent = `<b>${data.object}</b><br>${data.total} DCR`
-      }
-
-      if (data.vin && data.vout) {
-        newContent += `<br>${data.vin} Inputs, ${data.vout} Outputs`
-      }
-
-      tooltipElement.attr('title', newContent)
-    } catch (error) {}
-  })
-
-  import(/* webpackChunkName: "tippy" */ '../vendor/tippy.all').then(module => {
-    var tippy = module.default
-    tippy('.block-rows [title]', {
-      allowTitleHTML: true,
-      animation: 'shift-away',
-      arrow: true,
-      createPopperInstanceOnInit: true,
-      dynamicTitle: true,
-      performance: true,
-      placement: 'top',
-      size: 'small',
-      sticky: true,
-      theme: 'light'
-    })
-  })
-}
-
 export default class extends Controller {
   static get targets () {
-    return []
+    return ['box', 'title', 'showmore', 'root', 'txs', 'tooltip', 'block']
   }
 
   connect () {
+    this.handleNextHomeBlockUpdate = this._handleNextHomeBlockUpdate.bind(this)
     globalEventBus.on('BLOCK_RECEIVED', this.handleNextHomeBlockUpdate)
 
     ws.registerEvtHandler('getmempooltxsResp', (event) => {
@@ -288,6 +218,7 @@ export default class extends Controller {
       ws.send('getmempooltxs', '')
     })
 
+    this.refreshBlocksDisplay = this._refreshBlocksDisplay.bind(this)
     // on load (js file is loaded after loading html content)
     window.addEventListener('resize', this.refreshBlocksDisplay)
 
@@ -299,9 +230,10 @@ export default class extends Controller {
     ws.deregisterEvtHandlers('getmempooltxsResp')
     ws.deregisterEvtHandlers('mempool')
     globalEventBus.off('BLOCK_RECEIVED', this.handleNextHomeBlockUpdate)
+    window.removeEventListener('resize', this.refreshBlocksDisplay)
   }
 
-  handleNextHomeBlockUpdate (newBlock) {
+  _handleNextHomeBlockUpdate (newBlock) {
     let block = newBlock.block
     // show only regular tx in block.Transactions, exclude coinbase (reward) transactions
     const transactions = block.Tx.filter(tx => !tx.Coinbase)
@@ -318,40 +250,123 @@ export default class extends Controller {
       Transactions: transactions
     }
 
-    $(newBlockHtmlElement(trimmedBlockInfo)).insertAfter($('.blocks-holder > *:first-child'))
+    var box = this.boxTarget
+    box.insertBefore(newBlockHtmlElement(trimmedBlockInfo), box.firstChild.nextSibling)
     // hide last visible block as 1 more block is now visible
-    $('.blocks-holder > .block.visible').last().removeClass('visible')
+    var vis = this.visibleBlocks()
+    vis[vis.length - 1].classList.remove('visible')
     // remove last block from dom to maintain max of 30 blocks (hidden or visible) in dom at any time
-    $('.blocks-holder > .block').last().remove()
-    setupTooltips()
+    box.removeChild(box.lastChild)
+    this.setupTooltips()
   }
 
   handleMempoolUpdate (evt) {
     const mempool = JSON.parse(evt)
     mempool.Time = Math.round((new Date()).getTime() / 1000)
-    const mempoolElement = makeMempoolBlock(mempool)
-    const currentMempoolElement = $('.blocks-holder > *:first-child')
-    $(mempoolElement).insertAfter(currentMempoolElement)
-    currentMempoolElement.remove()
-    setupTooltips()
+    this.boxTarget.replaceChild(makeMempoolBlock(mempool), this.boxTarget.firstChild)
+    this.setupTooltips()
   }
 
-  refreshBlocksDisplay () {
-    const visibleBlockElements = $('.block.visible')
+  _refreshBlocksDisplay () {
+    const visibleBlockElements = this.visibleBlocks()
     const currentlyDisplayedBlockCount = visibleBlockElements.length
-    const maxBlockElements = calculateMaximumNumberOfBlocksToDisplay(visibleBlockElements)
+    const maxBlockElements = this.calculateMaximumNumberOfBlocksToDisplay(visibleBlockElements[0])
     if (currentlyDisplayedBlockCount > maxBlockElements) {
       // remove the last x blocks
       for (let i = currentlyDisplayedBlockCount; i >= maxBlockElements; i--) {
-        $(visibleBlockElements[i]).removeClass('visible')
+        visibleBlockElements[i - 1].classList.remove('visible')
       }
     } else {
-      const allBlockElements = $('.block')
+      const allBlockElements = this.blockTargets
       // add more blocks to fill display
       for (let i = currentlyDisplayedBlockCount; i < maxBlockElements; i++) {
-        $(allBlockElements[i]).addClass('visible')
+        allBlockElements[i].classList.add('visible')
       }
     }
-    setupTooltips()
+    this.setupTooltips()
+  }
+
+  calculateMaximumNumberOfBlocksToDisplay (blockElement) {
+    const blocksSection = this.rootTarget.getBoundingClientRect()
+    const margin = 20
+    const blocksSectionFirstChildHeight = this.titleTarget.offsetHeight + margin
+    const blocksSectionLastChildHeight = this.showmoreTarget.offsetHeight + margin
+
+    // make blocks section fill available window height
+    const extraSpace = window.innerHeight - document.getElementById('mainContainer').offsetHeight
+    let blocksSectionHeight = blocksSection.height + extraSpace
+
+    const totalAvailableWidth = blocksSection.width
+    let totalAvailableHeight = blocksSectionHeight - blocksSectionFirstChildHeight - blocksSectionLastChildHeight
+
+    // block section should be at least same height as netstats section
+    const netstatsSectionHeight = document.getElementById('netstatsSection').offsetHeight
+    if (netstatsSectionHeight > totalAvailableHeight) {
+      totalAvailableHeight = netstatsSectionHeight - blocksSectionFirstChildHeight - blocksSectionLastChildHeight
+    }
+
+    const rect = blockElement.getBoundingClientRect()
+    const blockWidth = rect.width
+    const blockHeight = rect.height + margin // for spacing between rows
+
+    const maxBlocksPerRow = Math.floor(totalAvailableWidth / blockWidth)
+    let maxBlockRows = Math.floor(totalAvailableHeight / blockHeight)
+    let maxBlockElements = maxBlocksPerRow * maxBlockRows
+
+    const totalBlocksDisplayable = this.boxTarget.childElementCount
+    while (maxBlockElements > totalBlocksDisplayable) {
+      maxBlockRows--
+      maxBlockElements = maxBlocksPerRow * maxBlockRows
+    }
+
+    return maxBlockElements
+  }
+
+  setupTooltips () {
+    // check for emtpy tx rows and set custom tooltip
+    this.txsTargets.forEach((div) => {
+      if (div.childeElementCount === 0) {
+        div.title = 'No regular transaction in block'
+      }
+    })
+
+    this.tooltipTargets.forEach((tooltipElement) => {
+      try {
+        // parse the content
+        var data = JSON.parse(tooltipElement.title)
+        var newContent
+        if (data.object === 'Vote') {
+          newContent = `<b>${data.object} (${data.voteValid ? 'Yes' : 'No'})</b>`
+        } else {
+          newContent = `<b>${data.object}</b><br>${data.total} DCR`
+        }
+
+        if (data.vin && data.vout) {
+          newContent += `<br>${data.vin} Inputs, ${data.vout} Outputs`
+        }
+
+        tooltipElement.title = newContent
+      } catch (error) {}
+    })
+
+    import(/* webpackChunkName: "tippy" */ '../vendor/tippy.all').then(module => {
+      var tippy = module.default
+      tippy('.block-rows [title]', {
+        allowTitleHTML: true,
+        animation: 'shift-away',
+        arrow: true,
+        createPopperInstanceOnInit: true,
+        dynamicTitle: true,
+        performance: true,
+        placement: 'top',
+        size: 'small',
+        sticky: true,
+        theme: 'light'
+      })
+    })
+  }
+
+  visibleBlocks () {
+    return this.boxTarget.querySelectorAll('.visible')
   }
 }

@@ -188,7 +188,7 @@ func (exp *explorerUI) SideChains(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
-// DisapprovedBlocks is the page handler for the "/rejects" path.
+// DisapprovedBlocks is the page handler for the "/disapproved" path.
 func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request) {
 	disapprovedBlocks, err := exp.explorerSource.DisapprovedBlocks()
 	if exp.timeoutErrorPage(w, err, "DisapprovedBlocks") {
@@ -201,7 +201,7 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	str, err := exp.templates.execTemplateToString("rejects", struct {
+	str, err := exp.templates.execTemplateToString("disapproved", struct {
 		*CommonPageData
 		Data    []*dbtypes.BlockStatus
 		NetName string
@@ -1206,7 +1206,6 @@ func (exp *explorerUI) AddressPage(w http.ResponseWriter, r *http.Request) {
 		Data         *dbtypes.AddressInfo
 		NetName      string
 		IsLiteMode   bool
-		ChartData    *dbtypes.ChartsData
 		CRLFDownload bool
 	}
 
@@ -1643,8 +1642,17 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	addrPrefix := types.AddressPrefixes(params)
 	actualTicketPoolSize := int64(params.TicketPoolSize * params.TicketsPerBlock)
 
+	exp.pageData.RLock()
+	var maxBlockSize int64
+	if exp.pageData.BlockchainInfo != nil {
+		maxBlockSize = exp.pageData.BlockchainInfo.MaxBlockSize
+	} else {
+		maxBlockSize = int64(params.MaximumBlockSizes[0])
+	}
+	exp.pageData.RUnlock()
+
 	type ExtendedParams struct {
-		MaximumBlockSize     int
+		MaximumBlockSize     int64
 		ActualTicketPoolSize int64
 		AddressPrefix        []types.AddrPrefix
 	}
@@ -1656,7 +1664,7 @@ func (exp *explorerUI) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	}{
 		CommonPageData: exp.commonData(),
 		ExtendedParams: ExtendedParams{
-			MaximumBlockSize:     params.MaximumBlockSizes[0],
+			MaximumBlockSize:     maxBlockSize,
 			AddressPrefix:        addrPrefix,
 			ActualTicketPoolSize: actualTicketPoolSize,
 		},

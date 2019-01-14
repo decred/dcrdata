@@ -207,23 +207,89 @@ func _main(ctx context.Context) error {
 		}
 	}
 
-	// Optionally purge best blocks according to config.
-	if cfg.PurgeNBestBlocks > 0 {
-		N := int64(cfg.PurgeNBestBlocks)
-		log.Infof("Purging data for the %d best blocks in the aux. DB...", N)
-		s, heightDB, err := auxDB.PurgeBestBlocks(N)
-		if err != nil && err != sql.ErrNoRows {
-			return fmt.Errorf("Failed to purge %d blocks from the aux. DB: %v", N, err)
+	// Heights gets the current height of each DB, the minimum of the DB heights
+	// (dbHeight), and the chain server height.
+	Heights := func() (dbHeight, nodeHeight, baseDBHeight, auxDBHeight int64, err error) {
+		_, nodeHeight, err = dcrdClient.GetBestBlock()
+		if err != nil {
+			err = fmt.Errorf("unable to get block from node: %v", err)
+			return
 		}
-		if s != nil {
-			log.Infof("Sucessfully purged data for %d blocks from the aux. DB (new height = %d):\n%v",
-				s.Blocks, heightDB, s)
-		} // otherwise err == sql.ErrNoRows
+
+		baseDBHeight, err = baseDB.GetHeight()
+		if err != nil {
+			if err != sql.ErrNoRows {
+				log.Errorf("baseDB.GetHeight failed: %v", err)
+				return
+			}
+			// err == sql.ErrNoRows is not an error
+			err = nil
+			log.Infof("baseDB block summary table is empty.")
+		}
+		log.Debugf("baseDB height: %d", baseDBHeight)
+		dbHeight = baseDBHeight
+
+		if usePG {
+			auxDBHeight, err = auxDB.GetHeight()
+			if err != nil {
+				if err != sql.ErrNoRows {
+					log.Errorf("auxDB.GetHeight failed: %v", err)
+					return
+				}
+				// err == sql.ErrNoRows is not an error
+				err = nil
+				log.Infof("auxDB block summary table is empty.")
+			}
+			log.Debugf("auxDB height: %d", auxDBHeight)
+			if baseDBHeight > auxDBHeight {
+				dbHeight = auxDBHeight
+			}
+		}
+		return
 	}
 
-	blockHash, nodeHeight, err := dcrdClient.GetBestBlock()
-	if err != nil {
-		return fmt.Errorf("Unable to get block from node: %v", err)
+	// Optionally purge best blocks according to config.
+	if cfg.PurgeNBestBlocks > 0 {
+		// The number of blocks to purge for each DB is computed so that the DBs
+		// will end on the same height.
+		_, _, baseDBHeight, auxDBHeight, err := Heights()
+		if err != nil {
+			return fmt.Errorf("Heights failed: %v", err)
+		}
+		// Determine the largest DB height.
+		maxHeight := baseDBHeight
+		if usePG && auxDBHeight > maxHeight {
+			maxHeight = auxDBHeight
+		}
+		// The final best block after purge.
+		purgeToBlock := maxHeight - int64(cfg.PurgeNBestBlocks)
+
+		// Purge NBase blocks from base DB.
+		NBase := baseDBHeight - purgeToBlock
+		log.Infof("Purging data for the %d best blocks in the base DB...", NBase)
+		nRemovedSummary, _, heightDB, _, err := baseDB.PurgeBestBlocks(NBase)
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("Failed to purge %d blocks from the base DB: %v", NBase, err)
+		}
+		// The number of rows removed from the summary table and stake table may
+		// be different if the DB was corrupted, but it is not important to log
+		// for the tables separately.
+		log.Infof("Sucessfully purged data for %d blocks from the base DB "+
+			"(new height = %d).", nRemovedSummary, heightDB)
+
+		if usePG {
+			// Purge NAux blocks from auxiliary DB.
+			NAux := auxDBHeight - purgeToBlock
+			log.Infof("Purging data for the %d best blocks in the aux. DB...", NAux)
+			s, heightDB, err := auxDB.PurgeBestBlocks(NAux)
+			if err != nil && err != sql.ErrNoRows {
+				return fmt.Errorf("Failed to purge %d blocks from the aux. DB: %v", NAux, err)
+			}
+			if s != nil {
+				log.Infof("Sucessfully purged data for %d blocks from the aux. DB "+
+					"(new height = %d):\n%v", s.Blocks, heightDB, s)
+			} // otherwise likely err == sql.ErrNoRows
+		}
 	}
 
 	// When in lite mode, baseDB should get blocks without having to coordinate
@@ -234,6 +300,8 @@ func _main(ctx context.Context) error {
 		var heightDB uint64
 		heightDB, err = auxDB.HeightDB()
 		lastBlockPG := int64(heightDB)
+		// If the tables are empty, heightDB will still be zero, so we check for
+		// sql.ErrNoRows to recognize this case and set lastBlockPG to -1.
 		if err != nil {
 			if err != sql.ErrNoRows {
 				return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
@@ -253,21 +321,29 @@ func _main(ctx context.Context) error {
 		// StakeDatabase when the required blocks are connected, the
 		// StakeDatabase must be at the same height or lower than auxDB.
 		stakedbHeight := int64(baseDB.GetStakeDB().Height())
-		fromHeight := stakedbHeight
-		if uint64(stakedbHeight) > heightDB {
-			// Rewind stakedb and log at intervals of 200 blocks.
-			if stakedbHeight == fromHeight || stakedbHeight%200 == 0 {
-				log.Infof("Rewinding StakeDatabase from %d to %d.", stakedbHeight, heightDB)
-			}
+		if stakedbHeight > int64(heightDB) {
+			// Have baseDB rewind it's the StakeDatabase. stakedbHeight is
+			// always rewound to a height of zero even when lastBlockPG is -1,
+			// hence we rewind to heightDB.
+			log.Infof("Rewinding StakeDatabase from block %d to %d.",
+				stakedbHeight, heightDB)
 			stakedbHeight, err = baseDB.RewindStakeDB(ctx, int64(heightDB))
 			if err != nil {
 				return fmt.Errorf("RewindStakeDB failed: %v", err)
 			}
-			// stakedbHeight is always rewound to a height of zero even when lastBlockPG is -1.
+
+			// Verify that the StakeDatabase is at the intended height.
 			if stakedbHeight != int64(heightDB) {
 				return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d",
 					stakedbHeight, heightDB)
 			}
+		}
+
+		// TODO: just use getblockchaininfo to see if it still syncing and what
+		// height the network's best block is at.
+		blockHash, nodeHeight, err := dcrdClient.GetBestBlock()
+		if err != nil {
+			return fmt.Errorf("Unable to get block from node: %v", err)
 		}
 
 		block, err := dcrdClient.GetBlockHeader(blockHash)
@@ -374,29 +450,6 @@ func _main(ctx context.Context) error {
 
 	blockDataSavers = append(blockDataSavers, explore)
 
-	// Determine blocks to sync.
-	baseDBHeight, err := baseDB.GetHeight()
-	if err != nil && err != sql.ErrNoRows {
-		log.Errorf("baseDB.GetHeight failed: %v", err)
-	}
-	log.Debugf("baseDB height: %d", baseDBHeight)
-	blocksBehind := nodeHeight - baseDBHeight
-
-	var auxDBHeight int64
-	if usePG {
-		auxDBHeight, err = auxDB.GetHeight()
-		if err != nil && err != sql.ErrNoRows {
-			log.Errorf("auxDB.GetHeight failed: %v", err)
-		}
-		log.Debugf("auxDB height: %d", auxDBHeight)
-		if baseDBHeight > auxDBHeight {
-			blocksBehind = nodeHeight - auxDBHeight
-		}
-	}
-	// dbHeight is the smaller of baseDBHeight and auxDBHeight in full mode.
-	dbHeight := nodeHeight - blocksBehind
-	log.Debugf("dbHeight: %d / blocksBehind: %d", dbHeight, blocksBehind)
-
 	// Prepare for sync by setting up the channels for status/progress updates
 	// (barLoad) or full explorer page updates (latestBlockHash).
 
@@ -414,6 +467,12 @@ func _main(ctx context.Context) error {
 	// the node's best block height are more than the set limit. The sync status
 	// page should also be displayed when updateAllAddresses and newPGIndexes
 	// are true, indicating maintenance or an initial sync.
+	dbHeight, nodeHeight, _, _, err := Heights()
+	if err != nil {
+		return fmt.Errorf("Heights failed: %v", err)
+	}
+	blocksBehind := nodeHeight - dbHeight
+	log.Debugf("dbHeight: %d / blocksBehind: %d", dbHeight, blocksBehind)
 	displaySyncStatusPage := blocksBehind > int64(cfg.SyncStatusLimit) || // over limit
 		updateAllAddresses || newPGIndexes // maintenance or initial sync
 
@@ -550,7 +609,10 @@ func _main(ctx context.Context) error {
 		r.Get("/blocks", explore.Blocks)
 		r.Get("/ticketpricewindows", explore.StakeDiffWindows)
 		r.Get("/side", explore.SideChains)
-		r.Get("/rejects", explore.DisapprovedBlocks)
+		r.Get("/rejects", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/disapproved", http.StatusPermanentRedirect)
+		})
+		r.Get("/disapproved", explore.DisapprovedBlocks)
 		r.Get("/mempool", explore.Mempool)
 		r.Get("/parameters", explore.ParametersPage)
 		r.With(explore.BlockHashPathOrIndexCtx).Get("/block/{blockhash}", explore.Block)
@@ -630,7 +692,7 @@ func _main(ctx context.Context) error {
 		return waitForSync(ctx, sqliteSyncRes, pgSyncRes, usePG)
 	}
 
-	baseDBHeight, auxDBHeight, err = getSyncd(updateAllAddresses,
+	baseDBHeight, auxDBHeight, err := getSyncd(updateAllAddresses,
 		updateAllVotes, newPGIndexes, fetchToHeight)
 	if err != nil {
 		return err
