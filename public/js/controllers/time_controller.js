@@ -61,7 +61,7 @@ export default class extends Controller {
       if (isCorrectVal(el.dataset.age)) {
         el.textContent = humanize.timeSince(el.dataset.age)
       } else if (el.dataset.age !== '') {
-        el.textContent = humanize.timeSince((Date.parse(el.dataset.age) / 1000) - (new Date().getTimezoneOffset() * 60))
+        el.textContent = humanize.timeSince((Date.parse(el.dataset.age) / 1000) - window.DCRThings.netTimezoneOffset)
       }
     })
   }
