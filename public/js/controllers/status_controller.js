@@ -1,16 +1,17 @@
-/* global $ */
 /* global Turbolinks */
 import { Controller } from 'stimulus'
+import dompurify from 'dompurify'
 import ws from '../services/messagesocket_service'
 import Notify from 'notifyjs'
 import globalEventBus from '../services/event_bus_service'
 
 function buildProgressBar (data) {
+  var clean = dompurify.sanitize
   var progressVal = data.percentage_complete
   var timeRemaining = humanizeTime(data.seconds_to_complete)
-  var htmlString = data.bar_msg.length > 0 ? '<p style="font-size:14px;">' + data.bar_msg + '</p>' : ''
+  var htmlString = data.bar_msg.length > 0 ? clean(`<p style="font-size:14px;">${data.bar_msg}</p>`) : ''
   var subtitle = data.subtitle.trim()
-  var notifStr = subtitle.length > 0 ? '<span style="font-size:11px;">notification : <i>' + subtitle + '</i></span>' : ''
+  var notifStr = subtitle.length > 0 ? clean(`<span style="font-size:11px;">notification : <i>${subtitle}</i></span>`) : ''
 
   var remainingStr = 'pending'
   if (progressVal > 0) {
@@ -25,11 +26,11 @@ function buildProgressBar (data) {
     notifStr = ''
   }
 
-  return (htmlString + `<div class="progress" style="height:30px;border-radius:5px;">
+  return htmlString + clean(`<div class="progress" style="height:30px;border-radius:5px;">
                 <div class="progress-bar sync-progress-bar" role="progressbar" style="height:auto; width:` + progressVal + `%;">
                 <span class="nowrap pl-1 font-weight-bold">Progress ` + progressVal + '% (' + remainingStr + `)</span>
                 </div>
-            </div>` + notifStr)
+            </div>`) + notifStr
 }
 
 function humanizeTime (secs) {
@@ -64,10 +65,14 @@ function doNotification () {
 
 export default class extends Controller {
   static get targets () {
-    return [ 'statusSyncing', 'futureBlock' ]
+    return ['statusSyncing', 'futureBlock', 'init', 'address', 'message']
   }
 
   connect () {
+    this.progressBars = {
+      'initial-load': this.initTarget,
+      'addresses-sync': this.addressTarget
+    }
     ws.registerEvtHandler('blockchainSync', (evt) => {
       var d = JSON.parse(evt)
       var i
@@ -75,14 +80,16 @@ export default class extends Controller {
       for (i = 0; i < d.length; i++) {
         var v = d[i]
 
-        $('#' + v.progress_bar_id).html(buildProgressBar(v))
+        var bar = this.progressBars[v.progress_bar_id]
+        while (bar.firstChild) bar.removeChild(bar.firstChild)
+        bar.innerHTML = buildProgressBar(v)
 
         if (v.subtitle === 'sync complete') {
           if (!Notify.needsPermission) {
             doNotification()
           }
 
-          $('.alert.alert-info h5').html('Blockchain sync is complete. Redirecting to home in 20 secs.')
+          this.messageTarget.querySelector('h5').textContent = 'Blockchain sync is complete. Redirecting to home in 20 secs.'
           setInterval(() => Turbolinks.visit('/'), 20000)
           return
         }

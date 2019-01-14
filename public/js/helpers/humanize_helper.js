@@ -1,4 +1,3 @@
-/* global $ */
 // For all your value formatting needs...
 
 function logn (n, b) {
@@ -20,7 +19,7 @@ var humanize = {
     sign = sign + val.toFixed(2)
     return '<span style="color:' + color + ';">' + sign + ' % </span>'
   },
-  decimalParts: function (v, useCommas, precision, asString, lgDecimals) {
+  decimalParts: function (v, useCommas, precision, lgDecimals) {
     if (isNaN(precision) || precision > 8) {
       precision = 8
     }
@@ -52,15 +51,12 @@ var humanize = {
       `<span class="decimal">${decimalVals}</span>` +
       `<span class="decimal trailing-zeroes">${trailingZeros}</span>`
     } else {
-      htmlString += '<span class="int"></span>'
+      htmlString += `<span class="int">${int}</span>`
     }
 
     htmlString += '</div>'
 
-    if (asString) {
-      return htmlString
-    }
-    return $.parseHTML(htmlString)
+    return htmlString
   },
   subsidyToString: function (x, y = 1) {
     return (x / 100000000 / y) + ' DCR'

@@ -32,7 +32,7 @@
                 <div class="row" data-target="address.qrbox">
                     <div data-action="click->address#hideQRCode"
                         data-target="address.qrimg"
-                        class="col opacity-transition qrimg clickable"
+                        class="col qrimg clickable"
                     ></div>
                 </div>
                 {{if .IsDummyAddress}}
@@ -42,12 +42,20 @@
                 {{else}}
                 <div class="btn-group mr-auto mb-0 align-bottom address-btn"
                     data-toggle="buttons"
-                    data-target="address.btns"
-                    data-action="click->address#changeView"
                 >
-                    <input type="button" class="addr-btn list btn btn_sm btn-active" value="List" name="list">
-                    <input type="button" class="addr-btn chart btn btn_sm" value="Charts"
-                        name="chart" {{if or $.IsLiteMode (eq (len .Transactions) 0)}}disabled{{end}}>
+                    <input type="button"
+                    class="list btn btn_sm btn-active"
+                    value="List"
+                    name="list"
+                    data-target="address.view"
+                    data-action="click->address#changeView">
+                    <input
+                    type="button"
+                    class="chart btn btn_sm"
+                    value="Charts"
+                    data-target="address.view"
+                    data-action="click->address#changeView"
+                    name="chart" {{if or $.IsLiteMode (eq (len .Transactions) 0)}}disabled{{end}}>
                 </div>
                 {{end}}
             </div>
@@ -123,7 +131,7 @@
         {{if not .IsDummyAddress}}
         <div class="row">
             <div class="col">
-                <div class="list-display position-relative" data-target="address.listbox">
+                <div class="position-relative" data-target="address.listbox">
                   <div class="modal position-absolute"></div>
                   <h5 class="mr-auto mb-0">History</h5>
                     <div class="d-flex flex-wrap-reverse align-items-center justify-content-end ">

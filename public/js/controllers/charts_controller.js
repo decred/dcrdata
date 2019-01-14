@@ -1,5 +1,3 @@
-/* global $ */
-
 import { Controller } from 'stimulus'
 import { map, assign, merge } from 'lodash-es'
 import { barChartPlotter } from '../helpers/chart_helper'
@@ -9,6 +7,7 @@ import { animationFrame } from '../helpers/animation_helper'
 import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
+import globalEventBus from '../services/event_bus_service'
 
 var selectedChart
 let Dygraph // lazy loaded on connect
@@ -192,14 +191,16 @@ export default class extends Controller {
       import(/* webpackChunkName: "dygraphs" */ '../vendor/dygraphs.min.js')
     )
     this.drawInitialGraph()
-    $(document).on('nightMode', (event, params) => {
+    this.processNightMode = (params) => {
       this.chartsView.updateOptions(
         nightModeOptions(params.nightMode)
       )
-    })
+    }
+    globalEventBus.on('NIGHT_MODE', this.processNightMode)
   }
 
   disconnect () {
+    globalEventBus.off('NIGHT_MODE', this.processNightMode)
     if (this.chartsView !== undefined) {
       this.chartsView.destroy()
     }
@@ -236,7 +237,7 @@ export default class extends Controller {
       [[1, 1]],
       options
     )
-    $(this.chartSelectTarget).val(this.settings.chart)
+    this.chartSelectTarget.value = this.settings.chart
     this.selectChart()
   }
 
@@ -364,14 +365,14 @@ export default class extends Controller {
 
   async selectChart () {
     var selection = this.settings.chart = this.chartSelectTarget.value
-    $(this.chartWrapperTarget).addClass('loading')
+    this.chartWrapperTarget.classList.add('loading')
     if (selectedChart !== selection) {
       let chartResponse = await axios.get('/api/chart/' + selection)
       console.log('got api data', chartResponse, this, selection)
       this.plotGraph(selection, chartResponse.data)
       selectedChart = selection
     } else {
-      $(this.chartWrapperTarget).removeClass('loading')
+      this.chartWrapperTarget.classList.remove('loading')
     }
   }
 
@@ -386,7 +387,7 @@ export default class extends Controller {
 
   async validateZoom () {
     await animationFrame()
-    $(this.chartWrapperTarget).addClass('loading')
+    this.chartWrapperTarget.classList.add('loading')
     await animationFrame()
     var zoomMin, zoomMax
     [zoomMin, zoomMax] = this.chartsView.xAxisExtremes()
@@ -399,7 +400,7 @@ export default class extends Controller {
     this.query.replace(this.settings)
     this.setSelectedZoom(Zoom.mapKey(zoom, limits))
     await animationFrame()
-    $(this.chartWrapperTarget).removeClass('loading')
+    this.chartWrapperTarget.classList.remove('loading')
   }
 
   _zoomCallback (start, end) {
@@ -434,7 +435,7 @@ export default class extends Controller {
   async onRollPeriodChange (event) {
     var rollPeriod = parseInt(event.target.value) || 1
     await animationFrame()
-    $(this.chartWrapperTarget).addClass('loading')
+    this.chartWrapperTarget.classList.add('loading')
     await animationFrame()
     this.chartsView.updateOptions({
       rollPeriod: rollPeriod
@@ -442,7 +443,7 @@ export default class extends Controller {
     await animationFrame()
     this.settings.roll = rollPeriod
     this.query.replace(this.settings)
-    $(this.chartWrapperTarget).removeClass('loading')
+    this.chartWrapperTarget.classList.remove('loading')
   }
 
   setRollPeriod (period) {

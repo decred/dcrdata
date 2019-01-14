@@ -22,8 +22,6 @@
     <meta name="turbolinks-cache-control" content="no-cache">
     <title>{{.}}</title>
     <link href="/dist/css/style.css" rel="stylesheet">
-    <script src="/js/vendor/jquery.min.js"></script>
-    <script src="/js/vendor/jquery-migrate.min.js"></script>
     <script src="/js/vendor/turbolinks.min.js"></script>
 </head>
 {{end}}
@@ -63,7 +61,7 @@
             </div>
             <nav role="navigation" id="hamburger-menu" data-controller="menu" data-turbolinks-permanent>
                 <div id="menuToggle">
-                    <input type="checkbox" data-target="menu.toggle"/>
+                    <input type="checkbox" data-target="menu.toggle" data-action="change->menu#toggle"/>
                     <span class="patty"></span>
                     <span class="patty"></span>
                     <span class="patty short"></span>
@@ -227,7 +225,12 @@
           <tr {{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}" {{end}}>
               {{with $v}}
               <td>{{.TxType}}</td>
-              <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}" class="hash" data-keynav-priority>{{.IOID $txType}}</a></td>
+              <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}"
+                data-target="address.hash"
+                class="hash"
+                data-keynav-priority
+                >{{.IOID $txType}}</a>
+              </td>
               {{if eq $txType "merged_debit"}}
                   <td class="text-right">{{.MergedTxnCount}}</td>
               {{else}}
@@ -240,7 +243,11 @@
                       <td class="text-right">sstxcommitment</td>
                       {{else}}
                           {{if ne .MatchedTx ""}}
-                          <td class="text-right"><a href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}" class="matchhash">source</a></td>
+                          <td class="text-right"><a
+                            href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}"
+                            data-action="mouseover->address#hashOver mouseout->address#hashOut"
+                            >source</a></td>
+
                           {{else}}
                           <td class="text-right">N/A</td>
                           {{end}}
@@ -263,7 +270,10 @@
                   {{end}}
               {{else}}
                   {{if ne .MatchedTx ""}}
-                      <td><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}" class="matchhash">spent</a></td>
+                      <td><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
+                        data-txid="{{.MatchedTx}}"
+                        data-action="mouseover->address#hashOver mouseout->address#hashOut"
+                        >spent</a></td>
                   {{else}}
                       <td>unspent</td>
                   {{end}}
