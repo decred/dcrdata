@@ -26,6 +26,9 @@ document.addEventListener('turbolinks:load', function (e) {
   window.DCRThings = {}
   window.DCRThings.targetBlockTime = navBar.dataset.blocktime
   window.DCRThings.ticketPoolSize = navBar.dataset.poolsize
+  let clientOffset = (new Date().getTimezoneOffset() * 60)
+  let serverOffset = parseInt(navBar.dataset.timezone_offset)
+  window.DCRThings.netTimezoneOffset = clientOffset + serverOffset
 }
 
 function getSocketURI (loc) {
@@ -46,7 +49,7 @@ async function createWebSocket (loc) {
   var updateBlockData = function (event) {
     console.log('Received newblock message', event)
     var newBlock = JSON.parse(event)
-    newBlock.block.unixStamp = ((new Date(newBlock.block.time)).getTime() / 1000) - (new Date().getTimezoneOffset() * 60)
+    newBlock.block.unixStamp = (new Date(newBlock.block.time).getTime() / 1000) - window.DCRThings.netTimezoneOffset
     globalEventBus.publish('BLOCK_RECEIVED', newBlock)
   }
   ws.registerEvtHandler('newblock', updateBlockData)

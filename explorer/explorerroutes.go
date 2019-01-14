@@ -32,11 +32,12 @@ import (
 // explorerUI.commonData returns an initialized instance or CommonPageData,
 // which itself should be used to initialize page data template structs.
 type CommonPageData struct {
-	Tip           *types.WebBasicBlock
-	Version       string
-	ChainParams   *chaincfg.Params
-	BlockTimeUnix int64
-	DevAddress    string
+	Tip            *types.WebBasicBlock
+	Version        string
+	ChainParams    *chaincfg.Params
+	BlockTimeUnix  int64
+	TimezoneOffset int
+	DevAddress     string
 }
 
 // Status page strings
@@ -1879,6 +1880,8 @@ func (exp *explorerUI) commonData() *CommonPageData {
 	cd.Version = exp.Version
 	cd.ChainParams = exp.ChainParams
 	cd.BlockTimeUnix = int64(exp.ChainParams.TargetTimePerBlock.Seconds())
+	_, offset := time.Now().Zone()
+	cd.TimezoneOffset = offset
 	cd.DevAddress = exp.pageData.HomeInfo.DevAddress
 	var err error
 	cd.Tip, err = exp.blockData.GetTip()
