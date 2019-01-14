@@ -155,6 +155,7 @@ export default class extends Controller {
     ctrl.updateView = ctrl._updateView.bind(ctrl)
     ctrl.zoomCallback = ctrl._zoomCallback.bind(ctrl)
     ctrl.drawCallback = ctrl._drawCallback.bind(ctrl)
+    ctrl.lastEnd = 0
     ctrl.confirmMempoolTxs = ctrl._confirmMempoolTxs.bind(ctrl)
     ctrl.bindElements()
     ctrl.bindEvents()
@@ -458,8 +459,8 @@ export default class extends Controller {
         options = balanceGraphOptions
         break
     }
-    options.zoomCallback = ctrl.zoomCallback
-    options.drawCallback = ctrl.drawCallback
+    options.zoomCallback = null
+    options.drawCallback = null
     if (ctrl.graph === undefined) {
       ctrl.graph = ctrl.createGraph(data, options)
     } else {
@@ -527,9 +528,12 @@ export default class extends Controller {
   validateZoom (binSize) {
     var ctrl = this
     ctrl.setButtonVisibility()
-    var zoom = Zoom.validate(ctrl.chartSettings.zoom || ctrl.activeZoomKey, ctrl.xRange, binSize)
+    var zoom = Zoom.validate(ctrl.activeZoomKey || ctrl.chartSettings.zoom, ctrl.xRange, binSize)
     ctrl.setZoom(zoom.start, zoom.end)
-    ctrl.setSelectedZoom(Zoom.mapKey(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes()))
+    ctrl.graph.updateOptions({
+      zoomCallback: ctrl.zoomCallback,
+      drawCallback: ctrl.drawCallback
+    })
   }
 
   changeView (e) {
@@ -623,6 +627,7 @@ export default class extends Controller {
       dateWindow: [start, end]
     })
     ctrl.chartSettings.zoom = Zoom.encode(start, end)
+    ctrl.lastEnd = end
     ctrl.query.replace(ctrl.chartSettings)
     ctrl.chartboxTarget.classList.remove('loading')
   }
@@ -679,6 +684,8 @@ export default class extends Controller {
     var start, end
     [start, end] = ctrl.graph.xAxisRange()
     if (start === end) return
+    if (end === this.lastEnd) return // Only handle slide event.
+    this.lastEnd = end
     ctrl.chartSettings.zoom = Zoom.encode(start, end)
     ctrl.query.replace(ctrl.chartSettings)
     ctrl.setSelectedZoom(Zoom.mapKey(ctrl.chartSettings.zoom, ctrl.graph.xAxisExtremes()))
