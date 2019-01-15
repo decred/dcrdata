@@ -229,6 +229,10 @@ func makeTemplateFuncMap(params *chaincfg.Params) template.FuncMap {
 			t, _ := time.Now().Zone()
 			return t
 		},
+		"timezoneOffset": func() int {
+			_, secondsEastOfUTC := time.Now().Zone()
+			return secondsEastOfUTC
+		},
 		"percentage": func(a, b int64) float64 {
 			return (float64(a) / float64(b)) * 100
 		},

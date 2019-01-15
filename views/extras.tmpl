@@ -31,7 +31,7 @@
 {{define "navbar"}}
 <header class="top-nav"
         id="navBar"
-        data-timezone_offset="{{.TimezoneOffset}}"
+        data-timezone_offset="{{timezoneOffset}}"
         data-blocktime="{{.BlockTimeUnix}}"
         data-poolsize="{{.ChainParams.TicketPoolSize}}">
     <div class="container">
@@ -218,7 +218,7 @@
           {{else}}
               <th>Debit DCR</th>
           {{end}}
-          <th>Time {{timezone}}</th>
+          <th>Time ({{timezone}})</th>
           <th>Age</th>
           <th>Confirms</th>
           <th>Size</th>
