@@ -1131,6 +1131,11 @@ func deleteColumnsIfFound(db *sql.DB, table string, columns []string) (bool, err
 	if err != nil {
 		return false, err
 	}
+	log.Infof("Reclaiming disk space from removed columns...")
+	_, err = db.Exec(fmt.Sprintf("VACUUM FULL %s;", table))
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
