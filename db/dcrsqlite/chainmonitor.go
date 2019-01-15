@@ -59,12 +59,7 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 			reorgData.OldChainHeight, commonAncestorHeight)
 	}
 
-	// Update DB tables, just overwriting any existing data. TODO(chappjc): Set
-	// is_mainchain=false for the previous main chain (disconnected) blocks. For
-	// now, StoreBlockSummary first does this for any main chain block being
-	// added. This is unnecessary except during a reorg, but it does the job.
-
-	// Save blocks from previous side chain that is now the main chain
+	// Save blocks from previous side chain that is now the main chain.
 	log.Infof("Saving %d new blocks from previous side chain to sqlite.", len(newChain))
 	for i := range newChain {
 		// Get data by block hash, which requires the stakedb's PoolInfoCache to
@@ -75,14 +70,24 @@ func (p *ChainMonitor) switchToSideChain(reorgData *txhelpers.ReorgData) (int32,
 			log.Error("Failed to collect data for reorg.")
 			continue
 		}
+
+		// Before storing data for the new main chain block, set
+		// is_mainchain=false for any other block at this height.
+		height := int64(blockDataSummary.Height)
+		if err := p.db.setHeightToSideChain(height); err != nil {
+			log.Errorf("Failed to move blocks at height %d off of main chain: "+
+				"%v", height, err)
+		}
+
+		// Store this block's summary data and stake info.
 		if err := p.db.StoreBlockSummary(blockDataSummary); err != nil {
 			log.Errorf("Failed to store block summary data: %v", err)
 		}
 		if err := p.db.StoreStakeInfoExtended(stakeInfoSummaryExtended); err != nil {
 			log.Errorf("Failed to store stake info data: %v", err)
 		}
-		log.Infof("Stored block %v (height %d) from side chain.",
-			blockDataSummary.Hash, blockDataSummary.Height)
+		log.Infof("Promoted block %v (height %d) from side chain to main chain.",
+			blockDataSummary.Hash, height)
 	}
 
 	// Retrieve height and hash of the best block in the DB.
