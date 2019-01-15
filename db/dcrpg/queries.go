@@ -2673,13 +2673,11 @@ func InsertBlock(db *sql.DB, dbBlock *dbtypes.Block, isValid, isMainchain, check
 	var id uint64
 	err := db.QueryRow(insertStatement,
 		dbBlock.Hash, dbBlock.Height, dbBlock.Size, isValid, isMainchain,
-		dbBlock.Version, dbBlock.MerkleRoot, dbBlock.StakeRoot,
-		dbBlock.NumTx, dbBlock.NumRegTx, dbBlock.NumStakeTx,
-		dbBlock.Time.T, dbBlock.Nonce, dbBlock.VoteBits,
-		dbBlock.FinalState, dbBlock.Voters, dbBlock.FreshStake,
-		dbBlock.Revocations, dbBlock.PoolSize, dbBlock.Bits,
-		dbBlock.SBits, dbBlock.Difficulty, dbBlock.ExtraData,
-		dbBlock.StakeVersion, dbBlock.PreviousHash, dbBlock.ChainWork).Scan(&id)
+		dbBlock.Version, dbBlock.NumTx, dbBlock.NumRegTx, dbBlock.NumStakeTx,
+		dbBlock.Time.T, dbBlock.Nonce, dbBlock.VoteBits, dbBlock.Voters,
+		dbBlock.FreshStake, dbBlock.Revocations, dbBlock.PoolSize, dbBlock.Bits,
+		dbBlock.SBits, dbBlock.Difficulty, dbBlock.StakeVersion,
+		dbBlock.PreviousHash, dbBlock.ChainWork).Scan(&id)
 	return id, err
 }
 

@@ -29,13 +29,11 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params, ch
 
 	// Assemble the block
 	return &Block{
-		Hash:       blockHeader.BlockHash().String(),
-		Size:       uint32(msgBlock.SerializeSize()),
-		Height:     blockHeader.Height,
-		Version:    uint32(blockHeader.Version),
-		MerkleRoot: blockHeader.MerkleRoot.String(),
-		StakeRoot:  blockHeader.StakeRoot.String(),
-		NumTx:      uint32(len(msgBlock.Transactions) + len(msgBlock.STransactions)),
+		Hash:    blockHeader.BlockHash().String(),
+		Size:    uint32(msgBlock.SerializeSize()),
+		Height:  blockHeader.Height,
+		Version: uint32(blockHeader.Version),
+		NumTx:   uint32(len(msgBlock.Transactions) + len(msgBlock.STransactions)),
 		// nil []int64 for TxDbIDs
 		NumRegTx:     uint32(len(msgBlock.Transactions)),
 		Tx:           txHashStrs,
@@ -44,7 +42,6 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params, ch
 		Time:         TimeDef{T: blockHeader.Timestamp},
 		Nonce:        uint64(blockHeader.Nonce),
 		VoteBits:     blockHeader.VoteBits,
-		FinalState:   blockHeader.FinalState[:],
 		Voters:       blockHeader.Voters,
 		FreshStake:   blockHeader.FreshStake,
 		Revocations:  blockHeader.Revocations,
@@ -52,7 +49,6 @@ func MsgBlockToDBBlock(msgBlock *wire.MsgBlock, chainParams *chaincfg.Params, ch
 		Bits:         blockHeader.Bits,
 		SBits:        uint64(blockHeader.SBits),
 		Difficulty:   txhelpers.GetDifficultyRatio(blockHeader.Bits, chainParams),
-		ExtraData:    blockHeader.ExtraData[:],
 		StakeVersion: blockHeader.StakeVersion,
 		PreviousHash: blockHeader.PrevBlock.String(),
 		ChainWork:    chainWork,

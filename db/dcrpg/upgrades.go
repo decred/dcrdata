@@ -49,6 +49,7 @@ const (
 	transactionsBlockTimeDataTypeUpdate
 	vinsBlockTimeDataTypeUpdate
 	blocksChainWorkUpdate
+	blocksRemoveRootColumns
 )
 
 type TableUpgradeType struct {
@@ -302,7 +303,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		// Go on to next upgrade
 		fallthrough
 
-		// Upgrade from 3.6.0 --> 3.7.0
+	// Upgrade from 3.6.0 --> 3.7.0
 	case version.major == 3 && version.minor == 6 && version.patch == 0:
 		toVersion = TableVersion{3, 7, 0}
 
@@ -312,6 +313,22 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
+		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.7.0 --> 3.8.0
+	case version.major == 3 && version.minor == 7 && version.patch == 0:
+		toVersion = TableVersion{3, 8, 0}
+
+		theseUpgrades := []TableUpgradeType{
+			{"blocks", blocksRemoveRootColumns},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
 		if !isSuccess {
 			return isSuccess, er
 		}
@@ -435,6 +452,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case blocksChainWorkUpdate:
 		tableReady, err = addChainWorkColumn(pgb.db)
 		tableName, upgradeTypeStr = "blocks", "new chainwork column"
+	case blocksRemoveRootColumns:
+		tableReady, err = deleteRootsColumns(pgb.db)
+		tableName, upgradeTypeStr = "blocks", "remove columns: extra_data, merkle_root, stake_root, final_state"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -558,8 +578,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 
 	case addressesBlockTimeDataTypeUpdate, blocksBlockTimeDataTypeUpdate,
 		agendasBlockTimeDataTypeUpdate, transactionsBlockTimeDataTypeUpdate,
-		vinsBlockTimeDataTypeUpdate:
-	// set block time data type to timestamp
+		vinsBlockTimeDataTypeUpdate, blocksRemoveRootColumns:
 
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
@@ -638,7 +657,8 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	return true, nil
 }
 
-// dropBlockTimeIndexes drops all indexes that are likely to slow down the db upgrade.
+// dropBlockTimeIndexes drops all indexes that are likely to slow down the db
+// upgrade.
 func (pgb *ChainDB) dropBlockTimeIndexes() {
 	log.Info("Dropping block time indexes")
 	err := DeindexBlockTimeOnTableAddress(pgb.db)
@@ -1093,6 +1113,32 @@ func haveEmptyAgendasTable(db *sql.DB) (bool, error) {
 	return true, nil
 }
 
+func makeDeleteColumnsStmt(table string, columns []string) string {
+	dropStmt := fmt.Sprintf("ALTER TABLE %s", table)
+	for i := range columns {
+		dropStmt = dropStmt + fmt.Sprintf(" DROP COLUMN IF EXISTS %s", columns[i])
+		if i < len(columns)-1 {
+			dropStmt = dropStmt + ","
+		}
+	}
+	dropStmt = dropStmt + ";"
+	return dropStmt
+}
+
+func deleteColumnsIfFound(db *sql.DB, table string, columns []string) (bool, error) {
+	dropStmt := makeDeleteColumnsStmt(table, columns)
+	result, err := db.Exec(dropStmt)
+	if err != nil {
+		return false, err
+	}
+
+	N, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return N > 0, nil
+}
+
 type newColumn struct {
 	Name    string
 	Type    string
@@ -1217,6 +1263,12 @@ func addChainWorkColumn(db *sql.DB) (bool, error) {
 		{"chainwork", "TEXT", "0"},
 	}
 	return addNewColumnsIfNotFound(db, "blocks", newColumns)
+}
+
+func deleteRootsColumns(db *sql.DB) (bool, error) {
+	table := "blocks"
+	cols := []string{"merkle_root", "stake_root", "final_state", "extra_data"}
+	return deleteColumnsIfFound(db, table, cols)
 }
 
 // versionAllTables comments the tables with the upgraded table version.

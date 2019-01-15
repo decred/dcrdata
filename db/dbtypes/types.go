@@ -668,8 +668,6 @@ type Block struct {
 	Size         uint32 `json:"size"`
 	Height       uint32 `json:"height"`
 	Version      uint32 `json:"version"`
-	MerkleRoot   string `json:"merkleroot"`
-	StakeRoot    string `json:"stakeroot"`
 	NumTx        uint32
 	NumRegTx     uint32
 	Tx           []string `json:"tx"`
@@ -680,7 +678,6 @@ type Block struct {
 	Time         TimeDef `json:"time"`
 	Nonce        uint64  `json:"nonce"`
 	VoteBits     uint16  `json:"votebits"`
-	FinalState   []byte  `json:"finalstate"`
 	Voters       uint16  `json:"voters"`
 	FreshStake   uint8   `json:"freshstake"`
 	Revocations  uint8   `json:"revocations"`
@@ -688,7 +685,6 @@ type Block struct {
 	Bits         uint32  `json:"bits"`
 	SBits        uint64  `json:"sbits"`
 	Difficulty   float64 `json:"difficulty"`
-	ExtraData    []byte  `json:"extradata"`
 	StakeVersion uint32  `json:"stakeversion"`
 	PreviousHash string  `json:"previousblockhash"`
 	ChainWork    string  `json:"chainwork"`
