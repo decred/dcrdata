@@ -1127,16 +1127,11 @@ func makeDeleteColumnsStmt(table string, columns []string) string {
 
 func deleteColumnsIfFound(db *sql.DB, table string, columns []string) (bool, error) {
 	dropStmt := makeDeleteColumnsStmt(table, columns)
-	result, err := db.Exec(dropStmt)
+	_, err := db.Exec(dropStmt)
 	if err != nil {
 		return false, err
 	}
-
-	N, err := result.RowsAffected()
-	if err != nil {
-		return false, err
-	}
-	return N > 0, nil
+	return true, nil
 }
 
 type newColumn struct {
