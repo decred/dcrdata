@@ -15,8 +15,6 @@ const (
 		is_valid BOOLEAN,
 		is_mainchain BOOLEAN,
 		version INT4,
-		merkle_root TEXT,
-		stake_root TEXT,
 		numtx INT4,
 		num_rtx INT4,
 		tx TEXT[],
@@ -27,7 +25,6 @@ const (
 		time TIMESTAMP,
 		nonce INT8,
 		vote_bits INT2,
-		final_state BYTEA,
 		voters INT2,
 		fresh_stake INT2,
 		revocations INT2,
@@ -35,7 +32,6 @@ const (
 		bits INT4,
 		sbits INT8,
 		difficulty FLOAT8,
-		extra_data BYTEA,
 		stake_version INT4,
 		previous_hash TEXT,
 		chainwork TEXT
@@ -48,16 +44,16 @@ const (
 
 	// insertBlockRow is the basis for several block insert/upsert statements.
 	insertBlockRow = `INSERT INTO blocks (
-		hash, height, size, is_valid, is_mainchain, version, merkle_root, stake_root,
+		hash, height, size, is_valid, is_mainchain, version,
 		numtx, num_rtx, tx, txDbIDs, num_stx, stx, stxDbIDs,
-		time, nonce, vote_bits, final_state, voters,
+		time, nonce, vote_bits, voters,
 		fresh_stake, revocations, pool_size, bits, sbits,
-		difficulty, extra_data, stake_version, previous_hash, chainwork)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-		$9, $10, %s, %s, $11, %s, %s,
-		$12, $13, $14, $15, $16,
-		$17, $18, $19, $20, $21,
-		$22, $23, $24, $25, $26) `
+		difficulty, stake_version, previous_hash, chainwork)
+	VALUES ($1, $2, $3, $4, $5, $6,
+		$7, $8, %s, %s, $9, %s, %s,
+		$10, $11, $12, $13,
+		$14, $15, $16, $17, $18,
+		$19, $20, $21, $22) `
 
 	// InsertBlockRow inserts a new block row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
@@ -101,7 +97,6 @@ const (
 	SelectBlockHashByHeight = `SELECT hash FROM blocks WHERE height = $1 AND is_mainchain = true;`
 	SelectBlockHeightByHash = `SELECT height FROM blocks WHERE hash = $1;`
 
-	RetrieveBestBlock          = `SELECT * FROM blocks ORDER BY height DESC LIMIT 0, 1;`
 	RetrieveBestBlockHeightAny = `SELECT id, hash, height FROM blocks
 		ORDER BY height DESC LIMIT 1;`
 	RetrieveBestBlockHeight = `SELECT id, hash, height FROM blocks
