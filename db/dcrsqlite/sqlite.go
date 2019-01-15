@@ -515,14 +515,6 @@ func (db *DB) getMainchainStatus(blockhash string) (bool, error) {
 // StoreBlock attempts to store the block data in the database, and
 // returns an error on failure.
 func (db *DB) StoreBlock(bd *apitypes.BlockDataBasic, isMainchain bool, isValid bool) error {
-	// When storing data for a main chain block, set is_mainchain=false for any
-	// other block at this height.
-	if isMainchain {
-		if err := db.setHeightToSideChain(int64(bd.Height)); err != nil {
-			return err
-		}
-	}
-
 	stmt, err := db.Prepare(db.insertBlockSQL)
 	if err != nil {
 		return err
