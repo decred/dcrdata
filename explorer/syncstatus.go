@@ -76,7 +76,7 @@ func (exp *explorerUI) BeginSyncStatusUpdates(barLoad chan *dbtypes.ProgressBarL
 				timer.Stop()
 				return
 			}
-			log.Debug("Sending progress bar signal.")
+			log.Trace("Sending progress bar signal.")
 			exp.wsHub.HubRelay <- sigSyncStatus
 		}
 	}()
