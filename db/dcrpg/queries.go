@@ -2619,24 +2619,32 @@ func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, er
 	points := make([]chainWorkPt, averagingLength)
 	var thisPt, lastPt chainWorkPt
 	var idx, workingIdx, lastIdx int
+	badRows := 0
+
+	badRow := func() {
+		badRows++
+		idx++
+	}
+
 	for rows.Next() {
 		// Get the chainwork.
 		err = rows.Scan(&blocktime.T, &workhex)
 		if err != nil {
 			return nil, nil, err
 		}
+
 		bigwork := new(big.Int)
 		exawork := new(big.Int)
 		bigwork, ok := bigwork.SetString(workhex, 16)
 		if !ok {
-			log.Errorf("Failed to make big.Int from chainwork %s", workhex)
-			break
+			badRow()
+			continue
 		}
 		exawork.Set(bigwork)
 		exawork.Div(bigwork, bigExa)
 		if !exawork.IsUint64() {
-			log.Errorf("Failed to make uint64 from chainwork %s", workhex)
-			break
+			badRow()
+			continue
 		}
 		workdata.ChainWork = append(workdata.ChainWork, exawork.Uint64())
 		workdata.Time = append(workdata.Time, blocktime)
@@ -2654,14 +2662,17 @@ func retrieveChainWork(db *sql.DB) (*dbtypes.ChartsData, *dbtypes.ChartsData, er
 			rate := diff.Div(diff, big.NewInt(int64(thisPt.time.Sub(lastPt.time).Seconds())))
 			rate.Div(rate, bigTera)
 			if !rate.IsUint64() {
-				log.Errorf("Failed to make uint64 from rate")
-				break
+				badRow()
+				continue
 			}
 			tDef := dbtypes.TimeDef{T: thisPt.time}
 			hashrates.Time = append(hashrates.Time, tDef)
 			hashrates.NetHash = append(hashrates.NetHash, rate.Uint64())
 		}
-		idx += 1
+		idx++
+	}
+	if badRows > 0 {
+		log.Errorf("%d rows have invalid chainwork values.", badRows)
 	}
 	return workdata, hashrates, nil
 }
