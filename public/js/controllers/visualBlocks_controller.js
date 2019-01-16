@@ -13,6 +13,7 @@ function makeNode (html) {
 
 function makeMempoolBlock (block) {
   let fees = 0
+  if (!block.Transactions) return
   for (const tx of block.Transactions) {
     fees += tx.Fees
   }
@@ -209,13 +210,13 @@ export default class extends Controller {
     this.handleNextHomeBlockUpdate = this._handleNextHomeBlockUpdate.bind(this)
     globalEventBus.on('BLOCK_RECEIVED', this.handleNextHomeBlockUpdate)
 
-    ws.registerEvtHandler('getmempooltxsResp', (event) => {
+    ws.registerEvtHandler('getmempooltrimmedResp', (event) => {
       console.log('received mempooltx response', event)
       this.handleMempoolUpdate(event)
     })
 
     ws.registerEvtHandler('mempool', (event) => {
-      ws.send('getmempooltxs', '')
+      ws.send('getmempooltrimmed', '')
     })
 
     this.refreshBlocksDisplay = this._refreshBlocksDisplay.bind(this)
@@ -227,7 +228,7 @@ export default class extends Controller {
   }
 
   disconnect () {
-    ws.deregisterEvtHandlers('getmempooltxsResp')
+    ws.deregisterEvtHandlers('getmempooltrimmedResp')
     ws.deregisterEvtHandlers('mempool')
     globalEventBus.off('BLOCK_RECEIVED', this.handleNextHomeBlockUpdate)
     window.removeEventListener('resize', this.refreshBlocksDisplay)

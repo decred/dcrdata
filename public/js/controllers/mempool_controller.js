@@ -137,7 +137,7 @@ export default class extends Controller {
   handleTxsResp (event) {
     var m = JSON.parse(event)
     buildTable(this.regularTransactionsTarget, 'regular transactions', m.tx, txTableRow)
-    buildTable(this.revocationTransactionsTarget, 'revocations', m.revokes, txTableRow)
+    buildTable(this.revocationTransactionsTarget, 'revocations', m.revs, txTableRow)
     buildTable(this.voteTransactionsTarget, 'votes', m.votes, voteTxTableRow)
     buildTable(this.ticketTransactionsTarget, 'tickets', m.tickets, txTableRow)
   }
