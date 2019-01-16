@@ -12,7 +12,7 @@
                 <h4 class="mb-2">
                     Block #{{.Height}}
                     {{ if not .MainChain }}
-                      <span class="attention">(side chain)</span>
+                      <a href="/side" class="attention">(side chain)</a>
                     {{else}}
 
                         {{ if gt .Confirmations 1 }}
