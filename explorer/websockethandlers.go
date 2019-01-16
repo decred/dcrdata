@@ -98,6 +98,20 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					}
 
 				case "getmempooltxs":
+					// MempoolInfo. Used on mempool and home page.
+					exp.MempoolData.RLock()
+					msg, err := json.Marshal(exp.MempoolData)
+					exp.MempoolData.RUnlock()
+
+					if err != nil {
+						log.Warn("Invalid JSON message: ", err)
+						webData.Message = "Error: Could not encode JSON message"
+						break
+					}
+					webData.Message = string(msg)
+
+				case "getmempooltrimmed":
+					// TrimmedMempoolInfo. Used in nexthome.
 					// construct mempool object with properties required in template
 					mempoolInfo := exp.TrimmedMempoolInfo()
 					// mempool fees appear incorrect, temporarily set to zero for now
