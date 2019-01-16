@@ -113,7 +113,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				case "getmempooltrimmed":
 					// TrimmedMempoolInfo. Used in nexthome.
 					// construct mempool object with properties required in template
-					mempoolInfo := exp.TrimmedMempoolInfo()
+					mempoolInfo := exp.MempoolData.Trim()
 					// mempool fees appear incorrect, temporarily set to zero for now
 					mempoolInfo.Fees = 0
 

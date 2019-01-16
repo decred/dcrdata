@@ -5,12 +5,13 @@
 package explorer
 
 import (
-	"sort"
 	"time"
 
 	"github.com/decred/dcrd/blockchain"
 	"github.com/decred/dcrd/blockchain/stake"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -92,22 +93,22 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *types.NewMempoolTx) {
 			}
 		}
 
+		fee, _ := txhelpers.TxFeeRate(msgTx)
+
 		tx := types.MempoolTx{
 			TxID:      msgTx.TxHash().String(),
+			Fees:      fee.ToCoin(),
+			VinCount:  len(msgTx.TxIn),
+			VoutCount: len(msgTx.TxOut),
+			Vin:       types.MsgTxMempoolInputs(msgTx),
+			Coinbase:  blockchain.IsCoinBaseTx(msgTx),
 			Hash:      hash,
 			Time:      ntx.Time,
 			Size:      int32(len(ntx.Hex) / 2),
 			TotalOut:  txhelpers.TotalOutFromMsgTx(msgTx).ToCoin(),
 			Type:      txhelpers.DetermineTxTypeString(msgTx),
 			VoteInfo:  voteInfo,
-			VinCount:  len(msgTx.TxIn),
-			VoutCount: len(msgTx.TxOut),
-			Vin:       types.MsgTxMempoolInputs(msgTx),
-			Coinbase:  blockchain.IsCoinBaseTx(msgTx),
 		}
-
-		fee, _ := txhelpers.TxFeeRate(msgTx)
-		tx.Fees = fee.ToCoin()
 
 		// Add the tx to the appropriate tx slice in MempoolData and update the
 		// count for the transaction type.
@@ -185,7 +186,7 @@ func (exp *explorerUI) StartMempoolMonitor(newTxChan chan *types.NewMempoolTx) {
 	go exp.mempoolMonitor(newTxChan)
 }
 
-func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
+func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlockHeight int64, lastBlockTime int64) {
 	defer func(start time.Time) {
 		log.Debugf("storeMempoolInfo() completed in %v", time.Since(start))
 	}(time.Now())
@@ -193,162 +194,57 @@ func (exp *explorerUI) storeMempoolInfo() (lastBlockHash string, lastBlock int64
 	// Get mempool transactions and ensure block ID is correct
 	var memtxs []types.MempoolTx
 	for {
-		lastBlockHash0, _, _ := exp.getLastBlock()
+		lastBlockHash0, _, _ := exp.LastBlock()
 		memtxs = exp.blockData.GetMempool()
 		if memtxs == nil {
 			log.Error("Could not get mempool transactions")
 			return
 		}
-		lastBlockHash, lastBlock, lastBlockTime = exp.getLastBlock()
+		lastBlockHash, lastBlockHeight, lastBlockTime = exp.LastBlock()
 		if lastBlockHash == lastBlockHash0 {
 			break
 		}
 		log.Warnf("Best block change while getting mempool. Repeating request.")
 	}
 
-	// Get the NumLatestMempoolTxns latest transactions in mempool
-	var latest []types.MempoolTx
-	sort.Sort(byTime(memtxs))
-	if len(memtxs) > NumLatestMempoolTxns {
-		latest = memtxs[:NumLatestMempoolTxns]
-	} else {
-		latest = memtxs
+	hash, err := chainhash.NewHashFromStr(lastBlockHash)
+	if err != nil {
+		log.Errorf("storeMempoolInfo: Invalid block hash %s: %v", lastBlockHash, err)
+	}
+	var h chainhash.Hash
+	if hash != nil {
+		h = *hash
+	}
+	lastBlock := &mempool.BlockID{
+		Hash:   h,
+		Height: lastBlockHeight,
+		Time:   lastBlockTime,
 	}
 
-	tickets := make([]types.MempoolTx, 0)
-	votes := make([]types.MempoolTx, 0)
-	revs := make([]types.MempoolTx, 0)
-	regular := make([]types.MempoolTx, 0)
-
-	var totalOut float64
-	var totalSize int32
-	votingInfo := types.VotingInfo{
-		MaxVotesPerBlock: exp.ChainParams.TicketsPerBlock,
-		VotedTickets:     make(map[string]bool),
-	}
-	invRegular := make(map[string]struct{})
-	invStake := make(map[string]struct{})
-
-	// Initialize the BlockValidatorIndex, a map.
-	ticketSpendInds := make(types.BlockValidatorIndex)
-	for _, tx := range memtxs {
-		switch tx.Type {
-		case "Ticket":
-			if _, found := invStake[tx.Hash]; found {
-				continue
-			}
-			invStake[tx.Hash] = struct{}{}
-			tickets = append(tickets, tx)
-		case "Vote":
-			if _, found := invStake[tx.Hash]; found {
-				continue
-			}
-			invStake[tx.Hash] = struct{}{}
-			votes = append(votes, tx)
-
-			// Assign an index to this vote that is unique to the spent ticket +
-			// validated block.
-			tx.VoteInfo.SetTicketIndex(ticketSpendInds)
-			// Determine if this vote is (in)validating the previous block.
-			tx.VoteInfo.ForLastBlock = tx.VoteInfo.VotesOnBlock(lastBlockHash)
-			// Update tally if this is for the previous block, the ticket has not
-			// yet been spent. Do not attempt to decide block validity.
-			if tx.VoteInfo.ForLastBlock && !votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] {
-				votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] = true
-				votingInfo.TicketsVoted++
-			}
-		case "Revocation":
-			if _, found := invStake[tx.Hash]; found {
-				continue
-			}
-			invStake[tx.Hash] = struct{}{}
-			revs = append(revs, tx)
-		default:
-			if _, found := invRegular[tx.Hash]; found {
-				continue
-			}
-			invRegular[tx.Hash] = struct{}{}
-			regular = append(regular, tx)
-		}
-
-		// Update mempool totals
-		totalOut += tx.TotalOut
-		totalSize += tx.Size
-	}
-
-	sort.Sort(byHeight(votes))
-	formattedSize := humanize.Bytes(uint64(totalSize))
+	mpInfo := mempool.ParseTxns(memtxs, exp.ChainParams, lastBlock)
 
 	// Store mempool data for template rendering
 	exp.MempoolData.Lock()
 	defer exp.MempoolData.Unlock()
 
-	exp.MempoolData.Transactions = regular
-	exp.MempoolData.Tickets = tickets
-	exp.MempoolData.Revocations = revs
-	exp.MempoolData.Votes = votes
+	exp.MempoolData.Transactions = mpInfo.Transactions
+	exp.MempoolData.Tickets = mpInfo.Tickets
+	exp.MempoolData.Revocations = mpInfo.Revocations
+	exp.MempoolData.Votes = mpInfo.Votes
 
-	exp.MempoolData.MempoolShort = types.MempoolShort{
-		LastBlockHeight:    lastBlock,
-		LastBlockHash:      lastBlockHash,
-		LastBlockTime:      lastBlockTime,
-		TotalOut:           totalOut,
-		TotalSize:          totalSize,
-		NumAll:             len(memtxs),
-		NumTickets:         len(tickets),
-		NumVotes:           len(votes),
-		NumRegular:         len(regular),
-		NumRevokes:         len(revs),
-		LatestTransactions: latest,
-		FormattedTotalSize: formattedSize,
-		TicketIndexes:      ticketSpendInds,
-		VotingInfo:         votingInfo,
-		InvRegular:         invRegular,
-		InvStake:           invStake,
-	}
+	exp.MempoolData.MempoolShort = mpInfo.MempoolShort
 
 	return
 }
 
 // getLastBlock returns the last block hash, height and time
-func (exp *explorerUI) getLastBlock() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
+func (exp *explorerUI) LastBlock() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
 	exp.pageData.RLock()
 	defer exp.pageData.RUnlock()
 	lastBlock = exp.pageData.BlockInfo.Height
 	lastBlockTime = exp.pageData.BlockInfo.BlockTime.T.Unix()
 	lastBlockHash = exp.pageData.BlockInfo.Hash
 	return
-}
-
-type byTime []types.MempoolTx
-
-func (txs byTime) Less(i, j int) bool {
-	return txs[i].Time > txs[j].Time
-}
-
-func (txs byTime) Len() int {
-	return len(txs)
-}
-
-func (txs byTime) Swap(i, j int) {
-	txs[i], txs[j] = txs[j], txs[i]
-}
-
-type byHeight []types.MempoolTx
-
-func (votes byHeight) Less(i, j int) bool {
-	if votes[i].VoteInfo.Validation.Height == votes[j].VoteInfo.Validation.Height {
-		return votes[i].VoteInfo.MempoolTicketIndex < votes[j].VoteInfo.MempoolTicketIndex
-	}
-	return votes[i].VoteInfo.Validation.Height > votes[j].VoteInfo.Validation.Height
-}
-
-func (votes byHeight) Len() int {
-	return len(votes)
-}
-
-func (votes byHeight) Swap(i, j int) {
-	votes[i], votes[j] = votes[j], votes[i]
 }
 
 // matchMempoolVins filters relevant mempool transaction inputs whose previous

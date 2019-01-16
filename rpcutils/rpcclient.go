@@ -510,3 +510,55 @@ func UnconfirmedTxnsForAddress(client *rpcclient.Client, address string, params 
 
 	return addressOutpoints, numUnconfirmed, err
 }
+
+// APITransaction uses the RPC client to retrieve the specified transaction, and
+// convert the data into a *apitypes.Tx.
+func APITransaction(client *rpcclient.Client, txid string) (tx *apitypes.Tx, hex string, err error) {
+	txraw, err := GetTransactionVerboseByID(client, txid)
+	if err != nil {
+		err = fmt.Errorf("APITransaction failed for %v: %v", txid, err)
+		return
+	}
+	hex = txraw.Hex
+
+	tx = new(apitypes.Tx)
+	tx.TxID = txraw.Txid
+	tx.Size = int32(len(hex) / 2)
+	tx.Version = txraw.Version
+	tx.Locktime = txraw.LockTime
+	tx.Expiry = txraw.Expiry
+	tx.Vin = make([]dcrjson.Vin, len(txraw.Vin))
+	copy(tx.Vin, txraw.Vin)
+	tx.Vout = make([]apitypes.Vout, len(txraw.Vout))
+	for i := range txraw.Vout {
+		tx.Vout[i].Value = txraw.Vout[i].Value
+		tx.Vout[i].N = txraw.Vout[i].N
+		tx.Vout[i].Version = txraw.Vout[i].Version
+		spk := &tx.Vout[i].ScriptPubKeyDecoded
+		spkRaw := &txraw.Vout[i].ScriptPubKey
+		spk.Asm = spkRaw.Asm
+		spk.Hex = spkRaw.Hex
+		spk.ReqSigs = spkRaw.ReqSigs
+		spk.Type = spkRaw.Type
+		spk.Addresses = make([]string, len(spkRaw.Addresses))
+		for j := range spkRaw.Addresses {
+			spk.Addresses[j] = spkRaw.Addresses[j]
+		}
+		if spkRaw.CommitAmt != nil {
+			spk.CommitAmt = new(float64)
+			*spk.CommitAmt = *spkRaw.CommitAmt
+		}
+	}
+
+	tx.Confirmations = txraw.Confirmations
+
+	// BlockID
+	tx.Block = new(apitypes.BlockID)
+	tx.Block.BlockHash = txraw.BlockHash
+	tx.Block.BlockHeight = txraw.BlockHeight
+	tx.Block.BlockIndex = txraw.BlockIndex
+	tx.Block.Time = txraw.Time
+	tx.Block.BlockTime = txraw.Blocktime
+
+	return
+}

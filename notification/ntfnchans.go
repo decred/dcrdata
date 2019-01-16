@@ -6,11 +6,11 @@ package notification
 
 import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 
 	"github.com/decred/dcrdata/v4/api/insight"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
-	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/txhelpers"
 )
 
@@ -44,13 +44,13 @@ var NtfnChans struct {
 	UpdateStatusDBHeight              chan uint32
 	SpendTxBlockChan, RecvTxBlockChan chan *txhelpers.BlockWatchedTx
 	RelevantTxMempoolChan             chan *dcrutil.Tx
-	NewTxChan                         chan *mempool.NewTx
+	NewTxChan                         chan *dcrjson.TxRawResult
 	ExpNewTxChan                      chan *exptypes.NewMempoolTx
 	InsightNewTxChan                  chan *insight.NewTx
 }
 
 // MakeNtfnChans create notification channels based on config
-func MakeNtfnChans(monitorMempool, postgresEnabled bool) {
+func MakeNtfnChans(postgresEnabled bool) {
 	// If we're monitoring for blocks OR collecting block data, these channels
 	// are necessary to handle new block notifications. Otherwise, leave them
 	// as nil so that both a send (below) blocks and a receive (in
@@ -84,9 +84,8 @@ func MakeNtfnChans(monitorMempool, postgresEnabled bool) {
 	// 	NtfnChans.RelevantTxMempoolChan = make(chan *dcrutil.Tx, relevantMempoolTxChanBuffer)
 	// }
 
-	if monitorMempool {
-		NtfnChans.NewTxChan = make(chan *mempool.NewTx, newTxChanBuffer)
-	}
+	// New mempool tx chan for general purpose mempool monitor/collector/saver.
+	NtfnChans.NewTxChan = make(chan *dcrjson.TxRawResult, newTxChanBuffer)
 
 	// New mempool tx chan for explorer
 	NtfnChans.ExpNewTxChan = make(chan *exptypes.NewMempoolTx, expNewTxChanBuffer)

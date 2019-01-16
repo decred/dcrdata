@@ -147,6 +147,16 @@ type VoteInfo struct {
 	ForLastBlock       bool                    `json:"last_block"`
 }
 
+func (vi *VoteInfo) DeepCopy() *VoteInfo {
+	if vi == nil {
+		return nil
+	}
+	out := *vi
+	out.Choices = make([]*txhelpers.VoteChoice, len(vi.Choices))
+	copy(out.Choices, vi.Choices)
+	return &out
+}
+
 // BlockValidation models data about a vote's decision on a block
 type BlockValidation struct {
 	Hash     string `json:"hash"`
@@ -312,6 +322,108 @@ type MempoolInfo struct {
 	Revocations  []MempoolTx `json:"revs"`
 }
 
+// DeepCopy makes a deep copy of MempoolInfo, where all the slice and map data
+// are copied over.
+func (mpi *MempoolInfo) DeepCopy() *MempoolInfo {
+	if mpi == nil {
+		return nil
+	}
+
+	mpi.RLock()
+	defer mpi.RUnlock()
+
+	out := new(MempoolInfo)
+	out.Transactions = CopyMempoolTxSlice(mpi.Transactions)
+	out.Tickets = CopyMempoolTxSlice(mpi.Tickets)
+	out.Votes = CopyMempoolTxSlice(mpi.Votes)
+	out.Revocations = CopyMempoolTxSlice(mpi.Revocations)
+
+	mps := mpi.MempoolShort.DeepCopy()
+	out.MempoolShort = *mps
+
+	return out
+}
+
+// Trim converts the MempoolInfo to TrimmedMempoolInfo.
+func (mpi *MempoolInfo) Trim() *TrimmedMempoolInfo {
+	mpi.RLock()
+
+	mempoolRegularTxs := TrimMempoolTx(mpi.Transactions)
+	mempoolVotes := TrimMempoolTx(mpi.Votes)
+
+	data := &TrimmedMempoolInfo{
+		Transactions: FilterRegularTx(mempoolRegularTxs),
+		Tickets:      TrimMempoolTx(mpi.Tickets),
+		Votes:        FilterUniqueLastBlockVotes(mempoolVotes),
+		Revocations:  TrimMempoolTx(mpi.Revocations),
+		Total:        mpi.TotalOut,
+		Time:         mpi.LastBlockTime,
+	}
+
+	mpi.RUnlock()
+
+	// calculate total fees for mempool block
+	getTotalFee := func(txs []*TrimmedTxInfo) (total float64) {
+		for _, tx := range txs {
+			total += tx.Fees
+		}
+		return
+	}
+
+	data.Fees = getTotalFee(data.Transactions) + getTotalFee(data.Revocations) +
+		getTotalFee(data.Tickets) + getTotalFee(data.Votes)
+
+	return data
+}
+
+// show only regular tx in block.Transactions, exclude coinbase (reward) transactions
+// for use in NextHome handler and websocket response to getmempooltxs event
+func FilterRegularTx(txs []*TrimmedTxInfo) (transactions []*TrimmedTxInfo) {
+	for _, tx := range txs {
+		if !tx.Coinbase {
+			transactions = append(transactions, tx)
+		}
+	}
+	return transactions
+}
+
+func TrimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
+	for _, tx := range txs {
+		txBasic := &TxBasic{
+			Coinbase: tx.Coinbase,
+			TxID:     tx.TxID,
+			Total:    tx.TotalOut,
+			VoteInfo: tx.VoteInfo,
+		}
+
+		var voteValid bool
+		if tx.VoteInfo != nil {
+			voteValid = tx.VoteInfo.Validation.Validity
+		}
+
+		trimmedTx := &TrimmedTxInfo{
+			TxBasic:   txBasic,
+			Fees:      tx.Fees,
+			VoteValid: voteValid,
+			VinCount:  tx.VinCount,
+			VoutCount: tx.VoutCount,
+		}
+
+		trimmedTxs = append(trimmedTxs, trimmedTx)
+	}
+
+	return trimmedTxs
+}
+
+func FilterUniqueLastBlockVotes(txs []*TrimmedTxInfo) (votes []*TrimmedTxInfo) {
+	for _, tx := range txs {
+		if tx.VoteInfo != nil && tx.VoteInfo.ForLastBlock {
+			votes = append(votes, tx)
+		}
+	}
+	return votes
+}
+
 // TicketIndex is used to assign an index to a ticket hash.
 type TicketIndex map[string]int
 
@@ -325,6 +437,7 @@ type MempoolShort struct {
 	LastBlockHeight    int64               `json:"block_height"`
 	LastBlockHash      string              `json:"block_hash"`
 	LastBlockTime      int64               `json:"block_time"`
+	Time               int64               `json:"time"`
 	TotalOut           float64             `json:"total"`
 	TotalSize          int32               `json:"size"`
 	NumTickets         int                 `json:"num_tickets"`
@@ -338,6 +451,59 @@ type MempoolShort struct {
 	VotingInfo         VotingInfo          `json:"voting_info"`
 	InvRegular         map[string]struct{} `json:"-"`
 	InvStake           map[string]struct{} `json:"-"`
+}
+
+func (mps *MempoolShort) DeepCopy() *MempoolShort {
+	if mps == nil {
+		return nil
+	}
+
+	out := &MempoolShort{
+		LastBlockHash:      mps.LastBlockHash,
+		LastBlockHeight:    mps.LastBlockHeight,
+		LastBlockTime:      mps.LastBlockTime,
+		Time:               mps.Time,
+		TotalOut:           mps.TotalOut,
+		TotalSize:          mps.TotalSize,
+		NumTickets:         mps.NumTickets,
+		NumVotes:           mps.NumVotes,
+		NumRegular:         mps.NumRegular,
+		NumRevokes:         mps.NumRevokes,
+		NumAll:             mps.NumAll,
+		FormattedTotalSize: mps.FormattedTotalSize,
+		VotingInfo: VotingInfo{
+			TicketsVoted:     mps.VotingInfo.TicketsVoted,
+			MaxVotesPerBlock: mps.VotingInfo.MaxVotesPerBlock,
+		},
+	}
+
+	out.LatestTransactions = CopyMempoolTxSlice(mps.LatestTransactions)
+
+	out.TicketIndexes = make(BlockValidatorIndex, len(mps.TicketIndexes))
+	for bs, ti := range mps.TicketIndexes {
+		m := make(TicketIndex, len(ti))
+		out.TicketIndexes[bs] = m
+		for bt, i := range ti {
+			m[bt] = i
+		}
+	}
+
+	out.VotingInfo.VotedTickets = make(map[string]bool, len(mps.VotingInfo.VotedTickets))
+	for s, b := range mps.VotingInfo.VotedTickets {
+		out.VotingInfo.VotedTickets[s] = b
+	}
+
+	out.InvRegular = make(map[string]struct{}, len(mps.InvRegular))
+	for s := range mps.InvRegular {
+		out.InvRegular[s] = struct{}{}
+	}
+
+	out.InvStake = make(map[string]struct{}, len(mps.InvStake))
+	for s := range mps.InvStake {
+		out.InvStake[s] = struct{}{}
+	}
+
+	return out
 }
 
 // VotingInfo models data about the validity of the next block from mempool.
@@ -361,6 +527,13 @@ type ChainParams struct {
 type WebsocketBlock struct {
 	Block *BlockInfo `json:"block"`
 	Extra *HomeInfo  `json:"extra"`
+}
+
+// BlockID provides basic identifying information about a block.
+type BlockID struct {
+	Hash   string
+	Height int64
+	Time   int64
 }
 
 // TicketPoolInfo describes the live ticket pool
@@ -389,6 +562,28 @@ type MempoolTx struct {
 	VoteInfo  *VoteInfo      `json:"vote_info,omitempty"`
 }
 
+func (mpt *MempoolTx) DeepCopy() *MempoolTx {
+	if mpt == nil {
+		return nil
+	}
+	out := *mpt
+	out.Vin = make([]MempoolInput, len(mpt.Vin))
+	copy(out.Vin, mpt.Vin)
+	out.VoteInfo = mpt.VoteInfo.DeepCopy()
+	return &out
+}
+
+func CopyMempoolTxSlice(s []MempoolTx) []MempoolTx {
+	if s == nil { // []types.MempoolTx(nil) != []types.MempoolTx{}
+		return nil
+	}
+	out := make([]MempoolTx, 0, len(s))
+	for i := range s {
+		out = append(out, *s[i].DeepCopy())
+	}
+	return out
+}
+
 // NewMempoolTx models data sent from the notification handler
 type NewMempoolTx struct {
 	Time int64
@@ -406,6 +601,39 @@ type MempoolInput struct {
 	TxId   string `json:"txid"`
 	Index  uint32 `json:"index"`
 	Outdex uint32 `json:"vout"`
+}
+
+type MPTxsByTime []MempoolTx
+
+func (txs MPTxsByTime) Less(i, j int) bool {
+	return txs[i].Time > txs[j].Time
+}
+
+func (txs MPTxsByTime) Len() int {
+	return len(txs)
+}
+
+func (txs MPTxsByTime) Swap(i, j int) {
+	txs[i], txs[j] = txs[j], txs[i]
+}
+
+type MPTxsByHeight []MempoolTx
+
+func (votes MPTxsByHeight) Less(i, j int) bool {
+	if votes[i].VoteInfo.Validation.Height == votes[j].VoteInfo.Validation.Height {
+		return votes[i].VoteInfo.MempoolTicketIndex <
+			votes[j].VoteInfo.MempoolTicketIndex
+	}
+	return votes[i].VoteInfo.Validation.Height >
+		votes[j].VoteInfo.Validation.Height
+}
+
+func (votes MPTxsByHeight) Len() int {
+	return len(votes)
+}
+
+func (votes MPTxsByHeight) Swap(i, j int) {
+	votes[i], votes[j] = votes[j], votes[i]
 }
 
 // AddrPrefix represent the address name it's prefix and description

@@ -10,13 +10,24 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 )
 
-// MempoolDataCache models the basic data for the mempool cache
+// MempoolDataCache models the basic data for the mempool cache.
 type MempoolDataCache struct {
 	sync.RWMutex
-	height                  uint32
-	timestamp               time.Time
+
+	// Height and hash of best block at time of data collection
+	height uint32
+	hash   string
+
+	// Time of mempool data collection
+	timestamp time.Time
+
+	// All transactions
+	txns []exptypes.MempoolTx
+
+	// Stake-related data
 	numTickets              uint32
 	ticketFeeInfo           dcrjson.FeeInfoMempool
 	allFees                 []float64
@@ -27,21 +38,23 @@ type MempoolDataCache struct {
 }
 
 // StoreMPData stores info from data in the mempool cache
-func (c *MempoolDataCache) StoreMPData(data *MempoolData, timestamp time.Time) error {
+func (c *MempoolDataCache) StoreMPData(stakeData *StakeData, txs []exptypes.MempoolTx) {
 	c.Lock()
 	defer c.Unlock()
 
-	c.height = data.Height
-	c.timestamp = timestamp
-	c.numTickets = data.NumTickets
-	c.ticketFeeInfo = data.Ticketfees.FeeInfoMempool
-	c.allFees = data.MinableFees.allFees
-	c.allFeeRates = data.MinableFees.allFeeRates
-	c.lowestMineableByFeeRate = data.MinableFees.lowestMineableFee
-	c.allTicketsDetails = data.AllTicketsDetails
-	c.stakeDiff = data.StakeDiff
+	c.height = uint32(stakeData.LatestBlock.Height)
+	c.hash = stakeData.LatestBlock.Hash.String()
+	c.timestamp = stakeData.Time
 
-	return nil
+	c.txns = txs
+
+	c.numTickets = stakeData.NumTickets
+	c.ticketFeeInfo = stakeData.Ticketfees.FeeInfoMempool
+	c.allFees = stakeData.MinableFees.allFees
+	c.allFeeRates = stakeData.MinableFees.allFeeRates
+	c.lowestMineableByFeeRate = stakeData.MinableFees.lowestMineableFee
+	c.allTicketsDetails = stakeData.AllTicketsDetails
+	c.stakeDiff = stakeData.StakeDiff
 }
 
 // GetHeight returns the mempool height
