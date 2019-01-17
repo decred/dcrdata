@@ -173,4 +173,17 @@ body.darkBG {
   .dcrdata-logo {
     background-image: url(/images/themes/night/logo.svg);
   }
+
+  //bootstrap dark theme
+  .bg-white {
+    background-color: #2f3338 !important;
+  }
+
+  .text-secondary {
+    color: #c1c1c1 !important;
+  }
+
+  .text-black-50 {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
 }
