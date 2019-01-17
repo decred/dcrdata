@@ -201,6 +201,7 @@
 {{define "addressTable"}}
   {{$TxnCount := .TxnCount}}
   {{$txType := .TxnType}}
+  {{$isMerged := .IsMerged}}
   {{if .Transactions}}
   <table class="table table-mono-cells table-sm striped" style="width: 100%;">
       <thead>
@@ -208,12 +209,16 @@
           <th>Input/Output ID</th>
           {{if eq $txType "merged_debit"}}
               <th># of Input(s)</th>
-          {{else}}
-              <th class="text-right">Credit DCR</th>
-          {{end}}
-          {{if eq $txType "merged_debit"}}
+              <th class="text-center">Debit DCR</th>
+          {{else if eq $txType "merged_credit" }}
+              <th># of Outputs(s)</th>
+              <th class="text-center">Credit DCR</th>
+          {{else if eq $txType "merged" }}
+              <th>I/O&nbsp;Count</th>
+              <th class="text-center">Credit DCR</th>
               <th class="text-center">Debit DCR</th>
           {{else}}
+              <th class="text-right">Credit DCR</th>
               <th>Debit DCR</th>
           {{end}}
           <th>Time ({{timezone}})</th>
@@ -226,59 +231,75 @@
           <tr {{if eq .Confirmations 0}} data-target="address.pending" data-txid="{{.TxID}}" {{end}}>
               {{with $v}}
               <td>{{.TxType}}</td>
-              <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}"
-                data-target="address.hash"
-                class="hash"
-                data-keynav-priority
-                >{{.IOID $txType}}</a>
-              </td>
-              {{if eq $txType "merged_debit"}}
-                  <td class="text-right">{{.MergedTxnCount}}</td>
+              {{if $isMerged}}
+                <td><a href="/tx/{{.TxID}}"
+                  data-target="address.hash"
+                  class="hash"
+                  data-keynav-priority
+                  >{{.TxID}}</a>
               {{else}}
-                  {{if ne .ReceivedTotal 0.0}}
-                      <td class="text-right fs15">
-                      {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
-                      </td>
-                  {{else}}
-                      {{if eq .SentTotal 0.0}}
-                      <td class="text-right">sstxcommitment</td>
-                      {{else}}
-                          {{if ne .MatchedTx ""}}
-                          <td class="text-right"><a
-                            href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}"
-                            data-action="mouseover->address#hashOver mouseout->address#hashOut"
-                            >source</a></td>
+                <td><a href="/tx/{{.TxID}}/{{if .IsFunding}}out{{else}}in{{end}}/{{.InOutID}}"
+                  data-target="address.hash"
+                  class="hash"
+                  data-keynav-priority
+                  >{{.IOID $txType}}</a>
+              {{end}}
 
-                          {{else}}
-                          <td class="text-right">N/A</td>
-                          {{end}}
-                      {{end}}
-                  {{end}}
+              {{if eq $txType "merged_debit"}}
+                <td class="text-center">{{.MergedTxnCount}}</td>
+                <td class="text-right fs15">
+                  {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
+                </td>
+
+              {{else if eq $txType "merged_credit"}}
+                <td class="text-center">{{.MergedTxnCount}}</td>
+                <td class="text-right fs15">
+                  {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
+                </td>
+
+              {{else if eq $txType "merged"}}
+                <td class="text-center">{{.MergedTxnCount}}</td>
+                {{if .IsFunding}}
+                  <td class="text-center fs15">
+                    {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
+                  </td>
+                  <td class="text-center">&mdash;</td>
+                {{else}}
+                  <td class="text-center">&mdash;</td>
+                  <td class="text-center fs15">
+                    {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
+                  </td>
+                {{end}}
+
+              {{else if or (eq $txType "credit") .IsFunding}}  <!-- .IsFunding = true && txType = "all" is a credit -->
+                <td class="text-right fs15">
+                  {{template "decimalParts" (float64AsDecimalParts .ReceivedTotal 8 false)}}
+                </td>
+                {{if ne .MatchedTx ""}}
+                    <td><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
+                      data-txid="{{.MatchedTx}}"
+                      data-action="mouseover->address#hashOver mouseout->address#hashOut"
+                      >spent</a></td>
+                {{else}}
+                    <td>unspent</td>
+                {{end}}
+
+              {{else}} <!-- either "credit", or "all" with .IsFunding = false -->
+                {{if eq .SentTotal 0.0}}
+                  <td class="text-right">sstxcommitment</td>
+                {{else if ne .MatchedTx ""}}
+                  <td class="text-right"><a
+                    href="/tx/{{.MatchedTx}}/out/{{.MatchedTxIndex}}"
+                    data-action="mouseover->address#hashOver mouseout->address#hashOut"
+                    >source</a></td>
+                {{else}}
+                  <td class="text-right">N/A</td>
+                {{end}}
+                <td class="text-right fs15">
+                  {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
+                </td>
               {{end}}
-              {{if ne .SentTotal 0.0}}
-                  {{if lt 0.0 .SentTotal}}
-                  {{if eq $txType "merged_debit"}}
-                          <td class="text-right fs15">
-                          {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
-                          </td>
-                      {{else}}
-                          <td class="fs15">
-                          {{template "decimalParts" (float64AsDecimalParts .SentTotal 8 false)}}
-                          </td>
-                      {{end}}
-                  {{else}}
-                      <td class="text-right fs15">N/A</td>
-                  {{end}}
-              {{else}}
-                  {{if ne .MatchedTx ""}}
-                      <td><a href="/tx/{{.MatchedTx}}/in/{{.MatchedTxIndex}}"
-                        data-txid="{{.MatchedTx}}"
-                        data-action="mouseover->address#hashOver mouseout->address#hashOut"
-                        >spent</a></td>
-                  {{else}}
-                      <td>unspent</td>
-                  {{end}}
-              {{end}}
+
               <td class="addr-tx-time">
                   {{if eq .Confirmations 0}}
                       Unconfirmed

@@ -41,6 +41,15 @@ const (
 	NotOneRowErrMsg = "failed to update exactly 1 row"
 )
 
+const (
+	creditDebitQuery = iota
+	creditQuery
+	debitQuery
+	mergedCreditQuery
+	mergedDebitQuery
+	mergedQuery
+)
+
 // Maintenance functions
 
 // closeRows closes the input sql.Rows, logging any error.
@@ -1099,7 +1108,7 @@ func retrieveAddressTxsCount(ctx context.Context, db *sql.DB, address, interval 
 // for the given address, the total amounts spent and unspent, and the the
 // number of distinct spending transactions.
 func RetrieveAddressSpentUnspent(ctx context.Context, db *sql.DB, address string) (numSpent, numUnspent,
-	amtSpent, amtUnspent, numMergedSpent int64, err error) {
+	amtSpent, amtUnspent int64, err error) {
 	// The sql.Tx does not have a timeout, as the individial queries will.
 	var dbtx *sql.Tx
 	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
@@ -1152,10 +1161,37 @@ func RetrieveAddressSpentUnspent(ctx context.Context, db *sql.DB, address string
 	}
 	closeRows(rows)
 
-	// Query for spending transaction count, repeated transaction hashes merged.
-	var nms sql.NullInt64
-	err = dbtx.QueryRowContext(ctx, internal.SelectAddressesMergedSpentCount, address).
-		Scan(&nms)
+	err = dbtx.Commit()
+	return
+}
+
+func CountMergedSpendingTxns(ctx context.Context, db *sql.DB, address string) (count int64, err error) {
+	return countMerged(ctx, db, address, internal.SelectAddressesMergedSpentCount)
+}
+
+func CountMergedFundingTxns(ctx context.Context, db *sql.DB, address string) (count int64, err error) {
+	return countMerged(ctx, db, address, internal.SelectAddressesMergedFundingCount)
+}
+
+func CountMergedTxns(ctx context.Context, db *sql.DB, address string) (count int64, err error) {
+	return countMerged(ctx, db, address, internal.SelectAddressesMergedCount)
+}
+
+func countMerged(ctx context.Context, db *sql.DB, address, query string) (count int64, err error) {
+	// Query for merged transaction count.
+	var dbtx *sql.Tx
+	dbtx, err = db.BeginTx(context.Background(), &sql.TxOptions{
+		Isolation: sql.LevelDefault,
+		ReadOnly:  true,
+	})
+	if err != nil {
+		err = fmt.Errorf("unable to begin database transaction: %v", err)
+		return
+	}
+
+	var sqlCount sql.NullInt64
+	err = dbtx.QueryRowContext(ctx, query, address).
+		Scan(&sqlCount)
 	if err != nil && err != sql.ErrNoRows {
 		if errRoll := dbtx.Rollback(); errRoll != nil {
 			log.Errorf("Rollback failed: %v", errRoll)
@@ -1164,8 +1200,8 @@ func RetrieveAddressSpentUnspent(ctx context.Context, db *sql.DB, address string
 		return
 	}
 
-	numMergedSpent = nms.Int64
-	if !nms.Valid {
+	count = sqlCount.Int64
+	if !sqlCount.Valid {
 		log.Debug("Merged debit spent count is not valid")
 	}
 
@@ -1256,31 +1292,41 @@ func RetrieveAllAddressTxns(ctx context.Context, db *sql.DB, address string) ([]
 
 	defer closeRows(rows)
 
-	return scanAddressQueryRows(rows)
+	return scanAddressQueryRows(rows, creditDebitQuery)
 }
 
 func RetrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
-		internal.SelectAddressLimitNByAddress, false)
+		internal.SelectAddressLimitNByAddress, creditDebitQuery)
 }
 
 func RetrieveAddressDebitTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
-		internal.SelectAddressDebitsLimitNByAddress, false)
+		internal.SelectAddressDebitsLimitNByAddress, creditQuery)
 }
 
 func RetrieveAddressCreditTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
-		internal.SelectAddressCreditsLimitNByAddress, false)
+		internal.SelectAddressCreditsLimitNByAddress, debitQuery)
 }
 
 func RetrieveAddressMergedDebitTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
 	return retrieveAddressTxns(ctx, db, address, N, offset,
-		internal.SelectAddressMergedDebitView, true)
+		internal.SelectAddressMergedDebitView, mergedDebitQuery)
+}
+
+func RetrieveAddressMergedCreditTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+	return retrieveAddressTxns(ctx, db, address, N, offset,
+		internal.SelectAddressMergedCreditView, mergedCreditQuery)
+}
+
+func RetrieveAddressMergedTxns(ctx context.Context, db *sql.DB, address string, N, offset int64) ([]uint64, []*dbtypes.AddressRow, error) {
+	return retrieveAddressTxns(ctx, db, address, N, offset,
+		internal.SelectAddressMergedView, mergedQuery)
 }
 
 func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, offset int64,
-	statement string, isMergedDebitView bool) ([]uint64, []*dbtypes.AddressRow, error) {
+	statement string, queryType int) ([]uint64, []*dbtypes.AddressRow, error) {
 	rows, err := db.QueryContext(ctx, statement, address, N, offset)
 	if err != nil {
 		return nil, nil, err
@@ -1288,11 +1334,13 @@ func retrieveAddressTxns(ctx context.Context, db *sql.DB, address string, N, off
 
 	defer closeRows(rows)
 
-	if isMergedDebitView {
-		addr, err := scanPartialAddressQueryRows(rows, address)
+	switch queryType {
+	case mergedCreditQuery, mergedDebitQuery, mergedQuery:
+		addr, err := scanMergedRows(rows, address, queryType)
 		return nil, addr, err
+	default:
+		return scanAddressQueryRows(rows, queryType)
 	}
-	return scanAddressQueryRows(rows)
 }
 
 // retrieveAddressIoCsv grabs rows for an address and formats them as a 2-D
@@ -1347,35 +1395,72 @@ func retrieveAddressIoCsv(ctx context.Context, db *sql.DB, address string) (csvR
 	return
 }
 
-func scanPartialAddressQueryRows(rows *sql.Rows, addr string) (addressRows []*dbtypes.AddressRow, err error) {
+func scanMergedRows(rows *sql.Rows, addr string, queryType int) (addressRows []*dbtypes.AddressRow, err error) {
 	for rows.Next() {
 		var addr = dbtypes.AddressRow{Address: addr}
 		var blockTime dbtypes.TimeDef
 
-		err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &blockTime.T,
-			&addr.Value, &addr.MergedDebitCount)
-		addr.TxBlockTime = blockTime
+		var value int64
+		switch queryType {
+		case mergedCreditQuery:
+			err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &blockTime.T,
+				&value, &addr.MergedCount)
+			addr.IsFunding = true
+		case mergedDebitQuery:
+			err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &blockTime.T,
+				&value, &addr.MergedCount)
+		case mergedQuery:
+			err = rows.Scan(&addr.TxHash, &addr.ValidMainChain, &blockTime.T,
+				&addr.AtomsCredit, &addr.AtomsDebit, &addr.MergedCount)
+			value = int64(addr.AtomsCredit - addr.AtomsDebit)
+			if value >= 0 {
+				addr.IsFunding = true
+			} else {
+				value = -1 * value
+			}
+		default:
+		}
+
 		if err != nil {
 			return
 		}
+
+		addr.Value = uint64(value)
+		addr.TxBlockTime = blockTime
+
 		addressRows = append(addressRows, &addr)
 	}
 	return
 }
 
-func scanAddressQueryRows(rows *sql.Rows) (ids []uint64, addressRows []*dbtypes.AddressRow, err error) {
+func scanAddressQueryRows(rows *sql.Rows, queryType int) (ids []uint64, addressRows []*dbtypes.AddressRow, err error) {
 	for rows.Next() {
 		var id uint64
 		var addr dbtypes.AddressRow
 		var txHash sql.NullString
 		var blockTime dbtypes.TimeDef
 		var txVinIndex, vinDbID sql.NullInt64
-		// Scan values in order of columns listed in internal.addrsColumnNames
+
 		err = rows.Scan(&id, &addr.Address, &addr.MatchingTxHash, &txHash, &addr.TxType,
 			&addr.ValidMainChain, &txVinIndex, &blockTime.T, &vinDbID,
 			&addr.Value, &addr.IsFunding)
+
 		if err != nil {
 			return
+		}
+
+		switch queryType {
+		case creditQuery:
+			addr.AtomsCredit = addr.Value
+		case debitQuery:
+			addr.AtomsDebit = addr.Value
+		case creditDebitQuery:
+			if addr.IsFunding {
+				addr.AtomsCredit = addr.Value
+			} else {
+				addr.AtomsDebit = addr.Value
+			}
+		default:
 		}
 
 		addr.TxBlockTime = blockTime
@@ -1670,7 +1755,7 @@ func InsertVouts(db *sql.DB, dbVouts []*dbtypes.Vout, checked bool, updateOnConf
 				TxType:         vout.TxType,
 				Value:          vout.Value,
 				// Not set here are: ValidMainchain, MatchingTxHash, IsFunding,
-				// and TxBlockTime.
+				// AtomsCredit, AtomsDebit, and TxBlockTime.
 			})
 		}
 		ids = append(ids, id)

@@ -112,6 +112,12 @@ const (
 	SelectAddressesMergedSpentCount = `SELECT COUNT( DISTINCT tx_hash ) FROM addresses
 		WHERE address = $1 AND is_funding = FALSE AND valid_mainchain = TRUE;`
 
+	SelectAddressesMergedFundingCount = `SELECT COUNT( DISTINCT tx_hash ) FROM addresses
+		WHERE address = $1 AND is_funding = TRUE AND valid_mainchain = TRUE;`
+
+	SelectAddressesMergedCount = `SELECT COUNT( DISTINCT tx_hash ) FROM addresses
+		WHERE address = $1 AND valid_mainchain = TRUE;`
+
 	// SelectAddressSpentUnspentCountAndValue gets the number and combined spent
 	// and unspent outpoints for the given address. The key is the "GROUP BY
 	// is_funding, matching_tx_hash=''" part of the statement that gets the data
@@ -172,6 +178,19 @@ const (
 	SelectAddressMergedDebitView = `SELECT tx_hash, valid_mainchain, block_time, sum(value), COUNT(*)
 		FROM addresses
 		WHERE address=$1 AND is_funding = FALSE          -- spending transactions
+		GROUP BY (tx_hash, valid_mainchain, block_time)  -- merging common transactions in same valid mainchain block
+		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+
+	SelectAddressMergedCreditView = `SELECT tx_hash, valid_mainchain, block_time, sum(value), COUNT(*)
+		FROM addresses
+		WHERE address=$1 AND is_funding = TRUE           -- funding transactions
+		GROUP BY (tx_hash, valid_mainchain, block_time)  -- merging common transactions in same valid mainchain block
+		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
+
+	SelectAddressMergedView = `SELECT tx_hash, valid_mainchain, block_time, sum(CASE WHEN is_funding = TRUE THEN value ELSE 0 END),
+		sum(CASE WHEN is_funding = FALSE THEN value ELSE 0 END), COUNT(*)
+		FROM addresses
+		WHERE address=$1                                 -- spending and funding transactions
 		GROUP BY (tx_hash, valid_mainchain, block_time)  -- merging common transactions in same valid mainchain block
 		ORDER BY block_time DESC LIMIT $2 OFFSET $3;`
 
