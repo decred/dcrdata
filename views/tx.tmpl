@@ -339,7 +339,7 @@
                                 N/A
                             {{end}}
                         </td>
-                        <td class="shrink-to-fit">
+                        <td class="shrink-to-fit"{{if eq .BlockHeight 0}} data-target="tx.mempoolTd" data-txid="{{.Txid}}"{{end}}>
                         {{if or .Coinbase .Stakebase}}
                             created
                         {{else if eq .BlockHeight 0}}
