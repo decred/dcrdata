@@ -83,7 +83,7 @@ type DB struct {
 	getWinnersByHashSQL, getWinnersSQL                           string
 	getDifficulty                                                string
 	getSDiffSQL, getSDiffRangeSQL                                string
-	getBlockSQL, getLatestBlockSQL                               string
+	getBlockSQL, getBestBlockSQL                                 string
 	getBlockByHashSQL, getBlockByTimeRangeSQL, getBlockByTimeSQL string
 	getBlockHashSQL, getBlockHeightSQL                           string
 	getBlockSizeSQL, getBlockSizeRangeSQL                        string
@@ -91,12 +91,14 @@ type DB struct {
 	getMainchainStatusSQL, invalidateBlockSQL                    string
 	setHeightToSideChainSQL                                      string
 	deleteBlockByHeightMainChainSQL, deleteBlockByHashSQL        string
+	deleteBlocksAboveHeightSQL                                   string
 
 	// Stake info table queries
 	insertStakeInfoExtendedSQL                                    string
 	getHighestStakeHeight                                         string
 	getStakeInfoExtendedByHashSQL                                 string
 	deleteStakeInfoByHeightMainChainSQL, deleteStakeInfoByHashSQL string
+	deleteStakeInfoAboveHeightSQL                                 string
 
 	// JOINed table queries
 	getLatestStakeInfoExtendedSQL                        string
@@ -165,7 +167,8 @@ func NewDB(db *sql.DB) (*DB, error) {
 		WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getBlockByHashSQL = fmt.Sprintf(`SELECT * FROM %s
 		WHERE hash = ?`, TableNameSummaries)
-	d.getLatestBlockSQL = fmt.Sprintf(`SELECT * FROM %s
+	d.getBestBlockSQL = fmt.Sprintf(`SELECT * FROM %s
+		WHERE is_mainchain = 1
 		ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 
 	d.getBlockSizeSQL = fmt.Sprintf(`SELECT size FROM %s
@@ -202,6 +205,8 @@ func NewDB(db *sql.DB) (*DB, error) {
 		WHERE hash = ?`, TableNameSummaries)
 	d.deleteBlockByHeightMainChainSQL = fmt.Sprintf(`DELETE FROM %s
 		WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
+	d.deleteBlocksAboveHeightSQL = fmt.Sprintf(`DELETE FROM %s
+		WHERE height > ?`, TableNameSummaries)
 
 	// Stake info table queries
 	d.getStakeInfoExtendedByHeightSQL = fmt.Sprintf(`SELECT %[1]s.* FROM %[1]s
@@ -225,7 +230,11 @@ func NewDB(db *sql.DB) (*DB, error) {
 		 ORDER BY %[1]s.height DESC LIMIT 0, 1`,
 		TableNameStakeInfo, TableNameSummaries)
 	d.getHighestStakeHeight = fmt.Sprintf(
-		`SELECT height FROM %s ORDER BY height DESC LIMIT 0, 1`, TableNameStakeInfo)
+		`SELECT %[1]s.height FROM %[1]s
+		 JOIN %[2]s ON %[1]s.hash = %[2]s.hash
+		 WHERE %[2]s.is_mainchain = 1
+		 ORDER BY %[1]s.height DESC LIMIT 0, 1`,
+		TableNameStakeInfo, TableNameSummaries)
 
 	d.getAllFeeInfoPerBlock = fmt.Sprintf(
 		`SELECT distinct %[1]s.height, fee_med FROM %[1]s
@@ -240,6 +249,8 @@ func NewDB(db *sql.DB) (*DB, error) {
 			SELECT hash FROM %s
 			WHERE height = ? AND is_mainchain = 1
 		)`, TableNameStakeInfo, TableNameSummaries)
+	d.deleteStakeInfoAboveHeightSQL = fmt.Sprintf(`DELETE FROM %s
+		WHERE height > ?`, TableNameStakeInfo)
 
 	// Table metadata
 	d.getBlockSummaryTableInfo = fmt.Sprintf(`PRAGMA table_info(%s);`, TableNameSummaries)
@@ -427,6 +438,30 @@ func (db *DBDataSaver) Store(data *blockdata.BlockData, msgBlock *wire.MsgBlock)
 	return db.DB.StoreStakeInfoExtended(&stakeInfoExtended)
 }
 
+func (db *DB) updateHeights() error {
+	// Update dbSummaryHeight and dbStakeInfoHeight.
+	db.Lock()
+	defer db.Unlock()
+
+	height, err := db.getBlockSummaryHeight()
+	if err != nil {
+		return err
+	}
+	db.dbSummaryHeight = height
+
+	height, err = db.getStakeInfoHeight()
+	if err != nil {
+		return err
+	}
+	db.dbStakeInfoHeight = height
+
+	// Reset lastStoredBlock. It will be loaded on demand by getTip, and updated
+	// by StoreBlock.
+	db.lastStoredBlock = nil
+
+	return nil
+}
+
 func (db *DB) deleteBlock(blockhash string) (NSummaryRows, NStakeInfoRows int64, err error) {
 	// Remove rows from block summary table.
 	var res sql.Result
@@ -466,27 +501,50 @@ func (db *DB) DeleteBlock(blockhash string) (NSummaryRows, NStakeInfoRows int64,
 		return
 	}
 
-	// Update dbSummaryHeight and dbStakeInfoHeight.
-	db.Lock()
-	defer db.Unlock()
+	err = db.updateHeights()
+	return
+}
 
-	var height int64
-	height, err = db.getBlockSummaryHeight()
+func (db *DB) deleteBlocksAboveHeight(height int64) (NSummaryRows, NStakeInfoRows int64, err error) {
+	// Remove rows from block summary table.
+	var res sql.Result
+	res, err = db.Exec(db.deleteBlocksAboveHeightSQL, height)
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 	if err != nil {
 		return
 	}
-	db.dbSummaryHeight = height
 
-	height, err = db.getStakeInfoHeight()
+	NSummaryRows, err = res.RowsAffected()
 	if err != nil {
 		return
 	}
-	db.dbStakeInfoHeight = height
 
-	// Reset lastStoredBlock. It will be loaded on demand by getTip, and updated
-	// by StoreBlock.
-	db.lastStoredBlock = nil
+	// Remove rows from stake info table.
+	res, err = db.Exec(db.deleteStakeInfoAboveHeightSQL, height)
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+	if err != nil {
+		return
+	}
 
+	NStakeInfoRows, err = res.RowsAffected()
+
+	return
+}
+
+// DeleteBlocksAboveHeight purges the summary data and stake info for the blocks
+// above the given height, including side chain blocks.
+func (db *DB) DeleteBlocksAboveHeight(height int64) (NSummaryRows, NStakeInfoRows int64, err error) {
+	// Attempt to purge the block data.
+	NSummaryRows, NStakeInfoRows, err = db.deleteBlocksAboveHeight(height)
+	if err != nil {
+		return
+	}
+
+	err = db.updateHeights()
 	return
 }
 
@@ -1019,7 +1077,7 @@ func (db *DB) RetrieveLatestBlockSummary() (*apitypes.BlockDataBasic, error) {
 	var winners string
 	var timestamp int64
 	var isMainchain, isValid bool
-	err := db.QueryRow(db.getLatestBlockSQL).Scan(&bd.Hash, &bd.Height, &bd.Size,
+	err := db.QueryRow(db.getBestBlockSQL).Scan(&bd.Hash, &bd.Height, &bd.Size,
 		&bd.Difficulty, &bd.StakeDiff, &timestamp,
 		&bd.PoolInfo.Size, &bd.PoolInfo.Value, &bd.PoolInfo.ValAvg,
 		&winners, &isMainchain, &isValid)

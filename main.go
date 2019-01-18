@@ -268,29 +268,46 @@ func _main(ctx context.Context) error {
 		// The final best block after purge.
 		purgeToBlock := maxHeight - int64(cfg.PurgeNBestBlocks)
 
-		// Purge NBase blocks from base DB.
-		NBase := baseDBHeight - purgeToBlock
-		log.Infof("Purging data for the %d best blocks in the base DB...", NBase)
-		nRemovedSummary, _, heightDB, _, err := baseDB.PurgeBestBlocks(NBase)
-		if err != nil && err != sql.ErrNoRows {
-			return fmt.Errorf("Failed to purge %d blocks from the base DB: %v", NBase, err)
+		// Purge from SQLite, using either the "blocks above" or "N best main
+		// chain" approach.
+		var heightDB, nRemovedSummary int64
+		if cfg.FastSQLitePurge {
+			log.Infof("Purging SQLite data for the blocks above %d...",
+				purgeToBlock)
+			nRemovedSummary, _, err = baseDB.PurgeBlocksAboveHeight(purgeToBlock)
+			if err != nil && err != sql.ErrNoRows {
+				return fmt.Errorf("failed to purge to block %d from SQLite: %v",
+					purgeToBlock, err)
+			}
+			heightDB = purgeToBlock
+		} else {
+			// Purge NBase blocks from base DB.
+			NBase := baseDBHeight - purgeToBlock
+			log.Infof("Purging SQLite data for the %d best blocks...", NBase)
+			nRemovedSummary, _, heightDB, _, err = baseDB.PurgeBestBlocks(NBase)
+			if err != nil && err != sql.ErrNoRows {
+				return fmt.Errorf("failed to purge %d blocks from SQLite: %v",
+					NBase, err)
+			}
 		}
+
 		// The number of rows removed from the summary table and stake table may
 		// be different if the DB was corrupted, but it is not important to log
 		// for the tables separately.
-		log.Infof("Sucessfully purged data for %d blocks from the base DB "+
+		log.Infof("Sucessfully purged data for %d blocks from SQLite "+
 			"(new height = %d).", nRemovedSummary, heightDB)
 
 		if usePG {
 			// Purge NAux blocks from auxiliary DB.
 			NAux := auxDBHeight - purgeToBlock
-			log.Infof("Purging data for the %d best blocks in the aux. DB...", NAux)
+			log.Infof("Purging PostgreSQL data for the %d best blocks...", NAux)
 			s, heightDB, err := auxDB.PurgeBestBlocks(NAux)
 			if err != nil && err != sql.ErrNoRows {
-				return fmt.Errorf("Failed to purge %d blocks from the aux. DB: %v", NAux, err)
+				return fmt.Errorf("Failed to purge %d blocks from PostgreSQL: %v",
+					NAux, err)
 			}
 			if s != nil {
-				log.Infof("Sucessfully purged data for %d blocks from the aux. DB "+
+				log.Infof("Sucessfully purged data for %d blocks from PostgreSQL "+
 					"(new height = %d):\n%v", s.Blocks, heightDB, s)
 			} // otherwise likely err == sql.ErrNoRows
 		}

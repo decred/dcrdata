@@ -272,6 +272,62 @@ func (db *WiredDB) BlockchainInfo() (*dcrjson.GetBlockChainInfoResult, error) {
 	return db.client.GetBlockChainInfo()
 }
 
+// PurgeBlocksAboveHeight deletes all data across all tables for the blocks
+// above the given height, including side chain blocks. The numbers of blocks
+// removed from the block summary table and stake info table are returned.
+// PurgeBlocksAboveHeight will not return sql.ErrNoRows, but it will return
+// without removing a block if the tables are empty.
+func (db *WiredDB) PurgeBlocksAboveHeight(height int64) (NSummaryRows, NStakeInfoRows int64, err error) {
+	var summaryHeight, stakeInfoHeight int64
+	_, summaryHeight, stakeInfoHeight, _, err = db.DBHeights()
+	if err != nil {
+		return
+	}
+	if summaryHeight != stakeInfoHeight {
+		log.Warnf("Tables are at different heights. "+
+			"Block summary height = %d. Stake info height = %d. Purging anyway!",
+			summaryHeight, stakeInfoHeight)
+	}
+
+	NSummaryRows, NStakeInfoRows, err = db.DeleteBlocksAboveHeight(height)
+	// DeleteBlock should not return sql.ErrNoRows, but check anyway.
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+	if err != nil {
+		return
+	}
+
+	_, summaryHeight, stakeInfoHeight, _, err = db.DBHeights()
+	if err != nil {
+		return
+	}
+	if summaryHeight != stakeInfoHeight {
+		err = fmt.Errorf("tables are at different heights after the purge! "+
+			"Block summary height = %d. Stake info height = %d.",
+			summaryHeight, stakeInfoHeight)
+		return
+	}
+
+	// Rewind stake database to this height.
+	var stakeDBHeight int64
+	stakeDBHeight, err = db.RewindStakeDB(context.Background(), height, true)
+	if err != nil {
+		return
+	}
+	if stakeDBHeight != height {
+		err = fmt.Errorf("rewind of StakeDatabase to height %d failed, "+
+			"reaching height %d instead", height, stakeDBHeight)
+		return
+	}
+
+	if height != summaryHeight {
+		err = fmt.Errorf("failed to purge to %d, got to %d", height, summaryHeight)
+	}
+
+	return
+}
+
 // PurgeBlock deletes all data across all tables for the block with the
 // specified hash. The numbers of blocks removed from the block summary table
 // and stake info table are returned. PurgeBlock will not return sql.ErrNoRows,
@@ -292,6 +348,18 @@ func (db *WiredDB) PurgeBlock(hash string) (NSummaryRows, NStakeInfoRows int64, 
 // empty. The returned height and hash values represent the best block after
 // successful data removal, or before a failed removal attempt.
 func (db *WiredDB) PurgeBestBlock() (NSummaryRows, NStakeInfoRows, height int64, hash string, err error) {
+	var summaryHeight, stakeInfoHeight int64
+	_, summaryHeight, stakeInfoHeight, _, err = db.DBHeights()
+	if err != nil {
+		return
+	}
+	if summaryHeight != stakeInfoHeight {
+		err = fmt.Errorf("tables are at different heights. "+
+			"Block summary height = %d. Stake info height = %d.",
+			summaryHeight, stakeInfoHeight)
+		return
+	}
+
 	var h chainhash.Hash
 	h, height, err = db.GetBestBlockHeightHash()
 	if err != nil {
