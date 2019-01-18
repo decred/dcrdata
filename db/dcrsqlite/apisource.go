@@ -1531,6 +1531,20 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		} else {
 			ValueIn, _ = dcrutil.NewAmount(vin.AmountIn)
 		}
+		if tx.BlockHeight == 0 && vin.BlockHeight == 0 {
+			// the vins in a verbose mempool tx from dcrd are always block height 0
+			vinHash, err := chainhash.NewHashFromStr(vin.Txid)
+			if err != nil {
+				log.Errorf("Failed to translate hash from string: %s", vin.Txid)
+			} else {
+				prevTx, err := db.client.GetRawTransactionVerbose(vinHash)
+				if err == nil {
+					vin.BlockHeight = uint32(prevTx.BlockHeight)
+				} else {
+					log.Errorf("Error getting data for previous outpoint of mempool transaction: %v", err)
+				}
+			}
+		}
 		inputs = append(inputs, exptypes.Vin{
 			Vin: &dcrjson.Vin{
 				Txid:        vin.Txid,

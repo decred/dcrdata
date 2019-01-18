@@ -6,19 +6,19 @@ import humanize from '../helpers/humanize_helper'
 export default class extends Controller {
   static get targets () {
     return ['unconfirmed', 'confirmations', 'formattedAge', 'age', 'progressBar',
-      'ticketStage', 'poolStatus', 'expiryBar']
+      'ticketStage', 'poolStatus', 'expiryBar', 'mempoolTd']
   }
 
   connect () {
-    this.advanceTicketProgress = this._advanceTicketProgress.bind(this)
-    globalEventBus.on('BLOCK_RECEIVED', this.advanceTicketProgress)
+    this.processBlock = this._processBlock.bind(this)
+    globalEventBus.on('BLOCK_RECEIVED', this.processBlock)
   }
 
   disconnect () {
-    globalEventBus.off('BLOCK_RECEIVED', this.advanceTicketProgress)
+    globalEventBus.off('BLOCK_RECEIVED', this.processBlock)
   }
 
-  _advanceTicketProgress (blockData) {
+  _processBlock (blockData) {
     var block = blockData.block
     // If this is a transaction in mempool, it will have an unconfirmedTarget.
     if (this.hasUnconfirmedTarget) {
@@ -42,6 +42,22 @@ export default class extends Controller {
         delete this.unconfirmedTarget.dataset.target
       }
     }
+
+    // Look for any unconfirmed matching tx hashes in the table.
+    if (this.hasMempoolTdTarget) {
+      this.mempoolTdTargets.forEach((td) => {
+        let txid = td.dataset.txid
+        if (txInBlock(txid, block)) {
+          let link = document.createElement('a')
+          link.textContent = block.height
+          link.href = `/block/${block.height}`
+          while (td.firstChild) td.removeChild(td.firstChild)
+          td.appendChild(link)
+          delete td.dataset.target
+        }
+      })
+    }
+
     // Advance the progress bars.
     if (!this.hasProgressBarTarget) {
       return
