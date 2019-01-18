@@ -371,14 +371,14 @@ type DeletionSummary struct {
 
 // String makes a pretty summary of the totals.
 func (s DeletionSummary) String() string {
-	summary := fmt.Sprintf("\t%5d Blocks purged\n", s.Blocks)
-	summary = summary + fmt.Sprintf("\t%5d Vins purged\n", s.Vins)
-	summary = summary + fmt.Sprintf("\t%5d Vouts purged\n", s.Vouts)
-	summary = summary + fmt.Sprintf("\t%5d Addresses purged\n", s.Addresses)
-	summary = summary + fmt.Sprintf("\t%5d Transactions purged\n", s.Transactions)
-	summary = summary + fmt.Sprintf("\t%5d Tickets purged\n", s.Tickets)
-	summary = summary + fmt.Sprintf("\t%5d Votes purged\n", s.Votes)
-	summary = summary + fmt.Sprintf("\t%5d Misses purged", s.Misses)
+	summary := fmt.Sprintf("%9d Blocks purged\n", s.Blocks)
+	summary = summary + fmt.Sprintf("%9d Vins purged\n", s.Vins)
+	summary = summary + fmt.Sprintf("%9d Vouts purged\n", s.Vouts)
+	summary = summary + fmt.Sprintf("%9d Addresses purged\n", s.Addresses)
+	summary = summary + fmt.Sprintf("%9d Transactions purged\n", s.Transactions)
+	summary = summary + fmt.Sprintf("%9d Tickets purged\n", s.Tickets)
+	summary = summary + fmt.Sprintf("%9d Votes purged\n", s.Votes)
+	summary = summary + fmt.Sprintf("%9d Misses purged", s.Misses)
 	return summary
 }
 
