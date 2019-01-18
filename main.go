@@ -153,6 +153,10 @@ func _main(ctx context.Context) error {
 	log.Infof("SQLite DB successfully opened: %s", cfg.DBFileName)
 	defer baseDB.Close()
 
+	if err = baseDB.ReportHeights(); err != nil {
+		return fmt.Errorf("Possible SQLite corruption: %v", err)
+	}
+
 	// Auxiliary DB (currently PostgreSQL)
 	var auxDB *dcrpg.ChainDBRPC
 	var newPGIndexes, updateAllAddresses, updateAllVotes bool

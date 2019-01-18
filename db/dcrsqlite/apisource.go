@@ -161,6 +161,30 @@ func (db *WiredDB) ChargePoolInfoCache(startHeight int64) error {
 	return nil
 }
 
+// ReportHeights logs the SQLite table heights, and the stake database height,
+// returning a non-nil error only when the SQLite tables are not at the same
+// height.
+func (db *WiredDB) ReportHeights() error {
+	// Check and report heights of the DBs. dbHeight is the lowest of the
+	// heights, and may be -1 with an empty SQLite DB.
+	dbHeight, summaryHeight, stakeInfoHeight, stakeDBHeight, err := db.DBHeights()
+	if err != nil {
+		return fmt.Errorf("DBHeights failed: %v", err)
+	}
+	if dbHeight < -1 {
+		panic("invalid starting height")
+	}
+
+	log.Info("SQLite block summary table height: ", summaryHeight)
+	log.Info("SQLite stake info table height:    ", stakeInfoHeight)
+	if stakeInfoHeight != summaryHeight {
+		err = fmt.Errorf("SQLite database (dcrdata.sqlt.db) is corrupted")
+	}
+	log.Info("StakeDatabase height:              ", stakeDBHeight)
+
+	return err
+}
+
 // CheckConnectivity ensures the db and RPC client are working.
 func (db *WiredDB) CheckConnectivity() error {
 	var err error
