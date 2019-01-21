@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -56,6 +57,43 @@ func (db *WiredDB) DBHeights() (lowest int64, summaryHeight int64, stakeInfoHeig
 
 func (db *WiredDB) initWaitChan(waitChan chan chainhash.Hash) {
 	db.waitChan = waitChan
+}
+
+func parseUnknownTicketError(err error) (hash *chainhash.Hash) {
+	// Look for the dreaded ticket database error.
+	re := regexp.MustCompile(`unknown ticket (\w*) spent in block`)
+	matches := re.FindStringSubmatch(err.Error())
+	var unknownTicket string
+	if len(matches) <= 1 {
+		// Unable to parse the error as unknown ticket message.
+		return
+	}
+	unknownTicket = matches[1]
+	ticketHash, err1 := chainhash.NewHashFromStr(unknownTicket)
+	if err1 != nil {
+		return
+	}
+	return ticketHash
+}
+
+// supplementUnknownTicketError checks the passed error for the "unknown ticket
+// [hash] spent in block" message, and supplements matching errors with the
+// block height of the ticket and switches to help recovery.
+func (db *WiredDB) supplementUnknownTicketError(err error) error {
+	ticketHash := parseUnknownTicketError(err)
+	if ticketHash == nil {
+		return err
+	}
+	txraw, err1 := db.client.GetRawTransactionVerbose(ticketHash)
+	if err1 != nil {
+		return err
+	}
+	badTxBlock := txraw.BlockHeight
+	sDBHeight := int64(db.sDB.Height())
+	numToPurge := sDBHeight - badTxBlock + 1
+	return fmt.Errorf("%v\n\t**** Unknown ticket was mined in block %d. "+
+		"Try \"--purge-n-blocks=%d --fast-sqlite-purge\" to recover. ****",
+		err, badTxBlock, numToPurge)
 }
 
 // RewindStakeDB attempts to disconnect blocks from the stake database to reach
@@ -286,7 +324,7 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 				panic(fmt.Sprintf("about to connect the wrong block: %d, %d", i, db.sDB.Height()))
 			}
 			if err = db.sDB.ConnectBlock(block); err != nil {
-				return i - 1, err
+				return i - 1, db.supplementUnknownTicketError(err)
 			}
 		}
 		stakeDBHeight = int64(db.sDB.Height()) // i
