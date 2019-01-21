@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -717,6 +716,7 @@ func _main(ctx context.Context) error {
 	baseDBHeight, auxDBHeight, err := getSyncd(updateAllAddresses,
 		updateAllVotes, newPGIndexes, fetchToHeight)
 	if err != nil {
+		requestShutdown()
 		return err
 	}
 
@@ -742,6 +742,7 @@ func _main(ctx context.Context) error {
 			baseDBHeight, auxDBHeight, err = getSyncd(updateAllAddresses, updateAllVotes,
 				newPGIndexes, fetchToHeight)
 			if err != nil {
+				requestShutdown()
 				return err
 			}
 			_, height, err = dcrdClient.GetBestBlock()
@@ -1056,9 +1057,12 @@ func _main(ctx context.Context) error {
 }
 
 func waitForSync(ctx context.Context, base chan dbtypes.SyncResult, aux chan dbtypes.SyncResult, useAux bool) (int64, int64, error) {
+	// First wait for the base DB (sqlite) sync to complete.
 	baseRes := <-base
 	baseDBHeight := baseRes.Height
 	log.Infof("SQLite sync ended at height %d", baseDBHeight)
+	// With an error condition in the result, signal for shutdown and wait for
+	// the aux. DB (PostgreSQL) to return its result.
 	if baseRes.Error != nil {
 		log.Errorf("dcrsqlite.SyncDBAsync failed at height %d: %v.", baseDBHeight, baseRes.Error)
 		requestShutdown()
@@ -1066,44 +1070,40 @@ func waitForSync(ctx context.Context, base chan dbtypes.SyncResult, aux chan dbt
 		return baseDBHeight, auxRes.Height, baseRes.Error
 	}
 
+	// After a successful sqlite sync result is received, wait for the
+	// postgresql sync result.
 	auxRes := <-aux
 	auxDBHeight := auxRes.Height
 	log.Infof("PostgreSQL sync ended at height %d", auxDBHeight)
 
-	// See if there was a SIGINT (CTRL+C)
-	select {
-	case <-ctx.Done():
+	// See if shutdown was requested.
+	if shutdownRequested(ctx) {
 		return baseDBHeight, auxDBHeight, fmt.Errorf("quit signal received during DB sync")
-	default:
 	}
 
-	if baseRes.Error != nil {
-		log.Errorf("dcrsqlite.SyncDBAsync failed at height %d.", baseDBHeight)
-		requestShutdown()
-		return baseDBHeight, auxDBHeight, baseRes.Error
+	// Unless PostgreSQL is actually in use, return without further ado.
+	if !useAux {
+		return baseDBHeight, auxDBHeight, nil
 	}
 
-	if useAux {
-		// Check for errors and combine the messages if necessary
-		if auxRes.Error != nil {
-			requestShutdown()
-			if baseRes.Error != nil {
-				log.Error("dcrsqlite.SyncDBAsync AND dcrpg.SyncChainDBAsync "+
-					"failed at heights %d and %d, respectively.",
-					baseDBHeight, auxDBHeight)
-				errCombined := fmt.Sprintln(baseRes.Error, ", ", auxRes.Error)
-				return baseDBHeight, auxDBHeight, errors.New(errCombined)
-			}
-			log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", auxDBHeight)
-			return baseDBHeight, auxDBHeight, auxRes.Error
+	// Check for pg sync errors and combine the messages if necessary.
+	if auxRes.Error != nil {
+		if baseRes.Error != nil {
+			log.Error("dcrsqlite.SyncDBAsync AND dcrpg.SyncChainDBAsync "+
+				"failed at heights %d and %d, respectively.",
+				baseDBHeight, auxDBHeight)
+			errCombined := fmt.Errorf("%v, %v", baseRes.Error, auxRes.Error)
+			return baseDBHeight, auxDBHeight, errCombined
 		}
+		log.Errorf("dcrpg.SyncChainDBAsync failed at height %d.", auxDBHeight)
+		return baseDBHeight, auxDBHeight, auxRes.Error
+	}
 
-		// DBs must finish at the same height
-		if auxDBHeight != baseDBHeight {
-			return baseDBHeight, auxDBHeight, fmt.Errorf("failed to hit same"+
-				"sync height for PostgreSQL (%d) and SQLite (%d)",
-				auxDBHeight, baseDBHeight)
-		}
+	// DBs must finish at the same height.
+	if auxDBHeight != baseDBHeight {
+		return baseDBHeight, auxDBHeight, fmt.Errorf("failed to hit same"+
+			"sync height for PostgreSQL (%d) and SQLite (%d)",
+			auxDBHeight, baseDBHeight)
 	}
 	return baseDBHeight, auxDBHeight, nil
 }
