@@ -151,7 +151,7 @@
 {{end}}
 
 {{define "decimalParts"}}
-<div class="decimal-parts d-flex align-items-baseline">
+<div class="decimal-parts d-inline-block">
     {{if eq (len .) 4}}
         <span class="int">{{ index . 0 }}.{{ index . 1 }}</span
         >{{if gt (len (index . 2)) 0}}<span class="decimal">{{ index . 2 }}</span

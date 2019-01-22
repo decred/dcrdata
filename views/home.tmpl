@@ -141,7 +141,7 @@
                                     <span id="hashrate-subdata" class="text-black-50">{{template "fmtPercentage" .HashRateChange}} in past 24h</span>
                                 </div>
                             </div>
-                            <div class="col-12 col-sm-5 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
+                            <div class="col-6 col-sm-5 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                                 <div class="fs13 text-secondary">Next Block Reward Reduction</div>
                                 <div class="progress mt-1 mb-1">
                                     <div
@@ -237,7 +237,7 @@
                         <div class="d-flex flex-table-row mempool-row">
                             <a class="hash truncate-hash keyboard-target" style="flex: 1 1 auto" href="/tx/{{.Hash}}" title="{{.Hash}}">{{.Hash}}</a>
                             <span style="flex: 0 0 65px" class="mono text-right ml-1">{{.Type}}</span>
-                            <span style="flex: 0 0 105px" class="mono text-right ml-1 fs13 text-secondary">
+                            <span style="flex: 0 0 105px" class="mono text-right ml-1">
                               {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                             </span>
                             <span style="flex: 0 0 50px" class="mono text-right ml-1">{{.Size}} B</span>
