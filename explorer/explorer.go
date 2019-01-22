@@ -24,6 +24,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	"github.com/go-chi/chi"
@@ -198,6 +199,7 @@ type explorerUI struct {
 	NetName          string
 	MeanVotingBlocks int64
 	ChartUpdate      sync.Mutex
+	xcBot            *exchanges.ExchangeBot
 	// displaySyncStatusPage indicates if the sync status page is the only web
 	// page that should be accessible during DB synchronization.
 	displaySyncStatusPage atomic.Value
@@ -250,7 +252,8 @@ func (exp *explorerUI) StopWebsocketHub() {
 
 // New returns an initialized instance of explorerUI
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
-	useRealIP bool, appVersion string, devPrefetch bool, viewsfolder string) *explorerUI {
+	useRealIP bool, appVersion string, devPrefetch bool, viewsfolder string,
+	xcBot *exchanges.ExchangeBot) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
@@ -258,6 +261,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.MempoolData = new(types.MempoolInfo)
 	exp.Version = appVersion
 	exp.devPrefetch = devPrefetch
+	exp.xcBot = xcBot
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {
@@ -656,4 +660,11 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 	ASR = (BlocksPerYear / (simblock - CurrentBlockNum)) * SimulationReward
 	ReturnTable += fmt.Sprintf("ASR over 365 Days is %.2f.\n", ASR)
 	return
+}
+
+func (exp *explorerUI) getExchangeState() *exchanges.ExchangeBotState {
+	if exp.xcBot == nil {
+		return nil
+	}
+	return exp.xcBot.State()
 }

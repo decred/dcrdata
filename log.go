@@ -15,6 +15,7 @@ import (
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
+	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/middleware"
@@ -66,6 +67,7 @@ var (
 	log           = backendLog.Logger("DATD")
 	iapiLog       = backendLog.Logger("IAPI")
 	pubsubLog     = backendLog.Logger("PUBS")
+	xcBotLog      = backendLog.Logger("XBOT")
 )
 
 // Initialize package-global logger variables.
@@ -83,6 +85,7 @@ func init() {
 	middleware.UseLogger(apiLog)
 	notify.UseLogger(notifyLog)
 	pubsub.UseLogger(pubsubLog)
+	exchanges.UseLogger(xcBotLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.

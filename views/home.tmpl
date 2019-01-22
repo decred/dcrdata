@@ -202,7 +202,17 @@
                           <td class="text-right pr-3 jsonly" data-target="time.age" data-age="{{.Time}}"></td>
                         </tr>
                         {{end}}
-                      </tbody>
+                        {{if $.ExchangeState}}
+                        <tr class="align-baseline">
+                            <td class="text-right pr-2 lh1rem">EXCHANGE RATE</td>
+                            <td>
+                                <div class="mono lh1rem p03rem0 fs14-decimal fs18">
+                                    <span class="d-inline-block">{{template "decimalParts" (float64AsDecimalParts $.ExchangeState.Price 4 true)}}</span
+                                    ><span class="pl-1 unit lh15rem">{{$.ExchangeState.BtcIndex}}</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {{end}}
                     </table>
                     <a href="/mempool" class="small">see more...</a>
                   </div>  <!-- end mempool card -->

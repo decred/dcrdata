@@ -23,6 +23,7 @@ import (
 	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	humanize "github.com/dustin/go-humanize"
@@ -138,13 +139,14 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("home", struct {
 		*CommonPageData
-		Info       *types.HomeInfo
-		Mempool    *types.MempoolInfo
-		BestBlock  *types.BlockBasic
-		BlockTally []int
-		Consensus  int
-		Blocks     []*types.BlockBasic
-		NetName    string
+		Info          *types.HomeInfo
+		Mempool       *types.MempoolInfo
+		BestBlock     *types.BlockBasic
+		BlockTally    []int
+		Consensus     int
+		Blocks        []*types.BlockBasic
+		NetName       string
+		ExchangeState *exchanges.ExchangeBotState
 	}{
 		CommonPageData: exp.commonData(),
 		Info:           exp.pageData.HomeInfo,
@@ -154,6 +156,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Consensus:      consensus,
 		Blocks:         blocks,
 		NetName:        exp.NetName,
+		ExchangeState:  exp.getExchangeState(),
 	})
 
 	exp.MempoolData.RUnlock()
