@@ -19,10 +19,10 @@ require (
 	github.com/decred/dcrd/chaincfg v1.2.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/database v1.0.3
-	github.com/decred/dcrd/dcrec v0.0.0-20181212224710-c6f60e2c101c
-	github.com/decred/dcrd/dcrec/edwards v0.0.0-20181212224710-c6f60e2c101c // indirect
+	github.com/decred/dcrd/dcrec v0.0.0-20190118223730-3a5281156b73
+	github.com/decred/dcrd/dcrec/edwards v0.0.0-20190118223730-3a5281156b73 // indirect
 	github.com/decred/dcrd/dcrjson v1.1.0
-	github.com/decred/dcrd/dcrutil v1.2.0
+	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
 	github.com/decred/dcrd/rpcclient v1.1.0
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
@@ -63,6 +63,7 @@ require (
 	github.com/vmihailenco/msgpack v4.0.1+incompatible // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	go.etcd.io/bbolt v1.3.0 // indirect
+	golang.org/x/crypto v0.0.0-20190123085648-057139ce5d2b // indirect
 	golang.org/x/net v0.0.0-20181217023233-e147a9138326
 	golang.org/x/sys v0.0.0-20181217223516-dcdaa6325bcb // indirect
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
