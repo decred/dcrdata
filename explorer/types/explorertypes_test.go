@@ -4,10 +4,43 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+func TestTimeDefMarshal(t *testing.T) {
+	tref := time.Unix(1548363687, 0)
+	trefJSON := `"` + tref.Format(timeDefFmt) + `"`
+
+	timedef := &TimeDef{
+		T: tref,
+	}
+	jsonTime, err := timedef.MarshalJSON()
+	if err != nil {
+		t.Errorf("MarshalJSON failed: %v", err)
+	}
+
+	if string(jsonTime) != trefJSON {
+		t.Errorf("expected %s, got %s", trefJSON, string(jsonTime))
+	}
+}
+
+func TestTimeDefUnmarshal(t *testing.T) {
+	tref := time.Unix(1548363687, 0).UTC()
+	trefJSON := tref.Format(timeDefFmt)
+
+	timedef := new(TimeDef)
+	err := timedef.UnmarshalJSON([]byte(trefJSON))
+	if err != nil {
+		t.Errorf("UnmarshalJSON failed: %v", err)
+	}
+
+	if timedef.T != tref {
+		t.Errorf("expected %v, got %v", tref, timedef.T)
+	}
+}
 
 func TestDeepCopys(t *testing.T) {
 	tickets := []MempoolTx{

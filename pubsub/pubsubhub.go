@@ -84,16 +84,6 @@ type connection struct {
 	client *clientHubSpoke
 }
 
-var subscriptions = map[string]pstypes.HubSignal{
-	"subscribe":      sigSubscribe,
-	"unsubscribe":    sigUnsubscribe,
-	"newblock":       sigNewBlock,
-	"mempool":        sigMempoolUpdate,
-	"ping":           sigPingAndUserCount,
-	"newtx":          sigNewTx,
-	"blockchainSync": sigSyncStatus,
-}
-
 // PubSubHub manages the collection and distribution of block chain and mempool
 // data to WebSocket clients.
 type PubSubHub struct {
@@ -255,7 +245,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 		// Determine response based on EventId and Message content.
 		switch msg.EventId {
 		case "subscribe":
-			sub, valid := subscriptions[msg.Message]
+			sub, valid := pstypes.Subscriptions[msg.Message]
 			if !valid {
 				log.Debugf("Invalid subscribe signal: %.40s...", msg.Message)
 				resp.Message = "invalid subscription"
@@ -265,7 +255,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 			conn.client.cl.subscribe(sub)
 			resp.Message = msg.Message + " subscribe ok"
 		case "unsubscribe":
-			sub, valid := subscriptions[msg.Message]
+			sub, valid := pstypes.Subscriptions[msg.Message]
 			if !valid {
 				log.Debugf("Invalid unsubscribe signal: %.40s...", msg.Message)
 				resp.Message = "invalid subscription"

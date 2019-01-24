@@ -25,6 +25,14 @@ const (
 	SigSyncStatus
 )
 
+var Subscriptions = map[string]HubSignal{
+	"newblock":       SigNewBlock,
+	"mempool":        SigMempoolUpdate,
+	"ping":           SigPingAndUserCount,
+	"newtx":          SigNewTx,
+	"blockchainSync": SigSyncStatus,
+}
+
 // Event type field for an event.
 var eventIDs = map[HubSignal]string{
 	SigSubscribe:        "subscribe",

@@ -24,6 +24,8 @@ const (
 	bufferTickerInterval = 5
 	NewTxBufferSize      = 5
 	clientSignalSize     = 5
+
+	MaxPayloadBytes = 1 << 20
 )
 
 // Type aliases for the different HubSignals.
@@ -144,7 +146,7 @@ func NewWebsocketHub() *WebsocketHub {
 		NewTxChan:        make(chan *exptypes.MempoolTx, 1),
 		bufferTickerChan: make(chan int, clientSignalSize),
 		quitWSHandler:    make(chan struct{}),
-		requestLimit:     1 << 20, // 1 MB
+		requestLimit:     MaxPayloadBytes, // 1 MB
 	}
 }
 
@@ -226,12 +228,14 @@ func (wsh *WebsocketHub) pingClients() chan<- struct{} {
 
 // Stop kills the run() loop and unregisters all clients (connections).
 func (wsh *WebsocketHub) Stop() {
-	// Close the receiving channels. Senders should use a select with a default
-	// or timer/timeout case to avoid a panic.
+	// Close the receiving new tx channel. Senders should use a select with a
+	// default or timer/timeout case to avoid a panic.
 	close(wsh.NewTxChan)
-	close(wsh.HubRelay)
 	// End the run() loop, allowing in progress operations to complete.
 	wsh.quitWSHandler <- struct{}{}
+	// Lastly close the hub relay channel sine the quitWSHandler signal is
+	// handled in the Run loop.
+	close(wsh.HubRelay)
 }
 
 // Run starts the main event loop, which handles the following: 1. receiving
@@ -250,10 +254,9 @@ func (wsh *WebsocketHub) Run() {
 	defer close(stopPing)
 
 	defer func() {
-		// Drain the newtx channel
+		// Drain the receiving channels if they were not already closed by Stop.
 		for range wsh.NewTxChan {
 		}
-		// Drain the signal channel
 		for range wsh.HubRelay {
 		}
 	}()
@@ -287,6 +290,9 @@ func (wsh *WebsocketHub) Run() {
 			case sigNewTx:
 				log.Tracef("Received sigNewTx")
 				newtx = <-wsh.NewTxChan
+				if newtx == nil { // channel likely closed by Stop so quit signal can operate
+					continue
+				}
 				log.Tracef("Received new tx %s. Queueing in clients' send buffers...", newtx.Hash)
 				someTxBuffersReady = wsh.MaybeSendTxns(newtx)
 			case sigSubscribe:

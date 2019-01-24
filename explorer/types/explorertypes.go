@@ -6,6 +6,7 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -25,13 +26,30 @@ type TimeDef struct {
 	T time.Time
 }
 
+const timeDefFmt = "2006-01-02 15:04:05"
+
 func (t TimeDef) String() string {
-	return t.T.Format("2006-01-02 15:04:05")
+	return t.T.Format(timeDefFmt)
 }
 
-// MarshalJSON is set as the default marshalling function for TimeDef struct.
+// MarshalJSON implements json.Marshaler.
 func (t *TimeDef) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (t *TimeDef) UnmarshalJSON(data []byte) error {
+	if t == nil {
+		return fmt.Errorf("TimeDef: UnmarshalJSON on nil pointer")
+	}
+	tStr := string(data)
+	tStr = strings.Trim(tStr, `"`)
+	T, err := time.Parse(timeDefFmt, tStr)
+	if err != nil {
+		return err
+	}
+	t.T = T
+	return nil
 }
 
 // BlockBasic models data for the explorer's explorer page
