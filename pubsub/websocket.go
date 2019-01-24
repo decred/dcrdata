@@ -293,7 +293,7 @@ func (wsh *WebsocketHub) Run() {
 				if newtx == nil { // channel likely closed by Stop so quit signal can operate
 					continue
 				}
-				log.Tracef("Received new tx %s. Queueing in clients' send buffers...", newtx.Hash)
+				log.Tracef("Received new tx %s. Queueing in each client's send buffer...", newtx.Hash)
 				someTxBuffersReady = wsh.MaybeSendTxns(newtx)
 			case sigSubscribe:
 				continue // break events
