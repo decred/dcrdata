@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -95,7 +94,8 @@ func main() {
 
 	hitEnter := func() {
 		fmt.Println("Hit a key to choose an action.")
-		bufio.NewReaderSize(os.Stdin, 1).ReadByte()
+		//bufio.NewReaderSize(os.Stdin, 1).ReadByte()
+		os.Stdin.Read([]byte{0})
 	}
 
 	// Prompting goroutine that sends the sub/unsub requests to the message loop
