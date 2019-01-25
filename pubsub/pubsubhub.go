@@ -224,9 +224,9 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 				continue
 			}
 			// EOF is a common client disconnected error.
-			//if err.Error() != "EOF" {
-			log.Warnf("websocket client receive error: %v", err)
-			//}
+			if err.Error() != "EOF" {
+				log.Warnf("websocket client receive error: %v", err)
+			}
 			return
 		}
 
