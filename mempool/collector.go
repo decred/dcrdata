@@ -312,6 +312,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	blockhash := lastBlock.Hash.String()
 
 	// Initialize the BlockValidatorIndex, a map.
+	var latestTime int64
 	ticketSpendInds := make(exptypes.BlockValidatorIndex)
 	for _, tx := range txs {
 		switch tx.Type {
@@ -356,6 +357,10 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 		// Update mempool totals
 		totalOut += tx.TotalOut
 		totalSize += tx.Size
+
+		if latestTime < tx.Time {
+			latestTime = tx.Time
+		}
 	}
 
 	sort.Sort(exptypes.MPTxsByHeight(votes))
@@ -367,6 +372,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			LastBlockHeight:    lastBlock.Height,
 			LastBlockHash:      blockhash,
 			LastBlockTime:      lastBlock.Time,
+			Time:               latestTime,
 			TotalOut:           totalOut,
 			TotalSize:          totalSize,
 			NumTickets:         len(tickets),

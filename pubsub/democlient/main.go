@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
@@ -31,8 +32,8 @@ func main() {
 
 	// Create the pubsub client.
 	cl := client.New(ws)
-	cl.ReadTimeout = 10 * time.Second
-	cl.WriteTimeout = 4 * time.Second
+	cl.ReadTimeout = 30 * time.Second
+	cl.WriteTimeout = 10 * time.Second
 
 	// Subscribe to several events.
 	subs := []string{"ping", "newtx", "newblock", "mempool"}
@@ -49,6 +50,9 @@ func main() {
 	for {
 		resp, err := cl.ReceiveMsg()
 		if err != nil {
+			if strings.Contains(err.Error(), "i/o timeout") {
+				continue
+			}
 			return
 		}
 
@@ -64,7 +68,9 @@ func main() {
 		case *exptypes.WebsocketBlock:
 			log.Printf("Message (%s): WebsocketBlock(hash=%s)", resp.EventId, m.Block.Hash)
 		case *exptypes.MempoolShort:
-			log.Printf("Message (%s): MempoolShort(numTx=%d, time=%v)", resp.EventId, m.NumAll, m.Time)
+			t := time.Unix(m.Time, 0)
+			log.Printf("Message (%s): MempoolShort(numTx=%d, time=%v)",
+				resp.EventId, m.NumAll, t)
 		case *pstypes.TxList:
 			log.Printf("Message (%s): TxList(len=%d)", resp.EventId, len(*m))
 		default:
