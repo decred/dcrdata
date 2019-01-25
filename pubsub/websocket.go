@@ -16,7 +16,7 @@ import (
 type hubSpoke chan pstypes.HubSignal
 
 const (
-	pingInterval = 60 * time.Second
+	pingInterval = 45 * time.Second
 
 	tickerSigReset int = iota
 	tickerSigStop
