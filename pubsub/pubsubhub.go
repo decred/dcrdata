@@ -220,7 +220,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 		if err := websocket.JSON.Receive(ws, &msg); err != nil {
 			// Keep listening for new messages if the read deadline has passed.
 			if strings.Contains(err.Error(), "i/o timeout") {
-				log.Tracef("No data read from client in %v. Trying again.", wsReadTimeout)
+				//log.Tracef("No data read from client in %v. Trying again.", wsReadTimeout)
 				continue
 			}
 			// EOF is a common client disconnected error.
