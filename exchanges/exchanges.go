@@ -12,29 +12,31 @@ import (
 	"time"
 )
 
+// Tokens. Used to identify the exchange.
 const (
-	// Tokens. Used to identify the exchange.
 	Coinbase    = "coinbase"
-	CoinbaseUrl = "https://api.coinbase.com/v2/exchange-rates?currency=BTC"
+	CoinbaseURL = "https://api.coinbase.com/v2/exchange-rates?currency=BTC"
 	Coindesk    = "coindesk"
-	CoindeskUrl = "https://api.coindesk.com/v1/bpi/currentprice.json"
+	CoindeskURL = "https://api.coindesk.com/v1/bpi/currentprice.json"
 	Binance     = "binance"
-	BinanceUrl  = "https://api.binance.com/api/v1/ticker/24hr?symbol=DCRBTC"
+	BinanceURL  = "https://api.binance.com/api/v1/ticker/24hr?symbol=DCRBTC"
 	Bittrex     = "bittrex"
-	BittrexUrl  = "https://bittrex.com/api/v1.1/public/getmarketsummary?market=btc-dcr"
+	BittrexURL  = "https://bittrex.com/api/v1.1/public/getmarketsummary?market=btc-dcr"
 	DragonEx    = "dragonex"
-	DragonExUrl = "https://openapi.dragonex.io/api/v1/market/real/?symbol_id=1520101"
+	DragonExURL = "https://openapi.dragonex.io/api/v1/market/real/?symbol_id=1520101"
 	Huobi       = "huobi"
-	HuobiUrl    = "https://api.huobi.pro/market/detail/merged?symbol=dcrbtc"
+	HuobiURL    = "https://api.huobi.pro/market/detail/merged?symbol=dcrbtc"
 	Poloniex    = "poloniex"
-	PoloniexUrl = "https://poloniex.com/public?command=returnTicker"
+	PoloniexURL = "https://poloniex.com/public?command=returnTicker"
 )
 
+// BtcIndices maps tokens to constructors for BTC-fiat exchanges.
 var BtcIndices = map[string]func(*http.Client, *BotChannels) (Exchange, error){
 	Coinbase: NewCoinbase,
 	Coindesk: NewCoindesk,
 }
 
+// DcrExchanges maps tokens to constructors for DCR-BTC exchanges.
 var DcrExchanges = map[string]func(*http.Client, *BotChannels) (Exchange, error){
 	Binance:  NewBinance,
 	Bittrex:  NewBittrex,
@@ -60,10 +62,10 @@ func IsDcrExchange(token string) bool {
 func Tokens() []string {
 	var tokens []string
 	var token string
-	for token, _ = range BtcIndices {
+	for token = range BtcIndices {
 		tokens = append(tokens, token)
 	}
-	for token, _ = range DcrExchanges {
+	for token = range DcrExchanges {
 		tokens = append(tokens, token)
 	}
 	return tokens
@@ -114,7 +116,7 @@ type CommonExchange struct {
 	channels     *BotChannels
 }
 
-// LastUpdate: the last update time.
+// LastUpdate gets a time.Time of the last successful exchange update.
 func (xc *CommonExchange) LastUpdate() time.Time {
 	xc.RLock()
 	defer xc.RUnlock()
@@ -130,14 +132,14 @@ func (xc *CommonExchange) Hurry(d time.Duration) {
 	xc.lastUpdate = xc.lastUpdate.Add(-d)
 }
 
-// LastFail: the last failure time.
+// LastFail gets the last time.Time of a failed exchange update.
 func (xc *CommonExchange) LastFail() time.Time {
 	xc.RLock()
 	defer xc.RUnlock()
 	return xc.lastFail
 }
 
-// IsFailed: true if the last failure occurred after the last success.
+// IsFailed will be true if xc.lastFail > xc.lastUpdate.
 func (xc *CommonExchange) IsFailed() bool {
 	xc.RLock()
 	defer xc.RUnlock()
@@ -154,7 +156,7 @@ func (xc *CommonExchange) LastTry() time.Time {
 	return xc.lastUpdate
 }
 
-// Token: getter for the exchange token.
+// Token is the string associated with the exchange's token.
 func (xc *CommonExchange) Token() string {
 	return xc.token
 }
@@ -224,13 +226,14 @@ func newCommonExchange(token string, client *http.Client,
 	}
 }
 
-// Coinbase provides 10 to 100s of bitcoin-fiat exchange pairs.
+// CoinbaseExchange provides tons of bitcoin-fiat exchange pairs.
 type CoinbaseExchange struct {
 	*CommonExchange
 }
 
+// NewCoinbase constructs a CoinbaseExchange.
 func NewCoinbase(client *http.Client, channels *BotChannels) (coinbase Exchange, err error) {
-	request, err := http.NewRequest(http.MethodGet, CoinbaseUrl, nil)
+	request, err := http.NewRequest(http.MethodGet, CoinbaseURL, nil)
 	if err != nil {
 		return
 	}
@@ -240,15 +243,18 @@ func NewCoinbase(client *http.Client, channels *BotChannels) (coinbase Exchange,
 	return
 }
 
+// CoinbaseResponse models the JSON data returned from the Coinbase API.
 type CoinbaseResponse struct {
 	Data CoinbaseResponseData `json:"data"`
 }
 
+// CoinbaseResponseData models the "data" field of the Coinbase API response.
 type CoinbaseResponseData struct {
 	Currency string            `json:"currency"`
 	Rates    map[string]string `json:"rates"`
 }
 
+// Refresh retrieves and parses API data from Coinbase.
 func (coinbase *CoinbaseExchange) Refresh() {
 	response := new(CoinbaseResponse)
 	err := coinbase.fetch(response)
@@ -269,14 +275,15 @@ func (coinbase *CoinbaseExchange) Refresh() {
 	coinbase.updateIndices(indices)
 }
 
-// Coindesk provides Bitcoin indices for USD, GBP, and EUR by default. Others
-// are available, but custom reqeusts would need to be implemented.
+// CoindeskExchange provides Bitcoin indices for USD, GBP, and EUR by default.
+// Others are available, but custom requests would need to be implemented.
 type CoindeskExchange struct {
 	*CommonExchange
 }
 
+// NewCoindesk constructs a CoindeskExchange.
 func NewCoindesk(client *http.Client, channels *BotChannels) (coindesk Exchange, err error) {
-	request, err := http.NewRequest(http.MethodGet, CoindeskUrl, nil)
+	request, err := http.NewRequest(http.MethodGet, CoindeskURL, nil)
 	if err != nil {
 		return
 	}
@@ -286,6 +293,7 @@ func NewCoindesk(client *http.Client, channels *BotChannels) (coindesk Exchange,
 	return
 }
 
+// CoindeskResponse models the JSON data returned from the Coindesk API.
 type CoindeskResponse struct {
 	Time       CoindeskResponseTime           `json:"time"`
 	Disclaimer string                         `json:"disclaimer"`
@@ -293,12 +301,14 @@ type CoindeskResponse struct {
 	Bpi        map[string]CoindeskResponseBpi `json:"bpi"`
 }
 
+// CoindeskResponseTime models the "time" field of the Coindesk API response.
 type CoindeskResponseTime struct {
 	Updated    string    `json:"updated"`
 	UpdatedIso time.Time `json:"updatedISO"`
 	Updateduk  string    `json:"updateduk"`
 }
 
+// CoindeskResponseBpi models the "bpi" field of the Coindesk API response.
 type CoindeskResponseBpi struct {
 	Code        string  `json:"code"`
 	Symbol      string  `json:"symbol"`
@@ -307,6 +317,7 @@ type CoindeskResponseBpi struct {
 	RateFloat   float64 `json:"rate_float"`
 }
 
+// Refresh retrieves and parses API data from Coindesk.
 func (coindesk *CoindeskExchange) Refresh() {
 	response := new(CoindeskResponse)
 	err := coindesk.fetch(response)
@@ -322,12 +333,14 @@ func (coindesk *CoindeskExchange) Refresh() {
 	coindesk.updateIndices(indices)
 }
 
+// BinanceExchange is a high-volume and well-respected crypto exchange.
 type BinanceExchange struct {
 	*CommonExchange
 }
 
+// NewBinance constructs a BinanceExchange.
 func NewBinance(client *http.Client, channels *BotChannels) (binance Exchange, err error) {
-	request, err := http.NewRequest(http.MethodGet, BinanceUrl, nil)
+	request, err := http.NewRequest(http.MethodGet, BinanceURL, nil)
 	if err != nil {
 		return
 	}
@@ -337,6 +350,7 @@ func NewBinance(client *http.Client, channels *BotChannels) (binance Exchange, e
 	return
 }
 
+// BinanceResponse models the JSON data returned from the Binance API.
 type BinanceResponse struct {
 	Symbol             string `json:"symbol"`
 	PriceChange        string `json:"priceChange"`
@@ -356,11 +370,12 @@ type BinanceResponse struct {
 	QuoteVolume        string `json:"quoteVolume"`
 	OpenTime           int64  `json:"openTime"`
 	CloseTime          int64  `json:"closeTime"`
-	FirstId            int64  `json:"firstId"`
-	LastId             int64  `json:"lastId"`
+	FirstID            int64  `json:"firstId"`
+	LastID             int64  `json:"lastId"`
 	Count              int64  `json:"count"`
 }
 
+// Refresh retrieves and parses API data from Binance.
 func (binance *BinanceExchange) Refresh() {
 	response := new(BinanceResponse)
 	err := binance.fetch(response)
@@ -397,13 +412,15 @@ func (binance *BinanceExchange) Refresh() {
 	})
 }
 
+// BittrexExchange is an unregulated U.S. crypto exchange with good volume.
 type BittrexExchange struct {
 	*CommonExchange
 	MarketName string
 }
 
+// NewBittrex constructs a BittrexExchange.
 func NewBittrex(client *http.Client, channels *BotChannels) (bittrex Exchange, err error) {
-	request, err := http.NewRequest(http.MethodGet, BittrexUrl, nil)
+	request, err := http.NewRequest(http.MethodGet, BittrexURL, nil)
 	if err != nil {
 		return
 	}
@@ -414,12 +431,14 @@ func NewBittrex(client *http.Client, channels *BotChannels) (bittrex Exchange, e
 	return
 }
 
+// BittrexResponse models the JSON data returned from the Bittrex API.
 type BittrexResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Result  []BittrexResponseResult
+	Success bool                    `json:"success"`
+	Message string                  `json:"message"`
+	Result  []BittrexResponseResult `json:"result"`
 }
 
+// BittrexResponseResult models the "result" field of the Bittrex API response.
 type BittrexResponseResult struct {
 	MarketName     string  `json:"MarketName"`
 	High           float64 `json:"High"`
@@ -436,6 +455,7 @@ type BittrexResponseResult struct {
 	Created        string  `json:"Created"`
 }
 
+// Refresh retrieves and parses API data from Bittrex.
 // Bittrex provides timestamps in a string format that is not quite RFC 3339.
 func (bittrex *BittrexExchange) Refresh() {
 	response := new(BittrexResponse)
@@ -454,7 +474,7 @@ func (bittrex *BittrexExchange) Refresh() {
 	}
 	result := response.Result[0]
 	if result.MarketName != bittrex.MarketName {
-		bittrex.fail("Wrong market", fmt.Errorf("Expected market %s. Recieved %s.", bittrex.MarketName, result.MarketName))
+		bittrex.fail("Wrong market", fmt.Errorf("Expected market %s. Recieved %s", bittrex.MarketName, result.MarketName))
 		return
 	}
 	bittrex.update(&ExchangeState{
@@ -465,23 +485,26 @@ func (bittrex *BittrexExchange) Refresh() {
 	})
 }
 
+// DragonExchange is a Singapore-based crytocurrency exchange.
 type DragonExchange struct {
 	*CommonExchange
-	SymbolId int
+	SymbolID int
 }
 
+// NewDragonEx constructs a DragonExchange.
 func NewDragonEx(client *http.Client, channels *BotChannels) (dragonex Exchange, err error) {
-	request, err := http.NewRequest(http.MethodGet, DragonExUrl, nil)
+	request, err := http.NewRequest(http.MethodGet, DragonExURL, nil)
 	if err != nil {
 		return
 	}
 	dragonex = &DragonExchange{
 		CommonExchange: newCommonExchange(DragonEx, client, request, channels),
-		SymbolId:       1520101,
+		SymbolID:       1520101,
 	}
 	return
 }
 
+// DragonExResponse models the JSON data returned from the DragonEx API.
 type DragonExResponse struct {
 	Ok   bool                   `json:"ok"`
 	Code int                    `json:"code"`
@@ -489,7 +512,8 @@ type DragonExResponse struct {
 	Msg  string                 `json:"msg"`
 }
 
-// dragonex has the current price in close_price
+// DragonExResponseData models the JSON data from the DragonEx API.
+// Dragonex has the current price in close_price
 type DragonExResponseData struct {
 	ClosePrice      string `json:"close_price"`
 	CurrentVolume   string `json:"current_volume"`
@@ -503,9 +527,10 @@ type DragonExResponseData struct {
 	TotalAmount     string `json:"total_amount"`
 	TotalVolume     string `json:"total_volume"`
 	UsdtVolume      string `json:"usdt_amount"`
-	SymbolId        int    `json:"symbol_id"`
+	SymbolID        int    `json:"symbol_id"`
 }
 
+// Refresh retrieves and parses API data from DragonEx.
 func (dragonex *DragonExchange) Refresh() {
 	response := new(DragonExResponse)
 	err := dragonex.fetch(response)
@@ -518,12 +543,12 @@ func (dragonex *DragonExchange) Refresh() {
 		return
 	}
 	if len(response.Data) == 0 {
-		dragonex.fail("No data", fmt.Errorf("Response data array is empty."))
+		dragonex.fail("No data", fmt.Errorf("Response data array is empty"))
 		return
 	}
 	data := response.Data[0]
-	if data.SymbolId != dragonex.SymbolId {
-		dragonex.fail("Wrong code", fmt.Errorf("Pair id %d in response is not the expected id %d.", data.SymbolId, dragonex.SymbolId))
+	if data.SymbolID != dragonex.SymbolID {
+		dragonex.fail("Wrong code", fmt.Errorf("Pair id %d in response is not the expected id %d", data.SymbolID, dragonex.SymbolID))
 		return
 	}
 	price, err := strconv.ParseFloat(data.ClosePrice, 64)
@@ -551,13 +576,15 @@ func (dragonex *DragonExchange) Refresh() {
 	})
 }
 
+// HuobiExchange is based in Hong Kong and Singapore.
 type HuobiExchange struct {
 	*CommonExchange
 	Ok string
 }
 
+// NewHuobi constructs a HuobiExchange.
 func NewHuobi(client *http.Client, channels *BotChannels) (huobi Exchange, err error) {
-	request, err := http.NewRequest(http.MethodGet, HuobiUrl, nil)
+	request, err := http.NewRequest(http.MethodGet, HuobiURL, nil)
 	if err != nil {
 		return
 	}
@@ -569,6 +596,7 @@ func NewHuobi(client *http.Client, channels *BotChannels) (huobi Exchange, err e
 	return
 }
 
+// HuobiResponse models the JSON data returned from the Huobi API.
 type HuobiResponse struct {
 	Status string            `json:"status"`
 	Ch     string            `json:"ch"`
@@ -576,12 +604,13 @@ type HuobiResponse struct {
 	Tick   HuobiResponseTick `json:"tick"`
 }
 
+// HuobiResponseTick models the "tick" field of the Huobi API response.
 type HuobiResponseTick struct {
 	Amount  float64   `json:"amount"`
 	Open    float64   `json:"open"`
 	Close   float64   `json:"close"`
 	High    float64   `json:"high"`
-	Id      int64     `json:"id"`
+	ID      int64     `json:"id"`
 	Count   int64     `json:"count"`
 	Low     float64   `json:"low"`
 	Version int64     `json:"version"`
@@ -590,6 +619,7 @@ type HuobiResponseTick struct {
 	Bid     []float64 `json:"bid"`
 }
 
+// Refresh retrieves and parses API data from Huobi.
 func (huobi *HuobiExchange) Refresh() {
 	response := new(HuobiResponse)
 	err := huobi.fetch(response)
@@ -598,7 +628,7 @@ func (huobi *HuobiExchange) Refresh() {
 		return
 	}
 	if response.Status != huobi.Ok {
-		huobi.fail("Status not ok", fmt.Errorf("Expected status %s. Recieved %s.", huobi.Ok, response.Status))
+		huobi.fail("Status not ok", fmt.Errorf("Expected status %s. Recieved %s", huobi.Ok, response.Status))
 		return
 	}
 	dcrVolume := response.Tick.Vol
@@ -611,13 +641,15 @@ func (huobi *HuobiExchange) Refresh() {
 	})
 }
 
+// PoloniexExchange is a U.S.-based exchange.
 type PoloniexExchange struct {
 	*CommonExchange
 	CurrencyPair string
 }
 
+// NewPoloniex constructs a PoloniexExchange.
 func NewPoloniex(client *http.Client, channels *BotChannels) (poloniex Exchange, err error) {
-	request, err := http.NewRequest(http.MethodGet, PoloniexUrl, nil)
+	request, err := http.NewRequest(http.MethodGet, PoloniexURL, nil)
 	if err != nil {
 		return
 	}
@@ -628,8 +660,9 @@ func NewPoloniex(client *http.Client, channels *BotChannels) (poloniex Exchange,
 	return
 }
 
+// PoloniexPair models the data returned from the Poloniex API.
 type PoloniexPair struct {
-	Id            int    `json:"id"`
+	ID            int    `json:"id"`
 	Last          string `json:"last"`
 	LowestAsk     string `json:"lowestAsk"`
 	HighestBid    string `json:"highestBid"`
@@ -641,6 +674,7 @@ type PoloniexPair struct {
 	Low24hr       string `json:"low24hr"`
 }
 
+// Refresh retrieves and parses API data from Poloniex.
 func (poloniex *PoloniexExchange) Refresh() {
 	var response map[string]*PoloniexPair
 	err := poloniex.fetch(&response)
@@ -650,7 +684,7 @@ func (poloniex *PoloniexExchange) Refresh() {
 	}
 	market, ok := response[poloniex.CurrencyPair]
 	if !ok {
-		poloniex.fail("Market not in response", fmt.Errorf("Response did not have expected CurrencyPair %s.", poloniex.CurrencyPair))
+		poloniex.fail("Market not in response", fmt.Errorf("Response did not have expected CurrencyPair %s", poloniex.CurrencyPair))
 		return
 	}
 	price, err := strconv.ParseFloat(market.Last, 64)

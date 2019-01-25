@@ -14,10 +14,13 @@ import (
 )
 
 const (
+	// DefaultCurrency is overridden by ExchangeBotConfig.BtcIndex. Data
+	// structures are cached for DefaultCurrency, so requests are a little bit
+	// faster.
 	DefaultCurrency = "USD"
-	// New data will be sought after the data expiry. Data will still be given to
-	// a user until older than request expiry.
-	DefaultDataExpiry    = "20m"
+	// DefaultDataExpiry is the amount of time between calls to the exchange API.
+	DefaultDataExpiry = "20m"
+	// DefaultRequestExpiry : Any data older than RequestExpiry will be discarded.
 	DefaultRequestExpiry = "60m"
 )
 
@@ -35,7 +38,7 @@ type ExchangeBotConfig struct {
 
 // ExchangeBot monitors exchanges and processes updates. When an update is
 // received from an exchange, the state is updated, and some convenient data
-// structures are prepared. Make ExchangeBot with NewExchangeBot,
+// structures are prepared. Make ExchangeBot with NewExchangeBot.
 type ExchangeBot struct {
 	*sync.RWMutex
 	DcrBtcExchanges map[string]Exchange
@@ -147,10 +150,10 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 		return nil, fmt.Errorf("Unable to parse request expiration from %s", config.RequestExpiry)
 	}
 	if requestExpiry < dataExpiry {
-		return nil, fmt.Errorf("Request expiration must be longer than data expiration.")
+		return nil, fmt.Errorf("Request expiration must be longer than data expiration")
 	}
 	if dataExpiry < time.Minute {
-		return nil, fmt.Errorf("Expiration must be at least one minute.")
+		return nil, fmt.Errorf("Expiration must be at least one minute")
 	}
 	if config.BtcIndex == "" {
 		config.BtcIndex = DefaultCurrency
@@ -221,7 +224,7 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 	}
 
 	if len(bot.DcrBtcExchanges) == 0 || len(bot.IndexExchanges) == 0 {
-		return nil, fmt.Errorf("Unable to create necessary exchanges.")
+		return nil, fmt.Errorf("Unable to create necessary exchanges")
 	}
 
 	return bot, nil
@@ -272,7 +275,8 @@ out:
 	}
 }
 
-// UpdateChannel returns a channel that will be sent updates.
+// UpdateChannels creates an UpdateChannels, which holds a channel to receive
+// exchange updates and a channel which is closed when the start loop exits.
 func (bot *ExchangeBot) UpdateChannels() *UpdateChannels {
 	update := make(chan *UpdateSignal, 16)
 	quit := make(chan struct{})
@@ -351,7 +355,7 @@ func (bot *ExchangeBot) ConvertedState(code string) (*ExchangeBotState, error) {
 	btcPrice, _ := bot.processState(fiatIndices, false)
 	if dcrPrice == 0 || btcPrice == 0 {
 		bot.failed = true
-		return nil, fmt.Errorf("Unable to process price for currency %s.", code)
+		return nil, fmt.Errorf("Unable to process price for currency %s", code)
 	}
 
 	state := ExchangeBotState{
@@ -405,7 +409,7 @@ func (bot *ExchangeBot) AvailableIndices() []string {
 		indices = append(indices, index)
 	}
 	for _, fiatIndices := range bot.indexMap {
-		for symbol, _ := range fiatIndices {
+		for symbol := range fiatIndices {
 			add(symbol)
 		}
 	}
