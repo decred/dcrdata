@@ -324,11 +324,11 @@ func TableVersions(db *sql.DB) map[string]TableVersion {
 func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allDuplicates := []dropDuplicatesInfo{
 		// Remove duplicate vins
-		dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
+		{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
 		// Remove duplicate vouts
-		dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
+		{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
 		// Remove duplicate transactions
-		dropDuplicatesInfo{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
+		{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
 
 		// TODO: remove entries from addresses table that reference removed
 		// vins/vouts.
@@ -363,25 +363,25 @@ func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) erro
 func (pgb *ChainDB) DeleteDuplicatesRecovery(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allDuplicates := []dropDuplicatesInfo{
 		// Remove duplicate vins
-		dropDuplicatesInfo{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
+		{TableName: "vins", DropDupsFunc: pgb.DeleteDuplicateVins},
 
 		// Remove duplicate vouts
-		dropDuplicatesInfo{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
+		{TableName: "vouts", DropDupsFunc: pgb.DeleteDuplicateVouts},
 
 		// TODO: remove entries from addresses table that reference removed
 		// vins/vouts.
 
 		// Remove duplicate transactions
-		dropDuplicatesInfo{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
+		{TableName: "transactions", DropDupsFunc: pgb.DeleteDuplicateTxns},
 
 		// Remove duplicate tickets
-		dropDuplicatesInfo{TableName: "tickets", DropDupsFunc: pgb.DeleteDuplicateTickets},
+		{TableName: "tickets", DropDupsFunc: pgb.DeleteDuplicateTickets},
 
 		// Remove duplicate votes
-		dropDuplicatesInfo{TableName: "votes", DropDupsFunc: pgb.DeleteDuplicateVotes},
+		{TableName: "votes", DropDupsFunc: pgb.DeleteDuplicateVotes},
 
 		// Remove duplicate misses
-		dropDuplicatesInfo{TableName: "misses", DropDupsFunc: pgb.DeleteDuplicateMisses},
+		{TableName: "misses", DropDupsFunc: pgb.DeleteDuplicateMisses},
 	}
 
 	var err error

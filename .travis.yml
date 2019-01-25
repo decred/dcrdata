@@ -1,6 +1,6 @@
 language: go
 go:
-  - "1.x"
+  - 1.x
 
 addons:
   apt:
@@ -21,4 +21,4 @@ cache:
     - ~/.cache
 
 script:
-  - ./run_tests.sh $GOVERSION
+  - ./run_tests.sh docker

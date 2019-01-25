@@ -166,7 +166,7 @@ func (u *utxoStore) Set(txHash string, txIndex uint32, addr string, val int64) {
 	txUTXOVals, ok := u.c[txHash]
 	if !ok {
 		u.c[txHash] = map[uint32]*UTXOData{
-			txIndex: &UTXOData{
+			txIndex: {
 				Address: addr,
 				Value:   val,
 			},

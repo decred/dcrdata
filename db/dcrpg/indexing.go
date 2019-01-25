@@ -318,39 +318,39 @@ func (pgb *ChainDB) ExistsIndexAddressesVoutIDAddress() (bool, error) {
 func (pgb *ChainDB) DeindexAll() error {
 	allDeIndexes := []deIndexingInfo{
 		// blocks table
-		deIndexingInfo{DeindexBlockTableOnHash},
-		deIndexingInfo{DeindexBlockTableOnHeight},
+		{DeindexBlockTableOnHash},
+		{DeindexBlockTableOnHeight},
 
 		// transactions table
-		deIndexingInfo{DeindexTransactionTableOnHashes},
-		deIndexingInfo{DeindexTransactionTableOnBlockIn},
+		{DeindexTransactionTableOnHashes},
+		{DeindexTransactionTableOnBlockIn},
 
 		// vins table
-		deIndexingInfo{DeindexVinTableOnVins},
-		deIndexingInfo{DeindexVinTableOnPrevOuts},
+		{DeindexVinTableOnVins},
+		{DeindexVinTableOnPrevOuts},
 
 		// vouts table
-		deIndexingInfo{DeindexVoutTableOnTxHashIdx},
+		{DeindexVoutTableOnTxHashIdx},
 
 		// addresses table
-		deIndexingInfo{DeindexBlockTimeOnTableAddress},
-		deIndexingInfo{DeindexMatchingTxHashOnTableAddress},
-		deIndexingInfo{DeindexAddressTableOnAddress},
-		deIndexingInfo{DeindexAddressTableOnVoutID},
-		deIndexingInfo{DeindexAddressTableOnTxHash},
+		{DeindexBlockTimeOnTableAddress},
+		{DeindexMatchingTxHashOnTableAddress},
+		{DeindexAddressTableOnAddress},
+		{DeindexAddressTableOnVoutID},
+		{DeindexAddressTableOnTxHash},
 
 		// votes table
-		deIndexingInfo{DeindexVotesTableOnCandidate},
-		deIndexingInfo{DeindexVotesTableOnBlockHash},
-		deIndexingInfo{DeindexVotesTableOnHash},
-		deIndexingInfo{DeindexVotesTableOnVoteVersion},
+		{DeindexVotesTableOnCandidate},
+		{DeindexVotesTableOnBlockHash},
+		{DeindexVotesTableOnHash},
+		{DeindexVotesTableOnVoteVersion},
 
 		// misses table
-		deIndexingInfo{DeindexMissesTableOnHash},
+		{DeindexMissesTableOnHash},
 
 		// agendas table
-		deIndexingInfo{DeindexAgendasTableOnBlockTime},
-		deIndexingInfo{DeindexAgendasTableOnAgendaID},
+		{DeindexAgendasTableOnBlockTime},
+		{DeindexAgendasTableOnAgendaID},
 	}
 
 	var err error
@@ -371,38 +371,38 @@ func (pgb *ChainDB) DeindexAll() error {
 func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 	allIndexes := []indexingInfo{
 		// blocks table
-		indexingInfo{Msg: "blocks table on hash", IndexFunc: IndexBlockTableOnHash},
-		indexingInfo{Msg: "blocks table on height", IndexFunc: IndexBlockTableOnHeight},
+		{Msg: "blocks table on hash", IndexFunc: IndexBlockTableOnHash},
+		{Msg: "blocks table on height", IndexFunc: IndexBlockTableOnHeight},
 
 		// transactions table
-		indexingInfo{Msg: "transactions table on tx/block hashes", IndexFunc: IndexTransactionTableOnHashes},
-		indexingInfo{Msg: "transactions table on block id/indx", IndexFunc: IndexTransactionTableOnBlockIn},
+		{Msg: "transactions table on tx/block hashes", IndexFunc: IndexTransactionTableOnHashes},
+		{Msg: "transactions table on block id/indx", IndexFunc: IndexTransactionTableOnBlockIn},
 
 		// vins table
-		indexingInfo{Msg: "vins table on txin", IndexFunc: IndexVinTableOnVins},
-		indexingInfo{Msg: "vins table on prevouts", IndexFunc: IndexVinTableOnPrevOuts},
+		{Msg: "vins table on txin", IndexFunc: IndexVinTableOnVins},
+		{Msg: "vins table on prevouts", IndexFunc: IndexVinTableOnPrevOuts},
 
 		// vouts table
-		indexingInfo{Msg: "vouts table on tx hash and index", IndexFunc: IndexVoutTableOnTxHashIdx},
+		{Msg: "vouts table on tx hash and index", IndexFunc: IndexVoutTableOnTxHashIdx},
 
 		// votes table
-		indexingInfo{Msg: "votes table on candidate block", IndexFunc: IndexVotesTableOnCandidate},
-		indexingInfo{Msg: "votes table on block hash", IndexFunc: IndexVotesTableOnBlockHash},
-		indexingInfo{Msg: "votes table on block+tx hash", IndexFunc: IndexVotesTableOnHashes},
-		indexingInfo{Msg: "votes table on vote version", IndexFunc: IndexVotesTableOnVoteVersion},
+		{Msg: "votes table on candidate block", IndexFunc: IndexVotesTableOnCandidate},
+		{Msg: "votes table on block hash", IndexFunc: IndexVotesTableOnBlockHash},
+		{Msg: "votes table on block+tx hash", IndexFunc: IndexVotesTableOnHashes},
+		{Msg: "votes table on vote version", IndexFunc: IndexVotesTableOnVoteVersion},
 
 		// misses table
-		indexingInfo{Msg: "misses table", IndexFunc: IndexMissesTableOnHashes},
+		{Msg: "misses table", IndexFunc: IndexMissesTableOnHashes},
 
 		// agendas table
-		indexingInfo{Msg: "agendas table on Block Time", IndexFunc: IndexAgendasTableOnBlockTime},
-		indexingInfo{Msg: "agendas table on Agenda ID", IndexFunc: IndexAgendasTableOnAgendaID},
+		{Msg: "agendas table on Block Time", IndexFunc: IndexAgendasTableOnBlockTime},
+		{Msg: "agendas table on Agenda ID", IndexFunc: IndexAgendasTableOnAgendaID},
 
 		// Not indexing the address table on vout ID or address here. See
 		// IndexAddressTable to create those indexes.
-		indexingInfo{Msg: "addresses table on tx hash", IndexFunc: IndexAddressTableOnTxHash},
-		indexingInfo{Msg: "addresses table on matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
-		indexingInfo{Msg: "addresses table on block time", IndexFunc: IndexBlockTimeOnTableAddress},
+		{Msg: "addresses table on tx hash", IndexFunc: IndexAddressTableOnTxHash},
+		{Msg: "addresses table on matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
+		{Msg: "addresses table on block time", IndexFunc: IndexBlockTimeOnTableAddress},
 	}
 
 	for _, val := range allIndexes {
@@ -427,9 +427,9 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 // ticket pool status and tx DB ID columns.
 func (pgb *ChainDB) IndexTicketsTable(barLoad chan *dbtypes.ProgressBarLoad) error {
 	ticketsTableIndexes := []indexingInfo{
-		indexingInfo{Msg: "ticket hash", IndexFunc: IndexTicketsTableOnHashes},
-		indexingInfo{Msg: "ticket pool status", IndexFunc: IndexTicketsTableOnPoolStatus},
-		indexingInfo{Msg: "transaction Db ID", IndexFunc: IndexTicketsTableOnTxDbID},
+		{Msg: "ticket hash", IndexFunc: IndexTicketsTableOnHashes},
+		{Msg: "ticket pool status", IndexFunc: IndexTicketsTableOnPoolStatus},
+		{Msg: "transaction Db ID", IndexFunc: IndexTicketsTableOnTxDbID},
 	}
 
 	for _, val := range ticketsTableIndexes {
@@ -454,9 +454,9 @@ func (pgb *ChainDB) IndexTicketsTable(barLoad chan *dbtypes.ProgressBarLoad) err
 // ticket pool status and tx DB ID columns.
 func (pgb *ChainDB) DeindexTicketsTable() error {
 	ticketsTablesDeIndexes := []deIndexingInfo{
-		deIndexingInfo{DeindexTicketsTableOnHash},
-		deIndexingInfo{DeindexTicketsTableOnPoolStatus},
-		deIndexingInfo{DeindexTicketsTableOnTxDbID},
+		{DeindexTicketsTableOnHash},
+		{DeindexTicketsTableOnPoolStatus},
+		{DeindexTicketsTableOnTxDbID},
 	}
 
 	var err error
@@ -494,10 +494,10 @@ func (pgb *ChainDB) ReindexAddressesBlockTime() error {
 // block_time, matching_tx_hash and address columns.
 func (pgb *ChainDB) IndexAddressTable(barLoad chan *dbtypes.ProgressBarLoad) error {
 	addressesTableIndexes := []indexingInfo{
-		indexingInfo{Msg: "address", IndexFunc: IndexAddressTableOnAddress},
-		indexingInfo{Msg: "matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
-		indexingInfo{Msg: "block time", IndexFunc: IndexBlockTimeOnTableAddress},
-		indexingInfo{Msg: "vout Db ID", IndexFunc: IndexAddressTableOnVoutID},
+		{Msg: "address", IndexFunc: IndexAddressTableOnAddress},
+		{Msg: "matching tx hash", IndexFunc: IndexMatchingTxHashOnTableAddress},
+		{Msg: "block time", IndexFunc: IndexBlockTimeOnTableAddress},
+		{Msg: "vout Db ID", IndexFunc: IndexAddressTableOnVoutID},
 	}
 
 	for _, val := range addressesTableIndexes {
@@ -522,10 +522,10 @@ func (pgb *ChainDB) IndexAddressTable(barLoad chan *dbtypes.ProgressBarLoad) err
 // and address column indexes for the address table.
 func (pgb *ChainDB) DeindexAddressTable() error {
 	addressesDeindexes := []deIndexingInfo{
-		deIndexingInfo{DeindexAddressTableOnAddress},
-		deIndexingInfo{DeindexMatchingTxHashOnTableAddress},
-		deIndexingInfo{DeindexBlockTimeOnTableAddress},
-		deIndexingInfo{DeindexAddressTableOnVoutID},
+		{DeindexAddressTableOnAddress},
+		{DeindexMatchingTxHashOnTableAddress},
+		{DeindexBlockTimeOnTableAddress},
+		{DeindexAddressTableOnVoutID},
 	}
 
 	var err error

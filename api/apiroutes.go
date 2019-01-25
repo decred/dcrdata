@@ -556,7 +556,7 @@ func (c *appContext) getTransactionHex(w http.ResponseWriter, r *http.Request) {
 
 	hex := c.BlockData.GetTransactionHex(txid)
 
-	fmt.Fprintf(w, hex)
+	fmt.Fprint(w, hex)
 }
 
 func (c *appContext) getDecodedTx(w http.ResponseWriter, r *http.Request) {

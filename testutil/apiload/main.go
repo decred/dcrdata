@@ -263,7 +263,7 @@ func loadProfiles() (profiles map[string]*Attack, err error) {
 func listAttacks(profiles map[string]*Attack) {
 	fmt.Println("available attacks")
 	fmt.Println("-----------------")
-	for key, _ := range profiles {
+	for key := range profiles {
 		fmt.Println(key)
 	}
 }
