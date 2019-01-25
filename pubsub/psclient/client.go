@@ -14,6 +14,10 @@ func newSubscribeMsg(event string) string {
 	return fmt.Sprintf(`{"event":"subscribe","message":"%s"}`, event)
 }
 
+func newUnsubscribeMsg(event string) string {
+	return fmt.Sprintf(`{"event":"unsubscribe","message":"%s"}`, event)
+}
+
 var defaultTimeout = 10 * time.Second
 
 // Client wraps a *websocket.Conn.
@@ -50,6 +54,27 @@ func (c *Client) Subscribe(event string) (*pstypes.WebSocketMessage, error) {
 	_, err := c.Write([]byte(msg))
 	if err != nil {
 		return nil, fmt.Errorf("failed to send subscribe message: %v", err)
+	}
+
+	// Read the response.
+	return c.ReceiveMsg()
+}
+
+// Unsubscribe sends an unsubscribe type WebSocketMessage for the given event
+// name after validating it. The response is returned.
+func (c *Client) Unsubscribe(event string) (*pstypes.WebSocketMessage, error) {
+	// Validate the event type.
+	_, ok := pstypes.Subscriptions[event]
+	if !ok {
+		return nil, fmt.Errorf("invalid subscription %s", event)
+	}
+
+	// Send the unsubscribe message.
+	msg := newUnsubscribeMsg(event)
+	_ = c.SetWriteDeadline(time.Now().Add(c.WriteTimeout))
+	_, err := c.Write([]byte(msg))
+	if err != nil {
+		return nil, fmt.Errorf("failed to send unsubscribe message: %v", err)
 	}
 
 	// Read the response.
