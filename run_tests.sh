@@ -2,11 +2,8 @@
 
 # usage:
 # ./run_tests.sh                         # local, go 1.11
-# GOVERSION=1.10 ./run_tests.sh          # local, go 1.10 (vgo)
 # ./run_tests.sh docker                  # docker, go 1.11
-# GOVERSION=1.10 ./run_tests.sh docker   # docker, go 1.10 (vgo)
 # ./run_tests.sh podman                  # podman, go 1.11
-# GOVERSION=1.10 ./run_tests.sh podman   # podman, go 1.10 (vgo)
 
 set -ex
 
@@ -47,12 +44,12 @@ testrepo () {
   # check linters
   golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
     --enable gosimple --enable unconvert --enable ineffassign --enable structcheck \
-    --enable goimports --enable misspell
+    --enable goimports --enable misspell --enable unparam
 
 
   # webpack
-  # npm install
-  # npm run build
+  npm install
+  npm run build
 
   echo "------------------------------------------"
   echo "Tests completed successfully!"
@@ -65,7 +62,7 @@ if [ ! "$DOCKER" ]; then
     exit
 fi
 
-DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
+DOCKER_IMAGE_TAG=dcrdata-golang-builder-$GOVERSION
 $DOCKER pull decred/$DOCKER_IMAGE_TAG
 
 $DOCKER run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\

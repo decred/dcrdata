@@ -223,12 +223,12 @@ out:
 
 // root is a http.Handler intended for the API root path. This essentially
 // provides a heartbeat, and no information about the application status.
-func (c *appContext) root(w http.ResponseWriter, r *http.Request) {
+func (c *appContext) root(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprint(w, "dcrdata api running")
 }
 
 func (c *appContext) writeJSONHandlerFunc(thing interface{}) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, thing, c.JSONIndent)
 	}
 }
@@ -324,7 +324,7 @@ func (c *appContext) coinSupply(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, supply, c.getIndentQuery(r))
 }
 
-func (c *appContext) currentHeight(w http.ResponseWriter, r *http.Request) {
+func (c *appContext) currentHeight(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if _, err := io.WriteString(w, strconv.Itoa(int(c.Status.GetHeight()))); err != nil {
 		apiLog.Infof("failed to write height response: %v", err)
