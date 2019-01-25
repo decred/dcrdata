@@ -206,6 +206,7 @@ func LoadAllPoolDiffs(db *badger.DB) ([]PoolDiffDBItem, error) {
 			// Don't waste time with a copy since we are going to read the data in
 			// this transaction.
 			var hashReader bytes.Reader
+			//nolint:unparam
 			errTx := item.Value(func(v []byte) error {
 				hashReader.Reset(v)
 				return nil
@@ -361,6 +362,7 @@ func (tp *TicketPool) fetchDiff(height int64) (*PoolDiffDBItem, error) {
 		// Don't waste time with a copy since we are going to read the data in
 		// this transaction.
 		var hashReader bytes.Reader
+		//nolint:unparam
 		errTx = item.Value(func(v []byte) error {
 			hashReader.Reset(v)
 			return nil

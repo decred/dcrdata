@@ -93,7 +93,10 @@ func (db *AgendaDB) ListAgendas() error {
 	q := db.sdb.Select().OrderBy("StartTime")
 	i := 0
 	return q.Each(new(AgendaTagged), func(record interface{}) error {
-		a := record.(*AgendaTagged)
+		a, ok := record.(*AgendaTagged)
+		if !ok {
+			return fmt.Errorf("record is not of type *AgendaTagged")
+		}
 		log.Infof("%d: %s\n", i, a.Id)
 		i++
 		return nil

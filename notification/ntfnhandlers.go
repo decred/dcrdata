@@ -279,7 +279,8 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 	go superQueue()
 	// ReorgSignaler must be started after creating the RPC client.
 	return &rpcclient.NotificationHandlers{
-		OnBlockConnected: func(blockHeaderSerialized []byte, transactions [][]byte) {
+		// TODO: considering using txns [][]byte to save on downstream RPCs.
+		OnBlockConnected: func(blockHeaderSerialized []byte, _ [][]byte) {
 			blockHeader := new(wire.BlockHeader)
 			err := blockHeader.FromBytes(blockHeaderSerialized)
 			if err != nil {
@@ -329,21 +330,22 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 			}
 		},
 
-		OnWinningTickets: func(blockHash *chainhash.Hash, blockHeight int64,
-			tickets []*chainhash.Hash) {
+		// block height and hash are unused by OnWinningTickets.
+		OnWinningTickets: func(_ *chainhash.Hash, _ int64, tickets []*chainhash.Hash) {
 			var txstr []string
 			for _, t := range tickets {
 				txstr = append(txstr, t.String())
 			}
 			log.Tracef("Winning tickets: %v", strings.Join(txstr, ", "))
 		},
-		// maturing tickets. Thanks for fixing the tickets type bug, jolan!
-		OnNewTickets: func(hash *chainhash.Hash, height int64, stakeDiff int64,
-			tickets []*chainhash.Hash) {
+
+		// Maturing tickets (maturing or mined?  clarify before use!).
+		OnNewTickets: func(_ *chainhash.Hash, _ int64, _ int64, tickets []*chainhash.Hash) {
 			for _, tick := range tickets {
 				log.Tracef("Mined new ticket: %v", tick.String())
 			}
 		},
+
 		// OnRelevantTxAccepted is invoked when a transaction containing a
 		// registered address is inserted into mempool.
 		OnRelevantTxAccepted: func(transaction []byte) {

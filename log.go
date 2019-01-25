@@ -29,10 +29,10 @@ import (
 // the write-end pipe of an initialized log rotator.
 type logWriter struct{}
 
+// Write writes the data in p to standard out and the log rotator.
 func (logWriter) Write(p []byte) (n int, err error) {
 	os.Stdout.Write(p)
-	logRotator.Write(p)
-	return len(p), nil
+	return logRotator.Write(p)
 }
 
 // Loggers per subsystem.  A single backend logger is created and all subsytem
