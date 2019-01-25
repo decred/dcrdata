@@ -263,7 +263,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 			}
 			log.Debugf("Client unsubscribed for signal: %v.", sub)
 			conn.client.cl.unsubscribe(sub)
-			resp.Message = "ok"
+			resp.Message = msg.Message + " unsubscribe ok"
 		case "decodetx":
 			log.Debugf("Received decodetx signal for hex: %.40s...", msg.Message)
 			tx, err := psh.sourceBase.DecodeRawTransaction(msg.Message)
