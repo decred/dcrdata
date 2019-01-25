@@ -1152,7 +1152,7 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 	} // !exp.liteMode
 
 	// Prepare the string to display for previous outpoint.
-	for idx, _ := range tx.Vin {
+	for idx := range tx.Vin {
 		vin := &tx.Vin[idx]
 		if vin.Coinbase != "" {
 			vin.DisplayText = "Coinbase"

@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+
+# usage:
+# ./run_tests.sh                         # local, go 1.11
+# GOVERSION=1.10 ./run_tests.sh          # local, go 1.10 (vgo)
+# ./run_tests.sh docker                  # docker, go 1.11
+# GOVERSION=1.10 ./run_tests.sh docker   # docker, go 1.10 (vgo)
+# ./run_tests.sh podman                  # podman, go 1.11
+# GOVERSION=1.10 ./run_tests.sh podman   # podman, go 1.10 (vgo)
+
 set -ex
 
 # The script does automatic checking on a Go package and its sub-packages,
@@ -10,77 +19,58 @@ set -ex
 # 5. ineffassign   (https://github.com/gordonklaus/ineffassign)
 # 6. race detector (http://blog.golang.org/race-detector)
 
-# gometalinter (github.com/alecthomas/gometalinter) is used to run each each
+# golangci-lint (github.com/golangci/golangci-lint) is used to run each each
 # static checker.
 
-GOVERSION=${1:-1.11}
+# Default GOVERSION
+[[ ! "$GOVERSION" ]] && GOVERSION=1.11
 REPO=dcrdata
-DOCKER_IMAGE_TAG=dcrdata-golang-builder-$GOVERSION
 
 testrepo () {
   TMPFILE=$(mktemp)
   export GO111MODULE=on
-  
-  golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
-    --enable gosimple --enable unconvert --enable ineffassign --enable structcheck\
-    --enable goimports --enable misspell --enable unparam
-  if [ $? != 0 ]; then	
-    echo 'golangci-lint has some complaints'	
-    exit 1	
-  fi
+
+  go version
 
   # Test application install
-  go install . ./cmd/...
-  if [ $? != 0 ]; then
-    echo 'go install failed'
-    exit 1
-  fi
+  go build
+  (cd cmd/rebuilddb && go build)
+  (cd cmd/rebuilddb2 && go build)
+  (cd cmd/scanblocks && go build)
 
   # Check tests
   git clone https://github.com/dcrlabs/bug-free-happiness test-data-repo
   tar xvf test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz -C ./stakedb
 
   env GORACE='halt_on_error=1' go test -v -race ./...
-  if [ $? != 0 ]; then
-    echo 'go tests failed'
-    exit 1
-  fi
+
+  # check linters
+  golangci-lint run --deadline=10m --disable-all --enable govet --enable staticcheck \
+    --enable gosimple --enable unconvert --enable ineffassign --enable structcheck \
+    --enable goimports --enable misspell
+
 
   # webpack
-  npm install
-  if [ $? != 0 ]; then
-    echo 'npm install failed'
-    exit 1
-  fi
-
-  npm run build
-  if [ $? != 0 ]; then
-    echo 'npm packaging failed'
-    exit 1
-  fi
+  # npm install
+  # npm run build
 
   echo "------------------------------------------"
   echo "Tests completed successfully!"
 }
 
-if [ $GOVERSION == "local" ]; then
+DOCKER=
+[[ "$1" == "docker" || "$1" == "podman" ]] && DOCKER=$1
+if [ ! "$DOCKER" ]; then
     testrepo
     exit
 fi
 
-docker pull decred/$DOCKER_IMAGE_TAG
-if [ $? != 0 ]; then
-        echo 'docker pull failed'
-        exit 1
-fi
+DOCKER_IMAGE_TAG=decred-golang-builder-$GOVERSION
+$DOCKER pull decred/$DOCKER_IMAGE_TAG
 
-docker run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
+$DOCKER run --rm -it -v $(pwd):/src decred/$DOCKER_IMAGE_TAG /bin/bash -c "\
   rsync -ra --include-from=<(git --git-dir=/src/.git ls-files) \
   --filter=':- .gitignore' \
   /src/ /go/src/github.com/decred/$REPO/ && \
   cd github.com/decred/$REPO/ && \
-  bash run_tests.sh local"
-if [ $? != 0 ]; then
-        echo 'docker run failed'
-        exit 1
-fi
+  env GOVERSION=$GOVERSION GO111MODULE=on bash run_tests.sh"
