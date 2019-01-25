@@ -48,3 +48,4 @@ public/**/*.gz
 testutil/apiload/results/
 testutil/apiload/apiload.conf
 testutil/apiload/apiload
+pubsub/democlient/democlient
