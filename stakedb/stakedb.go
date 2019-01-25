@@ -270,14 +270,6 @@ func NewStakeDatabase(client *rpcclient.Client, params *chaincfg.Params,
 	// to recover.
 	heightStakeDB, heightTicketPool := int64(sDB.Height()), sDB.PoolDB.Tip()
 	if heightStakeDB != heightTicketPool {
-		if heightStakeDB-heightTicketPool > 16 {
-			log.Warnf("The ticket DB format has changed in v2.1. Did you upgrade?")
-			// Try to close but ignore any error
-			_ = sDB.Close()
-			_ = poolDB.Close()
-			return nil, heightTicketPool, fmt.Errorf("Remove %s and start dcrdata again.",
-				filepath.Join(dataDir, DefaultTicketPoolDbFolder))
-		}
 		// Roll stake DB back to the height of the ticket pool DB
 		for heightStakeDB > heightTicketPool {
 			if err = sDB.DisconnectBlock(true); err != nil {
