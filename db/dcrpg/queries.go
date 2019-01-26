@@ -2856,18 +2856,22 @@ func RetrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, m
 	var rows *sql.Rows
 	var err error
 
+	// time.Timestamp -> TIMESTAMP
+	minT := time.Unix(minTime, 0)
+	maxT := time.Unix(maxTime, 0)
+
 	if limit == 0 {
 		stmt, err = db.Prepare(internal.SelectBlockByTimeRangeSQLNoLimit)
 		if err != nil {
 			return nil, err
 		}
-		rows, err = stmt.QueryContext(ctx, minTime, maxTime)
+		rows, err = stmt.QueryContext(ctx, minT, maxT)
 	} else {
 		stmt, err = db.Prepare(internal.SelectBlockByTimeRangeSQL)
 		if err != nil {
 			return nil, err
 		}
-		rows, err = stmt.QueryContext(ctx, minTime, maxTime, limit)
+		rows, err = stmt.QueryContext(ctx, minT, maxT, limit)
 	}
 
 	if err != nil {
@@ -2882,6 +2886,7 @@ func RetrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, m
 		if err = rows.Scan(&dbBlock.Hash, &dbBlock.Height, &dbBlock.Size, &blockTime.T, &dbBlock.NumTx); err != nil {
 			log.Errorf("Unable to scan for block fields: %v", err)
 		}
+		blockTime.T = blockTime.T.UTC()
 		dbBlock.Time = blockTime
 		blocks = append(blocks, dbBlock)
 	}
