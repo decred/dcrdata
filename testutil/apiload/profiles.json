@@ -1,4 +1,63 @@
 {
+  "insight": {
+    "duration": 60,
+    "attackers": [
+      {
+        "name": "first",
+        "frequency": 10,
+        "endpoints": [
+          "/insight/api/blocks",
+          "/insight/api/block/1",
+          "/insight/api/block/100000",
+          "/insight/api/block/266000",
+          "/insight/api/block/000000000000c41019872ff7db8fd2e9bfa05f42d3f8fee8e895e8c1e5b8dcba",
+          "/insight/api/block/0000000000002fac892b31f36e43b2c9a1d1007985032b1ea6080fb4a4f7dd51",
+          "/insight/api/block/00000000000028f94925abad9f61b25ea041e662be824eb717c9f1dc1a47334c",
+          "/insight/api/block/00000000000000b3151a938d02d6d7eee77ad91916b301ff6054ab414ec82b11",
+          "/insight/api/block/0000000000000000043a839a31aec197a8d71cc472327d86a8c665fa9af4cdaa",
+          "/insight/api/block-index/100001",
+          "/insight/api/block-index/266001",
+          "/insight/api/block-index/309999",
+          "/insight/api/rawblock/100002",
+          "/insight/api/rawblock/266002",
+          "/insight/api/rawblock/310000",
+          "/insight/api/addr/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx",
+          "/insight/api/addr/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/utxo",
+          "/insight/api/addr/DspCVzEw21aDGZ43Ax24rjFqsHimiJbF4qe",
+          "/insight/api/addr/DspCVzEw21aDGZ43Ax24rjFqsHimiJbF4qe/utxo",
+          "/insight/api/addr/DcfQyJ8RBPNFN8PoRBNwhJmE9PFwpNLSE4N",
+          "/insight/api/addr/DcfQyJ8RBPNFN8PoRBNwhJmE9PFwpNLSE4N/utxo",
+          "/insight/api/addrs/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/txs",
+          "/insight/api/addrs/Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx/utxo",
+          "/insight/api/addrs/Dsh3RaFqAgnfnGqY9cQiJUde5cR7qwdQP8r,DsSjYHYcc7iJZaJ74CBb4dHNcukdoiLxUQ1/txs",
+          "/insight/api/addrs/Dsh3RaFqAgnfnGqY9cQiJUde5cR7qwdQP8r,DsSjYHYcc7iJZaJ74CBb4dHNcukdoiLxUQ1/utxo",
+          "/insight/api/addrs/Dsoa62CGHSupBhPNoiBGTiGmUVy9C6fLUhL,Dsj7Myj4QLyPRr5aZxoMeKeffXoueeGtYgP/txs",
+          "/insight/api/addrs/Dsoa62CGHSupBhPNoiBGTiGmUVy9C6fLUhL,Dsj7Myj4QLyPRr5aZxoMeKeffXoueeGtYgP/utxo",
+          "/insight/api/tx/7683178c578ccd673c4af052826321b702ad583e404db33a51ea7ddc5cee3004",
+          "/insight/api/tx/13d868175d0a9a40e52714abecb618427f4766f1cf0f9ee0befa02a452570164",
+          "/insight/api/tx/c6a64ab3d3e0889955fc2db4733ac7498d095e0018aa1dca562a031d2c1c8594",
+          "/insight/api/tx/c0c5e96cb8d2ac35570abc1031406f26b5c44154e4d210c10a9431908174de81",
+          "/insight/api/tx/73b52d6ce7374e9d353de18e2a54711941c40fe06a5293dff5832a06d43cdbd0",
+          "/insight/api/rawtx/73b52d6ce7374e9d353de18e2a54711941c40fe06a5293dff5832a06d43cdbd0",
+          "/insight/api/rawtx/616867342c817777628851baf97878e13da49586aeee6938b34de186412414e0",
+          "/insight/api/rawtx/7346c84dc1f4a3cd444866f0a1702aba6534f0b6b528bdce04598fedf260f1cd",
+          "/insight/api/txs?block=000000000000001a2ebaf929aec7814580489fb1260f416b02db0592e1f1b1e6",
+          "/insight/api/txs?block=000000000000000aeef15e1efdbadc71b426dafb2e0dc8549f2dac5fb380cfaf",
+          "/insight/api/txs?block=00000000000000059e5696dcdbbe6b0dda211d6dd7c493087ede2044a285bc6a",
+          "/insight/api/txs?address=Dcur2mcGjmENx4DhNqDctW5wJCVyT3Qeqkx",
+          "/insight/api/txs?address=Dsd8i7LHGCfKWtog5kwYL5Ut7pBhMLKPVZo",
+          "/insight/api/txs?address=Dsa4zhhBhLuGKmsgHc1hHp9acW6WbpyuN7P",
+          "/insight/api/txs?address=DcpR6s7iZsPMJRorJymeYP4K9sHo35RAWZB",
+          "/insight/api/txs?address=Dsksm4jgwFJScNznBz9Rdo4R2zmUXuM71CP",
+          "/insight/api/txs?address=DsZFcexJZtXXmgsbJRjLsq8btXLh7EBSDL7",
+          "/insight/api/status",
+          "/insight/api/sync",
+          "/insight/api/utils/estimatefee",
+          "/insight/api/peer"
+        ]
+      }
+    ]
+  },
   "rotation": {
     "duration": 60,
     "attackers": [
