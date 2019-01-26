@@ -26,17 +26,23 @@ const APIVersion = 0
 // NewInsightApiRouter returns a new HTTP path router, ApiMux, for the Insight
 // API, app.
 func NewInsightApiRouter(app *insightApiContext, useRealIP bool) ApiMux {
-	// Create a rate limiter struct.
-	limiter := tollbooth.NewLimiter(1, nil)
-
 	// chi router
 	mux := chi.NewRouter()
 
-	mux.Use(tollbooth_chi.LimitHandler(limiter))
+	// Create a rate limiter struct.
+	reqPerSecLimit := 10.0
+	limiter := tollbooth.NewLimiter(reqPerSecLimit, nil)
 
 	if useRealIP {
 		mux.Use(middleware.RealIP)
+		// RealIP sets RemoteAddr
+		limiter.SetIPLookups([]string{"RemoteAddr"})
+	} else {
+		limiter.SetIPLookups([]string{"X-Forwarded-For", "X-Real-IP", "RemoteAddr"})
 	}
+
+	// Put the limiter after RealIP
+	mux.Use(tollbooth_chi.LimitHandler(limiter))
 
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
