@@ -1181,8 +1181,21 @@ func (db *WiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 	return txarray
 }
 
+func sumTxRawResult(txs []dcrjson.TxRawResult) (sum float64) {
+	for _, tx := range txs {
+		for _, vout := range tx.Vout {
+			sum += vout.Value
+		}
+	}
+	return
+}
+
 func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *exptypes.BlockBasic {
 	index := dbtypes.CalculateWindowIndex(data.Height, params.StakeDiffWindowSize)
+
+	total := sumTxRawResult(data.RawTx)
+	total += sumTxRawResult(data.RawSTx)
+
 	block := &exptypes.BlockBasic{
 		IndexVal:       index,
 		Height:         data.Height,
@@ -1195,6 +1208,7 @@ func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincf
 		FreshStake:     data.FreshStake,
 		BlockTime:      exptypes.TimeDef{T: time.Unix(data.Time, 0)},
 		FormattedBytes: humanize.Bytes(uint64(data.Size)),
+		Total:          total,
 	}
 
 	// Count the number of revocations

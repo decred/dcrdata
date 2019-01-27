@@ -8,7 +8,7 @@ function isCorrectVal (value) {
 
 export default class extends Controller {
   static get targets () {
-    return ['age', 'blocktime']
+    return ['age', 'blocktime', 'header']
   }
 
   connect () {
@@ -16,6 +16,11 @@ export default class extends Controller {
     this.processBlock = this._processBlock.bind(this)
     if (this.hasBlocktimeTarget) {
       globalEventBus.on('BLOCK_RECEIVED', this.processBlock)
+    }
+    if (this.hasHeaderTarget) {
+      this.headerTargets.forEach(h => {
+        h.textContent = h.dataset.jstitle
+      })
     }
   }
 

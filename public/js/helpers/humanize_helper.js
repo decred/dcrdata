@@ -8,6 +8,15 @@ function round (value, precision) {
   return Math.round(value * multiplier) / multiplier
 }
 
+function hashParts (hash) {
+  var clipLen = 6
+  var hashLen = hash.length - clipLen
+  if (hashLen < 1) {
+    return ['', hash]
+  }
+  return [hash.substring(0, hashLen), hash.substring(hashLen)]
+}
+
 var humanize = {
   fmtPercentage: function (val) {
     var sign = '+'
@@ -57,6 +66,28 @@ var humanize = {
     htmlString += '</div>'
 
     return htmlString
+  },
+  threeSigFigs: function (v) {
+    if (v >= 1e11) return `${Math.round(v / 1e9)}B`
+    if (v >= 1e10) return `${(v / 1e9).toFixed(1)}B`
+    if (v >= 1e9) return `${(v / 1e9).toFixed(2)}B`
+    if (v >= 1e8) return `${Math.round(v / 1e6)}M`
+    if (v >= 1e7) return `${(v / 1e6).toFixed(1)}M`
+    if (v >= 1e6) return `${(v / 1e6).toFixed(2)}M`
+    if (v >= 1e5) return `${Math.round(v / 1e3)}k`
+    if (v >= 1e4) return `${(v / 1e3).toFixed(1)}k`
+    if (v >= 1e3) return `${(v / 1e3).toFixed(2)}k`
+    if (v >= 1e2) return `${Math.round(v)}`
+    if (v >= 10) return `${v.toFixed(1)}`
+    if (v >= 1) return `${v.toFixed(2)}`
+    if (v >= 1e-1) return `${v.toFixed(3)}`
+    if (v >= 1e-2) return `${v.toFixed(4)}`
+    if (v >= 1e-3) return `${v.toFixed(5)}`
+    if (v >= 1e-4) return `${v.toFixed(6)}`
+    if (v >= 1e-5) return `${v.toFixed(7)}`
+    if (v === 0) return '0'
+    console.log(`tiny v = ${v}`)
+    return v.toFixed(8)
   },
   subsidyToString: function (x, y = 1) {
     return (x / 100000000 / y) + ' DCR'
@@ -126,6 +157,22 @@ var humanize = {
     var zone = withTimezone ? '(' + d.toLocaleTimeString('en-us', { timeZoneName: 'short' }).split(' ')[2] + ') ' : ''
     return zone + String(d.getFullYear()) + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' +
           String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0')
+  },
+  hashElide: function (hash, link, asNode) {
+    var div = document.createElement(link ? 'a' : 'div')
+    if (link) div.href = link
+    div.dataset.keynavePriority = 1
+    div.classList.add('elidedhash')
+    div.classList.add('mono')
+    var head, tail
+    [head, tail] = hashParts(hash)
+    div.dataset.head = head
+    div.dataset.tail = tail
+    div.textContent = hash
+    if (asNode) {
+      return div
+    }
+    return div.outerHTML
   }
 }
 

@@ -22,14 +22,19 @@ $container-max-widths: map-merge(
 $font-family-sans-serif: "source-sans-pro-v9-latin-regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 $font-family-monospace: "inconsolata-v15-latin-regular", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !default;
 
-// progress bar 
+// progress bar
 $progress-height: 1.25rem;
 $progress-bg: #ddd;
 $progress-bar-bg: #74e06b;
 $progress-bar-color: #333;
 
-// nav 
+// nav
 $nav-pills-border-radius: 0;
 $nav-link-padding-y: .55rem;
 $nav-link-padding-x: .55rem;
 
+// transaction type colors
+$regular-light: #00c903;
+$vote-light: #002ccc;
+$ticket-light: #c600c0;
+$rev-light: #d60000;

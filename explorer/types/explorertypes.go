@@ -19,6 +19,13 @@ import (
 	"github.com/decred/dcrdata/v4/txhelpers"
 )
 
+// Types of vote
+const (
+	VoteReject = iota
+	VoteAffirm
+	VoteMissing
+)
+
 // TimeDef is time.Time wrapper that formats time by default as a string without
 // a timezone. The time Stringer interface formats the time into a string with a
 // timezone.
@@ -66,6 +73,7 @@ type BlockBasic struct {
 	Revocations    uint32  `json:"revocations"`
 	BlockTime      TimeDef `json:"time"`
 	FormattedBytes string  `json:"formatted_bytes"`
+	Total          float64 `json:"total"`
 }
 
 // WebBasicBlock is used for quick DB data without rpc calls
@@ -457,6 +465,11 @@ type MempoolShort struct {
 	LastBlockTime      int64               `json:"block_time"`
 	Time               int64               `json:"time"`
 	TotalOut           float64             `json:"total"`
+	LikelyTotal        float64             `json:"likely_total"`
+	RegularTotal       float64             `json:"regular_total"`
+	TicketTotal        float64             `json:"ticket_total"`
+	VoteTotal          float64             `json:"vote_total"`
+	RevokeTotal        float64             `json:"revoke_total"`
 	TotalSize          int32               `json:"size"`
 	NumTickets         int                 `json:"num_tickets"`
 	NumVotes           int                 `json:"num_votes"`
@@ -529,6 +542,80 @@ type VotingInfo struct {
 	TicketsVoted     uint16          `json:"tickets_voted"`
 	MaxVotesPerBlock uint16          `json:"max_votes_per_block"`
 	VotedTickets     map[string]bool `json:"-"`
+	// VoteTallys maps block hash to vote counts.
+	VoteTallys map[string]*VoteTally `json:"vote_tally"`
+}
+
+// Tally adds the VoteInfo to the VotingInfo.VoteTally
+func (vi *VotingInfo) Tally(vinfo *VoteInfo) {
+	_, ok := vi.VoteTallys[vinfo.Validation.Hash]
+	if ok {
+		vi.VoteTallys[vinfo.Validation.Hash].Mark(vinfo.Validation.Validity)
+		return
+	}
+	vi.VoteTallys[vinfo.Validation.Hash] = &VoteTally{
+		TicketsPerBlock: int(vi.MaxVotesPerBlock),
+		Marks:           []bool{vinfo.Validation.Validity},
+	}
+}
+
+// Tallys fetches the mempool VoteTally.VoteList if found, else a list of
+// VoteMissing.
+func (vi *VotingInfo) Tallys(hash string) []int {
+	tally, ok := vi.VoteTallys[hash]
+	if ok {
+		return tally.VoteList()
+	}
+	marks := make([]int, int(vi.MaxVotesPerBlock))
+	for i := range marks {
+		marks[i] = VoteMissing
+	}
+	return marks
+}
+
+// VoteTally manages a list of bools representing the votes for a block.
+type VoteTally struct {
+	TicketsPerBlock int    `json:"-"`
+	Marks           []bool `json:"marks"`
+}
+
+// Mark adds the vote to the VoteTally.
+func (tally *VoteTally) Mark(vote bool) {
+	tally.Marks = append(tally.Marks, vote)
+}
+
+// VoteList is a list of ints representing votes both received and not yet
+// received for a block.
+// 0: rejected, 1: affirmed, 2: vote not yet received
+func (tally *VoteTally) VoteList() []int {
+	votes := []int{}
+	for _, affirmed := range tally.Marks {
+		if affirmed {
+			votes = append(votes, VoteAffirm)
+		} else {
+			votes = append(votes, VoteReject)
+		}
+	}
+	for i := len(votes); i < tally.TicketsPerBlock; i++ {
+		votes = append(votes, VoteMissing)
+	}
+	return votes
+}
+
+// Affirmations counts the number of selected ticket holders who have voted
+// in favor of the block for the given hash.
+func (tally *VoteTally) Affirmations() (c int) {
+	for _, affirmed := range tally.Marks {
+		if affirmed {
+			c++
+		}
+	}
+	return c
+}
+
+// VoteCount is the number of votes received.
+func (tally *VoteTally) VoteCount() (c int) {
+	return len(tally.Marks)
 }
 
 // ChainParams models simple data about the chain server's parameters used for
