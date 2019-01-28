@@ -273,6 +273,12 @@ func TestDeepCopys(t *testing.T) {
 				"28cc0b43bf79908115323f16dbd17d0e44a5366ca5d49e2d4f5a9c5f741e5699": true,
 				"99045541c481e7e694598a2d77967f5e4e053cee3265d77c5b49f1eb8b282176": false,
 			},
+			VoteTallys: map[string]*VoteTally{
+				"de563e0f0ee0f4717c553ce456fa5ff37c784e3f52059f2e3e64ddfbcf2aaffb": &VoteTally{
+					TicketsPerBlock: 5,
+					Marks:           []bool{true, true, true, true, true},
+				},
+			},
 		},
 		InvRegular: invRegular,
 		InvStake:   invStake,

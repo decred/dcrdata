@@ -524,6 +524,14 @@ func (mps *MempoolShort) DeepCopy() *MempoolShort {
 		out.VotingInfo.VotedTickets[s] = b
 	}
 
+	out.VotingInfo.VoteTallys = make(map[string]*VoteTally, len(mps.VotingInfo.VoteTallys))
+	for hash, tally := range mps.VotingInfo.VoteTallys {
+		out.VotingInfo.VoteTallys[hash] = &VoteTally{
+			TicketsPerBlock: tally.TicketsPerBlock,
+			Marks:           tally.Marks,
+		}
+	}
+
 	out.InvRegular = make(map[string]struct{}, len(mps.InvRegular))
 	for s := range mps.InvRegular {
 		out.InvRegular[s] = struct{}{}

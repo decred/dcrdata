@@ -308,6 +308,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	votingInfo := exptypes.VotingInfo{
 		MaxVotesPerBlock: params.TicketsPerBlock,
 		VotedTickets:     make(map[string]bool),
+		VoteTallys:       make(map[string]*exptypes.VoteTally),
 	}
 	invRegular := make(map[string]struct{})
 	invStake := make(map[string]struct{})
