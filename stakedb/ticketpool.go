@@ -73,6 +73,7 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 		log.Warnf("NewTicketPool badger db: %v", err)
 		// Try again with value log truncation enabled.
 		opts.Truncate = true
+		log.Warnf("Attempting to reopening ticket pool db with the Truncate option set...")
 		db, err = badger.Open(opts)
 	}
 	if err != nil {
