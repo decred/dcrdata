@@ -49,8 +49,8 @@ type MempoolMonitor struct {
 	// Incoming data
 	newTxIn chan *dcrjson.TxRawResult
 	// Outgoing signal and data
-	hubRelay chan pstypes.HubSignal
-	newTxOut chan *exptypes.MempoolTx
+	signalOuts []chan pstypes.HubSignal
+	newTxOuts  []chan *exptypes.MempoolTx
 
 	wg *sync.WaitGroup
 }
@@ -63,7 +63,7 @@ type MempoolMonitor struct {
 func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 	savers []MempoolDataSaver, params *chaincfg.Params, wg *sync.WaitGroup,
 	newTxInChan chan *dcrjson.TxRawResult,
-	hubRelay chan pstypes.HubSignal, newTxOutChan chan *exptypes.MempoolTx) *MempoolMonitor {
+	signalOuts []chan pstypes.HubSignal, newTxOutChans []chan *exptypes.MempoolTx) *MempoolMonitor {
 	// Collect initial mempool data.
 	stakeData, txs, err := collector.Collect()
 	if err != nil {
@@ -86,8 +86,8 @@ func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 		collector:  collector,
 		dataSavers: savers,
 		newTxIn:    newTxInChan,
-		hubRelay:   hubRelay,
-		newTxOut:   newTxOutChan,
+		signalOuts: signalOuts,
+		newTxOuts:  newTxOutChans,
 		wg:         wg,
 	}
 
@@ -133,7 +133,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				log.Debugf("New block - starting CollectAndStore...")
 				_ = p.CollectAndStore()
 				log.Debugf("New Block - sending SigMempoolUpdate to hub relay...")
-				// p.hubRelay <- pstypes.SigMempoolUpdate
+				// p.signalOuts <- pstypes.SigMempoolUpdate
 				p.hubSend(pstypes.SigMempoolUpdate, time.Second*10)
 				continue
 			}
@@ -271,11 +271,10 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			p.inventory.Unlock()
 
 			// Broadcast the new transaction.
-			log.Tracef("Signaling mempool event to hub relay...")
-			// p.hubRelay <- pstypes.SigNewTx
+			log.Tracef("Signaling mempool event to hub relays...")
 			p.hubSend(pstypes.SigNewTx, time.Second*10)
-			log.Tracef("Sending tx data on tx out channel...")
-			// p.newTxOut <- &tx
+
+			log.Tracef("Sending tx data on tx out channels...")
 			p.sendTx(&tx, time.Second*10)
 
 		case <-p.ctx.Done():
@@ -286,18 +285,22 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 }
 
 func (p *MempoolMonitor) hubSend(sig pstypes.HubSignal, timeout time.Duration) {
-	select {
-	case p.hubRelay <- sig:
-	case <-time.After(timeout):
-		log.Errorf("send to hubRelay (%v) failed: Timeout waiting for WebsocketHub.", sig)
+	for _, sigout := range p.signalOuts {
+		select {
+		case sigout <- sig:
+		case <-time.After(timeout):
+			log.Errorf("send to signalOuts (%v) failed: Timeout waiting for WebsocketHub.", sig)
+		}
 	}
 }
 
 func (p *MempoolMonitor) sendTx(tx *exptypes.MempoolTx, timeout time.Duration) {
-	select {
-	case p.newTxOut <- tx:
-	case <-time.After(timeout):
-		log.Errorf("send to newTxOut failed: Timeout.")
+	for _, newTxOut := range p.newTxOuts {
+		select {
+		case newTxOut <- tx:
+		case <-time.After(timeout):
+			log.Errorf("send to newTxOut failed: Timeout.")
+		}
 	}
 }
 

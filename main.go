@@ -30,10 +30,12 @@ import (
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
 	"github.com/decred/dcrdata/v4/explorer"
+	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/mempool"
 	m "github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
 	"github.com/decred/dcrdata/v4/pubsub"
+	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/semver"
 	"github.com/decred/dcrdata/v4/txhelpers"
@@ -1041,8 +1043,10 @@ func _main(ctx context.Context) error {
 	// transactions, and forward new ones on via the mpDataToPSHub with an
 	// appropriate signal to the underlying WebSocketHub on signalToPSHub.
 	signalToPSHub, mpDataToPSHub := psHub.HubRelays()
+	mempoolSigOuts := []chan pstypes.HubSignal{signalToPSHub}
+	newTxOuts := []chan *exptypes.MempoolTx{mpDataToPSHub}
 	mpm := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
-		activeChain, &wg, notify.NtfnChans.NewTxChan, signalToPSHub, mpDataToPSHub)
+		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, newTxOuts)
 
 	// Begin listening on notify.NtfnChans.NewTxChan, and forwarding mempool
 	// events to psHub via the channels from HubRelays().
