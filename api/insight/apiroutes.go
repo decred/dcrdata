@@ -847,40 +847,41 @@ func (c *insightApiContext) getStatusInfo(w http.ResponseWriter, r *http.Request
 }
 
 func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http.Request) {
-	blockDate := m.GetBlockDateCtx(r)
+	blockDateStr := m.GetBlockDateCtx(r)
 	limit := c.GetLimitCtx(r)
 
-	summaryOutput := apitypes.InsightBlocksSummaryResult{}
-	layout := "2006-01-02 15:04:05"
-	blockDateToday := time.Now().UTC().Format("2006-01-02")
+	// Start of today (UTC)
+	todayAM := time.Now().UTC().Truncate(24 * time.Hour)
 
-	if blockDate == "" {
-		blockDate = blockDateToday
+	// Format of the blockDate URL param, and of the pagination parameters
+	ymdFormat := "2006-01-02"
+
+	// If "blockDate" is not set on URL, use today, otherwise try to parse the
+	// input date string.
+	var blockDate time.Time
+	if blockDateStr == "" {
+		blockDate = todayAM
+	} else {
+		var err error
+		blockDate, err = time.Parse(blockDateStr, ymdFormat)
+		if err != nil {
+			writeInsightError(w, fmt.Sprintf("Unable to retrieve block summary using time %s: %v", blockDate, err))
+			return
+		}
+		blockDate = blockDate.UTC()
 	}
 
-	if blockDateToday == blockDate {
-		summaryOutput.Pagination.IsToday = true
-	}
-	minDate, err := time.Parse(layout, blockDate+" 00:00:00")
-	if err != nil {
-		writeInsightError(w, fmt.Sprintf("Unable to retrieve block summary using time %s: %v", blockDate, err))
-		return
-	}
+	minDate := blockDate
+	maxDate := blockDate.Add(24*time.Hour - time.Second)
 
-	maxDate, err := time.Parse(layout, blockDate+" 23:59:59")
-	if err != nil {
-		writeInsightError(w, fmt.Sprintf("Unable to retrieve block summary using time %s: %v", blockDate, err))
-		return
-	}
-	summaryOutput.Pagination.Next = minDate.AddDate(0, 0, 1).Format("2006-01-02")
-	summaryOutput.Pagination.Prev = minDate.AddDate(0, 0, -1).Format("2006-01-02")
+	var summaryOutput apitypes.InsightBlocksSummaryResult
+	summaryOutput.Pagination.Next = minDate.AddDate(0, 0, 1).Format(ymdFormat)
+	summaryOutput.Pagination.Prev = minDate.AddDate(0, 0, -1).Format(ymdFormat)
+	summaryOutput.Pagination.Current = blockDate.Format(ymdFormat)
+	summaryOutput.Pagination.IsToday = blockDate == todayAM
 
-	summaryOutput.Pagination.Current = blockDate
-
+	// TODO: limit the query rather than returning all and limiting in go.
 	minTime, maxTime := minDate.Unix(), maxDate.Unix()
-	summaryOutput.Pagination.CurrentTs = maxTime
-	summaryOutput.Pagination.MoreTs = maxTime
-
 	blockSummary, err := c.BlockData.ChainDB.BlockSummaryTimeRange(minTime, maxTime, 0)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("BlockSummaryTimeRange: %v", err)
@@ -892,10 +893,9 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 		return
 	}
 
-	outputBlockSummary := []dbtypes.BlockDataBasic{}
-
-	// Generate the pagination parameters More and MoreTs and limit the result.
+	// Generate the pagination parameters More and MoreTs, and limit the result.
 	if limit > 0 {
+		var outputBlockSummary []dbtypes.BlockDataBasic
 		for i, block := range blockSummary {
 			if i >= limit {
 				summaryOutput.Pagination.More = true
@@ -914,10 +914,10 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 		summaryOutput.Pagination.MoreTs = minTime
 	}
 
+	summaryOutput.Pagination.CurrentTs = maxTime
 	summaryOutput.Length = len(summaryOutput.Blocks)
 
 	writeJSON(w, summaryOutput, c.getIndentQuery(r))
-
 }
 
 func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Request) {
