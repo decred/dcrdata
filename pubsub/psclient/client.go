@@ -10,10 +10,18 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// newSubscribeMsg creates a new subscribe message equivalent to marshaling a
+// pstypes.WebSocketMessage with EventId set to "subscribe" and Message set to
+// the input string, event. json.Marshal is not used, but tests ensure the
+// correct result.
 func newSubscribeMsg(event string) string {
 	return fmt.Sprintf(`{"event":"subscribe","message":"%s"}`, event)
 }
 
+// newUnsubscribeMsg creates a new unsubscribe message equivalent to marshaling
+// a pstypes.WebSocketMessage with EventId set to "unsubscribe" and Message set
+// to the input string, event. json.Marshal is not used, but tests ensure the
+// correct result.
 func newUnsubscribeMsg(event string) string {
 	return fmt.Sprintf(`{"event":"unsubscribe","message":"%s"}`, event)
 }

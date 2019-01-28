@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -798,5 +799,43 @@ func TestDecodeMsgString(t *testing.T) {
 	if str != expectedStr {
 		t.Errorf("Wrong string decoded: got %s, expected %s",
 			str, expectedStr)
+	}
+}
+
+func TestNewSubscribeMsg(t *testing.T) {
+	subEvent := "cheese"
+	msg := &pstypes.WebSocketMessage{
+		EventId: "subscribe",
+		Message: subEvent,
+	}
+
+	b0, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("Failed to marshal the message: %v", err)
+	}
+
+	b := newSubscribeMsg(subEvent)
+	if b != string(b0) {
+		t.Errorf("Wrong message. Got \"%s\", expected \"%s\".",
+			b, string(b0))
+	}
+}
+
+func TestNewUnsubscribeMsg(t *testing.T) {
+	unsubEvent := "banana"
+	msg := &pstypes.WebSocketMessage{
+		EventId: "unsubscribe",
+		Message: unsubEvent,
+	}
+
+	b0, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("Failed to marshal the message: %v", err)
+	}
+
+	b := newUnsubscribeMsg(unsubEvent)
+	if b != string(b0) {
+		t.Errorf("Wrong message. Got \"%s\", expected \"%s\".",
+			b, string(b0))
 	}
 }
