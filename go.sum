@@ -2,7 +2,7 @@ github.com/AndreasBriese/bbloom v0.0.0-20180913140656-343706a395b7 h1:PqzgE6kAMi
 github.com/AndreasBriese/bbloom v0.0.0-20180913140656-343706a395b7/go.mod h1:bOvUY6CB00SOBii9/FifXqc0awNKxLFCL/+pkDPuyl8=
 github.com/DataDog/zstd v1.3.4 h1:LAGHkXuvC6yky+C2CUG2tD7w8QlrUwpue8XwIh0X4AY=
 github.com/DataDog/zstd v1.3.4/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
-github.com/Sereal/Sereal v0.0.0-20181211220259-509a78ddbda3 h1:RlU8Ot5hh0X7STVs+SfTFeboAnxOrqmHp0axhpW1O+s=
+github.com/Sereal/Sereal v0.0.0-20181211220259-509a78ddbda3 h1:Xu7z47ZiE/J+sKXHZMGxEor/oY2q6dq51fkO0JqdSwY=
 github.com/Sereal/Sereal v0.0.0-20181211220259-509a78ddbda3/go.mod h1:D0JMgToj/WdxCgd30Kc1UcA9E+WdZoJqeVOuYW7iTBM=
 github.com/aead/siphash v0.0.0-20170329201724-e404fcfc8885 h1:bBmEG9/q1xH07CqeeFw1ejup6Kw+/88WhhLHqIJ0ngQ=
 github.com/aead/siphash v0.0.0-20170329201724-e404fcfc8885/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
@@ -71,15 +71,11 @@ github.com/decred/dcrd/dcrec v0.0.0-20180721005914-d26200ec716b/go.mod h1:cRAH1S
 github.com/decred/dcrd/dcrec v0.0.0-20180721031028-5369a485acf6/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
 github.com/decred/dcrd/dcrec v0.0.0-20180801202239-0761de129164/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
 github.com/decred/dcrd/dcrec v0.0.0-20181212181811-1a370d38d671/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
-github.com/decred/dcrd/dcrec v0.0.0-20181212224710-c6f60e2c101c h1:zHKb9Z+rIyvUqxKcOMOD8QEp6DIXCuTym2sCyBeNtKg=
-github.com/decred/dcrd/dcrec v0.0.0-20181212224710-c6f60e2c101c/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
 github.com/decred/dcrd/dcrec v0.0.0-20190118223730-3a5281156b73 h1:ltS/rwY/UiBfQU0qYMxBsEUQdCxhon9qh0RFu/We3/s=
 github.com/decred/dcrd/dcrec v0.0.0-20190118223730-3a5281156b73/go.mod h1:cRAH1SNk8Mi9hKBc/DHbeiWz/fyO8KWZR3H7okrIuOA=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20180721005212-59fe2b293f69/go.mod h1:+ehP0Hk/mesyZXttxCtBbhPX23BMpZJ1pcVBqUfbmvU=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20180721031028-5369a485acf6/go.mod h1:+ehP0Hk/mesyZXttxCtBbhPX23BMpZJ1pcVBqUfbmvU=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20181208004914-a0816cf4301f/go.mod h1:+ehP0Hk/mesyZXttxCtBbhPX23BMpZJ1pcVBqUfbmvU=
-github.com/decred/dcrd/dcrec/edwards v0.0.0-20181212224710-c6f60e2c101c h1:goOjeuhHXXWUoHz9wbZ5NMq4whfi6BjCNRv2wzVhhBc=
-github.com/decred/dcrd/dcrec/edwards v0.0.0-20181212224710-c6f60e2c101c/go.mod h1:+ehP0Hk/mesyZXttxCtBbhPX23BMpZJ1pcVBqUfbmvU=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190118223730-3a5281156b73 h1:JVlcJ9285jgnYFs/GmsxMJH6HzFE9n0r49q+pMM2b1w=
 github.com/decred/dcrd/dcrec/edwards v0.0.0-20190118223730-3a5281156b73/go.mod h1:+ehP0Hk/mesyZXttxCtBbhPX23BMpZJ1pcVBqUfbmvU=
 github.com/decred/dcrd/dcrec/secp256k1 v1.0.0 h1:Le54WTGdTQv7XYXpS31uhFE8LZE7ypwsIL+FgDP2x5Q=
@@ -126,8 +122,8 @@ github.com/decred/dcrwallet/wallet v1.1.0 h1:bIqKgr/fWK7Sm4n7mh72RsK/vYaZ+Lxect4
 github.com/decred/dcrwallet/wallet v1.1.0/go.mod h1:g4OzDG7jpsRqTDP3bHiA0LIEZFx81accYPCkO1DBNT8=
 github.com/decred/slog v1.0.0 h1:Dl+W8O6/JH6n2xIFN2p3DNjCmjYwvrXsjlSJTQQ4MhE=
 github.com/decred/slog v1.0.0/go.mod h1:zR98rEZHSnbZ4WHZtO0iqmSZjDLKhkXfrPTZQKtAonQ=
-github.com/dgraph-io/badger v1.5.5-0.20181020042726-fbb27786246d h1:YFCfYk8kMkRVyXE/Dldb2utAE/A33Co6aKN7Mwlqig8=
-github.com/dgraph-io/badger v1.5.5-0.20181020042726-fbb27786246d/go.mod h1:VZxzAIRPHRVNRKRo6AXrX9BJegn6il06VMTZVJYCIjQ=
+github.com/dgraph-io/badger v1.5.5-0.20190124015931-be03c12d2da2 h1:G5oecTCBu3Pex/CnWnoyywKBBcWbQAuHO8xPRVn+BXQ=
+github.com/dgraph-io/badger v1.5.5-0.20190124015931-be03c12d2da2/go.mod h1:VZxzAIRPHRVNRKRo6AXrX9BJegn6il06VMTZVJYCIjQ=
 github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102 h1:afESQBXJEnj3fu+34X//E8Wg3nEbMJxJkwSc0tPePK0=
 github.com/dgryski/go-farm v0.0.0-20180109070241-2de33835d102/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
 github.com/didip/tollbooth v4.0.0+incompatible h1:ayQZYuF5QOxx3NdYRNuRVFLv9/2b64JtSUlewb+0TMo=
