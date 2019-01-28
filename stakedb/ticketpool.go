@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/asdine/storm"
@@ -51,23 +52,37 @@ type badgerLogger struct {
 	slog.Logger
 }
 
+// Infof overrides slog.Logger's Infof with Tracef since badger treats Info
+// level like a verbose log level.
+func (l *badgerLogger) Infof(format string, v ...interface{}) {
+	// Badger randomly appends newlines. Strip them.
+	format = strings.TrimSuffix(format, "\n")
+	l.Logger.Debugf("badger: "+format, v...)
+}
+
 // Warningf along with slog.Logger functions implements badger.Logger.
 func (l *badgerLogger) Warningf(format string, v ...interface{}) {
-	l.Warnf(format, v...)
+	// Badger randomly appends newlines. Strip them.
+	format = strings.TrimSuffix(format, "\n")
+	l.Logger.Warnf("badger: "+format, v...)
+}
+
+// Errorf along with slog.Logger functions implements badger.Logger.
+func (l *badgerLogger) Errorf(format string, v ...interface{}) {
+	// Badger randomly appends newlines. Strip them.
+	format = strings.TrimSuffix(format, "\n")
+	l.Logger.Errorf("badger: "+format, v...)
 }
 
 // NewTicketPool constructs a TicketPool by opening the persistent diff db,
 // loading all known diffs, initializing the TicketPool values.
 func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
-	// Set badger logger.
-	bLog := &badgerLogger{log}
-	badger.SetLogger(bLog)
-
 	// Open ticket pool diffs database
 	badgerDbPath := filepath.Join(dataDir, dbSubDir)
 	opts := badger.DefaultOptions
 	opts.Dir = badgerDbPath
 	opts.ValueDir = badgerDbPath
+	opts.Logger = &badgerLogger{log}
 	db, err := badger.Open(opts)
 	if err == badger.ErrTruncateNeeded {
 		log.Warnf("NewTicketPool badger db: %v", err)
@@ -78,6 +93,19 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed badger.Open: %v", err)
+	}
+
+	// Attempt garbage collection of badger value log. If greater than
+	// rewriteThreshold of the space was discarded, rewrite the entire value
+	// log. However, there should be few discards as chain reorgs that cause
+	// data to be deleted are a small percentage of the ticket pool data.
+	rewriteThreshold := 0.5
+	err = db.RunValueLogGC(rewriteThreshold)
+	if err != nil {
+		if err != badger.ErrNoRewrite {
+			return nil, fmt.Errorf("failed badger.RunValueLogGC: %v", err)
+		}
+		log.Debugf("Value log not rewritten.")
 	}
 
 	// Attempt migration from storm to badger if badger was empty
