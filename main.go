@@ -460,7 +460,7 @@ func _main(ctx context.Context) error {
 
 	// ExchangeBot
 	var xcBot *exchanges.ExchangeBot
-	if !cfg.DisableExchangeBot {
+	if cfg.EnableExchangeBot {
 		var botCfg exchanges.ExchangeBotConfig
 		if cfg.DisabledExchanges != "" {
 			botCfg.Disabled = strings.Split(cfg.DisabledExchanges, ",")

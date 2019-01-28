@@ -112,6 +112,7 @@ type CommonExchange struct {
 	client       *http.Client
 	lastUpdate   time.Time
 	lastFail     time.Time
+	lastRequest  time.Time
 	request      *http.Request
 	channels     *BotChannels
 }
@@ -146,14 +147,18 @@ func (xc *CommonExchange) IsFailed() bool {
 	return xc.lastFail.After(xc.lastUpdate)
 }
 
+// LogRequest sets the lastRequest time.Time.
+func (xc *CommonExchange) LogRequest() {
+	xc.Lock()
+	defer xc.Unlock()
+	xc.lastRequest = time.Now()
+}
+
 // LastTry is the more recent of lastFail and LastUpdate.
 func (xc *CommonExchange) LastTry() time.Time {
 	xc.RLock()
 	defer xc.RUnlock()
-	if xc.lastFail.After(xc.lastUpdate) {
-		return xc.lastFail
-	}
-	return xc.lastUpdate
+	return xc.lastRequest
 }
 
 // Token is the string associated with the exchange's token.
@@ -222,6 +227,7 @@ func newCommonExchange(token string, client *http.Client,
 		currentState: new(ExchangeState),
 		lastUpdate:   tZero,
 		lastFail:     tZero,
+		lastRequest:  tZero,
 		request:      request,
 	}
 }
@@ -256,6 +262,7 @@ type CoinbaseResponseData struct {
 
 // Refresh retrieves and parses API data from Coinbase.
 func (coinbase *CoinbaseExchange) Refresh() {
+	coinbase.LogRequest()
 	response := new(CoinbaseResponse)
 	err := coinbase.fetch(response)
 	if err != nil {
@@ -319,6 +326,7 @@ type CoindeskResponseBpi struct {
 
 // Refresh retrieves and parses API data from Coindesk.
 func (coindesk *CoindeskExchange) Refresh() {
+	coindesk.LogRequest()
 	response := new(CoindeskResponse)
 	err := coindesk.fetch(response)
 	if err != nil {
@@ -377,6 +385,7 @@ type BinanceResponse struct {
 
 // Refresh retrieves and parses API data from Binance.
 func (binance *BinanceExchange) Refresh() {
+	binance.LogRequest()
 	response := new(BinanceResponse)
 	err := binance.fetch(response)
 	if err != nil {
@@ -458,6 +467,7 @@ type BittrexResponseResult struct {
 // Refresh retrieves and parses API data from Bittrex.
 // Bittrex provides timestamps in a string format that is not quite RFC 3339.
 func (bittrex *BittrexExchange) Refresh() {
+	bittrex.LogRequest()
 	response := new(BittrexResponse)
 	err := bittrex.fetch(response)
 	if err != nil {
@@ -532,6 +542,7 @@ type DragonExResponseData struct {
 
 // Refresh retrieves and parses API data from DragonEx.
 func (dragonex *DragonExchange) Refresh() {
+	dragonex.LogRequest()
 	response := new(DragonExResponse)
 	err := dragonex.fetch(response)
 	if err != nil {
@@ -621,6 +632,7 @@ type HuobiResponseTick struct {
 
 // Refresh retrieves and parses API data from Huobi.
 func (huobi *HuobiExchange) Refresh() {
+	huobi.LogRequest()
 	response := new(HuobiResponse)
 	err := huobi.fetch(response)
 	if err != nil {
@@ -676,6 +688,7 @@ type PoloniexPair struct {
 
 // Refresh retrieves and parses API data from Poloniex.
 func (poloniex *PoloniexExchange) Refresh() {
+	poloniex.LogRequest()
 	var response map[string]*PoloniexPair
 	err := poloniex.fetch(&response)
 	if err != nil {
