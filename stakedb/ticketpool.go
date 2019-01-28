@@ -69,6 +69,13 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 	opts.Dir = badgerDbPath
 	opts.ValueDir = badgerDbPath
 	db, err := badger.Open(opts)
+	if err == badger.ErrTruncateNeeded {
+		log.Warnf("NewTicketPool badger db: %v", err)
+		// Try again with value log truncation enabled.
+		opts.Truncate = true
+		log.Warnf("Attempting to reopening ticket pool db with the Truncate option set...")
+		db, err = badger.Open(opts)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed badger.Open: %v", err)
 	}
