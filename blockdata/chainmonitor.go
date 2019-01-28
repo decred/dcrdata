@@ -55,7 +55,7 @@ func NewChainMonitor(ctx context.Context, collector *Collector, savers []BlockDa
 
 // BlockConnectedSync is the synchronous (blocking call) handler for the newly
 // connected block given by the hash.
-func (p *chainMonitor) BlockConnectedSync(hash *chainhash.Hash) {
+func (p *chainMonitor) BlockConnectedSync(hash *chainhash.Hash) error {
 	// Connections go one at a time so signals cannot be mixed
 	p.syncConnect.Lock()
 	defer p.syncConnect.Unlock()
@@ -64,6 +64,7 @@ func (p *chainMonitor) BlockConnectedSync(hash *chainhash.Hash) {
 	p.blockChan <- hash
 	// wait
 	<-p.DoneConnecting
+	return nil
 }
 
 func (p *chainMonitor) collect(hash *chainhash.Hash) (*wire.MsgBlock, *BlockData, error) {

@@ -16,7 +16,6 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/api/insight"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
-	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -72,7 +71,7 @@ type blockHashHeight struct {
 
 type collectionQueue struct {
 	q            chan *blockHashHeight
-	syncHandlers []func(hash *chainhash.Hash)
+	syncHandlers []func(hash *chainhash.Hash) error
 	prevHash     chainhash.Hash
 	prevHeight   int64
 }
@@ -91,7 +90,7 @@ var blockQueue = NewCollectionQueue()
 
 // SetSynchronousHandlers sets the slice of synchronous new block handler
 // functions, which are called in the order they occur in the slice.
-func (q *collectionQueue) SetSynchronousHandlers(syncHandlers []func(hash *chainhash.Hash)) {
+func (q *collectionQueue) SetSynchronousHandlers(syncHandlers []func(hash *chainhash.Hash) error) {
 	q.syncHandlers = syncHandlers
 }
 
@@ -135,7 +134,10 @@ func (q *collectionQueue) processBlock(bh *blockHashHeight) {
 
 	// Run synchronous block connected handlers in order.
 	for _, h := range q.syncHandlers {
-		h(&hash)
+		if err := h(&hash); err != nil {
+			log.Errorf("synchronous handler failed: %v", err)
+			return
+		}
 	}
 
 	// Record this block as the best block connected by the collectionQueue.
@@ -145,10 +147,7 @@ func (q *collectionQueue) processBlock(bh *blockHashHeight) {
 
 	// Signal to mempool monitors that a block was mined.
 	select {
-	case NtfnChans.NewTxChan <- &mempool.NewTx{
-		Hash: nil,
-		T:    time.Now(),
-	}:
+	case NtfnChans.NewTxChan <- nil:
 	default:
 	}
 
@@ -367,10 +366,12 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 		// for the mempool monitors to avoid an extra call to dcrd for
 		// the tx details
 		OnTxAcceptedVerbose: func(txDetails *dcrjson.TxRawResult) {
+			// Current UNIX time to assign the new transaction.
+			now := time.Now().Unix()
 
 			select {
 			case NtfnChans.ExpNewTxChan <- &exptypes.NewMempoolTx{
-				Time: time.Now().Unix(),
+				Time: now,
 				Hex:  txDetails.Hex,
 			}:
 			default:
@@ -388,12 +389,11 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 				}
 			}
 
-			hash, _ := chainhash.NewHashFromStr(txDetails.Txid)
+			// Patch txDetails.Time, which is 0, with current time.
+			txDetails.Time = now
+
 			select {
-			case NtfnChans.NewTxChan <- &mempool.NewTx{
-				Hash: hash,
-				T:    time.Now(),
-			}:
+			case NtfnChans.NewTxChan <- txDetails:
 			default:
 				log.Warn("NewTxChan buffer full!")
 			}

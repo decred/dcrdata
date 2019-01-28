@@ -30,9 +30,12 @@ import (
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
 	"github.com/decred/dcrdata/v4/explorer"
+	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/mempool"
 	m "github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
+	"github.com/decred/dcrdata/v4/pubsub"
+	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/semver"
 	"github.com/decred/dcrdata/v4/txhelpers"
@@ -103,7 +106,7 @@ func _main(ctx context.Context) error {
 	}
 
 	// Setup the notification handlers.
-	notify.MakeNtfnChans(cfg.MonitorMempool, usePG)
+	notify.MakeNtfnChans(usePG)
 
 	// Connect to dcrd RPC server using a websocket.
 	ntfnHandlers, collectionQueue := notify.MakeNodeNtfnHandlers()
@@ -443,13 +446,6 @@ func _main(ctx context.Context) error {
 		blockDataSavers = append(blockDataSavers, auxDB)
 	}
 
-	// For example, dumping all mempool fees with a custom saver
-	if cfg.DumpAllMPTix {
-		log.Debugf("Dumping all mempool tickets to file in %s.\n", cfg.OutFolder)
-		mempoolFeeDumper := mempool.NewMempoolFeeDumper(cfg.OutFolder, "mempool-fees")
-		mempoolSavers = append(mempoolSavers, mempoolFeeDumper)
-	}
-
 	blockDataSavers = append(blockDataSavers, baseDB)
 	mempoolSavers = append(mempoolSavers, baseDB.MPC)
 
@@ -469,6 +465,16 @@ func _main(ctx context.Context) error {
 	defer explore.StopMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
 	blockDataSavers = append(blockDataSavers, explore)
+
+	// Create the pub sub hub.
+	psHub := pubsub.NewPubSubHub(baseDB, auxDB)
+	if psHub == nil {
+		return fmt.Errorf("failed to create new PubSubHub")
+	}
+	defer psHub.StopWebsocketHub()
+
+	blockDataSavers = append(blockDataSavers, psHub)
+	mempoolSavers = append(mempoolSavers, psHub) // individial transactions are from mempool monitor
 
 	// Prepare for sync by setting up the channels for status/progress updates
 	// (barLoad) or full explorer page updates (latestBlockHash).
@@ -586,6 +592,7 @@ func _main(ctx context.Context) error {
 		r.Get("/nexthome", explore.NextHome)
 	})
 	webMux.Get("/ws", explore.RootWebsocket)
+	webMux.Get("/ps", psHub.WebSocketHandler)
 	webMux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./public/images/favicon.ico")
 	})
@@ -670,6 +677,7 @@ func _main(ctx context.Context) error {
 
 	log.Infof("Starting blockchain sync...")
 	explore.SetDBsSyncing(true)
+	psHub.SetReady(false)
 
 	// If in lite mode, baseDB will need to handle the sync progress bar or
 	// explorer page updates, otherwise it is auxDB's responsibility.
@@ -879,6 +887,7 @@ func _main(ctx context.Context) error {
 
 	log.Infof("All ready, at height %d.", baseDBHeight)
 	explore.SetDBsSyncing(false)
+	psHub.SetReady(true)
 
 	// Enable new blocks being stored into the base DB's cache.
 	baseDB.EnableCache()
@@ -940,7 +949,7 @@ func _main(ctx context.Context) error {
 
 	// Setup the synchronous handler functions called by the collectionQueue via
 	// OnBlockConnected.
-	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash){
+	collectionQueue.SetSynchronousHandlers([]func(*chainhash.Hash) error{
 		sdbChainMonitor.BlockConnectedSync, // 1. Stake DB for pool info
 		wsChainMonitor.BlockConnectedSync,  // 2. blockdata for regular block data collection and storage
 	})
@@ -955,6 +964,10 @@ func _main(ctx context.Context) error {
 
 	if err = explore.Store(blockData, msgBlock); err != nil {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
+	}
+
+	if err = psHub.Store(blockData, msgBlock); err != nil {
+		return fmt.Errorf("Failed to store initial block data with the PubSubHub: %v", err.Error())
 	}
 
 	// Register for notifications from dcrd. This also sets the daemon RPC
@@ -1006,45 +1019,44 @@ func _main(ctx context.Context) error {
 
 	explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
-	if cfg.MonitorMempool {
-		// Create the mempool data collector.
-		mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
-		if mpoolCollector == nil {
-			return fmt.Errorf("Failed to create mempool data collector")
-		}
-
-		// Collect and store initial mempool data.
-		mpData, err := mpoolCollector.Collect()
-		if err != nil {
-			return fmt.Errorf("Mempool info collection failed while gathering"+
-				" initial data: %v", err.Error())
-		}
-
-		// Store initial MP data.
-		if err = baseDB.MPC.StoreMPData(mpData, time.Now()); err != nil {
-			return fmt.Errorf("Failed to store initial mempool data (WiredDB): %v",
-				err.Error())
-		}
-
-		// Setup the mempool monitor, which handles notifications of new
-		// transactions.
-		mpi := &mempool.MempoolInfo{
-			CurrentHeight:               mpData.GetHeight(),
-			NumTicketPurchasesInMempool: mpData.GetNumTickets(),
-			NumTicketsSinceStatsReport:  0,
-			LastCollectTime:             time.Now(),
-		}
-
-		// Parameters for triggering data collection. See config.go.
-		newTicketLimit := int32(cfg.MPTriggerTickets)
-		mini := time.Duration(cfg.MempoolMinInterval) * time.Second
-		maxi := time.Duration(cfg.MempoolMaxInterval) * time.Second
-
-		mpm := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
-			notify.NtfnChans.NewTxChan, &wg, newTicketLimit, mini, maxi, mpi)
-		wg.Add(1)
-		go mpm.TxHandler(dcrdClient)
+	// Create the mempool data collector.
+	mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
+	if mpoolCollector == nil {
+		return fmt.Errorf("Failed to create mempool data collector")
 	}
+
+	// Collect and store initial mempool data.
+	stakeData, txs, err := mpoolCollector.Collect()
+	if err != nil {
+		return fmt.Errorf("Mempool info collection failed while gathering"+
+			" initial data: %v", err.Error())
+	}
+
+	// Store initial mempool data.
+	for _, s := range mempoolSavers {
+		s.StoreMPData(stakeData, txs)
+	}
+
+	// The MempoolMonitor receives notifications of new transactions on
+	// notify.NtfnChans.NewTxChan, and of new blocks on the same channel with a
+	// nil transaction message. The mempool monitor will process the
+	// transactions, and forward new ones on via the mpDataToPSHub with an
+	// appropriate signal to the underlying WebSocketHub on signalToPSHub.
+	signalToPSHub, mpDataToPSHub := psHub.HubRelays()
+	mempoolSigOuts := []chan pstypes.HubSignal{signalToPSHub}
+	newTxOuts := []chan *exptypes.MempoolTx{mpDataToPSHub}
+	mpm := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
+		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, newTxOuts)
+
+	// Begin listening on notify.NtfnChans.NewTxChan, and forwarding mempool
+	// events to psHub via the channels from HubRelays().
+	wg.Add(1)
+	go mpm.TxHandler(dcrdClient)
+	// TxHandler also gets signaled about new blocks when a nil tx hash is sent
+	// on notify.NtfnChans.NewTxChan, which triggers a full mempool refresh
+	// followed by CollectAndStore, which provides the parsed data to all
+	// mempoolSavers via their StoreMPData method. This should include the
+	// PubSubHub and the base DB's MempoolDataCache.
 
 	// Pre-populate charts data now that blocks are sync'd and new-block
 	// monitors are running.

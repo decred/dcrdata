@@ -221,86 +221,6 @@ func (exp *explorerUI) DisapprovedBlocks(w http.ResponseWriter, r *http.Request)
 	io.WriteString(w, str)
 }
 
-// show only regular tx in block.Transactions, exclude coinbase (reward) transactions
-// for use in NextHome handler and websocket response to getmempooltxs event
-func filterRegularTx(txs []*types.TrimmedTxInfo) (transactions []*types.TrimmedTxInfo) {
-	for _, tx := range txs {
-		if !tx.Coinbase {
-			transactions = append(transactions, tx)
-		}
-	}
-	return transactions
-}
-
-func trimMempoolTx(txs []types.MempoolTx) (trimmedTxs []*types.TrimmedTxInfo) {
-	for _, tx := range txs {
-		txBasic := &types.TxBasic{
-			Coinbase: tx.Coinbase,
-			TxID:     tx.TxID,
-			Total:    tx.TotalOut,
-			VoteInfo: tx.VoteInfo,
-		}
-
-		var voteValid bool
-		if tx.VoteInfo != nil {
-			voteValid = tx.VoteInfo.Validation.Validity
-		}
-
-		trimmedTx := &types.TrimmedTxInfo{
-			TxBasic:   txBasic,
-			Fees:      tx.Fees,
-			VoteValid: voteValid,
-			VinCount:  tx.VinCount,
-			VoutCount: tx.VoutCount,
-		}
-
-		trimmedTxs = append(trimmedTxs, trimmedTx)
-	}
-
-	return trimmedTxs
-}
-
-func filterUniqueLastBlockVotes(txs []*types.TrimmedTxInfo) (votes []*types.TrimmedTxInfo) {
-	for _, tx := range txs {
-		if tx.VoteInfo != nil && tx.VoteInfo.ForLastBlock {
-			votes = append(votes, tx)
-		}
-	}
-	return votes
-}
-
-// convert the *MempoolInfo in exp.MempoolData to *MempoolData
-func (exp *explorerUI) TrimmedMempoolInfo() *types.TrimmedMempoolInfo {
-	exp.MempoolData.RLock()
-
-	mempoolRegularTxs := trimMempoolTx(exp.MempoolData.Transactions)
-	mempoolVotes := trimMempoolTx(exp.MempoolData.Votes)
-
-	data := &types.TrimmedMempoolInfo{
-		Transactions: filterRegularTx(mempoolRegularTxs),
-		Tickets:      trimMempoolTx(exp.MempoolData.Tickets),
-		Votes:        filterUniqueLastBlockVotes(mempoolVotes),
-		Revocations:  trimMempoolTx(exp.MempoolData.Revocations),
-		Total:        exp.MempoolData.TotalOut,
-		Time:         exp.MempoolData.LastBlockTime,
-	}
-
-	exp.MempoolData.RUnlock()
-
-	// calculate total fees for mempool block
-	getTotalFee := func(txs []*types.TrimmedTxInfo) (total float64) {
-		for _, tx := range txs {
-			total += tx.Fees
-		}
-		return
-	}
-
-	data.Fees = getTotalFee(data.Transactions) + getTotalFee(data.Revocations) +
-		getTotalFee(data.Tickets) + getTotalFee(data.Votes)
-
-	return data
-}
-
 // NextHome is the page handler for the "/nexthome" path.
 func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 	// Get top N blocks and trim each block to have just the fields required for
@@ -327,14 +247,14 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 			Votes:        block.Votes,
 			Tickets:      block.Tickets,
 			Revocations:  block.Revs,
-			Transactions: filterRegularTx(block.Tx),
+			Transactions: types.FilterRegularTx(block.Tx),
 		}
 
 		trimmedBlocks = append(trimmedBlocks, trimmedBlock)
 	}
 
 	// construct mempool object with properties required in template
-	mempoolInfo := exp.TrimmedMempoolInfo()
+	mempoolInfo := exp.MempoolData.Trim()
 	// mempool fees appear incorrect, temporarily set to zero for now
 	mempoolInfo.Fees = 0
 

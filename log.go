@@ -19,6 +19,7 @@ import (
 	"github.com/decred/dcrdata/v4/mempool"
 	"github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
+	"github.com/decred/dcrdata/v4/pubsub"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/stakedb"
 	"github.com/decred/slog"
@@ -64,6 +65,7 @@ var (
 	apiLog        = backendLog.Logger("JAPI")
 	log           = backendLog.Logger("DATD")
 	iapiLog       = backendLog.Logger("IAPI")
+	pubsubLog     = backendLog.Logger("PUBS")
 )
 
 // Initialize package-global logger variables.
@@ -80,6 +82,7 @@ func init() {
 	insight.UseLogger(iapiLog)
 	middleware.UseLogger(apiLog)
 	notify.UseLogger(notifyLog)
+	pubsub.UseLogger(pubsubLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
@@ -95,6 +98,7 @@ var subsystemLoggers = map[string]slog.Logger{
 	"JAPI": apiLog,
 	"IAPI": iapiLog,
 	"DATD": log,
+	"PUBS": pubsubLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and

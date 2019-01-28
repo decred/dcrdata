@@ -52,7 +52,6 @@ var (
 	defaultIndentJSON         = "   "
 	defaultCacheControlMaxAge = 86400
 
-	defaultMonitorMempool     = true
 	defaultMempoolMinInterval = 2
 	defaultMempoolMaxInterval = 120
 	defaultMPTriggerTickets   = 1
@@ -94,11 +93,9 @@ type config struct {
 	CacheControlMaxAge int    `long:"cachecontrol-maxage" description:"Set CacheControl in the HTTP response header to a value in seconds for clients to cache the response. This applies only to FileServer routes." env:"DCRDATA_MAX_CACHE_AGE"`
 
 	// Data I/O
-	MonitorMempool     bool   `short:"m" long:"mempool" description:"Monitor mempool for new transactions, and report ticketfee info when new tickets are added." env:"DCRDATA_ENABLE_MEMPOOL_MONITOR"`
 	MempoolMinInterval int    `long:"mp-min-interval" description:"The minimum time in seconds between mempool reports, regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MIN_INTERVAL"`
 	MempoolMaxInterval int    `long:"mp-max-interval" description:"The maximum time in seconds between mempool reports (within a couple seconds), regarless of number of new tickets seen." env:"DCRDATA_MEMPOOL_MAX_INTERVAL"`
 	MPTriggerTickets   int    `long:"mp-ticket-trigger" description:"The number minimum number of new tickets that must be seen to trigger a new mempool report." env:"DCRDATA_MP_TRIGGER_TICKETS"`
-	DumpAllMPTix       bool   `long:"dumpallmptix" description:"Dump to file the fees of all the tickets in mempool." env:"DCRDATA_ENABLE_DUMP_ALL_MP_TIX"`
 	DBFileName         string `long:"dbfile" description:"SQLite DB file name (default is dcrdata.sqlt.db)." env:"DCRDATA_SQLITE_DB_FILE_NAME"`
 	AgendaDBFileName   string `long:"agendadbfile" description:"Agenda DB file name (default is agendas.db)." env:"DCRDATA_AGENDA_DB_FILE_NAME"`
 
@@ -148,7 +145,6 @@ var (
 		IndentJSON:         defaultIndentJSON,
 		CacheControlMaxAge: defaultCacheControlMaxAge,
 		DcrdCert:           defaultDaemonRPCCertFile,
-		MonitorMempool:     defaultMonitorMempool,
 		MempoolMinInterval: defaultMempoolMinInterval,
 		MempoolMaxInterval: defaultMempoolMaxInterval,
 		MPTriggerTickets:   defaultMPTriggerTickets,

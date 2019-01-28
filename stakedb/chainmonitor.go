@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil"
@@ -43,15 +44,22 @@ func (db *StakeDatabase) NewChainMonitor(ctx context.Context, wg *sync.WaitGroup
 
 // BlockConnectedSync is the synchronous (blocking call) handler for the newly
 // connected block given by the hash.
-func (p *ChainMonitor) BlockConnectedSync(hash *chainhash.Hash) {
+func (p *ChainMonitor) BlockConnectedSync(hash *chainhash.Hash) (err error) {
 	// Connections go one at a time so signals cannot be mixed
 	p.syncConnect.Lock()
 	defer p.syncConnect.Unlock()
 	// lock with buffered channel, accepting handoff in BlockConnectedHandler
 	p.ConnectingLock <- struct{}{}
-	p.blockChan <- hash
-	// wait
-	<-p.DoneConnecting
+	t := time.NewTimer(10 * time.Second)
+	select {
+	case <-t.C:
+		err = fmt.Errorf("block send timeout")
+	case p.blockChan <- hash:
+		// wait
+		<-p.DoneConnecting
+	}
+
+	return
 }
 
 // BlockConnectedHandler handles block connected notifications, which trigger
@@ -95,6 +103,10 @@ out:
 			break out
 		}
 	}
+
+	// Drain the block connected channel.
+	// for range <-p.blockChan {
+	// }
 
 }
 
