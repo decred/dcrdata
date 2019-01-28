@@ -1466,6 +1466,7 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 		return nil, fmt.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
 	}
 	addrData.NumUnconfirmed = numUnconfirmed
+	addrData.NumTransactions += numUnconfirmed
 	if addrData.UnconfirmedTxns == nil {
 		addrData.UnconfirmedTxns = new(dbtypes.AddressTransactions)
 	}

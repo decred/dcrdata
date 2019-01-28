@@ -1253,7 +1253,7 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		TxnCount int64  `json:"tx_count"`
 		HTML     string `json:"html"`
 	}{
-		TxnCount: addrData.TxnCount,
+		TxnCount: addrData.TxnCount + addrData.NumUnconfirmed,
 	}
 
 	response.HTML, err = exp.templates.execTemplateToString("addresstable", struct {

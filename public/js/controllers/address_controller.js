@@ -142,7 +142,7 @@ export default class extends Controller {
       'pagesize', 'txntype', 'txnCount', 'qricon', 'qrimg', 'qrbox',
       'paginator', 'pageplus', 'pageminus', 'listbox', 'table',
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons',
-      'pending', 'hash', 'matchhash', 'view']
+      'pending', 'hash', 'matchhash', 'view', 'mergedMsg']
   }
 
   async connect () {
@@ -186,7 +186,7 @@ export default class extends Controller {
     ctrl.dcrAddress = cdata.get('dcraddress')
     ctrl.paginationParams = {
       offset: parseInt(cdata.get('offset')),
-      count: parseInt(cdata.get('txnCount')),
+      count: parseInt(cdata.get('txnCount'))
     }
     ctrl.balance = cdata.get('balance')
 
@@ -306,6 +306,11 @@ export default class extends Controller {
     ctrl.query.replace(settings)
     ctrl.paginationParams.offset = offset
     ctrl.setPageability()
+    if (txType.indexOf('merged') === -1) {
+      this.mergedMsgTarget.classList.add('d-hide')
+    } else {
+      this.mergedMsgTarget.classList.remove('d-hide')
+    }
     ctrl.listboxTarget.classList.remove('loading')
   }
 

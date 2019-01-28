@@ -6,7 +6,7 @@
 <body class="{{ theme }}">
     {{template "navbar" . }}
     {{with .Data}}
-    {{$TxnCount := .TxnCount}}
+    {{$TxnCount := add .TxnCount .NumUnconfirmed}}
     {{$txType := .TxnType}}
     <div class="container main"
       data-controller="address newblock"
@@ -174,8 +174,11 @@
                   >
                     {{if gt $TxnCount 0}}<a class="d-inline-block p-2 rounded download" href="/download/address/io/{{.Address}}{{if $.CRLFDownload}}?cr=true{{end}}" type="text/csv" download><span class="dcricon-download mx-1"></span> Download CSV</a>{{end}}
                     <!-- This dummy span ensures left/right alignment of the buttons, even if one is hidden -->
-                    <span> </span>
-                    <div class="d-inline-block">
+                    <span></span>
+                    <div class="d-inline-block text-right">
+                      <span class="fs14 d-block{{if not .IsMerged}} d-hide{{end}}" data-target="address.mergedMsg">
+                          *No unconfirmed transactions shown in merged views.
+                      </span>
                       <label class="mb-0 mr-1" for="txntype">Type</label>
                       <select
                           name="txntype"
@@ -194,9 +197,9 @@
                     </div>
                   </div>
                   {{if and (not .Fullmode) (ge .KnownTransactions .MaxTxLimit)}}
-                  <div>
-                      *Limit of {{.MaxTxLimit}} transactions shown in lite mode.
-                  </div>
+                    <div>
+                        *Limit of {{.MaxTxLimit}} transactions shown in lite mode.
+                    </div>
                   {{end}}
                   <div
                       class="hidden d-flex align-items-center justify-content-end"
