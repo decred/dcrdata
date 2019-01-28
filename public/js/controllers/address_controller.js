@@ -142,7 +142,7 @@ export default class extends Controller {
       'pagesize', 'txntype', 'txnCount', 'qricon', 'qrimg', 'qrbox',
       'paginator', 'pageplus', 'pageminus', 'listbox', 'table',
       'range', 'chartbox', 'noconfirms', 'chart', 'pagebuttons',
-      'pending', 'hash', 'matchhash', 'view']
+      'pending', 'hash', 'matchhash', 'view', 'mergedMsg']
   }
 
   async connect () {
@@ -185,11 +185,8 @@ export default class extends Controller {
     var cdata = ctrl.data
     ctrl.dcrAddress = cdata.get('dcraddress')
     ctrl.paginationParams = {
-      'offset': parseInt(cdata.get('offset')),
-      'all': parseInt(cdata.get('fundingCount')) + parseInt(cdata.get('spendingCount')),
-      'credit': parseInt(cdata.get('fundingCount')),
-      'debit': parseInt(cdata.get('spendingCount')),
-      'merged_debit': parseInt(cdata.get('mergedCount'))
+      offset: parseInt(cdata.get('offset')),
+      count: parseInt(cdata.get('txnCount'))
     }
     ctrl.balance = cdata.get('balance')
 
@@ -289,7 +286,7 @@ export default class extends Controller {
     var count = ctrl.pageSize
     var txType = ctrl.txnType
     var requestedOffset = params.offset + count * direction
-    if (requestedOffset >= params[txType]) return
+    if (requestedOffset >= params.count) return
     if (requestedOffset < 0) requestedOffset = 0
     ctrl.fetchTable(txType, count, requestedOffset)
   }
@@ -297,23 +294,30 @@ export default class extends Controller {
   async fetchTable (txType, count, offset) {
     var ctrl = this
     ctrl.listboxTarget.classList.add('loading')
-    let tableResponse = await axios.get(ctrl.makeTableUrl(txType, count, offset))
-    let html = tableResponse.data
-    ctrl.tableTarget.innerHTML = dompurify.sanitize(html)
+    var requestCount = count > 20 ? count : 20
+    let tableResponse = await axios.get(ctrl.makeTableUrl(txType, requestCount, offset))
+    let data = tableResponse.data
+    ctrl.tableTarget.innerHTML = dompurify.sanitize(data.html)
     var settings = ctrl.listSettings
     settings.n = count
     settings.start = offset
     settings.txntype = txType
+    ctrl.paginationParams.count = data.tx_count
     ctrl.query.replace(settings)
     ctrl.paginationParams.offset = offset
     ctrl.setPageability()
+    if (txType.indexOf('merged') === -1) {
+      this.mergedMsgTarget.classList.add('d-hide')
+    } else {
+      this.mergedMsgTarget.classList.remove('d-hide')
+    }
     ctrl.listboxTarget.classList.remove('loading')
   }
 
   setPageability () {
     var ctrl = this
     var params = ctrl.paginationParams
-    var rowMax = params[ctrl.txnType]
+    var rowMax = params.count
     var count = ctrl.pageSize
     if (rowMax > count) {
       ctrl.pagebuttonsTarget.classList.remove('d-hide')

@@ -940,7 +940,7 @@ func (c *insightApiContext) getAddressInfo(w http.ResponseWriter, r *http.Reques
 
 	// Get Confirmed Balances
 	var unconfirmedBalanceSat int64
-	_, _, totalSpent, totalUnspent, _, err := c.BlockData.ChainDB.AddressSpentUnspent(address)
+	_, _, totalSpent, totalUnspent, err := c.BlockData.ChainDB.AddressSpentUnspent(address)
 	if dbtypes.IsTimeoutErr(err) {
 		apiLog.Errorf("AddressSpentUnspent: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)

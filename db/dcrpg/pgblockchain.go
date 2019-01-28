@@ -942,9 +942,12 @@ func (pgb *ChainDB) AddressTransactions(address string, N, offset int64,
 		addrFunc = RetrieveAddressTxns
 	case dbtypes.AddrTxnDebit:
 		addrFunc = RetrieveAddressDebitTxns
-
 	case dbtypes.AddrMergedTxnDebit:
 		addrFunc = RetrieveAddressMergedDebitTxns
+	case dbtypes.AddrMergedTxnCredit:
+		addrFunc = RetrieveAddressMergedCreditTxns
+	case dbtypes.AddrMergedTxn:
+		addrFunc = RetrieveAddressMergedTxns
 	default:
 		return nil, fmt.Errorf("unknown AddrTxnType %v", txnType)
 	}
@@ -1256,18 +1259,17 @@ func (pgb *ChainDB) addressBalance(address string) (*dbtypes.AddressBalance, err
 	}
 
 	if !fresh {
-		numSpent, numUnspent, amtSpent, amtUnspent, numMergedSpent, err :=
+		numSpent, numUnspent, amtSpent, amtUnspent, err :=
 			pgb.AddressSpentUnspent(address)
 		if err != nil {
 			return nil, err
 		}
 		balanceInfo = dbtypes.AddressBalance{
-			Address:        address,
-			NumSpent:       numSpent,
-			NumUnspent:     numUnspent,
-			NumMergedSpent: numMergedSpent,
-			TotalSpent:     amtSpent,
-			TotalUnspent:   amtUnspent,
+			Address:      address,
+			NumSpent:     numSpent,
+			NumUnspent:   numUnspent,
+			TotalSpent:   amtSpent,
+			TotalUnspent: amtUnspent,
 		}
 
 		totals.balance[address] = balanceInfo
@@ -1335,18 +1337,17 @@ func (pgb *ChainDB) AddressHistory(address string, N, offset int64,
 		}
 	} else {
 		log.Debugf("Obtaining balance via DB query.")
-		numSpent, numUnspent, amtSpent, amtUnspent, numMergedSpent, err :=
+		numSpent, numUnspent, amtSpent, amtUnspent, err :=
 			pgb.AddressSpentUnspent(address)
 		if err != nil {
 			return nil, nil, err
 		}
 		balanceInfo = dbtypes.AddressBalance{
-			Address:        address,
-			NumSpent:       numSpent,
-			NumUnspent:     numUnspent,
-			NumMergedSpent: numMergedSpent,
-			TotalSpent:     amtSpent,
-			TotalUnspent:   amtUnspent,
+			Address:      address,
+			NumSpent:     numSpent,
+			NumUnspent:   numUnspent,
+			TotalSpent:   amtSpent,
+			TotalUnspent: amtUnspent,
 		}
 	}
 
@@ -1411,15 +1412,33 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 		addrData.KnownTransactions = (balance.NumSpent * 2) + balance.NumUnspent
 		addrData.KnownFundingTxns = balance.NumSpent + balance.NumUnspent
 		addrData.KnownSpendingTxns = balance.NumSpent
-		addrData.KnownMergedSpendingTxns = balance.NumMergedSpent
 
 		// Transactions to fetch with FillAddressTransactions. This should be a
 		// noop if ReduceAddressHistory is working right.
 		switch txnType {
-		case dbtypes.AddrTxnAll, dbtypes.AddrMergedTxnDebit:
+		case dbtypes.AddrTxnAll:
+			addrData.TxnCount = addrData.KnownFundingTxns + addrData.KnownSpendingTxns
+		case dbtypes.AddrMergedTxnDebit, dbtypes.AddrMergedTxnCredit, dbtypes.AddrMergedTxn:
+			addrData.IsMerged = true
+			ctx, cancel := context.WithTimeout(db.ctx, db.queryTimeout)
+			defer cancel()
+			switch txnType {
+			case dbtypes.AddrMergedTxnDebit:
+				addrData.TxnCount, err = CountMergedSpendingTxns(ctx, db.db, address)
+			case dbtypes.AddrMergedTxnCredit:
+				addrData.TxnCount, err = CountMergedFundingTxns(ctx, db.db, address)
+			case dbtypes.AddrMergedTxn:
+				addrData.TxnCount, err = CountMergedTxns(ctx, db.db, address)
+			}
+			if err != nil {
+				return nil, fmt.Errorf("AddressHistory: %v", err)
+			}
+
 		case dbtypes.AddrTxnCredit:
+			addrData.TxnCount = addrData.KnownFundingTxns
 			addrData.Transactions = addrData.TxnsFunding
 		case dbtypes.AddrTxnDebit:
+			addrData.TxnCount = addrData.KnownSpendingTxns
 			addrData.Transactions = addrData.TxnsSpending
 		default:
 			log.Warnf("Unknown address transaction type: %v", txnType)
@@ -1447,6 +1466,7 @@ func (db *ChainDBRPC) AddressData(address string, limitN, offsetAddrOuts int64,
 		return nil, fmt.Errorf("UnconfirmedTxnsForAddress failed for address %s: %v", address, err)
 	}
 	addrData.NumUnconfirmed = numUnconfirmed
+	addrData.NumTransactions += numUnconfirmed
 	if addrData.UnconfirmedTxns == nil {
 		addrData.UnconfirmedTxns = new(dbtypes.AddressTransactions)
 	}

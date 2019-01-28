@@ -1249,7 +1249,14 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	str, err := exp.templates.execTemplateToString("addresstable", struct {
+	response := struct {
+		TxnCount int64  `json:"tx_count"`
+		HTML     string `json:"html"`
+	}{
+		TxnCount: addrData.TxnCount + addrData.NumUnconfirmed,
+	}
+
+	response.HTML, err = exp.templates.execTemplateToString("addresstable", struct {
 		Data *dbtypes.AddressInfo
 	}{
 		Data: addrData,
@@ -1261,11 +1268,13 @@ func (exp *explorerUI) AddressTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("Turbolinks-Location", r.URL.RequestURI())
-	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, str)
+	jsonBytes, err := json.Marshal(response)
+	if err != nil {
+		jsonBytes = []byte("JSON error")
+	}
 
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonBytes)
 }
 
 // parseAddressParams is used by both /address and /addresstable.

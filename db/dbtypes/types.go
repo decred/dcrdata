@@ -92,16 +92,20 @@ const (
 	AddrTxnCredit
 	AddrTxnDebit
 	AddrMergedTxnDebit
+	AddrMergedTxnCredit
+	AddrMergedTxn
 	AddrTxnUnknown
 )
 
 // AddrTxnTypes is the canonical mapping from AddrTxnType to string.
 var AddrTxnTypes = map[AddrTxnType]string{
-	AddrTxnAll:         "all",
-	AddrTxnCredit:      "credit",
-	AddrTxnDebit:       "debit",
-	AddrMergedTxnDebit: "merged_debit",
-	AddrTxnUnknown:     "unknown",
+	AddrTxnAll:          "all",
+	AddrTxnCredit:       "credit",
+	AddrTxnDebit:        "debit",
+	AddrMergedTxnDebit:  "merged_debit",
+	AddrMergedTxnCredit: "merged_credit",
+	AddrMergedTxn:       "merged",
+	AddrTxnUnknown:      "unknown",
 }
 
 func (a AddrTxnType) String() string {
@@ -120,6 +124,10 @@ func AddrTxnTypeFromStr(txnType string) AddrTxnType {
 		return AddrTxnDebit
 	case "merged_debit", "merged debit":
 		return AddrMergedTxnDebit
+	case "merged_credit", "merged credit":
+		return AddrMergedTxnCredit
+	case "merged":
+		return AddrMergedTxn
 	default:
 		return AddrTxnUnknown
 	}
@@ -501,15 +509,20 @@ type AddressRow struct {
 	ValidMainChain bool
 	// MatchingTxHash provides the relationship between spending tx inputs and
 	// funding tx outputs.
-	MatchingTxHash   string
-	IsFunding        bool
-	TxBlockTime      TimeDef
-	TxHash           string
-	TxVinVoutIndex   uint32
-	Value            uint64
-	VinVoutDbID      uint64
-	MergedDebitCount uint64
-	TxType           int16
+	MatchingTxHash string
+	IsFunding      bool
+	TxBlockTime    TimeDef
+	TxHash         string
+	TxVinVoutIndex uint32
+	Value          uint64
+	VinVoutDbID    uint64
+	MergedCount    uint64
+	TxType         int16
+	// In merged view, both Atoms members might be non-zero.
+	// In that case, Value is abs(AtomsCredit - AtomsDebit) and
+	// IsFunding should true if AtomsCredit > AtomsDebit
+	AtomsCredit uint64
+	AtomsDebit  uint64
 }
 
 // AddressMetrics defines address metrics needed to make decisions by which
@@ -777,6 +790,8 @@ type AddressInfo struct {
 	Path          string
 	Limit, Offset int64  // ?n=Limit&start=Offset
 	TxnType       string // ?txntype=TxnType
+	TxnCount      int64
+	IsMerged      bool
 
 	// NumUnconfirmed is the number of unconfirmed txns for the address
 	NumUnconfirmed  int64
@@ -801,21 +816,16 @@ type AddressInfo struct {
 	KnownTransactions int64
 	KnownFundingTxns  int64
 	KnownSpendingTxns int64
-
-	// KnownMergedSpendingTxns refers to the total count of unique debit transactions
-	// that appear in the merged debit view.
-	KnownMergedSpendingTxns int64
 }
 
 // AddressBalance represents the number and value of spent and unspent outputs
 // for an address.
 type AddressBalance struct {
-	Address        string `json:"address"`
-	NumSpent       int64  `json:"num_stxos"`
-	NumUnspent     int64  `json:"num_utxos"`
-	TotalSpent     int64  `json:"amount_spent"`
-	TotalUnspent   int64  `json:"amount_unspent"`
-	NumMergedSpent int64  `json:"num_merged_spent,omitempty"`
+	Address      string `json:"address"`
+	NumSpent     int64  `json:"num_stxos"`
+	NumUnspent   int64  `json:"num_utxos"`
+	TotalSpent   int64  `json:"amount_spent"`
+	TotalUnspent int64  `json:"amount_unspent"`
 }
 
 // ReduceAddressHistory generates a template AddressInfo from a slice of
@@ -844,6 +854,8 @@ func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
 			IsFunding: addrOut.IsFunding,
 		}
 
+		tx.MergedTxnCount = addrOut.MergedCount
+
 		if addrOut.IsFunding {
 			// Funding transaction
 			received += int64(addrOut.Value)
@@ -853,8 +865,6 @@ func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
 			// Spending transaction
 			sent += int64(addrOut.Value)
 			tx.SentTotal = coin
-			tx.MergedTxnCount = addrOut.MergedDebitCount
-
 			debitTxns = append(debitTxns, &tx)
 		}
 
@@ -871,26 +881,6 @@ func ReduceAddressHistory(addrHist []*AddressRow) *AddressInfo {
 		AmountReceived:  dcrutil.Amount(received),
 		AmountSent:      dcrutil.Amount(sent),
 		AmountUnspent:   dcrutil.Amount(received - sent),
-	}
-}
-
-// TxnCount returns the number of transaction "rows" available.
-func (a *AddressInfo) TxnCount() int64 {
-	if !a.Fullmode {
-		return a.KnownTransactions
-	}
-	switch AddrTxnTypeFromStr(a.TxnType) {
-	case AddrTxnAll:
-		return a.KnownTransactions
-	case AddrTxnCredit:
-		return a.KnownFundingTxns
-	case AddrTxnDebit:
-		return a.KnownSpendingTxns
-	case AddrMergedTxnDebit:
-		return a.KnownMergedSpendingTxns
-	default:
-		// log.Warnf("Unknown address transaction type: %v", a.TxnType)
-		return 0
 	}
 }
 

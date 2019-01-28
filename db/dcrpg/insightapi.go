@@ -78,11 +78,11 @@ func (pgb *ChainDB) InsightAddressTransactions(addr []string, recentBlockHeight 
 }
 
 // AddressSpentUnspent retrieves balance information for a specific address.
-func (pgb *ChainDB) AddressSpentUnspent(address string) (int64, int64, int64, int64, int64, error) {
+func (pgb *ChainDB) AddressSpentUnspent(address string) (int64, int64, int64, int64, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	ns, nu, as, au, am, err := RetrieveAddressSpentUnspent(ctx, pgb.db, address)
-	return ns, nu, as, au, am, pgb.replaceCancelError(err)
+	ns, nu, as, au, err := RetrieveAddressSpentUnspent(ctx, pgb.db, address)
+	return ns, nu, as, au, pgb.replaceCancelError(err)
 }
 
 // AddressIDsByOutpoint fetches all address row IDs for a given outpoint
