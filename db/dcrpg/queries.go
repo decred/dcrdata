@@ -2856,7 +2856,7 @@ func RetrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, m
 	var rows *sql.Rows
 	var err error
 
-	// time.Timestamp -> TIMESTAMP
+	// int64 -> time.Time is required to query TIMESTAMP columns.
 	minT := time.Unix(minTime, 0)
 	maxT := time.Unix(maxTime, 0)
 
