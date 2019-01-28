@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AlecAivazis/survey"
+	survey "gopkg.in/AlecAivazis/survey.v1"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	client "github.com/decred/dcrdata/v4/pubsub/psclient"
 	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
