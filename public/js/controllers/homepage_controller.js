@@ -24,11 +24,12 @@ function txFlexTableRow (tx) {
 
 export default class extends Controller {
   static get targets () {
-    return ['transactions', 'numVote', 'numTicket', 'difficulty',
+    return ['transactions', 'difficulty',
       'bsubsidyTotal', 'bsubsidyPow', 'bsubsidyPos', 'bsubsidyDev',
       'coinSupply', 'blocksdiff', 'devFund', 'windowIndex', 'posBar',
       'rewardIdx', 'powBar', 'poolSize', 'poolValue', 'ticketReward',
-      'targetPct', 'poolSizePct'
+      'targetPct', 'poolSizePct', 'hashrate', 'hashrateDelta',
+      'nextExpectedSdiff', 'nextExpectedMin', 'nextExpectedMax'
     ]
   }
 
@@ -41,8 +42,6 @@ export default class extends Controller {
     ws.registerEvtHandler('mempool', (evt) => {
       var m = JSON.parse(evt)
       this.renderLatestTransactions(m.latest, false)
-      this.numTicketTarget.textContent = m.num_tickets
-      this.numVoteTarget.textContent = m.num_votes
       keyNav(evt, false, true)
       ws.send('getmempooltxs', '')
     })
@@ -79,22 +78,26 @@ export default class extends Controller {
 
   _processBlock (blockData) {
     var ex = blockData.extra
-    this.difficultyTarget.innerHTML = humanize.decimalParts(ex.difficulty, true, 8)
-    this.bsubsidyTotalTarget.innerHTML = humanize.decimalParts(ex.subsidy.total / 100000000, false, 8)
-    this.bsubsidyPowTarget.innerHTML = humanize.decimalParts(ex.subsidy.pow / 100000000, false, 8)
-    this.bsubsidyPosTarget.innerHTML = humanize.decimalParts((ex.subsidy.pos / 500000000), false, 8) // 5 votes per block (usually)
-    this.bsubsidyDevTarget.innerHTML = humanize.decimalParts(ex.subsidy.dev / 100000000, false, 8)
-    this.coinSupplyTarget.innerHTML = humanize.decimalParts(ex.coin_supply / 100000000, true, 8)
-    this.blocksdiffTarget.innerHTML = humanize.decimalParts(ex.sdiff, false, 8)
+    this.difficultyTarget.innerHTML = humanize.decimalParts(ex.difficulty / 1000000, true, 0)
+    this.bsubsidyPowTarget.innerHTML = humanize.decimalParts(ex.subsidy.pow / 100000000, false, 8, 2)
+    this.bsubsidyPosTarget.innerHTML = humanize.decimalParts((ex.subsidy.pos / 500000000), false, 8, 2) // 5 votes per block (usually)
+    this.bsubsidyDevTarget.innerHTML = humanize.decimalParts(ex.subsidy.dev / 100000000, false, 8, 2)
+    this.coinSupplyTarget.innerHTML = humanize.decimalParts(ex.coin_supply / 100000000, true, 0)
+    this.blocksdiffTarget.innerHTML = humanize.decimalParts(ex.sdiff, false, 8, 2)
+    this.nextExpectedSdiffTarget.innerHTML = humanize.decimalParts(ex.next_expected_sdiff, false, 2, 2)
+    this.nextExpectedMinTarget.innerHTML = humanize.decimalParts(ex.next_expected_min, false, 2, 2)
+    this.nextExpectedMaxTarget.innerHTML = humanize.decimalParts(ex.next_expected_max, false, 2, 2)
     this.windowIndexTarget.textContent = ex.window_idx
     this.posBarTarget.style.width = `${(ex.window_idx / ex.params.window_size) * 100}%`
+    this.poolSizeTarget.innerHTML = humanize.decimalParts(ex.pool_info.size, true, 0)
+    this.targetPctTarget.textContent = parseFloat(ex.pool_info.percent_target).toFixed(2)
     this.rewardIdxTarget.textContent = ex.reward_idx
     this.powBarTarget.style.width = `${(ex.reward_idx / ex.params.reward_window_size) * 100}%`
-    this.poolSizeTarget.textContent = ex.pool_info.size
-    this.poolValueTarget.innerHTML = humanize.decimalParts(ex.pool_info.value, true, 8)
-    this.ticketRewardTarget.textContent = parseFloat(ex.reward).toFixed(2)
-    this.targetPctTarget.textContent = parseFloat(ex.pool_info.percent_target).toFixed(2)
+    this.poolValueTarget.innerHTML = humanize.decimalParts(ex.pool_info.value, true, 0)
+    this.ticketRewardTarget.innerHTML = humanize.fmtPercentage(ex.reward)
     this.poolSizePctTarget.textContent = parseFloat(ex.pool_info.percent).toFixed(2)
-    if (this.hasDevFundTarget) this.devFundTarget.innerHTML = humanize.decimalParts(ex.dev_fund / 100000000, true, 8)
+    if (this.hasDevFundTarget) this.devFundTarget.innerHTML = humanize.decimalParts(ex.dev_fund / 100000000, true, 0)
+    this.hashrateTarget.innerHTML = humanize.decimalParts(ex.hash_rate, false, 8, 2)
+    this.hashrateDeltaTarget.innerHTML = humanize.fmtPercentage(ex.hash_rate_change)
   }
 }

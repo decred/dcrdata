@@ -6,12 +6,24 @@ $body-bg: #f3f5f6;
 // layout
 $border-radius: .125rem;
 
+// grid
+$container-max-widths: ();
+$container-max-widths: map-merge(
+  (
+    sm: 540px,
+    md: 720px,
+    lg: 1180px,
+    xl: 1260px
+  ),
+  $container-max-widths
+);
+
 // typography
 $font-family-sans-serif: "source-sans-pro-v9-latin-regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 $font-family-monospace: "inconsolata-v15-latin-regular", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !default;
 
 // progress bar 
-$progress-height: 1.5rem;
+$progress-height: 1.25rem;
 $progress-bg: #ddd;
 $progress-bar-bg: #74e06b;
 $progress-bar-color: #333;

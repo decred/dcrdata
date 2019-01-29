@@ -300,12 +300,6 @@ export default class extends Controller {
     const totalAvailableWidth = blocksSection.width
     let totalAvailableHeight = blocksSectionHeight - blocksSectionFirstChildHeight - blocksSectionLastChildHeight
 
-    // block section should be at least same height as netstats section
-    const netstatsSectionHeight = document.getElementById('netstatsSection').offsetHeight
-    if (netstatsSectionHeight > totalAvailableHeight) {
-      totalAvailableHeight = netstatsSectionHeight - blocksSectionFirstChildHeight - blocksSectionLastChildHeight
-    }
-
     const rect = blockElement.getBoundingClientRect()
     const blockWidth = rect.width
     const blockHeight = rect.height + margin // for spacing between rows

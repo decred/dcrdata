@@ -11,13 +11,13 @@ function round (value, precision) {
 var humanize = {
   fmtPercentage: function (val) {
     var sign = '+'
-    var color = 'green'
+    var cssClass = 'text-success'
     if (val < 1) {
       sign = ''
-      color = 'red'
+      cssClass = 'text-danger'
     }
     sign = sign + val.toFixed(2)
-    return '<span style="color:' + color + ';">' + sign + ' % </span>'
+    return `<span class="${cssClass}">${sign} % </span>`
   },
   decimalParts: function (v, useCommas, precision, lgDecimals) {
     if (isNaN(precision) || precision > 8) {
