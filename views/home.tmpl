@@ -30,7 +30,7 @@
                         <div class="row mt-1">
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                                 <div class="fs13 text-secondary">
-                                    <a class="no-underline" href="/charts#ticket-price">Current Ticket Price</a>
+                                    <a class="no-underline" href="/charts?chart=ticket-price">Current Ticket Price</a>
                                 </div>
                                 <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
                                     <span data-target="homepage.blocksdiff">{{template "decimalParts" (float64AsDecimalParts .StakeDiff 8 false 2)}}</span>
@@ -61,6 +61,7 @@
                                 <div class="fs12 lh1rem text-black-50">
                                     <span data-target="homepage.ticketReward">{{template "fmtPercentage" .TicketReward}}</span> per ~{{.RewardPeriod}}
                                 </div>
+                                <div class="fs12 lh1rem text-black-50" title="Annual Stake Rewards"><span class="text-success">+{{printf "%.2f" .ASR}} %</span> per year</div>
                             </div>
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                                 <div class="fs13 text-secondary">Next Ticket Price Change</div>
@@ -122,7 +123,7 @@
                         <div class="row mt-1">
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                                 <div class="fs13 text-secondary">
-                                    <a class="no-underline" href="/charts#pow-difficulty">Difficulty</a>
+                                    <a class="no-underline" href="/charts?chart=pow-difficulty">Difficulty</a>
                                 </div>
                                 <div class="mono lh1rem p03rem0 fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                     <span data-target="homepage.difficulty">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
@@ -189,7 +190,7 @@
                         <div class="row mt-1">
                             {{if .DevFund}}
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                                <div class="fs13 text-secondary"><a href="/address/{{.DevAddress}}">Treasury</a></div>
+                                <div class="fs13 text-secondary"><a href="/address/{{.DevAddress}}?n=20&start=0&txntype=merged">Treasury</a></div>
                                 <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                     <span data-target="homepage.devFund">
                                         {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .DevFund) 0 true)}}

@@ -146,3 +146,14 @@ a.grayed {
 .attention:hover {
   color: #f55;
 }
+
+// numbers
+.decimal-parts {
+  .int {
+    padding-right: 0.1em;
+  }
+
+  .dot {
+    padding-right: 0.1em;
+  }
+}

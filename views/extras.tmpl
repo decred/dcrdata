@@ -166,8 +166,8 @@
 {{end}}
 
 {{define "fmtPercentage"}}
-    {{if gt . 0.0}}<span style="color:green">+{{printf "%.2f" .}} %</span>
-    {{else}}<span style="color:red">{{printf "%.2f" .}} %</span>{{end}}
+    {{if gt . 0.0}}<span class="text-success">+{{printf "%.2f" .}} %</span>
+    {{else}}<span class="text-danger">{{printf "%.2f" .}} %</span>{{end}}
 {{end}}
 
 {{define "listViewRouting"}}
