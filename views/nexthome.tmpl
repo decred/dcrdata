@@ -11,8 +11,17 @@
         class="container"
         data-controller="time"
     >
-        <div class="blocks-section">
-            <a class="no-underline title font-weight-bold" href="/blocks">Latest Blocks</a>
+        <div
+            class="blocks-section"
+            data-controller="visualBlocks"
+            data-target="visualBlocks.root"
+        >
+            <a
+                class="no-underline title font-weight-bold"
+                href="/blocks"
+                data-target="visualBlocks.title"
+                href="/blocks"
+            >Latest Blocks</a>
             <div
                 class="blocks-holder"
                 data-target="visualBlocks.box"
