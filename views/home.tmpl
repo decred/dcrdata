@@ -38,6 +38,19 @@
                                 </div>
                             </div>
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
+                                <div class="fs13 text-secondary">Next Ticket Price</div>
+                                <div class="mono d-flex align-items-baseline lh1rem pt-1 pb-1">
+                                    <span class="fs22">~</span><span class="fs24 d-flex" data-target="homepage.nextExpectedSdiff">{{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 2 false)}}</span>
+                                    <span class="pl-1 unit lh15rem">DCR</span>
+                                </div>
+                                <div class="d-flex lh1rem fs12 text-black-50">
+                                    <span>min:&nbsp;</span>
+                                    <span class="d-flex" data-target="homepage.nextExpectedMin">{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMin 2 false)}}</span>
+                                    <span>&nbsp;&mdash;&nbsp;max:&nbsp;</span>
+                                    <span class="d-flex" data-target="homepage.nextExpectedMax">{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMax 2 false)}}</span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                                 <div class="fs13 text-secondary">Vote Reward</div>
                                 <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
                                     <span data-target="homepage.bsubsidyPos">
@@ -71,21 +84,19 @@
                                 </div>
                             </div>
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                                <div class="fs13 text-secondary">Next Ticket Price</div>
-                                <div class="mono d-flex align-items-baseline lh1rem pt-1 pb-1">
-                                    ~<span class="fs24 d-flex" data-target="homepage.nextExpectedSdiff">{{template "decimalParts" (float64AsDecimalParts .NextExpectedStakeDiff 2 false)}}</span>
-                                    <span class="pl-1 unit lh15rem">DCR</span>
+                                <div class="fs13 text-secondary">Ticket Pool Size</div>
+                                <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
+                                    <span data-target="homepage.poolSize">
+                                        {{intComma .PoolInfo.Size}}
+                                    </span>
                                 </div>
-                                <div class="d-flex lh1rem fs12 text-black-50">
-                                    <span>min:&nbsp;</span>
-                                    <span class="d-flex" data-target="homepage.nextExpectedMin">{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMin 2 false)}}</span>
-                                    <span>&nbsp;&mdash;&nbsp;max:&nbsp;</span>
-                                    <span class="d-flex" data-target="homepage.nextExpectedMax">{{template "decimalParts" (float64AsDecimalParts .NextExpectedBoundsMax 2 false)}}</span>
+                                <div class="fs12 lh1rem text-black-50">
+                                    <span data-target="homepage.targetPct">{{printf "%.2f" .PoolInfo.PercentTarget}}</span> % of target&nbsp;<span>{{intComma .PoolInfo.Target}}</span>
                                 </div>
                             </div>
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                                 <div class="fs13 text-secondary">Total Staked DCR</div>
-                                <div class=" mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
+                                <div class="mono lh1rem fs14-decimal fs24 pt-1 pb-1 d-flex align-items-baseline">
                                     <span data-target="homepage.poolValue">
                                         {{template "decimalParts" (float64AsDecimalParts .PoolInfo.Value 0 true)}}
                                     </span>
@@ -93,12 +104,6 @@
                                 </div>
                                 <div class="fs12 lh1rem text-black-50">
                                     <span data-target="homepage.poolSizePct">{{printf "%.2f" .PoolInfo.Percentage}}</span> % of total supply
-                                </div>
-                            </div>
-                            <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                                <div class="fs13 text-secondary">Tickets in Mempool</div>
-                                <div class="lh1rem pt-1 pb-1">
-                                    <span data-target="homepage.numTicket" class="mono fs24">{{$.Mempool.NumTickets}}</span>
                                 </div>
                             </div>
                         </div>
@@ -119,26 +124,26 @@
                                 <div class="fs13 text-secondary">
                                     <a class="no-underline" href="/charts#pow-difficulty">Difficulty</a>
                                 </div>
-                                <div class="data mono lh1rem p03rem0 fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
+                                <div class="mono lh1rem p03rem0 fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                     <span data-target="homepage.difficulty">{{template "decimalParts" (float64AsDecimalParts (divideFloat .Difficulty 1000000.0) 0 true)}}</span>
                                     <span class="pl-1 unit lh15rem">Mil</span>
                                 </div>
                             </div>
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                                <div class="fs13 text-secondary">PoW Reward</div>
-                                <div class="data mono lh1rem p03rem0 fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                    <span data-target="homepage.bsubsidyPow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
-                                    <span class="pl-1 unit lh15rem">DCR</span>
-                                </div>
-                            </div>
-                            <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                                 <div class="fs13 text-secondary">Hashrate</div>
-                                <div class="data mono lh1rem pt-1 pb-1 fs14-decimal fs24 d-flex align-items-baseline">
+                                <div class="mono lh1rem pt-1 pb-1 fs14-decimal fs24 d-flex align-items-baseline">
                                     <span data-target="homepage.hashrate">{{template "decimalParts" (float64AsDecimalParts .HashRate 8 true 2)}}</span>
                                     <span class="pl-1 unit lh15rem">Ph/s</span>
                                 </div>
                                 <div class="fs12 text-black-50 lh1rem text-black-50">
                                     <span data-target="homepage.hashrateDelta">{{template "fmtPercentage" .HashRateChange}}</span> in past 24h
+                                </div>
+                            </div>
+                            <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
+                                <div class="fs13 text-secondary">PoW Reward</div>
+                                <div class="mono lh1rem p03rem0 fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
+                                    <span data-target="homepage.bsubsidyPow">{{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.PoW) 8 true 2)}}</span>
+                                    <span class="pl-1 unit lh15rem">DCR</span>
                                 </div>
                             </div>
                             <div class="col-6 col-sm-5 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
@@ -185,7 +190,7 @@
                             {{if .DevFund}}
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                                 <div class="fs13 text-secondary"><a href="/address/{{.DevAddress}}">Treasury</a></div>
-                                <div class="data mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
+                                <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
                                     <span data-target="homepage.devFund">
                                         {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .DevFund) 0 true)}}
                                     </span>
@@ -193,15 +198,6 @@
                                 </div>
                             </div>
                             {{end}}
-                            <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
-                                <div class="fs13 text-secondary">Treasury Block Reward</div>
-                                <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
-                                    <span data-target="homepage.bsubsidyDev">
-                                        {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
-                                    </span>
-                                    <span class="pl-1 unit lh15rem">DCR</span>
-                                </div>
-                            </div>
                             <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
                                 <div class="fs13 text-secondary lh1rem">Total Coin Supply (of 21 mil)</div>
                                 <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
@@ -211,9 +207,17 @@
                                     <span class="pl-1 unit lh15rem">DCR</span>
                                 </div>
                             </div>
+                            <div class="col-6 col-sm-4 col-md-6 col-lg-4 mb-3 mb-sm-2 mb-md-3 mb-lg-3">
+                                <div class="fs13 text-secondary">Treasury Block Reward</div>
+                                <div class="mono lh1rem fs14-decimal fs24 p03rem0 d-flex align-items-baseline">
+                                    <span data-target="homepage.bsubsidyDev">
+                                        {{template "decimalParts" (float64AsDecimalParts (toFloat64Amount .NBlockSubsidy.Dev) 8 true 2)}}
+                                    </span>
+                                    <span class="pl-1 unit lh15rem">DCR</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
                     {{end}}
                 </div>
             </div>

@@ -24,12 +24,12 @@ function txFlexTableRow (tx) {
 
 export default class extends Controller {
   static get targets () {
-    return ['transactions', 'numTicket', 'difficulty',
+    return ['transactions', 'difficulty',
       'bsubsidyTotal', 'bsubsidyPow', 'bsubsidyPos', 'bsubsidyDev',
       'coinSupply', 'blocksdiff', 'devFund', 'windowIndex', 'posBar',
       'rewardIdx', 'powBar', 'poolSize', 'poolValue', 'ticketReward',
-      'poolSizePct', 'hashrate', 'hashrateDelta', 'nextExpectedSdiff',
-      'nextExpectedMin', 'nextExpectedMax'
+      'targetPct', 'poolSizePct', 'hashrate', 'hashrateDelta',
+      'nextExpectedSdiff', 'nextExpectedMin', 'nextExpectedMax'
     ]
   }
 
@@ -42,7 +42,6 @@ export default class extends Controller {
     ws.registerEvtHandler('mempool', (evt) => {
       var m = JSON.parse(evt)
       this.renderLatestTransactions(m.latest, false)
-      this.numTicketTarget.textContent = m.num_tickets
       keyNav(evt, false, true)
       ws.send('getmempooltxs', '')
     })
@@ -90,6 +89,8 @@ export default class extends Controller {
     this.nextExpectedMaxTarget.innerHTML = humanize.decimalParts(ex.next_expected_max, false, 2, 2)
     this.windowIndexTarget.textContent = ex.window_idx
     this.posBarTarget.style.width = `${(ex.window_idx / ex.params.window_size) * 100}%`
+    this.poolSizeTarget.innerHTML = humanize.decimalParts(ex.pool_info.size, true, 0)
+    this.targetPctTarget.textContent = parseFloat(ex.pool_info.percent_target).toFixed(2)
     this.rewardIdxTarget.textContent = ex.reward_idx
     this.powBarTarget.style.width = `${(ex.reward_idx / ex.params.reward_window_size) * 100}%`
     this.poolValueTarget.innerHTML = humanize.decimalParts(ex.pool_info.value, true, 0)
