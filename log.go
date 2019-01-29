@@ -102,6 +102,7 @@ var subsystemLoggers = map[string]slog.Logger{
 	"IAPI": iapiLog,
 	"DATD": log,
 	"PUBS": pubsubLog,
+	"XBOT": xcBotLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and

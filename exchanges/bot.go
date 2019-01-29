@@ -223,8 +223,12 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 		buildExchange(token, constructor, bot.DcrBtcExchanges)
 	}
 
-	if len(bot.DcrBtcExchanges) == 0 || len(bot.IndexExchanges) == 0 {
-		return nil, fmt.Errorf("Unable to create necessary exchanges")
+	if len(bot.DcrBtcExchanges) == 0 {
+		return nil, fmt.Errorf("No DCR-BTC exchanges were intitialized")
+	}
+
+	if len(bot.IndexExchanges) == 0 {
+		return nil, fmt.Errorf("No BTC-fiat exchanges were initialized")
 	}
 
 	return bot, nil

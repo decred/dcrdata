@@ -468,8 +468,14 @@ func _main(ctx context.Context) error {
 		botCfg.BtcIndex = cfg.ExchangeCurrency
 		xcBot, err = exchanges.NewExchangeBot(&botCfg)
 		if err != nil {
-			log.Errorf("Could not create exchange monitor. Exchange info will be disabled.")
+			log.Errorf("Could not create exchange monitor. Exchange info will be disabled: %v", err)
 		} else {
+			var xcList, prepend string
+			for k := range xcBot.Exchanges {
+				xcList += prepend + k
+				prepend = ", "
+			}
+			log.Infof("ExchangeBot monitoring %s", xcList)
 			wg.Add(1)
 			go xcBot.Start(ctx, &wg)
 		}
