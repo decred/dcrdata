@@ -6,6 +6,7 @@ package mempool
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -23,7 +24,7 @@ import (
 
 // MempoolDataSaver is an interface for storing mempool data.
 type MempoolDataSaver interface {
-	StoreMPData(*StakeData, []exptypes.MempoolTx)
+	StoreMPData(*StakeData, []exptypes.MempoolTx, *exptypes.MempoolInfo)
 }
 
 // MempoolMonitor processes new transactions as they are added to mempool, and
@@ -47,10 +48,10 @@ type MempoolMonitor struct {
 	dataSavers []MempoolDataSaver
 
 	// Incoming data
-	newTxIn chan *dcrjson.TxRawResult
+	newTxIn <-chan *dcrjson.TxRawResult
 	// Outgoing signal and data
-	signalOuts []chan pstypes.HubSignal
-	newTxOuts  []chan *exptypes.MempoolTx
+	signalOuts []chan<- pstypes.HubSignal
+	newTxOuts  []chan<- *exptypes.MempoolTx
 
 	wg *sync.WaitGroup
 }
@@ -62,26 +63,12 @@ type MempoolMonitor struct {
 // via the newTxOutChan following an appropriate signal on hubRelay.
 func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 	savers []MempoolDataSaver, params *chaincfg.Params, wg *sync.WaitGroup,
-	newTxInChan chan *dcrjson.TxRawResult,
-	signalOuts []chan pstypes.HubSignal, newTxOutChans []chan *exptypes.MempoolTx) *MempoolMonitor {
-	// Collect initial mempool data.
-	stakeData, txs, err := collector.Collect()
-	if err != nil {
-		log.Errorf("mempool data collection failed: %v", err.Error())
-		return nil
-	}
+	newTxInChan <-chan *dcrjson.TxRawResult,
+	signalOuts []chan<- pstypes.HubSignal, newTxOutChans []chan<- *exptypes.MempoolTx) *MempoolMonitor {
 
-	inventory := ParseTxns(txs, params, &stakeData.LatestBlock)
-
+	// Make the skeleton MempoolMonitor.
 	p := &MempoolMonitor{
-		ctx: ctx,
-		mpoolInfo: MempoolInfo{
-			CurrentHeight:               uint32(stakeData.LatestBlock.Height),
-			NumTicketPurchasesInMempool: stakeData.Ticketfees.FeeInfoMempool.Number,
-			LastCollectTime:             stakeData.Time,
-		},
-		inventory:  inventory,
-		lastBlock:  stakeData.LatestBlock,
+		ctx:        ctx,
 		params:     params,
 		collector:  collector,
 		dataSavers: savers,
@@ -89,6 +76,12 @@ func NewMempoolMonitor(ctx context.Context, collector *MempoolDataCollector,
 		signalOuts: signalOuts,
 		newTxOuts:  newTxOutChans,
 		wg:         wg,
+	}
+
+	// Gather data and fill in MempoolMonitor's internal data fields.
+	_, _, _, err := p.Refresh()
+	if err != nil {
+		return nil
 	}
 
 	return p
@@ -156,17 +149,19 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			txType := txhelpers.DetermineTxTypeString(msgTx)
 
 			// Maintain the list of unique stake and regular txns encountered.
-			p.inventory.RLock()
+			p.RLock()          // do not allow p.inventory to be reset
+			p.inventory.Lock() // do not allow *p.inventory to be accessed
 			var txExists bool
 			if txType == "Regular" {
 				_, txExists = p.inventory.InvRegular[hash]
 			} else {
 				_, txExists = p.inventory.InvStake[hash]
 			}
-			p.inventory.RUnlock()
 
 			if txExists {
 				log.Tracef("Not broadcasting duplicate %s notification: %s", txType, hash)
+				p.inventory.Unlock()
+				p.RUnlock()
 				continue // back to waiting for new tx signal
 			}
 
@@ -209,14 +204,18 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				VoteInfo:  voteInfo,
 			}
 
+			// Maintain a separate total that excludes votes for sidechain
+			// blocks and multiple votes that spend the same ticket.
+			likelyMineable := true
+
 			// Add the tx to the appropriate tx slice in inventory and update
 			// the count for the transaction type.
-			p.inventory.Lock()
 			switch tx.Type {
 			case "Ticket":
 				p.inventory.InvStake[tx.Hash] = struct{}{}
 				p.inventory.Tickets = append([]exptypes.MempoolTx{tx}, p.inventory.Tickets...)
 				p.inventory.NumTickets++
+				p.inventory.TicketTotal += tx.TotalOut
 			case "Vote":
 				// Votes on the next block may be received just prior to dcrdata
 				// actually processing the new block. Do not broadcast these
@@ -224,6 +223,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				// vote will be included in that update.
 				if tx.VoteInfo.Validation.Height > p.LastBlockHeight() {
 					p.inventory.Unlock()
+					p.RUnlock()
 					log.Trace("Got a vote for a future block. Waiting to pull it "+
 						"out of mempool with new block signal. Vote: ", tx.Hash)
 					continue
@@ -240,16 +240,21 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				votingInfo := &p.inventory.VotingInfo
 				if tx.VoteInfo.ForLastBlock && !votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] {
 					votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] = true
-					votingInfo.TicketsVoted++
+					p.inventory.VoteTotal += tx.TotalOut
+					p.inventory.VotingInfo.Tally(tx.VoteInfo)
+				} else {
+					likelyMineable = false
 				}
 			case "Regular":
 				p.inventory.InvRegular[tx.Hash] = struct{}{}
 				p.inventory.Transactions = append([]exptypes.MempoolTx{tx}, p.inventory.Transactions...)
 				p.inventory.NumRegular++
+				p.inventory.RegularTotal += tx.TotalOut
 			case "Revocation":
 				p.inventory.InvStake[tx.Hash] = struct{}{}
 				p.inventory.Revocations = append([]exptypes.MempoolTx{tx}, p.inventory.Revocations...)
 				p.inventory.NumRevokes++
+				p.inventory.RevokeTotal += tx.TotalOut
 			}
 
 			// Update latest transactions, popping the oldest transaction off
@@ -267,8 +272,12 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			p.inventory.NumAll++
 			p.inventory.TotalOut += tx.TotalOut
 			p.inventory.TotalSize += tx.Size
+			if likelyMineable {
+				p.inventory.LikelyTotal += tx.TotalOut
+			}
 			p.inventory.FormattedTotalSize = humanize.Bytes(uint64(p.inventory.TotalSize))
 			p.inventory.Unlock()
+			p.RUnlock()
 
 			// Broadcast the new transaction.
 			log.Tracef("Signaling mempool event to hub relays...")
@@ -304,18 +313,20 @@ func (p *MempoolMonitor) sendTx(tx *exptypes.MempoolTx, timeout time.Duration) {
 	}
 }
 
-// CollectAndStore collects mempool data, resets counters ticket counters and
-// the timer, and dispatches the storers.
-func (p *MempoolMonitor) CollectAndStore() error {
+// Refresh collects mempool data, resets counters ticket counters and the timer,
+// but does not dispatch the MempoolDataSavers.
+func (p *MempoolMonitor) Refresh() (*StakeData, []exptypes.MempoolTx, *exptypes.MempoolInfo, error) {
 	// Collect mempool data (currently ticket fees)
 	log.Trace("Gathering new mempool data.")
 	stakeData, txs, err := p.collector.Collect()
 	if err != nil {
 		log.Errorf("mempool data collection failed: %v", err.Error())
 		// stakeData is nil when err != nil
-		return err
+		return nil, nil, nil, err
 	}
 
+	// Pre-sort the txs so other consumers will not have to do it.
+	sort.Sort(exptypes.MPTxsByTime(txs))
 	inventory := ParseTxns(txs, p.params, &stakeData.LatestBlock)
 
 	// Reset the counter for tickets since last report.
@@ -324,6 +335,7 @@ func (p *MempoolMonitor) CollectAndStore() error {
 	p.mpoolInfo.NumTicketsSinceStatsReport = 0
 
 	// Reset the timer and ticket counter.
+	p.mpoolInfo.CurrentHeight = uint32(stakeData.LatestBlock.Height)
 	p.mpoolInfo.LastCollectTime = stakeData.Time
 	p.mpoolInfo.NumTicketPurchasesInMempool = stakeData.Ticketfees.FeeInfoMempool.Number
 
@@ -335,12 +347,28 @@ func (p *MempoolMonitor) CollectAndStore() error {
 	// Insert new ticket counter into stakeData structure.
 	stakeData.NewTickets = uint32(newTickets)
 
+	return stakeData, txs, inventory, err
+}
+
+// CollectAndStore collects mempool data, resets counters ticket counters and
+// the timer, and dispatches the storers.
+func (p *MempoolMonitor) CollectAndStore() error {
+	log.Trace("Gathering new mempool data.")
+	stakeData, txs, inv, err := p.Refresh()
+	if err != nil {
+		log.Errorf("mempool data collection failed: %v", err.Error())
+		// stakeData is nil when err != nil
+		return err
+	}
+
 	// Store mempool stakeData with each registered saver.
 	for _, s := range p.dataSavers {
 		if s != nil {
 			log.Trace("Saving MP data.")
 			// Save data to wherever the saver wants to put it.
-			go s.StoreMPData(stakeData, txs)
+			// Deep copy the txs slice so each saver can modify it.
+			txsCopy := exptypes.CopyMempoolTxSlice(txs)
+			go s.StoreMPData(stakeData, txsCopy, inv)
 		}
 	}
 

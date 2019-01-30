@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrdata/v4/explorer/types"
+	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 )
 
 const (
@@ -24,12 +25,17 @@ const (
 	bufferTickerInterval = 5
 	newTxBufferSize      = 5
 	clientSignalSize     = 5
+)
 
-	sigNewBlock hubSignal = iota
-	sigMempoolUpdate
-	sigPingAndUserCount
-	sigNewTx
-	sigSyncStatus
+// Type aliases for the different HubSignals.
+var (
+	sigSubscribe        = pstypes.SigSubscribe
+	sigUnsubscribe      = pstypes.SigUnsubscribe
+	sigNewBlock         = pstypes.SigNewBlock
+	sigMempoolUpdate    = pstypes.SigMempoolUpdate
+	sigPingAndUserCount = pstypes.SigPingAndUserCount
+	sigNewTx            = pstypes.SigNewTx
+	sigSyncStatus       = pstypes.SigSyncStatus
 )
 
 // WebSocketMessage represents the JSON object used to send and received typed
@@ -37,15 +43,6 @@ const (
 type WebSocketMessage struct {
 	EventId string `json:"event"`
 	Message string `json:"message"`
-}
-
-// Event type field for an SSE event
-var eventIDs = map[hubSignal]string{
-	sigNewBlock:         "newblock",
-	sigMempoolUpdate:    "mempool",
-	sigPingAndUserCount: "ping",
-	sigNewTx:            "newtx",
-	sigSyncStatus:       "blockchainSync",
 }
 
 // WebsocketHub and its event loop manage all websocket client connections.
@@ -81,7 +78,7 @@ type client struct {
 	newTxs []*types.MempoolTx
 }
 
-type hubSignal int
+type hubSignal = pstypes.HubSignal
 type hubSpoke chan hubSignal
 
 // NewWebsocketHub creates a new WebsocketHub

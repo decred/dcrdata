@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -15,7 +15,6 @@ import (
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/api/insight"
-	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/rpcutils"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	"github.com/decred/dcrwallet/wallet/udb"
@@ -148,13 +147,6 @@ func (q *collectionQueue) processBlock(bh *blockHashHeight) {
 	// Signal to mempool monitors that a block was mined.
 	select {
 	case NtfnChans.NewTxChan <- nil:
-	default:
-	}
-
-	select {
-	case NtfnChans.ExpNewTxChan <- &exptypes.NewMempoolTx{
-		Hex: "",
-	}:
 	default:
 	}
 
@@ -368,15 +360,6 @@ func MakeNodeNtfnHandlers() (*rpcclient.NotificationHandlers, *collectionQueue) 
 		OnTxAcceptedVerbose: func(txDetails *dcrjson.TxRawResult) {
 			// Current UNIX time to assign the new transaction.
 			now := time.Now().Unix()
-
-			select {
-			case NtfnChans.ExpNewTxChan <- &exptypes.NewMempoolTx{
-				Time: now,
-				Hex:  txDetails.Hex,
-			}:
-			default:
-				log.Warn("expNewTxChan buffer full!")
-			}
 
 			select {
 			case NtfnChans.InsightNewTxChan <- &insight.NewTx{

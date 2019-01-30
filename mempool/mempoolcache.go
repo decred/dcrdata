@@ -37,8 +37,10 @@ type MempoolDataCache struct {
 	stakeDiff               float64
 }
 
-// StoreMPData stores info from data in the mempool cache
-func (c *MempoolDataCache) StoreMPData(stakeData *StakeData, txs []exptypes.MempoolTx) {
+// StoreMPData stores info from data in the mempool cache. It is advisable to
+// pass a copy of the []types.MempoolTx so that it may be modified (e.g. sorted)
+// without affecting other MempoolDataSavers.
+func (c *MempoolDataCache) StoreMPData(stakeData *StakeData, txsCopy []exptypes.MempoolTx, _ *exptypes.MempoolInfo) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -46,7 +48,7 @@ func (c *MempoolDataCache) StoreMPData(stakeData *StakeData, txs []exptypes.Memp
 	c.hash = stakeData.LatestBlock.Hash.String()
 	c.timestamp = stakeData.Time
 
-	c.txns = txs
+	c.txns = txsCopy
 
 	c.numTickets = stakeData.NumTickets
 	c.ticketFeeInfo = stakeData.Ticketfees.FeeInfoMempool

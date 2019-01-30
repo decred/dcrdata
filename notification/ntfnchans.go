@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, Jonathan Chappelow
 // See LICENSE for details.
 
@@ -10,7 +10,6 @@ import (
 	"github.com/decred/dcrd/dcrutil"
 
 	"github.com/decred/dcrdata/v4/api/insight"
-	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
 )
 
@@ -45,7 +44,6 @@ var NtfnChans struct {
 	SpendTxBlockChan, RecvTxBlockChan chan *txhelpers.BlockWatchedTx
 	RelevantTxMempoolChan             chan *dcrutil.Tx
 	NewTxChan                         chan *dcrjson.TxRawResult
-	ExpNewTxChan                      chan *exptypes.NewMempoolTx
 	InsightNewTxChan                  chan *insight.NewTx
 }
 
@@ -86,9 +84,6 @@ func MakeNtfnChans(postgresEnabled bool) {
 
 	// New mempool tx chan for general purpose mempool monitor/collector/saver.
 	NtfnChans.NewTxChan = make(chan *dcrjson.TxRawResult, newTxChanBuffer)
-
-	// New mempool tx chan for explorer
-	NtfnChans.ExpNewTxChan = make(chan *exptypes.NewMempoolTx, expNewTxChanBuffer)
 
 	if postgresEnabled {
 		NtfnChans.InsightNewTxChan = make(chan *insight.NewTx, expNewTxChanBuffer)
@@ -142,10 +137,6 @@ func CloseNtfnChans() {
 	}
 	if NtfnChans.RecvTxBlockChan != nil {
 		close(NtfnChans.RecvTxBlockChan)
-	}
-
-	if NtfnChans.ExpNewTxChan != nil {
-		close(NtfnChans.ExpNewTxChan)
 	}
 
 	if NtfnChans.InsightNewTxChan != nil {

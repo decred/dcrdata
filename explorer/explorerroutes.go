@@ -130,11 +130,14 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		bestBlock = blocks[0]
 	}
 
-	// Lock for both MempoolData and pageData.HomeInfo
-	exp.MempoolData.RLock()
+	// Safely retrieve the current inventory pointer.
+	inv := exp.MempoolInventory()
+
+	// Lock the shared inventory struct from change (e.g. in MempoolMonitor).
+	inv.RLock()
 	exp.pageData.RLock()
 
-	tallys, consensus := exp.MempoolData.VotingInfo.BlockStatus(bestBlock.Hash)
+	tallys, consensus := inv.VotingInfo.BlockStatus(bestBlock.Hash)
 
 	str, err := exp.templates.execTemplateToString("home", struct {
 		*CommonPageData
@@ -148,7 +151,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	}{
 		CommonPageData: exp.commonData(),
 		Info:           exp.pageData.HomeInfo,
-		Mempool:        exp.MempoolData,
+		Mempool:        inv,
 		BestBlock:      bestBlock,
 		BlockTally:     tallys,
 		Consensus:      consensus,
@@ -156,7 +159,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		NetName:        exp.NetName,
 	})
 
-	exp.MempoolData.RUnlock()
+	inv.RUnlock()
 	exp.pageData.RUnlock()
 
 	if err != nil {
@@ -267,8 +270,10 @@ func (exp *explorerUI) NextHome(w http.ResponseWriter, r *http.Request) {
 		trimmedBlocks = append(trimmedBlocks, trimmedBlock)
 	}
 
-	// construct mempool object with properties required in template
-	mempoolInfo := exp.MempoolData.Trim()
+	// Construct the required TrimmedMempoolInfo from the shared inventory.
+	inv := exp.MempoolInventory()
+	mempoolInfo := inv.Trim() // Trim internally locks the MempoolInfo.
+
 	// mempool fees appear incorrect, temporarily set to zero for now
 	mempoolInfo.Fees = 0
 
@@ -624,17 +629,22 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 
 // Mempool is the page handler for the "/mempool" path.
 func (exp *explorerUI) Mempool(w http.ResponseWriter, r *http.Request) {
-	exp.MempoolData.RLock()
+	// Safely retrieve the inventory pointer, which can be reset in StoreMPData.
+	inv := exp.MempoolInventory()
+
+	// Prevent modifications to the shared inventory struct (e.g. in the
+	// MempoolMonitor) while marshaling the inventory.
+	inv.RLock()
 	str, err := exp.templates.execTemplateToString("mempool", struct {
 		*CommonPageData
 		Mempool *types.MempoolInfo
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
-		Mempool:        exp.MempoolData,
+		Mempool:        inv,
 		NetName:        exp.NetName,
 	})
-	exp.MempoolData.RUnlock()
+	inv.RUnlock()
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
@@ -1755,7 +1765,16 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 	blockSubsidy := exp.blockData.BlockSubsidy(bestBlockHeight,
 		exp.ChainParams.TicketsPerBlock)
 
-	exp.MempoolData.RLock()
+	// Safely retrieve the inventory pointer, which can be reset in StoreMPData.
+	inv := exp.MempoolInventory()
+
+	// Prevent modifications to the shared inventory struct (e.g. in the
+	// MempoolMonitor) while we retrieve the number of votes and tickets.
+	inv.RLock()
+	numVotes := inv.NumVotes
+	numTickets := inv.NumTickets
+	inv.RUnlock()
+
 	exp.pageData.RLock()
 	stats := types.StatsInfo{
 		TotalSupply:    exp.pageData.HomeInfo.CoinSupply,
@@ -1770,8 +1789,8 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 		PoWReward:                exp.pageData.HomeInfo.NBlockSubsidy.PoW,
 		PoSReward:                exp.pageData.HomeInfo.NBlockSubsidy.PoS,
 		ProjectFundReward:        exp.pageData.HomeInfo.NBlockSubsidy.Dev,
-		VotesInMempool:           exp.MempoolData.NumVotes,
-		TicketsInMempool:         exp.MempoolData.NumTickets,
+		VotesInMempool:           numVotes,
+		TicketsInMempool:         numTickets,
 		TicketPrice:              exp.pageData.HomeInfo.StakeDiff,
 		NextEstimatedTicketPrice: exp.pageData.HomeInfo.NextExpectedStakeDiff,
 		TicketPoolSize:           exp.pageData.HomeInfo.PoolInfo.Size,
@@ -1791,7 +1810,6 @@ func (exp *explorerUI) StatsPage(w http.ResponseWriter, r *http.Request) {
 		HashRate: powDiff * math.Pow(2, 32) /
 			exp.ChainParams.TargetTimePerBlock.Seconds() / math.Pow(10, 15),
 	}
-	exp.MempoolData.RUnlock()
 	exp.pageData.RUnlock()
 
 	str, err := exp.templates.execTemplateToString("statistics", struct {

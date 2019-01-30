@@ -74,7 +74,7 @@ type State struct {
 // Mempool represents a snapshot of the mempool.
 type Mempool struct {
 	sync.RWMutex
-	Info      *exptypes.MempoolInfo
+	Inv       *exptypes.MempoolInfo
 	StakeData *mempool.StakeData
 	Txns      []exptypes.MempoolTx
 }
@@ -110,7 +110,7 @@ func NewPubSubHub(dataSource wsDataSource, auxDataSource wsDataSourceAux) *PubSu
 	psh.sourceAux = auxDataSource
 
 	// Allocate Mempool fields.
-	psh.mempool.Info = new(exptypes.MempoolInfo)
+	psh.mempool.Inv = new(exptypes.MempoolInfo)
 	psh.mempool.StakeData = new(mempool.StakeData)
 
 	// wsDataSource is an interface that could have a value of pointer type, and
@@ -178,6 +178,13 @@ func (psh *PubSubHub) HubRelays() (HubRelay chan pstypes.HubSignal, NewTxChan ch
 	HubRelay = psh.wsHub.HubRelay
 	NewTxChan = psh.wsHub.NewTxChan
 	return
+}
+
+// MempoolInventory safely retrieves the current mempool inventory.
+func (psh *PubSubHub) MempoolInventory() *types.MempoolInfo {
+	psh.mempool.RLock()
+	defer psh.mempool.RUnlock()
+	return psh.mempool.Inv
 }
 
 // closeWS attempts to close a websocket.Conn, logging errors other than those
@@ -291,9 +298,8 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 
 		case "getmempooltxs": // TODO: maybe disable this case
 			// construct mempool object with properties required in template
-			psh.mempool.RLock()
-			mempoolInfo := psh.mempool.Info.Trim()
-			psh.mempool.RUnlock()
+			inv := psh.MempoolInventory()
+			mempoolInfo := inv.Trim() // Trim locks the inventory.
 			// mempool fees appear incorrect, temporarily set to zero for now
 			mempoolInfo.Fees = 0
 
@@ -409,13 +415,13 @@ loop:
 				// You probably want the sigNewTX event. sigMempoolUpdate sends
 				// a summary of mempool contents, and the NumLatestMempoolTxns
 				// latest transactions.
-				psh.mempool.RLock()
-				if psh.mempool.Info == nil {
-					psh.mempool.RUnlock()
+				inv := psh.MempoolInventory()
+				if inv == nil {
 					break // from switch to send empty message
 				}
-				err := enc.Encode(psh.mempool.Info.MempoolShort)
-				psh.mempool.RUnlock()
+				inv.RLock()
+				err := enc.Encode(inv.MempoolShort)
+				inv.RUnlock()
 				if err != nil {
 					log.Warnf("Encode(MempoolShort) failed: %v", err)
 				}
@@ -523,18 +529,20 @@ func (psh *PubSubHub) WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	wsServer.ServeHTTP(w, r)
 }
 
-// StoreMPData stores mempool data.
-func (psh *PubSubHub) StoreMPData(stakeData *mempool.StakeData, txs []exptypes.MempoolTx) {
+// StoreMPData stores mempool data. It is advisable to pass a copy of the
+// []types.MempoolTx so that it may be modified (e.g. sorted) without affecting
+// other MempoolDataSavers. The struct pointed to may be shared, so it should
+// not be modified.
+func (psh *PubSubHub) StoreMPData(stakeData *mempool.StakeData, txs []exptypes.MempoolTx, inv *exptypes.MempoolInfo) {
 	// Parse the MempoolTx slice to generate a exptypes.MempoolInfo.
-	mpInfo := mempool.ParseTxns(txs, psh.params, &stakeData.LatestBlock)
+	//mpInfo := mempool.ParseTxns(txs, psh.params, &stakeData.LatestBlock)
 
 	// Get exclusive access to the Mempool field.
-	m := &psh.mempool
-	m.Lock()
-	m.Info = mpInfo
-	m.StakeData = stakeData
-	m.Txns = txs
-	m.Unlock()
+	psh.mempool.Lock()
+	psh.mempool.Inv = inv
+	psh.mempool.StakeData = stakeData
+	psh.mempool.Txns = txs
+	psh.mempool.Unlock()
 
 	// Signal to the websocket hub that a new tx was received, but do not block
 	// StoreMPData(), and do not hang forever in a goroutine waiting to send.
