@@ -21,9 +21,9 @@ import (
 
 // Types of vote
 const (
-	VoteReject = iota
-	VoteAffirm
-	VoteMissing
+	VoteReject  = -1
+	VoteAffirm  = 1
+	VoteMissing = 0
 )
 
 // TimeDef is time.Time wrapper that formats time by default as a string without
@@ -554,6 +554,15 @@ type VotingInfo struct {
 	VoteTallys map[string]*VoteTally `json:"vote_tally"`
 }
 
+// NewVotingInfo initializes a VotingInfo.
+func NewVotingInfo(votesPerBlock uint16) VotingInfo {
+	return VotingInfo{
+		MaxVotesPerBlock: votesPerBlock,
+		VotedTickets:     make(map[string]bool),
+		VoteTallys:       make(map[string]*VoteTally),
+	}
+}
+
 // Tally adds the VoteInfo to the VotingInfo.VoteTally
 func (vi *VotingInfo) Tally(vinfo *VoteInfo) {
 	_, ok := vi.VoteTallys[vinfo.Validation.Hash]
@@ -561,24 +570,26 @@ func (vi *VotingInfo) Tally(vinfo *VoteInfo) {
 		vi.VoteTallys[vinfo.Validation.Hash].Mark(vinfo.Validation.Validity)
 		return
 	}
+	marks := make([]bool, 1, vi.MaxVotesPerBlock)
+	marks[0] = vinfo.Validation.Validity
 	vi.VoteTallys[vinfo.Validation.Hash] = &VoteTally{
 		TicketsPerBlock: int(vi.MaxVotesPerBlock),
-		Marks:           []bool{vinfo.Validation.Validity},
+		Marks:           marks,
 	}
 }
 
 // Tallys fetches the mempool VoteTally.VoteList if found, else a list of
 // VoteMissing.
-func (vi *VotingInfo) Tallys(hash string) []int {
+func (vi *VotingInfo) BlockStatus(hash string) ([]int, int) {
 	tally, ok := vi.VoteTallys[hash]
 	if ok {
-		return tally.VoteList()
+		return tally.Status()
 	}
 	marks := make([]int, int(vi.MaxVotesPerBlock))
 	for i := range marks {
 		marks[i] = VoteMissing
 	}
-	return marks
+	return marks, VoteMissing
 }
 
 // VoteTally manages a list of bools representing the votes for a block.
@@ -592,22 +603,31 @@ func (tally *VoteTally) Mark(vote bool) {
 	tally.Marks = append(tally.Marks, vote)
 }
 
-// VoteList is a list of ints representing votes both received and not yet
-// received for a block.
+// Status is a list of ints representing votes both received and not yet
+// received for a block, and a single int representing consensus.
 // 0: rejected, 1: affirmed, 2: vote not yet received
-func (tally *VoteTally) VoteList() []int {
+func (tally *VoteTally) Status() ([]int, int) {
 	votes := []int{}
+	var up, down, consensus int
 	for _, affirmed := range tally.Marks {
 		if affirmed {
+			up++
 			votes = append(votes, VoteAffirm)
 		} else {
+			down++
 			votes = append(votes, VoteReject)
 		}
 	}
 	for i := len(votes); i < tally.TicketsPerBlock; i++ {
 		votes = append(votes, VoteMissing)
 	}
-	return votes
+	threshold := tally.TicketsPerBlock / 2
+	if up > threshold {
+		consensus = VoteAffirm
+	} else if down > threshold {
+		consensus = VoteReject
+	}
+	return votes, consensus
 }
 
 // Affirmations counts the number of selected ticket holders who have voted
@@ -622,7 +642,7 @@ func (tally *VoteTally) Affirmations() (c int) {
 }
 
 // VoteCount is the number of votes received.
-func (tally *VoteTally) VoteCount() (c int) {
+func (tally *VoteTally) VoteCount() int {
 	return len(tally.Marks)
 }
 

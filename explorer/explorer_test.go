@@ -1,11 +1,12 @@
 package explorer
 
 import (
-	// Imports for TestFormatNumber
+	// Imports for TestThreeSigFigs
 	// "fmt"
 	// "math"
 	// "math/rand"
 	// "time"
+
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg"

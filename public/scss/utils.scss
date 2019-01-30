@@ -196,3 +196,11 @@
   transform: translateX(-50%);
   left: 50%;
 }
+
+body.darkBG [data-tooltip]:hover::before {
+  background-color: #666;
+}
+
+body.darkBG [data-tooltip]:hover::after {
+  border-top-color: #666;
+}

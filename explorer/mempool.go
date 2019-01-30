@@ -112,7 +112,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *types.NewMempoolTx) {
 
 		// Maintain a separate total that excludes votes for sidechain blocks and
 		// multiple votes that spend the same ticket.
-		likely := true
+		likelyMineable := true
 
 		// Add the tx to the appropriate tx slice in MempoolData and update the
 		// count for the transaction type.
@@ -149,7 +149,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *types.NewMempoolTx) {
 				exp.MempoolData.VoteTotal += tx.TotalOut
 				exp.MempoolData.VotingInfo.Tally(tx.VoteInfo)
 			} else {
-				likely = false
+				likelyMineable = false
 			}
 		case "Regular":
 			exp.MempoolData.InvRegular[tx.Hash] = struct{}{}
@@ -176,7 +176,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *types.NewMempoolTx) {
 
 		// Store totals
 		exp.MempoolData.NumAll++
-		if likely {
+		if likelyMineable {
 			exp.MempoolData.LikelyTotal += tx.TotalOut
 		}
 		exp.MempoolData.TotalOut += tx.TotalOut

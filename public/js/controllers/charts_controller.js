@@ -190,7 +190,7 @@ export default class extends Controller {
     this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'roll'])
     this.query.update(this.settings)
     if (this.settings.zoom) {
-      this.setSelectedZoom(null)
+      this.setSelectedZoom(this.settings.zoom)
     }
     if (this.settings.roll) {
       this.setRollPeriod(this.settings.roll)

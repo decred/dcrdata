@@ -1181,7 +1181,7 @@ func (db *WiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 	return txarray
 }
 
-func sumTxRawResult(txs []dcrjson.TxRawResult) (sum float64) {
+func sumOutsTxRawResult(txs []dcrjson.TxRawResult) (sum float64) {
 	for _, tx := range txs {
 		for _, vout := range tx.Vout {
 			sum += vout.Value
@@ -1193,8 +1193,7 @@ func sumTxRawResult(txs []dcrjson.TxRawResult) (sum float64) {
 func makeExplorerBlockBasic(data *dcrjson.GetBlockVerboseResult, params *chaincfg.Params) *exptypes.BlockBasic {
 	index := dbtypes.CalculateWindowIndex(data.Height, params.StakeDiffWindowSize)
 
-	total := sumTxRawResult(data.RawTx)
-	total += sumTxRawResult(data.RawSTx)
+	total := sumOutsTxRawResult(data.RawTx) + sumOutsTxRawResult(data.RawSTx)
 
 	block := &exptypes.BlockBasic{
 		IndexVal:       index,
@@ -1288,6 +1287,8 @@ func makeExplorerAddressTx(data *dcrjson.SearchRawTransactionsResult, address st
 	return tx
 }
 
+// GetExplorerBlocks creates an slice of exptypes.BlockBasic beginning at start
+// and decreasing in block height to end, not including end.
 func (db *WiredDB) GetExplorerBlocks(start int, end int) []*exptypes.BlockBasic {
 	if start < end {
 		return nil

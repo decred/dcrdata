@@ -117,7 +117,7 @@ export default class Mempool {
     }
   }
 
-  votes (hash) {
+  blockVoteTally (hash) {
     return this.mempool.reduce((votes, tx) => {
       if (tx.type !== 'Vote') return votes
       let validation = tx.voteInfo.block_validation
@@ -140,7 +140,7 @@ export default class Mempool {
       if (tx.type === 'Vote') {
         let validation = tx.voteInfo.block_validation
         if (!d.vote[validation.hash]) {
-          d.vote[validation.hash] = this.votes(validation.hash)
+          d.vote[validation.hash] = this.blockVoteTally(validation.hash)
         }
       } else {
         d[mpKeys[tx.type]] += 1

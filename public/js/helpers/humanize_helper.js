@@ -20,7 +20,7 @@ function hashParts (hash) {
 var humanize = {
   fmtPercentage: function (val) {
     var sign = '+'
-    var cssClass = 'text-success'
+    var cssClass = 'text-green'
     if (val < 1) {
       sign = ''
       cssClass = 'text-danger'

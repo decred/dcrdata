@@ -55,16 +55,12 @@ export default class extends Controller {
       'bsubsidyTotal', 'bsubsidyPow', 'bsubsidyPos', 'bsubsidyDev',
       'coinSupply', 'blocksdiff', 'devFund', 'windowIndex', 'posBar',
       'rewardIdx', 'powBar', 'poolSize', 'poolValue', 'ticketReward',
-<<<<<<< df338e482277d26437e4ac6fcc5c82911678ec8a
       'targetPct', 'poolSizePct', 'hashrate', 'hashrateDelta',
-      'nextExpectedSdiff', 'nextExpectedMin', 'nextExpectedMax'
-=======
-      'targetPct', 'poolSizePct', 'mempool', 'mpRegTotal', 'mpRegCount',
-      'mpTicketTotal', 'mpTicketCount', 'mpVoteTotal', 'mpVoteCount',
+      'nextExpectedSdiff', 'nextExpectedMin', 'nextExpectedMax', 'mempool',
+      'mpRegTotal', 'mpRegCount', 'mpTicketTotal', 'mpTicketCount', 'mpVoteTotal', 'mpVoteCount',
       'mpRevTotal', 'mpRevCount', 'mpRegBar', 'mpVoteBar', 'mpTicketBar',
       'mpRevBar', 'voteTally', 'blockVotes', 'blockHeight', 'blockSize',
-      'blockTotal'
->>>>>>> add live data summaries to the homepage
+      'blockTotal', 'consensusMsg'
     ]
   }
 
@@ -137,16 +133,30 @@ export default class extends Controller {
 
   setVotes () {
     var hash = this.blockVotesTarget.dataset.hash
-    var votes = this.mempool.votes(hash)
-    this.blockVotesTarget.querySelectorAll('span').forEach((span, i) => {
+    var votes = this.mempool.blockVoteTally(hash)
+    this.blockVotesTarget.querySelectorAll('div').forEach((div, i) => {
+      let span = div.firstChild
       if (i < votes.affirm) {
         span.className = 'd-inline-block dcricon-affirm'
+        div.dataset.tooltip = 'the stakeholder has voted to accept this block'
       } else if (i < votes.affirm + votes.reject) {
         span.className = 'd-inline-block dcricon-reject'
+        div.dataset.tooltip = 'the stakeholder has voted to reject this block'
       } else {
         span.className = 'd-inline-block dcricon-missing'
+        div.dataset.tooltip = 'this vote has not been received yet'
       }
     })
+    var threshold = this.ticketsPerBlock / 2
+    if (votes.affirm > threshold) {
+      this.consensusMsgTarget.textContent = 'approved'
+      this.consensusMsgTarget.className = 'small text-green'
+    } else if (votes.reject > threshold) {
+      this.consensusMsgTarget.textContent = 'rejected'
+      this.consensusMsgTarget.className = 'small text-danger'
+    } else {
+      this.consensusMsgTarget.textContent = ''
+    }
   }
 
   renderLatestTransactions (txs, incremental) {

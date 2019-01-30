@@ -301,15 +301,11 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	regular := make([]exptypes.MempoolTx, 0)
 
 	var regularTotal, ticketTotal, voteTotal, revTotal float64
-	var likely bool
+	var likelyMineable bool
 
 	var totalOut, likelyTotal float64
 	var totalSize int32
-	votingInfo := exptypes.VotingInfo{
-		MaxVotesPerBlock: params.TicketsPerBlock,
-		VotedTickets:     make(map[string]bool),
-		VoteTallys:       make(map[string]*exptypes.VoteTally),
-	}
+	votingInfo := exptypes.NewVotingInfo(params.TicketsPerBlock)
 	invRegular := make(map[string]struct{})
 	invStake := make(map[string]struct{})
 
@@ -319,7 +315,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	var latestTime int64
 	ticketSpendInds := make(exptypes.BlockValidatorIndex)
 	for _, tx := range txs {
-		likely = true
+		likelyMineable = true
 		switch tx.Type {
 		case "Ticket":
 			if _, found := invStake[tx.Hash]; found {
@@ -348,7 +344,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 				voteTotal += tx.TotalOut
 				votingInfo.Tally(tx.VoteInfo)
 			} else {
-				likely = false
+				likelyMineable = false
 			}
 		case "Revocation":
 			if _, found := invStake[tx.Hash]; found {
@@ -367,7 +363,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 		}
 
 		// Update mempool totals
-		if likely {
+		if likelyMineable {
 			likelyTotal += tx.TotalOut
 		}
 		totalOut += tx.TotalOut

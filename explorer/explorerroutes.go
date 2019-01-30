@@ -123,11 +123,18 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	blocks := exp.blockData.GetExplorerBlocks(int(height), int(height)-5)
-	bestBlock := blocks[0]
+	var bestBlock *types.BlockBasic
+	if blocks == nil {
+		bestBlock = new(types.BlockBasic)
+	} else {
+		bestBlock = blocks[0]
+	}
 
 	// Lock for both MempoolData and pageData.HomeInfo
 	exp.MempoolData.RLock()
 	exp.pageData.RLock()
+
+	tallys, consensus := exp.MempoolData.VotingInfo.BlockStatus(bestBlock.Hash)
 
 	str, err := exp.templates.execTemplateToString("home", struct {
 		*CommonPageData
@@ -135,6 +142,7 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Mempool    *types.MempoolInfo
 		BestBlock  *types.BlockBasic
 		BlockTally []int
+		Consensus  int
 		Blocks     []*types.BlockBasic
 		NetName    string
 	}{
@@ -142,7 +150,8 @@ func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
 		Info:           exp.pageData.HomeInfo,
 		Mempool:        exp.MempoolData,
 		BestBlock:      bestBlock,
-		BlockTally:     exp.MempoolData.VotingInfo.Tallys(bestBlock.Hash),
+		BlockTally:     tallys,
+		Consensus:      consensus,
 		Blocks:         blocks,
 		NetName:        exp.NetName,
 	})
