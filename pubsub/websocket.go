@@ -65,6 +65,7 @@ func (tl *txList) addTxToBuffer(tx *exptypes.MempoolTx) (readyToSend bool) {
 // If the event loop is running, calling (*WebsocketHub).Stop() will handle it.
 type WebsocketHub struct {
 	clients            map[*hubSpoke]*client
+	numClients         atomic.Value
 	Register           chan *clientHubSpoke
 	Unregister         chan *hubSpoke
 	HubRelay           chan pstypes.HubSignal
@@ -157,11 +158,6 @@ type clientHubSpoke struct {
 	c  *hubSpoke
 }
 
-// NumClients returns the number of clients connected to the websocket hub
-func (wsh *WebsocketHub) NumClients() int {
-	return len(wsh.clients)
-}
-
 // NewClientHubSpoke registers a connection with the hub, and returns a pointer
 // to the new client data object. Use UnregisterClient on this object to stop
 // signaling messages, and close the signal channel.
@@ -175,9 +171,21 @@ func (wsh *WebsocketHub) NewClientHubSpoke() *clientHubSpoke {
 	return ch
 }
 
+// NumClients returns the number of clients connected to the websocket hub.
+func (wsh *WebsocketHub) NumClients() int {
+	// Swallow any type assertion error since the default int of 0 is OK.
+	n, _ := wsh.numClients.Load().(int)
+	return n
+}
+
+func (wsh *WebsocketHub) setNumClients(n int) {
+	wsh.numClients.Store(n)
+}
+
 // registerClient should only be called from the run loop.
 func (wsh *WebsocketHub) registerClient(ch *clientHubSpoke) {
 	wsh.clients[ch.c] = ch.cl
+	wsh.setNumClients(len(wsh.clients))
 	log.Debugf("Registered new websocket client (%d).", wsh.NumClients())
 }
 
@@ -196,8 +204,22 @@ func (wsh *WebsocketHub) unregisterClient(c *hubSpoke) {
 		return
 	}
 	delete(wsh.clients, c)
+	wsh.setNumClients(len(wsh.clients))
 
 	close(*c)
+}
+
+// unregisterAllClients should only be called from the loop in run() or when no
+// other goroutines are accessing the clients map.
+func (wsh *WebsocketHub) unregisterAllClients() {
+	spokes := make([]*hubSpoke, 0, len(wsh.clients))
+	for c := range wsh.clients {
+		spokes = append(spokes, c)
+	}
+	for _, c := range spokes {
+		delete(wsh.clients, c)
+		close(*c)
+	}
 }
 
 // Periodically ping clients over websocket connection. Stop the ping loop by
@@ -260,6 +282,8 @@ func (wsh *WebsocketHub) Run() {
 		for range wsh.HubRelay {
 		}
 	}()
+
+	defer wsh.unregisterAllClients()
 
 	for {
 		//events:
@@ -354,10 +378,6 @@ func (wsh *WebsocketHub) Run() {
 			// End the buffer interval send loop,
 			wsh.bufferTickerChan <- tickerSigStop
 
-			// Unregister all clients,
-			for client := range wsh.clients {
-				wsh.unregisterClient(client)
-			}
 			// Quit the Run loop.
 			return
 
