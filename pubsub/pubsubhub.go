@@ -429,7 +429,7 @@ loop:
 			case sigNewTx:
 				// Marshal this client's tx buffer if it is not empty.
 				clientData.newTxs.Lock()
-				if len(clientData.newTxs.t) < NewTxBufferSize {
+				if len(clientData.newTxs.t) == 0 {
 					clientData.newTxs.Unlock()
 					continue loop // break sigselect
 				}

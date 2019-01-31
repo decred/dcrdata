@@ -21,7 +21,7 @@ const (
 	tickerSigReset int = iota
 	tickerSigStop
 
-	bufferTickerInterval = 5
+	bufferTickerInterval = 3
 	NewTxBufferSize      = 5
 	clientSignalSize     = 5
 
@@ -295,7 +295,8 @@ func (wsh *WebsocketHub) Run() {
 				}
 				log.Tracef("Received new tx %s. Queueing in each client's send buffer...", newtx.Hash)
 				someTxBuffersReady = wsh.MaybeSendTxns(newtx)
-			case sigSubscribe:
+			case sigSubscribe, sigUnsubscribe:
+				log.Warnf("sigSubscribe and sigUnsubscribe are not broadcastable events.")
 				continue // break events
 			case sigSyncStatus:
 				// TODO
