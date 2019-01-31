@@ -52,26 +52,83 @@ type badgerLogger struct {
 	slog.Logger
 }
 
-// Infof overrides slog.Logger's Infof with Tracef since badger treats Info
-// level like a verbose log level.
+type logLevel int
+
+const (
+	logLevelSquash logLevel = iota
+	logLevelTrace
+	logLevelDebug
+	logLevelInfo
+	logLevelWarn
+	logLevelError
+)
+
+var logLevelOverrides = map[string]logLevel{
+	"Replaying file id:":                logLevelTrace,
+	"Replay took:":                      logLevelTrace,
+	"Storing value log head:":           logLevelTrace,
+	"Force compaction on level":         logLevelTrace,
+	"While forcing compaction on level": logLevelDebug,
+}
+
+// logf is used to filter the log messages from badger. It does the following:
+// removes trailing newlines, overrides the log level if the message is
+// recognized in the logLevelOverrides map, and then adds the prefix "badger: ".
+// If there are no log level overrides for the message, the provided
+// defaultLevel is used.
+func (l *badgerLogger) logf(defaultLevel logLevel, format string, v ...interface{}) {
+	// Badger randomly appends newlines. Strip them.
+	format = strings.TrimSuffix(format, "\n")
+
+	// Generate the log message for filtering.
+	message := fmt.Sprintf(format, v...)
+
+	// Check each known message prefix for a logLevel override.
+	level := defaultLevel
+	for substr, lvl := range logLevelOverrides {
+		if strings.HasPrefix(message, substr) { // consider Contains
+			level = lvl
+			break
+		}
+	}
+
+	message = "badger: " + message
+
+	switch level {
+	case logLevelSquash:
+		// Do not log these messages.
+	case logLevelTrace:
+		l.Logger.Tracef(message)
+	case logLevelDebug:
+		l.Logger.Debugf(message)
+	case logLevelInfo:
+		l.Logger.Infof(message)
+	case logLevelWarn:
+		l.Logger.Warnf(message)
+	case logLevelError:
+		l.Logger.Errorf(message)
+	default:
+		// Unknown log levels are logged as warnings.
+		l.Logger.Warnf(message)
+	}
+}
+
+// Infof filters messages through logf with logLevelInfo before sending the
+// message to the slog.Logger.
 func (l *badgerLogger) Infof(format string, v ...interface{}) {
-	// Badger randomly appends newlines. Strip them.
-	format = strings.TrimSuffix(format, "\n")
-	l.Logger.Debugf("badger: "+format, v...)
+	l.logf(logLevelInfo, format, v...)
 }
 
-// Warningf along with slog.Logger functions implements badger.Logger.
+// Warningf filters messages through logf with logLevelWarn before sending the
+// message to the slog.Logger.
 func (l *badgerLogger) Warningf(format string, v ...interface{}) {
-	// Badger randomly appends newlines. Strip them.
-	format = strings.TrimSuffix(format, "\n")
-	l.Logger.Warnf("badger: "+format, v...)
+	l.logf(logLevelWarn, format, v...)
 }
 
-// Errorf along with slog.Logger functions implements badger.Logger.
+// Errorf filters messages through logf with logLevelError before sending the
+// message to the slog.Logger.
 func (l *badgerLogger) Errorf(format string, v ...interface{}) {
-	// Badger randomly appends newlines. Strip them.
-	format = strings.TrimSuffix(format, "\n")
-	l.Logger.Errorf("badger: "+format, v...)
+	l.logf(logLevelError, format, v...)
 }
 
 // NewTicketPool constructs a TicketPool by opening the persistent diff db,
@@ -105,7 +162,7 @@ func NewTicketPool(dataDir, dbSubDir string) (*TicketPool, error) {
 		if err != badger.ErrNoRewrite {
 			return nil, fmt.Errorf("failed badger.RunValueLogGC: %v", err)
 		}
-		log.Debugf("Value log not rewritten.")
+		log.Debugf("badger value log not rewritten (OK).")
 	}
 
 	// Attempt migration from storm to badger if badger was empty
