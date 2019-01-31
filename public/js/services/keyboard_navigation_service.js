@@ -58,6 +58,7 @@ function toggleKeyNav () {
 }
 
 export function keyNav (event, pulsate, preserveIndex) {
+  if (!keyNavEnabled()) return
   bindElements()
   if (menuToggle.checked) {
     targets = Array.from(document.getElementById('hamburger-menu').querySelectorAll('a'))
