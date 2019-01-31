@@ -57,6 +57,7 @@ export default class extends Controller {
     var tds = tr.querySelectorAll('td')
     tds.forEach((td) => {
       let newTd = document.createElement('td')
+      newTd.className = td.className
       let dataType = td.dataset.type
       newTd.dataset.type = dataType
       switch (dataType) {
@@ -74,6 +75,9 @@ export default class extends Controller {
           break
         case 'size':
           newTd.textContent = humanize.bytes(block.size)
+          break
+        case 'value':
+          newTd.textContent = humanize.threeSigFigs(block.TotalSent)
           break
         default:
           newTd.textContent = block[dataType]

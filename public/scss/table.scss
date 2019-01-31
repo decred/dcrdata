@@ -33,7 +33,7 @@ table.align-baseline-rows tr {
 }
 
 .table thead tr {
-  background: #fff !important;
+  background: #fff;
   border-bottom: 1px solid #e2e2e2;
 }
 
@@ -101,4 +101,8 @@ table.align-baseline-rows tr {
 
 .table.no-border tr {
   border-bottom: none !important;
+}
+
+tbody.homepage-mempool .hash-box {
+  min-width: 6em;
 }

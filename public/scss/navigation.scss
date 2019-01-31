@@ -11,6 +11,7 @@
   top: 0;
   background: #fff;
   border-bottom: 1px solid #00000017;
+  padding: 0.3em 0;
 }
 
 .navbar-fixed-bottom {
@@ -20,6 +21,7 @@
   font-size: 14px;
   line-height: 22px;
   border-top: 1px solid #00000017;
+  padding: 0.2em 0;
 }
 
 .navbar-fixed-bottom .nav-item {
@@ -30,6 +32,10 @@
 
 .navbar-fixed-bottom .blockcounter {
   width: 180px;
+}
+
+.navbar-form {
+  padding: 0 2em;
 }
 
 .top-nav a {
@@ -69,7 +75,7 @@
   width: 273px;
   margin: -42px 0 0 -243px;
   padding: 20px 0;
-  padding-top: 42px;
+  padding-top: 50px;
   background: #fff;
   list-style-type: none;
   -webkit-font-smoothing: antialiased;

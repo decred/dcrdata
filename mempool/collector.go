@@ -300,12 +300,12 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	revs := make([]exptypes.MempoolTx, 0)
 	regular := make([]exptypes.MempoolTx, 0)
 
-	var totalOut float64
+	var regularTotal, ticketTotal, voteTotal, revTotal float64
+	var likelyMineable bool
+
+	var totalOut, likelyTotal float64
 	var totalSize int32
-	votingInfo := exptypes.VotingInfo{
-		MaxVotesPerBlock: params.TicketsPerBlock,
-		VotedTickets:     make(map[string]bool),
-	}
+	votingInfo := exptypes.NewVotingInfo(params.TicketsPerBlock)
 	invRegular := make(map[string]struct{})
 	invStake := make(map[string]struct{})
 
@@ -315,11 +315,13 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	var latestTime int64
 	ticketSpendInds := make(exptypes.BlockValidatorIndex)
 	for _, tx := range txs {
+		likelyMineable = true
 		switch tx.Type {
 		case "Ticket":
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
+			ticketTotal += tx.TotalOut
 			invStake[tx.Hash] = struct{}{}
 			tickets = append(tickets, tx)
 		case "Vote":
@@ -339,22 +341,31 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			if tx.VoteInfo.ForLastBlock && !votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] {
 				votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] = true
 				votingInfo.TicketsVoted++
+				voteTotal += tx.TotalOut
+				votingInfo.Tally(tx.VoteInfo)
+			} else {
+				likelyMineable = false
 			}
 		case "Revocation":
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
+			revTotal += tx.TotalOut
 			invStake[tx.Hash] = struct{}{}
 			revs = append(revs, tx)
 		default:
 			if _, found := invRegular[tx.Hash]; found {
 				continue
 			}
+			regularTotal += tx.TotalOut
 			invRegular[tx.Hash] = struct{}{}
 			regular = append(regular, tx)
 		}
 
 		// Update mempool totals
+		if likelyMineable {
+			likelyTotal += tx.TotalOut
+		}
 		totalOut += tx.TotalOut
 		totalSize += tx.Size
 
@@ -374,6 +385,11 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			LastBlockTime:      lastBlock.Time,
 			Time:               latestTime,
 			TotalOut:           totalOut,
+			LikelyTotal:        likelyTotal,
+			RegularTotal:       regularTotal,
+			TicketTotal:        ticketTotal,
+			VoteTotal:          voteTotal,
+			RevokeTotal:        revTotal,
 			TotalSize:          totalSize,
 			NumTickets:         len(tickets),
 			NumVotes:           len(votes),

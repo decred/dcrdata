@@ -91,7 +91,7 @@ body.darkBG {
 
   .flex-table .header,
   .table thead tr {
-    background: #2d2d2d !important;
+    background: #2d2d2d;
   }
 
   .top-nav,
@@ -185,5 +185,9 @@ body.darkBG {
 
   .text-black-50 {
     color: rgba(255, 255, 255, 0.5) !important;
+  }
+
+  .text-green {
+    color: #2eefa1;
   }
 }

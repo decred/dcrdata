@@ -110,6 +110,10 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *types.NewMempoolTx) {
 			VoteInfo:  voteInfo,
 		}
 
+		// Maintain a separate total that excludes votes for sidechain blocks and
+		// multiple votes that spend the same ticket.
+		likelyMineable := true
+
 		// Add the tx to the appropriate tx slice in MempoolData and update the
 		// count for the transaction type.
 		exp.MempoolData.Lock()
@@ -118,6 +122,7 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *types.NewMempoolTx) {
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Tickets = append([]types.MempoolTx{tx}, exp.MempoolData.Tickets...)
 			exp.MempoolData.NumTickets++
+			exp.MempoolData.TicketTotal += tx.TotalOut
 		case "Vote":
 			// Votes on the next block may be received just prior to dcrdata
 			// actually processing the new block. Do not broadcast these ahead
@@ -129,7 +134,6 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *types.NewMempoolTx) {
 					"out of mempool with new block signal. Vote: ", tx.Hash)
 				continue
 			}
-
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Votes = append([]types.MempoolTx{tx}, exp.MempoolData.Votes...)
 			//sort.Sort(byHeight(exp.MempoolData.Votes))
@@ -142,15 +146,21 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *types.NewMempoolTx) {
 			if tx.VoteInfo.ForLastBlock && !votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] {
 				votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] = true
 				votingInfo.TicketsVoted++
+				exp.MempoolData.VoteTotal += tx.TotalOut
+				exp.MempoolData.VotingInfo.Tally(tx.VoteInfo)
+			} else {
+				likelyMineable = false
 			}
 		case "Regular":
 			exp.MempoolData.InvRegular[tx.Hash] = struct{}{}
 			exp.MempoolData.Transactions = append([]types.MempoolTx{tx}, exp.MempoolData.Transactions...)
 			exp.MempoolData.NumRegular++
+			exp.MempoolData.RegularTotal += tx.TotalOut
 		case "Revocation":
 			exp.MempoolData.InvStake[tx.Hash] = struct{}{}
 			exp.MempoolData.Revocations = append([]types.MempoolTx{tx}, exp.MempoolData.Revocations...)
 			exp.MempoolData.NumRevokes++
+			exp.MempoolData.RevokeTotal += tx.TotalOut
 		}
 
 		// Update latest transactions, popping the oldest transaction off the
@@ -166,6 +176,9 @@ func (exp *explorerUI) mempoolMonitor(txChan chan *types.NewMempoolTx) {
 
 		// Store totals
 		exp.MempoolData.NumAll++
+		if likelyMineable {
+			exp.MempoolData.LikelyTotal += tx.TotalOut
+		}
 		exp.MempoolData.TotalOut += tx.TotalOut
 		exp.MempoolData.TotalSize += tx.Size
 		exp.MempoolData.FormattedTotalSize = humanize.Bytes(uint64(exp.MempoolData.TotalSize))

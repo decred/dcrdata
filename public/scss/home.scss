@@ -1,0 +1,85 @@
+.tx-bar {
+  border-width: 4px;
+  border-radius: 6px;
+}
+
+.tx-bar.tx-regular {
+  border-left-style: solid;
+  border-color: $regular-light;
+}
+
+.tx-bar.tx-vote {
+  border-right-style: solid;
+  border-color: $vote-light;
+}
+
+.tx-bar.tx-ticket {
+  border-left-style: solid;
+  border-color: $ticket-light;
+}
+
+.tx-bar.tx-rev {
+  border-right-style: solid;
+  border-color: $rev-light;
+}
+
+.tx-gauge {
+  height: 4px;
+  margin: 0 1px;
+  width: 25%;
+  transition: width 1s ease-in-out;
+}
+
+.tx-gauge.tx-regular {
+  background-color: $regular-light;
+}
+
+.tx-gauge.tx-vote {
+  background-color: $vote-light;
+}
+
+.tx-gauge.tx-ticket {
+  background-color: $ticket-light;
+}
+
+.tx-gauge.tx-rev {
+  background-color: $rev-light;
+}
+
+.card-icon {
+  position: absolute;
+  right: 105%;
+  font-size: 1.6rem;
+}
+
+.table thead tr.card-theader {
+  background: #0000001a;
+}
+
+body.darkBG .table tr.card-theader {
+  background: #ffffff1a;
+}
+
+.light-card {
+  background-color: #fafafa;
+}
+
+.dark-card {
+  background-color: #ececef;
+}
+
+.dark-card .progress {
+  border: 1px solid #bbb;
+}
+
+body.darkBG .dark-card .progress {
+  border: none;
+}
+
+body.darkBG .light-card {
+  background-color: #222;
+}
+
+body.darkBG .dark-card {
+  background-color: #333;
+}
