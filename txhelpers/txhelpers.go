@@ -870,7 +870,8 @@ func TxFee(msgTx *wire.MsgTx) dcrutil.Amount {
 	return dcrutil.Amount(amtIn - amtOut)
 }
 
-// TxFeeRate computes and returns the fee rate in DCR/KB for a given tx
+// TxFeeRate computes and returns the total fee in atoms and fee rate in
+// atoms/kB for a given tx.
 func TxFeeRate(msgTx *wire.MsgTx) (dcrutil.Amount, dcrutil.Amount) {
 	var amtIn int64
 	for iv := range msgTx.TxIn {
@@ -880,7 +881,19 @@ func TxFeeRate(msgTx *wire.MsgTx) (dcrutil.Amount, dcrutil.Amount) {
 	for iv := range msgTx.TxOut {
 		amtOut += msgTx.TxOut[iv].Value
 	}
-	return dcrutil.Amount(amtIn - amtOut), dcrutil.Amount(1000 * (amtIn - amtOut) / int64(msgTx.SerializeSize()))
+	txSize := int64(msgTx.SerializeSize())
+	return dcrutil.Amount(amtIn - amtOut), dcrutil.Amount(FeeRate(amtIn, amtOut, txSize))
+}
+
+// FeeRate computes the fee rate in atoms/kB for a transaction provided the
+// total amount of the transaction's inputs, the total amount of the
+// transaction's outputs, and the size of the transaction in bytes. Note that a
+// kB refers to 1000 bytes, not a kiB. If the size is 0, the returned fee is -1.
+func FeeRate(amtIn, amtOut, sizeBytes int64) int64 {
+	if sizeBytes == 0 {
+		return -1
+	}
+	return 1000 * (amtIn - amtOut) / sizeBytes
 }
 
 // TotalOutFromMsgTx computes the total value out of a MsgTx

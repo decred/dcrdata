@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/txhelpers"
+	humanize "github.com/dustin/go-humanize"
 )
 
 // Types of vote
@@ -388,7 +389,7 @@ func (mpi *MempoolInfo) Trim() *TrimmedMempoolInfo {
 
 	mpi.RUnlock()
 
-	// calculate total fees for mempool block
+	// Calculate total fees for all mempool transactions.
 	getTotalFee := func(txs []*TrimmedTxInfo) (total float64) {
 		for _, tx := range txs {
 			total += tx.Fees
@@ -402,8 +403,8 @@ func (mpi *MempoolInfo) Trim() *TrimmedMempoolInfo {
 	return data
 }
 
-// show only regular tx in block.Transactions, exclude coinbase (reward) transactions
-// for use in NextHome handler and websocket response to getmempooltxs event
+// FilterRegularTx returns a slice of all the regular (non-stake) transactions
+// in the input slice, excluding coinbase (reward) transactions.
 func FilterRegularTx(txs []*TrimmedTxInfo) (transactions []*TrimmedTxInfo) {
 	for _, tx := range txs {
 		if !tx.Coinbase {
@@ -413,13 +414,22 @@ func FilterRegularTx(txs []*TrimmedTxInfo) (transactions []*TrimmedTxInfo) {
 	return transactions
 }
 
+// MempoolTx converts the input []MempoolTx to a []*TrimmedTxInfo.
 func TrimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
 	for _, tx := range txs {
+		fee, _ := dcrutil.NewAmount(tx.Fees) // non-nil error returns 0 fee
+		var feeRate dcrutil.Amount
+		if tx.Size > 0 {
+			feeRate = fee / dcrutil.Amount(int64(tx.Size))
+		}
 		txBasic := &TxBasic{
-			Coinbase: tx.Coinbase,
-			TxID:     tx.TxID,
-			Total:    tx.TotalOut,
-			VoteInfo: tx.VoteInfo,
+			TxID:          tx.TxID,
+			FormattedSize: humanize.Bytes(uint64(tx.Size)),
+			Total:         tx.TotalOut,
+			Fee:           fee,
+			FeeRate:       feeRate,
+			VoteInfo:      tx.VoteInfo,
+			Coinbase:      tx.Coinbase,
 		}
 
 		var voteValid bool
@@ -441,10 +451,18 @@ func TrimMempoolTx(txs []MempoolTx) (trimmedTxs []*TrimmedTxInfo) {
 	return trimmedTxs
 }
 
+// FilterUniqueLastBlockVotes returns a slice of all the vote transactions from
+// the input slice that are flagged as voting on the previous block.
 func FilterUniqueLastBlockVotes(txs []*TrimmedTxInfo) (votes []*TrimmedTxInfo) {
+	seenVotes := make(map[string]struct{})
 	for _, tx := range txs {
 		if tx.VoteInfo != nil && tx.VoteInfo.ForLastBlock {
+			// Do not append duplicates.
+			if _, seen := seenVotes[tx.TxID]; seen {
+				continue
+			}
 			votes = append(votes, tx)
+			seenVotes[tx.TxID] = struct{}{}
 		}
 	}
 	return votes

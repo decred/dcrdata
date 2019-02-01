@@ -286,3 +286,31 @@ func testIsZeroHashP2PHKAddress(expectedAddress string, params *chaincfg.Params,
 			expectedTestResult)
 	}
 }
+
+func TestFeeRate(t *testing.T) {
+	// Ensure invalid fee rate is -1.
+	if FeeRate(0, 0, 0) != -1 {
+		t.Errorf("Fee rate for 0 byte size must return -1.")
+	}
+
+	// (1-2)/500*1000 = -2
+	expected := int64(-2)
+	got := FeeRate(1, 2, 500)
+	if got != expected {
+		t.Errorf("Expected fee rate of %d, got %d.", expected, got)
+	}
+
+	// (10-0)/100*1000 = 100
+	expected = int64(100)
+	got = FeeRate(10, 0, 100)
+	if got != expected {
+		t.Errorf("Expected fee rate of %d, got %d.", expected, got)
+	}
+
+	// (10-10)/1e9*1000 = 0
+	expected = int64(0)
+	got = FeeRate(10, 10, 1e9)
+	if got != expected {
+		t.Errorf("Expected fee rate of %d, got %d.", expected, got)
+	}
+}

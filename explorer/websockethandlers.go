@@ -121,9 +121,6 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					inv := exp.MempoolInventory()
 					mempoolInfo := inv.Trim() // Trim internally locks the MempoolInfo.
 
-					// mempool fees appear incorrect, temporarily set to zero for now
-					mempoolInfo.Fees = 0
-
 					exp.pageData.RLock()
 					mempoolInfo.Subsidy = exp.pageData.HomeInfo.NBlockSubsidy
 					exp.pageData.RUnlock()
