@@ -65,6 +65,9 @@ var (
 	defaultPGDBName                     = "dcrdata"
 	defaultPGQueryTimeout time.Duration = time.Hour
 
+	defaultExchangeIndex     = "USD"
+	defaultDisabledExchanges = "huobi,dragonex"
+
 	maxSyncStatusLimit = 5000
 )
 
@@ -128,6 +131,11 @@ type config struct {
 	DcrdServ         string `long:"dcrdserv" description:"Hostname/IP and port of dcrd RPC server to connect to (default localhost:9109, testnet: localhost:19109, simnet: localhost:19556)" env:"DCRDATA_DCRD_URL"`
 	DcrdCert         string `long:"dcrdcert" description:"File containing the dcrd certificate file" env:"DCRDATA_DCRD_CERT"`
 	DisableDaemonTLS bool   `long:"nodaemontls" description:"Disable TLS for the daemon RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost" env:"DCRDATA_DCRD_DISABLE_TLS"`
+
+	// ExchangeBot settings
+	EnableExchangeBot bool   `long:"exchange-monitor" description:"Enable the exchange monitor" env:"DCRDATA_MONITOR_EXCHANGES"`
+	DisabledExchanges string `long:"disable-exchange" description:"Exchanges to disable. See /exchanges/exchanges.go for available exchanges. Use a comma to separate multiple exchanges" env:"DCRDATA_DISABLE_EXCHANGES"`
+	ExchangeCurrency  string `long:"exchange-currency" description:"The default bitcoin price index. A 3-letter currency code" env:"DCRDATA_EXCHANGE_INDEX"`
 }
 
 var (
@@ -153,6 +161,8 @@ var (
 		PGPass:             defaultPGPass,
 		PGHost:             defaultPGHost,
 		PGQueryTimeout:     defaultPGQueryTimeout,
+		ExchangeCurrency:   defaultExchangeIndex,
+		DisabledExchanges:  defaultDisabledExchanges,
 	}
 )
 

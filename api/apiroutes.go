@@ -25,6 +25,7 @@ import (
 	"github.com/decred/dcrd/rpcclient"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	m "github.com/decred/dcrdata/v4/middleware"
 	notify "github.com/decred/dcrdata/v4/notification"
@@ -116,11 +117,13 @@ type appContext struct {
 	LiteMode      bool
 	Status        apitypes.Status
 	JSONIndent    string
+	xcBot         *exchanges.ExchangeBot
 }
 
 // NewContext constructs a new appContext from the RPC client, primary and
 // auxiliary data sources, and JSON indentation string.
-func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource DataSourceLite, auxDataSource DataSourceAux, JSONIndent string) *appContext {
+func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource DataSourceLite,
+	auxDataSource DataSourceAux, JSONIndent string, xcBot *exchanges.ExchangeBot) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 
@@ -134,6 +137,7 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 		BlockData:     dataSource,
 		AuxDataSource: auxDataSource,
 		LiteMode:      liteMode,
+		xcBot:         xcBot,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -1617,6 +1621,43 @@ func (c *appContext) getAgendaData(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, data, "")
 
+}
+
+func (c *appContext) getExchanges(w http.ResponseWriter, r *http.Request) {
+	if c.xcBot == nil {
+		http.Error(w, "Exchange monitoring disabled.", http.StatusServiceUnavailable)
+		return
+	}
+	code := r.URL.Query().Get("code")
+	var state *exchanges.ExchangeBotState
+	var err error
+	if code != "" && code != c.xcBot.BtcIndex {
+		state, err = c.xcBot.ConvertedState(code)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("No exchange data for code %s", code), http.StatusNotFound)
+			return
+		}
+	} else {
+		state = c.xcBot.State()
+		if state == nil {
+			http.Error(w, fmt.Sprintf("No exchange data available"), http.StatusNotFound)
+			return
+		}
+	}
+	writeJSON(w, state, c.getIndentQuery(r))
+}
+
+func (c *appContext) getCurrencyCodes(w http.ResponseWriter, r *http.Request) {
+	if c.xcBot == nil {
+		http.Error(w, "Exchange monitoring disabled.", http.StatusServiceUnavailable)
+		return
+	}
+	codes := c.xcBot.AvailableIndices()
+	if len(codes) == 0 {
+		http.Error(w, fmt.Sprintf("No codes found."), http.StatusNotFound)
+		return
+	}
+	writeJSON(w, codes, c.getIndentQuery(r))
 }
 
 func (c *appContext) StakeVersionLatestCtx(next http.Handler) http.Handler {

@@ -67,7 +67,7 @@ func TestStatusPageResponseCodes(t *testing.T) {
 
 	var wiredDBStub WiredDBStub
 	var chainDBStub ChainDBStub
-	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, viewsPath)
+	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, viewsPath, nil)
 
 	// handler := http.HandlerFunc()
 	// handler.ServeHTTP(rr, req)
@@ -104,7 +104,7 @@ func (t *testTxPageWiredDBStub) GetExplorerTx(txid string) *types.TxInfo {
 // func TestTxPageResponseCodes(t *testing.T) {
 // 	var wiredDBStub testTxPageWiredDBStub
 // 	var chainDBStub ChainDBStub
-// 	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, viewsPath)
+// 	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, viewsPath, nil)
 
 // 	io := []struct {
 // 		ExpStatus expStatus

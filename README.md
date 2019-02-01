@@ -671,6 +671,17 @@ This may make parsing more efficient for the client.
 | Detailed ticket list (fee, hash, size, age, etc.) | `/mempool/sstx/details`   | `apitypes.MempoolTicketDetails` |
 | Detailed ticket list (N highest fee rates)        | `/mempool/sstx/details/N` | `apitypes.MempoolTicketDetails` |
 
+
+| Exchanges                         | Path                | Type                         |
+| ----------------------------------| --------------------| ---------------------------- |
+| Exchange data summary             | `/exchanges`        | `exchanges.ExchangeBotState` |
+| List of available currency codes  | `/exchanges/codes`  | []string                     |
+
+Exchange monitoring is off by default. Server must be started with
+`--exchange-monitor` to enable exchange data.
+The server will set a default currency code. To use a different code, pass URL
+parameter `?code=[code]`. For example, `/exchanges?code=EUR`.
+
 | Other                           | Path      | Type               |
 | ------------------------------- | --------- | ------------------ |
 | Status                          | `/status` | `types.Status`     |

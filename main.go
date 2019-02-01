@@ -29,6 +29,7 @@ import (
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
+	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/mempool"
@@ -454,9 +455,35 @@ func _main(ctx context.Context) error {
 		return nil
 	}
 
+	// WaitGroup for monitoring goroutines
+	var wg sync.WaitGroup
+
+	// ExchangeBot
+	var xcBot *exchanges.ExchangeBot
+	if cfg.EnableExchangeBot {
+		var botCfg exchanges.ExchangeBotConfig
+		if cfg.DisabledExchanges != "" {
+			botCfg.Disabled = strings.Split(cfg.DisabledExchanges, ",")
+		}
+		botCfg.BtcIndex = cfg.ExchangeCurrency
+		xcBot, err = exchanges.NewExchangeBot(&botCfg)
+		if err != nil {
+			log.Errorf("Could not create exchange monitor. Exchange info will be disabled: %v", err)
+		} else {
+			var xcList, prepend string
+			for k := range xcBot.Exchanges {
+				xcList += prepend + k
+				prepend = ", "
+			}
+			log.Infof("ExchangeBot monitoring %s", xcList)
+			wg.Add(1)
+			go xcBot.Start(ctx, &wg)
+		}
+	}
+
 	// Create the explorer system.
 	explore := explorer.New(baseDB, auxDB, cfg.UseRealIP, version.Version(),
-		!cfg.NoDevPrefetch, "views") // TODO: allow views config
+		!cfg.NoDevPrefetch, "views", xcBot) // TODO: allow views config
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
 	}
@@ -567,11 +594,8 @@ func _main(ctx context.Context) error {
 		blockDataSavers = append(blockDataSavers, insightSocketServer)
 	}
 
-	// WaitGroup for the monitor goroutines
-	var wg sync.WaitGroup
-
 	// Start dcrdata's JSON web API.
-	app := api.NewContext(dcrdClient, activeChain, baseDB, auxDB, cfg.IndentJSON)
+	app := api.NewContext(dcrdClient, activeChain, baseDB, auxDB, cfg.IndentJSON, xcBot)
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
 	go app.StatusNtfnHandler(ctx, &wg)
