@@ -938,6 +938,16 @@ func IsZeroHashP2PHKAddress(checkAddressString string, params *chaincfg.Params) 
 	return checkAddressString == zeroAddress
 }
 
+// IsZeroHash checks if the Hash is the zero hash.
+func IsZeroHash(hash chainhash.Hash) bool {
+	return hash == zeroHash
+}
+
+// IsZeroHash checks if the string is the zero hash string.
+func IsZeroHashStr(hash string) bool {
+	return hash == string(zeroHashStringBytes)
+}
+
 // ValidateNetworkAddress checks if the given address is valid on the given
 // network.
 func ValidateNetworkAddress(address dcrutil.Address, p *chaincfg.Params) bool {
