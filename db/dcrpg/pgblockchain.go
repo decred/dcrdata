@@ -451,6 +451,24 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		return nil, err
 	}
 
+	pgVersion, err := RetrievePGVersion(db)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(pgVersion)
+
+	perfSettings, err := RetrieveSysSettingsPerformance(db)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("postgres performance settings:\n%v", perfSettings)
+
+	servSettings, err := RetrieveSysSettingsServer(db)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("postgres server settings:\n%v", servSettings)
+
 	// Attempt to get DB best block height from tables, but if the tables are
 	// empty or not yet created, it is not an error.
 	bestHeight, bestHash, _, err := RetrieveBestBlockHeight(ctx, db)

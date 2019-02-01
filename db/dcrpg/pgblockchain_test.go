@@ -23,9 +23,9 @@ func openDB() (func() error, error) {
 	dbi := DBInfo{
 		Host:   "localhost",
 		Port:   "5432",
-		User:   "dcrdata",
+		User:   "postgres",
 		Pass:   "",
-		DBName: "dcrdata_mainnet_tests",
+		DBName: "dcrdata_mainnet_xxx",
 	}
 	var err error
 	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true)
