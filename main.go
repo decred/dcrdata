@@ -462,9 +462,9 @@ func _main(ctx context.Context) error {
 	}
 	explore.UseSIGToReloadTemplates()
 	defer explore.StopWebsocketHub()
-	defer explore.StopMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
 
 	blockDataSavers = append(blockDataSavers, explore)
+	mempoolSavers = append(mempoolSavers, explore)
 
 	// Create the pub sub hub.
 	psHub := pubsub.NewPubSubHub(baseDB, auxDB)
@@ -1017,24 +1017,12 @@ func _main(ctx context.Context) error {
 		go auxDBChainMonitor.ReorgHandler()
 	}
 
-	explore.StartMempoolMonitor(notify.NtfnChans.ExpNewTxChan)
-
 	// Create the mempool data collector.
 	mpoolCollector := mempool.NewMempoolDataCollector(dcrdClient, activeChain)
 	if mpoolCollector == nil {
+		// Shutdown goroutines.
+		requestShutdown()
 		return fmt.Errorf("Failed to create mempool data collector")
-	}
-
-	// Collect and store initial mempool data.
-	stakeData, txs, err := mpoolCollector.Collect()
-	if err != nil {
-		return fmt.Errorf("Mempool info collection failed while gathering"+
-			" initial data: %v", err.Error())
-	}
-
-	// Store initial mempool data.
-	for _, s := range mempoolSavers {
-		s.StoreMPData(stakeData, txs)
 	}
 
 	// The MempoolMonitor receives notifications of new transactions on
@@ -1043,10 +1031,18 @@ func _main(ctx context.Context) error {
 	// transactions, and forward new ones on via the mpDataToPSHub with an
 	// appropriate signal to the underlying WebSocketHub on signalToPSHub.
 	signalToPSHub, mpDataToPSHub := psHub.HubRelays()
-	mempoolSigOuts := []chan pstypes.HubSignal{signalToPSHub}
-	newTxOuts := []chan *exptypes.MempoolTx{mpDataToPSHub}
+	signalToExplorer, mpDataToExplorer := explore.MempoolSignals()
+	mempoolSigOuts := []chan<- pstypes.HubSignal{signalToPSHub, signalToExplorer}
+	newTxOuts := []chan<- *exptypes.MempoolTx{mpDataToPSHub, mpDataToExplorer}
 	mpm := mempool.NewMempoolMonitor(ctx, mpoolCollector, mempoolSavers,
 		activeChain, &wg, notify.NtfnChans.NewTxChan, mempoolSigOuts, newTxOuts)
+
+	// Collect and store initial mempool data before starting the monitor.
+	if err = mpm.CollectAndStore(); err != nil {
+		// Shutdown goroutines.
+		requestShutdown()
+		return fmt.Errorf("mpm.CollectAndStore: %v", err)
+	}
 
 	// Begin listening on notify.NtfnChans.NewTxChan, and forwarding mempool
 	// events to psHub via the channels from HubRelays().

@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrdata/v4/explorer/types"
+	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 )
 
 const (
@@ -24,12 +25,17 @@ const (
 	bufferTickerInterval = 5
 	newTxBufferSize      = 5
 	clientSignalSize     = 5
+)
 
-	sigNewBlock hubSignal = iota
-	sigMempoolUpdate
-	sigPingAndUserCount
-	sigNewTx
-	sigSyncStatus
+// Type aliases for the different HubSignals.
+var (
+	sigSubscribe        = pstypes.SigSubscribe
+	sigUnsubscribe      = pstypes.SigUnsubscribe
+	sigNewBlock         = pstypes.SigNewBlock
+	sigMempoolUpdate    = pstypes.SigMempoolUpdate
+	sigPingAndUserCount = pstypes.SigPingAndUserCount
+	sigNewTx            = pstypes.SigNewTx
+	sigSyncStatus       = pstypes.SigSyncStatus
 )
 
 // WebSocketMessage represents the JSON object used to send and received typed
@@ -39,20 +45,12 @@ type WebSocketMessage struct {
 	Message string `json:"message"`
 }
 
-// Event type field for an SSE event
-var eventIDs = map[hubSignal]string{
-	sigNewBlock:         "newblock",
-	sigMempoolUpdate:    "mempool",
-	sigPingAndUserCount: "ping",
-	sigNewTx:            "newtx",
-	sigSyncStatus:       "blockchainSync",
-}
-
 // WebsocketHub and its event loop manage all websocket client connections.
 // WebsocketHub is responsible for closing all connections registered with it.
 // If the event loop is running, calling (*WebsocketHub).Stop() will handle it.
 type WebsocketHub struct {
 	clients          map[*hubSpoke]*client
+	numClients       atomic.Value
 	Register         chan *clientHubSpoke
 	Unregister       chan *hubSpoke
 	HubRelay         chan hubSignal
@@ -81,7 +79,7 @@ type client struct {
 	newTxs []*types.MempoolTx
 }
 
-type hubSignal int
+type hubSignal = pstypes.HubSignal
 type hubSpoke chan hubSignal
 
 // NewWebsocketHub creates a new WebsocketHub
@@ -105,9 +103,15 @@ type clientHubSpoke struct {
 	c  *hubSpoke
 }
 
-// NumClients returns the number of clients connected to the websocket hub
+// NumClients returns the number of clients connected to the websocket hub.
 func (wsh *WebsocketHub) NumClients() int {
-	return len(wsh.clients)
+	// Swallow any type assertion error since the default int of 0 is OK.
+	n, _ := wsh.numClients.Load().(int)
+	return n
+}
+
+func (wsh *WebsocketHub) setNumClients(n int) {
+	wsh.numClients.Store(n)
 }
 
 // RegisterClient registers a websocket connection with the hub, and returns a
@@ -121,6 +125,7 @@ func (wsh *WebsocketHub) RegisterClient(c *hubSpoke) *client {
 // registerClient should only be called from the run loop
 func (wsh *WebsocketHub) registerClient(ch *clientHubSpoke) {
 	wsh.clients[ch.c] = ch.cl
+	wsh.setNumClients(len(wsh.clients))
 	log.Debugf("Registered new websocket client (%d).", wsh.NumClients())
 }
 
@@ -138,9 +143,23 @@ func (wsh *WebsocketHub) unregisterClient(c *hubSpoke) {
 		return
 	}
 	delete(wsh.clients, c)
+	wsh.setNumClients(len(wsh.clients))
 
 	// Close the channel, but make sure the client didn't do it
 	safeClose(*c)
+}
+
+// unregisterAllClients should only be called from the loop in run() or when no
+// other goroutines are accessing the clients map.
+func (wsh *WebsocketHub) unregisterAllClients() {
+	spokes := make([]*hubSpoke, 0, len(wsh.clients))
+	for c := range wsh.clients {
+		spokes = append(spokes, c)
+	}
+	for _, c := range spokes {
+		delete(wsh.clients, c)
+		close(*c)
+	}
 }
 
 // Periodically ping clients over websocket connection. Stop the ping loop by
@@ -197,6 +216,8 @@ func (wsh *WebsocketHub) run() {
 	stopPing := wsh.pingClients()
 	defer close(stopPing)
 
+	defer wsh.unregisterAllClients()
+
 	for {
 	events:
 		select {
@@ -251,11 +272,6 @@ func (wsh *WebsocketHub) run() {
 			// end the buffer interval send loop
 			wsh.bufferTickerChan <- tickerSigStop
 
-			// unregister all clients
-			for client := range wsh.clients {
-				wsh.unregisterClient(client)
-			}
-			return
 		case <-wsh.sendBufferChan:
 			wsh.bufferMtx.Lock()
 			if len(wsh.newTxBuffer) == 0 {

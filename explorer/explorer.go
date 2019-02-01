@@ -25,6 +25,8 @@ import (
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/explorer/types"
+	"github.com/decred/dcrdata/v4/mempool"
+	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -182,6 +184,23 @@ type pageData struct {
 	HomeInfo       *types.HomeInfo
 }
 
+// Mempool represents a snapshot of the mempool.
+type Mempool struct {
+	sync.RWMutex
+
+	// Inv contains a MempoolShort, which contains a detailed summary of the
+	// mempool state, and a []MempoolTx for each of tickets, votes, revocations,
+	// and regular transactions. This is essentially a mempool inventory. The
+	// struct pointed to may be shared, so it should not be modified.
+	Inv *types.MempoolInfo
+
+	// StakeData and Txns are set by StoreMPData, but this data is presently not
+	// used by explorerUI. Consider removing these in the future and editing
+	// StoreMPData accordingly
+	StakeData *mempool.StakeData
+	Txns      []types.MempoolTx
+}
+
 type explorerUI struct {
 	Mux              *chi.Mux
 	blockData        explorerDataSourceLite
@@ -192,7 +211,7 @@ type explorerUI struct {
 	templates        templates
 	wsHub            *WebsocketHub
 	pageData         *pageData
-	MempoolData      *types.MempoolInfo
+	mempool          Mempool
 	ChainParams      *chaincfg.Params
 	Version          string
 	NetName          string
@@ -255,7 +274,9 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
 	exp.explorerSource = primaryDataSource
-	exp.MempoolData = new(types.MempoolInfo)
+	// Allocate Mempool fields.
+	exp.mempool.Inv = new(types.MempoolInfo)
+	exp.mempool.StakeData = new(mempool.StakeData)
 	exp.Version = appVersion
 	exp.devPrefetch = devPrefetch
 	// explorerDataSource is an interface that could have a value of pointer
@@ -337,6 +358,29 @@ func (exp *explorerUI) Height() int64 {
 	return exp.pageData.BlockInfo.Height
 }
 
+// LastBlock returns the last block hash, height and time.
+func (exp *explorerUI) LastBlock() (lastBlockHash string, lastBlock int64, lastBlockTime int64) {
+	exp.pageData.RLock()
+	defer exp.pageData.RUnlock()
+	lastBlock = exp.pageData.BlockInfo.Height
+	lastBlockTime = exp.pageData.BlockInfo.BlockTime.T.Unix()
+	lastBlockHash = exp.pageData.BlockInfo.Hash
+	return
+}
+
+// MempoolInventory safely retrieves the current mempool inventory.
+func (exp *explorerUI) MempoolInventory() *types.MempoolInfo {
+	exp.mempool.RLock()
+	defer exp.mempool.RUnlock()
+	return exp.mempool.Inv
+}
+
+// MempoolSignals returns the mempool signal and data channels, which are to be
+// used by the mempool package's MempoolMonitor as send only channels.
+func (exp *explorerUI) MempoolSignals() (chan<- pstypes.HubSignal, chan<- *types.MempoolTx) {
+	return exp.wsHub.HubRelay, exp.wsHub.NewTxChan
+}
+
 // prePopulateChartsData should run in the background the first time the system
 // is initialized and when new blocks are added.
 func (exp *explorerUI) prePopulateChartsData() {
@@ -384,6 +428,30 @@ func (exp *explorerUI) prePopulateChartsData() {
 	cacheChartsData.Update(expHeight, pgData)
 
 	log.Info("Done pre-populating the charts data.")
+}
+
+// StoreMPData stores mempool data. It is advisable to pass a copy of the
+// []types.MempoolTx so that it may be modified (e.g. sorted) without affecting
+// other MempoolDataSavers.
+func (exp *explorerUI) StoreMPData(stakeData *mempool.StakeData, txs []types.MempoolTx, inv *types.MempoolInfo) {
+	// Get exclusive access to the Mempool field.
+	exp.mempool.Lock()
+	exp.mempool.Inv = inv
+	exp.mempool.StakeData = stakeData
+	exp.mempool.Txns = txs
+	exp.mempool.Unlock()
+
+	// Signal to the websocket hub that a new tx was received, but do not block
+	// StoreMPData(), and do not hang forever in a goroutine waiting to send.
+	go func() {
+		select {
+		case exp.wsHub.HubRelay <- sigMempoolUpdate:
+		case <-time.After(time.Second * 10):
+			log.Errorf("sigMempoolUpdate send failed: Timeout waiting for WebsocketHub.")
+		}
+	}()
+
+	log.Debugf("Updated mempool details for the explorerUI.")
 }
 
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {

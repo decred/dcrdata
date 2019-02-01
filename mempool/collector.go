@@ -190,16 +190,16 @@ func (t *MempoolDataCollector) Collect() (*StakeData, []exptypes.MempoolTx, erro
 	// Make slice of TicketDetails
 	N := len(mempoolTickets)
 	allTicketsDetails := make(TicketsDetails, 0, N)
-	for hash, t := range mempoolTickets {
-		//ageSec := time.Since(time.Unix(t.Time, 0)).Seconds()
+	for hash, ticket := range mempoolTickets {
+		//ageSec := time.Since(time.Unix(ticket.Time, 0)).Seconds()
 		// Compute fee in DCR / kB
-		feeRate := t.Fee / float64(t.Size) * 1000
+		feeRate := ticket.Fee / float64(ticket.Size) * 1000
 		allTicketsDetails = append(allTicketsDetails, &apitypes.TicketDetails{
 			Hash:    hash,
-			Fee:     t.Fee,
+			Fee:     ticket.Fee,
 			FeeRate: feeRate,
-			Size:    t.Size,
-			Height:  t.Height,
+			Size:    ticket.Size,
+			Height:  ticket.Height,
 		})
 	}
 	// Verify we get the correct median result
@@ -286,9 +286,23 @@ const NumLatestMempoolTxns = 5
 // ParseTxns analyzes the mempool transactions in the txs slice, and generates a
 // MempoolInfo summary with categorized transactions.
 func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *BlockID) *exptypes.MempoolInfo {
+	// The txs slice needs to be sorted by time, but we do not want to modify
+	// the slice outside of this function and we do not want to waste time
+	// copying it if it is already sorted. So, make a copy and sort only if it
+	// is not already sorted.
+	if !sort.SliceIsSorted(txs, func(i, j int) bool {
+		return txs[i].Time > txs[j].Time
+	}) {
+		log.Debug("The transactions slice was not sorted by time. Sorting it now.")
+		// Copy the input slice to avoid side effects.
+		txs0 := txs
+		txs = make([]exptypes.MempoolTx, len(txs0))
+		copy(txs, txs0)
+		sort.Sort(exptypes.MPTxsByTime(txs))
+	}
+
 	// Get the NumLatestMempoolTxns latest transactions in mempool
 	var latest []exptypes.MempoolTx
-	sort.Sort(exptypes.MPTxsByTime(txs))
 	if len(txs) > NumLatestMempoolTxns {
 		latest = txs[:NumLatestMempoolTxns]
 	} else {
@@ -331,6 +345,10 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			invStake[tx.Hash] = struct{}{}
 			votes = append(votes, tx)
 
+			if tx.VoteInfo == nil {
+				log.Errorf("Missing vote information for %v!", tx)
+				continue
+			}
 			// Assign an index to this vote that is unique to the spent ticket +
 			// validated block.
 			tx.VoteInfo.SetTicketIndex(ticketSpendInds)
