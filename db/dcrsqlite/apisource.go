@@ -1484,19 +1484,30 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 
 	inputs := make([]exptypes.Vin, 0, len(txraw.Vin))
 	for i, vin := range txraw.Vin {
+		// The addresses are may only be obtained by decoding the previous
+		// output's pkscript.
 		var addresses []string
-		// ValueIn is a temporary fix until amountIn is correct from dcrd call
-		var ValueIn dcrutil.Amount
+		// The vin amount is now correct in most cases, but get it from the
+		// previous output anyway and compare the values for information.
+		valueIn, _ := dcrutil.NewAmount(vin.AmountIn)
+		// Do not attempt to look up prevout if it is a coinbase or stakebase
+		// input, which does not spend a previous output.
 		if !(vin.IsCoinBase() || (vin.IsStakeBase() && i == 0)) {
-			var addrs []string
-			addrs, ValueIn, err = txhelpers.OutPointAddresses(&msgTx.TxIn[i].PreviousOutPoint, db.client, db.params)
+			// Store the vin amount for comparison.
+			valueIn0 := valueIn
+
+			addresses, valueIn, err = txhelpers.OutPointAddresses(
+				&msgTx.TxIn[i].PreviousOutPoint, db.client, db.params)
 			if err != nil {
 				log.Warnf("Failed to get outpoint address from txid: %v", err)
 				continue
 			}
-			addresses = addrs
-		} else {
-			ValueIn, _ = dcrutil.NewAmount(vin.AmountIn)
+			// See if getrawtransaction had correct vin amounts. It should
+			// except for votes on side chain blocks.
+			if valueIn != valueIn0 {
+				log.Debugf("vin amount in: prevout RPC = %v, vin's amount = %v",
+					valueIn, valueIn0)
+			}
 		}
 
 		// For mempool transactions where the vin block height is not set
@@ -1518,17 +1529,18 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		}
 
 		// Assemble and append this vin.
+		coinIn := valueIn.ToCoin()
 		inputs = append(inputs, exptypes.Vin{
 			Vin: &dcrjson.Vin{
 				Txid:        vin.Txid,
 				Coinbase:    vin.Coinbase,
 				Stakebase:   vin.Stakebase,
 				Vout:        vin.Vout,
-				AmountIn:    ValueIn.ToCoin(),
+				AmountIn:    coinIn,
 				BlockHeight: vin.BlockHeight,
 			},
 			Addresses:       addresses,
-			FormattedAmount: humanize.Commaf(ValueIn.ToCoin()),
+			FormattedAmount: humanize.Commaf(coinIn),
 			Index:           uint32(i),
 		})
 	}
