@@ -19,7 +19,8 @@ func TestParseUnit(t *testing.T) {
 		{".8kB", 0.8, "kB", false},                   // decimal w/ no int
 		{"122B", 122.0, "B", false},                  // different base unit
 		{"-400MB", -400.0, "MB", false},              // negative
-		{".kB", 0.0, "", true},                       // invalid
+		{".kB", 0.0, "", true},                       // invalid numeric part
+		{"1.1.1kB", 0.0, "", true},                   // invalid numeric part
 		{"8kB63", 8.0, "kB63", false},                // number in base unit
 		{"1.21 GW", 1.21, "GW", false},               // strip space between number and base unit
 		{"J/s", 1.0, "J/s", false},                   // complex base unit
