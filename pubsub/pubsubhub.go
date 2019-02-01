@@ -100,6 +100,15 @@ type PubSubHub struct {
 // close an already closed connection.
 var ErrWsClosed = "use of closed network connection"
 
+// IsWSClosedErr checks if the passed error indicates a closed websocket
+// connection.
+func IsWSClosedErr(err error) (closedErr bool) {
+	if err != nil && strings.Contains(err.Error(), ErrWsClosed) {
+		closedErr = true
+	}
+	return
+}
+
 // NewPubSubHub constructs a PubSubHub given a primary and auxiliary data
 // source. The primary data source is required, while the aux. source may be
 // nil, which indicates a "lite" mode of operation. The WebSocketHub is
@@ -192,7 +201,7 @@ func (psh *PubSubHub) MempoolInventory() *types.MempoolInfo {
 func closeWS(ws *websocket.Conn) {
 	err := ws.Close()
 	// Do not log error if connection is just closed
-	if err != nil && !strings.Contains(err.Error(), ErrWsClosed) {
+	if err != nil && !IsWSClosedErr(err) {
 		log.Errorf("Failed to close websocket: %v", err)
 	}
 }
@@ -218,7 +227,7 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 	for {
 		// Set this Conn's read deadline.
 		err := ws.SetReadDeadline(time.Now().Add(wsReadTimeout))
-		if err != nil {
+		if err != nil && !IsWSClosedErr(err) {
 			log.Warnf("SetReadDeadline: %v", err)
 		}
 
@@ -326,12 +335,12 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 
 		// Send the response.
 		err = ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-		if err != nil {
+		if err != nil && !IsWSClosedErr(err) {
 			log.Warnf("SetWriteDeadline: %v", err)
 		}
 		if err := websocket.JSON.Send(ws, resp); err != nil {
 			// Do not log the error if the connection is just closed.
-			if !strings.Contains(err.Error(), ErrWsClosed) {
+			if !IsWSClosedErr(err) {
 				log.Debugf("Failed to encode WebSocketMessage (reply) %s: %v",
 					resp.EventId, err)
 			}
@@ -463,12 +472,12 @@ loop:
 
 			// Send the message.
 			err := ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-			if err != nil {
+			if err != nil && !IsWSClosedErr(err) {
 				log.Warnf("SetWriteDeadline failed: %v", err)
 			}
 			if err = websocket.JSON.Send(ws, pushMsg); err != nil {
 				// Do not log the error if the connection is just closed.
-				if !strings.Contains(err.Error(), ErrWsClosed) {
+				if !IsWSClosedErr(err) {
 					log.Debugf("Failed to encode WebSocketMessage (push) %v: %v", sig, err)
 				}
 				// If the send failed, the client is probably gone, quit the

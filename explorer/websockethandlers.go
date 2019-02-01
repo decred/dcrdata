@@ -23,6 +23,15 @@ import (
 // close an already closed connection.
 var ErrWsClosed = "use of closed network connection"
 
+// IsWSClosedErr checks if the passed error indicates a closed websocket
+// connection.
+func IsWSClosedErr(err error) (closedErr bool) {
+	if err != nil && strings.Contains(err.Error(), ErrWsClosed) {
+		closedErr = true
+	}
+	return
+}
+
 // RootWebsocket is the websocket handler for all pages
 func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
@@ -36,8 +45,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 		// close the websocket
 		closeWS := func() {
 			err := ws.Close()
-			// Do not log error if connection is just closed
-			if err != nil && !strings.Contains(err.Error(), ErrWsClosed) {
+			// Do not log error if connection is just closed.
+			if err != nil && !IsWSClosedErr(err) {
 				log.Errorf("Failed to close websocket: %v", err)
 			}
 		}
@@ -55,7 +64,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				// Wait to receive a message on the websocket
 				msg := &WebSocketMessage{}
 				err := ws.SetReadDeadline(time.Now().Add(wsReadTimeout))
-				if err != nil {
+				if err != nil && !IsWSClosedErr(err) {
 					log.Warnf("SetReadDeadline failed: %v", err)
 				}
 				if err = websocket.JSON.Receive(ws, &msg); err != nil {
@@ -199,12 +208,12 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 
 				// send the response back on the websocket
 				err = ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				if err != nil {
+				if err != nil && !IsWSClosedErr(err) {
 					log.Warnf("SetWriteDeadline failed: %v", err)
 				}
 				if err = websocket.JSON.Send(ws, webData); err != nil {
-					// Do not log error if connection is just closed
-					if !strings.Contains(err.Error(), ErrWsClosed) {
+					// Do not log error if connection is just closed.
+					if !IsWSClosedErr(err) {
 						log.Debugf("Failed to encode WebSocketMessage (reply) %s: %v",
 							webData.EventId, err)
 					}
@@ -292,12 +301,12 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 				}
 
 				err := ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
-				if err != nil {
+				if err != nil && !IsWSClosedErr(err) {
 					log.Warnf("SetWriteDeadline failed: %v", err)
 				}
 				if err := websocket.JSON.Send(ws, webData); err != nil {
 					// Do not log error if connection is just closed
-					if !strings.Contains(err.Error(), ErrWsClosed) {
+					if !IsWSClosedErr(err) {
 						log.Debugf("Failed to encode WebSocketMessage (push) %v: %v", sig, err)
 					}
 					// If the send failed, the client is probably gone, so close
