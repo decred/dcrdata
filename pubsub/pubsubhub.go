@@ -300,10 +300,10 @@ func (psh *PubSubHub) receiveLoop(conn *connection) {
 			// construct mempool object with properties required in template
 			inv := psh.MempoolInventory()
 			mempoolInfo := inv.Trim() // Trim locks the inventory.
-			// mempool fees appear incorrect, temporarily set to zero for now
-			mempoolInfo.Fees = 0
 
+			psh.state.RLock()
 			mempoolInfo.Subsidy = psh.state.GeneralInfo.NBlockSubsidy
+			psh.state.RUnlock()
 
 			b, err := json.Marshal(mempoolInfo)
 			if err != nil {
