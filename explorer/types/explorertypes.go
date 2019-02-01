@@ -390,15 +390,17 @@ func (mpi *MempoolInfo) Trim() *TrimmedMempoolInfo {
 	mpi.RUnlock()
 
 	// Calculate total fees for all mempool transactions.
-	getTotalFee := func(txs []*TrimmedTxInfo) (total float64) {
+	getTotalFee := func(txs []*TrimmedTxInfo) dcrutil.Amount {
+		var sum dcrutil.Amount
 		for _, tx := range txs {
-			total += tx.Fees
+			sum += tx.TxBasic.Fee
 		}
-		return
+		return sum
 	}
 
-	data.Fees = getTotalFee(data.Transactions) + getTotalFee(data.Revocations) +
+	allFees := getTotalFee(data.Transactions) + getTotalFee(data.Revocations) +
 		getTotalFee(data.Tickets) + getTotalFee(data.Votes)
+	data.Fees = allFees.ToCoin()
 
 	return data
 }
@@ -699,8 +701,10 @@ type TicketPoolInfo struct {
 
 // MempoolTx models the tx basic data for the mempool page
 type MempoolTx struct {
-	TxID      string         `json:"txid"`
-	Fees      float64        `json:"fees"`
+	TxID string  `json:"txid"`
+	Fees float64 `json:"fees"`
+	// Consider atom representation:
+	//FeeAmount   int64        `json:"fee_amount"`
 	VinCount  int            `json:"vin_count"`
 	VoutCount int            `json:"vout_count"`
 	Vin       []MempoolInput `json:"vin,omitempty"`
@@ -709,8 +713,10 @@ type MempoolTx struct {
 	Time      int64          `json:"time"`
 	Size      int32          `json:"size"`
 	TotalOut  float64        `json:"total"`
-	Type      string         `json:"Type"`
-	VoteInfo  *VoteInfo      `json:"vote_info,omitempty"`
+	// Consider atom representation:
+	//TotalOutAmt float64        `json:"total_amount"`
+	Type     string    `json:"Type"`
+	VoteInfo *VoteInfo `json:"vote_info,omitempty"`
 }
 
 func (mpt *MempoolTx) DeepCopy() *MempoolTx {

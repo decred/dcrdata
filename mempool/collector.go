@@ -14,6 +14,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
@@ -301,7 +302,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 		sort.Sort(exptypes.MPTxsByTime(txs))
 	}
 
-	// Get the NumLatestMempoolTxns latest transactions in mempool
+	// Get the NumLatestMempoolTxns latest transactions in mempool.
 	var latest []exptypes.MempoolTx
 	if len(txs) > NumLatestMempoolTxns {
 		latest = txs[:NumLatestMempoolTxns]
@@ -309,33 +310,38 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 		latest = txs
 	}
 
+	// Initialize with make to ensure they marshal to JSON as [] if empty.
 	tickets := make([]exptypes.MempoolTx, 0)
 	votes := make([]exptypes.MempoolTx, 0)
 	revs := make([]exptypes.MempoolTx, 0)
 	regular := make([]exptypes.MempoolTx, 0)
 
-	var regularTotal, ticketTotal, voteTotal, revTotal float64
-	var likelyMineable bool
-
-	var totalOut, likelyTotal float64
-	var totalSize int32
-	votingInfo := exptypes.NewVotingInfo(params.TicketsPerBlock)
+	// Transaction inventory.
 	invRegular := make(map[string]struct{})
 	invStake := make(map[string]struct{})
 
 	blockhash := lastBlock.Hash.String()
+	votingInfo := exptypes.NewVotingInfo(params.TicketsPerBlock)
+
+	// Reduction variables.
+	var latestTime int64
+	var totalOut, regularTotal, ticketTotal, voteTotal, revTotal dcrutil.Amount
+	var likelyMineable bool
+	var likelyTotal dcrutil.Amount
+	var totalSize int32
 
 	// Initialize the BlockValidatorIndex, a map.
-	var latestTime int64
 	ticketSpendInds := make(exptypes.BlockValidatorIndex)
+
 	for _, tx := range txs {
 		likelyMineable = true
+		out, _ := dcrutil.NewAmount(tx.TotalOut) // 0 for invalid amounts
 		switch tx.Type {
 		case "Ticket":
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
-			ticketTotal += tx.TotalOut
+			ticketTotal += out
 			invStake[tx.Hash] = struct{}{}
 			tickets = append(tickets, tx)
 		case "Vote":
@@ -359,7 +365,7 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			if tx.VoteInfo.ForLastBlock && !votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] {
 				votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] = true
 				votingInfo.TicketsVoted++
-				voteTotal += tx.TotalOut
+				voteTotal += out
 				votingInfo.Tally(tx.VoteInfo)
 			} else {
 				likelyMineable = false
@@ -368,23 +374,23 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			if _, found := invStake[tx.Hash]; found {
 				continue
 			}
-			revTotal += tx.TotalOut
+			revTotal += out
 			invStake[tx.Hash] = struct{}{}
 			revs = append(revs, tx)
 		default:
 			if _, found := invRegular[tx.Hash]; found {
 				continue
 			}
-			regularTotal += tx.TotalOut
+			regularTotal += out
 			invRegular[tx.Hash] = struct{}{}
 			regular = append(regular, tx)
 		}
 
 		// Update mempool totals
 		if likelyMineable {
-			likelyTotal += tx.TotalOut
+			likelyTotal += out
 		}
-		totalOut += tx.TotalOut
+		totalOut += out
 		totalSize += tx.Size
 
 		if latestTime < tx.Time {
@@ -402,12 +408,12 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			LastBlockHash:      blockhash,
 			LastBlockTime:      lastBlock.Time,
 			Time:               latestTime,
-			TotalOut:           totalOut,
-			LikelyTotal:        likelyTotal,
-			RegularTotal:       regularTotal,
-			TicketTotal:        ticketTotal,
-			VoteTotal:          voteTotal,
-			RevokeTotal:        revTotal,
+			TotalOut:           totalOut.ToCoin(),
+			LikelyTotal:        likelyTotal.ToCoin(),
+			RegularTotal:       regularTotal.ToCoin(),
+			TicketTotal:        ticketTotal.ToCoin(),
+			VoteTotal:          voteTotal.ToCoin(),
+			RevokeTotal:        revTotal.ToCoin(),
 			TotalSize:          totalSize,
 			NumTickets:         len(tickets),
 			NumVotes:           len(votes),
