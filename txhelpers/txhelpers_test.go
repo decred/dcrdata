@@ -1,12 +1,14 @@
 package txhelpers
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg"
@@ -312,5 +314,55 @@ func TestFeeRate(t *testing.T) {
 	got = FeeRate(10, 10, 1e9)
 	if got != expected {
 		t.Errorf("Expected fee rate of %d, got %d.", expected, got)
+	}
+}
+
+func randomHash() chainhash.Hash {
+	var hash chainhash.Hash
+	if _, err := rand.Read(hash[:]); err != nil {
+		panic("boom")
+	}
+	return hash
+}
+
+func TestIsZeroHash(t *testing.T) {
+	tests := []struct {
+		name string
+		hash chainhash.Hash
+		want bool
+	}{
+		{"correctFromZeroByteArray", [chainhash.HashSize]byte{}, true},
+		{"correctFromZeroValueHash", chainhash.Hash{}, true},
+		{"incorrectByteArrayValues", [chainhash.HashSize]byte{0x22}, false},
+		{"incorrectRandomHash", randomHash(), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsZeroHash(tt.hash); got != tt.want {
+				t.Errorf("IsZeroHash() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsZeroHashStr(t *testing.T) {
+	tests := []struct {
+		name string
+		hash string
+		want bool
+	}{
+		{"correctFromStringsRepeat", strings.Repeat("00", chainhash.HashSize), true},
+		{"correctFromZeroHashStringer", zeroHash.String(), true},
+		{"correctFromZeroValueHashStringer", chainhash.Hash{}.String(), true},
+		{"incorrectEmptyString", "", false},
+		{"incorrectRandomHashString", randomHash().String(), false},
+		{"incorrectNotAHashAtAll", "this is totally not a hash let alone the zero hash string", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsZeroHashStr(tt.hash); got != tt.want {
+				t.Errorf("IsZeroHashStr() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

@@ -1498,8 +1498,12 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		} else {
 			ValueIn, _ = dcrutil.NewAmount(vin.AmountIn)
 		}
-		if tx.BlockHeight == 0 && vin.BlockHeight == 0 {
-			// the vins in a verbose mempool tx from dcrd are always block height 0
+
+		// For mempool transactions where the vin block height is not set
+		// (height 0 for an input that is not a coinbase or stakebase),
+		// determine the height at which the input was generated via RPC.
+		if tx.BlockHeight == 0 && vin.BlockHeight == 0 &&
+			!txhelpers.IsZeroHashStr(vin.Txid) {
 			vinHash, err := chainhash.NewHashFromStr(vin.Txid)
 			if err != nil {
 				log.Errorf("Failed to translate hash from string: %s", vin.Txid)
@@ -1512,6 +1516,8 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 				}
 			}
 		}
+
+		// Assemble and append this vin.
 		inputs = append(inputs, exptypes.Vin{
 			Vin: &dcrjson.Vin{
 				Txid:        vin.Txid,
@@ -1527,6 +1533,7 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		})
 	}
 	tx.Vin = inputs
+
 	if tx.Vin[0].IsCoinBase() {
 		tx.Type = "Coinbase"
 	}
@@ -1556,6 +1563,7 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 		}
 		tx.Maturity = int64(db.params.CoinbaseMaturity) + 1 // Add one to reflect < instead of <=
 	}
+
 	CoinbaseMaturityInHours := (db.params.TargetTimePerBlock.Hours() * float64(db.params.CoinbaseMaturity))
 	tx.MaturityTimeTill = ((float64(db.params.CoinbaseMaturity) -
 		float64(tx.Confirmations)) / float64(db.params.CoinbaseMaturity)) * CoinbaseMaturityInHours
@@ -1582,7 +1590,7 @@ func (db *WiredDB) GetExplorerTx(txid string) *exptypes.TxInfo {
 	}
 	tx.Vout = outputs
 
-	// Initialize the spending transaction slice for safety
+	// Initialize the spending transaction slice for safety.
 	tx.SpendingTxns = make([]exptypes.TxInID, len(outputs))
 
 	return tx
