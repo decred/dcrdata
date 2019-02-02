@@ -128,8 +128,8 @@ type ChoiceLabeled struct {
 }
 
 // GetVoteAgendasForVersion is used in getting the agendas using the vote versions
-func GetVoteAgendasForVersion(ver int64, client *rpcclient.Client) (agendas []AgendaTagged) {
-	voteInfo, err := client.GetVoteInfo(uint32(ver))
+func GetVoteAgendasForVersion(ver uint32, client *rpcclient.Client) (agendas []AgendaTagged) {
+	voteInfo, err := client.GetVoteInfo(ver)
 	if err != nil {
 		log.Errorf("Fetching Agendas by vote version failed: %v", err)
 	} else {
@@ -154,13 +154,13 @@ func GetVoteAgendasForVersion(ver int64, client *rpcclient.Client) (agendas []Ag
 
 // CheckAvailabiltyOfVersionAgendas checks for the availabily of agendas in the
 // saved db by version input
-func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version int64) bool {
+func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version uint32) bool {
 	if db == nil || db.sdb == nil {
 		return false
 	}
 
 	agenda := make([]AgendaTagged, 0)
-	err := db.sdb.Find("VoteVersion", uint32(version), &agenda)
+	err := db.sdb.Find("VoteVersion", version, &agenda)
 	if len(agenda) == 0 || err != nil {
 		return false
 	}
@@ -168,8 +168,10 @@ func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version int64) bool {
 	return true
 }
 
-// Updatedb used when needed to keep the saved db upto date
-func (db *AgendaDB) Updatedb(voteVersion int64, client *rpcclient.Client) {
+// func (db *AgendaDB) getLastUpdatedVersion()
+
+// updatedb used when needed to keep the saved db upto date
+func (db *AgendaDB) updatedb(voteVersion uint32, client *rpcclient.Client) {
 	var agendas []AgendaTagged
 	for GetVoteAgendasForVersion(voteVersion, client) != nil {
 		taggedAgendas := GetVoteAgendasForVersion(voteVersion, client)
@@ -198,12 +200,15 @@ func CheckForUpdates(client *rpcclient.Client) error {
 	// casting was activated. More information can be found here
 	// https://docs.decred.org/getting-started/user-guides/agenda-voting/#voting-archive
 	// Also at the moment all agenda version information available in the rpc
-	// is from version 4.
-	var voteVersion int64 = 4
+	// starts from version 4 by default.
+
+	var voteVersion uint32 = 4
 	for adb.CheckAvailabiltyOfVersionAgendas(voteVersion) {
 		voteVersion++
 	}
-	adb.Updatedb(voteVersion, client)
+
+	adb.updatedb(voteVersion, client)
+
 	return adb.Close()
 }
 
@@ -214,6 +219,7 @@ func GetAgendaInfo(agendaId string) (*AgendaTagged, error) {
 		log.Errorf("Failed to open new DB: %v", err)
 		return nil, err
 	}
+
 	agenda, err := adb.LoadAgenda(agendaId)
 	if err != nil {
 		_ = adb.Close() // only return the LoadAgenda error

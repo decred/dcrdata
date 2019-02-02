@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	survey "gopkg.in/AlecAivazis/survey.v1"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 	client "github.com/decred/dcrdata/v4/pubsub/psclient"
 	pstypes "github.com/decred/dcrdata/v4/pubsub/types"
 	"golang.org/x/net/websocket"
+	survey "gopkg.in/AlecAivazis/survey.v1"
 )
 
 var cfg *config

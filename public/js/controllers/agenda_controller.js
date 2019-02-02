@@ -33,7 +33,7 @@ function cumulativeVoteChoicesData (d) {
   return d.yes.map((n, i) => {
     return [
       new Date(d.time[i]),
-      +d.yes[i],
+      n,
       d.abstain[i],
       d.no[i]
     ]
@@ -45,7 +45,7 @@ function voteChoicesByBlockData (d) {
   return d.yes.map((n, i) => {
     return [
       d.height[i],
-      +d.yes[i],
+      n,
       d.abstain[i],
       d.no[i]
     ]
@@ -80,6 +80,7 @@ export default class extends Controller {
     this.voteChoicesByBlockChart.updateOptions({
       file: voteChoicesByBlockData(agendaResponse.data.by_height)
     })
+
     this.element.classList.remove('loading')
   }
 

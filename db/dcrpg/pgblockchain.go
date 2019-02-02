@@ -915,6 +915,17 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 	return avc, pgb.replaceCancelError(err)
 }
 
+// AgendaCummulativeVoteChoices fetches the total vote choices count for the
+// provided agenda.
+func (pgb *ChainDB) AgendaCummulativeVoteChoices(agendaID string) (yes,
+	abstain, no uint32, err error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+
+	yes, abstain, no, err = retrieveTotalAgendaVotesCount(ctx, pgb.db, agendaID)
+	return
+}
+
 // NumAddressIntervals gets the number of unique time intervals for the
 // specified grouping where there are entries in the addresses table for the
 // given address.

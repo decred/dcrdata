@@ -2351,6 +2351,16 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 	return totalVotes, nil
 }
 
+// retrieveTotalAgendaVotesCount returns the cummulative vote choices count for
+// the provided agenda id.
+func retrieveTotalAgendaVotesCount(ctx context.Context, db *sql.DB,
+	agendaID string) (yes, abstain, no uint32, err error) {
+	err = db.QueryRowContext(ctx, internal.SelectAgendasTotalAgendaVotes, dbtypes.Yes,
+		dbtypes.Abstain, dbtypes.No, agendaID).Scan(&yes, &abstain, &no)
+
+	return
+}
+
 // --- transactions table ---
 
 func InsertTx(db *sql.DB, dbTx *dbtypes.Tx, checked, updateExistingRecords bool) (uint64, error) {

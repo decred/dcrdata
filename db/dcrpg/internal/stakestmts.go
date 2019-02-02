@@ -358,25 +358,24 @@ const (
 	DeindexAgendasTableOnBlockTime = `DROP INDEX uix_agendas_block_time;`
 
 	agendaLockinBlock              = `SELECT block_height FROM agendas WHERE locked_in = true AND agenda_id = $4 LIMIT 1`
-	SelectAgendasAgendaVotesByTime = `SELECT block_time AS timestamp,
-			count(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) AS yes,
-			count(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) AS abstain,
-			count(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
-			count(*) AS total
-		 FROM agendas
-		WHERE agenda_id = $4
+	SelectAgendasAgendaVotesByTime = `SELECT block_time AS timestamp,` +
+		selectAgendasQuery + `
 		  AND block_height <= (` + agendaLockinBlock + `)
 		GROUP BY timestamp ORDER BY timestamp;`
 
-	SelectAgendasAgendaVotesByHeight = `SELECT block_height,
-			count(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) AS yes,
-			count(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) AS abstain,
-			count(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
-			count(*) AS total
-		 FROM agendas
-		WHERE agenda_id = $4
+	SelectAgendasAgendaVotesByHeight = `SELECT block_height,` + selectAgendasQuery + `
 		  AND block_height <= (` + agendaLockinBlock + `)
-		GROUP BY block_height;`
+		GROUP BY block_height ORDER BY block_height;`
+
+	SelectAgendasTotalAgendaVotes = `SELECT ` + selectAgendasQuery + `;`
+
+	selectAgendasQuery = `
+		count(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) AS yes,
+		count(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) AS abstain,
+		count(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
+		count(*) AS total
+		FROM agendas
+		WHERE agenda_id = $4`
 
 	SelectAgendasLockedIn   = `SELECT block_height FROM agendas WHERE locked_in = true AND agenda_id = $1 LIMIT 1;`
 	SelectAgendasHardForked = `SELECT block_height FROM agendas WHERE hard_forked = true AND agenda_id = $1 LIMIT 1;`

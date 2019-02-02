@@ -1659,6 +1659,22 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	yes, abstain, no, err := exp.explorerSource.AgendaCummulativeVoteChoices(agendaId)
+	if err != nil {
+		log.Errorf(" fetching cummulative votes choices count failed: %v", err)
+	}
+
+	for _, choice := range agendaInfo.Choices {
+		switch strings.ToLower(choice.ID) {
+		case "abstain":
+			choice.Count = abstain
+		case "yes":
+			choice.Count = yes
+		case "no":
+			choice.Count = no
+		}
+	}
+
 	str, err := exp.templates.execTemplateToString("agenda", struct {
 		*CommonPageData
 		Ai      *agendadb.AgendaTagged
