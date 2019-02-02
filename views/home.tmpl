@@ -10,8 +10,6 @@
         <!-- <div class="text-left mx-1 pl-1 pb-1">{{.NetName}}</div> -->
 
             <div class="row">
-
-
                 <div class="col-md-15 p-0">
                     <div class="pt-1 pb-1 px-2 bg-white mb-1">
 
@@ -64,10 +62,10 @@
                                     <thead>
                                         <tr class="card-theader">
                                             <th class="text-left pl-3">Height</th>
-                                            <th><div class="position-relative text-center" data-tooltip="regular transactions">R</div></th>
-                                            <th><div class="position-relative text-center" data-tooltip="votes">V</div></th>
-                                            <th><div class="position-relative text-center" data-tooltip="tickets">T</div></th>
-                                            <th><div class="position-relative text-center" data-tooltip="revocations">X</div></th>
+                                            <th><div class="position-relative text-center" data-tooltip="regular transactions">Transactions</div></th>
+                                            <th><div class="position-relative text-center" data-tooltip="votes">Votes</div></th>
+                                            <th><div class="position-relative text-center" data-tooltip="tickets">Tickets</div></th>
+                                            <th><div class="position-relative text-center" data-tooltip="revocations">Revokes</div></th>
                                             <th><div class="position-relative text-center" data-tooltip="total DCR sent">DCR</div></th>
                                             <th class="d-none d-sm-table-cell d-md-none d-lg-table-cell"><div class="position-relative text-center">Size</div></th>
                                             <th class="text-right pr-3" data-target="time.header" data-jstitle="Age">Time ({{timezone}})</th>
@@ -88,12 +86,12 @@
                                         {{end}}
                                     </tbody>
                                 </table>
-                                <a href="/blocks" class="small">more blocks...</a>
+                                <a href="/blocks" class="small ml-2">more blocks...</a>
                             </div>
                         </div>
                     </div> <!-- end blocks card -->
 
-                    <div class="pt-1 pb-1 px-2 mb-2 bg-white mb-1">
+                    <div class="py-1 px-2 mb-1 bg-white">
 
                         <div class="d-flex align-items-baseline mb-2">
                             <div class="position-relative mt-1 p-2">
@@ -119,18 +117,11 @@
                             </div>
                         </div>
 
-                        <div class="mx-2 jsonly text-nowrap d-flex">
-                            <div class="tx-gauge tx-regular rounded-left" data-target="homepage.mpRegBar"></div>
-                            <div class="tx-gauge tx-ticket" data-target="homepage.mpTicketBar"></div>
-                            <div class="tx-gauge tx-vote" data-target="homepage.mpVoteBar"></div>
-                            <div class="tx-gauge tx-rev rounded-right" data-target="homepage.mpRevBar"></div
-                        ></div>
-
                         <div class="row mb-2">
                             <div class="col-md-8">
 
-                                <div class="d-flex justify-content-between align-items-center px-2 mx-auto">
-                                    <div class="text-left my-3 pl-3 tx-bar tx-regular d-inline-block">
+                                <div class="d-flex justify-content-between align-items-center px-2 mx-auto mt-4 pt-1">
+                                    <div class="text-left pl-2 tx-bar tx-regular d-inline-block">
                                         <span data-target="homepage.mpRegCount" class="h4">{{.Mempool.NumRegular}}</span>
                                         <span class="h5"> regular</span>
                                         <br>
@@ -138,7 +129,26 @@
                                         <span class="h6">DCR</span>
                                     </div>
 
-                                    <div class="text-right my-3 pr-3 tx-bar tx-vote d-inline-block">
+                                    <div class="text-right pr-2 tx-bar tx-ticket d-inline-block">
+                                        <span data-target="homepage.mpTicketCount" class="h4">{{.Mempool.NumTickets}}</span>
+                                        <span class="h5"> tickets</span>
+                                        <br>
+                                        <span class="h3" data-target="homepage.mpTicketTotal"
+                                        >{{threeSigFigs .Mempool.TicketTotal}}</span>
+                                        <span class="h6">DCR</span>
+                                    </div>
+                                </div>
+
+                                <div class="mx-2 jsonly text-nowrap d-flex my-3">
+                                    <div class="tx-gauge tx-regular rounded-left" data-target="homepage.mpRegBar"></div>
+                                    <div class="tx-gauge tx-ticket" data-target="homepage.mpTicketBar"></div>
+                                    <div class="tx-gauge tx-vote" data-target="homepage.mpVoteBar"></div>
+                                    <div class="tx-gauge tx-rev rounded-right" data-target="homepage.mpRevBar"></div
+                                ></div>
+
+                                <div class="d-flex justify-content-between align-items-center mx-auto px-2">
+
+                                    <div class="text-left pl-2 tx-bar tx-bar tx-vote d-inline-block">
                                         <span data-target="homepage.mpVoteCount"
                                         class="h4"
                                         data-tickets-per-block="{{.Mempool.VotingInfo.MaxVotesPerBlock}}">
@@ -160,21 +170,10 @@
                                         <span class="h3" data-target="homepage.mpVoteTotal">{{threeSigFigs .Mempool.VoteTotal}}</span>
                                         <span class="h6">DCR</span><br>
                                     </div>
-                                </div>
 
-                                <div class="d-flex justify-content-between align-items-center mx-auto px-2">
-                                    <div class="text-left my-3 pl-3 tx-bar tx-ticket d-inline-block">
-                                    <span data-target="homepage.mpTicketCount" class="h4">{{.Mempool.NumTickets}}</span>
-                                    <span class="h5"> tickets</span>
-                                    <br>
-                                    <span class="h3" data-target="homepage.mpTicketTotal"
-                                    >{{threeSigFigs .Mempool.TicketTotal}}</span>
-                                    <span class="h6">DCR</span>
-                                    </div>
-
-                                    <div class="text-right my-3 pr-3 tx-bar tx-rev d-inline-block">
+                                    <div class="text-right pr-2 tx-bar tx-rev d-inline-block">
                                         <span data-target="homepage.mpRevCount" class="h4">{{.Mempool.NumRevokes}}</span>
-                                        <span class="h5"> revocations</span>
+                                        <span class="h5"> revokes</span>
                                         <br>
                                         <span class="h3" data-target="homepage.mpRevTotal"
                                         >{{threeSigFigs .Mempool.RevokeTotal}}</span>
@@ -212,7 +211,7 @@
                                     {{end}}
                                     </tbody>
                                 </table>
-                                <a href="/mempool" class="small mb-2">see more...</a>
+                                <a href="/mempool" class="small ml-2">more transactions...</a>
                             </div>
                         </div>
                     </div>  <!-- end mempool card -->
@@ -369,7 +368,6 @@
                                 </span>
                             </div>
                         </div>
-
                     </div>
                 </div> <!-- end mining card -->
 

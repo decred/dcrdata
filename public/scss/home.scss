@@ -9,12 +9,12 @@
 }
 
 .tx-bar.tx-vote {
-  border-right-style: solid;
+  border-left-style: solid;
   border-color: $vote-light;
 }
 
 .tx-bar.tx-ticket {
-  border-left-style: solid;
+  border-right-style: solid;
   border-color: $ticket-light;
 }
 
@@ -25,9 +25,13 @@
 
 .tx-gauge {
   height: 4px;
-  margin: 0 1px;
+  margin-right: 1px;
   width: 25%;
   transition: width 1s ease-in-out;
+
+  &:last-child {
+    margin-right: 0;
+  }
 }
 
 .tx-gauge.tx-regular {
