@@ -2355,8 +2355,10 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 // the provided agenda id.
 func retrieveTotalAgendaVotesCount(ctx context.Context, db *sql.DB,
 	agendaID string) (yes, abstain, no uint32, err error) {
+	var total uint32
+
 	err = db.QueryRowContext(ctx, internal.SelectAgendasTotalAgendaVotes, dbtypes.Yes,
-		dbtypes.Abstain, dbtypes.No, agendaID).Scan(&yes, &abstain, &no)
+		dbtypes.Abstain, dbtypes.No, agendaID).Scan(&yes, &abstain, &no, &total)
 
 	return
 }

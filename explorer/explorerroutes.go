@@ -1661,17 +1661,19 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	yes, abstain, no, err := exp.explorerSource.AgendaCummulativeVoteChoices(agendaId)
 	if err != nil {
-		log.Errorf(" fetching cummulative votes choices count failed: %v", err)
+		log.Errorf("fetching cummulative votes choices count failed: %v", err)
 	}
 
-	for _, choice := range agendaInfo.Choices {
-		switch strings.ToLower(choice.ID) {
+	// Override the default count entry which is always zero especially when the
+	// the agenda id is active.
+	for index := range agendaInfo.Choices {
+		switch strings.ToLower(agendaInfo.Choices[index].ID) {
 		case "abstain":
-			choice.Count = abstain
+			agendaInfo.Choices[index].Count = abstain
 		case "yes":
-			choice.Count = yes
+			agendaInfo.Choices[index].Count = yes
 		case "no":
-			choice.Count = no
+			agendaInfo.Choices[index].Count = no
 		}
 	}
 
