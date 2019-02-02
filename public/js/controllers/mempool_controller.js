@@ -46,16 +46,15 @@ function buildTable (target, txType, txns, rowFn) {
       target.appendChild(tr)
     })
   } else {
-    target.innerHTML = `<tr><td colspan="${(txType === 'votes' ? 8 : 4)}">No ${txType} in mempool.</td></tr>`
+    target.innerHTML = `<tr class="no-tx-tr"><td colspan="${(txType === 'votes' ? 8 : 4)}">No ${txType} in mempool.</td></tr>`
   }
 }
 
 function addTxRow (tx, target, rowFn) {
-  if (target.childElementCount === 0) {
-    target.appendChild(rowFn(tx))
-  } else {
-    target.insertBefore(rowFn(tx), target.firstChild)
+  if (target.childElementCount === 1 && target.firstChild.classList.contains('no-tx-tr')) {
+    target.removeChild(target.firstChild)
   }
+  target.insertBefore(rowFn(tx), target.firstChild)
 }
 
 export default class extends Controller {
