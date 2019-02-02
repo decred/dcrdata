@@ -168,8 +168,6 @@ func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version uint32) bool {
 	return true
 }
 
-// func (db *AgendaDB) getLastUpdatedVersion()
-
 // updatedb used when needed to keep the saved db upto date
 func (db *AgendaDB) updatedb(voteVersion uint32, client *rpcclient.Client) {
 	var agendas []AgendaTagged
@@ -206,7 +204,6 @@ func CheckForUpdates(client *rpcclient.Client) error {
 	for adb.CheckAvailabiltyOfVersionAgendas(voteVersion) {
 		voteVersion++
 	}
-
 	adb.updatedb(voteVersion, client)
 
 	return adb.Close()

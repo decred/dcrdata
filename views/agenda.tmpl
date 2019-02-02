@@ -71,7 +71,9 @@
                     <th>Description</th>
                     <th>Bits</th>
                     <th>Count</th>
-                    <th>Progress</th>
+                    {{ if ne (index .Choices 0).Progress 0.0}}
+                        <th>Progress</th> 
+                   {{end}}
                 </thead>
                 {{range $i, $v := .Choices}}
                 {{with $v}}
@@ -81,7 +83,9 @@
                         <td class="text-left">{{.Description}}</td>
                         <td class="text-left">{{.Bits}}</td>
                         <td class="text-left">{{.Count}}</td>
-                        <td class="text-left">{{.Progress}}</td>
+                        {{if ne .Progress 0.0}}
+                            <td class="text-left">{{.Progress}}</td>
+                        {{end}}
                     </tr>
                 </thead>
                 {{end}}

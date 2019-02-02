@@ -1664,7 +1664,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("fetching cummulative votes choices count failed: %v", err)
 	}
 
-	// Override the default count entry which is always zero especially when the
+	// Overrides the default count entry which is always zero especially when the
 	// the agenda id is active.
 	for index := range agendaInfo.Choices {
 		switch strings.ToLower(agendaInfo.Choices[index].ID) {
