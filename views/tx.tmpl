@@ -7,7 +7,7 @@
 <div class="container main" data-controller="time tx">
 {{with .Data}}
     <div class="row justify-content-between" data-pool-status="{{.TicketInfo.PoolStatus}}">
-        <div class="col-md-8 col-sm-6">
+        <div class="col-lg-16 col-sm-12">
             <h4 class="mb-2">
                 Transaction
                 <span class="fs15">
@@ -105,7 +105,7 @@
                         <td class="text-right pr-2 h1rem p03rem0">MATURITY</td>
                         <td>
                             <div class="row" data-target="tx.ticketStage">
-                                <div class="col-11 col-lg-8 col-sm-12">
+                                <div class="col-11 col-lg-16 col-sm-24">
                                     <div class="progress" style="max-width: 330px">
                                         <div
                                             class="progress-bar rounded"
@@ -151,7 +151,7 @@
                         <td class="text-right pr-2 h1rem p03rem0">MATURITY</td>
                         <td>
                             <div class="row" data-target="tx.ticketStage">
-                                <div class="col-11 col-lg-8 col-sm-12">
+                                <div class="col-11 col-lg-16 col-sm-24">
                                     <div class="progress" style="max-width: 330px">
                                         <div
                                             class="progress-bar rounded"
@@ -196,7 +196,7 @@
                                 <td class="text-right pr-2 h1rem p03rem0">PROBABILITY</td>
                                 <td>
                                     <div class="row">
-                                        <div class="col-11 col-lg-8 col-sm-12">
+                                        <div class="col-11 col-lg-16 col-sm-24">
                                             <div class="progress" style="max-width: 330px">
                                                 <div
                                                     class="progress-bar rounded"
@@ -220,7 +220,7 @@
                                 <td class="text-right pr-2 h1rem p03rem0">EXPIRY</td>
                                 <td>
                                     <div class="row" data-target="tx.ticketStage">
-                                        <div class="col-11 col-lg-8 col-sm-12">
+                                        <div class="col-11 col-lg-16 col-sm-24">
                                             <div class="progress" style="max-width: 330px">
                                                 <div
                                                     class="progress-bar rounded"
@@ -260,7 +260,7 @@
                 {{end}}
             </table>
         </div>
-        <div class="col-md-4 col-sm-6 d-flex">
+        <div class="col-lg-8 col-sm-12 d-flex">
 
             <table>
                 <tr class="h2rem">
@@ -305,7 +305,7 @@
     </div>
 
     <div class="row">
-        <div class="col-md-6 mb-3">
+        <div class="col-lg-12 mb-3">
             <h5>{{len .Vin}} Input{{if gt (len .Vin) 1}}s{{end}} Consumed</h5>
             <table class="table table-sm striped">
                 <thead>
@@ -364,7 +364,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="col-md-6 mb-3">
+        <div class="col-lg-12 mb-3">
             <h5>{{len .Vout}} Output{{if gt (len .Vout) 1}}s{{end}} Created</h5>
             <table class="table table-sm striped">
                 <thead>
@@ -428,7 +428,7 @@
     {{if .VoteInfo}}
     {{with .VoteInfo}}
     <div class="row mb-3">
-        <div class="col-md-12">
+        <div class="col-lg-24">
             <h4>Vote Info</h4>
             <p>Last Block Valid: <span class="mono"><strong>{{.Validation.Validity}}</strong></span><br>
             Version: <span class="mono">{{.Version}}</span> | Bits: <span class="mono">{{printf "%#04x" .Bits}}</span>
