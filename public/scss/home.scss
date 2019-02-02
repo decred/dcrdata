@@ -9,7 +9,7 @@
 }
 
 .tx-bar.tx-vote {
-  border-left-style: solid;
+  border-right-style: solid;
   border-color: $vote-light;
 }
 
@@ -19,7 +19,7 @@
 }
 
 .tx-bar.tx-rev {
-  border-right-style: solid;
+  border-left-style: solid;
   border-color: $rev-light;
 }
 
