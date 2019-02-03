@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
@@ -1873,6 +1874,23 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 	return txsRaw, nil
 }
 
+// updateVotesMilestones updates the agenda ID's lockedIn and Activation entries.
+// LockedIn is the height when an agenda is that the agenda passed, but the rules
+// have not yet activated. Activated is the height when the agenda Rule Change
+// is implemented. Find more details on Rule Change Interval (RCI) here:
+// https://docs.decred.org/glossary/#rule-change-interval-rci.
+func updateVotesMilestones(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
+	for agendaID, entry := range blockChainInfo.Deployments {
+		// Add missing agenda ID information.
+		if _, ok := VotingMilestones[agendaID]; !ok && entry.Since > 0 {
+			VotingMilestones[agendaID] = dbtypes.MileStone{
+				LockedIn:  entry.Since,
+				Activated: entry.Since + 8064,
+			}
+		}
+	}
+}
+
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
 // and part of mainchain. Store should not be used for batch block processing;
 // instead, use StoreBlock and specify appropriate flags.
@@ -1881,6 +1899,8 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	if pgb == nil {
 		return nil
 	}
+
+	updateVotesMilestones(blockData.BlockchainInfo)
 
 	// New blocks stored this way are considered valid and part of mainchain,
 	// warranting updates to existing records. When adding side chain blocks

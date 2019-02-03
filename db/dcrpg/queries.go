@@ -444,8 +444,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 
 			lockedIn, activated, hardForked := false, false, false
 
-			// THIS IS A TEMPORARY SOLUTION till activated, lockedIn and hardforked
-			// height values can be sent via an rpc method.
+			// VotingMilestones has the latest lockedIn and activated values
+			// derived from getBlockChainInfo rpc endpoint payload.
 			progress, ok := VotingMilestones[val.ID]
 			if ok {
 				lockedIn = (progress.LockedIn == tx.BlockHeight)
