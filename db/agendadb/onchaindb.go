@@ -6,6 +6,7 @@ package agendadb
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/asdine/storm"
@@ -18,6 +19,9 @@ type AgendaDB struct {
 	sdb        *storm.DB
 	NumAgendas int
 	NumChoices int
+
+	client      *http.Client
+	politeiaURL string
 }
 
 var dbPath string
@@ -49,6 +53,7 @@ func Open() (*AgendaDB, error) {
 		sdb:        db,
 		NumAgendas: numAgendas,
 		NumChoices: numChoices,
+		client:     GetClient(),
 	}
 	return agendaDB, err
 }
