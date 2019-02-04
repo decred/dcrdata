@@ -5,9 +5,12 @@ package agendadb
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/asdine/storm"
 )
 
 const (
@@ -89,27 +92,27 @@ func (db *AgendaDB) handleGetRequests(root, path, params string) ([]byte, error)
 	return ioutil.ReadAll(response.Body)
 }
 
-func (db *AgendaDB) saveProposals(URLParams string) error {
+func (db *AgendaDB) saveProposals(URLParams string) (int, error) {
 	data, err := db.handleGetRequests(db.politeiaURL, vettedProposalsRoute, URLParams)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	publicProposals := make([]ProposalInfo, 0)
 	err = json.Unmarshal(data, publicProposals)
-	if err != nil {
-		return err
+	if err != nil || len(publicProposals) == 0 {
+		return 0, err
 	}
 
 	data, err = db.handleGetRequests(db.politeiaURL, voteStatusesRoute, URLParams)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	votesInfo := make([]ProposalVotes, 0)
 	err = json.Unmarshal(data, votesInfo)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Append the votes information to the respective proposals.
@@ -123,13 +126,50 @@ func (db *AgendaDB) saveProposals(URLParams string) error {
 		}
 	}
 
-	return db.sdb.Save(publicProposals)
+	err = db.offNode.Save(publicProposals)
+
+	return len(publicProposals), err
 }
 
-func (db *AgendaDB) retrieveProposals() ([]ProposalInfo, error) {
-	proposals, := db.sdb.Select().OrderBy("Timestamp")
+func (db *AgendaDB) GetAllProposals() (proposals []ProposalInfo, err error) {
+	var adb *AgendaDB
+	adb, err = Open()
+	if err != nil {
+		log.Errorf("Failed to open new Agendas DB: %v", err)
+		return
+	}
+
+	defer func() {
+		err = adb.Close()
+		if err != nil {
+			log.Errorf("Failed to close the Agendas DB: %v", err)
+		}
+	}()
+
+	err = adb.onNode.All(&proposals)
+	if err != nil {
+		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
+	}
+
+	return
 }
 
-func checkForUpdates() {
+func (db *AgendaDB) getLastSavedProposal() (lastP *ProposalInfo, err error) {
+	err = db.offNode.All(lastP, storm.Limit(1), storm.Reverse())
+	return
+}
 
+func (db *AgendaDB) checkOffchainUpdates() (int, error) {
+	lastProposal, err := db.getLastSavedProposal()
+	if err != nil {
+		return 0, err
+	}
+
+	var queryParam = ""
+
+	if lastProposal != nil {
+		queryParam = fmt.Sprintf("?after=%v", lastProposal.Censorship.Token)
+	}
+
+	return db.saveProposals(queryParam)
 }

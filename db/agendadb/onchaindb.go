@@ -17,6 +17,8 @@ import (
 // AgendaDB represents the data for the saved db
 type AgendaDB struct {
 	sdb        *storm.DB
+	onNode     storm.Node // On chain Node
+	offNode    storm.Node // off chain Node
 	NumAgendas int
 	NumChoices int
 
@@ -37,6 +39,9 @@ func Open() (*AgendaDB, error) {
 		return nil, err
 	}
 
+	offChainNode := db.From("offchain")
+	onChainNode := db.From("onchain")
+
 	var numAgendas, numChoices int
 	if !isNewDB {
 		numAgendas, err = db.Count(&AgendaTagged{})
@@ -51,6 +56,8 @@ func Open() (*AgendaDB, error) {
 
 	agendaDB := &AgendaDB{
 		sdb:        db,
+		onNode:     onChainNode,
+		offNode:    offChainNode,
 		NumAgendas: numAgendas,
 		NumChoices: numChoices,
 		client:     GetClient(),
@@ -69,33 +76,28 @@ func (db *AgendaDB) Close() error {
 	return db.sdb.Close()
 }
 
-// StoreAgenda saves an agenda in the database.
-func (db *AgendaDB) StoreAgenda(agenda *AgendaTagged) error {
-	if db == nil || db.sdb == nil {
-		return fmt.Errorf("AgendaDB not initialized")
-	}
-	return db.sdb.Save(agenda)
+// storeAgenda saves an agenda in the database.
+func (db *AgendaDB) storeAgenda(agenda *AgendaTagged) error {
+	return db.onNode.Save(agenda)
 }
 
-// LoadAgenda retrieves an agenda corresponding to the specified unique agenda
+// oadAgenda retrieves an agenda corresponding to the specified unique agenda
 // ID, or nil if it does not exist.
-func (db *AgendaDB) LoadAgenda(agendaID string) (*AgendaTagged, error) {
-	if db == nil || db.sdb == nil {
-		return nil, fmt.Errorf("AgendaDB not initialized")
-	}
+func (db *AgendaDB) loadAgenda(agendaID string) (*AgendaTagged, error) {
 	agenda := new(AgendaTagged)
-	if err := db.sdb.One("Id", agendaID, agenda); err != nil {
+	if err := db.onNode.One("Id", agendaID, agenda); err != nil {
 		return nil, err
 	}
+
 	return agenda, nil
 }
 
 // ListAgendas lists all agendas stored in the database in order of StartTime.
 func (db *AgendaDB) ListAgendas() error {
-	if db == nil || db.sdb == nil {
+	if db == nil || db.onNode == nil {
 		return fmt.Errorf("AgendaDB not initialized")
 	}
-	q := db.sdb.Select().OrderBy("StartTime")
+	q := db.onNode.Select().OrderBy("StartTime")
 	i := 0
 	return q.Each(new(AgendaTagged), func(record interface{}) error {
 		a, ok := record.(*AgendaTagged)
@@ -173,7 +175,7 @@ func (db *AgendaDB) IsAgendasAvailable(version uint32) bool {
 }
 
 // updatedb used when needed to keep the saved db upto date.
-func (db *AgendaDB) updatedb(voteVersion uint32, client *rpcclient.Client) {
+func (db *AgendaDB) updatedb(voteVersion uint32, client *rpcclient.Client) int {
 	var agendas []AgendaTagged
 	for agendasForVoteVersion(voteVersion, client) != nil {
 		taggedAgendas := agendasForVoteVersion(voteVersion, client)
@@ -183,45 +185,60 @@ func (db *AgendaDB) updatedb(voteVersion uint32, client *rpcclient.Client) {
 		}
 	}
 	for i := range agendas {
-		err := db.StoreAgenda(&agendas[i])
+		err := db.storeAgenda(&agendas[i])
 		if err != nil {
 			log.Errorf("Agenda not saved: %v \n", err)
 		}
 	}
+
+	return len(agendas)
 }
 
 // CheckForUpdates checks for update at the start of the process and will
 // proceed to update when necessary.
 func CheckForUpdates(client *rpcclient.Client) error {
 	adb, err := Open()
-	if err != nil {
+	if err != nil || adb == nil || adb.onNode == nil || adb.offNode == nil {
 		log.Errorf("Failed to open new DB: %v", err)
 		return nil
 	}
+
+	numRecords := adb.checkOnChainUpdates(client)
+	log.Infof("%d on chain records (agendas) were updated", numRecords)
+
+	numRecords, err = adb.checkOffchainUpdates()
+	if err != nil {
+		log.Errorf("checkOffchainUpdates failed : %v", err)
+	}
+
+	log.Infof("%d off chain records (politea proposals) were updated", numRecords)
+
+	return adb.Close()
+}
+
+func (db *AgendaDB) checkOnChainUpdates(client *rpcclient.Client) int {
 	// voteVersion is vote version as of when lnsupport and sdiffalgorithm votes
 	// casting was activated. More information can be found here
 	// https://docs.decred.org/getting-started/user-guides/agenda-voting/#voting-archive
 	// Also at the moment all agenda version information available in the rpc
 	// starts from version 4 by default.
-
 	var voteVersion uint32 = 4
-	for adb.IsAgendasAvailable(voteVersion) {
+	for db.IsAgendasAvailable(voteVersion) {
 		voteVersion++
 	}
-	adb.updatedb(voteVersion, client)
 
-	return adb.Close()
+	return db.updatedb(voteVersion, client)
 }
 
 // AgendaInfo fetches an agenda's details given it's agendaID.
 func AgendaInfo(agendaID string) (*AgendaTagged, error) {
 	adb, err := Open()
-	if err != nil {
+	if err != nil || adb == nil || adb.onNode == nil {
 		log.Errorf("Failed to open new DB: %v", err)
 		return nil, err
 	}
 
-	agenda, err := adb.LoadAgenda(agendaID)
+	agenda, err := adb.loadAgenda(agendaID)
 	if err != nil {
 		_ = adb.Close() // only return the LoadAgenda error
 		return nil, err
@@ -234,7 +251,7 @@ func AgendaInfo(agendaID string) (*AgendaTagged, error) {
 func AllAgendas() (agendas []*AgendaTagged, err error) {
 	var adb *AgendaDB
 	adb, err = Open()
-	if err != nil {
+	if err != nil || adb == nil || adb.onNode == nil {
 		log.Errorf("Failed to open new Agendas DB: %v", err)
 		return
 	}
@@ -246,7 +263,7 @@ func AllAgendas() (agendas []*AgendaTagged, err error) {
 		}
 	}()
 
-	err = adb.sdb.All(&agendas)
+	err = adb.onNode.All(&agendas)
 	if err != nil {
 		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
 	}
