@@ -14,10 +14,18 @@ import (
 )
 
 const (
+	// vettedProposalsRoute is the URL path that returns the public/vetted
+	// proposals.
 	vettedProposalsRoute = "/proposals/vetted"
-	voteStatusesRoute    = "/proposals/votestatus"
+
+	// voteStatusesRoute is the URL path that returns the vote details of the
+	// public proposals.
+	voteStatusesRoute = "/proposals/votestatus"
 )
 
+// ProposalInfo holds the proposal details as document here
+// https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal.
+// It also holds the votes status details.
 type ProposalInfo struct {
 	ID              int              `storm:"id"`
 	Name            string           `json:"name"`
@@ -38,12 +46,16 @@ type ProposalInfo struct {
 	VotesStatus     *ProposalVotes   `json:"votesstatus"`
 }
 
+// CensorshipRecord is an entry that was created when the proposal was submitted.
+// https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#censorship-record
 type CensorshipRecord struct {
 	Token      string `json:"token"`
 	MerkleRoot string `json:"merkle"`
 	Signature  string `json:"signature"`
 }
 
+// AttachmentFile are files and documents submitted as proposal details.
+// https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#file
 type AttachmentFile struct {
 	Name      string `json:"name"`
 	MimeType  string `json:"mime"`
@@ -51,6 +63,8 @@ type AttachmentFile struct {
 	Payload   string `json:"payload"`
 }
 
+// ProposalVotes defines the proposal status(Votes infor for the public proposals).
+// https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal-vote-status
 type ProposalVotes struct {
 	Token              string  `json:"token"`
 	Status             int32   `json:"status"`
@@ -62,6 +76,7 @@ type ProposalVotes struct {
 	PassPercentage     uint32  `json:"passpercentage"`
 }
 
+// Results defines the actual vote count info per the votes choices available.
 type Results struct {
 	Option struct {
 		ID          string `json:"id"`
@@ -71,7 +86,8 @@ type Results struct {
 	VotesReceived int64 `json:"votesreceived"`
 }
 
-func GetClient() *http.Client {
+// fetchHTTPClient returns a http client used to query the API endpoints.
+func fetchHTTPClient() *http.Client {
 	tr := &http.Transport{
 		MaxIdleConns:       10,
 		IdleConnTimeout:    5 * time.Second,
@@ -81,6 +97,8 @@ func GetClient() *http.Client {
 	return &http.Client{Transport: tr}
 }
 
+// handleGetRequests constructs the full URL path, querys the API endpoints and
+// returns the queried data in form of byte array and an error if it exists.
 func (db *AgendaDB) handleGetRequests(root, path, params string) ([]byte, error) {
 	response, err := db.client.Get(root + path + params)
 	if err != nil {
@@ -92,6 +110,7 @@ func (db *AgendaDB) handleGetRequests(root, path, params string) ([]byte, error)
 	return ioutil.ReadAll(response.Body)
 }
 
+// saveProposals adds the proposals data to the db.
 func (db *AgendaDB) saveProposals(URLParams string) (int, error) {
 	data, err := db.handleGetRequests(db.politeiaURL, vettedProposalsRoute, URLParams)
 	if err != nil {
@@ -131,7 +150,8 @@ func (db *AgendaDB) saveProposals(URLParams string) (int, error) {
 	return len(publicProposals), err
 }
 
-func (db *AgendaDB) GetAllProposals() (proposals []ProposalInfo, err error) {
+// AllProposals fetches all the proposals data saved to the db.
+func (db *AgendaDB) AllProposals() (proposals []ProposalInfo, err error) {
 	var adb *AgendaDB
 	adb, err = Open()
 	if err != nil {
@@ -154,7 +174,8 @@ func (db *AgendaDB) GetAllProposals() (proposals []ProposalInfo, err error) {
 	return
 }
 
-func (db *AgendaDB) getLastSavedProposal() (lastP *ProposalInfo, err error) {
+// lastSavedProposal
+func (db *AgendaDB) lastSavedProposal() (lastP *ProposalInfo, err error) {
 	err = db.offNode.All(lastP, storm.Limit(1), storm.Reverse())
 	return
 }
