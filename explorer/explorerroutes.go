@@ -608,12 +608,14 @@ func (exp *explorerUI) Block(w http.ResponseWriter, r *http.Request) {
 
 	pageData := struct {
 		*CommonPageData
-		Data    *types.BlockInfo
-		NetName string
+		Data          *types.BlockInfo
+		NetName       string
+		ExchangeState *exchanges.ExchangeBotState
 	}{
 		CommonPageData: exp.commonData(),
 		Data:           data,
 		NetName:        exp.NetName,
+		ExchangeState:  exp.getExchangeState(),
 	}
 	str, err := exp.templates.execTemplateToString("block", pageData)
 	if err != nil {

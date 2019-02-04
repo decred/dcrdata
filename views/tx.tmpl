@@ -14,15 +14,18 @@
                 {{if eq .Confirmations 0}}
                     <strong data-controller="newblock"
                             data-target="newblock.confirmations tx.confirmations"
+                            data-yes="(# confirmation@)"
+                            data-no="(unconfirmed)"
                             data-confirmations="0"
                             data-confirmation-block-height="-1"
                             data-formatted="true">(unconfirmed)</strong>
                 {{else}}
                     <strong data-controller="newblock"
                             data-target="newblock.confirmations tx.confirmations"
+                            data-yes="(# confirmation@)"
+                            data-no="(unconfirmed)"
                             data-confirmations="{{.Confirmations}}"
-                            data-confirmation-block-height="{{.BlockHeight}}"
-                            data-formatted="true">
+                            data-confirmation-block-height="{{.BlockHeight}}">
                         ({{.Confirmations}} {{if gt .Confirmations 1}}confirmations{{else}}confirmation{{end}})
                     </strong>
                 {{end}}

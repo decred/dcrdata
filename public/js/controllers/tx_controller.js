@@ -25,7 +25,9 @@ export default class extends Controller {
       let txid = this.unconfirmedTarget.dataset.txid
       if (txInBlock(txid, block)) {
         this.confirmationsTarget.dataset.confirmationBlockHeight = block.height
-        this.confirmationsTarget.textContent = '(1 confirmation)'
+        let confirmations = block.height - this.confirmationsTarget.confirmationBlockHeight + 1
+        this.confirmationsTarget.textContent = this.confirmationsTarget.dataset.yes.replace('#', confirmations).replace('@', confirmations > 1 ? 's' : '')
+        this.confirmationsTarget.classList.add('confirmed')
         let link = this.unconfirmedTarget.querySelector('a')
         link.href = '/block/' + block.hash
         link.textContent = block.height

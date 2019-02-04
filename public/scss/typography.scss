@@ -120,6 +120,14 @@ a.grayed {
   color: rgba(46, 117, 255, 0.75) !important;
 }
 
+.grey-highlight {
+  background-color: #edeff1;
+}
+
+body.darkBG .grey-highlight {
+  background-color: #222326;
+}
+
 /* content */
 .dcr-total .dcr {
   font-size: 28px;

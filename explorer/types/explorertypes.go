@@ -80,6 +80,17 @@ func (t *TimeDef) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// PrettyMDY formats the time down to day only, using 3 day month, unpadded day,
+// comma, and 4 digit year.
+func (t *TimeDef) PrettyMDY() string {
+	return t.T.Format("Jan 2, 2006")
+}
+
+// HMSTZ is the hour:minute:second with 3-digit timezone code.
+func (t *TimeDef) HMSTZ() string {
+	return t.T.Format("15:04:05 MST")
+}
+
 // NewTimeDef constructs a TimeDef from the given time.Time. It presets the
 // timezone for formatting to UTC.
 func NewTimeDef(t time.Time) TimeDef {

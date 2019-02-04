@@ -204,3 +204,16 @@ body.darkBG [data-tooltip]:hover::before {
 body.darkBG [data-tooltip]:hover::after {
   border-top-color: #666;
 }
+
+.confirmations-box {
+  border: 1px solid $gray-600;
+  border-radius: 2px;
+  color: $gray-600;
+  vertical-align: top;
+  padding: 1px 8px;
+}
+
+.confirmations-box.confirmed {
+  border-color: #2ed6a1;
+  color: #2ed6a1;
+}

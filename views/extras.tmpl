@@ -321,6 +321,8 @@
                   data-target="newblock.confirmations"
                   data-confirmations="{{.Confirmations}}"
                   data-confirmation-block-height="{{if eq .Confirmations 0}}-1{{else}}{{.BlockHeight}}{{end}}"
+                  data-yes="#"
+                  data-no="(unconfirmed)"
               >{{.Confirmations}}</td>
 
               <td class="text-right">{{.FormattedSize}}</td>
