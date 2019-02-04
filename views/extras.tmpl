@@ -92,7 +92,7 @@
         </div>
     </div>
 </header>
-<div id="watermark">HODL<br>HODL<br>HODL</div>
+<!-- <div id="watermark">HODL<br>HODL<br>HODL</div> -->
 {{end}}
 
 {{define "footer"}}
@@ -340,4 +340,19 @@
       </tr>
   </table>
   {{end}}
+{{end}}
+
+{{define "mempoolDump"}}
+  {{$likely := .LikelyMineable}}
+  data-total="{{$likely.Total}}"
+  data-size="{{$likely.Size}}"
+  data-count="{{$likely.Count}}"
+  data-reg-total="{{$likely.RegularTotal}}"
+  data-reg-count="{{.NumRegular}}"
+  data-vote-total="{{$likely.VoteTotal}}"
+  data-vote-count="{{.VotingInfo.TicketsVoted}}"
+  data-ticket-total="{{$likely.TicketTotal}}"
+  data-ticket-count="{{.NumTickets}}"
+  data-rev-total="{{$likely.RevokeTotal}}"
+  data-rev-count="{{.NumRevokes}}"
 {{end}}

@@ -170,7 +170,7 @@
 
 [data-tooltip]:hover::before {
   content: attr(data-tooltip);
-  font-size: 1rem;
+  font-size: 0.8rem;
   position: absolute;
   z-index: 21;
   bottom: calc(100% + 10px);

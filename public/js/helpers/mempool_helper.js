@@ -22,12 +22,13 @@ function txList (mempool) {
   return l
 }
 
-function makeTx (txid, txType, total, voteInfo) {
+function makeTx (txid, txType, total, voteInfo, size) {
   return {
     txid: txid,
     type: txType,
     total: total,
-    voteInfo: voteInfo // null for all but votes
+    voteInfo: voteInfo, // null for all but votes
+    size: size
   }
 }
 
@@ -37,7 +38,7 @@ function ticketSpent (vote) {
 }
 
 function reduceTx (tx) {
-  return makeTx(tx.txid, tx.Type, tx.total, tx.vote_info)
+  return makeTx(tx.txid, tx.Type, tx.total, tx.vote_info, tx.size)
 }
 
 export default class Mempool {
@@ -45,20 +46,21 @@ export default class Mempool {
     this.mempool = []
     // Create dummy transactions. Since we're only looking at totals, this is
     // okay for now and prevents an initial websocket call for the entire mempool.
-    this.initType('Regular', parseFloat(d.regTotal), parseInt(d.regCount))
-    this.initType('Ticket', parseFloat(d.ticketTotal), parseInt(d.ticketCount))
-    this.initType('Revocation', parseFloat(d.revTotal), parseInt(d.revCount))
-    this.initVotes(tallyTargets, parseFloat(d.voteTotal), parseInt(d.voteCount))
+    var avgSize = parseFloat(d.size) / parseInt(d.count)
+    this.initType('Regular', parseFloat(d.regTotal), parseInt(d.regCount), avgSize)
+    this.initType('Ticket', parseFloat(d.ticketTotal), parseInt(d.ticketCount), avgSize)
+    this.initType('Revocation', parseFloat(d.revTotal), parseInt(d.revCount), avgSize)
+    this.initVotes(tallyTargets, parseFloat(d.voteTotal), parseInt(d.voteCount), avgSize)
   }
 
-  initType (txType, total, count) {
+  initType (txType, total, count, avgSize) {
     var fauxVal = total / count
     for (var i = 0; i < count; i++) {
-      this.mempool.push(makeTx('', txType, fauxVal, null))
+      this.mempool.push(makeTx('', txType, fauxVal, null, avgSize))
     }
   }
 
-  initVotes (tallyTargets, total, count) {
+  initVotes (tallyTargets, total, count, avgSize) {
     var fauxVal = total / count
     tallyTargets.forEach((span) => {
       let affirmed = parseInt(span.dataset.affirmed)
@@ -69,7 +71,7 @@ export default class Mempool {
             validity: i < affirmed
           },
           ticket_spent: i
-        }))
+        }, avgSize))
       }
     })
   }
@@ -153,7 +155,25 @@ export default class Mempool {
     return this.mempool.reduce((d, tx) => {
       d.total += tx.total
       d[mpKeys[tx.type]] += tx.total
+      d.size += tx.size
       return d
-    }, { regular: 0, ticket: 0, vote: 0, rev: 0, total: 0 })
+    }, { regular: 0, ticket: 0, vote: 0, rev: 0, total: 0, size: 0 })
+  }
+
+  voteSpans (tallys) {
+    var spans = []
+    var joiner
+    for (let hash in tallys) {
+      if (joiner) spans.push(joiner)
+      let count = tallys[hash]
+      let span = document.createElement('span')
+      span.dataset.tooltip = `For block ${hash}`
+      span.className = 'position-relative d-inline-block'
+      span.textContent = count.affirm + count.reject
+      spans.push(span)
+      joiner = document.createElement('span')
+      joiner.textContent = ' + '
+    }
+    return spans
   }
 }

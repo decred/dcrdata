@@ -14,23 +14,6 @@ function incrementValue (element) {
   }
 }
 
-function voteSpans (tallys) {
-  var spans = []
-  var joiner
-  for (let hash in tallys) {
-    if (joiner) spans.push(joiner)
-    let count = tallys[hash]
-    let span = document.createElement('span')
-    span.dataset.tooltip = `For block ${hash}`
-    span.className = 'position-relative d-inline-block'
-    span.textContent = count.affirm + count.reject
-    spans.push(span)
-    joiner = document.createElement('span')
-    joiner.textContent = ' + '
-  }
-  return spans
-}
-
 function mempoolTableRow (tx) {
   var tbody = document.createElement('tbody')
   var link = `/tx/${tx.hash}`
@@ -114,7 +97,7 @@ export default class extends Controller {
 
     var ct = this.mpVoteCountTarget
     while (ct.firstChild) ct.removeChild(ct.firstChild)
-    voteSpans(counts.vote).forEach((span) => { ct.appendChild(span) })
+    this.mempool.voteSpans(counts.vote).forEach((span) => { ct.appendChild(span) })
 
     this.mpRevTotalTarget.textContent = humanize.threeSigFigs(totals.rev)
     this.mpRevCountTarget.textContent = counts.rev
