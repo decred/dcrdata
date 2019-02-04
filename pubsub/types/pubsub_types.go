@@ -1,8 +1,23 @@
 package types
 
 import (
+	"strings"
+
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 )
+
+// ErrWsClosed is the error message text used websocket Conn.Close tries to
+// close an already closed connection.
+var ErrWsClosed = "use of closed network connection"
+
+// IsWSClosedErr checks if the passed error indicates a closed websocket
+// connection.
+func IsWSClosedErr(err error) (closedErr bool) {
+	if err != nil && strings.Contains(err.Error(), ErrWsClosed) {
+		closedErr = true
+	}
+	return
+}
 
 // WebSocketMessage represents the JSON object used to send and receive typed
 // messages to the web client.
