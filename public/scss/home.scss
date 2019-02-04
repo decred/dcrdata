@@ -14,20 +14,24 @@
 }
 
 .tx-bar.tx-ticket {
-  border-left-style: solid;
+  border-right-style: solid;
   border-color: $ticket-light;
 }
 
 .tx-bar.tx-rev {
-  border-right-style: solid;
+  border-left-style: solid;
   border-color: $rev-light;
 }
 
 .tx-gauge {
   height: 4px;
-  margin: 0 1px;
+  margin-right: 1px;
   width: 25%;
   transition: width 1s ease-in-out;
+
+  &:last-child {
+    margin-right: 0;
+  }
 }
 
 .tx-gauge.tx-regular {
@@ -47,17 +51,7 @@
 }
 
 .card-icon {
-  position: absolute;
-  right: 105%;
   font-size: 1.6rem;
-}
-
-.table thead tr.card-theader {
-  background: #0000001a;
-}
-
-body.darkBG .table tr.card-theader {
-  background: #ffffff1a;
 }
 
 .light-card {

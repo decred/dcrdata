@@ -7,6 +7,11 @@ $body-bg: #f3f5f6;
 $border-radius: .125rem;
 
 // grid
+// Grid columns
+//
+// Set the number of columns and specify the width of the gutters.
+$grid-columns: 24;
+$grid-gutter-width: 15px;
 $container-max-widths: ();
 $container-max-widths: map-merge(
   (
@@ -34,7 +39,7 @@ $nav-link-padding-y: .55rem;
 $nav-link-padding-x: .55rem;
 
 // transaction type colors
-$regular-light: #00c903;
-$vote-light: #002ccc;
-$ticket-light: #c600c0;
-$rev-light: #d60000;
+$regular-light: #2970FF;
+$ticket-light: #2ED6A1;
+$vote-light: #c600c0;
+$rev-light: #ED6D47;

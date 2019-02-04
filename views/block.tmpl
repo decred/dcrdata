@@ -8,7 +8,7 @@
     {{with .Data}}
         {{$Invalidated := and (gt .Confirmations 1) (not .Valid) }}
         <div class="row justify-content-between">
-            <div class="col-md-7 col-sm-6">
+            <div class="col-lg-14 col-sm-12">
                 <h4 class="mb-2">
                     Block #{{.Height}}
                     {{ if not .MainChain }}
@@ -33,7 +33,7 @@
                     <a class="fs12" href="/api/block/{{.Height}}/verbose?indent=true" data-turbolinks="false">api</a>
                 </h4>
             </div>
-            <div class="col-md-5 col-sm-6 d-flex">
+            <div class="col-lg-10 col-sm-12 d-flex">
                 <table>
                     <tr class="h2rem">
                         <td class="pr-2 lh1rem vam text-right xs-w117 w120">TOTAL SENT</td>
@@ -46,7 +46,7 @@
         </div>
 
         <div class="row justify-content-between">
-            <div class="col-md-7 col-sm-6 d-flex">
+            <div class="col-lg-14 col-sm-12 d-flex">
                 <table class="">
                     {{if .MainChain}}<tr>
                         <td class="text-right pr-2 lh1rem vam nowrap" title="Stakeholder (PoS) approved?">APPROVED</td>
@@ -127,7 +127,7 @@
                 </table>
             </div>
 
-            <div class="col-md-5 col-sm-6 d-flex">
+            <div class="col-lg-10 col-sm-12 d-flex">
                 <table class="">
                     <tr>
                         <td class="text-right lh1rem pr-2 xs-w117">TIME</td>
@@ -193,7 +193,7 @@
 
         <div class="row">
             <span class="anchor" id="coinbase"></span>
-            <div class="col-sm-12">
+            <div class="col-sm-24">
                 <h4><span>Block Reward</span></h4>
                 {{range .Tx}}
                     {{if eq .Coinbase true}}
@@ -230,7 +230,7 @@
 
         <div class="row">
             <span class="anchor" id="votes"></span>
-            <div class="col-md-12">
+            <div class="col-lg-24">
                 <h4><span>Votes</span></h4>
                 {{if not .Votes}}
                     <table class="table table-sm striped">
@@ -277,7 +277,7 @@
         {{if .Misses}}
         <div class="row">
             <span class="anchor" id="misses"></span>
-            <div class="col-md-12">
+            <div class="col-lg-24">
                 <h4><span>Missed Votes</span></h4>
                 <table class="table table-sm striped">
                     <thead>
@@ -302,7 +302,7 @@
 
         <div class="row">
             <span class="anchor" id="tickets"></span>
-            <div class="col-md-12">
+            <div class="col-lg-24">
                 <h4><span>Tickets</span></h4>
                 {{if not .Tickets}}
                 <table class="table table-sm striped">
@@ -342,7 +342,7 @@
         {{if .Revocations}}
         <div class="row">
             <span class="anchor" id="revokes"></span>
-            <div class="col-md-12">
+            <div class="col-lg-24">
                 <h4><span>Revokes</span></h4>
                 <table class="table table-sm striped">
                     <thead>
@@ -374,7 +374,7 @@
 
         <div class="row">
             <span class="anchor" id="transactions"></span>
-            <div class="col-sm-12">
+            <div class="col-sm-24">
                 <h4><span>Transactions</span></h4>
                 {{if not .TxAvailable}}
                 <table class="table table-sm striped">
