@@ -1653,7 +1653,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	// Attempt to get agendaid string from URL path.
 	agendaId := getAgendaIDCtx(r)
-	agendaInfo, err := types.GetAgendaInfo(agendaId)
+	agendaInfo, err := types.AgendaInfo(agendaId)
 	if err != nil {
 		errPageInvalidAgenda(err)
 		return
@@ -1664,8 +1664,9 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("fetching cummulative votes choices count failed: %v", err)
 	}
 
-	// Overrides the default count entry which is always zero especially when the
-	// the agenda id is active.
+	// Overrides the default count value which the actual vote choices count
+	// matching data displayed on "Cumulative Vote Choices" and "Vote Choices By
+	// Block" charts.
 	for index := range agendaInfo.Choices {
 		switch strings.ToLower(agendaInfo.Choices[index].ID) {
 		case "abstain":
@@ -1699,7 +1700,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 // AgendasPage is the page handler for the "/agendas" path.
 func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
-	agendas, err := agendadb.GetAllAgendas()
+	agendas, err := agendadb.AllAgendas()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)

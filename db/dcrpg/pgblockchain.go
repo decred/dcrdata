@@ -34,6 +34,27 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
+const (
+	// InitialAgendaState is the agenda status when the agenda is up for voting
+	// but the votes tally is not available.
+	InitialAgendaState = "defined"
+
+	// FailedAgendaState is the agenda state set when the votes tally does not
+	// attain the minimum threshold set. Activation height is not set for such an
+	// agenda.
+	FailedAgendaState = "failed"
+
+	// PassedAgendaState is the agenda state when the agenda is considered to
+	// have passed after attaining the minimum set threshold. This agenda can
+	// it activation height set.
+	PassedAgendaState = "lockedin"
+
+	// ActivatedAgendaState is the agenda state set after 8064 blocks since when
+	// the agenda state changed to "lockedin" when the rule change is effected.
+	// https://docs.decred.org/glossary/#rule-change-interval-rci.
+	ActivatedAgendaState = "active"
+)
+
 var (
 	zeroHash            = chainhash.Hash{}
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
@@ -1874,18 +1895,28 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 	return txsRaw, nil
 }
 
-// updateVotesMilestones updates the agenda ID's lockedIn and Activation entries.
-// LockedIn is the height when an agenda is that the agenda passed, but the rules
-// have not yet activated. Activated is the height when the agenda Rule Change
-// is implemented. Find more details on Rule Change Interval (RCI) here:
+// updateVotesMilestones updates the agenda ID's lockedIn and Activated entries.
+// LockedIn is the height when an agenda passed or failed. i.e agenda status
+// moves from status "defined" to either "failed" or "lockedin". If the agenda
+// passed i.e. status is "lockedIn" the Activated height is set which signals
+// when the Rules Change will take place. Find more details here:
 // https://docs.decred.org/glossary/#rule-change-interval-rci.
 func updateVotesMilestones(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
+	var voteStatus string
+	var activationHeight int64
 	for agendaID, entry := range blockChainInfo.Deployments {
 		// Add missing agenda ID information.
 		if _, ok := VotingMilestones[agendaID]; !ok && entry.Since > 0 {
+			voteStatus = strings.ToLower(entry.Status)
+			// Activated height should only be set if the agenda status is
+			// "active" or "lockedin".
+			if voteStatus == PassedAgendaState || voteStatus == ActivatedAgendaState {
+				activationHeight = entry.Since + 8064
+			}
+
 			VotingMilestones[agendaID] = dbtypes.MileStone{
 				LockedIn:  entry.Since,
-				Activated: entry.Since + 8064,
+				Activated: activationHeight,
 			}
 		}
 	}

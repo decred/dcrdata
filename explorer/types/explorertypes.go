@@ -860,9 +860,9 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 	return addrPrefix
 }
 
-// GetAgendaInfo gets the all info for the specified agenda ID.
-func GetAgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
-	return agendadb.GetAgendaInfo(agendaId)
+// AgendaInfo gets the all info for the specified agenda ID.
+func AgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
+	return agendadb.AgendaInfo(agendaId)
 }
 
 // StatsInfo represents all of the data for the stats page.

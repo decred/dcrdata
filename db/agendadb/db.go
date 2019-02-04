@@ -127,8 +127,8 @@ type ChoiceLabeled struct {
 	dcrjson.Choice `storm:"inline"`
 }
 
-// GetVoteAgendasForVersion is used in getting the agendas using the vote versions
-func GetVoteAgendasForVersion(ver uint32, client *rpcclient.Client) (agendas []AgendaTagged) {
+// voteAgendasForVersion is used in getting the agendas using the vote versions
+func voteAgendasForVersion(ver uint32, client *rpcclient.Client) (agendas []AgendaTagged) {
 	voteInfo, err := client.GetVoteInfo(ver)
 	if err != nil {
 		log.Errorf("Fetching Agendas by vote version failed: %v", err)
@@ -171,8 +171,8 @@ func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version uint32) bool {
 // updatedb used when needed to keep the saved db upto date
 func (db *AgendaDB) updatedb(voteVersion uint32, client *rpcclient.Client) {
 	var agendas []AgendaTagged
-	for GetVoteAgendasForVersion(voteVersion, client) != nil {
-		taggedAgendas := GetVoteAgendasForVersion(voteVersion, client)
+	for voteAgendasForVersion(voteVersion, client) != nil {
+		taggedAgendas := voteAgendasForVersion(voteVersion, client)
 		if len(taggedAgendas) > 0 {
 			agendas = append(agendas, taggedAgendas...)
 			voteVersion++
@@ -209,15 +209,15 @@ func CheckForUpdates(client *rpcclient.Client) error {
 	return adb.Close()
 }
 
-// GetAgendaInfo fetches an agenda's details given it's agendaId.
-func GetAgendaInfo(agendaId string) (*AgendaTagged, error) {
+// AgendaInfo fetches an agenda's details given it's agendaID.
+func AgendaInfo(agendaID string) (*AgendaTagged, error) {
 	adb, err := Open()
 	if err != nil {
 		log.Errorf("Failed to open new DB: %v", err)
 		return nil, err
 	}
 
-	agenda, err := adb.LoadAgenda(agendaId)
+	agenda, err := adb.LoadAgenda(agendaID)
 	if err != nil {
 		_ = adb.Close() // only return the LoadAgenda error
 		return nil, err
@@ -226,8 +226,8 @@ func GetAgendaInfo(agendaId string) (*AgendaTagged, error) {
 	return agenda, adb.Close()
 }
 
-// GetAllAgendas returns all agendas and their info in the db.
-func GetAllAgendas() (agendas []*AgendaTagged, err error) {
+// AllAgendas returns all agendas and their info in the db.
+func AllAgendas() (agendas []*AgendaTagged, err error) {
 	var adb *AgendaDB
 	adb, err = Open()
 	if err != nil {
