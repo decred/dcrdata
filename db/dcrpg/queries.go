@@ -442,19 +442,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 				return nil, nil, nil, nil, nil, err
 			}
 
-			lockedIn, activated, hardForked := false, false, false
-
-			// VotingMilestones has the latest lockedIn and activated values
-			// derived from getBlockChainInfo rpc endpoint payload.
-			progress, ok := VotingMilestones[val.ID]
-			if ok {
-				lockedIn = (progress.LockedIn == tx.BlockHeight)
-				activated = (progress.Activated == tx.BlockHeight)
-				hardForked = (progress.HardForked == tx.BlockHeight)
-			}
-
 			err = agendaStmt.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight,
-				tx.BlockTime.T, lockedIn, activated, hardForked).Scan(&rowID)
+				tx.BlockTime.T).Scan(&rowID)
 			if err != nil {
 				bail()
 				return nil, nil, nil, nil, nil, err
@@ -2297,8 +2286,11 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, e
 // block and 0 indicates a day-long interval. For day intervals, the counts
 // accumulate over time (cumulative sum), whereas for block intervals the counts
 // are just for the block. The total length of time over all intervals always
-// spans the locked-in period of the agenda.
-func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string, byType int) (*dbtypes.AgendaVoteChoices, error) {
+// spans the locked-in period of the agenda. If the stateChangeHeight passed is
+// greater than zero then it references the height at which the agenda ID passed
+// or failed after voting.
+func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string, byType int,
+	stateChangeHeight int64) (*dbtypes.AgendaVoteChoices, error) {
 	// Query with block or day interval size
 	var query = internal.SelectAgendasAgendaVotesByTime
 	if byType == 1 {
@@ -2306,7 +2298,7 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 	}
 
 	rows, err := db.QueryContext(ctx, query, dbtypes.Yes, dbtypes.Abstain, dbtypes.No,
-		agendaID)
+		agendaID, stateChangeHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -2351,14 +2343,16 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 	return totalVotes, nil
 }
 
-// retrieveTotalAgendaVotesCount returns the cummulative vote choices count for
-// the provided agenda id.
+// retrieveTotalAgendaVotesCount returns the Cumulative vote choices count for
+// the provided agenda id.If the stateChangeHeight passed is greater than zero
+// then it references the height at which the agenda ID passed or failed after voting.
 func retrieveTotalAgendaVotesCount(ctx context.Context, db *sql.DB,
-	agendaID string) (yes, abstain, no uint32, err error) {
+	agendaID string, stateChangeHeight int64) (yes, abstain, no uint32, err error) {
 	var total uint32
 
 	err = db.QueryRowContext(ctx, internal.SelectAgendasTotalAgendaVotes, dbtypes.Yes,
-		dbtypes.Abstain, dbtypes.No, agendaID).Scan(&yes, &abstain, &no, &total)
+		dbtypes.Abstain, dbtypes.No, agendaID, stateChangeHeight).Scan(&yes,
+		&abstain, &no, &total)
 
 	return
 }

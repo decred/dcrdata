@@ -35,9 +35,12 @@ import (
 )
 
 const (
-	// InitialAgendaState is the agenda status when the agenda is up for voting
-	// but the votes tally is not available.
+	// InitialAgendaState is the agenda status when the agenda is not yet up for
+	// voting and the votes tally is not also available.
 	InitialAgendaState = "defined"
+
+	// StartedAgendaState is the agenda status when the agenda is up for voting.
+	StartedAgendaState = "started"
 
 	// FailedAgendaState is the agenda state set when the votes tally does not
 	// attain the minimum threshold set. Activation height is not set for such an
@@ -49,8 +52,10 @@ const (
 	// it activation height set.
 	PassedAgendaState = "lockedin"
 
-	// ActivatedAgendaState is the agenda state set after 8064 blocks since when
-	// the agenda state changed to "lockedin" when the rule change is effected.
+	// ActivatedAgendaState is the agenda state set after
+	// chaincfg.RuleChangeActivationInterval blocks (e.g. 8064 blocks = 2016 * 4
+	// for 4 weeks on mainnet) since when the agenda state changed to "lockedin"
+	// when the rule change is effected.
 	// https://docs.decred.org/glossary/#rule-change-interval-rci.
 	ActivatedAgendaState = "active"
 )
@@ -231,6 +236,7 @@ type ChainDB struct {
 	InReorg            bool
 	tpUpdatePermission map[dbtypes.TimeBasedGrouping]*trylock.Mutex
 	utxoCache          utxoStore
+	chainInfo          *dbtypes.BlockChainData
 }
 
 // BestBlock is mutex-protected block hash and height.
@@ -303,6 +309,10 @@ func (db *ChainDBRPC) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	if db == nil {
 		return nil
 	}
+
+	// update blockchain state
+	db.UpdateChainState(blockData.BlockchainInfo)
+
 	return db.ChainDB.Store(blockData, msgBlock)
 }
 
@@ -933,18 +943,21 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	avc, err := retrieveAgendaVoteChoices(ctx, pgb.db, agendaID, chartType)
+
+	agendaInfo := pgb.chainInfo.AgendaMileStones[agendaID]
+	avc, err := retrieveAgendaVoteChoices(ctx, pgb.db, agendaID, chartType, agendaInfo.VotingDone)
 	return avc, pgb.replaceCancelError(err)
 }
 
-// AgendaCummulativeVoteChoices fetches the total vote choices count for the
+// AgendaCumulativeVoteChoices fetches the total vote choices count for the
 // provided agenda.
-func (pgb *ChainDB) AgendaCummulativeVoteChoices(agendaID string) (yes,
+func (pgb *ChainDB) AgendaCumulativeVoteChoices(agendaID string) (yes,
 	abstain, no uint32, err error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
 
-	yes, abstain, no, err = retrieveTotalAgendaVotesCount(ctx, pgb.db, agendaID)
+	agendaInfo := pgb.chainInfo.AgendaMileStones[agendaID]
+	yes, abstain, no, err = retrieveTotalAgendaVotesCount(ctx, pgb.db, agendaID, agendaInfo.VotingDone)
 	return
 }
 
@@ -1895,31 +1908,65 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 	return txsRaw, nil
 }
 
-// updateVotesMilestones updates the agenda ID's lockedIn and Activated entries.
-// LockedIn is the height when an agenda passed or failed. i.e agenda status
-// moves from status "defined" to either "failed" or "lockedin". If the agenda
-// passed i.e. status is "lockedIn" the Activated height is set which signals
-// when the Rules Change will take place. Find more details here:
-// https://docs.decred.org/glossary/#rule-change-interval-rci.
-func updateVotesMilestones(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
-	var voteStatus string
-	var activationHeight int64
-	for agendaID, entry := range blockChainInfo.Deployments {
-		// Add missing agenda ID information.
-		if _, ok := VotingMilestones[agendaID]; !ok && entry.Since > 0 {
-			voteStatus = strings.ToLower(entry.Status)
-			// Activated height should only be set if the agenda status is
-			// "active" or "lockedin".
-			if voteStatus == PassedAgendaState || voteStatus == ActivatedAgendaState {
-				activationHeight = entry.Since + 8064
-			}
-
-			VotingMilestones[agendaID] = dbtypes.MileStone{
-				LockedIn:  entry.Since,
-				Activated: activationHeight,
-			}
-		}
+// UpdateChainState updates chain's state which includes the agenda ID's
+// VotingDone and Activated heights. VotingDone is height when agenda passed or
+// failed. i.e agenda status moves from status "defined" to either "failed" or
+// "lockedin". If the agenda passed i.e. status is "lockedIn" the Activated
+// height is set which signals when the Rules Change will take place. Find more
+// details here: https://docs.decred.org/glossary/#rule-change-interval-rci.
+func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
+	if blockChainInfo == nil {
+		log.Errorf("dcrjson.GetBlockChainInfoResult data passed is empty")
+		return
 	}
+
+	ruleChangeInterval := int64(pgb.chainParams.RuleChangeActivationInterval)
+	chainInfo := dbtypes.BlockChainData{
+		Chain:                  blockChainInfo.Chain,
+		SyncHeight:             blockChainInfo.SyncHeight,
+		BestHeight:             blockChainInfo.Blocks,
+		BestBlockHash:          blockChainInfo.BestBlockHash,
+		Difficulty:             blockChainInfo.Difficulty,
+		VerificationProgress:   blockChainInfo.VerificationProgress,
+		ChainWork:              blockChainInfo.ChainWork,
+		IsInitialBlockDownload: blockChainInfo.InitialBlockDownload,
+		MaxBlockSize:           blockChainInfo.MaxBlockSize,
+	}
+
+	var voteMilestones = make(map[string]dbtypes.MileStone)
+
+	for agendaID, entry := range blockChainInfo.Deployments {
+		var agendaInfo = dbtypes.MileStone{
+			Status:     entry.Status,
+			StartTime:  time.Unix(int64(entry.StartTime), 0),
+			ExpireTime: time.Unix(int64(entry.ExpireTime), 0),
+		}
+
+		// state defined is not considered since voting hasn't started.
+		switch strings.ToLower(entry.Status) {
+		case FailedAgendaState:
+			agendaInfo.VotingDone = entry.Since
+
+		case PassedAgendaState:
+			agendaInfo.VotingDone = entry.Since
+			agendaInfo.Activated = entry.Since + ruleChangeInterval
+
+		case ActivatedAgendaState:
+			agendaInfo.Activated = entry.Since
+			agendaInfo.VotingDone = entry.Since - ruleChangeInterval
+
+		case StartedAgendaState:
+			// Since the vote is in progress current best block height is set as
+			// the vote end.
+			agendaInfo.VotingDone = blockChainInfo.Blocks
+		}
+
+		voteMilestones[agendaID] = agendaInfo
+	}
+
+	chainInfo.AgendaMileStones = voteMilestones
+
+	pgb.chainInfo = &chainInfo
 }
 
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
@@ -1930,8 +1977,6 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	if pgb == nil {
 		return nil
 	}
-
-	updateVotesMilestones(blockData.BlockchainInfo)
 
 	// New blocks stored this way are considered valid and part of mainchain,
 	// warranting updates to existing records. When adding side chain blocks
@@ -1944,8 +1989,8 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	updateAddressesSpendingInfo, updateTicketsSpendingInfo := true, true
 
 	_, _, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets,
-		isValid, isMainChain, updateExistingRecords,
-		updateAddressesSpendingInfo, updateTicketsSpendingInfo, blockData.Header.ChainWork)
+		isValid, isMainChain, updateExistingRecords, updateAddressesSpendingInfo,
+		updateTicketsSpendingInfo, blockData.Header.ChainWork)
 	return err
 }
 
@@ -2315,7 +2360,8 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 // The number of vins and vouts stored are returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	isValid, isMainchain, updateExistingRecords, updateAddressesSpendingInfo,
-	updateTicketsSpendingInfo bool, chainWork string) (numVins int64, numVouts int64, numAddresses int64, err error) {
+	updateTicketsSpendingInfo bool, chainWork string) (
+	numVins int64, numVouts int64, numAddresses int64, err error) {
 	// Convert the wire.MsgBlock to a dbtypes.Block
 	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams, chainWork)
 
@@ -2564,7 +2610,8 @@ type MsgBlockPG struct {
 // storeTxns stores the transactions of a given block.
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isValid, isMainchain bool,
-	updateExistingRecords, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
+	updateExistingRecords, updateAddressesSpendingInfo,
+	updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block, transaction tree, and network, extract the
 	// transactions, vins, and vouts.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
@@ -2662,7 +2709,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs,
-			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords, pgb.chainParams)
+			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords,
+			pgb.chainParams)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err

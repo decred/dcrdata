@@ -51,6 +51,7 @@ const (
 	blocksChainWorkUpdate
 	blocksRemoveRootColumns
 	timestamptzUpgrade
+	agendasRemoveVoteMileStoneColumns
 )
 
 type TableUpgradeType struct {
@@ -66,23 +67,23 @@ type VinVoutTypeUpdateData struct {
 	TxType     stake.TxType
 }
 
-// VotingMilestones defines the various milestones phases have taken place when
+// votingMilestones defines the various milestones phases have taken place when
 // the agendas have been up for voting. Only sdiffalgorithm, lnsupport and
 // lnfeatures agenda ids exist since appropriate voting mechanisms on the dcrd
 // level are not yet fully implemented.
-var VotingMilestones = map[string]dbtypes.MileStone{
+var votingMilestones = map[string]dbtypes.MileStone{
 	"sdiffalgorithm": {
 		Activated:  149248,
 		HardForked: 149328,
-		LockedIn:   141184,
+		VotingDone: 141184,
 	},
 	"lnsupport": {
-		Activated: 149248,
-		LockedIn:  141184,
+		Activated:  149248,
+		VotingDone: 141184,
 	},
 	"lnfeatures": {
-		Activated: 189568,
-		LockedIn:  181504,
+		Activated:  189568,
+		VotingDone: 181504,
 	},
 }
 
@@ -379,6 +380,22 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			return isSuccess, er
 		}
 
+		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.9.0 --> 3.10.0
+	case version.major == 3 && version.minor == 9 && version.patch == 0:
+		toVersion = TableVersion{3, 10, 0}
+
+		theseUpgrades := []TableUpgradeType{
+			{"agendas", agendasRemoveVoteMileStoneColumns},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+		
 	// Go on to next upgrade
 	// fallthrough
 	// or be done
@@ -505,6 +522,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case timestamptzUpgrade:
 		tableReady = true
 		tableName, upgradeTypeStr = "every", "convert timestamp columns to timestamptz type"
+	case agendasRemoveVoteMileStoneColumns:
+		tableReady, err = deleteVoteMilestoneColumns(pgb.db)
+		tableName, upgradeTypeStr = "agendas", "remove columns: locked_in, activated, hard_forked"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -632,7 +652,8 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 
 	case addressesBlockTimeDataTypeUpdate, blocksBlockTimeDataTypeUpdate,
 		agendasBlockTimeDataTypeUpdate, transactionsBlockTimeDataTypeUpdate,
-		vinsBlockTimeDataTypeUpdate, blocksRemoveRootColumns:
+		vinsBlockTimeDataTypeUpdate, blocksRemoveRootColumns,
+		agendasRemoveVoteMileStoneColumns:
 
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
@@ -740,10 +761,10 @@ func (pgb *ChainDB) handleAgendasVotingMilestonesUpgrade() (int64, error) {
 	}
 
 	var rowsUpdated int64
-	for id, milestones := range VotingMilestones {
+	for id, milestones := range votingMilestones {
 		for name, val := range map[string]int64{
 			"activated":   milestones.Activated,
-			"locked_in":   milestones.LockedIn,
+			"locked_in":   milestones.VotingDone,
 			"hard_forked": milestones.HardForked,
 		} {
 			if val > 0 {
@@ -1124,7 +1145,7 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(msgBlock *wire.MsgBlock) (int64, e
 		var rowID uint64
 		for _, val := range choices {
 			// check if agenda id exists, if not it skips to the next agenda id
-			var progress, ok = VotingMilestones[val.ID]
+			var progress, ok = votingMilestones[val.ID]
 			if !ok {
 				log.Debugf("The Agenda ID: '%s' is unknown", val.ID)
 				continue
@@ -1137,7 +1158,7 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(msgBlock *wire.MsgBlock) (int64, e
 
 			err = pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
 				val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime.T,
-				progress.LockedIn == tx.BlockHeight,
+				progress.VotingDone == tx.BlockHeight,
 				progress.Activated == tx.BlockHeight,
 				progress.HardForked == tx.BlockHeight).Scan(&rowID)
 			if err != nil {
@@ -1382,6 +1403,12 @@ func addChainWorkColumn(db *sql.DB) (bool, error) {
 func deleteRootsColumns(db *sql.DB) (bool, error) {
 	table := "blocks"
 	cols := []string{"merkle_root", "stake_root", "final_state", "extra_data"}
+	return deleteColumnsIfFound(db, table, cols)
+}
+
+func deleteVoteMilestoneColumns(db *sql.DB) (bool, error) {
+	table := "agendas"
+	cols := []string{"locked_in", "activated", "hard_forked"}
 	return deleteColumnsIfFound(db, table, cols)
 }
 

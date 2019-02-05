@@ -1659,9 +1659,9 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	yes, abstain, no, err := exp.explorerSource.AgendaCummulativeVoteChoices(agendaId)
+	yes, abstain, no, err := exp.explorerSource.AgendaCumulativeVoteChoices(agendaId)
 	if err != nil {
-		log.Errorf("fetching cummulative votes choices count failed: %v", err)
+		log.Errorf("fetching Cumulative votes choices count failed: %v", err)
 	}
 
 	// Overrides the default count value which the actual vote choices count

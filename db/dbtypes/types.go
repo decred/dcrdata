@@ -310,11 +310,30 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 // MileStone defines the various stages passed by vote on a given agenda.
 // Activated is the height at which the delay time begins before a vote activates.
 // HardForked is the height at which the consensus rule changes.
-// LockedIn is the height at which voting on an agenda is consided complete.
+// VotingDone is the height at which voting on an agenda voting is consided
+// complete and the state changes from "started" to either "failed" or "lockedin".
 type MileStone struct {
 	Activated  int64
 	HardForked int64
-	LockedIn   int64
+	VotingDone int64
+	StartTime  time.Time
+	ExpireTime time.Time
+	Status     string
+}
+
+// BlockChainData defines data holding the latest block chain state from the
+// getblockchaininfo rpc endpoint.
+type BlockChainData struct {
+	Chain                  string
+	SyncHeight             int64
+	BestHeight             int64
+	BestBlockHash          string
+	Difficulty             uint32
+	VerificationProgress   float64
+	ChainWork              string
+	IsInitialBlockDownload bool
+	MaxBlockSize           int64
+	AgendaMileStones       map[string]MileStone
 }
 
 // SyncResult is the result of a database sync operation, containing the height

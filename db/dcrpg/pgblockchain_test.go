@@ -4,13 +4,16 @@ package dcrpg
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 )
@@ -36,7 +39,7 @@ func openDB() (func() error, error) {
 	return cleanUp, err
 }
 
-func TestMain(m *testing.M) {
+func TestMains(m *testing.M) {
 	// your func
 	cleanUp, err := openDB()
 	defer cleanUp()
@@ -227,5 +230,83 @@ func TestStuff(t *testing.T) {
 	if voutValue != voutValues[int(voutInd)] {
 		t.Errorf("%d (voutValue) != %d (voutValues[ind])",
 			voutValue, voutValues[int(voutInd)])
+	}
+}
+
+func TestUpdateChainState(t *testing.T) {
+	// r blockChainInfoData is a sample payload format as returned by
+	// getBlockChainInfo rpc endpoint.
+	var rawData = []byte(`{"chain":"mainnet","blocks":316016,"headers":316016,"syncheight":316016,"bestblockhash":` +
+		`"00000000000000001d8cfa54dc13cfb0563421fd017801401cb2bdebe3579355","difficulty":406452686,"verificationprogress":1,` +
+		`"chainwork":"0000000000000000000000000000000000000000000209c779c196914f038522","initialblockdownload":false,` +
+		`"maxblocksize":393216,"deployments":{"fixlnseqlocks":{	"status":"defined","starttime":1548633600,"expiretime":1580169600},` +
+		`"lnfeatures":{"status":"active","since":189568,"starttime":1505260800,"expiretime":1536796800},"sampleagenda1":` +
+		`{"status":"lockedin","since":119248,"starttime":1493164800,"expiretime":1508976000},"sampleagenda2":{"status":` +
+		`"failed","since":149248,"starttime":1493164800,"expiretime":1524700800},"sampleagenda3":{"status":"started","` +
+		`since":149248,"starttime":1493164800,"expiretime":1524700800}}}`)
+
+	var chainInfoData = new(dcrjson.GetBlockChainInfoResult)
+	err := json.Unmarshal(rawData, chainInfoData)
+	if err != nil {
+		t.Fatalf("expected no error to be returned but found: %v", err)
+	}
+
+	// Expected payload
+	var expectedPayload = dbtypes.BlockChainData{
+		Chain:                  "mainnet",
+		SyncHeight:             316016,
+		BestHeight:             316016,
+		BestBlockHash:          "00000000000000001d8cfa54dc13cfb0563421fd017801401cb2bdebe3579355",
+		Difficulty:             406452686,
+		VerificationProgress:   1.0,
+		ChainWork:              "0000000000000000000000000000000000000000000209c779c196914f038522",
+		IsInitialBlockDownload: false,
+		MaxBlockSize:           393216,
+		AgendaMileStones: map[string]dbtypes.MileStone{
+			"fixlnseqlocks": {
+				Status:     "defined",
+				StartTime:  time.Unix(1548633600, 0),
+				ExpireTime: time.Unix(1580169600, 0),
+			},
+			"lnfeatures": {
+				Status:     "active",
+				VotingDone: 181504,
+				Activated:  189568,
+				StartTime:  time.Unix(1505260800, 0),
+				ExpireTime: time.Unix(1536796800, 0),
+			},
+			"sampleagenda1": {
+				Status:     "lockedin",
+				VotingDone: 119248,
+				Activated:  127312,
+				StartTime:  time.Unix(1493164800, 0),
+				ExpireTime: time.Unix(1508976000, 0),
+			},
+			"sampleagenda2": {
+				Status:     "failed",
+				VotingDone: 149248,
+				StartTime:  time.Unix(1493164800, 0),
+				ExpireTime: time.Unix(1524700800, 0),
+			},
+			"sampleagenda3": {
+				Status:     "started",
+				VotingDone: 316016,
+				StartTime:  time.Unix(1493164800, 0),
+				ExpireTime: time.Unix(1524700800, 0),
+			},
+		},
+	}
+
+	dbRPC := new(ChainDBRPC)
+	dbRPC.ChainDB = &ChainDB{
+		chainParams: &chaincfg.Params{
+			RuleChangeActivationInterval: 8064,
+		},
+	}
+
+	dbRPC.UpdateChainState(chainInfoData)
+
+	if reflect.DeepEqual(dbRPC.chainInfo, expectedPayload) {
+		t.Fatalf("expected both payloads to match but the did not")
 	}
 }

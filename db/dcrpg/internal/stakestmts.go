@@ -328,18 +328,14 @@ const (
 		agenda_vote_choice INT2,
 		tx_hash TEXT NOT NULL,
 		block_height INT4,
-		block_time TIMESTAMPTZ,
-		locked_in BOOLEAN,
-		activated BOOLEAN,
-		hard_forked BOOLEAN
+		block_time TIMESTAMP
 	);`
 
 	// Insert
 	insertAgendaRow = `INSERT INTO agendas (
 		agenda_id, agenda_vote_choice,
-		tx_hash, block_height, block_time,
-		locked_in, activated, hard_forked)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
+		tx_hash, block_height, block_time)
+		VALUES ($1, $2, $3, $4, $5) `
 
 	InsertAgendaRow = insertAgendaRow + `RETURNING id;`
 
@@ -357,7 +353,6 @@ const (
 		ON agendas(block_time);`
 	DeindexAgendasTableOnBlockTime = `DROP INDEX uix_agendas_block_time;`
 
-	agendaLockinBlock              = `SELECT block_height FROM agendas WHERE locked_in = true AND agenda_id = $4 LIMIT 1`
 	SelectAgendasAgendaVotesByTime = `SELECT block_time AS timestamp,` + selectAgendasQuery + `
 		GROUP BY timestamp ORDER BY timestamp;`
 
@@ -373,7 +368,7 @@ const (
 			count(*) AS total
 		FROM agendas
 		WHERE agenda_id = $4
-		AND block_height <= (` + agendaLockinBlock + `)`
+		AND block_height <= $5`
 
 	SelectAgendasLockedIn   = `SELECT block_height FROM agendas WHERE locked_in = true AND agenda_id = $1 LIMIT 1;`
 	SelectAgendasHardForked = `SELECT block_height FROM agendas WHERE hard_forked = true AND agenda_id = $1 LIMIT 1;`

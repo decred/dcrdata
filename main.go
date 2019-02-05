@@ -593,6 +593,9 @@ func _main(ctx context.Context) error {
 					continue
 				}
 
+				// Update the current chain state in the ChainDBRPC
+				auxDB.UpdateChainState(d.BlockchainInfo)
+
 				// Store the blockdata for the explorer pages.
 				if err = explore.Store(d, msgBlock); err != nil {
 					log.Warnf("failed to store (%s) hash's blockdata for the explorer pages error: %v",
@@ -1020,6 +1023,9 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("Block data collection for initial summary failed: %v",
 			err.Error())
 	}
+
+	// Update the current chain state in the ChainDBRPC
+	auxDB.UpdateChainState(blockData.BlockchainInfo)
 
 	if err = explore.Store(blockData, msgBlock); err != nil {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())
