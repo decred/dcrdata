@@ -299,7 +299,7 @@ func NewDB(db *sql.DB) (*DB, error) {
 		}
 		// Try again without the mainchain constraint.
 		if ind+len(noSuchColPrefix) < len(errStr) {
-			log.Infof(`Block summary table missing column "%s". Table upgrade required.`,
+			log.Debugf(`Block summary table missing column "%s". Table upgrade required.`,
 				err.Error()[ind+len(noSuchColPrefix):])
 		}
 		d.dbStakeInfoHeight, err = d.getStakeInfoHeightAnyChain()
