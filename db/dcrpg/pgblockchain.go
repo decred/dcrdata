@@ -1910,8 +1910,9 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 
 // UpdateChainState updates chain's state which includes the agenda ID's
 // VotingDone and Activated heights. VotingDone is height when agenda passed or
-// failed. i.e agenda status moves from status "defined" to either "failed" or
-// "lockedin". If the agenda passed i.e. status is "lockedIn" the Activated
+// failed. i.e agenda status moves from status "started" to either "failed" or
+// "lockedin". VotingDone can also be the best block height if the status is
+// "started". If the agenda passed i.e. status is "lockedIn" the Activated
 // height is set which signals when the Rules Change will take place. Find more
 // details here: https://docs.decred.org/glossary/#rule-change-interval-rci.
 func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
@@ -1942,8 +1943,13 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 			ExpireTime: time.Unix(int64(entry.ExpireTime), 0),
 		}
 
-		// state defined is not considered since voting hasn't started.
+		// state "defined" is not considered since voting hasn't started.
 		switch strings.ToLower(entry.Status) {
+		case StartedAgendaState:
+			// Since the vote is in progress current best block height is set as
+			// the vote end.
+			agendaInfo.VotingDone = blockChainInfo.Blocks
+
 		case FailedAgendaState:
 			agendaInfo.VotingDone = entry.Since
 
@@ -1954,11 +1960,6 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 		case ActivatedAgendaState:
 			agendaInfo.Activated = entry.Since
 			agendaInfo.VotingDone = entry.Since - ruleChangeInterval
-
-		case StartedAgendaState:
-			// Since the vote is in progress current best block height is set as
-			// the vote end.
-			agendaInfo.VotingDone = blockChainInfo.Blocks
 		}
 
 		voteMilestones[agendaID] = agendaInfo

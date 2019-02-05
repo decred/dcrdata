@@ -311,7 +311,7 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 // Activated is the height at which the delay time begins before a vote activates.
 // HardForked is the height at which the consensus rule changes.
 // VotingDone is the height at which voting on an agenda voting is consided
-// complete and the state changes from "started" to either "failed" or "lockedin".
+// complete or when the state changes from "started" to either "failed" or "lockedin".
 type MileStone struct {
 	Activated  int64
 	HardForked int64

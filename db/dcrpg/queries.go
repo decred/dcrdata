@@ -2286,11 +2286,10 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, e
 // block and 0 indicates a day-long interval. For day intervals, the counts
 // accumulate over time (cumulative sum), whereas for block intervals the counts
 // are just for the block. The total length of time over all intervals always
-// spans the locked-in period of the agenda. If the stateChangeHeight passed is
-// greater than zero then it references the height at which the agenda ID passed
-// or failed after voting.
+// spans the locked-in period of the agenda. votingDoneHeight references the
+// height at which the agenda ID voting is considered complete.
 func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string, byType int,
-	stateChangeHeight int64) (*dbtypes.AgendaVoteChoices, error) {
+	votingDoneHeight int64) (*dbtypes.AgendaVoteChoices, error) {
 	// Query with block or day interval size
 	var query = internal.SelectAgendasAgendaVotesByTime
 	if byType == 1 {
@@ -2298,7 +2297,7 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 	}
 
 	rows, err := db.QueryContext(ctx, query, dbtypes.Yes, dbtypes.Abstain, dbtypes.No,
-		agendaID, stateChangeHeight)
+		agendaID, votingDoneHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -2344,14 +2343,14 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 }
 
 // retrieveTotalAgendaVotesCount returns the Cumulative vote choices count for
-// the provided agenda id.If the stateChangeHeight passed is greater than zero
-// then it references the height at which the agenda ID passed or failed after voting.
+// the provided agenda id. votingDoneHeight references the height at which the
+// agenda ID voting is considered complete.
 func retrieveTotalAgendaVotesCount(ctx context.Context, db *sql.DB,
-	agendaID string, stateChangeHeight int64) (yes, abstain, no uint32, err error) {
+	agendaID string, votingDoneHeight int64) (yes, abstain, no uint32, err error) {
 	var total uint32
 
 	err = db.QueryRowContext(ctx, internal.SelectAgendasTotalAgendaVotes, dbtypes.Yes,
-		dbtypes.Abstain, dbtypes.No, agendaID, stateChangeHeight).Scan(&yes,
+		dbtypes.Abstain, dbtypes.No, agendaID, votingDoneHeight).Scan(&yes,
 		&abstain, &no, &total)
 
 	return

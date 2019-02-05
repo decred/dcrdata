@@ -39,7 +39,7 @@ func openDB() (func() error, error) {
 	return cleanUp, err
 }
 
-func TestMains(m *testing.M) {
+func TestMain(m *testing.M) {
 	// your func
 	cleanUp, err := openDB()
 	defer cleanUp()

@@ -65,13 +65,16 @@
                 </div>
             </div>
             {{if .Choices}}
+            {{$isProgress := (ne (index .Choices 0).Progress 0.0)}}
+            {{$isNotDone := (or (eq .Status "started") (eq .Status "defined"))}}
+            {{$showProgress := or $isProgress $isNotDone}}
             <table class="table table-mono-cells table-sm striped">
                 <thead>
                     <th>ID</th>
                     <th>Description</th>
                     <th>Bits</th>
                     <th>Count</th>
-                    {{ if ne (index .Choices 0).Progress 0.0}}
+                    {{if $showProgress}}
                         <th>Progress</th> 
                    {{end}}
                 </thead>
@@ -83,7 +86,7 @@
                         <td class="text-left">{{.Description}}</td>
                         <td class="text-left">{{.Bits}}</td>
                         <td class="text-left">{{.Count}}</td>
-                        {{if ne .Progress 0.0}}
+                        {{if $showProgress}}
                             <td class="text-left">{{.Progress}}</td>
                         {{end}}
                     </tr>

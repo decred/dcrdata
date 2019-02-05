@@ -1664,7 +1664,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("fetching Cumulative votes choices count failed: %v", err)
 	}
 
-	// Overrides the default count value which the actual vote choices count
+	// Overrides the default count value with the actual vote choices count
 	// matching data displayed on "Cumulative Vote Choices" and "Vote Choices By
 	// Block" charts.
 	for index := range agendaInfo.Choices {
