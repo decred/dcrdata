@@ -88,6 +88,7 @@ type DB struct {
 	getBlockHashSQL, getBlockHeightSQL                           string
 	getBlockSizeSQL, getBlockSizeRangeSQL                        string
 	getBestBlockHashSQL, getBestBlockHeightSQL                   string
+	getHighestBlockHashSQL, getHighestBlockHeightSQL             string
 	getMainchainStatusSQL, invalidateBlockSQL                    string
 	setHeightToSideChainSQL                                      string
 	deleteBlockByHeightMainChainSQL, deleteBlockByHashSQL        string
@@ -95,7 +96,7 @@ type DB struct {
 
 	// Stake info table queries
 	insertStakeInfoExtendedSQL                                    string
-	getHighestStakeHeight                                         string
+	getBestStakeHeightSQL, getHighestStakeHeightSQL               string
 	getStakeInfoExtendedByHashSQL                                 string
 	deleteStakeInfoByHeightMainChainSQL, deleteStakeInfoByHashSQL string
 	deleteStakeInfoAboveHeightSQL                                 string
@@ -189,6 +190,11 @@ func NewDB(db *sql.DB) (*DB, error) {
 	d.getBestBlockHeightSQL = fmt.Sprintf(`SELECT height FROM %s WHERE is_mainchain = 1
 		ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
 
+	d.getHighestBlockHashSQL = fmt.Sprintf(`SELECT hash FROM %s
+		ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
+	d.getHighestBlockHeightSQL = fmt.Sprintf(`SELECT height FROM %s
+		ORDER BY height DESC LIMIT 0, 1`, TableNameSummaries)
+
 	d.getBlockHashSQL = fmt.Sprintf(`SELECT hash FROM %s
 		WHERE height = ? AND is_mainchain = 1`, TableNameSummaries)
 	d.getBlockHeightSQL = fmt.Sprintf(`SELECT height FROM %s
@@ -229,12 +235,16 @@ func NewDB(db *sql.DB) (*DB, error) {
 		 WHERE %[2]s.is_mainchain = 1
 		 ORDER BY %[1]s.height DESC LIMIT 0, 1`,
 		TableNameStakeInfo, TableNameSummaries)
-	d.getHighestStakeHeight = fmt.Sprintf(
+	d.getBestStakeHeightSQL = fmt.Sprintf(
 		`SELECT %[1]s.height FROM %[1]s
 		 JOIN %[2]s ON %[1]s.hash = %[2]s.hash
 		 WHERE %[2]s.is_mainchain = 1
 		 ORDER BY %[1]s.height DESC LIMIT 0, 1`,
 		TableNameStakeInfo, TableNameSummaries)
+	d.getHighestStakeHeightSQL = fmt.Sprintf(
+		`SELECT height FROM %s
+		 ORDER BY height DESC LIMIT 0, 1`,
+		TableNameStakeInfo)
 
 	d.getAllFeeInfoPerBlock = fmt.Sprintf(
 		`SELECT distinct %[1]s.height, fee_med FROM %[1]s
@@ -256,12 +266,46 @@ func NewDB(db *sql.DB) (*DB, error) {
 	d.getBlockSummaryTableInfo = fmt.Sprintf(`PRAGMA table_info(%s);`, TableNameSummaries)
 	d.getStakeInfoExtendedTableInfo = fmt.Sprintf(`PRAGMA table_info(%s);`, TableNameStakeInfo)
 
+	// Attempt to retrieve the best mainchain block heights from both tables,
+	// but fallback to the highest block if the tables have yet to be upgraded
+	// with the is_mainchain column. Log the latter case.
 	var err error
+	noSuchColPrefix := "no such column: "
 	if d.dbSummaryHeight, err = d.getBlockSummaryHeight(); err != nil {
-		return nil, err
+		// If the table scheme lacks the is_mainchain column, and upgrade is
+		// required. Fall back to querying without the is_mainchain condition.
+		errStr := err.Error()
+		ind := strings.LastIndex(errStr, noSuchColPrefix)
+		if ind == -1 {
+			return nil, fmt.Errorf("NewDB: %v", err)
+		}
+		// Try again without the mainchain constraint.
+		if ind+len(noSuchColPrefix) < len(errStr) {
+			log.Infof(`Block summary table missing column "%s". Table upgrade required.`,
+				errStr[ind+len(noSuchColPrefix):])
+		}
+		d.dbSummaryHeight, err = d.getBlockSummaryHeightAnyChain()
+		if err != nil {
+			return nil, fmt.Errorf("NewDB: %v", err)
+		}
 	}
-	if d.dbStakeInfoHeight, err = d.GetStakeInfoHeight(); err != nil {
-		return nil, err
+	if d.dbStakeInfoHeight, err = d.getStakeInfoHeight(); err != nil {
+		// If the table scheme lacks the is_mainchain column, and upgrade is
+		// required. Fall back to querying without the is_mainchain condition.
+		errStr := err.Error()
+		ind := strings.LastIndex(err.Error(), noSuchColPrefix)
+		if ind == -1 {
+			return nil, fmt.Errorf("NewDB: %v", err)
+		}
+		// Try again without the mainchain constraint.
+		if ind+len(noSuchColPrefix) < len(errStr) {
+			log.Infof(`Block summary table missing column "%s". Table upgrade required.`,
+				err.Error()[ind+len(noSuchColPrefix):])
+		}
+		d.dbStakeInfoHeight, err = d.getStakeInfoHeightAnyChain()
+		if err != nil {
+			return nil, fmt.Errorf("NewDB: %v", err)
+		}
 	}
 
 	return &d, nil
@@ -651,14 +695,13 @@ func (db *DB) GetBestBlockHeight() int64 {
 	return h
 }
 
-// getBlockSummaryHeight returns the largest block height for which the database
-// can provide a block summary. When the table is empty, height -1 and error nil
-// are returned. The error value will never be sql.ErrNoRows. Usually
-// GetBlockSummaryHeight, which caches the most recently stored block height,
-// shoud be used instead.
-func (db *DB) getBlockSummaryHeight() (int64, error) {
-	// Query the block summary table for the best main chain block height.
-	height, err := db.RetrieveBestBlockHeight()
+func (db *DB) getChainBlockSummaryHeight(onlyMainchain bool) (int64, error) {
+	heightFunc := db.RetrieveHighestBlockHeight
+	if onlyMainchain {
+		heightFunc = db.RetrieveBestBlockHeight
+	}
+	// Query the block summary table for the best or highest block height.
+	height, err := heightFunc()
 	if err == nil {
 		return height, nil
 	}
@@ -671,6 +714,23 @@ func (db *DB) getBlockSummaryHeight() (int64, error) {
 	}
 
 	return -1, fmt.Errorf("RetrieveBestBlockHeight failed: %v", err)
+}
+
+// getBlockSummaryHeight returns the best (mainchain) block height for which the
+// database can provide a block summary. When the table is empty, height -1 and
+// error nil are returned. The error value will never be sql.ErrNoRows. Usually
+// GetBlockSummaryHeight, which caches the most recently stored block height,
+// shoud be used instead.
+func (db *DB) getBlockSummaryHeight() (int64, error) {
+	// Query the block summary table for the best main chain block height.
+	return db.getChainBlockSummaryHeight(true)
+}
+
+// getBlockSummaryHeightAnyChain is like getBlockSummaryHeight, but it returns
+// the block with the largest height regardless of mainchain status.
+func (db *DB) getBlockSummaryHeightAnyChain() (int64, error) {
+	// Query the block summary table for the largest block height.
+	return db.getChainBlockSummaryHeight(false)
 }
 
 // GetBlockSummaryHeight returns the largest block height for which the database
@@ -689,14 +749,13 @@ func (db *DB) GetBlockSummaryHeight() (int64, error) {
 	return db.dbSummaryHeight, nil
 }
 
-// getStakeInfoHeight returns the largest block height for which the database
-// can provide stake info data. When the table is empty, height -1 and error nil
-// are returned. The error value will never be sql.ErrNoRows. Usually
-// GetStakeInfoHeight, which caches the most recently stored block height, shoud
-// be used instead.
-func (db *DB) getStakeInfoHeight() (int64, error) {
+func (db *DB) getChainStakeInfoHeight(onlyMainchain bool) (int64, error) {
+	heightFunc := db.RetrieveHighestStakeHeight
+	if onlyMainchain {
+		heightFunc = db.RetrieveBestStakeHeight
+	}
 	// Query the stake info table for the best main chain block height.
-	height, err := db.RetrieveBestStakeHeight()
+	height, err := heightFunc()
 	if err == nil {
 		return height, nil
 	}
@@ -708,11 +767,29 @@ func (db *DB) getStakeInfoHeight() (int64, error) {
 		return -1, nil
 	}
 
-	return -1, fmt.Errorf("RetrieveBestStakeHeight failed: %v", err)
+	return -1, fmt.Errorf("failed to query stake height: %v", err)
 }
 
-// GetStakeInfoHeight returns the largest block height for which the database
-// can provide a stake info
+// getStakeInfoHeight returns the largest block height for which the database
+// can provide stake info data. When the table is empty, height -1 and error nil
+// are returned. The error value will never be sql.ErrNoRows. Usually
+// GetStakeInfoHeight, which caches the most recently stored block height, shoud
+// be used instead.
+func (db *DB) getStakeInfoHeight() (int64, error) {
+	// Query the stake info table for the best main chain block height.
+	return db.getChainStakeInfoHeight(true)
+}
+
+// getStakeInfoHeightAnyChain is like getStakeInfoHeight, but it returns the
+// block with the largest height regardless of mainchain status.
+func (db *DB) getStakeInfoHeightAnyChain() (int64, error) {
+	// Query the stake info table for the largest block height.
+	return db.getChainStakeInfoHeight(false)
+}
+
+// GetStakeInfoHeight returns the cached stake info height if a height is set,
+// otherwise it queries the database for the best (mainchain) block height in
+// the stake info table and updates the cache.
 func (db *DB) GetStakeInfoHeight() (int64, error) {
 	db.RLock()
 	defer db.RUnlock()
@@ -1114,10 +1191,18 @@ func (db *DB) RetrieveBlockHeight(hash string) (int64, error) {
 	return blockHeight, err
 }
 
-// RetrieveBestBlockHash returns the block hash for the best block
+// RetrieveBestBlockHash returns the block hash for the best (mainchain) block.
 func (db *DB) RetrieveBestBlockHash() (string, error) {
 	var blockHash string
 	err := db.QueryRow(db.getBestBlockHashSQL).Scan(&blockHash)
+	return blockHash, err
+}
+
+// RetrieveHighestBlockHash returns the block hash for the highest block,
+// regardless of mainchain status.
+func (db *DB) RetrieveHighestBlockHash() (string, error) {
+	var blockHash string
+	err := db.QueryRow(db.getHighestBlockHashSQL).Scan(&blockHash)
 	return blockHash, err
 }
 
@@ -1125,6 +1210,14 @@ func (db *DB) RetrieveBestBlockHash() (string, error) {
 func (db *DB) RetrieveBestBlockHeight() (int64, error) {
 	var blockHeight int64
 	err := db.QueryRow(db.getBestBlockHeightSQL).Scan(&blockHeight)
+	return blockHeight, err
+}
+
+// RetrieveHighestBlockHeight returns the block height for the highest block,
+// regardless of mainchain status.
+func (db *DB) RetrieveHighestBlockHeight() (int64, error) {
+	var blockHeight int64
+	err := db.QueryRow(db.getHighestBlockHeightSQL).Scan(&blockHeight)
 	return blockHeight, err
 }
 
@@ -1415,10 +1508,22 @@ func (db *DB) RetrieveLatestStakeInfoExtended() (*apitypes.StakeInfoExtended, er
 	return si, nil
 }
 
-// Retreives the height of the highest block in the stake table.
+// RetrieveBestStakeHeight retreives the height of the best (mainchain) block in
+// the stake table.
 func (db *DB) RetrieveBestStakeHeight() (int64, error) {
 	var height int64
-	err := db.QueryRow(db.getHighestStakeHeight).Scan(&height)
+	err := db.QueryRow(db.getBestStakeHeightSQL).Scan(&height)
+	if err != nil {
+		return -1, err
+	}
+	return height, nil
+}
+
+// RetrieveHighestStakeHeight retrieves the height of the highest block in the
+// stake table without regard to mainchain status.
+func (db *DB) RetrieveHighestStakeHeight() (int64, error) {
+	var height int64
+	err := db.QueryRow(db.getHighestStakeHeightSQL).Scan(&height)
 	if err != nil {
 		return -1, err
 	}
@@ -1526,9 +1631,9 @@ func copyFile(src, dst string) error {
 
 // JustifyTableStructure updates an old structure that wasn't indexing
 // sidechains. It could and should be removed in a future version. The block
-// summary table got two new boolean columns, `is_mainchain` and `is_valid`,
-// and the Primary key was changed from height to hash.
-// The stake info table got a `hash` column and the primary key was switched from height to hash
+// summary table got two new boolean columns, `is_mainchain` and `is_valid`, and
+// the Primary key was changed from height to hash. The stake info table got a
+// `hash` column and the primary key was switched from height to hash.
 func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 
 	// Grab the column info. Right now, just counting them, but could be looked at more closely
@@ -1614,7 +1719,13 @@ func (db *DB) JustifyTableStructures(dbInfo *DBInfo) error {
 		log.Error("Failed to VACUUM SQLite database.")
 	}
 
-	return nil
+	// Run the stake info height query with the block summary table join where
+	// is_mainchain=true, and udpate the cached stake info height.
+	db.dbStakeInfoHeight, err = db.getStakeInfoHeight()
+	// All rows in the block summary table got is_mainchain (and is_valid) set
+	// to true, so it is not necessary to update the block summary height.
+
+	return err
 }
 
 func logDBResult(res sql.Result) error {
