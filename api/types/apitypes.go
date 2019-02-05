@@ -212,6 +212,11 @@ func (sc ScriptClass) String() string {
 	return name
 }
 
+// IsNullDataScript indicates if the script class name is a nulldata class.
+func IsNullDataScript(name string) bool {
+	return name == ScriptClassNullData.String()
+}
+
 // ScriptPubKey is the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKey struct {
 	Asm       string   `json:"asm"`

@@ -68,3 +68,22 @@ func TestIsValidScriptClass(t *testing.T) {
 		})
 	}
 }
+
+func TestIsNullDataScript(t *testing.T) {
+	tests := []struct {
+		testName string
+		name     string
+		want     bool
+	}{
+		{"it is", "nulldata", true},
+		{"it is not", "blahdata", false},
+		{"it had better be", ScriptClassNullData.String(), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.testName, func(t *testing.T) {
+			if got := IsNullDataScript(tt.name); got != tt.want {
+				t.Errorf("IsNullDataScript() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
