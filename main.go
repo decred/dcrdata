@@ -255,8 +255,38 @@ func _main(ctx context.Context) error {
 		return
 	}
 
-	// Optionally purge best blocks according to config.
-	if cfg.PurgeNBestBlocks > 0 {
+	// Check for database tip blocks that have been orphaned. If any are found,
+	// purge blocks to get to a common ancestor. Only message when purging more
+	// than requested in the configuration settings.
+	blocksToPurge := cfg.PurgeNBestBlocks
+	_, _, baseHeight, auxHeight, err := Heights()
+	if err != nil {
+		return fmt.Errorf("Failed to get Heights for tip check: %v", err)
+	}
+
+	if baseHeight > -1 {
+		orphaned, err := rpcutils.OrphanedTipLength(ctx, dcrdClient, baseHeight, baseDB.DB.RetrieveBlockHash)
+		if err != nil {
+			return fmt.Errorf("Failed to compare tip blocks for the base DB: %v", err)
+		}
+		if int(orphaned) > blocksToPurge {
+			blocksToPurge = int(orphaned)
+			log.Infof("Orphaned tip detected on base DB. Purging %d blocks", blocksToPurge)
+		}
+	}
+
+	if usePG && auxHeight > -1 {
+		orphaned, err := rpcutils.OrphanedTipLength(ctx, dcrdClient, auxHeight, auxDB.BlockHash)
+		if err != nil {
+			return fmt.Errorf("Failed to compare tip blocks for the aux DB: %v", err)
+		}
+		if int(orphaned) > blocksToPurge {
+			blocksToPurge = int(orphaned)
+			log.Infof("Orphaned tip detected on aux DB. Purging %d blocks", blocksToPurge)
+		}
+	}
+
+	if blocksToPurge > 0 {
 		// The number of blocks to purge for each DB is computed so that the DBs
 		// will end on the same height.
 		_, _, baseDBHeight, auxDBHeight, err := Heights()
@@ -269,7 +299,7 @@ func _main(ctx context.Context) error {
 			maxHeight = auxDBHeight
 		}
 		// The final best block after purge.
-		purgeToBlock := maxHeight - int64(cfg.PurgeNBestBlocks)
+		purgeToBlock := maxHeight - int64(blocksToPurge)
 
 		// Purge from SQLite, using either the "blocks above" or "N best main
 		// chain" approach.
