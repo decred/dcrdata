@@ -599,6 +599,12 @@ func (db *WiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 	for i := range txouts {
 		// dcrjson.Vout and apitypes.TxOut are the same except for N.
 		spk := &tx.Vout[i].ScriptPubKey
+		// If the script type is not recognized by apitypes, the ScriptClass
+		// types may need to be updated to match dcrd.
+		if spk.Type != "invalid" && !apitypes.IsValidScriptClass(spk.Type) {
+			log.Warnf(`The ScriptPubKey's type "%s" is not known to dcrdata! ` +
+				`Update apitypes or debug dcrd.`)
+		}
 		allTxOut = append(allTxOut, &apitypes.TxOut{
 			Value:   txouts[i].Value,
 			Version: txouts[i].Version,
