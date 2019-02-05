@@ -30,13 +30,13 @@ function txTableRow (tx) {
 function voteTxTableRow (tx) {
   return rowNode(`<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
         <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
-        <td class="mono fs15"><span><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}</a></span></td>
-        <td class="mono fs15 last_block">${tx.vote_info.last_block ? 'True' : 'False'}</td>
+        <td class="mono fs15"><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}<span
+          class="small">${tx.vote_info.last_block ? ' best' : ''}</span></a></td>
         <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
         <td class="mono fs15">${tx.vote_info.vote_version}</td>
         <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8)}</td>
-        <td class="mono fs15 text-right">${tx.size} B</td>
-        <td class="mono fs15 text-right" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+        <td class="mono fs15 text-right d-none d-sm-table-cell">${humanize.bytes(tx.size)}</td>
+        <td class="mono fs15 text-right d-none d-sm-table-cell jsonly" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
     </tr>`)
 }
 
@@ -183,6 +183,8 @@ export default class extends Controller {
     this.voteTransactionsTarget.querySelectorAll('tr').forEach((tr) => {
       var voteValidationHash = tr.dataset.blockhash
       var voteBlockHeight = tr.dataset.height
+      var best = tr.querySelector('.small')
+      best.textContent = ''
       if (voteBlockHeight > bestBlockHeight) {
         tr.classList.add('upcoming-vote')
         tr.classList.remove('old-vote')
@@ -195,9 +197,7 @@ export default class extends Controller {
       } else {
         tr.classList.remove('old-vote')
         tr.classList.remove('upcoming-vote')
-        if (tr.classList.contains('last_block')) {
-          tr.textContent = 'True'
-        }
+        best.textContent = ' best'
       }
     })
   }

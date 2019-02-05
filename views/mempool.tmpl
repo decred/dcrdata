@@ -12,7 +12,7 @@
             <div class="py-4 h4">Mempool</div>
 
             <div class="row mx-1 my-2">
-                <div class="col-12 col-sm-6 col-md-12 col-lg-6 bg-white py-4 px-3 position-relative">
+                <div class="col-24 col-sm-12 col-md-24 col-lg-12 bg-white py-4 px-3 position-relative">
                     <div class="card-pointer pointer-right d-none d-sm-block d-md-none d-lg-block"></div>
                     <div class="card-pointer pointer-bottom d-sm-none d-md-block d-lg-none"></div>
                     <div class="pb-3 pl-1">
@@ -20,32 +20,32 @@
                         <span class="h6 d-inline-block pl-2">Current Mempool</span>
                     </div>
                     <div class="row">
-                        <div class="col-12 col-md-6 col-lg-12 col-xl-6 row pb-3">
-                            <div class="col-6 text-center">
-                                <div class="d-inline-block text-left">
+                        <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3">
+                            <div class="col-12 text-center">
+                                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                                     <span class="text-secondary fs13">Total Sent</span>
                                     <br>
                                     <span class="h5" data-target="mempool.likelyTotal">{{threeSigFigs .LikelyMineable.Total}}</span> <span class="text-secondary">DCR</span>
                                 </div>
                             </div>
-                            <div class="col-6 text-center">
-                                <div class="d-inline-block text-left">
+                            <div class="col-12 text-center">
+                                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                                     <span class="text-secondary fs13">Last Block</span>
                                     <br>
                                     <span class="h5"><a href="/block/{{.LastBlockHeight}}" data-target="mempool.bestBlock" data-hash="{{.LastBlockHash}}" data-keynav-priority>{{.LastBlockHeight}}</a></span>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-12 col-md-6 col-lg-12 col-xl-6 row pb-3">
-                            <div class="col-6 text-center">
-                                <div class="d-inline-block text-left">
+                        <div class="col-24 col-md-12 col-lg-24 col-xl-12 row pb-3">
+                            <div class="col-12 text-center">
+                                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                                     <span class="text-secondary fs13" data-target="time.header" data-jstitle="Since Last Block">Last Block</span>
                                     <br>
-                                    <span class="h5" data-target="mempool.bestBlockTime  time.age" data-age="{{.LastBlockTime}}"><span class="fs12">{{.FormattedBlockTime}}</span></span>
+                                    <span class="h5" data-target="mempool.bestBlockTime  time.age" data-age="{{.LastBlockTime}}"><span class="fs13">{{.FormattedBlockTime}}</span></span>
                                 </div>
                             </div>
-                            <div class="col-6 text-center">
-                                <div class="d-inline-block text-left">
+                            <div class="col-12 text-center">
+                                <div class="d-inline-block text-center text-md-left text-lg-center text-xl-left">
                                     <span class="text-secondary fs13">Size</span>
                                     <br>
                                     <span data-target="mempool.mempoolSize" class="h5" >{{.LikelyMineable.FormattedSize}}</span>
@@ -54,14 +54,14 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-12 col-sm-6 col-md-12 col-lg-6 mp-count-card pt-3 pb-5 px-3">
+                <div class="col-24 col-sm-12 col-md-24 col-lg-12 mp-count-card pt-3 pb-5 px-3">
                     <div class="pb-2 pl-1">
                       <!-- <span class="dcricon-stack h5"></span> -->
                       <span class="h6 d-inline-block pl-2">Transaction Details</span>
                     </div>
 
                     <div class="row fs13">
-                        <div class="col-12 col-md-6">
+                        <div class="col-24 col-md-12">
                             <table class="w-100">
                                 <tbody>
                                     <tr>
@@ -85,7 +85,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-24 col-md-12">
                             <table class="w-100">
                                 <tbody>
                                     <tr>
@@ -127,19 +127,18 @@
             </div>
             <div class="mempool-tables">
               <div class="row">
-                  <div class="col-sm-12">
+                  <div class="col-sm-24">
                   <h4 class="pt-5 pb-3"><span>Votes</span></h4>
 
-                      <table class="table striped table-responsive-md">
+                      <table class="table striped">
                           <thead>
                               <th>Transaction ID</th>
                               <th>Voting On</th>
-                              <th>Best Block</th>
-                              <th>Validator ID</th>
-                              <th>Vote Version</th>
+                              <th><div class="inline-block position-relative"><span class="d-none d-sm-inline">Validator ID</span><span class="d-inline d-sm-none" data-tooltip="Validator ID">VID</span></div></th>
+                              <th><div class="inline-block position-relative"><span class="d-none d-sm-inline">Vote Version</span><span class="d-inline d-sm-none" data-tooltip="Vote Version">Ver</span></div></th>
                               <th class="text-right">Total DCR</th>
-                              <th class="text-right">Size</th>
-                              <th class="text-right">Time in Mempool</th>
+                              <th class="text-right d-none d-sm-table-cell">Size</th>
+                              <th class="text-right d-none d-sm-table-cell jsonly">Time in Mempool</th>
                           </thead>
                           <tbody data-target="mempool.voteTransactions">
                               {{if gt .NumVotes 0}}
@@ -152,15 +151,15 @@
                                   <td class="break-word">
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                   </td>
-                                  <td class="mono fs15"><a href="/block/{{.VoteInfo.Validation.Hash}}">{{.VoteInfo.Validation.Height}}</a></td>
-                                  <td class="mono fs15 last_block">{{if .VoteInfo.ForLastBlock}}True{{else}}False{{end}}</td>
+                                  <td class="mono fs15"><a href="/block/{{.VoteInfo.Validation.Hash}}">{{.VoteInfo.Validation.Height}}<span
+                                    class="small">{{if .VoteInfo.ForLastBlock}} best{{end}}</span></a></td>
                                   <td class="mono fs15"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
                                   <td class="mono fs15">{{.VoteInfo.Version}}</td>
                                   <td class="mono fs15 text-right">
                                       {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-right">{{.Size}} B</td>
-                                  <td class="mono fs15 text-right" data-target="time.age" data-age="{{.Time}}"></td>
+                                  <td class="mono fs15 text-right d-none d-sm-table-cell">{{.Size}} B</td>
+                                  <td class="mono fs15 text-right d-none d-sm-table-cell jsonly" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
                               {{else}}
@@ -173,7 +172,7 @@
                   </div>
               </div>
               <div class="row">
-                  <div class="col-sm-12">
+                  <div class="col-sm-24">
                   <h4 class="pt-5 pb-3"><span>Tickets</span></h4>
                       <table class="table striped">
                           <thead>
@@ -207,7 +206,7 @@
               </div>
 
               <div class="row">
-                  <div class="col-sm-12">
+                  <div class="col-sm-24">
                   <h4 class="pt-5 pb-3"><span>Revokes</span></h4>
                       <table class="table striped">
                           <thead>
@@ -241,7 +240,7 @@
               </div>
 
               <div class="row">
-                  <div class="col-sm-12">
+                  <div class="col-sm-24">
                   <h4 class="pt-5 pb-3"><span>Transactions</span></h4>
                       <table class="table striped">
                           <thead>
