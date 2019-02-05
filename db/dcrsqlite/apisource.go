@@ -20,7 +20,6 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
-	"github.com/decred/dcrd/txscript"
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v3/api/types"
 	"github.com/decred/dcrdata/v3/db/dbtypes"
@@ -376,35 +375,29 @@ func (db *wiredDB) GetAllTxOut(txid string) []*apitypes.TxOut {
 		return nil
 	}
 
-	tx, err := db.client.GetRawTransaction(txhash)
+	tx, err := db.client.GetRawTransactionVerbose(txhash)
 	if err != nil {
 		log.Warnf("Unknown transaction %s", txid)
 		return nil
 	}
 
-	allTxOut0 := tx.MsgTx().TxOut
-	allTxOut := make([]*apitypes.TxOut, len(allTxOut0))
-	for i := range allTxOut {
-		var addresses []string
-		_, txAddrs, _, err := txscript.ExtractPkScriptAddrs(
-			allTxOut0[i].Version, allTxOut0[i].PkScript, db.params)
-		if err != nil {
-			log.Warnf("Unable to extract addresses from PkScript: %v", err)
-		} else {
-			addresses = make([]string, 0, len(txAddrs))
-			for i := range txAddrs {
-				addresses = append(addresses, txAddrs[i].String())
-			}
-		}
-
-		txOut := &apitypes.TxOut{
-			Value:     dcrutil.Amount(allTxOut0[i].Value).ToCoin(),
-			Version:   allTxOut0[i].Version,
-			PkScript:  hex.EncodeToString(allTxOut0[i].PkScript),
-			Addresses: addresses,
-		}
-
-		allTxOut[i] = txOut
+	txouts := tx.Vout
+	allTxOut := make([]*apitypes.TxOut, 0, len(txouts))
+	for i := range txouts {
+		// dcrjson.Vout and apitypes.TxOut are the same except for N.
+		spk := &tx.Vout[i].ScriptPubKey
+		allTxOut = append(allTxOut, &apitypes.TxOut{
+			Value:   txouts[i].Value,
+			Version: txouts[i].Version,
+			ScriptPubKeyDecoded: apitypes.ScriptPubKey{
+				Asm:       spk.Asm,
+				Hex:       spk.Hex,
+				ReqSigs:   spk.ReqSigs,
+				Type:      spk.Type,
+				Addresses: spk.Addresses,
+				CommitAmt: spk.CommitAmt,
+			},
+		})
 	}
 
 	return allTxOut
@@ -523,6 +516,7 @@ func (db *wiredDB) getRawTransaction(txid string) (*apitypes.Tx, string) {
 		spk := &tx.Vout[i].ScriptPubKeyDecoded
 		spkRaw := &txraw.Vout[i].ScriptPubKey
 		spk.Asm = spkRaw.Asm
+		spk.Hex = spkRaw.Hex
 		spk.ReqSigs = spkRaw.ReqSigs
 		spk.Type = spkRaw.Type
 		spk.Addresses = make([]string, len(spkRaw.Addresses))
@@ -947,6 +941,7 @@ func (db *wiredDB) GetAddressTransactionsRawWithSkip(addr string, count int, ski
 			spk := &tx.Vout[j].ScriptPubKeyDecoded
 			spkRaw := &txs[i].Vout[j].ScriptPubKey
 			spk.Asm = spkRaw.Asm
+			spk.Hex = spkRaw.Hex
 			spk.ReqSigs = spkRaw.ReqSigs
 			spk.Type = spkRaw.Type
 			spk.Addresses = make([]string, len(spkRaw.Addresses))

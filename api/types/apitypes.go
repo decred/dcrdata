@@ -109,6 +109,7 @@ type TxInputID struct {
 // ScriptPubKey is the result of decodescript(ScriptPubKeyHex)
 type ScriptPubKey struct {
 	Asm       string   `json:"asm"`
+	Hex       string   `json:"hex"`
 	ReqSigs   int32    `json:"reqSigs,omitempty"`
 	Type      string   `json:"type"`
 	Addresses []string `json:"addresses,omitempty"`
@@ -117,10 +118,9 @@ type ScriptPubKey struct {
 
 // TxOut defines a decred transaction output.
 type TxOut struct {
-	Value     float64  `json:"value"`
-	Version   uint16   `json:"version"`
-	PkScript  string   `json:"pkscript"`
-	Addresses []string `json:"addresses,omitempty"`
+	Value               float64      `json:"value"`
+	Version             uint16       `json:"version"`
+	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey"`
 }
 
 // TxIn defines a decred transaction input.
