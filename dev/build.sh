@@ -47,7 +47,19 @@ npm install
 npm run build
 
 echo "Gzipping assets for use with gzip_static..."
-find ./public -type f -execdir 7za a -tgzip -mx=9 -mpass=13 {}.gz {} \; > /dev/null
+find ./public -type f -name "*.gz" -execdir rm {} \;
+# Use GNU parallel if it is installed.
+if [ -x "$(command -v parallel)" ]; then
+    if [ -x "$(command -v 7za)" ]; then
+        find ./public -type f -not -name "*.gz" | parallel --bar 7za a -tgzip -mx=9 -mpass=13 {}.gz {} > /dev/null
+    else
+        find ./public -type f -not -name "*.gz" | parallel --bar gzip -k9f {} > /dev/null
+    fi
+elif [ -x "$(command -v 7za)" ]; then
+    find ./public -type f -not -name "*.gz" -execdir 7za a -tgzip -mx=9 -mpass=13 {}.gz {} \; > /dev/null    
+else
+    find ./public -type f -not -name "*.gz" -execdir gzip -k9f {} \; > /dev/null
+fi
 # find ./public -type f -execdir gzip -k9f {} \; > /dev/null
 
 # Clean up incompressible files.
