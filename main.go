@@ -286,6 +286,11 @@ func _main(ctx context.Context) error {
 		}
 	}
 
+	// Give a chance to abort a purge.
+	if shutdownRequested(ctx) {
+		return nil
+	}
+
 	if blocksToPurge > 0 {
 		// The number of blocks to purge for each DB is computed so that the DBs
 		// will end on the same height.

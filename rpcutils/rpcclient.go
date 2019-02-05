@@ -449,13 +449,17 @@ func CommonAncestor(client *rpcclient.Client, hashA, hashB chainhash.Hash) (*cha
 	return &hashA, chainA, chainB, nil
 }
 
+type BlockHashGetter interface {
+	GetBlockHash(int64) (*chainhash.Hash, error)
+}
+
 // OrphanedTipLength finds a common ancestor by iterating block heights
 // backwards until a common block hash is found. Unlike CommonAncestor, an
 // orphaned DB tip whose corresponding block is not known to dcrd will not cause
-// cause an error. The number of blocks that have been orphaned is returned.
+// an error. The number of blocks that have been orphaned is returned.
 // Realistically, this should rarely be anything but 0 or 1, but no limits are
 // placed here on the number of blocks checked.
-func OrphanedTipLength(ctx context.Context, client *rpcclient.Client,
+func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
 	tipHeight int64, hashFunc func(int64) (string, error)) (int64, error) {
 	commonHeight := tipHeight
 	var dbHash string
@@ -484,7 +488,7 @@ func OrphanedTipLength(ctx context.Context, client *rpcclient.Client,
 
 		commonHeight--
 		if commonHeight < 0 {
-			return -1, fmt.Errorf("Unable to find a common ancestor ")
+			return -1, fmt.Errorf("Unable to find a common ancestor")
 		}
 		// Reorgs are soft-limited to depth 6 by dcrd. More than six blocks without
 		// a match probably indicates an issue.
