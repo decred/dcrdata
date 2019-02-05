@@ -138,10 +138,9 @@ type ScriptPubKey struct {
 
 // TxOut defines a decred transaction output.
 type TxOut struct {
-	Value     float64  `json:"value"`
-	Version   uint16   `json:"version"`
-	PkScript  string   `json:"pkscript"`
-	Addresses []string `json:"addresses,omitempty"`
+	Value               float64      `json:"value"`
+	Version             uint16       `json:"version"`
+	ScriptPubKeyDecoded ScriptPubKey `json:"scriptPubKey"`
 }
 
 // TxIn defines a decred transaction input.
