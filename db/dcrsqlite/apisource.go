@@ -1230,8 +1230,9 @@ func makeExplorerTxBasic(data dcrjson.TxRawResult, msgTx *wire.MsgTx, params *ch
 	tx.Total = txhelpers.TotalVout(data.Vout).ToCoin()
 	tx.Fee, tx.FeeRate = txhelpers.TxFeeRate(msgTx)
 	for _, i := range data.Vin {
-		if i.IsCoinBase() {
+		if i.IsCoinBase() /* not IsStakeBase */ {
 			tx.Coinbase = true
+			tx.Fee, tx.FeeRate = 0, 0
 		}
 	}
 	if stake.IsSSGen(msgTx) {
@@ -1369,6 +1370,9 @@ func (db *WiredDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 			// with unmatched inputs/outputs then the remainder becomes a fee.
 			// Account for this possibility by calculating the fee for votes as
 			// well.
+			if stx.Fee > 0 {
+				log.Debugf("Vote with fee! %v, %v DCR", stx.Fee, stx.Fees)
+			}
 			votes = append(votes, stx)
 		case stake.TxTypeSStx:
 			stx := trimmedTxInfoFromMsgTx(tx, msgTx, db.params)
@@ -1414,6 +1418,16 @@ func (db *WiredDB) GetExplorerBlock(hash string) *exptypes.BlockInfo {
 
 	getTotalFee := func(txs []*exptypes.TrimmedTxInfo) (total dcrutil.Amount) {
 		for _, tx := range txs {
+			// Coinbase transactions have no fee. The fee should be zero already
+			// (as in makeExplorerTxBasic), but intercept coinbase just in case.
+			// Note that this does not include stakebase transactions (votes),
+			// which can have a fee but are not required to.
+			if tx.Coinbase {
+				continue
+			}
+			if tx.Fee < 0 {
+				log.Warnf("Negative fees should not happen! %v", tx.Fee)
+			}
 			total += tx.Fee
 		}
 		return

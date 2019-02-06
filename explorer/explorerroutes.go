@@ -967,7 +967,11 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 			if data == nil {
 				log.Errorf("Unable to get block %s", tx.BlockHash)
 			} else {
-				tx.BlockMiningFee = int64(data.MiningFee)
+				// BlockInfo.MiningFee is coin (float64), while
+				// TxInfo.BlockMiningFee is int64 (atoms), so convert. If the
+				// float64 is somehow invalid, use the default zero value.
+				feeAmt, _ := dcrutil.NewAmount(data.MiningFee)
+				tx.BlockMiningFee = int64(feeAmt)
 			}
 		}
 
