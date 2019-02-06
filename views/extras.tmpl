@@ -29,7 +29,6 @@
 {{define "navbar"}}
 <header class="top-nav"
         id="navBar"
-        data-timezone_offset="{{timezoneOffset}}"
         data-blocktime="{{.BlockTimeUnix}}"
         data-poolsize="{{.ChainParams.TicketPoolSize}}">
     <div class="container">
@@ -224,7 +223,7 @@
               <th class="text-right">Credit DCR</th>
               <th>Debit DCR</th>
           {{end}}
-          <th>Time ({{timezone}})</th>
+          <th>Time</th>
           <th>Age</th>
           <th>Confirms</th>
           <th>Size</th>
@@ -314,7 +313,7 @@
               {{if eq (.Time.T.Unix) 0}}
                   N/A
               {{else}}
-                  <span data-controller="time" data-target="time.age" data-age="{{.Time}}"></span>
+                  <span data-controller="time" data-target="time.age" data-age="{{.Time.UNIX}}"></span>
               {{end}}
               </td>
 

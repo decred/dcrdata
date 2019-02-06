@@ -115,7 +115,7 @@
                                 <td class="text-right">{{intComma .Revocations}}</td>
                                 <td class="text-right">{{intComma .BlocksCount}}</td>
                                 <td class="text-right">{{.FormattedSize}}</td>
-                                <td id="{{toLowerCase $.TimeGrouping}}" class="text-right" data-target="time.age" data-age="{{.StartTime}}"></td>
+                                <td id="{{toLowerCase $.TimeGrouping}}" class="text-right" data-target="time.age" data-age="{{.StartTime.UNIX}}"></td>
                             </tr>
                         {{end}}
                         </tbody>

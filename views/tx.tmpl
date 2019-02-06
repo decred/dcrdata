@@ -275,7 +275,7 @@
                         {{if eq (.Time.T.Unix) 0}}
                             <span data-target="tx.formattedAge">N/A</span> <span class="op60 fs12 nowrap"><span data-target="tx.age" data-age=""></span></span>
                         {{else}}
-                            <span>({{timezone}}) {{.Time}}</span><span class="op60 fs12 nowrap jsonly"> (<span data-target="time.age" data-age="{{.Time}}"></span> ago)</span>
+                            <span>{{.Time}}</span><span class="op60 fs12 nowrap jsonly"> (<span data-target="time.age" data-age="{{.Time.UNIX}}"></span> ago)</span>
                         {{end}}
                     </td>
                 </tr>

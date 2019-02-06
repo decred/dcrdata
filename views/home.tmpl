@@ -65,7 +65,7 @@
                                         <th><div class="position-relative text-center" data-tooltip="revocations">Revokes</div></th>
                                         <th><div class="position-relative text-center" data-tooltip="total DCR sent">DCR</div></th>
                                         <th class="d-none d-sm-table-cell d-md-none d-lg-table-cell"><div class="position-relative text-center">Size</div></th>
-                                        <th class="text-right pr-3" data-target="time.header" data-jstitle="Age">Time ({{timezone}})</th>
+                                        <th class="text-right pr-3" data-target="time.header" data-jstitle="Age">Time</th>
                                     </tr>
                                 </thead>
                                 <tbody data-target="blocklist.table">
@@ -78,7 +78,7 @@
                                         <td class="text-center" data-type="revocations">{{.Revocations}}</td>
                                         <td class="text-center" data-type="value">{{threeSigFigs .Total}}</td>
                                         <td class="text-center d-none d-sm-table-cell d-md-none d-lg-table-cell" data-type="value">{{.FormattedBytes}}</td>
-                                        <td class="text-right pr-2" data-type="age" data-target="time.age" data-age="{{.BlockTime}}">{{.BlockTime}}</td>
+                                        <td class="text-right pr-2" data-type="age" data-target="time.age" data-age="{{.BlockTime.UNIX}}">{{.BlockTime}}</td>
                                     </tr>
                                     {{end}}
                                 </tbody>

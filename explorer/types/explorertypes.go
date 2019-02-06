@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -34,30 +34,64 @@ type TimeDef struct {
 	T time.Time
 }
 
-const timeDefFmt = "2006-01-02 15:04:05"
+const (
+	timeDefFmtHuman = "2006-01-02 15:04:05 (MST)"
+	timeDefFmtJS    = time.RFC3339
+)
 
+// String formats the time in a human-friendly layout. This ends up on the
+// explorer web pages.
 func (t TimeDef) String() string {
-	return t.T.Format(timeDefFmt)
+	return t.T.Format(timeDefFmtHuman)
+}
+
+// RFC3339 formats the time in a machine-friendly layout.
+func (t TimeDef) RFC3339() string {
+	return t.T.Format(timeDefFmtJS)
+}
+
+// UNIX returns the UNIX epoch time stamp.
+func (t TimeDef) UNIX() int64 {
+	return t.T.Unix()
+}
+
+func (t TimeDef) Format(layout string) string {
+	return t.T.Format(layout)
 }
 
 // MarshalJSON implements json.Marshaler.
 func (t *TimeDef) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t.String())
+	return json.Marshal(t.RFC3339())
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
 func (t *TimeDef) UnmarshalJSON(data []byte) error {
+	fmt.Println("explorer/types.(TimeDef).UnmarshalJSON")
 	if t == nil {
 		return fmt.Errorf("TimeDef: UnmarshalJSON on nil pointer")
 	}
 	tStr := string(data)
 	tStr = strings.Trim(tStr, `"`)
-	T, err := time.Parse(timeDefFmt, tStr)
+	T, err := time.Parse(timeDefFmtJS, tStr)
 	if err != nil {
 		return err
 	}
 	t.T = T
 	return nil
+}
+
+// NewTimeDef constructs a TimeDef from the given time.Time. It presets the
+// timezone for formatting to UTC.
+func NewTimeDef(t time.Time) TimeDef {
+	return TimeDef{
+		T: t.UTC(),
+	}
+}
+
+// NewTimeDefFromUNIX constructs a TimeDef from the given UNIX epoch time stamp
+// in seconds. It presets the timezone for formatting to UTC.
+func NewTimeDefFromUNIX(t int64) TimeDef {
+	return NewTimeDef(time.Unix(t, 0))
 }
 
 // BlockBasic models data for the explorer's explorer page

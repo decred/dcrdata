@@ -198,7 +198,7 @@ out:
 
 			c.Status.Lock()
 			c.Status.DBHeight = height
-			c.Status.DBLastBlockTime = summary.Time.S.T.Unix()
+			c.Status.DBLastBlockTime = summary.Time.S.UNIX()
 
 			bdHeight, err := c.BlockData.GetHeight()
 			// Catch certain pathological conditions.

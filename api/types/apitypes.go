@@ -26,7 +26,7 @@ func (t TimeAPI) String() string {
 
 // MarshalJSON is set as the default marshalling function for TimeAPI struct.
 func (t *TimeAPI) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t.S.T.Unix())
+	return json.Marshal(t.S.UNIX())
 }
 
 // much of the time, dcrdata will be using the types in dcrjson, but others are

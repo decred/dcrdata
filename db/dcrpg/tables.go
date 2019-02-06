@@ -26,6 +26,7 @@ var createTableStatements = map[string]string{
 	"misses":       internal.CreateMissesTable,
 	"agendas":      internal.CreateAgendasTable,
 	"agenda_votes": internal.CreateAgendaVotesTable,
+	"testing":      internal.CreateTestingTable,
 }
 
 var createTypeStatements = map[string]string{
@@ -66,6 +67,7 @@ var requiredVersions = map[string]TableVersion{
 	"misses":       NewTableVersion(tableMajor, tableMinor, tablePatch),
 	"agendas":      NewTableVersion(tableMajor, tableMinor, tablePatch),
 	"agenda_votes": NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"testing":      NewTableVersion(tableMajor, tableMinor, tablePatch),
 }
 
 // TableVersion models a table version by major.minor.patch
@@ -123,6 +125,12 @@ func TableExists(db *sql.DB, tableName string) (bool, error) {
 	return false, err
 }
 
+func dropTable(db *sql.DB, tableName string) error {
+	_, err := db.Exec(fmt.Sprintf(`DROP TABLE IF EXISTS %s;`, tableName))
+	return err
+}
+
+// DropTables drops all of the tables internally recognized tables.
 func DropTables(db *sql.DB) {
 	for tableName := range createTableStatements {
 		log.Infof("DROPPING the \"%s\" table.", tableName)
@@ -137,8 +145,9 @@ func DropTables(db *sql.DB) {
 	}
 }
 
-func dropTable(db *sql.DB, tableName string) error {
-	_, err := db.Exec(fmt.Sprintf(`DROP TABLE IF EXISTS %s;`, tableName))
+// DropTestingTable drops only the "testing" table.
+func DropTestingTable(db *sql.DB) error {
+	_, err := db.Exec(`DROP TABLE IF EXISTS testing;`)
 	return err
 }
 
@@ -183,6 +192,15 @@ func TypeExists(db *sql.DB, tableName string) (bool, error) {
 	return false, err
 }
 
+func ClearTestingTable(db *sql.DB) error {
+	// Clear the scratch table and reset the serial value.
+	_, err := db.Exec(`TRUNCATE TABLE testing;`)
+	if err == nil {
+		_, err = db.Exec(`SELECT setval('testing_id_seq', 1, false);`)
+	}
+	return err
+}
+
 func CreateTables(db *sql.DB) error {
 	var err error
 	for tableName, createCommand := range createTableStatements {
@@ -213,7 +231,7 @@ func CreateTables(db *sql.DB) error {
 		}
 	}
 
-	return err
+	return ClearTestingTable(db)
 }
 
 // CreateTable creates one of the known tables by name

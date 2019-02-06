@@ -12,7 +12,7 @@ import (
 
 func TestTimeDefMarshal(t *testing.T) {
 	tref := time.Unix(1548363687, 0)
-	trefJSON := `"` + tref.Format(timeDefFmt) + `"`
+	trefJSON := `"` + tref.Format(timeDefFmtJS) + `"`
 
 	timedef := &TimeDef{
 		T: tref,
@@ -29,7 +29,7 @@ func TestTimeDefMarshal(t *testing.T) {
 
 func TestTimeDefUnmarshal(t *testing.T) {
 	tref := time.Unix(1548363687, 0).UTC()
-	trefJSON := tref.Format(timeDefFmt)
+	trefJSON := tref.Format(timeDefFmtJS)
 
 	timedef := new(TimeDef)
 	err := timedef.UnmarshalJSON([]byte(trefJSON))

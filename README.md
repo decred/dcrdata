@@ -31,7 +31,7 @@ modern javascript features, as well as SCSS for styling.
     - [Using Environment Variables for Configuration](#using-environment-variables-for-configuration)
     - [Indexing the Blockchain](#indexing-the-blockchain)
     - [Starting dcrdata](#starting-dcrdata)
-    - [Hide PG Config log](#hiding-the-postgreSQL-db-configuration-settings)
+    - [Hiding the PostgreSQL db Configuration settings.](#hiding-the-postgresql-db-configuration-settings)
     - [Running the Web Interface During Synchronization](#running-the-web-interface-during-synchronization)
   - [System Hardware Requirements](#system-hardware-requirements)
     - ["lite" Mode (SQLite only)](#lite-mode-sqlite-only)
@@ -225,7 +225,7 @@ or using the Docker [container build instructions](#building-dcrdata-with-docker
 
 By default, the version string will be postfixed with "-pre+dev".  For example,
 `dcrdata version 3.1.0-pre+dev (Go version go1.11)`.  However, it may be
-desireable to set the "pre" and "dev" values to different strings, such as
+desirable to set the "pre" and "dev" values to different strings, such as
 "beta" or the actual commit hash.  To set these values, build with the
 `-ldflags` switch as follows:
 

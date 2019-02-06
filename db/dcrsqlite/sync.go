@@ -387,7 +387,7 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 			Hash:       blockhash.String(),
 			Difficulty: diffRatio,
 			StakeDiff:  dcrutil.Amount(header.SBits).ToCoin(),
-			Time:       apitypes.TimeAPI{S: dbtypes.TimeDef{T: header.Timestamp}},
+			Time:       apitypes.TimeAPI{S: dbtypes.NewTimeDef(header.Timestamp)},
 			PoolInfo:   tpi,
 		}
 

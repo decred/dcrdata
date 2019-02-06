@@ -1614,7 +1614,7 @@ FUNDING_TX_DUPLICATE_CHECK:
 				TxID:          fundingTx.Hash().String(),
 				TxType:        txhelpers.DetermineTxTypeString(fundingTx.Tx),
 				InOutID:       f.Index,
-				Time:          dbtypes.TimeDef{T: time.Unix(fundingTx.MemPoolTime, 0)},
+				Time:          dbtypes.NewTimeDefFromUNIX(fundingTx.MemPoolTime),
 				FormattedSize: humanize.Bytes(uint64(fundingTx.Tx.SerializeSize())),
 				Total:         txhelpers.TotalOutFromMsgTx(fundingTx.Tx).ToCoin(),
 				ReceivedTotal: dcrutil.Amount(fundingTx.Tx.TxOut[f.Index].Value).ToCoin(),
@@ -1670,7 +1670,7 @@ SPENDING_TX_DUPLICATE_CHECK:
 				TxID:           spendingTx.Hash().String(),
 				TxType:         txhelpers.DetermineTxTypeString(spendingTx.Tx),
 				InOutID:        uint32(f.InputIndex),
-				Time:           dbtypes.TimeDef{T: time.Unix(spendingTx.MemPoolTime, 0)},
+				Time:           dbtypes.NewTimeDefFromUNIX(spendingTx.MemPoolTime),
 				FormattedSize:  humanize.Bytes(uint64(spendingTx.Tx.SerializeSize())),
 				Total:          txhelpers.TotalOutFromMsgTx(spendingTx.Tx).ToCoin(),
 				SentTotal:      dcrutil.Amount(valuein).ToCoin(),
@@ -1738,7 +1738,7 @@ func (pgb *ChainDB) FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 		txn.FormattedSize = humanize.Bytes(uint64(dbTx.Size))
 		txn.Total = dcrutil.Amount(dbTx.Sent).ToCoin()
 		txn.Time = dbTx.BlockTime
-		if txn.Time.T.Unix() > 0 {
+		if txn.Time.UNIX() > 0 {
 			txn.Confirmations = pgb.bestBlock.Height() - uint64(dbTx.BlockHeight) + 1
 		} else {
 			numUnconfirmed++

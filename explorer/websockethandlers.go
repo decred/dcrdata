@@ -162,7 +162,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					if len(inv.Tickets) > 0 {
 						mp.Price = inv.Tickets[0].TotalOut
 						mp.Count = len(inv.Tickets)
-						mp.Time = dbtypes.TimeDef{T: time.Unix(inv.Tickets[0].Time, 0)}
+						mp.Time = dbtypes.NewTimeDefFromUNIX(inv.Tickets[0].Time)
 					} else {
 						log.Debug("No tickets exists in the mempool")
 					}
