@@ -355,10 +355,9 @@
                     {{end}}
                     {{if and (eq .Type "Coinbase") (gt .BlockMiningFee 0)}}
                         <tr>
-                            <td class="mono fs13">(Transaction Fees Collected)</td>
                             <td></td>
-                            <td></td>
-                            <td class="mono fs13 text-right">{{template "decimalParts" (float64AsDecimalParts .BlockMiningFee 6 false)}}</td>
+                            <td colspan="3" class="mono fs13">(block mining fees collected)</td>
+                            <td class="mono fs13 text-right">{{template "decimalParts" (amountAsDecimalParts .BlockMiningFee false)}}</td>
                         </tr>
                     {{end}}
                 </tbody>
