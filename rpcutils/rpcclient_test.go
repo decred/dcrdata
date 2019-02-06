@@ -199,7 +199,7 @@ func TestOrphanedTipLength(t *testing.T) {
 		0: "fly",
 	}
 
-	uncommon, err = OrphanedTipLength(ctx, client, 5, hashFunc)
+	_, err = OrphanedTipLength(ctx, client, 5, hashFunc)
 	if err == nil || err.Error() != "Unable to find a common ancestor" {
 		t.Fatal(fmt.Errorf("Unexpected results from OrphanedTipLength test 4"))
 	}
