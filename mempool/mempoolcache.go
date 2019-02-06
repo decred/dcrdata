@@ -188,6 +188,6 @@ func (c *MempoolDataCache) GetTicketPriceCountTime(feeAvgLength int) *apitypes.P
 	return &apitypes.PriceCountTime{
 		Price: c.stakeDiff + feeAvg,
 		Count: numFees,
-		Time:  dbtypes.TimeDef{T: c.timestamp},
+		Time:  dbtypes.NewTimeDef(c.timestamp),
 	}
 }

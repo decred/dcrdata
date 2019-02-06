@@ -560,7 +560,7 @@ func (psh *PubSubHub) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	newBlockData := psh.sourceBase.GetExplorerBlock(msgBlock.BlockHash().String())
 
 	// Use the latest block's blocktime to get the last 24hr timestamp.
-	timestamp := newBlockData.BlockTime.T.Unix() - 86400
+	timestamp := newBlockData.BlockTime.UNIX() - 86400
 	targetTimePerBlock := float64(psh.params.TargetTimePerBlock)
 	// RetreiveDifficulty fetches the difficulty using the last 24hr timestamp,
 	// whereby the difficulty can have a timestamp equal to the last 24hrs

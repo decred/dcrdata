@@ -902,7 +902,7 @@ func (c *insightApiContext) getBlockSummaryByTime(w http.ResponseWriter, r *http
 				break
 			}
 			outputBlockSummary = append(outputBlockSummary, block)
-			blockTime := block.Time.T.Unix()
+			blockTime := block.Time.UNIX()
 			if blockTime < summaryOutput.Pagination.MoreTs {
 				summaryOutput.Pagination.MoreTs = blockTime
 			}

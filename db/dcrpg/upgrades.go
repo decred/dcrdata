@@ -1188,7 +1188,7 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(msgBlock *wire.MsgBlock) (int64, e
 			}
 
 			err = pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
-				val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime.T,
+				val.ID, index, tx.TxID, tx.BlockHeight, tx.BlockTime,
 				progress.VotingDone == tx.BlockHeight,
 				progress.Activated == tx.BlockHeight,
 				progress.HardForked == tx.BlockHeight).Scan(&rowID)
@@ -1219,7 +1219,7 @@ func (pgb *ChainDB) handleAgendaAndAgendaVotesTablesUpgrade(msgBlock *wire.MsgBl
 		}
 
 		var voteRowID int64
-		err := pgb.db.QueryRow(query, tx.TxID, tx.BlockHash, tx.BlockTime.T).Scan(&voteRowID)
+		err := pgb.db.QueryRow(query, tx.TxID, tx.BlockHash, tx.BlockTime).Scan(&voteRowID)
 		if err != nil || voteRowID == 0 {
 			return -1, err
 		}

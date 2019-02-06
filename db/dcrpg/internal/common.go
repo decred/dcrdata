@@ -4,15 +4,21 @@ import "fmt"
 
 const (
 	IndexExists = `SELECT 1
-FROM   pg_class c
-JOIN   pg_namespace n ON n.oid = c.relnamespace
-WHERE  c.relname = $1 AND n.nspname = $2;`
+		FROM   pg_class c
+		JOIN   pg_namespace n ON n.oid = c.relnamespace
+		WHERE  c.relname = $1 AND n.nspname = $2;`
 
 	IndexIsUnique = `SELECT indisunique
-FROM   pg_index i
-JOIN   pg_class c ON c.oid = i.indexrelid
-JOIN   pg_namespace n ON n.oid = c.relnamespace
-WHERE  c.relname = $1 AND n.nspname = $2`
+		FROM   pg_index i
+		JOIN   pg_class c ON c.oid = i.indexrelid
+		JOIN   pg_namespace n ON n.oid = c.relnamespace
+		WHERE  c.relname = $1 AND n.nspname = $2`
+
+	CreateTestingTable = `CREATE TABLE IF NOT EXISTS testing (
+		id SERIAL8 PRIMARY KEY,
+		timestamp TIMESTAMP,
+		timestamptz TIMESTAMPTZ
+	);`
 )
 
 func makeARRAYOfTEXT(text []string) string {

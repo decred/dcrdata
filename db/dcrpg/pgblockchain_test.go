@@ -19,7 +19,8 @@ import (
 )
 
 var (
-	db *ChainDB
+	db       *ChainDB
+	trefUNIX int64 = 1454954400 // mainnet genesis block time
 )
 
 func openDB() (func() error, error) {
@@ -31,7 +32,7 @@ func openDB() (func() error, error) {
 		DBName: "dcrdata_mainnet_test",
 	}
 	var err error
-	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true)
+	db, err = NewChainDB(&dbi, &chaincfg.MainNetParams, nil, true, true)
 	cleanUp := func() error { return nil }
 	if db != nil {
 		cleanUp = db.Close
@@ -133,6 +134,32 @@ func TestDeleteBlocks(t *testing.T) {
 		t.Errorf("Expected summary of %d deleted blocks, got %d.", N, summary.Blocks)
 	}
 	t.Logf("Removed %d blocks in %v:\n%v.", N, time.Since(start), summary)
+}
+
+func TestRetrieveTxsByBlockHash(t *testing.T) {
+	//block80740 := "00000000000003ae4fa13a6dcd53bf2fddacfac12e86e5b5f98a08a71d3e6caa"
+	block0 := "298e5cc3d985bfe7f81dc135f360abe089edd4396b86d2de66b0cef42b21d980" // genesis
+	_, _, _, _, blockTimes, _ := RetrieveTxsByBlockHash(
+		context.Background(), db.db, block0)
+	// Check TimeDef.String
+	blockTimeStr := blockTimes[0].String()
+	t.Log(blockTimeStr)
+	for i := range blockTimes {
+		// Test TimeDef.Value (sql.Valuer)
+		v, err := blockTimes[i].Value()
+		if err != nil {
+			t.Error(err)
+		}
+		tT, ok := v.(time.Time)
+		if !ok {
+			t.Errorf("v (%T) not a time.Time", v)
+		}
+		t.Log(tT.Format(time.RFC3339), tT.Unix())
+		if tT.Unix() != trefUNIX {
+			t.Errorf("Incorrect block time: got %d, expected %d",
+				tT.Unix(), trefUNIX)
+		}
+	}
 }
 
 func TestStuff(t *testing.T) {

@@ -99,7 +99,7 @@
                             </th>
                             <th>Size</th>
                             <th class="jsonly" >Age</th>
-                            <th>Time ({{timezone}})</th>
+                            <th>Time</th>
                         </tr>
                     </thead>
                     <tbody data-target="blocklist.table">
@@ -112,7 +112,7 @@
                             <td data-type="tickets">{{.FreshStake}}</td>
                             <td data-type="revocations">{{.Revocations}}</td>
                             <td data-type="size">{{.FormattedBytes}}</td>
-                            <td data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime}}"></td>
+                            <td data-type="age" class="jsonly" data-target="time.age" data-age="{{.BlockTime.UNIX}}"></td>
                             <td data-type="time">{{.BlockTime}}</td>
                         </tr>
                     {{end}}

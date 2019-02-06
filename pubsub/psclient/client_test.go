@@ -278,7 +278,7 @@ var msgNewBlock312592 = &pstypes.WebSocketMessage{
 			"windowIndex": 2171,
 			"tickets": 4,
 			"revocations": 0,
-			"time": "2019-01-24 14:43:21",
+			"time": "2019-01-24T14:43:21Z",
 			"formatted_bytes": "5.6 kB",
 			"Version": 5,
 			"Confirmations": 1,
@@ -690,7 +690,7 @@ var block312592Tickets = []string{
 func TestDecodeMsgNil(t *testing.T) {
 	Msg, err := DecodeMsg(nil)
 	if err == nil {
-		t.Errorf("expected error for DecodeMsg(nil)")
+		t.Fatalf("expected error for DecodeMsg(nil)")
 	}
 	if Msg != nil {
 		t.Errorf("expected a nil return message, got: %v", Msg)
@@ -706,7 +706,7 @@ func TestDecodeMsgUnknown(t *testing.T) {
 
 	Msg, err := DecodeMsg(msg)
 	if err.Error() != expectedErr.Error() {
-		t.Errorf("incorrect error returned: got %v, expected %v", err, expectedErr)
+		t.Fatalf("incorrect error returned: got %v, expected %v", err, expectedErr)
 	}
 	if Msg != nil {
 		t.Errorf("expected a nil return message, got: %v", Msg)
@@ -716,7 +716,7 @@ func TestDecodeMsgUnknown(t *testing.T) {
 func TestDecodeMsg(t *testing.T) {
 	Msg, err := DecodeMsg(msgNewTx5)
 	if err != nil {
-		t.Errorf("failed to decode message: %v", err)
+		t.Fatalf("failed to decode message: %v", err)
 	}
 
 	txlist, ok := Msg.(*pstypes.TxList)
@@ -737,7 +737,7 @@ func TestDecodeMsg(t *testing.T) {
 func TestDecodeMsgTxList(t *testing.T) {
 	txlist, err := DecodeMsgTxList(msgNewTx5)
 	if err != nil {
-		t.Errorf("failed to decode message: %v", err)
+		t.Fatalf("failed to decode message: %v", err)
 	}
 
 	// Spot check the number of transactions.
@@ -753,7 +753,7 @@ func TestDecodeMsgTxList(t *testing.T) {
 func TestDecodeMsgMempool(t *testing.T) {
 	mpShort, err := DecodeMsgMempool(msgMempool5Latest)
 	if err != nil {
-		t.Errorf("failed to decode message: %v", err)
+		t.Fatalf("failed to decode message: %v", err)
 	}
 
 	// Spot check the number of latest transactions.
@@ -769,7 +769,7 @@ func TestDecodeMsgMempool(t *testing.T) {
 func TestDecodeMsgNewBlock(t *testing.T) {
 	newBlock, err := DecodeMsgNewBlock(msgNewBlock312592)
 	if err != nil {
-		t.Errorf("failed to decode message: %v", err)
+		t.Fatalf("failed to decode message: %v", err)
 	}
 
 	if len(newBlock.Block.Tickets) != 4 {
@@ -794,7 +794,7 @@ func TestDecodeMsgString(t *testing.T) {
 
 	str, err := DecodeMsgString(msgPing)
 	if err != nil {
-		t.Errorf("Failed to decode string: %v", err)
+		t.Fatalf("Failed to decode string: %v", err)
 	}
 	if str != expectedStr {
 		t.Errorf("Wrong string decoded: got %s, expected %s",
