@@ -136,8 +136,8 @@
                               <th>Voting On</th>
                               <th><div class="inline-block position-relative"><span class="d-none d-sm-inline">Validator ID</span><span class="d-inline d-sm-none" data-tooltip="Validator ID">VID</span></div></th>
                               <th><div class="inline-block position-relative"><span class="d-none d-sm-inline">Vote Version</span><span class="d-inline d-sm-none" data-tooltip="Vote Version">Ver</span></div></th>
-                              <th class="text-right">Total DCR</th>
-                              <th class="text-right d-none d-sm-table-cell">Size</th>
+                              <th class="text-right d-none d-sm-table-cell">Total DCR</th>
+                              <th class="text-right">Size</th>
                               <th class="text-right d-none d-sm-table-cell jsonly">Time in Mempool</th>
                           </thead>
                           <tbody data-target="mempool.voteTransactions">
@@ -155,10 +155,10 @@
                                     class="small">{{if .VoteInfo.ForLastBlock}} best{{end}}</span></a></td>
                                   <td class="mono fs15"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
                                   <td class="mono fs15">{{.VoteInfo.Version}}</td>
-                                  <td class="mono fs15 text-right">
+                                  <td class="mono fs15 text-right d-none d-sm-table-cell">
                                       {{template "decimalParts" (float64AsDecimalParts .TotalOut 8 false)}}
                                   </td>
-                                  <td class="mono fs15 text-right d-none d-sm-table-cell">{{.Size}} B</td>
+                                  <td class="mono fs15 text-right">{{.Size}} B</td>
                                   <td class="mono fs15 text-right d-none d-sm-table-cell jsonly" data-target="time.age" data-age="{{.Time}}"></td>
                               </tr>
                               {{end}}
