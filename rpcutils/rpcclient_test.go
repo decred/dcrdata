@@ -1,9 +1,12 @@
 package rpcutils
 
 import (
+	"context"
+	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrjson"
 )
 
@@ -113,4 +116,102 @@ func TestReverseStringSlice(t *testing.T) {
 	if !reflect.DeepEqual(s2, ref2) {
 		t.Errorf("reverseStringSlice failed. Got %v, expected %v.", s2, ref2)
 	}
+}
+
+var hashMap = map[int64]string{
+	0: "0000000000000000000000000000000000000000000000000000000000000000",
+	1: "0000000000000000000000000000000000000000000000000000000000000001",
+	2: "0000000000000000000000000000000000000000000000000000000000000002",
+	3: "0000000000000000000000000000000000000000000000000000000000000003",
+	4: "0000000000000000000000000000000000000000000000000000000000000004",
+	5: "0000000000000000000000000000000000000000000000000000000000000005",
+}
+
+type hashGetterStub struct{}
+
+func (client hashGetterStub) GetBlockHash(idx int64) (*chainhash.Hash, error) {
+	if idx > 5 || idx < 0 {
+		return nil, fmt.Errorf("hashGetterStub: index out of range.")
+	}
+	return chainhash.NewHashFromStr(hashMap[idx])
+}
+
+func TestOrphanedTipLength(t *testing.T) {
+	client := hashGetterStub{}
+
+	hashes := map[int64]string{
+		5: "0000000000000000000000000000000000000000000000000000000000000005",
+		4: "something else",
+	}
+
+	hashFunc := func(idx int64) (string, error) {
+		hash, ok := hashes[idx]
+		if ok {
+			return hash, nil
+		}
+		return "", fmt.Errorf("hashFunc index not found")
+	}
+
+	ctx, shutdown := context.WithCancel(context.Background())
+
+	uncommon, err := OrphanedTipLength(ctx, client, 5, hashFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uncommon != 0 {
+		t.Fatal(fmt.Errorf("Unexpected results from OrphanedTipLength test 1"))
+	}
+
+	hashes = map[int64]string{
+		5: "something else",
+		4: "0000000000000000000000000000000000000000000000000000000000000004",
+	}
+
+	uncommon, err = OrphanedTipLength(ctx, client, 5, hashFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uncommon != 1 {
+		t.Fatal(fmt.Errorf("Unexpected results from OrphanedTipLength test 2"))
+	}
+
+	hashes = map[int64]string{
+		5: "something else",
+		4: "side block",
+		3: "0000000000000000000000000000000000000000000000000000000000000003",
+	}
+	twoOrphans := hashes // Will use this later to test shutdown
+
+	uncommon, err = OrphanedTipLength(ctx, client, 5, hashFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uncommon != 2 {
+		t.Fatal(fmt.Errorf("Unexpected results from OrphanedTipLength test 3"))
+	}
+
+	hashes = map[int64]string{
+		5: "something else",
+		4: "side block",
+		3: "blah",
+		2: "blue",
+		1: "flu",
+		0: "fly",
+	}
+
+	_, err = OrphanedTipLength(ctx, client, 5, hashFunc)
+	if err == nil || err.Error() != "Unable to find a common ancestor" {
+		t.Fatal(fmt.Errorf("Unexpected results from OrphanedTipLength test 4"))
+	}
+
+	hashes = twoOrphans
+	shutdown()
+	uncommon, err = OrphanedTipLength(ctx, client, 5, hashFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uncommon != 0 {
+		t.Fatal(fmt.Errorf("Unexpected results from OrphanedTipLength test 5"))
+	}
+
 }

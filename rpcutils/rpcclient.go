@@ -5,6 +5,7 @@
 package rpcutils
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -446,6 +447,57 @@ func CommonAncestor(client *rpcclient.Client, hashA, hashB chainhash.Hash) (*cha
 
 	// hashA == hashB
 	return &hashA, chainA, chainB, nil
+}
+
+type BlockHashGetter interface {
+	GetBlockHash(int64) (*chainhash.Hash, error)
+}
+
+// OrphanedTipLength finds a common ancestor by iterating block heights
+// backwards until a common block hash is found. Unlike CommonAncestor, an
+// orphaned DB tip whose corresponding block is not known to dcrd will not cause
+// an error. The number of blocks that have been orphaned is returned.
+// Realistically, this should rarely be anything but 0 or 1, but no limits are
+// placed here on the number of blocks checked.
+func OrphanedTipLength(ctx context.Context, client BlockHashGetter,
+	tipHeight int64, hashFunc func(int64) (string, error)) (int64, error) {
+	commonHeight := tipHeight
+	var dbHash string
+	var err error
+	var dcrdHash *chainhash.Hash
+	for {
+		// Since there are no limits on the number of blocks scanned, allow
+		// cancellation for a clean exit.
+		select {
+		case <-ctx.Done():
+			return 0, nil
+		default:
+		}
+
+		dbHash, err = hashFunc(commonHeight)
+		if err != nil {
+			return -1, fmt.Errorf("Unable to retrieve block at height %d: %v", commonHeight, err)
+		}
+		dcrdHash, err = client.GetBlockHash(commonHeight)
+		if err != nil {
+			return -1, fmt.Errorf("Unable to retrive dcrd block at height %d: %v", commonHeight, err)
+		}
+		if dcrdHash.String() == dbHash {
+			break
+		}
+
+		commonHeight--
+		if commonHeight < 0 {
+			return -1, fmt.Errorf("Unable to find a common ancestor")
+		}
+		// Reorgs are soft-limited to depth 6 by dcrd. More than six blocks without
+		// a match probably indicates an issue.
+		if commonHeight-tipHeight == 7 {
+			log.Warnf("No common ancestor within 6 blocks. This is abnormal")
+		}
+
+	}
+	return tipHeight - commonHeight, nil
 }
 
 // GetChainwork fetches the dcrjson.BlockHeaderVerbose
