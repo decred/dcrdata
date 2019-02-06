@@ -5,6 +5,7 @@ package types
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 
 	"github.com/decred/dcrd/dcrjson"
@@ -124,6 +125,96 @@ type Vout struct {
 type TxInputID struct {
 	Hash  string `json:"hash"`
 	Index uint32 `json:"vin_index"`
+}
+
+// ScriptClass represent the type of a transaction output's pkscript. The values
+// of this type are NOT compatible with dcrd's txscript.ScriptClass values! Use
+// ScriptClassFromName to get a text representation of a ScriptClass.
+type ScriptClass uint8
+
+// Classes of script payment known about in the blockchain.
+const (
+	ScriptClassNonStandard     ScriptClass = iota // None of the recognized forms.
+	ScriptClassPubKey                             // Pay pubkey.
+	ScriptClassPubkeyAlt                          // Alternative signature pubkey.
+	ScriptClassPubKeyHash                         // Pay pubkey hash.
+	ScriptClassPubkeyHashAlt                      // Alternative signature pubkey hash.
+	ScriptClassScriptHash                         // Pay to script hash.
+	ScriptClassMultiSig                           // Multi signature.
+	ScriptClassNullData                           // Empty data-only (provably prunable).
+	ScriptClassStakeSubmission                    // Stake submission.
+	ScriptClassStakeGen                           // Stake generation
+	ScriptClassStakeRevocation                    // Stake revocation.
+	ScriptClassStakeSubChange                     // Change for stake submission tx.
+	ScriptClassInvalid
+)
+
+var scriptClassToName = map[ScriptClass]string{
+	ScriptClassNonStandard:     "nonstandard",
+	ScriptClassPubKey:          "pubkey",
+	ScriptClassPubkeyAlt:       "pubkeyalt",
+	ScriptClassPubKeyHash:      "pubkeyhash",
+	ScriptClassPubkeyHashAlt:   "pubkeyhashalt",
+	ScriptClassScriptHash:      "scripthash",
+	ScriptClassMultiSig:        "multisig",
+	ScriptClassNullData:        "nulldata",
+	ScriptClassStakeSubmission: "stakesubmission",
+	ScriptClassStakeGen:        "stakegen",
+	ScriptClassStakeRevocation: "stakerevoke",
+	ScriptClassStakeSubChange:  "sstxchange",
+	ScriptClassInvalid:         "invalid",
+}
+
+var scriptNameToClass = map[string]ScriptClass{
+	"nonstandard":     ScriptClassNonStandard,
+	"pubkey":          ScriptClassPubKey,
+	"pubkeyalt":       ScriptClassPubkeyAlt,
+	"pubkeyhash":      ScriptClassPubKeyHash,
+	"pubkeyhashalt":   ScriptClassPubkeyHashAlt,
+	"scripthash":      ScriptClassScriptHash,
+	"multisig":        ScriptClassMultiSig,
+	"nulldata":        ScriptClassNullData,
+	"stakesubmission": ScriptClassStakeSubmission,
+	"stakegen":        ScriptClassStakeGen,
+	"stakerevoke":     ScriptClassStakeRevocation,
+	"sstxchange":      ScriptClassStakeSubChange,
+	// No "invalid" mapping!
+}
+
+// ScriptClassFromName attempts to identify the ScriptClass for the given script
+// class/type name. An unknown script name will return ScriptClassInvalid. This
+// may be used to map the Type field of the ScriptPubKey data type to a known
+// class. If dcrd's txscript package changes its strings, this function may be
+// unable to identify the types from dcrd.
+func ScriptClassFromName(name string) ScriptClass {
+	class, found := scriptNameToClass[strings.ToLower(name)]
+	if !found {
+		return ScriptClassInvalid // not even non-standard
+	}
+	return class
+}
+
+// IsValidScriptClass indicates the the provided string corresponds to a known
+// ScriptClass (including "nonstandard"). Note that "invalid" is not valid,
+// although a ScriptClassInvalid value mapping to "invalid" exists.
+func IsValidScriptClass(name string) (isValid bool) {
+	_, isValid = scriptNameToClass[strings.ToLower(name)]
+	return
+}
+
+// String returns the name of the ScriptClass. If the ScriptClass is
+// unrecognized it is treated as ScriptClassInvalid.
+func (sc ScriptClass) String() string {
+	name, found := scriptClassToName[sc]
+	if !found {
+		return ScriptClassInvalid.String() // better be in scriptClassToName!
+	}
+	return name
+}
+
+// IsNullDataScript indicates if the script class name is a nulldata class.
+func IsNullDataScript(name string) bool {
+	return name == ScriptClassNullData.String()
 }
 
 // ScriptPubKey is the result of decodescript(ScriptPubKeyHex)
