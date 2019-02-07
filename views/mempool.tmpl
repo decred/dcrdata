@@ -54,7 +54,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-24 col-sm-12 col-md-24 col-lg-12 mp-count-card pt-3 pb-5 px-3">
+                <div class="col-24 col-sm-12 col-md-24 col-lg-12 secondary-card pt-3 pb-5 px-3">
                     <div class="pb-2 pl-1">
                       <!-- <span class="dcricon-stack h5"></span> -->
                       <span class="h6 d-inline-block pl-2">Transaction Details</span>
@@ -125,7 +125,7 @@
                     </div>
                 </div>
             </div>
-            <div class="mempool-tables">
+            <div class="v2-tables">
               <div class="row">
                   <div class="col-sm-24">
                   <h4 class="pt-5 pb-3"><span>Votes</span></h4>
@@ -143,7 +143,7 @@
                           <tbody data-target="mempool.voteTransactions">
                               {{if gt .NumVotes 0}}
                               {{range .Votes}}
-                              <tr {{if not .VoteInfo.ForLastBlock}}class="old-vote"{{end}}
+                              <tr {{if not .VoteInfo.ForLastBlock}}class="disabled-row"{{end}}
                               data-blockhash="{{.VoteInfo.Validation.Hash}}"
                               data-height="{{.VoteInfo.Validation.Height}}"
                               data-ticket-index="{{.VoteInfo.MempoolTicketIndex}}"

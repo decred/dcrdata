@@ -1,0 +1,48 @@
+// card background colors
+// primary background color is white, so can use bootstrap bg-white, which has
+/// a darkBG override in themes.scss
+$card-bg-secondary: #f8f8f9;
+$card-bg-secondary-dark: #222326;
+
+.secondary-card {
+  background-color: $card-bg-secondary;
+}
+
+// Pointers are little triangular decorations between a primary and secondary
+// card.
+.card-pointer {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-width: 20px;
+  z-index: 10;
+  border-style: solid;
+}
+
+.pointer-right {
+  right: -40px;
+  top: 50%;
+  border-color: transparent transparent transparent white;
+  transform: translateY(-50%);
+}
+
+.pointer-bottom {
+  left: 50%;
+  bottom: -40px;
+  border-color: white transparent transparent transparent;
+  transform: translateX(-50%);
+}
+
+body.darkBG {
+  .secondary-card {
+    background-color: $card-bg-secondary-dark;
+  }
+
+  .pointer-right {
+    border-color: transparent transparent transparent $inverse-bg-white;
+  }
+
+  .pointer-bottom {
+    border-color: $inverse-bg-white transparent transparent transparent;
+  }
+}

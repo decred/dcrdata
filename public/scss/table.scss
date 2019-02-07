@@ -48,6 +48,36 @@ table.align-baseline-rows tr {
   font-size: 14px;
 }
 
+// v2 tables have a little more padding and bold headers. Will likely be a
+// default site-wide style for larger tables soon.
+.v2-tables {
+  .table {
+    line-height: 1;
+  }
+
+  .table td {
+    padding: 0.6em;
+  }
+
+  .table th {
+    padding: 0.9em 0.6em;
+    font-weight: bold;
+  }
+}
+
+.table tr.disabled-row {
+  background-color: #00000015;
+  border-bottom: 1px solid #8885;
+}
+
+body.darkBG .table tr.disabled-row {
+  background-color: #ff00000d;
+}
+
+.blue-row {
+  background: #0078ff1c;
+}
+
 .table.flush-left tr td:first-child {
   padding-left: 0;
 }

@@ -186,17 +186,17 @@ export default class extends Controller {
       var best = tr.querySelector('.small')
       best.textContent = ''
       if (voteBlockHeight > bestBlockHeight) {
-        tr.classList.add('upcoming-vote')
-        tr.classList.remove('old-vote')
+        tr.classList.add('blue-row')
+        tr.classList.remove('disabled-row')
       } else if (voteValidationHash !== bestBlockHash) {
-        tr.classList.add('old-vote')
-        tr.classList.remove('upcoming-vote')
+        tr.classList.add('disabled-row')
+        tr.classList.remove('blue-row')
         if (tr.classList.contains('last_block')) {
           tr.textContent = 'False'
         }
       } else {
-        tr.classList.remove('old-vote')
-        tr.classList.remove('upcoming-vote')
+        tr.classList.remove('disabled-row')
+        tr.classList.remove('blue-row')
         best.textContent = ' best'
       }
     })
