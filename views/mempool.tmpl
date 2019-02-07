@@ -152,7 +152,7 @@
                                     <a class="hash lh1rem" href="/tx/{{.Hash}}">{{.Hash}}</a>
                                   </td>
                                   <td class="mono fs15"><a href="/block/{{.VoteInfo.Validation.Hash}}">{{.VoteInfo.Validation.Height}}<span
-                                    class="small">{{if .VoteInfo.ForLastBlock}} best{{end}}</span></a></td>
+                                    class="small">{{if .VoteInfo.ForLastBlock}} (best){{end}}</span></a></td>
                                   <td class="mono fs15"><a href="/tx/{{.VoteInfo.TicketSpent}}">{{.VoteInfo.MempoolTicketIndex}}</a></td>
                                   <td class="mono fs15">{{.VoteInfo.Version}}</td>
                                   <td class="mono fs15 text-right d-none d-sm-table-cell">

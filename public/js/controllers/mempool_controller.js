@@ -197,7 +197,7 @@ export default class extends Controller {
       } else {
         tr.classList.remove('disabled-row')
         tr.classList.remove('blue-row')
-        best.textContent = ' best'
+        best.textContent = ' (best)'
       }
     })
   }
