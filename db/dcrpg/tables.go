@@ -49,7 +49,7 @@ type dropDuplicatesInfo struct {
 // re-indexing and a duplicate scan/purge.
 const (
 	tableMajor = 3
-	tableMinor = 9
+	tableMinor = 10
 	tablePatch = 0
 )
 

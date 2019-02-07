@@ -371,13 +371,6 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Upgrade from 3.8.0 --> 3.9.0
 	case version.major == 3 && version.minor == 8 && version.patch == 0:
-		// chainInfo is needed for this upgrade.
-		rawChainInfo, err := dcrdClient.GetBlockChainInfo()
-		if err != nil {
-			return false, err
-		}
-		pgb.UpdateChainState(rawChainInfo)
-
 		toVersion = TableVersion{3, 9, 0}
 
 		theseUpgrades := []TableUpgradeType{
@@ -400,9 +393,19 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			{"agendas", agendasTableReorgUpdate},
 			{"agenda_votes", agendaVotesTableCreationUpdate},
 			{"votes", votesTableBlockTimeUpdate},
+			// should be the last to run
+			{"agendas", agendasTableReorgUpdate},
 		}
 
-		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		// chainInfo is needed for this upgrade.
+		rawChainInfo, err := dcrdClient.GetBlockChainInfo()
+		if err != nil {
+			return false, err
+		}
+		pgb.UpdateChainState(rawChainInfo)
+
+		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
+		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
 		if !isSuccess {
 			return isSuccess, er
 		}
@@ -1220,7 +1223,8 @@ func (pgb *ChainDB) handleAgendaAndAgendaVotesTablesUpgrade(msgBlock *wire.MsgBl
 		wire.TxTreeStake, pgb.chainParams, true, false)
 
 	var rowsUpdated int64
-	query := `UPDATE votes SET block_time = $3 WHERE tx_hash =$1 AND block_hash = $2 RETURNING id;`
+	query := `UPDATE votes SET block_time = $3 WHERE tx_hash =$1` +
+		` AND block_hash = $2 RETURNING id;`
 
 	for i, tx := range dbTxns {
 		if tx.TxType != int16(stake.TxTypeSSGen) {
@@ -1245,7 +1249,7 @@ func (pgb *ChainDB) handleAgendaAndAgendaVotesTablesUpgrade(msgBlock *wire.MsgBl
 			if progress.ID == 0 {
 				err = pgb.db.QueryRow(internal.MakeAgendaInsertStatement(false),
 					val.ID, progress.Status, progress.VotingDone, progress.Activated,
-					progress.HardForked, val.Description).Scan(&progress.ID)
+					progress.HardForked).Scan(&progress.ID)
 				if err != nil {
 					return -1, err
 				}
@@ -1258,7 +1262,7 @@ func (pgb *ChainDB) handleAgendaAndAgendaVotesTablesUpgrade(msgBlock *wire.MsgBl
 			}
 
 			err = pgb.db.QueryRow(internal.MakeAgendaVotesInsertStatement(false),
-				voteRowID, progress.ID, index, tx.BlockTime.T).Scan(&rowID)
+				voteRowID, progress.ID, index).Scan(&rowID)
 			if err != nil {
 				return -1, err
 			}
@@ -1347,7 +1351,7 @@ func handleConvertTimeStampTZ(db *sql.DB) error {
 }
 
 func reorganizeAgendaTable(db *sql.DB) (bool, error) {
-	isSuccess, err := dropTableIfExists(db, "agenda")
+	isSuccess, err := dropTableIfExists(db, "agendas")
 	if !isSuccess {
 		return isSuccess, err
 	}
@@ -1369,7 +1373,11 @@ func runQuery(db *sql.DB, sqlQuery string) (bool, error) {
 
 func dropTableIfExists(db *sql.DB, table string) (bool, error) {
 	dropStmt := fmt.Sprintf("DROP TABLE IF EXISTS %s;", table)
-	return dropAndReclaim(db, dropStmt, table)
+	_, err := db.Exec(dropStmt)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func makeDeleteColumnsStmt(table string, columns []string) string {
@@ -1386,10 +1394,6 @@ func makeDeleteColumnsStmt(table string, columns []string) string {
 
 func deleteColumnsIfFound(db *sql.DB, table string, columns []string) (bool, error) {
 	dropStmt := makeDeleteColumnsStmt(table, columns)
-	return dropAndReclaim(db, dropStmt, table)
-}
-
-func dropAndReclaim(db *sql.DB, dropStmt, table string) (bool, error) {
 	_, err := db.Exec(dropStmt)
 	if err != nil {
 		return false, err

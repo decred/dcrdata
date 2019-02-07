@@ -173,7 +173,7 @@ const (
 		ticket_price FLOAT8,
 		vote_reward FLOAT8,
 		is_mainchain BOOLEAN,
-		block_time timestamp
+		block_time TIMESTAMP
 	);`
 
 	// insertVoteRow is the basis for several vote insert/upsert statements.
@@ -329,7 +329,7 @@ const (
 
 	SelectMissesInBlock = `SELECT ticket_hash FROM misses WHERE block_hash = $1;`
 
-	// agenda table
+	// agendas table
 
 	CreateAgendasTable = `CREATE TABLE IF NOT EXISTS agendas (
 		id SERIAL PRIMARY KEY,
@@ -353,7 +353,7 @@ const (
 		ON agendas(name);`
 	DeindexAgendasTableOnAgendaID = `DROP INDEX uix_agendas_name;`
 
-	SelectAllAgendas = `SELECT id, name, status, locked_in, activated, hard_forked,
+	SelectAllAgendas = `SELECT id, name, status, locked_in, activated, hard_forked
 		FROM agendas;`
 
 	SelectAgendasLockedIn = `SELECT locked_in FROM agendas WHERE name = $1;`
@@ -384,7 +384,7 @@ const (
 		vote_row_id) DO UPDATE SET agenda_vote_choice = $3 RETURNING id;`
 
 	IndexAgendaVotesTableOnAgendaID = `CREATE UNIQUE INDEX uix_agenda_votes
-		ON agenda_votes(vote_row_id, agenda_id, agenda_vote_choice);`
+		ON agenda_votes(vote_row_id, agenda_id);`
 	DeindexAgendaVotesTableOnAgendaID = `DROP INDEX uix_agenda_votes;`
 
 	// Select

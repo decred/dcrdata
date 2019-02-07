@@ -387,38 +387,35 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	if len(storedAgendas) == 0 {
 		var id int64
 		storedAgendas, err = retrieveAllAgendas(db)
+		if err != nil {
+			bail()
+			return nil, nil, nil, nil, nil,
+				fmt.Errorf("retrieveAllAgendas failed: : %v", err)
+		}
 
 		if storedAgendas == nil {
 			storedAgendas = make(map[string]dbtypes.MileStone)
 		}
 
-		if err == nil || err != sql.ErrNoRows {
-			for name, d := range votesMilestones.AgendaMileStones {
-				m, ok := storedAgendas[name]
-				if !ok || (d.Status != m.Status) {
-					err = agendaStmt.QueryRow(name, d.Status, d.VotingDone,
-						d.Activated, d.HardForked).Scan(&id)
-					if err != nil {
-						bail()
-						return nil, nil, nil, nil, nil,
-							fmt.Errorf("agenda INSERT failed: : %v", err)
-					}
+		for name, d := range votesMilestones.AgendaMileStones {
+			m, ok := storedAgendas[name]
+			if !ok || (d.Status != m.Status) {
+				err = agendaStmt.QueryRow(name, d.Status, d.VotingDone,
+					d.Activated, d.HardForked).Scan(&id)
+				if err != nil {
+					bail()
+					return nil, nil, nil, nil, nil,
+						fmt.Errorf("agenda INSERT failed: : %v", err)
+				}
 
-					storedAgendas[name] = dbtypes.MileStone{
-						ID:         id,
-						VotingDone: d.VotingDone,
-						Activated:  d.Activated,
-						HardForked: d.HardForked,
-						Status:     d.Status,
-					}
+				storedAgendas[name] = dbtypes.MileStone{
+					ID:         id,
+					VotingDone: d.VotingDone,
+					Activated:  d.Activated,
+					HardForked: d.HardForked,
+					Status:     d.Status,
 				}
 			}
-		}
-
-		if err != nil {
-			bail()
-			return nil, nil, nil, nil, nil,
-				fmt.Errorf("retrieveAllAgendas failed: : %v", err)
 		}
 	}
 
