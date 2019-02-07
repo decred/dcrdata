@@ -25,6 +25,7 @@ var createTableStatements = map[string]string{
 	"votes":        internal.CreateVotesTable,
 	"misses":       internal.CreateMissesTable,
 	"agendas":      internal.CreateAgendasTable,
+	"agenda_votes": internal.CreateAgendaVotesTable,
 }
 
 var createTypeStatements = map[string]string{
@@ -64,6 +65,7 @@ var requiredVersions = map[string]TableVersion{
 	"votes":        NewTableVersion(tableMajor, tableMinor, tablePatch),
 	"misses":       NewTableVersion(tableMajor, tableMinor, tablePatch),
 	"agendas":      NewTableVersion(tableMajor, tableMinor, tablePatch),
+	"agenda_votes": NewTableVersion(tableMajor, tableMinor, tablePatch),
 }
 
 // TableVersion models a table version by major.minor.patch

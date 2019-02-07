@@ -208,6 +208,26 @@ func DeindexVotesTableOnVoteVersion(db *sql.DB) (err error) {
 	return
 }
 
+func IndexVotesTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexVotesTableOnHeight)
+	return
+}
+
+func DeindexVotesTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexVotesTableOnHeight)
+	return
+}
+
+func IndexVotesTableOnBlockTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexVotesTableOnBlockTime)
+	return
+}
+
+func DeindexVotesTableOnBlockTime(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexVotesTableOnBlockTime)
+	return
+}
+
 // tickets table indexes
 
 func IndexTicketsTableOnHashes(db *sql.DB) (err error) {
@@ -254,16 +274,6 @@ func DeindexMissesTableOnHash(db *sql.DB) (err error) {
 
 // agendas table indexes
 
-func IndexAgendasTableOnBlockTime(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.IndexAgendasTableOnBlockTime)
-	return
-}
-
-func DeindexAgendasTableOnBlockTime(db *sql.DB) (err error) {
-	_, err = db.Exec(internal.DeindexAgendasTableOnBlockTime)
-	return
-}
-
 func IndexAgendasTableOnAgendaID(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexAgendasTableOnAgendaID)
 	return
@@ -271,6 +281,18 @@ func IndexAgendasTableOnAgendaID(db *sql.DB) (err error) {
 
 func DeindexAgendasTableOnAgendaID(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexAgendasTableOnAgendaID)
+	return
+}
+
+// agenda votes table indexes
+
+func IndexAgendaVotesTableOnAgendaID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexAgendaVotesTableOnAgendaID)
+	return
+}
+
+func DeindexAgendaVotesTableOnAgendaID(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexAgendaVotesTableOnAgendaID)
 	return
 }
 
@@ -344,13 +366,17 @@ func (pgb *ChainDB) DeindexAll() error {
 		{DeindexVotesTableOnBlockHash},
 		{DeindexVotesTableOnHash},
 		{DeindexVotesTableOnVoteVersion},
+		{DeindexVotesTableOnHeight},
+		{DeindexVotesTableOnBlockTime},
 
 		// misses table
 		{DeindexMissesTableOnHash},
 
 		// agendas table
-		{DeindexAgendasTableOnBlockTime},
 		{DeindexAgendasTableOnAgendaID},
+
+		// agenda votes
+		{DeindexAgendaVotesTableOnAgendaID},
 	}
 
 	var err error
@@ -390,13 +416,17 @@ func (pgb *ChainDB) IndexAll(barLoad chan *dbtypes.ProgressBarLoad) error {
 		{Msg: "votes table on block hash", IndexFunc: IndexVotesTableOnBlockHash},
 		{Msg: "votes table on block+tx hash", IndexFunc: IndexVotesTableOnHashes},
 		{Msg: "votes table on vote version", IndexFunc: IndexVotesTableOnVoteVersion},
+		{Msg: "votes table on height", IndexFunc: IndexVotesTableOnHeight},
+		{Msg: "votes table on Block Time", IndexFunc: IndexVotesTableOnBlockTime},
 
 		// misses table
 		{Msg: "misses table", IndexFunc: IndexMissesTableOnHashes},
 
 		// agendas table
-		{Msg: "agendas table on Block Time", IndexFunc: IndexAgendasTableOnBlockTime},
 		{Msg: "agendas table on Agenda ID", IndexFunc: IndexAgendasTableOnAgendaID},
+
+		// agenda votes table
+		{Msg: "agenda votes table on Agenda ID", IndexFunc: IndexAgendaVotesTableOnAgendaID},
 
 		// Not indexing the address table on vout ID or address here. See
 		// IndexAddressTable to create those indexes.

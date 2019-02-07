@@ -83,6 +83,71 @@ func (p TicketSpendType) String() string {
 	}
 }
 
+// AgendaStateType defines the various agenda states
+type AgendaStateType int8
+
+const (
+	// InitialAgendaState is the agenda status when the agenda is not yet up for
+	// voting and the votes tally is not also available.
+	InitialAgendaState AgendaStateType = iota
+
+	// StartedAgendaState is the agenda status when the agenda is up for voting.
+	StartedAgendaState
+
+	// FailedAgendaState is the agenda state set when the votes tally does not
+	// attain the minimum threshold set. Activation height is not set for such an
+	// agenda.
+	FailedAgendaState
+
+	// PassedAgendaState is the agenda state when the agenda is considered to
+	// have passed after attaining the minimum set threshold. This agenda can
+	// it activation height set.
+	PassedAgendaState
+
+	// ActivatedAgendaState is the agenda state set after
+	// chaincfg.RuleChangeActivationInterval blocks (e.g. 8064 blocks = 2016 * 4
+	// for 4 weeks on mainnet) since when the agenda state changed to "lockedin"
+	// when the rule change is effected.
+	// https://docs.decred.org/glossary/#rule-change-interval-rci.
+	ActivatedAgendaState
+	UnknownState
+)
+
+func (a AgendaStateType) String() string {
+	switch a {
+	case InitialAgendaState:
+		return "defined"
+	case StartedAgendaState:
+		return "started"
+	case FailedAgendaState:
+		return "failed"
+	case PassedAgendaState:
+		return "locked"
+	case ActivatedAgendaState:
+		return "active"
+	default:
+		return "unknown"
+	}
+}
+
+// AgendaStateFromStr create an agenda state from a string
+func AgendaStateFromStr(state string) AgendaStateType {
+	switch strings.ToLower(state) {
+	case "defined":
+		return InitialAgendaState
+	case "started":
+		return StartedAgendaState
+	case "failed":
+		return FailedAgendaState
+	case "locked":
+		return PassedAgendaState
+	case "active":
+		return ActivatedAgendaState
+	default:
+		return UnknownState
+	}
+}
+
 // AddrTxnType enumerates the different transaction types as displayed by the
 // address page.
 type AddrTxnType int
@@ -313,12 +378,13 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 // VotingDone is the height at which voting on an agenda voting is consided
 // complete or when the state changes from "started" to either "failed" or "lockedin".
 type MileStone struct {
+	ID         int64
 	Activated  int64
 	HardForked int64
 	VotingDone int64
 	StartTime  time.Time
 	ExpireTime time.Time
-	Status     string
+	Status     AgendaStateType
 }
 
 // BlockChainData defines data holding the latest block chain state from the

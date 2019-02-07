@@ -34,32 +34,6 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
-const (
-	// InitialAgendaState is the agenda status when the agenda is not yet up for
-	// voting and the votes tally is not also available.
-	InitialAgendaState = "defined"
-
-	// StartedAgendaState is the agenda status when the agenda is up for voting.
-	StartedAgendaState = "started"
-
-	// FailedAgendaState is the agenda state set when the votes tally does not
-	// attain the minimum threshold set. Activation height is not set for such an
-	// agenda.
-	FailedAgendaState = "failed"
-
-	// PassedAgendaState is the agenda state when the agenda is considered to
-	// have passed after attaining the minimum set threshold. This agenda can
-	// it activation height set.
-	PassedAgendaState = "lockedin"
-
-	// ActivatedAgendaState is the agenda state set after
-	// chaincfg.RuleChangeActivationInterval blocks (e.g. 8064 blocks = 2016 * 4
-	// for 4 weeks on mainnet) since when the agenda state changed to "lockedin"
-	// when the rule change is effected.
-	// https://docs.decred.org/glossary/#rule-change-interval-rci.
-	ActivatedAgendaState = "active"
-)
-
 var (
 	zeroHash            = chainhash.Hash{}
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
@@ -1938,26 +1912,26 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 
 	for agendaID, entry := range blockChainInfo.Deployments {
 		var agendaInfo = dbtypes.MileStone{
-			Status:     entry.Status,
+			Status:     dbtypes.AgendaStateFromStr(entry.Status),
 			StartTime:  time.Unix(int64(entry.StartTime), 0),
 			ExpireTime: time.Unix(int64(entry.ExpireTime), 0),
 		}
 
 		// state "defined" is not considered since voting hasn't started.
-		switch strings.ToLower(entry.Status) {
-		case StartedAgendaState:
+		switch agendaInfo.Status {
+		case dbtypes.StartedAgendaState:
 			// Since the vote is in progress current best block height is set as
 			// the vote end.
 			agendaInfo.VotingDone = blockChainInfo.Blocks
 
-		case FailedAgendaState:
+		case dbtypes.FailedAgendaState:
 			agendaInfo.VotingDone = entry.Since
 
-		case PassedAgendaState:
+		case dbtypes.PassedAgendaState:
 			agendaInfo.VotingDone = entry.Since
 			agendaInfo.Activated = entry.Since + ruleChangeInterval
 
-		case ActivatedAgendaState:
+		case dbtypes.ActivatedAgendaState:
 			agendaInfo.Activated = entry.Since
 			agendaInfo.VotingDone = entry.Since - ruleChangeInterval
 		}
@@ -2711,7 +2685,7 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		var missesHashIDs map[string]uint64
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs,
 			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords,
-			pgb.chainParams)
+			pgb.chainParams, pgb.chainInfo)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err

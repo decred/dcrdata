@@ -59,6 +59,11 @@ func closeRows(rows *sql.Rows) {
 	}
 }
 
+// storedAgendas holds the current state of agenda data already saved in the
+// db. This helps track changes in the lockedIn and activated heights when they
+// happen.
+var storedAgendas map[string]dbtypes.MileStone
+
 // SqlExecutor is implemented by both sql.DB and sql.Tx.
 type SqlExecutor interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
@@ -309,8 +314,9 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 //
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
 func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *TicketTxnIDGetter,
-	msgBlock *MsgBlockPG, checked, updateExistingRecords bool, params *chaincfg.Params) ([]uint64,
-	[]*dbtypes.Tx, []string, []uint64, map[string]uint64, error) {
+	msgBlock *MsgBlockPG, checked, updateExistingRecords bool, params *chaincfg.Params,
+	votesMilestones *dbtypes.BlockChainData) ([]uint64, []*dbtypes.Tx, []string,
+	[]uint64, map[string]uint64, error) {
 	// Choose only SSGen txns
 	msgTxs := msgBlock.STransactions
 	var voteTxs []*dbtypes.Tx
@@ -347,10 +353,20 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 		return nil, nil, nil, nil, nil, err
 	}
 
-	// Prepare agenda status insert statement.
+	// Prepare agenda insert statement.
 	agendaStmt, err := dbtx.Prepare(internal.MakeAgendaInsertStatement(checked))
 	if err != nil {
 		log.Errorf("Agendas INSERT prepare: %v", err)
+		_ = voteStmt.Close()
+		_ = dbtx.Rollback() // try, but we want the Prepare error back
+		return nil, nil, nil, nil, nil, err
+	}
+
+	// Prepare agenda votes insert statement.
+	agendaVotesInsert := internal.MakeAgendaVotesInsertStatement(checked)
+	agendaVotesStmt, err := dbtx.Prepare(agendaVotesInsert)
+	if err != nil {
+		log.Errorf("Agenda Votes INSERT prepare: %v", err)
 		_ = voteStmt.Close()
 		_ = dbtx.Rollback() // try, but we want the Prepare error back
 		return nil, nil, nil, nil, nil, err
@@ -360,8 +376,49 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 		// Already up a creek. Just log any Rollback error.
 		_ = voteStmt.Close()
 		_ = agendaStmt.Close()
+		_ = agendaVotesStmt.Close()
 		if errRoll := dbtx.Rollback(); errRoll != nil {
 			log.Errorf("Rollback failed: %v", errRoll)
+		}
+	}
+
+	// Attempt to update the storedAgenda map is help keep track of the
+	// lockedIn, hardForked and activated heights.
+	if len(storedAgendas) == 0 {
+		var id int64
+		storedAgendas, err = retrieveAllAgendas(db)
+
+		if storedAgendas == nil {
+			storedAgendas = make(map[string]dbtypes.MileStone)
+		}
+
+		if err == nil || err != sql.ErrNoRows {
+			for name, d := range votesMilestones.AgendaMileStones {
+				m, ok := storedAgendas[name]
+				if !ok || (d.Status != m.Status) {
+					err = agendaStmt.QueryRow(name, d.Status, d.VotingDone,
+						d.Activated, d.HardForked).Scan(&id)
+					if err != nil {
+						bail()
+						return nil, nil, nil, nil, nil,
+							fmt.Errorf("agenda INSERT failed: : %v", err)
+					}
+
+					storedAgendas[name] = dbtypes.MileStone{
+						ID:         id,
+						VotingDone: d.VotingDone,
+						Activated:  d.Activated,
+						HardForked: d.HardForked,
+						Status:     d.Status,
+					}
+				}
+			}
+		}
+
+		if err != nil {
+			bail()
+			return nil, nil, nil, nil, nil,
+				fmt.Errorf("retrieveAllAgendas failed: : %v", err)
 		}
 	}
 
@@ -408,12 +465,12 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 		}
 
 		// votes table insert
-		var id uint64
+		var votesRowID uint64
 		err = voteStmt.QueryRow(
 			tx.BlockHeight, tx.TxID, tx.BlockHash, candidateBlockHash,
 			voteVersion, voteBits, validBlock.Validity,
 			stakeSubmissionTxHash, ticketTxDbID, stakeSubmissionAmount,
-			voteReward, tx.IsMainchainBlock).Scan(&id)
+			voteReward, tx.IsMainchainBlock, tx.BlockTime.T).Scan(&votesRowID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				continue
@@ -421,7 +478,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			bail()
 			return nil, nil, nil, nil, nil, err
 		}
-		ids = append(ids, id)
+		ids = append(ids, votesRowID)
 
 		// agendas table, not modified if not updating existing records.
 		if checked && !updateExistingRecords {
@@ -436,17 +493,39 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 
 		var rowID uint64
 		for _, val := range choices {
-			index, err := dbtypes.ChoiceIndexFromStr(val.Choice.Id)
+			// Update the Status if its not upto date.
+			p := votesMilestones.AgendaMileStones[val.ID]
+			s := storedAgendas[val.ID]
+			if s.Status != p.Status {
+				err = agendaStmt.QueryRow(val.ID, p.Status,
+					p.VotingDone, p.Activated, p.HardForked).Scan(&s.ID)
+				if err != nil {
+					bail()
+					return nil, nil, nil, nil, nil, fmt.Errorf("agenda INSERT failed: : %v", err)
+				}
+
+				s.Status = p.Status
+				s.VotingDone = p.VotingDone
+				s.Activated = p.Activated
+				s.HardForked = p.HardForked
+				storedAgendas[val.ID] = s
+			}
+
+			if p.ID == 0 {
+				p.ID = s.ID
+				votesMilestones.AgendaMileStones[val.ID] = p
+			}
+
+			var index, err = dbtypes.ChoiceIndexFromStr(val.Choice.Id)
 			if err != nil {
 				bail()
 				return nil, nil, nil, nil, nil, err
 			}
 
-			err = agendaStmt.QueryRow(val.ID, index, tx.TxID, tx.BlockHeight,
-				tx.BlockTime.T).Scan(&rowID)
+			err = agendaVotesStmt.QueryRow(votesRowID, s.ID, index).Scan(&rowID)
 			if err != nil {
 				bail()
-				return nil, nil, nil, nil, nil, err
+				return nil, nil, nil, nil, nil, fmt.Errorf("agenda_votes INSERT failed: : %v", err)
 			}
 		}
 	}
@@ -454,6 +533,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	// Close prepared statements. Ignore errors as we'll Commit regardless.
 	_ = voteStmt.Close()
 	_ = agendaStmt.Close()
+	_ = agendaVotesStmt.Close()
 
 	// If the validators are available, miss accounting should be accurate.
 	if len(msgBlock.Validators) > 0 && len(ids)+len(misses) != 5 {
@@ -522,6 +602,31 @@ func RetrieveMissedVotesInBlock(ctx context.Context, db *sql.DB, blockHash strin
 		ticketHashes = append(ticketHashes, hash)
 	}
 	return
+}
+
+// retrieveAllAgendas returns all the current agendas
+func retrieveAllAgendas(db *sql.DB) (map[string]dbtypes.MileStone, error) {
+	rows, err := db.Query(internal.SelectAllAgendas)
+	if err != nil {
+		return nil, err
+	}
+
+	currentMilestones := make(map[string]dbtypes.MileStone)
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var name string
+		m := dbtypes.MileStone{}
+		err = rows.Scan(&m.ID, &name, &m.Status, &m.VotingDone,
+			&m.Activated, &m.HardForked)
+		if err != nil {
+			break
+		}
+
+		currentMilestones[name] = m
+	}
+
+	return currentMilestones, err
 }
 
 // RetrieveAllRevokes gets for all ticket revocations the row IDs (primary
@@ -2291,9 +2396,9 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, e
 func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string, byType int,
 	votingDoneHeight int64) (*dbtypes.AgendaVoteChoices, error) {
 	// Query with block or day interval size
-	var query = internal.SelectAgendasAgendaVotesByTime
+	var query = internal.SelectAgendasVotesByTime
 	if byType == 1 {
-		query = internal.SelectAgendasAgendaVotesByHeight
+		query = internal.SelectAgendasVotesByHeight
 	}
 
 	rows, err := db.QueryContext(ctx, query, dbtypes.Yes, dbtypes.Abstain, dbtypes.No,
@@ -2349,7 +2454,7 @@ func retrieveTotalAgendaVotesCount(ctx context.Context, db *sql.DB,
 	agendaID string, votingDoneHeight int64) (yes, abstain, no uint32, err error) {
 	var total uint32
 
-	err = db.QueryRowContext(ctx, internal.SelectAgendasTotalAgendaVotes, dbtypes.Yes,
+	err = db.QueryRowContext(ctx, internal.SelectAgendasTotalAgenda, dbtypes.Yes,
 		dbtypes.Abstain, dbtypes.No, agendaID, votingDoneHeight).Scan(&yes,
 		&abstain, &no, &total)
 
