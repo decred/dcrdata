@@ -59,11 +59,6 @@ func closeRows(rows *sql.Rows) {
 	}
 }
 
-// storedAgendas holds the current state of agenda data already saved in the
-// db. This helps track changes in the lockedIn and activated heights when they
-// happen.
-var storedAgendas map[string]dbtypes.MileStone
-
 // SqlExecutor is implemented by both sql.DB and sql.Tx.
 type SqlExecutor interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
@@ -613,7 +608,7 @@ func retrieveAllAgendas(db *sql.DB) (map[string]dbtypes.MileStone, error) {
 
 	for rows.Next() {
 		var name string
-		m := dbtypes.MileStone{}
+		var m dbtypes.MileStone
 		err = rows.Scan(&m.ID, &name, &m.Status, &m.VotingDone,
 			&m.Activated, &m.HardForked)
 		if err != nil {
@@ -2391,7 +2386,7 @@ func retrieveCoinSupply(ctx context.Context, db *sql.DB) (*dbtypes.ChartsData, e
 // spans the locked-in period of the agenda. votingDoneHeight references the
 // height at which the agenda ID voting is considered complete.
 func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string, byType int,
-	votingDoneHeight int64) (*dbtypes.AgendaVoteChoices, error) {
+	votingStartHeight, votingDoneHeight int64) (*dbtypes.AgendaVoteChoices, error) {
 	// Query with block or day interval size
 	var query = internal.SelectAgendasVotesByTime
 	if byType == 1 {
@@ -2399,7 +2394,7 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 	}
 
 	rows, err := db.QueryContext(ctx, query, dbtypes.Yes, dbtypes.Abstain, dbtypes.No,
-		agendaID, votingDoneHeight)
+		agendaID, votingStartHeight, votingDoneHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -2447,13 +2442,13 @@ func retrieveAgendaVoteChoices(ctx context.Context, db *sql.DB, agendaID string,
 // retrieveTotalAgendaVotesCount returns the Cumulative vote choices count for
 // the provided agenda id. votingDoneHeight references the height at which the
 // agenda ID voting is considered complete.
-func retrieveTotalAgendaVotesCount(ctx context.Context, db *sql.DB,
-	agendaID string, votingDoneHeight int64) (yes, abstain, no uint32, err error) {
+func retrieveTotalAgendaVotesCount(ctx context.Context, db *sql.DB, agendaID string,
+	votingStartHeight, votingDoneHeight int64) (yes, abstain, no uint32, err error) {
 	var total uint32
 
-	err = db.QueryRowContext(ctx, internal.SelectAgendasTotalAgenda, dbtypes.Yes,
-		dbtypes.Abstain, dbtypes.No, agendaID, votingDoneHeight).Scan(&yes,
-		&abstain, &no, &total)
+	err = db.QueryRowContext(ctx, internal.SelectAgendaVoteTotals, dbtypes.Yes,
+		dbtypes.Abstain, dbtypes.No, agendaID, votingStartHeight,
+		votingDoneHeight).Scan(&yes, &abstain, &no, &total)
 
 	return
 }

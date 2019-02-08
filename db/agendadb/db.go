@@ -127,8 +127,8 @@ type ChoiceLabeled struct {
 	dcrjson.Choice `storm:"inline"`
 }
 
-// voteAgendasForVersion is used in getting the agendas using the vote versions
-func voteAgendasForVersion(ver uint32, client *rpcclient.Client) (agendas []AgendaTagged) {
+// agendasForVoteVersion fetches the agendas using the vote versions provided.
+func agendasForVoteVersion(ver uint32, client *rpcclient.Client) (agendas []AgendaTagged) {
 	voteInfo, err := client.GetVoteInfo(ver)
 	if err != nil {
 		log.Errorf("Fetching Agendas by vote version failed: %v", err)
@@ -152,9 +152,8 @@ func voteAgendasForVersion(ver uint32, client *rpcclient.Client) (agendas []Agen
 	return
 }
 
-// CheckAvailabiltyOfVersionAgendas checks for the availabily of agendas in the
-// saved db by version input
-func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version uint32) bool {
+// IsAgendasAvailable checks for the availabily of agendas in the db by vote version.
+func (db *AgendaDB) IsAgendasAvailable(version uint32) bool {
 	if db == nil || db.sdb == nil {
 		return false
 	}
@@ -168,11 +167,11 @@ func (db *AgendaDB) CheckAvailabiltyOfVersionAgendas(version uint32) bool {
 	return true
 }
 
-// updatedb used when needed to keep the saved db upto date
+// updatedb used when needed to keep the saved db upto date.
 func (db *AgendaDB) updatedb(voteVersion uint32, client *rpcclient.Client) {
 	var agendas []AgendaTagged
-	for voteAgendasForVersion(voteVersion, client) != nil {
-		taggedAgendas := voteAgendasForVersion(voteVersion, client)
+	for agendasForVoteVersion(voteVersion, client) != nil {
+		taggedAgendas := agendasForVoteVersion(voteVersion, client)
 		if len(taggedAgendas) > 0 {
 			agendas = append(agendas, taggedAgendas...)
 			voteVersion++
@@ -201,7 +200,7 @@ func CheckForUpdates(client *rpcclient.Client) error {
 	// starts from version 4 by default.
 
 	var voteVersion uint32 = 4
-	for adb.CheckAvailabiltyOfVersionAgendas(voteVersion) {
+	for adb.IsAgendasAvailable(voteVersion) {
 		voteVersion++
 	}
 	adb.updatedb(voteVersion, client)

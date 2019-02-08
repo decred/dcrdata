@@ -370,42 +370,42 @@ const (
 	CreateAgendaVotesTable = `CREATE TABLE IF NOT EXISTS agenda_votes (
 		id SERIAL PRIMARY KEY,
 		vote_row_id INT8,
-		agenda_id INT8,
+		agenda_row_id INT8,
 		agenda_vote_choice INT2
 	);`
 
 	// Insert
-	insertAgendaVotesRow = `INSERT INTO agenda_votes (vote_row_id, agenda_id,
+	insertAgendaVotesRow = `INSERT INTO agenda_votes (vote_row_id, agenda_row_id,
 		agenda_vote_choice) VALUES ($1, $2, $3) `
 
 	InsertAgendaVotesRow = insertAgendaVotesRow + `RETURNING id;`
 
-	UpsertAgendaVotesRow = insertAgendaVotesRow + `ON CONFLICT (agenda_id,
+	UpsertAgendaVotesRow = insertAgendaVotesRow + `ON CONFLICT (agenda_row_id,
 		vote_row_id) DO UPDATE SET agenda_vote_choice = $3 RETURNING id;`
 
 	IndexAgendaVotesTableOnAgendaID = `CREATE UNIQUE INDEX uix_agenda_votes
-		ON agenda_votes(vote_row_id, agenda_id);`
+		ON agenda_votes(vote_row_id, agenda_row_id);`
 	DeindexAgendaVotesTableOnAgendaID = `DROP INDEX uix_agenda_votes;`
 
 	// Select
 
 	SelectAgendasVotesByTime = `SELECT votes.block_time AS timestamp,` +
-		selectAgendasQuery + `GROUP BY timestamp ORDER BY timestamp;`
+		selectAgendaVotesQuery + `GROUP BY timestamp ORDER BY timestamp;`
 
 	SelectAgendasVotesByHeight = `SELECT votes.height AS height,` +
-		selectAgendasQuery + `GROUP BY height ORDER BY height;`
+		selectAgendaVotesQuery + `GROUP BY height ORDER BY height;`
 
-	SelectAgendasTotalAgenda = `SELECT ` + selectAgendasQuery + `;`
+	SelectAgendaVoteTotals = `SELECT ` + selectAgendaVotesQuery + `;`
 
-	selectAgendasQuery = `
+	selectAgendaVotesQuery = `
 			count(CASE WHEN agenda_votes.agenda_vote_choice = $1 THEN 1 ELSE NULL END) AS yes,
 			count(CASE WHEN agenda_votes.agenda_vote_choice = $2 THEN 1 ELSE NULL END) AS abstain,
 			count(CASE WHEN agenda_votes.agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
 			count(*) AS total
 		FROM agenda_votes
 		INNER JOIN votes ON agenda_votes.vote_row_id = votes.id
-		WHERE agenda_votes.agenda_id = (SELECT id from agendas WHERE name = $4)
-		AND votes.height <= $5`
+		WHERE agenda_votes.agenda_row_id = (SELECT id from agendas WHERE name = $4)
+		AND votes.height >= $5 AND votes.height <= $6 `
 )
 
 // MakeTicketInsertStatement returns the appropriate tickets insert statement

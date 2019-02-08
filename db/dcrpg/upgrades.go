@@ -51,7 +51,7 @@ const (
 	blocksChainWorkUpdate
 	blocksRemoveRootColumns
 	timestamptzUpgrade
-	agendasTableReorgUpdate
+	agendasTablePruningUpdate
 	agendaVotesTableCreationUpdate
 	votesTableBlockTimeUpdate
 )
@@ -394,7 +394,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			{"agenda_votes", agendaVotesTableCreationUpdate},
 			{"votes", votesTableBlockTimeUpdate},
 			// should be the last to run
-			{"agendas", agendasTableReorgUpdate},
+			{"agendas", agendasTablePruningUpdate},
 		}
 
 		// chainInfo is needed for this upgrade.
@@ -536,10 +536,12 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case timestamptzUpgrade:
 		tableReady = true
 		tableName, upgradeTypeStr = "every", "convert timestamp columns to timestamptz type"
-	case agendasTableReorgUpdate:
+	case agendasTablePruningUpdate:
+		// Between blocks 1 and 4000 no vote transactions that exists. They only
+		// exist after block 4000.
 		startHeight = 4000
-		tableReady, err = reorganizeAgendaTable(pgb.db)
-		tableName, upgradeTypeStr = "agendas", "reorganize agendas table"
+		tableReady, err = pruneAgendasTable(pgb.db)
+		tableName, upgradeTypeStr = "agendas", "prune agendas table"
 	case agendaVotesTableCreationUpdate:
 		tableReady, err = createNewAgendaVotesTable(pgb.db)
 		tableName, upgradeTypeStr = "agendas", "create agenda votes table"
@@ -561,7 +563,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	timeStart := time.Now()
 
 	switch tableUpgrade {
-	case vinsTableCoinSupplyUpgrade, agendasTableUpgrade, agendasTableReorgUpdate:
+	case vinsTableCoinSupplyUpgrade, agendasTableUpgrade, agendasTablePruningUpdate:
 		// height is the best block where this table upgrade should stop at.
 		height, err := pgb.HeightDB()
 		if err != nil {
@@ -593,7 +595,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 				rows, err = pgb.handlevinsTableCoinSupplyUpgrade(msgBlock)
 			case agendasTableUpgrade:
 				rows, err = pgb.handleAgendasTableUpgrade(msgBlock)
-			case agendasTableReorgUpdate:
+			case agendasTablePruningUpdate:
 				rows, err = pgb.handleAgendaAndAgendaVotesTablesUpgrade(msgBlock)
 			}
 			if err != nil {
@@ -678,7 +680,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		vinsBlockTimeDataTypeUpdate, blocksRemoveRootColumns,
 		agendaVotesTableCreationUpdate, votesTableBlockTimeUpdate:
 		// agendaVotesTableCreationUpdate and votesTableBlockTimeUpdate dbs
-		// population is fully handled by agendasTableReorgUpdate
+		// population is fully handled by agendasTablePruningUpdate
 
 	default:
 		return false, fmt.Errorf(`upgrade "%v" unknown`, tableUpgrade)
@@ -720,7 +722,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 			return false, fmt.Errorf("failed to reindex addresses table: %v", err)
 		}
 
-	case agendasTableReorgUpdate:
+	case agendasTablePruningUpdate:
 		log.Infof("Index the agendas table on Agenda ID...")
 		if err = IndexAgendasTableOnAgendaID(pgb.db); err != nil {
 			return false, fmt.Errorf("failed to index agendas table: %v", err)
@@ -1215,7 +1217,7 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(msgBlock *wire.MsgBlock) (int64, e
 	return rowsUpdated, nil
 }
 
-// handleAgendaAndAgendaVotesTableUpgrade reorganizes agendas table, creates
+// handleAgendaAndAgendaVotesTableUpgrade restructures the agendas table, creates
 // a new agenda_votes table and adds a new block time column to votes table.
 func (pgb *ChainDB) handleAgendaAndAgendaVotesTablesUpgrade(msgBlock *wire.MsgBlock) (int64, error) {
 	// neither isValid or isMainchain are important
@@ -1350,7 +1352,7 @@ func handleConvertTimeStampTZ(db *sql.DB) error {
 	return nil
 }
 
-func reorganizeAgendaTable(db *sql.DB) (bool, error) {
+func pruneAgendasTable(db *sql.DB) (bool, error) {
 	isSuccess, err := dropTableIfExists(db, "agendas")
 	if !isSuccess {
 		return isSuccess, err
@@ -1535,12 +1537,6 @@ func addChainWorkColumn(db *sql.DB) (bool, error) {
 func deleteRootsColumns(db *sql.DB) (bool, error) {
 	table := "blocks"
 	cols := []string{"merkle_root", "stake_root", "final_state", "extra_data"}
-	return deleteColumnsIfFound(db, table, cols)
-}
-
-func deleteVoteMilestoneColumns(db *sql.DB) (bool, error) {
-	table := "agendas"
-	cols := []string{"locked_in", "activated", "hard_forked"}
 	return deleteColumnsIfFound(db, table, cols)
 }
 

@@ -575,13 +575,13 @@ func _main(ctx context.Context) error {
 
 		// Fetch the latest blockdata which needed to update the agendas db while
 		// db sync is in progress.
-		d, _, err := collector.Collect()
+		bci, err := baseDB.BlockchainInfo()
 		if err != nil {
 			return fmt.Errorf("failed to fetch the latest blockdata")
 		}
 
 		// Update the current chain state in the ChainDBRPC
-		auxDB.UpdateChainState(d.BlockchainInfo)
+		auxDB.UpdateChainState(bci)
 	} else {
 		// Start a goroutine to update the explorer pages when the DB sync
 		// functions send a new block hash on the following channel.

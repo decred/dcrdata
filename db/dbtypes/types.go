@@ -83,68 +83,68 @@ func (p TicketSpendType) String() string {
 	}
 }
 
-// AgendaStateType defines the various agenda states
-type AgendaStateType int8
+// AgendaStatusType defines the various agenda statuss.
+type AgendaStatusType int8
 
 const (
-	// InitialAgendaState is the agenda status when the agenda is not yet up for
+	// InitialAgendaStatus is the agenda status when the agenda is not yet up for
 	// voting and the votes tally is not also available.
-	InitialAgendaState AgendaStateType = iota
+	InitialAgendaStatus AgendaStatusType = iota
 
-	// StartedAgendaState is the agenda status when the agenda is up for voting.
-	StartedAgendaState
+	// StartedAgendaStatus is the agenda status when the agenda is up for voting.
+	StartedAgendaStatus
 
-	// FailedAgendaState is the agenda state set when the votes tally does not
+	// FailedAgendaStatus is the agenda status set when the votes tally does not
 	// attain the minimum threshold set. Activation height is not set for such an
 	// agenda.
-	FailedAgendaState
+	FailedAgendaStatus
 
-	// PassedAgendaState is the agenda state when the agenda is considered to
-	// have passed after attaining the minimum set threshold. This agenda can
-	// it activation height set.
-	PassedAgendaState
+	// LockedInAgendaStatus is the agenda status when the agenda is considered to
+	// have passed after attaining the minimum set threshold. This agenda will
+	// have its activation height set.
+	LockedInAgendaStatus
 
-	// ActivatedAgendaState is the agenda state set after
-	// chaincfg.RuleChangeActivationInterval blocks (e.g. 8064 blocks = 2016 * 4
-	// for 4 weeks on mainnet) since when the agenda state changed to "lockedin"
-	// when the rule change is effected.
-	// https://docs.decred.org/glossary/#rule-change-interval-rci.
-	ActivatedAgendaState
-	UnknownState
+	// ActivatedAgendaStatus is the agenda status chaincfg.RuleChangeActivationInterval
+	// blocks (e.g. 8064 blocks = 2016 * 4 for 4 weeks on mainnet) after
+	// LockedInAgendaStatus ("lockedin") that indicates when the rule change is to
+	// be effected. https://docs.decred.org/glossary/#rule-change-interval-rci.
+	ActivatedAgendaStatus
+
+	UnknownStatus
 )
 
-func (a AgendaStateType) String() string {
+func (a AgendaStatusType) String() string {
 	switch a {
-	case InitialAgendaState:
+	case InitialAgendaStatus:
 		return "defined"
-	case StartedAgendaState:
+	case StartedAgendaStatus:
 		return "started"
-	case FailedAgendaState:
+	case FailedAgendaStatus:
 		return "failed"
-	case PassedAgendaState:
-		return "locked"
-	case ActivatedAgendaState:
+	case LockedInAgendaStatus:
+		return "lockedin"
+	case ActivatedAgendaStatus:
 		return "active"
 	default:
 		return "unknown"
 	}
 }
 
-// AgendaStateFromStr create an agenda state from a string
-func AgendaStateFromStr(state string) AgendaStateType {
-	switch strings.ToLower(state) {
+// AgendaStatusFromStr creates an agenda status from a string.
+func AgendaStatusFromStr(status string) AgendaStatusType {
+	switch strings.ToLower(status) {
 	case "defined":
-		return InitialAgendaState
+		return InitialAgendaStatus
 	case "started":
-		return StartedAgendaState
+		return StartedAgendaStatus
 	case "failed":
-		return FailedAgendaState
-	case "locked":
-		return PassedAgendaState
+		return FailedAgendaStatus
+	case "lockedin":
+		return LockedInAgendaStatus
 	case "active":
-		return ActivatedAgendaState
+		return ActivatedAgendaStatus
 	default:
-		return UnknownState
+		return UnknownStatus
 	}
 }
 
@@ -298,8 +298,8 @@ func TimeGroupingFromStr(groupings string) TimeBasedGrouping {
 	}
 }
 
-// HistoryChart is used to differentaite the three distinct graphs that
-// appear on the address history page.
+// HistoryChart is used to differentiate the distinct graphs that appear on the
+// address history page.
 type HistoryChart int8
 
 const (
@@ -384,7 +384,7 @@ type MileStone struct {
 	VotingDone int64
 	StartTime  time.Time
 	ExpireTime time.Time
-	Status     AgendaStateType
+	Status     AgendaStatusType
 }
 
 // BlockChainData defines data holding the latest block chain state from the

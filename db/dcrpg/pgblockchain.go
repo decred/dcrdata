@@ -39,6 +39,11 @@ var (
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
 
+// storedAgendas holds the current state of agenda data already saved in the
+// db. This helps track changes in the lockedIn and activated heights when they
+// happen.
+var storedAgendas map[string]dbtypes.MileStone
+
 // DevFundBalance is a block-stamped wrapper for dbtypes.AddressBalance. It is
 // intended to be used for the project address.
 type DevFundBalance struct {
@@ -919,7 +924,17 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 	defer cancel()
 
 	agendaInfo := pgb.chainInfo.AgendaMileStones[agendaID]
-	avc, err := retrieveAgendaVoteChoices(ctx, pgb.db, agendaID, chartType, agendaInfo.VotingDone)
+
+	// check if starttime is in the future exit.
+	if time.Now().Before(agendaInfo.StartTime) {
+		return nil, nil
+	}
+
+	votingStartHeight := (agendaInfo.VotingDone -
+		int64(pgb.chainParams.RuleChangeActivationInterval))
+
+	avc, err := retrieveAgendaVoteChoices(ctx, pgb.db, agendaID, chartType,
+		votingStartHeight, agendaInfo.VotingDone)
 	return avc, pgb.replaceCancelError(err)
 }
 
@@ -931,7 +946,17 @@ func (pgb *ChainDB) AgendaCumulativeVoteChoices(agendaID string) (yes,
 	defer cancel()
 
 	agendaInfo := pgb.chainInfo.AgendaMileStones[agendaID]
-	yes, abstain, no, err = retrieveTotalAgendaVotesCount(ctx, pgb.db, agendaID, agendaInfo.VotingDone)
+
+	// check if starttime is in the future exit.
+	if time.Now().Before(agendaInfo.StartTime) {
+		return
+	}
+
+	votingStartHeight := (agendaInfo.VotingDone -
+		int64(pgb.chainParams.RuleChangeActivationInterval))
+
+	yes, abstain, no, err = retrieveTotalAgendaVotesCount(ctx, pgb.db, agendaID,
+		votingStartHeight, agendaInfo.VotingDone)
 	return
 }
 
@@ -1882,13 +1907,10 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 	return txsRaw, nil
 }
 
-// UpdateChainState updates chain's state which includes the agenda ID's
-// VotingDone and Activated heights. VotingDone is height when agenda passed or
-// failed. i.e agenda status moves from status "started" to either "failed" or
-// "lockedin". VotingDone can also be the best block height if the status is
-// "started". If the agenda passed i.e. status is "lockedIn" the Activated
-// height is set which signals when the Rules Change will take place. Find more
-// details here: https://docs.decred.org/glossary/#rule-change-interval-rci.
+// UpdateChainState updates the blockchain's state, which includes the each
+// agenda's VotingDone and Activated heights. If the agenda passed (i.e. status
+// is "lockedIn" or "activated"), Activated is set to the height at which the rule
+// change will take(or took) place.
 func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
 	if blockChainInfo == nil {
 		log.Errorf("dcrjson.GetBlockChainInfoResult data passed is empty")
@@ -1912,26 +1934,26 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 
 	for agendaID, entry := range blockChainInfo.Deployments {
 		var agendaInfo = dbtypes.MileStone{
-			Status:     dbtypes.AgendaStateFromStr(entry.Status),
+			Status:     dbtypes.AgendaStatusFromStr(entry.Status),
 			StartTime:  time.Unix(int64(entry.StartTime), 0),
 			ExpireTime: time.Unix(int64(entry.ExpireTime), 0),
 		}
 
-		// state "defined" is not considered since voting hasn't started.
+		// status "defined" is not considered since voting hasn't started.
 		switch agendaInfo.Status {
-		case dbtypes.StartedAgendaState:
+		case dbtypes.StartedAgendaStatus:
 			// Since the vote is in progress current best block height is set as
 			// the vote end.
 			agendaInfo.VotingDone = blockChainInfo.Blocks
 
-		case dbtypes.FailedAgendaState:
+		case dbtypes.FailedAgendaStatus:
 			agendaInfo.VotingDone = entry.Since
 
-		case dbtypes.PassedAgendaState:
+		case dbtypes.LockedInAgendaStatus:
 			agendaInfo.VotingDone = entry.Since
 			agendaInfo.Activated = entry.Since + ruleChangeInterval
 
-		case dbtypes.ActivatedAgendaState:
+		case dbtypes.ActivatedAgendaStatus:
 			agendaInfo.Activated = entry.Since
 			agendaInfo.VotingDone = entry.Since - ruleChangeInterval
 		}
