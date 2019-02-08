@@ -369,22 +369,22 @@ const (
 
 	CreateAgendaVotesTable = `CREATE TABLE IF NOT EXISTS agenda_votes (
 		id SERIAL PRIMARY KEY,
-		vote_row_id INT8,
-		agenda_row_id INT8,
+		votes_row_id INT8,
+		agendas_row_id INT8,
 		agenda_vote_choice INT2
 	);`
 
 	// Insert
-	insertAgendaVotesRow = `INSERT INTO agenda_votes (vote_row_id, agenda_row_id,
+	insertAgendaVotesRow = `INSERT INTO agenda_votes (votes_row_id, agendas_row_id,
 		agenda_vote_choice) VALUES ($1, $2, $3) `
 
 	InsertAgendaVotesRow = insertAgendaVotesRow + `RETURNING id;`
 
-	UpsertAgendaVotesRow = insertAgendaVotesRow + `ON CONFLICT (agenda_row_id,
-		vote_row_id) DO UPDATE SET agenda_vote_choice = $3 RETURNING id;`
+	UpsertAgendaVotesRow = insertAgendaVotesRow + `ON CONFLICT (agendas_row_id,
+		votes_row_id) DO UPDATE SET agenda_vote_choice = $3 RETURNING id;`
 
 	IndexAgendaVotesTableOnAgendaID = `CREATE UNIQUE INDEX uix_agenda_votes
-		ON agenda_votes(vote_row_id, agenda_row_id);`
+		ON agenda_votes(votes_row_id, agendas_row_id);`
 	DeindexAgendaVotesTableOnAgendaID = `DROP INDEX uix_agenda_votes;`
 
 	// Select
@@ -403,8 +403,8 @@ const (
 			count(CASE WHEN agenda_votes.agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
 			count(*) AS total
 		FROM agenda_votes
-		INNER JOIN votes ON agenda_votes.vote_row_id = votes.id
-		WHERE agenda_votes.agenda_row_id = (SELECT id from agendas WHERE name = $4)
+		INNER JOIN votes ON agenda_votes.votes_row_id = votes.id
+		WHERE agenda_votes.agendas_row_id = (SELECT id from agendas WHERE name = $4)
 		AND votes.height >= $5 AND votes.height <= $6 `
 )
 

@@ -377,8 +377,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 		}
 	}
 
-	// Attempt to update the storedAgenda map is help keep track of the
-	// lockedIn, hardForked and activated heights.
+	// Attempts to retrieve agendas from the database if storedAgendas is empty.
+	// This Should happen only once, since storedAgendas persists the added data.
 	if len(storedAgendas) == 0 {
 		var id int64
 		storedAgendas, err = retrieveAllAgendas(db)
@@ -388,12 +388,11 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 				fmt.Errorf("retrieveAllAgendas failed: : %v", err)
 		}
 
-		if storedAgendas == nil {
-			storedAgendas = make(map[string]dbtypes.MileStone)
-		}
-
 		for name, d := range votesMilestones.AgendaMileStones {
 			m, ok := storedAgendas[name]
+			// Update the current agenda details to the agendas table and
+			// storedAgendas map if doesn't exist in storedAgendas or its agendas
+			// status has changed.
 			if !ok || (d.Status != m.Status) {
 				err = agendaStmt.QueryRow(name, d.Status, d.VotingDone,
 					d.Activated, d.HardForked).Scan(&id)
@@ -485,7 +484,11 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 
 		var rowID uint64
 		for _, val := range choices {
-			// Update the Status if its not upto date.
+			// As of here, storedAgendas should not be empty and
+			// votesMilestones.AgendaMileStones should have cached the latest
+			// blockchain deployment info. The change in status is detected as
+			// the change between respective agendas statuses stored in the two
+			// maps. The change is updated in storedAgendas and agendas table.
 			p := votesMilestones.AgendaMileStones[val.ID]
 			s := storedAgendas[val.ID]
 			if s.Status != p.Status {

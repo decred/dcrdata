@@ -572,16 +572,6 @@ func _main(ctx context.Context) error {
 		// and signal the websocket hub to send progress updates to clients.
 		barLoad = make(chan *dbtypes.ProgressBarLoad, 2)
 		explore.BeginSyncStatusUpdates(barLoad)
-
-		// Fetch the latest blockdata which needed to update the agendas db while
-		// db sync is in progress.
-		bci, err := baseDB.BlockchainInfo()
-		if err != nil {
-			return fmt.Errorf("failed to fetch the latest blockdata")
-		}
-
-		// Update the current chain state in the ChainDBRPC
-		auxDB.UpdateChainState(bci)
 	} else {
 		// Start a goroutine to update the explorer pages when the DB sync
 		// functions send a new block hash on the following channel.
@@ -602,9 +592,6 @@ func _main(ctx context.Context) error {
 						hash.String(), err)
 					continue
 				}
-
-				// Update the current chain state in the ChainDBRPC
-				auxDB.UpdateChainState(d.BlockchainInfo)
 
 				// Store the blockdata for the explorer pages.
 				if err = explore.Store(d, msgBlock); err != nil {
@@ -628,6 +615,16 @@ func _main(ctx context.Context) error {
 		// will come from the sync methods of either baseDB or auxDB.
 		latestBlockHash <- latestDBBlockHash
 	}
+
+	// Fetch the latest blockdata which needed to update the agendas db while
+	// db sync is in progress.
+	bci, err := baseDB.BlockchainInfo()
+	if err != nil {
+		return fmt.Errorf("failed to fetch the latest blockdata")
+	}
+
+	// Update the current chain state in the ChainDBRPC
+	auxDB.UpdateChainState(bci)
 
 	// Create the Insight socket.io server, and add it to block savers if in
 	// full/pg mode. Since insightSocketServer is added into the url before even

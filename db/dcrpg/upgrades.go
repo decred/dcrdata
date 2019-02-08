@@ -390,10 +390,9 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		toVersion = TableVersion{3, 10, 0}
 
 		theseUpgrades := []TableUpgradeType{
-			{"agendas", agendasTableReorgUpdate},
 			{"agenda_votes", agendaVotesTableCreationUpdate},
 			{"votes", votesTableBlockTimeUpdate},
-			// should be the last to run
+			// Should be the last to run.
 			{"agendas", agendasTablePruningUpdate},
 		}
 
@@ -538,7 +537,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		tableName, upgradeTypeStr = "every", "convert timestamp columns to timestamptz type"
 	case agendasTablePruningUpdate:
 		// Between blocks 1 and 4000 no vote transactions that exists. They only
-		// exist after block 4000.
+		// exist after block 4000 on mainnet.
 		startHeight = 4000
 		tableReady, err = pruneAgendasTable(pgb.db)
 		tableName, upgradeTypeStr = "agendas", "prune agendas table"
