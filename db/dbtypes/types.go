@@ -83,7 +83,7 @@ func (p TicketSpendType) String() string {
 	}
 }
 
-// AgendaStatusType defines the various agenda statuss.
+// AgendaStatusType defines the various agenda statuses.
 type AgendaStatusType int8
 
 const (
@@ -128,6 +128,11 @@ func (a AgendaStatusType) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+// AgendaStatusType default marshaller.
+func (a AgendaStatusType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(a.String())
 }
 
 // AgendaStatusFromStr creates an agenda status from a string.
@@ -375,16 +380,16 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 // MileStone defines the various stages passed by vote on a given agenda.
 // Activated is the height at which the delay time begins before a vote activates.
 // HardForked is the height at which the consensus rule changes.
-// VotingDone is the height at which voting on an agenda voting is consided
-// complete or when the state changes from "started" to either "failed" or "lockedin".
+// VotingDone is the height at which voting is consided complete or when the
+// state changes from "started" to either "failed" or "lockedin".
 type MileStone struct {
-	ID         int64
-	Activated  int64
-	HardForked int64
-	VotingDone int64
-	StartTime  time.Time
-	ExpireTime time.Time
-	Status     AgendaStatusType
+	ID         int64            `json:"-"`
+	Status     AgendaStatusType `json:"status"`
+	VotingDone int64            `json:"votingdone"`
+	Activated  int64            `json:"activated"`
+	HardForked int64            `json:"hardforked"`
+	StartTime  time.Time        `json:"starttime"`
+	ExpireTime time.Time        `json:"expiretime"`
 }
 
 // BlockChainData defines data holding the latest block chain state from the
@@ -722,12 +727,6 @@ type AgendaVoteChoices struct {
 	Total   []uint64  `json:"total"`
 	Height  []uint64  `json:"height,omitempty"`
 	Time    []TimeDef `json:"time,omitempty"`
-}
-
-// AgendaApiResponse holds two sets of AgendaVoteChoices.
-type AgendaApiResponse struct {
-	ByHeight *AgendaVoteChoices `json:"by_height"`
-	ByTime   *AgendaVoteChoices `json:"by_time"`
 }
 
 // Tx models a Decred transaction. It is stored in a Block.

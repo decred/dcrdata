@@ -24,6 +24,7 @@ import (
 	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/rpcclient"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
+	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
@@ -106,6 +107,7 @@ type DataSourceAux interface {
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 	AddressTxIoCsv(address string) ([][]string, error)
 	Height() uint64
+	AllAgendas() (map[string]dbtypes.MileStone, error)
 }
 
 // dcrdata application context used by all route handlers
@@ -1614,7 +1616,7 @@ func (c *appContext) getAgendaData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := &dbtypes.AgendaApiResponse{
+	data := &apitypes.AgendaAPIResponse{
 		ByHeight: chartDataByHeight,
 		ByTime:   chartDataByTime,
 	}
@@ -1658,6 +1660,42 @@ func (c *appContext) getCurrencyCodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, codes, c.getIndentQuery(r))
+}
+
+// getAgendasData returns high level agendas details that includes Name,
+// Description, Vote Version, VotingDone height, Activated, HardForked,
+// StartTime and ExpireTime.
+func (c *appContext) getAgendasData(w http.ResponseWriter, _ *http.Request) {
+	agendas, err := agendadb.AllAgendas()
+	if err != nil {
+		apiLog.Errorf("agendadb AllAgendas error: %v", err)
+		http.Error(w, "agendadb.AllAgendas failed.", http.StatusServiceUnavailable)
+		return
+	}
+
+	voteMilestones, err := c.AuxDataSource.AllAgendas()
+	if err != nil {
+		apiLog.Errorf("AllAgendas timeout error: %v", err)
+		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
+	}
+
+	var data []apitypes.AgendasInfo
+
+	for index := range agendas {
+		val := agendas[index]
+		agendaMilestone := voteMilestones[val.Id]
+		agendaMilestone.StartTime = time.Unix(int64(val.StartTime), 0)
+		agendaMilestone.ExpireTime = time.Unix(int64(val.ExpireTime), 0)
+
+		data = append(data, apitypes.AgendasInfo{
+			Name:        val.Id,
+			Description: val.Description,
+			VoteVersion: val.VoteVersion,
+			MileStone:   &agendaMilestone,
+			Mask:        val.Mask,
+		})
+	}
+	writeJSON(w, data, "")
 }
 
 func (c *appContext) StakeVersionLatestCtx(next http.Handler) http.Handler {

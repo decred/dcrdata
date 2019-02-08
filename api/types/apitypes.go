@@ -64,6 +64,21 @@ type TxShort struct {
 	Vout     []Vout        `json:"vout"`
 }
 
+// AgendasInfo holds the high level details about an agenda.
+type AgendasInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	*dbtypes.MileStone
+	VoteVersion uint32 `json:"voteversion"`
+	Mask        uint16 `json:"mask"`
+}
+
+// AgendaAPIResponse holds two sets of AgendaVoteChoices charts data.
+type AgendaAPIResponse struct {
+	ByHeight *dbtypes.AgendaVoteChoices `json:"by_height"`
+	ByTime   *dbtypes.AgendaVoteChoices `json:"by_time"`
+}
+
 // TrimmedTx models data to resemble to result of the decoderawtransaction RPC.
 type TrimmedTx struct {
 	TxID     string        `json:"txid"`

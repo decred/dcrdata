@@ -26,8 +26,6 @@ require (
 	github.com/decred/dcrd/rpcclient v1.1.0
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
-	github.com/decred/dcrdata v2.1.3+incompatible // indirect
-	github.com/decred/dcrwallet v1.2.2 // indirect
 	github.com/decred/dcrwallet/wallet v1.1.0
 	github.com/decred/slog v1.0.0
 	github.com/dgraph-io/badger v1.5.5-0.20190124015931-be03c12d2da2

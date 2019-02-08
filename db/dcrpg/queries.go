@@ -308,6 +308,8 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 // subsequent cache lookups by other consumers will succeed.
 //
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
+// votesMilestones holds upto date blockchain info deployment data needed
+// to update changes in agendas table.
 func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *TicketTxnIDGetter,
 	msgBlock *MsgBlockPG, checked, updateExistingRecords bool, params *chaincfg.Params,
 	votesMilestones *dbtypes.BlockChainData) ([]uint64, []*dbtypes.Tx, []string,
@@ -381,6 +383,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 	// This Should happen only once, since storedAgendas persists the added data.
 	if len(storedAgendas) == 0 {
 		var id int64
+		// returns the stored Agendas
 		storedAgendas, err = retrieveAllAgendas(db)
 		if err != nil {
 			bail()
@@ -390,9 +393,8 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 
 		for name, d := range votesMilestones.AgendaMileStones {
 			m, ok := storedAgendas[name]
-			// Update the current agenda details to the agendas table and
-			// storedAgendas map if doesn't exist in storedAgendas or its agendas
-			// status has changed.
+			// Updates the current agenda details to the agendas table and
+			// storedAgendas map if doesn't exist or when its status has changed.
 			if !ok || (d.Status != m.Status) {
 				err = agendaStmt.QueryRow(name, d.Status, d.VotingDone,
 					d.Activated, d.HardForked).Scan(&id)
@@ -599,7 +601,7 @@ func RetrieveMissedVotesInBlock(ctx context.Context, db *sql.DB, blockHash strin
 	return
 }
 
-// retrieveAllAgendas returns all the current agendas
+// retrieveAllAgendas returns all the current agendas in the db.
 func retrieveAllAgendas(db *sql.DB) (map[string]dbtypes.MileStone, error) {
 	rows, err := db.Query(internal.SelectAllAgendas)
 	if err != nil {

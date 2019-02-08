@@ -616,8 +616,8 @@ func _main(ctx context.Context) error {
 		latestBlockHash <- latestDBBlockHash
 	}
 
-	// Fetch the latest blockdata which needed to update the agendas db while
-	// db sync is in progress.
+	// Fetches the latest blockdata which is needed to update the agendas db
+	// while db sync is in progress.
 	bci, err := baseDB.BlockchainInfo()
 	if err != nil {
 		return fmt.Errorf("failed to fetch the latest blockdata")

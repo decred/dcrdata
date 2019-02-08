@@ -989,6 +989,11 @@ func (pgb *ChainDB) AgendaCumulativeVoteChoices(agendaID string) (yes,
 	return
 }
 
+// AllAgendas returns all the agendas stored currently.
+func (pgb *ChainDB) AllAgendas() (map[string]dbtypes.MileStone, error) {
+	return retrieveAllAgendas(pgb.db)
+}
+
 // NumAddressIntervals gets the number of unique time intervals for the
 // specified grouping where there are entries in the addresses table for the
 // given address.
@@ -1936,7 +1941,7 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 	return txsRaw, nil
 }
 
-// UpdateChainState updates the blockchain's state, which includes the each
+// UpdateChainState updates the blockchain's state, which includes each of the
 // agenda's VotingDone and Activated heights. If the agenda passed (i.e. status
 // is "lockedIn" or "activated"), Activated is set to the height at which the rule
 // change will take(or took) place.

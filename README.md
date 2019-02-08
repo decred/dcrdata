@@ -665,9 +665,10 @@ url query, a value of `true` will put all pool values and pool sizes into
 separate arrays, rather than having a single array of pool info JSON objects.
 This may make parsing more efficient for the client.
 
-| Vote and Agenda Info              | Path               | Type                        |
-| --------------------------------- | ------------------ | --------------------------- |
-| The current agenda and its status | `/stake/vote/info` | `dcrjson.GetVoteInfoResult` |
+| Votes and Agendas Info            | Path                 | Type                        |
+| --------------------------------- | -------------------- | --------------------------- |
+| The current agenda and its status | `/stake/vote/info`   | `dcrjson.GetVoteInfoResult` |
+| All agendas high level details    | `/agendas`           | `[]types.AgendasInfo`       |
 
 | Mempool                                           | Path                      | Type                            |
 | ------------------------------------------------- | ------------------------- | ------------------------------- |
