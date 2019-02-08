@@ -39,9 +39,10 @@ var (
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
 
-// storedAgendas holds the current state of agenda data already saved in the
-// db. This helps track changes in the lockedIn and activated heights when they
-// happen.
+// storedAgendas holds the current state of agenda data already in the db.
+// This helps track changes in the lockedIn and activated heights when they
+// happen without making too many db accesses everytime we are updating the
+// agenda_votes table.
 var storedAgendas map[string]dbtypes.MileStone
 
 // DevFundBalance is a block-stamped wrapper for dbtypes.AddressBalance. It is
@@ -930,12 +931,37 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 		return nil, nil
 	}
 
-	votingStartHeight := (agendaInfo.VotingDone -
-		int64(pgb.chainParams.RuleChangeActivationInterval))
+	votingStartHeight, err := pgb.RCIStartHeight(agendaInfo)
+	if err != nil {
+		return nil, err
+	}
 
 	avc, err := retrieveAgendaVoteChoices(ctx, pgb.db, agendaID, chartType,
 		votingStartHeight, agendaInfo.VotingDone)
 	return avc, pgb.replaceCancelError(err)
+}
+
+// RCIStartHeight returns the startheight of the RCI window when voting for
+// the current agenda started. Computing the current agenda RCI StartHeight
+// helps ignore all the other possible RCIs especially if the current agenda is
+// on a revote.
+func (pgb *ChainDB) RCIStartHeight(agendaInfo dbtypes.MileStone) (int64, error) {
+	chainRCIValue := int64(pgb.chainParams.RuleChangeActivationInterval)
+
+	// if agendas status is "started" its voting is still in progress and therefore
+	// to obtain where the current voting phase starts from, we check where the
+	// previous RCI end height was and start from there.
+	if agendaInfo.Status == dbtypes.StartedAgendaStatus {
+		ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+		defer cancel()
+		return retrieveRCIWindowStartHeight(ctx, pgb.db,
+			agendaInfo.StartTime, chainRCIValue)
+	}
+
+	// for statuses "lockedin", "failed" and "active" their voting was completed
+	// in chainParams.RuleChangeActivationInterval blocks to the current votingDone
+	// height.
+	return agendaInfo.VotingDone - chainRCIValue, nil
 }
 
 // AgendaCumulativeVoteChoices fetches the total vote choices count for the
@@ -952,8 +978,11 @@ func (pgb *ChainDB) AgendaCumulativeVoteChoices(agendaID string) (yes,
 		return
 	}
 
-	votingStartHeight := (agendaInfo.VotingDone -
-		int64(pgb.chainParams.RuleChangeActivationInterval))
+	var votingStartHeight int64
+	votingStartHeight, err = pgb.RCIStartHeight(agendaInfo)
+	if err != nil {
+		return
+	}
 
 	yes, abstain, no, err = retrieveTotalAgendaVotesCount(ctx, pgb.db, agendaID,
 		votingStartHeight, agendaInfo.VotingDone)

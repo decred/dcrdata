@@ -257,6 +257,9 @@ const (
 	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
 	SelectAllVoteDbIDsHeightsTicketDbIDs  = `SELECT id, height, ticket_tx_db_id FROM votes;`
 
+	SelectRCIStartHeight = `SELECT height FROM votes WHERE block_time >= $1
+		AND height%$2 = 0 ORDER by height DESC LIMIT 1;`
+
 	UpdateVotesMainchainAll = `UPDATE votes
 		SET is_mainchain=b.is_mainchain
 		FROM (

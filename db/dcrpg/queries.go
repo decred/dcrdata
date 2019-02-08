@@ -488,7 +488,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			// votesMilestones.AgendaMileStones should have cached the latest
 			// blockchain deployment info. The change in status is detected as
 			// the change between respective agendas statuses stored in the two
-			// maps. The change is updated in storedAgendas and agendas table.
+			// maps. Its then updated in storedAgendas and agendas table.
 			p := votesMilestones.AgendaMileStones[val.ID]
 			s := storedAgendas[val.ID]
 			if s.Status != p.Status {
@@ -1368,6 +1368,16 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 			recenttxs = append(recenttxs, txHash)
 		}
 	}
+	return
+}
+
+// retrieveRCIWindowStartHeight helps in obtaining the RCI startheight for the
+// current active voting session when the agenda status is "started". By obtaining
+// the accurate startheight the votes cast in the previous voting sessions are ignored.
+func retrieveRCIWindowStartHeight(ctx context.Context, db *sql.DB,
+	starttime time.Time, chainRCI int64) (startheight int64, err error) {
+	err = db.QueryRowContext(ctx, internal.SelectRCIStartHeight, starttime,
+		chainRCI).Scan(startheight)
 	return
 }
 

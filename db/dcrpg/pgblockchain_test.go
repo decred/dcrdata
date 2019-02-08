@@ -264,32 +264,32 @@ func TestUpdateChainState(t *testing.T) {
 		MaxBlockSize:           393216,
 		AgendaMileStones: map[string]dbtypes.MileStone{
 			"fixlnseqlocks": {
-				Status:     dbtypes.InitialAgendaState,
+				Status:     dbtypes.InitialAgendaStatus,
 				StartTime:  time.Unix(1548633600, 0),
 				ExpireTime: time.Unix(1580169600, 0),
 			},
 			"lnfeatures": {
-				Status:     dbtypes.ActivatedAgendaState,
+				Status:     dbtypes.ActivatedAgendaStatus,
 				VotingDone: 181504,
 				Activated:  189568,
 				StartTime:  time.Unix(1505260800, 0),
 				ExpireTime: time.Unix(1536796800, 0),
 			},
 			"sampleagenda1": {
-				Status:     dbtypes.PassedAgendaState,
+				Status:     dbtypes.LockedInAgendaStatus,
 				VotingDone: 119248,
 				Activated:  127312,
 				StartTime:  time.Unix(1493164800, 0),
 				ExpireTime: time.Unix(1508976000, 0),
 			},
 			"sampleagenda2": {
-				Status:     dbtypes.FailedAgendaState,
+				Status:     dbtypes.FailedAgendaStatus,
 				VotingDone: 149248,
 				StartTime:  time.Unix(1493164800, 0),
 				ExpireTime: time.Unix(1524700800, 0),
 			},
 			"sampleagenda3": {
-				Status:     dbtypes.StartedAgendaState,
+				Status:     dbtypes.StartedAgendaStatus,
 				VotingDone: 316016,
 				StartTime:  time.Unix(1493164800, 0),
 				ExpireTime: time.Unix(1524700800, 0),
