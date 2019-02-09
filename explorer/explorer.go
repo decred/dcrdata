@@ -743,7 +743,7 @@ func (exp *explorerUI) simulateASR(StartingDCRBalance float64, IntegerTicketQty 
 }
 
 func (exp *explorerUI) getExchangeState() *exchanges.ExchangeBotState {
-	if exp.xcBot == nil {
+	if exp.xcBot == nil || exp.xcBot.IsFailed() {
 		return nil
 	}
 	return exp.xcBot.State()

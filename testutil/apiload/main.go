@@ -231,7 +231,7 @@ out:
 func createResultsDirectory() (err error) {
 	fileInfo, err := os.Stat(Config.ResultDirectory)
 	if os.IsNotExist(err) {
-		err = os.MkdirAll(DefaultResultDirectory, 0755)
+		err = os.MkdirAll(Config.ResultDirectory, 0755)
 		if err != nil {
 			return fmt.Errorf("Unable to create results directory: %v", err)
 		}

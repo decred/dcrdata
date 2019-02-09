@@ -483,11 +483,14 @@ func _main(ctx context.Context) error {
 	// ExchangeBot
 	var xcBot *exchanges.ExchangeBot
 	if cfg.EnableExchangeBot {
-		var botCfg exchanges.ExchangeBotConfig
+		botCfg := exchanges.ExchangeBotConfig{
+			BtcIndex:  cfg.ExchangeCurrency,
+			MasterBot: cfg.RateMaster,
+			MasterCertFile: cfg.RateCertificate,
+		}
 		if cfg.DisabledExchanges != "" {
 			botCfg.Disabled = strings.Split(cfg.DisabledExchanges, ",")
 		}
-		botCfg.BtcIndex = cfg.ExchangeCurrency
 		xcBot, err = exchanges.NewExchangeBot(&botCfg)
 		if err != nil {
 			log.Errorf("Could not create exchange monitor. Exchange info will be disabled: %v", err)

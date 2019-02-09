@@ -32,6 +32,8 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-chi/chi v4.0.1+incompatible
 	github.com/go-chi/docgen v1.0.5
+	github.com/golang/protobuf v1.2.0
+	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/google/go-cmp v0.2.0
 	github.com/google/gops v0.3.6
 	github.com/googollee/go-engine.io v0.0.0-20180829091931-e2f255711dcb // indirect
@@ -56,4 +58,5 @@ require (
 	golang.org/x/net v0.0.0-20190213061140-3a22650c66bd
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/appengine v1.3.0 // indirect
+	google.golang.org/grpc v1.18.0
 )

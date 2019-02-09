@@ -7,15 +7,16 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/slog"
 )
 
-func TestExchanges(t *testing.T) {
-	quickTest := false
+func testExchanges(asSlave bool, t *testing.T) {
 	UseLogger(slog.NewBackend(os.Stdout).Logger("EXE"))
 
 	// Skip this test during automated testing.
@@ -41,14 +42,19 @@ func TestExchanges(t *testing.T) {
 	}()
 
 	config := new(ExchangeBotConfig)
-	config.DataExpiry = "2m"
-	config.RequestExpiry = "4m"
-	config.Indent = true
 	config.Disabled = make([]string, 0)
+	config.Indent = true
+	if asSlave {
+		config.MasterBot = "127.0.0.1:7778"
+		config.MasterCertFile = filepath.Join(dcrutil.AppDataDir("dcrdata", false), "rpc.cert")
+	} else {
+		config.DataExpiry = "2m"
+		config.RequestExpiry = "4m"
+	}
 	bot, err := NewExchangeBot(config)
 	if err != nil {
-		t.Errorf("Error creating bot. Shutting down: %v", err)
 		shutdown()
+		t.Fatalf("Error creating bot. Shutting down: %v", err)
 	}
 
 	wg.Add(1)
@@ -65,9 +71,6 @@ out:
 		case update := <-ch.Update:
 			updated = append(updated, update.Token)
 			log.Infof("Update recieved from %s", update.Token)
-			if quickTest && bot.IsUpdated() {
-				break out
-			}
 		case <-ch.Quit:
 			t.Errorf("Exchange bot has quit.")
 			break out
@@ -100,4 +103,14 @@ out:
 
 	shutdown()
 	wg.Wait()
+}
+
+func TestExchanges(t *testing.T) {
+	testExchanges(false, t)
+}
+
+func TestSlaveBot(t *testing.T) {
+	// Points to DCRData on local machine port 7778.
+	// Start server with --exchange-refresh=1m --exchange-expiry=2m
+	testExchanges(true, t)
 }

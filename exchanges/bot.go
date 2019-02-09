@@ -11,6 +11,10 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/decred/dcrdata/v4/dcrrates"
+	"google.golang.org/grpc"
+	credentials "google.golang.org/grpc/credentials"
 )
 
 const (
@@ -24,16 +28,20 @@ const (
 	DefaultRequestExpiry = "60m"
 )
 
+var grpcClient dcrrates.DCRRatesClient
+
 // ExchangeBotConfig is the configuration options for ExchangeBot.
 // DataExpiry must be less than RequestExpiry.
 // Recommend RequestExpiry > 2*DataExpiry, which will permit the exchange API
 // request to fail a couple of times before the exchange's data is discarded.
 type ExchangeBotConfig struct {
-	Disabled      []string
-	DataExpiry    string
-	RequestExpiry string
-	BtcIndex      string
-	Indent        bool
+	Disabled       []string
+	DataExpiry     string
+	RequestExpiry  string
+	BtcIndex       string
+	Indent         bool
+	MasterBot      string
+	MasterCertFile string
 }
 
 // ExchangeBot monitors exchanges and processes updates. When an update is
@@ -60,6 +68,9 @@ type ExchangeBot struct {
 	DataExpiry        time.Duration
 	RequestExpiry     time.Duration
 	minTick           time.Duration
+	// A gRPC connection
+	masterConnection *grpc.ClientConn
+	TLSCredentials   credentials.TransportCredentials
 	// udpateChans and quitChans hold update and exit channels requested by the
 	// user.
 	updateChans []chan *UpdateSignal
@@ -108,6 +119,20 @@ type UpdateSignal struct {
 	Token string
 	State *ExchangeBotState
 	Bytes []byte
+}
+
+// TriggerState is the ExchangeState for the exchange that triggered the update.
+func (signal UpdateSignal) TriggerState() (xcState *ExchangeState, err error) {
+	if IsDcrExchange(signal.Token) {
+		xcState = signal.State.DcrBtc[signal.Token]
+	} else if IsBtcIndex(signal.Token) {
+		xcState = signal.State.FiatIndices[signal.Token]
+	}
+	if xcState == nil {
+		// This is unlikely without major code changes. Here for good measure.
+		return nil, fmt.Errorf("No exchange state found for %s", signal.Token)
+	}
+	return
 }
 
 // FiatIndices maps currency codes to Bitcoin exchange rates.
@@ -189,6 +214,16 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 		failed:            false,
 	}
 
+	if config.MasterBot != "" {
+		if config.MasterCertFile == "" {
+			return nil, fmt.Errorf("No TLS certificate path provided")
+		}
+		bot.TLSCredentials, err = credentials.NewClientTLSFromFile(config.MasterCertFile, "")
+		if err != nil {
+			return nil, fmt.Errorf("Failed to load TLS certificate: %v", err)
+		}
+	}
+
 	isDisabled := func(token string) bool {
 		for _, tkn := range config.Disabled {
 			if tkn == token {
@@ -239,35 +274,98 @@ func NewExchangeBot(config *ExchangeBotConfig) (*ExchangeBot, error) {
 func (bot *ExchangeBot) Start(ctx context.Context, wg *sync.WaitGroup) {
 	tick := time.NewTimer(time.Second)
 
-	// Start refresh on all exchanges, and then change the updateTimes to
-	// de-sync the updates.
-	timeBetween := bot.DataExpiry / time.Duration(len(bot.Exchanges))
-	idx := 0
-	for _, xc := range bot.Exchanges {
-		go func(xc Exchange, d int) {
-			xc.Refresh()
-			if !xc.IsFailed() {
-				xc.Hurry(timeBetween * time.Duration(d))
+	config := bot.config
+
+	if config.MasterBot != "" {
+		stream, err := bot.connectMasterBot(ctx, 0)
+		if err != nil {
+			log.Errorf("Failed to initialize gRPC stream. Falling back to direct connection: %v", err)
+		} else {
+			// Drain the timer to prevent the first cycle
+			if !tick.Stop() {
+				<-tick.C
 			}
-		}(xc, idx)
-		idx++
+			// Start a loop to listen for updates from the dcrrates server.
+			go func() {
+				for {
+					update, err := stream.Recv()
+					if err != nil {
+						if ctx.Err() != nil {
+							return
+						}
+						log.Errorf("DCRRates error. Attempting to reconnect in 1 minute: %v", err)
+						// Try to reconnect every minute until a connection is made.
+						for {
+							stream, err = bot.connectMasterBot(ctx, time.Minute)
+							if err == nil {
+								break
+							} else {
+								if ctx.Err() != nil {
+									return
+								}
+								log.Errorf("Failed to reconnect to DCR Rates. Attempting to reconnect in 1 minute: %v", err)
+							}
+						}
+						continue
+					}
+					// Send the update through the Exchange so that appropriate attributes
+					// are set.
+					if IsDcrExchange(update.Token) {
+						bot.Exchanges[update.Token].Update(&ExchangeState{
+							Price:      update.GetPrice(),
+							BaseVolume: update.GetBaseVolume(),
+							Volume:     update.GetVolume(),
+							Change:     update.GetChange(),
+							Stamp:      update.GetStamp(),
+						})
+					} else if IsBtcIndex(update.Token) {
+						bot.Exchanges[update.Token].UpdateIndices(update.GetIndices())
+					}
+				}
+			}()
+		}
+	} // End DCRRates master
+	if bot.masterConnection == nil {
+		// Start refresh on all exchanges, and then change the updateTimes to
+		// de-sync the updates.
+		timeBetween := bot.DataExpiry / time.Duration(len(bot.Exchanges))
+		idx := 0
+		for _, xc := range bot.Exchanges {
+			go func(xc Exchange, d int) {
+				xc.Refresh()
+				if !xc.IsFailed() {
+					xc.Hurry(timeBetween * time.Duration(d))
+				}
+			}(xc, idx)
+			idx++
+		}
 	}
 
 out:
 	for {
 		select {
 		case update := <-bot.exchangeChan:
-			bot.updateExchange(update)
+			err := bot.updateExchange(update)
+			if err != nil {
+				log.Warnf("Error encountered in exchange update: %v", err)
+				continue
+			}
 			bot.signalUpdate(update.Token)
 		case update := <-bot.indexChan:
-			bot.updateIndices(update)
+			err := bot.updateIndices(update)
+			if err != nil {
+				log.Warnf("Error encountered in index update: %v", err)
+				continue
+			}
 			bot.signalUpdate(update.Token)
 		case <-tick.C:
 			bot.Cycle()
 		case <-ctx.Done():
 			break out
 		}
-		tick = bot.nextTick()
+		if bot.masterConnection == nil {
+			tick = bot.nextTick()
+		}
 	}
 	if wg != nil {
 		wg.Done()
@@ -277,6 +375,48 @@ out:
 	for _, ch := range bot.quitChans {
 		close(ch)
 	}
+	if bot.masterConnection != nil {
+		bot.masterConnection.Close()
+	}
+}
+
+// Attempt DCRRates connection after delay.
+func (bot *ExchangeBot) connectMasterBot(ctx context.Context, delay time.Duration) (dcrrates.DCRRates_SubscribeExchangesClient, error) {
+	if bot.masterConnection != nil {
+		bot.masterConnection.Close()
+	}
+	if delay > 0 {
+		expiration := time.NewTimer(delay)
+		select {
+		case <-expiration.C:
+		case <-ctx.Done():
+			return nil, fmt.Errorf("Context cancelled before reconnection")
+		}
+	}
+	conn, err := grpc.Dial(bot.config.MasterBot, grpc.WithTransportCredentials(bot.TLSCredentials))
+	if err != nil {
+		log.Warnf("gRPC connection error when trying to connect to %s. Falling back to direct connection: %v", bot.config.MasterBot, err)
+		return nil, err
+	}
+	bot.masterConnection = conn
+	grpcClient := dcrrates.NewDCRRatesClient(conn)
+	stream, err := grpcClient.SubscribeExchanges(ctx, &dcrrates.ExchangeSubscription{
+		BtcIndex:  bot.BtcIndex,
+		Exchanges: bot.subscribedExchanges(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return stream, nil
+}
+
+// A list of exchanges which the ExchangeBot is monitoring.
+func (bot *ExchangeBot) subscribedExchanges() []string {
+	xcList := make([]string, len(bot.Exchanges))
+	for token := range bot.Exchanges {
+		xcList = append(xcList, token)
+	}
+	return xcList
 }
 
 // UpdateChannels creates an UpdateChannels, which holds a channel to receive
@@ -296,19 +436,10 @@ func (bot *ExchangeBot) UpdateChannels() *UpdateChannels {
 
 // Send an update to any channels requested with bot.UpdateChannels().
 func (bot *ExchangeBot) signalUpdate(token string) {
-	var signal *UpdateSignal
-	if bot.IsFailed() {
-		signal = &UpdateSignal{
-			Token: token,
-			State: nil,
-			Bytes: []byte{},
-		}
-	} else {
-		signal = &UpdateSignal{
-			Token: token,
-			State: bot.State(),
-			Bytes: bot.StateBytes(),
-		}
+	signal := &UpdateSignal{
+		Token: token,
+		State: bot.State(),
+		Bytes: bot.StateBytes(),
 	}
 	for _, ch := range bot.updateChans {
 		select {
@@ -316,21 +447,6 @@ func (bot *ExchangeBot) signalUpdate(token string) {
 		default:
 		}
 	}
-}
-
-// IsUpdated checks whether all enabled exchanges are up-to-date.
-func (bot *ExchangeBot) IsUpdated() bool {
-	oldestValid := time.Now().Add(-bot.RequestExpiry)
-	for _, xc := range bot.Exchanges {
-		lastUpdate := xc.LastUpdate()
-		if lastUpdate.Before(oldestValid) {
-			return false
-		}
-		if xc.LastFail().After(lastUpdate) {
-			return false
-		}
-	}
-	return true
 }
 
 // State is a copy of the current ExchangeBotState. A JSON-encoded byte array
@@ -421,6 +537,17 @@ func (bot *ExchangeBot) AvailableIndices() []string {
 	return indices
 }
 
+// Indices is the fiat indices for a given BTC index exchange.
+func (bot *ExchangeBot) Indices(token string) FiatIndices {
+	bot.RLock()
+	defer bot.RUnlock()
+	indices := make(FiatIndices)
+	for code, price := range bot.indexMap[token] {
+		indices[code] = price
+	}
+	return indices
+}
+
 // processState is a helper function to process a slice of ExchangeState into
 // a price, and optionally a volume sum, and perform some cleanup along the way.
 // If volumeAveraged is false, all exchanges are given equal weight in the avg.
@@ -431,6 +558,7 @@ func (bot *ExchangeBot) processState(states map[string]*ExchangeState, volumeAve
 	for token, state := range states {
 		if bot.Exchanges[token].LastUpdate().Before(oldestValid) {
 			deletions = append(deletions, token)
+			continue
 		}
 		volume := 1.0
 		if volumeAveraged {
@@ -470,6 +598,7 @@ func (bot *ExchangeBot) updateIndices(update *IndexUpdate) error {
 		}
 		return bot.updateState()
 	}
+	log.Warnf("Default currency code, %s, not contained in update from %s", bot.BtcIndex, update.Token)
 	return nil
 }
 
@@ -479,13 +608,12 @@ func (bot *ExchangeBot) updateState() error {
 	btcPrice, _ := bot.processState(bot.currentState.FiatIndices, false)
 	if dcrPrice == 0 || btcPrice == 0 {
 		bot.failed = true
-		bot.stateCopy = nil
-		return nil
+	} else {
+		bot.failed = false
+		bot.currentState.Price = dcrPrice * btcPrice
+		bot.currentState.Volume = volume
 	}
 
-	bot.failed = false
-	bot.currentState.Price = dcrPrice * btcPrice
-	bot.currentState.Volume = volume
 	var jsonBytes []byte
 	var err error
 	if bot.config.Indent {

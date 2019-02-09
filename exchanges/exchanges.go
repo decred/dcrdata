@@ -54,7 +54,7 @@ func IsBtcIndex(token string) bool {
 
 // IsDcrExchange checks whether the given token is a known Decred-BTC exchange.
 func IsDcrExchange(token string) bool {
-	_, ok := BtcIndices[token]
+	_, ok := DcrExchanges[token]
 	return ok
 }
 
@@ -99,6 +99,8 @@ type Exchange interface {
 	IsFailed() bool
 	Token() string
 	Hurry(time.Duration)
+	Update(*ExchangeState)
+	UpdateIndices(FiatIndices)
 }
 
 // CommonExchange is embedded in all of the exchange types and handles some
@@ -179,8 +181,8 @@ func (xc *CommonExchange) fail(msg string, err error) {
 	xc.setLastFail(time.Now())
 }
 
-// Sends an updated ExchangeState to the ExchangeBot.
-func (xc *CommonExchange) update(state *ExchangeState) {
+// Update sends an updated ExchangeState to the ExchangeBot.
+func (xc *CommonExchange) Update(state *ExchangeState) {
 	xc.Lock()
 	defer xc.Unlock()
 	xc.lastUpdate = time.Now()
@@ -190,8 +192,8 @@ func (xc *CommonExchange) update(state *ExchangeState) {
 	}
 }
 
-// Sends a bitcoin index update to the ExchangeBot.
-func (xc *CommonExchange) updateIndices(indices FiatIndices) {
+// UpdateIndices sends a bitcoin index update to the ExchangeBot.
+func (xc *CommonExchange) UpdateIndices(indices FiatIndices) {
 	xc.Lock()
 	defer xc.Unlock()
 	xc.lastUpdate = time.Now()
@@ -279,7 +281,7 @@ func (coinbase *CoinbaseExchange) Refresh() {
 		}
 		indices[code] = price
 	}
-	coinbase.updateIndices(indices)
+	coinbase.UpdateIndices(indices)
 }
 
 // CoindeskExchange provides Bitcoin indices for USD, GBP, and EUR by default.
@@ -338,7 +340,7 @@ func (coindesk *CoindeskExchange) Refresh() {
 	for code, bpi := range response.Bpi {
 		indices[code] = bpi.RateFloat
 	}
-	coindesk.updateIndices(indices)
+	coindesk.UpdateIndices(indices)
 }
 
 // BinanceExchange is a high-volume and well-respected crypto exchange.
@@ -412,7 +414,7 @@ func (binance *BinanceExchange) Refresh() {
 		binance.fail(fmt.Sprintf("Failed to parse float from PriceChange=%s", response.PriceChange), err)
 		return
 	}
-	binance.update(&ExchangeState{
+	binance.Update(&ExchangeState{
 		Price:      price,
 		BaseVolume: baseVolume,
 		Volume:     dcrVolume,
@@ -487,7 +489,7 @@ func (bittrex *BittrexExchange) Refresh() {
 		bittrex.fail("Wrong market", fmt.Errorf("Expected market %s. Recieved %s", bittrex.MarketName, result.MarketName))
 		return
 	}
-	bittrex.update(&ExchangeState{
+	bittrex.Update(&ExchangeState{
 		Price:      result.Last,
 		BaseVolume: result.BaseVolume,
 		Volume:     result.Volume,
@@ -578,7 +580,7 @@ func (dragonex *DragonExchange) Refresh() {
 		dragonex.fail(fmt.Sprintf("Failed to parse float from PriceChange=%s", data.PriceChange), err)
 		return
 	}
-	dragonex.update(&ExchangeState{
+	dragonex.Update(&ExchangeState{
 		Price:      price,
 		BaseVolume: btcVolume,
 		Volume:     volume,
@@ -644,7 +646,7 @@ func (huobi *HuobiExchange) Refresh() {
 		return
 	}
 	dcrVolume := response.Tick.Vol
-	huobi.update(&ExchangeState{
+	huobi.Update(&ExchangeState{
 		Price:      response.Tick.Close,
 		BaseVolume: response.Tick.Vol,
 		Volume:     dcrVolume,
@@ -721,7 +723,7 @@ func (poloniex *PoloniexExchange) Refresh() {
 		return
 	}
 	oldPrice := price / (1 + percentChange)
-	poloniex.update(&ExchangeState{
+	poloniex.Update(&ExchangeState{
 		Price:      price,
 		BaseVolume: baseVolume,
 		Volume:     volume,
