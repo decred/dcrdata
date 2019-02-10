@@ -123,7 +123,7 @@ export default class extends Controller {
       'price_chart': null,
       'donut_chart': null
     }
-    this.zoom = 'day'
+    this.zoom = 'all'
     this.bars = 'all'
 
     Dygraph = await getDefault(
