@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -2941,7 +2941,7 @@ func RetrieveBlockSummaryByTimeRange(ctx context.Context, db *sql.DB, minTime, m
 	var rows *sql.Rows
 	var err error
 
-	// int64 -> time.Time is required to query TIMESTAMP columns.
+	// int64 -> time.Time is required to query TIMESTAMPTZ columns.
 	minT := time.Unix(minTime, 0)
 	maxT := time.Unix(maxTime, 0)
 

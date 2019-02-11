@@ -10,7 +10,7 @@ const (
 		valid_mainchain BOOLEAN,
 		matching_tx_hash TEXT,
 		value INT8,
-		block_time TIMESTAMP NOT NULL,
+		block_time TIMESTAMPTZ NOT NULL,
 		is_funding BOOLEAN,
 		tx_vin_vout_index INT4,
 		tx_vin_vout_row_id INT8,

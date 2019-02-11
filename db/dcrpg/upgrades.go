@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // See LICENSE for details.
 
 package dcrpg
@@ -267,7 +267,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 
 	// Upgrade from 3.5.4 --> 3.5.5
 	case version.major == 3 && version.minor == 5 && version.patch == 4:
-		toVersion = TableVersion{3, 5, 5}
+		toVersion = TableVersion{3, 5, 5} // dcrdata 3.1 release
 
 		theseUpgrades := []TableUpgradeType{
 			{"addresses", addressesTableBlockTimeSortedIndex},
@@ -659,13 +659,13 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	switch tableUpgrade {
 	case addressesBlockTimeDataTypeUpdate, agendasBlockTimeDataTypeUpdate,
 		vinsBlockTimeDataTypeUpdate:
-		columnsUpdate = []dataTypeUpgrade{{Column: "block_time", DataType: "TIMESTAMP"}}
+		columnsUpdate = []dataTypeUpgrade{{Column: "block_time", DataType: "TIMESTAMPTZ"}}
 	case blocksBlockTimeDataTypeUpdate:
-		columnsUpdate = []dataTypeUpgrade{{Column: "time", DataType: "TIMESTAMP"}}
+		columnsUpdate = []dataTypeUpgrade{{Column: "time", DataType: "TIMESTAMPTZ"}}
 	case transactionsBlockTimeDataTypeUpdate:
 		columnsUpdate = []dataTypeUpgrade{
-			{Column: "time", DataType: "TIMESTAMP"},
-			{Column: "block_time", DataType: "TIMESTAMP"},
+			{Column: "time", DataType: "TIMESTAMPTZ"},
+			{Column: "block_time", DataType: "TIMESTAMPTZ"},
 		}
 	}
 
