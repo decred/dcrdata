@@ -50,6 +50,7 @@ const (
 	vinsBlockTimeDataTypeUpdate
 	blocksChainWorkUpdate
 	blocksRemoveRootColumns
+	timestamptzUpgrade
 )
 
 type TableUpgradeType struct {
@@ -333,6 +334,22 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			return isSuccess, er
 		}
 
+		// Go on to next upgrade
+		fallthrough
+
+	// Upgrade from 3.8.0 --> 3.9.0
+	case version.major == 3 && version.minor == 8 && version.patch == 0:
+		toVersion = TableVersion{3, 9, 0}
+
+		theseUpgrades := []TableUpgradeType{
+			{"all", timestamptzUpgrade},
+		}
+
+		isSuccess, er := pgb.initiatePgUpgrade(nil, theseUpgrades)
+		if !isSuccess {
+			return isSuccess, er
+		}
+
 	// Go on to next upgrade
 	// fallthrough
 	// or be done
@@ -375,11 +392,8 @@ func (pgb *ChainDB) initiatePgUpgrade(smartClient *rpcutils.BlockGate, theseUpgr
 // indicating if the upgrade was successful or not.
 func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	tableUpgrade tableUpgradeType) (bool, error) {
-	// For the agendas upgrade, i is set to a block height of 128000 since that
-	// is when the first vote for an agenda was cast. For vins upgrades (coin
-	// supply and mainchain), i is not set since all the blocks are considered.
 	var err error
-	var i uint64
+	var startHeight uint64
 	var tableReady bool
 	var tableName, upgradeTypeStr string
 	switch tableUpgrade {
@@ -407,7 +421,11 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case agendasTableUpgrade:
 		tableReady, err = haveEmptyAgendasTable(pgb.db)
 		tableName, upgradeTypeStr = "agendas", "new table"
-		i = 128000
+		//  startHeight is set to a block height of 128000 since that is when
+		//  the first vote for a mainnet agenda was cast. For vins upgrades
+		//  (coin supply and mainchain), startHeight is not set since all the
+		//  blocks are considered.
+		startHeight = 128000
 	case votesTableBlockHashIndex:
 		tableReady = true
 		tableName, upgradeTypeStr = "votes", "new index"
@@ -455,6 +473,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case blocksRemoveRootColumns:
 		tableReady, err = deleteRootsColumns(pgb.db)
 		tableName, upgradeTypeStr = "blocks", "remove columns: extra_data, merkle_root, stake_root, final_state"
+	case timestamptzUpgrade:
+		tableReady = true
+		tableName, upgradeTypeStr = "every", "convert timestamp columns to timestamptz type"
 	default:
 		return false, fmt.Errorf(`upgrade "%v" is unknown`, tableUpgrade)
 	}
@@ -471,15 +492,15 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 
 	switch tableUpgrade {
 	case vinsTableCoinSupplyUpgrade, agendasTableUpgrade:
-		// height is the best block where this table upgrade should stop at.
+		// height is the block at which this table upgrade should stop.
 		height, err := pgb.HeightDB()
 		if err != nil {
 			return false, err
 		}
 		log.Infof("found the best block at height: %v", height)
 
-		// For each block on the main chain, perform upgrade operations
-		for ; i <= height; i++ {
+		// For each block on the main chain, perform upgrade operations.
+		for i := startHeight; i <= height; i++ {
 			block, err := client.UpdateToBlock(int64(i))
 			if err != nil {
 				return false, err
@@ -575,6 +596,10 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 	case blocksChainWorkUpdate:
 		log.Infof("Syncing chainwork. This might take a while...")
 		rowsUpdated, err = verifyChainWork(client, pgb.db)
+
+	case timestamptzUpgrade:
+		log.Infof("Converting all TIMESTAMP columns to TIMESTAMPTZ...")
+		err = handleConvertTimeStampTZ(pgb.db)
 
 	case addressesBlockTimeDataTypeUpdate, blocksBlockTimeDataTypeUpdate,
 		agendasBlockTimeDataTypeUpdate, transactionsBlockTimeDataTypeUpdate,
@@ -1111,6 +1136,94 @@ func haveEmptyAgendasTable(db *sql.DB) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func handleConvertTimeStampTZ(db *sql.DB) error {
+	timestampTables := []struct {
+		TableName   string
+		ColumnNames []string
+	}{
+		{
+			"blocks",
+			[]string{"time"},
+		},
+		{
+			"addresses",
+			[]string{"block_time"},
+		},
+		{
+			"vins",
+			[]string{"block_time"},
+		},
+		{
+			"agendas",
+			[]string{"block_time"},
+		},
+		{
+			"transactions",
+			[]string{"block_time", "time"},
+		},
+	}
+
+	// Old times were stored as a "timestamp without time zone", and the system
+	// time zone was set to local (which may not be UTC). Conversion must be
+	// done in that zone to introduce the correct offsets when computing the UTC
+	// times for the TIMESTAMPTZ values.
+	_, err := db.Exec(`SET TIME ZONE DEFAULT`)
+	if err != nil {
+		return fmt.Errorf("failed to set time zone to UTC: %v", err)
+	}
+
+	for i := range timestampTables {
+		tableName := timestampTables[i].TableName
+		// Remove timestamp indexes on large tables.
+		// switch tableName {
+		// case "addresses":
+		// 	err := DeindexBlockTimeOnTableAddress(db)
+		// 	if err != nil && !errIsNotExist(err) {
+		// 		log.Errorf("Failed to drop index addresses index on block_time: %v", err)
+		// 		return err
+		// 	}
+		// case "agendas":
+		// 	err := DeindexAgendasTableOnBlockTime(db)
+		// 	if err != nil && !errIsNotExist(err) {
+		// 		log.Errorf("Failed to drop index agendas index on block_time: %v", err)
+		// 		return err
+		// 	}
+		// }
+
+		// Convert the timestamp columns of this table.
+		for _, col := range timestampTables[i].ColumnNames {
+			log.Infof("Converting column %s.%s to TIMESTAMPTZ...", tableName, col)
+			_, err = db.Exec(fmt.Sprintf(`ALTER TABLE %s ALTER COLUMN %s TYPE TIMESTAMPTZ`,
+				tableName, col))
+			if err != nil {
+				return fmt.Errorf("failed to convert %s.%s to TIMESTAMPTZ: %v",
+					tableName, col, err)
+			}
+		}
+
+		// Recreate the indexes on timestamptz.
+		// switch tableName {
+		// case "addresses":
+		// 	log.Infof("Reindexing addresses table on block time...")
+		// 	err = IndexBlockTimeOnTableAddress(db)
+		// case "agendas":
+		// 	log.Infof("Reindexing agendas table on block time...")
+		// 	err = IndexAgendasTableOnBlockTime(db)
+		// }
+		// if err != nil {
+		// 	return err
+		// }
+	}
+
+	// Switch server time zone for this sesssion back to UTC to read correct
+	// time stamps.
+	if _, err = db.Exec(`SET TIME ZONE UTC`); err != nil {
+		return fmt.Errorf("failed to set time zone to UTC: %v", err)
+	}
+
+	return nil
 }
 
 func makeDeleteColumnsStmt(table string, columns []string) string {

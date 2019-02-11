@@ -452,6 +452,18 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 		return nil, err
 	}
 
+	// Put the PostgreSQL time zone in UTC.
+	var initTZ string
+	if err = db.QueryRow(`SHOW TIME ZONE`).Scan(&initTZ); err != nil {
+		return nil, fmt.Errorf("Unable to query current time zone: %v", err)
+	}
+	if initTZ != "UTC" {
+		log.Infof("Switching PostgreSQL time zone to UTC for this session.")
+		if _, err = db.Exec(`SET TIME ZONE UTC`); err != nil {
+			return nil, fmt.Errorf("Failed to set time zone to UTC: %v", err)
+		}
+	}
+
 	pgVersion, err := RetrievePGVersion(db)
 	if err != nil {
 		return nil, err
