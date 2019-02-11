@@ -215,7 +215,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				p.inventory.InvStake[tx.Hash] = struct{}{}
 				p.inventory.Tickets = append([]exptypes.MempoolTx{tx}, p.inventory.Tickets...)
 				p.inventory.NumTickets++
-				p.inventory.TicketTotal += tx.TotalOut
+				p.inventory.LikelyMineable.TicketTotal += tx.TotalOut
 			case "Vote":
 				// Votes on the next block may be received just prior to dcrdata
 				// actually processing the new block. Do not broadcast these
@@ -240,7 +240,7 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				votingInfo := &p.inventory.VotingInfo
 				if tx.VoteInfo.ForLastBlock && !votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] {
 					votingInfo.VotedTickets[tx.VoteInfo.TicketSpent] = true
-					p.inventory.VoteTotal += tx.TotalOut
+					p.inventory.LikelyMineable.VoteTotal += tx.TotalOut
 					p.inventory.VotingInfo.Tally(tx.VoteInfo)
 				} else {
 					likelyMineable = false
@@ -249,12 +249,12 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 				p.inventory.InvRegular[tx.Hash] = struct{}{}
 				p.inventory.Transactions = append([]exptypes.MempoolTx{tx}, p.inventory.Transactions...)
 				p.inventory.NumRegular++
-				p.inventory.RegularTotal += tx.TotalOut
+				p.inventory.LikelyMineable.RegularTotal += tx.TotalOut
 			case "Revocation":
 				p.inventory.InvStake[tx.Hash] = struct{}{}
 				p.inventory.Revocations = append([]exptypes.MempoolTx{tx}, p.inventory.Revocations...)
 				p.inventory.NumRevokes++
-				p.inventory.RevokeTotal += tx.TotalOut
+				p.inventory.LikelyMineable.RevokeTotal += tx.TotalOut
 			}
 
 			// Update latest transactions, popping the oldest transaction off
@@ -273,7 +273,10 @@ func (p *MempoolMonitor) TxHandler(client *rpcclient.Client) {
 			p.inventory.TotalOut += tx.TotalOut
 			p.inventory.TotalSize += tx.Size
 			if likelyMineable {
-				p.inventory.LikelyTotal += tx.TotalOut
+				p.inventory.LikelyMineable.Size += tx.Size
+				p.inventory.LikelyMineable.FormattedSize = humanize.Bytes(uint64(p.inventory.LikelyMineable.Size))
+				p.inventory.LikelyMineable.Total += tx.TotalOut
+				p.inventory.LikelyMineable.Count++
 			}
 			p.inventory.FormattedTotalSize = humanize.Bytes(uint64(p.inventory.TotalSize))
 			p.inventory.Unlock()

@@ -98,17 +98,9 @@
                             <span
                                 class="h2 position-relative"
                                 data-target="homepage.mempool"
-                                data-total="{{.Mempool.LikelyTotal}}"
-                                data-reg-total="{{.Mempool.RegularTotal}}"
-                                data-reg-count="{{.Mempool.NumRegular}}"
-                                data-vote-total="{{.Mempool.VoteTotal}}"
-                                data-vote-count="{{.Mempool.VotingInfo.TicketsVoted}}"
-                                data-ticket-total="{{.Mempool.TicketTotal}}"
-                                data-ticket-count="{{.Mempool.NumTickets}}"
-                                data-rev-total="{{.Mempool.RevokeTotal}}"
-                                data-rev-count="{{.Mempool.NumRevokes}}"
+                                {{template "mempoolDump" .Mempool}}
                                 data-tooltip="transactions ready for the next block"
-                            >{{threeSigFigs .Mempool.LikelyTotal}}</span>
+                            >{{threeSigFigs .Mempool.LikelyMineable.Total}}</span>
                             <span class="h5">DCR</span>
                         </div>
                     </div>
@@ -120,7 +112,7 @@
                                     <span data-target="homepage.mpRegCount" class="h4">{{.Mempool.NumRegular}}</span>
                                     <span class="h6"> regular</span>
                                     <br>
-                                    <span class="h4" data-target="homepage.mpRegTotal">{{threeSigFigs .Mempool.RegularTotal}}</span>
+                                    <span class="h4" data-target="homepage.mpRegTotal">{{threeSigFigs .Mempool.LikelyMineable.RegularTotal}}</span>
                                     <span class="h6">DCR</span>
                                 </div>
                                 <div class="text-right pr-3 pr-sm-3 pr-md-3 pr-lg-3 tx-bar tx-ticket d-inline-block">
@@ -128,7 +120,7 @@
                                     <span class="h6"> tickets</span>
                                     <br>
                                     <span class="h4" data-target="homepage.mpTicketTotal"
-                                    >{{threeSigFigs .Mempool.TicketTotal}}</span>
+                                    >{{threeSigFigs .Mempool.LikelyMineable.TicketTotal}}</span>
                                     <span class="h6">DCR</span>
                                 </div>
                             </div>
@@ -146,7 +138,7 @@
                                     <span class="h6"> revokes</span>
                                     <br>
                                     <span class="h4" data-target="homepage.mpRevTotal"
-                                    >{{threeSigFigs .Mempool.RevokeTotal}}</span>
+                                    >{{threeSigFigs .Mempool.LikelyMineable.RevokeTotal}}</span>
                                     <span class="h6">DCR</span>
                                 </div>
                                 <div class="text-right pr-3 pl-sm-3 pl-md-3 pl-lg-3 tx-bar tx-bar tx-vote d-inline-block">
@@ -168,7 +160,7 @@
                                     </span>
                                     <span class="h6"> votes</span>
                                     <br>
-                                    <span class="h4" data-target="homepage.mpVoteTotal">{{threeSigFigs .Mempool.VoteTotal}}</span>
+                                    <span class="h4" data-target="homepage.mpVoteTotal">{{threeSigFigs .Mempool.LikelyMineable.VoteTotal}}</span>
                                     <span class="h6">DCR</span><br>
                                 </div>
                             </div>

@@ -328,7 +328,8 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 	var totalOut, regularTotal, ticketTotal, voteTotal, revTotal dcrutil.Amount
 	var likelyMineable bool
 	var likelyTotal dcrutil.Amount
-	var totalSize int32
+	var totalSize, likelySize int32
+	var numLikely int
 
 	// Initialize the BlockValidatorIndex, a map.
 	ticketSpendInds := make(exptypes.BlockValidatorIndex)
@@ -389,6 +390,8 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 		// Update mempool totals
 		if likelyMineable {
 			likelyTotal += out
+			likelySize += tx.Size
+			numLikely++
 		}
 		totalOut += out
 		totalSize += tx.Size
@@ -407,19 +410,25 @@ func ParseTxns(txs []exptypes.MempoolTx, params *chaincfg.Params, lastBlock *Blo
 			LastBlockHeight:    lastBlock.Height,
 			LastBlockHash:      blockhash,
 			LastBlockTime:      lastBlock.Time,
+			FormattedBlockTime: (exptypes.TimeDef{T: time.Unix(lastBlock.Time, 0)}).String(),
 			Time:               latestTime,
 			TotalOut:           totalOut.ToCoin(),
-			LikelyTotal:        likelyTotal.ToCoin(),
-			RegularTotal:       regularTotal.ToCoin(),
-			TicketTotal:        ticketTotal.ToCoin(),
-			VoteTotal:          voteTotal.ToCoin(),
-			RevokeTotal:        revTotal.ToCoin(),
 			TotalSize:          totalSize,
 			NumTickets:         len(tickets),
 			NumVotes:           len(votes),
 			NumRegular:         len(regular),
 			NumRevokes:         len(revs),
 			NumAll:             len(txs),
+			LikelyMineable: exptypes.LikelyMineable{
+				Total:         likelyTotal.ToCoin(),
+				Size:          likelySize,
+				FormattedSize: humanize.Bytes(uint64(likelySize)),
+				RegularTotal:  regularTotal.ToCoin(),
+				TicketTotal:   ticketTotal.ToCoin(),
+				VoteTotal:     voteTotal.ToCoin(),
+				RevokeTotal:   revTotal.ToCoin(),
+				Count:         numLikely,
+			},
 			LatestTransactions: latest,
 			FormattedTotalSize: formattedSize,
 			TicketIndexes:      ticketSpendInds,

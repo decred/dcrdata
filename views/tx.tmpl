@@ -317,7 +317,7 @@
                 </thead>
                 <tbody>
                     {{range .Vin}}
-                    <tr {{if and (eq $.HighlightInOut "in") (eq $.HighlightInOutID .Index)}} class="matching-hash" {{end}}>
+                    <tr {{if and (eq $.HighlightInOut "in") (eq $.HighlightInOutID .Index)}} class="blue-row" {{end}}>
                         <td class="shrink-to-fit">{{.Index}}</td>
                         <td class="position-relative">
                           <div class="hash-box">
@@ -375,7 +375,7 @@
                 </thead>
                 <tbody>
                     {{range $i, $v := .Vout}}
-                    <tr {{if and (eq $.HighlightInOut "out") (eq $.HighlightInOutID .Index)}} class="matching-hash" {{end}}>
+                    <tr {{if and (eq $.HighlightInOut "out") (eq $.HighlightInOutID .Index)}} class="blue-row" {{end}}>
                         <td class="shrink-to-fit">{{.Index}}</td>
                         <td class="position-relative">
                             {{range .Addresses}}

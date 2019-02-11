@@ -761,9 +761,9 @@ export default class extends Controller {
     var href = target.href
     this.hashTargets.forEach((link) => {
       if (link.href === href) {
-        link.classList.add('matching-hash')
+        link.classList.add('blue-row')
       } else {
-        link.classList.remove('matching-hash')
+        link.classList.remove('blue-row')
       }
     })
   }
@@ -773,7 +773,7 @@ export default class extends Controller {
     var href = target.href
     this.hashTargets.forEach((link) => {
       if (link.href === href) {
-        link.classList.remove('matching-hash')
+        link.classList.remove('blue-row')
       }
     })
   }

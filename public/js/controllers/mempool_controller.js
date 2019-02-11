@@ -4,6 +4,7 @@ import dompurify from 'dompurify'
 import humanize from '../helpers/humanize_helper'
 import ws from '../services/messagesocket_service'
 import { keyNav } from '../services/keyboard_navigation_service'
+import Mempool from '../helpers/mempool_helper'
 
 function incrementValue (el) {
   if (!el) return
@@ -29,13 +30,13 @@ function txTableRow (tx) {
 function voteTxTableRow (tx) {
   return rowNode(`<tr class="flash" data-height="${tx.vote_info.block_validation.height}" data-blockhash="${tx.vote_info.block_validation.hash}">
         <td class="break-word"><span><a class="hash" href="/tx/${tx.hash}">${tx.hash}</a></span></td>
-        <td class="mono fs15"><span><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}</a></span></td>
-        <td class="mono fs15 last_block">${tx.vote_info.last_block ? 'True' : 'False'}</td>
+        <td class="mono fs15"><a href="/block/${tx.vote_info.block_validation.hash}">${tx.vote_info.block_validation.height}<span
+          class="small">${tx.vote_info.last_block ? ' best' : ''}</span></a></td>
         <td class="mono fs15"><a href="/tx/${tx.vote_info.ticket_spent}">${tx.vote_info.mempool_ticket_index}<a/></td>
         <td class="mono fs15">${tx.vote_info.vote_version}</td>
-        <td class="mono fs15 text-right">${humanize.decimalParts(tx.total, false, 8)}</td>
-        <td class="mono fs15">${tx.size} B</td>
-        <td class="mono fs15 text-right" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
+        <td class="mono fs15 text-right d-none d-sm-table-cell">${humanize.decimalParts(tx.total, false, 8)}</td>
+        <td class="mono fs15 text-right">${humanize.bytes(tx.size)}</td>
+        <td class="mono fs15 text-right d-none d-sm-table-cell jsonly" data-target="time.age" data-age="${tx.time}">${humanize.timeSince(tx.time)}</td>
     </tr>`)
 }
 
@@ -62,23 +63,28 @@ export default class extends Controller {
     return [
       'bestBlock',
       'bestBlockTime',
-      'mempoolSize',
-      'numVote',
-      'numTicket',
-      'numRevocation',
-      'numRegular',
       'voteTransactions',
       'ticketTransactions',
       'revocationTransactions',
       'regularTransactions',
-      'ticketsVoted',
-      'maxVotesPerBlock',
-      'totalOut'
+      'mempool',
+      'voteTally',
+      'regTotal',
+      'regCount',
+      'ticketTotal',
+      'ticketCount',
+      'voteTotal',
+      'voteCount',
+      'revTotal',
+      'revCount',
+      'likelyTotal',
+      'mempoolSize'
     ]
   }
 
   connect () {
     // from txhelpers.DetermineTxTypeString
+    this.mempool = new Mempool(this.mempoolTarget.dataset, this.voteTallyTargets)
     this.txTargetMap = {
       'Vote': this.voteTransactionsTarget,
       'Ticket': this.ticketTransactionsTarget,
@@ -92,17 +98,26 @@ export default class extends Controller {
       'Regular': this.numRegularTarget
     }
     ws.registerEvtHandler('newtx', (evt) => {
-      this.renderNewTxns(evt)
+      let txs = JSON.parse(evt)
+      this.mempool.mergeTxs(txs)
+      this.renderNewTxns(txs)
+      this.setMempoolFigures()
       this.labelVotes()
       this.sortVotesTable()
       keyNav(evt, false, true)
     })
     ws.registerEvtHandler('mempool', (evt) => {
-      this.updateMempool(evt)
+      var m = JSON.parse(evt)
+      this.mempool.replace(m)
+      this.setMempoolFigures()
+      this.updateBlock(m)
       ws.send('getmempooltxs', '')
     })
     ws.registerEvtHandler('getmempooltxsResp', (evt) => {
-      this.handleTxsResp(evt)
+      var m = JSON.parse(evt)
+      this.mempool.mergeMempool(m)
+      this.handleTxsResp(m)
+      this.setMempoolFigures()
       this.labelVotes()
       this.sortVotesTable()
       keyNav(evt, false, true)
@@ -115,34 +130,46 @@ export default class extends Controller {
     ws.deregisterEvtHandlers('getmempooltxsResp')
   }
 
-  updateMempool (e) {
-    var m = JSON.parse(e)
-    this.numTicketTarget.textContent = m.num_tickets
-    this.numVoteTarget.textContent = m.num_votes
-    this.numRegularTarget.textContent = m.num_regular
-    this.numRevocationTarget.textContent = m.num_revokes
+  updateBlock (m) {
     this.bestBlockTarget.textContent = m.block_height
     this.bestBlockTarget.dataset.hash = m.block_hash
     this.bestBlockTarget.href = `/block/${m.block_hash}`
     this.bestBlockTimeTarget.dataset.age = m.block_time
-    this.mempoolSizeTarget.textContent = m.formatted_size
-    this.ticketsVotedTarget.textContent = m.voting_info.tickets_voted
-    this.maxVotesPerBlockTarget.textContent = m.voting_info.max_votes_per_block
-    this.totalOutTarget.innerHTML = humanize.decimalParts(m.total, false, 8)
-    this.mempoolSizeTarget.textContent = m.formatted_size
-    this.labelVotes()
   }
 
-  handleTxsResp (event) {
-    var m = JSON.parse(event)
+  setMempoolFigures () {
+    var totals = this.mempool.totals()
+    var counts = this.mempool.counts()
+    this.regTotalTarget.textContent = humanize.threeSigFigs(totals.regular)
+    this.regCountTarget.textContent = counts.regular
+
+    this.ticketTotalTarget.textContent = humanize.threeSigFigs(totals.ticket)
+    this.ticketCountTarget.textContent = counts.ticket
+
+    this.voteTotalTarget.textContent = humanize.threeSigFigs(totals.vote)
+
+    var ct = this.voteCountTarget
+    while (ct.firstChild) ct.removeChild(ct.firstChild)
+    this.mempool.voteSpans(counts.vote).forEach((span) => { ct.appendChild(span) })
+
+    this.revTotalTarget.textContent = humanize.threeSigFigs(totals.rev)
+    this.revCountTarget.textContent = counts.rev
+
+    this.likelyTotalTarget.textContent = humanize.threeSigFigs(totals.total)
+    this.mempoolSizeTarget.textContent = humanize.bytes(totals.size)
+
+    this.labelVotes()
+    // this.setVotes()
+  }
+
+  handleTxsResp (m) {
     buildTable(this.regularTransactionsTarget, 'regular transactions', m.tx, txTableRow)
     buildTable(this.revocationTransactionsTarget, 'revocations', m.revs, txTableRow)
     buildTable(this.voteTransactionsTarget, 'votes', m.votes, voteTxTableRow)
     buildTable(this.ticketTransactionsTarget, 'tickets', m.tickets, txTableRow)
   }
 
-  renderNewTxns (evt) {
-    var txs = JSON.parse(evt)
+  renderNewTxns (txs) {
     each(txs, (tx) => {
       incrementValue(this.countTargetMap[tx.Type])
       var rowFn = tx.Type === 'Vote' ? voteTxTableRow : txTableRow
@@ -156,21 +183,21 @@ export default class extends Controller {
     this.voteTransactionsTarget.querySelectorAll('tr').forEach((tr) => {
       var voteValidationHash = tr.dataset.blockhash
       var voteBlockHeight = tr.dataset.height
+      var best = tr.querySelector('.small')
+      best.textContent = ''
       if (voteBlockHeight > bestBlockHeight) {
-        tr.classList.add('upcoming-vote')
-        tr.classList.remove('old-vote')
+        tr.classList.add('blue-row')
+        tr.classList.remove('disabled-row')
       } else if (voteValidationHash !== bestBlockHash) {
-        tr.classList.add('old-vote')
-        tr.classList.remove('upcoming-vote')
+        tr.classList.add('disabled-row')
+        tr.classList.remove('blue-row')
         if (tr.classList.contains('last_block')) {
           tr.textContent = 'False'
         }
       } else {
-        tr.classList.remove('old-vote')
-        tr.classList.remove('upcoming-vote')
-        if (tr.classList.contains('last_block')) {
-          tr.textContent = 'True'
-        }
+        tr.classList.remove('disabled-row')
+        tr.classList.remove('blue-row')
+        best.textContent = ' (best)'
       }
     })
   }

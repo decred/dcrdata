@@ -483,25 +483,35 @@ type MempoolShort struct {
 	LastBlockHeight    int64               `json:"block_height"`
 	LastBlockHash      string              `json:"block_hash"`
 	LastBlockTime      int64               `json:"block_time"`
+	FormattedBlockTime string              `json:"formatted_block_time"`
 	Time               int64               `json:"time"`
 	TotalOut           float64             `json:"total"`
-	LikelyTotal        float64             `json:"likely_total"`
-	RegularTotal       float64             `json:"regular_total"`
-	TicketTotal        float64             `json:"ticket_total"`
-	VoteTotal          float64             `json:"vote_total"`
-	RevokeTotal        float64             `json:"revoke_total"`
 	TotalSize          int32               `json:"size"`
 	NumTickets         int                 `json:"num_tickets"`
 	NumVotes           int                 `json:"num_votes"`
 	NumRegular         int                 `json:"num_regular"`
 	NumRevokes         int                 `json:"num_revokes"`
 	NumAll             int                 `json:"num_all"`
+	LikelyMineable     LikelyMineable      `json:"likely_mineable"`
 	LatestTransactions []MempoolTx         `json:"latest"`
 	FormattedTotalSize string              `json:"formatted_size"`
 	TicketIndexes      BlockValidatorIndex `json:"-"`
 	VotingInfo         VotingInfo          `json:"voting_info"`
 	InvRegular         map[string]struct{} `json:"-"`
 	InvStake           map[string]struct{} `json:"-"`
+}
+
+// LikelyMineable holds the totals for all mempool transactions except for votes
+// on non-tip blocks and multiple votes that spend the same ticket.
+type LikelyMineable struct {
+	Total         float64 `json:"total"`
+	Size          int32   `json:"size"`
+	FormattedSize string  `json:"formatted_size"`
+	RegularTotal  float64 `json:"regular_total"`
+	TicketTotal   float64 `json:"ticket_total"`
+	VoteTotal     float64 `json:"vote_total"`
+	RevokeTotal   float64 `json:"revoke_total"`
+	Count         int     `json:"count"`
 }
 
 func (mps *MempoolShort) DeepCopy() *MempoolShort {
@@ -513,6 +523,7 @@ func (mps *MempoolShort) DeepCopy() *MempoolShort {
 		LastBlockHash:      mps.LastBlockHash,
 		LastBlockHeight:    mps.LastBlockHeight,
 		LastBlockTime:      mps.LastBlockTime,
+		FormattedBlockTime: mps.FormattedBlockTime,
 		Time:               mps.Time,
 		TotalOut:           mps.TotalOut,
 		TotalSize:          mps.TotalSize,
@@ -521,6 +532,7 @@ func (mps *MempoolShort) DeepCopy() *MempoolShort {
 		NumRegular:         mps.NumRegular,
 		NumRevokes:         mps.NumRevokes,
 		NumAll:             mps.NumAll,
+		LikelyMineable:     mps.LikelyMineable,
 		FormattedTotalSize: mps.FormattedTotalSize,
 		VotingInfo: VotingInfo{
 			TicketsVoted:     mps.VotingInfo.TicketsVoted,
