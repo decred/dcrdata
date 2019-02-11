@@ -31,6 +31,7 @@ modern javascript features, as well as SCSS for styling.
     - [Using Environment Variables for Configuration](#using-environment-variables-for-configuration)
     - [Indexing the Blockchain](#indexing-the-blockchain)
     - [Starting dcrdata](#starting-dcrdata)
+    - [Hide PG Config log](#hiding-the-postgreSQL-db-configuration-settings)
     - [Running the Web Interface During Synchronization](#running-the-web-interface-during-synchronization)
   - [System Hardware Requirements](#system-hardware-requirements)
     - ["lite" Mode (SQLite only)](#lite-mode-sqlite-only)
@@ -444,6 +445,11 @@ On subsequent launches, only blocks new to dcrdata are processed.
 Unlike dcrdata.conf, which must be placed in the `appdata` folder or explicitly
 set with `-C`, the "public" and "views" folders _must_ be in the same folder as
 the `dcrdata` executable.
+
+### Hiding the PostgreSQL db Configuration settings.
+
+By default postgres configuration is logged on system start up. To block the
+logging pass `--hidepgconfig` flag on on dcrdata start up command.
 
 ### Running the Web Interface During Synchronization
 
