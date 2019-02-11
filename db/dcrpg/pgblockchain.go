@@ -459,7 +459,7 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	log.Info(pgVersion)
 
 	// if the hidepgconfig flag was set to true then the PostgreSQL configuration
-	// settings will not be logged by defualt on system start up.
+	// settings will not be logged by default on system start up.
 	if !isHidePGConfig {
 		perfSettings, err := RetrieveSysSettingsPerformance(db)
 		if err != nil {
