@@ -1,0 +1,63 @@
+{{define "proposals"}}
+<!DOCTYPE html>
+<html lang="en">
+    {{template "html-head" printf "Decred Vote Proposals Page"}}
+    <body class="{{ theme }}">
+        {{template "navbar" .}}
+        <div class="container main">
+            <div class="row justify-content-between">
+                <div class="col-lg-14 col-sm-12 d-flex">
+                    <h4 class="mb-2">Off-Chain Proposals</h4>
+                </div>
+            </div>
+            {{if not .Proposals }}
+            <table class="table table-sm striped">
+                <tr>
+                    <td>No Proposal found for {{ .NetName }}</td>
+                </tr>
+            </table>
+            {{ else }}
+            <table class="table table-mono-cells table-sm striped">
+                <thead>
+                    <th>No.</th>
+                    <th>Name</th>
+                    <th>State</th>
+                    <th>Status</th>
+                    <th>Username</th>
+                    <th>Version</th>
+                    <th>Last Update</th>
+                    <th>Publised Date</th>
+                </thead>
+                {{range $i, $v := .Proposals}}
+                {{with $v}}
+                <tbody>
+                    <td>{{intAdd $i 1}}</td>
+                    <td><a href="/proposal/{{.Censorship.Token}}">{{.Name}}</a></td>
+                    <td>{{.State}}</td>
+                    <td>{{.Status}}</td>
+                    <td>@{{.Username}}</td>
+                    <td>{{.Version}}</td>
+                    <td>
+                        {{if ne .Timestamp 0}}
+                            {{TimeConversion .Timestamp}}
+                        {{else}}
+                            {{.Timestamp}}
+                        {{end}}
+                    </td>
+                    <td>
+                        {{if ne .PubishedDate 0}}
+                            {{TimeConversion .PubishedDate}}
+                        {{else}}
+                            {{.PubishedDate}}
+                        {{end}}
+                    </td>
+                </tbody>
+                {{end}}
+                {{end}}
+            </table>
+            {{ end }}
+        </div>
+        {{template "footer" . }}
+    </body>
+</html>
+{{end}}

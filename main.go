@@ -449,7 +449,8 @@ func _main(ctx context.Context) error {
 	}
 
 	// Set the path to the AgendaDB file.
-	agendadb.SetDbPath(filepath.Join(cfg.DataDir, cfg.AgendaDBFileName))
+	agendadb.SetConfig(filepath.Join(cfg.DataDir, cfg.AgendaDBFileName),
+		cfg.PoliteiaAPIURL)
 
 	// AgendaDB upgrade check
 	if err = agendadb.CheckForUpdates(dcrdClient); err != nil {
@@ -709,6 +710,8 @@ func _main(ctx context.Context) error {
 		r.With(explorer.AddressPathCtx).Get("/addresstable/{address}", explore.AddressTable)
 		r.Get("/agendas", explore.AgendasPage)
 		r.With(explorer.AgendaPathCtx).Get("/agenda/{agendaid}", explore.AgendaPage)
+		r.Get("/proposals", explore.ProposalsPage)
+		r.With(explorer.ProposalPathCtx).Get("/proposal/{proposalToken}", explore.ProposalPage)
 		r.Get("/decodetx", explore.DecodeTxPage)
 		r.Get("/search", explore.Search)
 		r.Get("/charts", explore.Charts)

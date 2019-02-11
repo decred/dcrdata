@@ -1757,6 +1757,68 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// ProposalPage is the page handler for the "/proposal" path.
+func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
+	// Attempts to retrieve proposal token from URL path.
+	token := getProposalTokenCtx(r)
+	proposalInfo, err := agendadb.ProposalByToken(token)
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
+			"", ExpStatusNotFound)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("proposal", struct {
+		*CommonPageData
+		Data    *agendadb.ProposalInfo
+		NetName string
+	}{
+		CommonPageData: exp.commonData(),
+		Data:           proposalInfo,
+		NetName:        exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
+// ProposalsPage is the page handler for the "/proposals" path.
+func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
+	proposals, err := agendadb.AllProposals()
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+
+	str, err := exp.templates.execTemplateToString("proposals", struct {
+		*CommonPageData
+		Proposals []*agendadb.ProposalInfo
+		NetName   string
+	}{
+		CommonPageData: exp.commonData(),
+		Proposals:      proposals,
+		NetName:        exp.NetName,
+	})
+
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, str)
+}
+
 // HandleApiRequestsOnSync handles all API request when the sync status pages is
 // running.
 func (exp *explorerUI) HandleApiRequestsOnSync(w http.ResponseWriter, r *http.Request) {

@@ -26,7 +26,7 @@ type AgendaDB struct {
 	politeiaURL string
 }
 
-var dbPath string
+var dbPath, politeiaAPIURL string
 
 // Open will either open and existing database or create a new one using with
 // the specified file name.
@@ -54,20 +54,27 @@ func Open() (*AgendaDB, error) {
 		}
 	}
 
+	if politeiaAPIURL == "" {
+		return nil, fmt.Errorf("missing politeia API URL")
+	}
+
 	agendaDB := &AgendaDB{
-		sdb:        db,
-		onNode:     onChainNode,
-		offNode:    offChainNode,
-		NumAgendas: numAgendas,
-		NumChoices: numChoices,
-		client:     GetClient(),
+		sdb:         db,
+		onNode:      onChainNode,
+		offNode:     offChainNode,
+		NumAgendas:  numAgendas,
+		NumChoices:  numChoices,
+		client:      fetchHTTPClient(),
+		politeiaURL: politeiaAPIURL,
 	}
 	return agendaDB, err
 }
 
-// SetDbPath sets the dbPath as fetched from the configuration
-func SetDbPath(path string) {
+// SetConfig sets the dbPath and the politeia root API URL endpoint as fetched
+// from the configuration
+func SetConfig(path, url string) {
 	dbPath = path
+	politeiaAPIURL = url
 }
 
 // Close should be called when you are done with the AgendaDB to close the
@@ -199,19 +206,18 @@ func (db *AgendaDB) updatedb(voteVersion uint32, client *rpcclient.Client) int {
 func CheckForUpdates(client *rpcclient.Client) error {
 	adb, err := Open()
 	if err != nil || adb == nil || adb.onNode == nil || adb.offNode == nil {
-		log.Errorf("Failed to open new DB: %v", err)
-		return nil
+		return fmt.Errorf("Failed to open new DB: %v", err)
 	}
 
 	numRecords := adb.checkOnChainUpdates(client)
-	log.Infof("%d on chain records (agendas) were updated", numRecords)
+	log.Infof("%d on-chain records (agendas) were updated", numRecords)
 
-	numRecords, err = adb.checkOffchainUpdates()
+	numRecords, err = adb.checkOffChainUpdates()
 	if err != nil {
-		log.Errorf("checkOffchainUpdates failed : %v", err)
+		return fmt.Errorf("checkOffChainUpdates failed : %v", err)
 	}
 
-	log.Infof("%d off chain records (politea proposals) were updated", numRecords)
+	log.Infof("%d off-chain records (politea proposals) were updated", numRecords)
 
 	return adb.Close()
 }

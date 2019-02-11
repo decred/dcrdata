@@ -342,7 +342,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
 		"rawtx", "status", "parameters", "agenda", "agendas", "charts",
 		"sidechains", "disapproved", "ticketpool", "nexthome", "statistics",
-		"windows", "timelisting", "addresstable"}
+		"windows", "timelisting", "addresstable", "proposals", "proposal"}
 
 	for _, name := range tmpls {
 		if err := exp.templates.addTemplate(name); err != nil {
