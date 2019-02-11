@@ -184,7 +184,7 @@ func _main(ctx context.Context) error {
 		dbi.DBName = strings.Replace(dbi.DBName, "{netname}", netName(activeNet), -1)
 
 		chainDB, err := dcrpg.NewChainDBWithCancel(ctx, &dbi, activeChain,
-			baseDB.GetStakeDB(), !cfg.NoDevPrefetch)
+			baseDB.GetStakeDB(), !cfg.NoDevPrefetch, cfg.HidePGConfig)
 		if chainDB != nil {
 			defer chainDB.Close()
 		}
