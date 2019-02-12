@@ -1203,25 +1203,10 @@ func handleConvertTimeStampTZ(db *sql.DB) error {
 		return fmt.Errorf("failed to set time zone to UTC: %v", err)
 	}
 
+	// Convert the affected columns of each table.
 	for i := range timestampTables {
-		tableName := timestampTables[i].TableName
-		// Remove timestamp indexes on large tables.
-		// switch tableName {
-		// case "addresses":
-		// 	err := DeindexBlockTimeOnTableAddress(db)
-		// 	if err != nil && !errIsNotExist(err) {
-		// 		log.Errorf("Failed to drop index addresses index on block_time: %v", err)
-		// 		return err
-		// 	}
-		// case "agendas":
-		// 	err := DeindexAgendasTableOnBlockTime(db)
-		// 	if err != nil && !errIsNotExist(err) {
-		// 		log.Errorf("Failed to drop index agendas index on block_time: %v", err)
-		// 		return err
-		// 	}
-		// }
-
 		// Convert the timestamp columns of this table.
+		tableName := timestampTables[i].TableName
 		for _, col := range timestampTables[i].ColumnNames {
 			log.Infof("Converting column %s.%s to TIMESTAMPTZ...", tableName, col)
 			_, err = db.Exec(fmt.Sprintf(`ALTER TABLE %s ALTER COLUMN %s TYPE TIMESTAMPTZ`,
@@ -1231,19 +1216,6 @@ func handleConvertTimeStampTZ(db *sql.DB) error {
 					tableName, col, err)
 			}
 		}
-
-		// Recreate the indexes on timestamptz.
-		// switch tableName {
-		// case "addresses":
-		// 	log.Infof("Reindexing addresses table on block time...")
-		// 	err = IndexBlockTimeOnTableAddress(db)
-		// case "agendas":
-		// 	log.Infof("Reindexing agendas table on block time...")
-		// 	err = IndexAgendasTableOnBlockTime(db)
-		// }
-		// if err != nil {
-		// 	return err
-		// }
 	}
 
 	// Switch server time zone for this sesssion back to UTC to read correct
