@@ -208,6 +208,8 @@ func DeindexVotesTableOnVoteVersion(db *sql.DB) (err error) {
 	return
 }
 
+// IndexVotesTableOnHeight improves the speed of "Cumulative Vote Choices" agendas
+// chart query.
 func IndexVotesTableOnHeight(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexVotesTableOnHeight)
 	return
@@ -218,6 +220,8 @@ func DeindexVotesTableOnHeight(db *sql.DB) (err error) {
 	return
 }
 
+// IndexVotesTableOnBlockTime improves the speed of "Vote Choices By Block" agendas
+// chart query.
 func IndexVotesTableOnBlockTime(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.IndexVotesTableOnBlockTime)
 	return

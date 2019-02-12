@@ -130,6 +130,9 @@ func (a AgendaStatusType) String() string {
 	}
 }
 
+// Ensure at compile time that AgendaStatusType satisfies interface json.Marshaller.
+var _ json.Marshaler = (*AgendaStatusType)(nil)
+
 // AgendaStatusType default marshaller.
 func (a AgendaStatusType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
@@ -380,8 +383,8 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 // MileStone defines the various stages passed by vote on a given agenda.
 // Activated is the height at which the delay time begins before a vote activates.
 // HardForked is the height at which the consensus rule changes.
-// VotingDone is the height at which voting is consided complete or when the
-// state changes from "started" to either "failed" or "lockedin".
+// VotingDone is the height at which voting is considered complete or when the
+// status changes from "started" to either "failed" or "lockedin".
 type MileStone struct {
 	ID         int64            `json:"-"`
 	Status     AgendaStatusType `json:"status"`

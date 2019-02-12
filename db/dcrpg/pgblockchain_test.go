@@ -234,16 +234,50 @@ func TestStuff(t *testing.T) {
 }
 
 func TestUpdateChainState(t *testing.T) {
-	// r blockChainInfoData is a sample payload format as returned by
-	// getBlockChainInfo rpc endpoint.
-	var rawData = []byte(`{"chain":"mainnet","blocks":316016,"headers":316016,"syncheight":316016,"bestblockhash":` +
-		`"00000000000000001d8cfa54dc13cfb0563421fd017801401cb2bdebe3579355","difficulty":406452686,"verificationprogress":1,` +
-		`"chainwork":"0000000000000000000000000000000000000000000209c779c196914f038522","initialblockdownload":false,` +
-		`"maxblocksize":393216,"deployments":{"fixlnseqlocks":{	"status":"defined","starttime":1548633600,"expiretime":1580169600},` +
-		`"lnfeatures":{"status":"active","since":189568,"starttime":1505260800,"expiretime":1536796800},"sampleagenda1":` +
-		`{"status":"lockedin","since":119248,"starttime":1493164800,"expiretime":1508976000},"sampleagenda2":{"status":` +
-		`"failed","since":149248,"starttime":1493164800,"expiretime":1524700800},"sampleagenda3":{"status":"started","` +
-		`since":149248,"starttime":1493164800,"expiretime":1524700800}}}`)
+	// rawData is a sample payload format as returned by getBlockChainInfo rpc endpoint.
+	var rawData = []byte(`{
+		"chain": "mainnet",
+		"blocks": 316016,
+		"headers": 316016,
+		"syncheight": 316016,
+		"bestblockhash": "00000000000000001d8cfa54dc13cfb0563421fd017801401cb2bdebe3579355",
+		"difficulty": 406452686,
+		"verificationprogress": 1,
+		"chainwork": "0000000000000000000000000000000000000000000209c779c196914f038522",
+		"initialblockdownload": false,
+		"maxblocksize": 393216,
+		"deployments": {
+			"fixlnseqlocks": {
+				"status": "defined",
+				"starttime": 1548633600,
+				"expiretime": 1580169600
+			},
+			"lnfeatures": {
+				"status": "active",
+				"since": 189568,
+				"starttime": 1505260800,
+				"expiretime": 1536796800
+			},
+			"sampleagenda1": {
+				"status": "lockedin",
+				"since": 119248,
+				"starttime": 1493164800,
+				"expiretime": 1508976000
+			},
+			"sampleagenda2": {
+				"status": "failed",
+				"since": 149248,
+				"starttime": 1493164800,
+				"expiretime": 1524700800
+			},
+			"sampleagenda3": {
+				"status": "started",
+				"since": 149248,
+				"starttime": 1493164800,
+				"expiretime": 1524700800
+			}
+		}
+	}`)
 
 	var chainInfoData = new(dcrjson.GetBlockChainInfoResult)
 	err := json.Unmarshal(rawData, chainInfoData)
@@ -290,7 +324,6 @@ func TestUpdateChainState(t *testing.T) {
 			},
 			"sampleagenda3": {
 				Status:     dbtypes.StartedAgendaStatus,
-				VotingDone: 316016,
 				StartTime:  time.Unix(1493164800, 0),
 				ExpireTime: time.Unix(1524700800, 0),
 			},
@@ -304,8 +337,11 @@ func TestUpdateChainState(t *testing.T) {
 		},
 	}
 
+	// This sets the dbRPC.chainInfo value.
 	dbRPC.UpdateChainState(chainInfoData)
 
+	// Checks if the set dbRPC.chainInfo has a similar format and content as the
+	// expected payload including the internal UnmarshalJSON implementation.
 	if reflect.DeepEqual(dbRPC.chainInfo, expectedPayload) {
 		t.Fatalf("expected both payloads to match but the did not")
 	}

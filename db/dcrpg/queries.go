@@ -307,9 +307,15 @@ func InsertTickets(db *sql.DB, dbTxns []*dbtypes.Tx, txDbIDs []uint64, checked, 
 // function, TxnDbID, is called with the expire argument set to false, so that
 // subsequent cache lookups by other consumers will succeed.
 //
+// votesMilestones holds up-to-date blockchain info deployment data.
+//
+// It also updates the agendas and the agenda_votes tables. Agendas table
+// holds the high level information about all agendas that is contained in the
+// votingMilestones.MileStone (i.e. Agenda Name, Status and LockedIn, Activated
+// & HardForked heights). Agenda_votes table hold the agendas vote choices
+// information and references to the agendas and votes tables.
+//
 // Outputs are slices of DB row IDs for the votes and misses, and an error.
-// votesMilestones holds upto date blockchain info deployment data needed
-// to update changes in agendas table.
 func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *TicketTxnIDGetter,
 	msgBlock *MsgBlockPG, checked, updateExistingRecords bool, params *chaincfg.Params,
 	votesMilestones *dbtypes.BlockChainData) ([]uint64, []*dbtypes.Tx, []string,
@@ -379,11 +385,14 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 		}
 	}
 
-	// Attempts to retrieve agendas from the database if storedAgendas is empty.
-	// This Should happen only once, since storedAgendas persists the added data.
+	// If storedAgendas is empty, it attempts to retrieve stored agendas if they
+	// exists and changes between the storedAgendas and the up-to-date
+	// votingMilestones.AgendaMileStones map are updated to agendas table and
+	// storedAgendas cache. This should happen only once, since storedAgendas
+	// persists the added data.
 	if len(storedAgendas) == 0 {
 		var id int64
-		// returns the stored Agendas
+		// Attempt to retrieve agendas from the database.
 		storedAgendas, err = retrieveAllAgendas(db)
 		if err != nil {
 			bail()
@@ -490,7 +499,7 @@ func InsertVotes(db *sql.DB, dbTxns []*dbtypes.Tx, _ /*txDbIDs*/ []uint64, fTx *
 			// votesMilestones.AgendaMileStones should have cached the latest
 			// blockchain deployment info. The change in status is detected as
 			// the change between respective agendas statuses stored in the two
-			// maps. Its then updated in storedAgendas and agendas table.
+			// maps. It is then updated in storedAgendas cache and agendas table.
 			p := votesMilestones.AgendaMileStones[val.ID]
 			s := storedAgendas[val.ID]
 			if s.Status != p.Status {
@@ -1343,7 +1352,8 @@ func RetrieveAddressUTXOs(ctx context.Context, db *sql.DB, address string, curre
 // and return them sorted by time in descending order. It will also return a
 // short list of recently (defined as greater than recentBlockHeight) confirmed
 // transactions that can be used to validate mempool status.
-func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []string, recentBlockHeight int64) (txs []string, recenttxs []string, err error) {
+func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []string,
+	recentBlockHeight int64) (txs []string, recenttxs []string, err error) {
 	var txHash string
 	var height int64
 	var stmt *sql.Stmt
@@ -1375,7 +1385,9 @@ func RetrieveAddressTxnsOrdered(ctx context.Context, db *sql.DB, addresses []str
 
 // retrieveRCIWindowStartHeight helps in obtaining the RCI startheight for the
 // current active voting session when the agenda status is "started". By obtaining
-// the accurate startheight the votes cast in the previous voting sessions are ignored.
+// the accurate startheight the votes cast in the previous voting sessions are
+// ignored. chainRCI is the rule changes blocks interval defined by
+// chainParams.RuleChangeActivationInterval value.
 func retrieveRCIWindowStartHeight(ctx context.Context, db *sql.DB,
 	starttime time.Time, chainRCI int64) (startheight int64, err error) {
 	err = db.QueryRowContext(ctx, internal.SelectRCIStartHeight, starttime,

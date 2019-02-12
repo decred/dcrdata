@@ -944,11 +944,12 @@ func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.Agenda
 // RCIStartHeight returns the startheight of the RCI window when voting for
 // the current agenda started. Computing the current agenda RCI StartHeight
 // helps ignore all the other possible RCIs especially if the current agenda is
-// on a revote.
+// on a revote. There are also the many votes that happen before the the POW and
+// POS upgrades have completed, and thus before the votes are tallied.
 func (pgb *ChainDB) RCIStartHeight(agendaInfo dbtypes.MileStone) (int64, error) {
 	chainRCIValue := int64(pgb.chainParams.RuleChangeActivationInterval)
 
-	// if agendas status is "started" its voting is still in progress and therefore
+	// If agendas status is "started" its voting is still in progress and therefore
 	// to obtain where the current voting phase starts from, we check where the
 	// previous RCI end height was and start from there.
 	if agendaInfo.Status == dbtypes.StartedAgendaStatus {
@@ -958,9 +959,9 @@ func (pgb *ChainDB) RCIStartHeight(agendaInfo dbtypes.MileStone) (int64, error) 
 			agendaInfo.StartTime, chainRCIValue)
 	}
 
-	// for statuses "lockedin", "failed" and "active" their voting was completed
-	// in chainParams.RuleChangeActivationInterval blocks to the current votingDone
-	// height.
+	// For agendas where voting is complete (status "lockedin", "failed" or
+	// "active"), the start of voting is chainParams.RuleChangeActivationInterval
+	// blocks prior to the VotingDone height.
 	return agendaInfo.VotingDone - chainRCIValue, nil
 }
 
@@ -973,7 +974,7 @@ func (pgb *ChainDB) AgendaCumulativeVoteChoices(agendaID string) (yes,
 
 	agendaInfo := pgb.chainInfo.AgendaMileStones[agendaID]
 
-	// check if starttime is in the future exit.
+	// Check if starttime is in the future and exit if true.
 	if time.Now().Before(agendaInfo.StartTime) {
 		return
 	}
@@ -1969,17 +1970,16 @@ func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoRe
 	for agendaID, entry := range blockChainInfo.Deployments {
 		var agendaInfo = dbtypes.MileStone{
 			Status:     dbtypes.AgendaStatusFromStr(entry.Status),
-			StartTime:  time.Unix(int64(entry.StartTime), 0),
-			ExpireTime: time.Unix(int64(entry.ExpireTime), 0),
+			StartTime:  time.Unix(int64(entry.StartTime), 0).UTC(),
+			ExpireTime: time.Unix(int64(entry.ExpireTime), 0).UTC(),
 		}
 
 		// status "defined" is not considered since voting hasn't started.
+		// With status "started", votingDone should be taken as the current best
+		// height (if need be) but could not be set to avoid misleading that the
+		// vote for the current agenda is complete while it is still in progress
+		// till the status changes to either "failed" or "lockedin".
 		switch agendaInfo.Status {
-		case dbtypes.StartedAgendaStatus:
-			// Since the vote is in progress current best block height is set as
-			// the vote end.
-			agendaInfo.VotingDone = blockChainInfo.Blocks
-
 		case dbtypes.FailedAgendaStatus:
 			agendaInfo.VotingDone = entry.Since
 

@@ -1684,8 +1684,8 @@ func (c *appContext) getAgendasData(w http.ResponseWriter, _ *http.Request) {
 	for index := range agendas {
 		val := agendas[index]
 		agendaMilestone := voteMilestones[val.Id]
-		agendaMilestone.StartTime = time.Unix(int64(val.StartTime), 0)
-		agendaMilestone.ExpireTime = time.Unix(int64(val.ExpireTime), 0)
+		agendaMilestone.StartTime = time.Unix(int64(val.StartTime), 0).UTC()
+		agendaMilestone.ExpireTime = time.Unix(int64(val.ExpireTime), 0).UTC()
 
 		data = append(data, apitypes.AgendasInfo{
 			Name:        val.Id,

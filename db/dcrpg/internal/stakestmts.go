@@ -159,6 +159,8 @@ const (
 
 	// votes table
 
+	// block_time field is needed to plot "Cumulative Vote Choices" agendas chart
+	// that plots cumulative votes count against time over the voting period.
 	CreateVotesTable = `CREATE TABLE IF NOT EXISTS votes (
 		id SERIAL PRIMARY KEY,
 		height INT4,
@@ -173,7 +175,7 @@ const (
 		ticket_price FLOAT8,
 		vote_reward FLOAT8,
 		is_mainchain BOOLEAN,
-		block_time TIMESTAMP
+		block_time TIMESTAMPTZ
 	);`
 
 	// insertVoteRow is the basis for several vote insert/upsert statements.

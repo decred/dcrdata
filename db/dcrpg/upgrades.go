@@ -73,21 +73,7 @@ type VinVoutTypeUpdateData struct {
 // the agendas have been up for voting. Only sdiffalgorithm, lnsupport and
 // lnfeatures agenda ids exist since appropriate voting mechanisms on the dcrd
 // level are not yet fully implemented.
-var votingMilestones = map[string]dbtypes.MileStone{
-	"sdiffalgorithm": {
-		Activated:  149248,
-		HardForked: 149328,
-		VotingDone: 141184,
-	},
-	"lnsupport": {
-		Activated:  149248,
-		VotingDone: 141184,
-	},
-	"lnfeatures": {
-		Activated:  189568,
-		VotingDone: 181504,
-	},
-}
+var votingMilestones = map[string]dbtypes.MileStone{}
 
 // toVersion defines a table version to which the pg tables will commented to.
 var toVersion TableVersion
@@ -536,9 +522,9 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 		tableReady = true
 		tableName, upgradeTypeStr = "every", "convert timestamp columns to timestamptz type"
 	case agendasTablePruningUpdate:
-		// Between blocks 1 and 4000 no vote transactions that exists. They only
-		// exist after block 4000 on mainnet.
-		startHeight = 4000
+		// StakeValidationHeight defines the height from where votes transactions
+		// exists as from. They only exist after block 4090 on mainnet.
+		startHeight = uint64(pgb.chainParams.StakeValidationHeight)
 		tableReady, err = pruneAgendasTable(pgb.db)
 		tableName, upgradeTypeStr = "agendas", "prune agendas table"
 	case agendaVotesTableCreationUpdate:
@@ -1541,7 +1527,7 @@ func deleteRootsColumns(db *sql.DB) (bool, error) {
 
 func addVotesBlockTimeColumn(db *sql.DB) (bool, error) {
 	newColumns := []newColumn{
-		{"block_time", "TIMESTAMP", ""},
+		{"block_time", "TIMESTAMPTZ", ""},
 	}
 	return addNewColumnsIfNotFound(db, "votes", newColumns)
 }
