@@ -103,6 +103,35 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		return false, nil
 	}
 
+	// If the previous DB is between the 3.1/3.2 and 4.0 releases (dcrpg table
+	// versions >3.5.5 and <3.9.0), an upgrade is likely not possible IF PostgreSQL
+	// was running in a TimeZone other than UTC. Deny upgrade.
+	if version.major == 3 && ((version.minor > 5 && version.minor < 9) ||
+		(version.minor == 5 && version.patch > 5)) {
+		dataType, err := CheckColumnDataType(pgb.db, "blocks", "time")
+		if err != nil {
+			return false, fmt.Errorf("failed to retrieve data_type for blocks.time: %v", err)
+		}
+		if dataType == "timestamp without time zone" {
+			// Timestamp columns are timestamp without time zone.
+			defaultTZ, _, err := CheckDefaultTimeZone(pgb.db)
+			if err != nil {
+				return false, fmt.Errorf("failed in CheckDefaultTimeZone: %v", err)
+			}
+			if defaultTZ != "UTC" {
+				// Postgresql time zone is not UTC, which is bad when the data
+				// type throws away time zone offset info, as is the case with
+				// TIMESTAMP. If the default time zone were UTC, there is likely
+				// no time stamp issue.
+				return false, fmt.Errorf(
+					"your dcrpg schema (v%v) has time columns without time zone, "+
+						"AND the PostgreSQL default/local time zone is %s. "+
+						"You must rebuild the databases from scratch!!!",
+					version, defaultTZ)
+			}
+		}
+	}
+
 	// Apply each upgrade in succession
 	switch {
 	case upgradeInfo[0].UpgradeType != "upgrade" && upgradeInfo[0].UpgradeType != "reindex":
