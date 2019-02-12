@@ -50,6 +50,31 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
+func TestCheckColumnDataType(t *testing.T) {
+	dataType, err := CheckColumnDataType(db.db, "blocks", "time")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(dataType)
+}
+
+func TestCheckCurrentTimeZone(t *testing.T) {
+	currentTZ, err := CheckCurrentTimeZone(db.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Set time zone: %v", currentTZ)
+}
+
+func TestCheckDefaultTimeZone(t *testing.T) {
+	defaultTZ, currentTZ, err := CheckDefaultTimeZone(db.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Set time zone: %v", currentTZ)
+	t.Logf("Default time zone: %v", defaultTZ)
+}
+
 func TestDeleteBestBlock(t *testing.T) {
 	ctx := context.Background()
 	res, height, hash, err := DeleteBestBlock(ctx, db.db)

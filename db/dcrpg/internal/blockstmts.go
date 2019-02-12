@@ -22,7 +22,7 @@ const (
 		num_stx INT4,
 		stx TEXT[],
 		stxDbIDs INT8[],
-		time TIMESTAMP,
+		time TIMESTAMPTZ,
 		nonce INT8,
 		vote_bits INT2,
 		voters INT2,

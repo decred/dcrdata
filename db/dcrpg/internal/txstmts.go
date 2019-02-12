@@ -12,8 +12,8 @@ const (
 		/*block_db_id INT4,*/
 		block_hash TEXT,
 		block_height INT8,
-		block_time TIMESTAMP,
-		time TIMESTAMP,
+		block_time TIMESTAMPTZ,
+		time TIMESTAMPTZ,
 		tx_type INT4,
 		version INT4,
 		tree INT2,

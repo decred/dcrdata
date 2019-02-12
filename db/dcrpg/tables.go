@@ -1,4 +1,4 @@
-// Copyright (c) 2018, The Decred developers
+// Copyright (c) 2018-2019, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
 
@@ -48,7 +48,7 @@ type dropDuplicatesInfo struct {
 // re-indexing and a duplicate scan/purge.
 const (
 	tableMajor = 3
-	tableMinor = 8
+	tableMinor = 9
 	tablePatch = 0
 )
 
@@ -319,6 +319,50 @@ func TableVersions(db *sql.DB) map[string]TableVersion {
 		versions[tableName] = NewTableVersion(uint32(v), uint32(m), uint32(p))
 	}
 	return versions
+}
+
+// CheckColumnDataType gets the data type of specified table column .
+func CheckColumnDataType(db *sql.DB, table, column string) (dataType string, err error) {
+	err = db.QueryRow(`SELECT data_type
+		FROM information_schema.columns
+		WHERE table_name=$1 AND column_name=$2`,
+		table, column).Scan(&dataType)
+	return
+}
+
+func CheckCurrentTimeZone(db *sql.DB) (currentTZ string, err error) {
+	if err = db.QueryRow(`SHOW TIME ZONE`).Scan(&currentTZ); err != nil {
+		err = fmt.Errorf("unable to query current time zone: %v", err)
+	}
+	return
+}
+
+func CheckDefaultTimeZone(db *sql.DB) (defaultTZ, currentTZ string, err error) {
+	// Remember the current time zone before switching to default.
+	currentTZ, err = CheckCurrentTimeZone(db)
+	if err != nil {
+		return
+	}
+
+	// Switch to DEFAULT/LOCAL.
+	_, err = db.Exec(`SET TIME ZONE DEFAULT`)
+	if err != nil {
+		err = fmt.Errorf("failed to set time zone to UTC: %v", err)
+		return
+	}
+
+	// Get the default time zone now that it is current.
+	defaultTZ, err = CheckCurrentTimeZone(db)
+	if err != nil {
+		return
+	}
+
+	// Switch back to initial time zone.
+	_, err = db.Exec(fmt.Sprintf(`SET TIME ZONE %s`, currentTZ))
+	if err != nil {
+		err = fmt.Errorf("failed to set time zone back to %s: %v", currentTZ, err)
+	}
+	return
 }
 
 func (pgb *ChainDB) DeleteDuplicates(barLoad chan *dbtypes.ProgressBarLoad) error {

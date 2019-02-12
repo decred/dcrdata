@@ -328,7 +328,7 @@ const (
 		agenda_vote_choice INT2,
 		tx_hash TEXT NOT NULL,
 		block_height INT4,
-		block_time TIMESTAMP,
+		block_time TIMESTAMPTZ,
 		locked_in BOOLEAN,
 		activated BOOLEAN,
 		hard_forked BOOLEAN
