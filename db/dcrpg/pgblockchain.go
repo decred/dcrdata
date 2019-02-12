@@ -427,10 +427,10 @@ type DBInfo struct {
 // parameters. By default, duplicate row checks on insertion are enabled. See
 // NewChainDBWithCancel to enable context cancellation of running queries.
 func NewChainDB(dbi *DBInfo, params *chaincfg.Params,
-	stakeDB *stakedb.StakeDatabase, devPrefetch, isHidePGConfig bool) (*ChainDB, error) {
+	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool) (*ChainDB, error) {
 	ctx := context.Background()
 	chainDB, err := NewChainDBWithCancel(ctx, dbi, params, stakeDB,
-		devPrefetch, isHidePGConfig)
+		devPrefetch, hidePGConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +445,7 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params,
 // (context.Background()) except by the pg timeouts. If it is necessary to
 // cancel queries with CTRL+C, for example, use NewChainDBWithCancel.
 func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Params,
-	stakeDB *stakedb.StakeDatabase, devPrefetch, isHidePGConfig bool) (*ChainDB, error) {
+	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB.
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
 	if err != nil {
@@ -458,9 +458,8 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	}
 	log.Info(pgVersion)
 
-	// if the hidepgconfig flag was set to true then the PostgreSQL configuration
-	// settings will not be logged by default on system start up.
-	if !isHidePGConfig {
+	// Optionally logs the PostgreSQL configuration.
+	if !hidePGConfig {
 		perfSettings, err := RetrieveSysSettingsPerformance(db)
 		if err != nil {
 			return nil, err

@@ -55,7 +55,7 @@ type config struct {
 	HTTPProfile  bool   `long:"httpprof" short:"p" description:"Start HTTP profiler."`
 	CPUProfile   string `long:"cpuprofile" description:"File for CPU profiling."`
 	MemProfile   string `long:"memprofile" description:"File for mempry profiling."`
-	HidePGConfig bool   `long:"hidepgconfig" description:"If set to true it blocks logging of the PostgreSQL db configuration on system start up. Defaults to false."`
+	HidePGConfig bool   `long:"hidepgconfig" description:"Blocks logging of the PostgreSQL db configuration on system start up."`
 
 	// DB
 	DBHostPort             string `long:"dbhost" description:"DB host"`
