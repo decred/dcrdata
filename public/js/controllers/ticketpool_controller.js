@@ -180,7 +180,7 @@ export default class extends Controller {
     }
     if (data['price_chart']) {
       this.graphData['price_chart'] = priceGraphData(data['price_chart'], this.mempool)
-      if (this.pricesGraph !== null) {
+      if (this.priceGraph !== null) {
         this.priceGraph.updateOptions({ 'file': this.graphData['price_chart'] })
       }
     }
@@ -228,7 +228,7 @@ export default class extends Controller {
   }
 
   makePurchasesGraph () {
-    var d = this.graphData['price_chart'] || [[0, 0, 0, 0, 0]]
+    var d = this.graphData['time_chart'] || [[0, 0, 0, 0, 0]]
     var p = {
       labels: ['Date', 'Mempool Tickets', 'Immature Tickets', 'Live Tickets', 'Ticket Value'],
       colors: ['#FF8C00', '#006600', '#2971FF', '#ff0090'],
