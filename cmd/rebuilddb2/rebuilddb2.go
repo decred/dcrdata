@@ -123,7 +123,7 @@ func mainCore() error {
 		DBName: cfg.DBName,
 	}
 	// Construct a ChainDB without a stakeDB to allow quick dropping of tables.
-	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, false)
+	db, err := dcrpg.NewChainDB(&dbi, activeChain, nil, false, cfg.HidePGConfig)
 	if db != nil {
 		defer db.Close()
 	}

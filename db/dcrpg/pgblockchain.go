@@ -427,9 +427,10 @@ type DBInfo struct {
 // parameters. By default, duplicate row checks on insertion are enabled. See
 // NewChainDBWithCancel to enable context cancellation of running queries.
 func NewChainDB(dbi *DBInfo, params *chaincfg.Params,
-	stakeDB *stakedb.StakeDatabase, devPrefetch bool) (*ChainDB, error) {
+	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool) (*ChainDB, error) {
 	ctx := context.Background()
-	chainDB, err := NewChainDBWithCancel(ctx, dbi, params, stakeDB, devPrefetch)
+	chainDB, err := NewChainDBWithCancel(ctx, dbi, params, stakeDB,
+		devPrefetch, hidePGConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -443,8 +444,8 @@ func NewChainDB(dbi *DBInfo, params *chaincfg.Params,
 // behavior. NewChainDB creates context that cannot be cancelled
 // (context.Background()) except by the pg timeouts. If it is necessary to
 // cancel queries with CTRL+C, for example, use NewChainDBWithCancel.
-func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Params, stakeDB *stakedb.StakeDatabase,
-	devPrefetch bool) (*ChainDB, error) {
+func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Params,
+	stakeDB *stakedb.StakeDatabase, devPrefetch, hidePGConfig bool) (*ChainDB, error) {
 	// Connect to the PostgreSQL daemon and return the *sql.DB.
 	db, err := Connect(dbi.Host, dbi.Port, dbi.User, dbi.Pass, dbi.DBName)
 	if err != nil {
@@ -457,17 +458,20 @@ func NewChainDBWithCancel(ctx context.Context, dbi *DBInfo, params *chaincfg.Par
 	}
 	log.Info(pgVersion)
 
-	perfSettings, err := RetrieveSysSettingsPerformance(db)
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("postgres performance settings:\n%v", perfSettings)
+	// Optionally logs the PostgreSQL configuration.
+	if !hidePGConfig {
+		perfSettings, err := RetrieveSysSettingsPerformance(db)
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("postgres configuration settings:\n%v", perfSettings)
 
-	servSettings, err := RetrieveSysSettingsServer(db)
-	if err != nil {
-		return nil, err
+		servSettings, err := RetrieveSysSettingsServer(db)
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("postgres server settings:\n%v", servSettings)
 	}
-	log.Infof("postgres server settings:\n%v", servSettings)
 
 	// Attempt to get DB best block height from tables, but if the tables are
 	// empty or not yet created, it is not an error.
