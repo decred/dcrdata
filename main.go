@@ -951,9 +951,9 @@ func _main(ctx context.Context) error {
 	// Enable new blocks being stored into the base DB's cache.
 	baseDB.EnableCache()
 
-	// Deactivate displaying the sync status page after the db sync was completed.
+	// Block further usage of the barLoad by sending a nil value
 	if barLoad != nil {
-		close(barLoad)
+		barLoad <- nil
 	}
 
 	// Set that newly sync'd blocks should no longer be stored in the explorer.

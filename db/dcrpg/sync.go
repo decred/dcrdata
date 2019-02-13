@@ -187,7 +187,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 	}
 
 	// Safely send sync status updates on barLoad channel, and set the channel
-	// to nil if it was closed or the buffer is full.
+	// to nil if the buffer is full.
 	sendProgressUpdate := func(p *dbtypes.ProgressBarLoad) {
 		if barLoad == nil {
 			return
@@ -201,7 +201,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 	}
 
 	// Safely send new block hash on updateExplorer channel, and set the channel
-	// to nil if it was closed or the buffer is full.
+	// to nil if the buffer is full.
 	sendPageData := func(hash *chainhash.Hash) {
 		if updateExplorer == nil {
 			return
