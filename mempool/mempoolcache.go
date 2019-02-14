@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrjson/v2"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"

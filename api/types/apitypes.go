@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/txhelpers"
 )
