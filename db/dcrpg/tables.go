@@ -285,6 +285,7 @@ func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
 	return tableUpgrades
 }
 
+// TableVersions retrieves the versions of the tables in the auxiliary db.
 func TableVersions(db *sql.DB) map[string]TableVersion {
 	versions := map[string]TableVersion{}
 	for tableName := range createTableStatements {
@@ -297,7 +298,15 @@ func TableVersions(db *sql.DB) map[string]TableVersion {
 				log.Errorf("Scan of QueryRow failed: %v", err)
 				continue
 			}
-			re := regexp.MustCompile(`^v(\d+)\.?(\d?)\.?(\d?)$`)
+
+			// This regex expression should detect the following versions format:
+			// v3
+			// v3.0
+			// v3.0.0
+			// v3.6.0
+			// v3.10.0
+			// v10.10.10
+			re := regexp.MustCompile(`^v(\d+)\.?(\d+)?\.?(\d+)?$`)
 			subs := re.FindStringSubmatch(s)
 			if len(subs) > 1 {
 				v, err = strconv.Atoi(subs[1])
