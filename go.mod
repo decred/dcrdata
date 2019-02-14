@@ -12,18 +12,16 @@ require (
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/chappjc/trylock v1.0.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/dchest/siphash v1.2.1 // indirect
 	github.com/decred/base58 v1.0.0
 	github.com/decred/dcrd/blockchain v1.1.1
 	github.com/decred/dcrd/blockchain/stake v1.1.0
-	github.com/decred/dcrd/chaincfg v1.2.1
+	github.com/decred/dcrd/chaincfg v1.3.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.1
 	github.com/decred/dcrd/database v1.0.3
-	github.com/decred/dcrd/dcrec v0.0.0-20190118223730-3a5281156b73
-	github.com/decred/dcrd/dcrec/edwards v0.0.0-20190118223730-3a5281156b73 // indirect
-	github.com/decred/dcrd/dcrjson v1.1.0
+	github.com/decred/dcrd/dcrec v0.0.0-20190130161649-59ed4247a1d5
+	github.com/decred/dcrd/dcrjson/v2 v2.0.0
 	github.com/decred/dcrd/dcrutil v1.2.1-0.20190118223730-3a5281156b73
-	github.com/decred/dcrd/rpcclient v1.1.0
+	github.com/decred/dcrd/rpcclient/v2 v2.0.0
 	github.com/decred/dcrd/txscript v1.0.2
 	github.com/decred/dcrd/wire v1.2.0
 	github.com/decred/dcrwallet/wallet v1.1.0
@@ -41,7 +39,6 @@ require (
 	github.com/googollee/go-engine.io v0.0.0-20180829091931-e2f255711dcb // indirect
 	github.com/googollee/go-socket.io v0.0.0-20181214084611-0ad7206c347a
 	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
-	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/jrick/logrotate v1.0.0
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/kardianos/osext v0.0.0-20170510131534-ae77be60afb1 // indirect
@@ -51,8 +48,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/oleiade/lane v1.0.0
-	github.com/onsi/ginkgo v1.7.0 // indirect
-	github.com/onsi/gomega v1.4.3 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pkg/errors v0.8.0 // indirect
 	github.com/rs/cors v1.6.0
@@ -63,10 +58,7 @@ require (
 	github.com/vmihailenco/msgpack v4.0.1+incompatible // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	go.etcd.io/bbolt v1.3.0 // indirect
-	golang.org/x/crypto v0.0.0-20190123085648-057139ce5d2b // indirect
-	golang.org/x/net v0.0.0-20181217023233-e147a9138326
-	golang.org/x/sys v0.0.0-20181217223516-dcdaa6325bcb // indirect
+	golang.org/x/net v0.0.0-20190213061140-3a22650c66bd
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/appengine v1.3.0 // indirect
-	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
