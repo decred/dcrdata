@@ -167,6 +167,13 @@ func NewAPIRouter(app *appContext, useRealIP bool) apiMux {
 		})
 	})
 
+	// Returns agenda data like; description, name, lockedin activated and other
+	// high level agenda details for all agendas.
+	mux.Route("/agendas", func(r chi.Router) {
+		r.Get("/", app.getAgendasData)
+	})
+
+	// Returns the charts data for the respective individual agendas.
 	mux.Route("/agenda", func(r chi.Router) {
 		r.With(m.AgendIdCtx).Get("/{agendaId}", app.getAgendaData)
 	})

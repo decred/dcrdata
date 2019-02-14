@@ -159,6 +159,8 @@ const (
 
 	// votes table
 
+	// block_time field is needed to plot "Cumulative Vote Choices" agendas chart
+	// that plots cumulative votes count against time over the voting period.
 	CreateVotesTable = `CREATE TABLE IF NOT EXISTS votes (
 		id SERIAL PRIMARY KEY,
 		height INT4,
@@ -172,7 +174,8 @@ const (
 		ticket_tx_db_id INT8,
 		ticket_price FLOAT8,
 		vote_reward FLOAT8,
-		is_mainchain BOOLEAN
+		is_mainchain BOOLEAN,
+		block_time TIMESTAMPTZ
 	);`
 
 	// insertVoteRow is the basis for several vote insert/upsert statements.
@@ -181,13 +184,13 @@ const (
 		block_hash, candidate_block_hash,
 		version, vote_bits, block_valid,
 		ticket_hash, ticket_tx_db_id, ticket_price, vote_reward,
-		is_mainchain)
+		is_mainchain, block_time)
 	VALUES (
 		$1, $2,
 		$3, $4,
 		$5, $6, $7,
 		$8, $9, $10, $11,
-		$12) `
+		$12, $13) `
 
 	// InsertVoteRow inserts a new vote row without checking for unique index
 	// conflicts. This should only be used before the unique indexes are created
@@ -245,8 +248,19 @@ const (
 		ON votes(version);`
 	DeindexVotesTableOnVoteVersion = `DROP INDEX uix_votes_vote_version;`
 
+	IndexVotesTableOnHeight = `CREATE INDEX uix_votes_height ON votes(height);`
+
+	DeindexVotesTableOnHeight = `DROP INDEX uix_votes_height;`
+
+	IndexVotesTableOnBlockTime = `CREATE INDEX uix_votes_block_time
+		ON votes(block_time);`
+	DeindexVotesTableOnBlockTime = `DROP INDEX uix_votes_block_time;`
+
 	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
 	SelectAllVoteDbIDsHeightsTicketDbIDs  = `SELECT id, height, ticket_tx_db_id FROM votes;`
+
+	SelectRCIStartHeight = `SELECT height FROM votes WHERE block_time >= $1
+		AND height%$2 = 0 ORDER by height DESC LIMIT 1;`
 
 	UpdateVotesMainchainAll = `UPDATE votes
 		SET is_mainchain=b.is_mainchain
@@ -324,63 +338,79 @@ const (
 
 	CreateAgendasTable = `CREATE TABLE IF NOT EXISTS agendas (
 		id SERIAL PRIMARY KEY,
-		agenda_id TEXT,
-		agenda_vote_choice INT2,
-		tx_hash TEXT NOT NULL,
-		block_height INT4,
-		block_time TIMESTAMPTZ,
-		locked_in BOOLEAN,
-		activated BOOLEAN,
-		hard_forked BOOLEAN
+		name TEXT,
+		status INT2,
+		locked_in INT4,
+		activated INT4,
+		hard_forked INT4
 	);`
 
 	// Insert
-	insertAgendaRow = `INSERT INTO agendas (
-		agenda_id, agenda_vote_choice,
-		tx_hash, block_height, block_time,
-		locked_in, activated, hard_forked)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
+	insertAgendaRow = `INSERT INTO agendas (name, status, locked_in, activated,
+		hard_forked) VALUES ($1, $2, $3, $4, $5) `
 
 	InsertAgendaRow = insertAgendaRow + `RETURNING id;`
 
-	UpsertAgendaRow = insertAgendaRow + `ON CONFLICT (agenda_id, agenda_vote_choice, tx_hash, block_height) DO UPDATE 
-		SET block_time = $5 RETURNING id;`
+	UpsertAgendaRow = insertAgendaRow + `ON CONFLICT (name) DO UPDATE
+		SET status = $2, locked_in = $3, activated = $4, hard_forked = $5 RETURNING id;`
 
-	// IndexAgendasTableOnAgendaID creates the unique index
-	// uix_agendas_agenda_id on (agenda_id, agenda_vote_choice, tx_hash,
-	// block_height).
-	IndexAgendasTableOnAgendaID = `CREATE UNIQUE INDEX uix_agendas_agenda_id
-		ON agendas(agenda_id, agenda_vote_choice, tx_hash, block_height);`
-	DeindexAgendasTableOnAgendaID = `DROP INDEX uix_agendas_agenda_id;`
+	IndexAgendasTableOnAgendaID = `CREATE UNIQUE INDEX uix_agendas_name
+		ON agendas(name);`
+	DeindexAgendasTableOnAgendaID = `DROP INDEX uix_agendas_name;`
 
-	IndexAgendasTableOnBlockTime = `CREATE INDEX uix_agendas_block_time
-		ON agendas(block_time);`
-	DeindexAgendasTableOnBlockTime = `DROP INDEX uix_agendas_block_time;`
+	SelectAllAgendas = `SELECT id, name, status, locked_in, activated, hard_forked
+		FROM agendas;`
 
-	agendaLockinBlock              = `SELECT block_height FROM agendas WHERE locked_in = true AND agenda_id = $4 LIMIT 1`
-	SelectAgendasAgendaVotesByTime = `SELECT block_time AS timestamp,
-			count(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) AS yes,
-			count(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) AS abstain,
-			count(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
+	SelectAgendasLockedIn = `SELECT locked_in FROM agendas WHERE name = $1;`
+
+	SelectAgendasHardForked = `SELECT hard_forked FROM agendas WHERE name = $1;`
+
+	SelectAgendasActivated = `SELECT activated FROM agendas WHERE name = $1;`
+
+	SetVoteMileStoneheights = `UPDATE agendas SET status = $2, locked_in = $3,
+		activated = $4, hard_forked = $5 WHERE id = $1;`
+
+	// agendas votes table
+
+	CreateAgendaVotesTable = `CREATE TABLE IF NOT EXISTS agenda_votes (
+		id SERIAL PRIMARY KEY,
+		votes_row_id INT8,
+		agendas_row_id INT8,
+		agenda_vote_choice INT2
+	);`
+
+	// Insert
+	insertAgendaVotesRow = `INSERT INTO agenda_votes (votes_row_id, agendas_row_id,
+		agenda_vote_choice) VALUES ($1, $2, $3) `
+
+	InsertAgendaVotesRow = insertAgendaVotesRow + `RETURNING id;`
+
+	UpsertAgendaVotesRow = insertAgendaVotesRow + `ON CONFLICT (agendas_row_id,
+		votes_row_id) DO UPDATE SET agenda_vote_choice = $3 RETURNING id;`
+
+	IndexAgendaVotesTableOnAgendaID = `CREATE UNIQUE INDEX uix_agenda_votes
+		ON agenda_votes(votes_row_id, agendas_row_id);`
+	DeindexAgendaVotesTableOnAgendaID = `DROP INDEX uix_agenda_votes;`
+
+	// Select
+
+	SelectAgendasVotesByTime = `SELECT votes.block_time AS timestamp,` +
+		selectAgendaVotesQuery + `GROUP BY timestamp ORDER BY timestamp;`
+
+	SelectAgendasVotesByHeight = `SELECT votes.height AS height,` +
+		selectAgendaVotesQuery + `GROUP BY height ORDER BY height;`
+
+	SelectAgendaVoteTotals = `SELECT ` + selectAgendaVotesQuery + `;`
+
+	selectAgendaVotesQuery = `
+			count(CASE WHEN agenda_votes.agenda_vote_choice = $1 THEN 1 ELSE NULL END) AS yes,
+			count(CASE WHEN agenda_votes.agenda_vote_choice = $2 THEN 1 ELSE NULL END) AS abstain,
+			count(CASE WHEN agenda_votes.agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
 			count(*) AS total
-		 FROM agendas
-		WHERE agenda_id = $4
-		  AND block_height <= (` + agendaLockinBlock + `)
-		GROUP BY timestamp ORDER BY timestamp;`
-
-	SelectAgendasAgendaVotesByHeight = `SELECT block_height,
-			count(CASE WHEN agenda_vote_choice = $1 THEN 1 ELSE NULL END) AS yes,
-			count(CASE WHEN agenda_vote_choice = $2 THEN 1 ELSE NULL END) AS abstain,
-			count(CASE WHEN agenda_vote_choice = $3 THEN 1 ELSE NULL END) AS no,
-			count(*) AS total
-		 FROM agendas
-		WHERE agenda_id = $4
-		  AND block_height <= (` + agendaLockinBlock + `)
-		GROUP BY block_height;`
-
-	SelectAgendasLockedIn   = `SELECT block_height FROM agendas WHERE locked_in = true AND agenda_id = $1 LIMIT 1;`
-	SelectAgendasHardForked = `SELECT block_height FROM agendas WHERE hard_forked = true AND agenda_id = $1 LIMIT 1;`
-	SelectAgendasActivated  = `SELECT block_height FROM agendas WHERE activated = true AND agenda_id = $1 LIMIT 1;`
+		FROM agenda_votes
+		INNER JOIN votes ON agenda_votes.votes_row_id = votes.id
+		WHERE agenda_votes.agendas_row_id = (SELECT id from agendas WHERE name = $4)
+		AND votes.height >= $5 AND votes.height <= $6 `
 )
 
 // MakeTicketInsertStatement returns the appropriate tickets insert statement
@@ -402,7 +432,7 @@ func MakeTicketInsertStatement(checked, updateOnConflict bool) string {
 	return InsertTicketRowOnConflictDoNothing
 }
 
-// MakeTicketInsertStatement returns the appropriate votes insert statement for
+// MakeVoteInsertStatement returns the appropriate votes insert statement for
 // the desired conflict checking and handling behavior. See the description of
 // MakeTicketInsertStatement for details.
 func MakeVoteInsertStatement(checked, updateOnConflict bool) string {
@@ -415,7 +445,7 @@ func MakeVoteInsertStatement(checked, updateOnConflict bool) string {
 	return InsertVoteRowOnConflictDoNothing
 }
 
-// MakeTicketInsertStatement returns the appropriate misses insert statement for
+// MakeMissInsertStatement returns the appropriate misses insert statement for
 // the desired conflict checking and handling behavior. See the description of
 // MakeTicketInsertStatement for details.
 func MakeMissInsertStatement(checked, updateOnConflict bool) string {
@@ -428,11 +458,24 @@ func MakeMissInsertStatement(checked, updateOnConflict bool) string {
 	return InsertMissRowOnConflictDoNothing
 }
 
+// MakeAgendaInsertStatement returns the appropriate agendas insert statement for
+// the desired conflict checking and handling behavior. See the description of
+// MakeTicketInsertStatement for details.
 func MakeAgendaInsertStatement(checked bool) string {
 	if checked {
 		return UpsertAgendaRow
 	}
 	return InsertAgendaRow
+}
+
+// MakeAgendaVotesInsertStatement returns the appropriate agenda votes insert
+// statement for the desired conflict checking and handling behavior. See the
+// description of MakeTicketInsertStatement for details.
+func MakeAgendaVotesInsertStatement(checked bool) string {
+	if checked {
+		return UpsertAgendaVotesRow
+	}
+	return InsertAgendaVotesRow
 }
 
 // MakeSelectTicketsByPurchaseDate returns the selectTicketsByPurchaseDate query

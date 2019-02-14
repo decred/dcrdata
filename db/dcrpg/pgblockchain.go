@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/rpcclient"
 	"github.com/decred/dcrd/wire"
@@ -37,6 +38,12 @@ var (
 	zeroHash            = chainhash.Hash{}
 	zeroHashStringBytes = []byte(chainhash.Hash{}.String())
 )
+
+// storedAgendas holds the current state of agenda data already in the db.
+// This helps track changes in the lockedIn and activated heights when they
+// happen without making too many db accesses everytime we are updating the
+// agenda_votes table.
+var storedAgendas map[string]dbtypes.MileStone
 
 // DevFundBalance is a block-stamped wrapper for dbtypes.AddressBalance. It is
 // intended to be used for the project address.
@@ -209,6 +216,7 @@ type ChainDB struct {
 	InReorg            bool
 	tpUpdatePermission map[dbtypes.TimeBasedGrouping]*trylock.Mutex
 	utxoCache          utxoStore
+	chainInfo          *dbtypes.BlockChainData
 }
 
 // BestBlock is mutex-protected block hash and height.
@@ -281,6 +289,10 @@ func (db *ChainDBRPC) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBl
 	if db == nil {
 		return nil
 	}
+
+	// update blockchain state
+	db.UpdateChainState(blockData.BlockchainInfo)
+
 	return db.ChainDB.Store(blockData, msgBlock)
 }
 
@@ -911,8 +923,76 @@ func (pgb *ChainDB) TransactionBlock(txID string) (string, uint32, int8, error) 
 func (pgb *ChainDB) AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error) {
 	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
 	defer cancel()
-	avc, err := retrieveAgendaVoteChoices(ctx, pgb.db, agendaID, chartType)
+
+	agendaInfo := pgb.chainInfo.AgendaMileStones[agendaID]
+
+	// check if starttime is in the future exit.
+	if time.Now().Before(agendaInfo.StartTime) {
+		return nil, nil
+	}
+
+	votingStartHeight, err := pgb.RCIStartHeight(agendaInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	avc, err := retrieveAgendaVoteChoices(ctx, pgb.db, agendaID, chartType,
+		votingStartHeight, agendaInfo.VotingDone)
 	return avc, pgb.replaceCancelError(err)
+}
+
+// RCIStartHeight returns the startheight of the RCI window when voting for
+// the current agenda started. Computing the current agenda RCI StartHeight
+// helps ignore all the other possible RCIs especially if the current agenda is
+// on a revote. There are also the many votes that happen before the the POW and
+// POS upgrades have completed, and thus before the votes are tallied.
+func (pgb *ChainDB) RCIStartHeight(agendaInfo dbtypes.MileStone) (int64, error) {
+	chainRCIValue := int64(pgb.chainParams.RuleChangeActivationInterval)
+
+	// If agendas status is "started" its voting is still in progress and therefore
+	// to obtain where the current voting phase starts from, we check where the
+	// previous RCI end height was and start from there.
+	if agendaInfo.Status == dbtypes.StartedAgendaStatus {
+		ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+		defer cancel()
+		return retrieveRCIWindowStartHeight(ctx, pgb.db,
+			agendaInfo.StartTime, chainRCIValue)
+	}
+
+	// For agendas where voting is complete (status "lockedin", "failed" or
+	// "active"), the start of voting is chainParams.RuleChangeActivationInterval
+	// blocks prior to the VotingDone height.
+	return agendaInfo.VotingDone - chainRCIValue, nil
+}
+
+// AgendaCumulativeVoteChoices fetches the total vote choices count for the
+// provided agenda.
+func (pgb *ChainDB) AgendaCumulativeVoteChoices(agendaID string) (yes,
+	abstain, no uint32, err error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+
+	agendaInfo := pgb.chainInfo.AgendaMileStones[agendaID]
+
+	// Check if starttime is in the future and exit if true.
+	if time.Now().Before(agendaInfo.StartTime) {
+		return
+	}
+
+	var votingStartHeight int64
+	votingStartHeight, err = pgb.RCIStartHeight(agendaInfo)
+	if err != nil {
+		return
+	}
+
+	yes, abstain, no, err = retrieveTotalAgendaVotesCount(ctx, pgb.db, agendaID,
+		votingStartHeight, agendaInfo.VotingDone)
+	return
+}
+
+// AllAgendas returns all the agendas stored currently.
+func (pgb *ChainDB) AllAgendas() (map[string]dbtypes.MileStone, error) {
+	return retrieveAllAgendas(pgb.db)
 }
 
 // NumAddressIntervals gets the number of unique time intervals for the
@@ -1862,6 +1942,64 @@ func (pgb *ChainDB) AddressTransactionRawDetails(addr string, count, skip int64,
 	return txsRaw, nil
 }
 
+// UpdateChainState updates the blockchain's state, which includes each of the
+// agenda's VotingDone and Activated heights. If the agenda passed (i.e. status
+// is "lockedIn" or "activated"), Activated is set to the height at which the rule
+// change will take(or took) place.
+func (pgb *ChainDB) UpdateChainState(blockChainInfo *dcrjson.GetBlockChainInfoResult) {
+	if blockChainInfo == nil {
+		log.Errorf("dcrjson.GetBlockChainInfoResult data passed is empty")
+		return
+	}
+
+	ruleChangeInterval := int64(pgb.chainParams.RuleChangeActivationInterval)
+	chainInfo := dbtypes.BlockChainData{
+		Chain:                  blockChainInfo.Chain,
+		SyncHeight:             blockChainInfo.SyncHeight,
+		BestHeight:             blockChainInfo.Blocks,
+		BestBlockHash:          blockChainInfo.BestBlockHash,
+		Difficulty:             blockChainInfo.Difficulty,
+		VerificationProgress:   blockChainInfo.VerificationProgress,
+		ChainWork:              blockChainInfo.ChainWork,
+		IsInitialBlockDownload: blockChainInfo.InitialBlockDownload,
+		MaxBlockSize:           blockChainInfo.MaxBlockSize,
+	}
+
+	var voteMilestones = make(map[string]dbtypes.MileStone)
+
+	for agendaID, entry := range blockChainInfo.Deployments {
+		var agendaInfo = dbtypes.MileStone{
+			Status:     dbtypes.AgendaStatusFromStr(entry.Status),
+			StartTime:  time.Unix(int64(entry.StartTime), 0).UTC(),
+			ExpireTime: time.Unix(int64(entry.ExpireTime), 0).UTC(),
+		}
+
+		// status "defined" is not considered since voting hasn't started.
+		// With status "started", votingDone should be taken as the current best
+		// height (if need be) but could not be set to avoid misleading that the
+		// vote for the current agenda is complete while it is still in progress
+		// till the status changes to either "failed" or "lockedin".
+		switch agendaInfo.Status {
+		case dbtypes.FailedAgendaStatus:
+			agendaInfo.VotingDone = entry.Since
+
+		case dbtypes.LockedInAgendaStatus:
+			agendaInfo.VotingDone = entry.Since
+			agendaInfo.Activated = entry.Since + ruleChangeInterval
+
+		case dbtypes.ActivatedAgendaStatus:
+			agendaInfo.Activated = entry.Since
+			agendaInfo.VotingDone = entry.Since - ruleChangeInterval
+		}
+
+		voteMilestones[agendaID] = agendaInfo
+	}
+
+	chainInfo.AgendaMileStones = voteMilestones
+
+	pgb.chainInfo = &chainInfo
+}
+
 // Store satisfies BlockDataSaver. Blocks stored this way are considered valid
 // and part of mainchain. Store should not be used for batch block processing;
 // instead, use StoreBlock and specify appropriate flags.
@@ -1882,8 +2020,8 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	updateAddressesSpendingInfo, updateTicketsSpendingInfo := true, true
 
 	_, _, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets,
-		isValid, isMainChain, updateExistingRecords,
-		updateAddressesSpendingInfo, updateTicketsSpendingInfo, blockData.Header.ChainWork)
+		isValid, isMainChain, updateExistingRecords, updateAddressesSpendingInfo,
+		updateTicketsSpendingInfo, blockData.Header.ChainWork)
 	return err
 }
 
@@ -2253,7 +2391,8 @@ func (pgb *ChainDB) TipToSideChain(mainRoot string) (string, int64, error) {
 // The number of vins and vouts stored are returned.
 func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	isValid, isMainchain, updateExistingRecords, updateAddressesSpendingInfo,
-	updateTicketsSpendingInfo bool, chainWork string) (numVins int64, numVouts int64, numAddresses int64, err error) {
+	updateTicketsSpendingInfo bool, chainWork string) (
+	numVins int64, numVouts int64, numAddresses int64, err error) {
 	// Convert the wire.MsgBlock to a dbtypes.Block
 	dbBlock := dbtypes.MsgBlockToDBBlock(msgBlock, pgb.chainParams, chainWork)
 
@@ -2502,7 +2641,8 @@ type MsgBlockPG struct {
 // storeTxns stores the transactions of a given block.
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isValid, isMainchain bool,
-	updateExistingRecords, updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
+	updateExistingRecords, updateAddressesSpendingInfo,
+	updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block, transaction tree, and network, extract the
 	// transactions, vins, and vouts.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
@@ -2600,7 +2740,8 @@ func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
 		// voteDbIDs, voteTxns, spentTicketHashes, ticketDbIDs, missDbIDs, err := ...
 		var missesHashIDs map[string]uint64
 		_, _, _, _, missesHashIDs, err = InsertVotes(pgb.db, dbTransactions, *TxDbIDs,
-			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords, pgb.chainParams)
+			unspentTicketCache, msgBlock, pgb.dupChecks, updateExistingRecords,
+			pgb.chainParams, pgb.chainInfo)
 		if err != nil && err != sql.ErrNoRows {
 			log.Error("InsertVotes:", err)
 			txRes.err = err

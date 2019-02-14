@@ -616,6 +616,16 @@ func _main(ctx context.Context) error {
 		latestBlockHash <- latestDBBlockHash
 	}
 
+	// Fetches the latest blockdata which is needed to update the agendas db
+	// while db sync is in progress.
+	bci, err := baseDB.BlockchainInfo()
+	if err != nil {
+		return fmt.Errorf("failed to fetch the latest blockdata")
+	}
+
+	// Update the current chain state in the ChainDBRPC
+	auxDB.UpdateChainState(bci)
+
 	// Create the Insight socket.io server, and add it to block savers if in
 	// full/pg mode. Since insightSocketServer is added into the url before even
 	// the sync starts, this implementation cannot be moved to
@@ -1020,6 +1030,9 @@ func _main(ctx context.Context) error {
 		return fmt.Errorf("Block data collection for initial summary failed: %v",
 			err.Error())
 	}
+
+	// Update the current chain state in the ChainDBRPC
+	auxDB.UpdateChainState(blockData.BlockchainInfo)
 
 	if err = explore.Store(blockData, msgBlock); err != nil {
 		return fmt.Errorf("Failed to store initial block data for explorer pages: %v", err.Error())

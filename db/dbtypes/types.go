@@ -83,6 +83,79 @@ func (p TicketSpendType) String() string {
 	}
 }
 
+// AgendaStatusType defines the various agenda statuses.
+type AgendaStatusType int8
+
+const (
+	// InitialAgendaStatus is the agenda status when the agenda is not yet up for
+	// voting and the votes tally is not also available.
+	InitialAgendaStatus AgendaStatusType = iota
+
+	// StartedAgendaStatus is the agenda status when the agenda is up for voting.
+	StartedAgendaStatus
+
+	// FailedAgendaStatus is the agenda status set when the votes tally does not
+	// attain the minimum threshold set. Activation height is not set for such an
+	// agenda.
+	FailedAgendaStatus
+
+	// LockedInAgendaStatus is the agenda status when the agenda is considered to
+	// have passed after attaining the minimum set threshold. This agenda will
+	// have its activation height set.
+	LockedInAgendaStatus
+
+	// ActivatedAgendaStatus is the agenda status chaincfg.RuleChangeActivationInterval
+	// blocks (e.g. 8064 blocks = 2016 * 4 for 4 weeks on mainnet) after
+	// LockedInAgendaStatus ("lockedin") that indicates when the rule change is to
+	// be effected. https://docs.decred.org/glossary/#rule-change-interval-rci.
+	ActivatedAgendaStatus
+
+	UnknownStatus
+)
+
+func (a AgendaStatusType) String() string {
+	switch a {
+	case InitialAgendaStatus:
+		return "defined"
+	case StartedAgendaStatus:
+		return "started"
+	case FailedAgendaStatus:
+		return "failed"
+	case LockedInAgendaStatus:
+		return "lockedin"
+	case ActivatedAgendaStatus:
+		return "active"
+	default:
+		return "unknown"
+	}
+}
+
+// Ensure at compile time that AgendaStatusType satisfies interface json.Marshaller.
+var _ json.Marshaler = (*AgendaStatusType)(nil)
+
+// AgendaStatusType default marshaller.
+func (a AgendaStatusType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(a.String())
+}
+
+// AgendaStatusFromStr creates an agenda status from a string.
+func AgendaStatusFromStr(status string) AgendaStatusType {
+	switch strings.ToLower(status) {
+	case "defined":
+		return InitialAgendaStatus
+	case "started":
+		return StartedAgendaStatus
+	case "failed":
+		return FailedAgendaStatus
+	case "lockedin":
+		return LockedInAgendaStatus
+	case "active":
+		return ActivatedAgendaStatus
+	default:
+		return UnknownStatus
+	}
+}
+
 // AddrTxnType enumerates the different transaction types as displayed by the
 // address page.
 type AddrTxnType int
@@ -233,8 +306,8 @@ func TimeGroupingFromStr(groupings string) TimeBasedGrouping {
 	}
 }
 
-// HistoryChart is used to differentaite the three distinct graphs that
-// appear on the address history page.
+// HistoryChart is used to differentiate the distinct graphs that appear on the
+// address history page.
 type HistoryChart int8
 
 const (
@@ -310,11 +383,31 @@ func ChoiceIndexFromStr(choice string) (VoteChoice, error) {
 // MileStone defines the various stages passed by vote on a given agenda.
 // Activated is the height at which the delay time begins before a vote activates.
 // HardForked is the height at which the consensus rule changes.
-// LockedIn is the height at which voting on an agenda is consided complete.
+// VotingDone is the height at which voting is considered complete or when the
+// status changes from "started" to either "failed" or "lockedin".
 type MileStone struct {
-	Activated  int64
-	HardForked int64
-	LockedIn   int64
+	ID         int64            `json:"-"`
+	Status     AgendaStatusType `json:"status"`
+	VotingDone int64            `json:"votingdone"`
+	Activated  int64            `json:"activated"`
+	HardForked int64            `json:"hardforked"`
+	StartTime  time.Time        `json:"starttime"`
+	ExpireTime time.Time        `json:"expiretime"`
+}
+
+// BlockChainData defines data holding the latest block chain state from the
+// getblockchaininfo rpc endpoint.
+type BlockChainData struct {
+	Chain                  string
+	SyncHeight             int64
+	BestHeight             int64
+	BestBlockHash          string
+	Difficulty             uint32
+	VerificationProgress   float64
+	ChainWork              string
+	IsInitialBlockDownload bool
+	MaxBlockSize           int64
+	AgendaMileStones       map[string]MileStone
 }
 
 // SyncResult is the result of a database sync operation, containing the height
@@ -637,12 +730,6 @@ type AgendaVoteChoices struct {
 	Total   []uint64  `json:"total"`
 	Height  []uint64  `json:"height,omitempty"`
 	Time    []TimeDef `json:"time,omitempty"`
-}
-
-// AgendaApiResponse holds two sets of AgendaVoteChoices.
-type AgendaApiResponse struct {
-	ByHeight *AgendaVoteChoices `json:"by_height"`
-	ByTime   *AgendaVoteChoices `json:"by_time"`
 }
 
 // Tx models a Decred transaction. It is stored in a Block.
