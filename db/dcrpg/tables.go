@@ -7,11 +7,10 @@ package dcrpg
 import (
 	"database/sql"
 	"fmt"
-	"regexp"
-	"strconv"
 
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
+	"github.com/decred/dcrdata/v4/semver"
 )
 
 var createTableStatements = map[string]string{
@@ -307,45 +306,23 @@ func TableUpgradesRequired(versions map[string]TableVersion) []TableUpgrade {
 func TableVersions(db *sql.DB) map[string]TableVersion {
 	versions := map[string]TableVersion{}
 	for tableName := range createTableStatements {
-		Result := db.QueryRow(`select obj_description($1::regclass);`, tableName)
-		var s string
-		var v, m, p int
-		if Result != nil {
-			err := Result.Scan(&s)
-			if err != nil {
-				log.Errorf("Scan of QueryRow failed: %v", err)
-				continue
-			}
-
-			// This regex expression should detect the following versions format:
-			// v3
-			// v3.0
-			// v3.0.0
-			// v3.6.0
-			// v3.10.0
-			// v10.10.10
-			re := regexp.MustCompile(`^v(\d+)\.?(\d+)?\.?(\d+)?$`)
-			subs := re.FindStringSubmatch(s)
-			if len(subs) > 1 {
-				v, err = strconv.Atoi(subs[1])
-				if err != nil {
-					fmt.Println(err)
-				}
-				if len(subs) > 2 && len(subs[2]) > 0 {
-					m, err = strconv.Atoi(subs[2])
-					if err != nil {
-						fmt.Println(err)
-					}
-					if len(subs) > 3 && len(subs[3]) > 0 {
-						p, err = strconv.Atoi(subs[3])
-						if err != nil {
-							fmt.Println(err)
-						}
-					}
-				}
-			}
+		// Retrieve the table description.
+		var desc string
+		err := db.QueryRow(`select obj_description($1::regclass);`, tableName).Scan(&desc)
+		if err != nil {
+			log.Errorf("Query of table %s description failed: %v", tableName, err)
+			continue
 		}
-		versions[tableName] = NewTableVersion(uint32(v), uint32(m), uint32(p))
+
+		// Attempt to parse a version out of the table description.
+		sv, err := semver.ParseVersionStr(desc)
+		if err != nil {
+			log.Errorf("Failed to parse version from table description %s: %v",
+				desc, err)
+			continue
+		}
+
+		versions[tableName] = NewTableVersion(sv.Split())
 	}
 	return versions
 }
