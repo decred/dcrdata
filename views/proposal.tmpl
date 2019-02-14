@@ -8,7 +8,7 @@
         <div class="container main">
             <div class="row justify-content-between">
                 <div class="col-lg-14 col-sm-12 d-flex">
-                    <h4 class="mb-2">{{.Id}}
+                    <h4 class="mb-2">{{.Name}}
                     </h4>
                 </div>
             </div>
@@ -16,27 +16,11 @@
                 <div class="col-lg-18 col-sm-12 d-flex">
                     <table class="">
                         <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Name</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Token</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.Name}}</span>
+                                <span class="hash break-word  lh1rem"><a>{{.ID}}</span>
                             </td>
                         </tr>
-                        <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Last Update</td>
-                            <td>
-                                <span class="hash break-word  lh1rem">{{TimeConversion .StartTime}}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Published Date</td>
-                            <td>
-                                <span class="hash break-word  lh1rem">{{TimeConversion .ExpireTime}}</span>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-                <div class="col-lg-6 col-sm-12 d-flex">
-                    <table class="">
                         <tr>
                             <td class="text-right lh1rem pr-2 xs-w117">Status</td>
                             <td class="lh1rem">
@@ -44,9 +28,9 @@
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-right lh1rem pr-2 xs-w117">QuorumProgress</td>
+                            <td class="text-right lh1rem pr-2 xs-w117">State</td>
                             <td class="lh1rem">
-                                <span class="hash break-word  lh1rem">{{.QuorumProgress}}</span>
+                                <span class="hash break-word  lh1rem">{{.State}}</span>
                             </td>
                         </tr>
                         <tr>
@@ -54,56 +38,108 @@
                             <td class="lh1rem">
                                 <span class="hash break-word  lh1rem">{{.Version}}</span>
                             </td>
-                             <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Mask</td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Username</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.Mask}}</span>
+                                <span class="hash break-word  lh1rem">{{.Username}}</span>
                             </td>
                         </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Vote Status</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{.VotesStatus.Status}}</span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">TotalVotes</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{.VotesStatus.TotalVotes}}</span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Endheight</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{.VotesStatus.Endheight}}</span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-lg-6 col-sm-12 d-flex">
+                    <table class="">
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Last Update</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{TimeConversion .Timestamp}}</span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Published Date</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{TimeConversion .PubishedDate}}</span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Censored Date</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{TimeConversion .CensoredDate}}</span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Abandoned Date</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{TimeConversion .AbandonedDate}}</span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">NumOfEligibleVotes</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{.VotesStatus.NumOfEligibleVotes}}</span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">QuorumPercentage</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{.VotesStatus.QuorumPercentage}}</span>
+                            </td>
+                        </tr>
+                         <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">PassPercentage</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{.VotesStatus.PassPercentage}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Comments Count</td>
+                            <td>
+                                <span class="hash break-word  lh1rem">{{.Numcomments}}</span>
+                            </td>
                         </tr>
                     </table>
                 </div>
             </div>
-            {{if .Choices}}
+            {{if .VotesStatus.VoteResults}}
             <table class="table table-mono-cells table-sm striped">
                 <thead>
                     <th>ID</th>
                     <th>Description</th>
                     <th>Bits</th>
-                    <th>IsAbstain</th>
-                    <th>IsNo</th>
                     <th>Count</th>
-                    <th>Progress</th>
                 </thead>
-                {{range $i, $v := .Choices}}
+                {{range $i, $v := .VotesStatus.VoteResults}}
                 {{with $v}}
                 <thead>
                     <tr>
-                        <td class="text-left">{{.ID}}</td>
-                        <td class="text-left">{{.Description}}</td>
-                        <td class="text-left">{{.Bits}}</td>
-                        <td class="text-left">{{.IsAbstain}}</td>
-                        <td class="text-left">{{.IsNo}}</td>
-                        <td class="text-left">{{.Count}}</td>
-                        <td class="text-left">{{.Progress}}</td>
+                        <td class="text-left">{{.Option.OptionID}}</td>
+                        <td class="text-left">{{.Option.Description}}</td>
+                        <td class="text-left">{{.Option.Bits}}</td>
+                        <td class="text-left">{{.VotesReceived}}</td>
                     </tr>
                 </thead>
                 {{end}}
                 {{end}}
             </table>
             {{end}}
-            <div data-controller="agenda" data-agenda-id="{{.Id}}" class="position-relative">
-              <div class="modal position-absolute"></div>
-              <div
-                  data-target="agenda.cumulativeVoteChoices"
-                  style="width:100%; height:400px; margin:0 auto;"
-              ></div>
-              <br>
-              <div
-                  data-target="agenda.voteChoicesByBlock"
-                  style="width:100%; height:250px; margin:0 auto;"
-              ></div>
-            </div>
         </div>
         {{end}}
         {{template "footer" . }}

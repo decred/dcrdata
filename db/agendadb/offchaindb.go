@@ -27,7 +27,7 @@ const (
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal.
 // It also holds the votes status details.
 type ProposalInfo struct {
-	ID              int                `storm:"id,increment"`
+	ID              string             `json:"id" storm:"id"`
 	Name            string             `json:"name"`
 	State           ProposalStateType  `json:"state"`
 	Status          ProposalStatusType `json:"status"`
@@ -55,7 +55,7 @@ type Proposals struct {
 // CensorshipRecord is an entry that was created when the proposal was submitted.
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#censorship-record
 type CensorshipRecord struct {
-	Token      string `json:"token"`
+	Token      string `json:"token" storm:"index"`
 	MerkleRoot string `json:"merkle"`
 	Signature  string `json:"signature"`
 }
@@ -275,7 +275,7 @@ func ProposalStateFromStr(val string) ProposalStateType {
 // Results defines the actual vote count info per the votes choices available.
 type Results struct {
 	Option struct {
-		ID          string `json:"id"`
+		OptionID    string `json:"id"`
 		Description string `json:"description"`
 		Bits        int32  `json:"bits"`
 	} `json:"option"`
@@ -343,6 +343,7 @@ func (db *AgendaDB) saveProposals(URLParams string) (int, error) {
 
 	// Save all the proposals
 	for i, val := range publicProposals.Data {
+		val.ID = val.Censorship.Token
 		if err = db.offNode.Save(val); err != nil {
 			return i, fmt.Errorf("node save operation failed: %v", err)
 		}
@@ -393,12 +394,12 @@ func ProposalByToken(token string) (proposal *ProposalInfo, err error) {
 
 	var proposals []*ProposalInfo
 
-	err = adb.offNode.Find("Censorship.Token", token, &proposals, storm.Limit(1))
+	err = adb.offNode.Find("ID", token, &proposals, storm.Limit(1))
 	if err != nil {
 		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
 	}
 
-	if len(proposals) > 1 && proposals[0] != nil {
+	if len(proposals) > 0 && proposals[0] != nil {
 		proposal = proposals[0]
 	}
 
