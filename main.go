@@ -739,9 +739,11 @@ func _main(ctx context.Context) error {
 	})
 
 	// Start the web server.
-	if err = listenAndServeProto(cfg.APIListen, cfg.APIProto, webMux); err != nil {
-		log.Criticalf("listenAndServeProto: %v", err)
-		requestShutdown()
+	listenAndServeProto(ctx, &wg, cfg.APIListen, cfg.APIProto, webMux)
+
+	// Last chance to quit before syncing if the web server could not start.
+	if shutdownRequested(ctx) {
+		return nil
 	}
 
 	log.Infof("Starting blockchain sync...")
@@ -1196,7 +1198,7 @@ func connectNodeRPC(cfg *config, ntfnHandlers *rpcclient.NotificationHandlers) (
 		cfg.DcrdCert, cfg.DisableDaemonTLS, ntfnHandlers)
 }
 
-func listenAndServeProto(listen, proto string, mux http.Handler) error {
+func listenAndServeProto(ctx context.Context, wg *sync.WaitGroup, listen, proto string, mux http.Handler) {
 	// Try to bind web server
 	server := http.Server{
 		Addr:         listen,
@@ -1204,31 +1206,50 @@ func listenAndServeProto(listen, proto string, mux http.Handler) error {
 		ReadTimeout:  5 * time.Second,  // slow requests should not hold connections opened
 		WriteTimeout: 60 * time.Second, // hung responses must die
 	}
-	errChan := make(chan error)
-	if proto == "https" {
-		go func() {
-			errChan <- server.ListenAndServeTLS("dcrdata.cert", "dcrdata.key")
-		}()
-	} else {
-		go func() {
-			errChan <- server.ListenAndServe()
-		}()
-	}
 
-	// Briefly wait for an error and then return
-	t := time.NewTimer(2 * time.Second)
-	select {
-	case err := <-errChan:
-		return fmt.Errorf("Failed to bind web server promptly: %v", err)
-	case <-t.C:
-		expLog.Infof("Now serving explorer on %s://%v/", proto, listen)
-		apiLog.Infof("Now serving API on %s://%v/", proto, listen)
-		return nil
-	}
+	// Add the graceful shutdown to the waitgroup.
+	wg.Add(1)
+	go func() {
+		// Start graceful shutdown of web server on shutdown signal.
+		<-ctx.Done()
+
+		// We received an interrupt signal, shut down.
+		log.Infof("Gracefully shutting down web server...")
+		if err := server.Shutdown(context.Background()); err != nil {
+			// Error from closing listeners.
+			log.Infof("HTTP server Shutdown: %v", err)
+		}
+
+		// wg.Wait can proceed.
+		wg.Done()
+	}()
+
+	log.Infof("Now serving the explorer and APIs on %s://%v/", proto, listen)
+	// Start the server.
+	go func() {
+		var err error
+		if proto == "https" {
+			err = server.ListenAndServeTLS("dcrdata.cert", "dcrdata.key")
+		} else {
+			err = server.ListenAndServe()
+		}
+		// If the server dies for any reason other than ErrServerClosed (from
+		// graceful server.Shutdown), log the error and request dcrdata be
+		// shutdown.
+		if err != nil && err != http.ErrServerClosed {
+			log.Errorf("Failed to start server: %v", err)
+			requestShutdown()
+		}
+	}()
+
+	// If the server successfully binds to a listening port, ListenAndServe*
+	// will block until the server is shutdown. Wait here briefly so the startup
+	// operations in main can have a chance to bail out.
+	time.Sleep(250 * time.Millisecond)
 }
 
-// FileServer conveniently sets up a http.FileServer handler to serve
-// static files from a http.FileSystem.
+// FileServer conveniently sets up a http.FileServer handler to serve static
+// files from a http.FileSystem.
 func FileServer(r chi.Router, path string, root http.FileSystem, CacheControlMaxAge int64) {
 	if strings.ContainsAny(path, "{}*") {
 		panic("FileServer does not permit URL parameters.")
