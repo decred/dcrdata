@@ -245,7 +245,7 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 	}
 
 	// Safely send sync status updates on barLoad channel, and set the channel
-	// to nil if it was closed or the buffer is full.
+	// to nil if the buffer is full.
 	sendProgressUpdate := func(p *dbtypes.ProgressBarLoad) {
 		if barLoad == nil {
 			return
@@ -259,7 +259,7 @@ func (db *WiredDB) resyncDB(ctx context.Context, blockGetter rpcutils.BlockGette
 	}
 
 	// Safely send new block hash on updateExplorer channel, and set the channel
-	// to nil if it was closed or the buffer is full.
+	// to nil if the buffer is full.
 	sendPageData := func(hash *chainhash.Hash) {
 		if updateExplorer == nil {
 			return

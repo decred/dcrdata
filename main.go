@@ -953,7 +953,10 @@ func _main(ctx context.Context) error {
 
 	// Block further usage of the barLoad by sending a nil value
 	if barLoad != nil {
-		barLoad <- nil
+		select {
+		case barLoad <- nil:
+		default:
+		}
 	}
 
 	// Set that newly sync'd blocks should no longer be stored in the explorer.
