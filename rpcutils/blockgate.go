@@ -1,4 +1,4 @@
-// Copyright (c) 2017, The dcrdata developers
+// Copyright (c) 2017-2019, The dcrdata developers
 // See LICENSE for details.
 
 package rpcutils
@@ -75,7 +75,7 @@ func heightInQueue(q heightHashQueue, height int64) bool {
 	return false
 }
 
-// ensure BlockGate satisfies BlockGetter
+// Ensure BlockGate satisfies BlockGetter.
 var _ BlockGetter = (*BlockGate)(nil)
 
 // NewBlockGate constructs a new BlockGate, wrapping an RPC client, with a
@@ -145,16 +145,37 @@ func (g *BlockGate) BestBlock() (*dcrutil.Block, error) {
 	return block, err
 }
 
-// Block attempts to get the block with the specified hash from cache.
-func (g *BlockGate) Block(hash chainhash.Hash) (*dcrutil.Block, error) {
+// CachedBlock attempts to get the block with the specified hash from cache.
+func (g *BlockGate) CachedBlock(hash chainhash.Hash) (*dcrutil.Block, error) {
 	g.RLock()
 	defer g.RUnlock()
-	var err error
 	block, ok := g.blockWithHash[hash]
 	if !ok {
-		err = fmt.Errorf("block %d not found", hash)
+		return nil, fmt.Errorf("block %d not found", hash)
 	}
-	return block, err
+	return block, nil
+}
+
+// Block first attempts to get the block with the specified hash from cache. In
+// the event of a cache miss, the block is retrieved from dcrd via RPC.
+func (g *BlockGate) Block(hash chainhash.Hash) (*dcrutil.Block, error) {
+	// Try block cache first.
+	block, err := g.CachedBlock(hash)
+	if err == nil {
+		return block, nil
+	}
+
+	// Cache miss. Retrieve from dcrd RPC.
+	block, err = GetBlockByHash(&hash, g.client)
+	if err != nil {
+		return nil, fmt.Errorf("GetBlock (%v) failed: %v", hash, err)
+	}
+
+	g.RLock()
+	fmt.Printf("Block cache miss: requested %d, cache capacity %d, tip %d.",
+		block.Height(), g.expireQueue.cap, g.height)
+	g.RUnlock()
+	return block, nil
 }
 
 // UpdateToBestBlock gets the best block via RPC and updates the cache.
@@ -177,13 +198,17 @@ func (g *BlockGate) UpdateToNextBlock() (*dcrutil.Block, error) {
 }
 
 // UpdateToBlock gets the block at the specified height on the main chain from
-// dcrd and stores it in cache.
+// dcrd, stores it in cache, and signals any waiters. This is the thread-safe
+// version of updateToBlock.
 func (g *BlockGate) UpdateToBlock(height int64) (*dcrutil.Block, error) {
 	g.Lock()
 	defer g.Unlock()
 	return g.updateToBlock(height)
 }
 
+// updateToBlock gets the block at the specified height on the main chain from
+// dcrd. It is not thread-safe. It wrapped by UpdateToBlock for thread-safety,
+// and used directly by WaitForHeight which locks the BlockGate.
 func (g *BlockGate) updateToBlock(height int64) (*dcrutil.Block, error) {
 	block, hash, err := GetBlock(height, g.client)
 	if err != nil {
@@ -198,19 +223,26 @@ func (g *BlockGate) updateToBlock(height int64) (*dcrutil.Block, error) {
 	// above capacity.
 	g.rotateIn(height, *hash)
 
-	// defer as signal functions lock as well as UpdateToBlock
-	defer func() {
-		go g.signalHeight(height)
-		go g.signalHash(*hash)
-	}()
+	// Launch goroutines to signal to height and hash waiters.
+	g.signalHeight(height, *hash)
+	g.signalHash(*hash, height)
 
 	return block, nil
 }
 
+// rotateIn puts the input height-hash pair into an expiration queue. If the
+// queue is at capacity, the oldest entry in the queue is popped off, and the
+// corresponding items in the blockWithHash and hashAtHeight maps are deleted.
+// TODO: possibly check for hash and height waiters before deleting items.
+// However, since signalHeight and signalHeight are run synchrounously after
+// rotateIn in UpdateToBlock and WaitForHeight (both lock the BlockGate), there
+// should be no such issues. At worst, their may be a cache miss when a client
+// calls Block or CachedBlock.
 func (g *BlockGate) rotateIn(height int64, hash chainhash.Hash) {
-	// Push this new height-hash pair onto the queue
+	// Push this new height-hash pair onto the queue.
 	g.expireQueue.q = append(g.expireQueue.q, heightHashPair{height, hash})
-	// If above capacity, pop the oldest off
+
+	// If above capacity, pop the oldest off.
 	if len(g.expireQueue.q) > g.expireQueue.cap {
 		// Pop
 		oldest := g.expireQueue.q[0]
@@ -227,47 +259,55 @@ func (g *BlockGate) rotateIn(height int64, hash chainhash.Hash) {
 	}
 }
 
-func (g *BlockGate) signalHash(blockhash chainhash.Hash) {
-	g.Lock()
-	defer g.Unlock()
-
-	block, ok := g.blockWithHash[blockhash]
+func (g *BlockGate) signalHash(hash chainhash.Hash, height int64) {
+	// Get the hash waiter channels, and delete them from list.
+	waitChans, ok := g.hashWaiters[hash]
 	if !ok {
-		panic("g.blockWithHash[hash] not OK in signalHash")
+		return
 	}
-	height := block.Height()
+	delete(g.hashWaiters, hash)
 
-	waitChans := g.hashWaiters[blockhash]
-	for _, c := range waitChans {
-		select {
-		case c <- height:
-		default:
-			panic(fmt.Sprintf("unable to signal block with hash %s at height %d", blockhash, height))
+	// Empty slice or nil slice may have been stored.
+	if len(waitChans) == 0 {
+		return
+	}
+
+	// Send the height to each of the hash waiters.
+	go func() {
+		for _, c := range waitChans {
+			select {
+			case c <- height:
+			default:
+				panic(fmt.Sprintf("unable to signal block with hash %s at height %d",
+					hash, height))
+			}
 		}
-	}
-
-	delete(g.hashWaiters, blockhash)
+	}()
 }
 
-func (g *BlockGate) signalHeight(height int64) {
-	g.Lock()
-	defer g.Unlock()
-
-	blockhash, ok := g.hashAtHeight[height]
+func (g *BlockGate) signalHeight(height int64, hash chainhash.Hash) {
+	waitChans, ok := g.heightWaiters[height]
 	if !ok {
-		panic("g.hashAtHeight[height] not OK in signalHeight")
+		return
 	}
-
-	waitChans := g.heightWaiters[height]
-	for _, c := range waitChans {
-		select {
-		case c <- blockhash:
-		default:
-			panic(fmt.Sprintf("unable to signal block with hash %s at height %d", blockhash, height))
-		}
-	}
-
 	delete(g.heightWaiters, height)
+
+	// Empty slice or nil slice may have been stored.
+	if len(waitChans) == 0 {
+		return
+	}
+
+	// Send the hash to each of the height waiters.
+	go func() {
+		for _, c := range waitChans {
+			select {
+			case c <- hash:
+			default:
+				panic(fmt.Sprintf("unable to signal block with hash %s at height %d",
+					hash, height))
+			}
+		}
+	}()
 }
 
 // WaitForHeight provides a notification channel for signaling to the caller
@@ -280,12 +320,25 @@ func (g *BlockGate) WaitForHeight(height int64) chan chainhash.Hash {
 		return nil
 	}
 
-	waitChain := make(chan chainhash.Hash, 1)
-	g.heightWaiters[height] = append(g.heightWaiters[height], waitChain)
-	if height <= g.fetchToHeight {
-		g.updateToBlock(height)
+	waitChan := make(chan chainhash.Hash, 1)
+	// Queue for future send.
+	g.heightWaiters[height] = append(g.heightWaiters[height], waitChan)
+
+	// If the block is already cached, send now.
+	if hash, ok := g.hashAtHeight[height]; ok {
+		g.signalHeight(height, hash)
+	} else if height <= g.fetchToHeight {
+		if _, err := g.updateToBlock(height); err != nil {
+			fmt.Printf("Failed to updateToBlock: %v", err)
+			return nil
+		}
+	} else if height < g.height {
+		fmt.Printf("WARNING: WaitForHeight(%d), but the best block is at %d. "+
+			"You may wait forever for this block.",
+			height, g.height)
 	}
-	return waitChain
+
+	return waitChan
 }
 
 // WaitForHash provides a notification channel for signaling to the caller
@@ -294,12 +347,17 @@ func (g *BlockGate) WaitForHash(hash chainhash.Hash) chan int64 {
 	g.Lock()
 	defer g.Unlock()
 
-	waitChain := make(chan int64, 4)
-	g.hashWaiters[hash] = append(g.hashWaiters[hash], waitChain)
-	if hash == g.hashAtHeight[g.height] {
-		go g.signalHash(hash)
+	waitChan := make(chan int64, 1)
+
+	// Queue for future send.
+	g.hashWaiters[hash] = append(g.hashWaiters[hash], waitChan)
+
+	// If the block is already cached, send now.
+	if block, ok := g.blockWithHash[hash]; ok {
+		g.signalHash(hash, block.Height())
 	}
-	return waitChain
+
+	return waitChan
 }
 
 // GetChainwork fetches the dcrjson.BlockHeaderVerbose
