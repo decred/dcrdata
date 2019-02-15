@@ -27,11 +27,11 @@ const (
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#proposal.
 // It also holds the votes status details.
 type ProposalInfo struct {
-	ID              string             `json:"id" storm:"id"`
+	ID              int                `json:"id" storm:"id,increment"`
 	Name            string             `json:"name"`
 	State           ProposalStateType  `json:"state"`
 	Status          ProposalStatusType `json:"status"`
-	Timestamp       uint64             `json:"timestamp" storm:"index"`
+	Timestamp       uint64             `json:"timestamp"`
 	UserID          string             `json:"userid"`
 	Username        string             `json:"username"`
 	PublicKey       string             `json:"publickey"`
@@ -41,7 +41,7 @@ type ProposalInfo struct {
 	Files           []AttachmentFile   `json:"files"`
 	Numcomments     int32              `json:"numcomments"`
 	StatusChangeMsg string             `json:"statuschangemessage"`
-	PubishedDate    uint64             `json:"publishedat"`
+	PubishedDate    uint64             `json:"publishedat" storm:"index"`
 	CensoredDate    uint64             `json:"censoredat"`
 	AbandonedDate   uint64             `json:"abandonedat"`
 	VotesStatus     *ProposalVotes     `json:"votes"`
@@ -55,7 +55,7 @@ type Proposals struct {
 // CensorshipRecord is an entry that was created when the proposal was submitted.
 // https://github.com/decred/politeia/blob/master/politeiawww/api/v1/api.md#censorship-record
 type CensorshipRecord struct {
-	Token      string `json:"token" storm:"index"`
+	Token      string `json:"token"`
 	MerkleRoot string `json:"merkle"`
 	Signature  string `json:"signature"`
 }
@@ -85,6 +85,16 @@ type ProposalVotes struct {
 // Votes defines a slice of VotesStatuses as returned by voteStatusesRoute.
 type Votes struct {
 	Data []*ProposalVotes `json:"votesstatus"`
+}
+
+// Results defines the actual vote count info per the votes choices available.
+type Results struct {
+	Option struct {
+		OptionID    string `json:"id"`
+		Description string `json:"description"`
+		Bits        int32  `json:"bits"`
+	} `json:"option"`
+	VotesReceived int64 `json:"votesreceived"`
 }
 
 // VoteStatusType defines the various vote statuses available.
@@ -272,16 +282,6 @@ func ProposalStateFromStr(val string) ProposalStateType {
 	}
 }
 
-// Results defines the actual vote count info per the votes choices available.
-type Results struct {
-	Option struct {
-		OptionID    string `json:"id"`
-		Description string `json:"description"`
-		Bits        int32  `json:"bits"`
-	} `json:"option"`
-	VotesReceived int64 `json:"votesreceived"`
-}
-
 // fetchHTTPClient returns a http client used to query the API endpoints.
 func fetchHTTPClient() *http.Client {
 	tr := &http.Transport{
@@ -343,7 +343,7 @@ func (db *AgendaDB) saveProposals(URLParams string) (int, error) {
 
 	// Save all the proposals
 	for i, val := range publicProposals.Data {
-		val.ID = val.Censorship.Token
+		// val.ID = val.Censorship.Token
 		if err = db.offNode.Save(val); err != nil {
 			return i, fmt.Errorf("node save operation failed: %v", err)
 		}
@@ -376,8 +376,8 @@ func AllProposals() (proposals []*ProposalInfo, err error) {
 	return
 }
 
-// ProposalByToken returns the proposal identified by the provided token.
-func ProposalByToken(token string) (proposal *ProposalInfo, err error) {
+// ProposalByID returns the proposal identified by the provided id.
+func ProposalByID(proposalID int) (proposal *ProposalInfo, err error) {
 	var adb *AgendaDB
 	adb, err = Open()
 	if err != nil {
@@ -394,7 +394,7 @@ func ProposalByToken(token string) (proposal *ProposalInfo, err error) {
 
 	var proposals []*ProposalInfo
 
-	err = adb.offNode.Find("ID", token, &proposals, storm.Limit(1))
+	err = adb.offNode.Find("ID", proposalID, &proposals, storm.Limit(1))
 	if err != nil {
 		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
 	}

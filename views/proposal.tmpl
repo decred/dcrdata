@@ -13,12 +13,12 @@
                 </div>
             </div>
             <div class="row justify-content-between">
-                <div class="col-lg-18 col-sm-12 d-flex">
+                <div class="col-lg-16 col-sm-12 d-flex">
                     <table class="">
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Token</td>
                             <td>
-                                <span class="hash break-word  lh1rem"><a>{{.ID}}</span>
+                                <span class="hash break-word  lh1rem"><a>{{.Censorship.Token}}</span>
                             </td>
                         </tr>
                         <tr>
@@ -42,7 +42,7 @@
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Username</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{.Username}}</span>
+                                <span class="hash break-word  lh1rem">@{{.Username}}</span>
                             </td>
                         </tr>
                         <tr>
@@ -52,59 +52,83 @@
                             </td>
                         </tr>
                          <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">TotalVotes</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Total Votes</td>
                             <td>
                                 <span class="hash break-word  lh1rem">{{.VotesStatus.TotalVotes}}</span>
                             </td>
                         </tr>
                          <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Endheight</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">End Height</td>
                             <td>
                                 <span class="hash break-word  lh1rem">{{.VotesStatus.Endheight}}</span>
                             </td>
                         </tr>
                     </table>
                 </div>
-                <div class="col-lg-6 col-sm-12 d-flex">
+                <div class="col-lg-8 col-sm-12 d-flex">
                     <table class="">
                         <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Last Update</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{TimeConversion .Timestamp}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if ne .Timestamp 0}}
+                                        {{TimeConversion .Timestamp}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Published Date</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{TimeConversion .PubishedDate}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if ne .PubishedDate 0}}
+                                        {{TimeConversion .PubishedDate}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Censored Date</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{TimeConversion .CensoredDate}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if ne .CensoredDate 0}}
+                                        {{TimeConversion .CensoredDate}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                          <tr>
                             <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Abandoned Date</td>
                             <td>
-                                <span class="hash break-word  lh1rem">{{TimeConversion .AbandonedDate}}</span>
+                                <span class="hash break-word  lh1rem">
+                                    {{if ne .AbandonedDate 0}}
+                                        {{TimeConversion .AbandonedDate}}
+                                    {{else}}
+                                        --
+                                    {{end}}
+                                </span>
                             </td>
                         </tr>
                          <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">NumOfEligibleVotes</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Eligible Votes Count</td>
                             <td>
                                 <span class="hash break-word  lh1rem">{{.VotesStatus.NumOfEligibleVotes}}</span>
                             </td>
                         </tr>
                          <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">QuorumPercentage</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Quorum Percentage</td>
                             <td>
                                 <span class="hash break-word  lh1rem">{{.VotesStatus.QuorumPercentage}}</span>
                             </td>
                         </tr>
                          <tr>
-                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">PassPercentage</td>
+                            <td class="text-right pr-2 lh1rem vam nowrap xs-w117">Pass Percentage</td>
                             <td>
                                 <span class="hash break-word  lh1rem">{{.VotesStatus.PassPercentage}}</span>
                             </td>

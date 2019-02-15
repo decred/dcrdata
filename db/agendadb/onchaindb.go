@@ -10,8 +10,8 @@ import (
 	"os"
 
 	"github.com/asdine/storm"
-	"github.com/decred/dcrd/dcrjson/v2"
-	"github.com/decred/dcrd/rpcclient/v2"
+	dcrjson "github.com/decred/dcrd/dcrjson/v2"
+	rpcclient "github.com/decred/dcrd/rpcclient/v2"
 )
 
 // AgendaDB represents the data for the saved db

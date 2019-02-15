@@ -1760,8 +1760,15 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 // ProposalPage is the page handler for the "/proposal" path.
 func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 	// Attempts to retrieve proposal token from URL path.
-	token := getProposalTokenCtx(r)
-	proposalInfo, err := agendadb.ProposalByToken(token)
+	proposalID, err := strconv.Atoi(getProposalTokenCtx(r))
+	if err != nil {
+		log.Errorf("Template execute failure: %v", err)
+		exp.StatusPage(w, defaultErrorCode, "invalid proposal ID used ",
+			"", ExpStatusNotFound)
+		return
+	}
+
+	proposalInfo, err := agendadb.ProposalByID(proposalID)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
