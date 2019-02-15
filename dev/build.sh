@@ -21,7 +21,7 @@
 #   utility is not used since 7za compression rates are slightly better even for
 #   the gz format.
 #
-# Copyright (c) 2018, The Decred developers.
+# Copyright (c) 2018-2019, The Decred developers.
 # See LICENSE for details.
 
 REPO=`git rev-parse --show-toplevel 2> /dev/null`
@@ -39,8 +39,12 @@ fi
 set -e
 
 pushd $ROOT > /dev/null
+
+# Remove the old v3/v4 binaries to avoid confusion.
+rm -v -f v[[:digit:]]
+
 echo "Building the dcrdata binary..."
-GO111MODULE=on go build -v
+GO111MODULE=on go build -v -o dcrdata
 
 echo "Packaging static frontend assets..."
 npm install
@@ -51,16 +55,15 @@ find ./public -type f -name "*.gz" -execdir rm {} \;
 # Use GNU parallel if it is installed.
 if [ -x "$(command -v parallel)" ]; then
     if [ -x "$(command -v 7za)" ]; then
-        find ./public -type f -not -name "*.gz" | parallel --bar 7za a -tgzip -mx=9 -mpass=13 {}.gz {} > /dev/null
+        find ./public -type f -not -name "*.gz" | parallel --will-cite --bar 7za a -tgzip -mx=9 -mpass=13 {}.gz {} > /dev/null
     else
-        find ./public -type f -not -name "*.gz" | parallel --bar gzip -k9f {} > /dev/null
+        find ./public -type f -not -name "*.gz" | parallel --will-cite --bar gzip -k9f {} > /dev/null
     fi
 elif [ -x "$(command -v 7za)" ]; then
     find ./public -type f -not -name "*.gz" -execdir 7za a -tgzip -mx=9 -mpass=13 {}.gz {} \; > /dev/null    
 else
     find ./public -type f -not -name "*.gz" -execdir gzip -k9f {} \; > /dev/null
 fi
-# find ./public -type f -execdir gzip -k9f {} \; > /dev/null
 
 # Clean up incompressible files.
 find ./public -type f -name "*.png.gz" -execdir rm {} \;
@@ -69,7 +72,8 @@ find ./public -type f -name "*.gz.gz" -execdir rm {} \;
 DEST=$2
 
 if [[ -n "$DEST" ]]; then
-    sudo install -m 754 -o dcrdata -g decred ./v3 ${DEST}/dcrdata
+    sudo install -m 754 -o dcrdata -g decred ./dcrdata ${DEST}/
+    sudo rm -rf ${DEST}/views ${DEST}/public
     sudo cp -R views public ${DEST}/
 fi
 
