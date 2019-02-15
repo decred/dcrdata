@@ -6,14 +6,28 @@ import (
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
 )
 
-// ErrWsClosed is the error message text used websocket Conn.Close tries to
-// close an already closed connection.
-var ErrWsClosed = "use of closed network connection"
+var (
+	// ErrWsClosed is the error message text when a websocket.(*Conn).Close
+	// tries to close an already closed connection.
+	ErrWsClosed = "use of closed network connection"
+
+	// ErrWsClosed is the error message text when a websocket.(*Conn).Close
+	// fails to close a connection due to a passed write deadline.
+	ErrIOTimeout = "i/o timeout"
+)
 
 // IsWSClosedErr checks if the passed error indicates a closed websocket
 // connection.
 func IsWSClosedErr(err error) (closedErr bool) {
 	if err != nil && strings.Contains(err.Error(), ErrWsClosed) {
+		closedErr = true
+	}
+	return
+}
+
+// IsIOTimeoutErr checks if the passed error indicates an I/O timeout error.
+func IsIOTimeoutErr(err error) (closedErr bool) {
+	if err != nil && strings.Contains(err.Error(), ErrIOTimeout) {
 		closedErr = true
 	}
 	return
