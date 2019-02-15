@@ -188,7 +188,7 @@ func (psh *PubSubHub) MempoolInventory() *types.MempoolInfo {
 func closeWS(ws *websocket.Conn) {
 	err := ws.Close()
 	// Do not log error if connection is just closed
-	if err != nil && !pstypes.IsWSClosedErr(err) {
+	if err != nil && !pstypes.IsWSClosedErr(err) && !pstypes.IsIOTimeoutErr(err) {
 		log.Errorf("Failed to close websocket: %v", err)
 	}
 }
