@@ -129,14 +129,13 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 	// Upgrade from 3.1.0 --> 3.2.0
 	case version.major == 3 && version.minor == 1 && version.patch == 0:
 		toVersion = TableVersion{3, 2, 0}
-		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		theseUpgrades := []TableUpgradeType{
 			{"agendas", agendasTableUpgrade},
 			{"vins", vinsTableCoinSupplyUpgrade},
 		}
 
-		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		isSuccess, er := pgb.initiatePgUpgrade(dcrdClient, theseUpgrades)
 		if !isSuccess {
 			return isSuccess, er
 		}
@@ -147,7 +146,6 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 	// Upgrade from 3.2.0 --> 3.3.0
 	case version.major == 3 && version.minor == 2 && version.patch == 0:
 		toVersion = TableVersion{3, 3, 0}
-		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		// The order of these upgrades is critical
 		theseUpgrades := []TableUpgradeType{
@@ -158,7 +156,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			{"votes", votesTableMainchainUpgrade},
 		}
 
-		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		isSuccess, er := pgb.initiatePgUpgrade(dcrdClient, theseUpgrades)
 		if !isSuccess {
 			return isSuccess, er
 		}
@@ -169,14 +167,13 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 	// Upgrade from 3.3.0 --> 3.4.0
 	case version.major == 3 && version.minor == 3 && version.patch == 0:
 		toVersion = TableVersion{3, 4, 0}
-		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
 
 		// The order of these upgrades is critical
 		theseUpgrades := []TableUpgradeType{
 			{"tickets", ticketsTableMainchainUpgrade},
 		}
 
-		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		isSuccess, er := pgb.initiatePgUpgrade(dcrdClient, theseUpgrades)
 		if !isSuccess {
 			return isSuccess, er
 		}
@@ -330,8 +327,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			{"blocks", blocksChainWorkUpdate},
 		}
 
-		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
-		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		isSuccess, er := pgb.initiatePgUpgrade(dcrdClient, theseUpgrades)
 		if !isSuccess {
 			return isSuccess, er
 		}
@@ -389,8 +385,7 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 		}
 		pgb.UpdateChainState(rawChainInfo)
 
-		smartClient := rpcutils.NewBlockGate(dcrdClient, 10)
-		isSuccess, er := pgb.initiatePgUpgrade(smartClient, theseUpgrades)
+		isSuccess, er := pgb.initiatePgUpgrade(dcrdClient, theseUpgrades)
 		if !isSuccess {
 			return isSuccess, er
 		}
@@ -417,9 +412,9 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 }
 
 // initiatePgUpgrade starts the specific auxiliary database.
-func (pgb *ChainDB) initiatePgUpgrade(smartClient *rpcutils.BlockGate, theseUpgrades []TableUpgradeType) (bool, error) {
+func (pgb *ChainDB) initiatePgUpgrade(client *rpcclient.Client, theseUpgrades []TableUpgradeType) (bool, error) {
 	for it := range theseUpgrades {
-		upgradeSuccess, err := pgb.handleUpgrades(smartClient, theseUpgrades[it].upgradeType)
+		upgradeSuccess, err := pgb.handleUpgrades(client, theseUpgrades[it].upgradeType)
 		if err != nil || !upgradeSuccess {
 			return false, fmt.Errorf("failed to upgrade %s table to version %v. Error: %v",
 				theseUpgrades[it].TableName, toVersion, err)
@@ -435,7 +430,7 @@ func (pgb *ChainDB) initiatePgUpgrade(smartClient *rpcutils.BlockGate, theseUpgr
 
 // handleUpgrades the individual upgrade and returns a bool and an error
 // indicating if the upgrade was successful or not.
-func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
+func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 	tableUpgrade tableUpgradeType) (bool, error) {
 	var err error
 	var startHeight uint64
@@ -558,7 +553,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcutils.BlockGate,
 
 		// For each block on the main chain, perform upgrade operations.
 		for i := startHeight; i <= height; i++ {
-			block, err := client.UpdateToBlock(int64(i))
+			block, _, err := rpcutils.GetBlock(int64(i), client)
 			if err != nil {
 				return false, err
 			}
@@ -1548,7 +1543,7 @@ func versionAllTables(db *sql.DB, version TableVersion) error {
 
 // verifyChainWork fetches and inserts missing chainwork values.
 // This addresses a table update done at DB version 3.7.0.
-func verifyChainWork(blockgate *rpcutils.BlockGate, db *sql.DB) (int64, error) {
+func verifyChainWork(client *rpcclient.Client, db *sql.DB) (int64, error) {
 	// Count rows with missing chainWork.
 	var count int64
 	countRow := db.QueryRow(`SELECT COUNT(hash) FROM blocks WHERE chainwork = '0';`)
@@ -1578,7 +1573,6 @@ func verifyChainWork(blockgate *rpcutils.BlockGate, db *sql.DB) (int64, error) {
 	defer rows.Close()
 
 	var updated int64
-	client := blockgate.Client()
 	tReport := time.Now()
 	for rows.Next() {
 		var hashStr string
