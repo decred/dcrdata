@@ -48,9 +48,9 @@ type ChoiceLabeled struct {
 // properly initialized.
 var errDefault = fmt.Errorf("AgendaDB was not initialized correctly")
 
-// NewOnChainDB opens an existing database or create a new one using with
+// NewAgendasDB opens an existing database or create a new one using with
 // the specified file name. An initialized on-chain db connection is returned.
-func NewOnChainDB(dbPath string) (*AgendaDB, error) {
+func NewAgendasDB(dbPath string) (*AgendaDB, error) {
 	_, err := os.Stat(dbPath)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -164,9 +164,9 @@ func (db *AgendaDB) storeAgenda(agenda *AgendaTagged) error {
 	return db.sdb.Save(agenda)
 }
 
-// CheckForUpdates checks for update at the start of the process and will
+// CheckOnChainUpdates checks for update at the start of the process and will
 // proceed to update when necessary.
-func (db *AgendaDB) CheckForUpdates(client *rpcclient.Client) error {
+func (db *AgendaDB) CheckOnChainUpdates(client *rpcclient.Client) error {
 	if db == nil || db.sdb == nil {
 		return errDefault
 	}

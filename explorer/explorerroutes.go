@@ -21,8 +21,9 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/txscript"
-	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/db/offchaindb"
+	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/txhelpers"
@@ -1683,7 +1684,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	// Attempt to get agendaid string from URL path.
 	agendaId := getAgendaIDCtx(r)
-	agendaInfo, err := types.AgendaInfo(agendaId)
+	agendaInfo, err := exp.onChainSource.AgendaInfo(agendaId)
 	if err != nil {
 		errPageInvalidAgenda(err)
 		return
@@ -1710,7 +1711,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("agenda", struct {
 		*CommonPageData
-		Ai      *agendadb.AgendaTagged
+		Ai      *onchaindb.AgendaTagged
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -1730,7 +1731,7 @@ func (exp *explorerUI) AgendaPage(w http.ResponseWriter, r *http.Request) {
 
 // AgendasPage is the page handler for the "/agendas" path.
 func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
-	agendas, err := agendadb.AllAgendas()
+	agendas, err := exp.onChainSource.AllAgendas()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -1739,7 +1740,7 @@ func (exp *explorerUI) AgendasPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("agendas", struct {
 		*CommonPageData
-		Agendas []*agendadb.AgendaTagged
+		Agendas []*onchaindb.AgendaTagged
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -1768,7 +1769,7 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proposalInfo, err := agendadb.ProposalByID(proposalID)
+	proposalInfo, err := exp.offChainSource.ProposalByID(proposalID)
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, "the proposal token does not exist",
@@ -1778,7 +1779,7 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("proposal", struct {
 		*CommonPageData
-		Data    *agendadb.ProposalInfo
+		Data    *offchaindb.ProposalInfo
 		NetName string
 	}{
 		CommonPageData: exp.commonData(),
@@ -1799,7 +1800,7 @@ func (exp *explorerUI) ProposalPage(w http.ResponseWriter, r *http.Request) {
 
 // ProposalsPage is the page handler for the "/proposals" path.
 func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
-	proposals, err := agendadb.AllProposals()
+	proposals, err := exp.offChainSource.AllProposals()
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
@@ -1808,7 +1809,7 @@ func (exp *explorerUI) ProposalsPage(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("proposals", struct {
 		*CommonPageData
-		Proposals []*agendadb.ProposalInfo
+		Proposals []*offchaindb.ProposalInfo
 		NetName   string
 	}{
 		CommonPageData: exp.commonData(),

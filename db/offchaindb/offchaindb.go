@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/asdine/storm"
-	"google.golang.org/appengine/log"
 )
 
 const (
@@ -299,7 +298,7 @@ var errDef = fmt.Errorf("ProposalDB was not initialized correctly")
 // NewProposalsDB opens an exiting database or creates a new db instance with the
 // provided file name. returns an initialized instance of Proposal DB, http client
 // and the politeia API URL path to be used.
-func NewProposalsDB(dbPath, politeiaURL string) (*ProposalDB, error) {
+func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 	_, err := os.Stat(dbPath)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err

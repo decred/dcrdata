@@ -25,10 +25,11 @@ import (
 	"github.com/decred/dcrdata/v4/api"
 	"github.com/decred/dcrdata/v4/api/insight"
 	"github.com/decred/dcrdata/v4/blockdata"
-	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
+	"github.com/decred/dcrdata/v4/db/offchaindb"
+	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	exptypes "github.com/decred/dcrdata/v4/explorer/types"
@@ -448,15 +449,6 @@ func _main(ctx context.Context) error {
 		}
 	}
 
-	// Set the path to the AgendaDB file.
-	agendadb.SetConfig(filepath.Join(cfg.DataDir, cfg.AgendaDBFileName),
-		cfg.PoliteiaAPIURL)
-
-	// AgendaDB upgrade check
-	if err = agendadb.CheckForUpdates(dcrdClient); err != nil {
-		return fmt.Errorf("agendadb upgrade failed: %v", err)
-	}
-
 	// Block data collector. Needs a StakeDatabase too.
 	collector := blockdata.NewCollector(dcrdClient, activeChain, baseDB.GetStakeDB())
 	if collector == nil {
@@ -507,9 +499,35 @@ func _main(ctx context.Context) error {
 		}
 	}
 
+	// NewAgendasDB creates an on-chain db instance the helps to store and
+	// retrieves on-chain agendas data.
+	onChainInstance, err := onchaindb.NewAgendasDB(filepath.Join(cfg.DataDir, cfg.OnChainDBFileName))
+	if err != nil {
+		return fmt.Errorf("failed to create new on-chain db instance: %v", err)
+	}
+
+	// CheckOnChainUpdates checks for onchain db updates.
+	if err = onChainInstance.CheckOnChainUpdates(dcrdClient); err != nil {
+		return fmt.Errorf("updating off chain db failed: %v", err)
+	}
+
+	// NewProposalsDB creates an off-chain db instance that helps to store and
+	// retrieve off-chain proposals data.
+	offChainInstance, err := offchaindb.NewProposalsDB(cfg.PoliteiaAPIURL,
+		filepath.Join(cfg.DataDir, cfg.OffChainDBFileName))
+	if err != nil {
+		return fmt.Errorf("failed to create new off-chain db instance: %v", err)
+	}
+
+	// CheckOffChainUpdates checks for offchain db updates.
+	if err = offChainInstance.CheckOffChainUpdates(); err != nil {
+		return fmt.Errorf("updating on chain db failed: %v", err)
+	}
+
 	// Create the explorer system.
 	explore := explorer.New(baseDB, auxDB, cfg.UseRealIP, version.Version(),
-		!cfg.NoDevPrefetch, "views", xcBot) // TODO: allow views config
+		!cfg.NoDevPrefetch, "views", xcBot, onChainInstance, offChainInstance)
+	// TODO: allow views config
 	if explore == nil {
 		return fmt.Errorf("failed to create new explorer (templates missing?)")
 	}
@@ -631,7 +649,8 @@ func _main(ctx context.Context) error {
 	}
 
 	// Start dcrdata's JSON web API.
-	app := api.NewContext(dcrdClient, activeChain, baseDB, auxDB, cfg.IndentJSON, xcBot)
+	app := api.NewContext(dcrdClient, activeChain, baseDB, auxDB, cfg.IndentJSON,
+		xcBot, onChainInstance)
 	// Start the notification hander for keeping /status up-to-date.
 	wg.Add(1)
 	go app.StatusNtfnHandler(ctx, &wg)

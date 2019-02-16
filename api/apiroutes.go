@@ -27,6 +27,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	apitypes "github.com/decred/dcrdata/v4/api/types"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	m "github.com/decred/dcrdata/v4/middleware"
@@ -122,12 +123,14 @@ type appContext struct {
 	Status        apitypes.Status
 	JSONIndent    string
 	xcBot         *exchanges.ExchangeBot
+	OnChainDB     *onchaindb.AgendaDB
 }
 
 // NewContext constructs a new appContext from the RPC client, primary and
 // auxiliary data sources, and JSON indentation string.
 func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource DataSourceLite,
-	auxDataSource DataSourceAux, JSONIndent string, xcBot *exchanges.ExchangeBot) *appContext {
+	auxDataSource DataSourceAux, JSONIndent string, xcBot *exchanges.ExchangeBot,
+	onchainInstance *onchaindb.AgendaDB) *appContext {
 	conns, _ := client.GetConnectionCount()
 	nodeHeight, _ := client.GetBlockCount()
 
@@ -142,6 +145,7 @@ func NewContext(client *rpcclient.Client, params *chaincfg.Params, dataSource Da
 		AuxDataSource: auxDataSource,
 		LiteMode:      liteMode,
 		xcBot:         xcBot,
+		OnChainDB:     onchainInstance,
 		Status: apitypes.Status{
 			Height:          uint32(nodeHeight),
 			NodeConnections: conns,
@@ -1732,7 +1736,7 @@ func (c *appContext) getCurrencyCodes(w http.ResponseWriter, r *http.Request) {
 // Description, Vote Version, VotingDone height, Activated, HardForked,
 // StartTime and ExpireTime.
 func (c *appContext) getAgendasData(w http.ResponseWriter, _ *http.Request) {
-	agendas, err := agendadb.AllAgendas()
+	agendas, err := c.OnChainDB.AllAgendas()
 	if err != nil {
 		apiLog.Errorf("agendadb AllAgendas error: %v", err)
 		http.Error(w, "agendadb.AllAgendas failed.", http.StatusServiceUnavailable)
@@ -1749,12 +1753,12 @@ func (c *appContext) getAgendasData(w http.ResponseWriter, _ *http.Request) {
 
 	for index := range agendas {
 		val := agendas[index]
-		agendaMilestone := voteMilestones[val.Id]
+		agendaMilestone := voteMilestones[val.ID]
 		agendaMilestone.StartTime = time.Unix(int64(val.StartTime), 0).UTC()
 		agendaMilestone.ExpireTime = time.Unix(int64(val.ExpireTime), 0).UTC()
 
 		data = append(data, apitypes.AgendasInfo{
-			Name:        val.Id,
+			Name:        val.ID,
 			Description: val.Description,
 			VoteVersion: val.VoteVersion,
 			MileStone:   &agendaMilestone,

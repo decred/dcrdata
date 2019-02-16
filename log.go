@@ -9,13 +9,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/decred/dcrd/rpcclient/v2"
+	rpcclient "github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrdata/v4/api"
 	"github.com/decred/dcrdata/v4/api/insight"
 	"github.com/decred/dcrdata/v4/blockdata"
-	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/db/dcrpg"
 	"github.com/decred/dcrdata/v4/db/dcrsqlite"
+	"github.com/decred/dcrdata/v4/db/offchaindb"
+	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer"
 	"github.com/decred/dcrdata/v4/mempool"
@@ -70,6 +71,7 @@ var (
 	pubsubLog     = backendLog.Logger("PUBS")
 	xcBotLog      = backendLog.Logger("XBOT")
 	agendasLog    = backendLog.Logger("AGDB")
+	proposalsLog  = backendLog.Logger("PRDB")
 )
 
 // Initialize package-global logger variables.
@@ -88,7 +90,8 @@ func init() {
 	notify.UseLogger(notifyLog)
 	pubsub.UseLogger(pubsubLog)
 	exchanges.UseLogger(xcBotLog)
-	agendadb.UseLogger(agendasLog)
+	onchaindb.UseLogger(agendasLog)
+	offchaindb.UseLogger(proposalsLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
@@ -106,6 +109,8 @@ var subsystemLoggers = map[string]slog.Logger{
 	"DATD": log,
 	"PUBS": pubsubLog,
 	"XBOT": xcBotLog,
+	"AGDB": agendasLog,
+	"PRDB": proposalsLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and

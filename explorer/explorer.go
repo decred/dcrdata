@@ -19,11 +19,14 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg"
-	"github.com/decred/dcrd/dcrjson/v2"
+	dcrjson "github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
+	rpcclient "github.com/decred/dcrd/rpcclient/v2"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/blockdata"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
+	"github.com/decred/dcrdata/v4/db/offchaindb"
+	"github.com/decred/dcrdata/v4/db/onchaindb"
 	"github.com/decred/dcrdata/v4/exchanges"
 	"github.com/decred/dcrdata/v4/explorer/types"
 	"github.com/decred/dcrdata/v4/mempool"
@@ -106,6 +109,22 @@ type explorerDataSource interface {
 	PosIntervals(limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 	TimeBasedIntervals(timeGrouping dbtypes.TimeBasedGrouping, limit, offset uint64) ([]*dbtypes.BlocksGroupedInfo, error)
 	AgendaCumulativeVoteChoices(agendaID string) (yes, abstain, no uint32, err error)
+}
+
+// explorerDataSourceOffChain implements methods that retrieve data from the
+// off-chain db source.
+type explorerDataSourceOffChain interface {
+	CheckOffChainUpdates() error
+	AllProposals() (proposals []*offchaindb.ProposalInfo, err error)
+	ProposalByID(proposalID int) (proposal *offchaindb.ProposalInfo, err error)
+}
+
+// explorerDataSourceOnChain implements methods that retrieve data from the
+// on-chain db source.
+type explorerDataSourceOnChain interface {
+	CheckOnChainUpdates(client *rpcclient.Client) error
+	AgendaInfo(agendaID string) (*onchaindb.AgendaTagged, error)
+	AllAgendas() (agendas []*onchaindb.AgendaTagged, err error)
 }
 
 // chartDataCounter is a data cache for the historical charts.
@@ -218,6 +237,8 @@ type explorerUI struct {
 	Mux              *chi.Mux
 	blockData        explorerDataSourceLite
 	explorerSource   explorerDataSource
+	onChainSource    explorerDataSourceOnChain
+	offChainSource   explorerDataSourceOffChain
 	dbsSyncing       atomic.Value
 	liteMode         bool
 	devPrefetch      bool
@@ -284,7 +305,8 @@ func (exp *explorerUI) StopWebsocketHub() {
 // New returns an initialized instance of explorerUI
 func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource,
 	useRealIP bool, appVersion string, devPrefetch bool, viewsfolder string,
-	xcBot *exchanges.ExchangeBot) *explorerUI {
+	xcBot *exchanges.ExchangeBot, onChainInstance explorerDataSourceOnChain,
+	offChainInstance explorerDataSourceOffChain) *explorerUI {
 	exp := new(explorerUI)
 	exp.Mux = chi.NewRouter()
 	exp.blockData = dataSource
@@ -295,6 +317,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	exp.Version = appVersion
 	exp.devPrefetch = devPrefetch
 	exp.xcBot = xcBot
+	exp.onChainSource = onChainInstance
+	exp.offChainSource = offChainInstance
 	// explorerDataSource is an interface that could have a value of pointer
 	// type, and if either is nil this means lite mode.
 	if exp.explorerSource == nil || reflect.ValueOf(exp.explorerSource).IsNil() {

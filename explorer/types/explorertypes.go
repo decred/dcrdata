@@ -15,7 +15,6 @@ import (
 	"github.com/decred/dcrd/dcrjson/v2"
 	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/dcrdata/v4/db/agendadb"
 	"github.com/decred/dcrdata/v4/txhelpers"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -904,11 +903,6 @@ func AddressPrefixes(params *chaincfg.Params) []AddrPrefix {
 		})
 	}
 	return addrPrefix
-}
-
-// AgendaInfo gets the all info for the specified agenda ID.
-func AgendaInfo(agendaId string) (*agendadb.AgendaTagged, error) {
-	return agendadb.AgendaInfo(agendaId)
 }
 
 // StatsInfo represents all of the data for the stats page.
