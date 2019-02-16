@@ -1,16 +1,18 @@
 // Copyright (c) 2019, The Decred developers
 // See LICENSE for details.
 
-package agendadb
+package offchaindb
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/asdine/storm"
+	"google.golang.org/appengine/log"
 )
 
 const (
@@ -282,20 +284,76 @@ func ProposalStateFromStr(val string) ProposalStateType {
 	}
 }
 
-// fetchHTTPClient returns a http client used to query the API endpoints.
-func fetchHTTPClient() *http.Client {
-	tr := &http.Transport{
+// ProposalDB defines the common data needed to query the proposals db.
+type ProposalDB struct {
+	dbP          *storm.DB
+	client       *http.Client
+	NumProposals int
+	_APIURLpath  string
+}
+
+// errDef defines the default error returned if the proposals db was initialized
+// correctly.
+var errDef = fmt.Errorf("ProposalDB was not initialized correctly")
+
+// NewProposalsDB opens an exiting database or creates a new db instance with the
+// provided file name. returns an initialized instance of Proposal DB, http client
+// and the politeia API URL path to be used.
+func NewProposalsDB(dbPath, politeiaURL string) (*ProposalDB, error) {
+	_, err := os.Stat(dbPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	if politeiaURL == "" {
+		return nil, fmt.Errorf("missing politeia API URL")
+	}
+
+	db, err := storm.Open(dbPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// returns a http client used to query the API endpoints.
+	c := &http.Client{Transport: &http.Transport{
 		MaxIdleConns:       10,
 		IdleConnTimeout:    5 * time.Second,
 		DisableCompression: false,
+	}}
+
+	proposalDB := &ProposalDB{
+		dbP:         db,
+		client:      c,
+		_APIURLpath: politeiaURL,
 	}
 
-	return &http.Client{Transport: tr}
+	return proposalDB, nil
+}
+
+// countProperties fetches the proposal count and appends it the ProposalDB instance
+// provided.
+func (db *ProposalDB) countProperties() error {
+	count, err := db.dbP.Count(&ProposalInfo{})
+	if err != nil {
+		return err
+	}
+
+	db.NumProposals = count
+	return nil
+}
+
+// Close closes the proposal DB instance created passed if it not nil.
+func (db *ProposalDB) Close() error {
+	if db == nil || db.dbP == nil {
+		return nil
+	}
+
+	return db.dbP.Close()
 }
 
 // handleGetRequests constructs the full URL path, querys the API endpoints and
 // returns the queried data in form of byte array and an error if it exists.
-func (db *AgendaDB) handleGetRequests(root, path, params string) ([]byte, error) {
+func (db *ProposalDB) handleGetRequests(root, path, params string) ([]byte, error) {
 	response, err := db.client.Get(root + path + params)
 	if err != nil {
 		return nil, err
@@ -307,8 +365,8 @@ func (db *AgendaDB) handleGetRequests(root, path, params string) ([]byte, error)
 }
 
 // saveProposals adds the proposals data to the db.
-func (db *AgendaDB) saveProposals(URLParams string) (int, error) {
-	data, err := db.handleGetRequests(db.politeiaURL, vettedProposalsRoute, URLParams)
+func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
+	data, err := db.handleGetRequests(db._APIURLpath, vettedProposalsRoute, URLParams)
 	if err != nil {
 		return 0, err
 	}
@@ -319,7 +377,7 @@ func (db *AgendaDB) saveProposals(URLParams string) (int, error) {
 		return 0, err
 	}
 
-	data, err = db.handleGetRequests(db.politeiaURL, voteStatusesRoute, URLParams)
+	data, err = db.handleGetRequests(db._APIURLpath, voteStatusesRoute, URLParams)
 	if err != nil {
 		return 0, err
 	}
@@ -344,8 +402,8 @@ func (db *AgendaDB) saveProposals(URLParams string) (int, error) {
 	// Save all the proposals
 	for i, val := range publicProposals.Data {
 		// val.ID = val.Censorship.Token
-		if err = db.offNode.Save(val); err != nil {
-			return i, fmt.Errorf("node save operation failed: %v", err)
+		if err = db.dbP.Save(val); err != nil {
+			return i, fmt.Errorf("save operation failed: %v", err)
 		}
 	}
 
@@ -353,22 +411,12 @@ func (db *AgendaDB) saveProposals(URLParams string) (int, error) {
 }
 
 // AllProposals fetches all the proposals data saved to the db.
-func AllProposals() (proposals []*ProposalInfo, err error) {
-	var adb *AgendaDB
-	adb, err = Open()
-	if err != nil {
-		log.Errorf("Failed to open new Agendas DB: %v", err)
-		return
+func (db *ProposalDB) AllProposals() (proposals []*ProposalInfo, err error) {
+	if db == nil || db.dbP == nil {
+		return nil, errDef
 	}
 
-	defer func() {
-		err = adb.Close()
-		if err != nil {
-			log.Errorf("Failed to close the Agendas DB: %v", err)
-		}
-	}()
-
-	err = adb.offNode.All(&proposals)
+	err = db.dbP.All(&proposals)
 	if err != nil {
 		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
 	}
@@ -376,27 +424,18 @@ func AllProposals() (proposals []*ProposalInfo, err error) {
 	return
 }
 
-// ProposalByID returns the proposal identified by the provided id.
-func ProposalByID(proposalID int) (proposal *ProposalInfo, err error) {
-	var adb *AgendaDB
-	adb, err = Open()
-	if err != nil {
-		log.Errorf("Failed to open new Agendas DB: %v", err)
-		return
+// ProposalByID returns the single proposal identified by the provided id.
+func (db *ProposalDB) ProposalByID(proposalID int) (proposal *ProposalInfo, err error) {
+	if db == nil || db.dbP == nil {
+		return nil, errDef
 	}
-
-	defer func() {
-		err = adb.Close()
-		if err != nil {
-			log.Errorf("Failed to close the Agendas DB: %v", err)
-		}
-	}()
 
 	var proposals []*ProposalInfo
 
-	err = adb.offNode.Find("ID", proposalID, &proposals, storm.Limit(1))
+	err = db.dbP.Find("ID", proposalID, &proposals, storm.Limit(1))
 	if err != nil {
 		log.Errorf("Failed to fetch data from Agendas DB: %v", err)
+		return nil, err
 	}
 
 	if len(proposals) > 0 && proposals[0] != nil {
@@ -406,23 +445,33 @@ func ProposalByID(proposalID int) (proposal *ProposalInfo, err error) {
 	return
 }
 
-func (db *AgendaDB) lastSavedProposal() (lastP []*ProposalInfo, err error) {
-	err = db.offNode.All(&lastP, storm.Limit(1), storm.Reverse())
-	return
-}
+// CheckOffChainUpdates updates the on chain changes if they exist.
+func (db *ProposalDB) CheckOffChainUpdates() error {
+	if db == nil || db.dbP == nil {
+		return errDef
+	}
 
-// checkOffChainUpdates updates the on chain changes if they exist.
-func (db *AgendaDB) checkOffChainUpdates() (int, error) {
 	lastProposal, err := db.lastSavedProposal()
 	if err != nil {
-		return 0, fmt.Errorf("lastSavedProposal failed: %v", err)
+		return fmt.Errorf("lastSavedProposal failed: %v", err)
 	}
 
 	var queryParam string
-
 	if len(lastProposal) > 0 {
 		queryParam = fmt.Sprintf("?after=%v", lastProposal[0].Censorship.Token)
 	}
 
-	return db.saveProposals(queryParam)
+	numRecords, err := db.saveProposals(queryParam)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("%d off-chain records (politeia proposals) were updated", numRecords)
+
+	return db.countProperties()
+}
+
+func (db *ProposalDB) lastSavedProposal() (lastP []*ProposalInfo, err error) {
+	err = db.dbP.All(&lastP, storm.Limit(1), storm.Reverse())
+	return
 }

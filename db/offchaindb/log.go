@@ -1,7 +1,7 @@
 // Copyright (c) 2018, The Decred developers
 // See LICENSE for details.
 
-package agendadb
+package offchaindb
 
 import "github.com/decred/slog"
 
