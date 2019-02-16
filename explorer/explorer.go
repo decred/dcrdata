@@ -35,12 +35,22 @@ import (
 )
 
 const (
-	maxExplorerRows              = 400
-	minExplorerRows              = 20
-	syncStatusInterval           = 10 * time.Second
-	defaultAddressRows     int64 = 20
-	MaxAddressRows         int64 = 1000
-	MaxUnconfirmedPossible int64 = 1000
+	// maxExplorerRows and minExplorerRows are the limits on the number of
+	// blocks/time-window rows that may be shown on the explorer pages.
+	maxExplorerRows = 400
+	minExplorerRows = 20
+
+	// syncStatusInterval is the frequency with startup synchronization progress
+	// signals are sent to websocket clients.
+	syncStatusInterval = 2 * time.Second
+
+	// defaultAddressRows is the default number of rows to be shown on the
+	// address page table.
+	defaultAddressRows int64 = 20
+
+	// MaxAddressRows is an upper limit on the number of rows that may be shown
+	// on the address page table.
+	MaxAddressRows int64 = 1000
 )
 
 // explorerDataSourceLite implements an interface for collecting data for the
