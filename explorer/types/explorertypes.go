@@ -180,6 +180,7 @@ type TicketInfo struct {
 	TimeTillMaturity     float64 // Time before a particular ticket reaches maturity, in hours
 	PoolStatus           string
 	SpendStatus          string
+	LotteryBlock         string  // If the ticket was chosen to vote, it was chosen to vote in this block.
 	TicketPoolSize       int64   // Total number of ticket in the pool
 	TicketExpiry         int64   // Total number of blocks before a ticket expires
 	TicketExpiryDaysLeft float64 // Approximate days left before the given ticket expires

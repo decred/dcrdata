@@ -91,6 +91,7 @@ type explorerDataSource interface {
 	DevBalance() (*dbtypes.AddressBalance, error)
 	FillAddressTransactions(addrInfo *dbtypes.AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
+	TicketMiss(ticketHash string) (string, int64, error)
 	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
 	TicketsPriceByHeight() (*dbtypes.ChartsData, error)
 	SideChainBlocks() ([]*dbtypes.BlockStatus, error)
@@ -180,7 +181,7 @@ func TicketStatusText(s dbtypes.TicketSpendType, p dbtypes.TicketPoolStatus) str
 		case dbtypes.TicketUnspent:
 			return "Missed, Unrevoked"
 		case dbtypes.TicketRevoked:
-			return "Missed, Reevoked"
+			return "Missed, Revoked"
 		default:
 			return "invalid ticket state"
 		}
