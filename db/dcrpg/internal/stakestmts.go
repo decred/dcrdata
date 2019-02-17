@@ -334,6 +334,14 @@ const (
 
 	SelectMissesInBlock = `SELECT ticket_hash FROM misses WHERE block_hash = $1;`
 
+	SelectMissesForTicket = `SELECT height, block_hash FROM misses WHERE ticket_hash = $1;`
+
+	SelectMissesMainchainForTicket = `SELECT misses.height, misses.block_hash
+		FROM misses
+		JOIN blocks ON misses.block_hash=blocks.hash
+		WHERE ticket_hash = $1
+			AND blocks.is_mainchain = TRUE;`
+
 	// agendas table
 
 	CreateAgendasTable = `CREATE TABLE IF NOT EXISTS agendas (

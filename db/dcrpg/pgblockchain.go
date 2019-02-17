@@ -875,6 +875,27 @@ func (pgb *ChainDB) BlockMissedVotes(blockHash string) ([]string, error) {
 	return mv, pgb.replaceCancelError(err)
 }
 
+// TicketMisses retrieves all blocks in which the specified ticket was called to
+// vote but failed to do so (miss). There may be multiple since this consideres
+// side chain blocks. See TicketMiss for a mainchain-only version. If the ticket
+// never missed a vote, the returned error will be sql.ErrNoRows.
+func (pgb *ChainDB) TicketMisses(ticketHash string) ([]string, []int64, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	blockHashes, blockHeights, err := RetrieveMissesForTicket(ctx, pgb.db, ticketHash)
+	return blockHashes, blockHeights, pgb.replaceCancelError(err)
+}
+
+// TicketMiss retrieves the mainchain block in which the specified ticket was
+// called to vote but failed to do so (miss). If the ticket never missed a vote,
+// the returned error will be sql.ErrNoRows.
+func (pgb *ChainDB) TicketMiss(ticketHash string) (string, int64, error) {
+	ctx, cancel := context.WithTimeout(pgb.ctx, pgb.queryTimeout)
+	defer cancel()
+	blockHash, blockHeight, err := RetrieveMissForTicket(ctx, pgb.db, ticketHash)
+	return blockHash, blockHeight, pgb.replaceCancelError(err)
+}
+
 // PoolStatusForTicket retrieves the specified ticket's spend status and ticket
 // pool status, and an error value.
 func (pgb *ChainDB) PoolStatusForTicket(txid string) (dbtypes.TicketSpendType, dbtypes.TicketPoolStatus, error) {

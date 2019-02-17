@@ -610,6 +610,41 @@ func RetrieveMissedVotesInBlock(ctx context.Context, db *sql.DB, blockHash strin
 	return
 }
 
+// RetrieveMissesForTicket gets all of the blocks in which the ticket was called
+// to place a vote on the previous block. The previous block that would have
+// been validated by the vote is not the block data that is returned.
+func RetrieveMissesForTicket(ctx context.Context, db *sql.DB, ticketHash string) (blockHashes []string, blockHeights []int64, err error) {
+	var rows *sql.Rows
+	rows, err = db.QueryContext(ctx, internal.SelectMissesForTicket, ticketHash)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var hash string
+		var height int64
+		err = rows.Scan(&height, &hash)
+		if err != nil {
+			break
+		}
+
+		blockHashes = append(blockHashes, hash)
+		blockHeights = append(blockHeights, height)
+	}
+	return
+}
+
+// RetrieveMissForTicket gets the mainchain block in which the ticket was called
+// to place a vote on the previous block. The previous block that would have
+// been validated by the vote is not the block data that is returned.
+func RetrieveMissForTicket(ctx context.Context, db *sql.DB, ticketHash string) (blockHash string, blockHeight int64, err error) {
+	err = db.QueryRowContext(ctx, internal.SelectMissesMainchainForTicket,
+		ticketHash).Scan(&blockHeight, &blockHash)
+	return
+}
+
 // retrieveAllAgendas returns all the current agendas in the db.
 func retrieveAllAgendas(db *sql.DB) (map[string]dbtypes.MileStone, error) {
 	rows, err := db.Query(internal.SelectAllAgendas)

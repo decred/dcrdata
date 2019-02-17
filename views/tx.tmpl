@@ -86,7 +86,11 @@
                               {{if eq .Confirmations .TicketInfo.TicketMaturity}}
                                 live /
                               {{else}}
-                                {{.TicketInfo.PoolStatus}}  /
+                                {{if .TicketInfo.LotteryBlock}}
+                                  <a href="/block/{{.TicketInfo.LotteryBlock}}">{{.TicketInfo.PoolStatus}}</a> /
+                                {{else}}
+                                  {{.TicketInfo.PoolStatus}}  /
+                                {{end}}
                               {{end}}
                             {{end}}
                             {{if (index .SpendingTxns 0).Hash}}

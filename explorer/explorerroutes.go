@@ -1039,6 +1039,20 @@ func (exp *explorerUI) TxPage(w http.ResponseWriter, r *http.Request) {
 				}
 				tx.TicketInfo.SpendStatus = spendStatus.String()
 
+				// For missed tickets, get the block in which it should have voted.
+				if poolStatus == dbtypes.PoolStatusMissed {
+					tx.TicketInfo.LotteryBlock, _, err = exp.explorerSource.TicketMiss(hash)
+					if err != nil && err != sql.ErrNoRows {
+						log.Errorf("Unable to retrieve miss information for ticket %s: %v",
+							hash, err)
+						exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, "", ExpStatusError)
+						return
+					} else if err == sql.ErrNoRows {
+						log.Warnf("No mainchain miss data for ticket %s: %v",
+							hash, err)
+					}
+				}
+
 				// Ticket luck and probability of voting.
 				// blockLive < 0 for immature tickets
 				blocksLive := tx.Confirmations - int64(exp.ChainParams.TicketMaturity)
