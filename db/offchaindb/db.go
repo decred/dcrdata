@@ -40,9 +40,9 @@ type ProposalInfo struct {
 	Version         string             `json:"version"`
 	Censorship      CensorshipRecord   `json:"censorshiprecord"`
 	Files           []AttachmentFile   `json:"files"`
-	Numcomments     int32              `json:"numcomments"`
+	NumComments     int32              `json:"numcomments"`
 	StatusChangeMsg string             `json:"statuschangemessage"`
-	PubishedDate    uint64             `json:"publishedat" storm:"index"`
+	PublishedDate   uint64             `json:"publishedat" storm:"index"`
 	CensoredDate    uint64             `json:"censoredat"`
 	AbandonedDate   uint64             `json:"abandonedat"`
 	VotesStatus     *ProposalVotes     `json:"votes"`
@@ -90,12 +90,15 @@ type Votes struct {
 
 // Results defines the actual vote count info per the votes choices available.
 type Results struct {
-	Option struct {
-		OptionID    string `json:"id"`
-		Description string `json:"description"`
-		Bits        int32  `json:"bits"`
-	} `json:"option"`
-	VotesReceived int64 `json:"votesreceived"`
+	Option        VoteResults `json:"option"`
+	VotesReceived int64       `json:"votesreceived"`
+}
+
+// VoteResults defines the actual high level vote results for the specific agenda.
+type VoteResults struct {
+	OptionID    string `json:"id"`
+	Description string `json:"description"`
+	Bits        int32  `json:"bits"`
 }
 
 // VoteStatusType defines the various vote statuses available.
@@ -308,6 +311,10 @@ func NewProposalsDB(politeiaURL, dbPath string) (*ProposalDB, error) {
 		return nil, fmt.Errorf("missing politeia API URL")
 	}
 
+	if dbPath == "" {
+		return nil, fmt.Errorf("missing db path")
+	}
+
 	db, err := storm.Open(dbPath)
 	if err != nil {
 		return nil, err
@@ -352,8 +359,8 @@ func (db *ProposalDB) Close() error {
 
 // handleGetRequests constructs the full URL path, querys the API endpoints and
 // returns the queried data in form of byte array and an error if it exists.
-func (db *ProposalDB) handleGetRequests(root, path, params string) ([]byte, error) {
-	response, err := db.client.Get(root + path + params)
+func (db *ProposalDB) handleGetRequests(path, params string) ([]byte, error) {
+	response, err := db.client.Get(db._APIURLpath + path + params)
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +372,7 @@ func (db *ProposalDB) handleGetRequests(root, path, params string) ([]byte, erro
 
 // saveProposals adds the proposals data to the db.
 func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
-	data, err := db.handleGetRequests(db._APIURLpath, vettedProposalsRoute, URLParams)
+	data, err := db.handleGetRequests(vettedProposalsRoute, URLParams)
 	if err != nil {
 		return 0, err
 	}
@@ -376,7 +383,7 @@ func (db *ProposalDB) saveProposals(URLParams string) (int, error) {
 		return 0, err
 	}
 
-	data, err = db.handleGetRequests(db._APIURLpath, voteStatusesRoute, URLParams)
+	data, err = db.handleGetRequests(voteStatusesRoute, URLParams)
 	if err != nil {
 		return 0, err
 	}
@@ -456,8 +463,8 @@ func (db *ProposalDB) CheckOffChainUpdates() error {
 	}
 
 	var queryParam string
-	if len(lastProposal) > 0 {
-		queryParam = fmt.Sprintf("?after=%v", lastProposal[0].Censorship.Token)
+	if len(lastProposal) > 0 && lastProposal[0].Censorship.Token != "" {
+		queryParam = fmt.Sprintf("?after=%s", lastProposal[0].Censorship.Token)
 	}
 
 	numRecords, err := db.saveProposals(queryParam)

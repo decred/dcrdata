@@ -24,6 +24,7 @@ set -ex
 REPO=dcrdata
 
 testrepo () {
+  TMPDIR=$(mktemp -d)
   TMPFILE=$(mktemp)
   export GO111MODULE=on
 
@@ -36,8 +37,8 @@ testrepo () {
   (cd cmd/scanblocks && go build)
 
   # Check tests
-  git clone https://github.com/dcrlabs/bug-free-happiness test-data-repo
-  tar xvf test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz -C ./stakedb
+  git clone https://github.com/dcrlabs/bug-free-happiness $TMPDIR/test-data-repo
+  tar xvf $TMPDIR/test-data-repo/stakedb/test_ticket_pool.bdgr.tar.xz -C ./stakedb
 
   env GORACE='halt_on_error=1' go test -v -race ./...
 
@@ -53,6 +54,9 @@ testrepo () {
 
   echo "------------------------------------------"
   echo "Tests completed successfully!"
+
+  # Remove test-data-repo data
+  rm -rf $TMPDIR/test-data-repo* $TMPFILE
 }
 
 DOCKER=

@@ -67,7 +67,7 @@ func TestStatusPageResponseCodes(t *testing.T) {
 
 	var wiredDBStub WiredDBStub
 	var chainDBStub ChainDBStub
-	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, viewsPath, nil)
+	exp := New(&wiredDBStub, &chainDBStub, false, "test", false, viewsPath, nil, nil, nil)
 
 	// handler := http.HandlerFunc()
 	// handler.ServeHTTP(rr, req)
