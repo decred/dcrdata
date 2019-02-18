@@ -433,7 +433,7 @@ func (pgb *ChainDB) initiatePgUpgrade(client *rpcclient.Client, theseUpgrades []
 func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 	tableUpgrade tableUpgradeType) (bool, error) {
 	var err error
-	var startHeight uint64
+	var startHeight int64
 	var tableReady bool
 	var tableName, upgradeTypeStr string
 	switch tableUpgrade {
@@ -519,7 +519,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 	case agendasTablePruningUpdate:
 		// StakeValidationHeight defines the height from where votes transactions
 		// exists as from. They only exist after block 4090 on mainnet.
-		startHeight = uint64(pgb.chainParams.StakeValidationHeight)
+		startHeight = pgb.chainParams.StakeValidationHeight
 		tableReady, err = pruneAgendasTable(pgb.db)
 		tableName, upgradeTypeStr = "agendas", "prune agendas table"
 	case agendaVotesTableCreationUpdate:
@@ -553,7 +553,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 
 		// For each block on the main chain, perform upgrade operations.
 		for i := startHeight; i <= height; i++ {
-			block, _, err := rpcutils.GetBlock(int64(i), client)
+			block, _, err := rpcutils.GetBlock(i, client)
 			if err != nil {
 				return false, err
 			}
@@ -625,7 +625,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 	case votesTableBlockHashIndex, ticketsTableBlockTimeUpgrade, addressesTableBlockTimeSortedIndex:
 		// no upgrade, just "reindex"
 	case vinsTxHistogramUpgrade, addressesTxHistogramUpgrade:
-		var height uint64
+		var height int64
 		// height is the best block where this table upgrade should stop at.
 		height, err = pgb.HeightDB()
 		if err != nil {
@@ -633,7 +633,7 @@ func (pgb *ChainDB) handleUpgrades(client *rpcclient.Client,
 		}
 
 		log.Infof("found the best block at height: %v", height)
-		rowsUpdated, err = pgb.handleTxTypeHistogramUpgrade(height, tableUpgrade)
+		rowsUpdated, err = pgb.handleTxTypeHistogramUpgrade(uint64(height), tableUpgrade)
 
 	case agendasVotingMilestonesUpgrade:
 		log.Infof("Setting the agendas voting milestones...")
@@ -846,7 +846,7 @@ func (pgb *ChainDB) upgradeVinsMainchainForMany(vinDbIDsBlk []dbtypes.UInt64Arra
 		// each vin
 		numUpd, err := pgb.upgradeVinsMainchainOneTxn(vs, areValid[it], areMainchain[it])
 		if err != nil {
-			continue
+			return rowsUpdated, err
 		}
 		rowsUpdated += numUpd
 	}
@@ -862,8 +862,7 @@ func (pgb *ChainDB) upgradeVinsMainchainOneTxn(vinDbIDs dbtypes.UInt64Array,
 		result, err := pgb.db.Exec(internal.SetIsValidIsMainchainByVinID,
 			vinDbID, isValid, isMainchain)
 		if err != nil {
-			log.Warnf("db ID not found: %d", vinDbID)
-			continue
+			return rowsUpdated, fmt.Errorf("db ID %d not found: %v", vinDbID, err)
 		}
 
 		c, err := result.RowsAffected()

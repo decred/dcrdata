@@ -63,7 +63,7 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 					return
 				}
 			} else {
-				bestBlockHeight, err := exp.explorerSource.HeightDB()
+				maxHeight, err = exp.explorerSource.HeightDB()
 				if err != nil {
 					log.Errorf("HeightDB() failed: %v", err)
 					exp.StatusPage(w, defaultErrorCode,
@@ -71,7 +71,6 @@ func (exp *explorerUI) BlockHashPathOrIndexCtx(next http.Handler) http.Handler {
 						"", ExpStatusError)
 					return
 				}
-				maxHeight = int64(bestBlockHeight)
 			}
 
 			if height > maxHeight {

@@ -77,9 +77,9 @@ const (
 
 	// IndexTicketsTableOnHashes creates the unique index
 	// uix_ticket_hashes_index on (tx_hash, block_hash).
-	IndexTicketsTableOnHashes = `CREATE UNIQUE INDEX uix_ticket_hashes_index
-		ON tickets(tx_hash, block_hash);`
-	DeindexTicketsTableOnHashes = `DROP INDEX uix_ticket_hashes_index;`
+	IndexTicketsTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfTicketsTableOnHashes +
+		` ON tickets(tx_hash, block_hash);`
+	DeindexTicketsTableOnHashes = `DROP INDEX ` + IndexOfTicketsTableOnHashes + `;`
 
 	// IndexTicketsTableOnTxDbID creates the unique index that ensures only one
 	// row in the tickets table may refer to a certain row of the transactions
@@ -88,13 +88,13 @@ const (
 	// block_hash) that allows a transaction appearing in multiple blocks (e.g.
 	// side chains and/or invalidated blocks) to have multiple rows in the
 	// transactions table.
-	IndexTicketsTableOnTxDbID = `CREATE UNIQUE INDEX uix_ticket_ticket_db_id
-		ON tickets(purchase_tx_db_id);`
-	DeindexTicketsTableOnTxDbID = `DROP INDEX uix_ticket_ticket_db_id;`
+	IndexTicketsTableOnTxDbID = `CREATE UNIQUE INDEX ` + IndexOfTicketsTableOnTxRowID +
+		` ON tickets(purchase_tx_db_id);`
+	DeindexTicketsTableOnTxDbID = `DROP INDEX ` + IndexOfTicketsTableOnTxRowID + `;`
 
-	IndexTicketsTableOnPoolStatus = `CREATE INDEX uix_tickets_pool_status ON 
-		tickets(pool_status);`
-	DeindexTicketsTableOnPoolStatus = `DROP INDEX uix_tickets_pool_status;`
+	IndexTicketsTableOnPoolStatus = `CREATE INDEX ` + IndexOfTicketsTableOnPoolStatus +
+		` ON tickets(pool_status);`
+	DeindexTicketsTableOnPoolStatus = `DROP INDEX ` + IndexOfTicketsTableOnPoolStatus + `;`
 
 	SelectTicketsInBlock        = `SELECT * FROM tickets WHERE block_hash = $1;`
 	SelectTicketsTxDbIDsInBlock = `SELECT purchase_tx_db_id FROM tickets WHERE block_hash = $1;`
@@ -232,29 +232,29 @@ const (
 
 	// IndexVotesTableOnHashes creates the unique index uix_votes_hashes_index
 	// on (tx_hash, block_hash).
-	IndexVotesTableOnHashes = `CREATE UNIQUE INDEX uix_votes_hashes_index
-		ON votes(tx_hash, block_hash);`
-	DeindexVotesTableOnHashes = `DROP INDEX uix_votes_hashes_index;`
+	IndexVotesTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfVotesTableOnHashes +
+		` ON votes(tx_hash, block_hash);`
+	DeindexVotesTableOnHashes = `DROP INDEX ` + IndexOfVotesTableOnHashes + `;`
 
-	IndexVotesTableOnBlockHash = `CREATE INDEX uix_votes_block_hash
-		ON votes(block_hash);`
-	DeindexVotesTableOnBlockHash = `DROP INDEX uix_votes_block_hash;`
+	IndexVotesTableOnBlockHash = `CREATE INDEX ` + IndexOfVotesTableOnBlockHash +
+		` ON votes(block_hash);`
+	DeindexVotesTableOnBlockHash = `DROP INDEX ` + IndexOfVotesTableOnBlockHash + `;`
 
-	IndexVotesTableOnCandidate = `CREATE INDEX uix_votes_candidate_block
-		ON votes(candidate_block_hash);`
-	DeindexVotesTableOnCandidate = `DROP INDEX uix_votes_candidate_block;`
+	IndexVotesTableOnCandidate = `CREATE INDEX ` + IndexOfVotesTableOnCandBlock +
+		` ON votes(candidate_block_hash);`
+	DeindexVotesTableOnCandidate = `DROP INDEX ` + IndexOfVotesTableOnCandBlock + `;`
 
-	IndexVotesTableOnVoteVersion = `CREATE INDEX uix_votes_vote_version
-		ON votes(version);`
-	DeindexVotesTableOnVoteVersion = `DROP INDEX uix_votes_vote_version;`
+	IndexVotesTableOnVoteVersion = `CREATE INDEX ` + IndexOfVotesTableOnVersion +
+		` ON votes(version);`
+	DeindexVotesTableOnVoteVersion = `DROP INDEX ` + IndexOfVotesTableOnVersion + `;`
 
-	IndexVotesTableOnHeight = `CREATE INDEX uix_votes_height ON votes(height);`
+	IndexVotesTableOnHeight = `CREATE INDEX ` + IndexOfVotesTableOnHeight + ` ON votes(height);`
 
-	DeindexVotesTableOnHeight = `DROP INDEX uix_votes_height;`
+	DeindexVotesTableOnHeight = `DROP INDEX ` + IndexOfVotesTableOnHeight + `;`
 
-	IndexVotesTableOnBlockTime = `CREATE INDEX uix_votes_block_time
-		ON votes(block_time);`
-	DeindexVotesTableOnBlockTime = `DROP INDEX uix_votes_block_time;`
+	IndexVotesTableOnBlockTime = `CREATE INDEX ` + IndexOfVotesTableOnBlockTime +
+		` ON votes(block_time);`
+	DeindexVotesTableOnBlockTime = `DROP INDEX ` + IndexOfVotesTableOnBlockTime + `;`
 
 	SelectAllVoteDbIDsHeightsTicketHashes = `SELECT id, height, ticket_hash FROM votes;`
 	SelectAllVoteDbIDsHeightsTicketDbIDs  = `SELECT id, height, ticket_tx_db_id FROM votes;`
@@ -328,9 +328,9 @@ const (
 
 	// IndexMissesTableOnHashes creates the unique index uix_misses_hashes_index
 	// on (ticket_hash, block_hash).
-	IndexMissesTableOnHashes = `CREATE UNIQUE INDEX uix_misses_hashes_index
-		ON misses(ticket_hash, block_hash);`
-	DeindexMissesTableOnHashes = `DROP INDEX uix_misses_hashes_index;`
+	IndexMissesTableOnHashes = `CREATE UNIQUE INDEX ` + IndexOfMissesTableOnHashes +
+		` ON misses(ticket_hash, block_hash);`
+	DeindexMissesTableOnHashes = `DROP INDEX ` + IndexOfMissesTableOnHashes + `;`
 
 	SelectMissesInBlock = `SELECT ticket_hash FROM misses WHERE block_hash = $1;`
 
@@ -362,9 +362,9 @@ const (
 	UpsertAgendaRow = insertAgendaRow + `ON CONFLICT (name) DO UPDATE
 		SET status = $2, locked_in = $3, activated = $4, hard_forked = $5 RETURNING id;`
 
-	IndexAgendasTableOnAgendaID = `CREATE UNIQUE INDEX uix_agendas_name
-		ON agendas(name);`
-	DeindexAgendasTableOnAgendaID = `DROP INDEX uix_agendas_name;`
+	IndexAgendasTableOnAgendaID = `CREATE UNIQUE INDEX ` + IndexOfAgendasTableOnName +
+		` ON agendas(name);`
+	DeindexAgendasTableOnAgendaID = `DROP INDEX ` + IndexOfAgendasTableOnName + `;`
 
 	SelectAllAgendas = `SELECT id, name, status, locked_in, activated, hard_forked
 		FROM agendas;`
@@ -396,9 +396,9 @@ const (
 	UpsertAgendaVotesRow = insertAgendaVotesRow + `ON CONFLICT (agendas_row_id,
 		votes_row_id) DO UPDATE SET agenda_vote_choice = $3 RETURNING id;`
 
-	IndexAgendaVotesTableOnAgendaID = `CREATE UNIQUE INDEX uix_agenda_votes
-		ON agenda_votes(votes_row_id, agendas_row_id);`
-	DeindexAgendaVotesTableOnAgendaID = `DROP INDEX uix_agenda_votes;`
+	IndexAgendaVotesTableOnAgendaID = `CREATE UNIQUE INDEX ` + IndexOfAgendaVotesTableOnRowIDs +
+		` ON agenda_votes(votes_row_id, agendas_row_id);`
+	DeindexAgendaVotesTableOnAgendaID = `DROP INDEX ` + IndexOfAgendaVotesTableOnRowIDs + `;`
 
 	// Select
 

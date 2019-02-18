@@ -164,8 +164,7 @@ func mainCore() error {
 	signal.Notify(c, os.Interrupt)
 
 	// Check current height of DB
-	bestHeight, err := db.HeightDB()
-	lastBlock := int64(bestHeight)
+	lastBlock, err := db.HeightDB()
 	if err != nil {
 		if err == sql.ErrNoRows {
 			lastBlock = -1

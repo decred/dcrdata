@@ -103,10 +103,10 @@ type DataSourceAux interface {
 	TxHistoryData(address string, addrChart dbtypes.HistoryChart,
 		chartGroupings dbtypes.TimeBasedGrouping) (*dbtypes.ChartsData, error)
 	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (
-		*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
+		*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 	AddressTxIoCsv(address string) ([][]string, error)
-	Height() uint64
+	Height() int64
 	AllAgendas() (map[string]dbtypes.MileStone, error)
 }
 
@@ -923,7 +923,7 @@ func (c *appContext) getTicketPoolCharts(w http.ResponseWriter, r *http.Request)
 	mp := c.BlockData.GetMempoolPriceCountTime()
 
 	response := &apitypes.TicketPoolChartsData{
-		ChartHeight: height,
+		ChartHeight: uint64(height),
 		TimeChart:   timeChart,
 		PriceChart:  priceChart,
 		DonutChart:  donutChart,
@@ -964,7 +964,7 @@ func (c *appContext) getTicketPoolByDate(w http.ResponseWriter, r *http.Request)
 	}
 
 	tpResponse := struct {
-		Height    uint64                   `json:"height"`
+		Height    int64                    `json:"height"`
 		TimeChart *dbtypes.PoolTicketsData `json:"time_chart"`
 	}{
 		height,

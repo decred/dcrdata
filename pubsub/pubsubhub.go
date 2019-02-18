@@ -48,7 +48,7 @@ type wsDataSource interface {
 
 // wsDataSourceAux defines the interface for collecting auxiliary/optional data.
 type wsDataSourceAux interface {
-	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, uint64, error)
+	TicketPoolVisualization(interval dbtypes.TimeBasedGrouping) (*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, int64, error)
 }
 
 // State represents the current state of block chain.

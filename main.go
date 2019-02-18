@@ -201,16 +201,25 @@ func _main(ctx context.Context) error {
 			return err
 		}
 
-		var idxExists bool
-		idxExists, err = auxDB.ExistsIndexVinOnVins()
-		if !idxExists || err != nil {
-			newPGIndexes = true
-			log.Infof("Indexes not found. Forcing new index creation.")
+		// Check for missing indexes.
+		missingIndexes, descs, err := auxDB.MissingIndexes()
+		if err != nil {
+			return err
 		}
 
-		idxExists, err = auxDB.ExistsIndexAddressesVoutIDAddress()
-		if !idxExists || err != nil {
+		// If any indexes are missing, forcibly drop any existing indexes, and
+		// create them all after block sync.
+		if len(missingIndexes) > 0 {
+			newPGIndexes = true
 			updateAllAddresses = true
+			// Warn if this is not a fresh sync.
+			if auxDB.Height() > 0 {
+				log.Warnf("Some table indexes not found!")
+				for im, mi := range missingIndexes {
+					log.Warnf(` - Missing Index "%s": "%s"`, mi, descs[im])
+				}
+				log.Warnf("Forcing new index creation and addresses table spending info update.")
+			}
 		}
 	}
 
@@ -237,13 +246,13 @@ func _main(ctx context.Context) error {
 		dbHeight = baseDBHeight
 
 		if usePG {
-			auxDBHeight, err = auxDB.GetHeight()
+			auxDBHeight, err = auxDB.HeightDB()
 			if err != nil {
 				if err != sql.ErrNoRows {
 					log.Errorf("auxDB.GetHeight failed: %v", err)
 					return
 				}
-				// err == sql.ErrNoRows is not an error
+				// err == sql.ErrNoRows is not an error, and auxDBHeight == -1
 				err = nil
 				log.Infof("auxDB block summary table is empty.")
 			}
@@ -356,17 +365,9 @@ func _main(ctx context.Context) error {
 	var fetchToHeight = int64(math.MaxInt32)
 	if usePG {
 		// Get the last block added to the aux DB.
-		var heightDB uint64
-		heightDB, err = auxDB.HeightDB()
-		lastBlockPG := int64(heightDB)
-		// If the tables are empty, heightDB will still be zero, so we check for
-		// sql.ErrNoRows to recognize this case and set lastBlockPG to -1.
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
-			}
-			// lastBlockPG of 0 implies genesis is already processed.
-			lastBlockPG = -1
+		lastBlockPG, err := auxDB.HeightDB()
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("Unable to get height from PostgreSQL DB: %v", err)
 		}
 
 		// Allow WiredDB/stakedb to catch up to the auxDB, but after
@@ -374,25 +375,31 @@ func _main(ctx context.Context) error {
 		// stakedb must send connect signals to auxDB.
 		fetchToHeight = lastBlockPG + 1
 
+		// For consistency with StakeDatabase, a non-negative height is needed.
+		heightDB := lastBlockPG
+		if heightDB < 0 {
+			heightDB = 0
+		}
+
 		// Aux DB height and stakedb height must be equal. StakeDatabase will
 		// catch up automatically if it is behind, but we must rewind it here if
 		// it is ahead of auxDB. For auxDB to receive notification from
 		// StakeDatabase when the required blocks are connected, the
 		// StakeDatabase must be at the same height or lower than auxDB.
 		stakedbHeight := int64(baseDB.GetStakeDB().Height())
-		if stakedbHeight > int64(heightDB) {
+		if stakedbHeight > heightDB {
 			// Have baseDB rewind it's the StakeDatabase. stakedbHeight is
 			// always rewound to a height of zero even when lastBlockPG is -1,
 			// hence we rewind to heightDB.
 			log.Infof("Rewinding StakeDatabase from block %d to %d.",
 				stakedbHeight, heightDB)
-			stakedbHeight, err = baseDB.RewindStakeDB(ctx, int64(heightDB))
+			stakedbHeight, err = baseDB.RewindStakeDB(ctx, heightDB)
 			if err != nil {
 				return fmt.Errorf("RewindStakeDB failed: %v", err)
 			}
 
 			// Verify that the StakeDatabase is at the intended height.
-			if stakedbHeight != int64(heightDB) {
+			if stakedbHeight != heightDB {
 				return fmt.Errorf("failed to rewind stakedb: got %d, expecting %d",
 					stakedbHeight, heightDB)
 			}
@@ -456,7 +463,7 @@ func _main(ctx context.Context) error {
 
 		// Charge stakedb pool info cache, including previous PG blocks, up to
 		// best in sqlite.
-		if err = baseDB.ChargePoolInfoCache(int64(heightDB) - 2); err != nil {
+		if err = baseDB.ChargePoolInfoCache(heightDB - 2); err != nil {
 			return fmt.Errorf("Failed to charge pool info cache: %v", err)
 		}
 	}

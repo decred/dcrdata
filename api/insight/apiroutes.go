@@ -197,9 +197,9 @@ func (c *insightApiContext) getBlockHash(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	height, err := c.BlockData.ChainDB.GetHeight()
+	height, err := c.BlockData.ChainDB.HeightDB()
 	if dbtypes.IsTimeoutErr(err) {
-		apiLog.Errorf("GetHeight: %v", err)
+		apiLog.Errorf("HeightDB: %v", err)
 		http.Error(w, "Database timeout.", http.StatusServiceUnavailable)
 		return
 	}
@@ -735,12 +735,7 @@ func (c *insightApiContext) getSyncInfo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	height, err := c.BlockData.GetHeight()
-	if err != nil {
-		errorResponse(err)
-		return
-	}
-
+	height := c.BlockData.Height()
 	syncPercentage := int64((float64(height) / float64(blockChainHeight)) * 100)
 
 	st := "syncing"

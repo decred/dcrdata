@@ -161,11 +161,9 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 	speedReport := func() { o.Do(speedReporter) }
 	defer speedReport()
 
-	startingHeight, err := db.HeightDB()
-	lastBlock := int64(startingHeight)
+	lastBlock, err := db.HeightDB()
 	if err != nil {
 		if err == sql.ErrNoRows {
-			lastBlock = -1
 			log.Info("blocks table is empty, starting fresh.")
 		} else {
 			return -1, fmt.Errorf("RetrieveBestBlockHeight: %v", err)
@@ -174,7 +172,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 
 	// Remove indexes/constraints before bulk import
 	blocksToSync := nodeHeight - lastBlock
-	reindexing := newIndexes || blocksToSync > nodeHeight/2
+	reindexing := newIndexes || lastBlock == -1 || blocksToSync > nodeHeight/2
 	if reindexing {
 		log.Info("Large bulk load: Removing indexes and disabling duplicate checks.")
 		err = db.DeindexAll()
@@ -369,7 +367,7 @@ func (db *ChainDB) SyncChainDB(ctx context.Context, client rpcutils.MasterBlockG
 
 	speedReport()
 
-	if reindexing || newIndexes {
+	if reindexing {
 		// Duplicate transactions, vins, and vouts can end up in the tables when
 		// identical transactions are included in multiple blocks. This happens
 		// when a block is invalidated and the transactions are subsequently

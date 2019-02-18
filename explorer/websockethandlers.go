@@ -138,7 +138,8 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					// Chart height is returned since the cache may be stale,
 					// although it is automatically updated by the first caller
 					// who requests data from a stale cache.
-					timeChart, priceChart, donutChart, chartHeight, err := exp.explorerSource.TicketPoolVisualization(interval)
+					timeChart, priceChart, donutChart, chartHeight, err :=
+						exp.explorerSource.TicketPoolVisualization(interval)
 					if dbtypes.IsTimeoutErr(err) {
 						log.Warnf("TicketPoolVisualization DB timeout: %v", err)
 						webData.Message = "Error: DB timeout"
@@ -170,7 +171,7 @@ func (exp *explorerUI) RootWebsocket(w http.ResponseWriter, r *http.Request) {
 					inv.RUnlock()
 
 					data := &apitypes.TicketPoolChartsData{
-						ChartHeight: chartHeight,
+						ChartHeight: uint64(chartHeight),
 						TimeChart:   timeChart,
 						PriceChart:  priceChart,
 						DonutChart:  donutChart,
