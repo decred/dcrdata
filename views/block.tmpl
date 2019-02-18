@@ -47,8 +47,9 @@
                   </div>
                 </div>
               </div>
-              <div class="text-left lh1rem">
-                <div class="d-inline-block px-2 py-1 my-2 offwhite-highlight fs15 font-weight-bold break-word">{{.Hash}}</div>
+              <div class="text-left lh1rem py-1">
+                <div class="fs13 text-secondary pb-1">Block Hash</div>
+                <div class="d-inline-block fs14 break-word rounded font-weight-bold">{{.Hash}}</div>
               </div>
               <div class="row py-2">
                 <div class="col-10 col-sm-8 text-left">
@@ -78,27 +79,29 @@
                     <span class="fs14 text-secondary">{{.BlockTime.HMSTZ}}</span>
                 </div>
               </div>
-              <div class="row fs15 text-center text-secondary my-2">
-                <div class="col-6"><span class="d-sm-none d-inline-block position-relative" data-tooltip="Regular">R</span><span class="d-none d-sm-inline">Regular</span>:&nbsp;
+              <div class="d-flex justify-content-around fs15 text-center text-secondary my-2">
+                <div class="d-inline-block">Regular:&nbsp;
                   {{.Transactions}}
                 </div>
-                <div class="col-6"><span class="d-sm-none d-inline-block position-relative" data-tooltip="Votes">V</span><span class="d-none d-sm-inline">Votes</span>:&nbsp;
+                <div class="d-inline-block">Votes:&nbsp;
                   {{.Voters}}
                 </div>
-                <div class="col-6"><span class="d-sm-none d-inline-block position-relative" data-tooltip="New Tickets">T</span><span class="d-none d-sm-inline">Tickets</span>:&nbsp;
+                <div class="d-inline-block">Tickets:&nbsp;
                   {{.FreshStake}}
                 </div>
-                <div class="col-6"><span class="d-sm-none d-inline-block position-relative" data-tooltip="Revocations">X</span><span class="d-none d-sm-inline">Revocations</span>:&nbsp;
+                <div class="d-inline-block"><span class="d-sm-none d-inline-block position-relative" data-tooltip="Revocations">Revs</span><span class="d-none d-sm-inline">Revocations</span>:&nbsp;
                   {{.Revocations}}
                 </div>
               </div>
             </div>
-            <div class="col-24 col-xl-12 secondary-card py-3 pl-3 pr-2 pr-sm-4">
+            <div class="col-24 col-xl-12 secondary-card py-3 px-3 px-xl-4">
               <div class="h6 d-inline-block my-2 pl-3">Block Details</div>
-              <table class="w-100 fs14">
+              <table class="w-100 fs14 mt-2">
                 <tbody>
                   <tr>
-                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Ticket Price: </td>
+                    <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
+                      ><span class="d-none d-sm-inline">Ticket Price</span
+                      ><span class="d-sm-none">Tkt Price</span>:
                     <td class="text-left py-1 text-secondary">{{template "decimalParts" (float64AsDecimalParts .SBits 8 false)}}</td>
                     <td class="text-right font-weight-bold text-nowrap pr-2 py-1">Fees: </td>
                     <td class="text-left py-1 text-secondary">{{.MiningFee}}</td>
@@ -113,7 +116,7 @@
                     <td class="text-left py-1 text-secondary">{{template "decimalParts" (float64AsDecimalParts .Difficulty 0 true)}}</td>
                     <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
                       ><span class="d-none d-sm-inline">Block Version</span
-                      ><span class="d-sm-none">Blk Version</span>:
+                      ><span class="d-sm-none">Blk Ver</span>:
                     </td>
                     <td class="text-left py-1 text-secondary">{{.Version}}</td>
                     <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Nonce: </td>
@@ -124,7 +127,7 @@
                     <td class="text-left py-1 text-secondary">{{.FinalState}}</td>
                     <td class="text-right font-weight-bold text-nowrap pr-2 py-1"
                       ><span class="d-none d-sm-inline">Stake Version</span
-                      ><span class="d-sm-none">Stk Version</span>:
+                      ><span class="d-sm-none">Stk Ver</span>:
                     </td>
                     <td class="text-left py-1 text-secondary">{{.StakeVersion}}</td>
                     <td class="d-none d-sm-table-cell text-right font-weight-bold text-nowrap pr-2 py-1">Vote Bits: </td>
