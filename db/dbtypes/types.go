@@ -684,6 +684,20 @@ type Vout struct {
 	ScriptPubKeyData ScriptPubKeyData `json:"pkScript"`
 }
 
+// UTXOData stores an address and value associated with a transaction output.
+type UTXOData struct {
+	Addresses []string
+	Value     int64
+}
+
+// UTXO represents a transaction output, but it is intended to help track
+// unspent outputs.
+type UTXO struct {
+	TxHash  string
+	TxIndex uint32
+	UTXOData
+}
+
 // AddressRow represents a row in the addresses table
 type AddressRow struct {
 	// id int64

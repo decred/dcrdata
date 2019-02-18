@@ -8,16 +8,43 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/chaincfg"
 	"github.com/decred/dcrd/dcrjson/v2"
+	"github.com/decred/dcrd/dcrutil"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/dcrdata/v4/db/dbtypes"
 	"github.com/decred/dcrdata/v4/db/dcrpg/internal"
 )
+
+type MemStats runtime.MemStats
+
+func memStats() MemStats {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return MemStats(m)
+}
+
+func (m MemStats) String() string {
+	bytesToMebiBytes := func(b uint64) uint64 {
+		return b >> 20
+	}
+	out := "Memory statistics:\n"
+	out += fmt.Sprintf("- Alloc: %v MiB\n", bytesToMebiBytes(m.Alloc))
+	out += fmt.Sprintf("- TotalAlloc: %v MiB\n", bytesToMebiBytes(m.TotalAlloc))
+	out += fmt.Sprintf("- System obtained: %v MiB\n", bytesToMebiBytes(m.Sys))
+	out += fmt.Sprintf("- Lookups: %v\n", m.Lookups)
+	out += fmt.Sprintf("- Mallocs: %v\n", m.Mallocs)
+	out += fmt.Sprintf("- Frees: %v\n", m.Frees)
+	out += fmt.Sprintf("- HeapAlloc: %v MiB\n", bytesToMebiBytes(m.HeapAlloc))
+	out += fmt.Sprintf("- HeapObjects: %v\n", m.HeapObjects)
+	out += fmt.Sprintf("- NumGC: %v\n", m.NumGC)
+	return out
+}
 
 var (
 	db       *ChainDB
@@ -67,6 +94,34 @@ func TestMissingIndexes(t *testing.T) {
 		t.Errorf("MissingIndexes returned %d missing indexes but %d descriptions.",
 			len(missing), len(descs))
 	}
+}
+
+func TestRetrieveUTXOs(t *testing.T) {
+	utxos, err := RetrieveUTXOs(context.Background(), db.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// m := memStats()
+	// t.Log(m)
+
+	var totalValue int64
+	for i := range utxos {
+		totalValue += utxos[i].Value
+	}
+
+	t.Logf("Found %d utxos with a total value of %v", len(utxos),
+		dcrutil.Amount(totalValue))
+}
+
+func TestUtxoStore_Reinit(t *testing.T) {
+	utxos, err := RetrieveUTXOs(context.Background(), db.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	uc := newUtxoStore(100)
+	uc.Reinit(utxos)
 }
 
 func TestExistsIndex(t *testing.T) {

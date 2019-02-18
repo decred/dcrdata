@@ -2194,6 +2194,47 @@ func RetrieveVoutsByIDs(ctx context.Context, db *sql.DB, voutDbIDs []uint64) ([]
 	return vouts, nil
 }
 
+func RetrieveUTXOs(ctx context.Context, db *sql.DB) ([]dbtypes.UTXO, error) {
+	height, _, _, err := RetrieveBestBlockHeight(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	initUTXOCap := 250 * height / 100
+	utxos := make([]dbtypes.UTXO, 0, initUTXOCap)
+
+	rows, err := db.QueryContext(ctx, internal.SelectUTXOs)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows(rows)
+
+	replacer := strings.NewReplacer("{", "", "}", "")
+
+	for rows.Next() {
+		var addresses string
+		var utxo dbtypes.UTXO
+		err = rows.Scan(&utxo.TxHash, &utxo.TxIndex, &addresses, &utxo.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		// Remove curly brackets from array notation.
+		addresses = replacer.Replace(addresses)
+		// nil slice is preferred over [""].
+		if len(addresses) > 0 {
+			utxo.Addresses = strings.Split(addresses, ",")
+			if len(utxo.Addresses) > 1 {
+				log.Debugf("multisig: %s:%d", utxo.TxHash, utxo.TxIndex)
+			}
+		}
+
+		utxos = append(utxos, utxo)
+	}
+
+	return utxos, nil
+}
+
 // SetSpendingForVinDbIDs updates rows of the addresses table with spending
 // information from the rows of the vins table specified by vinDbIDs. This does
 // not insert the spending transaction into the addresses table.
@@ -2325,7 +2366,8 @@ func setSpendingForFundingOP(dbtx *sql.Tx, fundingTxHash string, fundingTxVoutIn
 // corresponding funding tx row.
 func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string,
 	fundingTxVoutIndex uint32, fundingTxTree int8, spendingTxHash string,
-	spendingTxVinIndex uint32, vinDbID uint64, utxoData *UTXOData, checked, updateExisting, isValidMainchain bool,
+	spendingTxVinIndex uint32, vinDbID uint64, utxoData *dbtypes.UTXOData,
+	checked, updateExisting, isValidMainchain bool,
 	txType int16, updateFundingRow bool, spendingTXBlockTime dbtypes.TimeDef) (int64, error) {
 	// Only allow atomic transactions to happen
 	dbtx, err := db.Begin()
@@ -2349,12 +2391,16 @@ func InsertSpendingAddressRow(db *sql.DB, fundingTxHash string,
 // table row corresponding to the previous outpoint.
 func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutIndex uint32,
 	fundingTxTree int8, spendingTxHash string, spendingTxVinIndex uint32, vinDbID uint64,
-	utxoData *UTXOData, checked, updateExisting, validMainchain bool, txType int16, updateFundingRow bool, blockT ...dbtypes.TimeDef) (int64, error) {
+	utxoData *dbtypes.UTXOData, checked, updateExisting, validMainchain bool, txType int16,
+	updateFundingRow bool, blockT ...dbtypes.TimeDef) (int64, error) {
 
-	// Select id, address and value from the matching funding tx.
-	// A maximum of one row and a minimum of none are expected.
-	var addr string
+	// Select addresses and value from the matching funding tx output. A maximum
+	// of one row and a minimum of none are expected.
+	var addrs []string
 	var value uint64
+
+	// When no previous output information is provided, query the vouts table
+	// for the addresses and value.
 	if utxoData == nil {
 		// The addresses column of the vouts table contains an array of
 		// addresses that the pkScript pays to (i.e. >1 for multisig).
@@ -2368,12 +2414,12 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 			return 0, fmt.Errorf("SelectAddressByTxHash: %v", err)
 		}
 
-		// Get first address in list.  TODO: actually handle bare multisig.
+		// Get address list.
 		replacer := strings.NewReplacer("{", "", "}", "")
 		addrArray = replacer.Replace(addrArray)
-		addr = strings.Split(addrArray, ",")[0]
+		addrs = strings.Split(addrArray, ",")
 	} else {
-		addr = utxoData.Address
+		addrs = utxoData.Addresses
 		value = uint64(utxoData.Value)
 	}
 
@@ -2389,15 +2435,17 @@ func insertSpendingAddressRow(tx *sql.Tx, fundingTxHash string, fundingTxVoutInd
 		}
 	}
 
-	// Insert the new spending tx input row.
-	var isFunding bool
-	var rowID uint64
+	// Insert the addresses table row(s) for the spending tx.
 	sqlStmt := internal.MakeAddressRowInsertStatement(checked, updateExisting)
-	err := tx.QueryRow(sqlStmt, addr, fundingTxHash, spendingTxHash,
-		spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
-		validMainchain, txType).Scan(&rowID)
-	if err != nil {
-		return 0, fmt.Errorf("InsertAddressRow: %v", err)
+	for i := range addrs {
+		var isFunding bool // spending
+		var rowID uint64
+		err := tx.QueryRow(sqlStmt, addrs[i], fundingTxHash, spendingTxHash,
+			spendingTxVinIndex, vinDbID, value, blockTime, isFunding,
+			validMainchain, txType).Scan(&rowID)
+		if err != nil {
+			return 0, fmt.Errorf("InsertAddressRow: %v", err)
+		}
 	}
 
 	if updateFundingRow {
